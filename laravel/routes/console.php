@@ -15,3 +15,11 @@ Schedule::command('contracts:fetch')
     ->withoutOverlapping()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/contracts-fetch.log'));
+
+// Schedule the spotprices:fetch command to run hourly
+Schedule::command('spotprices:fetch')
+    ->hourly()
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/spotprices-fetch.log'));
