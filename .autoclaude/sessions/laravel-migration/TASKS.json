@@ -66,8 +66,11 @@
       "id": "contract-price-calculator",
       "title": "Port contract price calculator to PHP",
       "description": "Port the calculation logic from legacy/python/fastapi/api/modules/contract_price_calculator.py to a Laravel service class. Handle all metering types: General (single rate), Time (day 07-22, night 22-07), Seasonal (winter Nov-Mar day, other times). Calculate annual costs based on consumption and contract pricing.",
-      "status": "pending",
-      "priority": 7
+      "status": "completed",
+      "priority": 7,
+      "started_at": "2026-01-19T20:00:00Z",
+      "completed_at": "2026-01-19T20:30:00Z",
+      "passes": true
     },
     {
       "id": "energy-calculator",

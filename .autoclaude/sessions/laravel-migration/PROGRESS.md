@@ -171,3 +171,43 @@ All models follow TDD approach with comprehensive unit tests.
 - `laravel/tests/Unit/SpotPriceHourTest.php`
 
 **Commit:** 11ee1d3 - "feat: Add remaining Eloquent models (ElectricitySource, ActiveContract, SpotFutures, SpotPriceHour)"
+
+### Task: contract-price-calculator (COMPLETED)
+
+**What was done:**
+- Created `ContractPriceCalculator` service class ported from Python `contract_price_calculator.py`
+- Implemented all three metering types:
+  - **General** - Single rate for all hours
+  - **Time** - Day (07-22) and night (22-07) rates with configurable night share
+  - **Seasonal** - Winter day (Nov-Mar, 07-22) and other times rates
+- Implemented spot price contract handling with margin detection
+- Handles abnormally low prices (< 0.8 c/kWh) as spot contract margins
+- Calculates costs for all usage components with appropriate night-time shares:
+  - Basic living (15% night)
+  - Bathroom underfloor heating (15% night)
+  - Water heating (90% night)
+  - Sauna (0% night - daytime only)
+  - Electric vehicle (90% night)
+  - Room heating (33% night)
+  - Cooling (only June-August, daytime only)
+- Supports monthly heating breakdown for accurate seasonal calculations
+- Returns comprehensive pricing result with all rate information
+
+**Supporting code:**
+- `MeteringType` enum - General, Time, Season metering types
+- `EnergyUsage` DTO - Energy consumption data structure
+- `ContractPricingResult` DTO - Calculation results with monthly breakdown
+
+**Tests:**
+- 20 comprehensive tests covering all metering types and edge cases
+- `php artisan test --filter=ContractPriceCalculatorTest` - 20 tests, 58 assertions
+- `php artisan test` - All 91 tests pass (256 assertions)
+
+**Files created:**
+- `laravel/app/Services/ContractPriceCalculator.php` - Main calculation service
+- `laravel/app/Enums/MeteringType.php` - Metering type enum
+- `laravel/app/Services/DTO/EnergyUsage.php` - Energy usage data class
+- `laravel/app/Services/DTO/ContractPricingResult.php` - Pricing result data class
+- `laravel/tests/Unit/ContractPriceCalculatorTest.php` - Comprehensive unit tests
+
+**Commit:** dc244d4 - "feat: Port contract price calculator to PHP"
