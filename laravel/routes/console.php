@@ -23,3 +23,11 @@ Schedule::command('spotprices:fetch')
     ->withoutOverlapping()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/spotprices-fetch.log'));
+
+// Schedule the descriptions:generate command to run daily at 08:00
+Schedule::command('descriptions:generate')
+    ->dailyAt('08:00')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/descriptions-generate.log'));
