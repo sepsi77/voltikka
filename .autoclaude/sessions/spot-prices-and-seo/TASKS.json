@@ -1,0 +1,99 @@
+{
+  "tasks": [
+    {
+      "id": "entsoe-service",
+      "title": "Create ENTSO-E API service for fetching spot prices",
+      "description": "Create App\\Services\\EntsoeService that fetches day-ahead prices from ENTSO-E Transparency Platform API. Must:\n- Use config('services.entsoe') for API key, base URL, and Finland EIC code\n- Parse XML response to extract hourly prices (EUR/MWh)\n- Convert prices to c/kWh (divide by 10)\n- Handle 15-minute resolution data by averaging to hourly\n- Return array of ['timestamp' => unix, 'utc_datetime' => Carbon, 'price_without_tax' => float]\n- Include proper error handling and logging\n- Write unit tests with mocked HTTP responses",
+      "status": "in_progress",
+      "priority": 1,
+      "started_at": "2026-01-20T00:00:00Z"
+    },
+    {
+      "id": "fetch-spot-command",
+      "title": "Create artisan command to fetch and store spot prices",
+      "description": "Create php artisan spot:fetch command that:\n- Fetches today's and tomorrow's prices (if available after 13:00 CET)\n- Stores in spot_prices_hour table using SpotPriceHour model\n- Uses upsert to avoid duplicates (composite key: region, timestamp)\n- Sets VAT rate to 0.255 (current Finnish VAT)\n- Logs success/failure with count of records\n- Can be scheduled in Laravel scheduler\n- Write feature test that verifies database storage",
+      "status": "pending",
+      "priority": 1,
+      "depends_on": ["entsoe-service"]
+    },
+    {
+      "id": "fetch-historical-command",
+      "title": "Create artisan command to backfill historical spot prices",
+      "description": "Create php artisan spot:backfill command that:\n- Accepts --start-date and --end-date options (defaults to 1 year back)\n- Fetches prices in monthly chunks to avoid API limits (400 req/min)\n- Shows progress bar for long operations\n- Skips dates that already have data (unless --force)\n- Handles ENTSO-E API rate limits with delays\n- Write test that verifies backfill logic",
+      "status": "pending",
+      "priority": 2,
+      "depends_on": ["entsoe-service"]
+    },
+    {
+      "id": "spot-price-component-refactor",
+      "title": "Refactor SpotPrice Livewire component to use database",
+      "description": "Update App\\Livewire\\SpotPrice to:\n- Query SpotPriceHour model instead of legacy FastAPI\n- Get today's and tomorrow's prices from database\n- Calculate current hour's price with proper timezone (Europe/Helsinki)\n- Find cheapest and most expensive hours\n- Calculate daily statistics (min, max, avg, median)\n- Remove legacy HTTP calls to voltikka-fastapi\n- Write feature tests for the component",
+      "status": "pending",
+      "priority": 1,
+      "depends_on": ["fetch-spot-command"]
+    },
+    {
+      "id": "spot-price-analytics",
+      "title": "Add analytics methods to SpotPrice component",
+      "description": "Enhance SpotPrice component with analytics:\n- Get best consecutive hours for high-consumption tasks (e.g., 'best 3 hours for EV charging')\n- Calculate price variance and volatility\n- Compare today vs yesterday vs weekly average\n- Find cheapest hours remaining today\n- Calculate potential savings if using cheapest vs average hours\n- Write tests for all analytics methods",
+      "status": "pending",
+      "priority": 2,
+      "depends_on": ["spot-price-component-refactor"]
+    },
+    {
+      "id": "spot-price-view-enhanced",
+      "title": "Create enhanced Pörssisähkön hinta page view",
+      "description": "Create comprehensive spot price page (livewire/spot-price.blade.php):\n- Hero section with current price prominently displayed\n- Today's prices as interactive chart (use Chart.js or similar)\n- Color-coded price levels (green=cheap, yellow=moderate, red=expensive)\n- 'Best hours' section showing cheapest upcoming hours\n- Price comparison cards (today vs yesterday vs week avg)\n- Statistics section with min/max/avg/median\n- Mobile-responsive design following existing Tailwind patterns\n- Finnish language UI",
+      "status": "pending",
+      "priority": 2,
+      "depends_on": ["spot-price-analytics"]
+    },
+    {
+      "id": "spot-price-historical-view",
+      "title": "Add historical price trends to spot price page",
+      "description": "Add historical trends section to spot price page:\n- Weekly price chart showing daily averages\n- Monthly comparison (this month vs last month)\n- Year-over-year comparison if data available\n- 'Price volatility' indicator showing how much prices vary\n- Exportable data option (CSV download)\n- Lazy-load historical data for performance",
+      "status": "pending",
+      "priority": 3,
+      "depends_on": ["spot-price-view-enhanced", "fetch-historical-command"]
+    },
+    {
+      "id": "seo-contracts-base",
+      "title": "Create base SEO-optimized contracts listing component",
+      "description": "Create App\\Livewire\\SeoContractsList that extends ContractsList:\n- Accept filter parameters via route (housing type, energy source, city)\n- Generate SEO-friendly title and meta description\n- Include structured data (JSON-LD) for product listings\n- Support canonical URL generation\n- Reuse existing filter logic from ContractsList\n- Write feature tests for SEO meta generation",
+      "status": "pending",
+      "priority": 2
+    },
+    {
+      "id": "seo-housing-routes",
+      "title": "Create housing type SEO routes and pages",
+      "description": "Create routes and views for housing types:\n- /sahkosopimus/omakotitalo (18000 kWh default)\n- /sahkosopimus/kerrostalo (5000 kWh default)\n- /sahkosopimus/rivitalo (10000 kWh default)\nEach page must have:\n- Unique H1 with housing type\n- SEO-optimized intro text explaining electricity usage for that housing type\n- Contracts list with appropriate default consumption\n- Internal links to other housing types\n- Breadcrumb navigation",
+      "status": "pending",
+      "priority": 2,
+      "depends_on": ["seo-contracts-base"]
+    },
+    {
+      "id": "seo-energy-routes",
+      "title": "Create energy source SEO routes and pages",
+      "description": "Create routes and views for energy sources:\n- /sahkosopimus/tuulisahko (filter: renewable_wind > 0)\n- /sahkosopimus/aurinkosahko (filter: renewable_solar > 0)\n- /sahkosopimus/vihrea-sahko (filter: renewable >= 50, fossil_peat = 0)\nEach page must have:\n- Unique H1 with energy source type\n- SEO-optimized intro explaining the energy source benefits\n- Contracts list filtered by energy source\n- Energy source statistics (% wind, solar, etc)\n- Environmental impact information",
+      "status": "pending",
+      "priority": 2,
+      "depends_on": ["seo-contracts-base"]
+    },
+    {
+      "id": "seo-city-routes",
+      "title": "Create city-based SEO routes and pages",
+      "description": "Create dynamic city routes:\n- /sahkosopimus/{city-slug} (e.g., /sahkosopimus/helsinki)\nMust:\n- Generate routes for top 50 Finnish cities/municipalities\n- Use Postcode model to get municipality list\n- Each page has unique H1 'Sähkösopimukset {city}ssa/ssä'\n- Show contracts available in that city's postcodes\n- Include local information (number of providers, avg prices)\n- Create sitemap entries for all city pages",
+      "status": "pending",
+      "priority": 3,
+      "depends_on": ["seo-contracts-base"]
+    },
+    {
+      "id": "seo-sitemap",
+      "title": "Create XML sitemap for SEO pages",
+      "description": "Create sitemap generation:\n- Generate /sitemap.xml with all SEO pages\n- Include main pages, housing types, energy sources, cities\n- Set appropriate priority and changefreq values\n- Can be generated via artisan command\n- Auto-update when new cities/pages are added\n- Write test to verify sitemap structure",
+      "status": "pending",
+      "priority": 3,
+      "depends_on": ["seo-housing-routes", "seo-energy-routes", "seo-city-routes"]
+    }
+  ]
+}
