@@ -126,8 +126,11 @@
       "id": "generate-descriptions-job",
       "title": "Create GenerateDescriptions scheduled job",
       "description": "Port the OpenAI description generation logic to a Laravel scheduled job. Generate missing contract descriptions. Schedule to run daily at 08:00.",
-      "status": "pending",
-      "priority": 13
+      "status": "completed",
+      "priority": 13,
+      "started_at": "2026-01-20T04:00:00Z",
+      "completed_at": "2026-01-20T05:00:00Z",
+      "passes": true
     },
     {
       "id": "frontend-contracts-list",

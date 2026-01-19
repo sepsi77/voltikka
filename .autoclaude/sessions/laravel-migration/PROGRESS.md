@@ -541,3 +541,81 @@ All models follow TDD approach with comprehensive unit tests.
 - `laravel/database/migrations/2026_01_19_220000_create_spot_price_hours_table.php` - Schema fix
 
 **Commit:** 70c5ae5 - "feat: Create FetchSpotPrices scheduled job for Elering API"
+
+### Task: generate-descriptions-job (COMPLETED)
+
+**What was done:**
+- Created `GenerateDescriptions` Artisan command to generate contract descriptions using OpenAI API
+- Ported logic from legacy Python Cloud Functions (`create-contract-description`, `trigger-short-description-update`)
+- Created `OpenAiService` service for API communication with retry logic
+
+**Command features:**
+- `php artisan descriptions:generate` - Generate missing descriptions for active contracts
+- Only processes active contracts (those in `active_contracts` table)
+- Only processes contracts without existing `short_description`
+- Uses latest price date for pricing information in prompts
+- Builds comprehensive prompts with:
+  - Company and contract name
+  - Contract type (Fixed, OpenEnded, Spot)
+  - Metering type (General, Time, Seasonal)
+  - Price components (with spot margin handling)
+  - Electricity source percentages
+  - Consumption limits (if applicable)
+- Generates Finnish language descriptions (2 sentences max)
+- Gracefully handles API errors (continues with other contracts)
+- 3 retries with 5-second delay on server errors
+
+**Scheduled task:**
+- Runs daily at 08:00 Europe/Helsinki timezone
+- `withoutOverlapping()` to prevent concurrent runs
+- `onOneServer()` for distributed environments
+- Logs output to `storage/logs/descriptions-generate.log`
+
+**OpenAI API integration:**
+- Uses GPT-4 model
+- API key configured via `OPENAI_API_KEY` environment variable
+- Added to `config/services.php` under 'openai' key
+
+**Prompt template:**
+- Based exactly on the Python implementation
+- Includes Finnish terminology translations:
+  - OpenEnded = Toistaiseksi voimassaoleva sähkösopimus
+  - Fixed = Määräaikainen sähkösopimus
+  - Spot = Pörssisähkösopimus
+  - Time = Aikasähkö
+  - Seasonal = Kausisähkö
+  - General = Yleissähkö
+- Includes 9 example descriptions for style guidance
+
+**Tests:**
+- 11 unit tests for `OpenAiService` service
+- 14 feature tests for `GenerateDescriptions` command covering:
+  - Generate descriptions for contracts without descriptions
+  - Skip contracts with existing descriptions
+  - Only process active contracts
+  - Use latest price date for pricing
+  - Handle multiple contracts
+  - Handle API errors gracefully
+  - Console output verification
+  - Handle contracts without electricity source
+  - Handle spot contracts (margin labeling)
+  - Include consumption limits in prompt
+  - Handle no price components
+  - Handle no contracts needing descriptions
+  - Handle time metering contracts
+  - Handle seasonal metering contracts
+- `php artisan test --filter=OpenAiServiceTest` - 11 tests, 27 assertions
+- `php artisan test --filter=GenerateDescriptionsCommandTest` - 14 tests, 36 assertions
+- `php artisan test` - All 126 tests pass (658 assertions)
+
+**Files created:**
+- `laravel/app/Console/Commands/GenerateDescriptions.php` - Artisan command
+- `laravel/app/Services/OpenAiService.php` - OpenAI API client service
+- `laravel/tests/Unit/OpenAiServiceTest.php` - Unit tests
+- `laravel/tests/Feature/GenerateDescriptionsCommandTest.php` - Feature tests
+
+**Files modified:**
+- `laravel/routes/console.php` - Added scheduled task
+- `laravel/config/services.php` - Added OpenAI configuration
+
+**Commit:** 9f67f70 - "feat: Create GenerateDescriptions scheduled job for OpenAI API"
