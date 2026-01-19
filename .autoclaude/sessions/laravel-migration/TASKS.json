@@ -46,8 +46,11 @@
       "id": "eloquent-postcode-model",
       "title": "Create Postcode Eloquent model",
       "description": "Port Postcode model with all Finnish/Swedish name fields and municipality data. Set up belongsToMany relationship with ElectricityContract via contract_postcode pivot table.",
-      "status": "pending",
-      "priority": 5
+      "status": "completed",
+      "priority": 5,
+      "started_at": "2026-01-19T18:00:00Z",
+      "completed_at": "2026-01-19T18:15:00Z",
+      "passes": true
     },
     {
       "id": "eloquent-remaining-models",

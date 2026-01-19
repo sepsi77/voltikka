@@ -102,3 +102,29 @@
 - `laravel/app/Models/PriceComponent.php` - Eloquent model
 
 **Commit:** eed2d34 - "feat: Add PriceComponent Eloquent model with composite key support"
+
+### Task: eloquent-postcode-model (COMPLETED)
+
+**What was done:**
+- Created `Postcode` Eloquent model ported from SQLAlchemy model
+- Configured string primary key (`postcode`) matching legacy PostgreSQL schema
+- Implemented `generateSlug()` method for Finnish character handling (ä→a, ö→o, å→a)
+- Configured all fillable fields grouped by category:
+  - Finnish name fields: `postcode_fi_name`, `postcode_fi_name_slug`, `postcode_abbr_fi`
+  - Swedish name fields: `postcode_sv_name`, `postcode_sv_name_slug`, `postcode_abbr_sv`
+  - Area fields: `type_code`, `ad_area_code`, `ad_area_fi`, `ad_area_fi_slug`, `ad_area_sv`, `ad_area_sv_slug`
+  - Municipality fields: `municipal_code`, `municipal_name_fi`, `municipal_name_fi_slug`, `municipal_name_sv`, `municipal_name_sv_slug`, `municipal_language_ratio_code`
+- Set up `belongsToMany` relationship with `ElectricityContract` (via `contract_postcode` pivot table)
+- Added useful query scopes:
+  - `inMunicipality($name)` - Filter by Finnish municipality name
+  - `search($term)` - Search by postcode, Finnish/Swedish name, or municipality
+- No timestamps (matching legacy schema)
+- Created comprehensive unit tests following TDD (13 tests, 40 assertions)
+
+**Tests:**
+- `php artisan test --filter=PostcodeTest` - 13 tests pass
+- `php artisan test tests/Unit/` - All 33 tests pass (125 assertions)
+
+**Files created:**
+- `laravel/app/Models/Postcode.php` - Eloquent model
+- `laravel/tests/Unit/PostcodeTest.php` - Unit tests
