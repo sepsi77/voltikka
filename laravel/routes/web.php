@@ -35,3 +35,8 @@ Route::get('/sahkosopimus/aurinkosahko', SeoContractsList::class)
 Route::get('/sahkosopimus/vihrea-sahko', SeoContractsList::class)
     ->name('seo.energy.vihrea-sahko')
     ->defaults('energySource', 'vihrea-sahko');
+
+// SEO City Routes (must come AFTER specific routes to avoid overriding them)
+Route::get('/sahkosopimus/{city}', SeoContractsList::class)
+    ->name('seo.city')
+    ->where('city', '[a-z0-9-]+');

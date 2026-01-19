@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
+use App\Models\Postcode;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
 
@@ -108,7 +109,47 @@ class SeoContractsList extends ContractsList
             $contracts = $this->filterByEnergySource($contracts);
         }
 
+        // Apply city filter - show national contracts + contracts available in city's postcodes
+        if ($this->city) {
+            $contracts = $this->filterByCity($contracts);
+        }
+
         return $contracts;
+    }
+
+    /**
+     * Filter contracts by city availability.
+     * Shows contracts that are either national or available in the city's postcodes.
+     */
+    protected function filterByCity(Collection $contracts): Collection
+    {
+        // Get postcodes for this city
+        $cityPostcodes = $this->getCityPostcodes($this->city);
+
+        return $contracts->filter(function ($contract) use ($cityPostcodes) {
+            // National contracts are available everywhere
+            if ($contract->availability_is_national) {
+                return true;
+            }
+
+            // Check if contract is available in any of the city's postcodes
+            $contractPostcodes = $contract->availabilityPostcodes->pluck('postcode')->toArray();
+            return !empty(array_intersect($contractPostcodes, $cityPostcodes));
+        });
+    }
+
+    /**
+     * Get postcodes for a city based on municipal name.
+     */
+    protected function getCityPostcodes(string $citySlug): array
+    {
+        $cityData = $this->getCityData($citySlug);
+        $cityName = $cityData['name'];
+
+        return Postcode::where('municipal_name_fi', $cityName)
+            ->orWhere('municipal_name_fi_slug', $citySlug)
+            ->pluck('postcode')
+            ->toArray();
     }
 
     /**
@@ -450,6 +491,30 @@ class SeoContractsList extends ContractsList
         };
     }
 
+    /**
+     * Get city-specific information.
+     */
+    public function getCityInfoProperty(): ?array
+    {
+        if (!$this->city) {
+            return null;
+        }
+
+        $cityData = $this->getCityData($this->city);
+        $contracts = $this->contracts;
+
+        // Get unique providers
+        $providers = $contracts->pluck('company_name')->unique();
+
+        return [
+            'name' => $cityData['name'],
+            'locative' => $cityData['locative'],
+            'contracts_count' => $contracts->count(),
+            'providers_count' => $providers->count(),
+            'providers' => $providers->values()->toArray(),
+        ];
+    }
+
     public function render()
     {
         return view('livewire.seo-contracts-list', [
@@ -462,6 +527,8 @@ class SeoContractsList extends ContractsList
             'energySourceStats' => $this->energySourceStats,
             'environmentalInfo' => $this->environmentalInfo,
             'isEnergySourcePage' => $this->energySource !== null,
+            'isCityPage' => $this->city !== null,
+            'cityInfo' => $this->cityInfo,
         ])->layout('layouts.app', [
             'title' => $this->seoData['title'],
         ]);

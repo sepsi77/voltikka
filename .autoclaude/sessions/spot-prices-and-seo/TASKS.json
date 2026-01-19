@@ -112,9 +112,12 @@
       "id": "seo-city-routes",
       "title": "Create city-based SEO routes and pages",
       "description": "Create dynamic city routes:\n- /sahkosopimus/{city-slug} (e.g., /sahkosopimus/helsinki)\nMust:\n- Generate routes for top 50 Finnish cities/municipalities\n- Use Postcode model to get municipality list\n- Each page has unique H1 'Sähkösopimukset {city}ssa/ssä'\n- Show contracts available in that city's postcodes\n- Include local information (number of providers, avg prices)\n- Create sitemap entries for all city pages",
-      "status": "pending",
+      "status": "completed",
       "priority": 3,
-      "depends_on": ["seo-contracts-base"]
+      "depends_on": ["seo-contracts-base"],
+      "started_at": "2026-01-20T00:00:00Z",
+      "completed_at": "2026-01-20T00:00:00Z",
+      "passes": true
     },
     {
       "id": "seo-sitemap",

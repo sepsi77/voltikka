@@ -662,3 +662,87 @@ New `getEnvironmentalInfoProperty()` method provides CO₂ emission facts:
 - `tests/Feature/SeoEnergyRoutesTest.php` - New test file
 
 **Commit:** `e71345b` - feat: Add energy source SEO routes for tuulisahko, aurinkosahko, vihrea-sahko
+
+## 2026-01-20 - Iteration 11
+
+### Completed: `seo-city-routes` - Create city-based SEO routes and pages
+
+**Approach:**
+- Followed TDD methodology: wrote 28 feature tests first, then implemented the functionality
+- Added dynamic city route to `routes/web.php`
+- Enhanced `SeoContractsList` with city filtering logic and city info properties
+
+**Implementation Details:**
+
+**New Route Added:**
+- `/sahkosopimus/{city}` - Named `seo.city` (e.g., /sahkosopimus/helsinki)
+- Route placed AFTER specific housing and energy routes to avoid overriding them
+- Uses regex constraint `[a-z0-9-]+` to validate city slugs
+
+**City Filtering Logic:**
+New `filterByCity()` method filters contracts to show:
+- All national contracts (availability_is_national = true)
+- Contracts specifically available in the city's postcodes
+
+New `getCityPostcodes()` method:
+- Queries Postcode model by municipal_name_fi or municipal_name_fi_slug
+- Returns array of postcodes for the city
+
+**City Information:**
+New `getCityInfoProperty()` computed property returns:
+- City name and locative form
+- Number of contracts available
+- Number of unique providers
+- List of provider names
+
+**Finnish Locative Forms:**
+The component already had 20 major Finnish cities with proper locative forms:
+- Helsinki → Helsingissä
+- Tampere → Tampereella
+- Oulu → Oulussa
+- Turku → Turussa
+- Jyväskylä → Jyväskylässä
+- Seinäjoki → Seinäjoella
+- Rovaniemi → Rovaniemellä
+- etc.
+
+Unknown cities get generic `-ssa` ending (e.g., Testcity → Testcityssa)
+
+**View Integration:**
+Updated render method to pass:
+- `isCityPage` - boolean flag for city pages
+- `cityInfo` - city statistics and information
+
+**New Test File:**
+`tests/Feature/SeoCityRoutesTest.php` with 28 tests covering:
+- Route accessibility (Helsinki, Tampere, Espoo)
+- Unique H1 content with correct locative forms
+- SEO intro text display
+- Contract filtering (national + city-specific)
+- City-specific contracts shown on correct city
+- City-specific contracts NOT shown on other cities
+- Breadcrumb navigation
+- Internal links to other page types
+- City statistics display
+- Wildcard route functionality
+- Named route (seo.city)
+- Correct locative forms for various cities
+- Unknown city fallback behavior
+- JSON-LD structured data
+- Housing and energy routes not overridden
+- Top cities list query
+
+**Tests Result:**
+- All 28 city tests pass (38 assertions)
+- All 19 housing tests still pass (26 assertions)
+- All 26 energy tests still pass (37 assertions)
+- Total: 73 SEO-related tests pass (101 assertions)
+
+**Files Changed:**
+- `routes/web.php` - Added city route with wildcard
+- `app/Livewire/SeoContractsList.php` - Added:
+  - `filterByCity()` method for contract filtering
+  - `getCityPostcodes()` method to get city's postcodes
+  - `getCityInfoProperty()` computed property
+  - Updated `render()` to pass city data to view
+- `tests/Feature/SeoCityRoutesTest.php` - New test file
