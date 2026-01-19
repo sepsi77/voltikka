@@ -306,12 +306,7 @@ class SeoContractsList extends ContractsList
         }
 
         if ($this->energySource && isset($this->energySourceNames[$this->energySource])) {
-            return match ($this->energySource) {
-                'tuulisahko' => 'Tuulisähkösopimukset tuotetaan tuulivoimalla. Vertaile tuulisähkön hintoja.',
-                'aurinkosahko' => 'Aurinkosähkösopimukset hyödyntävät aurinkoenergiaa. Vertaile aurinkosähkön hintoja.',
-                'vihrea-sahko' => 'Vihreä sähkö tuotetaan uusiutuvilla energialähteillä. Vertaile ympäristöystävällisiä sopimuksia.',
-                default => 'Vertaile sähkösopimuksia.',
-            };
+            return $this->getEnergySourceIntroText($this->energySource);
         }
 
         if ($this->city) {
@@ -335,6 +330,19 @@ class SeoContractsList extends ContractsList
             'kerrostalo' => "Vertaile sähkösopimuksia kerrostaloon. Kerrostaloasunnon tyypillinen sähkönkulutus on noin {$formattedConsumption} kWh vuodessa. Sähkönkulutus koostuu pääasiassa kodinkoneista, valaistuksesta ja viihde-elektroniikasta. Vertaile hintoja ja säästä.",
             'rivitalo' => "Vertaile sähkösopimuksia rivitaloon. Rivitalon keskimääräinen sähkönkulutus on noin {$formattedConsumption} kWh vuodessa. Rivitalossa kulutus on tyypillisesti suurempi kuin kerrostalossa, mutta pienempi kuin omakotitalossa. Löydä sopiva sopimus.",
             default => "Vertaile sähkösopimuksia. Tyypillinen kulutus on noin {$formattedConsumption} kWh vuodessa.",
+        };
+    }
+
+    /**
+     * Get detailed intro text for energy source pages.
+     */
+    protected function getEnergySourceIntroText(string $energySource): string
+    {
+        return match ($energySource) {
+            'tuulisahko' => 'Tuulisähkö on yksi puhtaimmista energiamuodoista. Tuulivoimalla tuotettu sähkö on täysin päästötöntä käytössä eikä aiheuta hiilidioksidipäästöjä. Suomen tuulivoimakapasiteetti kasvaa jatkuvasti, ja tuulisähkö on yhä edullisempi vaihtoehto. Vertaile tuulisähkösopimuksia ja tue kotimaista tuulivoimatuotantoa.',
+            'aurinkosahko' => 'Aurinkosähkö on uusiutuvaa energiaa, joka hyödyntää aurinkoenergiaa suoraan. Aurinkopaneelit tuottavat sähköä ilman päästöjä tai melua. Vaikka Suomen talvet ovat pimeitä, kesällä aurinkoenergiaa on runsaasti saatavilla. Aurinkosähkösopimuksella tuet puhtaan energian tuotantoa ja vähennät hiilijalanjälkeäsi.',
+            'vihrea-sahko' => 'Vihreä sähkö tuotetaan uusiutuvilla energialähteillä kuten tuuli-, aurinko- ja vesivoimalla. Vihreän sähkön valitsemalla vähennät hiilidioksidipäästöjä ja tuet kestävää energiantuotantoa. Vertaile vihreän sähkön sopimuksia ja tee ympäristöystävällinen valinta.',
+            default => 'Vertaile sähkösopimuksia ja löydä ympäristöystävällinen vaihtoehto.',
         };
     }
 
@@ -365,6 +373,83 @@ class SeoContractsList extends ContractsList
             || $this->city !== null;
     }
 
+    /**
+     * Get aggregated energy source statistics for the current contracts.
+     */
+    public function getEnergySourceStatsProperty(): array
+    {
+        if (!$this->energySource) {
+            return [];
+        }
+
+        $contracts = $this->contracts;
+        $totalContracts = $contracts->count();
+
+        if ($totalContracts === 0) {
+            return [];
+        }
+
+        $stats = [
+            'total_contracts' => $totalContracts,
+            'avg_renewable' => 0,
+            'avg_wind' => 0,
+            'avg_solar' => 0,
+            'avg_hydro' => 0,
+            'avg_nuclear' => 0,
+            'fully_renewable_count' => 0,
+            'fossil_free_count' => 0,
+        ];
+
+        $sumRenewable = 0;
+        $sumWind = 0;
+        $sumSolar = 0;
+        $sumHydro = 0;
+        $sumNuclear = 0;
+
+        foreach ($contracts as $contract) {
+            $source = $contract->electricitySource;
+            if ($source) {
+                $sumRenewable += $source->renewable_total ?? 0;
+                $sumWind += $source->renewable_wind ?? 0;
+                $sumSolar += $source->renewable_solar ?? 0;
+                $sumHydro += $source->renewable_hydro ?? 0;
+                $sumNuclear += $source->nuclear_total ?? 0;
+
+                if ($source->isFullyRenewable()) {
+                    $stats['fully_renewable_count']++;
+                }
+                if ($source->isFossilFree()) {
+                    $stats['fossil_free_count']++;
+                }
+            }
+        }
+
+        $stats['avg_renewable'] = round($sumRenewable / $totalContracts, 1);
+        $stats['avg_wind'] = round($sumWind / $totalContracts, 1);
+        $stats['avg_solar'] = round($sumSolar / $totalContracts, 1);
+        $stats['avg_hydro'] = round($sumHydro / $totalContracts, 1);
+        $stats['avg_nuclear'] = round($sumNuclear / $totalContracts, 1);
+
+        return $stats;
+    }
+
+    /**
+     * Get environmental impact description for energy source.
+     */
+    public function getEnvironmentalInfoProperty(): ?string
+    {
+        if (!$this->energySource) {
+            return null;
+        }
+
+        return match ($this->energySource) {
+            'tuulisahko' => 'Tuulivoima on yksi vähäpäästöisimmistä sähköntuotantomuodoista. Tuulivoimalan elinkaaren aikaiset CO₂-päästöt ovat noin 7-15 g/kWh, kun fossiilisilla polttoaineilla tuotetun sähkön päästöt ovat 400-1000 g/kWh. Valitsemalla tuulisähkön vähennät merkittävästi hiilijalanjälkeäsi.',
+            'aurinkosahko' => 'Aurinkosähkön tuotannon elinkaaren aikaiset CO₂-päästöt ovat noin 20-50 g/kWh, mikä on murto-osa fossiilisiin polttoaineisiin verrattuna. Aurinkopaneelit eivät tuota käytön aikana päästöjä, melua tai jätettä. Aurinkosähkö on erityisen puhdas vaihtoehto.',
+            'vihrea-sahko' => 'Vihreä sähkö tuotetaan ilman merkittäviä hiilidioksidipäästöjä. Uusiutuvien energialähteiden keskimääräiset elinkaaren päästöt ovat alle 50 g/kWh, kun fossiilisten polttoaineiden päästöt ovat moninkertaiset. Vihreän sähkön valinta on tehokas tapa pienentää kotitaloutesi ilmastovaikutusta.',
+            default => null,
+        };
+    }
+
     public function render()
     {
         return view('livewire.seo-contracts-list', [
@@ -374,6 +459,9 @@ class SeoContractsList extends ContractsList
             'pageHeading' => $this->pageHeading,
             'seoIntroText' => $this->seoIntroText,
             'hasSeoFilter' => $this->hasSeoFilter,
+            'energySourceStats' => $this->energySourceStats,
+            'environmentalInfo' => $this->environmentalInfo,
+            'isEnergySourcePage' => $this->energySource !== null,
         ])->layout('layouts.app', [
             'title' => $this->seoData['title'],
         ]);

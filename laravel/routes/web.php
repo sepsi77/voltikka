@@ -24,3 +24,14 @@ Route::get('/sahkosopimus/kerrostalo', SeoContractsList::class)
 Route::get('/sahkosopimus/rivitalo', SeoContractsList::class)
     ->name('seo.housing.rivitalo')
     ->defaults('housingType', 'rivitalo');
+
+// SEO Energy Source Routes
+Route::get('/sahkosopimus/tuulisahko', SeoContractsList::class)
+    ->name('seo.energy.tuulisahko')
+    ->defaults('energySource', 'tuulisahko');
+Route::get('/sahkosopimus/aurinkosahko', SeoContractsList::class)
+    ->name('seo.energy.aurinkosahko')
+    ->defaults('energySource', 'aurinkosahko');
+Route::get('/sahkosopimus/vihrea-sahko', SeoContractsList::class)
+    ->name('seo.energy.vihrea-sahko')
+    ->defaults('energySource', 'vihrea-sahko');

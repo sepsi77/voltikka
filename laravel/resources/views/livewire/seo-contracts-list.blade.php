@@ -53,6 +53,62 @@
     </nav>
     @endif
 
+    {{-- Energy Source Statistics Section --}}
+    @if($isEnergySourcePage && !empty($energySourceStats))
+    <section class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+        <h2 class="text-xl font-bold text-gray-900 mb-4">Energialähteiden tilastot</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="text-center p-4 bg-green-50 rounded-lg">
+                <div class="text-2xl font-bold text-green-600">{{ $energySourceStats['avg_renewable'] ?? 0 }}%</div>
+                <div class="text-sm text-gray-600">Uusiutuva keskiarvo</div>
+            </div>
+            @if(($energySourceStats['avg_wind'] ?? 0) > 0)
+            <div class="text-center p-4 bg-blue-50 rounded-lg">
+                <div class="text-2xl font-bold text-blue-600">{{ $energySourceStats['avg_wind'] }}%</div>
+                <div class="text-sm text-gray-600">Tuulivoima keskiarvo</div>
+            </div>
+            @endif
+            @if(($energySourceStats['avg_solar'] ?? 0) > 0)
+            <div class="text-center p-4 bg-yellow-50 rounded-lg">
+                <div class="text-2xl font-bold text-yellow-600">{{ $energySourceStats['avg_solar'] }}%</div>
+                <div class="text-sm text-gray-600">Aurinkovoima keskiarvo</div>
+            </div>
+            @endif
+            @if(($energySourceStats['avg_hydro'] ?? 0) > 0)
+            <div class="text-center p-4 bg-cyan-50 rounded-lg">
+                <div class="text-2xl font-bold text-cyan-600">{{ $energySourceStats['avg_hydro'] }}%</div>
+                <div class="text-sm text-gray-600">Vesivoima keskiarvo</div>
+            </div>
+            @endif
+            <div class="text-center p-4 bg-gray-50 rounded-lg">
+                <div class="text-2xl font-bold text-gray-700">{{ $energySourceStats['total_contracts'] ?? 0 }}</div>
+                <div class="text-sm text-gray-600">Sopimusta yhteensä</div>
+            </div>
+            <div class="text-center p-4 bg-green-50 rounded-lg">
+                <div class="text-2xl font-bold text-green-600">{{ $energySourceStats['fossil_free_count'] ?? 0 }}</div>
+                <div class="text-sm text-gray-600">Fossiilivapaa</div>
+            </div>
+        </div>
+    </section>
+    @endif
+
+    {{-- Environmental Impact Section --}}
+    @if($isEnergySourcePage && $environmentalInfo)
+    <section class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-6 mb-8">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="ml-4">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Ympäristövaikutus</h3>
+                <p class="text-gray-700">{{ $environmentalInfo }}</p>
+            </div>
+        </div>
+    </section>
+    @endif
+
     {{-- Consumption Preset Selector --}}
     <section class="bg-transparent text-center mb-8">
         <h3 class="max-w-2xl mb-4 mx-auto text-3xl font-extrabold tracking-tight leading-none">
