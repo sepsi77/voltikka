@@ -1,0 +1,92 @@
+{
+  "session": "design-update",
+  "description": "Fix PHP deprecation warnings and update Laravel site design to match legacy Svelte app",
+  "tasks": [
+    {
+      "id": "fix-pdo-deprecation",
+      "title": "Fix PHP 8.5 PDO::MYSQL_ATTR_SSL_CA deprecation warnings",
+      "description": "The Laravel framework config at vendor/laravel/framework/config/database.php uses deprecated PDO::MYSQL_ATTR_SSL_CA constant which causes warnings on PHP 8.5. Fix by publishing the database config and updating to use Pdo\\Mysql::ATTR_SSL_CA. Run: php artisan vendor:publish --tag=config then edit config/database.php to replace the deprecated constants. This is a framework config issue, so we need to override it locally.",
+      "status": "completed",
+      "completed_at": "2026-01-19T00:00:00Z",
+      "passes": true,
+      "priority": 1,
+      "notes": "Already fixed in config/database.php with backwards-compatible check using defined('Pdo\\Mysql::ATTR_SSL_CA')"
+    },
+    {
+      "id": "update-color-scheme",
+      "title": "Update color scheme to match legacy Voltikka design",
+      "description": "Update the Tailwind config and CSS to use the Voltikka brand colors: Primary cyan #4AF5FF, Secondary lime green #80FF00, Tertiary dark navy #15354D, Success lime #84cc16, Surface off-white #F6F8F8, Error red #FF4A4A. Update tailwind.config.js to add these as custom colors. Update the main layout background to use the surface color #F6F8F8.",
+      "status": "completed",
+      "completed_at": "2026-01-19T00:01:00Z",
+      "passes": true,
+      "priority": 2,
+      "notes": "Added all Voltikka brand colors to tailwind.config.js with full color scales (50-900). Updated layout to use Roboto font from Google Fonts and bg-surface for background. Also added inline Tailwind config for CDN fallback."
+    },
+    {
+      "id": "update-layout-navbar",
+      "title": "Update layout with proper navbar and branding",
+      "description": "Update resources/views/layouts/app.blade.php to have a proper navbar with Voltikka branding. Include a logo placeholder, navigation links, and mobile hamburger menu. Use dark navy tertiary color for navbar background. Add proper typography using the Roboto font family from Google Fonts.",
+      "status": "completed",
+      "completed_at": "2026-01-19T00:02:00Z",
+      "passes": true,
+      "priority": 3,
+      "depends_on": ["update-color-scheme"],
+      "notes": "Added responsive navbar with Voltikka text logo, navigation links (Sähkösopimukset, Paikkakunnat), and mobile hamburger menu using Alpine.js. Uses tertiary color for text and primary color for focus states."
+    },
+    {
+      "id": "redesign-contract-cards",
+      "title": "Redesign contract cards to match legacy style",
+      "description": "Update the contract card design in resources/views/livewire/contracts-list.blade.php to match the legacy Svelte design: 1) White background with gray border, rounded corners, subtle shadow 2) Left section: company logo (96px) with company name below 3) Contract name as 2xl bold heading 4) Pricing grid: per-kWh prices, monthly fee, annual cost with cyan left border 5) Energy source badges with green background for renewable/nuclear (#E4FFC9, green border) and gray for others 6) CTA button 'Katso lisää' with cyan-to-dark hover, rounded-full",
+      "status": "completed",
+      "completed_at": "2026-01-19T00:03:00Z",
+      "passes": true,
+      "priority": 4,
+      "depends_on": ["update-color-scheme"],
+      "notes": "Redesigned contract cards with: white bg, gray border, rounded corners, shadow; company logo 96px with fallback placeholder; contract name as 2xl bold heading; pricing grid with cyan left border on total cost; energy source badges with green bg for renewable/nuclear (#E4FFC9), gray for fossil; CTA button with cyan-to-dark hover, rounded-full."
+    },
+    {
+      "id": "redesign-filters",
+      "title": "Redesign filter UI to match legacy style",
+      "description": "Update the filter controls to match legacy design: 1) Section titles for each filter group 2) Filter buttons as rounded-full pills with border styling 3) Active state: green-500 text with green-600 border 4) Inactive state: gray-900 text with gray-300 border 5) Hover state: bg-gray-100 6) Add icons to filter buttons using Heroicons or similar 7) Mobile: collapsible accordion-style filters",
+      "status": "completed",
+      "completed_at": "2026-01-19T00:03:00Z",
+      "passes": true,
+      "priority": 5,
+      "depends_on": ["update-color-scheme"],
+      "notes": "Redesigned filters with: section titles for each group; rounded-full pill buttons with icons; active state uses success-500 text/border; inactive uses gray-900 text, gray-300 border; hover bg-gray-100; mobile collapsible accordion with Alpine.js."
+    },
+    {
+      "id": "redesign-consumption-presets",
+      "title": "Redesign consumption preset selector",
+      "description": "Update the consumption preset UI: 1) Display as horizontal card row instead of buttons 2) Each card: white background, border, rounded-2xl, shadow 3) Show icon + title + checkmark for selected 4) Icon in green background container (#E4FFC9) 5) Hover: border-t-blue-300 border-t-2 6) Add Finnish labels: Yksiö, Kerrostalo, Rivitalo, Omakotitalo, Suuri talo with appropriate kWh values",
+      "status": "completed",
+      "completed_at": "2026-01-19T00:03:00Z",
+      "passes": true,
+      "priority": 6,
+      "depends_on": ["update-color-scheme"],
+      "notes": "Redesigned consumption presets as horizontal card row with: white bg, border, rounded-2xl, shadow; icons with green bg container (#E4FFC9); checkmark for selected; hover border-t effect; Finnish labels (Yksiö, Kerrostalo, Rivitalo, Omakotitalo, Suuri talo)."
+    },
+    {
+      "id": "add-hero-section",
+      "title": "Add hero section to contracts page",
+      "description": "Add a hero section at the top of the contracts page with: 1) Large heading 'Vertaa sähkösopimuksia' (4xl-6xl font-extrabold) 2) Subheading explaining the service 3) Grid layout: 7 columns for text, 5 columns for decorative element on desktop 4) Mobile: stack vertically",
+      "status": "completed",
+      "completed_at": "2026-01-19T00:03:00Z",
+      "passes": true,
+      "priority": 7,
+      "depends_on": ["update-layout-navbar"],
+      "notes": "Added hero section with: large heading 'Vertaa sähkösopimuksia' (4xl-6xl font-extrabold) in tertiary color; 'Vertaile ja säästä' badge; subheading explaining service; 12-column grid (7 for text, 5 for decorative); stacks vertically on mobile."
+    },
+    {
+      "id": "improve-responsive-design",
+      "title": "Improve mobile responsive design",
+      "description": "Ensure all components work well on mobile: 1) Full-width buttons on mobile, auto-width on desktop 2) Stack contract card elements vertically on mobile 3) Collapsible filters on mobile 4) Proper spacing and padding adjustments 5) Test at common breakpoints: 375px, 768px, 1024px, 1280px",
+      "status": "completed",
+      "completed_at": "2026-01-19T00:03:00Z",
+      "passes": true,
+      "priority": 8,
+      "depends_on": ["redesign-contract-cards", "redesign-filters"],
+      "notes": "Improved responsive design: full-width CTA buttons on mobile, auto on desktop; contract cards stack vertically on mobile; collapsible filters with Alpine.js accordion; consumption presets stack vertically on mobile; proper spacing with px-4/sm:px-6/lg:px-8."
+    }
+  ]
+}
