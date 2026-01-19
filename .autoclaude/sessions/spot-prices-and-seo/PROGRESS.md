@@ -327,3 +327,122 @@
 - Mobile responsiveness
 
 **Commit:** `3f90d5c` - feat: Create enhanced Pörssisähkön hinta page view
+
+## 2026-01-20 - Iteration 7
+
+### Completed: `spot-price-historical-view` - Add historical price trends to spot price page
+
+**Approach:**
+- Followed TDD methodology: wrote 28 feature tests first, then implemented the functionality
+- Extended `App\Livewire\SpotPrice` with historical data methods
+- Updated view with lazy-loaded historical data section
+- Added CSV export functionality
+
+**Implementation Details:**
+
+**New Component Properties:**
+- `historicalDataLoaded` - Boolean flag for lazy loading state
+- `weeklyDailyAverages` - Cached weekly data
+- `weeklyChartData` - Cached chart data
+- `monthlyComparison` - Cached monthly comparison
+- `yearOverYearComparison` - Cached year-over-year data
+- `FINNISH_MONTHS` - Constant array of Finnish month names
+
+**New Component Methods:**
+
+1. **`loadHistoricalData()`**
+   - Lazy-loads all historical data on demand
+   - Sets `historicalDataLoaded` to true when complete
+   - Called via Livewire button click
+
+2. **`getWeeklyDailyAverages()`**
+   - Fetches daily averages for the past 7 days (excluding today)
+   - Calculates min, max, and average per day
+   - Groups by Helsinki date for proper timezone handling
+   - Returns sorted array by date
+
+3. **`getMonthlyComparison()`**
+   - Compares current month average with last month
+   - Uses Finnish month names (Tammikuu, Helmikuu, etc.)
+   - Calculates percentage change
+   - Returns both averages and day counts
+
+4. **`getYearOverYearComparison()`**
+   - Compares current month with same month last year
+   - Includes `has_last_year_data` flag to conditionally show section
+   - Calculates percentage change
+
+5. **`getWeeklyChartData()`**
+   - Generates Chart.js compatible data for weekly line chart
+   - Includes daily averages dataset
+   - Includes min/max range dataset
+   - Uses Finnish date format (d.m.)
+
+6. **`generateCsvData(int $days)`**
+   - Generates CSV content for specified number of days
+   - Uses semicolon as delimiter (Excel-friendly for European locales)
+   - Includes: date, hour, price without tax, price with tax, VAT rate
+   - Uses UTF-8 encoding with Finnish number formatting
+
+7. **`downloadCsv()`**
+   - Returns StreamedResponse for file download
+   - Includes UTF-8 BOM for Excel compatibility
+   - Default filename: spot-hinnat.csv
+   - Exports last 7 days of data
+
+**View Updates:**
+
+1. **CSV Download Button**
+   - Located after hourly prices table
+   - Shows loading state during download
+   - Finnish text: "Lataa CSV"
+
+2. **Historical Data Section (Lazy Loaded)**
+   - Initial state: "Lataa historiatiedot" button
+   - Loading spinner during data fetch
+   - Reveals full historical analysis when loaded
+
+3. **Weekly Price Chart**
+   - Line chart showing daily averages
+   - Uses Chart.js with Finnish-formatted tooltips
+   - Shows 7-day trend
+   - Displays min/max range
+
+4. **Monthly Comparison Cards**
+   - Current month average (blue themed)
+   - Last month average (gray themed)
+   - Percentage change indicator (green for decrease, red for increase)
+   - Day counts for context
+
+5. **Year-over-Year Comparison**
+   - Only shown when historical data is available
+   - Current year vs last year same month
+   - Percentage change indicator
+
+**Tests (28 new tests):**
+- Weekly daily averages calculation
+- Partial weekly data handling
+- Empty history handling
+- Monthly comparison calculation
+- No last month data handling
+- Year-over-year comparison
+- No last year data handling
+- Weekly chart data structure
+- Min/max range in chart
+- CSV data generation
+- CSV includes both price formats
+- CSV includes historical data
+- Lazy loading behavior
+- Loading state display
+- Data display after loading
+- Weekly chart section display
+- Monthly comparison section display
+- Year-over-year display when data available
+- Year-over-year hidden when no data
+- CSV download button display
+- CSV download response
+- Finnish day names in chart
+- Finnish month names
+- View receives historical data after load
+
+**Commit:** `04589ee` - feat: Add historical price trends to spot price page
