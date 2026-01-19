@@ -90,9 +90,12 @@
       "id": "seo-housing-routes",
       "title": "Create housing type SEO routes and pages",
       "description": "Create routes and views for housing types:\n- /sahkosopimus/omakotitalo (18000 kWh default)\n- /sahkosopimus/kerrostalo (5000 kWh default)\n- /sahkosopimus/rivitalo (10000 kWh default)\nEach page must have:\n- Unique H1 with housing type\n- SEO-optimized intro text explaining electricity usage for that housing type\n- Contracts list with appropriate default consumption\n- Internal links to other housing types\n- Breadcrumb navigation",
-      "status": "pending",
+      "status": "completed",
       "priority": 2,
-      "depends_on": ["seo-contracts-base"]
+      "depends_on": ["seo-contracts-base"],
+      "started_at": "2026-01-20T00:00:00Z",
+      "completed_at": "2026-01-20T00:00:00Z",
+      "passes": true
     },
     {
       "id": "seo-energy-routes",

@@ -526,3 +526,56 @@
 - SEO intro text display
 
 **Commit:** `5edb22d` - feat: Add SeoContractsList component for SEO-optimized contract pages
+
+## 2026-01-20 - Iteration 9
+
+### Completed: `seo-housing-routes` - Create housing type SEO routes and pages
+
+**Approach:**
+- Followed TDD methodology: wrote 19 feature tests first, then implemented the routes
+- Added routes to `routes/web.php` for housing type pages
+- Enhanced `SeoContractsList` with detailed housing-type specific intro text
+
+**Implementation Details:**
+
+**New Routes Added:**
+- `/sahkosopimus/omakotitalo` - Named `seo.housing.omakotitalo` (18000 kWh default)
+- `/sahkosopimus/kerrostalo` - Named `seo.housing.kerrostalo` (5000 kWh default)
+- `/sahkosopimus/rivitalo` - Named `seo.housing.rivitalo` (10000 kWh default)
+
+**Route Configuration:**
+- All routes use `SeoContractsList` Livewire component
+- Routes use `defaults()` to pass `housingType` parameter to the component
+- Each route has a named identifier for easy linking
+
+**Enhanced Intro Text:**
+New `getHousingTypeIntroText()` method provides detailed, SEO-optimized descriptions:
+- **Omakotitalo**: Explains typical consumption (18 000 kWh), mentions electric heating can reach 20 000-25 000 kWh
+- **Kerrostalo**: Explains typical consumption (5 000 kWh), mentions main consumption sources (appliances, lighting, electronics)
+- **Rivitalo**: Explains typical consumption (10 000 kWh), compares to other housing types
+
+**Page Features (already implemented in base component):**
+- Unique H1 with housing type ("Sähkösopimukset omakotitaloon")
+- SEO-optimized intro text explaining electricity usage
+- Contracts list with appropriate default consumption
+- Internal links to other housing types
+- Breadcrumb navigation
+
+**New Test File:**
+`tests/Feature/SeoHousingRoutesTest.php` with 19 tests covering:
+- Route accessibility (all 3 housing types)
+- Unique H1 content for each housing type
+- Consumption info display in intro text
+- Breadcrumb navigation presence
+- Internal links to other housing types
+- Contracts display on pages
+- Named route functionality
+
+**Tests Result:**
+- All 19 tests pass (26 assertions)
+- All 29 existing SeoContractsList tests still pass (59 assertions)
+
+**Files Changed:**
+- `routes/web.php` - Added 3 housing type routes
+- `app/Livewire/SeoContractsList.php` - Added `getHousingTypeIntroText()` method
+- `tests/Feature/SeoHousingRoutesTest.php` - New test file

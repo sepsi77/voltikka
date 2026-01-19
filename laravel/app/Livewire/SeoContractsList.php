@@ -302,9 +302,7 @@ class SeoContractsList extends ContractsList
     public function getSeoIntroTextProperty(): string
     {
         if ($this->housingType && isset($this->housingTypeNames[$this->housingType])) {
-            $housingName = $this->housingTypeNames[$this->housingType];
-            $consumption = $this->housingTypeConsumption[$this->housingType] ?? 5000;
-            return "Vertaile sähkösopimuksia {$housingName}on. Tyypillinen kulutus on noin {$consumption} kWh vuodessa.";
+            return $this->getHousingTypeIntroText($this->housingType);
         }
 
         if ($this->energySource && isset($this->energySourceNames[$this->energySource])) {
@@ -322,6 +320,22 @@ class SeoContractsList extends ContractsList
         }
 
         return 'Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto.';
+    }
+
+    /**
+     * Get detailed intro text for housing type pages.
+     */
+    protected function getHousingTypeIntroText(string $housingType): string
+    {
+        $consumption = $this->housingTypeConsumption[$housingType] ?? 5000;
+        $formattedConsumption = number_format($consumption, 0, ',', ' ');
+
+        return match ($housingType) {
+            'omakotitalo' => "Vertaile sähkösopimuksia omakotitaloon. Omakotitalon keskimääräinen sähkönkulutus on noin {$formattedConsumption} kWh vuodessa. Sähkölämmitteisessä omakotitalossa kulutus voi olla jopa 20 000–25 000 kWh. Löydä edullisin sähkösopimus vertailemalla.",
+            'kerrostalo' => "Vertaile sähkösopimuksia kerrostaloon. Kerrostaloasunnon tyypillinen sähkönkulutus on noin {$formattedConsumption} kWh vuodessa. Sähkönkulutus koostuu pääasiassa kodinkoneista, valaistuksesta ja viihde-elektroniikasta. Vertaile hintoja ja säästä.",
+            'rivitalo' => "Vertaile sähkösopimuksia rivitaloon. Rivitalon keskimääräinen sähkönkulutus on noin {$formattedConsumption} kWh vuodessa. Rivitalossa kulutus on tyypillisesti suurempi kuin kerrostalossa, mutta pienempi kuin omakotitalossa. Löydä sopiva sopimus.",
+            default => "Vertaile sähkösopimuksia. Tyypillinen kulutus on noin {$formattedConsumption} kWh vuodessa.",
+        };
     }
 
     /**
