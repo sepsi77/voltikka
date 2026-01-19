@@ -33,9 +33,12 @@
       "id": "spot-price-component-refactor",
       "title": "Refactor SpotPrice Livewire component to use database",
       "description": "Update App\\Livewire\\SpotPrice to:\n- Query SpotPriceHour model instead of legacy FastAPI\n- Get today's and tomorrow's prices from database\n- Calculate current hour's price with proper timezone (Europe/Helsinki)\n- Find cheapest and most expensive hours\n- Calculate daily statistics (min, max, avg, median)\n- Remove legacy HTTP calls to voltikka-fastapi\n- Write feature tests for the component",
-      "status": "pending",
+      "status": "completed",
       "priority": 1,
-      "depends_on": ["fetch-spot-command"]
+      "depends_on": ["fetch-spot-command"],
+      "started_at": "2026-01-20T00:00:00Z",
+      "completed_at": "2026-01-20T00:00:00Z",
+      "passes": true
     },
     {
       "id": "spot-price-analytics",

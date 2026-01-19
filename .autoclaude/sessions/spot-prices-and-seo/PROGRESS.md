@@ -73,3 +73,50 @@
   - Multiple hours processing
 
 **Commit:** `50d9500` - feat: Add spot:fetch command using ENTSO-E API
+
+## 2026-01-20 - Iteration 3
+
+### Completed: `spot-price-component-refactor` - Refactor SpotPrice Livewire component to use database
+
+**Approach:**
+- Followed TDD methodology: wrote 28 feature tests first, then implemented the refactored component
+- Updated `App\Livewire\SpotPrice` to query database instead of legacy FastAPI
+- Created feature tests in `tests/Feature/SpotPriceComponentTest.php`
+
+**Implementation Details:**
+- Removed HTTP calls to legacy FastAPI (`voltikka-fastapi-vrpilk3sbq-lz.a.run.app`)
+- Query SpotPriceHour model with proper region filter (Finland only)
+- Loads today's and tomorrow's prices from database
+- Proper timezone handling:
+  - Stores UTC timestamps in database
+  - Converts to Helsinki time for display
+  - Uses `Carbon::setTestNow()` for consistent testing
+- Calculates current hour's price with proper Helsinki timezone
+- Finds cheapest and most expensive hours (for today only)
+- Calculates daily statistics: min, max, average, median
+- Added `mostExpensiveHour` to view data
+- Added `todayStatistics` to view data
+
+**View Updates (spot-price.blade.php):**
+- Updated to use `helsinki_hour` field instead of manual timezone calculations
+- Added statistics section showing: average, median, min, max
+- Shows dynamic VAT rate per hour (10%, 24%, or 25.5%)
+- Added "tomorrow" badge for next day's prices
+- Added message when no data is available
+- Updated VAT information text to reflect current 25.5% rate
+
+**Tests:**
+- 28 feature tests covering:
+  - Basic component rendering
+  - Price loading from database
+  - Current hour price detection with Helsinki timezone
+  - Min/max price calculations (including negative prices)
+  - Cheapest and most expensive hour finding
+  - Daily statistics (average, median calculation)
+  - Price with tax calculations
+  - Region filtering (Finland only)
+  - Sorting by time
+  - Today vs tomorrow price separation
+  - HTTP request removal verification
+
+**Commit:** `ec20b58` - feat: Refactor SpotPrice component to use database instead of legacy FastAPI
