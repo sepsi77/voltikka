@@ -47,9 +47,12 @@
       "id": "spot-price-analytics",
       "title": "Add analytics methods to SpotPrice component",
       "description": "Enhance SpotPrice component with analytics:\n- Get best consecutive hours for high-consumption tasks (e.g., 'best 3 hours for EV charging')\n- Calculate price variance and volatility\n- Compare today vs yesterday vs weekly average\n- Find cheapest hours remaining today\n- Calculate potential savings if using cheapest vs average hours\n- Write tests for all analytics methods",
-      "status": "pending",
+      "status": "completed",
       "priority": 2,
-      "depends_on": ["spot-price-component-refactor"]
+      "depends_on": ["spot-price-component-refactor"],
+      "started_at": "2026-01-20T00:00:00Z",
+      "completed_at": "2026-01-20T00:00:00Z",
+      "passes": true
     },
     {
       "id": "spot-price-view-enhanced",

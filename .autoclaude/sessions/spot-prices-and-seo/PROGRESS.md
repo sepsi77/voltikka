@@ -167,3 +167,77 @@
   - Negative price handling
 
 **Commit:** `62fbb6d` - feat: Add spot:backfill command for historical price data
+
+## 2026-01-20 - Iteration 5
+
+### Completed: `spot-price-analytics` - Add analytics methods to SpotPrice component
+
+**Approach:**
+- Followed TDD methodology: wrote 20 feature tests first, then implemented the analytics methods
+- Enhanced `App\Livewire\SpotPrice` with analytics functionality
+- Extended existing tests in `tests/Feature/SpotPriceComponentTest.php`
+
+**Implementation Details:**
+
+**New Analytics Methods:**
+
+1. **`getBestConsecutiveHours(int $hoursNeeded)`**
+   - Finds the best N consecutive hours with the lowest average price
+   - Useful for EV charging or high-consumption tasks
+   - Returns: start_hour, end_hour, average_price, prices array
+   - Returns null if not enough consecutive hours available
+
+2. **`getPriceVolatility()`**
+   - Calculates price variance and standard deviation for today
+   - Useful for understanding price stability
+   - Returns: variance, std_deviation, average, range
+
+3. **`getHistoricalComparison()`**
+   - Compares today's average with yesterday and weekly average
+   - Fetches historical data from database (7 days back)
+   - Calculates percentage change from yesterday and weekly average
+   - Returns: today_average, yesterday_average, weekly_average, weekly_days_available, change_from_yesterday_percent, change_from_weekly_percent
+
+4. **`getCheapestRemainingHours(int $count)`**
+   - Finds cheapest future hours (excludes current and past hours)
+   - Includes tomorrow's prices if available
+   - Sorted by price ascending
+   - Returns array of future hours
+
+5. **`calculatePotentialSavings(int $hoursNeeded, float $kwhPerHour)`**
+   - Calculates potential savings if using cheapest hours vs average
+   - Useful for showing users the benefit of timing their consumption
+   - Returns: cheapest_average, overall_average, savings_per_kwh, savings_cents, savings_euros, savings_percent, total_kwh
+
+**View Integration:**
+- All analytics data passed to view:
+  - `priceVolatility` - price variance and standard deviation
+  - `historicalComparison` - today vs yesterday vs weekly average
+  - `cheapestRemainingHours` - 5 cheapest upcoming hours
+  - `bestConsecutiveHours` - best 3 consecutive hours for EV charging
+  - `potentialSavings` - savings estimate for 3 hours at 3.7 kW
+
+**Tests:**
+- 20 new feature tests (total now 48) covering:
+  - Best consecutive hours finding
+  - Single hour edge case
+  - Not enough data handling
+  - Price array inclusion
+  - Variance calculation
+  - Standard deviation calculation
+  - Volatility null handling
+  - Price range calculation
+  - Today vs yesterday comparison
+  - Today vs weekly comparison
+  - No yesterday data handling
+  - Partial weekly data handling
+  - Cheapest remaining hours (future only)
+  - Current hour exclusion
+  - Tomorrow inclusion
+  - No future hours handling
+  - Potential savings calculation
+  - Savings with specific consumption
+  - Insufficient data handling
+  - View data assertions
+
+**Commit:** `e18fa8e` - feat: Add analytics methods to SpotPrice component

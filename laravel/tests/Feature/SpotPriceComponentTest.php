@@ -459,4 +459,361 @@ class SpotPriceComponentTest extends TestCase
             ->assertSet('error', null)
             ->assertSet('loading', false);
     }
+
+    // ==========================================
+    // Best Consecutive Hours Tests
+    // ==========================================
+
+    public function test_finds_best_consecutive_hours(): void
+    {
+        // Create prices where hours 2-4 are cheapest consecutive
+        $prices = array_fill(0, 24, 10.0);
+        $prices[2] = 2.0;
+        $prices[3] = 3.0;
+        $prices[4] = 1.0;
+
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $best = $instance->getBestConsecutiveHours(3);
+
+        $this->assertNotNull($best);
+        $this->assertEquals(2, $best['start_hour']); // Starts at hour 2
+        $this->assertEquals(4, $best['end_hour']); // Ends at hour 4
+        $this->assertEquals(2.0, $best['average_price']); // (2+3+1)/3 = 2
+    }
+
+    public function test_best_consecutive_hours_with_single_hour(): void
+    {
+        $prices = array_fill(0, 24, 10.0);
+        $prices[5] = 1.0; // Cheapest single hour
+
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $best = $instance->getBestConsecutiveHours(1);
+
+        $this->assertEquals(5, $best['start_hour']);
+        $this->assertEquals(5, $best['end_hour']);
+        $this->assertEquals(1.0, $best['average_price']);
+    }
+
+    public function test_best_consecutive_hours_returns_null_when_not_enough_data(): void
+    {
+        // Only create 2 hours, but request 3
+        $this->createSpotPrice(2026, 1, 20, 0, 5.0);
+        $this->createSpotPrice(2026, 1, 20, 1, 6.0);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $best = $instance->getBestConsecutiveHours(3);
+
+        $this->assertNull($best);
+    }
+
+    public function test_best_consecutive_hours_includes_prices_array(): void
+    {
+        $prices = array_fill(0, 24, 10.0);
+        $prices[3] = 2.0;
+        $prices[4] = 3.0;
+
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $best = $instance->getBestConsecutiveHours(2);
+
+        $this->assertCount(2, $best['prices']);
+        $this->assertEquals(2.0, $best['prices'][0]['price_without_tax']);
+        $this->assertEquals(3.0, $best['prices'][1]['price_without_tax']);
+    }
+
+    // ==========================================
+    // Price Volatility Tests
+    // ==========================================
+
+    public function test_calculates_price_variance(): void
+    {
+        // Create prices: 2, 4, 6, 8 - variance = ((2-5)^2 + (4-5)^2 + (6-5)^2 + (8-5)^2) / 4 = 5
+        $this->createSpotPrice(2026, 1, 20, 0, 2.0);
+        $this->createSpotPrice(2026, 1, 20, 1, 4.0);
+        $this->createSpotPrice(2026, 1, 20, 2, 6.0);
+        $this->createSpotPrice(2026, 1, 20, 3, 8.0);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $volatility = $instance->getPriceVolatility();
+
+        $this->assertEquals(5.0, $volatility['variance']);
+        $this->assertEquals(5.0, $volatility['average']);
+    }
+
+    public function test_calculates_standard_deviation(): void
+    {
+        // Create prices: 2, 4, 6, 8 - std dev = sqrt(5) ≈ 2.236
+        $this->createSpotPrice(2026, 1, 20, 0, 2.0);
+        $this->createSpotPrice(2026, 1, 20, 1, 4.0);
+        $this->createSpotPrice(2026, 1, 20, 2, 6.0);
+        $this->createSpotPrice(2026, 1, 20, 3, 8.0);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $volatility = $instance->getPriceVolatility();
+
+        $this->assertEqualsWithDelta(2.236, $volatility['std_deviation'], 0.01);
+    }
+
+    public function test_volatility_returns_nulls_when_no_data(): void
+    {
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $volatility = $instance->getPriceVolatility();
+
+        $this->assertNull($volatility['variance']);
+        $this->assertNull($volatility['std_deviation']);
+        $this->assertNull($volatility['average']);
+    }
+
+    public function test_volatility_includes_price_range(): void
+    {
+        $this->createSpotPrice(2026, 1, 20, 0, 2.0);
+        $this->createSpotPrice(2026, 1, 20, 1, 10.0);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $volatility = $instance->getPriceVolatility();
+
+        $this->assertEquals(8.0, $volatility['range']); // 10 - 2
+    }
+
+    // ==========================================
+    // Historical Comparison Tests
+    // ==========================================
+
+    public function test_compares_today_with_yesterday(): void
+    {
+        // Create yesterday's prices (average 5.0)
+        $this->createFullDayPrices(2026, 1, 19, array_fill(0, 24, 5.0));
+
+        // Create today's prices (average 10.0)
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0));
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $comparison = $instance->getHistoricalComparison();
+
+        $this->assertEquals(10.0, $comparison['today_average']);
+        $this->assertEquals(5.0, $comparison['yesterday_average']);
+        $this->assertEquals(100.0, $comparison['change_from_yesterday_percent']); // +100%
+    }
+
+    public function test_compares_today_with_weekly_average(): void
+    {
+        // Create 7 days of prices (week average = 7.0)
+        for ($day = 13; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, (float) $day - 12));
+        }
+
+        // Create today's prices (average 10.0)
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0));
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $comparison = $instance->getHistoricalComparison();
+
+        $this->assertEquals(10.0, $comparison['today_average']);
+        $this->assertEquals(4.0, $comparison['weekly_average']); // Average of 1-7
+        $this->assertEqualsWithDelta(150.0, $comparison['change_from_weekly_percent'], 0.1); // +150%
+    }
+
+    public function test_historical_comparison_handles_no_yesterday_data(): void
+    {
+        // Only create today's prices
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0));
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $comparison = $instance->getHistoricalComparison();
+
+        $this->assertEquals(10.0, $comparison['today_average']);
+        $this->assertNull($comparison['yesterday_average']);
+        $this->assertNull($comparison['change_from_yesterday_percent']);
+    }
+
+    public function test_historical_comparison_handles_partial_weekly_data(): void
+    {
+        // Only create 3 days of history instead of 7
+        $this->createFullDayPrices(2026, 1, 17, array_fill(0, 24, 6.0));
+        $this->createFullDayPrices(2026, 1, 18, array_fill(0, 24, 8.0));
+        $this->createFullDayPrices(2026, 1, 19, array_fill(0, 24, 10.0));
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 12.0));
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $comparison = $instance->getHistoricalComparison();
+
+        $this->assertEquals(12.0, $comparison['today_average']);
+        $this->assertEquals(8.0, $comparison['weekly_average']); // (6+8+10)/3 = 8
+        $this->assertEquals(3, $comparison['weekly_days_available']);
+    }
+
+    // ==========================================
+    // Cheapest Remaining Hours Tests
+    // ==========================================
+
+    public function test_finds_cheapest_remaining_hours_today(): void
+    {
+        // Create prices for today
+        $prices = array_fill(0, 24, 10.0);
+        $prices[15] = 3.0; // Cheap hour in future (current time is 14:30)
+        $prices[16] = 2.0; // Cheapest hour in future
+        $prices[17] = 4.0; // Another future hour
+        $prices[5] = 1.0;  // Cheapest but already passed
+
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $remaining = $instance->getCheapestRemainingHours(3);
+
+        $this->assertCount(3, $remaining);
+        // Should be ordered by price, not by hour
+        $this->assertEquals(16, $remaining[0]['helsinki_hour']); // 2.0
+        $this->assertEquals(15, $remaining[1]['helsinki_hour']); // 3.0
+        $this->assertEquals(17, $remaining[2]['helsinki_hour']); // 4.0
+    }
+
+    public function test_cheapest_remaining_hours_excludes_current_hour(): void
+    {
+        // Current hour is 14 (time is 14:30)
+        $prices = array_fill(0, 24, 10.0);
+        $prices[14] = 1.0; // Cheapest but current hour
+        $prices[15] = 5.0;
+
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $remaining = $instance->getCheapestRemainingHours(1);
+
+        $this->assertNotEquals(14, $remaining[0]['helsinki_hour']);
+        $this->assertEquals(15, $remaining[0]['helsinki_hour']);
+    }
+
+    public function test_cheapest_remaining_includes_tomorrow(): void
+    {
+        // Create today and tomorrow prices
+        $todayPrices = array_fill(0, 24, 10.0);
+        $tomorrowPrices = array_fill(0, 24, 10.0);
+        $tomorrowPrices[3] = 1.0; // Cheapest is tomorrow at 3:00
+
+        $this->createFullDayPrices(2026, 1, 20, $todayPrices);
+        $this->createFullDayPrices(2026, 1, 21, $tomorrowPrices);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $remaining = $instance->getCheapestRemainingHours(1);
+
+        $this->assertEquals(3, $remaining[0]['helsinki_hour']);
+        $this->assertEquals('2026-01-21', $remaining[0]['helsinki_date']);
+    }
+
+    public function test_cheapest_remaining_returns_empty_when_no_future_hours(): void
+    {
+        // Freeze time to 23:30, so only hour 23 is "past" for today
+        Carbon::setTestNow(Carbon::parse('2026-01-20 23:30:00', self::TIMEZONE));
+
+        $prices = array_fill(0, 24, 10.0);
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $remaining = $instance->getCheapestRemainingHours(3);
+
+        // Only tomorrow's hours should be available (none exist)
+        $this->assertEmpty($remaining);
+    }
+
+    // ==========================================
+    // Potential Savings Tests
+    // ==========================================
+
+    public function test_calculates_potential_savings(): void
+    {
+        // Create varied prices
+        $prices = array_fill(0, 24, 10.0);
+        $prices[3] = 2.0;  // Cheap
+        $prices[4] = 3.0;  // Cheap
+        $prices[5] = 4.0;  // Cheap
+        $prices[17] = 20.0; // Expensive
+        $prices[18] = 25.0; // Most expensive
+
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $savings = $instance->calculatePotentialSavings(3, 10); // 3 hours at 10 kWh each
+
+        // Average price ≈ 10.42 c/kWh
+        // Cheapest 3 hours average = (2+3+4)/3 = 3 c/kWh
+        // Savings per kWh ≈ 7.42 c/kWh
+        // Total savings = 30 kWh * 0.0742 €/kWh ≈ 2.23 €
+
+        $this->assertNotNull($savings);
+        $this->assertEquals(3.0, $savings['cheapest_average']);
+        $this->assertGreaterThan(0, $savings['savings_cents']);
+        $this->assertGreaterThan(0, $savings['savings_percent']);
+    }
+
+    public function test_savings_calculation_with_consumption(): void
+    {
+        // Simple case: avg 10, cheapest 5
+        $this->createSpotPrice(2026, 1, 20, 0, 5.0);
+        $this->createSpotPrice(2026, 1, 20, 1, 5.0);
+        $this->createSpotPrice(2026, 1, 20, 2, 15.0);
+        $this->createSpotPrice(2026, 1, 20, 3, 15.0);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+
+        // Use 2 hours with 10 kWh each = 20 kWh total
+        $savings = $instance->calculatePotentialSavings(2, 10);
+
+        // Average price = (5+5+15+15)/4 = 10 c/kWh
+        // Cheapest 2 hours = 5 c/kWh
+        // Savings = 5 c/kWh * 20 kWh = 100 cents = 1.00 €
+        $this->assertEquals(5.0, $savings['cheapest_average']);
+        $this->assertEquals(10.0, $savings['overall_average']);
+        $this->assertEquals(100, $savings['savings_cents']); // 100 cents = 1€
+    }
+
+    public function test_savings_returns_null_when_not_enough_data(): void
+    {
+        $this->createSpotPrice(2026, 1, 20, 0, 5.0);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $savings = $instance->calculatePotentialSavings(3, 10); // Request 3 hours but only 1 available
+
+        $this->assertNull($savings);
+    }
+
+    // ==========================================
+    // View Data Analytics Tests
+    // ==========================================
+
+    public function test_view_receives_analytics_data(): void
+    {
+        $this->createFullDayPrices(2026, 1, 19);
+        $this->createFullDayPrices(2026, 1, 20);
+
+        Livewire::test(SpotPrice::class)
+            ->assertViewHas('priceVolatility')
+            ->assertViewHas('historicalComparison')
+            ->assertViewHas('cheapestRemainingHours')
+            ->assertViewHas('bestConsecutiveHours')
+            ->assertViewHas('potentialSavings');
+    }
 }
