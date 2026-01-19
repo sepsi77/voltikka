@@ -128,3 +128,46 @@
 **Files created:**
 - `laravel/app/Models/Postcode.php` - Eloquent model
 - `laravel/tests/Unit/PostcodeTest.php` - Unit tests
+
+### Task: eloquent-remaining-models (COMPLETED)
+
+**What was done:**
+- Created four remaining Eloquent models ported from SQLAlchemy:
+
+1. **ElectricitySource** - Energy source percentages for each contract
+   - Primary key: `contract_id` (one-to-one with ElectricityContract)
+   - All renewable, fossil, and nuclear percentage fields
+   - `belongsTo` relationship with `ElectricityContract`
+   - Helper methods: `isFullyRenewable()`, `isFossilFree()`, `hasNuclear()`
+
+2. **ActiveContract** - Simple reference table for active contracts
+   - Primary key: `id` (foreign key to electricity_contracts)
+   - `belongsTo` relationship with `ElectricityContract`
+
+3. **SpotFutures** - Futures pricing data
+   - Composite primary key (`date`, `price`) handled via `setKeysForSaveQuery()`
+   - Date and float casts
+
+4. **SpotPriceHour** - Hourly spot prices
+   - Composite primary key (`region`, `timestamp`) handled via `setKeysForSaveQuery()`
+   - Computed accessors for `vat` and `price_with_tax` (matching database computed columns)
+   - Query scopes: `forRegion()`, `forDate()`
+   - Null-safe VAT calculations
+
+All models follow TDD approach with comprehensive unit tests.
+
+**Tests:**
+- 37 new tests with 72 assertions
+- `php artisan test tests/Unit/` - All 70 tests pass (197 assertions)
+
+**Files created:**
+- `laravel/app/Models/ElectricitySource.php`
+- `laravel/app/Models/ActiveContract.php`
+- `laravel/app/Models/SpotFutures.php`
+- `laravel/app/Models/SpotPriceHour.php`
+- `laravel/tests/Unit/ElectricitySourceTest.php`
+- `laravel/tests/Unit/ActiveContractTest.php`
+- `laravel/tests/Unit/SpotFuturesTest.php`
+- `laravel/tests/Unit/SpotPriceHourTest.php`
+
+**Commit:** 11ee1d3 - "feat: Add remaining Eloquent models (ElectricitySource, ActiveContract, SpotFutures, SpotPriceHour)"

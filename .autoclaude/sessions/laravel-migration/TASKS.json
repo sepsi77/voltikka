@@ -56,8 +56,11 @@
       "id": "eloquent-remaining-models",
       "title": "Create remaining Eloquent models",
       "description": "Port ElectricitySource, ActiveContract, SpotFutures, and SpotPriceHour models from Python. Include computed columns for SpotPriceHour (vat, price_with_tax).",
-      "status": "pending",
-      "priority": 6
+      "status": "completed",
+      "priority": 6,
+      "started_at": "2026-01-19T19:00:00Z",
+      "completed_at": "2026-01-19T19:30:00Z",
+      "passes": true
     },
     {
       "id": "contract-price-calculator",
