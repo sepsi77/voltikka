@@ -400,3 +400,73 @@ All models follow TDD approach with comprehensive unit tests.
 - `laravel/routes/api.php` - Added calculation routes
 
 **Commit:** 80118e4 - "feat: Create API routes for price calculation and consumption estimation"
+
+## 2026-01-20
+
+### Task: fetch-contracts-job (COMPLETED)
+
+**What was done:**
+- Created `FetchContracts` Artisan command to fetch contracts from Azure Consumer API
+- Ported logic from legacy Python Cloud Functions (`fetch-contracts`, `load-contracts-to-db`, `trigger-contract-fetch`)
+- Created `AzureConsumerApiClient` service for API communication with retry logic
+
+**Command features:**
+- `php artisan contracts:fetch` - Fetch contracts from all 30 default postcodes
+- `php artisan contracts:fetch --postcodes=00100,02230` - Fetch from specific postcodes
+- Deduplicates contracts across postcodes
+- Updates existing contracts (only pricing_has_discounts field per Python behavior)
+- Clears and repopulates active_contracts table
+- Inserts price components with composite key handling
+- Inserts electricity sources with upsert logic
+- Inserts contract-postcode relationships (only for valid postcodes)
+- Inserts spot futures data
+- Full database transaction support with rollback on error
+- Comprehensive logging and console output
+
+**Scheduled task:**
+- Configured in `routes/console.php` using Laravel 11 Schedule facade
+- Runs daily at 06:00 Europe/Helsinki timezone
+- `withoutOverlapping()` to prevent concurrent runs
+- `onOneServer()` for distributed environments
+- Logs output to `storage/logs/contracts-fetch.log`
+
+**Migrations added:**
+- `2026_01_19_200000_create_active_contracts_table.php` - Active contracts reference table
+- `2026_01_19_210000_create_spot_futures_table.php` - Spot futures pricing data
+- `2026_01_19_220000_create_spot_price_hours_table.php` - Hourly spot prices
+
+**Other changes:**
+- Fixed `jsonb` → `json` in electricity_contracts migration for SQLite test compatibility
+
+**Tests:**
+- 14 comprehensive feature tests covering:
+  - Basic fetch and save to database
+  - Multiple postcode handling
+  - Default postcodes (30 total)
+  - Contract deduplication
+  - Updating existing contracts
+  - Clearing active contracts
+  - Postcode relationships
+  - Spot futures
+  - API error handling
+  - Retry logic (3 retries with exponential backoff)
+  - Discount data parsing
+  - Time metering contracts
+  - Seasonal metering contracts
+  - Console output verification
+- `php artisan test --filter=FetchContractsCommandTest` - 14 tests, 42 assertions
+- `php artisan test` - All 126 tests pass (536 assertions)
+
+**Files created:**
+- `laravel/app/Console/Commands/FetchContracts.php` - Artisan command
+- `laravel/app/Services/AzureConsumerApiClient.php` - API client service
+- `laravel/tests/Feature/FetchContractsCommandTest.php` - Feature tests
+- `laravel/database/migrations/2026_01_19_200000_create_active_contracts_table.php`
+- `laravel/database/migrations/2026_01_19_210000_create_spot_futures_table.php`
+- `laravel/database/migrations/2026_01_19_220000_create_spot_price_hours_table.php`
+
+**Files modified:**
+- `laravel/routes/console.php` - Added scheduled task
+- `laravel/database/migrations/2026_01_19_160000_create_electricity_contracts_table.php` - jsonb → json
+
+**Commit:** 3fa11dc - "feat: Create FetchContracts scheduled job for Azure Consumer API"

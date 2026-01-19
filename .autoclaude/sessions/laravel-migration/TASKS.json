@@ -106,8 +106,11 @@
       "id": "fetch-contracts-job",
       "title": "Create FetchContracts scheduled job",
       "description": "Port the Azure Consumer API contract fetching logic from legacy/python/cloud-functions/ to a Laravel scheduled job. Fetch contract data from ev-shv-prod-app-wa-consumerapi1.azurewebsites.net for all postcodes. Schedule to run daily at 06:00.",
-      "status": "pending",
-      "priority": 11
+      "status": "completed",
+      "priority": 11,
+      "started_at": "2026-01-20T00:00:00Z",
+      "completed_at": "2026-01-20T01:00:00Z",
+      "passes": true
     },
     {
       "id": "fetch-spot-prices-job",
