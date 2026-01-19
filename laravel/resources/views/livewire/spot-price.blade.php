@@ -365,6 +365,158 @@
                 </table>
             </div>
         </div>
+
+    <!-- CSV Download Button -->
+        <div class="flex justify-end mb-8">
+            <button
+                wire:click="downloadCsv"
+                wire:loading.attr="disabled"
+                class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+            >
+                <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                <span wire:loading.remove wire:target="downloadCsv">Lataa CSV</span>
+                <span wire:loading wire:target="downloadCsv">Ladataan...</span>
+            </button>
+        </div>
+
+        <!-- Historical Data Section (Lazy Loaded) -->
+        <section class="mb-8">
+            @if (!$historicalDataLoaded)
+                <!-- Load Historical Data Button -->
+                <div class="bg-gray-50 rounded-lg p-6 text-center">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Historialliset hintatiedot</h3>
+                    <p class="text-gray-600 mb-4">Näytä viikon hintakehitys, kuukausivertailu ja vuosivertailu.</p>
+                    <button
+                        wire:click="loadHistoricalData"
+                        wire:loading.attr="disabled"
+                        class="inline-flex items-center px-6 py-3 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-primary-500 hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50"
+                    >
+                        <svg wire:loading.remove wire:target="loadHistoricalData" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        <svg wire:loading wire:target="loadHistoricalData" class="animate-spin w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span wire:loading.remove wire:target="loadHistoricalData">Lataa historiatiedot</span>
+                        <span wire:loading wire:target="loadHistoricalData">Ladataan...</span>
+                    </button>
+                </div>
+            @else
+                <!-- Weekly Price Chart -->
+                @if (!empty($weeklyChartData['labels']))
+                    <div class="bg-white rounded-lg shadow border border-gray-200 p-4 md:p-6 mb-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Viikon hintakehitys</h3>
+                        <p class="text-sm text-gray-500 mb-4">Päivittäiset keskihinnat viimeiseltä 7 päivältä</p>
+                        <div class="h-64 md:h-80">
+                            <canvas id="weeklyPriceChart"></canvas>
+                        </div>
+                    </div>
+                @endif
+
+                <!-- Monthly and Year Comparison -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Monthly Comparison -->
+                    @if (!empty($monthlyComparison))
+                        <div class="bg-white rounded-lg shadow border border-gray-200 p-5">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Kuukausivertailu</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <!-- Current Month -->
+                                <div class="bg-blue-50 p-4 rounded-lg">
+                                    <p class="text-sm text-gray-500">{{ $monthlyComparison['current_month_name'] }}</p>
+                                    <p class="text-2xl font-bold text-blue-700">
+                                        @if ($monthlyComparison['current_month_average'] !== null)
+                                            {{ number_format($monthlyComparison['current_month_average'], 2, ',', ' ') }}
+                                        @else
+                                            -
+                                        @endif
+                                        <span class="text-sm font-normal">c/kWh</span>
+                                    </p>
+                                    <p class="text-xs text-gray-400">{{ $monthlyComparison['current_month_days'] }} päivää</p>
+                                </div>
+
+                                <!-- Last Month -->
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-sm text-gray-500">{{ $monthlyComparison['last_month_name'] }}</p>
+                                    <p class="text-2xl font-bold text-gray-700">
+                                        @if ($monthlyComparison['last_month_average'] !== null)
+                                            {{ number_format($monthlyComparison['last_month_average'], 2, ',', ' ') }}
+                                        @else
+                                            -
+                                        @endif
+                                        <span class="text-sm font-normal">c/kWh</span>
+                                    </p>
+                                    <p class="text-xs text-gray-400">{{ $monthlyComparison['last_month_days'] }} päivää</p>
+                                </div>
+                            </div>
+
+                            @if ($monthlyComparison['change_percent'] !== null)
+                                @php
+                                    $change = $monthlyComparison['change_percent'];
+                                    $isPositive = $change > 0;
+                                @endphp
+                                <div class="mt-4 p-3 rounded-lg {{ $isPositive ? 'bg-red-50' : 'bg-green-50' }}">
+                                    <p class="text-sm {{ $isPositive ? 'text-red-700' : 'text-green-700' }}">
+                                        <span class="font-medium">{{ $isPositive ? '+' : '' }}{{ number_format($change, 1, ',', ' ') }}%</span>
+                                        verrattuna edelliseen kuukauteen
+                                    </p>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+
+                    <!-- Year-over-Year Comparison -->
+                    @if (!empty($yearOverYearComparison) && $yearOverYearComparison['has_last_year_data'])
+                        <div class="bg-white rounded-lg shadow border border-gray-200 p-5">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Vuosivertailu</h3>
+                            <p class="text-sm text-gray-500 mb-4">{{ $yearOverYearComparison['month_name'] }}</p>
+                            <div class="grid grid-cols-2 gap-4">
+                                <!-- Current Year -->
+                                <div class="bg-blue-50 p-4 rounded-lg">
+                                    <p class="text-sm text-gray-500">{{ $yearOverYearComparison['current_year'] }}</p>
+                                    <p class="text-2xl font-bold text-blue-700">
+                                        @if ($yearOverYearComparison['current_year_average'] !== null)
+                                            {{ number_format($yearOverYearComparison['current_year_average'], 2, ',', ' ') }}
+                                        @else
+                                            -
+                                        @endif
+                                        <span class="text-sm font-normal">c/kWh</span>
+                                    </p>
+                                </div>
+
+                                <!-- Last Year -->
+                                <div class="bg-gray-50 p-4 rounded-lg">
+                                    <p class="text-sm text-gray-500">{{ $yearOverYearComparison['last_year'] }}</p>
+                                    <p class="text-2xl font-bold text-gray-700">
+                                        @if ($yearOverYearComparison['last_year_average'] !== null)
+                                            {{ number_format($yearOverYearComparison['last_year_average'], 2, ',', ' ') }}
+                                        @else
+                                            -
+                                        @endif
+                                        <span class="text-sm font-normal">c/kWh</span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            @if ($yearOverYearComparison['change_percent'] !== null)
+                                @php
+                                    $yoyChange = $yearOverYearComparison['change_percent'];
+                                    $isYoyPositive = $yoyChange > 0;
+                                @endphp
+                                <div class="mt-4 p-3 rounded-lg {{ $isYoyPositive ? 'bg-red-50' : 'bg-green-50' }}">
+                                    <p class="text-sm {{ $isYoyPositive ? 'text-red-700' : 'text-green-700' }}">
+                                        <span class="font-medium">{{ $isYoyPositive ? '+' : '' }}{{ number_format($yoyChange, 1, ',', ' ') }}%</span>
+                                        verrattuna samaan kuukauteen vuonna {{ $yearOverYearComparison['last_year'] }}
+                                    </p>
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            @endif
+        </section>
     @endif
 
     <!-- Information Section -->
@@ -399,55 +551,134 @@
     </div>
 </div>
 
-@if (!empty($chartData['labels']))
-    @push('scripts')
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const ctx = document.getElementById('priceChart');
-            if (ctx) {
-                new Chart(ctx, {
-                    type: 'bar',
-                    data: @json($chartData),
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                display: false
-                            },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return context.parsed.y.toFixed(2).replace('.', ',') + ' c/kWh';
-                                    }
-                                }
-                            }
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Initialize daily price chart
+    @if (!empty($chartData['labels']))
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('priceChart');
+        if (ctx) {
+            new Chart(ctx, {
+                type: 'bar',
+                data: @json($chartData),
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
                         },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: 'c/kWh (ALV 0%)'
-                                },
-                                ticks: {
-                                    callback: function(value) {
-                                        return value.toFixed(1).replace('.', ',');
-                                    }
-                                }
-                            },
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: 'Kellonaika'
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.parsed.y.toFixed(2).replace('.', ',') + ' c/kWh';
                                 }
                             }
                         }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'c/kWh (ALV 0%)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(1).replace('.', ',');
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Kellonaika'
+                            }
+                        }
                     }
-                });
-            }
+                }
+            });
+        }
+    });
+    @endif
+
+    // Initialize weekly price chart (if historical data is loaded)
+    @if ($historicalDataLoaded && !empty($weeklyChartData['labels']))
+    document.addEventListener('DOMContentLoaded', function() {
+        initWeeklyChart();
+    });
+
+    // Also handle Livewire updates
+    document.addEventListener('livewire:navigated', function() {
+        initWeeklyChart();
+    });
+
+    function initWeeklyChart() {
+        const weeklyCtx = document.getElementById('weeklyPriceChart');
+        if (weeklyCtx && !weeklyCtx.chart) {
+            weeklyCtx.chart = new Chart(weeklyCtx, {
+                type: 'line',
+                data: @json($weeklyChartData),
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(2).replace('.', ',') + ' c/kWh';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: 'c/kWh (ALV 0%)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(1).replace('.', ',');
+                                }
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Päivämäärä'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+    @endif
+
+    // Reinitialize charts when Livewire updates the component
+    document.addEventListener('livewire:initialized', function() {
+        Livewire.hook('commit', ({ component, commit, respond, succeed, fail }) => {
+            succeed(({ snapshot, effect }) => {
+                // After successful update, re-init charts
+                setTimeout(() => {
+                    const weeklyCtx = document.getElementById('weeklyPriceChart');
+                    if (weeklyCtx && !weeklyCtx.chart) {
+                        initWeeklyChart && initWeeklyChart();
+                    }
+                }, 100);
+            });
         });
-    </script>
-    @endpush
-@endif
+    });
+</script>
+@endpush

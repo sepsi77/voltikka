@@ -11,9 +11,31 @@ class SpotPrice extends Component
     public array $hourlyPrices = [];
     public bool $loading = true;
     public ?string $error = null;
+    public bool $historicalDataLoaded = false;
+
+    // Historical data (lazy loaded)
+    public array $weeklyDailyAverages = [];
+    public array $weeklyChartData = [];
+    public array $monthlyComparison = [];
+    public array $yearOverYearComparison = [];
 
     private const REGION = 'FI';
     private const TIMEZONE = 'Europe/Helsinki';
+
+    private const FINNISH_MONTHS = [
+        1 => 'Tammikuu',
+        2 => 'Helmikuu',
+        3 => 'Maaliskuu',
+        4 => 'Huhtikuu',
+        5 => 'Toukokuu',
+        6 => 'Kesäkuu',
+        7 => 'Heinäkuu',
+        8 => 'Elokuu',
+        9 => 'Syyskuu',
+        10 => 'Lokakuu',
+        11 => 'Marraskuu',
+        12 => 'Joulukuu',
+    ];
 
     public function mount(): void
     {
@@ -517,9 +539,320 @@ class SpotPrice extends Component
         ];
     }
 
+    // ==========================================
+    // Historical Data Methods (Lazy Loaded)
+    // ==========================================
+
+    /**
+     * Load historical data on demand (lazy loading).
+     */
+    public function loadHistoricalData(): void
+    {
+        $this->weeklyDailyAverages = $this->getWeeklyDailyAverages();
+        $this->weeklyChartData = $this->getWeeklyChartData();
+        $this->monthlyComparison = $this->getMonthlyComparison();
+        $this->yearOverYearComparison = $this->getYearOverYearComparison();
+        $this->historicalDataLoaded = true;
+    }
+
+    /**
+     * Get daily averages for the past 7 days (excluding today).
+     *
+     * @return array Array of daily averages with date and average price
+     */
+    public function getWeeklyDailyAverages(): array
+    {
+        $helsinkiNow = Carbon::now(self::TIMEZONE);
+        $weekStart = $helsinkiNow->copy()->subDays(7)->startOfDay()->setTimezone('UTC');
+        $yesterdayEnd = $helsinkiNow->copy()->subDay()->endOfDay()->setTimezone('UTC');
+
+        $prices = SpotPriceHour::forRegion(self::REGION)
+            ->whereBetween('utc_datetime', [$weekStart, $yesterdayEnd])
+            ->orderBy('utc_datetime')
+            ->get();
+
+        if ($prices->isEmpty()) {
+            return [];
+        }
+
+        // Group by Helsinki date
+        $dailyPrices = [];
+        foreach ($prices as $price) {
+            $helsinkiTime = Carbon::parse($price->utc_datetime)->shiftTimezone('UTC')->setTimezone(self::TIMEZONE);
+            $date = $helsinkiTime->format('Y-m-d');
+
+            if (!isset($dailyPrices[$date])) {
+                $dailyPrices[$date] = [
+                    'prices' => [],
+                    'min' => PHP_FLOAT_MAX,
+                    'max' => PHP_FLOAT_MIN,
+                ];
+            }
+            $dailyPrices[$date]['prices'][] = $price->price_without_tax;
+            $dailyPrices[$date]['min'] = min($dailyPrices[$date]['min'], $price->price_without_tax);
+            $dailyPrices[$date]['max'] = max($dailyPrices[$date]['max'], $price->price_without_tax);
+        }
+
+        // Calculate daily averages and sort by date
+        $result = [];
+        ksort($dailyPrices);
+
+        foreach ($dailyPrices as $date => $data) {
+            $result[] = [
+                'date' => $date,
+                'average' => array_sum($data['prices']) / count($data['prices']),
+                'min' => $data['min'],
+                'max' => $data['max'],
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get monthly comparison data (this month vs last month).
+     *
+     * @return array Monthly comparison with averages and percentage change
+     */
+    public function getMonthlyComparison(): array
+    {
+        $helsinkiNow = Carbon::now(self::TIMEZONE);
+        $currentMonth = $helsinkiNow->month;
+        $currentYear = $helsinkiNow->year;
+
+        // Calculate last month
+        $lastMonthDate = $helsinkiNow->copy()->subMonth();
+        $lastMonth = $lastMonthDate->month;
+        $lastMonthYear = $lastMonthDate->year;
+
+        // Get current month data (from start of month to now)
+        $currentMonthStart = $helsinkiNow->copy()->startOfMonth()->startOfDay()->setTimezone('UTC');
+        $currentMonthEnd = $helsinkiNow->copy()->endOfDay()->setTimezone('UTC');
+
+        $currentMonthPrices = SpotPriceHour::forRegion(self::REGION)
+            ->whereBetween('utc_datetime', [$currentMonthStart, $currentMonthEnd])
+            ->get();
+
+        // Get last month data (full month)
+        $lastMonthStart = $lastMonthDate->copy()->startOfMonth()->startOfDay()->setTimezone('UTC');
+        $lastMonthEnd = $lastMonthDate->copy()->endOfMonth()->endOfDay()->setTimezone('UTC');
+
+        $lastMonthPrices = SpotPriceHour::forRegion(self::REGION)
+            ->whereBetween('utc_datetime', [$lastMonthStart, $lastMonthEnd])
+            ->get();
+
+        // Calculate averages
+        $currentMonthAverage = null;
+        $currentMonthDays = 0;
+        if ($currentMonthPrices->isNotEmpty()) {
+            $currentMonthAverage = $currentMonthPrices->avg('price_without_tax');
+            $currentMonthDays = $this->countUniqueDays($currentMonthPrices);
+        }
+
+        $lastMonthAverage = null;
+        $lastMonthDays = 0;
+        if ($lastMonthPrices->isNotEmpty()) {
+            $lastMonthAverage = $lastMonthPrices->avg('price_without_tax');
+            $lastMonthDays = $this->countUniqueDays($lastMonthPrices);
+        }
+
+        // Calculate change percentage
+        $changePercent = null;
+        if ($lastMonthAverage !== null && $lastMonthAverage > 0 && $currentMonthAverage !== null) {
+            $changePercent = (($currentMonthAverage - $lastMonthAverage) / $lastMonthAverage) * 100;
+        }
+
+        return [
+            'current_month_name' => self::FINNISH_MONTHS[$currentMonth],
+            'last_month_name' => self::FINNISH_MONTHS[$lastMonth],
+            'current_month_average' => $currentMonthAverage,
+            'last_month_average' => $lastMonthAverage,
+            'current_month_days' => $currentMonthDays,
+            'last_month_days' => $lastMonthDays,
+            'change_percent' => $changePercent,
+        ];
+    }
+
+    /**
+     * Get year-over-year comparison (this month vs same month last year).
+     *
+     * @return array Year-over-year comparison data
+     */
+    public function getYearOverYearComparison(): array
+    {
+        $helsinkiNow = Carbon::now(self::TIMEZONE);
+        $currentYear = $helsinkiNow->year;
+        $currentMonth = $helsinkiNow->month;
+        $lastYear = $currentYear - 1;
+
+        // Get current month data
+        $currentMonthStart = $helsinkiNow->copy()->startOfMonth()->startOfDay()->setTimezone('UTC');
+        $currentMonthEnd = $helsinkiNow->copy()->endOfDay()->setTimezone('UTC');
+
+        $currentYearPrices = SpotPriceHour::forRegion(self::REGION)
+            ->whereBetween('utc_datetime', [$currentMonthStart, $currentMonthEnd])
+            ->get();
+
+        // Get same month last year
+        $lastYearMonthStart = Carbon::create($lastYear, $currentMonth, 1, 0, 0, 0, self::TIMEZONE)
+            ->startOfDay()->setTimezone('UTC');
+        $lastYearMonthEnd = Carbon::create($lastYear, $currentMonth, 1, 0, 0, 0, self::TIMEZONE)
+            ->endOfMonth()->endOfDay()->setTimezone('UTC');
+
+        $lastYearPrices = SpotPriceHour::forRegion(self::REGION)
+            ->whereBetween('utc_datetime', [$lastYearMonthStart, $lastYearMonthEnd])
+            ->get();
+
+        // Calculate averages
+        $currentYearAverage = $currentYearPrices->isNotEmpty() ? $currentYearPrices->avg('price_without_tax') : null;
+        $lastYearAverage = $lastYearPrices->isNotEmpty() ? $lastYearPrices->avg('price_without_tax') : null;
+
+        // Calculate change percentage
+        $changePercent = null;
+        if ($lastYearAverage !== null && $lastYearAverage > 0 && $currentYearAverage !== null) {
+            $changePercent = (($currentYearAverage - $lastYearAverage) / $lastYearAverage) * 100;
+        }
+
+        return [
+            'current_year' => $currentYear,
+            'last_year' => $lastYear,
+            'current_year_average' => $currentYearAverage,
+            'last_year_average' => $lastYearAverage,
+            'change_percent' => $changePercent,
+            'has_last_year_data' => $lastYearPrices->isNotEmpty(),
+            'month_name' => self::FINNISH_MONTHS[$currentMonth],
+        ];
+    }
+
+    /**
+     * Generate Chart.js compatible data for weekly price trends.
+     *
+     * @return array Chart.js data structure with daily averages and min/max range
+     */
+    public function getWeeklyChartData(): array
+    {
+        $weeklyData = $this->getWeeklyDailyAverages();
+
+        if (empty($weeklyData)) {
+            return [
+                'labels' => [],
+                'datasets' => [
+                    [
+                        'label' => 'Keskihinta (c/kWh)',
+                        'data' => [],
+                        'borderColor' => 'rgb(59, 130, 246)',
+                        'backgroundColor' => 'rgba(59, 130, 246, 0.5)',
+                        'tension' => 0.3,
+                    ],
+                ],
+            ];
+        }
+
+        $labels = [];
+        $averages = [];
+        $mins = [];
+        $maxs = [];
+
+        foreach ($weeklyData as $day) {
+            $date = Carbon::parse($day['date']);
+            // Finnish format: d.m. (e.g., "13.1.")
+            $labels[] = $date->format('d.m.');
+            $averages[] = round($day['average'], 2);
+            $mins[] = round($day['min'], 2);
+            $maxs[] = round($day['max'], 2);
+        }
+
+        return [
+            'labels' => $labels,
+            'datasets' => [
+                [
+                    'label' => 'Keskihinta (c/kWh)',
+                    'data' => $averages,
+                    'borderColor' => 'rgb(59, 130, 246)',
+                    'backgroundColor' => 'rgba(59, 130, 246, 0.5)',
+                    'tension' => 0.3,
+                    'fill' => false,
+                ],
+                [
+                    'label' => 'Vaihteluväli (min-max)',
+                    'data' => $maxs,
+                    'borderColor' => 'rgba(239, 68, 68, 0.5)',
+                    'backgroundColor' => 'rgba(239, 68, 68, 0.1)',
+                    'fill' => '+1',
+                    'tension' => 0.3,
+                    'pointRadius' => 0,
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Generate CSV data for price export.
+     *
+     * @param int $days Number of days to include (default 1 = today only)
+     * @return string CSV formatted string
+     */
+    public function generateCsvData(int $days = 1): string
+    {
+        $helsinkiNow = Carbon::now(self::TIMEZONE);
+        $startDate = $helsinkiNow->copy()->subDays($days - 1)->startOfDay()->setTimezone('UTC');
+        $endDate = $helsinkiNow->copy()->endOfDay()->setTimezone('UTC');
+
+        $prices = SpotPriceHour::forRegion(self::REGION)
+            ->whereBetween('utc_datetime', [$startDate, $endDate])
+            ->orderBy('utc_datetime')
+            ->get();
+
+        // CSV header
+        $csv = "Päivämäärä;Tunti;Hinta (c/kWh) ALV 0%;Hinta (c/kWh) sis. ALV;ALV %\n";
+
+        foreach ($prices as $price) {
+            $helsinkiTime = Carbon::parse($price->utc_datetime)->shiftTimezone('UTC')->setTimezone(self::TIMEZONE);
+            $date = $helsinkiTime->format('d.m.Y');
+            $hour = $helsinkiTime->format('H') . ':00-' . $helsinkiTime->copy()->addHour()->format('H') . ':00';
+            $priceWithoutTax = number_format($price->price_without_tax, 2, ',', '');
+            $priceWithTax = number_format($price->price_with_tax, 2, ',', '');
+            $vatPercent = number_format($price->vat_rate * 100, 1, ',', '');
+
+            $csv .= "{$date};{$hour};{$priceWithoutTax};{$priceWithTax};{$vatPercent}\n";
+        }
+
+        return $csv;
+    }
+
+    /**
+     * Download CSV file with spot prices.
+     *
+     * @return \Symfony\Component\HttpFoundation\StreamedResponse
+     */
+    public function downloadCsv()
+    {
+        $csvData = $this->generateCsvData(days: 7); // Last 7 days
+
+        return response()->streamDownload(function () use ($csvData) {
+            echo "\xEF\xBB\xBF"; // UTF-8 BOM for Excel compatibility
+            echo $csvData;
+        }, 'spot-hinnat.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    /**
+     * Count unique days in a collection of prices.
+     */
+    private function countUniqueDays($prices): int
+    {
+        $dates = [];
+        foreach ($prices as $price) {
+            $helsinkiTime = Carbon::parse($price->utc_datetime)->shiftTimezone('UTC')->setTimezone(self::TIMEZONE);
+            $dates[$helsinkiTime->format('Y-m-d')] = true;
+        }
+        return count($dates);
+    }
+
     public function render()
     {
-        return view('livewire.spot-price', [
+        $viewData = [
             'currentPrice' => $this->getCurrentPrice(),
             'todayMinMax' => $this->getTodayMinMax(),
             'cheapestHour' => $this->getCheapestHour(),
@@ -533,6 +866,17 @@ class SpotPrice extends Component
             'potentialSavings' => $this->calculatePotentialSavings(3, 3.7), // 3 hours at 3.7 kW (typical EV charging)
             // Chart data
             'chartData' => $this->getChartData(),
-        ])->layout('layouts.app', ['title' => 'Pörssisähkön hinta - Voltikka']);
+        ];
+
+        // Add historical data if loaded
+        if ($this->historicalDataLoaded) {
+            $viewData['weeklyDailyAverages'] = $this->weeklyDailyAverages;
+            $viewData['weeklyChartData'] = $this->weeklyChartData;
+            $viewData['monthlyComparison'] = $this->monthlyComparison;
+            $viewData['yearOverYearComparison'] = $this->yearOverYearComparison;
+        }
+
+        return view('livewire.spot-price', $viewData)
+            ->layout('layouts.app', ['title' => 'Pörssisähkön hinta - Voltikka']);
     }
 }

@@ -69,9 +69,10 @@
       "id": "spot-price-historical-view",
       "title": "Add historical price trends to spot price page",
       "description": "Add historical trends section to spot price page:\n- Weekly price chart showing daily averages\n- Monthly comparison (this month vs last month)\n- Year-over-year comparison if data available\n- 'Price volatility' indicator showing how much prices vary\n- Exportable data option (CSV download)\n- Lazy-load historical data for performance",
-      "status": "pending",
+      "status": "in_progress",
       "priority": 3,
-      "depends_on": ["spot-price-view-enhanced", "fetch-historical-command"]
+      "depends_on": ["spot-price-view-enhanced", "fetch-historical-command"],
+      "started_at": "2026-01-20T00:00:00Z"
     },
     {
       "id": "seo-contracts-base",

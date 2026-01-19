@@ -1034,4 +1034,423 @@ class SpotPriceComponentTest extends TestCase
         $this->assertStringContainsString('md:', $html);
         $this->assertStringContainsString('lg:', $html);
     }
+
+    // ==========================================
+    // Historical Price Trends Tests (Iteration 7)
+    // ==========================================
+
+    public function test_gets_weekly_daily_averages(): void
+    {
+        // Create 7 days of prices before today
+        for ($day = 13; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, (float) $day));
+        }
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 20.0)); // Today
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $weeklyData = $instance->getWeeklyDailyAverages();
+
+        // Should have 7 days of data (week before today)
+        $this->assertCount(7, $weeklyData);
+
+        // First entry should be the oldest (7 days ago = Jan 13)
+        $this->assertEquals('2026-01-13', $weeklyData[0]['date']);
+        $this->assertEquals(13.0, $weeklyData[0]['average']);
+
+        // Last entry should be yesterday (Jan 19)
+        $this->assertEquals('2026-01-19', $weeklyData[6]['date']);
+        $this->assertEquals(19.0, $weeklyData[6]['average']);
+    }
+
+    public function test_weekly_daily_averages_handles_partial_data(): void
+    {
+        // Only create 3 days of history
+        $this->createFullDayPrices(2026, 1, 17, array_fill(0, 24, 17.0));
+        $this->createFullDayPrices(2026, 1, 18, array_fill(0, 24, 18.0));
+        $this->createFullDayPrices(2026, 1, 19, array_fill(0, 24, 19.0));
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 20.0)); // Today
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $weeklyData = $instance->getWeeklyDailyAverages();
+
+        // Should only have 3 days of data
+        $this->assertCount(3, $weeklyData);
+    }
+
+    public function test_weekly_daily_averages_returns_empty_when_no_history(): void
+    {
+        // Only today's data
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 20.0));
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $weeklyData = $instance->getWeeklyDailyAverages();
+
+        $this->assertEmpty($weeklyData);
+    }
+
+    public function test_gets_monthly_comparison(): void
+    {
+        // Create data for December 2025 (last month)
+        for ($day = 1; $day <= 10; $day++) {
+            $this->createFullDayPrices(2025, 12, $day, array_fill(0, 24, 5.0));
+        }
+
+        // Create data for January 2026 (this month, up to current day - 19)
+        for ($day = 1; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, 10.0));
+        }
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0)); // Today
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $monthlyComparison = $instance->getMonthlyComparison();
+
+        $this->assertEquals('Tammikuu', $monthlyComparison['current_month_name']);
+        $this->assertEquals('Joulukuu', $monthlyComparison['last_month_name']);
+        $this->assertEquals(10.0, $monthlyComparison['current_month_average']);
+        $this->assertEquals(5.0, $monthlyComparison['last_month_average']);
+        $this->assertEquals(100.0, $monthlyComparison['change_percent']); // +100% change
+        $this->assertGreaterThan(0, $monthlyComparison['current_month_days']);
+        $this->assertEquals(10, $monthlyComparison['last_month_days']);
+    }
+
+    public function test_monthly_comparison_handles_no_last_month_data(): void
+    {
+        // Only create current month data
+        for ($day = 1; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, 10.0));
+        }
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0)); // Today
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $monthlyComparison = $instance->getMonthlyComparison();
+
+        $this->assertEquals(10.0, $monthlyComparison['current_month_average']);
+        $this->assertNull($monthlyComparison['last_month_average']);
+        $this->assertNull($monthlyComparison['change_percent']);
+    }
+
+    public function test_gets_year_over_year_comparison(): void
+    {
+        // Create data for January 2025 (last year same month)
+        for ($day = 1; $day <= 20; $day++) {
+            $this->createFullDayPrices(2025, 1, $day, array_fill(0, 24, 5.0));
+        }
+
+        // Create data for January 2026 (this month)
+        for ($day = 1; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, 8.0));
+        }
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 8.0)); // Today
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $yoyComparison = $instance->getYearOverYearComparison();
+
+        $this->assertEquals(8.0, $yoyComparison['current_year_average']);
+        $this->assertEquals(5.0, $yoyComparison['last_year_average']);
+        $this->assertEquals(2026, $yoyComparison['current_year']);
+        $this->assertEquals(2025, $yoyComparison['last_year']);
+        $this->assertEquals(60.0, $yoyComparison['change_percent']); // +60% change
+        $this->assertTrue($yoyComparison['has_last_year_data']);
+    }
+
+    public function test_year_over_year_handles_no_last_year_data(): void
+    {
+        // Only create current year data
+        for ($day = 1; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, 10.0));
+        }
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0)); // Today
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $yoyComparison = $instance->getYearOverYearComparison();
+
+        $this->assertEquals(10.0, $yoyComparison['current_year_average']);
+        $this->assertNull($yoyComparison['last_year_average']);
+        $this->assertNull($yoyComparison['change_percent']);
+        $this->assertFalse($yoyComparison['has_last_year_data']);
+    }
+
+    public function test_gets_weekly_chart_data(): void
+    {
+        // Create 7 days of varying prices
+        for ($day = 13; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, (float) $day));
+        }
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 20.0)); // Today
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $chartData = $instance->getWeeklyChartData();
+
+        // Verify Chart.js structure
+        $this->assertArrayHasKey('labels', $chartData);
+        $this->assertArrayHasKey('datasets', $chartData);
+        $this->assertCount(7, $chartData['labels']); // 7 days
+
+        // Check dataset structure
+        $this->assertArrayHasKey('data', $chartData['datasets'][0]);
+        $this->assertArrayHasKey('label', $chartData['datasets'][0]);
+    }
+
+    public function test_weekly_chart_data_includes_min_max_range(): void
+    {
+        // Create data with varying daily averages
+        for ($day = 13; $day <= 19; $day++) {
+            $dayPrices = array_fill(0, 24, 10.0);
+            $dayPrices[5] = 2.0;  // Min for the day
+            $dayPrices[17] = 20.0; // Max for the day
+            $this->createFullDayPrices(2026, 1, $day, $dayPrices);
+        }
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0)); // Today
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $chartData = $instance->getWeeklyChartData();
+
+        // Should have additional datasets for min/max range
+        $this->assertCount(2, $chartData['datasets']); // Average + range
+    }
+
+    public function test_generates_csv_data_for_export(): void
+    {
+        // Create today's prices
+        $prices = [];
+        for ($h = 0; $h < 24; $h++) {
+            $prices[$h] = $h + 1.0;
+        }
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $csvData = $instance->generateCsvData();
+
+        // Should be a string with CSV content
+        $this->assertIsString($csvData);
+
+        // Should have header line
+        $this->assertStringContainsString('Päivämäärä', $csvData);
+        $this->assertStringContainsString('Tunti', $csvData);
+        $this->assertStringContainsString('Hinta (c/kWh)', $csvData);
+
+        // Should have data lines
+        $lines = explode("\n", trim($csvData));
+        $this->assertGreaterThanOrEqual(25, count($lines)); // Header + 24 hours
+    }
+
+    public function test_csv_data_includes_both_price_formats(): void
+    {
+        $this->createFullDayPrices(2026, 1, 20);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $csvData = $instance->generateCsvData();
+
+        // Should include both VAT 0% and with VAT columns
+        $this->assertStringContainsString('ALV 0%', $csvData);
+        $this->assertStringContainsString('sis. ALV', $csvData);
+    }
+
+    public function test_csv_data_includes_historical_data_when_available(): void
+    {
+        // Create yesterday and today's prices
+        $this->createFullDayPrices(2026, 1, 19);
+        $this->createFullDayPrices(2026, 1, 20);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $csvData = $instance->generateCsvData(days: 2);
+
+        // Should have 48 data rows (2 days * 24 hours)
+        $lines = explode("\n", trim($csvData));
+        $this->assertEquals(49, count($lines)); // Header + 48 hours
+    }
+
+    public function test_historical_data_is_lazy_loaded(): void
+    {
+        // Create historical data
+        for ($day = 1; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, 10.0));
+        }
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0)); // Today
+
+        // Initial component load should NOT include heavy historical data
+        $component = Livewire::test(SpotPrice::class);
+
+        // Historical data should only be loaded when requested
+        $this->assertFalse($component->get('historicalDataLoaded'));
+
+        // Call the method to load historical data
+        $component->call('loadHistoricalData');
+
+        $this->assertTrue($component->get('historicalDataLoaded'));
+        $component->assertViewHas('weeklyDailyAverages');
+        $component->assertViewHas('monthlyComparison');
+        $component->assertViewHas('yearOverYearComparison');
+    }
+
+    public function test_historical_section_shows_loading_state_initially(): void
+    {
+        $this->createFullDayPrices(2026, 1, 20);
+
+        Livewire::test(SpotPrice::class)
+            ->assertSee('Lataa historiatiedot');
+    }
+
+    public function test_historical_section_shows_data_after_loading(): void
+    {
+        // Create historical data
+        for ($day = 13; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, 10.0));
+        }
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0)); // Today
+
+        Livewire::test(SpotPrice::class)
+            ->call('loadHistoricalData')
+            ->assertSee('Viikon hintakehitys')
+            ->assertSee('Kuukausivertailu');
+    }
+
+    public function test_view_displays_weekly_chart_section(): void
+    {
+        for ($day = 13; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, 10.0));
+        }
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0));
+
+        Livewire::test(SpotPrice::class)
+            ->call('loadHistoricalData')
+            ->assertSee('Viikon hintakehitys');
+    }
+
+    public function test_view_displays_monthly_comparison_section(): void
+    {
+        // Create last month data
+        for ($day = 1; $day <= 10; $day++) {
+            $this->createFullDayPrices(2025, 12, $day, array_fill(0, 24, 5.0));
+        }
+        // Create current month data
+        for ($day = 1; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, 10.0));
+        }
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0));
+
+        Livewire::test(SpotPrice::class)
+            ->call('loadHistoricalData')
+            ->assertSee('Kuukausivertailu')
+            ->assertSee('Tammikuu')
+            ->assertSee('Joulukuu');
+    }
+
+    public function test_view_displays_year_over_year_when_data_available(): void
+    {
+        // Create last year's January data
+        for ($day = 1; $day <= 20; $day++) {
+            $this->createFullDayPrices(2025, 1, $day, array_fill(0, 24, 5.0));
+        }
+        // Create this year's data
+        for ($day = 1; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, 10.0));
+        }
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0));
+
+        Livewire::test(SpotPrice::class)
+            ->call('loadHistoricalData')
+            ->assertSee('Vuosivertailu')
+            ->assertSee('2025')
+            ->assertSee('2026');
+    }
+
+    public function test_view_hides_year_over_year_when_no_data(): void
+    {
+        // Only create current year data
+        for ($day = 1; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, 10.0));
+        }
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0));
+
+        Livewire::test(SpotPrice::class)
+            ->call('loadHistoricalData')
+            ->assertDontSee('Vuosivertailu');
+    }
+
+    public function test_view_displays_csv_download_button(): void
+    {
+        $this->createFullDayPrices(2026, 1, 20);
+
+        Livewire::test(SpotPrice::class)
+            ->assertSee('Lataa CSV');
+    }
+
+    public function test_csv_download_returns_proper_response(): void
+    {
+        $this->createFullDayPrices(2026, 1, 20);
+
+        $component = Livewire::test(SpotPrice::class)
+            ->call('downloadCsv');
+
+        // Should trigger a file download (Livewire's download feature)
+        $component->assertFileDownloaded('spot-hinnat.csv');
+    }
+
+    public function test_weekly_chart_uses_finnish_day_names(): void
+    {
+        for ($day = 13; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, 10.0));
+        }
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0));
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $chartData = $instance->getWeeklyChartData();
+
+        // Labels should be Finnish day names or date format
+        $labels = $chartData['labels'];
+        // Check for Finnish format (e.g., "Ma 13.1" or "13.1.")
+        $this->assertMatchesRegularExpression('/\d{1,2}\.\d{1,2}\./', $labels[0]);
+    }
+
+    public function test_monthly_comparison_uses_finnish_month_names(): void
+    {
+        for ($day = 1; $day <= 10; $day++) {
+            $this->createFullDayPrices(2025, 12, $day, array_fill(0, 24, 5.0));
+        }
+        for ($day = 1; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, 10.0));
+        }
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0));
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+        $monthlyComparison = $instance->getMonthlyComparison();
+
+        // Finnish month names
+        $finnishMonths = ['Tammikuu', 'Helmikuu', 'Maaliskuu', 'Huhtikuu', 'Toukokuu',
+                          'Kesäkuu', 'Heinäkuu', 'Elokuu', 'Syyskuu', 'Lokakuu',
+                          'Marraskuu', 'Joulukuu'];
+
+        $this->assertContains($monthlyComparison['current_month_name'], $finnishMonths);
+        $this->assertContains($monthlyComparison['last_month_name'], $finnishMonths);
+    }
+
+    public function test_view_receives_historical_analytics_data_after_load(): void
+    {
+        for ($day = 13; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, 10.0));
+        }
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0));
+
+        Livewire::test(SpotPrice::class)
+            ->call('loadHistoricalData')
+            ->assertViewHas('weeklyDailyAverages')
+            ->assertViewHas('weeklyChartData')
+            ->assertViewHas('monthlyComparison')
+            ->assertViewHas('yearOverYearComparison');
+    }
 }
