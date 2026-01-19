@@ -7,6 +7,7 @@ use App\Models\Postcode;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
@@ -203,13 +204,17 @@ class ContractsList extends Component
 
     /**
      * Get contracts with calculated costs.
+     *
+     * Memory optimization: We do NOT eager load availabilityPostcodes as that
+     * relationship has 7000+ pivot records which causes memory exhaustion.
+     * Instead, we filter by postcode at the database level using a subquery.
      */
     public function getContractsProperty(): Collection
     {
         $calculator = app(ContractPriceCalculator::class);
 
         $query = ElectricityContract::query()
-            ->with(['company', 'priceComponents', 'electricitySource', 'availabilityPostcodes']);
+            ->with(['company', 'priceComponents', 'electricitySource']);
 
         // Apply contract type filter
         if ($this->contractTypeFilter !== '') {
@@ -221,17 +226,22 @@ class ContractsList extends Component
             $query->where('metering', $this->meteringFilter);
         }
 
-        $contracts = $query->get();
-
-        // Apply postcode filter (needs to check availability_is_national or postcode match)
+        // Apply postcode filter at database level (memory optimization)
+        // This avoids loading all pivot records into memory
         if ($this->postcodeFilter !== '') {
-            $contracts = $contracts->filter(function ($contract) {
-                if ($contract->availability_is_national) {
-                    return true;
-                }
-                return $contract->availabilityPostcodes->contains('postcode', $this->postcodeFilter);
+            $postcode = $this->postcodeFilter;
+            $query->where(function ($q) use ($postcode) {
+                $q->where('availability_is_national', true)
+                  ->orWhereExists(function ($subquery) use ($postcode) {
+                      $subquery->select(DB::raw(1))
+                               ->from('contract_postcode')
+                               ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
+                               ->where('contract_postcode.postcode', $postcode);
+                  });
             });
         }
+
+        $contracts = $query->get();
 
         // Apply energy source filters
         if ($this->renewableFilter) {

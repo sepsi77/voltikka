@@ -369,4 +369,231 @@ class ContractsListPageTest extends TestCase
 
         $response->assertSee('Voltikka'); // App name in title or header
     }
+
+    /**
+     * Test that postcode filter works without eager loading all availability postcodes.
+     * This verifies the memory optimization - filtering by postcode should use an exists
+     * query rather than loading all pivot records.
+     */
+    public function test_postcode_filter_works_without_eager_loading_all_postcodes(): void
+    {
+        // Create test postcodes
+        \App\Models\Postcode::create([
+            'postcode' => '00100',
+            'postcode_fi_name' => 'Helsinki',
+            'postcode_fi_name_slug' => 'helsinki',
+            'postcode_sv_name' => 'Helsingfors',
+            'postcode_sv_name_slug' => 'helsingfors',
+            'municipal_name_fi' => 'Helsinki',
+            'municipal_name_fi_slug' => 'helsinki',
+            'municipal_name_sv' => 'Helsingfors',
+            'municipal_name_sv_slug' => 'helsingfors',
+        ]);
+
+        \App\Models\Postcode::create([
+            'postcode' => '33100',
+            'postcode_fi_name' => 'Tampere',
+            'postcode_fi_name_slug' => 'tampere',
+            'postcode_sv_name' => 'Tammerfors',
+            'postcode_sv_name_slug' => 'tammerfors',
+            'municipal_name_fi' => 'Tampere',
+            'municipal_name_fi_slug' => 'tampere',
+            'municipal_name_sv' => 'Tammerfors',
+            'municipal_name_sv_slug' => 'tammerfors',
+        ]);
+
+        // Create national contract (available everywhere)
+        ElectricityContract::create([
+            'id' => 'national-contract',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Valtakunnallinen Sähkö',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'availability_is_national' => true,
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-national',
+            'electricity_contract_id' => 'national-contract',
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 5.0,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        // Create local contract (only in Helsinki)
+        ElectricityContract::create([
+            'id' => 'helsinki-contract',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Helsinki Sähkö',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'availability_is_national' => false,
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-helsinki',
+            'electricity_contract_id' => 'helsinki-contract',
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 4.5,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        // Link Helsinki contract to Helsinki postcode only
+        \Illuminate\Support\Facades\DB::table('contract_postcode')->insert([
+            'contract_id' => 'helsinki-contract',
+            'postcode' => '00100',
+        ]);
+
+        // Test: Filter by Helsinki postcode - should see both contracts
+        $component = Livewire::test('contracts-list')
+            ->set('postcodeFilter', '00100');
+
+        $contracts = $component->viewData('contracts');
+        $this->assertCount(2, $contracts);
+        $this->assertTrue($contracts->contains('id', 'national-contract'));
+        $this->assertTrue($contracts->contains('id', 'helsinki-contract'));
+
+        // Test: Filter by Tampere postcode - should only see national contract
+        $component = Livewire::test('contracts-list')
+            ->set('postcodeFilter', '33100');
+
+        $contracts = $component->viewData('contracts');
+        $this->assertCount(1, $contracts);
+        $this->assertTrue($contracts->contains('id', 'national-contract'));
+        $this->assertFalse($contracts->contains('id', 'helsinki-contract'));
+    }
+
+    /**
+     * Test that contracts with many postcodes don't cause excessive memory usage.
+     * The component should NOT eager load availabilityPostcodes relationship.
+     */
+    public function test_contracts_with_many_postcodes_load_efficiently(): void
+    {
+        // Create 100 postcodes
+        for ($i = 0; $i < 100; $i++) {
+            \App\Models\Postcode::create([
+                'postcode' => str_pad($i, 5, '0', STR_PAD_LEFT),
+                'postcode_fi_name' => "Area $i",
+                'postcode_fi_name_slug' => "area-$i",
+                'postcode_sv_name' => "Område $i",
+                'postcode_sv_name_slug' => "omrade-$i",
+                'municipal_name_fi' => 'Test',
+                'municipal_name_fi_slug' => 'test',
+                'municipal_name_sv' => 'Test',
+                'municipal_name_sv_slug' => 'test',
+            ]);
+        }
+
+        // Create a contract available in all 100 postcodes
+        ElectricityContract::create([
+            'id' => 'multi-postcode-contract',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Alueellinen Sähkö',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'availability_is_national' => false,
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-multi',
+            'electricity_contract_id' => 'multi-postcode-contract',
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 6.0,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        // Link contract to all 100 postcodes
+        $inserts = [];
+        for ($i = 0; $i < 100; $i++) {
+            $inserts[] = [
+                'contract_id' => 'multi-postcode-contract',
+                'postcode' => str_pad($i, 5, '0', STR_PAD_LEFT),
+            ];
+        }
+        \Illuminate\Support\Facades\DB::table('contract_postcode')->insert($inserts);
+
+        // The component should load without issues and the contract should NOT have
+        // availabilityPostcodes relationship loaded (to save memory)
+        $component = Livewire::test('contracts-list');
+        $contracts = $component->viewData('contracts');
+
+        $this->assertCount(1, $contracts);
+        $contract = $contracts->first();
+
+        // The availabilityPostcodes should NOT be loaded (memory optimization)
+        $this->assertFalse($contract->relationLoaded('availabilityPostcodes'));
+    }
+
+    /**
+     * Test that only the latest price components are used for calculations.
+     * Old price components should not affect memory usage or calculations.
+     */
+    public function test_only_latest_price_components_are_used(): void
+    {
+        ElectricityContract::create([
+            'id' => 'contract-with-history',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Historiallinen Sähkö',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'availability_is_national' => true,
+        ]);
+
+        // Create old price components
+        PriceComponent::create([
+            'id' => 'pc-old-general',
+            'electricity_contract_id' => 'contract-with-history',
+            'price_component_type' => 'General',
+            'price_date' => '2024-01-01',
+            'price' => 10.0, // Old, expensive price
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-old-monthly',
+            'electricity_contract_id' => 'contract-with-history',
+            'price_component_type' => 'Monthly',
+            'price_date' => '2024-01-01',
+            'price' => 10.0, // Old monthly fee
+            'payment_unit' => 'EUR/month',
+        ]);
+
+        // Create current price components
+        PriceComponent::create([
+            'id' => 'pc-new-general',
+            'electricity_contract_id' => 'contract-with-history',
+            'price_component_type' => 'General',
+            'price_date' => '2026-01-01',
+            'price' => 5.0, // New, cheaper price
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-new-monthly',
+            'electricity_contract_id' => 'contract-with-history',
+            'price_component_type' => 'Monthly',
+            'price_date' => '2026-01-01',
+            'price' => 3.0, // New monthly fee
+            'payment_unit' => 'EUR/month',
+        ]);
+
+        $component = Livewire::test('contracts-list')
+            ->set('consumption', 5000);
+
+        $contracts = $component->viewData('contracts');
+        $contract = $contracts->first();
+
+        // Calculation should use NEW prices (5.0 c/kWh, 3.0 EUR/month)
+        // Total = (5.0 * 5000 / 100) + (3.0 * 12) = 250 + 36 = 286 EUR/year
+        // NOT old prices: (10.0 * 5000 / 100) + (10.0 * 12) = 500 + 120 = 620 EUR/year
+        $this->assertArrayHasKey('total_cost', $contract->calculated_cost);
+        $totalCost = $contract->calculated_cost['total_cost'];
+
+        // Should be around 286, not 620
+        $this->assertGreaterThan(280, $totalCost);
+        $this->assertLessThan(300, $totalCost);
+    }
 }
