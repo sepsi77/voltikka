@@ -76,3 +76,29 @@
 - `laravel/tests/Unit/ElectricityContractTest.php` - Unit tests
 
 **Commit:** d705bfe - "feat: Add ElectricityContract Eloquent model with relationships"
+
+### Task: eloquent-price-component-model (COMPLETED)
+
+**What was done:**
+- Created `PriceComponent` Eloquent model ported from SQLAlchemy model
+- Handled composite primary key (`id`, `price_date`) using custom `setKeysForSaveQuery()` method
+  - Laravel doesn't natively support composite keys, but this method ensures proper update/delete operations
+- Configured string primary key (`id`) with non-incrementing
+- Configured attribute casts:
+  - `price_date` → date
+  - `has_discount`, `discount_is_percentage` → boolean
+  - `discount_value`, `discount_discount_n_first_kwh`, `price` → float
+  - `discount_discount_n_first_months` → integer
+  - `discount_discount_until_date` → datetime
+- Set up `belongsTo` relationship with `ElectricityContract` (via `electricity_contract_id`)
+- Added useful query scopes:
+  - `ofType($type)` - Filter by price_component_type
+  - `forDate($date)` - Filter by price_date
+  - `latest()` - Order by price_date descending
+  - `withDiscount()` - Filter to only discounted components
+- No timestamps (matching legacy schema)
+
+**Files created:**
+- `laravel/app/Models/PriceComponent.php` - Eloquent model
+
+**Commit:** eed2d34 - "feat: Add PriceComponent Eloquent model with composite key support"

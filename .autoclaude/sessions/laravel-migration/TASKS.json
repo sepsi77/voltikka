@@ -36,8 +36,11 @@
       "id": "eloquent-price-component-model",
       "title": "Create PriceComponent Eloquent model",
       "description": "Port PriceComponent model with composite primary key (id, price_date). Include all pricing and discount fields. Set up belongsTo relationship with ElectricityContract.",
-      "status": "pending",
-      "priority": 4
+      "status": "completed",
+      "priority": 4,
+      "started_at": "2026-01-19T17:00:00Z",
+      "completed_at": "2026-01-19T17:10:00Z",
+      "passes": true
     },
     {
       "id": "eloquent-postcode-model",
