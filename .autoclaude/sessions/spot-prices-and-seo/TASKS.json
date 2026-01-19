@@ -14,10 +14,12 @@
       "id": "fetch-spot-command",
       "title": "Create artisan command to fetch and store spot prices",
       "description": "Create php artisan spot:fetch command that:\n- Fetches today's and tomorrow's prices (if available after 13:00 CET)\n- Stores in spot_prices_hour table using SpotPriceHour model\n- Uses upsert to avoid duplicates (composite key: region, timestamp)\n- Sets VAT rate to 0.255 (current Finnish VAT)\n- Logs success/failure with count of records\n- Can be scheduled in Laravel scheduler\n- Write feature test that verifies database storage",
-      "status": "in_progress",
+      "status": "completed",
       "priority": 1,
       "depends_on": ["entsoe-service"],
-      "started_at": "2026-01-20T00:00:00Z"
+      "started_at": "2026-01-20T00:00:00Z",
+      "completed_at": "2026-01-20T00:00:00Z",
+      "passes": true
     },
     {
       "id": "fetch-historical-command",

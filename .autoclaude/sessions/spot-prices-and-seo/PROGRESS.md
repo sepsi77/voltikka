@@ -32,3 +32,44 @@
   - Result sorting by timestamp
 
 **Commit:** `eab606e` - feat: Add EntsoeService for fetching spot prices from ENTSO-E API
+
+## 2026-01-20 - Iteration 2
+
+### Completed: `fetch-spot-command` - Create artisan command to fetch and store spot prices
+
+**Approach:**
+- Followed TDD methodology: wrote 16 feature tests first, then implemented the command
+- Created `FetchSpot` command in `app/Console/Commands/FetchSpot.php`
+- Created feature tests in `tests/Feature/FetchSpotCommandTest.php`
+
+**Implementation Details:**
+- Command signature: `spot:fetch`
+- Fetches today's and tomorrow's prices using the EntsoeService
+- Stores prices in `spot_prices_hour` table using the SpotPriceHour model
+- Uses `insertOrIgnore` to avoid duplicates (composite key: region, timestamp)
+- Sets VAT rate based on price date:
+  - 10% for Dec 2022 - Apr 2023 (temporary reduced rate)
+  - 24% for May 2023 - Aug 2024 (standard rate)
+  - 25.5% for Sep 2024 onwards (current increased rate)
+- Logs success/failure with record count
+- Handles API errors gracefully with informative error messages
+- Processes prices in chunks of 500 to avoid memory issues
+
+**VAT Rate History (Finland electricity):**
+- The command correctly handles all Finnish VAT rate changes for electricity
+- VAT is determined based on Helsinki timezone
+
+**Tests:**
+- 16 feature tests covering:
+  - Basic fetch and save functionality
+  - VAT rate calculations for all periods
+  - VAT rate boundary dates (Aug 31/Sep 1 2024)
+  - Upsert behavior (ignores existing records)
+  - Date range (today and tomorrow)
+  - Error handling (API errors, empty responses)
+  - Output messages and logging
+  - Negative prices (can occur during high renewable production)
+  - UTC datetime storage
+  - Multiple hours processing
+
+**Commit:** `50d9500` - feat: Add spot:fetch command using ENTSO-E API
