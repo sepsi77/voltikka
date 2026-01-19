@@ -120,3 +120,50 @@
   - HTTP request removal verification
 
 **Commit:** `ec20b58` - feat: Refactor SpotPrice component to use database instead of legacy FastAPI
+
+## 2026-01-20 - Iteration 4
+
+### Completed: `fetch-historical-command` - Create artisan command to backfill historical spot prices
+
+**Approach:**
+- Followed TDD methodology: wrote 19 feature tests first, then implemented the command
+- Created `BackfillSpot` command in `app/Console/Commands/BackfillSpot.php`
+- Created feature tests in `tests/Feature/BackfillSpotCommandTest.php`
+
+**Implementation Details:**
+- Command signature: `spot:backfill --start-date= --end-date= --force`
+- Defaults to fetching 1 year of historical data when no dates specified
+- Fetches prices in monthly chunks to avoid API limits
+- Shows progress bar during long operations
+- Skips dates that already have data (unless --force flag)
+- Handles ENTSO-E API rate limits with 150ms delay between requests
+- Continues processing after individual chunk failures
+- Uses same VAT rate logic as FetchSpot command (10%, 24%, 25.5% depending on date)
+- Uses `insertOrIgnore` to avoid duplicates
+
+**Command Options:**
+- `--start-date`: Start date for backfill (YYYY-MM-DD, defaults to 1 year ago)
+- `--end-date`: End date for backfill (YYYY-MM-DD, defaults to today)
+- `--force`: Force fetch even if data already exists for the period
+
+**Tests:**
+- 19 feature tests covering:
+  - Command signature and options
+  - Default date range (1 year back)
+  - Custom date range validation
+  - Monthly chunking logic
+  - Data persistence to database
+  - Skip existing data behavior
+  - Force flag behavior
+  - Progress output
+  - API error handling (continues after errors)
+  - VAT rate calculations for all periods
+  - Total records reporting
+  - Empty response handling
+  - Date format validation
+  - Start before end validation
+  - Rate limiting delay between API calls
+  - InsertOrIgnore behavior
+  - Negative price handling
+
+**Commit:** `62fbb6d` - feat: Add spot:backfill command for historical price data

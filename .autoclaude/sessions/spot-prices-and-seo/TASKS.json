@@ -25,9 +25,12 @@
       "id": "fetch-historical-command",
       "title": "Create artisan command to backfill historical spot prices",
       "description": "Create php artisan spot:backfill command that:\n- Accepts --start-date and --end-date options (defaults to 1 year back)\n- Fetches prices in monthly chunks to avoid API limits (400 req/min)\n- Shows progress bar for long operations\n- Skips dates that already have data (unless --force)\n- Handles ENTSO-E API rate limits with delays\n- Write test that verifies backfill logic",
-      "status": "pending",
+      "status": "completed",
       "priority": 2,
-      "depends_on": ["entsoe-service"]
+      "depends_on": ["entsoe-service"],
+      "started_at": "2026-01-20T00:00:00Z",
+      "completed_at": "2026-01-20T00:00:00Z",
+      "passes": true
     },
     {
       "id": "spot-price-component-refactor",
