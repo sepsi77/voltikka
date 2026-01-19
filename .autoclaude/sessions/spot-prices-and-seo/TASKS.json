@@ -4,9 +4,11 @@
       "id": "entsoe-service",
       "title": "Create ENTSO-E API service for fetching spot prices",
       "description": "Create App\\Services\\EntsoeService that fetches day-ahead prices from ENTSO-E Transparency Platform API. Must:\n- Use config('services.entsoe') for API key, base URL, and Finland EIC code\n- Parse XML response to extract hourly prices (EUR/MWh)\n- Convert prices to c/kWh (divide by 10)\n- Handle 15-minute resolution data by averaging to hourly\n- Return array of ['timestamp' => unix, 'utc_datetime' => Carbon, 'price_without_tax' => float]\n- Include proper error handling and logging\n- Write unit tests with mocked HTTP responses",
-      "status": "in_progress",
+      "status": "completed",
       "priority": 1,
-      "started_at": "2026-01-20T00:00:00Z"
+      "started_at": "2026-01-20T00:00:00Z",
+      "completed_at": "2026-01-20T00:00:00Z",
+      "passes": true
     },
     {
       "id": "fetch-spot-command",

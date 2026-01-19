@@ -11,7 +11,11 @@
     "design-update": {
       "started_at": "2026-01-19T20:48:15.602389",
       "ended_at": null
+    },
+    "spot-prices-and-seo": {
+      "started_at": "2026-01-20T00:46:26.101118",
+      "ended_at": null
     }
   },
-  "current": "design-update"
+  "current": "spot-prices-and-seo"
 }
