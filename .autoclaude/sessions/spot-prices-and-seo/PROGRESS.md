@@ -241,3 +241,89 @@
   - View data assertions
 
 **Commit:** `e18fa8e` - feat: Add analytics methods to SpotPrice component
+
+## 2026-01-20 - Iteration 6
+
+### Completed: `spot-price-view-enhanced` - Create enhanced Pörssisähkön hinta page view
+
+**Approach:**
+- Followed TDD methodology: wrote 18 view feature tests first, then implemented the enhanced view
+- Updated `App\Livewire\SpotPrice` to include Chart.js compatible data
+- Completely redesigned `resources/views/livewire/spot-price.blade.php`
+- Updated layout to support script stacks for Chart.js
+
+**Implementation Details:**
+
+**New Component Method:**
+- `getChartData()` - Generates Chart.js compatible data structure with color-coded bars (green=cheap, yellow=moderate, red=expensive)
+
+**Enhanced View Features:**
+
+1. **Hero Section with Current Price**
+   - Large, prominent current price display
+   - Shows price with and without VAT
+   - Current hour indicator with "Nyt" badge
+
+2. **Price Comparison Cards**
+   - Today's average with change indicator from yesterday
+   - Yesterday's average for reference
+   - Weekly average with change indicator
+
+3. **Interactive Bar Chart (Chart.js)**
+   - Hourly prices displayed as color-coded bars
+   - Green for cheap hours (bottom 33%)
+   - Yellow for moderate hours (middle 33%)
+   - Red for expensive hours (top 33%)
+   - Finnish-formatted tooltips
+
+4. **Statistics Section**
+   - Average price (Keskihinta)
+   - Median price (Mediaani)
+   - Lowest price (Alin) - green highlighted
+   - Highest price (Ylin) - red highlighted
+
+5. **Best Hours Cards**
+   - Cheapest hour card (green themed)
+   - Most expensive hour card (red themed)
+   - Price volatility indicator (yellow themed)
+
+6. **Cheapest Remaining Hours Section**
+   - Lists 5 cheapest upcoming hours
+   - Includes tomorrow's prices if available
+   - "Huomenna" badge for next-day hours
+
+7. **EV Charging Section**
+   - Best 3 consecutive hours for charging
+   - Recommended charging time window
+   - Potential savings in EUR
+   - Typical EV consumption stats (3.7 kW)
+
+8. **Enhanced Hourly Table**
+   - Color indicators for each price
+   - "Nyt" badge for current hour
+   - "Huomenna" badge for next-day hours
+   - Both ALV 0% and with-VAT prices
+
+**Layout Updates:**
+- Added `@stack('scripts')` to app.blade.php for Chart.js support
+
+**Tests (18 new tests):**
+- Hero section display
+- Price comparison cards
+- Statistics section
+- Best hours section
+- EV charging section
+- Chart data availability
+- Chart data structure
+- Color coding in chart
+- Volatility indicator
+- Potential savings display
+- Empty data handling
+- Finnish number formatting
+- Change indicators
+- Tomorrow badges
+- Current hour highlighting
+- Cheapest/expensive hour display
+- Mobile responsiveness
+
+**Commit:** `3f90d5c` - feat: Create enhanced Pörssisähkön hinta page view

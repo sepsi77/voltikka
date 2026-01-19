@@ -58,9 +58,12 @@
       "id": "spot-price-view-enhanced",
       "title": "Create enhanced Pörssisähkön hinta page view",
       "description": "Create comprehensive spot price page (livewire/spot-price.blade.php):\n- Hero section with current price prominently displayed\n- Today's prices as interactive chart (use Chart.js or similar)\n- Color-coded price levels (green=cheap, yellow=moderate, red=expensive)\n- 'Best hours' section showing cheapest upcoming hours\n- Price comparison cards (today vs yesterday vs week avg)\n- Statistics section with min/max/avg/median\n- Mobile-responsive design following existing Tailwind patterns\n- Finnish language UI",
-      "status": "pending",
+      "status": "completed",
       "priority": 2,
-      "depends_on": ["spot-price-analytics"]
+      "depends_on": ["spot-price-analytics"],
+      "started_at": "2026-01-20T00:00:00Z",
+      "completed_at": "2026-01-20T00:00:00Z",
+      "passes": true
     },
     {
       "id": "spot-price-historical-view",
