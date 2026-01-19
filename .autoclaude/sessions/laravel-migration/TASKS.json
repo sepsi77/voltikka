@@ -96,8 +96,11 @@
       "id": "api-routes-calculation",
       "title": "Create API routes for calculations",
       "description": "Create POST /api/calculate-price endpoint that takes contract ID and consumption data, returns annual cost breakdown. Create POST /api/estimate-consumption endpoint that takes building parameters and returns kWh estimate.",
-      "status": "pending",
-      "priority": 10
+      "status": "completed",
+      "priority": 10,
+      "started_at": "2026-01-19T23:00:00Z",
+      "completed_at": "2026-01-19T23:30:00Z",
+      "passes": true
     },
     {
       "id": "fetch-contracts-job",

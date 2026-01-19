@@ -334,3 +334,69 @@ All models follow TDD approach with comprehensive unit tests.
 - `laravel/phpunit.xml` - Enabled SQLite for testing
 
 **Commit:** c5b2ed6 - "feat: Create API routes for contracts listing and detail"
+
+### Task: api-routes-calculation (COMPLETED)
+
+**What was done:**
+- Created two new API endpoints for price calculation and consumption estimation
+- Implemented `CalculationController` with `calculatePrice` and `estimateConsumption` methods
+- Integrated existing `ContractPriceCalculator` and `EnergyCalculator` services
+
+**API Endpoints:**
+1. `POST /api/calculate-price` - Calculate annual electricity cost for a contract
+   - Request body:
+     - `contract_id` (required) - ID of the electricity contract
+     - `consumption` (int) - Total annual kWh consumption (simple mode)
+     - `energy_usage` (object) - Detailed energy breakdown (advanced mode)
+       - `total`, `basic_living`, `room_heating`, `water`, `sauna`, `electricity_vehicle`, `cooling`, etc.
+     - `spot_price_day`, `spot_price_night` (optional) - For spot contracts
+   - Returns:
+     - `total_cost` - Annual electricity cost in EUR
+     - `avg_monthly_cost` - Average monthly cost
+     - `monthly_costs` - Array of 12 monthly costs
+     - `monthly_fixed_fee` - Fixed monthly fee
+     - Rate information (general, day/night, seasonal)
+
+2. `POST /api/estimate-consumption` - Estimate annual electricity consumption
+   - Request body:
+     - `living_area` (required) - Floor area in m²
+     - `num_people` (required) - Number of residents
+     - `building_type` - detached_house, apartment, row_house
+     - `heating_method` - electricity, air_to_water_heat_pump, ground_heat_pump, etc.
+     - `supplementary_heating` - heat_pump, exhaust_air_heat_pump, fireplace
+     - `building_energy_efficiency` - passive, low_energy, 2010, 2000, etc.
+     - `building_region` - south, central, north
+     - `electric_vehicle_kms_per_month`, `bathroom_heating_area`, `sauna_usage_per_week`
+     - `sauna_is_always_on_type`, `external_heating`, `external_heating_water`, `cooling`
+   - Returns:
+     - `total` - Total annual consumption in kWh
+     - `basic_living` - Basic living electricity
+     - Component breakdown: `room_heating`, `water`, `sauna`, `electricity_vehicle`, etc.
+     - Fuel consumption (if applicable): firewood, heating oil, pellets
+
+**Validation:**
+- Contract ID validation with 404 for non-existent contracts
+- Required fields validation
+- Enum value validation for heating methods, regions, etc.
+- Positive integer validation for living_area and num_people
+
+**Tests:**
+- 18 comprehensive feature tests covering:
+  - Basic consumption calculation
+  - Detailed energy usage calculation
+  - Time metering contracts
+  - Seasonal metering contracts
+  - Input validation (contract_id, consumption, enum values)
+  - Minimal and full parameter estimates
+  - Specific features (sauna, EV, heating breakdown)
+- `php artisan test --filter=CalculationApiTest` - 18 tests, 75 assertions
+- `php artisan test` - All 126 tests pass (494 assertions)
+
+**Files created:**
+- `laravel/app/Http/Controllers/Api/CalculationController.php` - API controller
+- `laravel/tests/Feature/CalculationApiTest.php` - Feature tests
+
+**Files modified:**
+- `laravel/routes/api.php` - Added calculation routes
+
+**Commit:** 80118e4 - "feat: Create API routes for price calculation and consumption estimation"
