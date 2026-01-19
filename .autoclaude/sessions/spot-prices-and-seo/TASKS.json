@@ -123,9 +123,12 @@
       "id": "seo-sitemap",
       "title": "Create XML sitemap for SEO pages",
       "description": "Create sitemap generation:\n- Generate /sitemap.xml with all SEO pages\n- Include main pages, housing types, energy sources, cities\n- Set appropriate priority and changefreq values\n- Can be generated via artisan command\n- Auto-update when new cities/pages are added\n- Write test to verify sitemap structure",
-      "status": "pending",
+      "status": "completed",
       "priority": 3,
-      "depends_on": ["seo-housing-routes", "seo-energy-routes", "seo-city-routes"]
+      "depends_on": ["seo-housing-routes", "seo-energy-routes", "seo-city-routes"],
+      "started_at": "2026-01-20T00:00:00Z",
+      "completed_at": "2026-01-20T00:00:00Z",
+      "passes": true
     }
   ]
 }

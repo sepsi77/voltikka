@@ -748,3 +748,109 @@ Updated render method to pass:
 - `tests/Feature/SeoCityRoutesTest.php` - New test file
 
 **Commit:** `ea3f57b` - feat: Add city-based SEO routes for /sahkosopimus/{city}
+
+## 2026-01-20 - Iteration 12
+
+### Completed: `seo-sitemap` - Create XML sitemap for SEO pages
+
+**Approach:**
+- Followed TDD methodology: wrote 29 feature tests first, then implemented the functionality
+- Created `App\Services\SitemapService` for generating XML sitemaps
+- Created `GenerateSitemap` artisan command
+- Added `/sitemap.xml` route to `routes/web.php`
+
+**Implementation Details:**
+
+**New Service:**
+`App\Services\SitemapService`:
+- `getAllUrls()` - Returns all URLs with priority and changefreq
+- `getMainPageUrls()` - Main pages (home, spot-price, paikkakunnat)
+- `getHousingTypeUrls()` - Housing type SEO pages
+- `getEnergySourceUrls()` - Energy source SEO pages
+- `getCityUrls()` - City SEO pages from database
+- `generateXml()` - Generates valid XML sitemap
+- `saveToFile()` - Saves sitemap to public directory
+- `getUrlCount()` - Returns total URL count
+
+**New Command:**
+`php artisan sitemap:generate`:
+- Generates sitemap and saves to `public/sitemap.xml`
+- Reports URL count on completion
+
+**New Route:**
+`/sitemap.xml`:
+- Returns dynamically generated XML sitemap
+- Content-Type: text/xml; charset=UTF-8
+- Cache-Control: public, max-age=3600
+
+**URL Priority and Changefreq:**
+| Page Type | Priority | Changefreq |
+|-----------|----------|------------|
+| Homepage | 1.0 | daily |
+| Spot price | 0.9 | hourly |
+| Locations | 0.7 | weekly |
+| Housing types | 0.8 | weekly |
+| Energy sources | 0.8 | weekly |
+| Cities | 0.6 | weekly |
+
+**Sitemap Features:**
+- Valid XML structure with proper namespace
+- Includes `<loc>`, `<lastmod>`, `<changefreq>`, `<priority>` for each URL
+- Cities dynamically fetched from database postcodes (unique municipalities)
+- Auto-updates when new cities are added to database
+- Proper XML escaping with htmlspecialchars
+
+**Tests (29 tests, 179 assertions):**
+- Route accessibility and XML content type
+- Valid XML structure and well-formedness
+- Main pages inclusion
+- Housing type pages inclusion
+- Energy source pages inclusion
+- City pages inclusion (from database)
+- No duplicate cities
+- Priority and changefreq values
+- Lastmod date format
+- URL element structure
+- Valid priority range (0.0-1.0)
+- Valid changefreq values
+- Artisan command existence and file creation
+- Service method tests for all URL types
+- XML generation validity
+- Homepage highest priority verification
+- SEO pages appropriate priority
+- City pages medium priority
+- Dynamic city updates
+- Cache headers
+
+**Files Created:**
+- `app/Services/SitemapService.php` - Sitemap generation service
+- `app/Console/Commands/GenerateSitemap.php` - Artisan command
+- `tests/Feature/SitemapTest.php` - 29 feature tests
+
+**Files Modified:**
+- `routes/web.php` - Added /sitemap.xml route
+
+**Commit:** `7dc8113` - feat: Add XML sitemap generation for SEO pages
+
+---
+
+## Session Complete
+
+All tasks in the `spot-prices-and-seo` session have been completed:
+
+| Task | Status | Tests |
+|------|--------|-------|
+| entsoe-service | Completed | 19 pass |
+| fetch-spot-command | Completed | 16 pass |
+| fetch-historical-command | Completed | 19 pass |
+| spot-price-component-refactor | Completed | 28 pass |
+| spot-price-analytics | Completed | 20 pass |
+| spot-price-view-enhanced | Completed | 18 pass |
+| spot-price-historical-view | Completed | 28 pass |
+| seo-contracts-base | Completed | 29 pass |
+| seo-housing-routes | Completed | 19 pass |
+| seo-energy-routes | Completed | 26 pass |
+| seo-city-routes | Completed | 28 pass |
+| seo-sitemap | Completed | 29 pass |
+
+**Total Tests Added:** 279 tests across 12 tasks
