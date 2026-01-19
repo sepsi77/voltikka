@@ -25,3 +25,25 @@
 - `.gitignore` - Project-wide ignore rules
 
 **Commit:** e084118 - "feat: Scaffold Laravel 11 project for Voltikka migration"
+
+### Task: eloquent-company-model (COMPLETED)
+
+**What was done:**
+- Created `Company` Eloquent model ported from SQLAlchemy model
+- Configured string primary key (`name`) instead of auto-incrementing ID
+- Implemented `generateSlug()` method for Finnish character handling (ä→a, ö→o, å→a)
+- Auto-generates `name_slug` on model save via `saving` event
+- Added `hasMany` relationship to `ElectricityContract` (prepared for next task)
+- Created migration documenting existing PostgreSQL schema (non-destructive)
+- Created comprehensive unit tests (7 tests, 19 assertions)
+
+**Tests:**
+- `php artisan test --filter=CompanyTest` - 7 tests pass
+- `php artisan test` - All tests pass (21 assertions)
+
+**Files created:**
+- `laravel/app/Models/Company.php` - Eloquent model
+- `laravel/database/migrations/2026_01_19_150000_create_companies_table.php` - Schema documentation
+- `laravel/tests/Unit/CompanyTest.php` - Unit tests
+
+**Commit:** 00b76f0 - "feat: Add Company Eloquent model with Finnish slug generation"

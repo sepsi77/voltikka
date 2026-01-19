@@ -16,8 +16,11 @@
       "id": "eloquent-company-model",
       "title": "Create Company Eloquent model",
       "description": "Port the Company SQLAlchemy model from legacy/python/shared/voltikka/database/models.py to an Eloquent model. Include: name, name_slug (auto-generated), company_url, street_address, postal_code, postal_name, logo_url. Add relationship to ElectricityContract. Create migration that matches existing PostgreSQL schema (do NOT drop/recreate tables - we're connecting to existing DB).",
-      "status": "pending",
-      "priority": 2
+      "status": "completed",
+      "priority": 2,
+      "started_at": "2026-01-19T15:00:00Z",
+      "completed_at": "2026-01-19T15:15:00Z",
+      "passes": true
     },
     {
       "id": "eloquent-contract-model",
