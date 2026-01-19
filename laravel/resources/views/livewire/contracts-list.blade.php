@@ -6,7 +6,7 @@
     </div>
 
     <!-- Consumption Selector -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-4">Arvioitu kulutus</h2>
         <div class="flex flex-wrap gap-3">
             @foreach ($presets as $label => $value)
@@ -21,6 +21,132 @@
         <p class="mt-4 text-sm text-gray-500">
             Valittu kulutus: <span class="font-semibold">{{ number_format($consumption, 0, ',', ' ') }} kWh/vuosi</span>
         </p>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">Suodattimet</h2>
+            @if ($this->hasActiveFilters())
+                <button
+                    wire:click="resetFilters"
+                    class="text-sm text-blue-600 hover:text-blue-800"
+                >
+                    Tyhjennä suodattimet
+                </button>
+            @endif
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <!-- Contract Type Filter -->
+            <div>
+                <h3 class="text-sm font-medium text-gray-700 mb-2">Sopimustyyppi</h3>
+                <div class="flex flex-wrap gap-2">
+                    @foreach ($contractTypes as $type => $label)
+                        <button
+                            wire:click="setContractTypeFilter('{{ $type }}')"
+                            class="px-3 py-1.5 rounded-lg text-sm transition-colors {{ $contractTypeFilter === $type ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}"
+                        >
+                            {{ $label }}
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+
+            <!-- Metering Type Filter -->
+            <div>
+                <h3 class="text-sm font-medium text-gray-700 mb-2">Mittarointi</h3>
+                <div class="flex flex-wrap gap-2">
+                    @foreach ($meteringTypes as $type => $label)
+                        <button
+                            wire:click="setMeteringFilter('{{ $type }}')"
+                            class="px-3 py-1.5 rounded-lg text-sm transition-colors {{ $meteringFilter === $type ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}"
+                        >
+                            {{ $label }}
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+
+            <!-- Postcode Filter -->
+            <div>
+                <h3 class="text-sm font-medium text-gray-700 mb-2">Postinumero</h3>
+                <div class="relative">
+                    @if ($postcodeFilter)
+                        <div class="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                            <span class="text-sm text-blue-800">{{ $postcodeFilter }}</span>
+                            <button
+                                wire:click="clearPostcodeFilter"
+                                class="text-blue-600 hover:text-blue-800"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    @else
+                        <input
+                            type="text"
+                            wire:model.live.debounce.300ms="postcodeSearch"
+                            placeholder="Hae postinumeroa..."
+                            class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                        >
+                        @if ($postcodeSuggestions->count() > 0)
+                            <div class="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                @foreach ($postcodeSuggestions as $postcode)
+                                    <button
+                                        wire:click="selectPostcode('{{ $postcode->postcode }}')"
+                                        class="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                                    >
+                                        <span class="font-medium">{{ $postcode->postcode }}</span>
+                                        <span class="text-gray-500">{{ $postcode->postcode_fi_name }}</span>
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
+                    @endif
+                </div>
+            </div>
+
+            <!-- Energy Source Filter -->
+            <div>
+                <h3 class="text-sm font-medium text-gray-700 mb-2">Energialähde</h3>
+                <div class="flex flex-col gap-2">
+                    <label class="inline-flex items-center">
+                        <input
+                            type="checkbox"
+                            wire:model.live="renewableFilter"
+                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        >
+                        <span class="ml-2 text-sm text-gray-700">Uusiutuva (50%+)</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input
+                            type="checkbox"
+                            wire:model.live="nuclearFilter"
+                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        >
+                        <span class="ml-2 text-sm text-gray-700">Sisältää ydinvoimaa</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input
+                            type="checkbox"
+                            wire:model.live="fossilFreeFilter"
+                            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        >
+                        <span class="ml-2 text-sm text-gray-700">Fossiiliton</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Count -->
+    <div class="mb-4 text-sm text-gray-600">
+        <span class="font-medium">{{ $contracts->count() }}</span> sopimusta löytyi
+        @if ($this->hasActiveFilters())
+            suodattimilla
+        @endif
     </div>
 
     <!-- Contracts List -->

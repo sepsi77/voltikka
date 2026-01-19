@@ -109,15 +109,20 @@ class Postcode extends Model
 
     /**
      * Scope a query to search postcodes by Finnish or Swedish name.
+     * Uses case-insensitive matching (ILIKE for PostgreSQL, LIKE for SQLite).
      */
     public function scopeSearch(Builder $query, string $search): Builder
     {
-        return $query->where(function (Builder $query) use ($search) {
+        // SQLite doesn't support ILIKE, so we use LIKE which is case-insensitive by default
+        $driver = $query->getConnection()->getDriverName();
+        $likeOperator = $driver === 'pgsql' ? 'ilike' : 'like';
+
+        return $query->where(function (Builder $query) use ($search, $likeOperator) {
             $query->where('postcode', 'like', "{$search}%")
-                  ->orWhere('postcode_fi_name', 'ilike', "%{$search}%")
-                  ->orWhere('postcode_sv_name', 'ilike', "%{$search}%")
-                  ->orWhere('municipal_name_fi', 'ilike', "%{$search}%")
-                  ->orWhere('municipal_name_sv', 'ilike', "%{$search}%");
+                  ->orWhere('postcode_fi_name', $likeOperator, "%{$search}%")
+                  ->orWhere('postcode_sv_name', $likeOperator, "%{$search}%")
+                  ->orWhere('municipal_name_fi', $likeOperator, "%{$search}%")
+                  ->orWhere('municipal_name_sv', $likeOperator, "%{$search}%");
         });
     }
 }

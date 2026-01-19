@@ -26,14 +26,31 @@ return new class extends Migration
                 // Primary key is the postcode string
                 $table->string('postcode')->primary();
 
-                // Finnish/Swedish names
-                $table->string('postcode_name')->nullable()->index();
-                $table->string('postcode_name_sv')->nullable()->index();
+                // Finnish name fields
+                $table->string('postcode_fi_name')->nullable()->index();
+                $table->string('postcode_fi_name_slug')->nullable();
+                $table->string('postcode_abbr_fi')->nullable();
 
-                // Municipality data
-                $table->string('municipality_code')->nullable()->index();
-                $table->string('municipality_name')->nullable()->index();
-                $table->string('municipality_name_sv')->nullable()->index();
+                // Swedish name fields
+                $table->string('postcode_sv_name')->nullable()->index();
+                $table->string('postcode_sv_name_slug')->nullable();
+                $table->string('postcode_abbr_sv')->nullable();
+
+                // Area fields
+                $table->string('type_code')->nullable();
+                $table->string('ad_area_code')->nullable();
+                $table->string('ad_area_fi')->nullable();
+                $table->string('ad_area_fi_slug')->nullable();
+                $table->string('ad_area_sv')->nullable();
+                $table->string('ad_area_sv_slug')->nullable();
+
+                // Municipality fields
+                $table->string('municipal_code')->nullable()->index();
+                $table->string('municipal_name_fi')->nullable()->index();
+                $table->string('municipal_name_fi_slug')->nullable();
+                $table->string('municipal_name_sv')->nullable()->index();
+                $table->string('municipal_name_sv_slug')->nullable();
+                $table->string('municipal_language_ratio_code')->nullable();
 
                 // Note: No timestamps in the original schema
             });
