@@ -15,6 +15,7 @@ use Illuminate\Console\Command;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class FetchContracts extends Command
 {
@@ -283,6 +284,11 @@ class FetchContracts extends Command
     }
 
     /**
+     * The null UUID returned by the Azure API when no ID is provided.
+     */
+    private const NULL_UUID = '00000000-0000-0000-0000-000000000000';
+
+    /**
      * Process and insert price components.
      */
     private function processPriceComponents(array $contracts, string $date): void
@@ -310,8 +316,14 @@ class FetchContracts extends Command
                     }
                 }
 
+                // Generate a unique ID if the API returns a null UUID
+                $componentId = $component['Id'] ?? self::NULL_UUID;
+                if ($componentId === self::NULL_UUID) {
+                    $componentId = (string) Str::uuid();
+                }
+
                 $priceComponents[] = [
-                    'id' => $component['Id'],
+                    'id' => $componentId,
                     'price_date' => $date,
                     'price_component_type' => $component['PriceComponentType'],
                     'fuse_size' => $component['FuseSize'] ?? null,

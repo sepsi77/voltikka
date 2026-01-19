@@ -97,6 +97,40 @@ Final database counts:
 
 ---
 
+### Task 7: Fix PriceComponent insertion with null UUIDs
+**Status:** Completed
+
+Fixed the issue where the Azure API returns null UUIDs (`00000000-0000-0000-0000-000000000000`) for most price component IDs, causing composite key conflicts.
+
+**Approach (TDD):**
+1. Wrote failing tests first:
+   - `test_command_handles_null_uuid_price_components` - Tests two contracts with null UUID price components
+   - `test_command_handles_multiple_null_uuid_components_on_same_contract` - Tests a single contract with multiple null UUID components
+
+2. Implemented fix in `FetchContracts.php`:
+   - Added `NULL_UUID` constant
+   - Modified `processPriceComponents()` to check if component ID is null UUID
+   - If null UUID, generate a unique UUID using `Str::uuid()`
+
+3. Verified fix:
+   - Both new tests pass
+   - All 16 FetchContractsCommandTest tests pass
+   - Re-ran `contracts:fetch` and verified PriceComponents: **1,173 records** (was 1)
+
+**Final database counts after fix:**
+| Table | Records |
+|-------|---------|
+| Postcodes | 3,786 |
+| Companies | 37 |
+| Electricity Contracts | 488 |
+| Price Components | **1,173** |
+| Electricity Sources | 488 |
+| Active Contracts | 488 |
+| Contract-Postcode | 22,195 |
+| Spot Futures | 1 |
+
+---
+
 ### Summary
 
 All database setup tasks completed successfully:
@@ -106,5 +140,6 @@ All database setup tasks completed successfully:
 4. Real Finnish postcode data seeded (3,786 records)
 5. Real electricity contracts fetched and saved (488 contracts from 37 companies)
 6. Data verification completed
+7. **Fixed null UUID issue for price components (now 1,173 records)**
 
 The local development environment is now ready with real data for testing.

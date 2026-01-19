@@ -59,7 +59,18 @@
       "depends_on": ["fetch-contracts"],
       "completed_at": "2026-01-19T20:28:00Z",
       "passes": true,
-      "notes": "Data verified: Postcodes=3786, Companies=37, ElectricityContracts=488, ElectricitySources=488, ActiveContracts=488. PriceComponents=1 (expected 1173). Low count due to Azure API returning null UUIDs (00000000-0000-0000-0000-000000000000) for most price component IDs, causing composite key conflicts. This is a data quality issue from the API, not a database setup issue."
+      "notes": "Data verified: Postcodes=3786, Companies=37, ElectricityContracts=488, ElectricitySources=488, ActiveContracts=488. PriceComponents=1 (expected 1173). Low count due to Azure API returning null UUIDs for most price component IDs."
+    },
+    {
+      "id": "fix-price-components",
+      "title": "Fix PriceComponent insertion with null UUIDs",
+      "description": "The Azure API returns null UUIDs (00000000-0000-0000-0000-000000000000) for most price component IDs, causing composite key conflicts with insertOrIgnore. Fix the FetchContracts command at laravel/app/Console/Commands/FetchContracts.php to generate unique IDs for price components when the API returns a null UUID. Use Str::uuid() to generate a unique ID in the processPriceComponents method when $component['Id'] is a null UUID. After fixing, re-run contracts:fetch and verify PriceComponent count is ~1000+. Write tests first following TDD.",
+      "status": "completed",
+      "priority": 7,
+      "depends_on": ["verify-data"],
+      "completed_at": "2026-01-19T21:05:00Z",
+      "passes": true,
+      "notes": "Fixed by generating unique UUIDs with Str::uuid() when the API returns null UUIDs. Added two TDD tests to verify the fix. PriceComponents now correctly populated with 1173 records."
     }
   ]
 }
