@@ -1,5 +1,5 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Hero Section -->
+    <!-- Hero Section with Current Price -->
     <section class="mb-8">
         <h1 class="max-w-2xl mb-4 text-4xl font-bold text-tertiary-500 tracking-tight leading-none md:text-5xl xl:text-6xl">
             Pörssisähkön hinta
@@ -21,55 +21,116 @@
         <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
             <p class="text-red-700">{{ $error }}</p>
         </div>
+    @elseif (empty($hourlyPrices))
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
+            <p class="text-yellow-700">Hintatietoja ei ole vielä saatavilla. Tiedot päivitetään automaattisesti.</p>
+        </div>
     @else
-        <!-- Price Cards -->
+        <!-- Current Price Hero Card -->
+        @if ($currentPrice)
+            <div class="bg-gradient-to-r from-primary-500 to-primary-600 rounded-2xl shadow-lg p-6 md:p-8 mb-8 text-white">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <p class="text-primary-100 text-sm uppercase tracking-wider mb-1">Tämänhetkinen hinta</p>
+                        <p class="text-4xl md:text-5xl font-bold">
+                            {{ number_format($currentPrice['price_with_tax'] ?? 0, 2, ',', ' ') }}
+                            <span class="text-2xl">c/kWh</span>
+                        </p>
+                        <p class="text-primary-100 mt-2">
+                            {{ now('Europe/Helsinki')->format('H') }}:00 - {{ now('Europe/Helsinki')->addHour()->format('H') }}:00
+                            <span class="ml-2 bg-white/20 px-2 py-1 rounded text-xs">Nyt</span>
+                        </p>
+                    </div>
+                    <div class="mt-4 md:mt-0 text-right">
+                        <p class="text-primary-100 text-sm">ALV 0%</p>
+                        <p class="text-2xl font-semibold">{{ number_format($currentPrice['price_without_tax'] ?? 0, 2, ',', ' ') }} c/kWh</p>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        <!-- Price Comparison Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <!-- Current Price -->
-            <div class="bg-white p-4 rounded-xl border-2 border-primary-500 shadow">
-                <h5 class="mb-2 text-xl font-bold text-gray-900">
-                    @if ($currentPrice)
-                        {{ number_format($currentPrice['price_with_tax'] ?? 0, 2, ',', ' ') }} c/kWh
-                    @else
-                        -
-                    @endif
-                </h5>
-                <p class="text-base text-gray-500">
-                    Tämänhetkinen pörssihinta ({{ now('Europe/Helsinki')->format('H') }}:00)
-                </p>
-            </div>
-
-            <!-- Min/Max -->
-            <div class="bg-white p-4 rounded-xl border-2 border-primary-500 shadow">
-                <h5 class="text-xl font-bold text-gray-900">
-                    @if ($todayMinMax['min'] !== null)
-                        {{ number_format($todayMinMax['min'], 2, ',', ' ') }} / {{ number_format($todayMinMax['max'], 2, ',', ' ') }} c/kWh
-                    @else
-                        -
-                    @endif
-                </h5>
-                <p class="text-base text-gray-500">
-                    Päivän alin / ylin hinta (ALV 0%)
-                </p>
-            </div>
-
-            <!-- Cheapest Hour -->
-            <div class="bg-white p-4 rounded-xl border-2 border-primary-500 shadow">
-                <h5 class="text-xl font-bold text-gray-900">
-                    @if ($cheapestHour)
+            <!-- Today's Average -->
+            <div class="bg-white p-5 rounded-xl border-2 border-gray-200 shadow-sm hover:border-primary-300 transition-colors">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-500 uppercase tracking-wider">Tänään</span>
+                    @if ($historicalComparison['change_from_yesterday_percent'] !== null)
                         @php
-                            $cheapHour = $cheapestHour['helsinki_hour'];
-                            $nextHour = ($cheapHour + 1) % 24;
+                            $change = $historicalComparison['change_from_yesterday_percent'];
+                            $isPositive = $change > 0;
                         @endphp
-                        {{ str_pad($cheapHour, 2, '0', STR_PAD_LEFT) }}-{{ str_pad($nextHour, 2, '0', STR_PAD_LEFT) }} ({{ number_format($cheapestHour['price_without_tax'] ?? 0, 2, ',', ' ') }} c/kWh)
+                        <span class="text-xs font-medium px-2 py-1 rounded-full {{ $isPositive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700' }}">
+                            {{ $isPositive ? '+' : '' }}{{ number_format($change, 1, ',', ' ') }}%
+                        </span>
+                    @endif
+                </div>
+                <p class="text-2xl md:text-3xl font-bold text-gray-900">
+                    @if ($todayStatistics['average'] !== null)
+                        {{ number_format($todayStatistics['average'], 2, ',', ' ') }}
                     @else
                         -
                     @endif
-                </h5>
-                <p class="text-base text-gray-500">
-                    Edullisin tunti
+                    <span class="text-base font-normal text-gray-500">c/kWh</span>
+                </p>
+                <p class="text-sm text-gray-500 mt-1">Keskihinta (ALV 0%)</p>
+            </div>
+
+            <!-- Yesterday's Average -->
+            <div class="bg-white p-5 rounded-xl border-2 border-gray-200 shadow-sm">
+                <span class="text-sm font-medium text-gray-500 uppercase tracking-wider">Eilen</span>
+                <p class="text-2xl md:text-3xl font-bold text-gray-900 mt-2">
+                    @if ($historicalComparison['yesterday_average'] !== null)
+                        {{ number_format($historicalComparison['yesterday_average'], 2, ',', ' ') }}
+                    @else
+                        -
+                    @endif
+                    <span class="text-base font-normal text-gray-500">c/kWh</span>
+                </p>
+                <p class="text-sm text-gray-500 mt-1">Keskihinta (ALV 0%)</p>
+            </div>
+
+            <!-- Weekly Average -->
+            <div class="bg-white p-5 rounded-xl border-2 border-gray-200 shadow-sm">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-500 uppercase tracking-wider">Viikon ka.</span>
+                    @if ($historicalComparison['change_from_weekly_percent'] !== null)
+                        @php
+                            $change = $historicalComparison['change_from_weekly_percent'];
+                            $isPositive = $change > 0;
+                        @endphp
+                        <span class="text-xs font-medium px-2 py-1 rounded-full {{ $isPositive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700' }}">
+                            {{ $isPositive ? '+' : '' }}{{ number_format($change, 1, ',', ' ') }}%
+                        </span>
+                    @endif
+                </div>
+                <p class="text-2xl md:text-3xl font-bold text-gray-900">
+                    @if ($historicalComparison['weekly_average'] !== null)
+                        {{ number_format($historicalComparison['weekly_average'], 2, ',', ' ') }}
+                    @else
+                        -
+                    @endif
+                    <span class="text-base font-normal text-gray-500">c/kWh</span>
+                </p>
+                <p class="text-sm text-gray-500 mt-1">
+                    @if ($historicalComparison['weekly_days_available'] > 0)
+                        {{ $historicalComparison['weekly_days_available'] }} päivää
+                    @else
+                        Ei dataa
+                    @endif
                 </p>
             </div>
         </div>
+
+        <!-- Hourly Price Chart -->
+        @if (!empty($chartData['labels']))
+            <div class="bg-white rounded-lg shadow border border-gray-200 p-4 md:p-6 mb-8">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Päivän tuntihinnat</h3>
+                <div class="h-64 md:h-80">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+        @endif
 
         <!-- Statistics Section -->
         @if ($todayStatistics['average'] !== null)
@@ -93,59 +154,217 @@
             </div>
         @endif
 
+        <!-- Best Hours Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+            <!-- Cheapest Hour -->
+            <div class="bg-green-50 p-5 rounded-xl border-2 border-green-200">
+                <div class="flex items-center mb-3">
+                    <span class="bg-green-200 p-2 rounded-lg">
+                        <svg class="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </span>
+                    <h4 class="ml-3 font-semibold text-gray-900">Edullisin tunti</h4>
+                </div>
+                @if ($cheapestHour)
+                    @php
+                        $cheapHour = $cheapestHour['helsinki_hour'];
+                        $nextHour = ($cheapHour + 1) % 24;
+                    @endphp
+                    <p class="text-2xl font-bold text-green-700">
+                        {{ str_pad($cheapHour, 2, '0', STR_PAD_LEFT) }}-{{ str_pad($nextHour, 2, '0', STR_PAD_LEFT) }}
+                    </p>
+                    <p class="text-sm text-gray-600">{{ number_format($cheapestHour['price_without_tax'] ?? 0, 2, ',', ' ') }} c/kWh (ALV 0%)</p>
+                @else
+                    <p class="text-gray-500">-</p>
+                @endif
+            </div>
+
+            <!-- Most Expensive Hour -->
+            <div class="bg-red-50 p-5 rounded-xl border-2 border-red-200">
+                <div class="flex items-center mb-3">
+                    <span class="bg-red-200 p-2 rounded-lg">
+                        <svg class="w-5 h-5 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                        </svg>
+                    </span>
+                    <h4 class="ml-3 font-semibold text-gray-900">Kallein tunti</h4>
+                </div>
+                @if ($mostExpensiveHour)
+                    @php
+                        $expensiveHour = $mostExpensiveHour['helsinki_hour'];
+                        $nextExpHour = ($expensiveHour + 1) % 24;
+                    @endphp
+                    <p class="text-2xl font-bold text-red-700">
+                        {{ str_pad($expensiveHour, 2, '0', STR_PAD_LEFT) }}-{{ str_pad($nextExpHour, 2, '0', STR_PAD_LEFT) }}
+                    </p>
+                    <p class="text-sm text-gray-600">{{ number_format($mostExpensiveHour['price_without_tax'] ?? 0, 2, ',', ' ') }} c/kWh (ALV 0%)</p>
+                @else
+                    <p class="text-gray-500">-</p>
+                @endif
+            </div>
+
+            <!-- Price Volatility -->
+            <div class="bg-yellow-50 p-5 rounded-xl border-2 border-yellow-200">
+                <div class="flex items-center mb-3">
+                    <span class="bg-yellow-200 p-2 rounded-lg">
+                        <svg class="w-5 h-5 text-yellow-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                        </svg>
+                    </span>
+                    <h4 class="ml-3 font-semibold text-gray-900">Hintavaihtelu</h4>
+                </div>
+                @if ($priceVolatility['range'] !== null)
+                    <p class="text-2xl font-bold text-yellow-700">
+                        {{ number_format($priceVolatility['range'], 2, ',', ' ') }} c/kWh
+                    </p>
+                    <p class="text-sm text-gray-600">Vaihteluväli (min-max)</p>
+                @else
+                    <p class="text-gray-500">-</p>
+                @endif
+            </div>
+        </div>
+
+        <!-- Cheapest Remaining Hours & EV Charging Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Cheapest Remaining Hours -->
+            @if (!empty($cheapestRemainingHours))
+                <div class="bg-white rounded-lg shadow border border-gray-200 p-5">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Edullisimmat tunnit</h3>
+                    <p class="text-sm text-gray-500 mb-4">Tulevat edullisimmat tunnit (sis. huomisen)</p>
+                    <div class="space-y-2">
+                        @foreach ($cheapestRemainingHours as $index => $hour)
+                            @php
+                                $hourNum = $hour['helsinki_hour'];
+                                $nextHourNum = ($hourNum + 1) % 24;
+                                $isTomorrow = $hour['helsinki_date'] !== now('Europe/Helsinki')->format('Y-m-d');
+                            @endphp
+                            <div class="flex items-center justify-between py-2 {{ $index === 0 ? 'bg-green-50 -mx-2 px-2 rounded' : '' }}">
+                                <span class="font-medium text-gray-900">
+                                    {{ str_pad($hourNum, 2, '0', STR_PAD_LEFT) }}:00 - {{ str_pad($nextHourNum, 2, '0', STR_PAD_LEFT) }}:00
+                                    @if ($isTomorrow)
+                                        <span class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Huomenna</span>
+                                    @endif
+                                </span>
+                                <span class="text-green-700 font-semibold">
+                                    {{ number_format($hour['price_without_tax'], 2, ',', ' ') }} c/kWh
+                                </span>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            <!-- EV Charging Section -->
+            @if ($bestConsecutiveHours)
+                <div class="bg-white rounded-lg shadow border border-gray-200 p-5">
+                    <div class="flex items-center mb-4">
+                        <span class="bg-primary-100 p-2 rounded-lg">
+                            <svg class="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                        </span>
+                        <h3 class="ml-3 text-lg font-semibold text-gray-900">Sähköauton lataus</h3>
+                    </div>
+                    <p class="text-sm text-gray-500 mb-4">Parhaat 3 peräkkäistä tuntia lataukseen</p>
+
+                    @php
+                        $startHour = $bestConsecutiveHours['start_hour'];
+                        $endHour = ($bestConsecutiveHours['end_hour'] + 1) % 24;
+                    @endphp
+
+                    <div class="bg-primary-50 rounded-lg p-4 mb-4">
+                        <p class="text-sm text-primary-600 mb-1">Suositeltu latausaika</p>
+                        <p class="text-2xl font-bold text-primary-700">
+                            {{ str_pad($startHour, 2, '0', STR_PAD_LEFT) }}:00 - {{ str_pad($endHour, 2, '0', STR_PAD_LEFT) }}:00
+                        </p>
+                        <p class="text-sm text-gray-600 mt-1">
+                            Keskihinta: {{ number_format($bestConsecutiveHours['average_price'], 2, ',', ' ') }} c/kWh
+                        </p>
+                    </div>
+
+                    @if ($potentialSavings)
+                        <div class="border-t border-gray-200 pt-4">
+                            <p class="text-sm font-medium text-gray-700 mb-2">Mahdollinen säästö</p>
+                            <p class="text-lg font-bold text-green-600">
+                                {{ number_format($potentialSavings['savings_euros'], 2, ',', ' ') }} EUR
+                            </p>
+                            <p class="text-xs text-gray-500">
+                                Verrattuna päivän keskihintaan ({{ number_format($potentialSavings['total_kwh'], 1, ',', ' ') }} kWh @ 3,7 kW)
+                            </p>
+                        </div>
+                    @endif
+                </div>
+            @endif
+        </div>
+
         <!-- Hourly Prices Table -->
-        @if (!empty($hourlyPrices))
-            <div class="bg-white rounded-lg shadow border border-gray-200 mb-8">
-                <div class="p-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-900">Tuntihinnat</h3>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tunti</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hinta (ALV 0%)</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hinta (sis. ALV)</th>
+        <div class="bg-white rounded-lg shadow border border-gray-200 mb-8">
+            <div class="p-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Tuntihinnat</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tunti</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hinta (ALV 0%)</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hinta (sis. ALV)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        @foreach ($hourlyPrices as $price)
+                            @php
+                                $hour = $price['helsinki_hour'];
+                                $currentHourNow = (int) now('Europe/Helsinki')->format('H');
+                                $todayDate = now('Europe/Helsinki')->format('Y-m-d');
+                                $isCurrentHour = $currentHourNow === $hour && $price['helsinki_date'] === $todayDate;
+                                $isTomorrow = $price['helsinki_date'] !== $todayDate;
+                                $vatPercent = round($price['vat_rate'] * 100, 1);
+
+                                // Color coding
+                                $priceValue = $price['price_without_tax'];
+                                $min = $todayMinMax['min'] ?? 0;
+                                $max = $todayMinMax['max'] ?? 0;
+                                $range = $max - $min;
+                                if ($range > 0) {
+                                    $normalized = ($priceValue - $min) / $range;
+                                } else {
+                                    $normalized = 0.5;
+                                }
+                            @endphp
+                            <tr class="{{ $isCurrentHour ? 'bg-primary-50' : '' }}">
+                                <td class="px-4 py-3 whitespace-nowrap text-sm {{ $isCurrentHour ? 'font-bold text-primary-700' : 'text-gray-900' }}">
+                                    {{ str_pad($hour, 2, '0', STR_PAD_LEFT) }}:00 - {{ str_pad(($hour + 1) % 24, 2, '0', STR_PAD_LEFT) }}:00
+                                    @if ($isCurrentHour)
+                                        <span class="ml-2 text-xs bg-primary-200 text-primary-800 px-2 py-1 rounded">Nyt</span>
+                                    @endif
+                                    @if ($isTomorrow)
+                                        <span class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Huomenna</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm">
+                                    <span class="inline-flex items-center">
+                                        @if ($normalized < 0.33)
+                                            <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                                        @elseif ($normalized < 0.66)
+                                            <span class="w-2 h-2 rounded-full bg-yellow-500 mr-2"></span>
+                                        @else
+                                            <span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
+                                        @endif
+                                        <span class="text-gray-900">{{ number_format($price['price_without_tax'] ?? 0, 2, ',', ' ') }} c/kWh</span>
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                                    {{ number_format($price['price_with_tax'] ?? 0, 2, ',', ' ') }} c/kWh
+                                    <span class="text-xs text-gray-400">(ALV {{ $vatPercent }}%)</span>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            @foreach ($hourlyPrices as $price)
-                                @php
-                                    $hour = $price['helsinki_hour'];
-                                    $currentHourNow = (int) now('Europe/Helsinki')->format('H');
-                                    $todayDate = now('Europe/Helsinki')->format('Y-m-d');
-                                    $isCurrentHour = $currentHourNow === $hour && $price['helsinki_date'] === $todayDate;
-                                    $isTomorrow = $price['helsinki_date'] !== $todayDate;
-                                    $vatPercent = round($price['vat_rate'] * 100, 1);
-                                @endphp
-                                <tr class="{{ $isCurrentHour ? 'bg-primary-50' : '' }}">
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm {{ $isCurrentHour ? 'font-bold text-primary-700' : 'text-gray-900' }}">
-                                        {{ str_pad($hour, 2, '0', STR_PAD_LEFT) }}:00 - {{ str_pad(($hour + 1) % 24, 2, '0', STR_PAD_LEFT) }}:00
-                                        @if ($isCurrentHour)
-                                            <span class="ml-2 text-xs bg-primary-200 text-primary-800 px-2 py-1 rounded">Nyt</span>
-                                        @endif
-                                        @if ($isTomorrow)
-                                            <span class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Huomenna</span>
-                                        @endif
-                                    </td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                        {{ number_format($price['price_without_tax'] ?? 0, 2, ',', ' ') }} c/kWh
-                                    </td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                                        {{ number_format($price['price_with_tax'] ?? 0, 2, ',', ' ') }} c/kWh
-                                        <span class="text-xs text-gray-400">(ALV {{ $vatPercent }}%)</span>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
-        @else
-            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-8">
-                <p class="text-yellow-700">Hintatietoja ei ole vielä saatavilla. Tiedot päivitetään automaattisesti.</p>
-            </div>
-        @endif
+        </div>
     @endif
 
     <!-- Information Section -->
@@ -179,3 +398,56 @@
         </p>
     </div>
 </div>
+
+@if (!empty($chartData['labels']))
+    @push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('priceChart');
+            if (ctx) {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: @json($chartData),
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.parsed.y.toFixed(2).replace('.', ',') + ' c/kWh';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'c/kWh (ALV 0%)'
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return value.toFixed(1).replace('.', ',');
+                                    }
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Kellonaika'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+    @endpush
+@endif

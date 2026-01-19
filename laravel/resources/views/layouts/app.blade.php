@@ -65,8 +65,6 @@
                 }
             </script>
         @endif
-        <!-- Alpine.js for interactive components -->
-        <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
         @livewireStyles
     </head>
     <body class="font-sans antialiased bg-surface min-h-screen flex flex-col">
@@ -90,6 +88,9 @@
                         </a>
                         <a href="/paikkakunnat" class="text-tertiary-500 hover:text-tertiary-700 font-medium transition">
                             Paikkakunnat
+                        </a>
+                        <a href="/spot-price" class="text-tertiary-500 hover:text-tertiary-700 font-medium transition">
+                            Pörssisähkö
                         </a>
                     </nav>
 
@@ -125,6 +126,9 @@
                     <a href="/paikkakunnat" class="block px-3 py-2 rounded-md text-base font-medium text-tertiary-500 hover:text-tertiary-700 hover:bg-gray-50">
                         Paikkakunnat
                     </a>
+                    <a href="/spot-price" class="block px-3 py-2 rounded-md text-base font-medium text-tertiary-500 hover:text-tertiary-700 hover:bg-gray-50">
+                        Pörssisähkö
+                    </a>
                 </div>
             </div>
         </header>
@@ -142,5 +146,6 @@
         </footer>
 
         @livewireScripts
+        @stack('scripts')
     </body>
 </html>

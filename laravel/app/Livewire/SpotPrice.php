@@ -435,6 +435,88 @@ class SpotPrice extends Component
         ];
     }
 
+    /**
+     * Generate chart data for today's hourly prices.
+     *
+     * @return array Chart.js compatible data structure with color coding
+     */
+    public function getChartData(): array
+    {
+        $todayPrices = $this->getTodayPrices();
+
+        if (empty($todayPrices)) {
+            return [
+                'labels' => [],
+                'datasets' => [
+                    [
+                        'label' => 'Hinta (c/kWh)',
+                        'data' => [],
+                        'backgroundColor' => [],
+                        'borderColor' => [],
+                        'borderWidth' => 1,
+                    ],
+                ],
+            ];
+        }
+
+        // Sort by hour
+        usort($todayPrices, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
+
+        $labels = [];
+        $data = [];
+        $backgroundColors = [];
+        $borderColors = [];
+
+        $prices = array_column($todayPrices, 'price_without_tax');
+        $minPrice = min($prices);
+        $maxPrice = max($prices);
+        $priceRange = $maxPrice - $minPrice;
+
+        // Define color thresholds based on price range
+        // Green for cheap, yellow for moderate, red for expensive
+        foreach ($todayPrices as $price) {
+            $hour = $price['helsinki_hour'];
+            $labels[] = sprintf('%02d:00', $hour);
+            $data[] = round($price['price_without_tax'], 2);
+
+            // Calculate color based on price position in range
+            $priceValue = $price['price_without_tax'];
+            if ($priceRange > 0) {
+                $normalizedPrice = ($priceValue - $minPrice) / $priceRange;
+            } else {
+                $normalizedPrice = 0.5;
+            }
+
+            // Color gradient: green (cheap) -> yellow (moderate) -> red (expensive)
+            if ($normalizedPrice < 0.33) {
+                // Green - cheap
+                $backgroundColors[] = 'rgba(34, 197, 94, 0.7)';
+                $borderColors[] = 'rgb(34, 197, 94)';
+            } elseif ($normalizedPrice < 0.66) {
+                // Yellow - moderate
+                $backgroundColors[] = 'rgba(234, 179, 8, 0.7)';
+                $borderColors[] = 'rgb(234, 179, 8)';
+            } else {
+                // Red - expensive
+                $backgroundColors[] = 'rgba(239, 68, 68, 0.7)';
+                $borderColors[] = 'rgb(239, 68, 68)';
+            }
+        }
+
+        return [
+            'labels' => $labels,
+            'datasets' => [
+                [
+                    'label' => 'Hinta (c/kWh)',
+                    'data' => $data,
+                    'backgroundColor' => $backgroundColors,
+                    'borderColor' => $borderColors,
+                    'borderWidth' => 1,
+                ],
+            ],
+        ];
+    }
+
     public function render()
     {
         return view('livewire.spot-price', [
@@ -449,6 +531,8 @@ class SpotPrice extends Component
             'cheapestRemainingHours' => $this->getCheapestRemainingHours(5),
             'bestConsecutiveHours' => $this->getBestConsecutiveHours(3),
             'potentialSavings' => $this->calculatePotentialSavings(3, 3.7), // 3 hours at 3.7 kW (typical EV charging)
+            // Chart data
+            'chartData' => $this->getChartData(),
         ])->layout('layouts.app', ['title' => 'Pörssisähkön hinta - Voltikka']);
     }
 }

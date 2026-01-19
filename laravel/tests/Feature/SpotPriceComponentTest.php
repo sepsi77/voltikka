@@ -816,4 +816,222 @@ class SpotPriceComponentTest extends TestCase
             ->assertViewHas('bestConsecutiveHours')
             ->assertViewHas('potentialSavings');
     }
+
+    // ==========================================
+    // Enhanced View Tests
+    // ==========================================
+
+    public function test_view_displays_hero_section_with_current_price(): void
+    {
+        $this->createFullDayPrices(2026, 1, 20);
+
+        Livewire::test(SpotPrice::class)
+            ->assertSee('Pörssisähkön hinta')
+            ->assertSee('Seuraa sähkön pörssihinnan kehitystä');
+    }
+
+    public function test_view_displays_price_comparison_cards(): void
+    {
+        // Create yesterday's prices for comparison
+        $this->createFullDayPrices(2026, 1, 19, array_fill(0, 24, 5.0));
+        // Create today's prices
+        $prices = array_fill(0, 24, 10.0);
+        $prices[3] = 2.0;  // Min
+        $prices[17] = 20.0; // Max
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        Livewire::test(SpotPrice::class)
+            ->assertSee('Tänään')
+            ->assertSee('Eilen')
+            ->assertSee('Viikon ka.');
+    }
+
+    public function test_view_displays_statistics_section(): void
+    {
+        $prices = array_fill(0, 24, 10.0);
+        $prices[3] = 2.0;
+        $prices[17] = 20.0;
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        Livewire::test(SpotPrice::class)
+            ->assertSee('Keskihinta')
+            ->assertSee('Mediaani')
+            ->assertSee('Alin')
+            ->assertSee('Ylin');
+    }
+
+    public function test_view_displays_best_hours_section(): void
+    {
+        $prices = array_fill(0, 24, 10.0);
+        $prices[15] = 2.0;
+        $prices[16] = 3.0;
+        $prices[17] = 4.0;
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        Livewire::test(SpotPrice::class)
+            ->assertSee('Edullisimmat tunnit');
+    }
+
+    public function test_view_displays_ev_charging_section(): void
+    {
+        $this->createFullDayPrices(2026, 1, 20);
+
+        Livewire::test(SpotPrice::class)
+            ->assertSee('Sähköauton lataus');
+    }
+
+    public function test_view_displays_hourly_prices_chart_data(): void
+    {
+        $prices = array_fill(0, 24, 10.0);
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        $component = Livewire::test(SpotPrice::class);
+
+        // Verify chart data is available in view
+        $component->assertViewHas('chartData');
+    }
+
+    public function test_view_passes_chart_data_to_view(): void
+    {
+        $prices = array_fill(0, 24, 10.0);
+        $prices[3] = 2.0;  // Min price for color coding
+        $prices[17] = 20.0; // Max price for color coding
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        $component = Livewire::test(SpotPrice::class);
+        $chartData = $component->viewData('chartData');
+
+        // Chart data should have labels (hours) and datasets
+        $this->assertArrayHasKey('labels', $chartData);
+        $this->assertArrayHasKey('datasets', $chartData);
+        $this->assertCount(24, $chartData['labels']);
+    }
+
+    public function test_view_chart_data_includes_color_coding(): void
+    {
+        // Create prices with variety for color coding
+        $prices = array_fill(0, 24, 10.0);
+        $prices[3] = 2.0;   // Cheap (green)
+        $prices[17] = 20.0; // Expensive (red)
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        $component = Livewire::test(SpotPrice::class);
+        $chartData = $component->viewData('chartData');
+
+        // Verify background colors are set
+        $this->assertArrayHasKey('backgroundColor', $chartData['datasets'][0]);
+        $bgColors = $chartData['datasets'][0]['backgroundColor'];
+
+        // Should have colors for each hour
+        $this->assertCount(24, $bgColors);
+    }
+
+    public function test_view_displays_volatility_indicator(): void
+    {
+        // Create prices with high variance
+        $prices = array_fill(0, 24, 10.0);
+        $prices[3] = 2.0;
+        $prices[17] = 50.0;
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        Livewire::test(SpotPrice::class)
+            ->assertSee('Hintavaihtelu');
+    }
+
+    public function test_view_displays_potential_savings(): void
+    {
+        $prices = array_fill(0, 24, 10.0);
+        $prices[3] = 2.0;
+        $prices[4] = 3.0;
+        $prices[5] = 4.0;
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        Livewire::test(SpotPrice::class)
+            ->assertSee('Mahdollinen säästö');
+    }
+
+    public function test_view_handles_empty_data_gracefully(): void
+    {
+        // No data in database
+        Livewire::test(SpotPrice::class)
+            ->assertSee('Hintatietoja ei ole vielä saatavilla')
+            ->assertDontSee('NaN')
+            ->assertDontSee('undefined');
+    }
+
+    public function test_view_displays_finnish_formatted_numbers(): void
+    {
+        $this->createSpotPrice(2026, 1, 20, 14, 12.345);
+
+        // Finnish number formatting uses comma as decimal separator
+        Livewire::test(SpotPrice::class)
+            ->assertSee('12,35'); // Rounded to 2 decimals with comma
+    }
+
+    public function test_view_displays_change_indicators(): void
+    {
+        // Create yesterday with lower prices
+        $this->createFullDayPrices(2026, 1, 19, array_fill(0, 24, 5.0));
+        // Create today with higher prices (should show increase)
+        $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0));
+
+        Livewire::test(SpotPrice::class)
+            ->assertSee('+'); // Should show positive change indicator
+    }
+
+    public function test_view_shows_tomorrow_badge_for_next_day_prices(): void
+    {
+        $this->createFullDayPrices(2026, 1, 20);
+        $this->createFullDayPrices(2026, 1, 21);
+
+        Livewire::test(SpotPrice::class)
+            ->assertSee('Huomenna');
+    }
+
+    public function test_view_highlights_current_hour(): void
+    {
+        $this->createFullDayPrices(2026, 1, 20);
+
+        // Current time is 14:30, so hour 14 should be highlighted
+        Livewire::test(SpotPrice::class)
+            ->assertSee('14:00 - 15:00')
+            ->assertSee('Nyt');
+    }
+
+    public function test_view_displays_cheapest_hour_prominently(): void
+    {
+        $prices = array_fill(0, 24, 10.0);
+        $prices[4] = 1.0; // Cheapest hour at 04:00
+
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        Livewire::test(SpotPrice::class)
+            ->assertSee('Edullisin tunti')
+            ->assertSee('04-05');
+    }
+
+    public function test_view_displays_most_expensive_hour(): void
+    {
+        $prices = array_fill(0, 24, 10.0);
+        $prices[17] = 25.0; // Most expensive at 17:00
+
+        $this->createFullDayPrices(2026, 1, 20, $prices);
+
+        Livewire::test(SpotPrice::class)
+            ->assertSee('Kallein tunti')
+            ->assertSee('17-18');
+    }
+
+    public function test_view_responsive_for_mobile(): void
+    {
+        $this->createFullDayPrices(2026, 1, 20);
+
+        // Check that responsive classes are present
+        $response = Livewire::test(SpotPrice::class);
+
+        // View should contain mobile-responsive classes
+        $html = $response->html();
+        $this->assertStringContainsString('md:', $html);
+        $this->assertStringContainsString('lg:', $html);
+    }
 }
