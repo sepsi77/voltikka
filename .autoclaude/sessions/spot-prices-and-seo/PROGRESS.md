@@ -746,3 +746,5 @@ Updated render method to pass:
   - `getCityInfoProperty()` computed property
   - Updated `render()` to pass city data to view
 - `tests/Feature/SeoCityRoutesTest.php` - New test file
+
+**Commit:** `ea3f57b` - feat: Add city-based SEO routes for /sahkosopimus/{city}

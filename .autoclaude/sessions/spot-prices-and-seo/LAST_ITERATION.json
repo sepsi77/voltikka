@@ -1,5 +1,5 @@
 {
-  "iteration": 10,
+  "iteration": 11,
   "task_id": null,
   "task_title": null,
   "exit_reason": "task_complete",
@@ -7,7 +7,6 @@
   "files_changed": [
     ".autoclaude/PROMPT.md",
     ".autoclaude/sessions/spot-prices-and-seo/PROGRESS.md",
-    ".autoclaude/sessions/spot-prices-and-seo/TASKS.json",
     ".claude/skills/autoclaude/SKILL.md",
     "CLAUDE.md",
     "laravel/.env.example",
@@ -27,6 +26,6 @@
   ],
   "test_passed": null,
   "commit_sha": null,
-  "summary": "I have successfully completed the `seo-energy-routes` task.\n\n## Summary\n\nI completed the **`seo-energy-routes`** task, creating energy source SEO routes and pages.\n\n### Files Created/Modified:\n\n1. **`laravel/routes/web.php`** - Added 3 energy source routes:\n   - `/sahkosopimus/tuulisahko` (named `seo.energy.tuulisahko`, filter: wind > 0%)\n   - `/sahkosopimus/aurinkosahko` (named `seo.energy.aurinkosahko`, filter: solar > 0%)\n   - `/sahkosopimus/vihrea-sahko` (named `seo.energy.vihrea-sahko`, filter: renewable >= 50%, no peat)\n\n2. **`laravel/app/Livewire/SeoContractsList.php`** - Added:\n   - `getEnergySourceIntroText()` method with detailed SEO descriptions\n   - `getEnergySourceStatsProperty()` for aggregated statistics\n   - `getEnvironmentalInfoProperty()` with CO₂ emission facts\n\n3. **`laravel/resources/views/livewire/seo-contracts-list.blade.php`** - Added:\n   - Energy source statistics section with colored cards\n   - Environmental impact section with gradient styling\n\n4. **`laravel/",
-  "timestamp": "2026-01-20T01:59:15.737939"
+  "summary": "I have successfully completed the `seo-city-routes` task.\n\n## Summary\n\nI completed the **`seo-city-routes`** task, creating city-based SEO routes and pages.\n\n### Files Created/Modified:\n\n1. **`laravel/routes/web.php`** - Added dynamic city route:\n   - `/sahkosopimus/{city}` (named `seo.city`, e.g., /sahkosopimus/helsinki)\n   - Route placed AFTER specific housing and energy routes to avoid conflicts\n   - Uses regex constraint `[a-z0-9-]+` for city slugs\n\n2. **`laravel/app/Livewire/SeoContractsList.php`** - Added:\n   - `filterByCity()` method - filters contracts showing national + city-specific\n   - `getCityPostcodes()` method - queries postcodes by municipality name/slug\n   - `getCityInfoProperty()` - returns city statistics (name, locative, providers count)\n   - Updated `render()` to pass `isCityPage` and `cityInfo` to view\n\n3. **`laravel/tests/Feature/SeoCityRoutesTest.php`** - 28 tests covering:\n   - Route accessibility for multiple cities\n   - Unique H1 with correct Finnish locative",
+  "timestamp": "2026-01-20T02:05:10.442601"
 }
