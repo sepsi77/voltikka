@@ -61,10 +61,10 @@ return new class extends Migration
                 $table->string('order_link')->nullable();
                 $table->string('product_link')->nullable();
 
-                // JSONB fields for complex data
-                $table->jsonb('billing_frequency')->nullable();
-                $table->jsonb('time_period_definitions')->nullable();
-                $table->jsonb('transparency_index')->nullable();
+                // JSON fields for complex data (jsonb in PostgreSQL, json in other DBs)
+                $table->json('billing_frequency')->nullable();
+                $table->json('time_period_definitions')->nullable();
+                $table->json('transparency_index')->nullable();
 
                 // Extra information in multiple languages
                 $table->text('extra_information_default')->nullable();

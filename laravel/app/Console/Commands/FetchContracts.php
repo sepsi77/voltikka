@@ -1,0 +1,452 @@
+<?php
+
+namespace App\Console\Commands;
+
+use App\Models\ActiveContract;
+use App\Models\Company;
+use App\Models\ElectricityContract;
+use App\Models\ElectricitySource;
+use App\Models\Postcode;
+use App\Models\PriceComponent;
+use App\Models\SpotFutures;
+use App\Services\AzureConsumerApiClient;
+use Carbon\Carbon;
+use Illuminate\Console\Command;
+use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+
+class FetchContracts extends Command
+{
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'contracts:fetch
+                            {--postcodes= : Comma-separated list of postcodes to fetch contracts for}';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = 'Fetch electricity contracts from Azure Consumer API and save to database';
+
+    /**
+     * Default postcodes to fetch if none provided (representative sample for national coverage).
+     */
+    private const DEFAULT_POSTCODES = [
+        '02230', '00100', '03100', '25660', '22110', '33720', '33680', '20250', '21250', '28120',
+        '29570', '47610', '53100', '54960', '80100', '80510', '40100', '40660', '90140', '90940',
+        '96200', '96600', '97330', '99300', '99830', '60120', '60640', '65100', '65170', '65630',
+    ];
+
+    private AzureConsumerApiClient $apiClient;
+
+    public function __construct(AzureConsumerApiClient $apiClient)
+    {
+        parent::__construct();
+        $this->apiClient = $apiClient;
+    }
+
+    /**
+     * Execute the console command.
+     */
+    public function handle(): int
+    {
+        $this->info('Fetching contracts from Azure Consumer API...');
+
+        $postcodes = $this->getPostcodes();
+        $today = Carbon::now()->toDateString();
+
+        // Get valid postcodes from database
+        $validPostcodes = Postcode::pluck('postcode')->toArray();
+
+        try {
+            $allContracts = $this->fetchAllContracts($postcodes);
+        } catch (RequestException $e) {
+            $this->error('Failed to fetch contracts: ' . $e->getMessage());
+            Log::error('FetchContracts command failed', ['exception' => $e->getMessage()]);
+            return Command::FAILURE;
+        }
+
+        if (empty($allContracts)) {
+            $this->warn('No contracts fetched from API.');
+            return Command::SUCCESS;
+        }
+
+        $this->info("Fetched " . count($allContracts) . " unique contracts. Processing...");
+
+        // Start database transaction
+        DB::beginTransaction();
+
+        try {
+            // Upload companies first
+            $this->processCompanies($allContracts);
+
+            // Upload contracts
+            $this->processContracts($allContracts);
+
+            // Update active contracts table
+            $this->updateActiveContracts($allContracts);
+
+            // Upload price components
+            $this->processPriceComponents($allContracts, $today);
+
+            // Upload electricity sources
+            $this->processElectricitySources($allContracts);
+
+            // Upload contract-postcode relationships
+            $this->processContractPostcodes($allContracts, $validPostcodes);
+
+            // Upload spot futures (from first contract)
+            $this->processSpotFutures($allContracts, $today);
+
+            DB::commit();
+            $this->info('Contracts fetched successfully!');
+            return Command::SUCCESS;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            $this->error('Error processing contracts: ' . $e->getMessage());
+            Log::error('FetchContracts command failed during processing', [
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return Command::FAILURE;
+        }
+    }
+
+    /**
+     * Get postcodes from option or use defaults.
+     */
+    private function getPostcodes(): array
+    {
+        $postcodesOption = $this->option('postcodes');
+
+        if ($postcodesOption) {
+            return array_map('trim', explode(',', $postcodesOption));
+        }
+
+        return self::DEFAULT_POSTCODES;
+    }
+
+    /**
+     * Fetch all contracts from API for given postcodes.
+     */
+    private function fetchAllContracts(array $postcodes): array
+    {
+        $allContracts = [];
+        $processedIds = [];
+
+        foreach ($postcodes as $postcode) {
+            $this->info("Fetching contracts for postcode: {$postcode}");
+
+            try {
+                $contracts = $this->apiClient->fetchContractsForPostcode($postcode);
+
+                foreach ($contracts as $contract) {
+                    $id = $contract['Id'] ?? null;
+                    if ($id && !isset($processedIds[$id])) {
+                        $allContracts[] = $contract;
+                        $processedIds[$id] = true;
+                    }
+                }
+            } catch (RequestException $e) {
+                $this->warn("Failed to fetch contracts for postcode {$postcode}: " . $e->getMessage());
+                // Continue with other postcodes but throw if all fail
+                if ($postcode === end($postcodes) && empty($allContracts)) {
+                    throw $e;
+                }
+            }
+        }
+
+        return $allContracts;
+    }
+
+    /**
+     * Process and upsert companies.
+     */
+    private function processCompanies(array $contracts): void
+    {
+        $companies = [];
+        $processedNames = [];
+
+        foreach ($contracts as $contract) {
+            $companyData = $contract['Company'] ?? [];
+            $name = trim($companyData['Name'] ?? '');
+
+            if ($name && !isset($processedNames[$name])) {
+                $companies[] = [
+                    'name' => $name,
+                    'name_slug' => Company::generateSlug($name),
+                    'company_url' => trim($companyData['CompanyUrl'] ?? ''),
+                    'street_address' => trim($companyData['StreetAddress'] ?? ''),
+                    'postal_code' => trim($companyData['PostalCode'] ?? ''),
+                    'postal_name' => trim($companyData['PostalName'] ?? ''),
+                    'logo_url' => trim($companyData['LogoURL'] ?? ''),
+                ];
+                $processedNames[$name] = true;
+            }
+        }
+
+        // Upsert companies
+        foreach ($companies as $company) {
+            Company::updateOrCreate(
+                ['name' => $company['name']],
+                $company
+            );
+        }
+
+        $this->info("Processed " . count($companies) . " companies.");
+    }
+
+    /**
+     * Process and upsert contracts.
+     */
+    private function processContracts(array $contracts): void
+    {
+        foreach ($contracts as $data) {
+            $data = $this->trimDictValues($data);
+            $details = $data['Details'] ?? [];
+            $pricing = $details['Pricing'] ?? [];
+            $consumptionLimitation = $details['ConsumptionLimitation'] ?? [];
+            $extraInformation = $details['ExtraInformation'] ?? [];
+            $microProduction = $details['MicroProduction'] ?? [];
+
+            $contractData = [
+                'id' => $data['Id'],
+                'name' => $data['Name'],
+                'company_name' => $data['Company']['Name'] ?? '',
+                'contract_type' => $details['ContractType'] ?? null,
+                'spot_price_selection' => $details['SpotPriceSelection'] ?? null,
+                'fixed_time_range' => $details['FixedTimeRange'] ?? null,
+                'metering' => $details['Metering'] ?? null,
+                'pricing_name' => $pricing['Name'] ?? null,
+                'pricing_has_discounts' => $pricing['HasDiscount'] ?? false,
+                'consumption_control' => $details['ConsumptionControl'] ?? false,
+                'consumption_limitation_min_x_kwh_per_y' => $consumptionLimitation['MinXKWhPerY'] ?? null,
+                'consumption_limitation_max_x_kwh_per_y' => $consumptionLimitation['MaxXKWhPerY'] ?? null,
+                'pre_billing' => $details['PreBilling'] ?? false,
+                'available_for_existing_users' => $details['AvailableForExistingUsers'] ?? true,
+                'delivery_responsibility_product' => $details['DeliveryResponsibilityProduct'] ?? false,
+                'order_link' => $details['OrderLink'] ?? null,
+                'product_link' => $details['ProductLink'] ?? null,
+                'billing_frequency' => $details['BillingFrequency'] ?? null,
+                'transparency_index' => $details['TransparencyIndex'] ?? null,
+                'extra_information_default' => $extraInformation['Default'] ?? null,
+                'extra_information_fi' => $extraInformation['FI'] ?? null,
+                'extra_information_en' => $extraInformation['EN'] ?? null,
+                'extra_information_sv' => $extraInformation['SV'] ?? null,
+                'availability_is_national' => $details['AvailabilityArea']['IsNational'] ?? false,
+                'microproduction_buys' => $microProduction['Buys'] ?? false,
+                'microproduction_default' => $microProduction['Details']['Default'] ?? null,
+                'microproduction_fi' => $microProduction['Details']['FI'] ?? null,
+                'microproduction_sv' => $microProduction['Details']['SV'] ?? null,
+                'microproduction_en' => $microProduction['Details']['EN'] ?? null,
+            ];
+
+            // Update or create contract
+            $existingContract = ElectricityContract::find($data['Id']);
+            if ($existingContract) {
+                // Only update pricing_has_discounts if it changed (as per Python implementation)
+                if ($existingContract->pricing_has_discounts !== $contractData['pricing_has_discounts']) {
+                    $existingContract->pricing_has_discounts = $contractData['pricing_has_discounts'];
+                    $existingContract->save();
+                }
+            } else {
+                ElectricityContract::create($contractData);
+            }
+        }
+
+        $this->info("Processed " . count($contracts) . " contracts.");
+    }
+
+    /**
+     * Update active contracts table (clear and repopulate).
+     */
+    private function updateActiveContracts(array $contracts): void
+    {
+        // Clear existing active contracts
+        ActiveContract::truncate();
+
+        // Insert new active contracts
+        $activeContracts = [];
+        foreach ($contracts as $contract) {
+            $activeContracts[] = ['id' => $contract['Id']];
+        }
+
+        // Use insert ignore to handle any duplicates
+        ActiveContract::insertOrIgnore($activeContracts);
+
+        $this->info("Updated active contracts table with " . count($contracts) . " contracts.");
+    }
+
+    /**
+     * Process and insert price components.
+     */
+    private function processPriceComponents(array $contracts, string $date): void
+    {
+        $priceComponents = [];
+
+        foreach ($contracts as $data) {
+            $data = $this->trimDictValues($data);
+            $pricing = $data['Details']['Pricing'] ?? [];
+            $contractId = $pricing['ElectricitySupplyProductId'] ?? $data['Id'];
+            $components = $pricing['PriceComponents'] ?? [];
+
+            foreach ($components as $component) {
+                $component = $this->trimDictValues($component);
+                $discount = $component['Discount'] ?? [];
+
+                // Parse discount until date
+                $discountUntilDate = null;
+                $untilDateStr = $discount['UntilDate'] ?? '0001-01-01T00:00:00';
+                if ($untilDateStr !== '0001-01-01T00:00:00') {
+                    try {
+                        $discountUntilDate = Carbon::parse($untilDateStr);
+                    } catch (\Exception $e) {
+                        // Invalid date, keep null
+                    }
+                }
+
+                $priceComponents[] = [
+                    'id' => $component['Id'],
+                    'price_date' => $date,
+                    'price_component_type' => $component['PriceComponentType'],
+                    'fuse_size' => $component['FuseSize'] ?? null,
+                    'electricity_contract_id' => $contractId,
+                    'has_discount' => $component['HasDiscount'] ?? false,
+                    'discount_value' => $discount['DiscountValue'] ?? null,
+                    'discount_is_percentage' => $discount['IsPercentage'] ?? false,
+                    'discount_type' => $discount['DiscountType'] ?? null,
+                    'discount_discount_n_first_kwh' => $discount['NFirstKwh'] ?? null,
+                    'discount_discount_n_first_months' => $discount['NfirstMonths'] ?? null,
+                    'discount_discount_until_date' => $discountUntilDate,
+                    'price' => $component['OriginalPayment']['Price'] ?? 0,
+                    'payment_unit' => $component['OriginalPayment']['PaymentUnit'] ?? null,
+                ];
+            }
+        }
+
+        // Use insertOrIgnore to handle composite key conflicts
+        foreach (array_chunk($priceComponents, 500) as $chunk) {
+            PriceComponent::insertOrIgnore($chunk);
+        }
+
+        $this->info("Processed " . count($priceComponents) . " price components.");
+    }
+
+    /**
+     * Process and insert electricity sources.
+     */
+    private function processElectricitySources(array $contracts): void
+    {
+        foreach ($contracts as $data) {
+            $data = $this->trimDictValues($data);
+            $source = $data['Details']['ElectricitySource'] ?? [];
+            $contractId = $data['Id'];
+
+            $renewable = $source['Renewable'] ?? [];
+            $fossil = $source['Fossil'] ?? [];
+            $nuclear = $source['Nuclear'] ?? [];
+
+            $sourceData = [
+                'contract_id' => $contractId,
+                'renewable_total' => $renewable['Total'] ?? null,
+                'renewable_biomass' => $renewable['BioMass'] ?? null,
+                'renewable_solar' => $renewable['Solar'] ?? null,
+                'renewable_wind' => $renewable['Wind'] ?? null,
+                'renewable_general' => $renewable['General'] ?? null,
+                'renewable_hydro' => $renewable['Hydro'] ?? null,
+                'fossil_total' => $fossil['Total'] ?? null,
+                'fossil_oil' => $fossil['Oil'] ?? null,
+                'fossil_coal' => $fossil['Coal'] ?? null,
+                'fossil_natural_gas' => $fossil['NaturalGas'] ?? null,
+                'fossil_peat' => $fossil['Peat'] ?? null,
+                'nuclear_total' => $nuclear['Total'] ?? null,
+                'nuclear_general' => $nuclear['General'] ?? null,
+            ];
+
+            ElectricitySource::updateOrCreate(
+                ['contract_id' => $contractId],
+                $sourceData
+            );
+        }
+
+        $this->info("Processed " . count($contracts) . " electricity sources.");
+    }
+
+    /**
+     * Process contract-postcode relationships.
+     */
+    private function processContractPostcodes(array $contracts, array $validPostcodes): void
+    {
+        $relationships = [];
+        $processedPairs = [];
+
+        foreach ($contracts as $data) {
+            $data = $this->trimDictValues($data);
+            $contractId = $data['Id'];
+            $postcodes = $data['Details']['AvailabilityArea']['PostalCodes'] ?? [];
+
+            foreach ($postcodes as $postcode) {
+                $pairKey = "{$contractId}:{$postcode}";
+                if (!isset($processedPairs[$pairKey]) && in_array($postcode, $validPostcodes)) {
+                    $relationships[] = [
+                        'contract_id' => $contractId,
+                        'postcode' => $postcode,
+                    ];
+                    $processedPairs[$pairKey] = true;
+                }
+            }
+        }
+
+        // Use insertOrIgnore to handle duplicate entries
+        foreach (array_chunk($relationships, 500) as $chunk) {
+            DB::table('contract_postcode')->insertOrIgnore($chunk);
+        }
+
+        $this->info("Processed " . count($relationships) . " contract-postcode relationships.");
+    }
+
+    /**
+     * Process and insert spot futures.
+     */
+    private function processSpotFutures(array $contracts, string $date): void
+    {
+        if (empty($contracts)) {
+            return;
+        }
+
+        // Get spot futures from the first contract
+        $firstContract = $contracts[0];
+        $spotFuturesPrice = $firstContract['Details']['SpotFutures'] ?? null;
+
+        if ($spotFuturesPrice !== null) {
+            SpotFutures::updateOrCreate(
+                ['date' => $date],
+                ['price' => $spotFuturesPrice]
+            );
+            $this->info("Processed spot futures price: {$spotFuturesPrice}");
+        }
+    }
+
+    /**
+     * Trim whitespace from string values in an array.
+     */
+    private function trimDictValues(array $data): array
+    {
+        $result = [];
+        foreach ($data as $key => $value) {
+            if (is_string($value)) {
+                $result[$key] = trim($value);
+            } elseif (is_array($value)) {
+                $result[$key] = $this->trimDictValues($value);
+            } else {
+                $result[$key] = $value;
+            }
+        }
+        return $result;
+    }
+}
