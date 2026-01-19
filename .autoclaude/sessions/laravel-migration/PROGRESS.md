@@ -47,3 +47,32 @@
 - `laravel/tests/Unit/CompanyTest.php` - Unit tests
 
 **Commit:** 00b76f0 - "feat: Add Company Eloquent model with Finnish slug generation"
+
+### Task: eloquent-contract-model (COMPLETED)
+
+**What was done:**
+- Created `ElectricityContract` Eloquent model ported from SQLAlchemy model
+- Configured string primary key (`id`) matching legacy PostgreSQL schema
+- Implemented `generateSlug()` method for Finnish character handling (ä→a, ö→o, å→a)
+- Auto-generates `name_slug` on model save via `saving` event
+- Configured attribute casts for JSONB fields (`billing_frequency`, `time_period_definitions`, `transparency_index`)
+- Configured boolean casts for all boolean fields
+- Configured float casts for consumption limitation fields
+- Set up all relationships:
+  - `belongsTo Company` (via `company_name` → `name`)
+  - `hasMany PriceComponent` (via `electricity_contract_id`)
+  - `hasOne ElectricitySource` (via `contract_id`)
+  - `belongsToMany Postcode` (via `contract_postcode` pivot table)
+- Created migration documenting existing schema including `contract_postcode` pivot table
+- Created comprehensive unit tests (12 tests, 65 assertions)
+
+**Tests:**
+- `php artisan test --filter=ElectricityContractTest` - 12 tests pass
+- `php artisan test` - All 20 tests pass (86 assertions)
+
+**Files created:**
+- `laravel/app/Models/ElectricityContract.php` - Eloquent model
+- `laravel/database/migrations/2026_01_19_160000_create_electricity_contracts_table.php` - Schema documentation
+- `laravel/tests/Unit/ElectricityContractTest.php` - Unit tests
+
+**Commit:** d705bfe - "feat: Add ElectricityContract Eloquent model with relationships"

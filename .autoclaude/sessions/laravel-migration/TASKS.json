@@ -26,8 +26,11 @@
       "id": "eloquent-contract-model",
       "title": "Create ElectricityContract Eloquent model",
       "description": "Port the ElectricityContract SQLAlchemy model to Eloquent. Include all fields from the Python model including JSONB fields (billing_frequency, time_period_definitions, transparency_index). Set up relationships: belongsTo Company, hasMany PriceComponent, hasOne ElectricitySource, belongsToMany Postcode. Include name_slug auto-generation.",
-      "status": "pending",
-      "priority": 3
+      "status": "completed",
+      "priority": 3,
+      "started_at": "2026-01-19T16:00:00Z",
+      "completed_at": "2026-01-19T16:20:00Z",
+      "passes": true
     },
     {
       "id": "eloquent-price-component-model",
