@@ -223,6 +223,8 @@ class FetchContracts extends Command
                 'spot_price_selection' => $details['SpotPriceSelection'] ?? null,
                 'fixed_time_range' => $details['FixedTimeRange'] ?? null,
                 'metering' => $details['Metering'] ?? null,
+                'pricing_model' => $details['PricingModel'] ?? null,
+                'target_group' => $details['TargetGroup'] ?? null,
                 'pricing_name' => $pricing['Name'] ?? null,
                 'pricing_has_discounts' => $pricing['HasDiscount'] ?? false,
                 'consumption_control' => $details['ConsumptionControl'] ?? false,
@@ -250,9 +252,27 @@ class FetchContracts extends Command
             // Update or create contract
             $existingContract = ElectricityContract::find($data['Id']);
             if ($existingContract) {
-                // Only update pricing_has_discounts if it changed (as per Python implementation)
+                $needsUpdate = false;
+
+                // Update pricing_has_discounts if it changed (as per Python implementation)
                 if ($existingContract->pricing_has_discounts !== $contractData['pricing_has_discounts']) {
                     $existingContract->pricing_has_discounts = $contractData['pricing_has_discounts'];
+                    $needsUpdate = true;
+                }
+
+                // Update pricing_model if it's null (backfill new field)
+                if ($existingContract->pricing_model === null && $contractData['pricing_model'] !== null) {
+                    $existingContract->pricing_model = $contractData['pricing_model'];
+                    $needsUpdate = true;
+                }
+
+                // Update target_group if it's null (backfill new field)
+                if ($existingContract->target_group === null && $contractData['target_group'] !== null) {
+                    $existingContract->target_group = $contractData['target_group'];
+                    $needsUpdate = true;
+                }
+
+                if ($needsUpdate) {
                     $existingContract->save();
                 }
             } else {
@@ -436,7 +456,8 @@ class FetchContracts extends Command
         $spotFuturesPrice = $firstContract['Details']['SpotFutures'] ?? null;
 
         if ($spotFuturesPrice !== null) {
-            SpotFutures::updateOrCreate(
+            // Use direct DB query to handle the composite primary key properly
+            DB::table('spot_futures')->updateOrInsert(
                 ['date' => $date],
                 ['price' => $spotFuturesPrice]
             );

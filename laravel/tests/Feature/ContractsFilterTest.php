@@ -116,20 +116,22 @@ class ContractsFilterTest extends TestCase
     }
 
     /**
-     * Test filtering by contract type Spot.
+     * Test filtering by contract type Spot (uses pricing_model field).
      */
     public function test_filter_by_contract_type_spot(): void
     {
         $fixedContract = $this->createContract([
             'id' => 'fixed-contract',
             'name' => 'Kiinteä Sähkö',
-            'contract_type' => 'Fixed',
+            'contract_type' => 'FixedTerm',
+            'pricing_model' => 'FixedPrice',
         ]);
 
         $spotContract = $this->createContract([
             'id' => 'spot-contract',
             'name' => 'Spot Sähkö',
-            'contract_type' => 'Spot',
+            'contract_type' => 'OpenEnded',
+            'pricing_model' => 'Spot',
         ]);
 
         $component = Livewire::test('contracts-list')
@@ -139,6 +141,34 @@ class ContractsFilterTest extends TestCase
 
         $this->assertFalse($contracts->contains('id', 'fixed-contract'));
         $this->assertTrue($contracts->contains('id', 'spot-contract'));
+    }
+
+    /**
+     * Test filtering by contract type Hybrid (uses pricing_model field).
+     */
+    public function test_filter_by_contract_type_hybrid(): void
+    {
+        $fixedContract = $this->createContract([
+            'id' => 'fixed-contract',
+            'name' => 'Kiinteä Sähkö',
+            'contract_type' => 'FixedTerm',
+            'pricing_model' => 'FixedPrice',
+        ]);
+
+        $hybridContract = $this->createContract([
+            'id' => 'hybrid-contract',
+            'name' => 'Hybridi Sähkö',
+            'contract_type' => 'OpenEnded',
+            'pricing_model' => 'Hybrid',
+        ]);
+
+        $component = Livewire::test('contracts-list')
+            ->set('contractTypeFilter', 'Hybrid');
+
+        $contracts = $component->viewData('contracts');
+
+        $this->assertFalse($contracts->contains('id', 'fixed-contract'));
+        $this->assertTrue($contracts->contains('id', 'hybrid-contract'));
     }
 
     /**

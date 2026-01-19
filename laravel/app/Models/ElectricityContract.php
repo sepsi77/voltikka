@@ -50,6 +50,8 @@ class ElectricityContract extends Model
         'spot_price_selection',
         'fixed_time_range',
         'metering',
+        'pricing_model',
+        'target_group',
         'short_description',
         'long_description',
         'pricing_name',

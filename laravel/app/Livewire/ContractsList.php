@@ -74,12 +74,14 @@ class ContractsList extends Component
 
     /**
      * Available contract types.
+     * Note: 'Spot' and 'Hybrid' filter by pricing_model field, others by contract_type.
      *
      * @var array<string, string>
      */
     public array $contractTypes = [
-        'Fixed' => 'Määräaikainen',
+        'FixedTerm' => 'Määräaikainen',
         'Spot' => 'Pörssisähkö',
+        'Hybrid' => 'Hybridi',
         'OpenEnded' => 'Toistaiseksi voimassa',
     ];
 
@@ -91,7 +93,7 @@ class ContractsList extends Component
     public array $meteringTypes = [
         'General' => 'Yleismittarointi',
         'Time' => 'Aikamittarointi',
-        'Seasonal' => 'Kausimittarointi',
+        'Season' => 'Kausimittarointi',
     ];
 
     /**
@@ -218,7 +220,13 @@ class ContractsList extends Component
 
         // Apply contract type filter
         if ($this->contractTypeFilter !== '') {
-            $query->where('contract_type', $this->contractTypeFilter);
+            if ($this->contractTypeFilter === 'Spot' || $this->contractTypeFilter === 'Hybrid') {
+                // Spot and Hybrid contracts are identified by the pricing_model field
+                $query->where('pricing_model', $this->contractTypeFilter);
+            } else {
+                // FixedTerm and OpenEnded are identified by the contract_type field
+                $query->where('contract_type', $this->contractTypeFilter);
+            }
         }
 
         // Apply metering type filter
