@@ -1,5 +1,5 @@
 {
-  "iteration": 8,
+  "iteration": 9,
   "task_id": null,
   "task_title": null,
   "exit_reason": "task_complete",
@@ -12,7 +12,6 @@
     "laravel/artisan",
     "laravel/config/services.php",
     "laravel/public/index.php",
-    "laravel/routes/web.php",
     ".autoclaude/sessions/laravel-migration/LAST_ITERATION.json",
     ".claude/commands/",
     "autoclaude-feedback.md",
@@ -26,6 +25,6 @@
   ],
   "test_passed": null,
   "commit_sha": null,
-  "summary": "I have successfully completed the `seo-contracts-base` task. Here's a summary of what was accomplished:\n\n## Summary\n\nI completed the **`seo-contracts-base`** task, creating a base SEO-optimized contracts listing component.\n\n### Files Created:\n\n1. **`laravel/app/Livewire/SeoContractsList.php`** - New Livewire component that extends `ContractsList`:\n   - Accepts filter parameters via mount (housingType, energySource, city)\n   - Housing type to consumption mapping (omakotitalo: 18000, kerrostalo: 5000, rivitalo: 10000)\n   - Energy source filtering (tuulisahko, aurinkosahko, vihrea-sahko)\n   - SEO data generation (title, description, canonical URL, JSON-LD)\n   - Finnish localization with proper locative forms for 20 major cities\n\n2. **`laravel/resources/views/livewire/seo-contracts-list.blade.php`** - View with:\n   - JSON-LD structured data (Schema.org ItemList)\n   - SEO-optimized hero section with custom H1 and intro text\n   - Breadcrumb navigation\n   - Internal links section for related ",
-  "timestamp": "2026-01-20T01:49:18.821792"
+  "summary": "I have successfully completed the `seo-housing-routes` task.\n\n## Summary\n\nI completed the **`seo-housing-routes`** task, creating housing type SEO routes and pages.\n\n### Files Created/Modified:\n\n1. **`laravel/routes/web.php`** - Added 3 housing type routes:\n   - `/sahkosopimus/omakotitalo` (named `seo.housing.omakotitalo`, 18000 kWh default)\n   - `/sahkosopimus/kerrostalo` (named `seo.housing.kerrostalo`, 5000 kWh default)\n   - `/sahkosopimus/rivitalo` (named `seo.housing.rivitalo`, 10000 kWh default)\n\n2. **`laravel/app/Livewire/SeoContractsList.php`** - Added `getHousingTypeIntroText()` method providing detailed, SEO-optimized descriptions for each housing type:\n   - Omakotitalo: Explains 18000 kWh consumption, mentions electric heating can reach 20000-25000 kWh\n   - Kerrostalo: Explains 5000 kWh consumption, mentions main sources (appliances, lighting, electronics)\n   - Rivitalo: Explains 10000 kWh consumption, compares to other housing types\n\n3. **`laravel/tests/Feature/SeoHousingRo",
+  "timestamp": "2026-01-20T01:52:38.493186"
 }
