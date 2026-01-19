@@ -116,8 +116,11 @@
       "id": "fetch-spot-prices-job",
       "title": "Create FetchSpotPrices scheduled job",
       "description": "Port the Elering API spot price fetching to a Laravel scheduled job. Fetch Nord Pool day-ahead prices from dashboard.elering.ee/api/nps/price for Finland (FI) region. Schedule to run hourly.",
-      "status": "pending",
-      "priority": 12
+      "status": "completed",
+      "priority": 12,
+      "started_at": "2026-01-20T02:00:00Z",
+      "completed_at": "2026-01-20T03:00:00Z",
+      "passes": true
     },
     {
       "id": "generate-descriptions-job",

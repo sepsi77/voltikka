@@ -470,3 +470,74 @@ All models follow TDD approach with comprehensive unit tests.
 - `laravel/database/migrations/2026_01_19_160000_create_electricity_contracts_table.php` - jsonb → json
 
 **Commit:** 3fa11dc - "feat: Create FetchContracts scheduled job for Azure Consumer API"
+
+### Task: fetch-spot-prices-job (COMPLETED)
+
+**What was done:**
+- Created `FetchSpotPrices` Artisan command to fetch Nord Pool spot prices from Elering API
+- Ported logic from legacy Python Cloud Function (`get-day-ahead-prices`)
+- Created `EleringApiClient` service for API communication with retry logic
+
+**Command features:**
+- `php artisan spotprices:fetch` - Fetch spot prices for yesterday to tomorrow
+- Fetches data only for Finland (FI) region (filters other Baltic countries)
+- Converts prices from EUR/MWh to c/kWh (divide by 10)
+- Applies correct VAT rates based on Finnish timezone:
+  - 24% standard rate
+  - 10% reduced rate (Dec 1, 2022 - Apr 30, 2023)
+- Uses INSERT ... ON CONFLICT DO NOTHING for idempotent operation
+- Stores: region, timestamp, utc_datetime, price_without_tax, vat_rate
+- Computed columns (vat, price_with_tax) handled by model accessors
+- 3 retries with 5-second delay on server errors
+
+**Scheduled task:**
+- Runs hourly (no specific time - every hour on the hour)
+- Europe/Helsinki timezone
+- `withoutOverlapping()` to prevent concurrent runs
+- `onOneServer()` for distributed environments
+- Logs output to `storage/logs/spotprices-fetch.log`
+
+**VAT rate logic:**
+- The temporary reduced VAT rate was in effect Dec 1, 2022 to Apr 30, 2023
+- VAT determination uses Helsinki timezone (not UTC)
+- This matches the Python implementation exactly
+
+**Migration update:**
+- Updated `spot_price_hours_table.php` migration to match Python model schema
+- Table name: `spot_prices_hour` (matching legacy PostgreSQL)
+- Columns: region, timestamp, utc_datetime, price_without_tax, vat_rate
+- Composite primary key: (region, timestamp)
+
+**Tests:**
+- 15 unit tests for `EleringApiClient` service
+- 18 feature tests for `FetchSpotPrices` command covering:
+  - Basic fetch and save to database
+  - Price unit conversion (EUR/MWh → c/kWh)
+  - Standard VAT rate (24%)
+  - Reduced VAT rate during temporary period (10%)
+  - VAT boundary dates (with timezone awareness)
+  - Only FI region saved
+  - UTC datetime storage
+  - Multiple hours handling
+  - Skipping existing records (idempotency)
+  - API error handling
+  - Empty response handling
+  - Missing FI region handling
+  - Retry logic
+  - Correct date range (yesterday to tomorrow)
+  - Negative prices (can occur with high renewable production)
+- `php artisan test --filter=EleringApiClientTest` - 15 tests, 16 assertions
+- `php artisan test --filter=FetchSpotPricesCommandTest` - 18 tests, 43 assertions
+- `php artisan test` - All 126 tests pass (595 assertions)
+
+**Files created:**
+- `laravel/app/Console/Commands/FetchSpotPrices.php` - Artisan command
+- `laravel/app/Services/EleringApiClient.php` - API client service
+- `laravel/tests/Unit/EleringApiClientTest.php` - Unit tests
+- `laravel/tests/Feature/FetchSpotPricesCommandTest.php` - Feature tests
+
+**Files modified:**
+- `laravel/routes/console.php` - Added scheduled task
+- `laravel/database/migrations/2026_01_19_220000_create_spot_price_hours_table.php` - Schema fix
+
+**Commit:** 70c5ae5 - "feat: Create FetchSpotPrices scheduled job for Elering API"
