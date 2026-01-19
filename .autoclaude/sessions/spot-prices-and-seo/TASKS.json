@@ -80,8 +80,11 @@
       "id": "seo-contracts-base",
       "title": "Create base SEO-optimized contracts listing component",
       "description": "Create App\\Livewire\\SeoContractsList that extends ContractsList:\n- Accept filter parameters via route (housing type, energy source, city)\n- Generate SEO-friendly title and meta description\n- Include structured data (JSON-LD) for product listings\n- Support canonical URL generation\n- Reuse existing filter logic from ContractsList\n- Write feature tests for SEO meta generation",
-      "status": "pending",
-      "priority": 2
+      "status": "completed",
+      "priority": 2,
+      "started_at": "2026-01-20T00:00:00Z",
+      "completed_at": "2026-01-20T00:00:00Z",
+      "passes": true
     },
     {
       "id": "seo-housing-routes",

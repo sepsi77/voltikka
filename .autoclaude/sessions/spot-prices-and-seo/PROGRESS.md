@@ -446,3 +446,83 @@
 - View receives historical data after load
 
 **Commit:** `04589ee` - feat: Add historical price trends to spot price page
+
+## 2026-01-20 - Iteration 8
+
+### Completed: `seo-contracts-base` - Create base SEO-optimized contracts listing component
+
+**Approach:**
+- Followed TDD methodology: wrote 29 feature tests first, then implemented the component
+- Created `App\Livewire\SeoContractsList` that extends `ContractsList`
+- Created feature tests in `tests/Feature/SeoContractsListTest.php`
+
+**Implementation Details:**
+
+**New Livewire Component:**
+`App\Livewire\SeoContractsList` extends `ContractsList` with:
+
+1. **Filter Parameters via Mount:**
+   - `housingType` - omakotitalo, kerrostalo, rivitalo
+   - `energySource` - tuulisahko, aurinkosahko, vihrea-sahko
+   - `city` - Finnish city slug (e.g., helsinki, tampere)
+
+2. **Housing Type Consumption Mapping:**
+   - Omakotitalo: 18000 kWh
+   - Kerrostalo: 5000 kWh
+   - Rivitalo: 10000 kWh
+
+3. **Energy Source Filtering:**
+   - Tuulisähkö: filters contracts with renewable_wind > 0
+   - Aurinkosähkö: filters contracts with renewable_solar > 0
+   - Vihreä sähkö: filters contracts with renewable >= 50% AND fossil_peat = 0
+
+4. **SEO Data Generation:**
+   - `getSeoDataProperty()` - Returns array with title, description, canonical, jsonLd
+   - `generateSeoTitle()` - Creates SEO-optimized page titles
+   - `generateMetaDescription()` - Creates meta descriptions with consumption info
+   - `generateCanonicalUrl()` - Creates canonical URLs for SEO pages
+   - `generateJsonLd()` - Creates Schema.org ItemList structured data
+
+5. **JSON-LD Structured Data:**
+   - Schema.org ItemList with Product items
+   - Includes product name, brand, offers with price specification
+   - Proper price formatting for electricity contracts
+
+6. **Finnish Localization:**
+   - Housing type names in nominative and locative forms
+   - Energy source display names
+   - City names with proper locative endings (Helsingissä, Tampereella, etc.)
+   - 20 major Finnish cities with pre-defined locative forms
+
+7. **View Integration:**
+   - Custom H1 heading based on filter context
+   - SEO intro text explaining the filter
+   - Breadcrumb navigation for SEO pages
+   - Internal links section for related pages
+
+**New View:**
+`resources/views/livewire/seo-contracts-list.blade.php`:
+- JSON-LD script block for structured data
+- SEO-optimized hero section with custom H1 and intro text
+- Breadcrumb navigation
+- Full contracts listing (reused from parent)
+- Internal links section for housing types, energy sources, and related pages
+
+**Tests (29 tests, 59 assertions):**
+- Component initialization and existence
+- Filter parameter acceptance via mount
+- Housing type consumption mapping (omakotitalo, kerrostalo, rivitalo)
+- Energy source filtering (tuulisahko, aurinkosahko, vihrea-sahko)
+- SEO title generation for each filter type
+- Meta description generation
+- Canonical URL generation
+- JSON-LD structured data presence and structure
+- ItemList type with correct itemListElement
+- Product items with proper structure
+- Parent filter logic inheritance
+- Page heading display for each filter type
+- Default behavior without filters
+- View rendering with contracts
+- SEO intro text display
+
+**Commit:** `5edb22d` - feat: Add SeoContractsList component for SEO-optimized contract pages
