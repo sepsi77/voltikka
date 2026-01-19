@@ -270,3 +270,67 @@ All models follow TDD approach with comprehensive unit tests.
 - `laravel/tests/Unit/EnergyCalculatorTest.php` - Comprehensive unit tests
 
 **Commit:** 7bef85a - "feat: Port energy consumption calculator to PHP"
+
+### Task: api-routes-contracts (COMPLETED)
+
+**What was done:**
+- Created RESTful API routes for electricity contracts
+- Implemented `ContractController` with `index` and `show` methods
+- Created API Resource classes for consistent JSON formatting
+
+**API Endpoints:**
+1. `GET /api/contracts` - List contracts with optional filters and pagination
+   - Query parameters:
+     - `contract_type` - Filter by Fixed, Spot, OpenEnded
+     - `metering` - Filter by General, Time, Seasonal
+     - `postcode` - Filter by availability in specific postcode
+     - `energy_source` - Filter by renewable (100%), nuclear, fossil_free
+     - `consumption` - Annual kWh for cost calculation
+     - `sort=cost` - Sort by calculated annual cost (ascending)
+     - `per_page` - Items per page (default 20, max 100)
+     - `page` - Page number
+   - Returns paginated list with meta information
+
+2. `GET /api/contracts/{id}` - Get single contract details
+   - Includes company, price components, electricity source
+   - Optional `consumption` parameter for cost calculation
+
+**Supporting code:**
+- Enabled API routing in `bootstrap/app.php`
+- Created `routes/api.php` with contract routes
+- Created API Resources:
+  - `ContractResource` - Contract data formatting
+  - `ContractCollection` - Paginated collection with meta
+  - `CompanyResource` - Company data formatting
+  - `PriceComponentResource` - Price component formatting
+  - `ElectricitySourceResource` - Energy source formatting
+- Enabled SQLite for testing in `phpunit.xml`
+- Created additional migrations for testing:
+  - `create_price_components_table.php`
+  - `create_postcodes_table.php`
+  - `create_electricity_sources_table.php`
+
+**Tests:**
+- 14 comprehensive feature tests covering all endpoints
+- Tests for filtering, pagination, cost calculation, and sorting
+- `php artisan test --filter=ContractApiTest` - 14 tests, 96 assertions
+- `php artisan test` - All 126 tests pass (419 assertions)
+
+**Files created:**
+- `laravel/app/Http/Controllers/Api/ContractController.php` - API controller
+- `laravel/app/Http/Resources/ContractResource.php` - Contract resource
+- `laravel/app/Http/Resources/ContractCollection.php` - Paginated collection
+- `laravel/app/Http/Resources/CompanyResource.php` - Company resource
+- `laravel/app/Http/Resources/PriceComponentResource.php` - Price component resource
+- `laravel/app/Http/Resources/ElectricitySourceResource.php` - Energy source resource
+- `laravel/routes/api.php` - API route definitions
+- `laravel/tests/Feature/ContractApiTest.php` - Feature tests
+- `laravel/database/migrations/2026_01_19_170000_create_price_components_table.php`
+- `laravel/database/migrations/2026_01_19_180000_create_postcodes_table.php`
+- `laravel/database/migrations/2026_01_19_190000_create_electricity_sources_table.php`
+
+**Files modified:**
+- `laravel/bootstrap/app.php` - Added API routing
+- `laravel/phpunit.xml` - Enabled SQLite for testing
+
+**Commit:** c5b2ed6 - "feat: Create API routes for contracts listing and detail"

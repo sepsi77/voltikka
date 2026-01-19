@@ -86,8 +86,11 @@
       "id": "api-routes-contracts",
       "title": "Create API routes for contracts",
       "description": "Create RESTful API routes for contracts: GET /api/contracts (list with filters), GET /api/contracts/{id} (detail). Include query parameters for filtering by contract_type, metering, postcode, energy_source. Return calculated annual costs.",
-      "status": "pending",
-      "priority": 9
+      "status": "completed",
+      "priority": 9,
+      "started_at": "2026-01-19T22:00:00Z",
+      "completed_at": "2026-01-19T22:30:00Z",
+      "passes": true
     },
     {
       "id": "api-routes-calculation",
