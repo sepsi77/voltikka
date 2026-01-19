@@ -1,0 +1,9 @@
+{
+  "sessions": {
+    "laravel-migration": {
+      "started_at": "2026-01-19T14:33:13.621748",
+      "ended_at": null
+    }
+  },
+  "current": "laravel-migration"
+}

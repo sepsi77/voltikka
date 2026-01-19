@@ -1,0 +1,119 @@
+{
+  "session": "laravel-migration",
+  "description": "Migrate Voltikka from Python/SvelteKit to a standalone Laravel application",
+  "tasks": [
+    {
+      "id": "scaffold-laravel",
+      "title": "Scaffold Laravel 11 project",
+      "description": "Create a new Laravel 11 project in the laravel/ directory with PHP 8.3+. Configure PostgreSQL connection. Set up basic directory structure following Laravel conventions.",
+      "status": "in_progress",
+      "priority": 1,
+      "started_at": "2026-01-19T14:35:00Z"
+    },
+    {
+      "id": "eloquent-company-model",
+      "title": "Create Company Eloquent model",
+      "description": "Port the Company SQLAlchemy model from legacy/python/shared/voltikka/database/models.py to an Eloquent model. Include: name, name_slug (auto-generated), company_url, street_address, postal_code, postal_name, logo_url. Add relationship to ElectricityContract. Create migration that matches existing PostgreSQL schema (do NOT drop/recreate tables - we're connecting to existing DB).",
+      "status": "pending",
+      "priority": 2
+    },
+    {
+      "id": "eloquent-contract-model",
+      "title": "Create ElectricityContract Eloquent model",
+      "description": "Port the ElectricityContract SQLAlchemy model to Eloquent. Include all fields from the Python model including JSONB fields (billing_frequency, time_period_definitions, transparency_index). Set up relationships: belongsTo Company, hasMany PriceComponent, hasOne ElectricitySource, belongsToMany Postcode. Include name_slug auto-generation.",
+      "status": "pending",
+      "priority": 3
+    },
+    {
+      "id": "eloquent-price-component-model",
+      "title": "Create PriceComponent Eloquent model",
+      "description": "Port PriceComponent model with composite primary key (id, price_date). Include all pricing and discount fields. Set up belongsTo relationship with ElectricityContract.",
+      "status": "pending",
+      "priority": 4
+    },
+    {
+      "id": "eloquent-postcode-model",
+      "title": "Create Postcode Eloquent model",
+      "description": "Port Postcode model with all Finnish/Swedish name fields and municipality data. Set up belongsToMany relationship with ElectricityContract via contract_postcode pivot table.",
+      "status": "pending",
+      "priority": 5
+    },
+    {
+      "id": "eloquent-remaining-models",
+      "title": "Create remaining Eloquent models",
+      "description": "Port ElectricitySource, ActiveContract, SpotFutures, and SpotPriceHour models from Python. Include computed columns for SpotPriceHour (vat, price_with_tax).",
+      "status": "pending",
+      "priority": 6
+    },
+    {
+      "id": "contract-price-calculator",
+      "title": "Port contract price calculator to PHP",
+      "description": "Port the calculation logic from legacy/python/fastapi/api/modules/contract_price_calculator.py to a Laravel service class. Handle all metering types: General (single rate), Time (day 07-22, night 22-07), Seasonal (winter Nov-Mar day, other times). Calculate annual costs based on consumption and contract pricing.",
+      "status": "pending",
+      "priority": 7
+    },
+    {
+      "id": "energy-calculator",
+      "title": "Port energy consumption calculator to PHP",
+      "description": "Port the energy estimation logic from legacy/python/fastapi/api/energy_calculator/calculator.py to a Laravel service class. Estimate annual consumption based on building type, size, heating method, residents, and appliances (EV, sauna, pool).",
+      "status": "pending",
+      "priority": 8
+    },
+    {
+      "id": "api-routes-contracts",
+      "title": "Create API routes for contracts",
+      "description": "Create RESTful API routes for contracts: GET /api/contracts (list with filters), GET /api/contracts/{id} (detail). Include query parameters for filtering by contract_type, metering, postcode, energy_source. Return calculated annual costs.",
+      "status": "pending",
+      "priority": 9
+    },
+    {
+      "id": "api-routes-calculation",
+      "title": "Create API routes for calculations",
+      "description": "Create POST /api/calculate-price endpoint that takes contract ID and consumption data, returns annual cost breakdown. Create POST /api/estimate-consumption endpoint that takes building parameters and returns kWh estimate.",
+      "status": "pending",
+      "priority": 10
+    },
+    {
+      "id": "fetch-contracts-job",
+      "title": "Create FetchContracts scheduled job",
+      "description": "Port the Azure Consumer API contract fetching logic from legacy/python/cloud-functions/ to a Laravel scheduled job. Fetch contract data from ev-shv-prod-app-wa-consumerapi1.azurewebsites.net for all postcodes. Schedule to run daily at 06:00.",
+      "status": "pending",
+      "priority": 11
+    },
+    {
+      "id": "fetch-spot-prices-job",
+      "title": "Create FetchSpotPrices scheduled job",
+      "description": "Port the Elering API spot price fetching to a Laravel scheduled job. Fetch Nord Pool day-ahead prices from dashboard.elering.ee/api/nps/price for Finland (FI) region. Schedule to run hourly.",
+      "status": "pending",
+      "priority": 12
+    },
+    {
+      "id": "generate-descriptions-job",
+      "title": "Create GenerateDescriptions scheduled job",
+      "description": "Port the OpenAI description generation logic to a Laravel scheduled job. Generate missing contract descriptions. Schedule to run daily at 08:00.",
+      "status": "pending",
+      "priority": 13
+    },
+    {
+      "id": "frontend-contracts-list",
+      "title": "Create contracts listing page",
+      "description": "Build the main contract comparison page using Blade/Livewire or Inertia+Vue. Display contracts sorted by annual cost. Show company logo, contract name, price breakdown, energy source badges. Include consumption preset selector (Studio 2000kWh, Apartment 5000kWh, etc.).",
+      "status": "pending",
+      "priority": 14
+    },
+    {
+      "id": "frontend-contract-detail",
+      "title": "Create contract detail page",
+      "description": "Build contract detail page showing full pricing breakdown, company information, terms, electricity source percentages, and link to provider. Include price history if available.",
+      "status": "pending",
+      "priority": 15
+    },
+    {
+      "id": "frontend-filters",
+      "title": "Add filtering to contracts page",
+      "description": "Add filter controls: contract type (fixed/spot/open-ended), metering type, postcode search for availability, energy source preferences (renewable, nuclear, etc.).",
+      "status": "pending",
+      "priority": 16
+    }
+  ]
+}
