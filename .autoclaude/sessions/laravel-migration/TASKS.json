@@ -136,8 +136,11 @@
       "id": "frontend-contracts-list",
       "title": "Create contracts listing page",
       "description": "Build the main contract comparison page using Blade/Livewire or Inertia+Vue. Display contracts sorted by annual cost. Show company logo, contract name, price breakdown, energy source badges. Include consumption preset selector (Studio 2000kWh, Apartment 5000kWh, etc.).",
-      "status": "pending",
-      "priority": 14
+      "status": "completed",
+      "priority": 14,
+      "started_at": "2026-01-19T06:00:00Z",
+      "completed_at": "2026-01-19T08:00:00Z",
+      "passes": true
     },
     {
       "id": "frontend-contract-detail",

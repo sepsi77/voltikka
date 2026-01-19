@@ -1,7 +1,6 @@
 <?php
 
+use App\Livewire\ContractsList;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', ContractsList::class);

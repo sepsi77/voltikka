@@ -619,3 +619,69 @@ All models follow TDD approach with comprehensive unit tests.
 - `laravel/config/services.php` - Added OpenAI configuration
 
 **Commit:** 9f67f70 - "feat: Create GenerateDescriptions scheduled job for OpenAI API"
+
+### Task: frontend-contracts-list (COMPLETED)
+
+**What was done:**
+- Created contracts listing page as the main homepage using Livewire
+- Installed Livewire 4.x for reactive components
+- Created base layout template with Finnish language support
+- Implemented `ContractsList` Livewire component with:
+  - Contract listing sorted by annual cost (ascending)
+  - Consumption preset selector (2000, 5000, 10000, 18000 kWh)
+  - Company logo display
+  - Contract type badges (Fixed, Spot, OpenEnded)
+  - Energy source badges (renewable %, nuclear %, fossil %)
+  - Price breakdown (energy c/kWh, monthly fee EUR/kk)
+  - Annual and monthly cost display
+
+**Page features:**
+- **Consumption presets:** Yksiö (2000 kWh), Kerrostalo (5000 kWh), Pieni talo (10000 kWh), Suuri talo (18000 kWh)
+- **Contract cards showing:**
+  - Company logo (or placeholder initials)
+  - Company name
+  - Contract name
+  - Contract type badge
+  - Energy source badges (color-coded)
+  - Energy price (c/kWh)
+  - Monthly fee (EUR/kk)
+  - Annual cost (EUR)
+  - Monthly cost (EUR/kk)
+- **Responsive design** with Tailwind CSS
+- **Real-time updates** when changing consumption preset
+
+**Technical decisions:**
+- Used Livewire instead of Inertia+Vue for simplicity and server-side rendering
+- Integrated existing `ContractPriceCalculator` service for cost calculations
+- Used Tailwind CDN fallback for tests (avoids Vite build requirement)
+- Finnish language throughout the UI
+
+**Tests:**
+- 12 comprehensive feature tests covering:
+  - Page accessibility
+  - Livewire component rendering
+  - Contract display
+  - Company logo display
+  - Consumption presets display
+  - Consumption change updates costs
+  - Contracts sorted by cost
+  - Energy source badges
+  - Price breakdown display
+  - Contract type display
+  - Preset button functionality
+  - Page title
+- `php artisan test --filter=ContractsListPageTest` - 12 tests, 21 assertions
+- `php artisan test` - All 126 tests pass (679 assertions)
+
+**Files created:**
+- `laravel/app/Livewire/ContractsList.php` - Livewire component class
+- `laravel/resources/views/layouts/app.blade.php` - Base layout template
+- `laravel/resources/views/livewire/contracts-list.blade.php` - Component view
+- `laravel/tests/Feature/ContractsListPageTest.php` - Feature tests
+
+**Files modified:**
+- `laravel/routes/web.php` - Updated root route to use ContractsList component
+- `laravel/tests/Feature/ExampleTest.php` - Added RefreshDatabase trait
+- `laravel/composer.json` - Added livewire/livewire dependency
+
+**Commit:** (to be committed)
