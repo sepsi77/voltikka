@@ -6,9 +6,11 @@
       "id": "scaffold-laravel",
       "title": "Scaffold Laravel 11 project",
       "description": "Create a new Laravel 11 project in the laravel/ directory with PHP 8.3+. Configure PostgreSQL connection. Set up basic directory structure following Laravel conventions.",
-      "status": "in_progress",
+      "status": "completed",
       "priority": 1,
-      "started_at": "2026-01-19T14:35:00Z"
+      "started_at": "2026-01-19T14:35:00Z",
+      "completed_at": "2026-01-19T14:38:00Z",
+      "passes": true
     },
     {
       "id": "eloquent-company-model",
