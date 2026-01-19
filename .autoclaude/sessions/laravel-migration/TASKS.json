@@ -156,9 +156,11 @@
       "id": "frontend-filters",
       "title": "Add filtering to contracts page",
       "description": "Add filter controls: contract type (fixed/spot/open-ended), metering type, postcode search for availability, energy source preferences (renewable, nuclear, etc.).",
-      "status": "in_progress",
+      "status": "completed",
       "priority": 16,
-      "started_at": "2026-01-19T11:00:00Z"
+      "started_at": "2026-01-19T11:00:00Z",
+      "completed_at": "2026-01-19T12:00:00Z",
+      "passes": true
     }
   ]
 }

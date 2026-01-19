@@ -778,3 +778,82 @@ All models follow TDD approach with comprehensive unit tests.
 - `laravel/routes/web.php` - Added contract detail route
 - `laravel/resources/views/livewire/contracts-list.blade.php` - Added links to detail pages
 
+**Commit:** 00067dc - "feat: Create contract detail page with Livewire"
+
+### Task: frontend-filters (COMPLETED)
+
+**What was done:**
+- Added comprehensive filtering controls to the contracts listing page
+- Implemented filters for contract type, metering type, postcode, and energy source preferences
+- All filter states persist in URL via Livewire #[Url] attributes for shareable filtered views
+
+**Filter controls implemented:**
+
+1. **Contract type filter (Sopimustyyppi):**
+   - Määräaikainen (Fixed)
+   - Pörssisähkö (Spot)
+   - Toistaiseksi voimassa (OpenEnded)
+   - Click to select, click again to deselect
+
+2. **Metering type filter (Mittarointi):**
+   - Yleismittarointi (General)
+   - Aikamittarointi (Time)
+   - Kausimittarointi (Seasonal)
+
+3. **Postcode search (Postinumero):**
+   - Search input with autocomplete suggestions
+   - Shows postcode and Finnish name
+   - Supports search by postcode, Finnish/Swedish name, or municipality
+   - Selected postcode displayed as removable badge
+   - Filters contracts by availability (national contracts always visible)
+
+4. **Energy source preferences (Energialähde):**
+   - Uusiutuva (50%+) - Renewable energy filter
+   - Sisältää ydinvoimaa - Nuclear energy filter
+   - Fossiiliton - Fossil-free filter
+
+**Additional features:**
+- "Tyhjennä suodattimet" (Clear filters) button when any filter is active
+- Results count showing number of matching contracts
+- Visual indication of active filters (blue button background)
+- Filter state persists when changing consumption preset
+- Responsive grid layout for filter controls
+
+**Technical changes:**
+- Updated `ContractsList` Livewire component with filter properties and methods
+- Updated Postcode model's `search` scope for SQLite compatibility (ILIKE → LIKE fallback)
+- Updated postcodes migration to match model schema with all Finnish/Swedish name fields
+- Filters applied in order: database query (contract_type, metering) → collection filter (postcode, energy source)
+
+**Tests:**
+- 20 comprehensive feature tests covering:
+  - Filter controls displayed
+  - Contract type filtering (Fixed, Spot, OpenEnded)
+  - Clear contract type filter
+  - Metering type filtering (General, Time, Seasonal)
+  - Postcode filtering (national vs regional contracts)
+  - Postcode search suggestions
+  - Postcode search by municipality name
+  - Renewable energy filter (>=50%)
+  - Nuclear energy filter
+  - Fossil-free filter
+  - Combined filters (contract type + metering)
+  - All filters combined
+  - Reset all filters
+  - Filter state persistence
+  - Active filter visual indication
+  - Filter result counts
+- `php artisan test --filter=ContractsFilterTest` - 20 tests, 44 assertions
+- `php artisan test` - All 137 tests pass (392 assertions)
+
+**Files created:**
+- `laravel/tests/Feature/ContractsFilterTest.php` - Comprehensive filter tests
+
+**Files modified:**
+- `laravel/app/Livewire/ContractsList.php` - Added filter properties and methods
+- `laravel/app/Models/Postcode.php` - SQLite/PostgreSQL compatible search scope
+- `laravel/database/migrations/2026_01_19_180000_create_postcodes_table.php` - Schema update
+- `laravel/resources/views/livewire/contracts-list.blade.php` - Filter UI
+
+**Commit:** b011f19 - "feat: Add filtering controls to contracts listing page"
+
