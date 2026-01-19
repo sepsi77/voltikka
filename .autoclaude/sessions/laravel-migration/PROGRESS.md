@@ -211,3 +211,62 @@ All models follow TDD approach with comprehensive unit tests.
 - `laravel/tests/Unit/ContractPriceCalculatorTest.php` - Comprehensive unit tests
 
 **Commit:** dc244d4 - "feat: Port contract price calculator to PHP"
+
+### Task: energy-calculator (COMPLETED)
+
+**What was done:**
+- Created `EnergyCalculator` service class ported from Python `energy_calculator/calculator.py`
+- Estimates annual electricity consumption based on building characteristics:
+  - Building type, size, energy efficiency rating
+  - Geographic region (south, central, north Finland)
+  - Number of residents
+  - Heating method and supplementary heating
+
+**Calculation modules implemented:**
+1. **Basic living electricity** - Per person (400 kWh) + per floor area (30 kWh/m²)
+2. **Building heating energy need** - Regional factors based on building age and energy rating
+3. **Primary heating methods:**
+   - Electric (efficiency 1.0)
+   - Air-to-water heat pump (efficiency 2.2)
+   - Ground heat pump (efficiency 2.9)
+   - District heating (fixed 700 kWh)
+   - Oil heating (calculates oil consumption)
+   - Fireplace (calculates firewood consumption)
+   - Pellets (calculates pellet consumption)
+4. **Supplementary heating:**
+   - Heat pump (40% share, 2.2 efficiency)
+   - Exhaust air heat pump (60% share, 3.0 efficiency)
+   - Fireplace (40% share)
+5. **Water heating** - Formula-based with boiler energy loss lookup
+6. **Bathroom underfloor heating** - 200 kWh per m²/year
+7. **Sauna** - Regular (7.5 kWh/session × weekly × 52) or always-on (2750 kWh/year)
+8. **Electric vehicle charging** - 0.199 kWh/km × monthly km × 12
+9. **Cooling** - Fixed 240 kWh/year
+
+**Supporting code:**
+- `HeatingMethod` enum - All primary heating methods
+- `SupplementaryHeatingMethod` enum - Heat pump, exhaust air, fireplace
+- `BuildingEnergyRating` enum - Passive to older buildings
+- `BuildingRegion` enum - South, central, north Finland
+- `BuildingType` enum - Detached house, apartment, row house
+- `EnergyCalculatorRequest` DTO - Input parameters
+- `EnergyCalculatorResult` DTO - Output with fuel consumption and costs
+
+**Tests:**
+- 36 comprehensive tests covering all calculation methods
+- Tests for basic calculations, heating scenarios, appliances, and full estimates
+- `php artisan test --filter=EnergyCalculatorTest` - 36 tests, 67 assertions
+- `php artisan test` - All 126 tests pass (323 assertions)
+
+**Files created:**
+- `laravel/app/Services/EnergyCalculator.php` - Main calculation service
+- `laravel/app/Enums/HeatingMethod.php` - Heating method enum
+- `laravel/app/Enums/SupplementaryHeatingMethod.php` - Supplementary heating enum
+- `laravel/app/Enums/BuildingEnergyRating.php` - Building energy rating enum
+- `laravel/app/Enums/BuildingRegion.php` - Geographic region enum
+- `laravel/app/Enums/BuildingType.php` - Building type enum
+- `laravel/app/Services/DTO/EnergyCalculatorRequest.php` - Request DTO
+- `laravel/app/Services/DTO/EnergyCalculatorResult.php` - Result DTO
+- `laravel/tests/Unit/EnergyCalculatorTest.php` - Comprehensive unit tests
+
+**Commit:** 7bef85a - "feat: Port energy consumption calculator to PHP"

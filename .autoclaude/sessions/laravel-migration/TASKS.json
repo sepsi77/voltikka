@@ -76,8 +76,11 @@
       "id": "energy-calculator",
       "title": "Port energy consumption calculator to PHP",
       "description": "Port the energy estimation logic from legacy/python/fastapi/api/energy_calculator/calculator.py to a Laravel service class. Estimate annual consumption based on building type, size, heating method, residents, and appliances (EV, sauna, pool).",
-      "status": "pending",
-      "priority": 8
+      "status": "completed",
+      "priority": 8,
+      "started_at": "2026-01-19T21:00:00Z",
+      "completed_at": "2026-01-19T21:30:00Z",
+      "passes": true
     },
     {
       "id": "api-routes-contracts",
