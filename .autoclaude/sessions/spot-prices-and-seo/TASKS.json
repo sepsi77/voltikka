@@ -101,9 +101,12 @@
       "id": "seo-energy-routes",
       "title": "Create energy source SEO routes and pages",
       "description": "Create routes and views for energy sources:\n- /sahkosopimus/tuulisahko (filter: renewable_wind > 0)\n- /sahkosopimus/aurinkosahko (filter: renewable_solar > 0)\n- /sahkosopimus/vihrea-sahko (filter: renewable >= 50, fossil_peat = 0)\nEach page must have:\n- Unique H1 with energy source type\n- SEO-optimized intro explaining the energy source benefits\n- Contracts list filtered by energy source\n- Energy source statistics (% wind, solar, etc)\n- Environmental impact information",
-      "status": "pending",
+      "status": "completed",
       "priority": 2,
-      "depends_on": ["seo-contracts-base"]
+      "depends_on": ["seo-contracts-base"],
+      "started_at": "2026-01-20T00:00:00Z",
+      "completed_at": "2026-01-20T00:00:00Z",
+      "passes": true
     },
     {
       "id": "seo-city-routes",

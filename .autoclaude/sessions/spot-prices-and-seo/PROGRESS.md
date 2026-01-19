@@ -579,3 +579,86 @@ New `getHousingTypeIntroText()` method provides detailed, SEO-optimized descript
 - `routes/web.php` - Added 3 housing type routes
 - `app/Livewire/SeoContractsList.php` - Added `getHousingTypeIntroText()` method
 - `tests/Feature/SeoHousingRoutesTest.php` - New test file
+
+## 2026-01-20 - Iteration 10
+
+### Completed: `seo-energy-routes` - Create energy source SEO routes and pages
+
+**Approach:**
+- Followed TDD methodology: wrote 26 feature tests first, then implemented the routes
+- Added routes to `routes/web.php` for energy source pages
+- Enhanced `SeoContractsList` with energy source intro text, statistics, and environmental info
+
+**Implementation Details:**
+
+**New Routes Added:**
+- `/sahkosopimus/tuulisahko` - Named `seo.energy.tuulisahko` (filter: renewable_wind > 0)
+- `/sahkosopimus/aurinkosahko` - Named `seo.energy.aurinkosahko` (filter: renewable_solar > 0)
+- `/sahkosopimus/vihrea-sahko` - Named `seo.energy.vihrea-sahko` (filter: renewable >= 50%, fossil_peat = 0)
+
+**Route Configuration:**
+- All routes use `SeoContractsList` Livewire component
+- Routes use `defaults()` to pass `energySource` parameter to the component
+- Each route has a named identifier for easy linking
+
+**Enhanced Intro Text:**
+New `getEnergySourceIntroText()` method provides detailed, SEO-optimized descriptions:
+- **Tuulisähkö**: Explains wind power as one of the cleanest energy forms, mentions zero CO₂ emissions during operation, notes Finland's growing wind capacity
+- **Aurinkosähkö**: Describes solar energy benefits, mentions no emissions/noise/waste during operation, notes seasonal availability in Finland
+- **Vihreä sähkö**: Explains renewable energy benefits, emphasizes carbon footprint reduction
+
+**Energy Source Statistics:**
+New `getEnergySourceStatsProperty()` method calculates aggregated statistics:
+- Average renewable percentage across contracts
+- Average wind, solar, and hydro percentages
+- Total number of contracts in category
+- Fully renewable contract count
+- Fossil-free contract count
+
+**Environmental Impact Information:**
+New `getEnvironmentalInfoProperty()` method provides CO₂ emission facts:
+- **Tuulisähkö**: Lifecycle emissions 7-15 g/kWh vs 400-1000 g/kWh for fossil fuels
+- **Aurinkosähkö**: Lifecycle emissions 20-50 g/kWh, no operational emissions
+- **Vihreä sähkö**: Average lifecycle emissions under 50 g/kWh
+
+**View Updates:**
+- Added energy source statistics section with visual cards showing:
+  - Average renewable percentage (green)
+  - Average wind percentage (blue, if > 0)
+  - Average solar percentage (yellow, if > 0)
+  - Average hydro percentage (cyan, if > 0)
+  - Total contracts count
+  - Fossil-free contract count
+- Added environmental impact section with gradient background and globe icon
+- Sections only displayed on energy source pages
+
+**New Test File:**
+`tests/Feature/SeoEnergyRoutesTest.php` with 26 tests covering:
+- Route accessibility (all 3 energy sources)
+- Unique H1 content for each energy source
+- Intro text display with energy source keywords
+- Contract filtering by energy source
+- Energy source statistics display
+- Breadcrumb navigation presence
+- Internal links to other energy sources
+- Named route functionality
+- Environmental impact information display
+
+**Tests Result:**
+- All 26 energy tests pass (37 assertions)
+- All 19 housing tests still pass (26 assertions)
+- Total: 74 SEO-related tests pass (122 assertions)
+
+**Files Changed:**
+- `routes/web.php` - Added 3 energy source routes
+- `app/Livewire/SeoContractsList.php` - Added:
+  - `getEnergySourceIntroText()` method
+  - `getEnergySourceStatsProperty()` computed property
+  - `getEnvironmentalInfoProperty()` computed property
+  - Updated `render()` to pass new data to view
+- `resources/views/livewire/seo-contracts-list.blade.php` - Added:
+  - Energy source statistics section
+  - Environmental impact section
+- `tests/Feature/SeoEnergyRoutesTest.php` - New test file
+
+**Commit:** `e71345b` - feat: Add energy source SEO routes for tuulisahko, aurinkosahko, vihrea-sahko
