@@ -3,7 +3,11 @@
     "laravel-migration": {
       "started_at": "2026-01-19T14:33:13.621748",
       "ended_at": null
+    },
+    "database-setup": {
+      "started_at": "2026-01-19T20:13:57.565225",
+      "ended_at": null
     }
   },
-  "current": "laravel-migration"
+  "current": "database-setup"
 }
