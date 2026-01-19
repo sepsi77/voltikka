@@ -6,6 +6,7 @@ use App\Livewire\ContractsList;
 use App\Livewire\LocationsList;
 use App\Livewire\SeoContractsList;
 use App\Livewire\SpotPrice;
+use App\Services\SitemapService;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', ContractsList::class);
@@ -13,6 +14,14 @@ Route::get('/sopimus/{contractId}', ContractDetail::class)->name('contract.detai
 Route::get('/paikkakunnat/{location?}', LocationsList::class)->name('locations');
 Route::get('/yritys/{companySlug}', CompanyDetail::class)->name('company.detail');
 Route::get('/spot-price', SpotPrice::class)->name('spot-price');
+
+// Sitemap
+Route::get('/sitemap.xml', function (SitemapService $sitemapService) {
+    return response($sitemapService->generateXml(), 200, [
+        'Content-Type' => 'text/xml; charset=UTF-8',
+        'Cache-Control' => 'public, max-age=3600',
+    ]);
+})->name('sitemap');
 
 // SEO Housing Type Routes
 Route::get('/sahkosopimus/omakotitalo', SeoContractsList::class)
