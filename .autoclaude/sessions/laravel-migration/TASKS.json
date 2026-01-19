@@ -146,8 +146,11 @@
       "id": "frontend-contract-detail",
       "title": "Create contract detail page",
       "description": "Build contract detail page showing full pricing breakdown, company information, terms, electricity source percentages, and link to provider. Include price history if available.",
-      "status": "pending",
-      "priority": 15
+      "status": "completed",
+      "priority": 15,
+      "started_at": "2026-01-19T09:00:00Z",
+      "completed_at": "2026-01-19T10:00:00Z",
+      "passes": true
     },
     {
       "id": "frontend-filters",

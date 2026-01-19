@@ -33,7 +33,7 @@
                 $totalCost = $contract->calculated_cost['total_cost'] ?? 0;
                 $source = $contract->electricitySource;
             @endphp
-            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <a href="{{ route('contract.detail', $contract->id) }}" class="block bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:border-blue-300 hover:shadow-md transition-all">
                 <div class="flex flex-col md:flex-row md:items-center gap-6">
                     <!-- Company Logo & Name -->
                     <div class="flex items-center gap-4 md:w-48 flex-shrink-0">
@@ -101,7 +101,7 @@
                         <p class="text-xs text-gray-500">{{ number_format($totalCost / 12, 0, ',', ' ') }} EUR/kk</p>
                     </div>
                 </div>
-            </div>
+            </a>
         @empty
             <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
                 <p class="text-gray-500">Ei sopimuksia saatavilla.</p>

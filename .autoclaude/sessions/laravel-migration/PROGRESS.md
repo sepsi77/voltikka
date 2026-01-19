@@ -685,3 +685,96 @@ All models follow TDD approach with comprehensive unit tests.
 - `laravel/composer.json` - Added livewire/livewire dependency
 
 **Commit:** 7045e57 - "feat: Create contracts listing page with Livewire"
+
+### Task: frontend-contract-detail (COMPLETED)
+
+**What was done:**
+- Created contract detail page showing comprehensive information about individual contracts
+- Implemented `ContractDetail` Livewire component with full pricing and cost calculation
+- Created detailed Blade template with multiple information sections
+- Added route `/sopimus/{contractId}` for accessing contract details
+- Added clickable links from contracts list to detail pages
+
+**Page features:**
+1. **Header section:**
+   - Company logo (or placeholder initials)
+   - Contract name and company name
+   - Contract type badge (Fixed/Spot/OpenEnded)
+   - Metering type badge (General/Time/Seasonal)
+   - Fixed time range badge (if applicable)
+   - Short description
+   - Action buttons: "Tilaa sopimus" (order) and "Lisätietoja" (more info)
+
+2. **Consumption calculator:**
+   - Same presets as listing page (2000, 5000, 10000, 18000 kWh)
+   - Real-time cost calculation on consumption change
+   - Annual and monthly cost display
+
+3. **Pricing section:**
+   - **General metering:** Single energy price + monthly fee
+   - **Time metering:** Day price (07-22), night price (22-07) + monthly fee
+   - **Seasonal metering:** Winter price (Nov-Mar day), other time price + monthly fee
+   - All prices in Finnish format (comma as decimal separator)
+
+4. **Price history section:**
+   - Shows historical prices when multiple price dates exist
+   - Grouped by price component type
+
+5. **Long description section:**
+   - Full contract description when available
+
+6. **Microproduction section:**
+   - Shows microproduction purchase info when contract supports it
+
+7. **Electricity source breakdown (right sidebar):**
+   - Visual progress bars for renewable, nuclear, fossil percentages
+   - Detailed renewable breakdown (wind, hydro, solar, biomass)
+
+8. **Company information (right sidebar):**
+   - Company name
+   - Address (street, postal code, city)
+   - Website link
+
+9. **Billing & terms (right sidebar):**
+   - Billing frequency
+   - National/regional availability
+   - Availability for existing customers
+
+**Navigation:**
+- Back link to contracts list
+- Contracts list now has clickable cards linking to detail pages
+
+**Tests:**
+- 26 comprehensive feature tests covering:
+  - Page accessibility
+  - Livewire component rendering
+  - Contract name, company name, logo display
+  - Contract type and metering type display
+  - Fixed time range display
+  - Short and long description display
+  - Energy price and monthly fee display
+  - Electricity source breakdown
+  - Renewable energy breakdown
+  - Product and order links
+  - Annual cost calculation
+  - Consumption change updates cost
+  - Consumption presets availability
+  - Microproduction info display
+  - Company address display
+  - 404 for non-existent contracts
+  - Price history display
+  - Back to list link
+  - Time metering day/night prices
+  - Seasonal metering winter/other prices
+- `php artisan test --filter=ContractDetailPageTest` - 26 tests, 37 assertions
+- `php artisan test` - All 143 tests pass (716 assertions)
+
+**Files created:**
+- `laravel/app/Livewire/ContractDetail.php` - Livewire component class
+- `laravel/resources/views/livewire/contract-detail.blade.php` - Component view
+- `laravel/tests/Feature/ContractDetailPageTest.php` - Feature tests
+
+**Files modified:**
+- `laravel/routes/web.php` - Added contract detail route
+- `laravel/resources/views/livewire/contracts-list.blade.php` - Added links to detail pages
+
