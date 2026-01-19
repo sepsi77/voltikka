@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\CalculationController;
 use App\Http\Controllers\Api\ContractController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,3 +18,7 @@ use Illuminate\Support\Facades\Route;
 // Contract routes
 Route::get('/contracts', [ContractController::class, 'index']);
 Route::get('/contracts/{id}', [ContractController::class, 'show']);
+
+// Calculation routes
+Route::post('/calculate-price', [CalculationController::class, 'calculatePrice']);
+Route::post('/estimate-consumption', [CalculationController::class, 'estimateConsumption']);
