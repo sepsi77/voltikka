@@ -435,20 +435,21 @@ class SpotPrice extends Component
         $cheapestPrices = array_slice($prices, 0, $hoursNeeded);
         $cheapestAverage = array_sum($cheapestPrices) / $hoursNeeded;
 
-        // Overall average
-        $overallAverage = array_sum($prices) / count($prices);
+        // Get most expensive hours (for comparison)
+        $expensivePrices = array_slice($prices, -$hoursNeeded);
+        $expensiveAverage = array_sum($expensivePrices) / $hoursNeeded;
 
-        // Calculate savings
+        // Calculate savings vs most expensive
         $totalKwh = $hoursNeeded * $kwhPerHour;
-        $savingsPerKwh = $overallAverage - $cheapestAverage;
+        $savingsPerKwh = $expensiveAverage - $cheapestAverage;
         $savingsCents = $savingsPerKwh * $totalKwh;
-        $savingsPercent = ($overallAverage > 0)
-            ? ($savingsPerKwh / $overallAverage) * 100
+        $savingsPercent = ($expensiveAverage > 0)
+            ? ($savingsPerKwh / $expensiveAverage) * 100
             : 0;
 
         return [
             'cheapest_average' => $cheapestAverage,
-            'overall_average' => $overallAverage,
+            'expensive_average' => $expensiveAverage,
             'savings_per_kwh' => $savingsPerKwh,
             'savings_cents' => $savingsCents,
             'savings_euros' => $savingsCents / 100,

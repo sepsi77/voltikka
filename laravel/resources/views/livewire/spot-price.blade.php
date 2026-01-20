@@ -301,7 +301,7 @@
                         </div>
                         @if ($potentialSavings && $potentialSavings['savings_euros'] > 0)
                             <p class="text-sm text-green-600 font-medium">
-                                Säästät {{ number_format($potentialSavings['savings_euros'], 2, ',', ' ') }} € <span class="text-slate-500 font-normal">vs keskihinta</span>
+                                Säästät {{ number_format($potentialSavings['savings_euros'], 2, ',', ' ') }} € <span class="text-slate-500 font-normal">vs kallein aika</span>
                             </p>
                         @endif
                     </div>
