@@ -1,0 +1,79 @@
+{
+  "session": "calculator-integration-and-logos",
+  "description": "Integrate calculator presets with contract selection and create local logo caching service",
+  "tasks": [
+    {
+      "id": "create-logo-service",
+      "title": "Create CompanyLogoService for local logo caching",
+      "description": "Create a service at app/Services/CompanyLogoService.php that:\n- Downloads company logos from external URLs\n- Stores them locally in storage/app/public/logos/ directory\n- Generates unique filenames based on company name slug\n- Returns the local path/URL for the logo\n- Has a method to check if logo already exists locally\n- Handles download errors gracefully (returns null or keeps external URL)\n\nAdd methods:\n- downloadAndStore(Company $company): ?string - downloads logo and returns local path\n- getLocalPath(Company $company): ?string - returns existing local path or null\n- hasLocalLogo(Company $company): bool - checks if local copy exists",
+      "status": "completed",
+      "priority": 1,
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "add-local-logo-field",
+      "title": "Add local_logo_path field to Company model",
+      "description": "Create a migration to add 'local_logo_path' column to companies table (nullable string).\n\nUpdate Company model to:\n- Add local_logo_path to $fillable\n- Add a getLogoUrl() accessor method that returns local_logo_path if exists, otherwise falls back to logo_url\n- The accessor should return the full public URL for local logos",
+      "status": "completed",
+      "priority": 2,
+      "depends_on": ["create-logo-service"],
+      "completed_at": "2026-01-20T12:15:00Z",
+      "passes": true
+    },
+    {
+      "id": "integrate-logo-service-fetch",
+      "title": "Integrate logo service with FetchContracts command",
+      "description": "Modify FetchContracts command to:\n- After creating/updating a company, check if we have a local logo\n- If not, and logo_url exists, use CompanyLogoService to download and store locally\n- Update the company's local_logo_path field\n- Add a --skip-logos flag to skip logo downloading (for faster testing)\n- Log progress when downloading logos",
+      "status": "completed",
+      "priority": 3,
+      "depends_on": ["add-local-logo-field"],
+      "completed_at": "2026-01-20T12:30:00Z",
+      "passes": true
+    },
+    {
+      "id": "update-views-local-logos",
+      "title": "Update views to use local logos",
+      "description": "Update contracts-list.blade.php and any other views showing company logos to:\n- Use the new getLogoUrl() accessor instead of direct logo_url\n- Keep the fallback handling for missing logos\n- Use asset() helper for local logo paths\n\nAlso update company-detail.blade.php if it exists.",
+      "status": "completed",
+      "priority": 4,
+      "depends_on": ["integrate-logo-service-fetch"],
+      "completed_at": "2026-01-20T12:45:00Z",
+      "passes": true
+    },
+    {
+      "id": "enhance-presets-ui",
+      "title": "Enhance ContractsList presets with calculator-style tabs",
+      "description": "Update ContractsList component and view to have Presets/Calculator tabs like the screenshot:\n- Add activeTab property ('presets' or 'calculator')\n- Presets tab: Show quick consumption presets with icons (current functionality but enhanced)\n- Calculator tab: Embed a simplified calculator form inline (living area, people, building type, include heating toggle)\n- When calculator values change, automatically update consumption\n- Match the visual style from the screenshot (tab toggle, card-based selection)\n\nUpdate the presets to match the ConsumptionCalculator presets:\n- Pieni yksiö (2000 kWh)\n- Kerrostalo 2 hlö (3500 kWh)\n- Kerrostalo perhe (5000 kWh)\n- Pieni omakotitalo (5000 kWh)\n- Omakotitalo + ILP (8000 kWh)\n- Suuri talo + sähkö (18000 kWh)\n- Suuri talo + MLP (12000 kWh)",
+      "status": "pending",
+      "priority": 5,
+      "depends_on": ["update-views-local-logos"]
+    },
+    {
+      "id": "add-inline-calculator",
+      "title": "Add inline calculator to ContractsList",
+      "description": "Add calculator functionality directly in ContractsList for the Calculator tab:\n- Add form fields: livingArea, numPeople, buildingType, includeHeating\n- When includeHeating is true, show: heatingMethod, buildingRegion, buildingEnergyEfficiency\n- Use EnergyCalculator service to calculate consumption in real-time\n- Update consumption automatically when calculator fields change\n- Style to match the screenshot with cards for building type, toggle for heating, dropdowns for options",
+      "status": "pending",
+      "priority": 6,
+      "depends_on": ["enhance-presets-ui"]
+    },
+    {
+      "id": "create-logo-download-command",
+      "title": "Create artisan command to batch download logos",
+      "description": "Create an artisan command 'logos:download' that:\n- Iterates through all companies with logo_url but no local_logo_path\n- Downloads and stores logos using CompanyLogoService\n- Shows progress bar\n- Reports success/failure counts\n- Has --force flag to re-download all logos\n\nThis allows running logo downloads separately from contract fetching.",
+      "status": "completed",
+      "priority": 7,
+      "depends_on": ["integrate-logo-service-fetch"],
+      "completed_at": "2026-01-20T13:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "add-tests",
+      "title": "Add tests for logo service and calculator integration",
+      "description": "Create tests:\n- tests/Unit/CompanyLogoServiceTest.php - test download, storage, path generation\n- tests/Feature/LogosDownloadCommandTest.php - test artisan command\n- Update ContractsListPageTest.php to test new presets/calculator tabs\n\nMock HTTP requests for logo downloads in tests.",
+      "status": "pending",
+      "priority": 8,
+      "depends_on": ["create-logo-download-command", "add-inline-calculator"]
+    }
+  ]
+}
