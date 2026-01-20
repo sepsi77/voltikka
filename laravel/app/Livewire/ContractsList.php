@@ -6,6 +6,7 @@ use App\Enums\BuildingEnergyRating;
 use App\Enums\BuildingRegion;
 use App\Enums\BuildingType;
 use App\Enums\HeatingMethod;
+use App\Enums\SupplementaryHeatingMethod;
 use App\Models\ElectricityContract;
 use App\Models\Postcode;
 use App\Models\SpotPriceAverage;
@@ -124,6 +125,50 @@ class ContractsList extends Component
     public string $calcBuildingEnergyEfficiency = '2000';
 
     /**
+     * Supplementary heating method (only used when calcIncludeHeating is true).
+     */
+    public ?string $calcSupplementaryHeating = null;
+
+    // ===== Extras Toggles =====
+
+    /**
+     * Whether underfloor/bathroom heating is enabled.
+     */
+    public bool $calcUnderfloorHeatingEnabled = false;
+
+    /**
+     * Whether sauna consumption is enabled.
+     */
+    public bool $calcSaunaEnabled = false;
+
+    /**
+     * Whether electric vehicle consumption is enabled.
+     */
+    public bool $calcElectricVehicleEnabled = false;
+
+    /**
+     * Whether cooling/air conditioning is enabled.
+     */
+    public bool $calcCooling = false;
+
+    // ===== Extra Input Fields =====
+
+    /**
+     * Bathroom/underfloor heating area in square meters.
+     */
+    public int $calcBathroomHeatingArea = 0;
+
+    /**
+     * Sauna usage per week (number of sessions).
+     */
+    public int $calcSaunaUsagePerWeek = 0;
+
+    /**
+     * Electric vehicle kilometers driven per week.
+     */
+    public int $calcElectricVehicleKmsPerWeek = 0;
+
+    /**
      * Available building types with labels.
      *
      * @var array<string, string>
@@ -175,6 +220,17 @@ class ContractsList extends Component
         '1970' => '1970-luku',
         '1960' => '1960-luku',
         'older' => 'Vanhempi',
+    ];
+
+    /**
+     * Available supplementary heating methods with labels.
+     *
+     * @var array<string, string>
+     */
+    public array $supplementaryHeatingMethods = [
+        'heat_pump' => 'Ilmalämpöpumppu',
+        'exhaust_air_heat_pump' => 'Poistoilmalämpöpumppu',
+        'fireplace' => 'Takka / puulämmitys',
     ];
 
     /**
@@ -278,15 +334,25 @@ class ContractsList extends Component
     {
         $calculator = app(EnergyCalculator::class);
 
+        // Convert weekly EV kms to monthly (roughly 4.33 weeks per month)
+        $evKmsPerMonth = (int) round($this->calcElectricVehicleKmsPerWeek * 4.33);
+
         $request = new EnergyCalculatorRequest(
             livingArea: max(10, $this->calcLivingArea),
             numPeople: max(1, $this->calcNumPeople),
             buildingType: BuildingType::from($this->calcBuildingType),
             heatingMethod: $this->calcIncludeHeating ? HeatingMethod::from($this->calcHeatingMethod) : null,
+            supplementaryHeating: $this->calcIncludeHeating && $this->calcSupplementaryHeating
+                ? SupplementaryHeatingMethod::from($this->calcSupplementaryHeating)
+                : null,
             buildingEnergyEfficiency: $this->calcIncludeHeating ? BuildingEnergyRating::from($this->calcBuildingEnergyEfficiency) : null,
             buildingRegion: $this->calcIncludeHeating ? BuildingRegion::from($this->calcBuildingRegion) : null,
+            electricVehicleKmsPerMonth: $this->calcElectricVehicleEnabled ? $evKmsPerMonth : 0,
+            bathroomHeatingArea: $this->calcUnderfloorHeatingEnabled ? $this->calcBathroomHeatingArea : 0,
+            saunaUsagePerWeek: $this->calcSaunaEnabled ? $this->calcSaunaUsagePerWeek : 0,
             externalHeating: !$this->calcIncludeHeating,
             externalHeatingWater: !$this->calcIncludeHeating,
+            cooling: $this->calcCooling,
         );
 
         $result = $calculator->estimate($request);
@@ -341,6 +407,108 @@ class ContractsList extends Component
 
     public function updatedCalcBuildingEnergyEfficiency(): void
     {
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
+    }
+
+    public function updatedCalcSupplementaryHeating(): void
+    {
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
+    }
+
+    public function updatedCalcUnderfloorHeatingEnabled(): void
+    {
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
+    }
+
+    public function updatedCalcSaunaEnabled(): void
+    {
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
+    }
+
+    public function updatedCalcElectricVehicleEnabled(): void
+    {
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
+    }
+
+    public function updatedCalcCooling(): void
+    {
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
+    }
+
+    public function updatedCalcBathroomHeatingArea(): void
+    {
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
+    }
+
+    public function updatedCalcSaunaUsagePerWeek(): void
+    {
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
+    }
+
+    public function updatedCalcElectricVehicleKmsPerWeek(): void
+    {
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
+    }
+
+    /**
+     * Select a building type (for clickable cards).
+     */
+    public function selectBuildingType(string $type): void
+    {
+        $this->calcBuildingType = $type;
+        $this->selectedPreset = null;
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
+    }
+
+    /**
+     * Toggle an extra option (underfloor heating, sauna, EV, cooling).
+     */
+    public function toggleExtra(string $extra): void
+    {
+        switch ($extra) {
+            case 'underfloor':
+                $this->calcUnderfloorHeatingEnabled = !$this->calcUnderfloorHeatingEnabled;
+                if (!$this->calcUnderfloorHeatingEnabled) {
+                    $this->calcBathroomHeatingArea = 0;
+                }
+                break;
+            case 'sauna':
+                $this->calcSaunaEnabled = !$this->calcSaunaEnabled;
+                if (!$this->calcSaunaEnabled) {
+                    $this->calcSaunaUsagePerWeek = 0;
+                }
+                break;
+            case 'ev':
+                $this->calcElectricVehicleEnabled = !$this->calcElectricVehicleEnabled;
+                if (!$this->calcElectricVehicleEnabled) {
+                    $this->calcElectricVehicleKmsPerWeek = 0;
+                }
+                break;
+            case 'cooling':
+                $this->calcCooling = !$this->calcCooling;
+                break;
+        }
+        $this->selectedPreset = null;
         if ($this->activeTab === 'calculator') {
             $this->calculateFromInlineCalculator();
         }

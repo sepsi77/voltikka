@@ -772,4 +772,468 @@ class ContractsListPageTest extends TestCase
         // Selected preset should be cleared when using calculator
         $this->assertNull($component->get('selectedPreset'));
     }
+
+    // ========================================
+    // Full Calculator Tests (Housing Types, Extras, etc.)
+    // ========================================
+
+    /**
+     * Test that all three housing type cards are displayed in calculator.
+     */
+    public function test_calculator_displays_all_housing_type_cards(): void
+    {
+        Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->assertSee('Omakotitalo')
+            ->assertSee('Rivitalo')
+            ->assertSee('Kerrostalo');
+    }
+
+    /**
+     * Test that clicking housing type card updates building type.
+     */
+    public function test_selecting_housing_type_card_updates_building_type(): void
+    {
+        Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->call('selectBuildingType', 'detached_house')
+            ->assertSet('calcBuildingType', 'detached_house')
+            ->call('selectBuildingType', 'row_house')
+            ->assertSet('calcBuildingType', 'row_house')
+            ->call('selectBuildingType', 'apartment')
+            ->assertSet('calcBuildingType', 'apartment');
+    }
+
+    /**
+     * Test that selecting housing type clears preset and recalculates.
+     */
+    public function test_selecting_housing_type_clears_preset(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->call('selectPreset', 'small_apartment')
+            ->assertSet('selectedPreset', 'small_apartment')
+            ->set('activeTab', 'calculator')
+            ->call('selectBuildingType', 'detached_house');
+
+        $this->assertNull($component->get('selectedPreset'));
+    }
+
+    /**
+     * Test that extras section displays all four toggle options.
+     */
+    public function test_extras_section_displays_all_toggle_options(): void
+    {
+        Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->assertSee('Lattialämmitys')
+            ->assertSee('Sauna')
+            ->assertSee('Sähköauto')
+            ->assertSee('Jäähdytys');
+    }
+
+    /**
+     * Test that underfloor heating toggle works.
+     */
+    public function test_underfloor_heating_toggle_works(): void
+    {
+        Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->assertSet('calcUnderfloorHeatingEnabled', false)
+            ->call('toggleExtra', 'underfloor')
+            ->assertSet('calcUnderfloorHeatingEnabled', true)
+            ->call('toggleExtra', 'underfloor')
+            ->assertSet('calcUnderfloorHeatingEnabled', false);
+    }
+
+    /**
+     * Test that sauna toggle works.
+     */
+    public function test_sauna_toggle_works(): void
+    {
+        Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->assertSet('calcSaunaEnabled', false)
+            ->call('toggleExtra', 'sauna')
+            ->assertSet('calcSaunaEnabled', true)
+            ->call('toggleExtra', 'sauna')
+            ->assertSet('calcSaunaEnabled', false);
+    }
+
+    /**
+     * Test that electric vehicle toggle works.
+     */
+    public function test_electric_vehicle_toggle_works(): void
+    {
+        Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->assertSet('calcElectricVehicleEnabled', false)
+            ->call('toggleExtra', 'ev')
+            ->assertSet('calcElectricVehicleEnabled', true)
+            ->call('toggleExtra', 'ev')
+            ->assertSet('calcElectricVehicleEnabled', false);
+    }
+
+    /**
+     * Test that cooling toggle works.
+     */
+    public function test_cooling_toggle_works(): void
+    {
+        Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->assertSet('calcCooling', false)
+            ->call('toggleExtra', 'cooling')
+            ->assertSet('calcCooling', true)
+            ->call('toggleExtra', 'cooling')
+            ->assertSet('calcCooling', false);
+    }
+
+    /**
+     * Test that underfloor heating input field appears when enabled.
+     */
+    public function test_underfloor_heating_input_appears_when_enabled(): void
+    {
+        Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->call('toggleExtra', 'underfloor')
+            ->assertSee('Lämmitetty lattia-ala');
+    }
+
+    /**
+     * Test that sauna usage input field appears when enabled.
+     */
+    public function test_sauna_usage_input_appears_when_enabled(): void
+    {
+        Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->call('toggleExtra', 'sauna')
+            ->assertSee('Saunakertoja viikossa');
+    }
+
+    /**
+     * Test that EV kms input field appears when enabled.
+     */
+    public function test_ev_kms_input_appears_when_enabled(): void
+    {
+        Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->call('toggleExtra', 'ev')
+            ->assertSee('Ajokilometrit viikossa');
+    }
+
+    /**
+     * Test that bathroom heating area resets when underfloor heating is disabled.
+     */
+    public function test_bathroom_heating_area_resets_when_disabled(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->call('toggleExtra', 'underfloor')
+            ->set('calcBathroomHeatingArea', 15);
+
+        $this->assertEquals(15, $component->get('calcBathroomHeatingArea'));
+
+        $component->call('toggleExtra', 'underfloor');
+        $this->assertEquals(0, $component->get('calcBathroomHeatingArea'));
+    }
+
+    /**
+     * Test that sauna usage resets when sauna is disabled.
+     */
+    public function test_sauna_usage_resets_when_disabled(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->call('toggleExtra', 'sauna')
+            ->set('calcSaunaUsagePerWeek', 3);
+
+        $this->assertEquals(3, $component->get('calcSaunaUsagePerWeek'));
+
+        $component->call('toggleExtra', 'sauna');
+        $this->assertEquals(0, $component->get('calcSaunaUsagePerWeek'));
+    }
+
+    /**
+     * Test that EV kms resets when EV is disabled.
+     */
+    public function test_ev_kms_resets_when_disabled(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->call('toggleExtra', 'ev')
+            ->set('calcElectricVehicleKmsPerWeek', 200);
+
+        $this->assertEquals(200, $component->get('calcElectricVehicleKmsPerWeek'));
+
+        $component->call('toggleExtra', 'ev');
+        $this->assertEquals(0, $component->get('calcElectricVehicleKmsPerWeek'));
+    }
+
+    /**
+     * Test that sauna usage increases consumption.
+     */
+    public function test_sauna_usage_increases_consumption(): void
+    {
+        // Get baseline consumption without sauna
+        $componentWithoutSauna = Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcLivingArea', 80)
+            ->set('calcNumPeople', 2)
+            ->set('calcSaunaEnabled', false);
+
+        $consumptionWithoutSauna = $componentWithoutSauna->get('consumption');
+
+        // Enable sauna with usage
+        $componentWithSauna = Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcLivingArea', 80)
+            ->set('calcNumPeople', 2)
+            ->call('toggleExtra', 'sauna')
+            ->set('calcSaunaUsagePerWeek', 3);
+
+        $consumptionWithSauna = $componentWithSauna->get('consumption');
+
+        // Sauna usage should increase consumption
+        $this->assertGreaterThan($consumptionWithoutSauna, $consumptionWithSauna);
+    }
+
+    /**
+     * Test that EV kms increases consumption.
+     */
+    public function test_ev_kms_increases_consumption(): void
+    {
+        // Get baseline consumption without EV
+        $componentWithoutEV = Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcLivingArea', 80)
+            ->set('calcNumPeople', 2)
+            ->set('calcElectricVehicleEnabled', false);
+
+        $consumptionWithoutEV = $componentWithoutEV->get('consumption');
+
+        // Enable EV with kms
+        $componentWithEV = Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcLivingArea', 80)
+            ->set('calcNumPeople', 2)
+            ->call('toggleExtra', 'ev')
+            ->set('calcElectricVehicleKmsPerWeek', 200);
+
+        $consumptionWithEV = $componentWithEV->get('consumption');
+
+        // EV usage should increase consumption
+        $this->assertGreaterThan($consumptionWithoutEV, $consumptionWithEV);
+    }
+
+    /**
+     * Test that bathroom heating area increases consumption.
+     */
+    public function test_bathroom_heating_area_increases_consumption(): void
+    {
+        // Get baseline consumption without underfloor heating
+        $componentWithoutHeating = Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcLivingArea', 80)
+            ->set('calcNumPeople', 2)
+            ->set('calcUnderfloorHeatingEnabled', false);
+
+        $consumptionWithoutHeating = $componentWithoutHeating->get('consumption');
+
+        // Enable underfloor heating with area
+        $componentWithHeating = Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcLivingArea', 80)
+            ->set('calcNumPeople', 2)
+            ->call('toggleExtra', 'underfloor')
+            ->set('calcBathroomHeatingArea', 20);
+
+        $consumptionWithHeating = $componentWithHeating->get('consumption');
+
+        // Bathroom heating should increase consumption
+        $this->assertGreaterThan($consumptionWithoutHeating, $consumptionWithHeating);
+    }
+
+    /**
+     * Test that cooling increases consumption.
+     */
+    public function test_cooling_increases_consumption(): void
+    {
+        // Get baseline consumption without cooling
+        $componentWithoutCooling = Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcLivingArea', 80)
+            ->set('calcNumPeople', 2)
+            ->set('calcCooling', false);
+
+        $consumptionWithoutCooling = $componentWithoutCooling->get('consumption');
+
+        // Enable cooling
+        $componentWithCooling = Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcLivingArea', 80)
+            ->set('calcNumPeople', 2)
+            ->call('toggleExtra', 'cooling');
+
+        $consumptionWithCooling = $componentWithCooling->get('consumption');
+
+        // Cooling should increase consumption
+        $this->assertGreaterThan($consumptionWithoutCooling, $consumptionWithCooling);
+    }
+
+    /**
+     * Test that supplementary heating dropdown is shown when heating is enabled.
+     */
+    public function test_supplementary_heating_dropdown_shown_when_heating_enabled(): void
+    {
+        Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcIncludeHeating', true)
+            ->assertSee('Lisälämmitys')
+            ->assertSee('Ilmalämpöpumppu')
+            ->assertSee('Poistoilmalämpöpumppu')
+            ->assertSee('Takka / puulämmitys');
+    }
+
+    /**
+     * Test that supplementary heating can be selected.
+     */
+    public function test_supplementary_heating_can_be_selected(): void
+    {
+        Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcIncludeHeating', true)
+            ->set('calcSupplementaryHeating', 'heat_pump')
+            ->assertSet('calcSupplementaryHeating', 'heat_pump')
+            ->set('calcSupplementaryHeating', 'fireplace')
+            ->assertSet('calcSupplementaryHeating', 'fireplace');
+    }
+
+    /**
+     * Test full calculation with all options enabled.
+     */
+    public function test_full_calculation_with_all_options_enabled(): void
+    {
+        // Create a contract to display results
+        ElectricityContract::create([
+            'id' => 'contract-1',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Perus Sähkö',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'availability_is_national' => true,
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-general-1',
+            'electricity_contract_id' => 'contract-1',
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 5.0,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-monthly-1',
+            'electricity_contract_id' => 'contract-1',
+            'price_component_type' => 'Monthly',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 3.0,
+            'payment_unit' => 'EUR/month',
+        ]);
+
+        $component = Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcLivingArea', 150)
+            ->set('calcNumPeople', 4)
+            ->call('selectBuildingType', 'detached_house')
+            ->set('calcIncludeHeating', true)
+            ->set('calcHeatingMethod', 'air_to_water_heat_pump')
+            ->set('calcBuildingRegion', 'central')
+            ->set('calcBuildingEnergyEfficiency', '2000')
+            ->set('calcSupplementaryHeating', 'fireplace')
+            ->call('toggleExtra', 'underfloor')
+            ->set('calcBathroomHeatingArea', 10)
+            ->call('toggleExtra', 'sauna')
+            ->set('calcSaunaUsagePerWeek', 2)
+            ->call('toggleExtra', 'ev')
+            ->set('calcElectricVehicleKmsPerWeek', 200)
+            ->call('toggleExtra', 'cooling');
+
+        // Verify all options are set correctly
+        $this->assertEquals(150, $component->get('calcLivingArea'));
+        $this->assertEquals(4, $component->get('calcNumPeople'));
+        $this->assertEquals('detached_house', $component->get('calcBuildingType'));
+        $this->assertTrue($component->get('calcIncludeHeating'));
+        $this->assertEquals('air_to_water_heat_pump', $component->get('calcHeatingMethod'));
+        $this->assertEquals('central', $component->get('calcBuildingRegion'));
+        $this->assertEquals('2000', $component->get('calcBuildingEnergyEfficiency'));
+        $this->assertEquals('fireplace', $component->get('calcSupplementaryHeating'));
+        $this->assertTrue($component->get('calcUnderfloorHeatingEnabled'));
+        $this->assertEquals(10, $component->get('calcBathroomHeatingArea'));
+        $this->assertTrue($component->get('calcSaunaEnabled'));
+        $this->assertEquals(2, $component->get('calcSaunaUsagePerWeek'));
+        $this->assertTrue($component->get('calcElectricVehicleEnabled'));
+        $this->assertEquals(200, $component->get('calcElectricVehicleKmsPerWeek'));
+        $this->assertTrue($component->get('calcCooling'));
+
+        // Consumption should be a positive number
+        $consumption = $component->get('consumption');
+        $this->assertGreaterThan(0, $consumption);
+
+        // With all these options, consumption should be significant (> 10000 kWh)
+        $this->assertGreaterThan(10000, $consumption);
+
+        // Contracts should be displayed with calculated costs
+        $contracts = $component->viewData('contracts');
+        $this->assertCount(1, $contracts);
+        $contract = $contracts->first();
+        $this->assertArrayHasKey('total_cost', $contract->calculated_cost);
+        $this->assertGreaterThan(0, $contract->calculated_cost['total_cost']);
+    }
+
+    /**
+     * Test that extra default values are correct.
+     */
+    public function test_extra_fields_have_correct_defaults(): void
+    {
+        Livewire::test('contracts-list')
+            ->assertSet('calcSupplementaryHeating', null)
+            ->assertSet('calcUnderfloorHeatingEnabled', false)
+            ->assertSet('calcSaunaEnabled', false)
+            ->assertSet('calcElectricVehicleEnabled', false)
+            ->assertSet('calcCooling', false)
+            ->assertSet('calcBathroomHeatingArea', 0)
+            ->assertSet('calcSaunaUsagePerWeek', 0)
+            ->assertSet('calcElectricVehicleKmsPerWeek', 0);
+    }
+
+    /**
+     * Test that extras toggles clear preset selection.
+     */
+    public function test_extras_toggles_clear_preset_selection(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->call('selectPreset', 'small_apartment')
+            ->assertSet('selectedPreset', 'small_apartment')
+            ->set('activeTab', 'calculator')
+            ->call('toggleExtra', 'sauna');
+
+        $this->assertNull($component->get('selectedPreset'));
+    }
+
+    /**
+     * Test that supplementary heating methods are available.
+     */
+    public function test_supplementary_heating_methods_are_available(): void
+    {
+        $component = Livewire::test('contracts-list');
+        $methods = $component->get('supplementaryHeatingMethods');
+
+        $this->assertArrayHasKey('heat_pump', $methods);
+        $this->assertArrayHasKey('exhaust_air_heat_pump', $methods);
+        $this->assertArrayHasKey('fireplace', $methods);
+
+        $this->assertEquals('Ilmalämpöpumppu', $methods['heat_pump']);
+        $this->assertEquals('Poistoilmalämpöpumppu', $methods['exhaust_air_heat_pump']);
+        $this->assertEquals('Takka / puulämmitys', $methods['fireplace']);
+    }
 }

@@ -1,0 +1,45 @@
+{
+  "session": "full-calculator-implementation",
+  "description": "Implement full electricity consumption calculator in ContractsList matching the screenshot exactly - all options inline, no redirect to separate calculator",
+  "tasks": [
+    {
+      "id": "update-contracts-list-calculator-fields",
+      "title": "Add all calculator fields to ContractsList component",
+      "description": "Update ContractsList.php to include ALL calculator fields matching the ConsumptionCalculator component and screenshot",
+      "status": "completed",
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true,
+      "priority": 1
+    },
+    {
+      "id": "update-calculator-blade-view",
+      "title": "Implement full calculator UI in contracts-list.blade.php",
+      "description": "Replace the simplified calculator tab content with the FULL calculator matching the screenshot exactly",
+      "status": "completed",
+      "completed_at": "2026-01-20T12:15:00Z",
+      "passes": true,
+      "priority": 2,
+      "depends_on": ["update-contracts-list-calculator-fields"]
+    },
+    {
+      "id": "update-seo-contracts-list",
+      "title": "Update seo-contracts-list.blade.php with same calculator",
+      "description": "Copy the full calculator implementation from contracts-list.blade.php to seo-contracts-list.blade.php",
+      "status": "completed",
+      "completed_at": "2026-01-20T12:20:00Z",
+      "passes": true,
+      "priority": 3,
+      "depends_on": ["update-calculator-blade-view"]
+    },
+    {
+      "id": "add-calculator-tests",
+      "title": "Add comprehensive tests for full calculator",
+      "description": "Update ContractsListPageTest.php with tests for the full calculator including housing types, extras, supplementary heating, and full calculation",
+      "status": "completed",
+      "completed_at": "2026-01-20T12:30:00Z",
+      "passes": true,
+      "priority": 4,
+      "depends_on": ["update-seo-contracts-list"]
+    }
+  ]
+}
