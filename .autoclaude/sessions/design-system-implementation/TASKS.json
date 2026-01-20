@@ -25,49 +25,61 @@
       "id": "update-hero-section",
       "title": "Implement dark hero section with coral accents",
       "description": "Update the hero section in laravel/resources/views/livewire/contracts-list.blade.php: 1) Use slate-950 (#0f1419) background for hero, 2) Apply hero-headline typography (60px, 800 weight, coral-400 accent for highlighted word), 3) Add glassmorphism stat cards (bg-white/5, backdrop-blur-sm) if stats are shown, 4) Update badges to use coral-50 background. Reference typography.md and colors.md.",
-      "status": "pending",
+      "status": "completed",
       "priority": 3,
-      "depends_on": ["update-layout-fonts"]
+      "depends_on": ["update-layout-fonts"],
+      "completed_at": "2026-01-20T13:00:00Z",
+      "passes": true
     },
     {
       "id": "update-consumption-selector",
       "title": "Restyle consumption selector cards with coral active states",
       "description": "Update the consumption/preset selection cards in contracts-list.blade.php: 1) Use white background with slate-200 border (2px), 2) On hover: coral-400 border, 3) Active state: coral gradient background (from-coral-500 to-coral-600), white text, coral shadow (shadow-coral), 4) Use 16px border-radius. Follow the consumption selector pattern in components.md.",
-      "status": "pending",
+      "status": "completed",
       "priority": 4,
-      "depends_on": ["update-layout-fonts"]
+      "depends_on": ["update-layout-fonts"],
+      "completed_at": "2026-01-20T13:15:00Z",
+      "passes": true
     },
     {
       "id": "update-filter-pills",
       "title": "Implement new filter pill styling",
       "description": "Update filter buttons in contracts-list.blade.php: 1) Default: slate-50 bg, slate-200 border, slate-600 text, 8px radius, 2) Hover: slate-300 border, 3) Active: slate-950 bg, slate-950 border, white text. Remove the current success-500 green styling for active state. Follow filter-btn pattern in components.md.",
-      "status": "pending",
+      "status": "completed",
       "priority": 5,
-      "depends_on": ["update-layout-fonts"]
+      "depends_on": ["update-layout-fonts"],
+      "completed_at": "2026-01-20T13:25:00Z",
+      "passes": true
     },
     {
       "id": "update-contract-cards",
       "title": "Implement ranked contract cards with emissions-based left border",
       "description": "Completely restyle the contract cards in contracts-list.blade.php: 1) Add rank number (01, 02, etc.) with extrabold weight in slate-200 (coral-500 for featured/rank 1), 2) Add 4px left border colored by emissions (green/amber/red) or 6px coral gradient for featured, 3) Use 24px padding, 24px border-radius, white background, slate-100 border, 4) Card hover: translateY(-2px) with shadow-card-hover, 5) Style price display: 24px/800 weight for main price, coral-600 for featured price, slate-400 for unit label. Reference components.md contract card section.",
-      "status": "pending",
+      "status": "completed",
       "priority": 6,
-      "depends_on": ["update-layout-fonts"]
+      "depends_on": ["update-layout-fonts"],
+      "completed_at": "2026-01-20T13:40:00Z",
+      "passes": true
     },
     {
       "id": "update-badges",
       "title": "Update energy source and status badges",
       "description": "Restyle badges in contracts-list.blade.php: 1) Green badges (Tuuli, Vesivoima, etc.): #dcfce7 background, #15803d text, 8px radius, 12px font, 700 weight, uppercase, 2) Neutral badges: slate-100 bg, slate-600 text, 3) Remove current green-700 border styling. Follow badge patterns in components.md.",
-      "status": "pending",
+      "status": "completed",
       "priority": 7,
-      "depends_on": ["update-layout-fonts"]
+      "depends_on": ["update-layout-fonts"],
+      "completed_at": "2026-01-20T13:40:00Z",
+      "passes": true
     },
     {
       "id": "update-buttons",
       "title": "Implement coral CTA buttons with gradient and shadow",
       "description": "Restyle all primary CTA buttons (Katso lisää, Vertaa sähkösopimuksia, etc.): 1) Primary: coral gradient (from-coral-500 to-coral-600), white text, 700 weight, 12px radius, coral shadow (shadow-coral), 2) Hover: lighter gradient (from-coral-400 to-coral-500), 3) Secondary: slate-900 bg, white text. Remove current cyan/primary button styling. Follow button patterns in components.md.",
-      "status": "pending",
+      "status": "completed",
       "priority": 8,
-      "depends_on": ["update-layout-fonts"]
+      "depends_on": ["update-layout-fonts"],
+      "completed_at": "2026-01-20T13:40:00Z",
+      "passes": true
     },
     {
       "id": "update-footer",
@@ -83,9 +95,11 @@
       "id": "update-calculator-styling",
       "title": "Restyle the calculator tab with coral accents",
       "description": "Update the calculator section in contracts-list.blade.php: 1) Replace cyan-500/600 with coral-500/600 for all interactive elements (inputs, toggles, selected states), 2) Update result display to use coral-600 text for the calculated value, 3) Use coral-50 for highlight backgrounds instead of cyan-50, 4) Update the CTA button to use coral gradient. Reference the consumption selector pattern.",
-      "status": "pending",
+      "status": "completed",
       "priority": 10,
-      "depends_on": ["update-layout-fonts"]
+      "depends_on": ["update-layout-fonts"],
+      "completed_at": "2026-01-20T14:00:00Z",
+      "passes": true
     }
   ]
 }
