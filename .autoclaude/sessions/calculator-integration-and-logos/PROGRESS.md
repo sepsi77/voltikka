@@ -81,7 +81,7 @@
   - Added tests for tab switching
 
 ### Git Commit
-- Committed presets UI changes: `feat: Add calculator-style tabs and enhanced presets to contracts list`
+- Committed presets UI changes: `724f2ef feat: Add calculator-style tabs and enhanced presets to contracts list`
 
 ---
 
