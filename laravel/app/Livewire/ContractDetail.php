@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\ElectricityContract;
+use App\Models\SpotPriceAverage;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
 use Livewire\Component;
@@ -20,11 +21,11 @@ class ContractDetail extends Component
     public int $consumption = 5000;
 
     /**
-     * Available consumption presets.
+     * Default consumption presets (before filtering).
      *
      * @var array<string, int>
      */
-    public array $presets = [
+    protected array $defaultPresets = [
         'Yksiö' => 2000,
         'Kerrostalo' => 5000,
         'Pieni talo' => 10000,
@@ -37,14 +38,63 @@ class ContractDetail extends Component
     public function mount(string $contractId): void
     {
         $this->contractId = $contractId;
+
+        // Adjust default consumption if it falls outside the contract's limits
+        $contract = $this->contract;
+        if ($contract) {
+            $this->consumption = $this->clampConsumption($this->consumption, $contract);
+        }
     }
 
     /**
      * Set the consumption to a preset value.
+     * Clamps the value to be within the contract's limits.
      */
     public function setConsumption(int $value): void
     {
+        $contract = $this->contract;
+        if ($contract) {
+            $value = $this->clampConsumption($value, $contract);
+        }
         $this->consumption = $value;
+    }
+
+    /**
+     * Clamp consumption value to be within the contract's allowed range.
+     */
+    protected function clampConsumption(int $value, ElectricityContract $contract): int
+    {
+        $min = $contract->consumption_limitation_min_x_kwh_per_y;
+        $max = $contract->consumption_limitation_max_x_kwh_per_y;
+
+        if ($min !== null && $value < $min) {
+            return (int) $min;
+        }
+
+        if ($max !== null && $value > $max) {
+            return (int) $max;
+        }
+
+        return $value;
+    }
+
+    /**
+     * Get filtered consumption presets based on contract limits.
+     *
+     * @return array<string, int>
+     */
+    public function getPresetsProperty(): array
+    {
+        $contract = $this->contract;
+
+        if (! $contract || ! $contract->hasConsumptionLimits()) {
+            return $this->defaultPresets;
+        }
+
+        return array_filter(
+            $this->defaultPresets,
+            fn (int $value) => $contract->isConsumptionInRange($value)
+        );
     }
 
     /**
@@ -88,10 +138,16 @@ class ContractDetail extends Component
 
         $contractData = [
             'contract_type' => $contract->contract_type,
+            'pricing_model' => $contract->pricing_model,
             'metering' => $contract->metering,
         ];
 
-        return $calculator->calculate($priceComponents, $contractData, $usage)->toArray();
+        // Get spot price averages for spot contract calculations
+        $spotPriceAvg = SpotPriceAverage::latestRolling365Days();
+        $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
+        $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
+
+        return $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight)->toArray();
     }
 
     /**
@@ -158,6 +214,7 @@ class ContractDetail extends Component
             'latestPrices' => $this->latestPrices,
             'calculatedCost' => $this->calculatedCost,
             'priceHistory' => $this->priceHistory,
+            'presets' => $this->presets,
         ])->layout('layouts.app');
     }
 }

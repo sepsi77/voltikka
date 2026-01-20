@@ -1,0 +1,45 @@
+{
+  "session": "consumption-range-validation",
+  "description": "Ensure consumption presets respect contract min/max kWh limits. Hide or disable consumption choices that fall outside a contract's allowed range.",
+  "tasks": [
+    {
+      "id": "add-model-helper",
+      "title": "Add helper method to ElectricityContract model",
+      "description": "Add an isConsumptionInRange(int $consumption): bool method to the ElectricityContract model that checks if a given consumption value falls within the contract's consumption_limitation_min_x_kwh_per_y and consumption_limitation_max_x_kwh_per_y bounds. If either limit is null, treat it as no restriction on that side.",
+      "status": "completed",
+      "priority": 1,
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "filter-presets-detail",
+      "title": "Filter consumption presets in ContractDetail",
+      "description": "In ContractDetail.php, filter the $presets array to only include presets whose consumption value is within the contract's allowed range using the isConsumptionInRange helper. Update the view to show a message if the selected consumption is out of range.",
+      "status": "completed",
+      "priority": 2,
+      "depends_on": ["add-model-helper"],
+      "completed_at": "2026-01-20T12:30:00Z",
+      "passes": true
+    },
+    {
+      "id": "add-ui-feedback",
+      "title": "Add UI feedback for consumption constraints",
+      "description": "In contract-detail.blade.php, display a notice if the contract has consumption restrictions. Show the min and max values clearly so users understand why certain presets may not be available.",
+      "status": "completed",
+      "priority": 3,
+      "depends_on": ["filter-presets-detail"],
+      "completed_at": "2026-01-20T12:45:00Z",
+      "passes": true
+    },
+    {
+      "id": "update-contracts-list",
+      "title": "Consider consumption range in ContractsList filtering",
+      "description": "In ContractsList.php, filter out contracts where the selected consumption is outside their allowed range. This ensures users only see contracts they're actually eligible for based on their consumption level.",
+      "status": "completed",
+      "priority": 4,
+      "depends_on": ["add-model-helper"],
+      "completed_at": "2026-01-20T13:00:00Z",
+      "passes": true
+    }
+  ]
+}

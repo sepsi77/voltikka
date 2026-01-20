@@ -136,6 +136,118 @@ class ElectricityContractTest extends TestCase
     }
 
     /**
+     * Helper to create a contract with consumption limits without triggering database casts.
+     */
+    private function makeContractWithLimits(?float $min, ?float $max): ElectricityContract
+    {
+        $contract = new ElectricityContract();
+        // Set attributes directly to avoid triggering database-dependent casts
+        $contract->setRawAttributes([
+            'consumption_limitation_min_x_kwh_per_y' => $min,
+            'consumption_limitation_max_x_kwh_per_y' => $max,
+        ]);
+        return $contract;
+    }
+
+    /**
+     * Test isConsumptionInRange returns true when no limits are set.
+     */
+    public function test_consumption_in_range_with_no_limits(): void
+    {
+        $contract = $this->makeContractWithLimits(null, null);
+
+        $this->assertTrue($contract->isConsumptionInRange(0));
+        $this->assertTrue($contract->isConsumptionInRange(5000));
+        $this->assertTrue($contract->isConsumptionInRange(100000));
+    }
+
+    /**
+     * Test isConsumptionInRange respects minimum limit.
+     */
+    public function test_consumption_in_range_with_min_limit(): void
+    {
+        $contract = $this->makeContractWithLimits(2000, null);
+
+        $this->assertFalse($contract->isConsumptionInRange(1000));
+        $this->assertFalse($contract->isConsumptionInRange(1999));
+        $this->assertTrue($contract->isConsumptionInRange(2000));
+        $this->assertTrue($contract->isConsumptionInRange(5000));
+        $this->assertTrue($contract->isConsumptionInRange(100000));
+    }
+
+    /**
+     * Test isConsumptionInRange respects maximum limit.
+     */
+    public function test_consumption_in_range_with_max_limit(): void
+    {
+        $contract = $this->makeContractWithLimits(null, 10000);
+
+        $this->assertTrue($contract->isConsumptionInRange(0));
+        $this->assertTrue($contract->isConsumptionInRange(5000));
+        $this->assertTrue($contract->isConsumptionInRange(10000));
+        $this->assertFalse($contract->isConsumptionInRange(10001));
+        $this->assertFalse($contract->isConsumptionInRange(50000));
+    }
+
+    /**
+     * Test isConsumptionInRange respects both min and max limits.
+     */
+    public function test_consumption_in_range_with_both_limits(): void
+    {
+        $contract = $this->makeContractWithLimits(2000, 10000);
+
+        $this->assertFalse($contract->isConsumptionInRange(1000));
+        $this->assertFalse($contract->isConsumptionInRange(1999));
+        $this->assertTrue($contract->isConsumptionInRange(2000));
+        $this->assertTrue($contract->isConsumptionInRange(5000));
+        $this->assertTrue($contract->isConsumptionInRange(10000));
+        $this->assertFalse($contract->isConsumptionInRange(10001));
+        $this->assertFalse($contract->isConsumptionInRange(50000));
+    }
+
+    /**
+     * Test isConsumptionInRange handles edge case with zero limit.
+     */
+    public function test_consumption_in_range_with_zero_min_limit(): void
+    {
+        $contract = $this->makeContractWithLimits(0, null);
+
+        // Zero is explicitly set, so it should be treated as a limit
+        $this->assertTrue($contract->isConsumptionInRange(0));
+        $this->assertTrue($contract->isConsumptionInRange(5000));
+    }
+
+    /**
+     * Test hasConsumptionLimits returns false when no limits are set.
+     */
+    public function test_has_consumption_limits_with_no_limits(): void
+    {
+        $contract = $this->makeContractWithLimits(null, null);
+
+        $this->assertFalse($contract->hasConsumptionLimits());
+    }
+
+    /**
+     * Test hasConsumptionLimits returns true when min limit is set.
+     */
+    public function test_has_consumption_limits_with_min_limit(): void
+    {
+        $contract = $this->makeContractWithLimits(2000, null);
+
+        $this->assertTrue($contract->hasConsumptionLimits());
+    }
+
+    /**
+     * Test hasConsumptionLimits returns true when max limit is set.
+     */
+    public function test_has_consumption_limits_with_max_limit(): void
+    {
+        $contract = $this->makeContractWithLimits(null, 10000);
+
+        $this->assertTrue($contract->hasConsumptionLimits());
+    }
+
+    /**
      * Test all expected fields are fillable.
      */
     public function test_expected_fields_are_fillable(): void

@@ -683,6 +683,13 @@ class ContractsList extends Component
             });
         }
 
+        // Filter by consumption range - only show contracts where the selected
+        // consumption falls within the contract's allowed range
+        $consumption = $this->consumption;
+        $contracts = $contracts->filter(function ($contract) use ($consumption) {
+            return $contract->isConsumptionInRange($consumption);
+        });
+
         // Get spot price averages for calculations
         $spotPriceAvg = SpotPriceAverage::latestRolling365Days();
         $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;

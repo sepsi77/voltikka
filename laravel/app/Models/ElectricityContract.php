@@ -171,4 +171,39 @@ class ElectricityContract extends Model
             'postcode'
         );
     }
+
+    /**
+     * Check if a given consumption value falls within the contract's allowed range.
+     *
+     * If either limit is null, treat it as no restriction on that side.
+     *
+     * @param int|float $consumption The consumption value in kWh/year to check
+     * @return bool True if the consumption is within the allowed range
+     */
+    public function isConsumptionInRange(int|float $consumption): bool
+    {
+        $min = $this->consumption_limitation_min_x_kwh_per_y;
+        $max = $this->consumption_limitation_max_x_kwh_per_y;
+
+        if ($min !== null && $consumption < $min) {
+            return false;
+        }
+
+        if ($max !== null && $consumption > $max) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if this contract has any consumption limitations.
+     *
+     * @return bool True if either min or max consumption limit is set
+     */
+    public function hasConsumptionLimits(): bool
+    {
+        return $this->consumption_limitation_min_x_kwh_per_y !== null
+            || $this->consumption_limitation_max_x_kwh_per_y !== null;
+    }
 }

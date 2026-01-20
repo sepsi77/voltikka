@@ -420,4 +420,115 @@ class ContractDetailPageTest extends TestCase
             ->assertSee('7,0')  // Winter price
             ->assertSee('4,5'); // Other season price
     }
+
+    /**
+     * Test that presets are filtered when contract has minimum consumption limit.
+     */
+    public function test_presets_filtered_by_minimum_consumption_limit(): void
+    {
+        // Create contract with min consumption of 8000 kWh
+        $this->contract->update([
+            'consumption_limitation_min_x_kwh_per_y' => 8000,
+        ]);
+
+        // Only "Pieni talo" (10000) and "Suuri talo" (18000) should be shown
+        // "Yksiö" (2000) and "Kerrostalo" (5000) should be hidden
+        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->assertDontSee('2000 kWh')  // Below min
+            ->assertDontSee('5000 kWh')  // Below min
+            ->assertSee('10000 kWh')     // Above min
+            ->assertSee('18000 kWh');    // Above min
+    }
+
+    /**
+     * Test that presets are filtered when contract has maximum consumption limit.
+     */
+    public function test_presets_filtered_by_maximum_consumption_limit(): void
+    {
+        // Create contract with max consumption of 6000 kWh
+        $this->contract->update([
+            'consumption_limitation_max_x_kwh_per_y' => 6000,
+        ]);
+
+        // Only "Yksiö" (2000) and "Kerrostalo" (5000) should be shown
+        // "Pieni talo" (10000) and "Suuri talo" (18000) should be hidden
+        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->assertSee('2000 kWh')       // Below max
+            ->assertSee('5000 kWh')       // Below max
+            ->assertDontSee('10000 kWh')  // Above max
+            ->assertDontSee('18000 kWh'); // Above max
+    }
+
+    /**
+     * Test that presets are filtered when contract has both min and max limits.
+     */
+    public function test_presets_filtered_by_both_consumption_limits(): void
+    {
+        // Create contract with range 4000-12000 kWh
+        $this->contract->update([
+            'consumption_limitation_min_x_kwh_per_y' => 4000,
+            'consumption_limitation_max_x_kwh_per_y' => 12000,
+        ]);
+
+        // Only "Kerrostalo" (5000) and "Pieni talo" (10000) should be shown
+        // "Yksiö" (2000) is below min, "Suuri talo" (18000) is above max
+        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->assertDontSee('2000 kWh')   // Below min
+            ->assertSee('5000 kWh')       // Within range
+            ->assertSee('10000 kWh')      // Within range
+            ->assertDontSee('18000 kWh'); // Above max
+    }
+
+    /**
+     * Test that consumption notice is shown when contract has limits.
+     */
+    public function test_consumption_limits_notice_displayed(): void
+    {
+        // Create contract with range
+        $this->contract->update([
+            'consumption_limitation_min_x_kwh_per_y' => 5000,
+            'consumption_limitation_max_x_kwh_per_y' => 15000,
+        ]);
+
+        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->assertSee('5 000')   // Min limit formatted
+            ->assertSee('15 000'); // Max limit formatted
+    }
+
+    /**
+     * Test that default consumption is adjusted when out of range.
+     */
+    public function test_default_consumption_adjusted_to_range(): void
+    {
+        // Default is 5000, set min to 8000
+        $this->contract->update([
+            'consumption_limitation_min_x_kwh_per_y' => 8000,
+        ]);
+
+        // The default consumption should be adjusted to the minimum
+        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->assertSet('consumption', 8000);
+    }
+
+    /**
+     * Test that setConsumption respects contract limits.
+     */
+    public function test_set_consumption_respects_limits(): void
+    {
+        // Set limits
+        $this->contract->update([
+            'consumption_limitation_min_x_kwh_per_y' => 3000,
+            'consumption_limitation_max_x_kwh_per_y' => 10000,
+        ]);
+
+        // Try to set consumption below min - should clamp to min
+        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->call('setConsumption', 1000)
+            ->assertSet('consumption', 3000);
+
+        // Try to set consumption above max - should clamp to max
+        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->call('setConsumption', 20000)
+            ->assertSet('consumption', 10000);
+    }
 }

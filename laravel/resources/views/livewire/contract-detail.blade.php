@@ -95,6 +95,27 @@
             <!-- Consumption Selector -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <h2 class="text-lg font-semibold text-slate-900 mb-4">Arvioitu kulutus</h2>
+
+                @if ($contract->hasConsumptionLimits())
+                    <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span>
+                                Tämän sopimuksen kulutusrajat:
+                                @if ($contract->consumption_limitation_min_x_kwh_per_y !== null && $contract->consumption_limitation_max_x_kwh_per_y !== null)
+                                    {{ number_format($contract->consumption_limitation_min_x_kwh_per_y, 0, ',', ' ') }} - {{ number_format($contract->consumption_limitation_max_x_kwh_per_y, 0, ',', ' ') }} kWh/vuosi
+                                @elseif ($contract->consumption_limitation_min_x_kwh_per_y !== null)
+                                    vähintään {{ number_format($contract->consumption_limitation_min_x_kwh_per_y, 0, ',', ' ') }} kWh/vuosi
+                                @elseif ($contract->consumption_limitation_max_x_kwh_per_y !== null)
+                                    enintään {{ number_format($contract->consumption_limitation_max_x_kwh_per_y, 0, ',', ' ') }} kWh/vuosi
+                                @endif
+                            </span>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="flex flex-wrap gap-3">
                     @foreach ($presets as $label => $value)
                         <button

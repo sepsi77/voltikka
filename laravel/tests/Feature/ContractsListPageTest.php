@@ -1236,4 +1236,184 @@ class ContractsListPageTest extends TestCase
         $this->assertEquals('Poistoilmalämpöpumppu', $methods['exhaust_air_heat_pump']);
         $this->assertEquals('Takka / puulämmitys', $methods['fireplace']);
     }
+
+    // ========================================
+    // Consumption Range Filtering Tests
+    // ========================================
+
+    /**
+     * Test that contracts with min consumption above selected value are hidden.
+     */
+    public function test_contracts_filtered_by_min_consumption_limit(): void
+    {
+        // Create contract with no limits
+        ElectricityContract::create([
+            'id' => 'no-limit-contract',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'No Limit Contract',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'availability_is_national' => true,
+            'consumption_limitation_min_x_kwh_per_y' => null,
+            'consumption_limitation_max_x_kwh_per_y' => null,
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-no-limit',
+            'electricity_contract_id' => 'no-limit-contract',
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 5.0,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        // Create contract with min consumption of 10000 kWh
+        ElectricityContract::create([
+            'id' => 'high-min-contract',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'High Min Contract',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'availability_is_national' => true,
+            'consumption_limitation_min_x_kwh_per_y' => 10000,
+            'consumption_limitation_max_x_kwh_per_y' => null,
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-high-min',
+            'electricity_contract_id' => 'high-min-contract',
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 4.0,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        // With 5000 kWh consumption, only the no-limit contract should show
+        $component = Livewire::test('contracts-list')
+            ->set('consumption', 5000);
+
+        $contracts = $component->viewData('contracts');
+        $this->assertCount(1, $contracts);
+        $this->assertTrue($contracts->contains('id', 'no-limit-contract'));
+        $this->assertFalse($contracts->contains('id', 'high-min-contract'));
+
+        // With 15000 kWh consumption, both contracts should show
+        $component2 = Livewire::test('contracts-list')
+            ->set('consumption', 15000);
+
+        $contracts2 = $component2->viewData('contracts');
+        $this->assertCount(2, $contracts2);
+        $this->assertTrue($contracts2->contains('id', 'no-limit-contract'));
+        $this->assertTrue($contracts2->contains('id', 'high-min-contract'));
+    }
+
+    /**
+     * Test that contracts with max consumption below selected value are hidden.
+     */
+    public function test_contracts_filtered_by_max_consumption_limit(): void
+    {
+        // Create contract with no limits
+        ElectricityContract::create([
+            'id' => 'no-limit-contract',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'No Limit Contract',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'availability_is_national' => true,
+            'consumption_limitation_min_x_kwh_per_y' => null,
+            'consumption_limitation_max_x_kwh_per_y' => null,
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-no-limit',
+            'electricity_contract_id' => 'no-limit-contract',
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 5.0,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        // Create contract with max consumption of 8000 kWh
+        ElectricityContract::create([
+            'id' => 'low-max-contract',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Low Max Contract',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'availability_is_national' => true,
+            'consumption_limitation_min_x_kwh_per_y' => null,
+            'consumption_limitation_max_x_kwh_per_y' => 8000,
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-low-max',
+            'electricity_contract_id' => 'low-max-contract',
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 4.0,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        // With 10000 kWh consumption, only the no-limit contract should show
+        $component = Livewire::test('contracts-list')
+            ->set('consumption', 10000);
+
+        $contracts = $component->viewData('contracts');
+        $this->assertCount(1, $contracts);
+        $this->assertTrue($contracts->contains('id', 'no-limit-contract'));
+        $this->assertFalse($contracts->contains('id', 'low-max-contract'));
+
+        // With 5000 kWh consumption, both contracts should show
+        $component2 = Livewire::test('contracts-list')
+            ->set('consumption', 5000);
+
+        $contracts2 = $component2->viewData('contracts');
+        $this->assertCount(2, $contracts2);
+        $this->assertTrue($contracts2->contains('id', 'no-limit-contract'));
+        $this->assertTrue($contracts2->contains('id', 'low-max-contract'));
+    }
+
+    /**
+     * Test that contracts with both min and max limits filter correctly.
+     */
+    public function test_contracts_filtered_by_both_consumption_limits(): void
+    {
+        // Create contract with range 5000-15000 kWh
+        ElectricityContract::create([
+            'id' => 'range-contract',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Range Contract',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'availability_is_national' => true,
+            'consumption_limitation_min_x_kwh_per_y' => 5000,
+            'consumption_limitation_max_x_kwh_per_y' => 15000,
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-range',
+            'electricity_contract_id' => 'range-contract',
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 4.5,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        // With 2000 kWh (below min), contract should not show
+        $componentBelow = Livewire::test('contracts-list')
+            ->set('consumption', 2000);
+        $this->assertCount(0, $componentBelow->viewData('contracts'));
+
+        // With 10000 kWh (within range), contract should show
+        $componentWithin = Livewire::test('contracts-list')
+            ->set('consumption', 10000);
+        $contracts = $componentWithin->viewData('contracts');
+        $this->assertCount(1, $contracts);
+        $this->assertTrue($contracts->contains('id', 'range-contract'));
+
+        // With 20000 kWh (above max), contract should not show
+        $componentAbove = Livewire::test('contracts-list')
+            ->set('consumption', 20000);
+        $this->assertCount(0, $componentAbove->viewData('contracts'));
+    }
 }
