@@ -47,7 +47,11 @@
     "sauna-calculator": {
       "started_at": "2026-01-20T19:09:09.284920",
       "ended_at": null
+    },
+    "household-energy-tips": {
+      "started_at": "2026-01-20T19:19:21.806959",
+      "ended_at": null
     }
   },
-  "current": "sauna-calculator"
+  "current": "household-energy-tips"
 }
