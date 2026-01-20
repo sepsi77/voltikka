@@ -458,21 +458,25 @@ class SpotPrice extends Component
     }
 
     /**
-     * Calculate sauna heating cost comparison between cheapest and most expensive hours.
+     * Calculate sauna heating cost comparison for evening hours (17:00-22:00).
      *
      * Uses 8 kW as default sauna heater power for 1 hour of heating.
+     * Sauna is typically heated in the evening, so we constrain to 17:00-22:00.
      *
      * @param float $kw Sauna heater power in kW (default 8 kW)
      * @return array|null Sauna cost data or null if not enough data
      */
     public function calculateSaunaCost(float $kw = 8.0): ?array
     {
-        $cheapestHour = $this->getCheapestHour();
-        $mostExpensiveHour = $this->getMostExpensiveHour();
+        // Evening sauna hours: 17:00-22:00 (hours 17, 18, 19, 20, 21)
+        $cheapestResult = $this->findCheapestHoursInRange(17, 22, 1);
+        $mostExpensiveHour = $this->findMostExpensiveHourInRange(17, 22);
 
-        if ($cheapestHour === null || $mostExpensiveHour === null) {
+        if ($cheapestResult === null || $mostExpensiveHour === null) {
             return null;
         }
+
+        $cheapestHour = $cheapestResult['prices'][0];
 
         // Calculate cost for 1 hour of heating at given kW
         // Price is in c/kWh, so cost = price * kWh
@@ -490,7 +494,340 @@ class SpotPrice extends Component
             'cost_difference' => $costDifference,
             'cost_difference_euros' => $costDifference / 100,
             'kw' => $kw,
+            'time_window' => '17:00-22:00',
         ];
+    }
+
+    /**
+     * Calculate washing machine/laundry cost comparison.
+     *
+     * Constraints: reasonable hours 07:00-22:00 (due to noise), typical cycle 2 hours, power ~2 kW average.
+     *
+     * @param float $kw Average power consumption in kW (default 2 kW)
+     * @param int $duration Cycle duration in hours (default 2)
+     * @return array|null Laundry cost data or null if not enough data
+     */
+    public function calculateLaundryCost(float $kw = 2.0, int $duration = 2): ?array
+    {
+        // Daytime hours for noise consideration: 07:00-22:00 (hours 7-21)
+        $cheapestResult = $this->findCheapestHoursInRange(7, 22, $duration);
+
+        if ($cheapestResult === null) {
+            return null;
+        }
+
+        // Find most expensive consecutive hours in the same range for comparison
+        $mostExpensiveResult = $this->findMostExpensiveConsecutiveHoursInRange(7, 22, $duration);
+
+        // Calculate costs
+        $totalKwh = $kw * $duration;
+        $cheapestCost = $cheapestResult['average_price'] * $totalKwh;
+        $expensiveCost = $mostExpensiveResult ? $mostExpensiveResult['average_price'] * $totalKwh : null;
+        $costDifference = $expensiveCost !== null ? $expensiveCost - $cheapestCost : null;
+
+        return [
+            'start_hour' => $cheapestResult['start_hour'],
+            'end_hour' => ($cheapestResult['end_hour'] + 1) % 24,
+            'average_price' => $cheapestResult['average_price'],
+            'cheapest_cost' => $cheapestCost,
+            'expensive_cost' => $expensiveCost,
+            'cost_difference' => $costDifference,
+            'cost_difference_euros' => $costDifference !== null ? $costDifference / 100 : null,
+            'kw' => $kw,
+            'duration' => $duration,
+            'total_kwh' => $totalKwh,
+            'time_window' => '07:00-22:00',
+        ];
+    }
+
+    /**
+     * Calculate dishwasher cost comparison.
+     *
+     * Constraints: can delay start until next morning (18:00-08:00), typical cycle 2 hours, power ~1.5 kW average.
+     * Many dishwashers have a delay start feature, making overnight operation practical.
+     *
+     * @param float $kw Average power consumption in kW (default 1.5 kW)
+     * @param int $duration Cycle duration in hours (default 2)
+     * @return array|null Dishwasher cost data or null if not enough data
+     */
+    public function calculateDishwasherCost(float $kw = 1.5, int $duration = 2): ?array
+    {
+        // Evening to morning hours for delayed start: 18:00-08:00 (crosses midnight)
+        $cheapestResult = $this->findCheapestHoursInRange(18, 8, $duration);
+
+        if ($cheapestResult === null) {
+            return null;
+        }
+
+        // Find most expensive consecutive hours in the same range for comparison
+        $mostExpensiveResult = $this->findMostExpensiveConsecutiveHoursInRange(18, 8, $duration);
+
+        // Calculate costs
+        $totalKwh = $kw * $duration;
+        $cheapestCost = $cheapestResult['average_price'] * $totalKwh;
+        $expensiveCost = $mostExpensiveResult ? $mostExpensiveResult['average_price'] * $totalKwh : null;
+        $costDifference = $expensiveCost !== null ? $expensiveCost - $cheapestCost : null;
+
+        return [
+            'start_hour' => $cheapestResult['start_hour'],
+            'end_hour' => ($cheapestResult['end_hour'] + 1) % 24,
+            'average_price' => $cheapestResult['average_price'],
+            'cheapest_cost' => $cheapestCost,
+            'expensive_cost' => $expensiveCost,
+            'cost_difference' => $costDifference,
+            'cost_difference_euros' => $costDifference !== null ? $costDifference / 100 : null,
+            'kw' => $kw,
+            'duration' => $duration,
+            'total_kwh' => $totalKwh,
+            'time_window' => '18:00-08:00',
+        ];
+    }
+
+    /**
+     * Calculate water heater boost cost comparison.
+     *
+     * Constraints: can run anytime (no noise concerns), typical boost 1-2 hours, power ~2.5 kW.
+     * Good for homes with timer-controlled water heaters that can schedule heating.
+     *
+     * @param float $kw Average power consumption in kW (default 2.5 kW)
+     * @param int $duration Boost duration in hours (default 1)
+     * @return array|null Water heater cost data or null if not enough data
+     */
+    public function calculateWaterHeaterCost(float $kw = 2.5, int $duration = 1): ?array
+    {
+        // Water heater can run anytime (0-24), find absolute cheapest hour(s)
+        $cheapestResult = $this->findCheapestHoursInRange(0, 24, $duration);
+
+        if ($cheapestResult === null) {
+            return null;
+        }
+
+        // Find most expensive hours for comparison (full day)
+        $mostExpensiveResult = $this->findMostExpensiveConsecutiveHoursInRange(0, 24, $duration);
+
+        // Calculate costs
+        $totalKwh = $kw * $duration;
+        $cheapestCost = $cheapestResult['average_price'] * $totalKwh;
+        $expensiveCost = $mostExpensiveResult ? $mostExpensiveResult['average_price'] * $totalKwh : null;
+        $costDifference = $expensiveCost !== null ? $expensiveCost - $cheapestCost : null;
+
+        return [
+            'start_hour' => $cheapestResult['start_hour'],
+            'end_hour' => ($cheapestResult['end_hour'] + 1) % 24,
+            'average_price' => $cheapestResult['average_price'],
+            'cheapest_cost' => $cheapestCost,
+            'expensive_cost' => $expensiveCost,
+            'cost_difference' => $costDifference,
+            'cost_difference_euros' => $costDifference !== null ? $costDifference / 100 : null,
+            'kw' => $kw,
+            'duration' => $duration,
+            'total_kwh' => $totalKwh,
+            'time_window' => 'Koko päivä',
+        ];
+    }
+
+    /**
+     * Find the most expensive consecutive hours within a specified time range.
+     *
+     * @param int $startHour Start of the time window (0-23)
+     * @param int $endHour End of the time window (0-23)
+     * @param int $duration Number of consecutive hours needed
+     * @return array|null Returns array with start_hour, average_price, or null if not enough data
+     */
+    private function findMostExpensiveConsecutiveHoursInRange(int $startHour, int $endHour, int $duration): ?array
+    {
+        $pricesInRange = $this->getPricesInTimeRange($startHour, $endHour);
+
+        if (count($pricesInRange) < $duration) {
+            return null;
+        }
+
+        // Sort by hour to ensure consecutive check works correctly
+        usort($pricesInRange, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
+
+        $worstWindow = null;
+        $worstAverage = PHP_FLOAT_MIN;
+
+        for ($i = 0; $i <= count($pricesInRange) - $duration; $i++) {
+            $window = array_slice($pricesInRange, $i, $duration);
+
+            // Check if hours are consecutive
+            $isConsecutive = true;
+            for ($j = 1; $j < count($window); $j++) {
+                $prevHour = $window[$j - 1]['helsinki_hour'];
+                $currHour = $window[$j]['helsinki_hour'];
+
+                if ($currHour !== ($prevHour + 1) % 24 && $currHour !== $prevHour + 1) {
+                    $isConsecutive = false;
+                    break;
+                }
+            }
+
+            if (!$isConsecutive) {
+                continue;
+            }
+
+            $sum = array_sum(array_column($window, 'price_without_tax'));
+            $average = $sum / $duration;
+
+            if ($average > $worstAverage) {
+                $worstAverage = $average;
+                $worstWindow = $window;
+            }
+        }
+
+        if ($worstWindow === null) {
+            return null;
+        }
+
+        return [
+            'start_hour' => $worstWindow[0]['helsinki_hour'],
+            'end_hour' => $worstWindow[count($worstWindow) - 1]['helsinki_hour'],
+            'average_price' => $worstAverage,
+            'prices' => $worstWindow,
+        ];
+    }
+
+    /**
+     * Find the cheapest consecutive hours within a specified time range.
+     *
+     * This method handles time ranges that cross midnight (e.g., 22:00-06:00).
+     *
+     * @param int $startHour Start of the time window (0-23)
+     * @param int $endHour End of the time window (0-23)
+     * @param int $duration Number of consecutive hours needed (default 1)
+     * @return array|null Returns array with start_hour, average_price, prices, or null if not enough data
+     */
+    public function findCheapestHoursInRange(int $startHour, int $endHour, int $duration = 1): ?array
+    {
+        $pricesInRange = $this->getPricesInTimeRange($startHour, $endHour);
+
+        if (count($pricesInRange) < $duration) {
+            return null;
+        }
+
+        // Sort by hour to ensure consecutive check works correctly
+        usort($pricesInRange, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
+
+        if ($duration === 1) {
+            // Simple case: find single cheapest hour
+            $cheapest = null;
+            foreach ($pricesInRange as $price) {
+                if ($cheapest === null || $price['price_without_tax'] < $cheapest['price_without_tax']) {
+                    $cheapest = $price;
+                }
+            }
+            return $cheapest ? [
+                'start_hour' => $cheapest['helsinki_hour'],
+                'end_hour' => $cheapest['helsinki_hour'],
+                'average_price' => $cheapest['price_without_tax'],
+                'prices' => [$cheapest],
+            ] : null;
+        }
+
+        // Find best consecutive hours within the range
+        $bestWindow = null;
+        $bestAverage = PHP_FLOAT_MAX;
+
+        // For ranges that cross midnight, we need to handle wrap-around
+        $crossesMidnight = $startHour > $endHour;
+
+        for ($i = 0; $i <= count($pricesInRange) - $duration; $i++) {
+            $window = array_slice($pricesInRange, $i, $duration);
+
+            // Check if hours are consecutive (considering midnight wrap)
+            $isConsecutive = true;
+            for ($j = 1; $j < count($window); $j++) {
+                $prevHour = $window[$j - 1]['helsinki_hour'];
+                $currHour = $window[$j]['helsinki_hour'];
+
+                // Allow wrap-around from 23 to 0
+                if ($currHour !== ($prevHour + 1) % 24 && $currHour !== $prevHour + 1) {
+                    $isConsecutive = false;
+                    break;
+                }
+            }
+
+            if (!$isConsecutive) {
+                continue;
+            }
+
+            $sum = array_sum(array_column($window, 'price_without_tax'));
+            $average = $sum / $duration;
+
+            if ($average < $bestAverage) {
+                $bestAverage = $average;
+                $bestWindow = $window;
+            }
+        }
+
+        if ($bestWindow === null) {
+            return null;
+        }
+
+        return [
+            'start_hour' => $bestWindow[0]['helsinki_hour'],
+            'end_hour' => $bestWindow[count($bestWindow) - 1]['helsinki_hour'],
+            'average_price' => $bestAverage,
+            'prices' => $bestWindow,
+        ];
+    }
+
+    /**
+     * Find the most expensive hour within a specified time range.
+     *
+     * @param int $startHour Start of the time window (0-23)
+     * @param int $endHour End of the time window (0-23)
+     * @return array|null Returns the price array for the most expensive hour, or null if no data
+     */
+    public function findMostExpensiveHourInRange(int $startHour, int $endHour): ?array
+    {
+        $pricesInRange = $this->getPricesInTimeRange($startHour, $endHour);
+
+        if (empty($pricesInRange)) {
+            return null;
+        }
+
+        $mostExpensive = null;
+        foreach ($pricesInRange as $price) {
+            if ($mostExpensive === null || $price['price_without_tax'] > $mostExpensive['price_without_tax']) {
+                $mostExpensive = $price;
+            }
+        }
+
+        return $mostExpensive;
+    }
+
+    /**
+     * Get today's prices filtered to a specific time range.
+     *
+     * Handles time ranges that cross midnight (e.g., 22:00-06:00 includes hours 22, 23, 0, 1, 2, 3, 4, 5).
+     *
+     * @param int $startHour Start of the time window (0-23)
+     * @param int $endHour End of the time window (0-23)
+     * @return array Array of price data within the specified time range
+     */
+    private function getPricesInTimeRange(int $startHour, int $endHour): array
+    {
+        $todayPrices = $this->getTodayPrices();
+
+        if (empty($todayPrices)) {
+            return [];
+        }
+
+        $crossesMidnight = $startHour > $endHour;
+
+        return array_filter($todayPrices, function ($price) use ($startHour, $endHour, $crossesMidnight) {
+            $hour = $price['helsinki_hour'];
+
+            if ($crossesMidnight) {
+                // Range like 22:00-06:00 means hours 22, 23, 0, 1, 2, 3, 4, 5
+                return $hour >= $startHour || $hour <= $endHour;
+            } else {
+                // Range like 07:00-22:00 means hours 7, 8, ..., 21
+                return $hour >= $startHour && $hour < $endHour;
+            }
+        });
     }
 
     /**
@@ -900,7 +1237,11 @@ class SpotPrice extends Component
             'cheapestRemainingHours' => $this->getCheapestRemainingHours(5),
             'bestConsecutiveHours' => $this->getBestConsecutiveHours(3),
             'potentialSavings' => $this->calculatePotentialSavings(3, 3.7), // 3 hours at 3.7 kW (typical EV charging)
-            'saunaCost' => $this->calculateSaunaCost(), // 1 hour at 8 kW (typical sauna heater)
+            // Household energy tips
+            'saunaCost' => $this->calculateSaunaCost(),           // 1 hour at 8 kW (evening 17-22)
+            'laundryCost' => $this->calculateLaundryCost(),       // 2 hours at 2 kW (daytime 07-22)
+            'dishwasherCost' => $this->calculateDishwasherCost(), // 2 hours at 1.5 kW (evening/night 18-08)
+            'waterHeaterCost' => $this->calculateWaterHeaterCost(), // 1 hour at 2.5 kW (anytime)
             // Chart data
             'chartData' => $this->getChartData(),
         ];

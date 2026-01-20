@@ -231,135 +231,204 @@
             </div>
         </div>
 
-        <!-- Cheapest Remaining Hours, EV Charging & Sauna Section -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <!-- Cheapest Remaining Hours -->
-            @if (!empty($cheapestRemainingHours))
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-                    <h3 class="text-lg font-semibold text-slate-900 mb-4">Edullisimmat tunnit</h3>
-                    <p class="text-sm text-slate-500 mb-4">Tulevat edullisimmat tunnit (sis. huomisen)</p>
-                    <div class="space-y-2">
-                        @foreach ($cheapestRemainingHours as $index => $hour)
-                            @php
-                                $hourNum = $hour['helsinki_hour'];
-                                $nextHourNum = ($hourNum + 1) % 24;
-                                $isTomorrow = $hour['helsinki_date'] !== now('Europe/Helsinki')->format('Y-m-d');
-                            @endphp
-                            <div class="flex items-center justify-between py-2 {{ $index === 0 ? 'bg-green-50 -mx-2 px-2 rounded' : '' }}">
-                                <span class="font-medium text-slate-900">
-                                    {{ str_pad($hourNum, 2, '0', STR_PAD_LEFT) }}:00 - {{ str_pad($nextHourNum, 2, '0', STR_PAD_LEFT) }}:00
-                                    @if ($isTomorrow)
-                                        <span class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Huomenna</span>
-                                    @endif
-                                </span>
-                                <span class="text-green-700 font-semibold">
-                                    {{ number_format($hour['price_without_tax'], 2, ',', ' ') }} c/kWh
-                                </span>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
-
-            <!-- EV Charging Section -->
-            @if ($bestConsecutiveHours)
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-                    <div class="flex items-center mb-4">
-                        <span class="bg-coral-100 p-2 rounded-lg">
-                            <svg class="w-6 h-6 text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                            </svg>
-                        </span>
-                        <h3 class="ml-3 text-lg font-semibold text-slate-900">Sähköauton lataus</h3>
-                    </div>
-                    <p class="text-sm text-slate-500 mb-4">Parhaat 3 peräkkäistä tuntia lataukseen</p>
-
-                    @php
-                        $startHour = $bestConsecutiveHours['start_hour'];
-                        $endHour = ($bestConsecutiveHours['end_hour'] + 1) % 24;
-                    @endphp
-
-                    <div class="bg-coral-50 rounded-lg p-4 mb-4">
-                        <p class="text-sm text-coral-600 mb-1">Suositeltu latausaika</p>
-                        <p class="text-2xl font-bold text-coral-700">
-                            {{ str_pad($startHour, 2, '0', STR_PAD_LEFT) }}:00 - {{ str_pad($endHour, 2, '0', STR_PAD_LEFT) }}:00
-                        </p>
-                        <p class="text-sm text-slate-600 mt-1">
-                            Keskihinta: {{ number_format($bestConsecutiveHours['average_price'], 2, ',', ' ') }} c/kWh
-                        </p>
-                    </div>
-
-                    @if ($potentialSavings)
-                        <div class="border-t border-slate-200 pt-4">
-                            <p class="text-sm font-medium text-slate-700 mb-2">Mahdollinen säästö</p>
-                            <p class="text-lg font-bold text-green-600">
-                                {{ number_format($potentialSavings['savings_euros'], 2, ',', ' ') }} EUR
+        <!-- Cheapest Remaining Hours -->
+        @if (!empty($cheapestRemainingHours))
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-8">
+                <h3 class="text-lg font-semibold text-slate-900 mb-4">Edullisimmat tunnit</h3>
+                <p class="text-sm text-slate-500 mb-4">Tulevat edullisimmat tunnit (sis. huomisen)</p>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    @foreach ($cheapestRemainingHours as $index => $hour)
+                        @php
+                            $hourNum = $hour['helsinki_hour'];
+                            $nextHourNum = ($hourNum + 1) % 24;
+                            $isTomorrow = $hour['helsinki_date'] !== now('Europe/Helsinki')->format('Y-m-d');
+                        @endphp
+                        <div class="p-3 rounded-lg {{ $index === 0 ? 'bg-green-100 border-2 border-green-300' : 'bg-slate-50' }}">
+                            <p class="font-semibold text-slate-900">
+                                {{ str_pad($hourNum, 2, '0', STR_PAD_LEFT) }}:00-{{ str_pad($nextHourNum, 2, '0', STR_PAD_LEFT) }}:00
                             </p>
-                            <p class="text-xs text-slate-500">
-                                Verrattuna päivän keskihintaan ({{ number_format($potentialSavings['total_kwh'], 1, ',', ' ') }} kWh @ 3,7 kW)
+                            <p class="{{ $index === 0 ? 'text-green-700' : 'text-slate-600' }} font-medium">
+                                {{ number_format($hour['price_without_tax'], 2, ',', ' ') }} c/kWh
                             </p>
+                            @if ($isTomorrow)
+                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Huomenna</span>
+                            @endif
                         </div>
-                    @endif
+                    @endforeach
                 </div>
-            @endif
+            </div>
+        @endif
 
-            <!-- Sauna Heating Section -->
-            @if ($saunaCost)
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-                    <div class="flex items-center mb-4">
-                        <span class="bg-coral-100 p-2 rounded-lg">
-                            <svg class="w-6 h-6 text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"></path>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"></path>
-                            </svg>
-                        </span>
-                        <h3 class="ml-3 text-lg font-semibold text-slate-900">Saunan lämmitys</h3>
+        <!-- Kodin energiavinkit - Home Energy Tips Section -->
+        <section class="mb-8">
+            <div class="flex items-center mb-6">
+                <span class="bg-coral-100 p-2 rounded-lg mr-3">
+                    <svg class="w-6 h-6 text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                    </svg>
+                </span>
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">Kodin energiavinkit</h2>
+                    <p class="text-sm text-slate-500">Paras aika kodin sähkölaitteille tänään</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- EV Charging Card -->
+                @if ($bestConsecutiveHours)
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:border-coral-300 transition-colors">
+                        <div class="flex items-center mb-3">
+                            <span class="bg-coral-100 p-2 rounded-lg">
+                                <svg class="w-5 h-5 text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                            </span>
+                            <div class="ml-3">
+                                <h4 class="font-semibold text-slate-900">Sähköauton lataus</h4>
+                                <p class="text-xs text-slate-500">3h @ 3,7 kW</p>
+                            </div>
+                        </div>
+                        @php
+                            $evStartHour = $bestConsecutiveHours['start_hour'];
+                            $evEndHour = ($bestConsecutiveHours['end_hour'] + 1) % 24;
+                        @endphp
+                        <div class="bg-coral-50 rounded-lg p-3 mb-3">
+                            <p class="text-xs text-coral-600 mb-1">Suositeltu aika</p>
+                            <p class="text-xl font-bold text-coral-700">
+                                {{ str_pad($evStartHour, 2, '0', STR_PAD_LEFT) }}:00-{{ str_pad($evEndHour, 2, '0', STR_PAD_LEFT) }}:00
+                            </p>
+                            <p class="text-sm text-slate-600">{{ number_format($bestConsecutiveHours['average_price'], 2, ',', ' ') }} c/kWh</p>
+                        </div>
+                        @if ($potentialSavings && $potentialSavings['savings_euros'] > 0)
+                            <p class="text-sm text-green-600 font-medium">
+                                Säästö: {{ number_format($potentialSavings['savings_euros'], 2, ',', ' ') }} €
+                            </p>
+                        @endif
                     </div>
-                    <p class="text-sm text-slate-500 mb-4">8 kW kiuas, 1 tunti</p>
+                @endif
 
-                    <!-- Cheapest hour -->
-                    <div class="bg-green-50 rounded-lg p-3 mb-3">
+                <!-- Sauna Card -->
+                @if ($saunaCost)
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:border-coral-300 transition-colors">
+                        <div class="flex items-center mb-3">
+                            <span class="bg-coral-100 p-2 rounded-lg">
+                                <svg class="w-5 h-5 text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"></path>
+                                </svg>
+                            </span>
+                            <div class="ml-3">
+                                <h4 class="font-semibold text-slate-900">Saunan lämmitys</h4>
+                                <p class="text-xs text-slate-500">Illalla 17-22, 8 kW kiuas</p>
+                            </div>
+                        </div>
                         @php
                             $saunaCheapHour = $saunaCost['cheapest_hour'];
                             $saunaNextCheapHour = ($saunaCheapHour + 1) % 24;
                         @endphp
-                        <p class="text-sm text-green-600 mb-1">Edullisin tunti</p>
-                        <p class="text-xl font-bold text-green-700">
-                            {{ str_pad($saunaCheapHour, 2, '0', STR_PAD_LEFT) }}:00 - {{ str_pad($saunaNextCheapHour, 2, '0', STR_PAD_LEFT) }}:00
-                        </p>
-                        <p class="text-sm text-slate-600">
-                            {{ number_format($saunaCost['cheapest_cost'], 0, ',', ' ') }} senttiä
-                        </p>
+                        <div class="bg-green-50 rounded-lg p-3 mb-3">
+                            <p class="text-xs text-green-600 mb-1">Edullisin aika</p>
+                            <p class="text-xl font-bold text-green-700">
+                                {{ str_pad($saunaCheapHour, 2, '0', STR_PAD_LEFT) }}:00-{{ str_pad($saunaNextCheapHour, 2, '0', STR_PAD_LEFT) }}:00
+                            </p>
+                            <p class="text-sm text-slate-600">{{ number_format($saunaCost['cheapest_cost'], 0, ',', ' ') }} senttiä</p>
+                        </div>
+                        @if ($saunaCost['cost_difference_euros'] > 0)
+                            <p class="text-sm text-green-600 font-medium">
+                                Säästö: {{ number_format($saunaCost['cost_difference_euros'], 2, ',', ' ') }} €
+                            </p>
+                        @endif
                     </div>
+                @endif
 
-                    <!-- Most expensive hour -->
-                    <div class="bg-red-50 rounded-lg p-3 mb-4">
-                        @php
-                            $saunaExpHour = $saunaCost['expensive_hour'];
-                            $saunaNextExpHour = ($saunaExpHour + 1) % 24;
-                        @endphp
-                        <p class="text-sm text-red-600 mb-1">Kallein tunti</p>
-                        <p class="text-xl font-bold text-red-700">
-                            {{ str_pad($saunaExpHour, 2, '0', STR_PAD_LEFT) }}:00 - {{ str_pad($saunaNextExpHour, 2, '0', STR_PAD_LEFT) }}:00
-                        </p>
-                        <p class="text-sm text-slate-600">
-                            {{ number_format($saunaCost['expensive_cost'], 0, ',', ' ') }} senttiä
-                        </p>
+                <!-- Laundry Card -->
+                @if (isset($laundryCost) && $laundryCost)
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:border-coral-300 transition-colors">
+                        <div class="flex items-center mb-3">
+                            <span class="bg-coral-100 p-2 rounded-lg">
+                                <svg class="w-5 h-5 text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
+                            </span>
+                            <div class="ml-3">
+                                <h4 class="font-semibold text-slate-900">Pyykinpesu</h4>
+                                <p class="text-xs text-slate-500">07-22, 2h @ 2 kW</p>
+                            </div>
+                        </div>
+                        <div class="bg-green-50 rounded-lg p-3 mb-3">
+                            <p class="text-xs text-green-600 mb-1">Edullisin aika</p>
+                            <p class="text-xl font-bold text-green-700">
+                                {{ str_pad($laundryCost['start_hour'], 2, '0', STR_PAD_LEFT) }}:00-{{ str_pad($laundryCost['end_hour'], 2, '0', STR_PAD_LEFT) }}:00
+                            </p>
+                            <p class="text-sm text-slate-600">{{ number_format($laundryCost['cheapest_cost'], 0, ',', ' ') }} senttiä</p>
+                        </div>
+                        @if ($laundryCost['cost_difference_euros'] && $laundryCost['cost_difference_euros'] > 0)
+                            <p class="text-sm text-green-600 font-medium">
+                                Säästö: {{ number_format($laundryCost['cost_difference_euros'], 2, ',', ' ') }} €
+                            </p>
+                        @endif
                     </div>
+                @endif
 
-                    <!-- Cost difference -->
-                    <div class="border-t border-slate-200 pt-4">
-                        <p class="text-sm font-medium text-slate-700 mb-2">Säästö edullisimmalla tunnilla</p>
-                        <p class="text-lg font-bold text-green-600">
-                            {{ number_format($saunaCost['cost_difference_euros'], 2, ',', ' ') }} EUR
-                        </p>
-                        <p class="text-xs text-slate-500">
-                            verrattuna kalleimpaan tuntiin
-                        </p>
+                <!-- Dishwasher Card -->
+                @if (isset($dishwasherCost) && $dishwasherCost)
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:border-coral-300 transition-colors">
+                        <div class="flex items-center mb-3">
+                            <span class="bg-coral-100 p-2 rounded-lg">
+                                <svg class="w-5 h-5 text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                                </svg>
+                            </span>
+                            <div class="ml-3">
+                                <h4 class="font-semibold text-slate-900">Astianpesukone</h4>
+                                <p class="text-xs text-slate-500">18-08, 2h @ 1,5 kW</p>
+                            </div>
+                        </div>
+                        <div class="bg-green-50 rounded-lg p-3 mb-3">
+                            <p class="text-xs text-green-600 mb-1">Edullisin aika</p>
+                            <p class="text-xl font-bold text-green-700">
+                                {{ str_pad($dishwasherCost['start_hour'], 2, '0', STR_PAD_LEFT) }}:00-{{ str_pad($dishwasherCost['end_hour'], 2, '0', STR_PAD_LEFT) }}:00
+                            </p>
+                            <p class="text-sm text-slate-600">{{ number_format($dishwasherCost['cheapest_cost'], 0, ',', ' ') }} senttiä</p>
+                        </div>
+                        @if ($dishwasherCost['cost_difference_euros'] && $dishwasherCost['cost_difference_euros'] > 0)
+                            <p class="text-sm text-green-600 font-medium">
+                                Säästö: {{ number_format($dishwasherCost['cost_difference_euros'], 2, ',', ' ') }} €
+                            </p>
+                        @endif
                     </div>
-                </div>
-            @endif
-        </div>
+                @endif
+
+                <!-- Water Heater Card -->
+                @if (isset($waterHeaterCost) && $waterHeaterCost)
+                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 hover:border-coral-300 transition-colors">
+                        <div class="flex items-center mb-3">
+                            <span class="bg-coral-100 p-2 rounded-lg">
+                                <svg class="w-5 h-5 text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                                </svg>
+                            </span>
+                            <div class="ml-3">
+                                <h4 class="font-semibold text-slate-900">Lämminvesivaraaja</h4>
+                                <p class="text-xs text-slate-500">Koko päivä, 1h @ 2,5 kW</p>
+                            </div>
+                        </div>
+                        <div class="bg-green-50 rounded-lg p-3 mb-3">
+                            <p class="text-xs text-green-600 mb-1">Edullisin aika</p>
+                            <p class="text-xl font-bold text-green-700">
+                                {{ str_pad($waterHeaterCost['start_hour'], 2, '0', STR_PAD_LEFT) }}:00-{{ str_pad($waterHeaterCost['end_hour'], 2, '0', STR_PAD_LEFT) }}:00
+                            </p>
+                            <p class="text-sm text-slate-600">{{ number_format($waterHeaterCost['cheapest_cost'], 0, ',', ' ') }} senttiä</p>
+                        </div>
+                        @if ($waterHeaterCost['cost_difference_euros'] && $waterHeaterCost['cost_difference_euros'] > 0)
+                            <p class="text-sm text-green-600 font-medium">
+                                Säästö: {{ number_format($waterHeaterCost['cost_difference_euros'], 2, ',', ' ') }} €
+                            </p>
+                        @endif
+                    </div>
+                @endif
+            </div>
+        </section>
 
         <!-- Hourly Prices Table -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-8">
