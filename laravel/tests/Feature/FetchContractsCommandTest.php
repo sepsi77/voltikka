@@ -12,6 +12,7 @@ use App\Models\SpotFutures;
 use App\Services\AzureConsumerApiClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class FetchContractsCommandTest extends TestCase
@@ -1149,5 +1150,121 @@ class FetchContractsCommandTest extends TestCase
                 ],
             ],
         ];
+    }
+
+    /**
+     * Test command downloads company logos by default.
+     */
+    public function test_command_downloads_company_logos(): void
+    {
+        Storage::fake('public');
+
+        $pngContent = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==');
+
+        Http::fake([
+            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response(
+                $this->getSampleApiResponse(),
+                200
+            ),
+            'storage.example.com/logos/energia.png' => Http::response($pngContent, 200, [
+                'Content-Type' => 'image/png',
+            ]),
+        ]);
+
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100'])
+            ->assertExitCode(0);
+
+        // Verify company has local_logo_path set
+        $company = Company::where('name', 'Energia Oy')->first();
+        $this->assertNotNull($company->local_logo_path);
+        $this->assertEquals('logos/energia-oy.png', $company->local_logo_path);
+
+        // Verify logo file was stored
+        Storage::disk('public')->assertExists('logos/energia-oy.png');
+    }
+
+    /**
+     * Test command skips logo download with --skip-logos flag.
+     */
+    public function test_command_skips_logo_download_with_flag(): void
+    {
+        Storage::fake('public');
+
+        Http::fake([
+            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response(
+                $this->getSampleApiResponse(),
+                200
+            ),
+        ]);
+
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+
+        // Verify company was created but without local_logo_path
+        $company = Company::where('name', 'Energia Oy')->first();
+        $this->assertNotNull($company);
+        $this->assertNull($company->local_logo_path);
+
+        // Logo URL should not have been fetched
+        Http::assertNotSent(function ($request) {
+            return str_contains($request->url(), 'storage.example.com');
+        });
+    }
+
+    /**
+     * Test command skips logo download if company already has local logo.
+     */
+    public function test_command_skips_logo_download_if_local_exists(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('logos/energia-oy.png', 'existing logo');
+
+        // Create existing company with local logo
+        Company::create([
+            'name' => 'Energia Oy',
+            'name_slug' => 'energia-oy',
+            'logo_url' => 'https://storage.example.com/logos/energia.png',
+            'local_logo_path' => 'logos/energia-oy.png',
+        ]);
+
+        Http::fake([
+            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response(
+                $this->getSampleApiResponse(),
+                200
+            ),
+        ]);
+
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100'])
+            ->assertExitCode(0);
+
+        // Logo URL should not have been fetched
+        Http::assertNotSent(function ($request) {
+            return str_contains($request->url(), 'storage.example.com');
+        });
+    }
+
+    /**
+     * Test command continues if logo download fails.
+     */
+    public function test_command_continues_if_logo_download_fails(): void
+    {
+        Storage::fake('public');
+
+        Http::fake([
+            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response(
+                $this->getSampleApiResponse(),
+                200
+            ),
+            'storage.example.com/logos/energia.png' => Http::response('Not Found', 404),
+        ]);
+
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100'])
+            ->assertExitCode(0);
+
+        // Company should still be created
+        $company = Company::where('name', 'Energia Oy')->first();
+        $this->assertNotNull($company);
+        // local_logo_path should be null since download failed
+        $this->assertNull($company->local_logo_path);
     }
 }

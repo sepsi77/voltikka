@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class Company extends Model
@@ -47,6 +49,7 @@ class Company extends Model
         'postal_code',
         'postal_name',
         'logo_url',
+        'local_logo_path',
     ];
 
     /**
@@ -85,5 +88,33 @@ class Company extends Model
     public function electricityContracts(): HasMany
     {
         return $this->hasMany(ElectricityContract::class, 'company_name', 'name');
+    }
+
+    /**
+     * Get the logo URL, preferring local storage over external URL.
+     */
+    protected function logoUrlResolved(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                if ($this->local_logo_path) {
+                    return Storage::disk('public')->url($this->local_logo_path);
+                }
+
+                return $this->logo_url;
+            },
+        );
+    }
+
+    /**
+     * Get the logo URL for display (method style for easier use in views).
+     */
+    public function getLogoUrl(): ?string
+    {
+        if ($this->local_logo_path) {
+            return Storage::disk('public')->url($this->local_logo_path);
+        }
+
+        return $this->logo_url;
     }
 }

@@ -261,9 +261,9 @@
                 <div class="flex flex-col lg:flex-row items-center">
                     {{-- Company Logo and Contract Name --}}
                     <div class="flex flex-col lg:flex-row items-center">
-                        @if ($contract->company?->logo_url)
+                        @if ($contract->company?->getLogoUrl())
                             <img
-                                src="{{ $contract->company->logo_url }}"
+                                src="{{ $contract->company->getLogoUrl() }}"
                                 alt="{{ $contract->company->name }}"
                                 class="w-24 h-auto object-contain"
                                 onerror="this.onerror=null; this.src='https://placehold.co/96x32?text=logo'"

@@ -165,15 +165,18 @@
                 $generalPrice = $prices['General']['price'] ?? null;
                 $monthlyFee = $prices['Monthly']['price'] ?? 0;
                 $totalCost = $contract->calculated_cost['total_cost'] ?? 0;
+                $isSpotContract = $contract->calculated_cost['is_spot_contract'] ?? false;
+                $spotMargin = $contract->calculated_cost['spot_price_margin'] ?? null;
+                $spotDayAvg = $contract->calculated_cost['spot_price_day_avg'] ?? null;
                 $source = $contract->electricitySource;
             @endphp
             <div class="w-full p-4 bg-white border border-gray-200 rounded-lg shadow sm:p-8">
                 <div class="flex flex-col lg:flex-row items-center">
                     <!-- Company Logo and Contract Name -->
                     <div class="flex flex-col lg:flex-row items-center">
-                        @if ($contract->company?->logo_url)
+                        @if ($contract->company?->getLogoUrl())
                             <img
-                                src="{{ $contract->company->logo_url }}"
+                                src="{{ $contract->company->getLogoUrl() }}"
                                 alt="{{ $contract->company->name }}"
                                 class="w-24 h-auto object-contain"
                                 onerror="this.onerror=null; this.src='https://placehold.co/96x32?text=logo'"
@@ -195,7 +198,28 @@
 
                     <!-- Pricing Grid -->
                     <div class="flex flex-col w-full lg:flex-row items-start lg:items-center lg:ml-auto justify-end gap-4">
-                        @if ($generalPrice !== null)
+                        @if ($isSpotContract && $spotMargin !== null)
+                            {{-- Spot contract: show margin and average spot price --}}
+                            <div class="text-start px-2">
+                                <h5 class="mb-2 text-xl font-bold text-gray-900">
+                                    {{ number_format($spotMargin, 2, ',', ' ') }} c/kWh
+                                </h5>
+                                <p class="text-base text-gray-500">
+                                    Marginaali
+                                </p>
+                            </div>
+                            @if ($spotDayAvg !== null)
+                                <div class="text-start px-2">
+                                    <h5 class="mb-2 text-xl font-bold text-gray-500">
+                                        + {{ number_format($spotDayAvg, 2, ',', ' ') }} c/kWh
+                                    </h5>
+                                    <p class="text-base text-gray-400 text-sm">
+                                        Pörssisähkö (ka.)
+                                    </p>
+                                </div>
+                            @endif
+                        @elseif ($generalPrice !== null)
+                            {{-- Fixed price contract --}}
                             <div class="text-start px-2">
                                 <h5 class="mb-2 text-xl font-bold text-gray-900">
                                     {{ number_format($generalPrice, 2, ',', ' ') }} c/kWh
@@ -223,6 +247,9 @@
                             </h5>
                             <p class="text-base text-gray-500">
                                 Vuosikustannus
+                                @if ($isSpotContract)
+                                    <span class="text-xs text-gray-400">(arvio)</span>
+                                @endif
                             </p>
                         </div>
                     </div>

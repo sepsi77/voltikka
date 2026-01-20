@@ -3,7 +3,8 @@
 namespace Tests\Unit;
 
 use App\Models\Company;
-use PHPUnit\Framework\TestCase;
+use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
 
 class CompanyTest extends TestCase
 {
@@ -82,5 +83,73 @@ class CompanyTest extends TestCase
     {
         $company = new Company();
         $this->assertFalse($company->usesTimestamps());
+    }
+
+    /**
+     * Test getLogoUrl returns local logo path when available.
+     */
+    public function test_get_logo_url_returns_local_path_when_available(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('logos/test-company.png', 'fake content');
+
+        $company = new Company([
+            'name' => 'Test Company',
+            'name_slug' => 'test-company',
+            'logo_url' => 'https://example.com/logo.png',
+            'local_logo_path' => 'logos/test-company.png',
+        ]);
+
+        $url = $company->getLogoUrl();
+
+        $this->assertStringContainsString('logos/test-company.png', $url);
+        $this->assertStringNotContainsString('example.com', $url);
+    }
+
+    /**
+     * Test getLogoUrl falls back to external URL when no local logo.
+     */
+    public function test_get_logo_url_falls_back_to_external_url(): void
+    {
+        $company = new Company([
+            'name' => 'Test Company',
+            'name_slug' => 'test-company',
+            'logo_url' => 'https://example.com/logo.png',
+            'local_logo_path' => null,
+        ]);
+
+        $url = $company->getLogoUrl();
+
+        $this->assertEquals('https://example.com/logo.png', $url);
+    }
+
+    /**
+     * Test getLogoUrl returns null when no logos available.
+     */
+    public function test_get_logo_url_returns_null_when_no_logos(): void
+    {
+        $company = new Company([
+            'name' => 'Test Company',
+            'name_slug' => 'test-company',
+            'logo_url' => null,
+            'local_logo_path' => null,
+        ]);
+
+        $url = $company->getLogoUrl();
+
+        $this->assertNull($url);
+    }
+
+    /**
+     * Test local_logo_path is in fillable array.
+     */
+    public function test_local_logo_path_is_fillable(): void
+    {
+        $company = new Company([
+            'name' => 'Test Company',
+            'local_logo_path' => 'logos/test.png',
+        ]);
+
+        $this->assertEquals('logos/test.png', $company->local_logo_path);
     }
 }

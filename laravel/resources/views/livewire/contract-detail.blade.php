@@ -14,9 +14,9 @@
         <div class="flex flex-col md:flex-row md:items-start gap-6">
             <!-- Company Logo & Info -->
             <div class="flex items-center gap-4">
-                @if ($contract->company?->logo_url)
+                @if ($contract->company?->getLogoUrl())
                     <img
-                        src="{{ $contract->company->logo_url }}"
+                        src="{{ $contract->company->getLogoUrl() }}"
                         alt="{{ $contract->company->name }}"
                         class="h-16 w-auto object-contain"
                     >

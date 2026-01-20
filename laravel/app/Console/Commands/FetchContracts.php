@@ -10,6 +10,7 @@ use App\Models\Postcode;
 use App\Models\PriceComponent;
 use App\Models\SpotFutures;
 use App\Services\AzureConsumerApiClient;
+use App\Services\CompanyLogoService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\RequestException;
@@ -25,7 +26,8 @@ class FetchContracts extends Command
      * @var string
      */
     protected $signature = 'contracts:fetch
-                            {--postcodes= : Comma-separated list of postcodes to fetch contracts for}';
+                            {--postcodes= : Comma-separated list of postcodes to fetch contracts for}
+                            {--skip-logos : Skip downloading company logos}';
 
     /**
      * The console command description.
@@ -45,10 +47,13 @@ class FetchContracts extends Command
 
     private AzureConsumerApiClient $apiClient;
 
-    public function __construct(AzureConsumerApiClient $apiClient)
+    private CompanyLogoService $logoService;
+
+    public function __construct(AzureConsumerApiClient $apiClient, CompanyLogoService $logoService)
     {
         parent::__construct();
         $this->apiClient = $apiClient;
+        $this->logoService = $logoService;
     }
 
     /**
@@ -172,6 +177,7 @@ class FetchContracts extends Command
     {
         $companies = [];
         $processedNames = [];
+        $skipLogos = $this->option('skip-logos');
 
         foreach ($contracts as $contract) {
             $companyData = $contract['Company'] ?? [];
@@ -191,15 +197,33 @@ class FetchContracts extends Command
             }
         }
 
-        // Upsert companies
-        foreach ($companies as $company) {
-            Company::updateOrCreate(
-                ['name' => $company['name']],
-                $company
+        // Upsert companies and download logos
+        $logosDownloaded = 0;
+        foreach ($companies as $companyData) {
+            $company = Company::updateOrCreate(
+                ['name' => $companyData['name']],
+                $companyData
             );
+
+            // Download logo if needed and not skipped
+            if (!$skipLogos && $company->logo_url && !$company->local_logo_path) {
+                $this->output->write("Downloading logo for {$company->name}... ");
+                $localPath = $this->logoService->downloadAndStore($company);
+                if ($localPath) {
+                    $company->local_logo_path = $localPath;
+                    $company->save();
+                    $logosDownloaded++;
+                    $this->output->writeln('<info>OK</info>');
+                } else {
+                    $this->output->writeln('<comment>Failed</comment>');
+                }
+            }
         }
 
         $this->info("Processed " . count($companies) . " companies.");
+        if (!$skipLogos && $logosDownloaded > 0) {
+            $this->info("Downloaded {$logosDownloaded} company logos.");
+        }
     }
 
     /**
