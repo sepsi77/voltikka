@@ -114,38 +114,130 @@
         <h3 class="max-w-2xl mb-4 mx-auto text-3xl font-extrabold tracking-tight leading-none">
             Valitse kulutustaso
         </h3>
-        <div class="flex flex-col lg:flex-row justify-around w-5/6 mx-auto gap-4">
-            @foreach ($presets as $label => $value)
-                @php
-                    $icons = [
-                        'Yksiö' => 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
-                        'Kerrostalo' => 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
-                        'Rivitalo' => 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
-                        'Omakotitalo' => 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
-                        'Suuri talo' => 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
-                    ];
-                    $icon = $icons[$label] ?? $icons['Omakotitalo'];
-                @endphp
+
+        {{-- Tab Toggle --}}
+        <div class="flex justify-center mb-6">
+            <div class="inline-flex rounded-full bg-gray-100 p-1">
                 <button
-                    wire:click="setConsumption({{ $value }})"
-                    class="w-full lg:w-60 p-6 bg-white border border-gray-200 rounded-2xl shadow hover:border-t-primary-300 hover:border-t-2 transition-all cursor-pointer {{ $consumption === $value ? 'border-primary-500' : '' }}"
+                    wire:click="setActiveTab('presets')"
+                    class="px-6 py-2 text-sm font-medium rounded-full transition-colors {{ $activeTab === 'presets' ? 'bg-white text-tertiary-500 shadow' : 'text-gray-500 hover:text-gray-700' }}"
                 >
-                    <div class="flex items-center">
-                        <span class="bg-[#E4FFC9] p-2 inline-block rounded-lg">
-                            <svg class="w-7 h-7 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icon }}"></path>
-                            </svg>
-                        </span>
-                        <h5 class="ml-2 font-semibold text-gray-900">{{ number_format($value, 0, ',', ' ') }} kWh</h5>
-                        <svg class="w-7 h-7 ml-auto {{ $consumption === $value ? 'text-primary-500' : 'text-gray-300' }}" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                        </svg>
-                    </div>
-                    <h5 class="mt-2 text-left text-lg font-semibold tracking-tight text-gray-900">
-                        {{ $label }}
-                    </h5>
+                    Valmiit profiilit
                 </button>
-            @endforeach
+                <button
+                    wire:click="setActiveTab('calculator')"
+                    class="px-6 py-2 text-sm font-medium rounded-full transition-colors {{ $activeTab === 'calculator' ? 'bg-white text-tertiary-500 shadow' : 'text-gray-500 hover:text-gray-700' }}"
+                >
+                    Laskuri
+                </button>
+            </div>
+        </div>
+
+        {{-- Presets Tab --}}
+        @if ($activeTab === 'presets')
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-w-6xl mx-auto">
+                @foreach ($presets as $key => $preset)
+                    <button
+                        wire:click="selectPreset('{{ $key }}')"
+                        class="p-5 bg-white border rounded-2xl shadow-sm hover:shadow-md hover:border-primary-300 transition-all text-left {{ $selectedPreset === $key ? 'border-primary-500 ring-2 ring-primary-200' : 'border-gray-200' }}"
+                    >
+                        <div class="flex items-start">
+                            <span class="bg-[#E4FFC9] p-2 rounded-lg mr-3 flex-shrink-0">
+                                @if ($preset['icon'] === 'apartment')
+                                    <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                    </svg>
+                                @else
+                                    <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                                    </svg>
+                                @endif
+                            </span>
+                            <div class="flex-1 min-w-0">
+                                <h5 class="font-semibold text-gray-900 truncate">{{ $preset['label'] }}</h5>
+                                <p class="text-sm text-gray-500">{{ $preset['description'] }}</p>
+                            </div>
+                            <svg class="w-6 h-6 flex-shrink-0 ml-2 {{ $selectedPreset === $key ? 'text-primary-500' : 'text-gray-300' }}" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div class="mt-3 text-right">
+                            <span class="text-xl font-bold text-tertiary-500">{{ number_format($preset['consumption'], 0, ',', ' ') }}</span>
+                            <span class="text-gray-500 text-sm ml-1">kWh/v</span>
+                        </div>
+                    </button>
+                @endforeach
+            </div>
+        @endif
+
+        {{-- Calculator Tab --}}
+        @if ($activeTab === 'calculator')
+            <div class="max-w-2xl mx-auto">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-left">
+                    {{-- Custom Consumption Input --}}
+                    <div class="mb-6">
+                        <label for="custom-consumption" class="block text-sm font-medium text-gray-700 mb-2">
+                            Vuosikulutus (kWh)
+                        </label>
+                        <input
+                            type="number"
+                            id="custom-consumption"
+                            wire:model.live.debounce.300ms="consumption"
+                            min="500"
+                            max="50000"
+                            step="100"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-lg"
+                        >
+                        <p class="mt-2 text-sm text-gray-500">
+                            Syötä vuotuinen sähkönkulutuksesi kilowattitunteina.
+                        </p>
+                    </div>
+
+                    {{-- Quick Reference --}}
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <h4 class="font-semibold text-gray-900 mb-3 text-sm">Tyypilliset kulutukset</h4>
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Yksiö (1 hlö)</span>
+                                <span class="font-medium">2 000 kWh</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Kerrostalo (2-4 hlö)</span>
+                                <span class="font-medium">3 500-5 000 kWh</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Omakotitalo</span>
+                                <span class="font-medium">5 000-8 000 kWh</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">Sähkölämmitteinen</span>
+                                <span class="font-medium">12 000-18 000 kWh</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Link to full calculator --}}
+                    <div class="mt-4 text-center">
+                        <a href="{{ route('calculator') }}" class="text-primary-600 hover:text-primary-800 text-sm font-medium inline-flex items-center">
+                            Laske tarkempi kulutusarvio
+                            <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        {{-- Current Selection Display --}}
+        <div class="mt-6">
+            <div class="inline-flex items-center bg-tertiary-50 border border-tertiary-200 rounded-full px-6 py-3">
+                <svg class="w-5 h-5 text-tertiary-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                <span class="text-tertiary-700 font-medium">Vertailu kulutuksella:</span>
+                <span class="text-tertiary-900 font-bold ml-2">{{ number_format($consumption, 0, ',', ' ') }} kWh/v</span>
+            </div>
         </div>
     </section>
 

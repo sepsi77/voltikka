@@ -52,9 +52,40 @@
 ### Git Commit
 - Committed all logo-related changes: `41902d9 feat: Add local logo caching system for company logos`
 
+### Task 5: Enhance ContractsList presets with calculator-style tabs (COMPLETED)
+- Updated `ContractsList.php` component with:
+  - Added `activeTab` property ('presets' or 'calculator')
+  - Added `selectedPreset` property to track currently selected preset
+  - Enhanced presets array to match ConsumptionCalculator format with label, description, icon, consumption
+  - Added `setActiveTab()` and `selectPreset()` methods
+  - Updated `setConsumption()` to clear preset selection when manually setting consumption
+- Updated presets to match ConsumptionCalculator:
+  - Pieni yksiö (2000 kWh)
+  - Kerrostalo 2 hlö (3500 kWh)
+  - Kerrostalo perhe (5000 kWh)
+  - Pieni omakotitalo (5000 kWh)
+  - Omakotitalo + ILP (8000 kWh)
+  - Suuri talo + sähkö (18000 kWh)
+  - Suuri talo + MLP (12000 kWh)
+- Updated `contracts-list.blade.php` with:
+  - Tab toggle UI (Valmiit profiilit / Laskuri)
+  - Grid-based preset cards with icons, labels, descriptions, and consumption values
+  - Calculator tab with custom consumption input and quick reference table
+  - Link to full calculator page
+  - Current selection display badge showing active consumption
+- Updated `seo-contracts-list.blade.php` with same changes (extends ContractsList)
+- Updated `ContractsListPageTest.php`:
+  - Updated preset tests to match new preset names
+  - Added tests for tabs display
+  - Added tests for preset selection
+  - Added tests for tab switching
+
+### Git Commit
+- Committed presets UI changes: `feat: Add calculator-style tabs and enhanced presets to contracts list`
+
 ---
 
-## Summary of Completed Tasks (5/8)
+## Summary of Completed Tasks (6/8)
 
 | Task | Status | Tests |
 |------|--------|-------|
@@ -62,12 +93,11 @@
 | 2. Add local_logo_path field | Completed | 4 passing |
 | 3. Integrate with FetchContracts | Completed | 4 passing |
 | 4. Update views | Completed | N/A (view changes) |
-| 5. Enhance presets UI | Pending | - |
+| 5. Enhance presets UI | Completed | 4 new tests passing |
 | 6. Add inline calculator | Pending | - |
 | 7. Create logos:download command | Completed | 7 passing |
 | 8. Add final tests | Pending | - |
 
 ### Next Steps
-- Task 5: Enhance ContractsList presets with calculator-style tabs
 - Task 6: Add inline calculator to ContractsList
 - Task 8: Add final tests for calculator integration

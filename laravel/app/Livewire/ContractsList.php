@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\ElectricityContract;
 use App\Models\Postcode;
+use App\Models\SpotPriceAverage;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
 use Illuminate\Database\Eloquent\Collection;
@@ -14,21 +15,69 @@ use Livewire\Component;
 class ContractsList extends Component
 {
     /**
+     * Active tab for consumption selection ('presets' or 'calculator').
+     */
+    public string $activeTab = 'presets';
+
+    /**
+     * Currently selected preset key.
+     */
+    public ?string $selectedPreset = 'large_apartment';
+
+    /**
      * Current consumption value in kWh.
      */
     #[Url]
     public int $consumption = 5000;
 
     /**
-     * Available consumption presets.
+     * Available consumption presets matching ConsumptionCalculator.
      *
-     * @var array<string, int>
+     * @var array<string, array{label: string, description: string, icon: string, consumption: int}>
      */
     public array $presets = [
-        'Yksiö' => 2000,
-        'Kerrostalo' => 5000,
-        'Pieni talo' => 10000,
-        'Suuri talo' => 18000,
+        'small_apartment' => [
+            'label' => 'Pieni yksiö',
+            'description' => '1 hlö, 35 m²',
+            'icon' => 'apartment',
+            'consumption' => 2000,
+        ],
+        'medium_apartment' => [
+            'label' => 'Kerrostalo 2 hlö',
+            'description' => '2 hlö, 60 m²',
+            'icon' => 'apartment',
+            'consumption' => 3500,
+        ],
+        'large_apartment' => [
+            'label' => 'Kerrostalo perhe',
+            'description' => '4 hlö, 80 m²',
+            'icon' => 'apartment',
+            'consumption' => 5000,
+        ],
+        'small_house_no_heat' => [
+            'label' => 'Pieni omakotitalo',
+            'description' => 'Ei sähkölämmitystä',
+            'icon' => 'house',
+            'consumption' => 5000,
+        ],
+        'medium_house_heat_pump' => [
+            'label' => 'Omakotitalo + ILP',
+            'description' => 'Ilma-vesilämpöpumppu',
+            'icon' => 'house',
+            'consumption' => 8000,
+        ],
+        'large_house_electric' => [
+            'label' => 'Suuri talo + sähkö',
+            'description' => 'Suora sähkölämmitys',
+            'icon' => 'house',
+            'consumption' => 18000,
+        ],
+        'large_house_ground_pump' => [
+            'label' => 'Suuri talo + MLP',
+            'description' => 'Maalämpöpumppu',
+            'icon' => 'house',
+            'consumption' => 12000,
+        ],
     ];
 
     /**
@@ -97,11 +146,32 @@ class ContractsList extends Component
     ];
 
     /**
-     * Set the consumption to a preset value.
+     * Set the active tab.
+     */
+    public function setActiveTab(string $tab): void
+    {
+        $this->activeTab = $tab;
+    }
+
+    /**
+     * Select a preset and update consumption.
+     */
+    public function selectPreset(string $preset): void
+    {
+        $this->selectedPreset = $preset;
+
+        if (isset($this->presets[$preset])) {
+            $this->consumption = $this->presets[$preset]['consumption'];
+        }
+    }
+
+    /**
+     * Set the consumption to a specific value (clears preset selection).
      */
     public function setConsumption(int $value): void
     {
         $this->consumption = $value;
+        $this->selectedPreset = null;
     }
 
     /**
@@ -273,8 +343,13 @@ class ContractsList extends Component
             });
         }
 
+        // Get spot price averages for calculations
+        $spotPriceAvg = SpotPriceAverage::latestRolling365Days();
+        $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
+        $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
+
         // Calculate cost for each contract and sort by cost
-        $contracts = $contracts->map(function ($contract) use ($calculator) {
+        $contracts = $contracts->map(function ($contract) use ($calculator, $spotPriceDay, $spotPriceNight) {
             $priceComponents = $contract->priceComponents
                 ->sortByDesc('price_date')
                 ->groupBy('price_component_type')
@@ -293,10 +368,11 @@ class ContractsList extends Component
 
             $contractData = [
                 'contract_type' => $contract->contract_type,
+                'pricing_model' => $contract->pricing_model,
                 'metering' => $contract->metering,
             ];
 
-            $result = $calculator->calculate($priceComponents, $contractData, $usage);
+            $result = $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
             $contract->calculated_cost = $result->toArray();
 
             return $contract;

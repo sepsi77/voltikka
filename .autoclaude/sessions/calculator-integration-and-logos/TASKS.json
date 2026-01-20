@@ -45,9 +45,11 @@
       "id": "enhance-presets-ui",
       "title": "Enhance ContractsList presets with calculator-style tabs",
       "description": "Update ContractsList component and view to have Presets/Calculator tabs like the screenshot:\n- Add activeTab property ('presets' or 'calculator')\n- Presets tab: Show quick consumption presets with icons (current functionality but enhanced)\n- Calculator tab: Embed a simplified calculator form inline (living area, people, building type, include heating toggle)\n- When calculator values change, automatically update consumption\n- Match the visual style from the screenshot (tab toggle, card-based selection)\n\nUpdate the presets to match the ConsumptionCalculator presets:\n- Pieni yksiö (2000 kWh)\n- Kerrostalo 2 hlö (3500 kWh)\n- Kerrostalo perhe (5000 kWh)\n- Pieni omakotitalo (5000 kWh)\n- Omakotitalo + ILP (8000 kWh)\n- Suuri talo + sähkö (18000 kWh)\n- Suuri talo + MLP (12000 kWh)",
-      "status": "pending",
+      "status": "completed",
       "priority": 5,
-      "depends_on": ["update-views-local-logos"]
+      "depends_on": ["update-views-local-logos"],
+      "completed_at": "2026-01-20T14:30:00Z",
+      "passes": true
     },
     {
       "id": "add-inline-calculator",

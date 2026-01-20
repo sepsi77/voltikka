@@ -127,10 +127,50 @@ class ContractsListPageTest extends TestCase
     public function test_consumption_presets_are_displayed(): void
     {
         Livewire::test('contracts-list')
-            ->assertSee('2000 kWh')  // Studio
-            ->assertSee('5000 kWh')  // Apartment
-            ->assertSee('10000 kWh') // Small house
-            ->assertSee('18000 kWh'); // Large house
+            ->assertSee('Pieni yksiö')           // 2000 kWh
+            ->assertSee('Kerrostalo 2 hlö')      // 3500 kWh
+            ->assertSee('Kerrostalo perhe')       // 5000 kWh
+            ->assertSee('Pieni omakotitalo')     // 5000 kWh
+            ->assertSee('Omakotitalo + ILP')     // 8000 kWh
+            ->assertSee('Suuri talo + sähkö')    // 18000 kWh
+            ->assertSee('Suuri talo + MLP');     // 12000 kWh
+    }
+
+    /**
+     * Test presets/calculator tabs are displayed.
+     */
+    public function test_presets_calculator_tabs_are_displayed(): void
+    {
+        Livewire::test('contracts-list')
+            ->assertSee('Valmiit profiilit')
+            ->assertSee('Laskuri');
+    }
+
+    /**
+     * Test selecting a preset updates consumption.
+     */
+    public function test_selecting_preset_updates_consumption(): void
+    {
+        Livewire::test('contracts-list')
+            ->call('selectPreset', 'small_apartment')
+            ->assertSet('consumption', 2000)
+            ->assertSet('selectedPreset', 'small_apartment')
+            ->call('selectPreset', 'large_house_electric')
+            ->assertSet('consumption', 18000)
+            ->assertSet('selectedPreset', 'large_house_electric');
+    }
+
+    /**
+     * Test switching between tabs works.
+     */
+    public function test_tab_switching_works(): void
+    {
+        Livewire::test('contracts-list')
+            ->assertSet('activeTab', 'presets')
+            ->call('setActiveTab', 'calculator')
+            ->assertSet('activeTab', 'calculator')
+            ->call('setActiveTab', 'presets')
+            ->assertSet('activeTab', 'presets');
     }
 
     /**
