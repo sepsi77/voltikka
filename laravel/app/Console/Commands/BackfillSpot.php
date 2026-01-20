@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\SpotPriceHour;
 use App\Services\EntsoeService;
+use App\Services\SpotPriceAverageService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\RequestException;
@@ -34,11 +35,13 @@ class BackfillSpot extends Command
     private const API_DELAY_MS = 150;
 
     private EntsoeService $entsoeService;
+    private SpotPriceAverageService $averageService;
 
-    public function __construct(EntsoeService $entsoeService)
+    public function __construct(EntsoeService $entsoeService, SpotPriceAverageService $averageService)
     {
         parent::__construct();
         $this->entsoeService = $entsoeService;
+        $this->averageService = $averageService;
     }
 
     /**
@@ -113,6 +116,11 @@ class BackfillSpot extends Command
         if ($totalRecords > 0) {
             $this->info("Backfill completed! Processed {$totalRecords} records.");
             Log::info('Successfully backfilled spot prices', ['count' => $totalRecords]);
+
+            // Calculate averages after backfilling
+            $this->info('Calculating spot price averages...');
+            $this->averageService->calculateAllAverages();
+            $this->info('Averages calculated successfully.');
         } else {
             $this->info('Backfill completed! No new records to add.');
         }

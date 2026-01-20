@@ -16,13 +16,13 @@ Schedule::command('contracts:fetch')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/contracts-fetch.log'));
 
-// Schedule the spotprices:fetch command to run hourly
-Schedule::command('spotprices:fetch')
+// Schedule the spot:fetch command to run hourly
+Schedule::command('spot:fetch')
     ->hourly()
     ->timezone('Europe/Helsinki')
     ->withoutOverlapping()
     ->onOneServer()
-    ->appendOutputTo(storage_path('logs/spotprices-fetch.log'));
+    ->appendOutputTo(storage_path('logs/spot-fetch.log'));
 
 // Schedule the descriptions:generate command to run daily at 08:00
 Schedule::command('descriptions:generate')

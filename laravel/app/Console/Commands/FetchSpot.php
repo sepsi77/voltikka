@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\SpotPriceHour;
 use App\Services\EntsoeService;
+use App\Services\SpotPriceAverageService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\RequestException;
@@ -26,11 +27,13 @@ class FetchSpot extends Command
     protected $description = 'Fetch Nord Pool spot prices from ENTSO-E API and save to database';
 
     private EntsoeService $entsoeService;
+    private SpotPriceAverageService $averageService;
 
-    public function __construct(EntsoeService $entsoeService)
+    public function __construct(EntsoeService $entsoeService, SpotPriceAverageService $averageService)
     {
         parent::__construct();
         $this->entsoeService = $entsoeService;
+        $this->averageService = $averageService;
     }
 
     /**
@@ -63,6 +66,12 @@ class FetchSpot extends Command
             $this->saveSpotPrices($spotPrices);
             $this->info('Spot prices fetched successfully! Processed ' . count($spotPrices) . ' records.');
             Log::info('Successfully fetched spot prices', ['count' => count($spotPrices)]);
+
+            // Calculate averages after fetching new data
+            $this->info('Calculating spot price averages...');
+            $this->averageService->calculateAllAverages();
+            $this->info('Averages calculated successfully.');
+
             return Command::SUCCESS;
         } catch (\Exception $e) {
             $this->error('Error saving spot prices: ' . $e->getMessage());
