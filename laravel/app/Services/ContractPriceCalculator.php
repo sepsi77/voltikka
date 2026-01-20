@@ -112,9 +112,17 @@ class ContractPriceCalculator
             $discountPrice = $seasonalOtherRate;
         }
 
-        // Handle spot price contracts
-        $contractType = $contractData['contract_type'] ?? '';
-        if ($contractType === 'Spot') {
+        // Handle spot price contracts - check pricing_model, not contract_type
+        $pricingModel = $contractData['pricing_model'] ?? '';
+        $isSpotContract = $pricingModel === 'Spot';
+
+        // Also detect spot contracts by abnormally low prices (< 0.8 c/kWh)
+        // These are margins added on top of spot prices
+        if (!$isSpotContract && $regularPrice > 0 && $regularPrice < 0.8) {
+            $isSpotContract = true;
+        }
+
+        if ($isSpotContract) {
             // Find the margin from the first non-monthly price component
             foreach ($priceComponents as $comp) {
                 if (($comp['price_component_type'] ?? '') !== 'Monthly') {
@@ -127,15 +135,6 @@ class ContractPriceCalculator
             $regularPrice = ($spotPriceDay ?? 0) + $spotPriceMargin;
             $discountPrice = ($spotPriceNight ?? 0) + $spotPriceMargin;
             $generalRate = 0; // Reset since info is in spot_price_margin
-        } else {
-            // Detect abnormally low prices (< 0.8 c/kWh) as spot contracts
-            if ($regularPrice < 0.8) {
-                $spotPriceMargin = $regularPrice;
-                $metering = MeteringType::Time;
-                $regularPrice = ($spotPriceDay ?? 0) + $spotPriceMargin;
-                $discountPrice = ($spotPriceNight ?? 0) + $spotPriceMargin;
-                $generalRate = 0;
-            }
         }
 
         // Calculate costs for each usage component
@@ -296,6 +295,9 @@ class ContractPriceCalculator
             seasonalOtherKwhPrice: $seasonalOtherRate > 0 ? $seasonalOtherRate : null,
             daytimeKwhPrice: $dayTimeRate > 0 ? $dayTimeRate : null,
             nighttimeKwhPrice: $nightTimeRate > 0 ? $nightTimeRate : null,
+            spotPriceDayAvg: $isSpotContract ? $spotPriceDay : null,
+            spotPriceNightAvg: $isSpotContract ? $spotPriceNight : null,
+            isSpotContract: $isSpotContract,
         );
     }
 

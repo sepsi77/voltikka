@@ -36,8 +36,8 @@ class EntsoeService
             'documentType' => 'A44', // Day-ahead prices
             'in_Domain' => $finlandEic,
             'out_Domain' => $finlandEic,
-            'periodStart' => $startDate->utc()->format('YmdHi00'),
-            'periodEnd' => $endDate->utc()->format('YmdHi00'),
+            'periodStart' => $startDate->utc()->format('YmdHi'),
+            'periodEnd' => $endDate->utc()->format('YmdHi'),
         ];
 
         $url = $baseUrl . '?' . http_build_query($params);

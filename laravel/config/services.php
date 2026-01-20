@@ -39,4 +39,10 @@ return [
         'api_key' => env('OPENAI_API_KEY'),
     ],
 
+    'entsoe' => [
+        'api_key' => env('ENTSOE_API_KEY'),
+        'base_url' => 'https://web-api.tp.entsoe.eu/api',
+        'finland_eic' => '10YFI-1--------U',
+    ],
+
 ];

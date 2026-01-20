@@ -15,6 +15,9 @@ class ContractPricingResult
         public readonly ?float $daytimeKwhPrice = null,
         public readonly ?float $seasonalWinterDayKwhPrice = null,
         public readonly ?float $seasonalOtherKwhPrice = null,
+        public readonly ?float $spotPriceDayAvg = null,
+        public readonly ?float $spotPriceNightAvg = null,
+        public readonly bool $isSpotContract = false,
     ) {
     }
 
@@ -31,6 +34,9 @@ class ContractPricingResult
             'daytime_kwh_price' => $this->daytimeKwhPrice,
             'seasonal_winter_day_kwh_price' => $this->seasonalWinterDayKwhPrice,
             'seasonal_other_kwh_price' => $this->seasonalOtherKwhPrice,
+            'spot_price_day_avg' => $this->spotPriceDayAvg,
+            'spot_price_night_avg' => $this->spotPriceNightAvg,
+            'is_spot_contract' => $this->isSpotContract,
         ];
     }
 }
