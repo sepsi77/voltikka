@@ -5,6 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
         <title>{{ $title ?? 'Voltikka - Sähkösopimusten vertailu' }}</title>
+        @if (isset($metaDescription))
+        <meta name="description" content="{{ $metaDescription }}">
+        @endif
 
         <!-- Fonts - Plus Jakarta Sans (Fresh Coral design system) -->
         <link rel="preconnect" href="https://fonts.googleapis.com">

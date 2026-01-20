@@ -234,10 +234,16 @@ class ContractsList extends Component
     ];
 
     /**
-     * Contract type filter (Fixed, Spot, OpenEnded).
+     * Contract type filter (FixedTerm, OpenEnded).
      */
     #[Url]
     public string $contractTypeFilter = '';
+
+    /**
+     * Pricing model filter (Spot, FixedPrice, Hybrid).
+     */
+    #[Url]
+    public string $pricingModelFilter = '';
 
     /**
      * Metering type filter (General, Time, Seasonal).
@@ -275,16 +281,24 @@ class ContractsList extends Component
     public bool $fossilFreeFilter = false;
 
     /**
-     * Available contract types.
-     * Note: 'Spot' and 'Hybrid' filter by pricing_model field, others by contract_type.
+     * Available contract types (duration).
      *
      * @var array<string, string>
      */
     public array $contractTypes = [
         'FixedTerm' => 'Määräaikainen',
+        'OpenEnded' => 'Toistaiseksi',
+    ];
+
+    /**
+     * Available pricing models.
+     *
+     * @var array<string, string>
+     */
+    public array $pricingModels = [
+        'FixedPrice' => 'Kiinteä hinta',
         'Spot' => 'Pörssisähkö',
         'Hybrid' => 'Hybridi',
-        'OpenEnded' => 'Toistaiseksi voimassa',
     ];
 
     /**
@@ -523,6 +537,14 @@ class ContractsList extends Component
     }
 
     /**
+     * Set the pricing model filter.
+     */
+    public function setPricingModelFilter(string $model): void
+    {
+        $this->pricingModelFilter = $this->pricingModelFilter === $model ? '' : $model;
+    }
+
+    /**
      * Set the metering type filter.
      */
     public function setMeteringFilter(string $type): void
@@ -578,6 +600,7 @@ class ContractsList extends Component
     public function resetFilters(): void
     {
         $this->contractTypeFilter = '';
+        $this->pricingModelFilter = '';
         $this->meteringFilter = '';
         $this->postcodeFilter = '';
         $this->postcodeSearch = '';
@@ -607,11 +630,104 @@ class ContractsList extends Component
     public function hasActiveFilters(): bool
     {
         return $this->contractTypeFilter !== ''
+            || $this->pricingModelFilter !== ''
             || $this->meteringFilter !== ''
             || $this->postcodeFilter !== ''
             || $this->renewableFilter
             || $this->nuclearFilter
             || $this->fossilFreeFilter;
+    }
+
+    /**
+     * Generate a dynamic page title based on active filters.
+     *
+     * The title follows Finnish grammar conventions:
+     * - Base: "Sähkösopimukset"
+     * - With pricing model: "Pörssisähkösopimukset", "Kiinteähintaiset sähkösopimukset"
+     * - With contract type: "Määräaikaiset sähkösopimukset", "Toistaiseksi voimassa olevat sähkösopimukset"
+     * - Combined: "Määräaikaiset pörssisähkösopimukset"
+     */
+    public function getPageTitleProperty(): string
+    {
+        $parts = [];
+
+        // Energy source modifiers (come first as adjectives)
+        $energySourcePrefix = '';
+        if ($this->fossilFreeFilter) {
+            $parts[] = 'Fossiilittomat';
+        } elseif ($this->renewableFilter) {
+            $parts[] = 'Uusiutuvat';
+        } elseif ($this->nuclearFilter) {
+            // Nuclear is a compound word prefix (ydinvoima-)
+            $energySourcePrefix = 'ydinvoima';
+        }
+
+        // Contract type modifier
+        if ($this->contractTypeFilter === 'FixedTerm') {
+            $parts[] = 'Määräaikaiset';
+        } elseif ($this->contractTypeFilter === 'OpenEnded') {
+            $parts[] = 'Toistaiseksi voimassa olevat';
+        }
+
+        // Pricing model determines the base noun
+        if ($this->pricingModelFilter === 'Spot') {
+            $parts[] = $energySourcePrefix . 'pörssisähkösopimukset';
+        } elseif ($this->pricingModelFilter === 'FixedPrice') {
+            $parts[] = $energySourcePrefix . 'kiinteähintaiset sähkösopimukset';
+        } elseif ($this->pricingModelFilter === 'Hybrid') {
+            $parts[] = $energySourcePrefix . 'hybridisähkösopimukset';
+        } else {
+            $parts[] = $energySourcePrefix . 'sähkösopimukset';
+        }
+
+        // Combine parts and capitalize first letter
+        $title = implode(' ', $parts);
+
+        return mb_strtoupper(mb_substr($title, 0, 1)) . mb_substr($title, 1);
+    }
+
+    /**
+     * Generate a dynamic meta description based on active filters.
+     *
+     * The description is tailored to the selected filters for better SEO.
+     */
+    public function getMetaDescriptionProperty(): string
+    {
+        $baseDescription = 'Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto.';
+
+        if ($this->pricingModelFilter === 'Spot') {
+            return 'Vertaile pörssisähkösopimuksia ja löydä edullisin vaihtoehto. Katso marginaalit, perusmaksut ja arvioidut vuosikustannukset.';
+        }
+
+        if ($this->pricingModelFilter === 'FixedPrice') {
+            return 'Vertaile kiinteähintaisia sähkösopimuksia ja löydä paras hinta. Kiinteä sähkön hinta takaa ennustettavat kustannukset.';
+        }
+
+        if ($this->pricingModelFilter === 'Hybrid') {
+            return 'Vertaile hybridisähkösopimuksia, jotka yhdistävät kiinteän hinnan ja pörssisähkön edut.';
+        }
+
+        if ($this->contractTypeFilter === 'FixedTerm') {
+            return 'Vertaile määräaikaisia sähkösopimuksia ja lukitse hinta haluamaksesi ajaksi.';
+        }
+
+        if ($this->contractTypeFilter === 'OpenEnded') {
+            return 'Vertaile toistaiseksi voimassa olevia sähkösopimuksia. Joustava sopimus ilman sitoutumisaikaa.';
+        }
+
+        if ($this->renewableFilter) {
+            return 'Vertaile uusiutuvalla energialla tuotettuja sähkösopimuksia. Vihreä sähkö tuuli- ja aurinkovoimasta.';
+        }
+
+        if ($this->fossilFreeFilter) {
+            return 'Vertaile fossiilittomia sähkösopimuksia. Ilmastoystävällinen sähkö ilman hiilidioksidipäästöjä.';
+        }
+
+        if ($this->nuclearFilter) {
+            return 'Vertaile ydinvoimalla tuotettuja sähkösopimuksia. Päästötön ja vakaa sähköntuotanto.';
+        }
+
+        return $baseDescription . ' Katso hinnat, sopimusehdot ja energialähteet yhdestä paikasta.';
     }
 
     /**
@@ -628,15 +744,14 @@ class ContractsList extends Component
         $query = ElectricityContract::query()
             ->with(['company', 'priceComponents', 'electricitySource']);
 
-        // Apply contract type filter
+        // Apply contract type filter (FixedTerm, OpenEnded)
         if ($this->contractTypeFilter !== '') {
-            if ($this->contractTypeFilter === 'Spot' || $this->contractTypeFilter === 'Hybrid') {
-                // Spot and Hybrid contracts are identified by the pricing_model field
-                $query->where('pricing_model', $this->contractTypeFilter);
-            } else {
-                // FixedTerm and OpenEnded are identified by the contract_type field
-                $query->where('contract_type', $this->contractTypeFilter);
-            }
+            $query->where('contract_type', $this->contractTypeFilter);
+        }
+
+        // Apply pricing model filter (Spot, FixedPrice, Hybrid)
+        if ($this->pricingModelFilter !== '') {
+            $query->where('pricing_model', $this->pricingModelFilter);
         }
 
         // Apply metering type filter
@@ -752,6 +867,11 @@ class ContractsList extends Component
         return view('livewire.contracts-list', [
             'contracts' => $this->contracts,
             'postcodeSuggestions' => $this->postcodeSuggestions,
-        ])->layout('layouts.app');
+            'pageTitle' => $this->pageTitle,
+            'metaDescription' => $this->metaDescription,
+        ])->layout('layouts.app', [
+            'title' => $this->pageTitle . ' | Voltikka',
+            'metaDescription' => $this->metaDescription,
+        ]);
     }
 }

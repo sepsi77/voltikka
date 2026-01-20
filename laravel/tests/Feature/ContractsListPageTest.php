@@ -1416,4 +1416,238 @@ class ContractsListPageTest extends TestCase
             ->set('consumption', 20000);
         $this->assertCount(0, $componentAbove->viewData('contracts'));
     }
+
+    // ========================================
+    // Dynamic Page Title Tests
+    // ========================================
+
+    /**
+     * Test that default page title is 'Sähkösopimukset' when no filters are active.
+     */
+    public function test_default_page_title_without_filters(): void
+    {
+        $component = Livewire::test('contracts-list');
+        $this->assertEquals('Sähkösopimukset', $component->get('pageTitle'));
+    }
+
+    /**
+     * Test page title with spot pricing model filter.
+     */
+    public function test_page_title_with_spot_pricing_filter(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('pricingModelFilter', 'Spot');
+
+        $this->assertEquals('Pörssisähkösopimukset', $component->get('pageTitle'));
+    }
+
+    /**
+     * Test page title with fixed price pricing model filter.
+     */
+    public function test_page_title_with_fixed_price_filter(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('pricingModelFilter', 'FixedPrice');
+
+        $this->assertEquals('Kiinteähintaiset sähkösopimukset', $component->get('pageTitle'));
+    }
+
+    /**
+     * Test page title with hybrid pricing model filter.
+     */
+    public function test_page_title_with_hybrid_filter(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('pricingModelFilter', 'Hybrid');
+
+        $this->assertEquals('Hybridisähkösopimukset', $component->get('pageTitle'));
+    }
+
+    /**
+     * Test page title with fixed term contract type filter.
+     */
+    public function test_page_title_with_fixed_term_filter(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('contractTypeFilter', 'FixedTerm');
+
+        $this->assertEquals('Määräaikaiset sähkösopimukset', $component->get('pageTitle'));
+    }
+
+    /**
+     * Test page title with open-ended contract type filter.
+     */
+    public function test_page_title_with_open_ended_filter(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('contractTypeFilter', 'OpenEnded');
+
+        $this->assertEquals('Toistaiseksi voimassa olevat sähkösopimukset', $component->get('pageTitle'));
+    }
+
+    /**
+     * Test page title with both fixed term and spot filters.
+     */
+    public function test_page_title_with_fixed_term_and_spot_filters(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('contractTypeFilter', 'FixedTerm')
+            ->set('pricingModelFilter', 'Spot');
+
+        $this->assertEquals('Määräaikaiset pörssisähkösopimukset', $component->get('pageTitle'));
+    }
+
+    /**
+     * Test page title with both fixed term and fixed price filters.
+     */
+    public function test_page_title_with_fixed_term_and_fixed_price_filters(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('contractTypeFilter', 'FixedTerm')
+            ->set('pricingModelFilter', 'FixedPrice');
+
+        $this->assertEquals('Määräaikaiset kiinteähintaiset sähkösopimukset', $component->get('pageTitle'));
+    }
+
+    /**
+     * Test page title with open ended and spot filters.
+     */
+    public function test_page_title_with_open_ended_and_spot_filters(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('contractTypeFilter', 'OpenEnded')
+            ->set('pricingModelFilter', 'Spot');
+
+        $this->assertEquals('Toistaiseksi voimassa olevat pörssisähkösopimukset', $component->get('pageTitle'));
+    }
+
+    /**
+     * Test page title with renewable energy filter alone.
+     */
+    public function test_page_title_with_renewable_filter(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('renewableFilter', true);
+
+        $this->assertEquals('Uusiutuvat sähkösopimukset', $component->get('pageTitle'));
+    }
+
+    /**
+     * Test page title with fossil-free filter alone.
+     */
+    public function test_page_title_with_fossil_free_filter(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('fossilFreeFilter', true);
+
+        $this->assertEquals('Fossiilittomat sähkösopimukset', $component->get('pageTitle'));
+    }
+
+    /**
+     * Test page title with nuclear filter alone.
+     */
+    public function test_page_title_with_nuclear_filter(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('nuclearFilter', true);
+
+        $this->assertEquals('Ydinvoimasähkösopimukset', $component->get('pageTitle'));
+    }
+
+    /**
+     * Test page title with spot and renewable filters combined.
+     */
+    public function test_page_title_with_spot_and_renewable_filters(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('pricingModelFilter', 'Spot')
+            ->set('renewableFilter', true);
+
+        $this->assertEquals('Uusiutuvat pörssisähkösopimukset', $component->get('pageTitle'));
+    }
+
+    // ========================================
+    // Dynamic Meta Description Tests
+    // ========================================
+
+    /**
+     * Test that default meta description is appropriate.
+     */
+    public function test_default_meta_description_without_filters(): void
+    {
+        $component = Livewire::test('contracts-list');
+        $description = $component->get('metaDescription');
+
+        $this->assertStringContainsString('Vertaile sähkösopimuksia', $description);
+    }
+
+    /**
+     * Test meta description with spot pricing filter.
+     */
+    public function test_meta_description_with_spot_filter(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('pricingModelFilter', 'Spot');
+
+        $description = $component->get('metaDescription');
+        $this->assertStringContainsString('pörssisähkö', $description);
+    }
+
+    /**
+     * Test meta description with fixed price filter.
+     */
+    public function test_meta_description_with_fixed_price_filter(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('pricingModelFilter', 'FixedPrice');
+
+        $description = $component->get('metaDescription');
+        $this->assertStringContainsString('kiinteähintai', $description);
+    }
+
+    /**
+     * Test meta description with fixed term filter.
+     */
+    public function test_meta_description_with_fixed_term_filter(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('contractTypeFilter', 'FixedTerm');
+
+        $description = $component->get('metaDescription');
+        $this->assertStringContainsString('määräaikais', $description);
+    }
+
+    /**
+     * Test meta description with renewable filter.
+     */
+    public function test_meta_description_with_renewable_filter(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('renewableFilter', true);
+
+        $description = $component->get('metaDescription');
+        $this->assertStringContainsString('uusiutuv', $description);
+    }
+
+    /**
+     * Test that page title is passed to layout for browser title.
+     */
+    public function test_page_title_is_passed_to_layout(): void
+    {
+        $response = $this->get('/?pricingModelFilter=Spot');
+
+        $response->assertStatus(200);
+        $response->assertSee('Pörssisähkösopimukset');
+    }
+
+    /**
+     * Test that H1 on the page reflects the dynamic title.
+     */
+    public function test_h1_reflects_dynamic_title(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->set('pricingModelFilter', 'Spot');
+
+        $component->assertSee('Pörssisähkösopimukset');
+    }
 }

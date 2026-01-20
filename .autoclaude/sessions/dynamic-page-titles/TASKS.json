@@ -1,0 +1,30 @@
+{
+  "session": "dynamic-page-titles",
+  "description": "Customize page titles based on filter selections (määräaikaiset sähkösopimukset, kiinteähintaiset sähkösopimukset, pörssisähkösopimukset, etc.)",
+  "tasks": [
+    {
+      "id": "add-title-method",
+      "title": "Add dynamic page title method to ContractsList",
+      "description": "Add a getPageTitleProperty() computed property to ContractsList.php that generates a Finnish page title based on active filters. Examples: 'Pörssisähkösopimukset' when pricingModelFilter='Spot', 'Määräaikaiset sähkösopimukset' when contractTypeFilter='FixedTerm', 'Kiinteähintaiset sähkösopimukset' when pricingModelFilter='FixedPrice'. When multiple filters are active, combine them appropriately (e.g., 'Määräaikaiset pörssisähkösopimukset'). Default to 'Sähkösopimukset' when no filters.",
+      "status": "in_progress",
+      "priority": 1,
+      "started_at": "2026-01-20T12:00:00Z"
+    },
+    {
+      "id": "update-layout",
+      "title": "Pass dynamic title to layout",
+      "description": "Update the render() method in ContractsList.php to pass the pageTitle to the layout. Update contracts-list.blade.php to use the dynamic title in the page heading (H1). The layout should receive a 'title' parameter for the browser title.",
+      "status": "pending",
+      "priority": 2,
+      "depends_on": ["add-title-method"]
+    },
+    {
+      "id": "add-meta-description",
+      "title": "Add dynamic meta description",
+      "description": "Add a getMetaDescriptionProperty() computed property that generates appropriate Finnish meta descriptions based on filters. Pass this to the layout for SEO. Examples: 'Vertaa pörssisähkösopimuksia ja löydä edullisin vaihtoehto.' for spot contracts.",
+      "status": "pending",
+      "priority": 3,
+      "depends_on": ["add-title-method"]
+    }
+  ]
+}
