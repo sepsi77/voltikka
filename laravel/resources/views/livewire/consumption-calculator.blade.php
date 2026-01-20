@@ -1,13 +1,19 @@
-<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Hero Section -->
-    <section class="text-center mb-8">
-        <h1 class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight leading-none mb-4">
-            Sähkönkulutuslaskuri
-        </h1>
-        <p class="max-w-2xl mx-auto text-slate-500 md:text-lg">
-            Laske kotitaloutesi arvioitu sähkönkulutus ja vertaile sähkösopimuksia.
-        </p>
+<div>
+    <!-- Hero Section - Dark slate background -->
+    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="py-12 lg:py-16 text-center">
+                <h1 class="text-3xl md:text-4xl xl:text-5xl font-extrabold text-white tracking-tight leading-none mb-4">
+                    Sähkönkulutus<span class="text-coral-400">laskuri</span>
+                </h1>
+                <p class="max-w-2xl mx-auto text-slate-300 md:text-lg">
+                    Laske kotitaloutesi arvioitu sähkönkulutus ja vertaile sähkösopimuksia.
+                </p>
+            </div>
+        </div>
     </section>
+
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
     <!-- Tab Toggle -->
     <div class="flex justify-center mb-8">
@@ -388,4 +394,5 @@
             <li>Sähköauto: ~0.2 kWh/km</li>
         </ul>
     </section>
+    </div>
 </div>

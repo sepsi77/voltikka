@@ -1,15 +1,19 @@
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Hero Section -->
-    <section class="bg-transparent mb-8">
-        <div class="max-w-screen-xl px-4 py-8 mx-auto lg:py-16">
-            <h1 class="max-w-2xl mb-4 text-4xl font-extrabold text-slate-900 tracking-tight leading-none md:text-5xl xl:text-6xl">
-                Sähkösopimukset paikkakunnittain
-            </h1>
-            <p class="max-w-2xl mb-6 font-light text-slate-500 md:text-lg lg:text-xl">
-                Löydä sähkösopimukset, jotka ovat saatavilla omalla paikkakunnallasi. Valitse kunta listalta tai hae paikkakuntaa nimellä.
-            </p>
+<div>
+    <!-- Hero Section - Dark slate background -->
+    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="py-12 lg:py-16">
+                <h1 class="max-w-2xl mb-4 text-4xl font-extrabold text-white tracking-tight leading-none md:text-5xl xl:text-6xl">
+                    Sähkösopimukset <span class="text-coral-400">paikkakunnittain</span>
+                </h1>
+                <p class="max-w-2xl mb-6 text-slate-300 md:text-lg lg:text-xl">
+                    Löydä sähkösopimukset, jotka ovat saatavilla omalla paikkakunnallasi. Valitse kunta listalta tai hae paikkakuntaa nimellä.
+                </p>
+            </div>
         </div>
     </section>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
     @if ($selectedMunicipality)
         <!-- Selected Municipality View -->
@@ -144,4 +148,5 @@
             @endforelse
         </div>
     @endif
+    </div>
 </div>

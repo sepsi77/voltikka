@@ -1,13 +1,19 @@
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Hero Section with Current Price -->
-    <section class="mb-8">
-        <h1 class="max-w-2xl mb-4 text-4xl font-bold text-slate-900 tracking-tight leading-none md:text-5xl xl:text-6xl">
-            Pörssisähkön hinta
-        </h1>
-        <p class="max-w-2xl mb-6 font-light text-slate-500 md:text-lg lg:text-xl">
-            Seuraa sähkön pörssihinnan kehitystä ja löydä päivän edullisimmat tunnit.
-        </p>
+<div>
+    <!-- Hero Section - Dark slate background -->
+    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="py-12 lg:py-16">
+                <h1 class="max-w-2xl mb-4 text-4xl font-extrabold text-white tracking-tight leading-none md:text-5xl xl:text-6xl">
+                    <span class="text-coral-400">Pörssisähkön</span> hinta
+                </h1>
+                <p class="max-w-2xl mb-6 text-slate-300 md:text-lg lg:text-xl">
+                    Seuraa sähkön pörssihinnan kehitystä ja löydä päivän edullisimmat tunnit.
+                </p>
+            </div>
+        </div>
     </section>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
     @if ($loading)
         <div class="flex items-center justify-center py-12">
@@ -548,6 +554,7 @@
             1.9.2024 alkaen sähkön arvonlisävero on 25,5%. Hinnat ajalta 1.12.2022 - 30.4.2023 sisältävät ALV:n 10% (väliaikainen alennus).
             Hinnat ajalta 1.5.2023 - 31.8.2024 sisältävät ALV:n 24%.
         </p>
+    </div>
     </div>
 </div>
 

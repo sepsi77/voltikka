@@ -1,89 +1,94 @@
 <div>
-    <!-- Back Link -->
-    <div class="mb-6">
-        <a href="/" class="inline-flex items-center text-coral-600 hover:text-coral-700">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-            </svg>
-            Takaisin sopimuksiin
-        </a>
-    </div>
+    <!-- Hero Section - Dark slate background -->
+    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="py-12 lg:py-16">
+                <!-- Back Link -->
+                <a href="/" class="inline-flex items-center text-slate-300 hover:text-white font-medium mb-6">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                    Takaisin sopimuksiin
+                </a>
 
-    <!-- Contract Header -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-6">
-        <div class="flex flex-col md:flex-row md:items-start gap-6">
-            <!-- Company Logo & Info -->
-            <div class="flex items-center gap-4">
-                @if ($contract->company?->getLogoUrl())
-                    <img
-                        src="{{ $contract->company->getLogoUrl() }}"
-                        alt="{{ $contract->company->name }}"
-                        class="h-16 w-auto object-contain"
-                    >
-                @else
-                    <div class="h-16 w-16 bg-gray-200 rounded flex items-center justify-center">
-                        <span class="text-gray-500 text-lg font-bold">{{ substr($contract->company?->name ?? 'N/A', 0, 2) }}</span>
+                <div class="flex flex-col md:flex-row md:items-start gap-6">
+                    <!-- Company Logo & Info -->
+                    <div class="flex items-center gap-4">
+                        @if ($contract->company?->getLogoUrl())
+                            <div class="bg-white p-3 rounded-xl">
+                                <img
+                                    src="{{ $contract->company->getLogoUrl() }}"
+                                    alt="{{ $contract->company->name }}"
+                                    class="h-16 w-auto object-contain"
+                                >
+                            </div>
+                        @else
+                            <div class="h-16 w-16 bg-slate-700 rounded-xl flex items-center justify-center">
+                                <span class="text-slate-300 text-lg font-bold">{{ substr($contract->company?->name ?? 'N/A', 0, 2) }}</span>
+                            </div>
+                        @endif
                     </div>
-                @endif
-            </div>
 
-            <!-- Contract Info -->
-            <div class="flex-grow">
-                <h1 class="text-2xl font-bold text-slate-900 mb-2">{{ $contract->name }}</h1>
-                <p class="text-lg text-slate-600 mb-3">{{ $contract->company?->name }}</p>
+                    <!-- Contract Info -->
+                    <div class="flex-grow">
+                        <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">{{ $contract->name }}</h1>
+                        <p class="text-lg text-slate-300 mb-3">{{ $contract->company?->name }}</p>
 
-                <!-- Contract Type & Metering Badges -->
-                <div class="flex flex-wrap gap-2 mb-4">
-                    <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium {{ $contract->contract_type === 'Spot' ? 'bg-coral-100 text-coral-800' : ($contract->contract_type === 'Fixed' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-700') }}">
-                        {{ $contract->contract_type }}
-                    </span>
-                    <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-slate-100 text-slate-700">
-                        {{ $contract->metering }}
-                    </span>
-                    @if ($contract->fixed_time_range)
-                        <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-coral-100 text-coral-800">
-                            {{ $contract->fixed_time_range }}
-                        </span>
-                    @endif
+                        <!-- Contract Type & Metering Badges -->
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium {{ $contract->contract_type === 'Spot' ? 'bg-coral-500/20 text-coral-300' : ($contract->contract_type === 'Fixed' ? 'bg-green-500/20 text-green-300' : 'bg-slate-700 text-slate-300') }}">
+                                {{ $contract->contract_type }}
+                            </span>
+                            <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-slate-700 text-slate-300">
+                                {{ $contract->metering }}
+                            </span>
+                            @if ($contract->fixed_time_range)
+                                <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-coral-500/20 text-coral-300">
+                                    {{ $contract->fixed_time_range }}
+                                </span>
+                            @endif
+                        </div>
+
+                        @if ($contract->short_description)
+                            <p class="text-slate-300">{{ $contract->short_description }}</p>
+                        @endif
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex flex-col gap-3">
+                        @if ($contract->order_link)
+                            <a
+                                href="{{ $contract->order_link }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center justify-center px-6 py-3.5 bg-gradient-to-r from-coral-500 to-coral-600 hover:from-coral-400 hover:to-coral-500 text-white font-bold rounded-xl shadow-coral transition-all"
+                            >
+                                Tilaa sopimus
+                                <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                </svg>
+                            </a>
+                        @endif
+                        @if ($contract->product_link)
+                            <a
+                                href="{{ $contract->product_link }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center justify-center px-6 py-3.5 bg-white hover:bg-slate-100 text-slate-900 font-bold rounded-xl transition-colors"
+                            >
+                                Lisätietoja
+                                <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                </svg>
+                            </a>
+                        @endif
+                    </div>
                 </div>
-
-                @if ($contract->short_description)
-                    <p class="text-slate-700">{{ $contract->short_description }}</p>
-                @endif
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="flex flex-col gap-3">
-                @if ($contract->order_link)
-                    <a
-                        href="{{ $contract->order_link }}"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex items-center justify-center px-6 py-3.5 bg-gradient-to-r from-coral-500 to-coral-600 hover:from-coral-400 hover:to-coral-500 text-white font-bold rounded-xl shadow-coral transition-all"
-                    >
-                        Tilaa sopimus
-                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                        </svg>
-                    </a>
-                @endif
-                @if ($contract->product_link)
-                    <a
-                        href="{{ $contract->product_link }}"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex items-center justify-center px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition-colors"
-                    >
-                        Lisätietoja
-                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                        </svg>
-                    </a>
-                @endif
             </div>
         </div>
-    </div>
+    </section>
 
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Left Column: Pricing & Cost Calculator -->
         <div class="lg:col-span-2 space-y-6">
@@ -388,5 +393,6 @@
                 </div>
             </div>
         </div>
+    </div>
     </div>
 </div>

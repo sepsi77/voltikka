@@ -1,0 +1,46 @@
+{
+  "session": "fix-hero-consistency",
+  "description": "Fix hero section inconsistencies across all pages. The homepage (contracts-list.blade.php) has a proper dark slate-950 hero with white text and coral accents, but internal pages have light/white backgrounds. All pages should have consistent dark hero sections matching the homepage pattern.",
+  "tasks": [
+    {
+      "id": "fix-spot-price-hero",
+      "title": "Update spot-price.blade.php hero to dark theme",
+      "description": "Update the hero section in laravel/resources/views/livewire/spot-price.blade.php to match the homepage pattern: 1) Wrap the hero in a section with 'bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8', 2) Add inner container 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8', 3) Add padding 'py-12 lg:py-16', 4) Change h1 from 'text-slate-900' to 'text-white', 5) Change description from 'text-slate-500' to 'text-slate-300', 6) Add coral accent to a key word in the heading using 'text-coral-400'. Reference contracts-list.blade.php lines 2-23 for the exact pattern.",
+      "status": "completed",
+      "completed_at": "2026-01-20T12:00:00Z",
+      "priority": 1
+    },
+    {
+      "id": "fix-locations-list-hero",
+      "title": "Update locations-list.blade.php hero to dark theme",
+      "description": "Update the hero section in laravel/resources/views/livewire/locations-list.blade.php to match the homepage pattern: 1) Change section from 'bg-transparent' to 'bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8', 2) Update inner container padding, 3) Change h1 from 'text-slate-900' to 'text-white', 4) Change description from 'text-slate-500' to 'text-slate-300', 5) Add coral accent to 'paikkakunnittain' using 'text-coral-400'. Reference contracts-list.blade.php lines 2-23 for the exact pattern.",
+      "status": "completed",
+      "completed_at": "2026-01-20T12:02:00Z",
+      "priority": 2
+    },
+    {
+      "id": "fix-calculator-hero",
+      "title": "Update consumption-calculator.blade.php hero to dark theme",
+      "description": "Update the hero section in laravel/resources/views/livewire/consumption-calculator.blade.php to match the homepage pattern: 1) Wrap hero in section with 'bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8', 2) Add inner container with proper padding, 3) Change h1 from 'text-slate-900' to 'text-white', 4) Change description from 'text-slate-500' to 'text-slate-300', 5) Add coral accent to 'laskuri' or 'kulutus' using 'text-coral-400'. Keep text-center alignment. Reference contracts-list.blade.php lines 2-23.",
+      "status": "completed",
+      "completed_at": "2026-01-20T12:04:00Z",
+      "priority": 3
+    },
+    {
+      "id": "fix-company-detail-hero",
+      "title": "Update company-detail.blade.php hero to dark theme",
+      "description": "Update the hero/header section in laravel/resources/views/livewire/company-detail.blade.php to match the homepage pattern if it has a hero section. Apply dark slate-950 background, white text for headings, slate-300 for descriptions, and coral-400 for accents. If no clear hero exists, add a consistent header section.",
+      "status": "completed",
+      "completed_at": "2026-01-20T12:06:00Z",
+      "priority": 4
+    },
+    {
+      "id": "fix-contract-detail-hero",
+      "title": "Verify/update contract-detail.blade.php header consistency",
+      "description": "Check laravel/resources/views/livewire/contract-detail.blade.php header section. If it has a hero/header area, ensure it matches the dark theme pattern or uses a consistent card-based header that fits with the design system. The back link should be on a dark background if there's a hero section.",
+      "status": "completed",
+      "completed_at": "2026-01-20T12:08:00Z",
+      "priority": 5
+    }
+  ]
+}

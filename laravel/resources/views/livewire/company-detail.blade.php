@@ -1,59 +1,67 @@
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Back Link -->
-    <a href="/" class="inline-flex items-center text-coral-600 hover:text-coral-700 font-medium mb-6">
-        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-        </svg>
-        Takaisin sopimuksiin
-    </a>
+<div>
+    <!-- Hero Section - Dark slate background -->
+    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="py-12 lg:py-16">
+                <!-- Back Link -->
+                <a href="/" class="inline-flex items-center text-slate-300 hover:text-white font-medium mb-6">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                    Takaisin sopimuksiin
+                </a>
 
-    <!-- Company Header -->
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8">
-        <div class="flex flex-col lg:flex-row items-center lg:items-start gap-6">
-            @if ($company->getLogoUrl())
-                <img
-                    src="{{ $company->getLogoUrl() }}"
-                    alt="{{ $company->name }}"
-                    class="w-32 h-auto object-contain"
-                    onerror="this.onerror=null; this.src='https://placehold.co/128x48?text=logo'"
-                >
-            @else
-                <div class="w-32 h-16 bg-slate-200 rounded flex items-center justify-center">
-                    <span class="text-slate-500 text-lg font-bold">{{ substr($company->name, 0, 3) }}</span>
+                <div class="flex flex-col lg:flex-row items-center lg:items-start gap-6">
+                    @if ($company->getLogoUrl())
+                        <div class="bg-white p-4 rounded-xl">
+                            <img
+                                src="{{ $company->getLogoUrl() }}"
+                                alt="{{ $company->name }}"
+                                class="w-32 h-auto object-contain"
+                                onerror="this.onerror=null; this.src='https://placehold.co/128x48?text=logo'"
+                            >
+                        </div>
+                    @else
+                        <div class="w-32 h-16 bg-slate-700 rounded-xl flex items-center justify-center">
+                            <span class="text-slate-300 text-lg font-bold">{{ substr($company->name, 0, 3) }}</span>
+                        </div>
+                    @endif
+
+                    <div class="flex-1 text-center lg:text-left">
+                        <h1 class="text-3xl md:text-4xl font-bold text-white mb-2">
+                            {{ $company->name }}
+                        </h1>
+
+                        @if ($company->street_address || $company->postal_code || $company->postal_name)
+                            <p class="text-slate-300 mb-2">
+                                <svg class="w-5 h-5 inline-block mr-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                {{ $company->street_address }}@if($company->postal_code || $company->postal_name), {{ $company->postal_code }} {{ $company->postal_name }}@endif
+                            </p>
+                        @endif
+
+                        @if ($company->company_url)
+                            <a
+                                href="{{ $company->company_url }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center text-coral-400 hover:text-coral-300"
+                            >
+                                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                </svg>
+                                {{ $company->company_url }}
+                            </a>
+                        @endif
+                    </div>
                 </div>
-            @endif
-
-            <div class="flex-1 text-center lg:text-left">
-                <h1 class="text-3xl font-bold text-slate-900 mb-2">
-                    {{ $company->name }}
-                </h1>
-
-                @if ($company->street_address || $company->postal_code || $company->postal_name)
-                    <p class="text-slate-600 mb-2">
-                        <svg class="w-5 h-5 inline-block mr-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                        </svg>
-                        {{ $company->street_address }}@if($company->postal_code || $company->postal_name), {{ $company->postal_code }} {{ $company->postal_name }}@endif
-                    </p>
-                @endif
-
-                @if ($company->company_url)
-                    <a
-                        href="{{ $company->company_url }}"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="inline-flex items-center text-coral-600 hover:text-coral-700"
-                    >
-                        <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                        </svg>
-                        {{ $company->company_url }}
-                    </a>
-                @endif
             </div>
         </div>
-    </div>
+    </section>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
     <!-- Contracts Section -->
     <h2 class="text-2xl font-bold text-slate-900 mb-4">
@@ -144,5 +152,6 @@
                 <p class="text-slate-500">Ei sähkösopimuksia saatavilla.</p>
             </div>
         @endforelse
+    </div>
     </div>
 </div>
