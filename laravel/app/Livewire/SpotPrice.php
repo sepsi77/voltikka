@@ -217,32 +217,47 @@ class SpotPrice extends Component
 
     /**
      * Find the best consecutive hours for high-consumption tasks.
+     * Only considers future hours (includes tomorrow if available).
      *
      * @param int $hoursNeeded Number of consecutive hours needed
      * @return array|null Returns null if not enough data
      */
     public function getBestConsecutiveHours(int $hoursNeeded): ?array
     {
-        $todayPrices = $this->getTodayPrices();
+        // Get future prices only (full day range, but filtered to future)
+        $futurePrices = $this->getPricesInTimeRange(0, 24);
 
-        if (count($todayPrices) < $hoursNeeded) {
+        if (count($futurePrices) < $hoursNeeded) {
             return null;
         }
 
-        // Sort by helsinki_hour to ensure consecutive
-        $sortedPrices = array_values($todayPrices);
-        usort($sortedPrices, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
+        // Sort by date and hour to ensure consecutive check works across midnight
+        $sortedPrices = array_values($futurePrices);
+        usort($sortedPrices, function($a, $b) {
+            $dateCompare = strcmp($a['helsinki_date'], $b['helsinki_date']);
+            if ($dateCompare !== 0) return $dateCompare;
+            return $a['helsinki_hour'] <=> $b['helsinki_hour'];
+        });
 
         $bestWindow = null;
         $bestAverage = PHP_FLOAT_MAX;
 
         for ($i = 0; $i <= count($sortedPrices) - $hoursNeeded; $i++) {
-            // Check if hours are actually consecutive
+            // Check if hours are actually consecutive (handles midnight crossing)
             $window = array_slice($sortedPrices, $i, $hoursNeeded);
             $isConsecutive = true;
 
             for ($j = 1; $j < count($window); $j++) {
-                if ($window[$j]['helsinki_hour'] !== $window[$j - 1]['helsinki_hour'] + 1) {
+                $prevHour = $window[$j - 1]['helsinki_hour'];
+                $currHour = $window[$j]['helsinki_hour'];
+                $prevDate = $window[$j - 1]['helsinki_date'];
+                $currDate = $window[$j]['helsinki_date'];
+
+                // Check if consecutive: either same day +1 hour, or midnight crossing (23->0 next day)
+                $sameDayConsecutive = ($prevDate === $currDate && $currHour === $prevHour + 1);
+                $midnightCrossing = ($prevDate !== $currDate && $prevHour === 23 && $currHour === 0);
+
+                if (!$sameDayConsecutive && !$midnightCrossing) {
                     $isConsecutive = false;
                     break;
                 }
@@ -422,13 +437,14 @@ class SpotPrice extends Component
      */
     public function calculatePotentialSavings(int $hoursNeeded, float $kwhPerHour): ?array
     {
-        $todayPrices = $this->getTodayPrices();
+        // Use future prices only (full day range, but filtered to future)
+        $futurePrices = $this->getPricesInTimeRange(0, 24);
 
-        if (count($todayPrices) < $hoursNeeded) {
+        if (count($futurePrices) < $hoursNeeded) {
             return null;
         }
 
-        $prices = array_column($todayPrices, 'price_without_tax');
+        $prices = array_column($futurePrices, 'price_without_tax');
         sort($prices);
 
         // Get cheapest hours
@@ -643,8 +659,13 @@ class SpotPrice extends Component
             return null;
         }
 
-        // Sort by hour to ensure consecutive check works correctly
-        usort($pricesInRange, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
+        // Sort by date and hour to ensure consecutive check works across midnight
+        $pricesInRange = array_values($pricesInRange);
+        usort($pricesInRange, function($a, $b) {
+            $dateCompare = strcmp($a['helsinki_date'], $b['helsinki_date']);
+            if ($dateCompare !== 0) return $dateCompare;
+            return $a['helsinki_hour'] <=> $b['helsinki_hour'];
+        });
 
         $worstWindow = null;
         $worstAverage = PHP_FLOAT_MIN;
@@ -652,13 +673,18 @@ class SpotPrice extends Component
         for ($i = 0; $i <= count($pricesInRange) - $duration; $i++) {
             $window = array_slice($pricesInRange, $i, $duration);
 
-            // Check if hours are consecutive
+            // Check if hours are consecutive (handles midnight crossing with dates)
             $isConsecutive = true;
             for ($j = 1; $j < count($window); $j++) {
                 $prevHour = $window[$j - 1]['helsinki_hour'];
                 $currHour = $window[$j]['helsinki_hour'];
+                $prevDate = $window[$j - 1]['helsinki_date'];
+                $currDate = $window[$j]['helsinki_date'];
 
-                if ($currHour !== ($prevHour + 1) % 24 && $currHour !== $prevHour + 1) {
+                $sameDayConsecutive = ($prevDate === $currDate && $currHour === $prevHour + 1);
+                $midnightCrossing = ($prevDate !== $currDate && $prevHour === 23 && $currHour === 0);
+
+                if (!$sameDayConsecutive && !$midnightCrossing) {
                     $isConsecutive = false;
                     break;
                 }
@@ -707,8 +733,13 @@ class SpotPrice extends Component
             return null;
         }
 
-        // Sort by hour to ensure consecutive check works correctly
-        usort($pricesInRange, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
+        // Sort by date and hour to ensure consecutive check works across midnight
+        $pricesInRange = array_values($pricesInRange);
+        usort($pricesInRange, function($a, $b) {
+            $dateCompare = strcmp($a['helsinki_date'], $b['helsinki_date']);
+            if ($dateCompare !== 0) return $dateCompare;
+            return $a['helsinki_hour'] <=> $b['helsinki_hour'];
+        });
 
         if ($duration === 1) {
             // Simple case: find single cheapest hour
@@ -730,20 +761,21 @@ class SpotPrice extends Component
         $bestWindow = null;
         $bestAverage = PHP_FLOAT_MAX;
 
-        // For ranges that cross midnight, we need to handle wrap-around
-        $crossesMidnight = $startHour > $endHour;
-
         for ($i = 0; $i <= count($pricesInRange) - $duration; $i++) {
             $window = array_slice($pricesInRange, $i, $duration);
 
-            // Check if hours are consecutive (considering midnight wrap)
+            // Check if hours are consecutive (handles midnight crossing with dates)
             $isConsecutive = true;
             for ($j = 1; $j < count($window); $j++) {
                 $prevHour = $window[$j - 1]['helsinki_hour'];
                 $currHour = $window[$j]['helsinki_hour'];
+                $prevDate = $window[$j - 1]['helsinki_date'];
+                $currDate = $window[$j]['helsinki_date'];
 
-                // Allow wrap-around from 23 to 0
-                if ($currHour !== ($prevHour + 1) % 24 && $currHour !== $prevHour + 1) {
+                $sameDayConsecutive = ($prevDate === $currDate && $currHour === $prevHour + 1);
+                $midnightCrossing = ($prevDate !== $currDate && $prevHour === 23 && $currHour === 0);
+
+                if (!$sameDayConsecutive && !$midnightCrossing) {
                     $isConsecutive = false;
                     break;
                 }
@@ -800,9 +832,11 @@ class SpotPrice extends Component
     }
 
     /**
-     * Get today's prices filtered to a specific time range.
+     * Get future prices filtered to a specific time range.
      *
      * Handles time ranges that cross midnight (e.g., 22:00-06:00 includes hours 22, 23, 0, 1, 2, 3, 4, 5).
+     * Only includes future hours (excludes past hours from today).
+     * Includes tomorrow's prices if available.
      *
      * @param int $startHour Start of the time window (0-23)
      * @param int $endHour End of the time window (0-23)
@@ -810,17 +844,27 @@ class SpotPrice extends Component
      */
     private function getPricesInTimeRange(int $startHour, int $endHour): array
     {
-        $todayPrices = $this->getTodayPrices();
-
-        if (empty($todayPrices)) {
+        // Use all hourly prices (today + tomorrow) not just today
+        if (empty($this->hourlyPrices)) {
             return [];
         }
 
+        $helsinkiNow = Carbon::now(self::TIMEZONE);
+        $currentHour = (int) $helsinkiNow->format('H');
+        $todayDate = $helsinkiNow->format('Y-m-d');
+
         $crossesMidnight = $startHour > $endHour;
 
-        return array_filter($todayPrices, function ($price) use ($startHour, $endHour, $crossesMidnight) {
+        return array_filter($this->hourlyPrices, function ($price) use ($startHour, $endHour, $crossesMidnight, $currentHour, $todayDate) {
             $hour = $price['helsinki_hour'];
+            $priceDate = $price['helsinki_date'];
 
+            // Skip past hours from today
+            if ($priceDate === $todayDate && $hour < $currentHour) {
+                return false;
+            }
+
+            // Check if hour is within the time range
             if ($crossesMidnight) {
                 // Range like 22:00-06:00 means hours 22, 23, 0, 1, 2, 3, 4, 5
                 return $hour >= $startHour || $hour <= $endHour;
