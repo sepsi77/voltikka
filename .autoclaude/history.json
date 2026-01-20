@@ -18,8 +18,8 @@
     },
     "electricity-calculator": {
       "started_at": "2026-01-20T14:13:02.678960",
-      "ended_at": null
+      "ended_at": "2026-01-20T14:31:48.653863"
     }
   },
-  "current": "electricity-calculator"
+  "current": null
 }
