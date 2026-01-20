@@ -231,8 +231,8 @@
             </div>
         </div>
 
-        <!-- Cheapest Remaining Hours & EV Charging Section -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Cheapest Remaining Hours, EV Charging & Sauna Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
             <!-- Cheapest Remaining Hours -->
             @if (!empty($cheapestRemainingHours))
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
@@ -300,6 +300,63 @@
                             </p>
                         </div>
                     @endif
+                </div>
+            @endif
+
+            <!-- Sauna Heating Section -->
+            @if ($saunaCost)
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+                    <div class="flex items-center mb-4">
+                        <span class="bg-coral-100 p-2 rounded-lg">
+                            <svg class="w-6 h-6 text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"></path>
+                            </svg>
+                        </span>
+                        <h3 class="ml-3 text-lg font-semibold text-slate-900">Saunan lämmitys</h3>
+                    </div>
+                    <p class="text-sm text-slate-500 mb-4">8 kW kiuas, 1 tunti</p>
+
+                    <!-- Cheapest hour -->
+                    <div class="bg-green-50 rounded-lg p-3 mb-3">
+                        @php
+                            $saunaCheapHour = $saunaCost['cheapest_hour'];
+                            $saunaNextCheapHour = ($saunaCheapHour + 1) % 24;
+                        @endphp
+                        <p class="text-sm text-green-600 mb-1">Edullisin tunti</p>
+                        <p class="text-xl font-bold text-green-700">
+                            {{ str_pad($saunaCheapHour, 2, '0', STR_PAD_LEFT) }}:00 - {{ str_pad($saunaNextCheapHour, 2, '0', STR_PAD_LEFT) }}:00
+                        </p>
+                        <p class="text-sm text-slate-600">
+                            {{ number_format($saunaCost['cheapest_cost'], 0, ',', ' ') }} senttiä
+                        </p>
+                    </div>
+
+                    <!-- Most expensive hour -->
+                    <div class="bg-red-50 rounded-lg p-3 mb-4">
+                        @php
+                            $saunaExpHour = $saunaCost['expensive_hour'];
+                            $saunaNextExpHour = ($saunaExpHour + 1) % 24;
+                        @endphp
+                        <p class="text-sm text-red-600 mb-1">Kallein tunti</p>
+                        <p class="text-xl font-bold text-red-700">
+                            {{ str_pad($saunaExpHour, 2, '0', STR_PAD_LEFT) }}:00 - {{ str_pad($saunaNextExpHour, 2, '0', STR_PAD_LEFT) }}:00
+                        </p>
+                        <p class="text-sm text-slate-600">
+                            {{ number_format($saunaCost['expensive_cost'], 0, ',', ' ') }} senttiä
+                        </p>
+                    </div>
+
+                    <!-- Cost difference -->
+                    <div class="border-t border-slate-200 pt-4">
+                        <p class="text-sm font-medium text-slate-700 mb-2">Säästö edullisimmalla tunnilla</p>
+                        <p class="text-lg font-bold text-green-600">
+                            {{ number_format($saunaCost['cost_difference_euros'], 2, ',', ' ') }} EUR
+                        </p>
+                        <p class="text-xs text-slate-500">
+                            verrattuna kalleimpaan tuntiin
+                        </p>
+                    </div>
                 </div>
             @endif
         </div>

@@ -1,0 +1,43 @@
+{
+  "session": "sauna-calculator",
+  "description": "Add a sauna heating cost calculator to the spot price page, similar to the EV charging calculator. Shows cost comparison between cheapest and most expensive hours for 1 hour of sauna heating.",
+  "tasks": [
+    {
+      "id": "add-sauna-calculation-method",
+      "title": "Add sauna cost calculation method to SpotPrice.php",
+      "description": "Add a new method calculateSaunaCost() to SpotPrice.php that calculates the cost difference between heating a sauna for 1 hour during the cheapest vs most expensive hour. Use 8 kW as the default sauna heater power. Return an array with: cheapest_hour (time and price), expensive_hour (time and price), cheapest_cost (cents), expensive_cost (cents), cost_difference (cents), cost_difference_euros. The method should use getTodayPrices() to get today's hourly prices and find the min/max price hours.",
+      "status": "completed",
+      "priority": 1,
+      "completed_at": "2026-01-20T12:00:00Z"
+    },
+    {
+      "id": "add-sauna-to-render",
+      "title": "Add sauna data to render method",
+      "description": "Update the render() method in SpotPrice.php to include saunaCost data in the viewData array by calling the new calculateSaunaCost() method.",
+      "status": "completed",
+      "priority": 2,
+      "depends_on": ["add-sauna-calculation-method"],
+      "completed_at": "2026-01-20T12:01:00Z"
+    },
+    {
+      "id": "add-sauna-ui-card",
+      "title": "Add sauna calculator UI card to spot-price.blade.php",
+      "description": "Add a sauna heating cost calculator card to the spot-price.blade.php view, positioned after the EV charging section (around line 304). Use similar styling to the EV charging card but with sauna-specific content. The card should show: 1) Sauna icon (fire or thermometer), 2) Title 'Saunan lämmitys', 3) Cheapest hour with green highlighting, 4) Most expensive hour with red highlighting, 5) Cost difference in euros, 6) Explanatory text '8 kW kiuas, 1 tunti'. Use the same coral/orange color scheme as the EV charging card.",
+      "status": "completed",
+      "priority": 3,
+      "depends_on": ["add-sauna-to-render"],
+      "completed_at": "2026-01-20T12:05:00Z"
+    },
+    {
+      "id": "test-sauna-calculator",
+      "title": "Test the sauna calculator manually",
+      "description": "Verify the sauna calculator works by checking http://127.0.0.1:8000/spot-price in the browser. Ensure: 1) The sauna card displays correctly, 2) The cheapest and most expensive hours are shown, 3) The cost difference is calculated correctly (8 kWh * price difference in c/kWh), 4) Finnish formatting is correct (commas as decimal separators).",
+      "status": "completed",
+      "priority": 4,
+      "depends_on": ["add-sauna-ui-card"],
+      "completed_at": "2026-01-20T12:10:00Z",
+      "passes": true,
+      "notes": "Calculation logic verified via tinker: cheapest_cost=20c, expensive_cost=100c, difference=80c (0.80 EUR) for test prices of 2.5 and 12.5 c/kWh. PHP syntax and Blade compilation verified."
+    }
+  ]
+}

@@ -458,6 +458,42 @@ class SpotPrice extends Component
     }
 
     /**
+     * Calculate sauna heating cost comparison between cheapest and most expensive hours.
+     *
+     * Uses 8 kW as default sauna heater power for 1 hour of heating.
+     *
+     * @param float $kw Sauna heater power in kW (default 8 kW)
+     * @return array|null Sauna cost data or null if not enough data
+     */
+    public function calculateSaunaCost(float $kw = 8.0): ?array
+    {
+        $cheapestHour = $this->getCheapestHour();
+        $mostExpensiveHour = $this->getMostExpensiveHour();
+
+        if ($cheapestHour === null || $mostExpensiveHour === null) {
+            return null;
+        }
+
+        // Calculate cost for 1 hour of heating at given kW
+        // Price is in c/kWh, so cost = price * kWh
+        $cheapestCost = $cheapestHour['price_without_tax'] * $kw;
+        $expensiveCost = $mostExpensiveHour['price_without_tax'] * $kw;
+        $costDifference = $expensiveCost - $cheapestCost;
+
+        return [
+            'cheapest_hour' => $cheapestHour['helsinki_hour'],
+            'cheapest_price' => $cheapestHour['price_without_tax'],
+            'expensive_hour' => $mostExpensiveHour['helsinki_hour'],
+            'expensive_price' => $mostExpensiveHour['price_without_tax'],
+            'cheapest_cost' => $cheapestCost,
+            'expensive_cost' => $expensiveCost,
+            'cost_difference' => $costDifference,
+            'cost_difference_euros' => $costDifference / 100,
+            'kw' => $kw,
+        ];
+    }
+
+    /**
      * Generate chart data for today's hourly prices.
      *
      * @return array Chart.js compatible data structure with color coding
@@ -864,6 +900,7 @@ class SpotPrice extends Component
             'cheapestRemainingHours' => $this->getCheapestRemainingHours(5),
             'bestConsecutiveHours' => $this->getBestConsecutiveHours(3),
             'potentialSavings' => $this->calculatePotentialSavings(3, 3.7), // 3 hours at 3.7 kW (typical EV charging)
+            'saunaCost' => $this->calculateSaunaCost(), // 1 hour at 8 kW (typical sauna heater)
             // Chart data
             'chartData' => $this->getChartData(),
         ];
