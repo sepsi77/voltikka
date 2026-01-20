@@ -143,31 +143,31 @@
                 @foreach ($presets as $key => $preset)
                     <button
                         wire:click="selectPreset('{{ $key }}')"
-                        class="p-5 bg-white border rounded-2xl shadow-sm hover:shadow-md hover:border-coral-300 transition-all text-left {{ $selectedPreset === $key ? 'border-coral-500 ring-2 ring-coral-200' : 'border-slate-100' }}"
+                        class="p-5 border-2 rounded-2xl transition-all text-left {{ $selectedPreset === $key ? 'bg-gradient-to-r from-coral-500 to-coral-600 border-coral-500 shadow-coral' : 'bg-white border-slate-200 hover:border-coral-400' }}"
                     >
                         <div class="flex items-start">
-                            <span class="bg-[#E4FFC9] p-2 rounded-lg mr-3 flex-shrink-0">
+                            <span class="{{ $selectedPreset === $key ? 'bg-white/20' : 'bg-slate-100' }} p-2 rounded-xl mr-3 flex-shrink-0">
                                 @if ($preset['icon'] === 'apartment')
-                                    <svg class="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                                     </svg>
                                 @else
-                                    <svg class="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                                     </svg>
                                 @endif
                             </span>
                             <div class="flex-1 min-w-0">
-                                <h5 class="font-semibold text-slate-900 truncate">{{ $preset['label'] }}</h5>
-                                <p class="text-sm text-slate-500">{{ $preset['description'] }}</p>
+                                <h5 class="font-semibold {{ $selectedPreset === $key ? 'text-white' : 'text-slate-900' }} truncate">{{ $preset['label'] }}</h5>
+                                <p class="text-sm {{ $selectedPreset === $key ? 'text-white/80' : 'text-slate-500' }}">{{ $preset['description'] }}</p>
                             </div>
-                            <svg class="w-6 h-6 flex-shrink-0 ml-2 {{ $selectedPreset === $key ? 'text-coral-500' : 'text-gray-300' }}" fill="currentColor" viewBox="0 0 20 20">
+                            <svg class="w-6 h-6 flex-shrink-0 ml-2 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-300' }}" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
                             </svg>
                         </div>
                         <div class="mt-3 text-right">
-                            <span class="text-xl font-bold text-slate-900">{{ number_format($preset['consumption'], 0, ',', ' ') }}</span>
-                            <span class="text-slate-500 text-sm ml-1">kWh/v</span>
+                            <span class="text-xl font-bold {{ $selectedPreset === $key ? 'text-white' : 'text-slate-900' }}">{{ number_format($preset['consumption'], 0, ',', ' ') }}</span>
+                            <span class="{{ $selectedPreset === $key ? 'text-white/80' : 'text-slate-500' }} text-sm ml-1">kWh/v</span>
                         </div>
                     </button>
                 @endforeach
@@ -528,7 +528,7 @@
     </section>
 
     {{-- Filter Section --}}
-    <div class="bg-white rounded-lg py-5 border-2 border-slate-100 mb-8" x-data="{ filtersOpen: false }">
+    <div class="bg-white rounded-2xl py-5 border border-slate-200 mb-8" x-data="{ filtersOpen: false }">
         {{-- Mobile Accordion Trigger --}}
         <button
             @click="filtersOpen = !filtersOpen"
@@ -541,65 +541,160 @@
         </button>
 
         {{-- Filter Content --}}
-        <div class="lg:flex" :class="{ 'hidden': !filtersOpen }" x-bind:class="{ 'hidden lg:flex': !filtersOpen }">
-            {{-- Contract Type Filters --}}
+        @php
+            // Only use links for SEO when no filters are active (to prevent URL explosion)
+            $useLinks = !$this->hasActiveFilters();
+        @endphp
+        <div class="lg:flex flex-wrap" :class="{ 'hidden': !filtersOpen }" x-bind:class="{ 'hidden lg:flex': !filtersOpen }">
+            {{-- Pricing Model Filters --}}
             <div class="flex flex-col px-4">
-                <h4 class="font-semibold text-slate-900 mb-2">Sopimustyyppi</h4>
+                <h4 class="font-semibold text-slate-900 mb-2">Hinnoittelumalli</h4>
+                <div class="flex flex-col lg:flex-row gap-2">
+                    @foreach ($pricingModels as $model => $label)
+                        @php
+                            $icons = [
+                                'FixedPrice' => 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+                                'Spot' => 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+                                'Hybrid' => 'M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+                            ];
+                            $icon = $icons[$model] ?? $icons['FixedPrice'];
+                            $isActive = $pricingModelFilter === $model;
+                        @endphp
+                        @if ($useLinks && !$isActive)
+                            <a
+                                href="/?pricingModelFilter={{ $model }}"
+                                wire:click.prevent="setPricingModelFilter('{{ $model }}')"
+                                class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
+                            >
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icon }}"></path>
+                                </svg>
+                                {{ $label }}
+                            </a>
+                        @else
+                            <button
+                                wire:click="setPricingModelFilter('{{ $model }}')"
+                                class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $isActive ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
+                            >
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icon }}"></path>
+                                </svg>
+                                {{ $label }}
+                            </button>
+                        @endif
+                    @endforeach
+                </div>
+            </div>
+
+            {{-- Contract Duration Filters --}}
+            <div class="flex flex-col border-t lg:border-t-0 lg:border-l border-slate-200 px-4 mt-4 pt-4 lg:mt-0 lg:pt-0">
+                <h4 class="font-semibold text-slate-900 mb-2">Sopimuksen kesto</h4>
                 <div class="flex flex-col lg:flex-row gap-2">
                     @foreach ($contractTypes as $type => $label)
                         @php
                             $icons = [
                                 'OpenEnded' => 'M13 5l7 7-7 7M5 5l7 7-7 7',
                                 'FixedTerm' => 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
-                                'Spot' => 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
-                                'Hybrid' => 'M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
                             ];
                             $icon = $icons[$type] ?? $icons['OpenEnded'];
+                            $isActive = $contractTypeFilter === $type;
                         @endphp
-                        <button
-                            wire:click="setContractTypeFilter('{{ $type }}')"
-                            class="flex items-center bg-white border focus:outline-none hover:bg-slate-100 focus:ring-4 focus:ring-slate-200 font-medium rounded-full text-sm px-5 py-2.5 transition-colors {{ $contractTypeFilter === $type ? 'text-green-600 border-green-600' : 'text-slate-900 border-slate-300' }}"
-                        >
-                            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icon }}"></path>
-                            </svg>
-                            {{ $label }}
-                        </button>
+                        @if ($useLinks && !$isActive)
+                            <a
+                                href="/?contractTypeFilter={{ $type }}"
+                                wire:click.prevent="setContractTypeFilter('{{ $type }}')"
+                                class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
+                            >
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icon }}"></path>
+                                </svg>
+                                {{ $label }}
+                            </a>
+                        @else
+                            <button
+                                wire:click="setContractTypeFilter('{{ $type }}')"
+                                class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $isActive ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
+                            >
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icon }}"></path>
+                                </svg>
+                                {{ $label }}
+                            </button>
+                        @endif
                     @endforeach
                 </div>
             </div>
 
             {{-- Energy Source Filters --}}
-            <div class="flex flex-col border-t lg:border-t-0 lg:border-l-2 border-slate-300 px-4 mt-4 pt-4 lg:mt-0 lg:pt-0">
+            <div class="flex flex-col border-t lg:border-t-0 lg:border-l border-slate-200 px-4 mt-4 pt-4 lg:mt-0 lg:pt-0">
                 <h4 class="font-semibold text-slate-900 mb-2">Energialähde</h4>
                 <div class="flex flex-col lg:flex-row gap-2">
-                    <button
-                        wire:click="$toggle('fossilFreeFilter')"
-                        class="flex items-center bg-white border focus:outline-none hover:bg-slate-100 focus:ring-4 focus:ring-slate-200 font-medium rounded-full text-sm px-5 py-2.5 transition-colors {{ $fossilFreeFilter ? 'text-green-600 border-green-600' : 'text-slate-900 border-slate-300' }}"
-                    >
-                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
-                        </svg>
-                        Fossiiliton
-                    </button>
-                    <button
-                        wire:click="$toggle('renewableFilter')"
-                        class="flex items-center bg-white border focus:outline-none hover:bg-slate-100 focus:ring-4 focus:ring-slate-200 font-medium rounded-full text-sm px-5 py-2.5 transition-colors {{ $renewableFilter ? 'text-green-600 border-green-600' : 'text-slate-900 border-slate-300' }}"
-                    >
-                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                        </svg>
-                        Uusiutuva
-                    </button>
-                    <button
-                        wire:click="$toggle('nuclearFilter')"
-                        class="flex items-center bg-white border focus:outline-none hover:bg-slate-100 focus:ring-4 focus:ring-slate-200 font-medium rounded-full text-sm px-5 py-2.5 transition-colors {{ $nuclearFilter ? 'text-green-600 border-green-600' : 'text-slate-900 border-slate-300' }}"
-                    >
-                        <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                        Ydinvoima
-                    </button>
+                    @if ($useLinks && !$fossilFreeFilter)
+                        <a
+                            href="/?fossilFreeFilter=1"
+                            wire:click.prevent="$toggle('fossilFreeFilter')"
+                            class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
+                        >
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                            </svg>
+                            Fossiiliton
+                        </a>
+                    @else
+                        <button
+                            wire:click="$toggle('fossilFreeFilter')"
+                            class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $fossilFreeFilter ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
+                        >
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                            </svg>
+                            Fossiiliton
+                        </button>
+                    @endif
+                    @if ($useLinks && !$renewableFilter)
+                        <a
+                            href="/?renewableFilter=1"
+                            wire:click.prevent="$toggle('renewableFilter')"
+                            class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
+                        >
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                            </svg>
+                            Uusiutuva
+                        </a>
+                    @else
+                        <button
+                            wire:click="$toggle('renewableFilter')"
+                            class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $renewableFilter ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
+                        >
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                            </svg>
+                            Uusiutuva
+                        </button>
+                    @endif
+                    @if ($useLinks && !$nuclearFilter)
+                        <a
+                            href="/?nuclearFilter=1"
+                            wire:click.prevent="$toggle('nuclearFilter')"
+                            class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
+                        >
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                            Ydinvoima
+                        </a>
+                    @else
+                        <button
+                            wire:click="$toggle('nuclearFilter')"
+                            class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $nuclearFilter ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
+                        >
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                            Ydinvoima
+                        </button>
+                    @endif
                 </div>
             </div>
         </div>
@@ -697,21 +792,21 @@
                 </div>
 
                 {{-- Energy Source Badges and CTA --}}
-                <div class="flex flex-wrap lg:flex-nowrap items-center mt-6">
+                <div class="flex flex-wrap lg:flex-nowrap items-center gap-2 mt-6 pt-4 border-t border-slate-100">
                     @if ($source)
                         @if ($source->renewable_total && $source->renewable_total > 0)
-                            <span class="text-slate-700 border border-green-700 bg-[#E4FFC9] font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-2 mb-2 lg:mb-0">
-                                Uusiutuva <span class="font-semibold ml-2">{{ number_format($source->renewable_total, 0) }}%</span>
+                            <span class="inline-block px-3 py-1.5 bg-green-100 text-green-700 text-xs font-bold rounded-lg uppercase">
+                                Uusiutuva {{ number_format($source->renewable_total, 0) }}%
                             </span>
                         @endif
                         @if ($source->nuclear_total && $source->nuclear_total > 0)
-                            <span class="text-slate-700 border border-green-700 bg-[#E4FFC9] font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-2 mb-2 lg:mb-0">
-                                Ydinvoima <span class="font-semibold ml-2">{{ number_format($source->nuclear_total, 0) }}%</span>
+                            <span class="inline-block px-3 py-1.5 bg-green-100 text-green-700 text-xs font-bold rounded-lg uppercase">
+                                Ydinvoima {{ number_format($source->nuclear_total, 0) }}%
                             </span>
                         @endif
                         @if ($source->fossil_total && $source->fossil_total > 0)
-                            <span class="text-slate-700 border border-slate-700 bg-slate-100 font-medium rounded-lg text-sm px-5 py-2.5 text-center mr-2 mb-2 lg:mb-0">
-                                Fossiilinen <span class="font-semibold ml-2">{{ number_format($source->fossil_total, 0) }}%</span>
+                            <span class="inline-block px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-medium rounded-lg uppercase">
+                                Fossiilinen {{ number_format($source->fossil_total, 0) }}%
                             </span>
                         @endif
                     @endif
