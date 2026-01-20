@@ -1,0 +1,78 @@
+{
+  "session": "fix-contract-detail-design",
+  "description": "Apply the Fresh Coral design system to the contract detail page (contract-detail.blade.php). The page currently uses blue colors and doesn't match the design system implemented on the contracts list page.",
+  "tasks": [
+    {
+      "id": "update-back-link",
+      "title": "Update back link to use coral accent",
+      "description": "Change the 'Takaisin sopimuksiin' link from blue-600 to coral-600 (hover: coral-700). Reference design-system/colors.md for the exact hex values.",
+      "status": "completed",
+      "priority": 1,
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "update-contract-header",
+      "title": "Restyle contract header card",
+      "description": "Update the contract header card styling: 1) Use rounded-2xl (24px) instead of rounded-lg, 2) Use border-slate-100 instead of border-gray-200, 3) Use slate-900 for headings, slate-600 for secondary text.",
+      "status": "completed",
+      "priority": 2,
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "update-badges",
+      "title": "Restyle contract type and metering badges",
+      "description": "Update badge colors: 1) Spot contracts: coral-100 bg, coral-800 text instead of yellow, 2) Fixed contracts: green-100 bg, green-800 text (keep as-is for semantic meaning), 3) Metering badge: slate-100 bg, slate-700 text instead of blue, 4) Time range badge: coral-100 bg, coral-800 text instead of purple. Use 8px radius.",
+      "status": "completed",
+      "priority": 3,
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "update-cta-buttons",
+      "title": "Apply coral gradient to CTA buttons",
+      "description": "Update 'Tilaa sopimus' button: 1) Use coral gradient (from-coral-500 to-coral-600), 2) Add shadow-coral, 3) Use rounded-xl (12px), 4) Hover: from-coral-400 to-coral-500. Update 'Lisätietoja' button to use slate-900 bg, white text. Reference design-system/components.md button patterns.",
+      "status": "completed",
+      "priority": 4,
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "update-consumption-selector",
+      "title": "Restyle consumption selector buttons",
+      "description": "Update consumption preset buttons: 1) Default: bg-slate-100 text-slate-700, 2) Active: coral gradient (from-coral-500 to-coral-600), white text, shadow-coral, 3) Use rounded-xl (12px) instead of rounded-lg.",
+      "status": "completed",
+      "priority": 5,
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "update-cost-display",
+      "title": "Style cost display with coral accent",
+      "description": "Update the annual cost display: 1) Use bg-coral-50 instead of bg-gray-50, 2) Add border border-coral-200, 3) Make the main cost value coral-600 and extrabold.",
+      "status": "completed",
+      "priority": 6,
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "update-cards-styling",
+      "title": "Update all info cards to design system",
+      "description": "Update all card sections (Hintatiedot, Sähkön alkuperä, Yhtiön tiedot, Laskutus ja ehdot): 1) Use rounded-2xl instead of rounded-lg, 2) Use border-slate-100 instead of border-gray-200, 3) Use slate-900 for headings (h2), 4) Use border-slate-100 for dividers.",
+      "status": "completed",
+      "priority": 7,
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "update-company-link",
+      "title": "Update company website link color",
+      "description": "Change the company URL link from blue-600 to coral-600 (hover: coral-700).",
+      "status": "completed",
+      "priority": 8,
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true
+    }
+  ]
+}
