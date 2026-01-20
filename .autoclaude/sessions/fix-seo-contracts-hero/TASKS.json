@@ -1,0 +1,26 @@
+{
+  "session": "fix-seo-contracts-hero",
+  "description": "Fix the hero section in seo-contracts-list.blade.php to use the dark slate-950 pattern like all other pages. This page is used for housing type pages (omakotitalo, rivitalo, kerrostalo) and energy source pages (vihrea-sahko, tuulisahko, aurinkosahko).",
+  "tasks": [
+    {
+      "id": "fix-seo-hero",
+      "title": "Update seo-contracts-list.blade.php hero to dark theme",
+      "description": "Update laravel/resources/views/livewire/seo-contracts-list.blade.php hero section (lines 9-27): 1) Change section from 'bg-transparent mb-8' to 'bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8', 2) Add a wrapper div inside with 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8', 3) Change the badge from green (bg-green-100 text-green-800 border-green-400) to coral (bg-coral-50 text-coral-700), remove border, 4) Change h1 from 'text-slate-900' to 'text-white', 5) Change description from 'text-slate-500' to 'text-slate-300', 6) The heading uses $pageHeading which is dynamic - don't add a coral accent word since it varies per page. Reference contracts-list.blade.php lines 2-23 for the exact pattern.",
+      "status": "completed",
+      "priority": 1,
+      "started_at": "2026-01-20T00:00:00Z",
+      "completed_at": "2026-01-20T00:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "fix-seo-wrapper",
+      "title": "Add wrapper div for content after hero",
+      "description": "The current file starts with 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8' on line 1. After updating the hero to have negative margins, ensure the content after the hero is properly wrapped. Add a closing </div> at the end of the file to match the new wrapper structure.",
+      "status": "completed",
+      "priority": 2,
+      "depends_on": ["fix-seo-hero"],
+      "completed_at": "2026-01-20T00:00:00Z",
+      "passes": true
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div>
     {{-- JSON-LD Structured Data --}}
     @if(!empty($seoData['jsonLd']))
     <script type="application/ld+json">
@@ -6,25 +6,29 @@
     </script>
     @endif
 
-    {{-- SEO Hero Section --}}
-    <section class="bg-transparent mb-8">
-        <div class="grid max-w-screen-xl px-4 py-8 mx-auto lg:gap-8 xl:gap-0 lg:py-16 lg:grid-cols-12">
-            <div class="mx-auto place-self-center col-12 lg:col-span-7">
-                <p class="bg-green-100 w-fit text-center mb-4 text-green-800 text-xs font-medium p-2.5 rounded-full border border-green-400">
-                    Vertaile ja säästä
-                </p>
-                <h1 class="max-w-2xl mb-4 text-4xl font-extrabold text-slate-900 tracking-tight leading-none md:text-5xl xl:text-6xl">
-                    {{ $pageHeading }}
-                </h1>
-                <p class="max-w-2xl mb-6 font-light text-slate-500 lg:mb-8 md:text-lg lg:text-xl">
-                    {{ $seoIntroText }}
-                </p>
-            </div>
-            <div class="lg:mt-0 col-12 lg:col-span-5 lg:flex mx-auto mt-8 lg:mt-0">
-                {{-- Decorative element placeholder --}}
+    {{-- SEO Hero Section - Dark slate background --}}
+    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid max-w-screen-xl py-12 mx-auto lg:gap-8 xl:gap-0 lg:py-20 lg:grid-cols-12">
+                <div class="mx-auto place-self-center col-12 lg:col-span-7">
+                    <p class="bg-coral-50 w-fit text-center mb-4 text-coral-700 text-xs font-semibold px-4 py-2 rounded-full">
+                        Vertaile ja säästä
+                    </p>
+                    <h1 class="max-w-2xl mb-4 text-4xl font-extrabold text-white tracking-tight leading-tight md:text-5xl xl:text-6xl">
+                        {{ $pageHeading }}
+                    </h1>
+                    <p class="max-w-2xl mb-6 text-slate-300 lg:mb-8 md:text-lg lg:text-xl">
+                        {{ $seoIntroText }}
+                    </p>
+                </div>
+                <div class="lg:mt-0 col-12 lg:col-span-5 lg:flex mx-auto mt-8 lg:mt-0">
+                    {{-- Decorative element placeholder --}}
+                </div>
             </div>
         </div>
     </section>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
     {{-- Breadcrumb Navigation --}}
     @if($hasSeoFilter)
@@ -786,4 +790,5 @@
         </div>
     </section>
     @endif
+    </div>
 </div>
