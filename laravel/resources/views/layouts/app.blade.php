@@ -86,6 +86,36 @@
                         <a href="/" class="text-tertiary-500 hover:text-tertiary-700 font-medium transition">
                             Sähkösopimukset
                         </a>
+                        <a href="/laskuri" class="text-tertiary-500 hover:text-tertiary-700 font-medium transition">
+                            Laskuri
+                        </a>
+
+                        <!-- Housing Type Dropdown -->
+                        <div class="relative" x-data="{ open: false }">
+                            <button @click="open = !open" @click.outside="open = false" class="text-tertiary-500 hover:text-tertiary-700 font-medium transition flex items-center gap-1">
+                                Asuntotyyppi
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+                            <div x-show="open" x-transition class="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                                <a href="/sahkosopimus/omakotitalo" class="block px-4 py-2 text-sm text-tertiary-500 hover:bg-gray-100">Omakotitalo</a>
+                                <a href="/sahkosopimus/rivitalo" class="block px-4 py-2 text-sm text-tertiary-500 hover:bg-gray-100">Rivitalo</a>
+                                <a href="/sahkosopimus/kerrostalo" class="block px-4 py-2 text-sm text-tertiary-500 hover:bg-gray-100">Kerrostalo</a>
+                            </div>
+                        </div>
+
+                        <!-- Energy Source Dropdown -->
+                        <div class="relative" x-data="{ open: false }">
+                            <button @click="open = !open" @click.outside="open = false" class="text-tertiary-500 hover:text-tertiary-700 font-medium transition flex items-center gap-1">
+                                Energialähde
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+                            <div x-show="open" x-transition class="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                                <a href="/sahkosopimus/vihrea-sahko" class="block px-4 py-2 text-sm text-tertiary-500 hover:bg-gray-100">Vihreä sähkö</a>
+                                <a href="/sahkosopimus/tuulisahko" class="block px-4 py-2 text-sm text-tertiary-500 hover:bg-gray-100">Tuulisähkö</a>
+                                <a href="/sahkosopimus/aurinkosahko" class="block px-4 py-2 text-sm text-tertiary-500 hover:bg-gray-100">Aurinkosähkö</a>
+                            </div>
+                        </div>
+
                         <a href="/paikkakunnat" class="text-tertiary-500 hover:text-tertiary-700 font-medium transition">
                             Paikkakunnat
                         </a>
@@ -123,6 +153,26 @@
                     <a href="/" class="block px-3 py-2 rounded-md text-base font-medium text-tertiary-500 hover:text-tertiary-700 hover:bg-gray-50">
                         Sähkösopimukset
                     </a>
+                    <a href="/laskuri" class="block px-3 py-2 rounded-md text-base font-medium text-tertiary-500 hover:text-tertiary-700 hover:bg-gray-50">
+                        Laskuri
+                    </a>
+
+                    <!-- Housing Type Section -->
+                    <div class="px-3 py-2">
+                        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Asuntotyyppi</div>
+                        <a href="/sahkosopimus/omakotitalo" class="block px-3 py-1 text-sm text-tertiary-500 hover:text-tertiary-700 hover:bg-gray-50 rounded">Omakotitalo</a>
+                        <a href="/sahkosopimus/rivitalo" class="block px-3 py-1 text-sm text-tertiary-500 hover:text-tertiary-700 hover:bg-gray-50 rounded">Rivitalo</a>
+                        <a href="/sahkosopimus/kerrostalo" class="block px-3 py-1 text-sm text-tertiary-500 hover:text-tertiary-700 hover:bg-gray-50 rounded">Kerrostalo</a>
+                    </div>
+
+                    <!-- Energy Source Section -->
+                    <div class="px-3 py-2">
+                        <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Energialähde</div>
+                        <a href="/sahkosopimus/vihrea-sahko" class="block px-3 py-1 text-sm text-tertiary-500 hover:text-tertiary-700 hover:bg-gray-50 rounded">Vihreä sähkö</a>
+                        <a href="/sahkosopimus/tuulisahko" class="block px-3 py-1 text-sm text-tertiary-500 hover:text-tertiary-700 hover:bg-gray-50 rounded">Tuulisähkö</a>
+                        <a href="/sahkosopimus/aurinkosahko" class="block px-3 py-1 text-sm text-tertiary-500 hover:text-tertiary-700 hover:bg-gray-50 rounded">Aurinkosähkö</a>
+                    </div>
+
                     <a href="/paikkakunnat" class="block px-3 py-2 rounded-md text-base font-medium text-tertiary-500 hover:text-tertiary-700 hover:bg-gray-50">
                         Paikkakunnat
                     </a>

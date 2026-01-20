@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\CompanyDetail;
+use App\Livewire\ConsumptionCalculator;
 use App\Livewire\ContractDetail;
 use App\Livewire\ContractsList;
 use App\Livewire\LocationsList;
@@ -10,6 +11,7 @@ use App\Services\SitemapService;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', ContractsList::class);
+Route::get('/laskuri', ConsumptionCalculator::class)->name('calculator');
 Route::get('/sopimus/{contractId}', ContractDetail::class)->name('contract.detail');
 Route::get('/paikkakunnat/{location?}', LocationsList::class)->name('locations');
 Route::get('/yritys/{companySlug}', CompanyDetail::class)->name('company.detail');

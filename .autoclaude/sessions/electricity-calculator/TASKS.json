@@ -1,0 +1,65 @@
+{
+  "session": "electricity-calculator",
+  "description": "Implement electricity consumption calculator in Laravel with Livewire, porting the legacy Python/Svelte calculator functionality",
+  "tasks": [
+    {
+      "id": "create-calculator-service",
+      "title": "Create EnergyCalculator service class with calculation logic",
+      "description": "Port the Python energy calculator logic from legacy/python/fastapi/api/energy_calculator/ to a Laravel service class.",
+      "status": "completed",
+      "completed_at": "2026-01-20T10:00:00Z",
+      "passes": true,
+      "priority": 1
+    },
+    {
+      "id": "create-livewire-component",
+      "title": "Create ConsumptionCalculator Livewire component with form UI",
+      "description": "Create a Livewire component at app/Livewire/ConsumptionCalculator.php with the calculator form.",
+      "status": "completed",
+      "completed_at": "2026-01-20T10:30:00Z",
+      "passes": true,
+      "priority": 2,
+      "depends_on": ["create-calculator-service"]
+    },
+    {
+      "id": "create-calculator-view",
+      "title": "Create Blade view for calculator with styled form",
+      "description": "Create the Blade view at resources/views/livewire/consumption-calculator.blade.php.",
+      "status": "completed",
+      "completed_at": "2026-01-20T10:30:00Z",
+      "passes": true,
+      "priority": 3,
+      "depends_on": ["create-livewire-component"]
+    },
+    {
+      "id": "add-presets-functionality",
+      "title": "Add preset consumption profiles",
+      "description": "Add a Presets tab to the calculator that offers quick selection of common consumption profiles.",
+      "status": "completed",
+      "completed_at": "2026-01-20T10:30:00Z",
+      "passes": true,
+      "priority": 4,
+      "depends_on": ["create-calculator-view"]
+    },
+    {
+      "id": "integrate-with-contracts-list",
+      "title": "Integrate calculator results with ContractsList for comparison",
+      "description": "Connect the calculator to the contracts comparison via route /laskuri and redirect to ContractsList with calculated consumption.",
+      "status": "completed",
+      "completed_at": "2026-01-20T10:30:00Z",
+      "passes": true,
+      "priority": 5,
+      "depends_on": ["add-presets-functionality"]
+    },
+    {
+      "id": "add-calculator-tests",
+      "title": "Add tests for ConsumptionCalculator component",
+      "description": "Create feature tests for the ConsumptionCalculator component in tests/Feature/ConsumptionCalculatorTest.php.",
+      "status": "completed",
+      "completed_at": "2026-01-20T10:30:00Z",
+      "passes": true,
+      "priority": 6,
+      "depends_on": ["integrate-with-contracts-list"]
+    }
+  ]
+}
