@@ -15,7 +15,11 @@
     "spot-prices-and-seo": {
       "started_at": "2026-01-20T00:46:26.101118",
       "ended_at": null
+    },
+    "electricity-calculator": {
+      "started_at": "2026-01-20T14:13:02.678960",
+      "ended_at": null
     }
   },
-  "current": "spot-prices-and-seo"
+  "current": "electricity-calculator"
 }
