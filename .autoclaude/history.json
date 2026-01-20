@@ -43,7 +43,11 @@
     "dynamic-page-titles": {
       "started_at": "2026-01-20T18:32:40.538015",
       "ended_at": null
+    },
+    "sauna-calculator": {
+      "started_at": "2026-01-20T19:09:09.284920",
+      "ended_at": null
     }
   },
-  "current": "dynamic-page-titles"
+  "current": "sauna-calculator"
 }
