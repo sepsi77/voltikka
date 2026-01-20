@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Voltikka - Direction G: Green Bold</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --forest: #1B4332;
+            --forest-light: #2D6A4F;
+            --lime: #B7E4C7;
+            --mint: #D8F3DC;
+            --cream: #FEFAE0;
+            --earth: #DDA15E;
+            --black: #0D0D0D;
+            --white: #FFFFFF;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--cream);
+            color: var(--black);
+            overflow-x: hidden;
+        }
+
+        .display { font-family: 'Archivo Black', sans-serif; }
+
+        /* Header */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background: var(--forest);
+        }
+
+        .logo {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 24px;
+            color: var(--mint);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-leaf {
+            font-size: 28px;
+        }
+
+        nav {
+            display: flex;
+            gap: 32px;
+        }
+
+        nav a {
+            color: var(--lime);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        nav a:hover {
+            color: var(--white);
+        }
+
+        .header-spot {
+            background: var(--lime);
+            color: var(--forest);
+            padding: 12px 20px;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        /* Hero - Split screen green style */
+        .hero {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            padding-top: 64px;
+        }
+
+        .hero-left {
+            background: var(--forest);
+            padding: 80px 60px 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-left::before {
+            content: '🌿';
+            position: absolute;
+            top: 10%;
+            right: 10%;
+            font-size: 200px;
+            opacity: 0.1;
+        }
+
+        .hero-left h1 {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: clamp(40px, 5vw, 72px);
+            color: var(--white);
+            text-transform: uppercase;
+            line-height: 0.95;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-left h1 span {
+            color: var(--lime);
+        }
+
+        .hero-left p {
+            color: var(--lime);
+            font-size: 18px;
+            margin-top: 32px;
+            max-width: 400px;
+            position: relative;
+            z-index: 1;
+            line-height: 1.6;
+        }
+
+        .hero-cta {
+            display: inline-block;
+            margin-top: 40px;
+            background: var(--lime);
+            color: var(--forest);
+            padding: 16px 32px;
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-decoration: none;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .hero-cta:hover {
+            background: var(--white);
+            transform: translateY(-2px);
+        }
+
+        .hero-right {
+            background: var(--mint);
+            padding: 80px 60px 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .eco-stat {
+            margin-bottom: 48px;
+        }
+
+        .eco-stat-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .eco-stat-value {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 64px;
+            color: var(--forest);
+            line-height: 1;
+        }
+
+        .eco-stat-label {
+            font-size: 16px;
+            color: var(--forest-light);
+            margin-top: 8px;
+        }
+
+        .spot-display {
+            background: var(--forest);
+            color: var(--white);
+            padding: 32px;
+            margin-top: auto;
+        }
+
+        .spot-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            opacity: 0.7;
+            margin-bottom: 8px;
+        }
+
+        .spot-value {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 48px;
+            color: var(--lime);
+        }
+
+        .spot-unit {
+            font-size: 20px;
+            opacity: 0.7;
+            margin-left: 4px;
+        }
+
+        /* Consumption - Square blocks */
+        .consumption {
+            padding: 80px 40px;
+            background: var(--white);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .section-title {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            color: var(--forest);
+        }
+
+        .consumption-blocks {
+            display: flex;
+            gap: 4px;
+        }
+
+        .consumption-block {
+            flex: 1;
+            aspect-ratio: 1;
+            max-width: 180px;
+            background: var(--cream);
+            border: 3px solid transparent;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: inherit;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .consumption-block:hover {
+            border-color: var(--forest);
+        }
+
+        .consumption-block.active {
+            background: var(--forest);
+            color: var(--white);
+        }
+
+        .consumption-block .icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .consumption-block .kwh {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 28px;
+        }
+
+        .consumption-block .type {
+            font-size: 12px;
+            margin-top: 4px;
+            opacity: 0.7;
+        }
+
+        /* Filters */
+        .filters {
+            padding: 24px 40px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            background: var(--forest);
+        }
+
+        .filter-btn {
+            background: transparent;
+            border: 2px solid var(--forest-light);
+            color: var(--lime);
+            padding: 12px 24px;
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .filter-btn:hover {
+            background: var(--forest-light);
+            border-color: var(--forest-light);
+            color: var(--white);
+        }
+
+        .filter-btn.active {
+            background: var(--lime);
+            border-color: var(--lime);
+            color: var(--forest);
+        }
+
+        /* Contracts - Horizontal scroll */
+        .contracts-section {
+            background: var(--cream);
+            padding: 60px 0;
+        }
+
+        .contracts-header {
+            padding: 0 40px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .contracts-count {
+            font-size: 14px;
+            color: var(--forest-light);
+        }
+
+        .contracts-scroll {
+            display: flex;
+            gap: 0;
+            overflow-x: auto;
+            padding: 0 40px 40px;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+        }
+
+        .contracts-scroll::-webkit-scrollbar {
+            display: none;
+        }
+
+        .contract-card {
+            flex: 0 0 340px;
+            scroll-snap-align: start;
+            border: 3px solid var(--forest);
+            border-right: none;
+            display: flex;
+            flex-direction: column;
+            background: var(--white);
+        }
+
+        .contract-card:last-child {
+            border-right: 3px solid var(--forest);
+        }
+
+        /* Alternating card styles */
+        .contract-card:nth-child(odd) {
+            background: var(--white);
+        }
+
+        .contract-card:nth-child(even) {
+            background: var(--mint);
+        }
+
+        .contract-card.eco-highlight {
+            background: var(--forest);
+            color: var(--white);
+        }
+
+        .contract-header {
+            padding: 24px;
+            border-bottom: 3px solid var(--forest);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .contract-rank {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 48px;
+            opacity: 0.2;
+            line-height: 1;
+        }
+
+        .eco-highlight .contract-rank {
+            color: var(--lime);
+            opacity: 0.3;
+        }
+
+        .eco-badge {
+            background: var(--lime);
+            color: var(--forest);
+            padding: 6px 12px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .contract-body {
+            padding: 24px;
+            flex: 1;
+        }
+
+        .contract-name {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 20px;
+            text-transform: uppercase;
+            line-height: 1.1;
+            margin-bottom: 4px;
+        }
+
+        .eco-highlight .contract-name {
+            color: var(--lime);
+        }
+
+        .contract-provider {
+            font-size: 14px;
+            opacity: 0.6;
+            margin-bottom: 24px;
+        }
+
+        .contract-tags {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .contract-tag {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 6px 10px;
+            background: var(--cream);
+            font-weight: 600;
+            color: var(--forest);
+        }
+
+        .eco-highlight .contract-tag {
+            background: var(--forest-light);
+            color: var(--lime);
+        }
+
+        .contract-tag.green {
+            background: var(--forest);
+            color: var(--lime);
+        }
+
+        .eco-highlight .contract-tag.green {
+            background: var(--lime);
+            color: var(--forest);
+        }
+
+        .contract-prices {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .contract-price-item {
+            padding: 12px;
+            background: rgba(0,0,0,0.03);
+        }
+
+        .eco-highlight .contract-price-item {
+            background: rgba(255,255,255,0.1);
+        }
+
+        .contract-price-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.6;
+        }
+
+        .contract-price-value {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 18px;
+            margin-top: 4px;
+        }
+
+        .contract-footer {
+            padding: 24px;
+            border-top: 3px solid var(--forest);
+        }
+
+        .eco-highlight .contract-footer {
+            border-color: var(--forest-light);
+        }
+
+        .contract-total {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 20px;
+        }
+
+        .contract-total-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.6;
+        }
+
+        .contract-total-value {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 40px;
+            line-height: 1;
+            color: var(--forest);
+        }
+
+        .eco-highlight .contract-total-value {
+            color: var(--lime);
+        }
+
+        /* CO2 Display - Tree equivalents */
+        .contract-co2 {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: var(--cream);
+            margin-bottom: 20px;
+        }
+
+        .eco-highlight .contract-co2 {
+            background: var(--forest-light);
+        }
+
+        .co2-trees {
+            font-size: 24px;
+            display: flex;
+            gap: 2px;
+        }
+
+        .co2-tree {
+            opacity: 1;
+        }
+
+        .co2-tree.empty {
+            opacity: 0.2;
+        }
+
+        .co2-info {
+            flex: 1;
+        }
+
+        .co2-value {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 18px;
+            color: var(--forest);
+        }
+
+        .eco-highlight .co2-value {
+            color: var(--lime);
+        }
+
+        .co2-value.low { color: var(--forest); }
+        .co2-value.med { color: var(--earth); }
+        .co2-value.high { color: #BC4749; }
+
+        .co2-label {
+            font-size: 11px;
+            opacity: 0.6;
+        }
+
+        .co2-equiv {
+            font-size: 11px;
+            color: var(--forest-light);
+            margin-top: 2px;
+        }
+
+        .eco-highlight .co2-equiv {
+            color: var(--lime);
+            opacity: 0.7;
+        }
+
+        .contract-cta {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            background: var(--forest);
+            color: var(--lime);
+            border: none;
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+
+        .contract-cta:hover {
+            background: var(--black);
+        }
+
+        .eco-highlight .contract-cta {
+            background: var(--lime);
+            color: var(--forest);
+        }
+
+        .eco-highlight .contract-cta:hover {
+            background: var(--white);
+        }
+
+        /* Impact section */
+        .impact-section {
+            background: var(--forest);
+            color: var(--white);
+            padding: 80px 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 40px;
+        }
+
+        .impact-item {
+            text-align: center;
+            padding: 40px;
+            border: 2px solid var(--forest-light);
+        }
+
+        .impact-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .impact-value {
+            font-family: 'Archivo Black', sans-serif;
+            font-size: 48px;
+            color: var(--lime);
+        }
+
+        .impact-label {
+            font-size: 14px;
+            color: var(--lime);
+            opacity: 0.7;
+            margin-top: 8px;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--black);
+            color: var(--white);
+            padding: 60px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        footer .logo {
+            color: var(--lime);
+        }
+
+        footer p {
+            font-size: 12px;
+            opacity: 0.5;
+        }
+
+        .footer-tagline {
+            font-size: 14px;
+            color: var(--lime);
+            opacity: 0.7;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .hero {
+                grid-template-columns: 1fr;
+            }
+            .hero-left, .hero-right {
+                min-height: 50vh;
+                padding: 80px 24px 60px;
+            }
+            .consumption-blocks {
+                flex-wrap: wrap;
+            }
+            .consumption-block {
+                flex: 0 0 calc(50% - 2px);
+                max-width: none;
+            }
+            .impact-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <span class="logo-leaf">🌱</span>
+            Voltikka
+        </div>
+        <nav>
+            <a href="#">Sopimukset</a>
+            <a href="#">Paikkakunnat</a>
+            <a href="#">Pörssisähkö</a>
+        </nav>
+        <div class="header-spot">SPOT 3.42 c/kWh</div>
+    </header>
+
+    <section class="hero">
+        <div class="hero-left">
+            <h1>Vertaa.<br>Valitse.<br><span>Vaikuta.</span></h1>
+            <p>Löydä sähkösopimus joka sopii sekä lompakkoosi että arvoihisi. Näe jokaisen sopimuksen todelliset päästöt.</p>
+            <a href="#contracts" class="hero-cta">Aloita vertailu →</a>
+        </div>
+        <div class="hero-right">
+            <div class="eco-stat">
+                <div class="eco-stat-icon">🌍</div>
+                <div class="eco-stat-value">12 400 t</div>
+                <div class="eco-stat-label">CO₂ säästetty Voltikka-käyttäjien valinnoilla</div>
+            </div>
+            <div class="eco-stat">
+                <div class="eco-stat-icon">🌳</div>
+                <div class="eco-stat-value">620 000</div>
+                <div class="eco-stat-label">puun istutusta vastaava vaikutus</div>
+            </div>
+            <div class="spot-display">
+                <div class="spot-label">Pörssisähkö nyt</div>
+                <span class="spot-value">3.42</span>
+                <span class="spot-unit">c/kWh</span>
+            </div>
+        </div>
+    </section>
+
+    <section class="consumption">
+        <div class="section-header">
+            <h2 class="section-title">Vuosikulutuksesi</h2>
+        </div>
+        <div class="consumption-blocks">
+            <button class="consumption-block">
+                <div class="icon">🏢</div>
+                <div class="kwh">2K</div>
+                <div class="type">Yksiö</div>
+            </button>
+            <button class="consumption-block">
+                <div class="icon">🏬</div>
+                <div class="kwh">5K</div>
+                <div class="type">Kerrostalo</div>
+            </button>
+            <button class="consumption-block active">
+                <div class="icon">🏘️</div>
+                <div class="kwh">10K</div>
+                <div class="type">Rivitalo</div>
+            </button>
+            <button class="consumption-block">
+                <div class="icon">🏡</div>
+                <div class="kwh">18K</div>
+                <div class="type">Omakotitalo</div>
+            </button>
+            <button class="consumption-block">
+                <div class="icon">🏰</div>
+                <div class="kwh">25K</div>
+                <div class="type">Suuri talo</div>
+            </button>
+        </div>
+    </section>
+
+    <section class="filters">
+        <button class="filter-btn active">Kaikki</button>
+        <button class="filter-btn">Pörssi</button>
+        <button class="filter-btn">Kiinteä</button>
+        <button class="filter-btn">Määräaikainen</button>
+        <button class="filter-btn active">🌱 Päästötön</button>
+        <button class="filter-btn">Uusiutuva</button>
+        <button class="filter-btn">Ydinvoima</button>
+    </section>
+
+    <section class="contracts-section" id="contracts">
+        <div class="contracts-header">
+            <h2 class="section-title">Sopimukset</h2>
+            <span class="contracts-count">47 sopimusta</span>
+        </div>
+
+        <div class="contracts-scroll">
+            <!-- Card 1 - Eco highlight -->
+            <div class="contract-card eco-highlight">
+                <div class="contract-header">
+                    <div class="contract-rank">01</div>
+                    <div class="eco-badge">🌱 Ympäristövalinta</div>
+                </div>
+                <div class="contract-body">
+                    <div class="contract-name">Helen Spot Tuuli</div>
+                    <div class="contract-provider">Helen Oy</div>
+                    <div class="contract-tags">
+                        <span class="contract-tag green">100% Tuulivoima</span>
+                        <span class="contract-tag">Pörssisähkö</span>
+                    </div>
+                    <div class="contract-prices">
+                        <div class="contract-price-item">
+                            <div class="contract-price-label">Marginaali</div>
+                            <div class="contract-price-value">0,39 c/kWh</div>
+                        </div>
+                        <div class="contract-price-item">
+                            <div class="contract-price-label">Perusmaksu</div>
+                            <div class="contract-price-value">3,99 €/kk</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="contract-footer">
+                    <div class="contract-total">
+                        <span class="contract-total-label">Vuosikustannus</span>
+                        <span class="contract-total-value">847 €</span>
+                    </div>
+                    <div class="contract-co2">
+                        <div class="co2-trees">
+                            <span class="co2-tree">🌳</span>
+                            <span class="co2-tree empty">🌳</span>
+                            <span class="co2-tree empty">🌳</span>
+                            <span class="co2-tree empty">🌳</span>
+                            <span class="co2-tree empty">🌳</span>
+                        </div>
+                        <div class="co2-info">
+                            <div class="co2-value low">42 kg CO₂/v</div>
+                            <div class="co2-equiv">≈ 2 puun istutus vuodessa</div>
+                        </div>
+                    </div>
+                    <a href="#" class="contract-cta">Katso sopimus →</a>
+                </div>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="contract-card">
+                <div class="contract-header">
+                    <div class="contract-rank">02</div>
+                </div>
+                <div class="contract-body">
+                    <div class="contract-name">Fortum Tarkka</div>
+                    <div class="contract-provider">Fortum</div>
+                    <div class="contract-tags">
+                        <span class="contract-tag">Sekasähkö</span>
+                        <span class="contract-tag">Pörssisähkö</span>
+                    </div>
+                    <div class="contract-prices">
+                        <div class="contract-price-item">
+                            <div class="contract-price-label">Marginaali</div>
+                            <div class="contract-price-value">0,45 c/kWh</div>
+                        </div>
+                        <div class="contract-price-item">
+                            <div class="contract-price-label">Perusmaksu</div>
+                            <div class="contract-price-value">2,90 €/kk</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="contract-footer">
+                    <div class="contract-total">
+                        <span class="contract-total-label">Vuosikustannus</span>
+                        <span class="contract-total-value">862 €</span>
+                    </div>
+                    <div class="contract-co2">
+                        <div class="co2-trees">
+                            <span class="co2-tree">🌳</span>
+                            <span class="co2-tree">🌳</span>
+                            <span class="co2-tree">🌳</span>
+                            <span class="co2-tree empty">🌳</span>
+                            <span class="co2-tree empty">🌳</span>
+                        </div>
+                        <div class="co2-info">
+                            <div class="co2-value med">156 kg CO₂/v</div>
+                            <div class="co2-equiv">≈ 8 puun istutus vuodessa</div>
+                        </div>
+                    </div>
+                    <a href="#" class="contract-cta">Katso sopimus →</a>
+                </div>
+            </div>
+
+            <!-- Card 3 - Eco highlight Nuclear -->
+            <div class="contract-card eco-highlight">
+                <div class="contract-header">
+                    <div class="contract-rank">03</div>
+                    <div class="eco-badge">⚡ Päästötön</div>
+                </div>
+                <div class="contract-body">
+                    <div class="contract-name">Vattenfall Ydin 12kk</div>
+                    <div class="contract-provider">Vattenfall</div>
+                    <div class="contract-tags">
+                        <span class="contract-tag green">Ydinvoima</span>
+                        <span class="contract-tag">12 kuukautta</span>
+                    </div>
+                    <div class="contract-prices">
+                        <div class="contract-price-item">
+                            <div class="contract-price-label">Energiahinta</div>
+                            <div class="contract-price-value">8,45 c/kWh</div>
+                        </div>
+                        <div class="contract-price-item">
+                            <div class="contract-price-label">Perusmaksu</div>
+                            <div class="contract-price-value">4,50 €/kk</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="contract-footer">
+                    <div class="contract-total">
+                        <span class="contract-total-label">Vuosikustannus</span>
+                        <span class="contract-total-value">899 €</span>
+                    </div>
+                    <div class="contract-co2">
+                        <div class="co2-trees">
+                            <span class="co2-tree empty">🌳</span>
+                            <span class="co2-tree empty">🌳</span>
+                            <span class="co2-tree empty">🌳</span>
+                            <span class="co2-tree empty">🌳</span>
+                            <span class="co2-tree empty">🌳</span>
+                        </div>
+                        <div class="co2-info">
+                            <div class="co2-value low">0 kg CO₂/v</div>
+                            <div class="co2-equiv">Täysin päästötön valinta!</div>
+                        </div>
+                    </div>
+                    <a href="#" class="contract-cta">Katso sopimus →</a>
+                </div>
+            </div>
+
+            <!-- Card 4 -->
+            <div class="contract-card">
+                <div class="contract-header">
+                    <div class="contract-rank">04</div>
+                </div>
+                <div class="contract-body">
+                    <div class="contract-name">Oomi Kotispot</div>
+                    <div class="contract-provider">Oomi Energia</div>
+                    <div class="contract-tags">
+                        <span class="contract-tag">Sekasähkö</span>
+                        <span class="contract-tag">Pörssisähkö</span>
+                    </div>
+                    <div class="contract-prices">
+                        <div class="contract-price-item">
+                            <div class="contract-price-label">Marginaali</div>
+                            <div class="contract-price-value">0,29 c/kWh</div>
+                        </div>
+                        <div class="contract-price-item">
+                            <div class="contract-price-label">Perusmaksu</div>
+                            <div class="contract-price-value">4,90 €/kk</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="contract-footer">
+                    <div class="contract-total">
+                        <span class="contract-total-label">Vuosikustannus</span>
+                        <span class="contract-total-value">878 €</span>
+                    </div>
+                    <div class="contract-co2">
+                        <div class="co2-trees">
+                            <span class="co2-tree">🌳</span>
+                            <span class="co2-tree">🌳</span>
+                            <span class="co2-tree">🌳</span>
+                            <span class="co2-tree">🌳</span>
+                            <span class="co2-tree">🌳</span>
+                        </div>
+                        <div class="co2-info">
+                            <div class="co2-value high">234 kg CO₂/v</div>
+                            <div class="co2-equiv">≈ 12 puun istutus vuodessa</div>
+                        </div>
+                    </div>
+                    <a href="#" class="contract-cta">Katso sopimus →</a>
+                </div>
+            </div>
+
+            <!-- Card 5 -->
+            <div class="contract-card">
+                <div class="contract-header">
+                    <div class="contract-rank">05</div>
+                    <div class="eco-badge">💧 Vesivoima</div>
+                </div>
+                <div class="contract-body">
+                    <div class="contract-name">Lumme Vihreä</div>
+                    <div class="contract-provider">Lumme Energia</div>
+                    <div class="contract-tags">
+                        <span class="contract-tag green">100% Vesivoima</span>
+                        <span class="contract-tag">Pörssisähkö</span>
+                    </div>
+                    <div class="contract-prices">
+                        <div class="contract-price-item">
+                            <div class="contract-price-label">Marginaali</div>
+                            <div class="contract-price-value">0,59 c/kWh</div>
+                        </div>
+                        <div class="contract-price-item">
+                            <div class="contract-price-label">Perusmaksu</div>
+                            <div class="contract-price-value">3,50 €/kk</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="contract-footer">
+                    <div class="contract-total">
+                        <span class="contract-total-label">Vuosikustannus</span>
+                        <span class="contract-total-value">901 €</span>
+                    </div>
+                    <div class="contract-co2">
+                        <div class="co2-trees">
+                            <span class="co2-tree">🌳</span>
+                            <span class="co2-tree empty">🌳</span>
+                            <span class="co2-tree empty">🌳</span>
+                            <span class="co2-tree empty">🌳</span>
+                            <span class="co2-tree empty">🌳</span>
+                        </div>
+                        <div class="co2-info">
+                            <div class="co2-value low">18 kg CO₂/v</div>
+                            <div class="co2-equiv">≈ 1 puun istutus vuodessa</div>
+                        </div>
+                    </div>
+                    <a href="#" class="contract-cta">Katso sopimus →</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Impact stats -->
+    <section class="impact-section">
+        <div class="impact-item">
+            <div class="impact-icon">⚡</div>
+            <div class="impact-value">47</div>
+            <div class="impact-label">Sähkösopimusta vertailussa</div>
+        </div>
+        <div class="impact-item">
+            <div class="impact-icon">🌱</div>
+            <div class="impact-value">12</div>
+            <div class="impact-label">Täysin päästötöntä vaihtoehtoa</div>
+        </div>
+        <div class="impact-item">
+            <div class="impact-icon">🔄</div>
+            <div class="impact-value">24h</div>
+            <div class="impact-label">Datan päivitysväli</div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="logo">
+            <span class="logo-leaf">🌱</span>
+            Voltikka
+        </div>
+        <div class="footer-tagline">Sähköä vastuullisesti vertailtuna</div>
+        <p>© 2026 Voltikka</p>
+    </footer>
+</body>
+</html>

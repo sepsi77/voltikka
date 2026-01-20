@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Voltikka - Direction J: Bold Contrast</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            200: '#99f6e4',
+                            300: '#5eead4',
+                            400: '#2dd4bf',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            700: '#0f766e',
+                            800: '#115e59',
+                            900: '#134e4a',
+                            950: '#042f2e',
+                        },
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        /* Card with left accent */
+        .contract-card {
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        .contract-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: #e5e7eb;
+            border-radius: 4px 0 0 4px;
+        }
+        .contract-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px -12px rgba(0,0,0,0.15);
+        }
+        .contract-card.featured::before {
+            background: linear-gradient(180deg, #14b8a6 0%, #0d9488 100%);
+            width: 6px;
+        }
+        .contract-card.green::before {
+            background: #22c55e;
+        }
+        .contract-card.amber::before {
+            background: #f59e0b;
+        }
+        .contract-card.red::before {
+            background: #ef4444;
+        }
+
+        /* Rank number */
+        .rank {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1;
+            color: #e5e7eb;
+        }
+        .contract-card.featured .rank {
+            color: #14b8a6;
+        }
+
+        /* Active filter */
+        .filter-btn.active {
+            background: #134e4a;
+            color: white;
+        }
+
+        /* Consumption card active */
+        .consumption-card.active {
+            background: #134e4a;
+            color: white;
+            border-color: #134e4a;
+        }
+        .consumption-card.active .consumption-icon {
+            background: rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body class="font-sans antialiased bg-gray-50 text-gray-900">
+    <!-- Header - Clean, minimal -->
+    <header class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex justify-between items-center h-16">
+                <a href="/" class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 bg-brand-600 rounded-xl flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <span class="text-xl font-extrabold text-gray-900">Voltikka</span>
+                </a>
+                <nav class="hidden md:flex items-center gap-1">
+                    <a href="#" class="px-4 py-2 rounded-lg text-gray-900 font-semibold bg-gray-100">Sopimukset</a>
+                    <a href="#" class="px-4 py-2 rounded-lg text-gray-600 hover:text-gray-900 font-medium">Paikkakunnat</a>
+                    <a href="#" class="px-4 py-2 rounded-lg text-gray-600 hover:text-gray-900 font-medium">Pörssisähkö</a>
+                </nav>
+                <div class="flex items-center gap-2 bg-brand-50 px-4 py-2 rounded-xl border border-brand-200">
+                    <div class="w-2 h-2 bg-brand-500 rounded-full animate-pulse"></div>
+                    <span class="text-sm text-brand-700">Spot</span>
+                    <span class="text-sm font-bold text-brand-900">3,42 c/kWh</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero - Bold colored block -->
+        <section class="bg-brand-950 text-white py-16 relative overflow-hidden">
+            <!-- Background decoration -->
+            <div class="absolute inset-0 opacity-10">
+                <div class="absolute top-0 right-0 w-96 h-96 bg-brand-400 rounded-full blur-3xl translate-x-1/2 -translate-y-1/2"></div>
+                <div class="absolute bottom-0 left-0 w-72 h-72 bg-brand-500 rounded-full blur-3xl -translate-x-1/2 translate-y-1/2"></div>
+            </div>
+
+            <div class="max-w-7xl mx-auto px-6 relative">
+                <div class="grid lg:grid-cols-2 gap-12 items-center">
+                    <div>
+                        <div class="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-brand-200 mb-6">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Luotettava vertailu
+                        </div>
+                        <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.1] mb-6">
+                            Löydä paras<br>
+                            <span class="text-brand-400">sähkösopimus</span>
+                        </h1>
+                        <p class="text-lg text-brand-200 leading-relaxed max-w-lg mb-8">
+                            Vertaile hintoja ja päästöjä läpinäkyvästi. Näe mitä todella maksat — ilman piilokustannuksia.
+                        </p>
+                        <a href="#contracts" class="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-400 text-white font-bold px-8 py-4 rounded-xl transition shadow-lg shadow-brand-500/30">
+                            Aloita vertailu
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                            </svg>
+                        </a>
+                    </div>
+
+                    <!-- Stats cards -->
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-center">
+                            <div class="text-4xl font-extrabold text-white mb-1">47</div>
+                            <div class="text-sm text-brand-300">sopimusta</div>
+                        </div>
+                        <div class="bg-white/10 backdrop-blur-sm rounded-2xl p-6 text-center">
+                            <div class="text-4xl font-extrabold text-white mb-1">23</div>
+                            <div class="text-sm text-brand-300">yhtiötä</div>
+                        </div>
+                        <div class="bg-brand-500/30 backdrop-blur-sm rounded-2xl p-6 text-center border border-brand-400/30">
+                            <div class="text-4xl font-extrabold text-brand-300 mb-1">12</div>
+                            <div class="text-sm text-brand-300">päästötöntä</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Consumption Selector - Prominent -->
+        <section class="bg-white py-10 border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-6">
+                <h2 class="text-lg font-bold text-gray-900 mb-6">Kuinka paljon sähköä käytät vuodessa?</h2>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <button class="consumption-card group flex flex-col items-center p-5 bg-gray-50 border-2 border-gray-200 rounded-2xl hover:border-brand-500 transition">
+                        <div class="consumption-icon w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center mb-3 group-hover:bg-brand-100 transition">
+                            <svg class="w-6 h-6 text-gray-500 group-hover:text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-bold text-gray-900">2 000</span>
+                        <span class="text-sm text-gray-500">kWh · Yksiö</span>
+                    </button>
+
+                    <button class="consumption-card group flex flex-col items-center p-5 bg-gray-50 border-2 border-gray-200 rounded-2xl hover:border-brand-500 transition">
+                        <div class="consumption-icon w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center mb-3 group-hover:bg-brand-100 transition">
+                            <svg class="w-6 h-6 text-gray-500 group-hover:text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-bold text-gray-900">5 000</span>
+                        <span class="text-sm text-gray-500">kWh · Kerrostalo</span>
+                    </button>
+
+                    <button class="consumption-card active group flex flex-col items-center p-5 bg-gray-50 border-2 border-gray-200 rounded-2xl transition">
+                        <div class="consumption-icon w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center mb-3 transition">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-bold">10 000</span>
+                        <span class="text-sm opacity-80">kWh · Rivitalo</span>
+                    </button>
+
+                    <button class="consumption-card group flex flex-col items-center p-5 bg-gray-50 border-2 border-gray-200 rounded-2xl hover:border-brand-500 transition">
+                        <div class="consumption-icon w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center mb-3 group-hover:bg-brand-100 transition">
+                            <svg class="w-6 h-6 text-gray-500 group-hover:text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-bold text-gray-900">18 000</span>
+                        <span class="text-sm text-gray-500">kWh · Omakotitalo</span>
+                    </button>
+
+                    <button class="consumption-card group flex flex-col items-center p-5 bg-gray-50 border-2 border-gray-200 rounded-2xl hover:border-brand-500 transition">
+                        <div class="consumption-icon w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center mb-3 group-hover:bg-brand-100 transition">
+                            <svg class="w-6 h-6 text-gray-500 group-hover:text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-bold text-gray-900">25 000</span>
+                        <span class="text-sm text-gray-500">kWh · Suuri talo</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Filters - Clear grouping -->
+        <section class="bg-gray-100 py-6" id="contracts">
+            <div class="max-w-7xl mx-auto px-6">
+                <div class="flex flex-col lg:flex-row lg:items-center gap-6">
+                    <!-- Contract type -->
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Tyyppi</span>
+                        <div class="flex gap-2">
+                            <button class="filter-btn active px-4 py-2 rounded-lg text-sm font-semibold bg-white border border-gray-200 transition hover:border-gray-300">Kaikki</button>
+                            <button class="filter-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-600 bg-white border border-gray-200 transition hover:border-gray-300">Pörssi</button>
+                            <button class="filter-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-600 bg-white border border-gray-200 transition hover:border-gray-300">Kiinteä</button>
+                            <button class="filter-btn px-4 py-2 rounded-lg text-sm font-medium text-gray-600 bg-white border border-gray-200 transition hover:border-gray-300">Määräaikainen</button>
+                        </div>
+                    </div>
+
+                    <div class="w-px h-8 bg-gray-300 hidden lg:block"></div>
+
+                    <!-- Energy source -->
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Energia</span>
+                        <div class="flex gap-2">
+                            <button class="filter-btn flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 bg-white border border-gray-200 transition hover:border-green-400 hover:bg-green-50">
+                                <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                                Päästötön
+                            </button>
+                            <button class="filter-btn flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 bg-white border border-gray-200 transition hover:border-gray-300">
+                                Uusiutuva
+                            </button>
+                            <button class="filter-btn flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 bg-white border border-gray-200 transition hover:border-gray-300">
+                                Ydinvoima
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="lg:ml-auto">
+                        <select class="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 bg-white border border-gray-200">
+                            <option>Järjestä: Hinta ↑</option>
+                            <option>Järjestä: Päästöt ↓</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contract List -->
+        <section class="py-8">
+            <div class="max-w-7xl mx-auto px-6">
+                <p class="text-sm text-gray-500 mb-6"><span class="font-bold text-gray-900">47 sopimusta</span> löytyi</p>
+
+                <div class="space-y-4">
+                    <!-- Featured Contract -->
+                    <div class="contract-card featured bg-white rounded-2xl p-6 shadow-sm border border-brand-200 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 bg-brand-500 text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl">
+                            Edullisin vihreä
+                        </div>
+                        <div class="flex items-start gap-6">
+                            <div class="rank">01</div>
+                            <div class="flex-1">
+                                <div class="flex flex-col lg:flex-row lg:items-center gap-6">
+                                    <!-- Company info -->
+                                    <div class="flex items-center gap-4 lg:w-56">
+                                        <div class="w-14 h-14 bg-brand-100 rounded-xl flex items-center justify-center shrink-0">
+                                            <span class="text-xl font-bold text-brand-700">H</span>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-gray-900 text-lg">Helen Spot Tuuli</h3>
+                                            <p class="text-sm text-gray-500">Helen Oy</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Pricing -->
+                                    <div class="flex flex-wrap gap-6 lg:gap-10 flex-1">
+                                        <div>
+                                            <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Marginaali</div>
+                                            <div class="text-xl font-bold text-gray-900">0,39 <span class="text-sm font-normal text-gray-400">c/kWh</span></div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Perusmaksu</div>
+                                            <div class="text-xl font-bold text-gray-900">3,99 <span class="text-sm font-normal text-gray-400">€/kk</span></div>
+                                        </div>
+                                        <div class="bg-brand-50 px-5 py-3 rounded-xl -my-1">
+                                            <div class="text-xs font-medium text-brand-600 uppercase tracking-wide mb-1">Vuosihinta</div>
+                                            <div class="text-2xl font-extrabold text-brand-700">847 €</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Tags & CO2 -->
+                                    <div class="flex flex-col gap-3 lg:w-44">
+                                        <div class="flex flex-wrap gap-2">
+                                            <span class="text-xs font-bold px-3 py-1.5 bg-green-100 text-green-700 rounded-lg">100% TUULI</span>
+                                            <span class="text-xs font-medium px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg">PÖRSSI</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+                                            <span class="text-sm"><strong class="text-green-600">42 kg</strong> <span class="text-gray-500">CO₂/v</span></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- CTA -->
+                                    <button class="shrink-0 bg-brand-600 hover:bg-brand-700 text-white font-bold px-6 py-3.5 rounded-xl transition shadow-lg shadow-brand-600/20">
+                                        Katso sopimus →
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contract 2 -->
+                    <div class="contract-card amber bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <div class="flex items-start gap-6">
+                            <div class="rank">02</div>
+                            <div class="flex-1">
+                                <div class="flex flex-col lg:flex-row lg:items-center gap-6">
+                                    <div class="flex items-center gap-4 lg:w-56">
+                                        <div class="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center shrink-0">
+                                            <span class="text-xl font-bold text-gray-400">F</span>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-gray-900 text-lg">Fortum Tarkka</h3>
+                                            <p class="text-sm text-gray-500">Fortum</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-wrap gap-6 lg:gap-10 flex-1">
+                                        <div>
+                                            <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Marginaali</div>
+                                            <div class="text-xl font-bold text-gray-900">0,45 <span class="text-sm font-normal text-gray-400">c/kWh</span></div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Perusmaksu</div>
+                                            <div class="text-xl font-bold text-gray-900">2,90 <span class="text-sm font-normal text-gray-400">€/kk</span></div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Vuosihinta</div>
+                                            <div class="text-2xl font-extrabold text-gray-900">862 €</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-col gap-3 lg:w-44">
+                                        <div class="flex flex-wrap gap-2">
+                                            <span class="text-xs font-medium px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg">SEKA</span>
+                                            <span class="text-xs font-medium px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg">PÖRSSI</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-3 h-3 bg-amber-500 rounded-full"></span>
+                                            <span class="text-sm"><strong class="text-amber-600">156 kg</strong> <span class="text-gray-500">CO₂/v</span></span>
+                                        </div>
+                                    </div>
+
+                                    <button class="shrink-0 bg-gray-900 hover:bg-gray-800 text-white font-bold px-6 py-3.5 rounded-xl transition">
+                                        Katso sopimus →
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contract 3 - Zero emissions -->
+                    <div class="contract-card green bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <div class="flex items-start gap-6">
+                            <div class="rank">03</div>
+                            <div class="flex-1">
+                                <div class="flex flex-col lg:flex-row lg:items-center gap-6">
+                                    <div class="flex items-center gap-4 lg:w-56">
+                                        <div class="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center shrink-0">
+                                            <span class="text-xl font-bold text-gray-400">V</span>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-gray-900 text-lg">Vattenfall Ydin 12kk</h3>
+                                            <p class="text-sm text-gray-500">Vattenfall</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-wrap gap-6 lg:gap-10 flex-1">
+                                        <div>
+                                            <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Energiahinta</div>
+                                            <div class="text-xl font-bold text-gray-900">8,45 <span class="text-sm font-normal text-gray-400">c/kWh</span></div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Perusmaksu</div>
+                                            <div class="text-xl font-bold text-gray-900">4,50 <span class="text-sm font-normal text-gray-400">€/kk</span></div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Vuosihinta</div>
+                                            <div class="text-2xl font-extrabold text-gray-900">899 €</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-col gap-3 lg:w-44">
+                                        <div class="flex flex-wrap gap-2">
+                                            <span class="text-xs font-bold px-3 py-1.5 bg-green-100 text-green-700 rounded-lg">YDINVOIMA</span>
+                                            <span class="text-xs font-medium px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg">12 KK</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+                                            <span class="text-sm"><strong class="text-green-600">0 kg</strong> <span class="text-gray-500">Päästötön</span></span>
+                                        </div>
+                                    </div>
+
+                                    <button class="shrink-0 bg-gray-900 hover:bg-gray-800 text-white font-bold px-6 py-3.5 rounded-xl transition">
+                                        Katso sopimus →
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contract 4 -->
+                    <div class="contract-card red bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <div class="flex items-start gap-6">
+                            <div class="rank">04</div>
+                            <div class="flex-1">
+                                <div class="flex flex-col lg:flex-row lg:items-center gap-6">
+                                    <div class="flex items-center gap-4 lg:w-56">
+                                        <div class="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center shrink-0">
+                                            <span class="text-xl font-bold text-gray-400">O</span>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-gray-900 text-lg">Oomi Kotispot</h3>
+                                            <p class="text-sm text-gray-500">Oomi Energia</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-wrap gap-6 lg:gap-10 flex-1">
+                                        <div>
+                                            <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Marginaali</div>
+                                            <div class="text-xl font-bold text-gray-900">0,29 <span class="text-sm font-normal text-gray-400">c/kWh</span></div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Perusmaksu</div>
+                                            <div class="text-xl font-bold text-gray-900">4,90 <span class="text-sm font-normal text-gray-400">€/kk</span></div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Vuosihinta</div>
+                                            <div class="text-2xl font-extrabold text-gray-900">878 €</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-col gap-3 lg:w-44">
+                                        <div class="flex flex-wrap gap-2">
+                                            <span class="text-xs font-medium px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg">SEKA</span>
+                                            <span class="text-xs font-medium px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg">PÖRSSI</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-3 h-3 bg-red-500 rounded-full"></span>
+                                            <span class="text-sm"><strong class="text-red-600">234 kg</strong> <span class="text-gray-500">CO₂/v</span></span>
+                                        </div>
+                                    </div>
+
+                                    <button class="shrink-0 bg-gray-900 hover:bg-gray-800 text-white font-bold px-6 py-3.5 rounded-xl transition">
+                                        Katso sopimus →
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contract 5 -->
+                    <div class="contract-card green bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                        <div class="flex items-start gap-6">
+                            <div class="rank">05</div>
+                            <div class="flex-1">
+                                <div class="flex flex-col lg:flex-row lg:items-center gap-6">
+                                    <div class="flex items-center gap-4 lg:w-56">
+                                        <div class="w-14 h-14 bg-gray-100 rounded-xl flex items-center justify-center shrink-0">
+                                            <span class="text-xl font-bold text-gray-400">L</span>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-gray-900 text-lg">Lumme Vihreä Spot</h3>
+                                            <p class="text-sm text-gray-500">Lumme Energia</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-wrap gap-6 lg:gap-10 flex-1">
+                                        <div>
+                                            <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Marginaali</div>
+                                            <div class="text-xl font-bold text-gray-900">0,59 <span class="text-sm font-normal text-gray-400">c/kWh</span></div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Perusmaksu</div>
+                                            <div class="text-xl font-bold text-gray-900">3,50 <span class="text-sm font-normal text-gray-400">€/kk</span></div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Vuosihinta</div>
+                                            <div class="text-2xl font-extrabold text-gray-900">901 €</div>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex flex-col gap-3 lg:w-44">
+                                        <div class="flex flex-wrap gap-2">
+                                            <span class="text-xs font-bold px-3 py-1.5 bg-green-100 text-green-700 rounded-lg">VESIVOIMA</span>
+                                            <span class="text-xs font-medium px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg">PÖRSSI</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+                                            <span class="text-sm"><strong class="text-green-600">18 kg</strong> <span class="text-gray-500">CO₂/v</span></span>
+                                        </div>
+                                    </div>
+
+                                    <button class="shrink-0 bg-gray-900 hover:bg-gray-800 text-white font-bold px-6 py-3.5 rounded-xl transition">
+                                        Katso sopimus →
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Load more -->
+                <div class="mt-10 text-center">
+                    <button class="inline-flex items-center gap-2 px-8 py-4 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-xl transition">
+                        Näytä lisää sopimuksia
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-brand-950 text-white py-16 mt-16">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid md:grid-cols-4 gap-12">
+                <div class="md:col-span-2">
+                    <div class="flex items-center gap-2.5 mb-4">
+                        <div class="w-9 h-9 bg-brand-500 rounded-xl flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-extrabold">Voltikka</span>
+                    </div>
+                    <p class="text-brand-300 max-w-sm leading-relaxed">
+                        Suomen kattavin sähkösopimusten vertailupalvelu. Data päivitetään päivittäin suoraan energiavirastolta.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-4">Palvelu</h4>
+                    <ul class="space-y-3 text-brand-300">
+                        <li><a href="#" class="hover:text-white transition">Sähkösopimukset</a></li>
+                        <li><a href="#" class="hover:text-white transition">Paikkakunnat</a></li>
+                        <li><a href="#" class="hover:text-white transition">Pörssisähkö</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-4">Tietoa</h4>
+                    <ul class="space-y-3 text-brand-300">
+                        <li><a href="#" class="hover:text-white transition">Tietoa palvelusta</a></li>
+                        <li><a href="#" class="hover:text-white transition">Usein kysytyt</a></li>
+                        <li><a href="#" class="hover:text-white transition">Yhteystiedot</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="mt-12 pt-8 border-t border-brand-800 text-sm text-brand-400">
+                © 2026 Voltikka — Data: Energiavirasto
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

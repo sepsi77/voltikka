@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Voltikka - Direction C v3</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --green-900: #0f2a1d;
+            --green-700: #166534;
+            --green-600: #16a34a;
+            --green-500: #22c55e;
+            --green-100: #dcfce7;
+            --green-50: #f0fdf4;
+
+            --gray-950: #0a0a0a;
+            --gray-900: #171717;
+            --gray-800: #262626;
+            --gray-600: #525252;
+            --gray-400: #a3a3a3;
+            --gray-200: #e5e5e5;
+            --gray-100: #f5f5f5;
+            --gray-50: #fafafa;
+
+            --amber: #d97706;
+            --red: #dc2626;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-900);
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        /* Header - minimal, functional */
+        header {
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
+            padding: 0 40px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-inner {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 64px;
+        }
+
+        .logo {
+            font-family: 'Bricolage Grotesque', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--gray-900);
+            text-decoration: none;
+            letter-spacing: -0.5px;
+        }
+
+        nav {
+            display: flex;
+            gap: 4px;
+        }
+
+        nav a {
+            color: var(--gray-600);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 14px;
+            border-radius: 6px;
+            transition: all 0.15s;
+        }
+
+        nav a:hover {
+            color: var(--gray-900);
+            background: var(--gray-100);
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .spot-price {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--gray-600);
+        }
+
+        .spot-price strong {
+            color: var(--green-600);
+            font-weight: 600;
+            font-family: 'Bricolage Grotesque', sans-serif;
+            font-size: 16px;
+        }
+
+        .live-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--green-500);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Main content area */
+        main {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 48px 40px 80px;
+        }
+
+        /* Page header - typography forward */
+        .page-header {
+            margin-bottom: 48px;
+        }
+
+        .page-header h1 {
+            font-family: 'Bricolage Grotesque', sans-serif;
+            font-size: 48px;
+            font-weight: 800;
+            color: var(--gray-900);
+            line-height: 1.1;
+            letter-spacing: -1.5px;
+            margin-bottom: 12px;
+        }
+
+        .page-header p {
+            font-size: 17px;
+            color: var(--gray-600);
+            max-width: 520px;
+        }
+
+        /* Quick stats bar */
+        .stats-bar {
+            display: flex;
+            gap: 32px;
+            padding: 20px 0;
+            border-top: 1px solid var(--gray-200);
+            border-bottom: 1px solid var(--gray-200);
+            margin-bottom: 40px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .stat-value {
+            font-family: 'Bricolage Grotesque', sans-serif;
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: var(--gray-500);
+        }
+
+        /* Consumption selector - inline, functional */
+        .consumption-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .consumption-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--gray-600);
+        }
+
+        .consumption-options {
+            display: flex;
+            gap: 8px;
+        }
+
+        .consumption-btn {
+            background: white;
+            border: 1px solid var(--gray-200);
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .consumption-btn:hover {
+            border-color: var(--gray-400);
+        }
+
+        .consumption-btn.active {
+            background: var(--gray-900);
+            border-color: var(--gray-900);
+            color: white;
+        }
+
+        .consumption-btn .kwh {
+            font-family: 'Bricolage Grotesque', sans-serif;
+            font-weight: 700;
+        }
+
+        .consumption-btn .type {
+            color: var(--gray-500);
+            font-size: 13px;
+        }
+
+        .consumption-btn.active .type {
+            color: var(--gray-400);
+        }
+
+        /* Filters - pill style */
+        .filters-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 32px;
+        }
+
+        .filter-btn {
+            background: white;
+            border: 1px solid var(--gray-200);
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            color: var(--gray-600);
+        }
+
+        .filter-btn:hover {
+            border-color: var(--gray-400);
+            color: var(--gray-900);
+        }
+
+        .filter-btn.active {
+            background: var(--green-600);
+            border-color: var(--green-600);
+            color: white;
+        }
+
+        .filter-btn.active:hover {
+            background: var(--green-700);
+            border-color: var(--green-700);
+        }
+
+        .filter-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--gray-200);
+            margin: 0 8px;
+            align-self: center;
+        }
+
+        /* Results header */
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .results-count {
+            font-size: 14px;
+            color: var(--gray-500);
+        }
+
+        .results-count strong {
+            color: var(--gray-900);
+        }
+
+        .sort-btn {
+            font-size: 13px;
+            color: var(--gray-600);
+            background: white;
+            border: 1px solid var(--gray-200);
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .sort-btn:hover {
+            border-color: var(--gray-400);
+        }
+
+        /* Contract list */
+        .contracts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            background: var(--gray-200);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        /* Contract row - clean table-like */
+        .contract-row {
+            background: white;
+            padding: 20px 24px;
+            display: grid;
+            grid-template-columns: 260px 1fr 140px 130px 100px;
+            gap: 24px;
+            align-items: center;
+            transition: background 0.15s;
+        }
+
+        .contract-row:hover {
+            background: var(--gray-50);
+        }
+
+        .contract-row.eco {
+            background: linear-gradient(90deg, var(--green-50) 0%, white 300px);
+        }
+
+        .contract-row.eco:hover {
+            background: linear-gradient(90deg, var(--green-100) 0%, var(--gray-50) 300px);
+        }
+
+        /* Contract info */
+        .contract-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .contract-name {
+            font-family: 'Bricolage Grotesque', sans-serif;
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--gray-900);
+            line-height: 1.2;
+        }
+
+        .contract-provider {
+            font-size: 14px;
+            color: var(--gray-500);
+        }
+
+        .contract-badges {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .badge {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: var(--gray-100);
+            color: var(--gray-600);
+        }
+
+        .badge.green {
+            background: var(--green-100);
+            color: var(--green-700);
+        }
+
+        /* Pricing columns */
+        .contract-pricing {
+            display: flex;
+            gap: 32px;
+        }
+
+        .price-block {
+            min-width: 80px;
+        }
+
+        .price-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--gray-400);
+            margin-bottom: 2px;
+        }
+
+        .price-value {
+            font-family: 'Bricolage Grotesque', sans-serif;
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .price-unit {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--gray-500);
+        }
+
+        /* Annual cost */
+        .contract-annual {
+            text-align: right;
+        }
+
+        .annual-value {
+            font-family: 'Bricolage Grotesque', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--gray-900);
+        }
+
+        .annual-label {
+            font-size: 12px;
+            color: var(--gray-500);
+        }
+
+        /* CO2 column */
+        .contract-co2 {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .co2-value {
+            font-family: 'Bricolage Grotesque', sans-serif;
+            font-size: 17px;
+            font-weight: 700;
+        }
+
+        .co2-value.low { color: var(--green-600); }
+        .co2-value.med { color: var(--amber); }
+        .co2-value.high { color: var(--red); }
+
+        .co2-bar {
+            height: 4px;
+            background: var(--gray-200);
+            border-radius: 2px;
+            width: 80px;
+        }
+
+        .co2-fill {
+            height: 100%;
+            border-radius: 2px;
+        }
+
+        .co2-fill.low { background: var(--green-500); }
+        .co2-fill.med { background: var(--amber); }
+        .co2-fill.high { background: var(--red); }
+
+        /* CTA */
+        .contract-cta {
+            justify-self: end;
+        }
+
+        .cta-btn {
+            background: var(--gray-900);
+            color: white;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: background 0.15s;
+        }
+
+        .cta-btn:hover {
+            background: var(--gray-800);
+        }
+
+        /* Footer */
+        footer {
+            background: var(--gray-900);
+            color: white;
+            padding: 48px 40px;
+            margin-top: 80px;
+        }
+
+        .footer-inner {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-logo {
+            font-family: 'Bricolage Grotesque', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 24px;
+        }
+
+        .footer-links a {
+            color: var(--gray-400);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .footer-links a:hover {
+            color: white;
+        }
+
+        .footer-copy {
+            font-size: 13px;
+            color: var(--gray-500);
+        }
+
+        /* Responsive */
+        @media (max-width: 1100px) {
+            .consumption-options {
+                flex-wrap: wrap;
+            }
+            .contract-row {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            .contract-annual {
+                text-align: left;
+            }
+            nav { display: none; }
+        }
+
+        @media (max-width: 640px) {
+            main {
+                padding: 32px 20px 60px;
+            }
+            .page-header h1 {
+                font-size: 32px;
+            }
+            .stats-bar {
+                flex-wrap: wrap;
+                gap: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-inner">
+            <a href="/" class="logo">Voltikka</a>
+            <nav>
+                <a href="#">Sähkösopimukset</a>
+                <a href="#">Paikkakunnat</a>
+                <a href="#">Pörssisähkö</a>
+                <a href="#">Oppaat</a>
+            </nav>
+            <div class="header-right">
+                <div class="spot-price">
+                    <span class="live-dot"></span>
+                    Spot <strong>3,42 c/kWh</strong>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="page-header">
+            <h1>Vertaile sähkösopimuksia</h1>
+            <p>Löydä edullinen ja vastuullinen sähkösopimus. Näytämme hinnat ja päästöt läpinäkyvästi.</p>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="stat-value">47</span>
+                <span class="stat-label">sopimusta</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">23</span>
+                <span class="stat-label">yhtiötä</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">12</span>
+                <span class="stat-label">päästötöntä</span>
+            </div>
+        </div>
+
+        <div class="consumption-row">
+            <span class="consumption-label">Vuosikulutus</span>
+            <div class="consumption-options">
+                <button class="consumption-btn">
+                    <span class="kwh">2 000</span>
+                    <span class="type">Yksiö</span>
+                </button>
+                <button class="consumption-btn">
+                    <span class="kwh">5 000</span>
+                    <span class="type">Kerrostalo</span>
+                </button>
+                <button class="consumption-btn active">
+                    <span class="kwh">10 000</span>
+                    <span class="type">Rivitalo</span>
+                </button>
+                <button class="consumption-btn">
+                    <span class="kwh">18 000</span>
+                    <span class="type">Omakotitalo</span>
+                </button>
+                <button class="consumption-btn">
+                    <span class="kwh">25 000</span>
+                    <span class="type">Suuri talo</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="filters-row">
+            <button class="filter-btn active">Kaikki</button>
+            <button class="filter-btn">Pörssisähkö</button>
+            <button class="filter-btn">Kiinteä hinta</button>
+            <button class="filter-btn">Määräaikainen</button>
+            <span class="filter-divider"></span>
+            <button class="filter-btn active">Päästötön</button>
+            <button class="filter-btn">Uusiutuva</button>
+            <button class="filter-btn">Ydinvoima</button>
+        </div>
+
+        <div class="results-header">
+            <div class="results-count"><strong>47</strong> sopimusta löytyi</div>
+            <button class="sort-btn">Järjestä: Hinta</button>
+        </div>
+
+        <div class="contracts-list">
+            <!-- Contract 1 - Eco -->
+            <article class="contract-row eco">
+                <div class="contract-info">
+                    <div class="contract-name">Spot Tuuli</div>
+                    <div class="contract-provider">Helen Oy</div>
+                    <div class="contract-badges">
+                        <span class="badge green">100% tuuli</span>
+                        <span class="badge">Pörssi</span>
+                    </div>
+                </div>
+                <div class="contract-pricing">
+                    <div class="price-block">
+                        <div class="price-label">Marginaali</div>
+                        <div class="price-value">0,39 <span class="price-unit">c/kWh</span></div>
+                    </div>
+                    <div class="price-block">
+                        <div class="price-label">Perusmaksu</div>
+                        <div class="price-value">3,99 <span class="price-unit">€/kk</span></div>
+                    </div>
+                </div>
+                <div class="contract-annual">
+                    <div class="annual-value">847 €</div>
+                    <div class="annual-label">vuodessa</div>
+                </div>
+                <div class="contract-co2">
+                    <div class="co2-value low">42 kg CO₂</div>
+                    <div class="co2-bar">
+                        <div class="co2-fill low" style="width: 15%;"></div>
+                    </div>
+                </div>
+                <div class="contract-cta">
+                    <a href="#" class="cta-btn">Katso</a>
+                </div>
+            </article>
+
+            <!-- Contract 2 -->
+            <article class="contract-row">
+                <div class="contract-info">
+                    <div class="contract-name">Fortum Tarkka</div>
+                    <div class="contract-provider">Fortum</div>
+                    <div class="contract-badges">
+                        <span class="badge">Sekasähkö</span>
+                        <span class="badge">Pörssi</span>
+                    </div>
+                </div>
+                <div class="contract-pricing">
+                    <div class="price-block">
+                        <div class="price-label">Marginaali</div>
+                        <div class="price-value">0,45 <span class="price-unit">c/kWh</span></div>
+                    </div>
+                    <div class="price-block">
+                        <div class="price-label">Perusmaksu</div>
+                        <div class="price-value">2,90 <span class="price-unit">€/kk</span></div>
+                    </div>
+                </div>
+                <div class="contract-annual">
+                    <div class="annual-value">862 €</div>
+                    <div class="annual-label">vuodessa</div>
+                </div>
+                <div class="contract-co2">
+                    <div class="co2-value med">156 kg CO₂</div>
+                    <div class="co2-bar">
+                        <div class="co2-fill med" style="width: 45%;"></div>
+                    </div>
+                </div>
+                <div class="contract-cta">
+                    <a href="#" class="cta-btn">Katso</a>
+                </div>
+            </article>
+
+            <!-- Contract 3 - Eco -->
+            <article class="contract-row eco">
+                <div class="contract-info">
+                    <div class="contract-name">Vattenfall Ydin 12kk</div>
+                    <div class="contract-provider">Vattenfall</div>
+                    <div class="contract-badges">
+                        <span class="badge green">Ydinvoima</span>
+                        <span class="badge">12 kk</span>
+                    </div>
+                </div>
+                <div class="contract-pricing">
+                    <div class="price-block">
+                        <div class="price-label">Energiahinta</div>
+                        <div class="price-value">8,45 <span class="price-unit">c/kWh</span></div>
+                    </div>
+                    <div class="price-block">
+                        <div class="price-label">Perusmaksu</div>
+                        <div class="price-value">4,50 <span class="price-unit">€/kk</span></div>
+                    </div>
+                </div>
+                <div class="contract-annual">
+                    <div class="annual-value">899 €</div>
+                    <div class="annual-label">vuodessa</div>
+                </div>
+                <div class="contract-co2">
+                    <div class="co2-value low">0 kg CO₂</div>
+                    <div class="co2-bar">
+                        <div class="co2-fill low" style="width: 0%;"></div>
+                    </div>
+                </div>
+                <div class="contract-cta">
+                    <a href="#" class="cta-btn">Katso</a>
+                </div>
+            </article>
+
+            <!-- Contract 4 -->
+            <article class="contract-row">
+                <div class="contract-info">
+                    <div class="contract-name">Oomi Kotispot</div>
+                    <div class="contract-provider">Oomi Energia</div>
+                    <div class="contract-badges">
+                        <span class="badge">Sekasähkö</span>
+                        <span class="badge">Pörssi</span>
+                    </div>
+                </div>
+                <div class="contract-pricing">
+                    <div class="price-block">
+                        <div class="price-label">Marginaali</div>
+                        <div class="price-value">0,29 <span class="price-unit">c/kWh</span></div>
+                    </div>
+                    <div class="price-block">
+                        <div class="price-label">Perusmaksu</div>
+                        <div class="price-value">4,90 <span class="price-unit">€/kk</span></div>
+                    </div>
+                </div>
+                <div class="contract-annual">
+                    <div class="annual-value">878 €</div>
+                    <div class="annual-label">vuodessa</div>
+                </div>
+                <div class="contract-co2">
+                    <div class="co2-value high">234 kg CO₂</div>
+                    <div class="co2-bar">
+                        <div class="co2-fill high" style="width: 70%;"></div>
+                    </div>
+                </div>
+                <div class="contract-cta">
+                    <a href="#" class="cta-btn">Katso</a>
+                </div>
+            </article>
+
+            <!-- Contract 5 - Eco -->
+            <article class="contract-row eco">
+                <div class="contract-info">
+                    <div class="contract-name">Lumme Vihreä Spot</div>
+                    <div class="contract-provider">Lumme Energia</div>
+                    <div class="contract-badges">
+                        <span class="badge green">Vesivoima</span>
+                        <span class="badge">Pörssi</span>
+                    </div>
+                </div>
+                <div class="contract-pricing">
+                    <div class="price-block">
+                        <div class="price-label">Marginaali</div>
+                        <div class="price-value">0,59 <span class="price-unit">c/kWh</span></div>
+                    </div>
+                    <div class="price-block">
+                        <div class="price-label">Perusmaksu</div>
+                        <div class="price-value">3,50 <span class="price-unit">€/kk</span></div>
+                    </div>
+                </div>
+                <div class="contract-annual">
+                    <div class="annual-value">901 €</div>
+                    <div class="annual-label">vuodessa</div>
+                </div>
+                <div class="contract-co2">
+                    <div class="co2-value low">18 kg CO₂</div>
+                    <div class="co2-bar">
+                        <div class="co2-fill low" style="width: 5%;"></div>
+                    </div>
+                </div>
+                <div class="contract-cta">
+                    <a href="#" class="cta-btn">Katso</a>
+                </div>
+            </article>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-logo">Voltikka</div>
+            <div class="footer-links">
+                <a href="#">Tietoa palvelusta</a>
+                <a href="#">Usein kysytyt</a>
+                <a href="#">Yhteystiedot</a>
+            </div>
+            <div class="footer-copy">© 2026 Voltikka</div>
+        </div>
+    </footer>
+</body>
+</html>

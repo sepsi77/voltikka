@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Voltikka - Direction H: Sharp Green</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        forest: {
+                            50: '#f0f7f4',
+                            100: '#d9ebe2',
+                            200: '#b5d7c7',
+                            300: '#85bca5',
+                            400: '#569b80',
+                            500: '#3a8268',
+                            600: '#2a6853',
+                            700: '#235444',
+                            800: '#1e4438',
+                            900: '#19382e',
+                            950: '#0d1f1a',
+                        },
+                        lime: {
+                            400: '#a3e635',
+                            500: '#84cc16',
+                        },
+                        cream: '#fafaf8',
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        /* Sharp, intentional hover states */
+        .contract-row {
+            transition: background-color 0.15s ease;
+        }
+        .contract-row:hover {
+            background-color: #f0f7f4;
+        }
+
+        /* Tab indicator */
+        .tab-active {
+            position: relative;
+        }
+        .tab-active::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: #19382e;
+        }
+
+        /* Filter active state */
+        .filter-active {
+            background-color: #19382e;
+            color: white;
+        }
+
+        /* Consumption selector */
+        .consumption-btn {
+            transition: all 0.15s ease;
+        }
+        .consumption-btn:hover {
+            border-color: #19382e;
+        }
+        .consumption-btn.active {
+            background-color: #19382e;
+            color: white;
+            border-color: #19382e;
+        }
+
+        /* CO2 indicator bar */
+        .co2-bar {
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 0;
+        }
+        .co2-bar-fill {
+            height: 100%;
+            border-radius: 0;
+        }
+        .co2-low { background-color: #22c55e; }
+        .co2-medium { background-color: #eab308; }
+        .co2-high { background-color: #ef4444; }
+    </style>
+</head>
+<body class="font-sans antialiased bg-white text-forest-950">
+    <!-- Header -->
+    <header class="border-b border-forest-100">
+        <div class="max-w-6xl mx-auto px-6">
+            <div class="flex justify-between items-center h-16">
+                <a href="/" class="flex items-center gap-2">
+                    <svg class="w-7 h-7 text-forest-950" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="square" stroke-linejoin="miter" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <span class="text-xl font-bold tracking-tight">Voltikka</span>
+                </a>
+                <nav class="hidden md:flex items-center gap-8">
+                    <a href="#" class="text-forest-950 font-medium tab-active pb-[18px] -mb-[18px]">Sopimukset</a>
+                    <a href="#" class="text-forest-600 hover:text-forest-950 font-medium transition">Paikkakunnat</a>
+                    <a href="#" class="text-forest-600 hover:text-forest-950 font-medium transition">Pörssisähkö</a>
+                </nav>
+                <div class="flex items-center gap-2 text-sm">
+                    <span class="text-forest-500">Spot nyt</span>
+                    <span class="font-bold text-forest-950 tabular-nums">3,42 c/kWh</span>
+                    <span class="w-2 h-2 bg-lime-400 rounded-full ml-1"></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero - Minimal, data-forward -->
+        <section class="py-16 md:py-20 border-b border-forest-100">
+            <div class="max-w-6xl mx-auto px-6">
+                <div class="grid md:grid-cols-2 gap-16 items-start">
+                    <div>
+                        <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight leading-[1.1] mb-6">
+                            Vertaa sähkö-<br>sopimuksia
+                        </h1>
+                        <p class="text-lg text-forest-600 leading-relaxed max-w-md">
+                            Näe jokaisen sopimuksen todellinen hinta ja päästöt. Valitse vastuullisesti.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-3 gap-8 pt-2">
+                        <div>
+                            <div class="text-4xl font-extrabold tabular-nums text-forest-950">47</div>
+                            <div class="text-sm text-forest-500 mt-1">sopimusta</div>
+                        </div>
+                        <div>
+                            <div class="text-4xl font-extrabold tabular-nums text-forest-950">23</div>
+                            <div class="text-sm text-forest-500 mt-1">yhtiötä</div>
+                        </div>
+                        <div>
+                            <div class="text-4xl font-extrabold tabular-nums text-lime-500">12</div>
+                            <div class="text-sm text-forest-500 mt-1">päästötöntä</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Consumption Selector -->
+        <section class="py-8 border-b border-forest-100 bg-cream">
+            <div class="max-w-6xl mx-auto px-6">
+                <div class="flex flex-col md:flex-row md:items-center gap-6">
+                    <span class="text-sm font-medium text-forest-600 uppercase tracking-wide">Vuosikulutus</span>
+                    <div class="flex flex-wrap gap-2">
+                        <button class="consumption-btn px-5 py-2.5 border border-forest-200 text-sm font-medium">
+                            <span class="font-bold">2 000</span> <span class="text-forest-500">kWh</span>
+                        </button>
+                        <button class="consumption-btn px-5 py-2.5 border border-forest-200 text-sm font-medium">
+                            <span class="font-bold">5 000</span> <span class="text-forest-500">kWh</span>
+                        </button>
+                        <button class="consumption-btn active px-5 py-2.5 border border-forest-200 text-sm font-medium">
+                            <span class="font-bold">10 000</span> <span class="text-forest-500">kWh</span>
+                        </button>
+                        <button class="consumption-btn px-5 py-2.5 border border-forest-200 text-sm font-medium">
+                            <span class="font-bold">18 000</span> <span class="text-forest-500">kWh</span>
+                        </button>
+                        <button class="consumption-btn px-5 py-2.5 border border-forest-200 text-sm font-medium">
+                            <span class="font-bold">25 000</span> <span class="text-forest-500">kWh</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Filters -->
+        <section class="py-4 border-b border-forest-100">
+            <div class="max-w-6xl mx-auto px-6">
+                <div class="flex flex-wrap items-center gap-2">
+                    <!-- Primary filters -->
+                    <button class="filter-active px-4 py-2 text-sm font-semibold">Kaikki</button>
+                    <button class="px-4 py-2 text-sm font-medium text-forest-600 hover:text-forest-950 hover:bg-forest-50 transition">Pörssi</button>
+                    <button class="px-4 py-2 text-sm font-medium text-forest-600 hover:text-forest-950 hover:bg-forest-50 transition">Kiinteä</button>
+                    <button class="px-4 py-2 text-sm font-medium text-forest-600 hover:text-forest-950 hover:bg-forest-50 transition">Määräaikainen</button>
+
+                    <span class="w-px h-6 bg-forest-200 mx-2"></span>
+
+                    <!-- Energy source filters -->
+                    <button class="px-4 py-2 text-sm font-medium text-forest-600 hover:text-forest-950 hover:bg-forest-50 transition border border-forest-200">Päästötön</button>
+                    <button class="px-4 py-2 text-sm font-medium text-forest-600 hover:text-forest-950 hover:bg-forest-50 transition border border-forest-200">Uusiutuva</button>
+                    <button class="px-4 py-2 text-sm font-medium text-forest-600 hover:text-forest-950 hover:bg-forest-50 transition border border-forest-200">Ydinvoima</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results Table -->
+        <section class="py-8">
+            <div class="max-w-6xl mx-auto px-6">
+                <!-- Table header -->
+                <div class="hidden md:grid grid-cols-12 gap-4 pb-4 border-b border-forest-200 text-xs font-medium text-forest-500 uppercase tracking-wide">
+                    <div class="col-span-4">Sopimus</div>
+                    <div class="col-span-2 text-right">Marginaali</div>
+                    <div class="col-span-2 text-right">Perusmaksu</div>
+                    <div class="col-span-2 text-right">Vuosihinta</div>
+                    <div class="col-span-2 text-right">CO₂</div>
+                </div>
+
+                <!-- Contract rows -->
+                <div class="divide-y divide-forest-100">
+                    <!-- Row 1 - Low emissions highlight -->
+                    <a href="#" class="contract-row grid grid-cols-12 gap-4 py-5 items-center">
+                        <div class="col-span-12 md:col-span-4">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 bg-forest-100 flex items-center justify-center text-lg font-bold text-forest-700 shrink-0">
+                                    H
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-forest-950">Helen Spot Tuuli</div>
+                                    <div class="text-sm text-forest-500">Helen Oy</div>
+                                    <div class="flex gap-1.5 mt-1.5">
+                                        <span class="text-xs font-medium px-2 py-0.5 bg-lime-400 text-forest-950">100% TUULI</span>
+                                        <span class="text-xs font-medium px-2 py-0.5 bg-forest-100 text-forest-700">PÖRSSI</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="font-semibold tabular-nums">0,39</div>
+                            <div class="text-xs text-forest-500">c/kWh</div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="font-semibold tabular-nums">3,99</div>
+                            <div class="text-xs text-forest-500">€/kk</div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="text-xl font-bold tabular-nums text-forest-950">847 €</div>
+                        </div>
+                        <div class="col-span-12 md:col-span-2 text-right">
+                            <div class="font-semibold text-lime-600 tabular-nums">42 kg</div>
+                            <div class="co2-bar w-full mt-1.5">
+                                <div class="co2-bar-fill co2-low" style="width: 8%;"></div>
+                            </div>
+                        </div>
+                    </a>
+
+                    <!-- Row 2 -->
+                    <a href="#" class="contract-row grid grid-cols-12 gap-4 py-5 items-center">
+                        <div class="col-span-12 md:col-span-4">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 bg-forest-100 flex items-center justify-center text-lg font-bold text-forest-700 shrink-0">
+                                    F
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-forest-950">Fortum Tarkka</div>
+                                    <div class="text-sm text-forest-500">Fortum</div>
+                                    <div class="flex gap-1.5 mt-1.5">
+                                        <span class="text-xs font-medium px-2 py-0.5 bg-forest-100 text-forest-700">SEKA</span>
+                                        <span class="text-xs font-medium px-2 py-0.5 bg-forest-100 text-forest-700">PÖRSSI</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="font-semibold tabular-nums">0,45</div>
+                            <div class="text-xs text-forest-500">c/kWh</div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="font-semibold tabular-nums">2,90</div>
+                            <div class="text-xs text-forest-500">€/kk</div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="text-xl font-bold tabular-nums text-forest-950">862 €</div>
+                        </div>
+                        <div class="col-span-12 md:col-span-2 text-right">
+                            <div class="font-semibold text-amber-600 tabular-nums">156 kg</div>
+                            <div class="co2-bar w-full mt-1.5">
+                                <div class="co2-bar-fill co2-medium" style="width: 32%;"></div>
+                            </div>
+                        </div>
+                    </a>
+
+                    <!-- Row 3 - Zero emissions -->
+                    <a href="#" class="contract-row grid grid-cols-12 gap-4 py-5 items-center bg-forest-50/50">
+                        <div class="col-span-12 md:col-span-4">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 bg-forest-100 flex items-center justify-center text-lg font-bold text-forest-700 shrink-0">
+                                    V
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-forest-950">Vattenfall Ydinvoima 12kk</div>
+                                    <div class="text-sm text-forest-500">Vattenfall</div>
+                                    <div class="flex gap-1.5 mt-1.5">
+                                        <span class="text-xs font-medium px-2 py-0.5 bg-lime-400 text-forest-950">YDINVOIMA</span>
+                                        <span class="text-xs font-medium px-2 py-0.5 bg-forest-100 text-forest-700">12 KK</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="font-semibold tabular-nums">8,45</div>
+                            <div class="text-xs text-forest-500">c/kWh</div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="font-semibold tabular-nums">4,50</div>
+                            <div class="text-xs text-forest-500">€/kk</div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="text-xl font-bold tabular-nums text-forest-950">899 €</div>
+                        </div>
+                        <div class="col-span-12 md:col-span-2 text-right">
+                            <div class="font-bold text-lime-600 tabular-nums">0 kg</div>
+                            <div class="text-xs text-forest-500 mt-0.5">Päästötön</div>
+                        </div>
+                    </a>
+
+                    <!-- Row 4 -->
+                    <a href="#" class="contract-row grid grid-cols-12 gap-4 py-5 items-center">
+                        <div class="col-span-12 md:col-span-4">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 bg-forest-100 flex items-center justify-center text-lg font-bold text-forest-700 shrink-0">
+                                    O
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-forest-950">Oomi Kotispot</div>
+                                    <div class="text-sm text-forest-500">Oomi Energia</div>
+                                    <div class="flex gap-1.5 mt-1.5">
+                                        <span class="text-xs font-medium px-2 py-0.5 bg-forest-100 text-forest-700">SEKA</span>
+                                        <span class="text-xs font-medium px-2 py-0.5 bg-forest-100 text-forest-700">PÖRSSI</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="font-semibold tabular-nums">0,29</div>
+                            <div class="text-xs text-forest-500">c/kWh</div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="font-semibold tabular-nums">4,90</div>
+                            <div class="text-xs text-forest-500">€/kk</div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="text-xl font-bold tabular-nums text-forest-950">878 €</div>
+                        </div>
+                        <div class="col-span-12 md:col-span-2 text-right">
+                            <div class="font-semibold text-red-600 tabular-nums">234 kg</div>
+                            <div class="co2-bar w-full mt-1.5">
+                                <div class="co2-bar-fill co2-high" style="width: 48%;"></div>
+                            </div>
+                        </div>
+                    </a>
+
+                    <!-- Row 5 -->
+                    <a href="#" class="contract-row grid grid-cols-12 gap-4 py-5 items-center">
+                        <div class="col-span-12 md:col-span-4">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 bg-forest-100 flex items-center justify-center text-lg font-bold text-forest-700 shrink-0">
+                                    L
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-forest-950">Lumme Vihreä Spot</div>
+                                    <div class="text-sm text-forest-500">Lumme Energia</div>
+                                    <div class="flex gap-1.5 mt-1.5">
+                                        <span class="text-xs font-medium px-2 py-0.5 bg-lime-400 text-forest-950">VESIVOIMA</span>
+                                        <span class="text-xs font-medium px-2 py-0.5 bg-forest-100 text-forest-700">PÖRSSI</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="font-semibold tabular-nums">0,59</div>
+                            <div class="text-xs text-forest-500">c/kWh</div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="font-semibold tabular-nums">3,50</div>
+                            <div class="text-xs text-forest-500">€/kk</div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="text-xl font-bold tabular-nums text-forest-950">901 €</div>
+                        </div>
+                        <div class="col-span-12 md:col-span-2 text-right">
+                            <div class="font-semibold text-lime-600 tabular-nums">18 kg</div>
+                            <div class="co2-bar w-full mt-1.5">
+                                <div class="co2-bar-fill co2-low" style="width: 4%;"></div>
+                            </div>
+                        </div>
+                    </a>
+
+                    <!-- Row 6 -->
+                    <a href="#" class="contract-row grid grid-cols-12 gap-4 py-5 items-center">
+                        <div class="col-span-12 md:col-span-4">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 bg-forest-100 flex items-center justify-center text-lg font-bold text-forest-700 shrink-0">
+                                    C
+                                </div>
+                                <div>
+                                    <div class="font-semibold text-forest-950">Caruna Kiinteä 24kk</div>
+                                    <div class="text-sm text-forest-500">Caruna</div>
+                                    <div class="flex gap-1.5 mt-1.5">
+                                        <span class="text-xs font-medium px-2 py-0.5 bg-forest-100 text-forest-700">SEKA</span>
+                                        <span class="text-xs font-medium px-2 py-0.5 bg-forest-100 text-forest-700">24 KK</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="font-semibold tabular-nums">7,85</div>
+                            <div class="text-xs text-forest-500">c/kWh</div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="font-semibold tabular-nums">5,90</div>
+                            <div class="text-xs text-forest-500">€/kk</div>
+                        </div>
+                        <div class="col-span-4 md:col-span-2 text-right">
+                            <div class="text-xl font-bold tabular-nums text-forest-950">856 €</div>
+                        </div>
+                        <div class="col-span-12 md:col-span-2 text-right">
+                            <div class="font-semibold text-amber-600 tabular-nums">189 kg</div>
+                            <div class="co2-bar w-full mt-1.5">
+                                <div class="co2-bar-fill co2-medium" style="width: 38%;"></div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                <!-- Pagination / Load more -->
+                <div class="pt-8 text-center">
+                    <button class="px-6 py-3 border-2 border-forest-950 text-sm font-semibold hover:bg-forest-950 hover:text-white transition">
+                        Näytä lisää sopimuksia
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-forest-200 py-12 mt-16 bg-cream">
+        <div class="max-w-6xl mx-auto px-6">
+            <div class="flex flex-col md:flex-row justify-between items-start gap-8">
+                <div>
+                    <div class="flex items-center gap-2 mb-4">
+                        <svg class="w-6 h-6 text-forest-950" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="square" stroke-linejoin="miter" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        <span class="text-lg font-bold tracking-tight">Voltikka</span>
+                    </div>
+                    <p class="text-sm text-forest-600 max-w-xs">
+                        Suomen kattavin sähkösopimusten vertailupalvelu. Data päivitetään suoraan energiavirastolta.
+                    </p>
+                </div>
+                <div class="flex gap-12">
+                    <div>
+                        <h4 class="font-semibold text-sm mb-3">Palvelu</h4>
+                        <ul class="space-y-2 text-sm text-forest-600">
+                            <li><a href="#" class="hover:text-forest-950">Sähkösopimukset</a></li>
+                            <li><a href="#" class="hover:text-forest-950">Paikkakunnat</a></li>
+                            <li><a href="#" class="hover:text-forest-950">Pörssisähkö</a></li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-sm mb-3">Tietoa</h4>
+                        <ul class="space-y-2 text-sm text-forest-600">
+                            <li><a href="#" class="hover:text-forest-950">Tietoa palvelusta</a></li>
+                            <li><a href="#" class="hover:text-forest-950">Usein kysytyt</a></li>
+                            <li><a href="#" class="hover:text-forest-950">Yhteystiedot</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-12 pt-6 border-t border-forest-200 text-sm text-forest-500">
+                © 2026 Voltikka — Data: Energiavirasto
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

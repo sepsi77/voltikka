@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Voltikka - Color C: Fresh Coral</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        coral: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            200: '#fed7aa',
+                            300: '#fdba74',
+                            400: '#fb923c',
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                            800: '#9a3412',
+                            900: '#7c2d12',
+                            950: '#431407',
+                        },
+                        slate: {
+                            850: '#1a2332',
+                            950: '#0f1419',
+                        }
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .contract-card {
+            position: relative;
+            transition: all 0.2s ease;
+        }
+        .contract-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: #e2e8f0;
+            border-radius: 4px 0 0 4px;
+        }
+        .contract-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px -12px rgba(0,0,0,0.12);
+        }
+        .contract-card.featured::before {
+            background: linear-gradient(180deg, #f97316 0%, #ea580c 100%);
+            width: 6px;
+        }
+        .contract-card.green::before { background: #22c55e; }
+        .contract-card.amber::before { background: #f59e0b; }
+        .contract-card.red::before { background: #ef4444; }
+        .rank {
+            font-size: 2.5rem;
+            font-weight: 800;
+            line-height: 1;
+            color: #e2e8f0;
+        }
+        .contract-card.featured .rank { color: #f97316; }
+        .filter-btn.active { background: #0f1419; color: white; }
+        .consumption-card.active {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: white;
+            border-color: #f97316;
+        }
+        .consumption-card.active .consumption-icon { background: rgba(255,255,255,0.2); }
+
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+    </style>
+</head>
+<body class="font-sans antialiased bg-white text-slate-900">
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-100">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex justify-between items-center h-16">
+                <a href="/" class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 bg-gradient-to-br from-coral-500 to-coral-600 rounded-xl flex items-center justify-center shadow-lg shadow-coral-500/20">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <span class="text-xl font-extrabold text-slate-900">Voltikka</span>
+                </a>
+                <nav class="hidden md:flex items-center gap-1">
+                    <a href="#" class="px-4 py-2 rounded-lg text-slate-900 font-semibold bg-slate-100">Sopimukset</a>
+                    <a href="#" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium">Paikkakunnat</a>
+                    <a href="#" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium">Pörssisähkö</a>
+                </nav>
+                <div class="flex items-center gap-2 bg-coral-50 px-4 py-2 rounded-xl border border-coral-200">
+                    <div class="w-2 h-2 bg-coral-500 rounded-full animate-pulse"></div>
+                    <span class="text-sm text-coral-700">Spot</span>
+                    <span class="text-sm font-bold text-coral-900">3,42 c/kWh</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero - Light with coral accent -->
+        <section class="bg-gradient-to-br from-slate-900 via-slate-850 to-slate-950 text-white py-16 relative overflow-hidden">
+            <div class="absolute inset-0">
+                <div class="absolute top-0 right-1/4 w-96 h-96 bg-coral-500 rounded-full blur-3xl opacity-20"></div>
+                <div class="absolute bottom-0 left-0 w-72 h-72 bg-coral-400 rounded-full blur-3xl opacity-10 -translate-x-1/2"></div>
+            </div>
+
+            <div class="max-w-7xl mx-auto px-6 relative">
+                <div class="grid lg:grid-cols-2 gap-12 items-center">
+                    <div>
+                        <div class="inline-flex items-center gap-2 bg-coral-500/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-coral-300 mb-6 border border-coral-500/20">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                            Vertaile älykkäästi
+                        </div>
+                        <h1 class="text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.1] mb-6">
+                            Löydä paras<br>
+                            <span class="text-coral-400">sähkösopimus</span>
+                        </h1>
+                        <p class="text-lg text-slate-300 leading-relaxed max-w-lg mb-8">
+                            Vertaile hintoja ja päästöjä läpinäkyvästi. Näe mitä todella maksat — ilman piilokustannuksia.
+                        </p>
+                        <a href="#contracts" class="inline-flex items-center gap-2 bg-gradient-to-r from-coral-500 to-coral-600 hover:from-coral-400 hover:to-coral-500 text-white font-bold px-8 py-4 rounded-xl transition shadow-lg shadow-coral-500/30">
+                            Aloita vertailu
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                            </svg>
+                        </a>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-white/5 backdrop-blur-sm rounded-2xl p-6 text-center border border-white/10">
+                            <div class="text-4xl font-extrabold text-white mb-1">47</div>
+                            <div class="text-sm text-slate-400">sopimusta</div>
+                        </div>
+                        <div class="bg-white/5 backdrop-blur-sm rounded-2xl p-6 text-center border border-white/10">
+                            <div class="text-4xl font-extrabold text-white mb-1">23</div>
+                            <div class="text-sm text-slate-400">yhtiötä</div>
+                        </div>
+                        <div class="bg-coral-500/20 backdrop-blur-sm rounded-2xl p-6 text-center border border-coral-500/30">
+                            <div class="text-4xl font-extrabold text-coral-400 mb-1">12</div>
+                            <div class="text-sm text-coral-300">päästötöntä</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Consumption Selector -->
+        <section class="bg-slate-50 py-10 border-b border-slate-200">
+            <div class="max-w-7xl mx-auto px-6">
+                <h2 class="text-lg font-bold text-slate-900 mb-6">Kuinka paljon sähköä käytät vuodessa?</h2>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <button class="consumption-card group flex flex-col items-center p-5 bg-white border-2 border-slate-200 rounded-2xl hover:border-coral-400 transition shadow-sm">
+                        <div class="consumption-icon w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mb-3 group-hover:bg-coral-100 transition">
+                            <svg class="w-6 h-6 text-slate-400 group-hover:text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-bold text-slate-900">2 000</span>
+                        <span class="text-sm text-slate-500">kWh · Yksiö</span>
+                    </button>
+                    <button class="consumption-card group flex flex-col items-center p-5 bg-white border-2 border-slate-200 rounded-2xl hover:border-coral-400 transition shadow-sm">
+                        <div class="consumption-icon w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mb-3 group-hover:bg-coral-100 transition">
+                            <svg class="w-6 h-6 text-slate-400 group-hover:text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-bold text-slate-900">5 000</span>
+                        <span class="text-sm text-slate-500">kWh · Kerrostalo</span>
+                    </button>
+                    <button class="consumption-card active group flex flex-col items-center p-5 border-2 rounded-2xl transition shadow-lg shadow-coral-500/20">
+                        <div class="consumption-icon w-12 h-12 rounded-xl flex items-center justify-center mb-3 transition">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-bold">10 000</span>
+                        <span class="text-sm opacity-90">kWh · Rivitalo</span>
+                    </button>
+                    <button class="consumption-card group flex flex-col items-center p-5 bg-white border-2 border-slate-200 rounded-2xl hover:border-coral-400 transition shadow-sm">
+                        <div class="consumption-icon w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mb-3 group-hover:bg-coral-100 transition">
+                            <svg class="w-6 h-6 text-slate-400 group-hover:text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-bold text-slate-900">18 000</span>
+                        <span class="text-sm text-slate-500">kWh · Omakotitalo</span>
+                    </button>
+                    <button class="consumption-card group flex flex-col items-center p-5 bg-white border-2 border-slate-200 rounded-2xl hover:border-coral-400 transition shadow-sm">
+                        <div class="consumption-icon w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center mb-3 group-hover:bg-coral-100 transition">
+                            <svg class="w-6 h-6 text-slate-400 group-hover:text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-bold text-slate-900">25 000</span>
+                        <span class="text-sm text-slate-500">kWh · Suuri talo</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Filters -->
+        <section class="bg-white py-6 border-b border-slate-200" id="contracts">
+            <div class="max-w-7xl mx-auto px-6">
+                <div class="flex flex-col lg:flex-row lg:items-center gap-6">
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Tyyppi</span>
+                        <div class="flex gap-2">
+                            <button class="filter-btn active px-4 py-2 rounded-lg text-sm font-semibold bg-slate-100 border border-slate-200">Kaikki</button>
+                            <button class="filter-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 bg-slate-50 border border-slate-200 hover:border-slate-300">Pörssi</button>
+                            <button class="filter-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 bg-slate-50 border border-slate-200 hover:border-slate-300">Kiinteä</button>
+                        </div>
+                    </div>
+                    <div class="w-px h-8 bg-slate-200 hidden lg:block"></div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Energia</span>
+                        <div class="flex gap-2">
+                            <button class="filter-btn flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-slate-600 bg-slate-50 border border-slate-200 hover:border-green-400">
+                                <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                                Päästötön
+                            </button>
+                            <button class="filter-btn px-4 py-2 rounded-lg text-sm font-medium text-slate-600 bg-slate-50 border border-slate-200 hover:border-slate-300">Uusiutuva</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contract List -->
+        <section class="py-8 bg-slate-50">
+            <div class="max-w-7xl mx-auto px-6">
+                <div class="space-y-4">
+                    <!-- Featured -->
+                    <div class="contract-card featured bg-white rounded-2xl p-6 shadow-sm border border-coral-200 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 bg-gradient-to-r from-coral-500 to-coral-600 text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl">Edullisin vihreä</div>
+                        <div class="flex items-start gap-6">
+                            <div class="rank">01</div>
+                            <div class="flex-1">
+                                <div class="flex flex-col lg:flex-row lg:items-center gap-6">
+                                    <div class="flex items-center gap-4 lg:w-56">
+                                        <div class="w-14 h-14 bg-coral-100 rounded-xl flex items-center justify-center shrink-0">
+                                            <span class="text-xl font-bold text-coral-600">H</span>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-slate-900 text-lg">Helen Spot Tuuli</h3>
+                                            <p class="text-sm text-slate-500">Helen Oy</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-wrap gap-6 lg:gap-10 flex-1">
+                                        <div>
+                                            <div class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Marginaali</div>
+                                            <div class="text-xl font-bold text-slate-900">0,39 <span class="text-sm font-normal text-slate-400">c/kWh</span></div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Perusmaksu</div>
+                                            <div class="text-xl font-bold text-slate-900">3,99 <span class="text-sm font-normal text-slate-400">€/kk</span></div>
+                                        </div>
+                                        <div class="bg-coral-50 px-5 py-3 rounded-xl -my-1 border border-coral-100">
+                                            <div class="text-xs font-medium text-coral-600 uppercase tracking-wide mb-1">Vuosihinta</div>
+                                            <div class="text-2xl font-extrabold text-coral-600">847 €</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-col gap-3 lg:w-44">
+                                        <div class="flex flex-wrap gap-2">
+                                            <span class="text-xs font-bold px-3 py-1.5 bg-green-100 text-green-700 rounded-lg">100% TUULI</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+                                            <span class="text-sm"><strong class="text-green-600">42 kg</strong> CO₂/v</span>
+                                        </div>
+                                    </div>
+                                    <button class="shrink-0 bg-gradient-to-r from-coral-500 to-coral-600 hover:from-coral-400 hover:to-coral-500 text-white font-bold px-6 py-3.5 rounded-xl transition shadow-lg shadow-coral-500/20">
+                                        Katso sopimus →
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contract 2 -->
+                    <div class="contract-card amber bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                        <div class="flex items-start gap-6">
+                            <div class="rank">02</div>
+                            <div class="flex-1">
+                                <div class="flex flex-col lg:flex-row lg:items-center gap-6">
+                                    <div class="flex items-center gap-4 lg:w-56">
+                                        <div class="w-14 h-14 bg-slate-100 rounded-xl flex items-center justify-center shrink-0">
+                                            <span class="text-xl font-bold text-slate-400">F</span>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-slate-900 text-lg">Fortum Tarkka</h3>
+                                            <p class="text-sm text-slate-500">Fortum</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-wrap gap-6 lg:gap-10 flex-1">
+                                        <div>
+                                            <div class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Marginaali</div>
+                                            <div class="text-xl font-bold text-slate-900">0,45 <span class="text-sm font-normal text-slate-400">c/kWh</span></div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Perusmaksu</div>
+                                            <div class="text-xl font-bold text-slate-900">2,90 <span class="text-sm font-normal text-slate-400">€/kk</span></div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Vuosihinta</div>
+                                            <div class="text-2xl font-extrabold text-slate-900">862 €</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-col gap-3 lg:w-44">
+                                        <div class="flex flex-wrap gap-2">
+                                            <span class="text-xs font-medium px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg">SEKA</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-3 h-3 bg-amber-500 rounded-full"></span>
+                                            <span class="text-sm"><strong class="text-amber-600">156 kg</strong> CO₂/v</span>
+                                        </div>
+                                    </div>
+                                    <button class="shrink-0 bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 py-3.5 rounded-xl transition">
+                                        Katso sopimus →
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contract 3 -->
+                    <div class="contract-card green bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                        <div class="flex items-start gap-6">
+                            <div class="rank">03</div>
+                            <div class="flex-1">
+                                <div class="flex flex-col lg:flex-row lg:items-center gap-6">
+                                    <div class="flex items-center gap-4 lg:w-56">
+                                        <div class="w-14 h-14 bg-slate-100 rounded-xl flex items-center justify-center shrink-0">
+                                            <span class="text-xl font-bold text-slate-400">V</span>
+                                        </div>
+                                        <div>
+                                            <h3 class="font-bold text-slate-900 text-lg">Vattenfall Ydin 12kk</h3>
+                                            <p class="text-sm text-slate-500">Vattenfall</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-wrap gap-6 lg:gap-10 flex-1">
+                                        <div>
+                                            <div class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Energiahinta</div>
+                                            <div class="text-xl font-bold text-slate-900">8,45 <span class="text-sm font-normal text-slate-400">c/kWh</span></div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Perusmaksu</div>
+                                            <div class="text-xl font-bold text-slate-900">4,50 <span class="text-sm font-normal text-slate-400">€/kk</span></div>
+                                        </div>
+                                        <div>
+                                            <div class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-1">Vuosihinta</div>
+                                            <div class="text-2xl font-extrabold text-slate-900">899 €</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-col gap-3 lg:w-44">
+                                        <div class="flex flex-wrap gap-2">
+                                            <span class="text-xs font-bold px-3 py-1.5 bg-green-100 text-green-700 rounded-lg">YDINVOIMA</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+                                            <span class="text-sm"><strong class="text-green-600">0 kg</strong> Päästötön</span>
+                                        </div>
+                                    </div>
+                                    <button class="shrink-0 bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 py-3.5 rounded-xl transition">
+                                        Katso sopimus →
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-950 text-white py-16 mt-0">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex items-center gap-2.5 mb-8">
+                <div class="w-9 h-9 bg-gradient-to-br from-coral-500 to-coral-600 rounded-xl flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <span class="text-xl font-extrabold">Voltikka</span>
+            </div>
+            <p class="text-slate-400 max-w-sm">Suomen kattavin sähkösopimusten vertailupalvelu.</p>
+            <div class="mt-8 pt-8 border-t border-slate-800 text-sm text-slate-500">© 2026 Voltikka</div>
+        </div>
+    </footer>
+</body>
+</html>
