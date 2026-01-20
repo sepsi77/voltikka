@@ -301,7 +301,7 @@
                         </div>
                         @if ($potentialSavings && $potentialSavings['savings_euros'] > 0)
                             <p class="text-sm text-green-600 font-medium">
-                                Säästö: {{ number_format($potentialSavings['savings_euros'], 2, ',', ' ') }} €
+                                Säästät {{ number_format($potentialSavings['savings_euros'], 2, ',', ' ') }} € <span class="text-slate-500 font-normal">vs keskihinta</span>
                             </p>
                         @endif
                     </div>
@@ -335,7 +335,7 @@
                         </div>
                         @if ($saunaCost['cost_difference_euros'] > 0)
                             <p class="text-sm text-green-600 font-medium">
-                                Säästö: {{ number_format($saunaCost['cost_difference_euros'], 2, ',', ' ') }} €
+                                Säästät {{ number_format($saunaCost['cost_difference_euros'], 2, ',', ' ') }} € <span class="text-slate-500 font-normal">vs klo {{ str_pad($saunaCost['expensive_hour'], 2, '0', STR_PAD_LEFT) }}</span>
                             </p>
                         @endif
                     </div>
@@ -364,7 +364,7 @@
                         </div>
                         @if ($laundryCost['cost_difference_euros'] && $laundryCost['cost_difference_euros'] > 0)
                             <p class="text-sm text-green-600 font-medium">
-                                Säästö: {{ number_format($laundryCost['cost_difference_euros'], 2, ',', ' ') }} €
+                                Säästät {{ number_format($laundryCost['cost_difference_euros'], 2, ',', ' ') }} € <span class="text-slate-500 font-normal">vs kallein aika</span>
                             </p>
                         @endif
                     </div>
@@ -393,7 +393,7 @@
                         </div>
                         @if ($dishwasherCost['cost_difference_euros'] && $dishwasherCost['cost_difference_euros'] > 0)
                             <p class="text-sm text-green-600 font-medium">
-                                Säästö: {{ number_format($dishwasherCost['cost_difference_euros'], 2, ',', ' ') }} €
+                                Säästät {{ number_format($dishwasherCost['cost_difference_euros'], 2, ',', ' ') }} € <span class="text-slate-500 font-normal">vs kallein aika</span>
                             </p>
                         @endif
                     </div>
@@ -422,7 +422,7 @@
                         </div>
                         @if ($waterHeaterCost['cost_difference_euros'] && $waterHeaterCost['cost_difference_euros'] > 0)
                             <p class="text-sm text-green-600 font-medium">
-                                Säästö: {{ number_format($waterHeaterCost['cost_difference_euros'], 2, ',', ' ') }} €
+                                Säästät {{ number_format($waterHeaterCost['cost_difference_euros'], 2, ',', ' ') }} € <span class="text-slate-500 font-normal">vs kallein tunti</span>
                             </p>
                         @endif
                     </div>
