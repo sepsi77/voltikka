@@ -1,0 +1,71 @@
+{
+  "session": "fix-remaining-pages",
+  "description": "Apply the Fresh Coral design system to the remaining 5 page templates: spot-price, company-detail, locations-list, seo-contracts-list, and consumption-calculator. These pages currently use old color classes (primary-500, tertiary-500, cyan) that need to be replaced with the new design system colors (coral, slate).",
+  "tasks": [
+    {
+      "id": "fix-spot-price-colors",
+      "title": "Update spot-price.blade.php colors",
+      "description": "Update laravel/resources/views/livewire/spot-price.blade.php: 1) Replace text-tertiary-500 with text-slate-900, 2) Replace bg-primary-500/600 with bg-coral-500/600, 3) Replace bg-primary-50/100 with bg-coral-50/100, 4) Replace text-primary-600 with text-coral-600, 5) Replace border-primary-* with border-coral-*, 6) Replace ring-primary-* with ring-coral-*, 7) Update all links to use text-coral-600 hover:text-coral-700.",
+      "status": "completed",
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true,
+      "priority": 1
+    },
+    {
+      "id": "fix-spot-price-components",
+      "title": "Update spot-price.blade.php components styling",
+      "description": "Continue updating spot-price.blade.php: 1) Update cards to use rounded-2xl and border-slate-100, 2) Update headings to text-slate-900, 3) Update secondary text to text-slate-600, 4) Update buttons to use coral gradient (from-coral-500 to-coral-600) with shadow-coral and rounded-xl, 5) Update active states to use coral colors.",
+      "status": "completed",
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true,
+      "priority": 2,
+      "depends_on": ["fix-spot-price-colors"]
+    },
+    {
+      "id": "fix-company-detail",
+      "title": "Update company-detail.blade.php to design system",
+      "description": "Update laravel/resources/views/livewire/company-detail.blade.php: 1) Replace text-primary-600 links with text-coral-600 hover:text-coral-700, 2) Update cards to rounded-2xl with border-slate-100, 3) Update headings to text-slate-900, 4) Update secondary text to text-slate-600, 5) Update any buttons to coral gradient styling, 6) Update badges to use coral-100/coral-800 or slate-100/slate-700.",
+      "status": "completed",
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true,
+      "priority": 3
+    },
+    {
+      "id": "fix-locations-list",
+      "title": "Update locations-list.blade.php to design system",
+      "description": "Update laravel/resources/views/livewire/locations-list.blade.php: 1) Replace text-tertiary-500 with text-slate-900, 2) Replace text-primary-600 links with text-coral-600 hover:text-coral-700, 3) Update cards to rounded-2xl with border-slate-100, 4) Update headings to text-slate-900, 5) Update secondary text to text-slate-600, 6) Update any hero/header sections to match the dark slate-950 pattern if applicable.",
+      "status": "completed",
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true,
+      "priority": 4
+    },
+    {
+      "id": "fix-seo-contracts-colors",
+      "title": "Update seo-contracts-list.blade.php colors",
+      "description": "Update laravel/resources/views/livewire/seo-contracts-list.blade.php: 1) Replace cyan-500/600 with coral-500/600, 2) Replace text-tertiary-* with text-slate-*, 3) Replace bg-success-* with bg-green-* (keep semantic green for energy badges), 4) Replace border-success-* with border-green-*, 5) Update all links to text-coral-600 hover:text-coral-700.",
+      "status": "completed",
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true,
+      "priority": 5
+    },
+    {
+      "id": "fix-seo-contracts-components",
+      "title": "Update seo-contracts-list.blade.php components",
+      "description": "Continue updating seo-contracts-list.blade.php: 1) Update cards to rounded-2xl with border-slate-100, 2) Update hero section to dark slate-950 background if present, 3) Update buttons to coral gradient (from-coral-500 to-coral-600) with shadow-coral rounded-xl, 4) Update filter buttons to slate-50/slate-950 pattern, 5) Update consumption selector to coral active states, 6) Update badges to proper styling (coral-100/coral-800 or green for energy).",
+      "status": "completed",
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true,
+      "priority": 6,
+      "depends_on": ["fix-seo-contracts-colors"]
+    },
+    {
+      "id": "fix-consumption-calculator",
+      "title": "Update consumption-calculator.blade.php to design system",
+      "description": "Update laravel/resources/views/livewire/consumption-calculator.blade.php: 1) Replace tertiary-500 with slate-900, 2) Replace primary-500/600 with coral-500/600, 3) Update input focus states from primary to coral (focus:border-coral-500 focus:ring-coral-500), 4) Update buttons to coral gradient, 5) Update cards to rounded-2xl with border-slate-100, 6) Update result displays to use coral-600 for highlighted values, 7) Update active/selected states to coral colors.",
+      "status": "completed",
+      "completed_at": "2026-01-20T12:00:00Z",
+      "passes": true,
+      "priority": 7
+    }
+  ]
+}
