@@ -1,0 +1,16 @@
+{
+  "iteration": 16,
+  "task_id": null,
+  "task_title": null,
+  "exit_reason": "task_complete",
+  "exit_signal": "TASK_COMPLETE",
+  "files_changed": [
+    "autoclaude/PROMPT.md",
+    ".autoclaude/sessions/laravel-migration/LAST_ITERATION.json",
+    "autoclaude-feedback.md"
+  ],
+  "test_passed": null,
+  "commit_sha": null,
+  "summary": "## Task Complete: `frontend-filters`\n\nI have successfully completed the `frontend-filters` task following TDD practices.\n\n### What was implemented:\n\n**Filter controls for the contracts listing page:**\n\n1. **Contract type filter (Sopimustyyppi):**\n   - Määräaikainen (Fixed)\n   - Pörssisähkö (Spot)\n   - Toistaiseksi voimassa (OpenEnded)\n\n2. **Metering type filter (Mittarointi):**\n   - Yleismittarointi (General)\n   - Aikamittarointi (Time)\n   - Kausimittarointi (Seasonal)\n\n3. **Postcode search (Postinumero):**\n   - Autocomplete search input\n   - Search by postcode, Finnish/Swedish name, or municipality\n   - Filters contracts by availability (national always visible)\n\n4. **Energy source preferences (Energialähde):**\n   - Uusiutuva (50%+) - Renewable energy filter\n   - Sisältää ydinvoimaa - Nuclear energy filter\n   - Fossiiliton - Fossil-free filter\n\n### Additional features:\n- All filters persist in URL via Livewire `#[Url]` attributes\n- \"Clear filters\" button when any filter is active\n- Re",
+  "timestamp": "2026-01-19T16:08:13.078496"
+}
