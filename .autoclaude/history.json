@@ -38,8 +38,8 @@
     },
     "consumption-range-validation": {
       "started_at": "2026-01-20T18:14:18.364795",
-      "ended_at": null
+      "ended_at": "2026-01-20T18:32:36.353259"
     }
   },
-  "current": "consumption-range-validation"
+  "current": null
 }
