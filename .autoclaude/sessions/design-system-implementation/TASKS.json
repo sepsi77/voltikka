@@ -15,9 +15,11 @@
       "id": "update-header-navigation",
       "title": "Restyle header with new navigation patterns",
       "description": "Update the header in laravel/resources/views/layouts/app.blade.php to use the new design system: 1) Use slate-900 for primary text, 2) Update nav links to use the nav-link pattern from components.md (slate-500 default, slate-900 hover, slate-100 background on active), 3) Add the spot price indicator styling if applicable. Use 64px (4rem) header height.",
-      "status": "pending",
+      "status": "completed",
       "priority": 2,
-      "depends_on": ["update-layout-fonts"]
+      "depends_on": ["update-layout-fonts"],
+      "completed_at": "2026-01-20T12:30:00Z",
+      "passes": true
     },
     {
       "id": "update-hero-section",
@@ -71,9 +73,11 @@
       "id": "update-footer",
       "title": "Restyle footer with dark slate background",
       "description": "Update footer in layouts/app.blade.php: 1) Use slate-950 background, 2) White/slate-300 text colors, 3) Add coral-400 for accent links, 4) Use 64px vertical padding. Match the hero dark section styling from colors.md.",
-      "status": "pending",
+      "status": "completed",
       "priority": 9,
-      "depends_on": ["update-layout-fonts"]
+      "depends_on": ["update-layout-fonts"],
+      "completed_at": "2026-01-20T12:30:00Z",
+      "passes": true
     },
     {
       "id": "update-calculator-styling",
