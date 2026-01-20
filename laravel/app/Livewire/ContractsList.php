@@ -2,11 +2,17 @@
 
 namespace App\Livewire;
 
+use App\Enums\BuildingEnergyRating;
+use App\Enums\BuildingRegion;
+use App\Enums\BuildingType;
+use App\Enums\HeatingMethod;
 use App\Models\ElectricityContract;
 use App\Models\Postcode;
 use App\Models\SpotPriceAverage;
 use App\Services\ContractPriceCalculator;
+use App\Services\DTO\EnergyCalculatorRequest;
 use App\Services\DTO\EnergyUsage;
+use App\Services\EnergyCalculator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Url;
@@ -78,6 +84,97 @@ class ContractsList extends Component
             'icon' => 'house',
             'consumption' => 12000,
         ],
+    ];
+
+    // ===== Inline Calculator Fields =====
+
+    /**
+     * Living area in square meters.
+     */
+    public int $calcLivingArea = 80;
+
+    /**
+     * Number of people in household.
+     */
+    public int $calcNumPeople = 2;
+
+    /**
+     * Building type.
+     */
+    public string $calcBuildingType = 'apartment';
+
+    /**
+     * Whether to include heating in calculation.
+     */
+    public bool $calcIncludeHeating = false;
+
+    /**
+     * Heating method (only used when calcIncludeHeating is true).
+     */
+    public string $calcHeatingMethod = 'electricity';
+
+    /**
+     * Building region (only used when calcIncludeHeating is true).
+     */
+    public string $calcBuildingRegion = 'south';
+
+    /**
+     * Building energy efficiency rating (only used when calcIncludeHeating is true).
+     */
+    public string $calcBuildingEnergyEfficiency = '2000';
+
+    /**
+     * Available building types with labels.
+     *
+     * @var array<string, string>
+     */
+    public array $buildingTypes = [
+        'apartment' => 'Kerrostalo',
+        'row_house' => 'Rivitalo',
+        'detached_house' => 'Omakotitalo',
+    ];
+
+    /**
+     * Available heating methods with labels.
+     *
+     * @var array<string, string>
+     */
+    public array $heatingMethods = [
+        'electricity' => 'Suora sähkölämmitys',
+        'air_to_water_heat_pump' => 'Ilma-vesilämpöpumppu',
+        'ground_heat_pump' => 'Maalämpö',
+        'district_heating' => 'Kaukolämpö',
+        'oil' => 'Öljylämmitys',
+        'pellets' => 'Pelletti',
+        'other' => 'Muu',
+    ];
+
+    /**
+     * Available building regions with labels.
+     *
+     * @var array<string, string>
+     */
+    public array $buildingRegions = [
+        'south' => 'Etelä-Suomi',
+        'central' => 'Keski-Suomi',
+        'north' => 'Pohjois-Suomi',
+    ];
+
+    /**
+     * Available building energy efficiency ratings with labels.
+     *
+     * @var array<string, string>
+     */
+    public array $energyRatings = [
+        'passive' => 'Passiivitalo',
+        'low_energy' => 'Matalaenergia',
+        '2010' => '2010-luku',
+        '2000' => '2000-luku',
+        '1990' => '1990-luku',
+        '1980' => '1980-luku',
+        '1970' => '1970-luku',
+        '1960' => '1960-luku',
+        'older' => 'Vanhempi',
     ];
 
     /**
@@ -172,6 +269,81 @@ class ContractsList extends Component
     {
         $this->consumption = $value;
         $this->selectedPreset = null;
+    }
+
+    /**
+     * Calculate consumption from inline calculator and update.
+     */
+    public function calculateFromInlineCalculator(): void
+    {
+        $calculator = app(EnergyCalculator::class);
+
+        $request = new EnergyCalculatorRequest(
+            livingArea: max(10, $this->calcLivingArea),
+            numPeople: max(1, $this->calcNumPeople),
+            buildingType: BuildingType::from($this->calcBuildingType),
+            heatingMethod: $this->calcIncludeHeating ? HeatingMethod::from($this->calcHeatingMethod) : null,
+            buildingEnergyEfficiency: $this->calcIncludeHeating ? BuildingEnergyRating::from($this->calcBuildingEnergyEfficiency) : null,
+            buildingRegion: $this->calcIncludeHeating ? BuildingRegion::from($this->calcBuildingRegion) : null,
+            externalHeating: !$this->calcIncludeHeating,
+            externalHeatingWater: !$this->calcIncludeHeating,
+        );
+
+        $result = $calculator->estimate($request);
+        $this->consumption = $result->total;
+        $this->selectedPreset = null;
+    }
+
+    /**
+     * Hook called when any calculator field is updated.
+     */
+    public function updatedCalcLivingArea(): void
+    {
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
+    }
+
+    public function updatedCalcNumPeople(): void
+    {
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
+    }
+
+    public function updatedCalcBuildingType(): void
+    {
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
+    }
+
+    public function updatedCalcIncludeHeating(): void
+    {
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
+    }
+
+    public function updatedCalcHeatingMethod(): void
+    {
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
+    }
+
+    public function updatedCalcBuildingRegion(): void
+    {
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
+    }
+
+    public function updatedCalcBuildingEnergyEfficiency(): void
+    {
+        if ($this->activeTab === 'calculator') {
+            $this->calculateFromInlineCalculator();
+        }
     }
 
     /**

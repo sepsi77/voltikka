@@ -55,9 +55,11 @@
       "id": "add-inline-calculator",
       "title": "Add inline calculator to ContractsList",
       "description": "Add calculator functionality directly in ContractsList for the Calculator tab:\n- Add form fields: livingArea, numPeople, buildingType, includeHeating\n- When includeHeating is true, show: heatingMethod, buildingRegion, buildingEnergyEfficiency\n- Use EnergyCalculator service to calculate consumption in real-time\n- Update consumption automatically when calculator fields change\n- Style to match the screenshot with cards for building type, toggle for heating, dropdowns for options",
-      "status": "pending",
+      "status": "completed",
       "priority": 6,
-      "depends_on": ["enhance-presets-ui"]
+      "depends_on": ["enhance-presets-ui"],
+      "completed_at": "2026-01-20T15:30:00Z",
+      "passes": true
     },
     {
       "id": "create-logo-download-command",
@@ -73,9 +75,11 @@
       "id": "add-tests",
       "title": "Add tests for logo service and calculator integration",
       "description": "Create tests:\n- tests/Unit/CompanyLogoServiceTest.php - test download, storage, path generation\n- tests/Feature/LogosDownloadCommandTest.php - test artisan command\n- Update ContractsListPageTest.php to test new presets/calculator tabs\n\nMock HTTP requests for logo downloads in tests.",
-      "status": "pending",
+      "status": "completed",
       "priority": 8,
-      "depends_on": ["create-logo-download-command", "add-inline-calculator"]
+      "depends_on": ["create-logo-download-command", "add-inline-calculator"],
+      "completed_at": "2026-01-20T15:45:00Z",
+      "passes": true
     }
   ]
 }

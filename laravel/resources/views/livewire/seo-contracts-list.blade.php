@@ -172,46 +172,146 @@
 
         {{-- Calculator Tab --}}
         @if ($activeTab === 'calculator')
-            <div class="max-w-2xl mx-auto">
+            <div class="max-w-3xl mx-auto">
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-left">
-                    {{-- Custom Consumption Input --}}
-                    <div class="mb-6">
-                        <label for="custom-consumption" class="block text-sm font-medium text-gray-700 mb-2">
-                            Vuosikulutus (kWh)
+                    {{-- Basic Information --}}
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        {{-- Living Area --}}
+                        <div>
+                            <label for="calc-living-area" class="block text-sm font-medium text-gray-700 mb-2">
+                                Asuinpinta-ala (m²)
+                            </label>
+                            <input
+                                type="number"
+                                id="calc-living-area"
+                                wire:model.live.debounce.300ms="calcLivingArea"
+                                min="10"
+                                max="500"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                            >
+                        </div>
+
+                        {{-- Number of People --}}
+                        <div>
+                            <label for="calc-num-people" class="block text-sm font-medium text-gray-700 mb-2">
+                                Henkilömäärä
+                            </label>
+                            <input
+                                type="number"
+                                id="calc-num-people"
+                                wire:model.live.debounce.300ms="calcNumPeople"
+                                min="1"
+                                max="10"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                            >
+                        </div>
+
+                        {{-- Building Type --}}
+                        <div>
+                            <label for="calc-building-type" class="block text-sm font-medium text-gray-700 mb-2">
+                                Asuntotyyppi
+                            </label>
+                            <select
+                                id="calc-building-type"
+                                wire:model.live="calcBuildingType"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                            >
+                                @foreach ($buildingTypes as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    {{-- Include Heating Toggle --}}
+                    <div class="bg-gray-50 rounded-xl p-4 mb-6">
+                        <label class="flex items-center cursor-pointer">
+                            <div class="relative">
+                                <input
+                                    type="checkbox"
+                                    wire:model.live="calcIncludeHeating"
+                                    class="sr-only peer"
+                                >
+                                <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-500"></div>
+                            </div>
+                            <span class="ml-3 text-sm font-medium text-gray-900">
+                                Sisällytä sähkölämmitys laskelmaan
+                            </span>
                         </label>
-                        <input
-                            type="number"
-                            id="custom-consumption"
-                            wire:model.live.debounce.300ms="consumption"
-                            min="500"
-                            max="50000"
-                            step="100"
-                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-lg"
-                        >
                         <p class="mt-2 text-sm text-gray-500">
-                            Syötä vuotuinen sähkönkulutuksesi kilowattitunteina.
+                            Ota käyttöön, jos asuntosi lämmitetään sähköllä tai lämpöpumpulla.
                         </p>
                     </div>
 
-                    {{-- Quick Reference --}}
-                    <div class="bg-gray-50 rounded-xl p-4">
-                        <h4 class="font-semibold text-gray-900 mb-3 text-sm">Tyypilliset kulutukset</h4>
-                        <div class="grid grid-cols-2 gap-2 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Yksiö (1 hlö)</span>
-                                <span class="font-medium">2 000 kWh</span>
+                    {{-- Heating Options (shown when include heating is checked) --}}
+                    @if ($calcIncludeHeating)
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 p-4 bg-primary-50 rounded-xl border border-primary-200">
+                            {{-- Heating Method --}}
+                            <div>
+                                <label for="calc-heating-method" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Lämmitystapa
+                                </label>
+                                <select
+                                    id="calc-heating-method"
+                                    wire:model.live="calcHeatingMethod"
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                                >
+                                    @foreach ($heatingMethods as $value => $label)
+                                        <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
                             </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Kerrostalo (2-4 hlö)</span>
-                                <span class="font-medium">3 500-5 000 kWh</span>
+
+                            {{-- Building Region --}}
+                            <div>
+                                <label for="calc-building-region" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Sijainti
+                                </label>
+                                <select
+                                    id="calc-building-region"
+                                    wire:model.live="calcBuildingRegion"
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                                >
+                                    @foreach ($buildingRegions as $value => $label)
+                                        <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
                             </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Omakotitalo</span>
-                                <span class="font-medium">5 000-8 000 kWh</span>
+
+                            {{-- Building Energy Efficiency --}}
+                            <div>
+                                <label for="calc-energy-efficiency" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Rakennusvuosi / Energialuokka
+                                </label>
+                                <select
+                                    id="calc-energy-efficiency"
+                                    wire:model.live="calcBuildingEnergyEfficiency"
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                                >
+                                    @foreach ($energyRatings as $value => $label)
+                                        <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
                             </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-600">Sähkölämmitteinen</span>
-                                <span class="font-medium">12 000-18 000 kWh</span>
+                        </div>
+                    @endif
+
+                    {{-- Calculated Result --}}
+                    <div class="bg-tertiary-50 rounded-xl p-4 border border-tertiary-200">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="font-semibold text-gray-900">Arvioitu vuosikulutus</h4>
+                                <p class="text-sm text-gray-500 mt-1">
+                                    @if ($calcIncludeHeating)
+                                        Sisältää peruskulutuksen ja lämmityksen
+                                    @else
+                                        Sisältää vain peruskulutuksen (ilman lämmitystä)
+                                    @endif
+                                </p>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-3xl font-bold text-tertiary-600">{{ number_format($consumption, 0, ',', ' ') }}</span>
+                                <span class="text-gray-500 ml-1">kWh/v</span>
                             </div>
                         </div>
                     </div>
@@ -219,7 +319,7 @@
                     {{-- Link to full calculator --}}
                     <div class="mt-4 text-center">
                         <a href="{{ route('calculator') }}" class="text-primary-600 hover:text-primary-800 text-sm font-medium inline-flex items-center">
-                            Laske tarkempi kulutusarvio
+                            Avaa tarkempi kulutusarvio
                             <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
                             </svg>

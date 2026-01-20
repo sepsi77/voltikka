@@ -83,9 +83,46 @@
 ### Git Commit
 - Committed presets UI changes: `724f2ef feat: Add calculator-style tabs and enhanced presets to contracts list`
 
+### Task 6: Add inline calculator to ContractsList (COMPLETED)
+- Updated `ContractsList.php` component with inline calculator functionality:
+  - Added calculator form fields: `calcLivingArea`, `calcNumPeople`, `calcBuildingType`, `calcIncludeHeating`
+  - Added heating-specific fields: `calcHeatingMethod`, `calcBuildingRegion`, `calcBuildingEnergyEfficiency`
+  - Added lookup arrays for Finnish UI labels: `buildingTypes`, `heatingMethods`, `buildingRegions`, `energyRatings`
+  - Added `calculateFromInlineCalculator()` method that uses EnergyCalculator service
+  - Added Livewire update hooks for real-time calculation when fields change
+  - Calculator only runs when on the 'calculator' tab
+- Updated `contracts-list.blade.php` Calculator tab with:
+  - Basic information grid: Living area (m²), Number of people, Building type dropdown
+  - "Include heating" toggle with explanation text
+  - Heating options panel (conditionally shown): Heating method, Building region, Energy efficiency rating
+  - Result display showing calculated consumption with context
+  - Link to full calculator page
+- Updated `seo-contracts-list.blade.php` with same changes
+- Added 8 new tests in `ContractsListPageTest.php`:
+  - `test_inline_calculator_has_default_values`
+  - `test_calculator_tab_shows_building_type_options`
+  - `test_changing_living_area_updates_consumption`
+  - `test_changing_num_people_updates_consumption`
+  - `test_enabling_heating_increases_consumption`
+  - `test_heating_options_shown_when_include_heating_enabled`
+  - `test_calculator_does_not_affect_consumption_on_presets_tab`
+  - `test_calculator_clears_preset_selection`
+
+### Task 8: Add tests for calculator integration (COMPLETED)
+- Tests were added as part of Task 6 implementation
+- All 26 tests in ContractsListPageTest passing (18 original + 8 new)
+- Tests cover:
+  - Default values for calculator fields
+  - Building type options display
+  - Living area and num people affecting consumption calculation
+  - Heating toggle increasing consumption
+  - Heating options visibility when enabled
+  - Calculator isolation to calculator tab only
+  - Preset selection clearing when using calculator
+
 ---
 
-## Summary of Completed Tasks (6/8)
+## Summary of Completed Tasks (8/8)
 
 | Task | Status | Tests |
 |------|--------|-------|
@@ -93,11 +130,12 @@
 | 2. Add local_logo_path field | Completed | 4 passing |
 | 3. Integrate with FetchContracts | Completed | 4 passing |
 | 4. Update views | Completed | N/A (view changes) |
-| 5. Enhance presets UI | Completed | 4 new tests passing |
-| 6. Add inline calculator | Pending | - |
+| 5. Enhance presets UI | Completed | 4 tests |
+| 6. Add inline calculator | Completed | 8 new tests |
 | 7. Create logos:download command | Completed | 7 passing |
-| 8. Add final tests | Pending | - |
+| 8. Add final tests | Completed | Merged with Task 6 |
 
-### Next Steps
-- Task 6: Add inline calculator to ContractsList
-- Task 8: Add final tests for calculator integration
+### Session Complete
+All tasks for the `calculator-integration-and-logos` session have been completed successfully.
+- Total tests added: 47+ tests
+- All tests passing

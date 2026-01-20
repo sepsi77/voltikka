@@ -636,4 +636,140 @@ class ContractsListPageTest extends TestCase
         $this->assertGreaterThan(280, $totalCost);
         $this->assertLessThan(300, $totalCost);
     }
+
+    /**
+     * Test that inline calculator fields have default values.
+     */
+    public function test_inline_calculator_has_default_values(): void
+    {
+        Livewire::test('contracts-list')
+            ->assertSet('calcLivingArea', 80)
+            ->assertSet('calcNumPeople', 2)
+            ->assertSet('calcBuildingType', 'apartment')
+            ->assertSet('calcIncludeHeating', false)
+            ->assertSet('calcHeatingMethod', 'electricity')
+            ->assertSet('calcBuildingRegion', 'south')
+            ->assertSet('calcBuildingEnergyEfficiency', '2000');
+    }
+
+    /**
+     * Test that calculator tab shows building type options.
+     */
+    public function test_calculator_tab_shows_building_type_options(): void
+    {
+        Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->assertSee('Kerrostalo')
+            ->assertSee('Rivitalo')
+            ->assertSee('Omakotitalo');
+    }
+
+    /**
+     * Test that changing living area updates consumption when calculator tab is active.
+     */
+    public function test_changing_living_area_updates_consumption(): void
+    {
+        // Basic electricity consumption = numPeople * 400 + livingArea * 30
+        // With 2 people and 100 m²: 2 * 400 + 100 * 30 = 800 + 3000 = 3800 kWh
+        $component = Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcNumPeople', 2)
+            ->set('calcLivingArea', 100);
+
+        // The consumption should be updated by the calculator
+        $consumption = $component->get('consumption');
+        $this->assertEquals(3800, $consumption);
+    }
+
+    /**
+     * Test that changing number of people updates consumption.
+     */
+    public function test_changing_num_people_updates_consumption(): void
+    {
+        // Basic electricity consumption = numPeople * 400 + livingArea * 30
+        // With 4 people and 80 m²: 4 * 400 + 80 * 30 = 1600 + 2400 = 4000 kWh
+        $component = Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcLivingArea', 80)
+            ->set('calcNumPeople', 4);
+
+        $consumption = $component->get('consumption');
+        $this->assertEquals(4000, $consumption);
+    }
+
+    /**
+     * Test that enabling heating increases consumption significantly.
+     */
+    public function test_enabling_heating_increases_consumption(): void
+    {
+        // First get consumption without heating
+        $componentWithoutHeating = Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcLivingArea', 100)
+            ->set('calcNumPeople', 2)
+            ->set('calcIncludeHeating', false);
+
+        $consumptionWithoutHeating = $componentWithoutHeating->get('consumption');
+
+        // Now enable heating
+        $componentWithHeating = Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcLivingArea', 100)
+            ->set('calcNumPeople', 2)
+            ->set('calcIncludeHeating', true)
+            ->set('calcHeatingMethod', 'electricity')
+            ->set('calcBuildingRegion', 'south')
+            ->set('calcBuildingEnergyEfficiency', '2000');
+
+        $consumptionWithHeating = $componentWithHeating->get('consumption');
+
+        // Heating should significantly increase consumption
+        $this->assertGreaterThan($consumptionWithoutHeating, $consumptionWithHeating);
+        // For a 100m² house with electric heating, consumption should be well over 10000 kWh
+        $this->assertGreaterThan(10000, $consumptionWithHeating);
+    }
+
+    /**
+     * Test that heating method options are shown when include heating is enabled.
+     */
+    public function test_heating_options_shown_when_include_heating_enabled(): void
+    {
+        Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcIncludeHeating', true)
+            ->assertSee('Suora sähkölämmitys')
+            ->assertSee('Ilma-vesilämpöpumppu')
+            ->assertSee('Maalämpö');
+    }
+
+    /**
+     * Test that calculator does not affect consumption when on presets tab.
+     */
+    public function test_calculator_does_not_affect_consumption_on_presets_tab(): void
+    {
+        // Set to presets tab and select a preset
+        $component = Livewire::test('contracts-list')
+            ->set('activeTab', 'presets')
+            ->call('selectPreset', 'small_apartment')
+            ->assertSet('consumption', 2000);
+
+        // Change calculator values - should not affect consumption
+        $component->set('calcLivingArea', 200);
+        $component->assertSet('consumption', 2000); // Should still be 2000
+    }
+
+    /**
+     * Test that selecting a preset clears the preset selection when switching to calculator.
+     */
+    public function test_calculator_clears_preset_selection(): void
+    {
+        $component = Livewire::test('contracts-list')
+            ->call('selectPreset', 'small_apartment')
+            ->assertSet('selectedPreset', 'small_apartment')
+            ->set('activeTab', 'calculator')
+            ->set('calcLivingArea', 100); // This should trigger recalculation
+
+        // Selected preset should be cleared when using calculator
+        $this->assertNull($component->get('selectedPreset'));
+    }
 }
