@@ -35,7 +35,11 @@
     "fix-contract-detail-design": {
       "started_at": "2026-01-20T17:03:26.580159",
       "ended_at": null
+    },
+    "consumption-range-validation": {
+      "started_at": "2026-01-20T18:14:18.364795",
+      "ended_at": null
     }
   },
-  "current": "fix-contract-detail-design"
+  "current": "consumption-range-validation"
 }
