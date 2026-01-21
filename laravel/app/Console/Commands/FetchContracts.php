@@ -361,10 +361,13 @@ class FetchContracts extends Command
                     }
                 }
 
-                // Generate a unique ID if the API returns a null UUID
+                // Generate a deterministic ID if the API returns a null UUID
+                // Uses contract_id + type + fuse_size to create reproducible ID
                 $componentId = $component['Id'] ?? self::NULL_UUID;
                 if ($componentId === self::NULL_UUID) {
-                    $componentId = (string) Str::uuid();
+                    $priceComponentType = $component['PriceComponentType'];
+                    $fuseSize = $component['FuseSize'] ?? 'null';
+                    $componentId = Str::uuid5(Str::uuid5(Str::NIL, $contractId), "{$priceComponentType}:{$fuseSize}");
                 }
 
                 $priceComponents[] = [
