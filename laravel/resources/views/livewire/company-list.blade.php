@@ -97,7 +97,7 @@
                                     <span class="text-slate-400 mr-2">{{ $index + 1 }}.</span>
                                     {{ $data['company']->name }}
                                 </a>
-                                <span class="text-sm text-slate-500">{{ number_format($data['lowestEmissions'], 0) }} gCO2/kWh</span>
+                                <span class="text-sm text-slate-500">{{ number_format($data['avgEmissions'], 0) }} gCO2/kWh</span>
                             </li>
                         @endforeach
                     </ul>

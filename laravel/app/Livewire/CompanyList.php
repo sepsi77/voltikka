@@ -210,7 +210,7 @@ class CompanyList extends Component
     public function getCleanestEmissionsCompaniesProperty(): Collection
     {
         return $this->companies
-            ->sortBy('lowestEmissions')
+            ->sortBy('avgEmissions')
             ->take(5)
             ->values();
     }

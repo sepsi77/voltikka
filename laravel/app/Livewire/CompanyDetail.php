@@ -213,8 +213,8 @@ class CompanyDetail extends Component
         $priceApplicableContracts = $contracts->filter(fn ($c) => !$c->exceeds_consumption_limit);
 
         $prices = $priceApplicableContracts->pluck('calculated_cost.total_cost')->filter();
-        $emissionFactors = $contracts->pluck('emission_factor')->filter();
-        $renewablePercents = $contracts->map(fn ($c) => $c->electricitySource?->renewable_total)->filter();
+        $emissionFactors = $contracts->pluck('emission_factor')->filter(fn ($v) => $v !== null);
+        $renewablePercents = $contracts->map(fn ($c) => $c->electricitySource?->renewable_total)->filter(fn ($v) => $v !== null);
 
         return [
             'avg_price' => $prices->isNotEmpty() ? $prices->avg() : null,
