@@ -15,13 +15,28 @@ use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyCalculatorRequest;
 use App\Services\DTO\EnergyUsage;
 use App\Services\EnergyCalculator;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Url;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class ContractsList extends Component
 {
+    use WithPagination;
+
+    /**
+     * Number of contracts to show per page.
+     */
+    public int $perPage = 25;
+
+    /**
+     * Current page number (URL-bound for SEO).
+     */
+    #[Url]
+    public int $page = 1;
+
     /**
      * Base path for filter links (used for SEO crawlable links).
      */
@@ -552,6 +567,7 @@ class ContractsList extends Component
     public function setContractTypeFilter(string $type): void
     {
         $this->contractTypeFilter = $this->contractTypeFilter === $type ? '' : $type;
+        $this->resetPage();
     }
 
     /**
@@ -560,6 +576,7 @@ class ContractsList extends Component
     public function setPricingModelFilter(string $model): void
     {
         $this->pricingModelFilter = $this->pricingModelFilter === $model ? '' : $model;
+        $this->resetPage();
     }
 
     /**
@@ -568,6 +585,7 @@ class ContractsList extends Component
     public function setMeteringFilter(string $type): void
     {
         $this->meteringFilter = $this->meteringFilter === $type ? '' : $type;
+        $this->resetPage();
     }
 
     /**
@@ -577,6 +595,7 @@ class ContractsList extends Component
     {
         $this->postcodeFilter = $postcode;
         $this->postcodeSearch = '';
+        $this->resetPage();
     }
 
     /**
@@ -586,6 +605,7 @@ class ContractsList extends Component
     {
         $this->postcodeFilter = '';
         $this->postcodeSearch = '';
+        $this->resetPage();
     }
 
     /**
@@ -594,6 +614,7 @@ class ContractsList extends Component
     public function toggleRenewableFilter(): void
     {
         $this->renewableFilter = !$this->renewableFilter;
+        $this->resetPage();
     }
 
     /**
@@ -602,6 +623,7 @@ class ContractsList extends Component
     public function toggleNuclearFilter(): void
     {
         $this->nuclearFilter = !$this->nuclearFilter;
+        $this->resetPage();
     }
 
     /**
@@ -610,6 +632,7 @@ class ContractsList extends Component
     public function toggleFossilFreeFilter(): void
     {
         $this->fossilFreeFilter = !$this->fossilFreeFilter;
+        $this->resetPage();
     }
 
     /**
@@ -625,6 +648,15 @@ class ContractsList extends Component
         $this->renewableFilter = false;
         $this->nuclearFilter = false;
         $this->fossilFreeFilter = false;
+        $this->resetPage();
+    }
+
+    /**
+     * Reset pagination to page 1.
+     */
+    public function resetPage(): void
+    {
+        $this->page = 1;
     }
 
     /**
@@ -685,6 +717,7 @@ class ContractsList extends Component
      * - With pricing model: "Pörssisähkösopimukset", "Kiinteähintaiset sähkösopimukset"
      * - With contract type: "Määräaikaiset sähkösopimukset", "Toistaiseksi voimassa olevat sähkösopimukset"
      * - Combined: "Määräaikaiset pörssisähkösopimukset"
+     * - Page suffix: "– Sivu N" when on page > 1
      */
     public function getPageTitleProperty(): string
     {
@@ -721,8 +754,14 @@ class ContractsList extends Component
 
         // Combine parts and capitalize first letter
         $title = implode(' ', $parts);
+        $title = mb_strtoupper(mb_substr($title, 0, 1)) . mb_substr($title, 1);
 
-        return mb_strtoupper(mb_substr($title, 0, 1)) . mb_substr($title, 1);
+        // Add page suffix for pages > 1
+        if ($this->page > 1) {
+            $title .= ' – Sivu ' . $this->page;
+        }
+
+        return $title;
     }
 
     /**
@@ -775,8 +814,10 @@ class ContractsList extends Component
      * Memory optimization: We do NOT eager load availabilityPostcodes as that
      * relationship has 7000+ pivot records which causes memory exhaustion.
      * Instead, we filter by postcode at the database level using a subquery.
+     *
+     * Returns a paginated result for SEO-friendly pagination.
      */
-    public function getContractsProperty(): Collection
+    public function getContractsProperty(): LengthAwarePaginator
     {
         $calculator = app(ContractPriceCalculator::class);
 
@@ -896,7 +937,7 @@ class ContractsList extends Component
         });
 
         // Sort by total cost (ascending), but put contracts that exceed consumption limit at the end
-        return $contracts->sort(function ($a, $b) {
+        $sorted = $contracts->sort(function ($a, $b) {
             // First sort by exceeds_consumption_limit (false first, true last)
             $aExceeds = $a->exceeds_consumption_limit ? 1 : 0;
             $bExceeds = $b->exceeds_consumption_limit ? 1 : 0;
@@ -908,6 +949,27 @@ class ContractsList extends Component
             $bCost = $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
             return $aCost <=> $bCost;
         })->values();
+
+        // Create a manual paginator from the sorted collection
+        $total = $sorted->count();
+        $page = max(1, $this->page);
+        $perPage = $this->perPage;
+
+        // Calculate offset and get the slice for current page
+        $offset = ($page - 1) * $perPage;
+        $items = $sorted->slice($offset, $perPage)->values();
+
+        // Create and return a LengthAwarePaginator
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            $items,
+            $total,
+            $perPage,
+            $page,
+            [
+                'path' => url($this->basePath),
+                'pageName' => 'page',
+            ]
+        );
     }
 
     /**
@@ -930,11 +992,57 @@ class ContractsList extends Component
 
     /**
      * Generate canonical URL for this page.
-     * Always returns the base path without query params.
+     * Page 1 has no page param, pages > 1 include ?page=N.
      */
     public function getCanonicalUrlProperty(): string
     {
-        return config('app.url') . $this->basePath;
+        $baseUrl = config('app.url') . $this->basePath;
+
+        if ($this->page > 1) {
+            return $baseUrl . '?page=' . $this->page;
+        }
+
+        return $baseUrl;
+    }
+
+    /**
+     * Get the URL for the previous page (for rel="prev" SEO link).
+     * Returns null on page 1.
+     */
+    public function getPrevUrlProperty(): ?string
+    {
+        if ($this->page <= 1) {
+            return null;
+        }
+
+        $baseUrl = config('app.url') . $this->basePath;
+
+        // Page 2 -> prev is page 1 (no page param)
+        if ($this->page === 2) {
+            return $baseUrl;
+        }
+
+        // Pages > 2 -> prev includes page param
+        return $baseUrl . '?page=' . ($this->page - 1);
+    }
+
+    /**
+     * Get the URL for the next page (for rel="next" SEO link).
+     * Returns null on the last page.
+     */
+    public function getNextUrlProperty(): ?string
+    {
+        // Get total pages from contracts paginator
+        $contracts = $this->contracts;
+        $lastPage = $contracts->lastPage();
+
+        if ($this->page >= $lastPage) {
+            return null;
+        }
+
+        $baseUrl = config('app.url') . $this->basePath;
+
+        return $baseUrl . '?page=' . ($this->page + 1);
     }
 
     public function render()
@@ -950,6 +1058,8 @@ class ContractsList extends Component
             'title' => $this->pageTitle . ' | Voltikka',
             'metaDescription' => $this->metaDescription,
             'canonical' => $this->canonicalUrl,
+            'prevUrl' => $this->prevUrl,
+            'nextUrl' => $this->nextUrl,
         ]);
     }
 }

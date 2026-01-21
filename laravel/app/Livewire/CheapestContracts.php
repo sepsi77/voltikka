@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\ElectricityContract;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
@@ -15,16 +16,18 @@ use Illuminate\Database\Eloquent\Collection;
  * to get the top 11 cheapest, then splits them into:
  * - Featured contract (#1 cheapest)
  * - Remaining contracts (#2-11)
+ *
+ * Note: This page is not paginated - it only shows top 11 contracts.
  */
 class CheapestContracts extends SeoContractsList
 {
     /**
-     * Cache for all contracts to avoid recalculating.
+     * Cache for all contracts from parent (as paginator).
      */
-    private ?Collection $allContractsCache = null;
+    private ?LengthAwarePaginator $allContractsCache = null;
 
     /**
-     * Get all contracts sorted by price (cached).
+     * Get all contracts sorted by price from parent (cached).
      */
     protected function getAllSortedContracts(): Collection
     {
@@ -32,7 +35,9 @@ class CheapestContracts extends SeoContractsList
             $this->allContractsCache = parent::getContractsProperty();
         }
 
-        return $this->allContractsCache;
+        // Since parent now returns a paginator, get the items as a collection
+        // The parent's paginator returns the first page (25 items), which is enough for top 11
+        return collect($this->allContractsCache->items());
     }
 
     /**
@@ -45,10 +50,25 @@ class CheapestContracts extends SeoContractsList
 
     /**
      * Get contracts ranked #2-11 (next 10 cheapest after the featured).
+     *
+     * Returns a paginator to maintain compatibility with parent class,
+     * but effectively acts as a simple collection with 10 items.
      */
-    public function getContractsProperty(): Collection
+    public function getContractsProperty(): LengthAwarePaginator
     {
-        return $this->getAllSortedContracts()->slice(1, 10)->values();
+        $items = $this->getAllSortedContracts()->slice(1, 10)->values();
+
+        // Return a paginator that shows all items on one page
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            $items,
+            $items->count(),
+            100, // Large perPage to show all on one page
+            1,
+            [
+                'path' => url('/sahkosopimus/halvin-sahkosopimus'),
+                'pageName' => 'page',
+            ]
+        );
     }
 
     /**

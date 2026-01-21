@@ -171,3 +171,87 @@ For large logos (e.g., the mentioned 1.25MB and 817KB files):
 
 All 147 tests pass (including 14 new tests for this command).
 
+## 2026-01-22: Implement SEO-friendly pagination on contracts list
+
+**Task:** add-pagination
+**Status:** Completed
+
+### Changes Made
+
+1. **Updated `app/Livewire/ContractsList.php`**
+   - Added `use WithPagination` trait
+   - Added `$page` property with `#[Url]` attribute for SEO-friendly URLs
+   - Added `$perPage = 25` for 25 contracts per page
+   - Changed `getContractsProperty()` to return `LengthAwarePaginator` instead of `Collection`
+   - Updated `getPageTitleProperty()` to add "– Sivu N" suffix on pages > 1
+   - Updated `getCanonicalUrlProperty()` to include page parameter on pages > 1
+   - Added `getPrevUrlProperty()` for rel="prev" SEO link
+   - Added `getNextUrlProperty()` for rel="next" SEO link
+   - All filter methods now call `resetPage()` to go back to page 1 when filters change
+
+2. **Updated `app/Livewire/SeoContractsList.php`**
+   - Updated to also return `LengthAwarePaginator` for consistency with parent
+
+3. **Updated `app/Livewire/CheapestContracts.php`**
+   - Adapted to work with paginator from parent (extracts collection for top 11)
+
+4. **Updated `resources/views/layouts/app.blade.php`**
+   - Added `rel="prev"` and `rel="next"` link tags for SEO
+
+5. **Created `resources/views/livewire/partials/pagination.blade.php`**
+   - Custom Finnish-language pagination component
+   - Accessible with ARIA labels
+   - Responsive design (mobile-optimized)
+   - Shows "Sivu N" for current page
+   - Shows page numbers with links
+   - Properly disables prev/next on first/last page
+
+6. **Updated `resources/views/livewire/contracts-list.blade.php`**
+   - Changed `$contracts->count()` to `$contracts->total()` for total count
+   - Added page indicator "Sivu X/Y" when multiple pages exist
+   - Updated contract rank calculation to include page offset
+   - Added pagination links section at bottom
+
+7. **Updated `resources/views/livewire/seo-contracts-list.blade.php`**
+   - Same changes as contracts-list.blade.php
+
+8. **Created `tests/Feature/ContractsListPaginationTest.php`**
+   - 25 comprehensive tests covering:
+     - Page parameter URL binding
+     - Correct items per page (25)
+     - Correct page display
+     - Total count accuracy
+     - Page title suffix on pages > 1
+     - Canonical URL handling
+     - Prev/Next URL handling
+     - SEO link tag rendering
+     - Filter reset to page 1
+     - Consumption change doesn't reset page
+     - Pagination with filters applied
+     - Out-of-range page handling
+     - DOM element reduction verification
+
+### Technical Details
+
+The implementation uses a manual `LengthAwarePaginator` because the contracts require:
+- In-memory filtering (energy source filters can't be done at DB level)
+- Price calculation before sorting
+- Custom sorting (by calculated cost, not DB field)
+
+This approach:
+- Processes all matching contracts once
+- Sorts by calculated cost
+- Slices the appropriate page window
+- Returns a proper paginator for view rendering
+
+### Expected Impact
+
+- **Before:** 298 contracts rendered at once (~12,922 DOM elements, ~2MB HTML)
+- **After:** 25 contracts per page (~1,085 DOM elements per page)
+- **Reduction:** ~92% fewer DOM elements per page load
+- **SEO:** Each page has unique URL, proper canonical, prev/next links
+
+### Tests
+
+All 172 tests pass (147 existing + 25 new pagination tests).
+

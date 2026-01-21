@@ -652,19 +652,28 @@
 
     <!-- Results Count -->
     <div class="mb-4 text-sm text-slate-600">
-        <span class="font-semibold text-slate-900">{{ $contracts->count() }}</span> sopimusta löytyi
+        <span class="font-semibold text-slate-900">{{ $contracts->total() }}</span> sopimusta löytyi
         @if ($this->hasActiveFilters())
             suodattimilla
+        @endif
+        @if ($contracts->lastPage() > 1)
+            <span class="text-slate-400 ml-2">
+                (Sivu {{ $contracts->currentPage() }}/{{ $contracts->lastPage() }})
+            </span>
         @endif
     </div>
 
     <!-- Contracts List -->
     <div class="space-y-4">
         @forelse ($contracts as $index => $contract)
+            @php
+                // Calculate the overall rank based on current page
+                $overallRank = (($contracts->currentPage() - 1) * $contracts->perPage()) + $index + 1;
+            @endphp
             <x-contract-card
                 :contract="$contract"
-                :rank="$index + 1"
-                :featured="$index === 0"
+                :rank="$overallRank"
+                :featured="$overallRank === 1"
                 :consumption="$consumption"
                 :prices="$this->getLatestPrices($contract)"
                 :showRank="true"
@@ -678,5 +687,12 @@
             </div>
         @endforelse
     </div>
+
+    <!-- Pagination Links -->
+    @if ($contracts->lastPage() > 1)
+        <div class="mt-8">
+            {{ $contracts->links('livewire.partials.pagination') }}
+        </div>
+    @endif
     </div>
 </div>

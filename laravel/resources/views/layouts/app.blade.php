@@ -20,6 +20,14 @@
         <link rel="canonical" href="{{ url()->current() }}">
         @endif
 
+        {{-- Pagination SEO links (rel="prev" and rel="next") --}}
+        @if (isset($prevUrl))
+        <link rel="prev" href="{{ $prevUrl }}">
+        @endif
+        @if (isset($nextUrl))
+        <link rel="next" href="{{ $nextUrl }}">
+        @endif
+
         {{-- Open Graph Tags --}}
         <meta property="og:type" content="website">
         <meta property="og:locale" content="fi_FI">

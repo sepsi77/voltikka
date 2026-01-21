@@ -723,17 +723,27 @@
 
     {{-- Results Count --}}
     <div class="mb-4 text-sm text-slate-600">
-        <span class="font-semibold">{{ $contracts->count() }}</span> sopimusta löytyi
+        <span class="font-semibold">{{ $contracts->total() }}</span> sopimusta löytyi
         @if ($this->hasActiveFilters() || $hasSeoFilter)
             suodattimilla
+        @endif
+        @if ($contracts->lastPage() > 1)
+            <span class="text-slate-400 ml-2">
+                (Sivu {{ $contracts->currentPage() }}/{{ $contracts->lastPage() }})
+            </span>
         @endif
     </div>
 
     {{-- Contracts List --}}
     <div class="space-y-4">
-        @forelse ($contracts as $contract)
+        @forelse ($contracts as $index => $contract)
+            @php
+                // Calculate the overall rank based on current page
+                $overallRank = (($contracts->currentPage() - 1) * $contracts->perPage()) + $index + 1;
+            @endphp
             <x-contract-card
                 :contract="$contract"
+                :rank="$overallRank"
                 :consumption="$consumption"
                 :prices="$this->getLatestPrices($contract)"
                 :showRank="false"
@@ -747,6 +757,13 @@
             </div>
         @endforelse
     </div>
+
+    {{-- Pagination Links --}}
+    @if ($contracts->lastPage() > 1)
+        <div class="mt-8">
+            {{ $contracts->links('livewire.partials.pagination') }}
+        </div>
+    @endif
 
     {{-- Internal Links Section (for SEO) --}}
     @if($hasSeoFilter)

@@ -9,6 +9,7 @@ use App\Models\SpotPriceAverage;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -135,8 +136,10 @@ class SeoContractsList extends ContractsList
      *
      * Overrides parent method to apply city filtering at database level
      * for memory optimization - avoids loading all pivot records.
+     *
+     * Returns a paginated result for SEO-friendly pagination.
      */
-    public function getContractsProperty(): Collection
+    public function getContractsProperty(): LengthAwarePaginator
     {
         $calculator = app(ContractPriceCalculator::class);
 
@@ -281,7 +284,7 @@ class SeoContractsList extends ContractsList
         });
 
         // Sort by total cost (ascending), but put contracts that exceed consumption limit at the end
-        return $contracts->sort(function ($a, $b) {
+        $sorted = $contracts->sort(function ($a, $b) {
             // First sort by exceeds_consumption_limit (false first, true last)
             $aExceeds = $a->exceeds_consumption_limit ? 1 : 0;
             $bExceeds = $b->exceeds_consumption_limit ? 1 : 0;
@@ -293,6 +296,27 @@ class SeoContractsList extends ContractsList
             $bCost = $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
             return $aCost <=> $bCost;
         })->values();
+
+        // Create a manual paginator from the sorted collection
+        $total = $sorted->count();
+        $page = max(1, $this->page);
+        $perPage = $this->perPage;
+
+        // Calculate offset and get the slice for current page
+        $offset = ($page - 1) * $perPage;
+        $items = $sorted->slice($offset, $perPage)->values();
+
+        // Create and return a LengthAwarePaginator
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            $items,
+            $total,
+            $perPage,
+            $page,
+            [
+                'path' => url($this->basePath),
+                'pageName' => 'page',
+            ]
+        );
     }
 
     /**
