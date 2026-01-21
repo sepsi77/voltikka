@@ -4,7 +4,7 @@ namespace App\Livewire;
 
 use App\Models\ElectricityContract;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection;
 
 /**
  * Cheapest electricity contracts page.
