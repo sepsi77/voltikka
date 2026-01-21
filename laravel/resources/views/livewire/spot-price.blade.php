@@ -43,7 +43,7 @@
                             <span class="text-2xl">c/kWh</span>
                         </p>
                         <p class="text-coral-100 mt-2">
-                            {{ now('Europe/Helsinki')->format('H') }}:00 - {{ now('Europe/Helsinki')->addHour()->format('H') }}:00
+                            {{ $currentPrice['time_label'] ?? now('Europe/Helsinki')->format('H') . ':00 - ' . now('Europe/Helsinki')->addHour()->format('H') . ':00' }}
                             <span class="ml-2 bg-white/20 px-2 py-1 rounded text-xs">Nyt</span>
                         </p>
                     </div>
@@ -439,11 +439,11 @@
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead class="bg-slate-50">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-8"></th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Tunti</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hinta (ALV 0%)</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hinta (sis. ALV)</th>
+                        <tr class="flex">
+                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-10 flex-shrink-0"></th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider flex-1">Tunti</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider flex-1">Hinta (ALV 0%)</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider flex-1">Hinta (sis. ALV)</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
@@ -490,7 +490,7 @@
                                             }
                                         "
                                     >
-                                        <span class="px-4 py-3 w-8 flex-shrink-0">
+                                        <span class="px-4 py-3 w-10 flex-shrink-0">
                                             <svg
                                                 class="w-4 h-4 text-slate-400 transition-transform duration-200"
                                                 :class="{ 'rotate-90': expanded }"
@@ -510,8 +510,8 @@
                                                 <span class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Huomenna</span>
                                             @endif
                                         </span>
-                                        <span class="px-4 py-3 whitespace-nowrap text-sm text-left">
-                                            <span class="inline-flex items-center">
+                                        <span class="px-4 py-3 whitespace-nowrap text-sm text-right flex-1">
+                                            <span class="inline-flex items-center justify-end">
                                                 @if ($normalized < 0.33)
                                                     <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
                                                 @elseif ($normalized < 0.66)
@@ -522,7 +522,7 @@
                                                 <span class="text-slate-900">{{ number_format($price['price_without_tax'] ?? 0, 2, ',', ' ') }} c/kWh</span>
                                             </span>
                                         </span>
-                                        <span class="px-4 py-3 whitespace-nowrap text-sm text-slate-900 text-left">
+                                        <span class="px-4 py-3 whitespace-nowrap text-sm text-slate-900 text-right flex-1">
                                             {{ number_format($price['price_with_tax'] ?? 0, 2, ',', ' ') }} c/kWh
                                             <span class="text-xs text-slate-400">(ALV {{ $vatPercent }}%)</span>
                                         </span>
