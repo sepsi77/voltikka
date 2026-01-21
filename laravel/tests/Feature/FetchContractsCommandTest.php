@@ -59,39 +59,43 @@ class FetchContractsCommandTest extends TestCase
             'name' => 'Energia Oy',
         ]);
 
-        // Verify contract was created
+        // Verify contract was created with api_id preserving the original API ID
         $this->assertDatabaseHas('electricity_contracts', [
-            'id' => 'contract-12345',
+            'api_id' => 'contract-12345',
             'name' => 'Sähkösopimus Perus',
             'company_name' => 'Energia Oy',
             'contract_type' => 'Fixed',
             'metering' => 'General',
         ]);
 
-        // Verify electricity source was created
+        // Get the contract to find its new internal ID
+        $contract = ElectricityContract::where('api_id', 'contract-12345')->first();
+        $this->assertNotNull($contract);
+
+        // Verify electricity source was created with the new internal ID
         $this->assertDatabaseHas('electricity_sources', [
-            'contract_id' => 'contract-12345',
+            'contract_id' => $contract->id,
             'renewable_total' => 100.0,
             'renewable_wind' => 50.0,
             'renewable_hydro' => 50.0,
         ]);
 
-        // Verify price components were created
+        // Verify price components were created with the new internal ID
         $this->assertDatabaseHas('price_components', [
-            'electricity_contract_id' => 'contract-12345',
+            'electricity_contract_id' => $contract->id,
             'price_component_type' => 'General',
             'price' => 5.5,
         ]);
 
         $this->assertDatabaseHas('price_components', [
-            'electricity_contract_id' => 'contract-12345',
+            'electricity_contract_id' => $contract->id,
             'price_component_type' => 'Monthly',
             'price' => 2.95,
         ]);
 
-        // Verify active contract was created
+        // Verify active contract was created with the new internal ID
         $this->assertDatabaseHas('active_contracts', [
-            'id' => 'contract-12345',
+            'id' => $contract->id,
         ]);
     }
 
@@ -114,9 +118,9 @@ class FetchContractsCommandTest extends TestCase
         $this->artisan('contracts:fetch', ['--postcodes' => '00100,02230'])
             ->assertExitCode(0);
 
-        // Should have both contracts
-        $this->assertDatabaseHas('electricity_contracts', ['id' => 'contract-12345']);
-        $this->assertDatabaseHas('electricity_contracts', ['id' => 'contract-67890']);
+        // Should have both contracts (identified by api_id)
+        $this->assertDatabaseHas('electricity_contracts', ['api_id' => 'contract-12345']);
+        $this->assertDatabaseHas('electricity_contracts', ['api_id' => 'contract-67890']);
     }
 
     /**
@@ -134,8 +138,8 @@ class FetchContractsCommandTest extends TestCase
         $this->artisan('contracts:fetch')
             ->assertExitCode(0);
 
-        // Should have fetched from at least one postcode
-        Http::assertSentCount(30); // Default is 30 postcodes from trigger-contract-fetch
+        // Should have fetched from all default postcodes (30) plus retry attempt
+        Http::assertSentCount(31);
     }
 
     /**
@@ -170,7 +174,8 @@ class FetchContractsCommandTest extends TestCase
         ]);
 
         ElectricityContract::create([
-            'id' => 'contract-12345',
+            'id' => 'existing-contract-id',
+            'api_id' => 'contract-12345',
             'name' => 'Old Name',
             'company_name' => 'Energia Oy',
             'contract_type' => 'Fixed',
@@ -190,8 +195,8 @@ class FetchContractsCommandTest extends TestCase
         $this->artisan('contracts:fetch', ['--postcodes' => '00100'])
             ->assertExitCode(0);
 
-        // Contract should be updated
-        $contract = ElectricityContract::find('contract-12345');
+        // Contract should be updated (looked up by api_id)
+        $contract = ElectricityContract::where('api_id', 'contract-12345')->first();
         $this->assertTrue($contract->pricing_has_discounts);
     }
 
@@ -205,15 +210,16 @@ class FetchContractsCommandTest extends TestCase
             'name' => 'Old Company',
             'name_slug' => 'old-company',
         ]);
-        ElectricityContract::create([
-            'id' => 'old-contract',
+        $oldContract = ElectricityContract::create([
+            'id' => 'old-contract-id',
+            'api_id' => 'old-api-id',
             'name' => 'Old Contract',
             'company_name' => 'Old Company',
             'contract_type' => 'Fixed',
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
-        ActiveContract::create(['id' => 'old-contract']);
+        ActiveContract::create(['id' => $oldContract->id]);
 
         $this->assertEquals(1, ActiveContract::count());
 
@@ -229,8 +235,9 @@ class FetchContractsCommandTest extends TestCase
             ->assertExitCode(0);
 
         // Old active contract should be removed, new one added
-        $this->assertDatabaseMissing('active_contracts', ['id' => 'old-contract']);
-        $this->assertDatabaseHas('active_contracts', ['id' => 'contract-12345']);
+        $this->assertDatabaseMissing('active_contracts', ['id' => $oldContract->id]);
+        $newContract = ElectricityContract::where('api_id', 'contract-12345')->first();
+        $this->assertDatabaseHas('active_contracts', ['id' => $newContract->id]);
     }
 
     /**
@@ -248,9 +255,10 @@ class FetchContractsCommandTest extends TestCase
         $this->artisan('contracts:fetch', ['--postcodes' => '00100'])
             ->assertExitCode(0);
 
-        // Verify postcode relationship
+        // Verify postcode relationship uses the new internal ID
+        $contract = ElectricityContract::where('api_id', 'contract-12345')->first();
         $this->assertDatabaseHas('contract_postcode', [
-            'contract_id' => 'contract-12345',
+            'contract_id' => $contract->id,
             'postcode' => '00100',
         ]);
     }
@@ -310,7 +318,7 @@ class FetchContractsCommandTest extends TestCase
             ->assertExitCode(0);
 
         // Should have retried and eventually succeeded
-        $this->assertDatabaseHas('electricity_contracts', ['id' => 'contract-12345']);
+        $this->assertDatabaseHas('electricity_contracts', ['api_id' => 'contract-12345']);
     }
 
     /**
@@ -330,8 +338,9 @@ class FetchContractsCommandTest extends TestCase
         $this->artisan('contracts:fetch', ['--postcodes' => '00100'])
             ->assertExitCode(0);
 
-        // Verify discount data was saved
-        $priceComponent = PriceComponent::where('electricity_contract_id', 'discount-contract')
+        // Verify discount data was saved (lookup by api_id then get internal id)
+        $contract = ElectricityContract::where('api_id', 'discount-contract')->first();
+        $priceComponent = PriceComponent::where('electricity_contract_id', $contract->id)
             ->where('price_component_type', 'General')
             ->first();
 
@@ -356,15 +365,16 @@ class FetchContractsCommandTest extends TestCase
         $this->artisan('contracts:fetch', ['--postcodes' => '00100'])
             ->assertExitCode(0);
 
-        // Verify day and night price components
+        // Verify day and night price components (using internal ID)
+        $contract = ElectricityContract::where('api_id', 'time-contract')->first();
         $this->assertDatabaseHas('price_components', [
-            'electricity_contract_id' => 'time-contract',
+            'electricity_contract_id' => $contract->id,
             'price_component_type' => 'DayTime',
             'price' => 6.5,
         ]);
 
         $this->assertDatabaseHas('price_components', [
-            'electricity_contract_id' => 'time-contract',
+            'electricity_contract_id' => $contract->id,
             'price_component_type' => 'NightTime',
             'price' => 4.5,
         ]);
@@ -385,15 +395,16 @@ class FetchContractsCommandTest extends TestCase
         $this->artisan('contracts:fetch', ['--postcodes' => '00100'])
             ->assertExitCode(0);
 
-        // Verify seasonal price components
+        // Verify seasonal price components (using internal ID)
+        $contract = ElectricityContract::where('api_id', 'seasonal-contract')->first();
         $this->assertDatabaseHas('price_components', [
-            'electricity_contract_id' => 'seasonal-contract',
+            'electricity_contract_id' => $contract->id,
             'price_component_type' => 'SeasonalWinterDay',
             'price' => 8.0,
         ]);
 
         $this->assertDatabaseHas('price_components', [
-            'electricity_contract_id' => 'seasonal-contract',
+            'electricity_contract_id' => $contract->id,
             'price_component_type' => 'SeasonalOther',
             'price' => 5.0,
         ]);
@@ -724,8 +735,10 @@ class FetchContractsCommandTest extends TestCase
 
         // Both contracts should have their price components saved
         // even though they both have the same null UUID from the API
-        $contract1Components = PriceComponent::where('electricity_contract_id', 'contract-null-1')->count();
-        $contract2Components = PriceComponent::where('electricity_contract_id', 'contract-null-2')->count();
+        $contract1 = ElectricityContract::where('api_id', 'contract-null-1')->first();
+        $contract2 = ElectricityContract::where('api_id', 'contract-null-2')->first();
+        $contract1Components = PriceComponent::where('electricity_contract_id', $contract1->id)->count();
+        $contract2Components = PriceComponent::where('electricity_contract_id', $contract2->id)->count();
 
         // Each contract should have 2 price components (General and Monthly)
         $this->assertEquals(2, $contract1Components);
@@ -751,7 +764,8 @@ class FetchContractsCommandTest extends TestCase
             ->assertExitCode(0);
 
         // Contract should have 3 price components (General, Monthly both with null UUID, plus one normal)
-        $componentCount = PriceComponent::where('electricity_contract_id', 'contract-multi-null')->count();
+        $contract = ElectricityContract::where('api_id', 'contract-multi-null')->first();
+        $componentCount = PriceComponent::where('electricity_contract_id', $contract->id)->count();
         $this->assertEquals(3, $componentCount);
     }
 
@@ -1040,7 +1054,7 @@ class FetchContractsCommandTest extends TestCase
                         'PriceComponents' => [
                             [
                                 'Id' => 'pc-winter',
-                                'PriceComponentType' => 'SeasonalWinter',
+                                'PriceComponentType' => 'SeasonalWinterDay',
                                 'FuseSize' => null,
                                 'HasDiscount' => false,
                                 'Discount' => [

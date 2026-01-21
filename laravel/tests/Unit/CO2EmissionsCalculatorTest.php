@@ -332,8 +332,8 @@ class CO2EmissionsCalculatorTest extends TestCase
         // Flight hours: 650 kg / 250 kg/hour = 2.6 hours
         $this->assertEqualsWithDelta(2.6, $result->getFlightHoursEquivalent(), 0.01);
 
-        // Driving km: 650,000 g / 120 g/km = 5416.67 km
-        $this->assertEqualsWithDelta(5416.67, $result->getDrivingKmEquivalent(), 1.0);
+        // Driving km: 650,000 g / 140 g/km = 4642.86 km (Finnish avg fleet)
+        $this->assertEqualsWithDelta(4642.86, $result->getDrivingKmEquivalent(), 1.0);
     }
 
     /**

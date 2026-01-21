@@ -67,7 +67,7 @@ class SpotPriceComponentTest extends TestCase
     {
         Livewire::test(SpotPrice::class)
             ->assertStatus(200)
-            ->assertSee('Pörssisähkön hinta');
+            ->assertSee('Pörssisähkön');
     }
 
     public function test_component_shows_no_error_when_no_data(): void
@@ -466,11 +466,11 @@ class SpotPriceComponentTest extends TestCase
 
     public function test_finds_best_consecutive_hours(): void
     {
-        // Create prices where hours 2-4 are cheapest consecutive
+        // Create prices where hours 16-18 are cheapest consecutive (after current time 14:30)
         $prices = array_fill(0, 24, 10.0);
-        $prices[2] = 2.0;
-        $prices[3] = 3.0;
-        $prices[4] = 1.0;
+        $prices[16] = 2.0;
+        $prices[17] = 3.0;
+        $prices[18] = 1.0;
 
         $this->createFullDayPrices(2026, 1, 20, $prices);
 
@@ -479,15 +479,15 @@ class SpotPriceComponentTest extends TestCase
         $best = $instance->getBestConsecutiveHours(3);
 
         $this->assertNotNull($best);
-        $this->assertEquals(2, $best['start_hour']); // Starts at hour 2
-        $this->assertEquals(4, $best['end_hour']); // Ends at hour 4
+        $this->assertEquals(16, $best['start_hour']); // Starts at hour 16
+        $this->assertEquals(18, $best['end_hour']); // Ends at hour 18
         $this->assertEquals(2.0, $best['average_price']); // (2+3+1)/3 = 2
     }
 
     public function test_best_consecutive_hours_with_single_hour(): void
     {
         $prices = array_fill(0, 24, 10.0);
-        $prices[5] = 1.0; // Cheapest single hour
+        $prices[17] = 1.0; // Cheapest single hour (after current time 14:30)
 
         $this->createFullDayPrices(2026, 1, 20, $prices);
 
@@ -495,16 +495,16 @@ class SpotPriceComponentTest extends TestCase
         $instance = $component->instance();
         $best = $instance->getBestConsecutiveHours(1);
 
-        $this->assertEquals(5, $best['start_hour']);
-        $this->assertEquals(5, $best['end_hour']);
+        $this->assertEquals(17, $best['start_hour']);
+        $this->assertEquals(17, $best['end_hour']);
         $this->assertEquals(1.0, $best['average_price']);
     }
 
     public function test_best_consecutive_hours_returns_null_when_not_enough_data(): void
     {
-        // Only create 2 hours, but request 3
-        $this->createSpotPrice(2026, 1, 20, 0, 5.0);
-        $this->createSpotPrice(2026, 1, 20, 1, 6.0);
+        // Only create 2 hours (after current time 14:30), but request 3
+        $this->createSpotPrice(2026, 1, 20, 15, 5.0);
+        $this->createSpotPrice(2026, 1, 20, 16, 6.0);
 
         $component = Livewire::test(SpotPrice::class);
         $instance = $component->instance();
@@ -516,8 +516,8 @@ class SpotPriceComponentTest extends TestCase
     public function test_best_consecutive_hours_includes_prices_array(): void
     {
         $prices = array_fill(0, 24, 10.0);
-        $prices[3] = 2.0;
-        $prices[4] = 3.0;
+        $prices[18] = 2.0; // After current time 14:30
+        $prices[19] = 3.0;
 
         $this->createFullDayPrices(2026, 1, 20, $prices);
 

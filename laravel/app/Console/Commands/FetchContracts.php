@@ -239,10 +239,13 @@ class FetchContracts extends Command
             $extraInformation = $details['ExtraInformation'] ?? [];
             $microProduction = $details['MicroProduction'] ?? [];
 
+            $companyName = $data['Company']['Name'] ?? '';
+            $contractName = $data['Name'];
+
             $contractData = [
-                'id' => $data['Id'],
-                'name' => $data['Name'],
-                'company_name' => $data['Company']['Name'] ?? '',
+                'api_id' => $data['Id'],
+                'name' => $contractName,
+                'company_name' => $companyName,
                 'contract_type' => $details['ContractType'] ?? null,
                 'spot_price_selection' => $details['SpotPriceSelection'] ?? null,
                 'fixed_time_range' => $details['FixedTimeRange'] ?? null,
@@ -273,8 +276,9 @@ class FetchContracts extends Command
                 'microproduction_en' => $microProduction['Details']['EN'] ?? null,
             ];
 
-            // Update or create contract
-            $existingContract = ElectricityContract::find($data['Id']);
+            // Look up existing contract by API ID
+            $existingContract = ElectricityContract::where('api_id', $data['Id'])->first();
+
             if ($existingContract) {
                 $needsUpdate = false;
 
@@ -300,6 +304,8 @@ class FetchContracts extends Command
                     $existingContract->save();
                 }
             } else {
+                // Generate new custom ID for new contracts
+                $contractData['id'] = ElectricityContract::generateId($companyName, $contractName);
                 ElectricityContract::create($contractData);
             }
         }
@@ -316,16 +322,25 @@ class FetchContracts extends Command
         // TRUNCATE is DDL in MySQL and would commit the transaction
         ActiveContract::query()->delete();
 
-        // Insert new active contracts
+        // Build a mapping of API IDs to our internal IDs
+        $apiIds = array_map(fn($c) => $c['Id'], $contracts);
+        $contractIdMap = ElectricityContract::whereIn('api_id', $apiIds)
+            ->pluck('id', 'api_id')
+            ->toArray();
+
+        // Insert new active contracts using our internal IDs
         $activeContracts = [];
         foreach ($contracts as $contract) {
-            $activeContracts[] = ['id' => $contract['Id']];
+            $apiId = $contract['Id'];
+            if (isset($contractIdMap[$apiId])) {
+                $activeContracts[] = ['id' => $contractIdMap[$apiId]];
+            }
         }
 
         // Use insert ignore to handle any duplicates
         ActiveContract::insertOrIgnore($activeContracts);
 
-        $this->info("Updated active contracts table with " . count($contracts) . " contracts.");
+        $this->info("Updated active contracts table with " . count($activeContracts) . " contracts.");
     }
 
     /**
@@ -338,12 +353,23 @@ class FetchContracts extends Command
      */
     private function processPriceComponents(array $contracts, string $date): void
     {
+        // Build a mapping of API IDs to our internal IDs
+        $apiIds = array_map(fn($c) => $c['Id'], $contracts);
+        $contractIdMap = ElectricityContract::whereIn('api_id', $apiIds)
+            ->pluck('id', 'api_id')
+            ->toArray();
+
         $priceComponents = [];
 
         foreach ($contracts as $data) {
             $data = $this->trimDictValues($data);
             $pricing = $data['Details']['Pricing'] ?? [];
-            $contractId = $pricing['ElectricitySupplyProductId'] ?? $data['Id'];
+            $apiContractId = $pricing['ElectricitySupplyProductId'] ?? $data['Id'];
+            // Map API ID to our internal ID
+            $contractId = $contractIdMap[$apiContractId] ?? $contractIdMap[$data['Id']] ?? null;
+            if (!$contractId) {
+                continue;
+            }
             $components = $pricing['PriceComponents'] ?? [];
 
             foreach ($components as $component) {
@@ -403,10 +429,20 @@ class FetchContracts extends Command
      */
     private function processElectricitySources(array $contracts): void
     {
+        // Build a mapping of API IDs to our internal IDs
+        $apiIds = array_map(fn($c) => $c['Id'], $contracts);
+        $contractIdMap = ElectricityContract::whereIn('api_id', $apiIds)
+            ->pluck('id', 'api_id')
+            ->toArray();
+
         foreach ($contracts as $data) {
             $data = $this->trimDictValues($data);
             $source = $data['Details']['ElectricitySource'] ?? [];
-            $contractId = $data['Id'];
+            $apiId = $data['Id'];
+            $contractId = $contractIdMap[$apiId] ?? null;
+            if (!$contractId) {
+                continue;
+            }
 
             $renewable = $source['Renewable'] ?? [];
             $fossil = $source['Fossil'] ?? [];
@@ -443,12 +479,22 @@ class FetchContracts extends Command
      */
     private function processContractPostcodes(array $contracts, array $validPostcodes): void
     {
+        // Build a mapping of API IDs to our internal IDs
+        $apiIds = array_map(fn($c) => $c['Id'], $contracts);
+        $contractIdMap = ElectricityContract::whereIn('api_id', $apiIds)
+            ->pluck('id', 'api_id')
+            ->toArray();
+
         $relationships = [];
         $processedPairs = [];
 
         foreach ($contracts as $data) {
             $data = $this->trimDictValues($data);
-            $contractId = $data['Id'];
+            $apiId = $data['Id'];
+            $contractId = $contractIdMap[$apiId] ?? null;
+            if (!$contractId) {
+                continue;
+            }
             $postcodes = $data['Details']['AvailabilityArea']['PostalCodes'] ?? [];
 
             foreach ($postcodes as $postcode) {

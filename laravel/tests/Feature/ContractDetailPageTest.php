@@ -87,7 +87,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_contract_detail_page_is_accessible(): void
     {
-        $response = $this->get('/sopimus/contract-detail-test');
+        $response = $this->get('/sahkosopimus/sopimus/contract-detail-test');
 
         $response->assertStatus(200);
     }
@@ -97,7 +97,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_contract_detail_page_renders_livewire_component(): void
     {
-        $response = $this->get('/sopimus/contract-detail-test');
+        $response = $this->get('/sahkosopimus/sopimus/contract-detail-test');
 
         $response->assertStatus(200);
         $response->assertSeeLivewire('contract-detail');
@@ -296,7 +296,7 @@ class ContractDetailPageTest extends TestCase
      */
     public function test_404_for_non_existent_contract(): void
     {
-        $response = $this->get('/sopimus/non-existent-contract');
+        $response = $this->get('/sahkosopimus/sopimus/non-existent-contract');
 
         $response->assertStatus(404);
     }

@@ -222,12 +222,11 @@ XML;
     }
 
     /**
-     * Test service averages 15-minute resolution data to hourly.
+     * Test service returns raw 15-minute resolution data without aggregation.
      */
-    public function test_averages_15_minute_resolution_to_hourly(): void
+    public function test_returns_raw_15_minute_resolution_data(): void
     {
-        // 4 prices at 15-min resolution: 40, 50, 60, 70 EUR/MWh
-        // Average should be 55 EUR/MWh = 5.5 c/kWh
+        // 4 prices at 15-min resolution: 40, 50, 60, 70 EUR/MWh = 4, 5, 6, 7 c/kWh
         Http::fake([
             'web-api.tp.entsoe.eu/api*' => Http::response(
                 $this->get15MinXmlResponse([40.0, 50.0, 60.0, 70.0], '2024-01-19T23:00Z'),
@@ -240,18 +239,22 @@ XML;
             Carbon::parse('2024-01-21')
         );
 
-        $this->assertCount(1, $result);
-        $this->assertEquals(5.5, $result[0]['price_without_tax']);
+        // Returns raw 15-minute data (4 records, not aggregated to 1 hour)
+        $this->assertCount(4, $result);
+        $this->assertEquals(4.0, $result[0]['price_without_tax']);
+        $this->assertEquals(5.0, $result[1]['price_without_tax']);
+        $this->assertEquals(6.0, $result[2]['price_without_tax']);
+        $this->assertEquals(7.0, $result[3]['price_without_tax']);
     }
 
     /**
-     * Test service averages multiple hours with 15-minute resolution.
+     * Test service returns multiple hours of 15-minute resolution data.
      */
-    public function test_averages_multiple_hours_with_15_minute_resolution(): void
+    public function test_returns_multiple_hours_of_15_minute_data(): void
     {
         // 8 prices at 15-min resolution for 2 hours
-        // Hour 1: 40, 40, 40, 40 -> avg 40 EUR/MWh = 4 c/kWh
-        // Hour 2: 80, 80, 80, 80 -> avg 80 EUR/MWh = 8 c/kWh
+        // Hour 1: 40, 40, 40, 40 = 4 c/kWh each
+        // Hour 2: 80, 80, 80, 80 = 8 c/kWh each
         Http::fake([
             'web-api.tp.entsoe.eu/api*' => Http::response(
                 $this->get15MinXmlResponse([40.0, 40.0, 40.0, 40.0, 80.0, 80.0, 80.0, 80.0], '2024-01-19T23:00Z'),
@@ -264,9 +267,12 @@ XML;
             Carbon::parse('2024-01-21')
         );
 
-        $this->assertCount(2, $result);
+        // Returns raw 15-minute data (8 records, not aggregated to 2 hours)
+        $this->assertCount(8, $result);
         $this->assertEquals(4.0, $result[0]['price_without_tax']);
-        $this->assertEquals(8.0, $result[1]['price_without_tax']);
+        $this->assertEquals(4.0, $result[3]['price_without_tax']);
+        $this->assertEquals(8.0, $result[4]['price_without_tax']);
+        $this->assertEquals(8.0, $result[7]['price_without_tax']);
     }
 
     /**

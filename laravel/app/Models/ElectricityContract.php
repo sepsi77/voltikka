@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Str;
 
 class ElectricityContract extends Model
 {
@@ -43,6 +44,7 @@ class ElectricityContract extends Model
      */
     protected $fillable = [
         'id',
+        'api_id',
         'company_name',
         'name',
         'name_slug',
@@ -109,9 +111,14 @@ class ElectricityContract extends Model
     {
         parent::boot();
 
-        // Auto-generate name_slug before creating or updating
         static::saving(function (ElectricityContract $contract) {
+            // Auto-generate name_slug
             $contract->name_slug = static::generateSlug($contract->name);
+
+            // Auto-generate api_id if not provided (for tests and legacy compatibility)
+            if (empty($contract->api_id)) {
+                $contract->api_id = (string) Str::uuid();
+            }
         });
     }
 
@@ -131,6 +138,20 @@ class ElectricityContract extends Model
         // Remove consecutive hyphens
         $slug = preg_replace('/-+/', '-', $slug);
         return trim($slug, '-');
+    }
+
+    /**
+     * Generate a custom contract ID.
+     * Format: {random}-{company-slug}-{contract-slug}
+     * Example: x7k9m2-fortum-tuntisahko
+     */
+    public static function generateId(string $companyName, string $contractName): string
+    {
+        $random = strtolower(Str::random(6));
+        $companySlug = static::generateSlug($companyName);
+        $contractSlug = static::generateSlug($contractName);
+
+        return "{$random}-{$companySlug}-{$contractSlug}";
     }
 
     /**

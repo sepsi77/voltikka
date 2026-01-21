@@ -83,10 +83,9 @@ class ContractsFilterTest extends TestCase
     public function test_filter_controls_are_displayed(): void
     {
         Livewire::test('contracts-list')
-            ->assertSee('Sopimustyyppi') // Contract type filter label
-            ->assertSee('Mittarointi')   // Metering type filter label
-            ->assertSee('Postinumero')   // Postcode filter label
-            ->assertSee('Energialähde'); // Energy source filter label
+            ->assertSee('Hinnoittelumalli') // Pricing model filter label
+            ->assertSee('Sopimuksen kesto') // Contract duration filter label
+            ->assertSee('Energialähde');    // Energy source filter label
     }
 
     /**
@@ -116,9 +115,9 @@ class ContractsFilterTest extends TestCase
     }
 
     /**
-     * Test filtering by contract type Spot (uses pricing_model field).
+     * Test filtering by pricing model Spot.
      */
-    public function test_filter_by_contract_type_spot(): void
+    public function test_filter_by_pricing_model_spot(): void
     {
         $fixedContract = $this->createContract([
             'id' => 'fixed-contract',
@@ -135,7 +134,7 @@ class ContractsFilterTest extends TestCase
         ]);
 
         $component = Livewire::test('contracts-list')
-            ->set('contractTypeFilter', 'Spot');
+            ->set('pricingModelFilter', 'Spot');
 
         $contracts = $component->viewData('contracts');
 
@@ -144,9 +143,9 @@ class ContractsFilterTest extends TestCase
     }
 
     /**
-     * Test filtering by contract type Hybrid (uses pricing_model field).
+     * Test filtering by pricing model Hybrid.
      */
-    public function test_filter_by_contract_type_hybrid(): void
+    public function test_filter_by_pricing_model_hybrid(): void
     {
         $fixedContract = $this->createContract([
             'id' => 'fixed-contract',
@@ -163,7 +162,7 @@ class ContractsFilterTest extends TestCase
         ]);
 
         $component = Livewire::test('contracts-list')
-            ->set('contractTypeFilter', 'Hybrid');
+            ->set('pricingModelFilter', 'Hybrid');
 
         $contracts = $component->viewData('contracts');
 
@@ -705,8 +704,8 @@ class ContractsFilterTest extends TestCase
         $this->createContract(['id' => 'contract-1']);
 
         Livewire::test('contracts-list')
-            ->set('contractTypeFilter', 'Fixed')
-            ->assertSeeHtml('bg-blue-600'); // Active filter indicator class
+            ->set('contractTypeFilter', 'FixedTerm')
+            ->assertSeeHtml('bg-slate-950'); // Active filter indicator class
     }
 
     /**
