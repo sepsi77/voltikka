@@ -1,0 +1,32 @@
+{
+  "session": "co2-display-redesign",
+  "description": "Redesign the CO2 emissions display on contract detail and listing pages to be more visually impactful. Make annual emissions (kg) the hero number, add a visual gauge/meter, and improve the listing page badge.",
+  "tasks": [
+    {
+      "id": "redesign-detail-co2-section",
+      "title": "Redesign CO2 section on contract detail page with visual gauge",
+      "description": "Replace the current plain CO2 card in contract-detail.blade.php (lines ~366-476) with an enhanced 'Environmental Impact' section:\n\n1. Add a semi-circular gauge/meter showing emission factor on a 0-400+ gCO₂/kWh spectrum\n   - Use CSS conic-gradient for the gauge background (green to yellow to red)\n   - Animate the needle/indicator with CSS transitions\n   - Show 0 at left, 400+ at right\n\n2. Make annual emissions (kg CO₂) the hero number - large and prominent\n   - Calculate: emission_factor * consumption / 1000\n   - Add car driving equivalency: annual_kg * 1000 / 170 = km driven\n   - Finnish text: 'Vastaa noin X km ajoa henkilöautolla'\n\n3. Add a comparison bar showing:\n   - Finland's residual mix baseline at 390.93 gCO₂/kWh (label: 'Suomen keskiarvo')\n   - This contract's position marked on the bar\n\n4. Keep the expandable details section but style it cleaner\n\nUse Tailwind CSS classes. Finnish labels: hiilijalanjälki, päästökerroin, päästöt.",
+      "status": "completed",
+      "started_at": "2026-01-21T12:00:00Z",
+      "completed_at": "2026-01-21T12:30:00Z",
+      "passes": true,
+      "priority": 1
+    },
+    {
+      "id": "update-listing-co2-badge",
+      "title": "Update CO2 badge in contracts list to show annual emissions",
+      "description": "Modify the CO2 badge in contracts-list.blade.php (lines ~756-767) to:\n\n1. Show annual emissions (kg) as primary display instead of gCO₂/kWh\n   - Calculate: $emissionFactor * $consumption / 1000 (use $consumption variable, default 5000)\n   - Format: 'X kg CO₂/v' (per year)\n   - Keep existing color coding (green for 0, amber for medium, red for high)\n\n2. Add a leaf icon for zero-emission contracts (emission_factor == 0)\n   - Use a simple SVG leaf icon\n   - Make these contracts visually stand out\n\n3. Optionally show the gCO₂/kWh factor as smaller secondary text or tooltip\n\nThe badge should be more impactful and communicate environmental impact at a glance.",
+      "status": "pending",
+      "priority": 2,
+      "depends_on": ["redesign-detail-co2-section"]
+    },
+    {
+      "id": "test-and-verify",
+      "title": "Test the CO2 display changes across different contract types",
+      "description": "Verify the new CO2 display works correctly by checking these contract pages:\n\n1. http://127.0.0.1:8000/sopimus/7f435737-30c8-4329-8a9f-f8e77d88e5e0 (high emissions - residual mix)\n2. http://127.0.0.1:8000/sopimus/a9aab414-c6b3-4dfd-b283-9c7c7c814c9c (zero emissions - nuclear/renewable)\n3. http://127.0.0.1:8000/sopimus/dec979ec-96b8-4afc-98f2-c4828d6dcfdb (medium emissions - mixed sources)\n\nVerify:\n- Gauge displays correctly for all emission levels\n- Annual emissions calculate correctly for different consumption levels\n- Car equivalency shows reasonable numbers\n- Colors are appropriate (green for low, amber for medium, red for high)\n- Listing page badges show annual emissions correctly\n- Zero-emission contracts have leaf icon\n\nFix any visual issues or calculation errors found.",
+      "status": "pending",
+      "priority": 3,
+      "depends_on": ["update-listing-co2-badge"]
+    }
+  ]
+}

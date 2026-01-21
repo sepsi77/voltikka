@@ -363,6 +363,211 @@
                 </div>
             @endif
 
+            <!-- CO2 Emissions - Environmental Impact Section -->
+            @if (!empty($co2Emissions))
+                @php
+                    $sourceLabels = [
+                        'coal' => 'Kivihiili',
+                        'natural_gas' => 'Maakaasu',
+                        'oil' => 'Öljy',
+                        'peat' => 'Turve',
+                        'fossil_generic' => 'Fossiiliset (erittelemätön)',
+                        'nuclear' => 'Ydinvoima',
+                        'wind' => 'Tuulivoima',
+                        'solar' => 'Aurinkovoima',
+                        'hydro' => 'Vesivoima',
+                        'biomass' => 'Biomassa',
+                        'renewable_general' => 'Uusiutuva (erittelemätön)',
+                        'renewable_unspecified' => 'Uusiutuva (erittelemätön)',
+                        'residual_mix' => 'Jäännösjakauma',
+                    ];
+                    $emissionFactor = $co2Emissions['emission_factor_g_per_kwh'];
+                    $annualEmissionsKg = $co2Emissions['total_emissions_kg'];
+                    // Car driving equivalency: average Finnish passenger car emits ~170g CO2/km
+                    $drivingKm = $annualEmissionsKg > 0 ? round($annualEmissionsKg * 1000 / 170) : 0;
+                    // Gauge calculation: 0-400+ scale, cap at 400 for display
+                    $gaugeMax = 400;
+                    $gaugePercent = min(100, ($emissionFactor / $gaugeMax) * 100);
+                    // Needle rotation: -90deg (left/0) to +90deg (right/400+)
+                    $needleRotation = -90 + ($gaugePercent * 1.8);
+                    // Finland baseline (residual mix)
+                    $finlandBaseline = 390.93;
+                    $baselinePercent = min(100, ($finlandBaseline / $gaugeMax) * 100);
+                @endphp
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                    <h2 class="text-lg font-semibold text-slate-900 mb-6">Ympäristövaikutus</h2>
+
+                    @if ($emissionFactor == 0)
+                        <!-- Zero emissions hero display -->
+                        <div class="text-center mb-6">
+                            <div class="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 mb-4">
+                                <svg class="w-12 h-12 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M17,8C8,10 5.9,16.17 3.82,21.34L5.71,22L6.66,19.7C7.14,19.87 7.64,20 8,20C19,20 22,3 22,3C21,5 14,5.25 9,6.25C4,7.25 2,11.5 2,13.5C2,15.5 3.75,17.25 3.75,17.25C7,8 17,8 17,8Z"/>
+                                </svg>
+                            </div>
+                            <div class="text-4xl font-bold text-green-600 mb-2">0 kg</div>
+                            <div class="text-slate-600 mb-1">CO₂-päästöt vuodessa</div>
+                            <div class="text-sm text-green-600 font-medium">Päästötön sähkö</div>
+                        </div>
+
+                        <div class="bg-green-50 rounded-xl p-4 text-center">
+                            <div class="flex items-center justify-center gap-2 text-green-700">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span class="font-medium">Tämän sopimuksen sähköntuotannolla ei ole suoria CO₂-päästöjä</span>
+                            </div>
+                        </div>
+                    @else
+                        <!-- Semi-circular gauge -->
+                        <div class="flex flex-col items-center mb-6">
+                            <div class="relative w-48 h-24 mb-2">
+                                <!-- Gauge background arc -->
+                                <div class="absolute inset-0 overflow-hidden">
+                                    <div class="w-48 h-48 rounded-full"
+                                         style="background: conic-gradient(from 180deg, #22c55e 0deg, #22c55e 45deg, #84cc16 45deg, #84cc16 90deg, #eab308 90deg, #eab308 135deg, #f97316 135deg, #f97316 160deg, #ef4444 160deg, #ef4444 180deg, transparent 180deg);">
+                                    </div>
+                                </div>
+                                <!-- Inner white circle to create arc effect -->
+                                <div class="absolute left-1/2 bottom-0 -translate-x-1/2 w-32 h-32 rounded-full bg-white"></div>
+                                <!-- Needle -->
+                                <div class="absolute left-1/2 bottom-0 origin-bottom transition-transform duration-700 ease-out"
+                                     style="transform: translateX(-50%) rotate({{ $needleRotation }}deg);">
+                                    <div class="w-1 h-20 bg-slate-800 rounded-full mx-auto"></div>
+                                    <div class="w-3 h-3 bg-slate-800 rounded-full -mt-1 mx-auto"></div>
+                                </div>
+                                <!-- Center pivot -->
+                                <div class="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2 w-4 h-4 bg-white border-2 border-slate-800 rounded-full"></div>
+                                <!-- Scale labels -->
+                                <div class="absolute -left-2 bottom-0 text-xs text-slate-500 font-medium">0</div>
+                                <div class="absolute -right-4 bottom-0 text-xs text-slate-500 font-medium">400+</div>
+                            </div>
+                            <div class="text-center">
+                                <span class="text-2xl font-bold {{ $emissionFactor < 100 ? 'text-green-600' : ($emissionFactor < 200 ? 'text-lime-600' : ($emissionFactor < 300 ? 'text-amber-600' : ($emissionFactor < 350 ? 'text-orange-600' : 'text-red-600'))) }}">
+                                    {{ number_format($emissionFactor, 0, ',', ' ') }}
+                                </span>
+                                <span class="text-slate-500 text-sm ml-1">gCO₂/kWh</span>
+                            </div>
+                        </div>
+
+                        <!-- Annual emissions hero number -->
+                        <div class="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-6 text-center mb-4">
+                            <div class="text-sm text-slate-500 mb-1">Vuotuiset päästöt ({{ number_format($consumption, 0, ',', ' ') }} kWh)</div>
+                            <div class="text-4xl font-bold text-slate-900 mb-3">
+                                {{ number_format($annualEmissionsKg, 0, ',', ' ') }} kg
+                                <span class="text-lg font-normal text-slate-500">CO₂</span>
+                            </div>
+                            <div class="flex items-center justify-center gap-2 text-slate-600">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12"/>
+                                </svg>
+                                <span class="text-sm">Vastaa noin <strong>{{ number_format($drivingKm, 0, ',', ' ') }} km</strong> ajoa henkilöautolla</span>
+                            </div>
+                        </div>
+
+                        <!-- Comparison bar -->
+                        <div class="mb-4">
+                            <div class="text-sm text-slate-600 mb-2">Vertailu Suomen keskiarvoon</div>
+                            <div class="relative h-8 bg-gradient-to-r from-green-200 via-yellow-200 to-red-200 rounded-lg overflow-hidden">
+                                <!-- Finland baseline marker -->
+                                <div class="absolute top-0 bottom-0 w-0.5 bg-slate-600 z-10"
+                                     style="left: {{ $baselinePercent }}%;">
+                                    <div class="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs text-slate-600 font-medium">
+                                        Suomen keskiarvo
+                                    </div>
+                                </div>
+                                <!-- This contract marker -->
+                                <div class="absolute top-1 bottom-1 w-3 rounded {{ $emissionFactor < $finlandBaseline ? 'bg-green-600' : 'bg-red-600' }} z-20 transition-all duration-500"
+                                     style="left: calc({{ $gaugePercent }}% - 6px);">
+                                </div>
+                                <!-- Scale markers -->
+                                <div class="absolute bottom-0 left-0 right-0 flex justify-between px-2 text-xs text-slate-500">
+                                    <span>0</span>
+                                    <span>100</span>
+                                    <span>200</span>
+                                    <span>300</span>
+                                    <span>400+</span>
+                                </div>
+                            </div>
+                            <div class="mt-2 text-sm text-center">
+                                @if ($emissionFactor < $finlandBaseline)
+                                    <span class="text-green-600 font-medium">{{ number_format($finlandBaseline - $emissionFactor, 0, ',', ' ') }} gCO₂/kWh pienempi kuin keskiarvo</span>
+                                @elseif ($emissionFactor > $finlandBaseline)
+                                    <span class="text-red-600 font-medium">{{ number_format($emissionFactor - $finlandBaseline, 0, ',', ' ') }} gCO₂/kWh suurempi kuin keskiarvo</span>
+                                @else
+                                    <span class="text-slate-600 font-medium">Sama kuin Suomen keskiarvo</span>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+
+                    @if ($co2Emissions['residual_mix_percent'] > 0)
+                        <div class="flex items-start gap-2 text-amber-700 bg-amber-50 rounded-lg p-3 text-sm mt-3">
+                            <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <span>
+                                {{ number_format($co2Emissions['residual_mix_percent'], 0, ',', ' ') }}% sähkön alkuperästä on erittelemätöntä.
+                                Tälle osalle käytetään Suomen jäännösjakauman päästökerrointa (390,93 gCO₂/kWh).
+                            </span>
+                        </div>
+                    @endif
+
+                    <!-- Expandable Details -->
+                    <details class="mt-6 border-t border-slate-100 pt-4">
+                        <summary class="cursor-pointer text-sm font-medium text-coral-600 hover:text-coral-700 select-none flex items-center gap-1">
+                            <svg class="w-4 h-4 transition-transform details-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                            Näytä laskennan yksityiskohdat
+                        </summary>
+
+                        <div class="mt-4 space-y-4">
+                            <!-- Emissions by source -->
+                            <div class="bg-slate-50 rounded-lg p-4">
+                                <h4 class="text-sm font-medium text-slate-700 mb-3">Päästöt energialähteittäin</h4>
+                                <div class="space-y-2">
+                                    @foreach ($co2Emissions['emissions_by_source'] as $source => $emissionsKg)
+                                        <div class="flex justify-between items-center py-2 border-b border-slate-200 last:border-0">
+                                            <span class="text-sm text-slate-600">{{ $sourceLabels[$source] ?? $source }}</span>
+                                            <span class="text-sm font-medium {{ $emissionsKg > 0 ? 'text-slate-900' : 'text-green-600' }}">
+                                                {{ number_format($emissionsKg, 1, ',', ' ') }} kg CO₂
+                                            </span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <!-- Emission factors used -->
+                            <div class="bg-slate-50 rounded-lg p-4">
+                                <h4 class="text-sm font-medium text-slate-700 mb-3">Käytetyt päästökertoimet</h4>
+                                <div class="space-y-2">
+                                    @foreach ($co2Emissions['emissions_by_source'] as $source => $emissionsKg)
+                                        @if (isset($emissionFactorSources[$source]))
+                                            <div class="flex justify-between items-start py-2 border-b border-slate-200 last:border-0">
+                                                <div>
+                                                    <span class="text-sm text-slate-600">{{ $sourceLabels[$source] ?? $source }}</span>
+                                                    <span class="text-xs text-slate-400 ml-1">({{ $emissionFactorSources[$source]['source'] }})</span>
+                                                </div>
+                                                <span class="text-sm font-medium text-slate-700">{{ number_format($emissionFactorSources[$source]['value'], 0, ',', ' ') }} gCO₂/kWh</span>
+                                            </div>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            <!-- Data sources -->
+                            <div class="text-xs text-slate-500 space-y-1 pt-2">
+                                <h4 class="font-medium text-slate-600 mb-2">Lähteet</h4>
+                                <p>• Fossiilisten polttoaineiden päästökertoimet: Tilastokeskus, IPCC Guidelines for National GHG Inventories</p>
+                                <p>• Jäännösjakauman päästökerroin: Energiavirasto, "National Residual Mix 2024" (julkaistu kesäkuu 2025)</p>
+                                <p>• Uusiutuvat ja ydinvoima: EU:n alkuperätakuujärjestelmän mukainen 0 gCO₂/kWh</p>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+            @endif
+
             <!-- Company Information -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <h2 class="text-lg font-semibold text-slate-900 mb-4">Yhtiön tiedot</h2>
