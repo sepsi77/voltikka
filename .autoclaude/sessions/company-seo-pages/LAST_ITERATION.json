@@ -1,5 +1,5 @@
 {
-  "iteration": 3,
+  "iteration": 4,
   "task_id": null,
   "task_title": null,
   "exit_reason": "task_complete",
@@ -7,6 +7,6 @@
   "files_changed": [],
   "test_passed": null,
   "commit_sha": null,
-  "summary": "I have completed **Task 4: Enhance CompanyDetail view with consumption selector**.\n\n## Summary of Completed Work\n\n### Changes to `laravel/resources/views/livewire/company-detail.blade.php`:\n\n1. **JSON-LD Structured Data**:\n   - Organization schema (name, url, address, logo, makesOffer)\n   - BreadcrumbList schema for SEO navigation\n\n2. **Breadcrumb Navigation**:\n   - Visual breadcrumb in hero: Etusivu > Sahkoyhtiot > Company Name\n   - Links to home and company listing pages\n\n3. **Company Stats Cards**:\n   - Desktop: Stats cards in hero section (contract count, renewable %, min price)\n   - Mobile: Responsive 3-column grid below hero\n\n4. **Consumption Preset Selector**:\n   - 8 preset buttons in responsive grid (2-col mobile, 4-col desktop)\n   - Icons for apartment vs house types\n   - Visual selection state with coral gradient\n   - Current consumption display badge\n\n5. **Company Statistics Detail Section**:\n   - Average price with consumption context\n   - Price range (min - max)\n   - Avera",
-  "timestamp": "2026-01-21T21:16:18.857551"
+  "summary": "I have completed all 8 tasks in the company-seo-pages session:\n\n## Summary\n\n**Completed in this iteration:**\n\n### Task 5: Update routes for new URL structure\n- Changed canonical company detail URL to `/sahkosopimus/sahkoyhtiot/{slug}`\n- Renamed route from `company.detail.new` to `company.detail`\n- Added 301 redirect from old `/sahkosopimus/yritys/{slug}` path\n- Updated `/yritys/{slug}` redirect to use new canonical URL\n\n### Task 6: Add navigation links to layout\n- Added \"Sähköyhtiöt\" link in desktop navigation after \"Yrityksille\"\n- Added \"Sähköyhtiöt\" link in mobile menu after \"Yrityksille\"\n- Added \"Sähköyhtiöt\" link in footer \"Sähkösopimukset\" section\n\n### Task 7: Update sitemap service\n- Updated company URLs from `/sahkosopimus/yritys/{slug}` to `/sahkosopimus/sahkoyhtiot/{slug}`\n- Added `/sahkosopimus/sahkoyhtiot` (companies list) with priority 0.85\n- Added `/sahkosopimus/yritykselle` (business contracts) with priority 0.8\n\n### Task 8: Run tests and verify no regressions\n- All 72 co",
+  "timestamp": "2026-01-21T21:21:30.106841"
 }
