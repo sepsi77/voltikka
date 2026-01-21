@@ -108,11 +108,18 @@ class Company extends Model
 
     /**
      * Get the logo URL for display (method style for easier use in views).
+     * Prefers optimized WebP version if available.
      */
     public function getLogoUrl(): ?string
     {
         // Check local storage first
         if ($this->local_logo_path) {
+            // Check if optimized WebP version exists
+            $webpPath = preg_replace('/\.(jpg|jpeg|png)$/i', '.webp', $this->local_logo_path);
+            if ($webpPath !== $this->local_logo_path && Storage::disk('public')->exists($webpPath)) {
+                return Storage::disk('public')->url($webpPath);
+            }
+
             return Storage::disk('public')->url($this->local_logo_path);
         }
 
