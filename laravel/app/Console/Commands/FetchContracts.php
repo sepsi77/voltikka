@@ -367,7 +367,8 @@ class FetchContracts extends Command
                 if ($componentId === self::NULL_UUID) {
                     $priceComponentType = $component['PriceComponentType'];
                     $fuseSize = $component['FuseSize'] ?? 'null';
-                    $componentId = Str::uuid5(Str::uuid5(Str::NIL, $contractId), "{$priceComponentType}:{$fuseSize}");
+                    // Create deterministic UUID from unique component attributes
+                    $componentId = md5("{$contractId}:{$priceComponentType}:{$fuseSize}");
                 }
 
                 $priceComponents[] = [
