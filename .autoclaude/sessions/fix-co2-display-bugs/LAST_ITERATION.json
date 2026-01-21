@@ -1,0 +1,26 @@
+{
+  "iteration": 1,
+  "task_id": null,
+  "task_title": null,
+  "exit_reason": "task_complete",
+  "exit_signal": "TASK_COMPLETE",
+  "files_changed": [
+    ".autoclaude/history.json",
+    "laravel/app/Livewire/ContractDetail.php",
+    "laravel/app/Livewire/ContractsList.php",
+    "laravel/app/Livewire/LocationsList.php",
+    "laravel/app/Livewire/SeoContractsList.php",
+    "laravel/app/Livewire/SpotPrice.php",
+    "laravel/app/Models/ElectricitySource.php",
+    "laravel/public/sitemap.xml",
+    "laravel/resources/views/layouts/app.blade.php",
+    ".autoclaude/sessions/unify-contract-listing-component/",
+    "laravel/app/Services/CO2EmissionsCalculator.php",
+    "laravel/app/Services/DTO/CO2EmissionsResult.php",
+    "laravel/tests/Unit/CO2EmissionsCalculatorTest.php"
+  ],
+  "test_passed": null,
+  "commit_sha": null,
+  "summary": "All three tasks have been completed successfully:\n\n## Summary\n\n### Task 1: Fix broken CO2 badge on contracts listing page\n**Status:** Completed\n\nThe CO2 badge was rendering as a large box because Tailwind CSS classes (`w-3.5`, `h-3.5`) weren't compiled into the CSS bundle. Running `npm run build` fixed the issue without requiring code changes.\n\n### Task 2: Fix broken gauge display on contract detail page  \n**Status:** Completed\n\nReplaced the semi-circular gauge with a simpler horizontal progress bar:\n- New \"Päästökerroin\" bar with gradient (green → yellow → orange → red)\n- Position marker shows contract's emission factor\n- Kept annual emissions hero number (1 955 kg CO₂)\n- Kept car driving equivalency (11 498 km)\n- Kept comparison bar with Finland baseline\n\n### Task 3: Handle empty electricity sources section gracefully\n**Status:** Completed\n\nAdded logic to detect empty source data and display a helpful message:\n- \"Sähkön alkuperätietoja ei ole saatavilla tälle sopimukselle.\"\n- \"Päästö",
+  "timestamp": "2026-01-21T14:03:15.159484"
+}

@@ -55,7 +55,15 @@
     "co2-display-redesign": {
       "started_at": "2026-01-21T12:34:21.929518",
       "ended_at": null
+    },
+    "fix-co2-display-bugs": {
+      "started_at": "2026-01-21T13:50:39.518401",
+      "ended_at": null
+    },
+    "unify-contract-listing-component": {
+      "started_at": "2026-01-21T14:01:41.987381",
+      "ended_at": null
     }
   },
-  "current": "co2-display-redesign"
+  "current": "unify-contract-listing-component"
 }
