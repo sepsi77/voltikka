@@ -1,0 +1,70 @@
+{
+  "session": "company-seo-pages",
+  "description": "Implement SEO-focused company pages with ranking categories, navigation, and sitemap updates",
+  "tasks": [
+    {
+      "id": "create-company-list-component",
+      "title": "Create CompanyList Livewire component",
+      "description": "Create new Livewire component at laravel/app/Livewire/CompanyList.php that loads all companies with contracts, calculates aggregate metrics (avg price, emissions, renewable %, contract count), provides rankings by category (cheapest, greenest, cleanest emissions, most contracts, best spot margins, lowest monthly fees, 100% renewable), and generates SEO data with JSON-LD ItemList schema. Follow patterns from existing ContractsList component.",
+      "status": "completed",
+      "priority": 1,
+      "completed_at": "2026-01-21T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "create-company-list-view",
+      "title": "Create CompanyList Blade view",
+      "description": "Create view at laravel/resources/views/livewire/company-list.blade.php with JSON-LD structured data, hero section titled 'Sahkoyhtiot Suomessa', category ranking sections (top 5 per category as cards), full company grid with search/filter, and links to individual company pages. Use existing Tailwind styling patterns.",
+      "status": "completed",
+      "priority": 2,
+      "depends_on": ["create-company-list-component"],
+      "completed_at": "2026-01-21T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "enhance-company-detail-component",
+      "title": "Enhance CompanyDetail component with price calculations",
+      "description": "Update laravel/app/Livewire/CompanyDetail.php to add consumption selection (presets from ContractsList pattern), calculate prices using ContractPriceCalculator, calculate emissions using CO2EmissionsCalculator, add Organization JSON-LD schema for SEO, and sort contracts by calculated price.",
+      "status": "pending",
+      "priority": 3
+    },
+    {
+      "id": "enhance-company-detail-view",
+      "title": "Enhance CompanyDetail view with consumption selector",
+      "description": "Update laravel/resources/views/livewire/company-detail.blade.php to add JSON-LD structured data, consumption preset selector component, calculated annual costs on contract cards, company statistics (avg price, emissions, renewable %), and breadcrumb navigation.",
+      "status": "pending",
+      "priority": 4,
+      "depends_on": ["enhance-company-detail-component"]
+    },
+    {
+      "id": "update-routes",
+      "title": "Update routes for new URL structure",
+      "description": "Update laravel/routes/web.php to: 1) Add new company listing route at /sahkosopimus/sahkoyhtiot pointing to CompanyList, 2) Change company detail route to /sahkosopimus/sahkoyhtiot/{companySlug}, 3) Add 301 redirect from old /sahkosopimus/yritys/{companySlug} URL to new path. Ensure new routes are placed before city catch-all.",
+      "status": "pending",
+      "priority": 5,
+      "depends_on": ["create-company-list-component", "enhance-company-detail-component"]
+    },
+    {
+      "id": "add-navigation-links",
+      "title": "Add navigation links to layout",
+      "description": "Update laravel/resources/views/layouts/app.blade.php to add 'Sahkoyhtiot' link to desktop nav (after 'Yrityksille' link), mobile menu, and footer navigation. Link should point to /sahkosopimus/sahkoyhtiot.",
+      "status": "pending",
+      "priority": 6
+    },
+    {
+      "id": "update-sitemap",
+      "title": "Update sitemap service",
+      "description": "Update laravel/app/Services/SitemapService.php to: 1) Update getCompanyUrls() to use new path /sahkosopimus/sahkoyhtiot/{slug}, 2) Add main company listing URL /sahkosopimus/sahkoyhtiot to getMainPageUrls() with priority 0.85, 3) Add missing /sahkosopimus/yritykselle URL with priority 0.8.",
+      "status": "pending",
+      "priority": 7
+    },
+    {
+      "id": "run-tests",
+      "title": "Run tests and verify no regressions",
+      "description": "Run php artisan test to ensure all existing tests pass. Fix any issues that arise from the route changes or component updates.",
+      "status": "pending",
+      "priority": 8,
+      "depends_on": ["update-routes", "update-sitemap"]
+    }
+  ]
+}

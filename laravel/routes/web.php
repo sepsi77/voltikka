@@ -3,6 +3,7 @@
 use App\Livewire\CheapestContracts;
 use App\Livewire\CompanyContractsList;
 use App\Livewire\CompanyDetail;
+use App\Livewire\CompanyList;
 use App\Livewire\ConsumptionCalculator;
 use App\Livewire\ContractDetail;
 use App\Livewire\ContractsList;
@@ -83,6 +84,14 @@ Route::get('/sahkosopimus/halvin-sahkosopimus', CheapestContracts::class)
 // Company contracts page (must come BEFORE city catch-all)
 Route::get('/sahkosopimus/yritykselle', CompanyContractsList::class)
     ->name('company.contracts');
+
+// Company list page (all companies)
+Route::get('/sahkosopimus/sahkoyhtiot', CompanyList::class)
+    ->name('companies.list');
+
+// Company detail page (new URL structure under sahkoyhtiot)
+Route::get('/sahkosopimus/sahkoyhtiot/{companySlug}', CompanyDetail::class)
+    ->name('company.detail.new');
 
 // Main comparison index page (must come BEFORE city catch-all)
 Route::get('/sahkosopimus', SahkosopimusIndex::class)
