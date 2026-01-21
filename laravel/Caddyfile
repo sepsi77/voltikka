@@ -1,0 +1,21 @@
+{
+    # Global options
+    frankenphp
+    order php_server before file_server
+}
+
+:8000 {
+    # Set the root directory
+    root * /app/public
+
+    # Enable compression
+    encode zstd gzip
+
+    # Handle PHP requests
+    php_server
+
+    # Serve static files (including symlinked storage)
+    file_server {
+        # Follow symlinks
+    }
+}
