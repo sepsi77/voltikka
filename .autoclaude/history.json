@@ -63,7 +63,11 @@
     "unify-contract-listing-component": {
       "started_at": "2026-01-21T14:01:41.987381",
       "ended_at": null
+    },
+    "seo-url-restructure": {
+      "started_at": "2026-01-21T15:00:12.053084",
+      "ended_at": null
     }
   },
-  "current": "unify-contract-listing-component"
+  "current": "seo-url-restructure"
 }
