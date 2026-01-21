@@ -534,7 +534,7 @@
                         <div class="bg-blue-50 rounded-lg p-3 text-sm mt-3">
                             <p class="text-blue-700 text-xs">
                                 <strong>Huom:</strong> Suomen sähköverkon fyysinen keskipäästö on vain ~{{ number_format($physicalAverage, 0) }} gCO₂/kWh.
-                                Tämän sopimuksen päästökerroin perustuu ilmoitettuihin energialähteisiin, jotka sisältävät {{ number_format($co2Emissions['emissions_by_source']['fossil_generic'] ?? 0 > 0 ? 'fossiilisia' : 'muita', 0) }} lähteitä.
+                                Tämän sopimuksen päästökerroin ({{ number_format($emissionFactor, 0) }} gCO₂/kWh) perustuu ilmoitettuihin energialähteisiin.
                             </p>
                         </div>
                     @endif
