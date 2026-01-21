@@ -400,8 +400,9 @@
                     ];
                     $emissionFactor = $co2Emissions['emission_factor_g_per_kwh'];
                     $annualEmissionsKg = $co2Emissions['total_emissions_kg'];
-                    // Car driving equivalency: average Finnish passenger car emits ~170g CO2/km
-                    $drivingKm = $annualEmissionsKg > 0 ? round($annualEmissionsKg * 1000 / 170) : 0;
+                    // Car driving equivalency: average Finnish car fleet emits ~140g CO2/km
+                    // (Traficom/Sitra data - reflects actual cars on road, avg age 12-13 years)
+                    $drivingKm = $annualEmissionsKg > 0 ? round($annualEmissionsKg * 1000 / 140) : 0;
                     // Horizontal bar calculation: 0-400+ scale, cap at 400 for display
                     $gaugeMax = 400;
                     $gaugePercent = min(100, ($emissionFactor / $gaugeMax) * 100);

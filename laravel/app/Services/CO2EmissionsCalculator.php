@@ -65,6 +65,11 @@ class CO2EmissionsCalculator
 
         // Residual mix - contractual attribution for unspecified sources
         'residual_mix' => 390.93, // Energiavirasto 2024
+
+        // Average car fleet emissions for driving equivalency calculations
+        // Traficom/Sitra data - reflects actual cars on road (avg age 12-13 years)
+        // New cars are ~50-70 g/km but fleet average is higher due to older vehicles
+        'car_fleet_g_per_km' => 140.0,
     ];
 
     /**
