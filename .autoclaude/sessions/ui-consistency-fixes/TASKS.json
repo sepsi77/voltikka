@@ -6,28 +6,36 @@
       "id": "add-missing-seo-routes",
       "title": "Add missing SEO routes for spot and fixed price contracts",
       "description": "In laravel/routes/web.php, add specific routes for '/sahkosopimus/porssisahko' and '/sahkosopimus/kiintea-hinta'. These should use SeoContractsList component with a new 'pricingType' parameter. Add them BEFORE the catch-all city route. Example pattern:\nRoute::get('/sahkosopimus/porssisahko', SeoContractsList::class)->name('seo.pricing.porssisahko')->defaults('pricingType', 'Spot');\nRoute::get('/sahkosopimus/kiintea-hinta', SeoContractsList::class)->name('seo.pricing.kiintea-hinta')->defaults('pricingType', 'FixedPrice');",
-      "status": "in_progress",
+      "status": "completed",
+      "completed_at": "2026-01-21T12:00:00Z",
+      "passes": true,
       "priority": 1
     },
     {
       "id": "extend-seo-contracts-list-pricing",
       "title": "Extend SeoContractsList to handle pricing type filter",
       "description": "In laravel/app/Livewire/SeoContractsList.php:\n1) Add public property: public ?string $pricingType = null;\n2) Update mount() to accept $pricingType parameter\n3) Add pricing type names array for Finnish display:\n  protected array $pricingTypeNames = ['Spot' => 'Pörssisähkö', 'FixedPrice' => 'Kiinteähintainen'];\n4) Add filterByPricingType() method to filter contracts by pricing_model\n5) Update getContractsProperty() to apply pricing filter\n6) Update generateSeoTitle() to handle pricing type pages\n7) Update getPageHeadingProperty() to return appropriate heading like 'Pörssisähkösopimukset'",
-      "status": "pending",
+      "status": "completed",
+      "completed_at": "2026-01-21T12:00:00Z",
+      "passes": true,
       "priority": 2
     },
     {
       "id": "fix-seo-hero-badge-text",
       "title": "Fix hero badge text to match homepage",
       "description": "In laravel/resources/views/livewire/seo-contracts-list.blade.php line 14, change the badge from 'Vertaile ja säästä' to 'Vertaile älykkäästi' to match the homepage. Also update the styling to match: change from 'bg-coral-50 ... text-coral-700' to use the homepage pattern with 'bg-coral-500/20 backdrop-blur-sm ... text-coral-300 border border-coral-500/20' and add the lightning bolt icon.",
-      "status": "pending",
+      "status": "completed",
+      "completed_at": "2026-01-21T12:00:00Z",
+      "passes": true,
       "priority": 3
     },
     {
       "id": "add-radial-gradient-to-seo-hero",
       "title": "Add radial gradient decorative blobs to SEO hero",
       "description": "In laravel/resources/views/livewire/seo-contracts-list.blade.php, update the hero section (line 10) to match the homepage pattern:\n1) Change from 'bg-slate-950' to 'bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950'\n2) Add 'relative overflow-hidden' class\n3) Add the decorative gradient blobs div inside the section (copy from contracts-list.blade.php lines 4-8):\n<div class=\"absolute inset-0 pointer-events-none\">\n  <div class=\"absolute top-0 right-1/4 w-96 h-96 bg-coral-500 rounded-full blur-3xl opacity-20\"></div>\n  <div class=\"absolute bottom-0 left-0 w-72 h-72 bg-coral-400 rounded-full blur-3xl opacity-10 -translate-x-1/2\"></div>\n</div>\n4) Add 'relative' class to the inner max-w-7xl container",
-      "status": "pending",
+      "status": "completed",
+      "completed_at": "2026-01-21T12:00:00Z",
+      "passes": true,
       "priority": 4
     },
     {

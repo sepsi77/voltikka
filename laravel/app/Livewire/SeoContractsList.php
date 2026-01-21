@@ -401,6 +401,10 @@ class SeoContractsList extends ContractsList
             return $this->getEnergySourceIntroText($this->energySource);
         }
 
+        if ($this->pricingType && isset($this->pricingTypeNames[$this->pricingType])) {
+            return $this->getPricingTypeIntroText($this->pricingType);
+        }
+
         if ($this->city) {
             $cityData = $this->getCityData($this->city);
             return "Vertaile sähkösopimuksia {$cityData['locative']}. Löydä paras sähkösopimus {$cityData['name']}n alueelle.";
@@ -439,6 +443,18 @@ class SeoContractsList extends ContractsList
     }
 
     /**
+     * Get detailed intro text for pricing type pages.
+     */
+    protected function getPricingTypeIntroText(string $pricingType): string
+    {
+        return match ($pricingType) {
+            'Spot' => 'Pörssisähkösopimuksessa sähkön hinta vaihtelee tunneittain Nord Pool -sähköpörssin hinnan mukaan. Pörssisähkö voi olla edullinen vaihtoehto, jos pystyt ajoittamaan kulutustasi edullisempiin tunteihin. Vertaile pörssisähkösopimuksia ja löydä sopimus, jossa marginaali ja kuukausimaksu sopivat sinulle.',
+            'FixedPrice' => 'Kiinteähintaisessa sähkösopimuksessa maksat saman hinnan jokaisesta kilowattitunnista sopimuskauden ajan. Kiinteä hinta tuo ennustettavuutta sähkölaskuun ja suojaa markkinaheilahteluilta. Vertaile kiinteähintaisia sopimuksia ja löydä paras tarjous.',
+            default => 'Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto.',
+        };
+    }
+
+    /**
      * Get city data with proper Finnish name and locative form.
      */
     protected function getCityData(string $slug): array
@@ -462,6 +478,7 @@ class SeoContractsList extends ContractsList
     {
         return $this->housingType !== null
             || $this->energySource !== null
+            || $this->pricingType !== null
             || $this->city !== null;
     }
 
@@ -578,6 +595,7 @@ class SeoContractsList extends ContractsList
             'energySourceStats' => $this->energySourceStats,
             'environmentalInfo' => $this->environmentalInfo,
             'isEnergySourcePage' => $this->energySource !== null,
+            'isPricingTypePage' => $this->pricingType !== null,
             'isCityPage' => $this->city !== null,
             'cityInfo' => $this->cityInfo,
         ])->layout('layouts.app', [

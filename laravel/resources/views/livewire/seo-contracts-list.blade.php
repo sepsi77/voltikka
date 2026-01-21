@@ -6,14 +6,23 @@
     </script>
     @endif
 
-    {{-- SEO Hero Section - Dark slate background --}}
-    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    {{-- SEO Hero Section - Dark slate background with gradient --}}
+    <section class="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8 relative overflow-hidden">
+        {{-- Decorative gradient blobs --}}
+        <div class="absolute inset-0 pointer-events-none">
+            <div class="absolute top-0 right-1/4 w-96 h-96 bg-coral-500 rounded-full blur-3xl opacity-20"></div>
+            <div class="absolute bottom-0 left-0 w-72 h-72 bg-coral-400 rounded-full blur-3xl opacity-10 -translate-x-1/2"></div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <div class="grid max-w-screen-xl py-12 mx-auto lg:gap-8 xl:gap-0 lg:py-20 lg:grid-cols-12">
                 <div class="mx-auto place-self-center col-12 lg:col-span-7">
-                    <p class="bg-coral-50 w-fit text-center mb-4 text-coral-700 text-xs font-semibold px-4 py-2 rounded-full">
-                        Vertaile ja säästä
-                    </p>
+                    <div class="inline-flex items-center gap-2 bg-coral-500/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-coral-300 mb-6 border border-coral-500/20">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        Vertaile älykkäästi
+                    </div>
                     <h1 class="max-w-2xl mb-4 text-4xl font-extrabold text-white tracking-tight leading-tight md:text-5xl xl:text-6xl">
                         {{ $pageHeading }}
                     </h1>
@@ -744,7 +753,20 @@
     <section class="mt-12 bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
         <h2 class="text-2xl font-bold text-slate-900 mb-6">Katso myös</h2>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {{-- Pricing Types --}}
+            <div>
+                <h3 class="font-semibold text-slate-900 mb-3">Hinnoittelumalli</h3>
+                <ul class="space-y-2 text-slate-600">
+                    <li>
+                        <a href="/sahkosopimus/porssisahko" class="hover:text-coral-600">Pörssisähkösopimukset</a>
+                    </li>
+                    <li>
+                        <a href="/sahkosopimus/kiintea-hinta" class="hover:text-coral-600">Kiinteähintaiset sopimukset</a>
+                    </li>
+                </ul>
+            </div>
+
             {{-- Housing Types --}}
             <div>
                 <h3 class="font-semibold text-slate-900 mb-3">Asumismuodoittain</h3>

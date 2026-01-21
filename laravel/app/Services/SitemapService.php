@@ -27,12 +27,21 @@ class SitemapService
     ];
 
     /**
+     * Pricing types for SEO pages.
+     */
+    protected array $pricingTypes = [
+        'porssisahko',
+        'kiintea-hinta',
+    ];
+
+    /**
      * Get all URLs for the sitemap.
      */
     public function getAllUrls(): array
     {
         return array_merge(
             $this->getMainPageUrls(),
+            $this->getPricingTypeUrls(),
             $this->getHousingTypeUrls(),
             $this->getEnergySourceUrls(),
             $this->getCityUrls(),
@@ -74,6 +83,24 @@ class SitemapService
                 'priority' => 0.6,
             ],
         ];
+    }
+
+    /**
+     * Get pricing type SEO page URLs.
+     */
+    public function getPricingTypeUrls(): array
+    {
+        $baseUrl = config('app.url');
+        $today = Carbon::today()->toDateString();
+
+        return array_map(function ($type) use ($baseUrl, $today) {
+            return [
+                'loc' => $baseUrl . '/sahkosopimus/' . $type,
+                'lastmod' => $today,
+                'changefreq' => 'daily',
+                'priority' => 0.9,
+            ];
+        }, $this->pricingTypes);
     }
 
     /**
