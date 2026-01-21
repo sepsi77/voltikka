@@ -23,9 +23,31 @@
             ->where('price_component_type', 'Monthly')
             ->sortByDesc('price_date')
             ->first()?->price ?? 0;
+        // Seasonal pricing components
+        $seasonalWinterPrice = $contract->priceComponents
+            ->where('price_component_type', 'SeasonalWinterDay')
+            ->sortByDesc('price_date')
+            ->first()?->price;
+        $seasonalOtherPrice = $contract->priceComponents
+            ->where('price_component_type', 'SeasonalOther')
+            ->sortByDesc('price_date')
+            ->first()?->price;
+        // Time-based pricing components
+        $dayTimePrice = $contract->priceComponents
+            ->where('price_component_type', 'DayTime')
+            ->sortByDesc('price_date')
+            ->first()?->price;
+        $nightTimePrice = $contract->priceComponents
+            ->where('price_component_type', 'NightTime')
+            ->sortByDesc('price_date')
+            ->first()?->price;
     } else {
         $generalPrice = $priceData['General']['price'] ?? null;
         $monthlyFee = $priceData['Monthly']['price'] ?? 0;
+        $seasonalWinterPrice = $priceData['SeasonalWinterDay']['price'] ?? null;
+        $seasonalOtherPrice = $priceData['SeasonalOther']['price'] ?? null;
+        $dayTimePrice = $priceData['DayTime']['price'] ?? null;
+        $nightTimePrice = $priceData['NightTime']['price'] ?? null;
     }
 
     // Get calculated cost data if available
@@ -110,6 +132,34 @@
                         {{ number_format($spotMargin, 2, ',', ' ') }} <span class="text-sm font-normal text-slate-400">c/kWh</span>
                     </div>
                     <p class="text-xs text-slate-500 uppercase tracking-wide">Marginaali</p>
+                </div>
+            @elseif ($seasonalWinterPrice !== null && $seasonalOtherPrice !== null)
+                {{-- Seasonal pricing contract --}}
+                <div class="text-left">
+                    <div class="text-lg font-bold text-slate-900 tabular-nums">
+                        {{ number_format($seasonalWinterPrice, 2, ',', ' ') }} <span class="text-sm font-normal text-slate-400">c/kWh</span>
+                    </div>
+                    <p class="text-xs text-slate-500 uppercase tracking-wide">Talvi</p>
+                </div>
+                <div class="text-left">
+                    <div class="text-lg font-bold text-slate-900 tabular-nums">
+                        {{ number_format($seasonalOtherPrice, 2, ',', ' ') }} <span class="text-sm font-normal text-slate-400">c/kWh</span>
+                    </div>
+                    <p class="text-xs text-slate-500 uppercase tracking-wide">Muu aika</p>
+                </div>
+            @elseif ($dayTimePrice !== null && $nightTimePrice !== null)
+                {{-- Time-based pricing contract --}}
+                <div class="text-left">
+                    <div class="text-lg font-bold text-slate-900 tabular-nums">
+                        {{ number_format($dayTimePrice, 2, ',', ' ') }} <span class="text-sm font-normal text-slate-400">c/kWh</span>
+                    </div>
+                    <p class="text-xs text-slate-500 uppercase tracking-wide">Päivä</p>
+                </div>
+                <div class="text-left">
+                    <div class="text-lg font-bold text-slate-900 tabular-nums">
+                        {{ number_format($nightTimePrice, 2, ',', ' ') }} <span class="text-sm font-normal text-slate-400">c/kWh</span>
+                    </div>
+                    <p class="text-xs text-slate-500 uppercase tracking-wide">Yö</p>
                 </div>
             @elseif ($generalPrice !== null)
                 {{-- Fixed price contract --}}

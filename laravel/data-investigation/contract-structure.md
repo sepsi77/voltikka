@@ -117,7 +117,7 @@ PriceComponent: {
         Price: float
         PaymentUnit: string ("EurPerMonth", "CentPerKiwattHour")
     }
-    PriceComponentType: string ("Monthly", "General", "DayTime", "NightTime", "SeasonalWinter", "SeasonalOther")
+    PriceComponentType: string ("Monthly", "General", "DayTime", "NightTime", "SeasonalWinterDay", "SeasonalOther")
     FuseSize: string ("Any", ...)
     Created: string (ISO datetime)
     Updated: string (ISO datetime)
@@ -238,7 +238,7 @@ TransparencyIndex: {
 | `General` | Single rate for all hours (c/kWh) |
 | `DayTime` | Day rate for Time metering (c/kWh) |
 | `NightTime` | Night rate for Time metering (c/kWh) |
-| `SeasonalWinter` | Winter rate for Seasonal metering (c/kWh) |
+| `SeasonalWinterDay` | Winter day rate for Seasonal metering (c/kWh) |
 | `SeasonalOther` | Other seasons rate for Seasonal metering (c/kWh) |
 
 ## PaymentUnit Values

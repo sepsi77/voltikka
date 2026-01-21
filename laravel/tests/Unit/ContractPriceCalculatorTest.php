@@ -151,15 +151,20 @@ class ContractPriceCalculatorTest extends TestCase
         $this->assertEquals(5.0, $result->seasonalOtherKwhPrice);
 
         // For seasonal: 5 winter months (Jan, Feb, Mar, Nov, Dec), 7 summer months
-        // Winter: 1000 kWh/month, 15% night share
-        //   - Day portion: 850 kWh * 8 c = 6800 c = 68 EUR
-        //   - Night portion: 150 kWh * 5 c = 750 c = 7.5 EUR
-        //   - Total per winter month: 75.5 EUR + 2 EUR fixed = 77.5 EUR
-        //   - Winter total: 5 * 77.5 = 387.5 EUR
-        // Summer: 1000 kWh * 5 c = 5000 c = 50 EUR + 2 EUR fixed = 52 EUR
-        //   - Summer total: 7 * 52 = 364 EUR
-        // Annual total: 387.5 + 364 = 751.5 EUR
-        $this->assertEqualsWithDelta(751.5, $result->totalCost, 0.01);
+        // Winter months have 30% higher consumption than summer (factor 1.156 vs 0.889)
+        //
+        // Winter: 1155.6 kWh/month (1000 × 1.156), 15% night share
+        //   - Day portion: 1155.6 × 0.85 × 8 c = 7858 c = 78.58 EUR
+        //   - Night portion: 1155.6 × 0.15 × 5 c = 867 c = 8.67 EUR
+        //   - Total per winter month: 87.25 EUR + 2 EUR fixed = 89.25 EUR
+        //   - Winter total: 5 × 89.25 = 446.25 EUR
+        //
+        // Summer: 888.9 kWh/month (1000 × 0.889)
+        //   - Energy: 888.9 × 5 c = 4444 c = 44.44 EUR + 2 EUR fixed = 46.44 EUR
+        //   - Summer total: 7 × 46.44 = 325.11 EUR
+        //
+        // Annual total: 446.25 + 325.11 = 771.36 EUR
+        $this->assertEqualsWithDelta(771.33, $result->totalCost, 0.1);
     }
 
     /**

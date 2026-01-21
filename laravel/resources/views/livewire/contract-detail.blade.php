@@ -191,16 +191,16 @@
                             </div>
                         @endif
                     </div>
-                @elseif ($contract->metering === 'Seasonal')
+                @elseif ($contract->metering === 'Season')
                     <!-- Seasonal metering -->
                     <div class="space-y-4">
-                        @if (isset($latestPrices['SeasonalWinter']))
+                        @if (isset($latestPrices['SeasonalWinterDay']))
                             <div class="flex justify-between items-center py-3 border-b border-slate-100">
                                 <div>
                                     <span class="text-slate-600">Talvi</span>
                                     <span class="text-sm text-slate-400 ml-2">(marras-maaliskuu, päivä)</span>
                                 </div>
-                                <span class="text-xl font-semibold text-slate-900">{{ number_format($latestPrices['SeasonalWinter']['price'], 2, ',', ' ') }} c/kWh</span>
+                                <span class="text-xl font-semibold text-slate-900">{{ number_format($latestPrices['SeasonalWinterDay']['price'], 2, ',', ' ') }} c/kWh</span>
                             </div>
                         @endif
                         @if (isset($latestPrices['SeasonalOther']))
@@ -224,13 +224,23 @@
 
             <!-- Price History -->
             @if (count($priceHistory) > 0 && collect($priceHistory)->flatten(1)->count() > count($priceHistory))
+                @php
+                    $priceTypeLabels = [
+                        'General' => 'Energiahinta',
+                        'Monthly' => 'Perusmaksu',
+                        'DayTime' => 'Päiväsähkö (07:00-22:00)',
+                        'NightTime' => 'Yösähkö (22:00-07:00)',
+                        'SeasonalWinterDay' => 'Talvihinta (marras-maaliskuu, päivä)',
+                        'SeasonalOther' => 'Muu aika',
+                    ];
+                @endphp
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                     <h2 class="text-lg font-semibold text-slate-900 mb-4">Hintahistoria</h2>
                     <div class="space-y-4">
                         @foreach ($priceHistory as $type => $history)
                             @if (count($history) > 1)
                                 <div>
-                                    <h3 class="text-sm font-medium text-slate-700 mb-2">{{ $type }}</h3>
+                                    <h3 class="text-sm font-medium text-slate-700 mb-2">{{ $priceTypeLabels[$type] ?? $type }}</h3>
                                     <div class="overflow-x-auto">
                                         <table class="min-w-full text-sm">
                                             <thead>
@@ -243,7 +253,7 @@
                                                 @foreach ($history as $record)
                                                     <tr class="border-t border-slate-100">
                                                         <td class="py-2 pr-4 text-slate-600">{{ $record['date'] }}</td>
-                                                        <td class="py-2 font-medium text-slate-900">{{ number_format($record['price'], 2, ',', ' ') }}</td>
+                                                        <td class="py-2 font-medium text-slate-900">{{ number_format($record['price'], 2, ',', ' ') }} {{ $type === 'Monthly' ? 'EUR/kk' : 'c/kWh' }}</td>
                                                     </tr>
                                                 @endforeach
                                             </tbody>

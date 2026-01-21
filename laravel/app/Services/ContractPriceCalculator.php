@@ -28,6 +28,12 @@ class ContractPriceCalculator
     ];
 
     /**
+     * Winter months have 30% higher general electricity consumption than summer months.
+     * This reflects reality in Finland: more lighting, indoor activities, etc.
+     */
+    public const WINTER_CONSUMPTION_MULTIPLIER = 1.30;
+
+    /**
      * Night time shares for different usage components.
      * Nighttime hours: 22:00-07:00 (8 hours = 33% of day).
      */
@@ -346,6 +352,10 @@ class ContractPriceCalculator
     /**
      * Calculate seasonal costs for each month.
      *
+     * Applies both seasonal pricing AND seasonal consumption weighting.
+     * Winter months have 30% higher consumption than summer months.
+     *
+     * @param float $electricityUse Monthly average electricity use (annual / 12)
      * @return array Array of 12 monthly costs in cents
      */
     private function calculateSeasonalCosts(
@@ -356,15 +366,26 @@ class ContractPriceCalculator
     ): array {
         $monthlyCosts = [];
 
-        foreach (self::WINTER_PRICE_MONTHS as $isWinterPrice) {
-            if ($isWinterPrice) {
-                // Winter month: day rate for day portion, night rate for night portion
-                $normalRateCost = $electricityUse * (1 - $nightTimeUsageShare) * $normalPrice;
-                $discountRateCost = $electricityUse * $nightTimeUsageShare * $discountPrice;
+        // Calculate consumption adjustment factors to maintain annual total
+        // 5 winter months × winterFactor + 7 summer months × summerFactor = 12 × monthlyAvg
+        // With winter = 1.3 × summer: 7s + 5(1.3s) = 12 → s = 12/13.5
+        $winterMonths = 5;
+        $summerMonths = 7;
+        $totalWeightedMonths = $summerMonths + ($winterMonths * self::WINTER_CONSUMPTION_MULTIPLIER);
+        $summerConsumptionFactor = 12 / $totalWeightedMonths;  // ≈ 0.889
+        $winterConsumptionFactor = $summerConsumptionFactor * self::WINTER_CONSUMPTION_MULTIPLIER;  // ≈ 1.156
+
+        foreach (self::WINTER_PRICE_MONTHS as $isWinterMonth) {
+            if ($isWinterMonth) {
+                // Winter month: higher consumption + winter pricing
+                $monthlyUse = $electricityUse * $winterConsumptionFactor;
+                $normalRateCost = $monthlyUse * (1 - $nightTimeUsageShare) * $normalPrice;
+                $discountRateCost = $monthlyUse * $nightTimeUsageShare * $discountPrice;
                 $monthlyCosts[] = $normalRateCost + $discountRateCost;
             } else {
-                // Summer month: only discount/other rate
-                $monthlyCosts[] = $electricityUse * $discountPrice;
+                // Summer month: lower consumption + discount rate
+                $monthlyUse = $electricityUse * $summerConsumptionFactor;
+                $monthlyCosts[] = $monthlyUse * $discountPrice;
             }
         }
 

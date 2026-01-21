@@ -388,7 +388,7 @@ class FetchContractsCommandTest extends TestCase
         // Verify seasonal price components
         $this->assertDatabaseHas('price_components', [
             'electricity_contract_id' => 'seasonal-contract',
-            'price_component_type' => 'SeasonalWinter',
+            'price_component_type' => 'SeasonalWinterDay',
             'price' => 8.0,
         ]);
 

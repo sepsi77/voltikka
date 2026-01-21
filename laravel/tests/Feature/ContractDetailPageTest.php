@@ -385,14 +385,14 @@ class ContractDetailPageTest extends TestCase
             'company_name' => 'Test Energia Oy',
             'name' => 'Kausi Sähkö',
             'contract_type' => 'Fixed',
-            'metering' => 'Seasonal',
+            'metering' => 'Season',
             'availability_is_national' => true,
         ]);
 
         PriceComponent::create([
             'id' => 'pc-winter-seasonal',
             'electricity_contract_id' => 'seasonal-metering-contract',
-            'price_component_type' => 'SeasonalWinter',
+            'price_component_type' => 'SeasonalWinterDay',
             'price_date' => now()->format('Y-m-d'),
             'price' => 7.0,
             'payment_unit' => 'c/kWh',
