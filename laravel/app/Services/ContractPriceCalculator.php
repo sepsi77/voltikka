@@ -86,8 +86,19 @@ class ContractPriceCalculator
             };
         }
 
-        // If no per-kWh rates are set, return fixed monthly fee only
-        if (!$seasonalOtherRate && !$seasonalWinterDayRate && !$generalRate && !$nightTimeRate && !$dayTimeRate) {
+        // Detect spot contracts FIRST - check pricing_model
+        $pricingModel = $contractData['pricing_model'] ?? '';
+        $isSpotContract = $pricingModel === 'Spot';
+
+        // Also detect spot contracts by abnormally low prices (< 0.8 c/kWh)
+        // These are margins added on top of spot prices
+        if (!$isSpotContract && $generalRate > 0 && $generalRate < 0.8) {
+            $isSpotContract = true;
+        }
+
+        // If no per-kWh rates are set AND it's not a spot contract, return fixed monthly fee only
+        $hasPerKwhRates = $seasonalOtherRate || $seasonalWinterDayRate || $generalRate || $nightTimeRate || $dayTimeRate;
+        if (!$hasPerKwhRates && !$isSpotContract) {
             $monthlyCosts = array_fill(0, 12, $fixedMonthlyFee);
             $annualCost = array_sum($monthlyCosts);
 
@@ -118,16 +129,7 @@ class ContractPriceCalculator
             $discountPrice = $seasonalOtherRate;
         }
 
-        // Handle spot price contracts - check pricing_model, not contract_type
-        $pricingModel = $contractData['pricing_model'] ?? '';
-        $isSpotContract = $pricingModel === 'Spot';
-
-        // Also detect spot contracts by abnormally low prices (< 0.8 c/kWh)
-        // These are margins added on top of spot prices
-        if (!$isSpotContract && $regularPrice > 0 && $regularPrice < 0.8) {
-            $isSpotContract = true;
-        }
-
+        // Handle spot price contracts - use spot price + margin
         if ($isSpotContract) {
             // Find the margin from the first non-monthly price component
             foreach ($priceComponents as $comp) {
