@@ -587,30 +587,8 @@
             </button>
         </div>
 
-        <!-- Historical Data Section (Lazy Loaded) -->
+        <!-- Historical Data Section -->
         <section class="mb-8">
-            @if (!$historicalDataLoaded)
-                <!-- Load Historical Data Button -->
-                <div class="bg-slate-50 rounded-lg p-6 text-center">
-                    <h3 class="text-lg font-semibold text-slate-900 mb-2">Historialliset hintatiedot</h3>
-                    <p class="text-slate-600 mb-4">Näytä viikon hintakehitys, kuukausivertailu ja vuosivertailu.</p>
-                    <button
-                        wire:click="loadHistoricalData"
-                        wire:loading.attr="disabled"
-                        class="inline-flex items-center px-6 py-3 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-gradient-to-r from-coral-500 to-coral-600 hover:from-coral-400 hover:to-coral-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-coral-500 disabled:opacity-50"
-                    >
-                        <svg wire:loading.remove wire:target="loadHistoricalData" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                        </svg>
-                        <svg wire:loading wire:target="loadHistoricalData" class="animate-spin w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span wire:loading.remove wire:target="loadHistoricalData">Lataa historiatiedot</span>
-                        <span wire:loading wire:target="loadHistoricalData">Ladataan...</span>
-                    </button>
-                </div>
-            @else
                 <!-- Weekly Price Chart -->
                 @if (!empty($weeklyChartData['labels']))
                     <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 md:p-6 mb-6">
@@ -721,7 +699,6 @@
                         </div>
                     @endif
                 </div>
-            @endif
         </section>
     @endif
 

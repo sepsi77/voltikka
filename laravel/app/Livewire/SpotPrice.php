@@ -41,6 +41,7 @@ class SpotPrice extends Component
     public function mount(): void
     {
         $this->fetchPrices();
+        $this->loadHistoricalData();
     }
 
     public function fetchPrices(): void
