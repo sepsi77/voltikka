@@ -896,10 +896,18 @@ class ContractsList extends Component
         });
 
         // Sort by total cost (ascending), but put contracts that exceed consumption limit at the end
-        return $contracts->sortBy([
-            fn ($c) => $c->exceeds_consumption_limit ? 1 : 0,
-            fn ($c) => $c->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX,
-        ])->values();
+        return $contracts->sort(function ($a, $b) {
+            // First sort by exceeds_consumption_limit (false first, true last)
+            $aExceeds = $a->exceeds_consumption_limit ? 1 : 0;
+            $bExceeds = $b->exceeds_consumption_limit ? 1 : 0;
+            if ($aExceeds !== $bExceeds) {
+                return $aExceeds - $bExceeds;
+            }
+            // Then sort by total cost (ascending)
+            $aCost = $a->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
+            $bCost = $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
+            return $aCost <=> $bCost;
+        })->values();
     }
 
     /**
