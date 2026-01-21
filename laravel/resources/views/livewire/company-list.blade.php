@@ -31,7 +31,7 @@
 
         <!-- Ranking Categories Section -->
         <section class="mb-12">
-            <h2 class="text-2xl font-bold text-slate-900 mb-6">Sähköyhtiöt kategorioittain</h2>
+            <h2 class="text-2xl font-bold text-slate-900 mb-6">Parhaat sähköyhtiöt</h2>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Cheapest Companies -->
