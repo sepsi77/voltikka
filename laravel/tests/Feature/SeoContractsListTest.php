@@ -442,15 +442,15 @@ class SeoContractsListTest extends TestCase
     // ==================== Reuses Parent Filter Logic Tests ====================
 
     /**
-     * Test that contract type filter from parent still works.
+     * Test that pricing model filter from parent still works.
      */
-    public function test_contract_type_filter_from_parent_works(): void
+    public function test_pricing_model_filter_from_parent_works(): void
     {
         $this->createContract('spot-contract', 'Test Energia Oy', 'Spot Electricity', 0.5, 3.0, null, 'Spot');
         $this->createContract('fixed-contract', 'Vihreä Voima Ab', 'Fixed Electricity', 5.0, 3.0, null, 'FixedPrice', 'FixedTerm');
 
         $component = Livewire::test('seo-contracts-list')
-            ->set('contractTypeFilter', 'Spot');
+            ->set('pricingModelFilter', 'Spot');
 
         $contracts = $component->viewData('contracts');
 

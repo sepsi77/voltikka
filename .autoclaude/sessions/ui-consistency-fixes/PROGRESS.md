@@ -39,19 +39,52 @@ In `laravel/resources/views/livewire/seo-contracts-list.blade.php`:
 - Added decorative gradient blobs div with coral-colored blurred circles
 - Added `relative` class to inner container
 
-#### 5. Additional improvements
+#### 5. Additional improvements (Iteration 1)
 - Added pricing type links to the "Katso myös" (See also) section in SEO pages
 - Updated grid from 3 columns to 4 columns to accommodate new pricing type category
 - Updated `laravel/app/Services/SitemapService.php` to include pricing type URLs in sitemap
 - Added `$pricingTypes` array and `getPricingTypeUrls()` method to sitemap service
 - Pricing type pages given high priority (0.9) and daily changefreq in sitemap
 
-### Files Modified
-1. `laravel/routes/web.php` - Added new SEO pricing type routes
-2. `laravel/app/Livewire/SeoContractsList.php` - Extended component for pricing type support
-3. `laravel/resources/views/livewire/seo-contracts-list.blade.php` - Updated hero section styling and internal links
-4. `laravel/app/Services/SitemapService.php` - Added pricing type URLs to sitemap
+#### 6. Fix city page memory error (Iteration 2)
+**Root cause:** The old `filterByCity()` method accessed `$contract->availabilityPostcodes` for each contract, triggering lazy loading of the `contract_postcode` pivot table. With 490 contracts and potentially thousands of postcodes per contract, this caused memory exhaustion.
+
+**Solution:** Completely rewrote `getContractsProperty()` in `SeoContractsList.php` to:
+- Apply city filtering at the database level using a subquery with EXISTS clause
+- Join `contract_postcode` with `postcodes` table and filter by `municipal_name_fi`
+- Only 4 queries are executed now (main + 3 eager loaded relationships)
+- Removed unused methods: `filterByCity()`, `getCityPostcodes()`, `filterByPricingType()`
+
+**Code changes in `laravel/app/Livewire/SeoContractsList.php`:**
+- Added imports: `SpotPriceAverage`, `CO2EmissionsCalculator`, `ContractPriceCalculator`, `EnergyUsage`, `DB`
+- Rewrote `getContractsProperty()` to build query from scratch (not calling parent)
+- City filter uses: `whereExists(subquery joining contract_postcode and postcodes)`
+- Removed 3 helper methods that are no longer needed
+
+#### 7. Fix incorrect test
+- Fixed `test_contract_type_filter_from_parent_works` in `tests/Feature/SeoContractsListTest.php`
+- Renamed to `test_pricing_model_filter_from_parent_works`
+- Changed filter from `contractTypeFilter` to `pricingModelFilter` (Spot is a pricing model, not contract type)
+
+#### 8. Browser testing verification
+Verified all pages with agent-browser:
+- `/sahkosopimus/porssisahko` - Loads correctly with spot contracts, correct hero styling
+- `/sahkosopimus/kiintea-hinta` - Loads correctly with fixed price contracts, correct hero styling
+- `/sahkosopimus/helsinki` - Loads without memory errors, correct hero styling
+- All SEO pages have consistent hero with radial gradient background and coral blobs
+- Hero badge shows "Vertaile älykkäästi" with lightning bolt icon on all pages
+
+Screenshots saved in session directory:
+- `screenshot-porssisahko.png`
+- `screenshot-kiintea-hinta.png`
+- `screenshot-helsinki.png`
+- `screenshot-homepage.png`
+
+### Files Modified (Iteration 2)
+1. `laravel/app/Livewire/SeoContractsList.php` - Fixed memory issue with database-level city filtering
+2. `laravel/tests/Feature/SeoContractsListTest.php` - Fixed incorrect test using wrong filter name
 
 ### Test Results
-- Routes are correctly registered (verified via `php artisan route:list`)
-- Existing test failures are pre-existing issues unrelated to these changes (SpotPrice component tests, MySQL PDO deprecation warnings, incorrect test using 'Spot' for contractTypeFilter instead of pricingModelFilter)
+- All 29 SeoContractsListTest tests pass (with deprecation warnings for MySQL PDO constants)
+- City page query verified in tinker: 453 contracts found in Helsinki with only 4 queries
+- No memory exhaustion errors

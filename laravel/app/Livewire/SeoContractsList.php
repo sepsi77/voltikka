@@ -5,7 +5,12 @@ namespace App\Livewire;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\Postcode;
+use App\Models\SpotPriceAverage;
+use App\Services\CO2EmissionsCalculator;
+use App\Services\ContractPriceCalculator;
+use App\Services\DTO\EnergyUsage;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class SeoContractsList extends ContractsList
@@ -113,73 +118,147 @@ class SeoContractsList extends ContractsList
 
     /**
      * Get contracts with SEO-specific filtering applied.
+     *
+     * Overrides parent method to apply city filtering at database level
+     * for memory optimization - avoids loading all pivot records.
      */
     public function getContractsProperty(): Collection
     {
-        // Get base contracts from parent
-        $contracts = parent::getContractsProperty();
+        $calculator = app(ContractPriceCalculator::class);
 
-        // Apply energy source filters based on SEO parameter
+        $query = ElectricityContract::query()
+            ->with(['company', 'priceComponents', 'electricitySource']);
+
+        // Apply contract type filter (FixedTerm, OpenEnded)
+        if ($this->contractTypeFilter !== '') {
+            $query->where('contract_type', $this->contractTypeFilter);
+        }
+
+        // Apply pricing model filter from parent
+        if ($this->pricingModelFilter !== '') {
+            $query->where('pricing_model', $this->pricingModelFilter);
+        }
+
+        // Apply SEO pricing type filter (overrides pricingModelFilter if set)
+        if ($this->pricingType) {
+            $query->where('pricing_model', $this->pricingType);
+        }
+
+        // Apply metering type filter
+        if ($this->meteringFilter !== '') {
+            $query->where('metering', $this->meteringFilter);
+        }
+
+        // Apply postcode filter at database level (memory optimization)
+        if ($this->postcodeFilter !== '') {
+            $postcode = $this->postcodeFilter;
+            $query->where(function ($q) use ($postcode) {
+                $q->where('availability_is_national', true)
+                  ->orWhereExists(function ($subquery) use ($postcode) {
+                      $subquery->select(DB::raw(1))
+                               ->from('contract_postcode')
+                               ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
+                               ->where('contract_postcode.postcode', $postcode);
+                  });
+            });
+        }
+
+        // Apply city filter at database level (memory optimization)
+        // This avoids loading all pivot records into memory
+        if ($this->city) {
+            $cityData = $this->getCityData($this->city);
+            $cityName = $cityData['name'];
+
+            $query->where(function ($q) use ($cityName) {
+                $q->where('availability_is_national', true)
+                  ->orWhereExists(function ($subquery) use ($cityName) {
+                      $subquery->select(DB::raw(1))
+                               ->from('contract_postcode')
+                               ->join('postcodes', 'contract_postcode.postcode', '=', 'postcodes.postcode')
+                               ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
+                               ->where('postcodes.municipal_name_fi', $cityName);
+                  });
+            });
+        }
+
+        $contracts = $query->get();
+
+        // Apply energy source filters
+        if ($this->renewableFilter) {
+            $contracts = $contracts->filter(function ($contract) {
+                $source = $contract->electricitySource;
+                return $source && $source->renewable_total >= 50;
+            });
+        }
+
+        if ($this->nuclearFilter) {
+            $contracts = $contracts->filter(function ($contract) {
+                $source = $contract->electricitySource;
+                return $source && $source->hasNuclear();
+            });
+        }
+
+        if ($this->fossilFreeFilter) {
+            $contracts = $contracts->filter(function ($contract) {
+                $source = $contract->electricitySource;
+                return $source && $source->isFossilFree();
+            });
+        }
+
+        // Apply SEO energy source filters
         if ($this->energySource) {
             $contracts = $this->filterByEnergySource($contracts);
         }
 
-        // Apply city filter - show national contracts + contracts available in city's postcodes
-        if ($this->city) {
-            $contracts = $this->filterByCity($contracts);
-        }
-
-        // Apply pricing type filter
-        if ($this->pricingType) {
-            $contracts = $this->filterByPricingType($contracts);
-        }
-
-        return $contracts;
-    }
-
-    /**
-     * Filter contracts by pricing type (Spot, FixedPrice).
-     */
-    protected function filterByPricingType(Collection $contracts): Collection
-    {
-        return $contracts->filter(function ($contract) {
-            return $contract->pricing_model === $this->pricingType;
+        // Filter by consumption range
+        $consumption = $this->consumption;
+        $contracts = $contracts->filter(function ($contract) use ($consumption) {
+            return $contract->isConsumptionInRange($consumption);
         });
-    }
 
-    /**
-     * Filter contracts by city availability.
-     * Shows contracts that are either national or available in the city's postcodes.
-     */
-    protected function filterByCity(Collection $contracts): Collection
-    {
-        // Get postcodes for this city
-        $cityPostcodes = $this->getCityPostcodes($this->city);
+        // Get spot price averages for calculations
+        $spotPriceAvg = SpotPriceAverage::latestRolling365Days();
+        $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
+        $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
 
-        return $contracts->filter(function ($contract) use ($cityPostcodes) {
-            // National contracts are available everywhere
-            if ($contract->availability_is_national) {
-                return true;
-            }
+        // Get emission calculator
+        $emissionsCalculator = app(CO2EmissionsCalculator::class);
 
-            // Check if contract is available in any of the city's postcodes
-            $contractPostcodes = $contract->availabilityPostcodes->pluck('postcode')->toArray();
-            return !empty(array_intersect($contractPostcodes, $cityPostcodes));
+        // Calculate cost and emissions for each contract and sort by cost
+        $contracts = $contracts->map(function ($contract) use ($calculator, $emissionsCalculator, $spotPriceDay, $spotPriceNight, $consumption) {
+            $priceComponents = $contract->priceComponents
+                ->sortByDesc('price_date')
+                ->groupBy('price_component_type')
+                ->map(fn ($group) => $group->first())
+                ->values()
+                ->map(fn ($pc) => [
+                    'price_component_type' => $pc->price_component_type,
+                    'price' => $pc->price,
+                ])
+                ->toArray();
+
+            $usage = new EnergyUsage(
+                total: $consumption,
+                basicLiving: $consumption,
+            );
+
+            $contractData = [
+                'contract_type' => $contract->contract_type,
+                'pricing_model' => $contract->pricing_model,
+                'metering' => $contract->metering,
+            ];
+
+            $result = $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
+            $contract->calculated_cost = $result->toArray();
+
+            // Calculate emission factor for this contract
+            $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
+
+            return $contract;
         });
-    }
 
-    /**
-     * Get postcodes for a city based on municipal name.
-     */
-    protected function getCityPostcodes(string $citySlug): array
-    {
-        $cityData = $this->getCityData($citySlug);
-        $cityName = $cityData['name'];
-
-        return Postcode::where('municipal_name_fi', $cityName)
-            ->orWhere('municipal_name_fi_slug', $citySlug)
-            ->pluck('postcode')
-            ->toArray();
+        // Sort by total cost (ascending)
+        return $contracts->sortBy(fn ($c) => $c->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX)->values();
     }
 
     /**
