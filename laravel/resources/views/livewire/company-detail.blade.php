@@ -67,8 +67,13 @@
 
                     <div class="flex-1 text-center lg:text-left">
                         <h1 class="text-3xl md:text-4xl font-bold text-white mb-2">
-                            {{ $company->name }}
+                            {{ $h1 }}
                         </h1>
+
+                        {{-- Hero description with company-specific SEO content --}}
+                        <p class="text-lg text-slate-300 mb-4">
+                            {{ $heroDescription }}
+                        </p>
 
                         @if ($company->street_address || $company->postal_code || $company->postal_name)
                             <p class="text-slate-300 mb-2">

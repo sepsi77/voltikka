@@ -287,7 +287,7 @@ class CompanyDetail extends Component
         $stats = $this->companyStats;
         $parts = [];
 
-        $parts[] = "{$this->company->name} - sähkösopimukset ja hinnat";
+        $parts[] = "{$this->company->name} sähkösopimukset";
 
         if ($stats['contract_count'] > 0) {
             $parts[] = "{$stats['contract_count']} sopimusta";
@@ -295,6 +295,81 @@ class CompanyDetail extends Component
 
         if ($stats['min_price'] !== null) {
             $parts[] = "alkaen " . number_format($stats['min_price'], 0, ',', ' ') . " €/vuosi";
+        }
+
+        if ($stats['avg_renewable_percent'] !== null && $stats['avg_renewable_percent'] >= 50) {
+            $parts[] = number_format($stats['avg_renewable_percent'], 0) . "% uusiutuvaa energiaa";
+        }
+
+        $parts[] = "Vertaa hintoja ja löydä paras sopimus";
+
+        return implode('. ', $parts) . '.';
+    }
+
+    /**
+     * Get the page title optimized for SEO.
+     */
+    public function getPageTitleProperty(): string
+    {
+        if (!$this->company) {
+            return 'Sähkösopimukset | Voltikka';
+        }
+
+        $stats = $this->companyStats;
+        $year = date('Y');
+
+        // Build a descriptive title
+        $titleParts = ["{$this->company->name} sähkösopimukset {$year}"];
+
+        if ($stats['contract_count'] > 0) {
+            $titleParts[] = "Hinnat ja vertailu";
+        }
+
+        return implode(' - ', $titleParts) . ' | Voltikka';
+    }
+
+    /**
+     * Get the H1 heading for the page.
+     */
+    public function getH1Property(): string
+    {
+        if (!$this->company) {
+            return 'Sähkösopimukset';
+        }
+
+        return "{$this->company->name} sähkösopimukset";
+    }
+
+    /**
+     * Get the hero subtitle/description for the page.
+     */
+    public function getHeroDescriptionProperty(): string
+    {
+        if (!$this->company) {
+            return 'Vertaile sähkösopimuksia.';
+        }
+
+        $stats = $this->companyStats;
+        $parts = [];
+
+        if ($stats['contract_count'] > 0) {
+            $parts[] = "Vertaile {$stats['contract_count']} sähkösopimusta";
+        }
+
+        if ($stats['min_price'] !== null) {
+            $parts[] = "hinnat alkaen " . number_format($stats['min_price'], 0, ',', ' ') . " €/vuosi";
+        }
+
+        if ($stats['avg_renewable_percent'] !== null) {
+            if ($stats['avg_renewable_percent'] >= 100) {
+                $parts[] = "100% uusiutuvaa energiaa";
+            } elseif ($stats['avg_renewable_percent'] >= 50) {
+                $parts[] = "keskimäärin " . number_format($stats['avg_renewable_percent'], 0) . "% uusiutuvaa";
+            }
+        }
+
+        if ($stats['spot_contract_count'] > 0) {
+            $parts[] = "{$stats['spot_contract_count']} pörssisähkösopimusta";
         }
 
         return implode('. ', $parts) . '.';
@@ -310,8 +385,10 @@ class CompanyDetail extends Component
             'contracts' => $this->contracts,
             'companyStats' => $this->companyStats,
             'jsonLd' => $this->jsonLd,
+            'h1' => $this->h1,
+            'heroDescription' => $this->heroDescription,
         ])->layout('layouts.app', [
-            'title' => "{$this->company->name} - Sähkösopimukset | Voltikka",
+            'title' => $this->pageTitle,
             'metaDescription' => $this->metaDescription,
             'canonical' => $this->canonicalUrl,
         ]);
