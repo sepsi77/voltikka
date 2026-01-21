@@ -30,6 +30,7 @@ class SahkosopimusIndex extends SeoContractsList
     /**
      * Generate SEO-optimized title for the comparison index page.
      * When filters are active, use filter-aware title from parent.
+     * Page suffix is added for pages > 1.
      */
     protected function generateSeoTitle(): string
     {
@@ -37,7 +38,13 @@ class SahkosopimusIndex extends SeoContractsList
             return $this->pageTitle . ' | Voltikka';
         }
 
-        return 'Sähkösopimusten vertailu ' . date('Y') . ' | Voltikka';
+        $title = 'Sähkösopimusten vertailu ' . date('Y');
+
+        if ($this->page > 1) {
+            $title .= ' – Sivu ' . $this->page;
+        }
+
+        return $title . ' | Voltikka';
     }
 
     /**
