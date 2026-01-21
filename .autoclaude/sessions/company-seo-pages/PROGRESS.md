@@ -165,6 +165,14 @@
 ### Tests
 - All 17 CompanyListPageTest tests continue to pass
 
+### Completed: Task 7 - Update sitemap service
+- Updated `/laravel/app/Services/SitemapService.php` with:
+  - Changed company URLs from `/sahkosopimus/yritys/{slug}` to `/sahkosopimus/sahkoyhtiot/{slug}`
+  - Added `/sahkosopimus/sahkoyhtiot` to main pages with priority 0.85
+  - Added `/sahkosopimus/yritykselle` to main pages with priority 0.8
+
+### Tests
+- All 29 SitemapTest tests pass
+
 ### Next Steps:
-- Task 7: Update sitemap service
 - Task 8: Run full test suite

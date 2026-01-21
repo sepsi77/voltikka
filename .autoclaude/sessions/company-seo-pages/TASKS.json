@@ -63,8 +63,10 @@
       "id": "update-sitemap",
       "title": "Update sitemap service",
       "description": "Update laravel/app/Services/SitemapService.php to: 1) Update getCompanyUrls() to use new path /sahkosopimus/sahkoyhtiot/{slug}, 2) Add main company listing URL /sahkosopimus/sahkoyhtiot to getMainPageUrls() with priority 0.85, 3) Add missing /sahkosopimus/yritykselle URL with priority 0.8.",
-      "status": "pending",
-      "priority": 7
+      "status": "completed",
+      "priority": 7,
+      "completed_at": "2026-01-21T15:30:00Z",
+      "passes": true
     },
     {
       "id": "run-tests",

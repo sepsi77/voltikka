@@ -98,6 +98,18 @@ class SitemapService
                 'changefreq' => 'daily',
                 'priority' => 0.9,
             ],
+            [
+                'loc' => $baseUrl . '/sahkosopimus/sahkoyhtiot',
+                'lastmod' => $today,
+                'changefreq' => 'weekly',
+                'priority' => 0.85,
+            ],
+            [
+                'loc' => $baseUrl . '/sahkosopimus/yritykselle',
+                'lastmod' => $today,
+                'changefreq' => 'weekly',
+                'priority' => 0.8,
+            ],
         ];
     }
 
@@ -194,7 +206,7 @@ class SitemapService
 
         return array_map(function ($slug) use ($baseUrl, $today) {
             return [
-                'loc' => $baseUrl . '/sahkosopimus/yritys/' . $slug,
+                'loc' => $baseUrl . '/sahkosopimus/sahkoyhtiot/' . $slug,
                 'lastmod' => $today,
                 'changefreq' => 'weekly',
                 'priority' => 0.7,
