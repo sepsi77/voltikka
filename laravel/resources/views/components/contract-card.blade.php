@@ -220,10 +220,4 @@
         </a>
     </div>
 
-    {{-- Featured Badge --}}
-    @if ($featured)
-        <div class="absolute top-0 right-0 bg-gradient-to-r from-coral-500 to-coral-600 text-white text-xs font-bold px-3 py-1.5 rounded-bl-xl rounded-tr-2xl">
-            Suositus
-        </div>
-    @endif
 </div>
