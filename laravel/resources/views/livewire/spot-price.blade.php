@@ -533,9 +533,20 @@
                                         <template x-if="quarterPrices.length > 0">
                                             <div class="grid grid-cols-2 md:grid-cols-4 gap-2 p-3">
                                                 <template x-for="(quarter, qIndex) in quarterPrices" :key="qIndex">
-                                                    <div class="bg-white rounded-lg p-3 border border-slate-200">
-                                                        <p class="text-xs text-slate-500 mb-1" x-text="quarter.time_label"></p>
-                                                        <p class="text-sm font-semibold text-slate-900">
+                                                    <div
+                                                        class="rounded-lg p-3 border"
+                                                        :class="{
+                                                            'bg-coral-50 border-coral-300 ring-2 ring-coral-200': quarter.is_current_slot,
+                                                            'bg-white border-slate-200': !quarter.is_current_slot
+                                                        }"
+                                                    >
+                                                        <p class="text-xs mb-1" :class="quarter.is_current_slot ? 'text-coral-600 font-medium' : 'text-slate-500'">
+                                                            <span x-text="quarter.time_label"></span>
+                                                            <template x-if="quarter.is_current_slot">
+                                                                <span class="ml-1 bg-coral-200 text-coral-800 px-1.5 py-0.5 rounded text-xs">Nyt</span>
+                                                            </template>
+                                                        </p>
+                                                        <p class="text-sm font-semibold" :class="quarter.is_current_slot ? 'text-coral-700' : 'text-slate-900'">
                                                             <span x-text="quarter.price_without_tax.toFixed(2).replace('.', ',')"></span> c/kWh
                                                         </p>
                                                         <p class="text-xs text-slate-500">

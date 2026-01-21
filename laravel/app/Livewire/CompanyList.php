@@ -72,7 +72,7 @@ class CompanyList extends Component
                 $priceComponents = $contract->priceComponents
                     ->sortByDesc('price_date')
                     ->groupBy('price_component_type')
-                    ->map(fn ($group) => $group->sortByDesc('price')->first())
+                    ->map(fn ($group) => $group->sortByDesc('price_date')->first(fn ($item) => $item->price > 0) ?? $group->sortByDesc('price_date')->first())
                     ->values()
                     ->map(fn ($pc) => [
                         'price_component_type' => $pc->price_component_type,

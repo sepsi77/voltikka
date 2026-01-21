@@ -248,7 +248,7 @@ class SeoContractsList extends ContractsList
             $priceComponents = $contract->priceComponents
                 ->sortByDesc('price_date')
                 ->groupBy('price_component_type')
-                ->map(fn ($group) => $group->sortByDesc('price')->first()) // Prefer non-zero prices
+                ->map(fn ($group) => $group->sortByDesc('price_date')->first(fn ($item) => $item->price > 0) ?? $group->sortByDesc('price_date')->first())
                 ->values()
                 ->map(fn ($pc) => [
                     'price_component_type' => $pc->price_component_type,

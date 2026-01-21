@@ -106,6 +106,14 @@ class SpotPrice extends Component
 
         $this->quarterPricesByHour = [];
 
+        // Get current Helsinki time for determining the active slot
+        $helsinkiNow = Carbon::now(self::TIMEZONE);
+        $currentDate = $helsinkiNow->format('Y-m-d');
+        $currentHour = (int) $helsinkiNow->format('H');
+        $currentMinute = (int) $helsinkiNow->format('i');
+        // Calculate current quarter (0, 15, 30, 45)
+        $currentQuarterMinute = (int) floor($currentMinute / 15) * 15;
+
         foreach ($quarterPrices as $price) {
             $utcTime = Carbon::parse($price->utc_datetime)->shiftTimezone('UTC');
             $helsinkiTime = $utcTime->copy()->setTimezone(self::TIMEZONE);
@@ -120,6 +128,15 @@ class SpotPrice extends Component
 
             $minute = (int) $helsinkiTime->format('i');
             $nextMinute = $minute + 15;
+            $priceDate = $helsinkiTime->format('Y-m-d');
+            $priceHour = (int) $helsinkiTime->format('H');
+
+            // Check if this is the current 15-minute slot
+            $isCurrentSlot = (
+                $priceDate === $currentDate &&
+                $priceHour === $currentHour &&
+                $minute === $currentQuarterMinute
+            );
 
             $this->quarterPricesByHour[$hourTimestamp][] = [
                 'timestamp' => $price->timestamp,
@@ -127,6 +144,7 @@ class SpotPrice extends Component
                 'price_with_tax' => round($price->price_with_tax, 2),
                 'vat_rate' => $price->vat_rate,
                 'helsinki_minute' => $minute,
+                'is_current_slot' => $isCurrentSlot,
                 'time_label' => sprintf(
                     '%s:%02d-%s:%02d',
                     $helsinkiTime->format('H'),
