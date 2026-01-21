@@ -284,102 +284,8 @@
             @endif
         </div>
 
-        <!-- Right Column: Energy Source & Company Info -->
+        <!-- Right Column: Environmental Impact, Energy Source & Company Info -->
         <div class="space-y-6">
-            <!-- Electricity Source -->
-            @php
-                $hasSourceData = $contract->electricitySource &&
-                    (($contract->electricitySource->renewable_total && $contract->electricitySource->renewable_total > 0) ||
-                     ($contract->electricitySource->nuclear_total && $contract->electricitySource->nuclear_total > 0) ||
-                     ($contract->electricitySource->fossil_total && $contract->electricitySource->fossil_total > 0));
-            @endphp
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <h2 class="text-lg font-semibold text-slate-900 mb-4">Sähkön alkuperä</h2>
-
-                @if ($hasSourceData)
-                    <!-- Main breakdown -->
-                    <div class="space-y-3 mb-6">
-                        @if ($contract->electricitySource->renewable_total && $contract->electricitySource->renewable_total > 0)
-                            <div>
-                                <div class="flex justify-between items-center mb-1">
-                                    <span class="text-slate-600">Uusiutuva</span>
-                                    <span class="font-semibold text-green-600">{{ number_format($contract->electricitySource->renewable_total, 0, ',', ' ') }}%</span>
-                                </div>
-                                <div class="w-full bg-slate-200 rounded-full h-2">
-                                    <div class="bg-green-500 h-2 rounded-full" style="width: {{ min($contract->electricitySource->renewable_total, 100) }}%"></div>
-                                </div>
-                            </div>
-                        @endif
-                        @if ($contract->electricitySource->nuclear_total && $contract->electricitySource->nuclear_total > 0)
-                            <div>
-                                <div class="flex justify-between items-center mb-1">
-                                    <span class="text-slate-600">Ydinvoima</span>
-                                    <span class="font-semibold text-blue-600">{{ number_format($contract->electricitySource->nuclear_total, 0, ',', ' ') }}%</span>
-                                </div>
-                                <div class="w-full bg-slate-200 rounded-full h-2">
-                                    <div class="bg-blue-500 h-2 rounded-full" style="width: {{ min($contract->electricitySource->nuclear_total, 100) }}%"></div>
-                                </div>
-                            </div>
-                        @endif
-                        @if ($contract->electricitySource->fossil_total && $contract->electricitySource->fossil_total > 0)
-                            <div>
-                                <div class="flex justify-between items-center mb-1">
-                                    <span class="text-slate-600">Fossiilinen</span>
-                                    <span class="font-semibold text-red-600">{{ number_format($contract->electricitySource->fossil_total, 0, ',', ' ') }}%</span>
-                                </div>
-                                <div class="w-full bg-slate-200 rounded-full h-2">
-                                    <div class="bg-red-500 h-2 rounded-full" style="width: {{ min($contract->electricitySource->fossil_total, 100) }}%"></div>
-                                </div>
-                            </div>
-                        @endif
-                    </div>
-
-                    <!-- Renewable breakdown -->
-                    @if ($contract->electricitySource->renewable_total && $contract->electricitySource->renewable_total > 0)
-                        <div class="border-t border-slate-100 pt-4">
-                            <h3 class="text-sm font-medium text-slate-700 mb-3">Uusiutuvan erittely</h3>
-                            <div class="space-y-2 text-sm">
-                                @if ($contract->electricitySource->renewable_wind && $contract->electricitySource->renewable_wind > 0)
-                                    <div class="flex justify-between">
-                                        <span class="text-slate-600">Tuulivoima</span>
-                                        <span class="font-medium">{{ number_format($contract->electricitySource->renewable_wind, 0, ',', ' ') }}%</span>
-                                    </div>
-                                @endif
-                                @if ($contract->electricitySource->renewable_hydro && $contract->electricitySource->renewable_hydro > 0)
-                                    <div class="flex justify-between">
-                                        <span class="text-slate-600">Vesivoima</span>
-                                        <span class="font-medium">{{ number_format($contract->electricitySource->renewable_hydro, 0, ',', ' ') }}%</span>
-                                    </div>
-                                @endif
-                                @if ($contract->electricitySource->renewable_solar && $contract->electricitySource->renewable_solar > 0)
-                                    <div class="flex justify-between">
-                                        <span class="text-slate-600">Aurinkovoima</span>
-                                        <span class="font-medium">{{ number_format($contract->electricitySource->renewable_solar, 0, ',', ' ') }}%</span>
-                                    </div>
-                                @endif
-                                @if ($contract->electricitySource->renewable_biomass && $contract->electricitySource->renewable_biomass > 0)
-                                    <div class="flex justify-between">
-                                        <span class="text-slate-600">Biomassa</span>
-                                        <span class="font-medium">{{ number_format($contract->electricitySource->renewable_biomass, 0, ',', ' ') }}%</span>
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
-                    @endif
-                @else
-                    <!-- No source data available -->
-                    <div class="flex items-start gap-3 text-slate-600 bg-slate-50 rounded-lg p-4">
-                        <svg class="w-5 h-5 flex-shrink-0 mt-0.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <div class="text-sm">
-                            <p class="mb-1">Sähkön alkuperätietoja ei ole saatavilla tälle sopimukselle.</p>
-                            <p class="text-slate-500">Päästölaskennassa käytetään Suomen jäännösjakaumaa (390,93 gCO₂/kWh).</p>
-                        </div>
-                    </div>
-                @endif
-            </div>
-
             <!-- CO2 Emissions - Environmental Impact Section -->
             @if (!empty($co2Emissions))
                 @php
@@ -595,6 +501,100 @@
                     </details>
                 </div>
             @endif
+
+            <!-- Electricity Source -->
+            @php
+                $hasSourceData = $contract->electricitySource &&
+                    (($contract->electricitySource->renewable_total && $contract->electricitySource->renewable_total > 0) ||
+                     ($contract->electricitySource->nuclear_total && $contract->electricitySource->nuclear_total > 0) ||
+                     ($contract->electricitySource->fossil_total && $contract->electricitySource->fossil_total > 0));
+            @endphp
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <h2 class="text-lg font-semibold text-slate-900 mb-4">Sähkön alkuperä</h2>
+
+                @if ($hasSourceData)
+                    <!-- Main breakdown -->
+                    <div class="space-y-3 mb-6">
+                        @if ($contract->electricitySource->renewable_total && $contract->electricitySource->renewable_total > 0)
+                            <div>
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-slate-600">Uusiutuva</span>
+                                    <span class="font-semibold text-green-600">{{ number_format($contract->electricitySource->renewable_total, 0, ',', ' ') }}%</span>
+                                </div>
+                                <div class="w-full bg-slate-200 rounded-full h-2">
+                                    <div class="bg-green-500 h-2 rounded-full" style="width: {{ min($contract->electricitySource->renewable_total, 100) }}%"></div>
+                                </div>
+                            </div>
+                        @endif
+                        @if ($contract->electricitySource->nuclear_total && $contract->electricitySource->nuclear_total > 0)
+                            <div>
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-slate-600">Ydinvoima</span>
+                                    <span class="font-semibold text-blue-600">{{ number_format($contract->electricitySource->nuclear_total, 0, ',', ' ') }}%</span>
+                                </div>
+                                <div class="w-full bg-slate-200 rounded-full h-2">
+                                    <div class="bg-blue-500 h-2 rounded-full" style="width: {{ min($contract->electricitySource->nuclear_total, 100) }}%"></div>
+                                </div>
+                            </div>
+                        @endif
+                        @if ($contract->electricitySource->fossil_total && $contract->electricitySource->fossil_total > 0)
+                            <div>
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-slate-600">Fossiilinen</span>
+                                    <span class="font-semibold text-red-600">{{ number_format($contract->electricitySource->fossil_total, 0, ',', ' ') }}%</span>
+                                </div>
+                                <div class="w-full bg-slate-200 rounded-full h-2">
+                                    <div class="bg-red-500 h-2 rounded-full" style="width: {{ min($contract->electricitySource->fossil_total, 100) }}%"></div>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- Renewable breakdown -->
+                    @if ($contract->electricitySource->renewable_total && $contract->electricitySource->renewable_total > 0)
+                        <div class="border-t border-slate-100 pt-4">
+                            <h3 class="text-sm font-medium text-slate-700 mb-3">Uusiutuvan erittely</h3>
+                            <div class="space-y-2 text-sm">
+                                @if ($contract->electricitySource->renewable_wind && $contract->electricitySource->renewable_wind > 0)
+                                    <div class="flex justify-between">
+                                        <span class="text-slate-600">Tuulivoima</span>
+                                        <span class="font-medium">{{ number_format($contract->electricitySource->renewable_wind, 0, ',', ' ') }}%</span>
+                                    </div>
+                                @endif
+                                @if ($contract->electricitySource->renewable_hydro && $contract->electricitySource->renewable_hydro > 0)
+                                    <div class="flex justify-between">
+                                        <span class="text-slate-600">Vesivoima</span>
+                                        <span class="font-medium">{{ number_format($contract->electricitySource->renewable_hydro, 0, ',', ' ') }}%</span>
+                                    </div>
+                                @endif
+                                @if ($contract->electricitySource->renewable_solar && $contract->electricitySource->renewable_solar > 0)
+                                    <div class="flex justify-between">
+                                        <span class="text-slate-600">Aurinkovoima</span>
+                                        <span class="font-medium">{{ number_format($contract->electricitySource->renewable_solar, 0, ',', ' ') }}%</span>
+                                    </div>
+                                @endif
+                                @if ($contract->electricitySource->renewable_biomass && $contract->electricitySource->renewable_biomass > 0)
+                                    <div class="flex justify-between">
+                                        <span class="text-slate-600">Biomassa</span>
+                                        <span class="font-medium">{{ number_format($contract->electricitySource->renewable_biomass, 0, ',', ' ') }}%</span>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+                @else
+                    <!-- No source data available -->
+                    <div class="flex items-start gap-3 text-slate-600 bg-slate-50 rounded-lg p-4">
+                        <svg class="w-5 h-5 flex-shrink-0 mt-0.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div class="text-sm">
+                            <p class="mb-1">Sähkön alkuperätietoja ei ole saatavilla tälle sopimukselle.</p>
+                            <p class="text-slate-500">Päästölaskennassa käytetään Suomen jäännösjakaumaa (390,93 gCO₂/kWh).</p>
+                        </div>
+                    </div>
+                @endif
+            </div>
 
             <!-- Company Information -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">

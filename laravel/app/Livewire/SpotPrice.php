@@ -1300,6 +1300,9 @@ class SpotPrice extends Component
         }
 
         return view('livewire.spot-price', $viewData)
-            ->layout('layouts.app', ['title' => 'Pörssisähkön hinta - Voltikka']);
+            ->layout('layouts.app', [
+                'title' => 'Pörssisähkön hinta tänään - Voltikka',
+                'metaDescription' => 'Katso pörssisähkön tuntihinnat tänään ja huomenna. Vertaile sähkön hintoja ja löydä edullisin aika sähkönkäytölle.',
+            ]);
     }
 }

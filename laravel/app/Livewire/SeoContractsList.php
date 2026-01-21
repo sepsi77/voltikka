@@ -531,6 +531,8 @@ class SeoContractsList extends ContractsList
             'cityInfo' => $this->cityInfo,
         ])->layout('layouts.app', [
             'title' => $this->seoData['title'],
+            'metaDescription' => $this->seoData['description'],
+            'canonical' => $this->seoData['canonical'],
         ]);
     }
 }

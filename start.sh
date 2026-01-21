@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Voltikka Laravel Startup Script
+# Voltikka Laravel Startup Script (Local Development)
 # Starts both the scheduler (for recurring jobs) and the web server
 
 set -e
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/laravel"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -66,9 +66,9 @@ echo "  - spot:fetch: hourly"
 echo "  - descriptions:generate: daily at 08:00 (Europe/Helsinki)"
 echo ""
 echo "Logs:"
-echo "  - Scheduler: storage/logs/scheduler.log"
-echo "  - Contracts: storage/logs/contracts-fetch.log"
-echo "  - Spot prices: storage/logs/spot-fetch.log"
+echo "  - Scheduler: laravel/storage/logs/scheduler.log"
+echo "  - Contracts: laravel/storage/logs/contracts-fetch.log"
+echo "  - Spot prices: laravel/storage/logs/spot-fetch.log"
 echo ""
 echo "Press Ctrl+C to stop"
 echo "========================================"

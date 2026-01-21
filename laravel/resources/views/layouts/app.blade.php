@@ -9,6 +9,27 @@
         <meta name="description" content="{{ $metaDescription }}">
         @endif
 
+        <!-- Favicon -->
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+        <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
+        {{-- Canonical URL --}}
+        @if (isset($canonical))
+        <link rel="canonical" href="{{ $canonical }}">
+        @else
+        <link rel="canonical" href="{{ url()->current() }}">
+        @endif
+
+        {{-- Open Graph Tags --}}
+        <meta property="og:type" content="website">
+        <meta property="og:locale" content="fi_FI">
+        <meta property="og:site_name" content="Voltikka">
+        <meta property="og:title" content="{{ $title ?? 'Voltikka - Sähkösopimusten vertailu' }}">
+        @if (isset($metaDescription))
+        <meta property="og:description" content="{{ $metaDescription }}">
+        @endif
+        <meta property="og:url" content="{{ url()->current() }}">
+
         <!-- Fonts - Plus Jakarta Sans (Fresh Coral design system) -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -96,11 +117,13 @@
                 <div class="flex justify-between items-center h-16">
                     <!-- Logo -->
                     <div class="flex items-center">
-                        <a href="/" class="flex items-center">
-                            <!-- Desktop logo -->
-                            <span class="hidden lg:block text-2xl font-bold text-slate-900">Voltikka</span>
-                            <!-- Mobile logo (smaller) -->
-                            <span class="lg:hidden text-xl font-bold text-slate-900">Voltikka</span>
+                        <a href="/" class="flex items-center gap-2.5">
+                            <div class="w-9 h-9 bg-gradient-to-br from-coral-500 to-coral-600 rounded-xl flex items-center justify-center shadow-lg shadow-coral-500/20">
+                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                </svg>
+                            </div>
+                            <span class="text-xl font-extrabold text-slate-900">Voltikka</span>
                         </a>
                     </div>
 
@@ -147,8 +170,14 @@
                         </a>
                     </nav>
 
-                    <!-- Mobile menu button -->
-                    <div class="lg:hidden">
+                    <!-- Spot Price Badge (Desktop) -->
+                    <div class="hidden lg:block">
+                        @livewire('header-spot-price')
+                    </div>
+
+                    <!-- Spot Price Badge + Mobile menu button -->
+                    <div class="lg:hidden flex items-center gap-2">
+                        @livewire('header-spot-price')
                         <button
                             @click="mobileMenuOpen = !mobileMenuOpen"
                             type="button"
@@ -212,11 +241,19 @@
 
         <footer class="bg-slate-950 mt-auto">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-                <div class="text-center">
-                    <span class="text-2xl font-bold text-white">Voltikka</span>
-                    <p class="mt-4 text-slate-300 text-sm">
-                        &copy; {{ date('Y') }} Voltikka. Kaikki oikeudet pidätetään.
-                    </p>
+                <div class="flex flex-col items-center">
+                    <a href="/" class="flex items-center gap-2.5 mb-4">
+                        <div class="w-9 h-9 bg-gradient-to-br from-coral-500 to-coral-600 rounded-xl flex items-center justify-center">
+                            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                        </div>
+                        <span class="text-xl font-extrabold text-white">Voltikka</span>
+                    </a>
+                    <p class="text-slate-400 text-sm mb-8">Suomen kattavin sähkösopimusten vertailupalvelu.</p>
+                    <div class="border-t border-slate-800 pt-8 text-center text-sm text-slate-500">
+                        &copy; {{ date('Y') }} Voltikka
+                    </div>
                 </div>
             </div>
         </footer>

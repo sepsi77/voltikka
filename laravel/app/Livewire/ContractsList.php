@@ -10,6 +10,7 @@ use App\Enums\SupplementaryHeatingMethod;
 use App\Models\ElectricityContract;
 use App\Models\Postcode;
 use App\Models\SpotPriceAverage;
+use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyCalculatorRequest;
 use App\Services\DTO\EnergyUsage;
@@ -639,6 +640,27 @@ class ContractsList extends Component
     }
 
     /**
+     * Get the count of unique companies in the current contract list.
+     */
+    public function getUniqueCompanyCount(): int
+    {
+        return $this->contracts->pluck('company_name')->unique()->count();
+    }
+
+    /**
+     * Get the count of zero-emission contracts in the current list.
+     */
+    public function getZeroEmissionCount(): int
+    {
+        return $this->contracts->filter(function ($contract) {
+            return $contract->electricitySource
+                && ($contract->electricitySource->fossil_total ?? 0) == 0
+                && (($contract->electricitySource->renewable_total ?? 0) > 0
+                    || ($contract->electricitySource->nuclear_total ?? 0) > 0);
+        })->count();
+    }
+
+    /**
      * Generate a dynamic page title based on active filters.
      *
      * The title follows Finnish grammar conventions:
@@ -810,8 +832,12 @@ class ContractsList extends Component
         $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
         $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
 
-        // Calculate cost for each contract and sort by cost
-        $contracts = $contracts->map(function ($contract) use ($calculator, $spotPriceDay, $spotPriceNight) {
+        // Get emission calculator
+        $emissionsCalculator = app(CO2EmissionsCalculator::class);
+
+        // Calculate cost and emissions for each contract and sort by cost
+        $consumption = $this->consumption;
+        $contracts = $contracts->map(function ($contract) use ($calculator, $emissionsCalculator, $spotPriceDay, $spotPriceNight, $consumption) {
             $priceComponents = $contract->priceComponents
                 ->sortByDesc('price_date')
                 ->groupBy('price_component_type')
@@ -824,8 +850,8 @@ class ContractsList extends Component
                 ->toArray();
 
             $usage = new EnergyUsage(
-                total: $this->consumption,
-                basicLiving: $this->consumption,
+                total: $consumption,
+                basicLiving: $consumption,
             );
 
             $contractData = [
@@ -836,6 +862,9 @@ class ContractsList extends Component
 
             $result = $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
             $contract->calculated_cost = $result->toArray();
+
+            // Calculate emission factor for this contract
+            $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
 
             return $contract;
         });

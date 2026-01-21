@@ -100,13 +100,28 @@ class LocationsList extends Component
         $this->selectedMunicipality = null;
     }
 
+    /**
+     * Get meta description for SEO.
+     */
+    public function getMetaDescriptionProperty(): string
+    {
+        if ($this->selectedMunicipality) {
+            return "Vertaile sähkösopimuksia paikkakunnalla {$this->selectedMunicipality}. Löydä edullisin sähkösopimus alueellesi.";
+        }
+
+        return 'Selaa sähkösopimuksia paikkakunnittain. Vertaile hintoja ja löydä paras sähkösopimus omalle alueellesi.';
+    }
+
     public function render()
     {
         return view('livewire.locations-list', [
             'municipalities' => $this->municipalities,
             'contracts' => $this->contracts,
-        ])->layout('layouts.app', ['title' => $this->selectedMunicipality
-            ? "Sähkösopimukset - {$this->selectedMunicipality}"
-            : 'Paikkakunnat - Sähkösopimukset paikkakunnittain']);
+        ])->layout('layouts.app', [
+            'title' => $this->selectedMunicipality
+                ? "Sähkösopimukset - {$this->selectedMunicipality}"
+                : 'Paikkakunnat - Sähkösopimukset paikkakunnittain',
+            'metaDescription' => $this->metaDescription,
+        ]);
     }
 }

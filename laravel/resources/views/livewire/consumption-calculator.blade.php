@@ -15,71 +15,18 @@
 
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-    <!-- Tab Toggle -->
-    <div class="flex justify-center mb-8">
-        <div class="inline-flex rounded-full bg-slate-100 p-1">
-            <button
-                wire:click="setActiveTab('presets')"
-                class="px-6 py-2 text-sm font-medium rounded-full transition-colors {{ $activeTab === 'presets' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-700' }}"
-            >
-                Valmiit profiilit
-            </button>
-            <button
-                wire:click="setActiveTab('calculator')"
-                class="px-6 py-2 text-sm font-medium rounded-full transition-colors {{ $activeTab === 'calculator' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-700' }}"
-            >
-                Laskuri
-            </button>
-        </div>
+    <!-- Introduction -->
+    <div class="mb-8 text-center max-w-2xl mx-auto">
+        <p class="text-slate-600 mb-4">
+            Sähkönkulutuslaskuri auttaa sinua arvioimaan kotitaloutesi vuotuisen sähkönkulutuksen. Syötä asuntosi tiedot ja laskuri laskee kulutuksen automaattisesti huomioiden asunnon koon, asukkaiden määrän sekä mahdolliset lisäkuluttajat kuten saunan tai sähköauton.
+        </p>
+        <p class="text-slate-500 text-sm">
+            Kun olet saanut kulutusarvion, voit siirtyä vertailemaan sähkösopimuksia juuri sinun kulutuksellesi lasketuilla hinnoilla. Näet heti, mikä sopimus on edullisin ja paljonko vuodessa maksaisit.
+        </p>
     </div>
 
-    <!-- Presets Tab -->
-    @if ($activeTab === 'presets')
-        <section class="mb-8">
-            <h3 class="text-xl font-bold text-center text-slate-900 mb-6">
-                Valitse kulutusprofiili
-            </h3>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                @foreach ($presets as $key => $preset)
-                    <button
-                        wire:click="selectPreset('{{ $key }}')"
-                        class="p-6 bg-white border rounded-2xl shadow-sm hover:shadow-md hover:border-coral-300 transition-all text-left {{ $selectedPreset === $key ? 'border-coral-500 ring-2 ring-coral-200' : 'border-slate-100' }}"
-                    >
-                        <div class="flex items-start">
-                            <span class="bg-[#E4FFC9] p-2 rounded-lg mr-3">
-                                @if ($preset['icon'] === 'apartment')
-                                    <svg class="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                    </svg>
-                                @else
-                                    <svg class="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                                    </svg>
-                                @endif
-                            </span>
-                            <div class="flex-1">
-                                <h5 class="font-semibold text-slate-900">{{ $preset['label'] }}</h5>
-                                <p class="text-sm text-slate-500">{{ $preset['description'] }}</p>
-                            </div>
-                            <div class="flex items-center">
-                                <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-coral-500' : 'text-slate-300' }}" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="mt-4 text-right">
-                            <span class="text-2xl font-bold text-slate-900">{{ number_format($preset['consumption'], 0, ',', ' ') }}</span>
-                            <span class="text-slate-500 ml-1">kWh/v</span>
-                        </div>
-                    </button>
-                @endforeach
-            </div>
-        </section>
-    @endif
-
-    <!-- Calculator Tab -->
-    @if ($activeTab === 'calculator')
-        <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8">
+    <!-- Calculator Section -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8">
             <!-- Building Type Selection -->
             <div class="mb-8">
                 <h4 class="font-semibold text-slate-900 mb-4">Asuntotyyppi</h4>
@@ -316,7 +263,6 @@
                 </div>
             </div>
         </section>
-    @endif
 
     <!-- Results Section -->
     <section class="bg-gradient-to-br from-coral-500 to-coral-600 rounded-2xl shadow-lg p-6 text-white mb-8">

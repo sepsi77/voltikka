@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\CO2EmissionsCalculator;
+use App\Services\DTO\CO2EmissionsResult;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -110,5 +112,46 @@ class ElectricitySource extends Model
     public function hasNuclear(): bool
     {
         return $this->nuclear_total !== null && $this->nuclear_total > 0.0;
+    }
+
+    /**
+     * Calculate CO2 emissions for a given annual consumption.
+     */
+    public function calculateEmissions(float $annualConsumptionKwh): CO2EmissionsResult
+    {
+        $calculator = app(CO2EmissionsCalculator::class);
+
+        return $calculator->calculate($this, $annualConsumptionKwh);
+    }
+
+    /**
+     * Get the emission factor (gCO2/kWh) for this energy source mix.
+     */
+    public function getEmissionFactor(): float
+    {
+        $calculator = app(CO2EmissionsCalculator::class);
+
+        return $calculator->calculateEmissionFactor($this);
+    }
+
+    /**
+     * Get the total percentage of reported energy sources.
+     * If less than 100%, the remainder uses residual mix.
+     */
+    public function getReportedSourcesTotal(): float
+    {
+        $total = ($this->renewable_total ?? 0)
+            + ($this->fossil_total ?? 0)
+            + ($this->nuclear_total ?? 0);
+
+        return min(100, $total);
+    }
+
+    /**
+     * Check if energy sources are fully reported (add up to ~100%).
+     */
+    public function hasCompleteSourceData(): bool
+    {
+        return $this->getReportedSourcesTotal() >= 99.5;
     }
 }

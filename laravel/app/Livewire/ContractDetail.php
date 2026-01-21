@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
+use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
 use Livewire\Component;
@@ -108,6 +109,43 @@ class ContractDetail extends Component
     }
 
     /**
+     * Get SEO page title.
+     */
+    public function getPageTitleProperty(): string
+    {
+        $contract = $this->contract;
+        if (! $contract) {
+            return 'Sähkösopimus | Voltikka';
+        }
+
+        $companyName = $contract->company?->name ?? '';
+        $contractName = $contract->name;
+
+        return "{$contractName} - {$companyName} | Voltikka";
+    }
+
+    /**
+     * Get SEO meta description.
+     */
+    public function getMetaDescriptionProperty(): string
+    {
+        $contract = $this->contract;
+        if (! $contract) {
+            return '';
+        }
+
+        $companyName = $contract->company?->name ?? '';
+        $pricingType = match ($contract->pricing_model) {
+            'Spot' => 'pörssisähkösopimus',
+            'FixedPrice' => 'kiinteähintainen sähkösopimus',
+            'Hybrid' => 'hybridisähkösopimus',
+            default => 'sähkösopimus',
+        };
+
+        return "Vertaile {$companyName} {$contract->name} - {$pricingType}. Katso hinnat, sopimusehdot ja energialähteet.";
+    }
+
+    /**
      * Get the calculated cost for the contract.
      */
     public function getCalculatedCostProperty(): array
@@ -201,6 +239,31 @@ class ContractDetail extends Component
         return $history;
     }
 
+    /**
+     * Get the CO2 emissions calculation for the contract.
+     */
+    public function getCo2EmissionsProperty(): array
+    {
+        $contract = $this->contract;
+
+        if (! $contract) {
+            return [];
+        }
+
+        $calculator = app(CO2EmissionsCalculator::class);
+        $result = $calculator->calculate($contract->electricitySource, $this->consumption);
+
+        return $result->toArray();
+    }
+
+    /**
+     * Get the emission factor sources for display.
+     */
+    public function getEmissionFactorSourcesProperty(): array
+    {
+        return CO2EmissionsCalculator::EMISSION_FACTOR_SOURCES;
+    }
+
     public function render()
     {
         $contract = $this->contract;
@@ -215,6 +278,11 @@ class ContractDetail extends Component
             'calculatedCost' => $this->calculatedCost,
             'priceHistory' => $this->priceHistory,
             'presets' => $this->presets,
-        ])->layout('layouts.app');
+            'co2Emissions' => $this->co2Emissions,
+            'emissionFactorSources' => $this->emissionFactorSources,
+        ])->layout('layouts.app', [
+            'title' => $this->pageTitle,
+            'metaDescription' => $this->metaDescription,
+        ]);
     }
 }
