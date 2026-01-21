@@ -167,3 +167,20 @@ $result = $calculator->calculate($priceComponents, $contractData, $usage);
 | `/yritys/{slug}` | CompanyDetail | Company profile |
 | `/paikkakunnat/{location?}` | LocationsList | Browse by location |
 | `/spot-price` | SpotPrice | Current spot prices |
+
+## SEO Architecture
+
+### Filter Links (Dual Behavior)
+The filter buttons in ContractsList have dual behavior for SEO optimization:
+
+1. **When NO filters are selected**: Filter buttons render as `<a href="...">` links with URL query parameters (e.g., `?pricingModelFilter=Spot`, `?contractTypeFilter=FixedTerm`). This allows search engines to crawl and index filtered views as unique URLs.
+
+2. **When ANY filter IS selected**: Filter buttons become Livewire toggle buttons (`wire:click`). This prevents infinite URL combinations and contradictory filter states.
+
+The `showSeoFilterLinks` property controls this behavior - it's enabled only on `/sahkosopimus` routes, not on the homepage.
+
+### Pagination SEO
+- URLs use query string `?page=N` for unique, crawlable URLs
+- Page titles include "– Sivu N" suffix for pages > 1
+- `rel="canonical"`, `rel="prev"`, and `rel="next"` link tags are added
+- Changing filters or consumption resets pagination to page 1
