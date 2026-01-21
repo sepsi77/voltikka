@@ -1,0 +1,16 @@
+{
+  "iteration": 1,
+  "task_id": null,
+  "task_title": null,
+  "exit_reason": "task_complete",
+  "exit_signal": "TASK_COMPLETE",
+  "files_changed": [
+    ".autoclaude/history.json",
+    "laravel/data-investigation/contract-structure.md",
+    ".autoclaude/sessions/company-contracts-pages/"
+  ],
+  "test_passed": null,
+  "commit_sha": null,
+  "summary": "All tasks have been completed successfully. Here's a summary of what was accomplished:\n\n## Summary\n\n### Completed Tasks\n\n1. **Created CompanyContractsList Livewire component** at `laravel/app/Livewire/CompanyContractsList.php`\n   - Filters contracts by `target_group IN ('Company', 'Both')`\n   - Business-focused consumption presets (20,000 - 200,000 kWh) for offices, retail, restaurants, warehouses, and production facilities\n   - Dynamic page title and meta description for SEO\n\n2. **Created Blade view** at `laravel/resources/views/livewire/company-contracts-list.blade.php`\n   - Hero section with \"Sähkösopimus yritykselle\" title\n   - Business-focused icons and messaging\n   - Same card components and styling as consumer contracts list\n\n3. **Added route** at `/sahkosopimus/yritykselle` with named route `company.contracts`\n\n4. **Updated navigation** - Added \"Yrityksille\" link to:\n   - Desktop navigation\n   - Mobile navigation menu\n   - Footer under \"Sähkösopimukset\" column\n\n5. **Filtered co",
+  "timestamp": "2026-01-21T20:37:48.911433"
+}

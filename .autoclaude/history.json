@@ -75,7 +75,11 @@
     "seo-pages-implementation": {
       "started_at": "2026-01-21T17:40:18.834220",
       "ended_at": "2026-01-21T17:56:12.155930"
+    },
+    "company-contracts-pages": {
+      "started_at": "2026-01-21T20:29:24.794288",
+      "ended_at": null
     }
   },
-  "current": null
+  "current": "company-contracts-pages"
 }
