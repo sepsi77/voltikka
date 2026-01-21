@@ -1,5 +1,5 @@
 # Voltikka Laravel Application - Production
-FROM dunglas/frankenphp:latest-php8.3
+FROM dunglas/frankenphp:latest-php8.4
 
 # Install system dependencies and PHP extensions
 RUN apt-get update && apt-get install -y \

@@ -13,10 +13,16 @@
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>http://localhost/paikkakunnat</loc>
+    <loc>http://localhost/sahkosopimus/paikkakunnat</loc>
     <lastmod>2026-01-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>http://localhost/sahkosopimus/laskuri</loc>
+    <lastmod>2026-01-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
   </url>
   <url>
     <loc>http://localhost/sahkosopimus/omakotitalo</loc>
@@ -83,5 +89,35 @@
     <lastmod>2026-01-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>http://localhost/sahkosopimus/paikkakunnat/helsinki</loc>
+    <lastmod>2026-01-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>http://localhost/sahkosopimus/paikkakunnat/tampere</loc>
+    <lastmod>2026-01-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>http://localhost/sahkosopimus/paikkakunnat/espoo</loc>
+    <lastmod>2026-01-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>http://localhost/sahkosopimus/paikkakunnat/oulu</loc>
+    <lastmod>2026-01-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>http://localhost/sahkosopimus/paikkakunnat/turku</loc>
+    <lastmod>2026-01-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.5</priority>
   </url>
 </urlset>
