@@ -1,0 +1,22 @@
+{
+  "iteration": 1,
+  "task_id": null,
+  "task_title": null,
+  "exit_reason": "task_complete",
+  "exit_signal": "TASK_COMPLETE",
+  "files_changed": [
+    ".autoclaude/history.json",
+    "laravel/app/Livewire/ContractDetail.php",
+    "laravel/app/Livewire/ContractsList.php",
+    "laravel/app/Models/ElectricitySource.php",
+    "laravel/public/sitemap.xml",
+    "laravel/resources/views/livewire/contracts-list.blade.php",
+    "laravel/app/Services/CO2EmissionsCalculator.php",
+    "laravel/app/Services/DTO/CO2EmissionsResult.php",
+    "laravel/tests/Unit/CO2EmissionsCalculatorTest.php"
+  ],
+  "test_passed": null,
+  "commit_sha": null,
+  "summary": "## Task Completed\n\nI have successfully completed **Task 1: Redesign CO2 section on contract detail page with visual gauge**.\n\n### Summary of Changes\n\nThe CO2 emissions section in `contract-detail.blade.php` has been completely redesigned with:\n\n1. **Semi-circular gauge** (0-400+ gCO2/kWh)\n   - CSS conic-gradient background (green -> lime -> yellow -> orange -> red)\n   - Animated needle with CSS transitions\n   - Scale labels at 0 and 400+\n\n2. **Hero annual emissions display**\n   - Large, prominent kg CO2 number\n   - Car driving equivalency: \"Vastaa noin X km ajoa henkilöautolla\" (using 170g CO2/km)\n\n3. **Finland baseline comparison bar**\n   - Horizontal gradient bar with contract position marker\n   - Finland residual mix baseline at 390.93 gCO2/kWh\n   - Text showing difference from average\n\n4. **Zero-emission special display**\n   - Leaf icon in green circle\n   - Large \"0 kg\" hero number\n   - \"Päästötön sähkö\" label\n\n5. **Cleaner expandable details**\n   - Chevron icon for toggle\n   - Bac",
+  "timestamp": "2026-01-21T12:39:40.345834"
+}

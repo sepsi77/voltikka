@@ -51,7 +51,11 @@
     "household-energy-tips": {
       "started_at": "2026-01-20T19:19:21.806959",
       "ended_at": null
+    },
+    "co2-display-redesign": {
+      "started_at": "2026-01-21T12:34:21.929518",
+      "ended_at": null
     }
   },
-  "current": "household-energy-tips"
+  "current": "co2-display-redesign"
 }
