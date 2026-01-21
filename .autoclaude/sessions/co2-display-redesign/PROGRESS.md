@@ -74,3 +74,56 @@ Updated the CO2 badge in `contracts-list.blade.php` (lines ~756-784) with the fo
 - PHP syntax validation passed
 - Pre-existing test failures (ContractsFilterTest, SeoContractsListTest) are unrelated to CO2 changes
 - These tests expect different UI text/CSS classes that were changed in earlier work
+
+---
+
+## 2026-01-21: Task 3 - Test and verify CO2 display changes
+
+### Completed
+Verified the CO2 display implementation across different contract types:
+
+1. **High emissions contract (7f435737-30c8-4329-8a9f-f8e77d88e5e0)**
+   - Contract: "Määräaikainen YritysVälkky 12 kk" by Väre Oy
+   - Source: 100% residual mix (no declared sources)
+   - Emission factor: 391 gCO₂/kWh ✅
+   - Annual emissions (5000 kWh): 1,955 kg CO₂ ✅
+   - Car equivalent: 11,498 km ✅
+   - Comparison bar shows "Sama kuin Suomen keskiarvo" ✅
+
+2. **Zero emissions contract (a9aab414-c6b3-4dfd-b283-9c7c7c814c9c)**
+   - Contract: "Vankka 24kk Yrityksille - Fossiilivapaa" by Vihreä Älyenergia Oy
+   - Source: 1% renewable, 99% nuclear
+   - Emission factor: 0 gCO₂/kWh ✅
+   - Annual emissions: 0 kg CO₂ ✅
+   - Special zero-emission display with leaf icon ✅
+   - "Päästötön sähkö" label ✅
+
+3. **Medium emissions contract (dec979ec-96b8-4afc-98f2-c4828d6dcfdb)**
+   - Contract: "Louna Vakio" by Turku Energia Oy
+   - Source: 5% renewable, 72% nuclear, 23% fossil
+   - Emission factor: 150 gCO₂/kWh ✅
+   - Annual emissions (5000 kWh): 748 kg CO₂ ✅
+   - Car equivalent: 4,397 km ✅
+   - Comparison bar shows "241 gCO₂/kWh pienempi kuin keskiarvo" ✅
+
+4. **Contracts list verification**
+   - Zero-emission contracts show leaf icon with "0 kg CO₂/v" ✅
+   - High-emission contracts show cloud icon with annual kg and g/kWh ✅
+   - Color coding works correctly (green/amber/red) ✅
+   - Energy source badges display correctly ✅
+
+### Testing
+- All 20 CO2EmissionsCalculatorTest unit tests pass ✅
+- Database calculations verified manually ✅
+- Visual verification via browser automation ✅
+- No new issues identified
+
+### Files Verified
+- `laravel/resources/views/livewire/contract-detail.blade.php`
+- `laravel/resources/views/livewire/contracts-list.blade.php`
+- `laravel/app/Services/CO2EmissionsCalculator.php`
+- `laravel/app/Livewire/ContractDetail.php`
+- `laravel/app/Livewire/ContractsList.php`
+
+### Session Complete
+All tasks in the co2-display-redesign session have been completed successfully.
