@@ -111,10 +111,16 @@ class Company extends Model
      */
     public function getLogoUrl(): ?string
     {
+        // Check local storage first
         if ($this->local_logo_path) {
             return Storage::disk('public')->url($this->local_logo_path);
         }
 
-        return $this->logo_url;
+        // Fall back to external URL if not empty
+        if ($this->logo_url && trim($this->logo_url) !== '') {
+            return $this->logo_url;
+        }
+
+        return null;
     }
 }
