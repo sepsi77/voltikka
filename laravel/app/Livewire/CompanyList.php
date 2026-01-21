@@ -95,25 +95,36 @@ class CompanyList extends Component
                 $contract->calculated_cost = $result->toArray();
                 $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
 
+                // Mark contracts where consumption exceeds their limit as not applicable for price comparisons
+                $maxConsumption = $contract->consumption_limitation_max_x_kwh_per_y;
+                $contract->exceeds_consumption_limit = $maxConsumption > 0 && $this->consumption > $maxConsumption;
+
                 return $contract;
             });
 
-            // Calculate company-level metrics
-            $avgPrice = $contractsWithMetrics->avg(fn ($c) => $c->calculated_cost['total_cost'] ?? 0);
-            $lowestPrice = $contractsWithMetrics->min(fn ($c) => $c->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX);
+            // Filter contracts that are applicable for pricing (consumption within limits)
+            $priceApplicableContracts = $contractsWithMetrics->filter(fn ($c) => !$c->exceeds_consumption_limit);
+
+            // Calculate company-level metrics using only applicable contracts for price metrics
+            $avgPrice = $priceApplicableContracts->isNotEmpty()
+                ? $priceApplicableContracts->avg(fn ($c) => $c->calculated_cost['total_cost'] ?? 0)
+                : null;
+            $lowestPrice = $priceApplicableContracts->isNotEmpty()
+                ? $priceApplicableContracts->min(fn ($c) => $c->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX)
+                : null;
             $avgEmissions = $contractsWithMetrics->avg(fn ($c) => $c->emission_factor ?? 0);
             $lowestEmissions = $contractsWithMetrics->min(fn ($c) => $c->emission_factor ?? PHP_FLOAT_MAX);
             $avgRenewable = $contractsWithMetrics->avg(fn ($c) => $c->electricitySource?->renewable_total ?? 0);
             $maxRenewable = $contractsWithMetrics->max(fn ($c) => $c->electricitySource?->renewable_total ?? 0);
 
-            // Get monthly fee (lowest available)
-            $lowestMonthlyFee = $contractsWithMetrics
+            // Get monthly fee (lowest available from applicable contracts)
+            $lowestMonthlyFee = $priceApplicableContracts
                 ->map(fn ($c) => $c->calculated_cost['monthly_fixed_fee'] ?? PHP_FLOAT_MAX)
                 ->filter(fn ($fee) => $fee < PHP_FLOAT_MAX)
                 ->min() ?? null;
 
-            // Get spot margin (lowest from spot contracts only)
-            $spotContracts = $contractsWithMetrics->filter(fn ($c) => $c->pricing_model === 'Spot');
+            // Get spot margin (lowest from applicable spot contracts only)
+            $spotContracts = $priceApplicableContracts->filter(fn ($c) => $c->pricing_model === 'Spot');
             $lowestSpotMargin = $spotContracts
                 ->map(fn ($c) => $c->calculated_cost['spot_price_margin'] ?? PHP_FLOAT_MAX)
                 ->filter(fn ($margin) => $margin !== null && $margin < PHP_FLOAT_MAX)

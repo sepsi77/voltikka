@@ -273,11 +273,18 @@ class SeoContractsList extends ContractsList
             // Calculate emission factor for this contract
             $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
 
+            // Mark contracts where consumption exceeds their limit
+            $maxConsumption = $contract->consumption_limitation_max_x_kwh_per_y;
+            $contract->exceeds_consumption_limit = $maxConsumption > 0 && $consumption > $maxConsumption;
+
             return $contract;
         });
 
-        // Sort by total cost (ascending)
-        return $contracts->sortBy(fn ($c) => $c->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX)->values();
+        // Sort by total cost (ascending), but put contracts that exceed consumption limit at the end
+        return $contracts->sortBy([
+            fn ($c) => $c->exceeds_consumption_limit ? 1 : 0,
+            fn ($c) => $c->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX,
+        ])->values();
     }
 
     /**

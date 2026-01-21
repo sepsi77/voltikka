@@ -11,6 +11,9 @@
 ])
 
 @php
+    // Check if contract exceeds consumption limit
+    $exceedsConsumptionLimit = $contract->exceeds_consumption_limit ?? false;
+
     // Get prices from props or extract from contract's priceComponents
     $priceData = $prices ?? [];
     if (empty($priceData) && $contract->relationLoaded('priceComponents')) {
@@ -100,7 +103,7 @@
                 : 'bg-red-50 text-red-700 border-red-100'));
 @endphp
 
-<div class="group relative w-full p-6 bg-white border border-slate-100 rounded-2xl {{ $borderWidth }} {{ $borderColorClass }} {{ $featured ? 'border-coral-200' : '' }} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover">
+<div class="group relative w-full p-6 {{ $exceedsConsumptionLimit ? 'bg-slate-50 opacity-75' : 'bg-white' }} border border-slate-100 rounded-2xl {{ $borderWidth }} {{ $borderColorClass }} {{ $featured ? 'border-coral-200' : '' }} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover">
     <div class="flex flex-col lg:flex-row items-start lg:items-center gap-4">
         {{-- Rank Number --}}
         @if ($showRank && $rank !== null)
@@ -238,6 +241,16 @@
 
     {{-- Energy Source Badges, CO2 Emissions and Mobile CTA --}}
     <div class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-slate-100">
+        {{-- Consumption Limit Warning --}}
+        @if ($exceedsConsumptionLimit)
+            <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold rounded-lg" title="Kulutusraja ylittyy">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                Max {{ number_format($contract->consumption_limitation_max_x_kwh_per_y, 0, ',', ' ') }} kWh/v
+            </span>
+        @endif
+
         {{-- CO2 Emissions Badge --}}
         @if ($showEmissions && $consumption !== null)
             @if ($isZeroEmission)

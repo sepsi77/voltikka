@@ -167,11 +167,18 @@ class CompanyDetail extends Component
             // Calculate annual emissions in kg CO2
             $contract->annual_emissions_kg = ($contract->emission_factor * $consumption) / 1000;
 
+            // Mark contracts where consumption exceeds their limit
+            $maxConsumption = $contract->consumption_limitation_max_x_kwh_per_y;
+            $contract->exceeds_consumption_limit = $maxConsumption > 0 && $consumption > $maxConsumption;
+
             return $contract;
         });
 
-        // Sort by total cost (ascending)
-        return $contracts->sortBy(fn ($c) => $c->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX)->values();
+        // Sort by total cost (ascending), but put contracts that exceed consumption limit at the end
+        return $contracts->sortBy([
+            fn ($c) => $c->exceeds_consumption_limit ? 1 : 0,
+            fn ($c) => $c->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX,
+        ])->values();
     }
 
     /**
@@ -194,7 +201,10 @@ class CompanyDetail extends Component
             ];
         }
 
-        $prices = $contracts->pluck('calculated_cost.total_cost')->filter();
+        // Filter contracts that are applicable for pricing (consumption within limits)
+        $priceApplicableContracts = $contracts->filter(fn ($c) => !$c->exceeds_consumption_limit);
+
+        $prices = $priceApplicableContracts->pluck('calculated_cost.total_cost')->filter();
         $emissionFactors = $contracts->pluck('emission_factor')->filter();
         $renewablePercents = $contracts->map(fn ($c) => $c->electricitySource?->renewable_total)->filter();
 
@@ -205,8 +215,8 @@ class CompanyDetail extends Component
             'avg_emission_factor' => $emissionFactors->isNotEmpty() ? $emissionFactors->avg() : null,
             'avg_renewable_percent' => $renewablePercents->isNotEmpty() ? $renewablePercents->avg() : null,
             'contract_count' => $contracts->count(),
-            'spot_contract_count' => $contracts->where('pricing_model', 'Spot')->count(),
-            'fixed_price_contract_count' => $contracts->where('pricing_model', 'FixedPrice')->count(),
+            'spot_contract_count' => $priceApplicableContracts->where('pricing_model', 'Spot')->count(),
+            'fixed_price_contract_count' => $priceApplicableContracts->where('pricing_model', 'FixedPrice')->count(),
         ];
     }
 
