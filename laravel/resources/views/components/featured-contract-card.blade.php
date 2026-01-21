@@ -109,12 +109,22 @@
                         </div>
                     @endif
                 @elseif ($generalPrice !== null)
-                    <div class="text-left">
-                        <div class="text-2xl font-extrabold text-white tabular-nums">
-                            {{ number_format($generalPrice, 2, ',', ' ') }} <span class="text-lg font-normal text-coral-100">c/kWh</span>
+                    @if ($generalPrice == 0 && $contract->consumption_limitation_max_x_kwh_per_y > 0)
+                        {{-- Bundled consumption contract (fixed fee includes energy up to a limit) --}}
+                        <div class="text-left">
+                            <div class="text-2xl font-extrabold text-white tabular-nums">
+                                Sis. maksuun
+                            </div>
+                            <p class="text-sm text-coral-100 uppercase tracking-wide">max {{ number_format($contract->consumption_limitation_max_x_kwh_per_y, 0, ',', ' ') }} kWh/v</p>
                         </div>
-                        <p class="text-sm text-coral-100 uppercase tracking-wide">Energia</p>
-                    </div>
+                    @elseif ($generalPrice > 0)
+                        <div class="text-left">
+                            <div class="text-2xl font-extrabold text-white tabular-nums">
+                                {{ number_format($generalPrice, 2, ',', ' ') }} <span class="text-lg font-normal text-coral-100">c/kWh</span>
+                            </div>
+                            <p class="text-sm text-coral-100 uppercase tracking-wide">Energia</p>
+                        </div>
+                    @endif
                 @endif
 
                 <div class="text-left">
