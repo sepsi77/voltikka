@@ -2,11 +2,12 @@
 FROM dunglas/frankenphp:1-php8.4
 
 # Install system dependencies and PHP extensions
-# Note: libwebp-dev is required for GD WebP support (image optimization)
+# Note: libjpeg62-turbo-dev for JPEG, libwebp-dev for WebP support in GD
 RUN apt-get update && apt-get install -y \
     git \
     curl \
     libpng-dev \
+    libjpeg62-turbo-dev \
     libonig-dev \
     libxml2-dev \
     libpq-dev \
@@ -16,7 +17,7 @@ RUN apt-get update && apt-get install -y \
     supervisor \
     nodejs \
     npm \
-    && docker-php-ext-configure gd --with-webp \
+    && docker-php-ext-configure gd --with-jpeg --with-webp \
     && docker-php-ext-install pdo pdo_pgsql pdo_mysql mbstring exif pcntl bcmath gd \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
