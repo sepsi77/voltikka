@@ -141,7 +141,12 @@ class SeoContractsList extends ContractsList
         $calculator = app(ContractPriceCalculator::class);
 
         $query = ElectricityContract::query()
-            ->with(['company', 'priceComponents', 'electricitySource']);
+            ->with(['company', 'priceComponents', 'electricitySource'])
+            // Filter for household contracts only (exclude company-only contracts)
+            ->where(function ($q) {
+                $q->whereIn('target_group', ['Household', 'Both'])
+                  ->orWhereNull('target_group');
+            });
 
         // Apply contract type filter (FixedTerm, OpenEnded)
         if ($this->contractTypeFilter !== '') {

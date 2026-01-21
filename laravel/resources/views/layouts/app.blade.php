@@ -141,6 +141,9 @@
                         <a href="/spot-price" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('spot-price') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                             Pörssisähkö
                         </a>
+                        <a href="/sahkosopimus/yritykselle" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('sahkosopimus/yritykselle') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                            Yrityksille
+                        </a>
                     </nav>
 
                     <!-- Spot Price Badge (Desktop) -->
@@ -187,6 +190,9 @@
                     <a href="/spot-price" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('spot-price') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                         Pörssisähkö
                     </a>
+                    <a href="/sahkosopimus/yritykselle" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/yritykselle') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                        Yrityksille
+                    </a>
                 </div>
             </div>
         </header>
@@ -208,6 +214,7 @@
                             <li><a href="/sahkosopimus/halvin-sahkosopimus" class="text-slate-400 hover:text-white text-sm transition-colors">Halvimmat sopimukset</a></li>
                             <li><a href="/sahkosopimus/porssisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Pörssisähkö</a></li>
                             <li><a href="/sahkosopimus/kiintea-hinta" class="text-slate-400 hover:text-white text-sm transition-colors">Kiinteä hinta</a></li>
+                            <li><a href="/sahkosopimus/yritykselle" class="text-slate-400 hover:text-white text-sm transition-colors">Yrityksille</a></li>
                             <li><a href="{{ route('calculator') }}" class="text-slate-400 hover:text-white text-sm transition-colors">Sähkölaskuri</a></li>
                         </ul>
                     </div>

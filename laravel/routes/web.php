@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\CheapestContracts;
+use App\Livewire\CompanyContractsList;
 use App\Livewire\CompanyDetail;
 use App\Livewire\ConsumptionCalculator;
 use App\Livewire\ContractDetail;
@@ -78,6 +79,10 @@ Route::get('/sahkosopimus/kiintea-hinta', SeoContractsList::class)
 // Cheapest contracts page (must come BEFORE city catch-all)
 Route::get('/sahkosopimus/halvin-sahkosopimus', CheapestContracts::class)
     ->name('cheapest.contracts');
+
+// Company contracts page (must come BEFORE city catch-all)
+Route::get('/sahkosopimus/yritykselle', CompanyContractsList::class)
+    ->name('company.contracts');
 
 // Main comparison index page (must come BEFORE city catch-all)
 Route::get('/sahkosopimus', SahkosopimusIndex::class)
