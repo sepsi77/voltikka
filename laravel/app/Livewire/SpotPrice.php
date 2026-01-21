@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\SpotPriceHour;
+use App\Models\SpotPriceQuarter;
 use Carbon\Carbon;
 use Livewire\Component;
 
@@ -1266,6 +1267,47 @@ class SpotPrice extends Component
             $dates[$helsinkiTime->format('Y-m-d')] = true;
         }
         return count($dates);
+    }
+
+    /**
+     * Get 15-minute prices for a specific hour.
+     *
+     * @param int $timestamp Unix timestamp for the hour
+     * @return array Array of 15-minute price data for the hour
+     */
+    public function getQuarterPricesForHour(int $timestamp): array
+    {
+        $hourStart = Carbon::createFromTimestamp($timestamp, 'UTC');
+        $hourEnd = $hourStart->copy()->addHour();
+
+        $prices = SpotPriceQuarter::forRegion(self::REGION)
+            ->where('utc_datetime', '>=', $hourStart)
+            ->where('utc_datetime', '<', $hourEnd)
+            ->orderBy('utc_datetime')
+            ->get();
+
+        return $prices->map(function (SpotPriceQuarter $price) {
+            $utcTime = Carbon::parse($price->utc_datetime)->shiftTimezone('UTC');
+            $helsinkiTime = $utcTime->copy()->setTimezone(self::TIMEZONE);
+
+            $minute = (int) $helsinkiTime->format('i');
+            $nextMinute = $minute + 15;
+
+            return [
+                'timestamp' => $price->timestamp,
+                'price_without_tax' => $price->price_without_tax,
+                'price_with_tax' => round($price->price_with_tax, 2),
+                'vat_rate' => $price->vat_rate,
+                'helsinki_minute' => $minute,
+                'time_label' => sprintf(
+                    '%s:%02d-%s:%02d',
+                    $helsinkiTime->format('H'),
+                    $minute,
+                    $nextMinute === 60 ? $helsinkiTime->copy()->addHour()->format('H') : $helsinkiTime->format('H'),
+                    $nextMinute === 60 ? 0 : $nextMinute
+                ),
+            ];
+        })->toArray();
     }
 
     public function render()

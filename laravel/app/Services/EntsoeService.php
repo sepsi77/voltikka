@@ -120,10 +120,11 @@ class EntsoeService
 
     /**
      * Parse a Period element and extract price points.
+     * Returns raw 15-minute data when available (does not aggregate).
      *
      * @param SimpleXMLElement $period Period XML element
      * @param string $ns Namespace URI
-     * @return array Price data from this period
+     * @return array Price data from this period with 'resolution_minutes' key
      */
     private function parsePeriod(SimpleXMLElement $period, string $ns): array
     {
@@ -152,7 +153,6 @@ class EntsoeService
         $points = $ns ? $period->xpath('ns:Point') : $period->xpath('Point');
 
         // Collect all price values with their positions
-        $priceValues = [];
         foreach ($points as $point) {
             if ($ns) {
                 $point->registerXPathNamespace('ns', $ns);
@@ -168,68 +168,19 @@ class EntsoeService
             $position = (int)($positionElement[0] ?? 0);
             $priceEurMwh = (float)($priceElement[0] ?? 0);
 
-            $priceValues[$position] = $priceEurMwh;
-        }
+            $pointTime = $periodStart->copy()->addMinutes(($position - 1) * $resolutionMinutes);
+            $priceCentsKwh = $priceEurMwh / 10;
 
-        // If 15-minute resolution, average to hourly
-        if ($resolutionMinutes === 15) {
-            $prices = $this->aggregateToHourly($periodStart, $priceValues);
-        } else {
-            // Hourly resolution - direct mapping
-            foreach ($priceValues as $position => $priceEurMwh) {
-                $pointTime = $periodStart->copy()->addMinutes(($position - 1) * $resolutionMinutes);
-                $priceCentsKwh = $priceEurMwh / 10;
-
-                $prices[] = [
-                    'region' => 'FI',
-                    'timestamp' => $pointTime->timestamp,
-                    'utc_datetime' => $pointTime,
-                    'price_without_tax' => $priceCentsKwh,
-                ];
-            }
-        }
-
-        return $prices;
-    }
-
-    /**
-     * Aggregate 15-minute price values to hourly averages.
-     *
-     * @param Carbon $periodStart Start time of the period
-     * @param array $priceValues Position => price mapping
-     * @return array Hourly aggregated prices
-     */
-    private function aggregateToHourly(Carbon $periodStart, array $priceValues): array
-    {
-        $hourlyPrices = [];
-        $pointsPerHour = 4; // 4 x 15-min intervals per hour
-
-        // Group prices by hour
-        $hourGroups = [];
-        foreach ($priceValues as $position => $priceEurMwh) {
-            $hourIndex = (int)floor(($position - 1) / $pointsPerHour);
-            if (!isset($hourGroups[$hourIndex])) {
-                $hourGroups[$hourIndex] = [];
-            }
-            $hourGroups[$hourIndex][] = $priceEurMwh;
-        }
-
-        // Calculate hourly averages
-        foreach ($hourGroups as $hourIndex => $hourPrices) {
-            $avgPriceEurMwh = array_sum($hourPrices) / count($hourPrices);
-            $priceCentsKwh = $avgPriceEurMwh / 10;
-
-            $hourTime = $periodStart->copy()->addHours($hourIndex);
-
-            $hourlyPrices[] = [
+            $prices[] = [
                 'region' => 'FI',
-                'timestamp' => $hourTime->timestamp,
-                'utc_datetime' => $hourTime,
+                'timestamp' => $pointTime->timestamp,
+                'utc_datetime' => $pointTime,
                 'price_without_tax' => $priceCentsKwh,
+                'resolution_minutes' => $resolutionMinutes,
             ];
         }
 
-        return $hourlyPrices;
+        return $prices;
     }
 
     /**

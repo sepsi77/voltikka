@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\SpotPriceHour;
+use App\Models\SpotPriceQuarter;
 use App\Services\EntsoeService;
 use App\Services\SpotPriceAverageService;
 use Carbon\Carbon;
@@ -224,29 +225,105 @@ class BackfillSpot extends Command
     /**
      * Save spot prices to database.
      *
-     * Uses INSERT ... ON CONFLICT DO NOTHING to skip existing records.
+     * Stores 15-minute data in spot_prices_quarter table and
+     * calculates hourly averages for spot_prices_hour table.
      *
      * @param array $spotPrices Array of spot price data from EntsoeService
      */
     private function saveSpotPrices(array $spotPrices): void
     {
-        // Prepare data for insertion with VAT rates
-        $insertData = array_map(function ($item) {
-            $vatRate = $this->getVatRate($item['utc_datetime']);
+        // Separate 15-minute and hourly data
+        $quarterData = [];
+        $hourlyData = [];
 
-            return [
+        foreach ($spotPrices as $item) {
+            $vatRate = $this->getVatRate($item['utc_datetime']);
+            $resolutionMinutes = $item['resolution_minutes'] ?? 60;
+
+            $record = [
                 'region' => $item['region'],
                 'timestamp' => $item['timestamp'],
                 'utc_datetime' => $item['utc_datetime'],
                 'price_without_tax' => $item['price_without_tax'],
                 'vat_rate' => $vatRate,
             ];
-        }, $spotPrices);
 
-        // Insert in chunks to avoid memory issues with large datasets
-        foreach (array_chunk($insertData, 500) as $chunk) {
-            SpotPriceHour::insertOrIgnore($chunk);
+            if ($resolutionMinutes === 15) {
+                $quarterData[] = $record;
+            } else {
+                // Already hourly data, save directly
+                $hourlyData[] = $record;
+            }
         }
+
+        // Save 15-minute data to quarter table
+        if (!empty($quarterData)) {
+            foreach (array_chunk($quarterData, 500) as $chunk) {
+                SpotPriceQuarter::insertOrIgnore($chunk);
+            }
+
+            // Calculate hourly averages from 15-minute data
+            $hourlyAverages = $this->calculateHourlyAverages($quarterData);
+            foreach (array_chunk($hourlyAverages, 500) as $chunk) {
+                SpotPriceHour::insertOrIgnore($chunk);
+            }
+        }
+
+        // Save any existing hourly data directly
+        if (!empty($hourlyData)) {
+            foreach (array_chunk($hourlyData, 500) as $chunk) {
+                SpotPriceHour::insertOrIgnore($chunk);
+            }
+        }
+    }
+
+    /**
+     * Calculate hourly averages from 15-minute data.
+     *
+     * @param array $quarterData Array of 15-minute price records
+     * @return array Array of hourly average records
+     */
+    private function calculateHourlyAverages(array $quarterData): array
+    {
+        // Group by hour
+        $hourGroups = [];
+
+        foreach ($quarterData as $item) {
+            $utcDatetime = $item['utc_datetime'];
+            if ($utcDatetime instanceof Carbon) {
+                $hourKey = $utcDatetime->copy()->startOfHour()->timestamp;
+            } else {
+                $hourKey = Carbon::parse($utcDatetime)->startOfHour()->timestamp;
+            }
+
+            if (!isset($hourGroups[$hourKey])) {
+                $hourGroups[$hourKey] = [
+                    'prices' => [],
+                    'region' => $item['region'],
+                    'vat_rate' => $item['vat_rate'],
+                    'utc_datetime' => $utcDatetime instanceof Carbon
+                        ? $utcDatetime->copy()->startOfHour()
+                        : Carbon::parse($utcDatetime)->startOfHour(),
+                ];
+            }
+            $hourGroups[$hourKey]['prices'][] = $item['price_without_tax'];
+        }
+
+        // Calculate averages
+        $hourlyData = [];
+        foreach ($hourGroups as $timestamp => $group) {
+            $avgPrice = array_sum($group['prices']) / count($group['prices']);
+
+            $hourlyData[] = [
+                'region' => $group['region'],
+                'timestamp' => $timestamp,
+                'utc_datetime' => $group['utc_datetime'],
+                'price_without_tax' => $avgPrice,
+                'vat_rate' => $group['vat_rate'],
+            ];
+        }
+
+        return $hourlyData;
     }
 
     /**

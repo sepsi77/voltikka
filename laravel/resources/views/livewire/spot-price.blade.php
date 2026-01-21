@@ -430,22 +430,24 @@
             </div>
         </section>
 
-        <!-- Hourly Prices Table -->
+        <!-- Hourly Prices Table with Expandable 15-min Details -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-8">
             <div class="p-4 border-b border-slate-200">
                 <h3 class="text-lg font-semibold text-slate-900">Tuntihinnat</h3>
+                <p class="text-sm text-slate-500 mt-1">Klikkaa riviä nähdäksesi 15 minuutin hinnat</p>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead class="bg-slate-50">
                         <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-8"></th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Tunti</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hinta (ALV 0%)</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Hinta (sis. ALV)</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
-                        @foreach ($hourlyPrices as $price)
+                        @foreach ($hourlyPrices as $index => $price)
                             @php
                                 $hour = $price['helsinki_hour'];
                                 $currentHourNow = (int) now('Europe/Helsinki')->format('H');
@@ -465,31 +467,103 @@
                                     $normalized = 0.5;
                                 }
                             @endphp
-                            <tr class="{{ $isCurrentHour ? 'bg-coral-50' : '' }}">
-                                <td class="px-4 py-3 whitespace-nowrap text-sm {{ $isCurrentHour ? 'font-bold text-coral-700' : 'text-slate-900' }}">
-                                    {{ str_pad($hour, 2, '0', STR_PAD_LEFT) }}:00 - {{ str_pad(($hour + 1) % 24, 2, '0', STR_PAD_LEFT) }}:00
-                                    @if ($isCurrentHour)
-                                        <span class="ml-2 text-xs bg-coral-200 text-coral-800 px-2 py-1 rounded">Nyt</span>
-                                    @endif
-                                    @if ($isTomorrow)
-                                        <span class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Huomenna</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm">
-                                    <span class="inline-flex items-center">
-                                        @if ($normalized < 0.33)
-                                            <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-                                        @elseif ($normalized < 0.66)
-                                            <span class="w-2 h-2 rounded-full bg-yellow-500 mr-2"></span>
-                                        @else
-                                            <span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
-                                        @endif
-                                        <span class="text-slate-900">{{ number_format($price['price_without_tax'] ?? 0, 2, ',', ' ') }} c/kWh</span>
-                                    </span>
-                                </td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-slate-900">
-                                    {{ number_format($price['price_with_tax'] ?? 0, 2, ',', ' ') }} c/kWh
-                                    <span class="text-xs text-slate-400">(ALV {{ $vatPercent }}%)</span>
+                            <tr
+                                x-data="{ expanded: false, quarterPrices: [], loading: false, loaded: false }"
+                                class="{{ $isCurrentHour ? 'bg-coral-50' : '' }}"
+                            >
+                                <td colspan="4" class="p-0">
+                                    <!-- Main row (clickable) -->
+                                    <button
+                                        type="button"
+                                        class="w-full flex items-center hover:bg-slate-50 transition-colors {{ $isCurrentHour ? 'hover:bg-coral-100' : '' }}"
+                                        @click="
+                                            if (!loaded) {
+                                                loading = true;
+                                                $wire.getQuarterPricesForHour({{ $price['timestamp'] }}).then(result => {
+                                                    quarterPrices = result;
+                                                    loading = false;
+                                                    loaded = true;
+                                                    expanded = true;
+                                                });
+                                            } else {
+                                                expanded = !expanded;
+                                            }
+                                        "
+                                    >
+                                        <span class="px-4 py-3 w-8 flex-shrink-0">
+                                            <svg
+                                                class="w-4 h-4 text-slate-400 transition-transform duration-200"
+                                                :class="{ 'rotate-90': expanded }"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                            </svg>
+                                        </span>
+                                        <span class="px-4 py-3 whitespace-nowrap text-sm text-left flex-1 {{ $isCurrentHour ? 'font-bold text-coral-700' : 'text-slate-900' }}">
+                                            {{ str_pad($hour, 2, '0', STR_PAD_LEFT) }}:00 - {{ str_pad(($hour + 1) % 24, 2, '0', STR_PAD_LEFT) }}:00
+                                            @if ($isCurrentHour)
+                                                <span class="ml-2 text-xs bg-coral-200 text-coral-800 px-2 py-1 rounded">Nyt</span>
+                                            @endif
+                                            @if ($isTomorrow)
+                                                <span class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Huomenna</span>
+                                            @endif
+                                        </span>
+                                        <span class="px-4 py-3 whitespace-nowrap text-sm text-left">
+                                            <span class="inline-flex items-center">
+                                                @if ($normalized < 0.33)
+                                                    <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                                                @elseif ($normalized < 0.66)
+                                                    <span class="w-2 h-2 rounded-full bg-yellow-500 mr-2"></span>
+                                                @else
+                                                    <span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
+                                                @endif
+                                                <span class="text-slate-900">{{ number_format($price['price_without_tax'] ?? 0, 2, ',', ' ') }} c/kWh</span>
+                                            </span>
+                                        </span>
+                                        <span class="px-4 py-3 whitespace-nowrap text-sm text-slate-900 text-left">
+                                            {{ number_format($price['price_with_tax'] ?? 0, 2, ',', ' ') }} c/kWh
+                                            <span class="text-xs text-slate-400">(ALV {{ $vatPercent }}%)</span>
+                                        </span>
+                                    </button>
+
+                                    <!-- Expanded quarter-hour details -->
+                                    <div
+                                        x-show="expanded"
+                                        x-collapse
+                                        class="bg-slate-50 border-t border-slate-200"
+                                    >
+                                        <template x-if="loading">
+                                            <div class="px-8 py-3 text-sm text-slate-500 flex items-center">
+                                                <svg class="animate-spin h-4 w-4 mr-2 text-coral-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Ladataan...
+                                            </div>
+                                        </template>
+                                        <template x-if="loaded && quarterPrices.length === 0">
+                                            <div class="px-8 py-3 text-sm text-slate-500">
+                                                15 minuutin hintatietoja ei saatavilla tälle tunnille.
+                                            </div>
+                                        </template>
+                                        <template x-if="loaded && quarterPrices.length > 0">
+                                            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 p-3">
+                                                <template x-for="(quarter, qIndex) in quarterPrices" :key="qIndex">
+                                                    <div class="bg-white rounded-lg p-3 border border-slate-200">
+                                                        <p class="text-xs text-slate-500 mb-1" x-text="quarter.time_label"></p>
+                                                        <p class="text-sm font-semibold text-slate-900">
+                                                            <span x-text="quarter.price_without_tax.toFixed(2).replace('.', ',')"></span> c/kWh
+                                                        </p>
+                                                        <p class="text-xs text-slate-500">
+                                                            <span x-text="quarter.price_with_tax.toFixed(2).replace('.', ',')"></span> c/kWh (ALV)
+                                                        </p>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
