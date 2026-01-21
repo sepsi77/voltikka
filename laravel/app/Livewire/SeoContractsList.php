@@ -696,6 +696,8 @@ class SeoContractsList extends ContractsList
             'isPricingTypePage' => $this->pricingType !== null,
             'isCityPage' => $this->city !== null,
             'cityInfo' => $this->cityInfo,
+            'basePath' => $this->basePath,
+            'showSeoFilterLinks' => $this->showSeoFilterLinks,
         ])->layout('layouts.app', [
             'title' => $this->seoData['title'],
             'metaDescription' => $this->seoData['description'],

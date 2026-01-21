@@ -480,8 +480,8 @@
 
         <!-- Filter Content -->
         @php
-            // Only use links for SEO when no filters are active (to prevent URL explosion)
-            $useLinks = !$this->hasActiveFilters();
+            // Only use SEO links when enabled AND no filters are active (to prevent URL explosion)
+            $useLinks = $showSeoFilterLinks && !$this->hasActiveFilters();
         @endphp
         <div class="lg:flex flex-wrap" :class="{ 'hidden': !filtersOpen }" x-bind:class="{ 'hidden lg:flex': !filtersOpen }">
             <!-- Pricing Model Filters -->
@@ -500,7 +500,7 @@
                         @endphp
                         @if ($useLinks && !$isActive)
                             <a
-                                href="/?pricingModelFilter={{ $model }}"
+                                href="{{ $basePath }}?pricingModelFilter={{ $model }}"
                                 wire:click.prevent="setPricingModelFilter('{{ $model }}')"
                                 class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
                             >
@@ -539,7 +539,7 @@
                         @endphp
                         @if ($useLinks && !$isActive)
                             <a
-                                href="/?contractTypeFilter={{ $type }}"
+                                href="{{ $basePath }}?contractTypeFilter={{ $type }}"
                                 wire:click.prevent="setContractTypeFilter('{{ $type }}')"
                                 class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
                             >
@@ -569,7 +569,7 @@
                 <div class="flex flex-col lg:flex-row gap-2">
                     @if ($useLinks && !$fossilFreeFilter)
                         <a
-                            href="/?fossilFreeFilter=1"
+                            href="{{ $basePath }}?fossilFreeFilter=1"
                             wire:click.prevent="$toggle('fossilFreeFilter')"
                             class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
                         >
@@ -591,7 +591,7 @@
                     @endif
                     @if ($useLinks && !$renewableFilter)
                         <a
-                            href="/?renewableFilter=1"
+                            href="{{ $basePath }}?renewableFilter=1"
                             wire:click.prevent="$toggle('renewableFilter')"
                             class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
                         >
@@ -613,7 +613,7 @@
                     @endif
                     @if ($useLinks && !$nuclearFilter)
                         <a
-                            href="/?nuclearFilter=1"
+                            href="{{ $basePath }}?nuclearFilter=1"
                             wire:click.prevent="$toggle('nuclearFilter')"
                             class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
                         >

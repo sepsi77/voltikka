@@ -23,6 +23,17 @@ use Livewire\Component;
 class ContractsList extends Component
 {
     /**
+     * Base path for filter links (used for SEO crawlable links).
+     */
+    public string $basePath = '/';
+
+    /**
+     * Whether this page should show SEO filter links.
+     * Disabled on homepage, enabled only on /sahkosopimus.
+     */
+    public bool $showSeoFilterLinks = false;
+
+    /**
      * Active tab for consumption selection ('presets' or 'calculator').
      */
     public string $activeTab = 'presets';
@@ -902,6 +913,15 @@ class ContractsList extends Component
         return $prices;
     }
 
+    /**
+     * Generate canonical URL for this page.
+     * Always returns the base path without query params.
+     */
+    public function getCanonicalUrlProperty(): string
+    {
+        return config('app.url') . $this->basePath;
+    }
+
     public function render()
     {
         return view('livewire.contracts-list', [
@@ -909,9 +929,12 @@ class ContractsList extends Component
             'postcodeSuggestions' => $this->postcodeSuggestions,
             'pageTitle' => $this->pageTitle,
             'metaDescription' => $this->metaDescription,
+            'basePath' => $this->basePath,
+            'showSeoFilterLinks' => $this->showSeoFilterLinks,
         ])->layout('layouts.app', [
             'title' => $this->pageTitle . ' | Voltikka',
             'metaDescription' => $this->metaDescription,
+            'canonical' => $this->canonicalUrl,
         ]);
     }
 }
