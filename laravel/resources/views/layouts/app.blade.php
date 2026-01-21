@@ -59,7 +59,9 @@
         <link rel="preload" href="/vendor/livewire/livewire.min.js" as="script">
 
         <!-- Fonts - Plus Jakarta Sans (Fresh Coral design system) -->
-        <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+        <!-- Load fonts asynchronously to avoid render-blocking -->
+        <link rel="preload" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+        <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"></noscript>
 
         <!-- Styles / Scripts -->
         @if (file_exists(public_path('build/manifest.json')))
