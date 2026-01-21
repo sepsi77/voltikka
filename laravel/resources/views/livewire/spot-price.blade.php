@@ -467,8 +467,11 @@
                                     $normalized = 0.5;
                                 }
                             @endphp
+                            @php
+                                $quarterPricesForHour = $quarterPricesByHour[$price['timestamp']] ?? [];
+                            @endphp
                             <tr
-                                x-data="{ expanded: false, quarterPrices: [], loading: false, loaded: false }"
+                                x-data="{ expanded: false, quarterPrices: @js($quarterPricesForHour) }"
                                 class="{{ $isCurrentHour ? 'bg-coral-50' : '' }}"
                             >
                                 <td colspan="4" class="p-0">
@@ -476,19 +479,7 @@
                                     <button
                                         type="button"
                                         class="w-full flex items-center hover:bg-slate-50 transition-colors {{ $isCurrentHour ? 'hover:bg-coral-100' : '' }}"
-                                        @click="
-                                            if (!loaded) {
-                                                loading = true;
-                                                $wire.getQuarterPricesForHour({{ $price['timestamp'] }}).then(result => {
-                                                    quarterPrices = result;
-                                                    loading = false;
-                                                    loaded = true;
-                                                    expanded = true;
-                                                });
-                                            } else {
-                                                expanded = !expanded;
-                                            }
-                                        "
+                                        @click="expanded = !expanded"
                                     >
                                         <span class="px-4 py-3 w-10 flex-shrink-0">
                                             <svg
@@ -534,21 +525,12 @@
                                         x-collapse
                                         class="bg-slate-50 border-t border-slate-200"
                                     >
-                                        <template x-if="loading">
-                                            <div class="px-8 py-3 text-sm text-slate-500 flex items-center">
-                                                <svg class="animate-spin h-4 w-4 mr-2 text-coral-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                                </svg>
-                                                Ladataan...
-                                            </div>
-                                        </template>
-                                        <template x-if="loaded && quarterPrices.length === 0">
+                                        <template x-if="quarterPrices.length === 0">
                                             <div class="px-8 py-3 text-sm text-slate-500">
                                                 15 minuutin hintatietoja ei saatavilla tälle tunnille.
                                             </div>
                                         </template>
-                                        <template x-if="loaded && quarterPrices.length > 0">
+                                        <template x-if="quarterPrices.length > 0">
                                             <div class="grid grid-cols-2 md:grid-cols-4 gap-2 p-3">
                                                 <template x-for="(quarter, qIndex) in quarterPrices" :key="qIndex">
                                                     <div class="bg-white rounded-lg p-3 border border-slate-200">

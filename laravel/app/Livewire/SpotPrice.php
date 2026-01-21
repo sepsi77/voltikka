@@ -10,6 +10,7 @@ use Livewire\Component;
 class SpotPrice extends Component
 {
     public array $hourlyPrices = [];
+    public array $quarterPricesByHour = [];  // Pre-loaded quarter prices keyed by hour timestamp
     public bool $loading = true;
     public ?string $error = null;
     public bool $historicalDataLoaded = false;
@@ -72,6 +73,9 @@ class SpotPrice extends Component
             ->orderBy('utc_datetime')
             ->get();
 
+        // Pre-load all quarter prices for displayed hours (eliminates Livewire round-trips)
+        $this->loadQuarterPricesForRange($todayStart, $tomorrowEnd);
+
         return $prices->map(function (SpotPriceHour $price) {
             // Parse as UTC explicitly, then convert to Helsinki
             $utcTime = Carbon::parse($price->utc_datetime)->shiftTimezone('UTC');
@@ -88,6 +92,50 @@ class SpotPrice extends Component
                 'helsinki_date' => $helsinkiTime->format('Y-m-d'),
             ];
         })->toArray();
+    }
+
+    /**
+     * Pre-load all quarter prices for a time range and organize by hour timestamp.
+     */
+    private function loadQuarterPricesForRange(Carbon $start, Carbon $end): void
+    {
+        $quarterPrices = SpotPriceQuarter::forRegion(self::REGION)
+            ->whereBetween('utc_datetime', [$start, $end])
+            ->orderBy('utc_datetime')
+            ->get();
+
+        $this->quarterPricesByHour = [];
+
+        foreach ($quarterPrices as $price) {
+            $utcTime = Carbon::parse($price->utc_datetime)->shiftTimezone('UTC');
+            $helsinkiTime = $utcTime->copy()->setTimezone(self::TIMEZONE);
+
+            // Calculate the hour's start timestamp for grouping
+            $hourStart = $utcTime->copy()->minute(0)->second(0);
+            $hourTimestamp = $hourStart->timestamp;
+
+            if (!isset($this->quarterPricesByHour[$hourTimestamp])) {
+                $this->quarterPricesByHour[$hourTimestamp] = [];
+            }
+
+            $minute = (int) $helsinkiTime->format('i');
+            $nextMinute = $minute + 15;
+
+            $this->quarterPricesByHour[$hourTimestamp][] = [
+                'timestamp' => $price->timestamp,
+                'price_without_tax' => $price->price_without_tax,
+                'price_with_tax' => round($price->price_with_tax, 2),
+                'vat_rate' => $price->vat_rate,
+                'helsinki_minute' => $minute,
+                'time_label' => sprintf(
+                    '%s:%02d-%s:%02d',
+                    $helsinkiTime->format('H'),
+                    $minute,
+                    $nextMinute === 60 ? $helsinkiTime->copy()->addHour()->format('H') : $helsinkiTime->format('H'),
+                    $nextMinute === 60 ? 0 : $nextMinute
+                ),
+            ];
+        }
     }
 
     /**
