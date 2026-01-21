@@ -132,6 +132,12 @@
                         <a href="/" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('/') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                             Sähkösopimukset
                         </a>
+                        <a href="/sahkosopimus" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('sahkosopimus') && !request()->is('sahkosopimus/*') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                            Vertaa
+                        </a>
+                        <a href="/sahkosopimus/halvin-sahkosopimus" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('sahkosopimus/halvin-sahkosopimus') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                            Halvimmat
+                        </a>
                         <a href="{{ route('calculator') }}" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('sahkosopimus/laskuri') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                             Laskuri
                         </a>
@@ -204,6 +210,12 @@
                 <div class="px-2 pt-2 pb-3 space-y-1 bg-white border-t border-slate-200">
                     <a href="/" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('/') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                         Sähkösopimukset
+                    </a>
+                    <a href="/sahkosopimus" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus') && !request()->is('sahkosopimus/*') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                        Vertaa sopimuksia
+                    </a>
+                    <a href="/sahkosopimus/halvin-sahkosopimus" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/halvin-sahkosopimus') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                        Halvimmat sopimukset
                     </a>
                     <a href="{{ route('calculator') }}" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/laskuri') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                         Laskuri

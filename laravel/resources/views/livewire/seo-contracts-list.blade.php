@@ -804,6 +804,12 @@
                 <h3 class="font-semibold text-slate-900 mb-3">Muut palvelut</h3>
                 <ul class="space-y-2 text-slate-600">
                     <li>
+                        <a href="/sahkosopimus" class="hover:text-coral-600">Vertaile sopimuksia</a>
+                    </li>
+                    <li>
+                        <a href="/sahkosopimus/halvin-sahkosopimus" class="hover:text-coral-600">Halvimmat sopimukset</a>
+                    </li>
+                    <li>
                         <a href="/" class="hover:text-coral-600">Kaikki sähkösopimukset</a>
                     </li>
                     <li>

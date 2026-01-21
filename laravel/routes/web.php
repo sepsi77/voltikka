@@ -1,10 +1,12 @@
 <?php
 
+use App\Livewire\CheapestContracts;
 use App\Livewire\CompanyDetail;
 use App\Livewire\ConsumptionCalculator;
 use App\Livewire\ContractDetail;
 use App\Livewire\ContractsList;
 use App\Livewire\LocationsList;
+use App\Livewire\SahkosopimusIndex;
 use App\Livewire\SeoContractsList;
 use App\Livewire\SpotPrice;
 use App\Services\SitemapService;
@@ -72,6 +74,14 @@ Route::get('/sahkosopimus/porssisahko', SeoContractsList::class)
 Route::get('/sahkosopimus/kiintea-hinta', SeoContractsList::class)
     ->name('seo.pricing.kiintea-hinta')
     ->defaults('pricingType', 'FixedPrice');
+
+// Cheapest contracts page (must come BEFORE city catch-all)
+Route::get('/sahkosopimus/halvin-sahkosopimus', CheapestContracts::class)
+    ->name('cheapest.contracts');
+
+// Main comparison index page (must come BEFORE city catch-all)
+Route::get('/sahkosopimus', SahkosopimusIndex::class)
+    ->name('sahkosopimus.index');
 
 // SEO City Routes (must come AFTER specific routes to avoid overriding them)
 Route::get('/sahkosopimus/{city}', SeoContractsList::class)

@@ -97,6 +97,15 @@ class SeoContractsList extends ContractsList
     ];
 
     /**
+     * Housing type to preset mapping.
+     */
+    protected array $housingTypePresetMapping = [
+        'omakotitalo' => 'large_house_electric',
+        'kerrostalo' => 'large_apartment',
+        'rivitalo' => 'large_house_ground_pump',
+    ];
+
+    /**
      * Mount the component with optional filter parameters.
      */
     public function mount(
@@ -110,9 +119,14 @@ class SeoContractsList extends ContractsList
         $this->city = $city;
         $this->pricingType = $pricingType;
 
-        // Set consumption based on housing type
+        // Set consumption and preset based on housing type
         if ($housingType && isset($this->housingTypeConsumption[$housingType])) {
             $this->consumption = $this->housingTypeConsumption[$housingType];
+
+            // Also select the appropriate preset
+            if (isset($this->housingTypePresetMapping[$housingType])) {
+                $this->selectedPreset = $this->housingTypePresetMapping[$housingType];
+            }
         }
     }
 

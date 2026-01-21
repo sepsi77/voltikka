@@ -86,6 +86,18 @@ class SitemapService
                 'changefreq' => 'monthly',
                 'priority' => 0.6,
             ],
+            [
+                'loc' => $baseUrl . '/sahkosopimus',
+                'lastmod' => $today,
+                'changefreq' => 'daily',
+                'priority' => 0.95,
+            ],
+            [
+                'loc' => $baseUrl . '/sahkosopimus/halvin-sahkosopimus',
+                'lastmod' => $today,
+                'changefreq' => 'daily',
+                'priority' => 0.9,
+            ],
         ];
     }
 
