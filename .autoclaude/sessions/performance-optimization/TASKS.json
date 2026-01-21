@@ -35,9 +35,11 @@
       "id": "optimize-company-logos",
       "title": "Create image optimization command for company logos",
       "description": "Create an Artisan command 'php artisan logos:optimize' that: 1) Reads all images from storage/app/public/logos/ 2) Resizes them to max 200px width (logos don't need to be larger) 3) Converts to WebP format with 80% quality 4) Saves optimized versions. Use Intervention Image package (already common in Laravel). The worst offenders are imatran-seudun-sahko-oy.jpg (1.25MB) and sallila-energia-oy.jpg (817KB).",
-      "status": "pending",
+      "status": "completed",
       "priority": 4,
-      "depends_on": ["add-lazy-loading"]
+      "depends_on": ["add-lazy-loading"],
+      "completed_at": "2026-01-22T00:15:00Z",
+      "passes": true
     },
     {
       "id": "add-pagination",

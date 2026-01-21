@@ -117,3 +117,57 @@ The preload hints are dynamically generated from the Vite manifest when it exist
 
 All 147 tests pass.
 
+## 2026-01-22: Create image optimization command for company logos
+
+**Task:** optimize-company-logos
+**Status:** Completed
+
+### Changes Made
+
+1. **Installed Intervention Image package** (`intervention/image-laravel`)
+   - Provides image manipulation capabilities for PHP/Laravel
+
+2. **Created `app/Console/Commands/OptimizeLogos.php`**
+   - New Artisan command: `php artisan logos:optimize`
+   - Reads images from `storage/app/public/logos/`
+   - Resizes to max 200px width (preserving aspect ratio)
+   - Converts to WebP format with 80% quality
+   - Does not upscale small images
+   - Supports `--dry-run` flag to preview changes
+   - Supports `--remove-originals` flag to delete source files after optimization
+
+3. **Created `tests/Feature/OptimizeLogosCommandTest.php`**
+   - 14 comprehensive tests covering:
+     - Resizing large images
+     - Preserving aspect ratio
+     - Not upscaling small images
+     - Handling various formats (PNG, JPG, JPEG, GIF)
+     - Processing multiple images
+     - Dry run functionality
+     - Original file removal option
+     - Edge cases (no images, WebP-only directory)
+
+### Usage
+
+```bash
+# Preview what would be optimized
+php artisan logos:optimize --dry-run
+
+# Optimize all logos (keep originals)
+php artisan logos:optimize
+
+# Optimize and remove original files
+php artisan logos:optimize --remove-originals
+```
+
+### Expected Impact
+
+For large logos (e.g., the mentioned 1.25MB and 817KB files):
+- **Size reduction:** WebP at 200px width typically produces files <10KB
+- **Format:** WebP provides ~30% better compression than PNG/JPEG
+- **Page load:** Dramatically faster image loading
+
+### Tests
+
+All 147 tests pass (including 14 new tests for this command).
+
