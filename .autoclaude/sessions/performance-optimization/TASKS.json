@@ -15,9 +15,11 @@
       "id": "setup-vite-tailwind",
       "title": "Replace Tailwind CDN with compiled CSS via Vite",
       "description": "The site uses cdn.tailwindcss.com which is for development only. Set up Vite (Laravel's default bundler) with Tailwind CSS properly: 1) Install tailwindcss, postcss, autoprefixer via npm 2) Create tailwind.config.js 3) Create resources/css/app.css with @tailwind directives 4) Configure vite.config.js 5) Update the main Blade layout to use @vite instead of CDN script. Keep existing Tailwind classes working.",
-      "status": "pending",
+      "status": "completed",
       "priority": 2,
-      "depends_on": ["add-lazy-loading"]
+      "depends_on": ["add-lazy-loading"],
+      "completed_at": "2026-01-22T00:05:00Z",
+      "passes": true
     },
     {
       "id": "add-preload-hints",
