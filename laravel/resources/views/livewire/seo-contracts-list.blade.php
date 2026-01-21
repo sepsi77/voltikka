@@ -723,105 +723,15 @@
     {{-- Contracts List --}}
     <div class="space-y-4">
         @forelse ($contracts as $contract)
-            @php
-                $prices = $this->getLatestPrices($contract);
-                $generalPrice = $prices['General']['price'] ?? null;
-                $monthlyFee = $prices['Monthly']['price'] ?? 0;
-                $totalCost = $contract->calculated_cost['total_cost'] ?? 0;
-                $source = $contract->electricitySource;
-            @endphp
-            <div class="w-full p-4 bg-white border border-slate-100 rounded-2xl shadow-sm sm:p-8">
-                <div class="flex flex-col lg:flex-row items-center">
-                    {{-- Company Logo and Contract Name --}}
-                    <div class="flex flex-col lg:flex-row items-center">
-                        @if ($contract->company?->getLogoUrl())
-                            <img
-                                src="{{ $contract->company->getLogoUrl() }}"
-                                alt="{{ $contract->company->name }}"
-                                class="w-24 h-auto object-contain"
-                                onerror="this.onerror=null; this.src='https://placehold.co/96x32?text=logo'"
-                            >
-                        @else
-                            <div class="w-24 h-12 bg-slate-200 rounded flex items-center justify-center">
-                                <span class="text-slate-500 text-sm font-bold">{{ substr($contract->company?->name ?? 'N/A', 0, 3) }}</span>
-                            </div>
-                        @endif
-                        <div class="flex flex-col items-start ml-0 lg:ml-4 mt-4 lg:mt-0 text-center lg:text-left">
-                            <h5 class="mb-2 text-2xl font-bold text-slate-900">
-                                {{ $contract->name }}
-                            </h5>
-                            <p class="mb-5 text-base text-slate-500">
-                                {{ $contract->company?->name }}
-                            </p>
-                        </div>
-                    </div>
-
-                    {{-- Pricing Grid --}}
-                    <div class="flex flex-col w-full lg:flex-row items-start lg:items-center lg:ml-auto justify-end gap-4">
-                        @if ($generalPrice !== null)
-                            <div class="text-start px-2">
-                                <h5 class="mb-2 text-xl font-bold text-slate-900">
-                                    {{ number_format($generalPrice, 2, ',', ' ') }} c/kWh
-                                </h5>
-                                <p class="text-base text-slate-500">
-                                    Hinta per kWh
-                                </p>
-                            </div>
-                        @endif
-
-                        <div class="text-start px-2">
-                            <h5 class="mb-2 text-xl font-bold text-slate-900">
-                                {{ number_format($monthlyFee, 2, ',', ' ') }} EUR/kk
-                                <span class="text-sm font-normal text-slate-500">{{ $contract->contract_type }}</span>
-                            </h5>
-                            <p class="text-base text-slate-500">
-                                Perusmaksu
-                            </p>
-                        </div>
-
-                        {{-- Total Cost with Cyan Border --}}
-                        <div class="border-solid lg:border-l-2 lg:border-primary lg:pl-4 text-start">
-                            <h5 class="mb-2 text-xl font-bold text-slate-900">
-                                {{ number_format($totalCost, 2, ',', ' ') }} EUR
-                            </h5>
-                            <p class="text-base text-slate-500">
-                                Vuosikustannus
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {{-- Energy Source Badges and CTA --}}
-                <div class="flex flex-wrap lg:flex-nowrap items-center gap-2 mt-6 pt-4 border-t border-slate-100">
-                    @if ($source)
-                        @if ($source->renewable_total && $source->renewable_total > 0)
-                            <span class="inline-block px-3 py-1.5 bg-green-100 text-green-700 text-xs font-bold rounded-lg uppercase">
-                                Uusiutuva {{ number_format($source->renewable_total, 0) }}%
-                            </span>
-                        @endif
-                        @if ($source->nuclear_total && $source->nuclear_total > 0)
-                            <span class="inline-block px-3 py-1.5 bg-green-100 text-green-700 text-xs font-bold rounded-lg uppercase">
-                                Ydinvoima {{ number_format($source->nuclear_total, 0) }}%
-                            </span>
-                        @endif
-                        @if ($source->fossil_total && $source->fossil_total > 0)
-                            <span class="inline-block px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-medium rounded-lg uppercase">
-                                Fossiilinen {{ number_format($source->fossil_total, 0) }}%
-                            </span>
-                        @endif
-                    @endif
-
-                    <a
-                        href="{{ route('contract.detail', $contract->id) }}"
-                        class="w-full lg:w-auto flex items-center justify-center text-white bg-gradient-to-r from-coral-500 to-coral-600 hover:from-coral-400 hover:to-coral-500 focus:outline-none focus:ring-4 focus:ring-coral-300 font-medium rounded-xl text-sm px-5 py-2.5 text-center ml-auto mt-5 lg:mt-0 transition-colors shadow-sm"
-                    >
-                        Katso lisää
-                        <svg class="w-6 h-6 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
-                        </svg>
-                    </a>
-                </div>
-            </div>
+            <x-contract-card
+                :contract="$contract"
+                :consumption="$consumption"
+                :prices="$this->getLatestPrices($contract)"
+                :showRank="false"
+                :showEmissions="true"
+                :showEnergyBadges="true"
+                :showSpotBadge="true"
+            />
         @empty
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
                 <p class="text-slate-500">Ei sopimuksia saatavilla.</p>

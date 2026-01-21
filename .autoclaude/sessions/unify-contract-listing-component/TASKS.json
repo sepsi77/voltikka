@@ -15,7 +15,9 @@
       "id": "create-contract-card-partial",
       "title": "Create a shared contract card Blade partial",
       "description": "Based on the analysis, create a single reusable contract card partial:\n\nFile: laravel/resources/views/components/contract-card.blade.php\n\nThe card should:\n1. Accept a $contract object and optional parameters\n2. Support all the visual elements from the existing cards:\n   - Company logo, contract name, company name\n   - Price info (energia, perusmaksu, vuosikustannus)\n   - Energy source badges (uusiutuva, ydinvoima, fossiilinen)\n   - CO2 emissions badge\n   - Contract type badges (spot/fixed, määräaikainen/toistaiseksi)\n   - Ranking number (optional)\n   - Featured/Suositus badge (optional)\n   - Left border color based on emissions\n3. Be flexible enough for different contexts (with/without ranking, featured state, etc.)\n\nUse @props to define the component interface.",
-      "status": "pending",
+      "status": "completed",
+      "completed_at": "2026-01-21T00:15:00Z",
+      "passes": true,
       "priority": 2,
       "depends_on": ["analyze-listing-components"]
     },
@@ -23,7 +25,9 @@
       "id": "refactor-contracts-list",
       "title": "Refactor ContractsList to use the shared contract card",
       "description": "Update contracts-list.blade.php to use the new contract-card component instead of inline card markup.\n\n1. Replace the inline card HTML with <x-contract-card :contract=\"$contract\" ... />\n2. Pass required props (rank, featured, consumption, etc.)\n3. Ensure all functionality is preserved\n4. Test the main listing page at / works correctly",
-      "status": "pending",
+      "status": "completed",
+      "completed_at": "2026-01-21T00:20:00Z",
+      "passes": true,
       "priority": 3,
       "depends_on": ["create-contract-card-partial"]
     },
@@ -31,7 +35,9 @@
       "id": "refactor-seo-contracts-list",
       "title": "Refactor SeoContractsList to use the shared contract card",
       "description": "Update seo-contracts-list.blade.php to use the new contract-card component.\n\n1. Replace the inline card HTML with <x-contract-card :contract=\"$contract\" ... />\n2. Ensure SEO pages at /sahkosopimus/omakotitalo, /sahkosopimus/tuulisahko still work\n3. The filtering logic stays in SeoContractsList.php - only the view changes",
-      "status": "pending",
+      "status": "completed",
+      "completed_at": "2026-01-21T00:25:00Z",
+      "passes": true,
       "priority": 4,
       "depends_on": ["refactor-contracts-list"]
     },
@@ -39,7 +45,9 @@
       "id": "refactor-locations-list",
       "title": "Refactor LocationsList to use the shared contract card",
       "description": "Update locations-list.blade.php to use the new contract-card component.\n\n1. Replace any inline card HTML with <x-contract-card :contract=\"$contract\" ... />\n2. Ensure /paikkakunnat page works correctly\n3. The location filtering logic stays in LocationsList.php",
-      "status": "pending",
+      "status": "completed",
+      "completed_at": "2026-01-21T00:30:00Z",
+      "passes": true,
       "priority": 5,
       "depends_on": ["refactor-seo-contracts-list"]
     },
@@ -47,7 +55,9 @@
       "id": "cleanup-and-verify",
       "title": "Clean up duplicated code and verify all pages",
       "description": "Final cleanup:\n\n1. Remove any remaining duplicated card markup\n2. Verify all listing pages render correctly:\n   - / (main listing)\n   - /paikkakunnat\n   - /sahkosopimus/omakotitalo\n   - /sahkosopimus/tuulisahko\n3. Run tests to ensure nothing is broken\n4. Check that the CO2 badges and all visual elements are consistent across all pages",
-      "status": "pending",
+      "status": "completed",
+      "completed_at": "2026-01-21T00:35:00Z",
+      "passes": true,
       "priority": 6,
       "depends_on": ["refactor-locations-list"]
     }
