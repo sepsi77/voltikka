@@ -60,6 +60,14 @@ Route::get('/sahkosopimus/vihrea-sahko', SeoContractsList::class)
     ->name('seo.energy.vihrea-sahko')
     ->defaults('energySource', 'vihrea-sahko');
 
+// SEO Pricing Type Routes
+Route::get('/sahkosopimus/porssisahko', SeoContractsList::class)
+    ->name('seo.pricing.porssisahko')
+    ->defaults('pricingType', 'Spot');
+Route::get('/sahkosopimus/kiintea-hinta', SeoContractsList::class)
+    ->name('seo.pricing.kiintea-hinta')
+    ->defaults('pricingType', 'FixedPrice');
+
 // SEO City Routes (must come AFTER specific routes to avoid overriding them)
 Route::get('/sahkosopimus/{city}', SeoContractsList::class)
     ->name('seo.city')

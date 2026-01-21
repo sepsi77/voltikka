@@ -26,6 +26,11 @@ class SeoContractsList extends ContractsList
     public ?string $city = null;
 
     /**
+     * Pricing type filter (Spot, FixedPrice).
+     */
+    public ?string $pricingType = null;
+
+    /**
      * Housing type to consumption mapping.
      */
     protected array $housingTypeConsumption = [
@@ -50,6 +55,14 @@ class SeoContractsList extends ContractsList
         'tuulisahko' => 'Tuulisähkö',
         'aurinkosahko' => 'Aurinkosähkö',
         'vihrea-sahko' => 'Vihreä sähkö',
+    ];
+
+    /**
+     * Pricing type display names in Finnish.
+     */
+    protected array $pricingTypeNames = [
+        'Spot' => 'Pörssisähkö',
+        'FixedPrice' => 'Kiinteähintainen',
     ];
 
     /**
@@ -84,11 +97,13 @@ class SeoContractsList extends ContractsList
     public function mount(
         ?string $housingType = null,
         ?string $energySource = null,
-        ?string $city = null
+        ?string $city = null,
+        ?string $pricingType = null
     ): void {
         $this->housingType = $housingType;
         $this->energySource = $energySource;
         $this->city = $city;
+        $this->pricingType = $pricingType;
 
         // Set consumption based on housing type
         if ($housingType && isset($this->housingTypeConsumption[$housingType])) {
@@ -114,7 +129,22 @@ class SeoContractsList extends ContractsList
             $contracts = $this->filterByCity($contracts);
         }
 
+        // Apply pricing type filter
+        if ($this->pricingType) {
+            $contracts = $this->filterByPricingType($contracts);
+        }
+
         return $contracts;
+    }
+
+    /**
+     * Filter contracts by pricing type (Spot, FixedPrice).
+     */
+    protected function filterByPricingType(Collection $contracts): Collection
+    {
+        return $contracts->filter(function ($contract) {
+            return $contract->pricing_model === $this->pricingType;
+        });
     }
 
     /**
@@ -202,6 +232,10 @@ class SeoContractsList extends ContractsList
             return "{$this->energySourceNames[$this->energySource]}sopimukset | Voltikka";
         }
 
+        if ($this->pricingType && isset($this->pricingTypeNames[$this->pricingType])) {
+            return "{$this->pricingTypeNames[$this->pricingType]}sopimukset | Voltikka";
+        }
+
         if ($this->city) {
             $cityData = $this->getCityData($this->city);
             return "Sähkösopimukset {$cityData['locative']} | Voltikka";
@@ -226,6 +260,14 @@ class SeoContractsList extends ContractsList
             return "Vertaile tuulisähkö- ja {$sourceName}sopimuksia. Valitse ympäristöystävällinen sähkösopimus.";
         }
 
+        if ($this->pricingType && isset($this->pricingTypeNames[$this->pricingType])) {
+            $pricingName = mb_strtolower($this->pricingTypeNames[$this->pricingType]);
+            if ($this->pricingType === 'Spot') {
+                return "Vertaile pörssisähkösopimuksia. Pörssisähkö seuraa tuntikohtaista sähkön pörssihintaa. Löydä paras pörssisähkösopimus.";
+            }
+            return "Vertaile kiinteähintaisia sähkösopimuksia. Kiinteä hinta tuo ennustettavuutta sähkölaskuun. Löydä paras kiinteähintainen sopimus.";
+        }
+
         if ($this->city) {
             $cityData = $this->getCityData($this->city);
             return "Sähkösopimukset {$cityData['locative']}. Vertaile hintoja ja löydä paras sähkösopimus {$cityData['name']}n alueelle.";
@@ -247,6 +289,11 @@ class SeoContractsList extends ContractsList
 
         if ($this->energySource) {
             return "{$baseUrl}/sahkosopimus/{$this->energySource}";
+        }
+
+        if ($this->pricingType) {
+            $slug = $this->pricingType === 'Spot' ? 'porssisahko' : 'kiintea-hinta';
+            return "{$baseUrl}/sahkosopimus/{$slug}";
         }
 
         if ($this->city) {
@@ -315,6 +362,10 @@ class SeoContractsList extends ContractsList
 
         if ($this->energySource && isset($this->energySourceNames[$this->energySource])) {
             return "{$this->energySourceNames[$this->energySource]}sopimukset";
+        }
+
+        if ($this->pricingType && isset($this->pricingTypeNames[$this->pricingType])) {
+            return "{$this->pricingTypeNames[$this->pricingType]}sopimukset";
         }
 
         if ($this->city) {

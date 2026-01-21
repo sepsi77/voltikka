@@ -35,6 +35,10 @@ RUN mkdir -p storage/logs storage/framework/{cache,sessions,views} bootstrap/cac
 # Copy supervisor configuration
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
+# Copy and prepare entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Expose port
 EXPOSE 8000
 
@@ -42,5 +46,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/up || exit 1
 
-# Run supervisor (manages both web server and scheduler)
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Run entrypoint (handles storage setup, migrations, then starts supervisor)
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
