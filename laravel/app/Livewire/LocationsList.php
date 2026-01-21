@@ -85,19 +85,16 @@ class LocationsList extends Component
     }
 
     /**
-     * Select a municipality.
+     * Get the municipality slug for the currently selected municipality.
      */
-    public function selectMunicipality(string $name, string $slug): void
+    public function getMunicipalitySlugProperty(): ?string
     {
-        $this->selectedMunicipality = $name;
-    }
+        if (!$this->selectedMunicipality) {
+            return null;
+        }
 
-    /**
-     * Clear the selected municipality.
-     */
-    public function clearSelection(): void
-    {
-        $this->selectedMunicipality = null;
+        return Postcode::where('municipal_name_fi', $this->selectedMunicipality)
+            ->value('municipal_name_fi_slug');
     }
 
     /**

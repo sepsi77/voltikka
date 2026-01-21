@@ -107,7 +107,7 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString("<loc>{$baseUrl}/spot-price</loc>", $content);
 
         // Locations page
-        $this->assertStringContainsString("<loc>{$baseUrl}/paikkakunnat</loc>", $content);
+        $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/paikkakunnat</loc>", $content);
     }
 
     /** @test */
@@ -333,7 +333,7 @@ class SitemapTest extends TestCase
 
         $this->assertContains(config('app.url'), $locs);
         $this->assertContains(config('app.url') . '/spot-price', $locs);
-        $this->assertContains(config('app.url') . '/paikkakunnat', $locs);
+        $this->assertContains(config('app.url') . '/sahkosopimus/paikkakunnat', $locs);
     }
 
     /** @test */

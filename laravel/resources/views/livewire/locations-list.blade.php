@@ -18,15 +18,15 @@
     @if ($selectedMunicipality)
         <!-- Selected Municipality View -->
         <div class="mb-8">
-            <button
-                wire:click="clearSelection"
+            <a
+                href="{{ route('locations') }}"
                 class="inline-flex items-center text-coral-600 hover:text-coral-700 font-medium mb-4"
             >
                 <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
                 </svg>
                 Takaisin paikkakuntiin
-            </button>
+            </a>
 
             <h2 class="text-2xl font-bold text-slate-900 mb-4">
                 Sähkösopimukset: {{ $selectedMunicipality }}
@@ -76,9 +76,9 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             @forelse ($municipalities as $municipality)
-                <button
-                    wire:click="selectMunicipality('{{ $municipality->municipal_name_fi }}', '{{ $municipality->municipal_name_fi_slug }}')"
-                    class="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-coral-500 hover:shadow-md transition-all text-left"
+                <a
+                    href="{{ route('locations', ['location' => $municipality->municipal_name_fi_slug]) }}"
+                    class="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:border-coral-500 hover:shadow-md transition-all text-left block"
                 >
                     <h3 class="text-lg font-semibold text-slate-900">
                         {{ $municipality->municipal_name_fi }}
@@ -86,7 +86,7 @@
                     <p class="text-sm text-slate-500">
                         {{ $municipality->postcode_count }} postinumeroa
                     </p>
-                </button>
+                </a>
             @empty
                 <div class="col-span-full bg-white rounded-2xl shadow-sm-sm border border-slate-100 p-12 text-center">
                     <p class="text-slate-500">Ei paikkakuntia löytynyt hakusanalla "{{ $search }}"</p>

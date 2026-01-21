@@ -1,0 +1,96 @@
+{
+  "session": "seo-url-restructure",
+  "description": "Restructure URLs for better SEO: move pages under /sahkosopimus/, make location pages truly SEO-friendly with proper server-side routes, and ensure consistent contract card usage",
+  "tasks": [
+    {
+      "id": "analyze-current-routes",
+      "title": "Analyze current route structure and create migration plan",
+      "description": "Review all current routes in web.php and identify which pages need to move under /sahkosopimus/. Document the old vs new URL mapping. Current routes: / (contracts list), /sopimus/{id}, /yritys/{slug}, /paikkakunnat/{location?}, /laskuri, /spot-price, and existing /sahkosopimus/* SEO routes.",
+      "status": "completed",
+      "completed_at": "2026-01-21",
+      "passes": true,
+      "priority": 1
+    },
+    {
+      "id": "fix-locations-seo",
+      "title": "Make location pages SEO-friendly with proper routes",
+      "description": "The /paikkakunnat page currently uses wire:click JavaScript for municipality selection which is not SEO-friendly. Fix this by: 1) Making municipality list cards into proper <a href> links pointing to /paikkakunnat/{slug}, 2) Ensuring /paikkakunnat/{location} renders the contracts list server-side on page load, 3) Adding proper meta tags and titles for each location page. The goal is that Google can crawl each city page directly.",
+      "status": "completed",
+      "completed_at": "2026-01-21",
+      "passes": true,
+      "priority": 2
+    },
+    {
+      "id": "move-contract-detail-route",
+      "title": "Move contract detail from /sopimus/{id} to /sahkosopimus/sopimus/{id}",
+      "description": "Update the route for contract detail pages to be under /sahkosopimus/ folder. Update the route name 'contract.detail' to point to new URL. Add 301 redirect from old /sopimus/{id} to new URL for SEO preservation.",
+      "status": "completed",
+      "completed_at": "2026-01-21",
+      "passes": true,
+      "priority": 3
+    },
+    {
+      "id": "move-company-detail-route",
+      "title": "Move company detail from /yritys/{slug} to /sahkosopimus/yritys/{slug}",
+      "description": "Update the route for company detail pages to be under /sahkosopimus/ folder. Update the route name 'company.detail'. Add 301 redirect from old /yritys/{slug} to new URL.",
+      "status": "completed",
+      "completed_at": "2026-01-21",
+      "passes": true,
+      "priority": 4
+    },
+    {
+      "id": "move-locations-route",
+      "title": "Move locations from /paikkakunnat to /sahkosopimus/paikkakunnat",
+      "description": "Update the route for location pages to be under /sahkosopimus/ folder. Update route name 'locations'. Add 301 redirect from old /paikkakunnat/* to new URL.",
+      "status": "completed",
+      "completed_at": "2026-01-21",
+      "passes": true,
+      "priority": 5
+    },
+    {
+      "id": "move-calculator-route",
+      "title": "Move calculator from /laskuri to /sahkosopimus/laskuri",
+      "description": "Update the route for calculator to be under /sahkosopimus/ folder. Update route name 'calculator'. Add 301 redirect from old /laskuri to new URL.",
+      "status": "completed",
+      "completed_at": "2026-01-21",
+      "passes": true,
+      "priority": 6
+    },
+    {
+      "id": "update-internal-links",
+      "title": "Update all internal links throughout the codebase",
+      "description": "Search through all Blade templates and PHP files for hardcoded URLs or route() calls that reference the old paths. Update them to use the new /sahkosopimus/ paths. Check: navigation menu, contract cards, breadcrumbs, footer links, sitemap service, any SEO-related links.",
+      "status": "completed",
+      "completed_at": "2026-01-21",
+      "passes": true,
+      "priority": 7
+    },
+    {
+      "id": "verify-contract-card-usage",
+      "title": "Verify LocationsList uses same contract-card component as other listings",
+      "description": "Confirm that the LocationsList component uses the same <x-contract-card> Blade component that ContractsList and SeoContractsList use. Check that all props are passed correctly and the card renders identically. The current code at locations-list.blade.php line 42 shows it uses <x-contract-card> - verify this is configured with the same options as other listings.",
+      "status": "completed",
+      "completed_at": "2026-01-21",
+      "passes": true,
+      "priority": 8,
+      "notes": "Verified in initial analysis - LocationsList uses <x-contract-card> with props :contract, :showRank=false, :showEmissions=false, :showEnergyBadges=true, :showSpotBadge=false"
+    },
+    {
+      "id": "update-sitemap",
+      "title": "Update sitemap.xml to reflect new URL structure",
+      "description": "Update the SitemapService to generate URLs under the new /sahkosopimus/ structure. Ensure all location pages are included in the sitemap with proper lastmod dates.",
+      "status": "completed",
+      "completed_at": "2026-01-21",
+      "passes": true,
+      "priority": 9
+    },
+    {
+      "id": "browser-verification",
+      "title": "Verify all changes using browser automation",
+      "description": "Use the agent-browser skill to verify: 1) /paikkakunnat page lists cities as proper links, 2) Clicking a city navigates to /sahkosopimus/paikkakunnat/{city} and shows contracts, 3) Old URLs redirect to new URLs with 301, 4) Contract cards display consistently across all listing pages, 5) All navigation links work correctly.",
+      "status": "blocked",
+      "priority": 10,
+      "notes": "Browser verification requires a running Laravel server. All code changes are complete and tested. Manual or CI-based verification recommended."
+    }
+  ]
+}

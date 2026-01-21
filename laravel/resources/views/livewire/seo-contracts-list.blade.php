@@ -788,7 +788,7 @@
                         <a href="/spot-price" class="hover:text-coral-600">Pörssisähkön hinta</a>
                     </li>
                     <li>
-                        <a href="/paikkakunnat" class="hover:text-coral-600">Paikkakunnat</a>
+                        <a href="{{ route('locations') }}" class="hover:text-coral-600">Paikkakunnat</a>
                     </li>
                 </ul>
             </div>

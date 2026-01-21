@@ -10,11 +10,8 @@ use App\Livewire\SpotPrice;
 use App\Services\SitemapService;
 use Illuminate\Support\Facades\Route;
 
+// Main pages (keep at root level)
 Route::get('/', ContractsList::class);
-Route::get('/laskuri', ConsumptionCalculator::class)->name('calculator');
-Route::get('/sopimus/{contractId}', ContractDetail::class)->name('contract.detail');
-Route::get('/paikkakunnat/{location?}', LocationsList::class)->name('locations');
-Route::get('/yritys/{companySlug}', CompanyDetail::class)->name('company.detail');
 Route::get('/spot-price', SpotPrice::class)->name('spot-price');
 
 // Sitemap
@@ -24,6 +21,22 @@ Route::get('/sitemap.xml', function (SitemapService $sitemapService) {
         'Cache-Control' => 'public, max-age=3600',
     ]);
 })->name('sitemap');
+
+// =============================================================================
+// All electricity contract related pages under /sahkosopimus/
+// =============================================================================
+
+// Calculator
+Route::get('/sahkosopimus/laskuri', ConsumptionCalculator::class)->name('calculator');
+
+// Contract detail
+Route::get('/sahkosopimus/sopimus/{contractId}', ContractDetail::class)->name('contract.detail');
+
+// Company detail
+Route::get('/sahkosopimus/yritys/{companySlug}', CompanyDetail::class)->name('company.detail');
+
+// Location pages
+Route::get('/sahkosopimus/paikkakunnat/{location?}', LocationsList::class)->name('locations');
 
 // SEO Housing Type Routes
 Route::get('/sahkosopimus/omakotitalo', SeoContractsList::class)
@@ -51,3 +64,28 @@ Route::get('/sahkosopimus/vihrea-sahko', SeoContractsList::class)
 Route::get('/sahkosopimus/{city}', SeoContractsList::class)
     ->name('seo.city')
     ->where('city', '[a-z0-9-]+');
+
+// =============================================================================
+// 301 Redirects from old URLs to new URLs (for SEO preservation)
+// =============================================================================
+
+// Redirect old /laskuri to new location
+Route::redirect('/laskuri', '/sahkosopimus/laskuri', 301);
+
+// Redirect old /sopimus/{id} to new location
+Route::get('/sopimus/{contractId}', function ($contractId) {
+    return redirect()->route('contract.detail', ['contractId' => $contractId], 301);
+});
+
+// Redirect old /yritys/{slug} to new location
+Route::get('/yritys/{companySlug}', function ($companySlug) {
+    return redirect()->route('company.detail', ['companySlug' => $companySlug], 301);
+});
+
+// Redirect old /paikkakunnat to new location
+Route::get('/paikkakunnat/{location?}', function ($location = null) {
+    if ($location) {
+        return redirect()->route('locations', ['location' => $location], 301);
+    }
+    return redirect()->route('locations', [], 301);
+});

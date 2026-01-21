@@ -132,7 +132,7 @@
                         <a href="/" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('/') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                             Sähkösopimukset
                         </a>
-                        <a href="/laskuri" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('laskuri') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                        <a href="{{ route('calculator') }}" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('sahkosopimus/laskuri') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                             Laskuri
                         </a>
 
@@ -162,7 +162,7 @@
                             </div>
                         </div>
 
-                        <a href="/paikkakunnat" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('paikkakunnat*') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                        <a href="{{ route('locations') }}" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('sahkosopimus/paikkakunnat*') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                             Paikkakunnat
                         </a>
                         <a href="/spot-price" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('spot-price') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
@@ -205,7 +205,7 @@
                     <a href="/" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('/') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                         Sähkösopimukset
                     </a>
-                    <a href="/laskuri" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('laskuri') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                    <a href="{{ route('calculator') }}" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/laskuri') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                         Laskuri
                     </a>
 
@@ -225,7 +225,7 @@
                         <a href="/sahkosopimus/aurinkosahko" class="block px-3 py-1.5 text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 rounded-lg">Aurinkosähkö</a>
                     </div>
 
-                    <a href="/paikkakunnat" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('paikkakunnat*') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                    <a href="{{ route('locations') }}" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/paikkakunnat*') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                         Paikkakunnat
                     </a>
                     <a href="/spot-price" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('spot-price') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">

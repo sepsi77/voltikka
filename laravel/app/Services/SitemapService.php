@@ -35,7 +35,8 @@ class SitemapService
             $this->getMainPageUrls(),
             $this->getHousingTypeUrls(),
             $this->getEnergySourceUrls(),
-            $this->getCityUrls()
+            $this->getCityUrls(),
+            $this->getMunicipalityUrls()
         );
     }
 
@@ -61,10 +62,16 @@ class SitemapService
                 'priority' => 0.9,
             ],
             [
-                'loc' => $baseUrl . '/paikkakunnat',
+                'loc' => $baseUrl . '/sahkosopimus/paikkakunnat',
                 'lastmod' => $today,
                 'changefreq' => 'weekly',
                 'priority' => 0.7,
+            ],
+            [
+                'loc' => $baseUrl . '/sahkosopimus/laskuri',
+                'lastmod' => $today,
+                'changefreq' => 'monthly',
+                'priority' => 0.6,
             ],
         ];
     }
@@ -130,6 +137,33 @@ class SitemapService
                 'priority' => 0.6,
             ];
         }, $cities);
+    }
+
+    /**
+     * Get municipality page URLs (for the locations/paikkakunnat section).
+     */
+    public function getMunicipalityUrls(): array
+    {
+        $baseUrl = config('app.url');
+        $today = Carbon::today()->toDateString();
+
+        // Get unique municipalities from postcodes
+        $municipalities = Postcode::select('municipal_name_fi_slug')
+            ->whereNotNull('municipal_name_fi_slug')
+            ->distinct()
+            ->pluck('municipal_name_fi_slug')
+            ->filter()
+            ->values()
+            ->toArray();
+
+        return array_map(function ($slug) use ($baseUrl, $today) {
+            return [
+                'loc' => $baseUrl . '/sahkosopimus/paikkakunnat/' . $slug,
+                'lastmod' => $today,
+                'changefreq' => 'weekly',
+                'priority' => 0.5,
+            ];
+        }, $municipalities);
     }
 
     /**
