@@ -2,6 +2,7 @@
 FROM dunglas/frankenphp:1-php8.4
 
 # Install system dependencies and PHP extensions
+# Note: libwebp-dev is required for GD WebP support (image optimization)
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -9,9 +10,13 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev \
     libpq-dev \
+    libwebp-dev \
     zip \
     unzip \
     supervisor \
+    nodejs \
+    npm \
+    && docker-php-ext-configure gd --with-webp \
     && docker-php-ext-install pdo pdo_pgsql pdo_mysql mbstring exif pcntl bcmath gd \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
@@ -26,6 +31,9 @@ COPY laravel/ .
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
+
+# Install Node.js dependencies and build assets
+RUN npm ci && npm run build && rm -rf node_modules
 
 # Create storage directories and set permissions
 RUN mkdir -p storage/logs storage/framework/{cache,sessions,views} bootstrap/cache \
