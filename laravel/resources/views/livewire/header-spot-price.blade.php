@@ -1,4 +1,4 @@
-<div>
+<div wire:poll.60s>
     @if ($currentPrice)
         <a href="/spot-price" class="group flex items-center gap-2 bg-coral-50 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl border border-coral-200 hover:border-coral-300 hover:bg-coral-100 transition-colors">
             <span class="relative flex h-2.5 w-2.5">
