@@ -617,7 +617,7 @@
                         <h3 class="text-lg font-semibold text-slate-900 mb-4">Viikon hintakehitys</h3>
                         <p class="text-sm text-slate-500 mb-4">Päivittäiset keskihinnat viimeiseltä 7 päivältä</p>
                         <div class="h-64 md:h-80">
-                            <canvas id="weeklyPriceChart"></canvas>
+                            <canvas id="weeklyPriceChart" data-chart="{{ json_encode($weeklyChartData) }}"></canvas>
                         </div>
                     </div>
                 @endif
@@ -810,23 +810,27 @@
     });
     @endif
 
-    // Initialize weekly price chart (if historical data is loaded)
-    @if ($historicalDataLoaded && !empty($weeklyChartData['labels']))
-    document.addEventListener('DOMContentLoaded', function() {
-        initWeeklyChart();
-    });
-
-    // Also handle Livewire updates
-    document.addEventListener('livewire:navigated', function() {
-        initWeeklyChart();
-    });
-
+    // Weekly chart initialization function (always defined)
     function initWeeklyChart() {
         const weeklyCtx = document.getElementById('weeklyPriceChart');
-        if (weeklyCtx && !weeklyCtx.chart) {
-            weeklyCtx.chart = new Chart(weeklyCtx, {
+        if (!weeklyCtx) return;
+
+        // Get data from data attribute
+        const dataAttr = weeklyCtx.getAttribute('data-chart');
+        if (!dataAttr) return;
+
+        // Destroy existing chart if it exists
+        if (weeklyCtx.chartInstance) {
+            weeklyCtx.chartInstance.destroy();
+        }
+
+        try {
+            const chartData = JSON.parse(dataAttr);
+            if (!chartData.labels || chartData.labels.length === 0) return;
+
+            weeklyCtx.chartInstance = new Chart(weeklyCtx, {
                 type: 'line',
-                data: @json($weeklyChartData),
+                data: chartData,
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -869,9 +873,15 @@
                     }
                 }
             });
+        } catch (e) {
+            console.error('Failed to initialize weekly chart:', e);
         }
     }
-    @endif
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        initWeeklyChart();
+    });
 
     // Reinitialize charts when Livewire updates the component
     document.addEventListener('livewire:initialized', function() {
@@ -879,10 +889,7 @@
             succeed(({ snapshot, effect }) => {
                 // After successful update, re-init charts
                 setTimeout(() => {
-                    const weeklyCtx = document.getElementById('weeklyPriceChart');
-                    if (weeklyCtx && !weeklyCtx.chart) {
-                        initWeeklyChart && initWeeklyChart();
-                    }
+                    initWeeklyChart();
                 }, 100);
             });
         });
