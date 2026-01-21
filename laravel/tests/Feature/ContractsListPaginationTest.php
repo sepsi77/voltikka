@@ -375,16 +375,23 @@ class ContractsListPaginationTest extends TestCase
     }
 
     /**
-     * Test that changing consumption does NOT reset page.
+     * Test that changing consumption resets page to 1.
      */
-    public function test_changing_consumption_does_not_reset_page(): void
+    public function test_changing_consumption_resets_page(): void
     {
         $this->createContracts(50);
 
+        // Test selectPreset method resets page
         $component = Livewire::test('contracts-list')
             ->set('page', 2)
-            ->set('consumption', 10000)
-            ->assertSet('page', 2); // Should remain on page 2
+            ->call('selectPreset', 'large_house_electric')
+            ->assertSet('page', 1); // Should reset to 1
+
+        // Test setConsumption method resets page
+        $component2 = Livewire::test('contracts-list')
+            ->set('page', 2)
+            ->call('setConsumption', 10000)
+            ->assertSet('page', 1); // Should reset to 1
     }
 
     /**

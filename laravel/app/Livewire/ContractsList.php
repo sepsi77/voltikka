@@ -362,6 +362,7 @@ class ContractsList extends Component
 
         if (isset($this->presets[$preset])) {
             $this->consumption = $this->presets[$preset]['consumption'];
+            $this->resetPage();
         }
     }
 
@@ -372,6 +373,7 @@ class ContractsList extends Component
     {
         $this->consumption = $value;
         $this->selectedPreset = null;
+        $this->resetPage();
     }
 
     /**
@@ -405,6 +407,7 @@ class ContractsList extends Component
         $result = $calculator->estimate($request);
         $this->consumption = $result->total;
         $this->selectedPreset = null;
+        $this->resetPage();
     }
 
     /**
