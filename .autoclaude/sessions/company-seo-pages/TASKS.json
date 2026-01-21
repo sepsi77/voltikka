@@ -54,8 +54,10 @@
       "id": "add-navigation-links",
       "title": "Add navigation links to layout",
       "description": "Update laravel/resources/views/layouts/app.blade.php to add 'Sahkoyhtiot' link to desktop nav (after 'Yrityksille' link), mobile menu, and footer navigation. Link should point to /sahkosopimus/sahkoyhtiot.",
-      "status": "pending",
-      "priority": 6
+      "status": "completed",
+      "priority": 6,
+      "completed_at": "2026-01-21T15:15:00Z",
+      "passes": true
     },
     {
       "id": "update-sitemap",

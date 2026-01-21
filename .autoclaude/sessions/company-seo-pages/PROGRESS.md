@@ -154,7 +154,17 @@
 - All 72 Company-related tests pass
 - Route configuration verified with `php artisan route:list`
 
+### Completed: Task 6 - Add navigation links to layout
+- Updated `/laravel/resources/views/layouts/app.blade.php` with:
+  - Desktop navigation: Added "Sähköyhtiöt" link after "Yrityksille"
+  - Mobile menu: Added "Sähköyhtiöt" link after "Yrityksille"
+  - Footer: Added "Sähköyhtiöt" link in "Sähkösopimukset" section
+- All links point to `/sahkosopimus/sahkoyhtiot`
+- Active state styling matches pattern of other nav links
+
+### Tests
+- All 17 CompanyListPageTest tests continue to pass
+
 ### Next Steps:
-- Task 6: Add navigation links to layout
 - Task 7: Update sitemap service
 - Task 8: Run full test suite
