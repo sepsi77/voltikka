@@ -79,3 +79,41 @@ public/build/assets/app-CAiCLEjY.js   36.35 kB │ gzip: 14.71 kB
 
 All 147 tests pass.
 
+## 2026-01-22: Add resource preload hints for critical assets
+
+**Task:** add-preload-hints
+**Status:** Completed
+
+### Changes Made
+
+Updated `resources/views/layouts/app.blade.php` to add preload hints for critical assets:
+
+1. **Preconnect hints** (already present, reorganized for clarity)
+   - `fonts.googleapis.com` - Google Fonts API
+   - `fonts.gstatic.com` with `crossorigin` - Font file delivery
+
+2. **Preload for Vite-compiled assets** (dynamic from manifest)
+   - CSS: `build/assets/app-MxJ4VHYK.css`
+   - JS: `build/assets/app-CAiCLEjY.js`
+
+3. **Preload for Livewire script**
+   - `/vendor/livewire/livewire.min.js` (221KB minified)
+   - Published Livewire assets to `public/vendor/livewire/`
+
+### Technical Details
+
+The preload hints are dynamically generated from the Vite manifest when it exists, ensuring the correct hashed filenames are used. This approach:
+- Works with content-hashed filenames that change on rebuild
+- Falls back gracefully when no build exists (development mode)
+- Positions preloads early in `<head>` for maximum browser benefit
+
+### Expected Impact
+
+- **Preconnect:** Establishes early connections to Google Fonts, saving ~100-200ms on font loading
+- **Preload CSS/JS:** Browser begins downloading critical assets immediately rather than waiting for HTML parser to discover them
+- **Preload Livewire:** Livewire script loads earlier, reducing time-to-interactive for dynamic components
+
+### Tests
+
+All 147 tests pass.
+

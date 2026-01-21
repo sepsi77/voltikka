@@ -30,9 +30,27 @@
         @endif
         <meta property="og:url" content="{{ url()->current() }}">
 
-        <!-- Fonts - Plus Jakarta Sans (Fresh Coral design system) -->
+        <!-- Preconnect to required origins for performance -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+        <!-- Preload critical assets -->
+        @if (file_exists(public_path('build/manifest.json')))
+            @php
+                $manifest = json_decode(file_get_contents(public_path('build/manifest.json')), true);
+                $cssFile = $manifest['resources/css/app.css']['file'] ?? null;
+                $jsFile = $manifest['resources/js/app.js']['file'] ?? null;
+            @endphp
+            @if ($cssFile)
+                <link rel="preload" href="{{ asset('build/' . $cssFile) }}" as="style">
+            @endif
+            @if ($jsFile)
+                <link rel="preload" href="{{ asset('build/' . $jsFile) }}" as="script">
+            @endif
+        @endif
+        <link rel="preload" href="/vendor/livewire/livewire.min.js" as="script">
+
+        <!-- Fonts - Plus Jakarta Sans (Fresh Coral design system) -->
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
         <!-- Styles / Scripts -->

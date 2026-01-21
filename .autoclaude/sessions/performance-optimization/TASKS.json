@@ -25,9 +25,11 @@
       "id": "add-preload-hints",
       "title": "Add resource preload hints for critical assets",
       "description": "Add <link rel='preload'> hints in the main layout for critical resources: 1) Preload the Plus Jakarta Sans font from Google Fonts with crossorigin 2) Preload Livewire.js script 3) Add font-display: swap or preconnect for fonts.googleapis.com and fonts.gstatic.com. Update resources/views/layouts/app.blade.php or equivalent main layout.",
-      "status": "pending",
+      "status": "completed",
       "priority": 3,
-      "depends_on": ["setup-vite-tailwind"]
+      "depends_on": ["setup-vite-tailwind"],
+      "completed_at": "2026-01-22T00:10:00Z",
+      "passes": true
     },
     {
       "id": "optimize-company-logos",
