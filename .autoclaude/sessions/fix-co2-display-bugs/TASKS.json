@@ -1,0 +1,38 @@
+{
+  "session": "fix-co2-display-bugs",
+  "description": "Fix broken CO2 displays on listing and detail pages, and handle empty electricity sources section",
+  "tasks": [
+    {
+      "id": "fix-listing-co2-badge",
+      "title": "Fix broken CO2 badge on contracts listing page",
+      "description": "The CO2 badge on contracts-list.blade.php is completely broken. Instead of a compact inline badge, it's rendering as a massive box with a huge cloud icon.\n\nCURRENT BROKEN STATE:\n- Giant cloud icon in a large box taking up way too much vertical space\n- Text layout is wrong - numbers stacked vertically instead of inline\n- Takes up entire width of the card area\n\nFIX REQUIREMENTS:\n1. Make it a COMPACT inline badge similar to the energy source badges nearby\n2. Small cloud icon (w-4 h-4 max)\n3. Text should be inline: '1 955 kg CO₂/v (391 g/kWh)'\n4. Should fit on ONE LINE, not a multi-line box\n5. Use the same badge styling as the other badges (rounded-lg, small padding)\n\nLook at the energy source badges (UUSIUTUVA, YDINVOIMA, etc.) for reference styling - the CO2 badge should match that compact format.\n\nFile: laravel/resources/views/livewire/contracts-list.blade.php (around lines 764-784)",
+      "status": "completed",
+      "completed_at": "2026-01-21T12:00:00Z",
+      "passes": true,
+      "priority": 1,
+      "notes": "The HTML/Blade code was already correct. The issue was that Tailwind CSS classes (w-3.5, h-3.5) were not being compiled into the production CSS bundle. Running 'npm run build' regenerated the CSS and fixed the issue. No code changes required."
+    },
+    {
+      "id": "fix-detail-gauge-display",
+      "title": "Fix broken gauge display on contract detail page",
+      "description": "The Ympäristövaikutus section gauge on contract-detail.blade.php is broken:\n\nCURRENT BROKEN STATE:\n1. Shows '000+' text visible at top (should be hidden or part of scale)\n2. The semi-circular gauge arc is not visible at all\n3. Scale shows '400+S' instead of '400+' (typo with trailing S)\n4. The comparison bar markers/contract position may not be visible\n\nFIX REQUIREMENTS:\n1. REMOVE the complex semi-circular gauge - it's not working and adds visual clutter\n2. Instead, use a SIMPLE horizontal progress bar showing emission factor\n3. The bar should have gradient colors (green to yellow to orange to red)\n4. Show the contract's position clearly on the bar\n5. Fix the '400+S' typo - should be '400+'\n6. Keep the annual emissions as hero number (1 955 kg)\n7. Keep the car driving equivalency\n8. Keep the comparison to Finland average section\n\nThe design should be SIMPLER and more reliable than the broken gauge.\n\nFile: laravel/resources/views/livewire/contract-detail.blade.php (around lines 380-500)",
+      "status": "completed",
+      "completed_at": "2026-01-21T12:30:00Z",
+      "passes": true,
+      "priority": 2,
+      "depends_on": ["fix-listing-co2-badge"],
+      "notes": "Replaced the semi-circular gauge with a simple horizontal progress bar. The new design shows: 1) Emission factor bar with gradient (green-yellow-orange-red), 2) Annual emissions hero number with car equivalency, 3) Comparison bar with Finland baseline. Removed unused $needleRotation variable. CSS was rebuilt to include all classes."
+    },
+    {
+      "id": "fix-empty-electricity-sources",
+      "title": "Handle empty electricity sources section gracefully",
+      "description": "The 'Sähkön alkuperä' (Electricity sources) section shows as an empty card when the contract has no source breakdown data.\n\nCURRENT BROKEN STATE:\n- Empty white card with just the title 'Sähkön alkuperä'\n- No content, looks broken/incomplete\n\nFIX REQUIREMENTS:\n1. When there's no electricity source data, show a helpful message instead of empty space\n2. Message should explain: 'Sähkön alkuperätietoja ei ole saatavilla tälle sopimukselle. Laskennassa käytetään Suomen jäännösjakaumaa.'\n   (Electricity source info not available for this contract. Finland's residual mix is used for calculations.)\n3. Use an info icon and muted styling (gray/slate colors)\n4. OR alternatively, hide the entire section if no data (but then the CO2 section should explain the residual mix usage)\n\nFile: laravel/resources/views/livewire/contract-detail.blade.php (the electricitySource section, around lines 290-363)",
+      "status": "completed",
+      "completed_at": "2026-01-21T12:45:00Z",
+      "passes": true,
+      "priority": 3,
+      "depends_on": ["fix-detail-gauge-display"],
+      "notes": "Added a $hasSourceData check that verifies if any source percentage (renewable_total, nuclear_total, fossil_total) is > 0. When no data is available, displays an informative message with info icon explaining that Finland's residual mix (390.93 gCO₂/kWh) is used for emission calculations."
+    }
+  ]
+}

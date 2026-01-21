@@ -287,10 +287,16 @@
         <!-- Right Column: Energy Source & Company Info -->
         <div class="space-y-6">
             <!-- Electricity Source -->
-            @if ($contract->electricitySource)
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                    <h2 class="text-lg font-semibold text-slate-900 mb-4">Sähkön alkuperä</h2>
+            @php
+                $hasSourceData = $contract->electricitySource &&
+                    (($contract->electricitySource->renewable_total && $contract->electricitySource->renewable_total > 0) ||
+                     ($contract->electricitySource->nuclear_total && $contract->electricitySource->nuclear_total > 0) ||
+                     ($contract->electricitySource->fossil_total && $contract->electricitySource->fossil_total > 0));
+            @endphp
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <h2 class="text-lg font-semibold text-slate-900 mb-4">Sähkön alkuperä</h2>
 
+                @if ($hasSourceData)
                     <!-- Main breakdown -->
                     <div class="space-y-3 mb-6">
                         @if ($contract->electricitySource->renewable_total && $contract->electricitySource->renewable_total > 0)
@@ -360,8 +366,19 @@
                             </div>
                         </div>
                     @endif
-                </div>
-            @endif
+                @else
+                    <!-- No source data available -->
+                    <div class="flex items-start gap-3 text-slate-600 bg-slate-50 rounded-lg p-4">
+                        <svg class="w-5 h-5 flex-shrink-0 mt-0.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div class="text-sm">
+                            <p class="mb-1">Sähkön alkuperätietoja ei ole saatavilla tälle sopimukselle.</p>
+                            <p class="text-slate-500">Päästölaskennassa käytetään Suomen jäännösjakaumaa (390,93 gCO₂/kWh).</p>
+                        </div>
+                    </div>
+                @endif
+            </div>
 
             <!-- CO2 Emissions - Environmental Impact Section -->
             @if (!empty($co2Emissions))
@@ -385,11 +402,9 @@
                     $annualEmissionsKg = $co2Emissions['total_emissions_kg'];
                     // Car driving equivalency: average Finnish passenger car emits ~170g CO2/km
                     $drivingKm = $annualEmissionsKg > 0 ? round($annualEmissionsKg * 1000 / 170) : 0;
-                    // Gauge calculation: 0-400+ scale, cap at 400 for display
+                    // Horizontal bar calculation: 0-400+ scale, cap at 400 for display
                     $gaugeMax = 400;
                     $gaugePercent = min(100, ($emissionFactor / $gaugeMax) * 100);
-                    // Needle rotation: -90deg (left/0) to +90deg (right/400+)
-                    $needleRotation = -90 + ($gaugePercent * 1.8);
                     // Finland baseline (residual mix)
                     $finlandBaseline = 390.93;
                     $baselinePercent = min(100, ($finlandBaseline / $gaugeMax) * 100);
@@ -419,34 +434,21 @@
                             </div>
                         </div>
                     @else
-                        <!-- Semi-circular gauge -->
-                        <div class="flex flex-col items-center mb-6">
-                            <div class="relative w-48 h-24 mb-2">
-                                <!-- Gauge background arc -->
-                                <div class="absolute inset-0 overflow-hidden">
-                                    <div class="w-48 h-48 rounded-full"
-                                         style="background: conic-gradient(from 180deg, #22c55e 0deg, #22c55e 45deg, #84cc16 45deg, #84cc16 90deg, #eab308 90deg, #eab308 135deg, #f97316 135deg, #f97316 160deg, #ef4444 160deg, #ef4444 180deg, transparent 180deg);">
-                                    </div>
+                        <!-- Emission factor indicator -->
+                        <div class="mb-4">
+                            <div class="text-sm text-slate-600 mb-2">Päästökerroin</div>
+                            <div class="relative h-6 bg-gradient-to-r from-green-400 via-yellow-400 via-orange-400 to-red-500 rounded-lg overflow-hidden">
+                                <!-- This contract marker -->
+                                <div class="absolute top-0.5 bottom-0.5 w-2 bg-white border-2 border-slate-800 rounded transition-all duration-500"
+                                     style="left: calc({{ $gaugePercent }}% - 4px);">
                                 </div>
-                                <!-- Inner white circle to create arc effect -->
-                                <div class="absolute left-1/2 bottom-0 -translate-x-1/2 w-32 h-32 rounded-full bg-white"></div>
-                                <!-- Needle -->
-                                <div class="absolute left-1/2 bottom-0 origin-bottom transition-transform duration-700 ease-out"
-                                     style="transform: translateX(-50%) rotate({{ $needleRotation }}deg);">
-                                    <div class="w-1 h-20 bg-slate-800 rounded-full mx-auto"></div>
-                                    <div class="w-3 h-3 bg-slate-800 rounded-full -mt-1 mx-auto"></div>
-                                </div>
-                                <!-- Center pivot -->
-                                <div class="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2 w-4 h-4 bg-white border-2 border-slate-800 rounded-full"></div>
-                                <!-- Scale labels -->
-                                <div class="absolute -left-2 bottom-0 text-xs text-slate-500 font-medium">0</div>
-                                <div class="absolute -right-4 bottom-0 text-xs text-slate-500 font-medium">400+</div>
                             </div>
-                            <div class="text-center">
-                                <span class="text-2xl font-bold {{ $emissionFactor < 100 ? 'text-green-600' : ($emissionFactor < 200 ? 'text-lime-600' : ($emissionFactor < 300 ? 'text-amber-600' : ($emissionFactor < 350 ? 'text-orange-600' : 'text-red-600'))) }}">
-                                    {{ number_format($emissionFactor, 0, ',', ' ') }}
+                            <div class="flex justify-between mt-1 text-xs text-slate-500">
+                                <span>0</span>
+                                <span class="font-medium {{ $emissionFactor < 100 ? 'text-green-600' : ($emissionFactor < 200 ? 'text-lime-600' : ($emissionFactor < 300 ? 'text-amber-600' : ($emissionFactor < 350 ? 'text-orange-600' : 'text-red-600'))) }}">
+                                    {{ number_format($emissionFactor, 0, ',', ' ') }} gCO₂/kWh
                                 </span>
-                                <span class="text-slate-500 text-sm ml-1">gCO₂/kWh</span>
+                                <span>400+</span>
                             </div>
                         </div>
 
