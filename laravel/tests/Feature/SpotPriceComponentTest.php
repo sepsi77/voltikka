@@ -742,13 +742,13 @@ class SpotPriceComponentTest extends TestCase
 
     public function test_calculates_potential_savings(): void
     {
-        // Create varied prices
+        // Create varied prices (using hours after 14:30 test time)
         $prices = array_fill(0, 24, 10.0);
-        $prices[3] = 2.0;  // Cheap
-        $prices[4] = 3.0;  // Cheap
-        $prices[5] = 4.0;  // Cheap
-        $prices[17] = 20.0; // Expensive
-        $prices[18] = 25.0; // Most expensive
+        $prices[15] = 2.0;  // Cheap
+        $prices[16] = 3.0;  // Cheap
+        $prices[17] = 4.0;  // Cheap
+        $prices[20] = 20.0; // Expensive
+        $prices[21] = 25.0; // Most expensive
 
         $this->createFullDayPrices(2026, 1, 20, $prices);
 
@@ -756,10 +756,7 @@ class SpotPriceComponentTest extends TestCase
         $instance = $component->instance();
         $savings = $instance->calculatePotentialSavings(3, 10); // 3 hours at 10 kWh each
 
-        // Average price ≈ 10.42 c/kWh
         // Cheapest 3 hours average = (2+3+4)/3 = 3 c/kWh
-        // Savings per kWh ≈ 7.42 c/kWh
-        // Total savings = 30 kWh * 0.0742 €/kWh ≈ 2.23 €
 
         $this->assertNotNull($savings);
         $this->assertEquals(3.0, $savings['cheapest_average']);
@@ -769,11 +766,11 @@ class SpotPriceComponentTest extends TestCase
 
     public function test_savings_calculation_with_consumption(): void
     {
-        // Simple case: avg 10, cheapest 5
-        $this->createSpotPrice(2026, 1, 20, 0, 5.0);
-        $this->createSpotPrice(2026, 1, 20, 1, 5.0);
-        $this->createSpotPrice(2026, 1, 20, 2, 15.0);
-        $this->createSpotPrice(2026, 1, 20, 3, 15.0);
+        // Simple case: avg 10, cheapest 5 (using hours after 14:30 test time)
+        $this->createSpotPrice(2026, 1, 20, 15, 5.0);
+        $this->createSpotPrice(2026, 1, 20, 16, 5.0);
+        $this->createSpotPrice(2026, 1, 20, 17, 15.0);
+        $this->createSpotPrice(2026, 1, 20, 18, 15.0);
 
         $component = Livewire::test(SpotPrice::class);
         $instance = $component->instance();
