@@ -49,6 +49,12 @@ class ContractsList extends Component
     public bool $showSeoFilterLinks = false;
 
     /**
+     * Cache for all filtered contracts (before pagination).
+     * Used for metrics that need to count all contracts, not just current page.
+     */
+    protected ?\Illuminate\Support\Collection $allFilteredContractsCache = null;
+
+    /**
      * Active tab for consumption selection ('presets' or 'calculator').
      */
     public string $activeTab = 'presets';
@@ -692,19 +698,32 @@ class ContractsList extends Component
     }
 
     /**
-     * Get the count of unique companies in the current contract list.
+     * Get all filtered contracts (ensures cache is populated).
      */
-    public function getUniqueCompanyCount(): int
+    protected function getAllFilteredContracts(): \Illuminate\Support\Collection
     {
-        return $this->contracts->pluck('company_name')->unique()->count();
+        // Trigger the contracts property to populate the cache if needed
+        if ($this->allFilteredContractsCache === null) {
+            $this->contracts;
+        }
+
+        return $this->allFilteredContractsCache ?? collect();
     }
 
     /**
-     * Get the count of zero-emission contracts in the current list.
+     * Get the count of unique companies in all filtered contracts.
+     */
+    public function getUniqueCompanyCount(): int
+    {
+        return $this->getAllFilteredContracts()->pluck('company_name')->unique()->count();
+    }
+
+    /**
+     * Get the count of zero-emission contracts in all filtered contracts.
      */
     public function getZeroEmissionCount(): int
     {
-        return $this->contracts->filter(function ($contract) {
+        return $this->getAllFilteredContracts()->filter(function ($contract) {
             return $contract->electricitySource
                 && ($contract->electricitySource->fossil_total ?? 0) == 0
                 && (($contract->electricitySource->renewable_total ?? 0) > 0
@@ -952,6 +971,9 @@ class ContractsList extends Component
             $bCost = $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
             return $aCost <=> $bCost;
         })->values();
+
+        // Cache the full sorted collection for metrics
+        $this->allFilteredContractsCache = $sorted;
 
         // Create a manual paginator from the sorted collection
         $total = $sorted->count();

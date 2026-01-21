@@ -32,7 +32,7 @@
                     <!-- Stats cards -->
                     <div class="flex gap-3">
                         <div class="bg-white/5 backdrop-blur-sm rounded-2xl px-6 py-4 text-center border border-white/10">
-                            <div class="text-3xl font-extrabold text-white">{{ $contracts->count() }}</div>
+                            <div class="text-3xl font-extrabold text-white">{{ $contracts->total() }}</div>
                             <div class="text-sm text-slate-400">sopimusta</div>
                         </div>
                         <div class="bg-white/5 backdrop-blur-sm rounded-2xl px-6 py-4 text-center border border-white/10">
