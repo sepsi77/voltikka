@@ -41,8 +41,8 @@ Route::get('/sahkosopimus/laskuri', ConsumptionCalculator::class)->name('calcula
 // Contract detail
 Route::get('/sahkosopimus/sopimus/{contractId}', ContractDetail::class)->name('contract.detail');
 
-// Company detail
-Route::get('/sahkosopimus/yritys/{companySlug}', CompanyDetail::class)->name('company.detail');
+// Old company detail URL - redirect to new location
+// (Route added in redirects section below)
 
 // Location pages
 Route::get('/sahkosopimus/paikkakunnat/{location?}', LocationsList::class)->name('locations');
@@ -89,9 +89,9 @@ Route::get('/sahkosopimus/yritykselle', CompanyContractsList::class)
 Route::get('/sahkosopimus/sahkoyhtiot', CompanyList::class)
     ->name('companies.list');
 
-// Company detail page (new URL structure under sahkoyhtiot)
+// Company detail page (canonical URL)
 Route::get('/sahkosopimus/sahkoyhtiot/{companySlug}', CompanyDetail::class)
-    ->name('company.detail.new');
+    ->name('company.detail');
 
 // Main comparison index page (must come BEFORE city catch-all)
 Route::get('/sahkosopimus', SahkosopimusIndex::class)
@@ -114,8 +114,13 @@ Route::get('/sopimus/{contractId}', function ($contractId) {
     return redirect()->route('contract.detail', ['contractId' => $contractId], 301);
 });
 
-// Redirect old /yritys/{slug} to new location
+// Redirect old /yritys/{slug} to new location under /sahkosopimus/sahkoyhtiot/
 Route::get('/yritys/{companySlug}', function ($companySlug) {
+    return redirect()->route('company.detail', ['companySlug' => $companySlug], 301);
+});
+
+// Redirect old /sahkosopimus/yritys/{slug} to new location under /sahkosopimus/sahkoyhtiot/
+Route::get('/sahkosopimus/yritys/{companySlug}', function ($companySlug) {
     return redirect()->route('company.detail', ['companySlug' => $companySlug], 301);
 });
 

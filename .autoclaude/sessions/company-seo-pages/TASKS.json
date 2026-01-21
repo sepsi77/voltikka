@@ -44,9 +44,11 @@
       "id": "update-routes",
       "title": "Update routes for new URL structure",
       "description": "Update laravel/routes/web.php to: 1) Add new company listing route at /sahkosopimus/sahkoyhtiot pointing to CompanyList, 2) Change company detail route to /sahkosopimus/sahkoyhtiot/{companySlug}, 3) Add 301 redirect from old /sahkosopimus/yritys/{companySlug} URL to new path. Ensure new routes are placed before city catch-all.",
-      "status": "pending",
+      "status": "completed",
       "priority": 5,
-      "depends_on": ["create-company-list-component", "enhance-company-detail-component"]
+      "depends_on": ["create-company-list-component", "enhance-company-detail-component"],
+      "completed_at": "2026-01-21T15:00:00Z",
+      "passes": true
     },
     {
       "id": "add-navigation-links",

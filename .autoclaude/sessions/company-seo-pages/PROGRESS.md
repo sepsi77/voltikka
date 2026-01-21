@@ -136,8 +136,25 @@
 ### Files Modified in Task 4:
 1. `laravel/resources/views/livewire/company-detail.blade.php` (REWRITTEN)
 
+### Completed: Task 5 - Update routes for new URL structure
+- Updated `/laravel/routes/web.php` with:
+  - Renamed `company.detail.new` route to `company.detail` (canonical)
+  - Removed old `/sahkosopimus/yritys/{companySlug}` route definition
+  - Added 301 redirect from `/sahkosopimus/yritys/{companySlug}` to new URL
+  - Updated redirect from `/yritys/{slug}` to use new `company.detail` route
+
+### Route Changes Summary:
+- **Canonical URL**: `/sahkosopimus/sahkoyhtiot/{companySlug}` (named `company.detail`)
+- **Company List**: `/sahkosopimus/sahkoyhtiot` (named `companies.list`)
+- **301 Redirects**:
+  - `/yritys/{slug}` → `/sahkosopimus/sahkoyhtiot/{slug}`
+  - `/sahkosopimus/yritys/{slug}` → `/sahkosopimus/sahkoyhtiot/{slug}`
+
+### Tests
+- All 72 Company-related tests pass
+- Route configuration verified with `php artisan route:list`
+
 ### Next Steps:
-- Task 5: Complete route updates (add 301 redirect from old URL)
 - Task 6: Add navigation links to layout
 - Task 7: Update sitemap service
 - Task 8: Run full test suite
