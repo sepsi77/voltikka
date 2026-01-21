@@ -16,7 +16,10 @@
       "id": "update-listing-co2-badge",
       "title": "Update CO2 badge in contracts list to show annual emissions",
       "description": "Modify the CO2 badge in contracts-list.blade.php (lines ~756-767) to:\n\n1. Show annual emissions (kg) as primary display instead of gCO₂/kWh\n   - Calculate: $emissionFactor * $consumption / 1000 (use $consumption variable, default 5000)\n   - Format: 'X kg CO₂/v' (per year)\n   - Keep existing color coding (green for 0, amber for medium, red for high)\n\n2. Add a leaf icon for zero-emission contracts (emission_factor == 0)\n   - Use a simple SVG leaf icon\n   - Make these contracts visually stand out\n\n3. Optionally show the gCO₂/kWh factor as smaller secondary text or tooltip\n\nThe badge should be more impactful and communicate environmental impact at a glance.",
-      "status": "pending",
+      "status": "completed",
+      "started_at": "2026-01-21T12:45:00Z",
+      "completed_at": "2026-01-21T13:00:00Z",
+      "passes": true,
       "priority": 2,
       "depends_on": ["redesign-detail-co2-section"]
     },

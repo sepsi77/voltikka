@@ -753,8 +753,36 @@
                     </div>
                 </div>
 
-                <!-- Energy Source Badges and Mobile CTA -->
+                <!-- Energy Source Badges, CO2 Emissions and Mobile CTA -->
+                @php
+                    $emissionFactor = $contract->emission_factor ?? 0;
+                    $annualEmissionsKg = round($emissionFactor * $consumption / 1000);
+                    $isZeroEmission = $emissionFactor == 0;
+                    $emissionColorClass = $isZeroEmission ? 'bg-green-100 text-green-700 border-green-200' : ($emissionFactor < 100 ? 'bg-green-50 text-green-600 border-green-100' : ($emissionFactor < 300 ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-red-50 text-red-700 border-red-100'));
+                @endphp
                 <div class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-slate-100">
+                    <!-- CO2 Emissions Badge - Annual kg as primary, gCO₂/kWh as secondary -->
+                    @if ($isZeroEmission)
+                        {{-- Special zero-emission badge with leaf icon --}}
+                        <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 border border-green-200 text-xs font-bold rounded-lg" title="Päästötön sähkö - 0 gCO₂/kWh">
+                            <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/>
+                            </svg>
+                            <span class="font-extrabold">0 kg</span>
+                            <span class="text-green-600 font-medium">CO₂/v</span>
+                        </span>
+                    @else
+                        {{-- Standard emissions badge --}}
+                        <span class="inline-flex items-center gap-2 px-3 py-1.5 {{ $emissionColorClass }} border text-xs font-bold rounded-lg" title="Arvioitu päästökerroin: {{ number_format($emissionFactor, 0) }} gCO₂/kWh">
+                            <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
+                            </svg>
+                            <span class="font-extrabold">{{ number_format($annualEmissionsKg, 0, ',', ' ') }} kg</span>
+                            <span class="opacity-75 font-medium">CO₂/v</span>
+                            <span class="text-[10px] opacity-60 font-normal">({{ number_format($emissionFactor, 0) }} g/kWh)</span>
+                        </span>
+                    @endif
+
                     @if ($source)
                         @if ($source->renewable_total && $source->renewable_total > 0)
                             <span class="inline-block px-3 py-1.5 bg-green-100 text-green-700 text-xs font-bold rounded-lg uppercase">
