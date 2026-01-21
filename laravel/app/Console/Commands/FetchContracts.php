@@ -312,8 +312,9 @@ class FetchContracts extends Command
      */
     private function updateActiveContracts(array $contracts): void
     {
-        // Clear existing active contracts
-        ActiveContract::truncate();
+        // Clear existing active contracts using DELETE (not TRUNCATE)
+        // TRUNCATE is DDL in MySQL and would commit the transaction
+        ActiveContract::query()->delete();
 
         // Insert new active contracts
         $activeContracts = [];

@@ -98,10 +98,10 @@ class SpotPriceAverageService
      */
     public function calculateMonthlyAverages(string $region = 'FI'): int
     {
-        // Get distinct months using SQLite-compatible syntax
+        // Get distinct months using database-agnostic approach
         $months = SpotPriceHour::forRegion($region)
-            ->selectRaw("strftime('%Y-%m', utc_datetime) as month")
-            ->groupByRaw("strftime('%Y-%m', utc_datetime)")
+            ->selectRaw($this->getMonthExpression() . ' as month')
+            ->groupByRaw($this->getMonthExpression())
             ->pluck('month');
 
         $count = 0;
@@ -159,8 +159,8 @@ class SpotPriceAverageService
     public function calculateYearlyAverages(string $region = 'FI'): int
     {
         $years = SpotPriceHour::forRegion($region)
-            ->selectRaw("strftime('%Y', utc_datetime) as year")
-            ->groupByRaw("strftime('%Y', utc_datetime)")
+            ->selectRaw($this->getYearExpression() . ' as year')
+            ->groupByRaw($this->getYearExpression())
             ->pluck('year');
 
         $count = 0;
@@ -302,6 +302,34 @@ class SpotPriceAverageService
                 'hours_count' => $hours->count(),
             ]
         );
+    }
+
+    /**
+     * Get database-agnostic SQL expression for extracting year-month.
+     */
+    private function getMonthExpression(): string
+    {
+        $driver = DB::getDriverName();
+
+        return match ($driver) {
+            'mysql', 'mariadb' => "DATE_FORMAT(utc_datetime, '%Y-%m')",
+            'pgsql' => "TO_CHAR(utc_datetime, 'YYYY-MM')",
+            default => "strftime('%Y-%m', utc_datetime)", // SQLite
+        };
+    }
+
+    /**
+     * Get database-agnostic SQL expression for extracting year.
+     */
+    private function getYearExpression(): string
+    {
+        $driver = DB::getDriverName();
+
+        return match ($driver) {
+            'mysql', 'mariadb' => "DATE_FORMAT(utc_datetime, '%Y')",
+            'pgsql' => "TO_CHAR(utc_datetime, 'YYYY')",
+            default => "strftime('%Y', utc_datetime)", // SQLite
+        };
     }
 
     /**
