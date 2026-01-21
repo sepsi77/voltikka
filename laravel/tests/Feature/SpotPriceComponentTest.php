@@ -766,7 +766,7 @@ class SpotPriceComponentTest extends TestCase
 
     public function test_savings_calculation_with_consumption(): void
     {
-        // Simple case: avg 10, cheapest 5 (using hours after 14:30 test time)
+        // Simple case: cheapest 5, expensive 15 (using hours after 14:30 test time)
         $this->createSpotPrice(2026, 1, 20, 15, 5.0);
         $this->createSpotPrice(2026, 1, 20, 16, 5.0);
         $this->createSpotPrice(2026, 1, 20, 17, 15.0);
@@ -778,12 +778,12 @@ class SpotPriceComponentTest extends TestCase
         // Use 2 hours with 10 kWh each = 20 kWh total
         $savings = $instance->calculatePotentialSavings(2, 10);
 
-        // Average price = (5+5+15+15)/4 = 10 c/kWh
         // Cheapest 2 hours = 5 c/kWh
-        // Savings = 5 c/kWh * 20 kWh = 100 cents = 1.00 €
+        // Expensive 2 hours = 15 c/kWh
+        // Savings = (15 - 5) c/kWh * 20 kWh = 200 cents = 2.00 €
         $this->assertEquals(5.0, $savings['cheapest_average']);
-        $this->assertEquals(10.0, $savings['overall_average']);
-        $this->assertEquals(100, $savings['savings_cents']); // 100 cents = 1€
+        $this->assertEquals(15.0, $savings['expensive_average']);
+        $this->assertEquals(200, $savings['savings_cents']); // 200 cents = 2€
     }
 
     public function test_savings_returns_null_when_not_enough_data(): void
@@ -823,7 +823,7 @@ class SpotPriceComponentTest extends TestCase
         $this->createFullDayPrices(2026, 1, 20);
 
         Livewire::test(SpotPrice::class)
-            ->assertSee('Pörssisähkön hinta')
+            ->assertSee('Pörssisähkön')
             ->assertSee('Seuraa sähkön pörssihinnan kehitystä');
     }
 
@@ -937,14 +937,19 @@ class SpotPriceComponentTest extends TestCase
 
     public function test_view_displays_potential_savings(): void
     {
+        // Create prices with enough variation for savings calculation (using future hours)
         $prices = array_fill(0, 24, 10.0);
-        $prices[3] = 2.0;
-        $prices[4] = 3.0;
-        $prices[5] = 4.0;
+        $prices[15] = 2.0;  // Cheap hours after current time (14:30)
+        $prices[16] = 3.0;
+        $prices[17] = 4.0;
+        $prices[20] = 20.0; // Expensive hours
+        $prices[21] = 25.0;
         $this->createFullDayPrices(2026, 1, 20, $prices);
 
+        // The view shows "Säästät X € vs kallein aika" when savings are available
         Livewire::test(SpotPrice::class)
-            ->assertSee('Mahdollinen säästö');
+            ->assertSee('Säästät')
+            ->assertSee('vs kallein aika');
     }
 
     public function test_view_handles_empty_data_gracefully(): void
@@ -1269,7 +1274,7 @@ class SpotPriceComponentTest extends TestCase
         $this->assertEquals(49, count($lines)); // Header + 48 hours
     }
 
-    public function test_historical_data_is_lazy_loaded(): void
+    public function test_historical_data_is_loaded_on_mount(): void
     {
         // Create historical data
         for ($day = 1; $day <= 19; $day++) {
@@ -1277,27 +1282,27 @@ class SpotPriceComponentTest extends TestCase
         }
         $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0)); // Today
 
-        // Initial component load should NOT include heavy historical data
+        // Component loads historical data on mount
         $component = Livewire::test(SpotPrice::class);
 
-        // Historical data should only be loaded when requested
-        $this->assertFalse($component->get('historicalDataLoaded'));
-
-        // Call the method to load historical data
-        $component->call('loadHistoricalData');
-
+        // Historical data should be loaded immediately
         $this->assertTrue($component->get('historicalDataLoaded'));
         $component->assertViewHas('weeklyDailyAverages');
         $component->assertViewHas('monthlyComparison');
         $component->assertViewHas('yearOverYearComparison');
     }
 
-    public function test_historical_section_shows_loading_state_initially(): void
+    public function test_historical_section_shows_weekly_chart_when_data_available(): void
     {
+        // Create historical data for the past week
+        for ($day = 13; $day <= 19; $day++) {
+            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, 10.0));
+        }
         $this->createFullDayPrices(2026, 1, 20);
 
+        // Historical data is loaded on mount, so weekly chart should be visible
         Livewire::test(SpotPrice::class)
-            ->assertSee('Lataa historiatiedot');
+            ->assertSee('Viikon hintakehitys');
     }
 
     public function test_historical_section_shows_data_after_loading(): void
