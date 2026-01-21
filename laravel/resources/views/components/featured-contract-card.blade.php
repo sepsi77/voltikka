@@ -26,6 +26,18 @@
     $totalCost = $calculatedCost['total_cost'] ?? null;
     $isSpotContract = $calculatedCost['is_spot_contract'] ?? false;
     $spotMargin = $calculatedCost['spot_price_margin'] ?? null;
+    $spotPriceDayAvg = $calculatedCost['spot_price_day_avg'] ?? null;
+    $spotPriceNightAvg = $calculatedCost['spot_price_night_avg'] ?? null;
+
+    // Calculate total energy price for spot contracts (spot + margin)
+    $spotTotalEnergyPrice = null;
+    if ($isSpotContract && $spotPriceDayAvg !== null && $spotPriceNightAvg !== null) {
+        $margin = $spotMargin ?? 0;
+        $totalDayPrice = $spotPriceDayAvg + $margin;
+        $totalNightPrice = $spotPriceNightAvg + $margin;
+        // Weighted average: 85% day, 15% night (typical household)
+        $spotTotalEnergyPrice = ($totalDayPrice * 0.85) + ($totalNightPrice * 0.15);
+    }
 
     // Get electricity source
     $source = $contract->electricitySource;
@@ -81,13 +93,21 @@
 
             {{-- Pricing Section --}}
             <div class="flex flex-wrap lg:flex-nowrap items-center gap-6">
-                @if ($isSpotContract && $spotMargin !== null)
+                @if ($isSpotContract)
                     <div class="text-left">
                         <div class="text-2xl font-extrabold text-white tabular-nums">
-                            {{ number_format($spotMargin, 2, ',', ' ') }} <span class="text-lg font-normal text-coral-100">c/kWh</span>
+                            {{ number_format($spotMargin ?? 0, 2, ',', ' ') }} <span class="text-lg font-normal text-coral-100">c/kWh</span>
                         </div>
                         <p class="text-sm text-coral-100 uppercase tracking-wide">Marginaali</p>
                     </div>
+                    @if ($spotTotalEnergyPrice !== null)
+                        <div class="text-left">
+                            <div class="text-2xl font-extrabold text-white tabular-nums">
+                                {{ number_format($spotTotalEnergyPrice, 2, ',', ' ') }} <span class="text-lg font-normal text-coral-100">c/kWh</span>
+                            </div>
+                            <p class="text-sm text-coral-100 uppercase tracking-wide">Energia <span class="normal-case">(arvio)</span></p>
+                        </div>
+                    @endif
                 @elseif ($generalPrice !== null)
                     <div class="text-left">
                         <div class="text-2xl font-extrabold text-white tabular-nums">

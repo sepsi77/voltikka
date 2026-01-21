@@ -147,8 +147,74 @@
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <h2 class="text-lg font-semibold text-slate-900 mb-4">Hintatiedot</h2>
 
-                @if ($contract->metering === 'General')
-                    <!-- General metering -->
+                @if ($calculatedCost['is_spot_contract'] ?? false)
+                    {{-- Spot contract pricing --}}
+                    <div class="space-y-4">
+                        {{-- Spot price info banner --}}
+                        <div class="p-3 bg-coral-50 border border-coral-200 rounded-xl text-sm text-coral-800 mb-4">
+                            <div class="flex items-start gap-2">
+                                <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span>Pörssisähkösopimuksessa energian hinta vaihtelee tunneittain. Alla oleva arvio perustuu 365 päivän keskihintaan.</span>
+                            </div>
+                        </div>
+
+                        {{-- Margin (company's markup) --}}
+                        <div class="flex justify-between items-center py-3 border-b border-slate-100">
+                            <div>
+                                <span class="text-slate-600">Marginaali</span>
+                                <span class="text-sm text-slate-400 ml-2">(yhtiön lisä)</span>
+                            </div>
+                            <span class="text-xl font-semibold text-slate-900">{{ number_format($calculatedCost['spot_price_margin'] ?? 0, 2, ',', ' ') }} c/kWh</span>
+                        </div>
+
+                        {{-- Spot price averages --}}
+                        @if (isset($calculatedCost['spot_price_day_avg']) && isset($calculatedCost['spot_price_night_avg']))
+                            <div class="flex justify-between items-center py-3 border-b border-slate-100">
+                                <div>
+                                    <span class="text-slate-600">Spot-hinta päivä</span>
+                                    <span class="text-sm text-slate-400 ml-2">(365pv ka.)</span>
+                                </div>
+                                <span class="text-lg font-medium text-slate-700">{{ number_format($calculatedCost['spot_price_day_avg'], 2, ',', ' ') }} c/kWh</span>
+                            </div>
+                            <div class="flex justify-between items-center py-3 border-b border-slate-100">
+                                <div>
+                                    <span class="text-slate-600">Spot-hinta yö</span>
+                                    <span class="text-sm text-slate-400 ml-2">(365pv ka.)</span>
+                                </div>
+                                <span class="text-lg font-medium text-slate-700">{{ number_format($calculatedCost['spot_price_night_avg'], 2, ',', ' ') }} c/kWh</span>
+                            </div>
+                        @endif
+
+                        {{-- Total energy price (spot + margin) --}}
+                        @php
+                            $margin = $calculatedCost['spot_price_margin'] ?? 0;
+                            $spotDay = $calculatedCost['spot_price_day_avg'] ?? 0;
+                            $spotNight = $calculatedCost['spot_price_night_avg'] ?? 0;
+                            $totalDayPrice = $spotDay + $margin;
+                            $totalNightPrice = $spotNight + $margin;
+                            // Weighted average: 85% day, 15% night (typical household)
+                            $avgTotalPrice = ($totalDayPrice * 0.85) + ($totalNightPrice * 0.15);
+                        @endphp
+                        <div class="flex justify-between items-center py-3 border-b border-slate-100 bg-slate-50 -mx-6 px-6">
+                            <div>
+                                <span class="text-slate-900 font-medium">Energiahinta (arvio)</span>
+                                <span class="text-sm text-slate-500 ml-2">(spot + marginaali)</span>
+                            </div>
+                            <span class="text-xl font-bold text-coral-600">{{ number_format($avgTotalPrice, 2, ',', ' ') }} c/kWh</span>
+                        </div>
+
+                        {{-- Monthly fee --}}
+                        @if (isset($latestPrices['Monthly']))
+                            <div class="flex justify-between items-center py-3 border-b border-slate-100">
+                                <span class="text-slate-600">Perusmaksu</span>
+                                <span class="text-xl font-semibold text-slate-900">{{ number_format($latestPrices['Monthly']['price'], 2, ',', ' ') }} EUR/kk</span>
+                            </div>
+                        @endif
+                    </div>
+                @elseif ($contract->metering === 'General')
+                    <!-- General metering (non-spot) -->
                     <div class="space-y-4">
                         @if (isset($latestPrices['General']))
                             <div class="flex justify-between items-center py-3 border-b border-slate-100">

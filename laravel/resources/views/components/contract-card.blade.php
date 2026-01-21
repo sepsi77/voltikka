@@ -55,6 +55,18 @@
     $totalCost = $calculatedCost['total_cost'] ?? null;
     $isSpotContract = $calculatedCost['is_spot_contract'] ?? false;
     $spotMargin = $calculatedCost['spot_price_margin'] ?? null;
+    $spotPriceDayAvg = $calculatedCost['spot_price_day_avg'] ?? null;
+    $spotPriceNightAvg = $calculatedCost['spot_price_night_avg'] ?? null;
+
+    // Calculate total energy price for spot contracts (spot + margin)
+    $spotTotalEnergyPrice = null;
+    if ($isSpotContract && $spotPriceDayAvg !== null && $spotPriceNightAvg !== null) {
+        $margin = $spotMargin ?? 0;
+        $totalDayPrice = $spotPriceDayAvg + $margin;
+        $totalNightPrice = $spotPriceNightAvg + $margin;
+        // Weighted average: 85% day, 15% night (typical household)
+        $spotTotalEnergyPrice = ($totalDayPrice * 0.85) + ($totalNightPrice * 0.15);
+    }
 
     // Get electricity source
     $source = $contract->electricitySource;
@@ -125,14 +137,22 @@
 
         {{-- Pricing Grid --}}
         <div class="flex flex-wrap lg:flex-nowrap items-center gap-4 lg:gap-6 w-full lg:w-auto">
-            @if ($isSpotContract && $spotMargin !== null)
-                {{-- Spot contract: show margin --}}
+            @if ($isSpotContract)
+                {{-- Spot contract: show margin and estimated energy price --}}
                 <div class="text-left">
                     <div class="text-lg font-bold text-slate-900 tabular-nums">
-                        {{ number_format($spotMargin, 2, ',', ' ') }} <span class="text-sm font-normal text-slate-400">c/kWh</span>
+                        {{ number_format($spotMargin ?? 0, 2, ',', ' ') }} <span class="text-sm font-normal text-slate-400">c/kWh</span>
                     </div>
                     <p class="text-xs text-slate-500 uppercase tracking-wide">Marginaali</p>
                 </div>
+                @if ($spotTotalEnergyPrice !== null)
+                    <div class="text-left">
+                        <div class="text-lg font-bold text-coral-600 tabular-nums">
+                            {{ number_format($spotTotalEnergyPrice, 2, ',', ' ') }} <span class="text-sm font-normal text-slate-400">c/kWh</span>
+                        </div>
+                        <p class="text-xs text-slate-500 uppercase tracking-wide">Energia <span class="normal-case">(arvio)</span></p>
+                    </div>
+                @endif
             @elseif ($seasonalWinterPrice !== null && $seasonalOtherPrice !== null)
                 {{-- Seasonal pricing contract --}}
                 <div class="text-left">
