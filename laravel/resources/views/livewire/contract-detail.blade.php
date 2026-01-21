@@ -405,9 +405,10 @@
                     // Horizontal bar calculation: 0-400+ scale, cap at 400 for display
                     $gaugeMax = 400;
                     $gaugePercent = min(100, ($emissionFactor / $gaugeMax) * 100);
-                    // Finland baseline (residual mix)
-                    $finlandBaseline = 390.93;
-                    $baselinePercent = min(100, ($finlandBaseline / $gaugeMax) * 100);
+                    // Finland benchmarks
+                    $physicalAverage = \App\Services\CO2EmissionsCalculator::FINLAND_BENCHMARKS['physical_grid_average']; // 35 gCO₂/kWh
+                    $residualMix = \App\Services\CO2EmissionsCalculator::FINLAND_BENCHMARKS['residual_mix']; // 390.93 gCO₂/kWh
+                    $physicalAveragePercent = min(100, ($physicalAverage / $gaugeMax) * 100);
                 @endphp
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                     <h2 class="text-lg font-semibold text-slate-900 mb-6">Ympäristövaikutus</h2>
@@ -469,17 +470,17 @@
 
                         <!-- Comparison bar -->
                         <div class="mb-4">
-                            <div class="text-sm text-slate-600 mb-2">Vertailu Suomen keskiarvoon</div>
+                            <div class="text-sm text-slate-600 mb-2">Vertailu Suomen tuotannon keskiarvoon</div>
                             <div class="relative h-8 bg-gradient-to-r from-green-200 via-yellow-200 to-red-200 rounded-lg overflow-hidden">
-                                <!-- Finland baseline marker -->
-                                <div class="absolute top-0 bottom-0 w-0.5 bg-slate-600 z-10"
-                                     style="left: {{ $baselinePercent }}%;">
-                                    <div class="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs text-slate-600 font-medium">
-                                        Suomen keskiarvo
+                                <!-- Finland physical average marker -->
+                                <div class="absolute top-0 bottom-0 w-0.5 bg-green-700 z-10"
+                                     style="left: {{ $physicalAveragePercent }}%;">
+                                    <div class="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs text-green-700 font-medium">
+                                        Suomi ~{{ number_format($physicalAverage, 0) }} g
                                     </div>
                                 </div>
                                 <!-- This contract marker -->
-                                <div class="absolute top-1 bottom-1 w-3 rounded {{ $emissionFactor < $finlandBaseline ? 'bg-green-600' : 'bg-red-600' }} z-20 transition-all duration-500"
+                                <div class="absolute top-1 bottom-1 w-3 rounded {{ $emissionFactor <= $physicalAverage ? 'bg-green-600' : ($emissionFactor < 100 ? 'bg-lime-600' : ($emissionFactor < 200 ? 'bg-amber-500' : 'bg-red-600')) }} z-20 transition-all duration-500"
                                      style="left: calc({{ $gaugePercent }}% - 6px);">
                                 </div>
                                 <!-- Scale markers -->
@@ -492,26 +493,49 @@
                                 </div>
                             </div>
                             <div class="mt-2 text-sm text-center">
-                                @if ($emissionFactor < $finlandBaseline)
-                                    <span class="text-green-600 font-medium">{{ number_format($finlandBaseline - $emissionFactor, 0, ',', ' ') }} gCO₂/kWh pienempi kuin keskiarvo</span>
-                                @elseif ($emissionFactor > $finlandBaseline)
-                                    <span class="text-red-600 font-medium">{{ number_format($emissionFactor - $finlandBaseline, 0, ',', ' ') }} gCO₂/kWh suurempi kuin keskiarvo</span>
+                                @if ($emissionFactor == 0)
+                                    <span class="text-green-600 font-medium">Päästötön sähkö – parempi kuin Suomen keskiarvo</span>
+                                @elseif ($emissionFactor <= $physicalAverage)
+                                    <span class="text-green-600 font-medium">Suomen tuotannon keskiarvoa vastaava tai parempi</span>
+                                @elseif ($emissionFactor < 100)
+                                    <span class="text-lime-600 font-medium">{{ number_format($emissionFactor - $physicalAverage, 0, ',', ' ') }} gCO₂/kWh suurempi kuin Suomen tuotanto</span>
                                 @else
-                                    <span class="text-slate-600 font-medium">Sama kuin Suomen keskiarvo</span>
+                                    <span class="text-amber-600 font-medium">{{ number_format($emissionFactor - $physicalAverage, 0, ',', ' ') }} gCO₂/kWh suurempi kuin Suomen tuotanto</span>
                                 @endif
                             </div>
                         </div>
                     @endif
 
+                    {{-- Explanation of physical vs contractual emissions --}}
                     @if ($co2Emissions['residual_mix_percent'] > 0)
-                        <div class="flex items-start gap-2 text-amber-700 bg-amber-50 rounded-lg p-3 text-sm mt-3">
-                            <svg class="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            <span>
-                                {{ number_format($co2Emissions['residual_mix_percent'], 0, ',', ' ') }}% sähkön alkuperästä on erittelemätöntä.
-                                Tälle osalle käytetään Suomen jäännösjakauman päästökerrointa (390,93 gCO₂/kWh).
-                            </span>
+                        <div class="bg-slate-50 rounded-lg p-4 text-sm mt-3 space-y-3">
+                            <div class="flex items-start gap-2 text-slate-700">
+                                <svg class="w-5 h-5 flex-shrink-0 mt-0.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <div>
+                                    <p class="font-medium mb-1">Miksi tämän sopimuksen päästöt ovat korkeat?</p>
+                                    <p class="text-slate-600">
+                                        {{ number_format($co2Emissions['residual_mix_percent'], 0, ',', ' ') }}% sähkön alkuperästä on erittelemätöntä.
+                                        Kun myyjä ei ilmoita sähkön alkuperää, käytetään lain mukaan <strong>jäännösjakaumaa</strong> ({{ number_format($residualMix, 0, ',', ' ') }} gCO₂/kWh).
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="border-t border-slate-200 pt-3">
+                                <p class="text-slate-600 text-xs">
+                                    <strong>Fyysinen vs. sopimuksellinen todellisuus:</strong>
+                                    Suomessa tuotetun sähkön todellinen päästökerroin on vain ~{{ number_format($physicalAverage, 0) }} gCO₂/kWh (95% fossiilitonta).
+                                    Jäännösjakauma on kuitenkin ~{{ number_format($residualMix, 0) }} gCO₂/kWh, koska puhtaat tuottajat myyvät alkuperätakuunsa erikseen.
+                                    Tämän sopimuksen "sopimuksellinen" päästökerroin on siksi {{ round($emissionFactor / $physicalAverage) }}× suurempi kuin verkossa virtaavan sähkön keskiarvo.
+                                </p>
+                            </div>
+                        </div>
+                    @elseif ($emissionFactor > 0 && $emissionFactor > $physicalAverage)
+                        <div class="bg-blue-50 rounded-lg p-3 text-sm mt-3">
+                            <p class="text-blue-700 text-xs">
+                                <strong>Huom:</strong> Suomen sähköverkon fyysinen keskipäästö on vain ~{{ number_format($physicalAverage, 0) }} gCO₂/kWh.
+                                Tämän sopimuksen päästökerroin perustuu ilmoitettuihin energialähteisiin, jotka sisältävät {{ number_format($co2Emissions['emissions_by_source']['fossil_generic'] ?? 0 > 0 ? 'fossiilisia' : 'muita', 0) }} lähteitä.
+                            </p>
                         </div>
                     @endif
 
@@ -562,7 +586,8 @@
                             <div class="text-xs text-slate-500 space-y-1 pt-2">
                                 <h4 class="font-medium text-slate-600 mb-2">Lähteet</h4>
                                 <p>• Fossiilisten polttoaineiden päästökertoimet: Tilastokeskus, IPCC Guidelines for National GHG Inventories</p>
-                                <p>• Jäännösjakauman päästökerroin: Energiavirasto, "National Residual Mix 2024" (julkaistu kesäkuu 2025)</p>
+                                <p>• Suomen tuotannon keskiarvo (~35 gCO₂/kWh): Fingrid & Tilastokeskus 2024</p>
+                                <p>• Jäännösjakauman päästökerroin (391 gCO₂/kWh): Energiavirasto, "National Residual Mix 2024"</p>
                                 <p>• Uusiutuvat ja ydinvoima: EU:n alkuperätakuujärjestelmän mukainen 0 gCO₂/kWh</p>
                             </div>
                         </div>
