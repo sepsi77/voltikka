@@ -46,8 +46,43 @@
 3. `laravel/tests/Feature/CompanyListPageTest.php` (NEW)
 4. `laravel/routes/web.php` (MODIFIED - added routes)
 
+### Completed: Task 3 - Enhance CompanyDetail component with price calculations
+- Updated `/laravel/app/Livewire/CompanyDetail.php` with:
+  - Consumption presets matching ContractsList pattern (8 presets from 2000-18000 kWh)
+  - `selectPreset()` and `setConsumption()` methods for interactive updates
+  - Price calculation using ContractPriceCalculator for each contract
+  - Emission factor calculation using CO2EmissionsCalculator
+  - Annual emissions calculation in kg CO2
+  - Company statistics (avg/min/max price, emission factor, renewable %, contract counts)
+  - Organization JSON-LD schema for SEO
+  - Contracts sorted by calculated price (ascending)
+  - Meta description generation
+  - Canonical URL generation
+  - URL persistence for consumption parameter
+
+### Tests for Task 3
+- Created comprehensive test suite in `/laravel/tests/Feature/CompanyDetailPageTest.php`
+- All 23 tests passing:
+  - Page accessibility and 404 handling
+  - Company name display
+  - Contracts with calculated costs
+  - Contracts sorted by price
+  - Consumption preset selection
+  - Custom consumption values
+  - Company stats calculation
+  - Emission factor calculations (renewable vs fossil)
+  - JSON-LD Organization schema
+  - JSON-LD address and offers
+  - Canonical URL and meta description
+  - Page title
+  - Changing consumption updates costs
+  - Spot contract stats tracking
+
+### Files Created/Modified in Task 3:
+1. `laravel/app/Livewire/CompanyDetail.php` (MODIFIED - major enhancement)
+2. `laravel/tests/Feature/CompanyDetailPageTest.php` (NEW)
+
 ### Next Steps:
-- Task 3: Enhance CompanyDetail component with price calculations
 - Task 4: Enhance CompanyDetail view with consumption selector
 - Task 5: Complete route updates (add 301 redirect)
 - Task 6: Add navigation links to layout
