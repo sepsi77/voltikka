@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\Company;
+use App\Models\ElectricityContract;
 use App\Models\Postcode;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class SitemapService
 {
@@ -44,6 +46,8 @@ class SitemapService
             $this->getPricingTypeUrls(),
             $this->getHousingTypeUrls(),
             $this->getEnergySourceUrls(),
+            $this->getContractUrls(),
+            $this->getCompanyUrls(),
             $this->getCityUrls(),
             $this->getMunicipalityUrls()
         );
@@ -137,6 +141,53 @@ class SitemapService
                 'priority' => 0.8,
             ];
         }, $this->energySources);
+    }
+
+    /**
+     * Get individual contract page URLs.
+     */
+    public function getContractUrls(): array
+    {
+        $baseUrl = config('app.url');
+        $today = Carbon::today()->toDateString();
+
+        $contracts = ElectricityContract::select('id')
+            ->pluck('id')
+            ->toArray();
+
+        return array_map(function ($contractId) use ($baseUrl, $today) {
+            return [
+                'loc' => $baseUrl . '/sahkosopimus/sopimus/' . $contractId,
+                'lastmod' => $today,
+                'changefreq' => 'weekly',
+                'priority' => 0.7,
+            ];
+        }, $contracts);
+    }
+
+    /**
+     * Get company page URLs.
+     */
+    public function getCompanyUrls(): array
+    {
+        $baseUrl = config('app.url');
+        $today = Carbon::today()->toDateString();
+
+        $companies = Company::select('name_slug')
+            ->whereNotNull('name_slug')
+            ->pluck('name_slug')
+            ->filter()
+            ->values()
+            ->toArray();
+
+        return array_map(function ($slug) use ($baseUrl, $today) {
+            return [
+                'loc' => $baseUrl . '/sahkosopimus/yritys/' . $slug,
+                'lastmod' => $today,
+                'changefreq' => 'weekly',
+                'priority' => 0.7,
+            ];
+        }, $companies);
     }
 
     /**

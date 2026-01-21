@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Postcode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class SitemapTest extends TestCase
@@ -13,6 +14,9 @@ class SitemapTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Clear sitemap cache before each test
+        Cache::forget('sitemap_xml');
 
         // Create some test postcodes for different cities
         Postcode::insert([
@@ -464,6 +468,9 @@ class SitemapTest extends TestCase
             'municipal_name_fi' => 'Jyvaskyla',
             'municipal_name_fi_slug' => 'jyvaskyla',
         ]);
+
+        // Clear sitemap cache to reflect database changes
+        Cache::forget('sitemap_xml');
 
         // Get updated sitemap
         $response2 = $this->get('/sitemap.xml');

@@ -8,17 +8,22 @@ use App\Livewire\LocationsList;
 use App\Livewire\SeoContractsList;
 use App\Livewire\SpotPrice;
 use App\Services\SitemapService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 
 // Main pages (keep at root level)
 Route::get('/', ContractsList::class);
 Route::get('/spot-price', SpotPrice::class)->name('spot-price');
 
-// Sitemap
+// Sitemap (cached for 7 days)
 Route::get('/sitemap.xml', function (SitemapService $sitemapService) {
-    return response($sitemapService->generateXml(), 200, [
+    $xml = Cache::remember('sitemap_xml', 604800, function () use ($sitemapService) {
+        return $sitemapService->generateXml();
+    });
+
+    return response($xml, 200, [
         'Content-Type' => 'text/xml; charset=UTF-8',
-        'Cache-Control' => 'public, max-age=3600',
+        'Cache-Control' => 'public, max-age=604800',
     ]);
 })->name('sitemap');
 
