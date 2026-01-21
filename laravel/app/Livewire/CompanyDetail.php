@@ -213,8 +213,10 @@ class CompanyDetail extends Component
         $priceApplicableContracts = $contracts->filter(fn ($c) => !$c->exceeds_consumption_limit);
 
         $prices = $priceApplicableContracts->pluck('calculated_cost.total_cost')->filter();
+        // Keep 0 emission factors (100% renewable), only exclude null (missing data uses residual mix)
         $emissionFactors = $contracts->pluck('emission_factor')->filter(fn ($v) => $v !== null);
-        $renewablePercents = $contracts->map(fn ($c) => $c->electricitySource?->renewable_total)->filter(fn ($v) => $v !== null);
+        // Contracts without source data are treated as 0% renewable (unverified source)
+        $renewablePercents = $contracts->map(fn ($c) => $c->electricitySource?->renewable_total ?? 0);
 
         return [
             'avg_price' => $prices->isNotEmpty() ? $prices->avg() : null,

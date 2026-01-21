@@ -112,6 +112,8 @@ class CompanyList extends Component
             $lowestPrice = $priceApplicableContracts->isNotEmpty()
                 ? $priceApplicableContracts->min(fn ($c) => $c->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX)
                 : null;
+            // Calculate emission and renewable metrics for all contracts
+            // Contracts without source data are treated as 0% renewable (unverified source)
             $avgEmissions = $contractsWithMetrics->avg(fn ($c) => $c->emission_factor ?? 0);
             $lowestEmissions = $contractsWithMetrics->min(fn ($c) => $c->emission_factor ?? PHP_FLOAT_MAX);
             $avgRenewable = $contractsWithMetrics->avg(fn ($c) => $c->electricitySource?->renewable_total ?? 0);
