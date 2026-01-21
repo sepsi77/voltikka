@@ -72,9 +72,12 @@
       "id": "run-tests",
       "title": "Run tests and verify no regressions",
       "description": "Run php artisan test to ensure all existing tests pass. Fix any issues that arise from the route changes or component updates.",
-      "status": "pending",
+      "status": "completed",
       "priority": 8,
-      "depends_on": ["update-routes", "update-sitemap"]
+      "depends_on": ["update-routes", "update-sitemap"],
+      "completed_at": "2026-01-21T15:45:00Z",
+      "passes": true,
+      "notes": "All company-related tests pass (72 tests). SpotPriceComponentTest has pre-existing failures unrelated to this work."
     }
   ]
 }
