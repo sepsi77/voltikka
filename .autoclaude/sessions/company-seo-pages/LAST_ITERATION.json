@@ -1,5 +1,5 @@
 {
-  "iteration": 2,
+  "iteration": 3,
   "task_id": null,
   "task_title": null,
   "exit_reason": "task_complete",
@@ -7,6 +7,6 @@
   "files_changed": [],
   "test_passed": null,
   "commit_sha": null,
-  "summary": "I have completed **Task 3: Enhance CompanyDetail component with price calculations**.\n\n## Summary of Completed Work\n\n### Changes to `laravel/app/Livewire/CompanyDetail.php`:\n1. **Consumption Selection** - Added 8 consumption presets (2000-18000 kWh) matching ContractsList pattern\n2. **Price Calculation** - Integrated ContractPriceCalculator to calculate costs for each contract\n3. **Emissions Calculation** - Integrated CO2EmissionsCalculator to calculate emission factors and annual emissions\n4. **Organization JSON-LD Schema** - Added structured data for SEO with address, logo, and contract offers\n5. **Contract Sorting** - Contracts are now sorted by calculated price (cheapest first)\n6. **Company Statistics** - Added computed properties for avg/min/max price, emission factor, renewable %, contract counts\n7. **Meta Description** - Dynamic SEO meta description based on company data\n8. **Canonical URL** - Proper canonical URL generation for the new URL structure\n\n### New Test File: `laravel",
-  "timestamp": "2026-01-21T21:13:37.941407"
+  "summary": "I have completed **Task 4: Enhance CompanyDetail view with consumption selector**.\n\n## Summary of Completed Work\n\n### Changes to `laravel/resources/views/livewire/company-detail.blade.php`:\n\n1. **JSON-LD Structured Data**:\n   - Organization schema (name, url, address, logo, makesOffer)\n   - BreadcrumbList schema for SEO navigation\n\n2. **Breadcrumb Navigation**:\n   - Visual breadcrumb in hero: Etusivu > Sahkoyhtiot > Company Name\n   - Links to home and company listing pages\n\n3. **Company Stats Cards**:\n   - Desktop: Stats cards in hero section (contract count, renewable %, min price)\n   - Mobile: Responsive 3-column grid below hero\n\n4. **Consumption Preset Selector**:\n   - 8 preset buttons in responsive grid (2-col mobile, 4-col desktop)\n   - Icons for apartment vs house types\n   - Visual selection state with coral gradient\n   - Current consumption display badge\n\n5. **Company Statistics Detail Section**:\n   - Average price with consumption context\n   - Price range (min - max)\n   - Avera",
+  "timestamp": "2026-01-21T21:16:18.857551"
 }
