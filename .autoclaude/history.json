@@ -79,7 +79,11 @@
     "company-contracts-pages": {
       "started_at": "2026-01-21T20:29:24.794288",
       "ended_at": null
+    },
+    "company-seo-pages": {
+      "started_at": "2026-01-21T21:02:49.179786",
+      "ended_at": null
     }
   },
-  "current": "company-contracts-pages"
+  "current": "company-seo-pages"
 }
