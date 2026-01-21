@@ -83,7 +83,11 @@
     "company-seo-pages": {
       "started_at": "2026-01-21T21:02:49.179786",
       "ended_at": null
+    },
+    "performance-optimization": {
+      "started_at": "2026-01-21T23:55:33.090300",
+      "ended_at": null
     }
   },
-  "current": "company-seo-pages"
+  "current": "performance-optimization"
 }
