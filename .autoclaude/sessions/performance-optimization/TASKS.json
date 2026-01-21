@@ -1,0 +1,55 @@
+{
+  "session": "performance-optimization",
+  "description": "Fix performance issues on voltikka.fi identified during page load analysis. Main issues: unoptimized images, no lazy loading, Tailwind CDN usage, large DOM, no preloading.",
+  "tasks": [
+    {
+      "id": "add-lazy-loading",
+      "title": "Add lazy loading to images",
+      "description": "Add loading='lazy' attribute to all company logo images in the contracts list and company detail views. The page has 298 images but none have lazy loading. Focus on images in Blade templates: resources/views/livewire/contracts-list.blade.php and similar. Also check for images in company cards and contract cards.",
+      "status": "completed",
+      "priority": 1,
+      "completed_at": "2026-01-21T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "setup-vite-tailwind",
+      "title": "Replace Tailwind CDN with compiled CSS via Vite",
+      "description": "The site uses cdn.tailwindcss.com which is for development only. Set up Vite (Laravel's default bundler) with Tailwind CSS properly: 1) Install tailwindcss, postcss, autoprefixer via npm 2) Create tailwind.config.js 3) Create resources/css/app.css with @tailwind directives 4) Configure vite.config.js 5) Update the main Blade layout to use @vite instead of CDN script. Keep existing Tailwind classes working.",
+      "status": "pending",
+      "priority": 2,
+      "depends_on": ["add-lazy-loading"]
+    },
+    {
+      "id": "add-preload-hints",
+      "title": "Add resource preload hints for critical assets",
+      "description": "Add <link rel='preload'> hints in the main layout for critical resources: 1) Preload the Plus Jakarta Sans font from Google Fonts with crossorigin 2) Preload Livewire.js script 3) Add font-display: swap or preconnect for fonts.googleapis.com and fonts.gstatic.com. Update resources/views/layouts/app.blade.php or equivalent main layout.",
+      "status": "pending",
+      "priority": 3,
+      "depends_on": ["setup-vite-tailwind"]
+    },
+    {
+      "id": "optimize-company-logos",
+      "title": "Create image optimization command for company logos",
+      "description": "Create an Artisan command 'php artisan logos:optimize' that: 1) Reads all images from storage/app/public/logos/ 2) Resizes them to max 200px width (logos don't need to be larger) 3) Converts to WebP format with 80% quality 4) Saves optimized versions. Use Intervention Image package (already common in Laravel). The worst offenders are imatran-seudun-sahko-oy.jpg (1.25MB) and sallila-energia-oy.jpg (817KB).",
+      "status": "pending",
+      "priority": 4,
+      "depends_on": ["add-lazy-loading"]
+    },
+    {
+      "id": "add-pagination",
+      "title": "Implement SEO-friendly pagination on contracts list",
+      "description": "The contracts list renders all contracts at once (12,922 DOM elements, 2MB HTML). Add SEO-friendly pagination to ContractsList component: 1) Use query string parameter ?page=N for unique URLs per page (not Livewire's default wire:navigate) 2) Use $this->paginate() instead of get() 3) Add {{ $contracts->links() }} in the Blade view 4) Set reasonable page size (20-30 contracts) 5) Update page <title> to include 'Sivu N' suffix when on page > 1 (update in the layout or component) 6) Add rel='canonical' and rel='prev/next' link tags for SEO 7) Ensure filters work with pagination (reset to page 1 on filter change). This will dramatically reduce initial page size while being SEO-friendly.",
+      "status": "pending",
+      "priority": 5,
+      "depends_on": ["add-lazy-loading"]
+    },
+    {
+      "id": "verify-improvements",
+      "title": "Verify performance improvements",
+      "description": "Run a verification check: 1) Run 'npm run build' to compile assets 2) Verify lazy loading is present in the HTML output 3) Check that Tailwind CDN is no longer in use 4) Confirm preload hints are in the head 5) Document the expected improvements in PROGRESS.md",
+      "status": "pending",
+      "priority": 6,
+      "depends_on": ["setup-vite-tailwind", "add-preload-hints", "add-pagination"]
+    }
+  ]
+}

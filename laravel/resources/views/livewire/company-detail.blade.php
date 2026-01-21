@@ -56,6 +56,7 @@
                                 src="{{ $company->getLogoUrl() }}"
                                 alt="{{ $company->name }}"
                                 class="w-32 h-auto object-contain"
+                                loading="lazy"
                                 onerror="this.onerror=null; this.src='https://placehold.co/128x48?text=logo'"
                             >
                         </div>

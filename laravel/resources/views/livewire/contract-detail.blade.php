@@ -20,6 +20,7 @@
                                     src="{{ $contract->company->getLogoUrl() }}"
                                     alt="{{ $contract->company->name }}"
                                     class="h-16 w-auto object-contain"
+                                    loading="lazy"
                                 >
                             </div>
                         @else

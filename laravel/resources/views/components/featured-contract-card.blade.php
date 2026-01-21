@@ -73,6 +73,7 @@
                             src="{{ $contract->company->getLogoUrl() }}"
                             alt="{{ $contract->company->name }}"
                             class="w-full h-full object-contain"
+                            loading="lazy"
                             onerror="this.onerror=null; this.src='https://placehold.co/80x64?text=logo'"
                         >
                     </div>

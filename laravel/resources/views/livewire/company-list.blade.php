@@ -195,6 +195,7 @@
                                 src="{{ $data['company']->getLogoUrl() }}"
                                 alt="{{ $data['company']->name }}"
                                 class="w-16 h-12 mx-auto object-contain mb-2"
+                                loading="lazy"
                                 onerror="this.onerror=null; this.src='https://placehold.co/64x48?text=logo'"
                             >
                         @else
@@ -250,6 +251,7 @@
                                         src="{{ $data['company']->getLogoUrl() }}"
                                         alt="{{ $data['company']->name }}"
                                         class="w-16 h-12 object-contain"
+                                        loading="lazy"
                                         onerror="this.onerror=null; this.src='https://placehold.co/64x48?text=logo'"
                                     >
                                 </div>
