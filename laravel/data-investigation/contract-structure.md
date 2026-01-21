@@ -50,7 +50,7 @@ Details: {
     SpotFutures: float (e.g., 5.602 = current spot price)
     EnergySourceIconView: string
     HasCustomPricingElement: bool
-    TargetGroup: string ("Company", "Consumer")
+    TargetGroup: string ("Company", "Household")
     ContractType: string ("OpenEnded", "FixedTerm")
     PricingModel: string ("Spot", "Fixed", "Hybrid", "Other")
 }
@@ -228,7 +228,7 @@ TransparencyIndex: {
 | `Details.SpotPriceSelection` | "NasdaqMonthly", "None" | Spot price source |
 | `Details.SpotFutures` | float | Current spot price (€/MWh without VAT) |
 | `Details.Metering` | "General", "Time", "Seasonal" | Metering/tariff type |
-| `Details.TargetGroup` | "Company", "Consumer" | Target customer segment |
+| `Details.TargetGroup` | "Household", "Consumer" | Target customer segment |
 
 ## PriceComponentType Values
 
