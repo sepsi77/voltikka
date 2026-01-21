@@ -67,11 +67,11 @@ class CalculationController extends Controller
             );
         }
 
-        // Get the latest price components
+        // Get the latest price components (prefer non-zero prices when duplicates exist)
         $priceComponents = $contract->priceComponents
             ->sortByDesc('price_date')
             ->groupBy('price_component_type')
-            ->map(fn ($group) => $group->first())
+            ->map(fn ($group) => $group->sortByDesc('price')->first())
             ->values()
             ->map(fn ($pc) => [
                 'price_component_type' => $pc->price_component_type,

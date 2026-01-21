@@ -841,7 +841,7 @@ class ContractsList extends Component
             $priceComponents = $contract->priceComponents
                 ->sortByDesc('price_date')
                 ->groupBy('price_component_type')
-                ->map(fn ($group) => $group->first())
+                ->map(fn ($group) => $group->sortByDesc('price')->first()) // Prefer non-zero prices
                 ->values()
                 ->map(fn ($pc) => [
                     'price_component_type' => $pc->price_component_type,
@@ -881,7 +881,7 @@ class ContractsList extends Component
         $prices = [];
 
         foreach ($contract->priceComponents->sortByDesc('price_date')->groupBy('price_component_type') as $type => $components) {
-            $latest = $components->first();
+            $latest = $components->sortByDesc('price')->first(); // Prefer non-zero prices
             $prices[$type] = [
                 'price' => $latest->price,
                 'unit' => $latest->payment_unit,
