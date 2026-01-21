@@ -34,9 +34,11 @@
       "id": "enhance-company-detail-view",
       "title": "Enhance CompanyDetail view with consumption selector",
       "description": "Update laravel/resources/views/livewire/company-detail.blade.php to add JSON-LD structured data, consumption preset selector component, calculated annual costs on contract cards, company statistics (avg price, emissions, renewable %), and breadcrumb navigation.",
-      "status": "pending",
+      "status": "completed",
       "priority": 4,
-      "depends_on": ["enhance-company-detail-component"]
+      "depends_on": ["enhance-company-detail-component"],
+      "completed_at": "2026-01-21T14:00:00Z",
+      "passes": true
     },
     {
       "id": "update-routes",

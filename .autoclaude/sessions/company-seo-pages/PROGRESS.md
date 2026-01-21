@@ -82,9 +82,62 @@
 1. `laravel/app/Livewire/CompanyDetail.php` (MODIFIED - major enhancement)
 2. `laravel/tests/Feature/CompanyDetailPageTest.php` (NEW)
 
+### Completed: Task 4 - Enhance CompanyDetail view with consumption selector
+- Updated `/laravel/resources/views/livewire/company-detail.blade.php` with:
+  - JSON-LD Organization structured data at top of page
+  - JSON-LD BreadcrumbList structured data for navigation
+  - Breadcrumb navigation in hero section (Etusivu > Sahkoyhtiot > Company Name)
+  - Company stats cards in hero section (desktop: contract count, renewable %, min price)
+  - Mobile stats section with responsive grid layout
+  - Consumption preset selector (8 presets in responsive grid)
+  - Current consumption display badge
+  - Company statistics detail section (avg price, price range, emission factor, contract types)
+  - Contract cards using x-contract-card component with:
+    - Calculated annual costs
+    - Emission badges
+    - Energy source badges
+    - Spot contract badges
+    - Ranking numbers
+  - "Back to companies" navigation link at bottom
+
+### View Features Added:
+1. **SEO Structured Data**:
+   - Organization JSON-LD schema (name, url, address, logo, offers)
+   - BreadcrumbList JSON-LD schema for navigation
+
+2. **Consumption Selector**:
+   - 8 preset buttons in responsive 2x4 grid (mobile) / 4-column (desktop)
+   - Icons for apartment vs house types
+   - Visual selection state with coral gradient
+   - kWh/year consumption display
+
+3. **Company Statistics**:
+   - Hero section cards (desktop): contract count, renewable %, min price
+   - Mobile responsive grid section
+   - Detail section: avg price, price range, emission factor, contract type badges
+
+4. **Contract Cards**:
+   - Using reusable x-contract-card component
+   - Ranking numbers (01, 02, etc.)
+   - Featured styling for #1 contract
+   - Calculated annual costs displayed
+   - CO2 emissions with color coding
+   - Energy source badges (renewable %, nuclear %, fossil %)
+   - Spot contract indicator
+
+5. **Navigation**:
+   - Breadcrumb trail in hero
+   - "Back to companies" link at bottom
+
+### Tests
+- All 23 CompanyDetailPageTest tests continue to pass
+- All 17 CompanyListPageTest tests continue to pass
+
+### Files Modified in Task 4:
+1. `laravel/resources/views/livewire/company-detail.blade.php` (REWRITTEN)
+
 ### Next Steps:
-- Task 4: Enhance CompanyDetail view with consumption selector
-- Task 5: Complete route updates (add 301 redirect)
+- Task 5: Complete route updates (add 301 redirect from old URL)
 - Task 6: Add navigation links to layout
 - Task 7: Update sitemap service
 - Task 8: Run full test suite
