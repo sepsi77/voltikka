@@ -74,6 +74,12 @@ class ContractsList extends Component
             'icon' => 'house',
             'consumption' => 8000,
         ],
+        'row_house' => [
+            'label' => 'Rivitalo',
+            'description' => '4 hlö, 100 m²',
+            'icon' => 'house',
+            'consumption' => 10000,
+        ],
         'large_house_electric' => [
             'label' => 'Suuri talo + sähkö',
             'description' => 'Suora sähkölämmitys',

@@ -102,7 +102,7 @@ class SeoContractsList extends ContractsList
     protected array $housingTypePresetMapping = [
         'omakotitalo' => 'large_house_electric',
         'kerrostalo' => 'large_apartment',
-        'rivitalo' => 'large_house_ground_pump',
+        'rivitalo' => 'row_house',
     ];
 
     /**
