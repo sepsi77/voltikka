@@ -135,25 +135,31 @@
       "id": "phase3-livewire-component",
       "title": "Create SolarCalculator Livewire component",
       "description": "Create app/Livewire/SolarCalculator.php with: addressQuery property with debounce, addressSuggestions array, selected address (lat, lon, label), systemKwp slider (1-20, default 5), shadingLevel dropdown, results display. Use the /api/solar/geocode and /api/solar/estimate endpoints internally via HTTP client or direct service calls.",
-      "status": "pending",
+      "status": "completed",
       "priority": 14,
-      "depends_on": ["phase2-tests"]
+      "depends_on": ["phase2-tests"],
+      "completed_at": "2026-01-22T16:30:00Z",
+      "passes": true
     },
     {
       "id": "phase3-blade-template",
       "title": "Create solar calculator Blade template",
       "description": "Create resources/views/livewire/solar-calculator.blade.php. Include: address input with autocomplete dropdown, system size slider, shading dropdown (ei varjostusta/vähän/paljon), results section showing annual kWh and monthly breakdown. Use Finnish labels: Osoite, Järjestelmän koko, Varjostus, Arvioitu vuosituotto, Kuukausituotto. Style consistently with existing site design.",
-      "status": "pending",
+      "status": "completed",
       "priority": 15,
-      "depends_on": ["phase3-livewire-component"]
+      "depends_on": ["phase3-livewire-component"],
+      "completed_at": "2026-01-22T16:35:00Z",
+      "passes": true
     },
     {
       "id": "phase3-route",
       "title": "Add /aurinkopaneelit route",
       "description": "Add route to routes/web.php for /aurinkopaneelit pointing to the SolarCalculator Livewire component. Include appropriate SEO meta tags in the component.",
-      "status": "pending",
+      "status": "completed",
       "priority": 16,
-      "depends_on": ["phase3-blade-template"]
+      "depends_on": ["phase3-blade-template"],
+      "completed_at": "2026-01-22T16:40:00Z",
+      "passes": true
     },
     {
       "id": "phase4-savings",

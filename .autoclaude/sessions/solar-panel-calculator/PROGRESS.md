@@ -251,3 +251,100 @@ Created `laravel/app/Http/Requests/SolarEstimateFormRequest.php` with validation
 
 **Files created:**
 - `laravel/tests/Feature/SolarEstimateApiTest.php`
+
+---
+
+## Phase 3 - Livewire Component and UI
+
+### Task: phase3-livewire-component - Create SolarCalculator Livewire component
+
+**Status:** Completed
+
+**Changes made:**
+Created `laravel/app/Livewire/SolarCalculator.php` with:
+- `addressQuery` property with live debounced updates (300ms)
+- `addressSuggestions` array populated via DigitransitGeocodingService
+- Selected address state: `selectedLabel`, `selectedLat`, `selectedLon`
+- `systemKwp` slider (1-20 kWp, default 5.0)
+- `shadingLevel` dropdown (none/some/heavy)
+- Direct service calls to DigitransitGeocodingService and SolarCalculatorService
+- Computed properties: `hasResults`, `annualKwh`, `monthlyKwh`, `maxMonthlyKwh`
+- Error handling for API failures
+- Finnish labels for shading levels and month names
+
+**Files created:**
+- `laravel/app/Livewire/SolarCalculator.php`
+
+---
+
+### Task: phase3-blade-template - Create solar calculator Blade template
+
+**Status:** Completed
+
+**Changes made:**
+Created `laravel/resources/views/livewire/solar-calculator.blade.php` with:
+- Hero section with title "Aurinkopaneelilaskuri" (styled like ConsumptionCalculator)
+- Address input with autocomplete dropdown showing suggestions
+- Clear button to reset selected address
+- Location confirmation showing coordinates when address is selected
+- System size slider (1-20 kWp) with visual feedback
+- Shading selection as button group with icons (sun/cloud icons)
+- Results section (coral gradient) displaying:
+  - Annual production in kWh
+  - Monthly breakdown bar chart
+  - Summary stats (system size, avg monthly, kWh per kWp)
+  - Calculation assumptions (tilt, azimuth, loss percentage)
+- Loading state with skeleton animation
+- Empty state prompting user to enter address
+- Info section explaining the PVGIS data source and typical values
+
+**Finnish labels used:**
+- Osoite, Järjestelmän koko, Varjostus
+- Ei varjostusta, Vähän varjostusta, Paljon varjostusta
+- Arvioitu vuosituotto, Kuukausituotto
+- Finnish month abbreviations (Tammi, Helmi, etc.)
+
+**Files created:**
+- `laravel/resources/views/livewire/solar-calculator.blade.php`
+
+---
+
+### Task: phase3-route - Add /aurinkopaneelit route
+
+**Status:** Completed
+
+**Changes made:**
+1. Added import for `SolarCalculator` Livewire component in `routes/web.php`
+2. Added route: `GET /aurinkopaneelit` pointing to `SolarCalculator::class` with name `solar.calculator`
+3. Component includes SEO meta tags:
+   - Title: "Aurinkopaneelilaskuri - Voltikka"
+   - Meta description: "Laske aurinkopaneelien tuotto osoitteesi perusteella..."
+
+**Files modified:**
+- `laravel/routes/web.php`
+
+---
+
+### Tests for Phase 3
+
+**Status:** Completed
+
+**Test results:** 11 tests pass (35 assertions)
+
+Created `laravel/tests/Feature/SolarCalculatorLivewireTest.php` with tests for:
+- Page loads at /aurinkopaneelit
+- Correct title is displayed
+- Component renders with default values
+- Address search shows suggestions
+- Selecting address triggers calculation
+- Changing system size triggers recalculation
+- Changing shading level triggers recalculation
+- Clear address resets state
+- Short address queries don't trigger search
+- Computed properties work correctly
+- Route is named correctly
+
+**Files created:**
+- `laravel/tests/Feature/SolarCalculatorLivewireTest.php`
+
+**Total tests after Phase 3:** 839 tests (2238 assertions) - all passing
