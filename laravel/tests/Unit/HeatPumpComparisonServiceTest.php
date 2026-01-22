@@ -297,8 +297,8 @@ class HeatPumpComparisonServiceTest extends TestCase
         // Annual electricity cost: 23190 kWh × 0.15 €/kWh ≈ 3478.5 €
         $this->assertEqualsWithDelta(3478.45, $result->currentSystem->annualCost, 10);
 
-        // CO2: 23190 kWh × 210 g/kWh / 1000 ≈ 4869.8 kg
-        $this->assertEqualsWithDelta(4869.8, $result->currentSystem->co2KgPerYear, 10);
+        // CO2: 23190 kWh × 80 g/kWh / 1000 ≈ 1855.2 kg (Finnish grid average 2024)
+        $this->assertEqualsWithDelta(1855.2, $result->currentSystem->co2KgPerYear, 10);
 
         // Should have alternatives
         $this->assertNotEmpty($result->alternatives);
@@ -360,10 +360,10 @@ class HeatPumpComparisonServiceTest extends TestCase
         // Should have fuel cost (district heating)
         $this->assertGreaterThan(0, $result->currentSystem->fuelCost);
 
-        // CO2 for district heating is lower than electricity
-        // 160 g/kWh vs 210 g/kWh
+        // CO2 for district heating: 130 g/kWh (Finnish 3-year average 2021-2023)
+        // vs electricity 80 g/kWh (Finnish grid 2024)
         $heatingEnergy = 150 * 2.5 * 32; // 12000 kWh
-        $expectedCo2Approx = ($heatingEnergy + $result->hotWaterEnergyNeed) * 160 / 1000;
+        $expectedCo2Approx = ($heatingEnergy + $result->hotWaterEnergyNeed) * 130 / 1000;
         $this->assertEqualsWithDelta($expectedCo2Approx, $result->currentSystem->co2KgPerYear, 50);
     }
 
@@ -509,8 +509,8 @@ class HeatPumpComparisonServiceTest extends TestCase
 
         // Total energy: 100 * 2.5 * 42 + 2 × 120 × 0.4 × 365 × 58 / 1000
         // = 10500 + 2032.32 = 12532.32 kWh
-        // CO2: 12532.32 × 210 / 1000 = 2631.79 kg
-        $this->assertEqualsWithDelta(2631.79, $result->currentSystem->co2KgPerYear, 10);
+        // CO2: 12532.32 × 80 / 1000 = 1002.59 kg (Finnish grid average 2024)
+        $this->assertEqualsWithDelta(1002.59, $result->currentSystem->co2KgPerYear, 10);
     }
 
     public function test_co2_emissions_ground_source_heat_pump(): void
@@ -530,8 +530,8 @@ class HeatPumpComparisonServiceTest extends TestCase
         $groundSource = collect($result->alternatives)->firstWhere('key', 'ground_source_hp');
 
         // Ground source HP uses 12532.32 / 2.9 = 4321.49 kWh electricity
-        // CO2: 4321.49 × 210 / 1000 = 907.51 kg
-        $this->assertEqualsWithDelta(907.51, $groundSource->co2KgPerYear, 50);
+        // CO2: 4321.49 × 80 / 1000 = 345.72 kg (Finnish grid average 2024)
+        $this->assertEqualsWithDelta(345.72, $groundSource->co2KgPerYear, 20);
 
         // Should be less than direct electric
         $this->assertLessThan($result->currentSystem->co2KgPerYear, $groundSource->co2KgPerYear);

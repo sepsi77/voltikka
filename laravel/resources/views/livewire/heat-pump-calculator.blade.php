@@ -469,7 +469,17 @@
                                     </div>
                                     <div class="flex justify-between items-center">
                                         <span class="text-slate-600">CO₂-päästöt</span>
-                                        <span class="text-lg font-semibold text-slate-900 whitespace-nowrap">{{ number_format($alt['co2KgPerYear'], 0, ',', ' ') }} kg</span>
+                                        <div class="text-right">
+                                            <span class="text-lg font-semibold text-slate-900 whitespace-nowrap">{{ number_format($alt['co2KgPerYear'], 0, ',', ' ') }} kg</span>
+                                            @php
+                                                $co2Diff = $this->currentSystem['co2KgPerYear'] - $alt['co2KgPerYear'];
+                                            @endphp
+                                            @if ($co2Diff > 0)
+                                                <span class="block text-sm text-green-600 font-medium">−{{ number_format($co2Diff, 0, ',', ' ') }} kg ({{ number_format(($co2Diff / $this->currentSystem['co2KgPerYear']) * 100, 0) }}%)</span>
+                                            @elseif ($co2Diff < 0)
+                                                <span class="block text-sm text-red-600 font-medium">+{{ number_format(abs($co2Diff), 0, ',', ' ') }} kg</span>
+                                            @endif
+                                        </div>
                                     </div>
                                     <div class="border-t border-slate-100 pt-3 mt-3">
                                         <div class="flex justify-between items-baseline gap-2">
@@ -673,7 +683,17 @@
                                     </div>
                                     <div class="flex justify-between items-center">
                                         <span class="text-slate-600">CO₂-päästöt</span>
-                                        <span class="text-lg font-semibold text-slate-900 whitespace-nowrap">{{ number_format($alt['co2KgPerYear'], 0, ',', ' ') }} kg</span>
+                                        <div class="text-right">
+                                            <span class="text-lg font-semibold text-slate-900 whitespace-nowrap">{{ number_format($alt['co2KgPerYear'], 0, ',', ' ') }} kg</span>
+                                            @php
+                                                $co2Diff = $this->currentSystem['co2KgPerYear'] - $alt['co2KgPerYear'];
+                                            @endphp
+                                            @if ($co2Diff > 0)
+                                                <span class="block text-sm text-green-600 font-medium">−{{ number_format($co2Diff, 0, ',', ' ') }} kg ({{ number_format(($co2Diff / $this->currentSystem['co2KgPerYear']) * 100, 0) }}%)</span>
+                                            @elseif ($co2Diff < 0)
+                                                <span class="block text-sm text-red-600 font-medium">+{{ number_format(abs($co2Diff), 0, ',', ' ') }} kg</span>
+                                            @endif
+                                        </div>
                                     </div>
                                     <div class="border-t border-slate-100 pt-3 mt-3">
                                         <div class="flex justify-between items-baseline gap-2">
@@ -794,8 +814,17 @@
                 <li>Lämpöpumppujen hyötysuhteet (SPF/COP) ovat tyypillisiä suomalaisissa olosuhteissa</li>
                 <li>Investointikustannukset ovat keskimääräisiä avaimet käteen -hintoja</li>
                 <li>Todellinen säästö riippuu käyttötottumuksista ja energian hintojen kehityksestä</li>
-                <li>CO₂-päästöt perustuvat Suomen keskimääräisiin päästökertoimiin</li>
             </ul>
+
+            <h4 class="font-semibold text-slate-900 mt-4 mb-2">CO₂-päästöjen laskenta</h4>
+            <p class="mb-2">Päästöt lasketaan vuositasolla käyttäen seuraavia päästökertoimia:</p>
+            <ul class="list-disc list-inside space-y-1 mb-2">
+                <li><strong>Sähkö: 80 g/kWh</strong> – Suomen sähköverkon keskiarvo 2024 (<a href="https://www.fingrid.fi/en/electricity-market-information/real-time-co2-emissions-estimate/" target="_blank" rel="noopener" class="text-coral-600 hover:underline">Fingrid</a>)</li>
+                <li><strong>Kaukolämpö: 130 g/kWh</strong> – kolmen vuoden keskiarvo 2021–2023 (<a href="https://www.motiva.fi/ratkaisut/energiankaytto_suomessa/co2-paastokertoimet" target="_blank" rel="noopener" class="text-coral-600 hover:underline">Motiva</a>)</li>
+                <li><strong>Öljy: 267 g/kWh</strong> – polttoaineen päästökerroin</li>
+                <li><strong>Pelletit ja polttopuu: 30 g/kWh</strong> – biogeeninen hiili lasketaan hiilineutraaliksi, luku kattaa vain tuotannon ja kuljetuksen</li>
+            </ul>
+            <p class="text-xs text-slate-500">Suomen sähköntuotanto on erittäin vähäpäästöistä ydinvoiman (~40%) ja uusiutuvien (~52%) ansiosta. Jos sinulla on 100% uusiutuva sähkösopimus, lämpöpumppujen todelliset päästöt ovat vielä pienemmät.</p>
         </section>
 
         <!-- FAQ Section for SEO -->

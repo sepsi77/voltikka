@@ -23,11 +23,12 @@ class HeatPumpComparisonService
     private const WATER_HEATING_FACTOR = 58; // kWh per 1000 liters at 55°C rise
 
     // CO2 emissions (g/kWh)
-    private const CO2_ELECTRICITY = 210;
-    private const CO2_DISTRICT_HEATING = 160;
+    // Sources: Fingrid, Motiva, Energiateollisuus
+    private const CO2_ELECTRICITY = 80;   // Finnish grid average 2024 (Fingrid)
+    private const CO2_DISTRICT_HEATING = 130;  // Finnish 3-year average 2021-2023 (Motiva/Statistics Finland)
     private const CO2_OIL = 267;
-    private const CO2_PELLETS = 30;
-    private const CO2_FIREWOOD = 30;
+    private const CO2_PELLETS = 30;   // Biogenic carbon neutral, only processing/transport
+    private const CO2_FIREWOOD = 30;  // Biogenic carbon neutral, only processing/transport
 
     // Oil heating constants
     private const OIL_ENERGY_DENSITY = 10; // kWh per liter
