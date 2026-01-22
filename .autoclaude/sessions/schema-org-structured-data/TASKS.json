@@ -83,10 +83,10 @@
       "id": "verify-production",
       "title": "Verify schema markup in production",
       "description": "After Railway deploys (wait a few minutes after push), fetch pages from voltikka.fi and verify schema markup is present: /sopimus/{id} for Product schema, /sahkosopimus for ItemList schema, /yritys/{slug} for Organization schema. Check JSON-LD renders with real production data.",
-      "status": "pending",
+      "status": "blocked",
       "priority": 8,
       "depends_on": ["commit-and-push"],
-      "notes": "Awaiting deployment - user can verify manually after push"
+      "notes": "Blocked: Code is committed but not pushed. Run 'git push' to deploy, then verify schema markup on voltikka.fi"
     }
   ]
 }
