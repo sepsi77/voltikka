@@ -398,24 +398,24 @@
             </section>
 
             <!-- Current System - Improved legibility -->
-            <section class="bg-slate-800 rounded-2xl p-8 mb-8">
+            <section class="rounded-2xl p-8 mb-8" style="background-color: #1e293b;">
                 <div class="flex items-center justify-between mb-6">
                     <div>
-                        <p class="text-slate-400 text-sm uppercase tracking-wide font-medium">Nykyinen järjestelmä</p>
-                        <h3 class="text-2xl font-bold text-white mt-1">{{ $this->currentSystem['label'] }}</h3>
+                        <p class="text-sm uppercase tracking-wide font-medium" style="color: #94a3b8;">Nykyinen järjestelmä</p>
+                        <h3 class="text-2xl font-bold mt-1" style="color: #ffffff;">{{ $this->currentSystem['label'] }}</h3>
                     </div>
-                    <div class="bg-slate-700 rounded-full px-4 py-2">
-                        <span class="text-slate-300 text-sm">Vertailukohta</span>
+                    <div class="rounded-full px-4 py-2" style="background-color: #334155;">
+                        <span class="text-sm" style="color: #cbd5e1;">Vertailukohta</span>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-6">
-                    <div class="bg-slate-700 rounded-xl p-5">
-                        <p class="text-slate-400 text-sm mb-2">Vuosikustannus</p>
-                        <p class="text-3xl font-bold text-white">{{ number_format($this->currentSystem['annualCost'], 0, ',', ' ') }} €</p>
+                    <div class="rounded-xl p-5" style="background-color: #334155;">
+                        <p class="text-sm mb-2" style="color: #94a3b8;">Vuosikustannus</p>
+                        <p class="text-3xl font-bold" style="color: #ffffff;">{{ number_format($this->currentSystem['annualCost'], 0, ',', ' ') }} €</p>
                     </div>
-                    <div class="bg-slate-700 rounded-xl p-5">
-                        <p class="text-slate-400 text-sm mb-2">CO₂-päästöt</p>
-                        <p class="text-3xl font-bold text-white">{{ number_format($this->currentSystem['co2KgPerYear'], 0, ',', ' ') }} kg</p>
+                    <div class="rounded-xl p-5" style="background-color: #334155;">
+                        <p class="text-sm mb-2" style="color: #94a3b8;">CO₂-päästöt</p>
+                        <p class="text-3xl font-bold" style="color: #ffffff;">{{ number_format($this->currentSystem['co2KgPerYear'], 0, ',', ' ') }} kg</p>
                     </div>
                 </div>
             </section>
@@ -431,8 +431,8 @@
             @if ($primary->isNotEmpty())
                 <section class="mb-8">
                     <div class="mb-5">
-                        <h3 class="text-xl font-bold text-slate-900">Täydelliset lämmitysratkaisut</h3>
-                        <p class="text-sm text-slate-500 mt-1">Nämä järjestelmät voivat korvata nykyisen lämmityksen kokonaan tai lähes kokonaan</p>
+                        <h3 class="text-xl font-bold text-slate-900">Päälämmitysratkaisut</h3>
+                        <p class="text-sm text-slate-500 mt-1">Nämä järjestelmät korvaavat nykyisen lämmityksen kokonaan tai lähes kokonaan</p>
                     </div>
                     <div class="grid grid-cols-1 gap-5">
                         @foreach ($primary as $alt)
