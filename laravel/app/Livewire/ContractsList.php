@@ -372,7 +372,7 @@ class ContractsList extends Component
 
             // Track preset change
             $this->dispatch('track',
-                event: 'Contracts Preset Changed',
+                eventName: 'Contracts Preset Changed',
                 props: [
                     'preset' => $preset,
                     'consumption' => $this->presets[$preset]['consumption'],
@@ -591,7 +591,7 @@ class ContractsList extends Component
         // Track filter change
         if ($newValue !== '') {
             $this->dispatch('track',
-                event: 'Contracts Filter Applied',
+                eventName: 'Contracts Filter Applied',
                 props: [
                     'filter_type' => 'contract_type',
                     'value' => $newValue,
@@ -612,7 +612,7 @@ class ContractsList extends Component
         // Track filter change
         if ($newValue !== '') {
             $this->dispatch('track',
-                event: 'Contracts Filter Applied',
+                eventName: 'Contracts Filter Applied',
                 props: [
                     'filter_type' => 'pricing_model',
                     'value' => $newValue,
@@ -661,7 +661,7 @@ class ContractsList extends Component
         // Track filter change
         if ($this->renewableFilter) {
             $this->dispatch('track',
-                event: 'Contracts Filter Applied',
+                eventName: 'Contracts Filter Applied',
                 props: [
                     'filter_type' => 'energy_source',
                     'value' => 'renewable',
@@ -690,7 +690,7 @@ class ContractsList extends Component
         // Track filter change
         if ($this->fossilFreeFilter) {
             $this->dispatch('track',
-                event: 'Contracts Filter Applied',
+                eventName: 'Contracts Filter Applied',
                 props: [
                     'filter_type' => 'energy_source',
                     'value' => 'fossil_free',

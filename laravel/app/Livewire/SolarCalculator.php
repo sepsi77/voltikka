@@ -167,7 +167,7 @@ class SolarCalculator extends Component
 
             // Track successful calculation
             $this->dispatch('track',
-                event: 'Solar Calculation Completed',
+                eventName: 'Solar Calculation Completed',
                 props: [
                     'system_kwp' => $this->systemKwp,
                     'annual_kwh' => round($result->annual_kwh),

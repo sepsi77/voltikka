@@ -19,9 +19,9 @@ document.addEventListener('alpine:init', () => {
 });
 
 // Livewire event listener for PHP-dispatched tracking
-// Usage in PHP: $this->dispatch('track', event: 'Event Name', props: ['key' => 'value'])
+// Usage in PHP: $this->dispatch('track', eventName: 'Event Name', props: ['key' => 'value'])
 document.addEventListener('livewire:init', () => {
     Livewire.on('track', (data) => {
-        voltikkaTrack(data[0].event, data[0].props || null);
+        voltikkaTrack(data[0].eventName, data[0].props || null);
     });
 });

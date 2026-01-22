@@ -47,7 +47,7 @@ class ContractDetail extends Component
 
             // Track contract view
             $this->dispatch('track',
-                event: 'Contract Viewed',
+                eventName: 'Contract Viewed',
                 props: [
                     'contract_id' => $contract->id,
                     'company' => $contract->company?->name,

@@ -225,7 +225,7 @@ class ConsumptionCalculator extends Component
 
             // Track preset selection
             $this->dispatch('track',
-                event: 'Energy Preset Selected',
+                eventName: 'Energy Preset Selected',
                 props: [
                     'preset' => $preset,
                     'consumption' => $this->presets[$preset]['consumption'],
@@ -312,7 +312,7 @@ class ConsumptionCalculator extends Component
     {
         // Track compare button click
         $this->dispatch('track',
-            event: 'Energy Compare Clicked',
+            eventName: 'Energy Compare Clicked',
             props: [
                 'total_kwh' => $this->totalConsumption,
                 'includes_heating' => $this->includeHeating,
