@@ -95,7 +95,11 @@
     "schema-org-structured-data": {
       "started_at": "2026-01-22T11:45:56.749772",
       "ended_at": null
+    },
+    "heat-pump-calculator": {
+      "started_at": "2026-01-22T15:54:56.868821",
+      "ended_at": null
     }
   },
-  "current": "schema-org-structured-data"
+  "current": "heat-pump-calculator"
 }

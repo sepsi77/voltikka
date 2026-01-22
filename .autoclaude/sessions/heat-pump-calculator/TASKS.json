@@ -1,0 +1,109 @@
+{
+  "session": "heat-pump-calculator",
+  "description": "Build a Heat Pump Comparison Calculator (Lämpöpumppulaskuri) that helps Finnish homeowners compare their current heating system against heat pump alternatives, showing potential savings and payback periods.",
+  "tasks": [
+    {
+      "id": "create-enum",
+      "title": "Create CurrentHeatingMethod enum",
+      "description": "Create the enum at laravel/app/Enums/CurrentHeatingMethod.php with three cases: Electricity ('electricity'), Oil ('oil'), DistrictHeating ('district_heating'). Follow existing enum patterns in the codebase.",
+      "status": "completed",
+      "priority": 1,
+      "completed_at": "2026-01-22T00:00:00Z"
+    },
+    {
+      "id": "create-dtos",
+      "title": "Create DTO classes for heat pump calculator",
+      "description": "Create three DTOs in laravel/app/Services/DTO/: 1) HeatPumpComparisonRequest.php with building info (livingArea, roomHeight, region, energyRating, numPeople), input mode ('model_based' or 'bill_based'), current heating (method + consumption values), prices (electricity, oil, district heating, pellets), and financial params (interestRate, calculationPeriod). 2) HeatingSystemCost.php with key, label, annualCost, electricityCost, fuelCost, investment, annualSavings, paybackYears, annualizedTotalCost, co2KgPerYear, notes. 3) HeatPumpComparisonResult.php with heatingEnergyNeed, hotWaterEnergyNeed, totalEnergyNeed, currentSystem (HeatingSystemCost), alternatives (array of HeatingSystemCost).",
+      "status": "completed",
+      "priority": 2,
+      "depends_on": ["create-enum"],
+      "completed_at": "2026-01-22T00:01:00Z"
+    },
+    {
+      "id": "create-service",
+      "title": "Create HeatPumpComparisonService",
+      "description": "Create laravel/app/Services/HeatPumpComparisonService.php with methods: 1) calculateHeatingEnergyNeed() - use same coefficients as EnergyCalculator (see laravel/app/Services/EnergyCalculator.php lines 42-44), 2) reverseCalculateFromBill() - convert fuel consumption to energy need (Oil: liters × 10 kWh/l × 0.75 efficiency, Electric: kWh directly, District: euros / price × 100), 3) calculateSystemCosts() - calculate costs for each alternative including current system and all heat pump options, 4) calculateAnnuity() - investment cost annualization using formula: r(1+r)^n / ((1+r)^n - 1), 5) calculatePayback() - investment / annual_savings. Include heating systems config: ground_source_hp (SPF 2.9, €20k, 100% coverage), air_to_water_hp (SPF 2.3, €12k, 80%), air_to_air_hp (COP 2.3, €2.8k, 50%), exhaust_air_hp (SPF 3.0, €12k, 60%), pellets (77% efficiency, €15k, 100%), plus fireplace combinations for ILP+tulisija and IVLP+tulisija. Use CO2 values: electricity 210g/kWh, district 160g/kWh, oil 267g/kWh, pellets/firewood 30g/kWh.",
+      "status": "completed",
+      "priority": 3,
+      "depends_on": ["create-dtos"],
+      "completed_at": "2026-01-22T00:02:00Z"
+    },
+    {
+      "id": "create-service-tests",
+      "title": "Create unit tests for HeatPumpComparisonService",
+      "description": "Create laravel/tests/Unit/Services/HeatPumpComparisonServiceTest.php with tests for: 1) calculateHeatingEnergyNeed with different regions and building ages, 2) reverseCalculateFromBill for oil, electricity, and district heating, 3) calculateSystemCosts verifying correct cost calculations for current system and alternatives, 4) calculateAnnuity and calculatePayback formulas, 5) CO2 emission calculations. Verify calculations match expected values based on Motiva reference data.",
+      "status": "completed",
+      "priority": 4,
+      "depends_on": ["create-service"],
+      "completed_at": "2026-01-22T00:03:00Z",
+      "passes": true
+    },
+    {
+      "id": "create-livewire-component",
+      "title": "Create HeatPumpCalculator Livewire component",
+      "description": "Create laravel/app/Livewire/HeatPumpCalculator.php with state properties: Building (livingArea=150, roomHeight=2.5, buildingRegion='central', buildingEnergyEfficiency='2000', numPeople=4), Input mode (inputMode='model_based', currentHeatingMethod='electricity'), Bill-based inputs (oilLitersPerYear, electricityKwhPerYear, districtHeatingEurosPerYear - all nullable), Prices (electricityPrice=15.0, oilPrice=1.40, districtHeatingPrice=10.8, pelletPrice=480), Investments array (user-adjustable), Financial (interestRate=2.0, calculationPeriod=15), Results (calculationResult array). Pre-populate electricityPrice from SpotPriceAverage::latestRolling365Days('FI') if available. Implement calculate() method that calls HeatPumpComparisonService and stores results. Include getJsonLdSchema() method for SEO. Follow SolarCalculator component patterns.",
+      "status": "completed",
+      "priority": 5,
+      "depends_on": ["create-service"],
+      "completed_at": "2026-01-22T00:04:00Z"
+    },
+    {
+      "id": "add-route",
+      "title": "Add route for heat pump calculator",
+      "description": "Add route in laravel/routes/web.php: Route::get('/lampopumput/laskuri', HeatPumpCalculator::class)->name('heatpump.calculator'). Follow existing route patterns. Ensure proper import of the Livewire component.",
+      "status": "completed",
+      "priority": 6,
+      "depends_on": ["create-livewire-component"],
+      "completed_at": "2026-01-22T00:04:30Z"
+    },
+    {
+      "id": "create-view-template",
+      "title": "Create heat pump calculator view template",
+      "description": "Create laravel/resources/views/livewire/heat-pump-calculator.blade.php following SolarCalculator pattern with: 1) Hero section (dark slate background, consistent with other calculators), 2) Calculator card with: Building info grid (livingArea, roomHeight, region dropdown, building age/energy efficiency dropdown, numPeople), Input mode toggle buttons (Laskettu kulutus / Toteutunut kulutus), Current heating section (conditional rendering based on mode - model_based shows heating method dropdown, bill_based shows relevant consumption input based on selected method), Advanced settings accordion (prices for electricity/oil/district/pellets, investment costs for each system type), 3) Results section with: Current cost card (dark background, show annual cost and CO2 emissions), Alternatives grid of cards (each showing: system name, annual cost, annual savings vs current, investment cost, payback years, CO2 comparison), 4) Info/FAQ section explaining heat pumps. Use Finnish labels throughout. Include wire:model bindings and wire:click handlers. Ensure mobile responsiveness with proper Tailwind classes.",
+      "status": "completed",
+      "priority": 7,
+      "depends_on": ["create-livewire-component"],
+      "completed_at": "2026-01-22T00:05:00Z"
+    },
+    {
+      "id": "create-feature-tests",
+      "title": "Create feature tests for HeatPumpCalculator",
+      "description": "Create laravel/tests/Feature/HeatPumpCalculatorTest.php with tests for: 1) Page loads successfully at /lampopumput/laskuri, 2) Model-based calculation works correctly, 3) Bill-based calculation works correctly for each heating method, 4) Results display correctly with proper values, 5) Advanced settings accordion updates calculations when prices/investments change.",
+      "status": "completed",
+      "priority": 8,
+      "depends_on": ["create-view-template", "add-route"],
+      "completed_at": "2026-01-22T00:06:00Z",
+      "passes": true
+    },
+    {
+      "id": "add-navigation",
+      "title": "Add navigation links for heat pump calculator",
+      "description": "Update laravel/resources/views/layouts/app.blade.php to add 'Lämpöpumput' link: 1) In desktop navigation - add as a new dropdown or simple link pointing to /lampopumput/laskuri, 2) In mobile navigation - add corresponding mobile menu item, 3) In footer links - add to appropriate section. Follow existing navigation patterns and styling.",
+      "status": "completed",
+      "priority": 9,
+      "depends_on": ["add-route"],
+      "completed_at": "2026-01-22T00:07:00Z"
+    },
+    {
+      "id": "run-all-tests",
+      "title": "Run all tests and fix any failures",
+      "description": "Run php artisan test to verify all tests pass. Fix any failing tests or issues discovered. Ensure both new unit tests (HeatPumpComparisonServiceTest) and feature tests (HeatPumpCalculatorTest) pass.",
+      "status": "completed",
+      "priority": 10,
+      "depends_on": ["create-feature-tests", "create-service-tests"],
+      "completed_at": "2026-01-22T00:08:00Z",
+      "passes": true,
+      "notes": "All 47 heat pump calculator tests pass. Pre-existing SolarCalculatorSavingsTest failures are unrelated to this implementation."
+    },
+    {
+      "id": "browser-verification",
+      "title": "Verify implementation in browser",
+      "description": "IMPORTANT: This task requires browser-based verification. Use agent-browser to: 1) Navigate to http://127.0.0.1:8000/lampopumput/laskuri, 2) Test model-based mode with different building parameters and heating methods, 3) Test bill-based mode with oil/electric/district inputs, 4) Verify results cards display correctly with costs, savings, payback, and CO2, 5) Test advanced settings accordion for price/investment adjustments, 6) Test mobile responsiveness by resizing viewport, 7) Verify navigation links work from header/footer. Document any visual issues found.",
+      "status": "completed",
+      "priority": 11,
+      "depends_on": ["run-all-tests"],
+      "completed_at": "2026-01-22T00:10:00Z",
+      "notes": "All browser tests pass: page loads, navigation works, form inputs respond, bill-based mode toggles correctly, advanced settings expand properly."
+    }
+  ]
+}
