@@ -253,32 +253,41 @@
                     </p>
                 </div>
 
-                <!-- Self-Consumption Slider -->
+                <!-- Self-Consumption Scenario Selection -->
                 <div class="mb-6">
-                    <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center justify-between mb-4">
                         <h4 class="font-semibold text-slate-900">Oman käytön osuus</h4>
-                        <div class="flex items-center gap-2">
-                            <svg wire:loading wire:target="selfConsumptionPercent" class="animate-spin h-4 w-4 text-coral-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <span class="text-coral-600 font-bold text-lg">{{ $selfConsumptionPercent }}%</span>
-                        </div>
+                        <svg wire:loading wire:target="selfConsumptionScenario" class="animate-spin h-4 w-4 text-coral-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
                     </div>
-                    <input
-                        type="range"
-                        wire:model.live.debounce.200ms="selfConsumptionPercent"
-                        min="10"
-                        max="80"
-                        step="5"
-                        class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-coral-500"
-                    >
-                    <div class="flex justify-between text-xs text-slate-500 mt-1">
-                        <span>10%</span>
-                        <span>80%</span>
+                    <div class="grid grid-cols-3 gap-4">
+                        @foreach ($selfConsumptionScenarios as $scenario => $data)
+                            @php
+                                $icons = [
+                                    'no_battery' => 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z',
+                                    'with_battery' => 'M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z',
+                                    'smart_system' => 'M13 10V3L4 14h7v7l9-11h-7z',
+                                ];
+                            @endphp
+                            <button
+                                wire:click="$set('selfConsumptionScenario', '{{ $scenario }}')"
+                                wire:loading.attr="disabled"
+                                wire:loading.class="opacity-50"
+                                wire:target="selfConsumptionScenario"
+                                class="p-4 border rounded-xl text-center transition-all {{ $selfConsumptionScenario === $scenario ? 'border-coral-500 bg-coral-50' : 'border-slate-100 hover:border-slate-300' }}"
+                            >
+                                <svg class="w-8 h-8 mx-auto mb-2 {{ $selfConsumptionScenario === $scenario ? 'text-coral-600' : 'text-slate-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icons[$scenario] }}"></path>
+                                </svg>
+                                <span class="text-sm font-medium block {{ $selfConsumptionScenario === $scenario ? 'text-coral-700' : 'text-slate-700' }}">{{ $data['label'] }}</span>
+                                <span class="text-xs text-coral-600 font-semibold block mt-1">{{ $data['percent'] }}%</span>
+                            </button>
+                        @endforeach
                     </div>
-                    <p class="text-sm text-slate-500 mt-2">
-                        Kuinka suuren osan tuotetusta sähköstä käytät itse. Tyypillisesti 20-40%.
+                    <p class="text-sm text-slate-500 mt-3">
+                        {{ $selfConsumptionScenarios[$selfConsumptionScenario]['description'] }}
                     </p>
                 </div>
             </div>
@@ -411,7 +420,7 @@
                     {{-- Loading overlay for savings --}}
                     <div
                         wire:loading
-                        wire:target="systemKwp, shadingLevel, selectAddress, manualPrice, selfConsumptionPercent"
+                        wire:target="systemKwp, shadingLevel, selectAddress, manualPrice, selfConsumptionScenario"
                         class="absolute inset-0 rounded-2xl flex items-center justify-center z-10"
                         style="background-color: rgba(22, 163, 74, 0.9);"
                     >
@@ -433,8 +442,8 @@
 
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <div class="rounded-lg p-3" style="background-color: #15803d;">
-                            <p class="text-xs" style="color: rgba(255,255,255,0.7);">Oma käyttö</p>
-                            <p class="text-lg font-semibold" style="color: white;">{{ $selfConsumptionPercent }}%</p>
+                            <p class="text-xs" style="color: rgba(255,255,255,0.7);">Oma käyttö ({{ $this->selfConsumptionLabel }})</p>
+                            <p class="text-lg font-semibold" style="color: white;">{{ $this->selfConsumptionPercent }}%</p>
                         </div>
                         <div class="rounded-lg p-3" style="background-color: #15803d;">
                             <p class="text-xs" style="color: rgba(255,255,255,0.7);">Sähkön hinta</p>
@@ -443,7 +452,7 @@
                     </div>
 
                     <p class="text-xs text-center" style="color: rgba(255,255,255,0.7);">
-                        Säästö = {{ number_format($this->annualKwh, 0, ',', ' ') }} kWh × {{ $selfConsumptionPercent }}% × {{ number_format($this->effectivePrice, 2, ',', ' ') }} c/kWh
+                        Säästö = {{ number_format($this->annualKwh, 0, ',', ' ') }} kWh × {{ $this->selfConsumptionPercent }}% × {{ number_format($this->effectivePrice, 2, ',', ' ') }} c/kWh
                     </p>
                 </section>
             @endif

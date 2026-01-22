@@ -33,13 +33,32 @@ class SolarCalculator extends Component
 
     // Savings calculation - only manual price input
     public ?float $manualPrice = null;
-    public int $selfConsumptionPercent = 30;
+    public string $selfConsumptionScenario = 'with_battery';
 
     // Shading level labels
     public array $shadingLabels = [
         'none' => 'Ei varjostusta',
         'some' => 'Vähän varjostusta',
         'heavy' => 'Paljon varjostusta',
+    ];
+
+    // Self-consumption scenarios
+    public array $selfConsumptionScenarios = [
+        'no_battery' => [
+            'label' => 'Ilman akkua',
+            'description' => 'Ei akkua, sähkö käytetään suoraan päivällä',
+            'percent' => 30,
+        ],
+        'with_battery' => [
+            'label' => 'Akun kanssa',
+            'description' => 'Akku varastoi ylituotannon omaan käyttöön',
+            'percent' => 70,
+        ],
+        'smart_system' => [
+            'label' => 'Akku + älykäs ohjaus',
+            'description' => 'Akku ja kuormanohjaus (esim. lämminvesivaraaja)',
+            'percent' => 90,
+        ],
     ];
 
     // Finnish month abbreviations (short)
@@ -211,6 +230,18 @@ class SolarCalculator extends Component
     public function effectivePrice(): ?float
     {
         return $this->manualPrice;
+    }
+
+    #[Computed]
+    public function selfConsumptionPercent(): int
+    {
+        return $this->selfConsumptionScenarios[$this->selfConsumptionScenario]['percent'] ?? 70;
+    }
+
+    #[Computed]
+    public function selfConsumptionLabel(): string
+    {
+        return $this->selfConsumptionScenarios[$this->selfConsumptionScenario]['label'] ?? 'Akun kanssa';
     }
 
     #[Computed]
