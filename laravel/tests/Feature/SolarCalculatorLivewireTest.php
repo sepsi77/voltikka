@@ -18,14 +18,20 @@ class SolarCalculatorLivewireTest extends TestCase
 
     public function test_solar_calculator_page_loads(): void
     {
-        $this->get('/aurinkopaneelit')
+        $this->get('/aurinkopaneelit/laskuri')
             ->assertStatus(200)
             ->assertSeeLivewire(SolarCalculator::class);
     }
 
-    public function test_solar_calculator_has_correct_title(): void
+    public function test_solar_calculator_parent_redirects_to_calculator(): void
     {
         $this->get('/aurinkopaneelit')
+            ->assertRedirect('/aurinkopaneelit/laskuri');
+    }
+
+    public function test_solar_calculator_has_correct_title(): void
+    {
+        $this->get('/aurinkopaneelit/laskuri')
             ->assertStatus(200)
             ->assertSee('Aurinkopaneelilaskuri');
     }
@@ -176,6 +182,6 @@ class SolarCalculatorLivewireTest extends TestCase
 
     public function test_route_is_named_correctly(): void
     {
-        $this->assertEquals('/aurinkopaneelit', route('solar.calculator', [], false));
+        $this->assertEquals('/aurinkopaneelit/laskuri', route('solar.calculator', [], false));
     }
 }

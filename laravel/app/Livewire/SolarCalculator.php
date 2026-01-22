@@ -2,7 +2,7 @@
 
 namespace App\Livewire;
 
-use App\Models\ElectricityContract;
+use App\Models\SpotPriceAverage;
 use App\Services\DigitransitGeocodingService;
 use App\Services\DTO\GeocodingResult;
 use App\Services\DTO\SolarEstimateRequest;
@@ -31,9 +31,7 @@ class SolarCalculator extends Component
     public bool $isCalculating = false;
     public ?string $errorMessage = null;
 
-    // Savings calculation
-    public ?string $selectedContractId = null;
-    public string $priceMode = 'contract'; // 'contract' or 'manual'
+    // Savings calculation - only manual price input
     public ?float $manualPrice = null;
     public int $selfConsumptionPercent = 30;
 
@@ -44,11 +42,29 @@ class SolarCalculator extends Component
         'heavy' => 'Paljon varjostusta',
     ];
 
-    // Finnish month names
+    // Finnish month abbreviations (short)
     public array $monthNames = [
-        'Tammi', 'Helmi', 'Maalis', 'Huhti', 'Touko', 'Kesä',
-        'Heinä', 'Elo', 'Syys', 'Loka', 'Marras', 'Joulu',
+        'Tam', 'Hel', 'Maa', 'Huh', 'Tou', 'Kes',
+        'Hei', 'Elo', 'Syy', 'Lok', 'Mar', 'Jou',
     ];
+
+    // Finnish month names (full)
+    public array $monthNamesFull = [
+        'Tammikuu', 'Helmikuu', 'Maaliskuu', 'Huhtikuu', 'Toukokuu', 'Kesäkuu',
+        'Heinäkuu', 'Elokuu', 'Syyskuu', 'Lokakuu', 'Marraskuu', 'Joulukuu',
+    ];
+
+    public function mount(): void
+    {
+        // Prefill with average spot price from last year (with tax)
+        $avgSpot = SpotPriceAverage::latestRolling365Days('FI');
+        if ($avgSpot && $avgSpot->avg_price_with_tax) {
+            $this->manualPrice = round($avgSpot->avg_price_with_tax, 2);
+        } else {
+            // Fallback to a reasonable default if no data
+            $this->manualPrice = 8.0;
+        }
+    }
 
     public function updatedAddressQuery(): void
     {
@@ -126,15 +142,6 @@ class SolarCalculator extends Component
         }
     }
 
-    public function updatedPriceMode(): void
-    {
-        if ($this->priceMode === 'manual') {
-            $this->selectedContractId = null;
-        } else {
-            $this->manualPrice = null;
-        }
-    }
-
     public function calculateEstimate(): void
     {
         if ($this->selectedLat === null || $this->selectedLon === null) {
@@ -191,53 +198,9 @@ class SolarCalculator extends Component
     }
 
     #[Computed]
-    public function availableContracts(): array
-    {
-        return ElectricityContract::with(['priceComponents' => function ($query) {
-            $query->orderByDesc('price_date');
-        }])
-            ->where('target_group', 'Household')
-            ->whereIn('pricing_model', ['FixedPrice', 'Hybrid'])
-            ->orderBy('company_name')
-            ->orderBy('name')
-            ->get()
-            ->map(function ($contract) {
-                $price = $this->getContractPrice($contract);
-                return [
-                    'id' => $contract->id,
-                    'name' => $contract->name,
-                    'company_name' => $contract->company_name,
-                    'metering' => $contract->metering,
-                    'price_cents' => $price,
-                ];
-            })
-            ->filter(fn($c) => $c['price_cents'] !== null)
-            ->values()
-            ->toArray();
-    }
-
-    #[Computed]
-    public function selectedContract(): ?array
-    {
-        if (!$this->selectedContractId) {
-            return null;
-        }
-
-        return collect($this->availableContracts)->firstWhere('id', $this->selectedContractId);
-    }
-
-    #[Computed]
     public function effectivePrice(): ?float
     {
-        if ($this->priceMode === 'manual' && $this->manualPrice !== null) {
-            return $this->manualPrice;
-        }
-
-        if ($this->selectedContract) {
-            return $this->selectedContract['price_cents'];
-        }
-
-        return null;
+        return $this->manualPrice;
     }
 
     #[Computed]
@@ -254,30 +217,18 @@ class SolarCalculator extends Component
     #[Computed]
     public function hasSavings(): bool
     {
-        return $this->hasResults && $this->effectivePrice !== null;
-    }
-
-    private function getContractPrice(ElectricityContract $contract): ?float
-    {
-        $priceComponents = $contract->priceComponents;
-
-        if ($contract->metering === 'Time') {
-            // For time-based contracts, use day price (solar production is primarily during day)
-            $dayPrice = $priceComponents->firstWhere('price_component_type', 'DayTime');
-            return $dayPrice?->price;
-        }
-
-        // For general metering, use the General price
-        $generalPrice = $priceComponents->firstWhere('price_component_type', 'General');
-        return $generalPrice?->price;
+        return $this->hasResults && $this->effectivePrice !== null && $this->effectivePrice > 0;
     }
 
     public function render()
     {
+        $year = date('Y');
+
         return view('livewire.solar-calculator')
             ->layout('layouts.app', [
-                'title' => 'Aurinkopaneelilaskuri - Voltikka',
-                'metaDescription' => 'Laske aurinkopaneelien tuotto osoitteesi perusteella. Ilmainen aurinkopaneelilaskuri näyttää arvion vuosituotannosta.',
+                'title' => "Aurinkopaneelilaskuri {$year} – Laske aurinkopaneelien tuotto | Voltikka",
+                'metaDescription' => "Ilmainen aurinkopaneelilaskuri {$year}. Laske aurinkopaneelien arvioitu vuosituotto ja säästöt osoitteesi perusteella. Käytämme EU:n PVGIS-tietokantaa tarkkaan tuottoarvioon Suomessa.",
+                'canonical' => route('solar.calculator'),
             ]);
     }
 }

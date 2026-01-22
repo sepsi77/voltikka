@@ -39,8 +39,9 @@ Route::get('/sitemap.xml', function (SitemapService $sitemapService) {
 // Calculator
 Route::get('/sahkosopimus/laskuri', ConsumptionCalculator::class)->name('calculator');
 
-// Solar panel calculator
-Route::get('/aurinkopaneelit', SolarCalculator::class)->name('solar.calculator');
+// Solar panel section
+Route::get('/aurinkopaneelit/laskuri', SolarCalculator::class)->name('solar.calculator');
+Route::redirect('/aurinkopaneelit', '/aurinkopaneelit/laskuri', 302);
 
 // Contract detail
 Route::get('/sahkosopimus/sopimus/{contractId}', ContractDetail::class)->name('contract.detail');
