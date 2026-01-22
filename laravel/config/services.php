@@ -45,4 +45,9 @@ return [
         'finland_eic' => '10YFI-1--------U',
     ],
 
+    'digitransit' => [
+        'api_key' => env('DIGITRANSIT_API_KEY'),
+        'base_url' => 'https://api.digitransit.fi/geocoding/v1',
+    ],
+
 ];
