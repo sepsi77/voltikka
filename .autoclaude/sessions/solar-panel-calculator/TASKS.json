@@ -175,9 +175,11 @@
       "id": "final-verification",
       "title": "Final testing and verification",
       "description": "Run all tests with 'php artisan test'. Manually verify the /aurinkopaneelit page works: address autocomplete shows suggestions, selecting address triggers calculation, adjusting settings updates results, savings calculation displays correctly. Fix any issues found.",
-      "status": "pending",
+      "status": "completed",
       "priority": 18,
-      "depends_on": ["phase4-savings"]
+      "depends_on": ["phase4-savings"],
+      "completed_at": "2026-01-22T19:00:00Z",
+      "passes": true
     }
   ]
 }
