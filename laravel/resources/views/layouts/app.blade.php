@@ -204,6 +204,9 @@
                         <a href="/aurinkopaneelit" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('aurinkopaneelit*') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                             Aurinkopaneelit
                         </a>
+                        <a href="/lampopumput" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('lampopumput*') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                            Lämpöpumput
+                        </a>
                     </nav>
 
                     <!-- Spot Price Badge (Desktop) -->
@@ -268,6 +271,9 @@
                     <a href="/aurinkopaneelit" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('aurinkopaneelit*') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                         Aurinkopaneelit
                     </a>
+                    <a href="/lampopumput" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('lampopumput*') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                        Lämpöpumput
+                    </a>
                 </div>
             </div>
         </header>
@@ -295,16 +301,26 @@
                         </ul>
                     </div>
 
-                    <!-- Asuntotyyppi -->
+                    <!-- Laskurit -->
                     <div>
-                        <h3 class="text-white font-semibold mb-4">Asuntotyyppi</h3>
+                        <h3 class="text-white font-semibold mb-4">Laskurit</h3>
+                        <ul class="space-y-2">
+                            <li><a href="{{ route('calculator') }}" class="text-slate-400 hover:text-white text-sm transition-colors">Sähkölaskuri</a></li>
+                            <li><a href="/aurinkopaneelit/laskuri" class="text-slate-400 hover:text-white text-sm transition-colors">Aurinkopaneelilaskuri</a></li>
+                            <li><a href="/lampopumput/laskuri" class="text-slate-400 hover:text-white text-sm transition-colors">Lämpöpumppulaskuri</a></li>
+                        </ul>
+
+                        <h3 class="text-white font-semibold mb-4 mt-6">Asuntotyyppi</h3>
                         <ul class="space-y-2">
                             <li><a href="/sahkosopimus/omakotitalo" class="text-slate-400 hover:text-white text-sm transition-colors">Omakotitalo</a></li>
                             <li><a href="/sahkosopimus/rivitalo" class="text-slate-400 hover:text-white text-sm transition-colors">Rivitalo</a></li>
                             <li><a href="/sahkosopimus/kerrostalo" class="text-slate-400 hover:text-white text-sm transition-colors">Kerrostalo</a></li>
                         </ul>
+                    </div>
 
-                        <h3 class="text-white font-semibold mb-4 mt-6">Energialähde</h3>
+                    <!-- Energialähde -->
+                    <div>
+                        <h3 class="text-white font-semibold mb-4">Energialähde</h3>
                         <ul class="space-y-2">
                             <li><a href="/sahkosopimus/vihrea-sahko" class="text-slate-400 hover:text-white text-sm transition-colors">Vihreä sähkö</a></li>
                             <li><a href="/sahkosopimus/tuulisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Tuulisähkö</a></li>

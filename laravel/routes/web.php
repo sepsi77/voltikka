@@ -43,6 +43,10 @@ Route::get('/sahkosopimus/laskuri', ConsumptionCalculator::class)->name('calcula
 Route::get('/aurinkopaneelit/laskuri', SolarCalculator::class)->name('solar.calculator');
 Route::redirect('/aurinkopaneelit', '/aurinkopaneelit/laskuri', 302);
 
+// Heat pump section
+Route::get('/lampopumput/laskuri', \App\Livewire\HeatPumpCalculator::class)->name('heatpump.calculator');
+Route::redirect('/lampopumput', '/lampopumput/laskuri', 302);
+
 // Contract detail
 Route::get('/sahkosopimus/sopimus/{contractId}', ContractDetail::class)->name('contract.detail');
 
