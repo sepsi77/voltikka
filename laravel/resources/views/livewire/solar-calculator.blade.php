@@ -166,6 +166,7 @@
                     @foreach ([3, 5, 8, 10, 15] as $preset)
                         <button
                             wire:click="$set('systemKwp', {{ $preset }})"
+                            @click="$track('Solar System Size Changed', { size_kwp: {{ $preset }}, method: 'preset' })"
                             wire:loading.attr="disabled"
                             wire:loading.class="opacity-50"
                             wire:target="systemKwp"

@@ -164,6 +164,16 @@ class SolarCalculator extends Component
 
             $result = $service->calculate($request);
             $this->calculationResult = $result->toArray();
+
+            // Track successful calculation
+            $this->dispatch('track',
+                event: 'Solar Calculation Completed',
+                props: [
+                    'system_kwp' => $this->systemKwp,
+                    'annual_kwh' => round($result->annual_kwh),
+                    'shading_level' => $this->shadingLevel,
+                ]
+            );
         } catch (\Exception $e) {
             $this->errorMessage = 'Virhe laskennassa. Yritä uudelleen.';
             $this->calculationResult = [];

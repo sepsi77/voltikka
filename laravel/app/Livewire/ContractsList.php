@@ -369,6 +369,15 @@ class ContractsList extends Component
         if (isset($this->presets[$preset])) {
             $this->consumption = $this->presets[$preset]['consumption'];
             $this->resetPage();
+
+            // Track preset change
+            $this->dispatch('track',
+                event: 'Contracts Preset Changed',
+                props: [
+                    'preset' => $preset,
+                    'consumption' => $this->presets[$preset]['consumption'],
+                ]
+            );
         }
     }
 
@@ -575,8 +584,20 @@ class ContractsList extends Component
      */
     public function setContractTypeFilter(string $type): void
     {
-        $this->contractTypeFilter = $this->contractTypeFilter === $type ? '' : $type;
+        $newValue = $this->contractTypeFilter === $type ? '' : $type;
+        $this->contractTypeFilter = $newValue;
         $this->resetPage();
+
+        // Track filter change
+        if ($newValue !== '') {
+            $this->dispatch('track',
+                event: 'Contracts Filter Applied',
+                props: [
+                    'filter_type' => 'contract_type',
+                    'value' => $newValue,
+                ]
+            );
+        }
     }
 
     /**
@@ -584,8 +605,20 @@ class ContractsList extends Component
      */
     public function setPricingModelFilter(string $model): void
     {
-        $this->pricingModelFilter = $this->pricingModelFilter === $model ? '' : $model;
+        $newValue = $this->pricingModelFilter === $model ? '' : $model;
+        $this->pricingModelFilter = $newValue;
         $this->resetPage();
+
+        // Track filter change
+        if ($newValue !== '') {
+            $this->dispatch('track',
+                event: 'Contracts Filter Applied',
+                props: [
+                    'filter_type' => 'pricing_model',
+                    'value' => $newValue,
+                ]
+            );
+        }
     }
 
     /**
@@ -624,6 +657,17 @@ class ContractsList extends Component
     {
         $this->renewableFilter = !$this->renewableFilter;
         $this->resetPage();
+
+        // Track filter change
+        if ($this->renewableFilter) {
+            $this->dispatch('track',
+                event: 'Contracts Filter Applied',
+                props: [
+                    'filter_type' => 'energy_source',
+                    'value' => 'renewable',
+                ]
+            );
+        }
     }
 
     /**
@@ -642,6 +686,17 @@ class ContractsList extends Component
     {
         $this->fossilFreeFilter = !$this->fossilFreeFilter;
         $this->resetPage();
+
+        // Track filter change
+        if ($this->fossilFreeFilter) {
+            $this->dispatch('track',
+                event: 'Contracts Filter Applied',
+                props: [
+                    'filter_type' => 'energy_source',
+                    'value' => 'fossil_free',
+                ]
+            );
+        }
     }
 
     /**

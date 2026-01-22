@@ -44,6 +44,16 @@ class ContractDetail extends Component
         $contract = $this->contract;
         if ($contract) {
             $this->consumption = $this->clampConsumption($this->consumption, $contract);
+
+            // Track contract view
+            $this->dispatch('track',
+                event: 'Contract Viewed',
+                props: [
+                    'contract_id' => $contract->id,
+                    'company' => $contract->company?->name,
+                    'pricing_model' => $contract->pricing_model,
+                ]
+            );
         }
     }
 

@@ -65,6 +65,11 @@
                                 href="{{ $contract->order_link }}"
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                @click="$track('Contract Order Clicked', {
+                                    contract_id: {{ $contract->id }},
+                                    company: '{{ addslashes($contract->company?->name) }}',
+                                    pricing_model: '{{ $contract->pricing_model }}'
+                                })"
                                 class="inline-flex items-center justify-center px-6 py-3.5 bg-gradient-to-r from-coral-500 to-coral-600 hover:from-coral-400 hover:to-coral-500 text-white font-bold rounded-xl shadow-coral transition-all"
                             >
                                 Tilaa sopimus
@@ -78,6 +83,10 @@
                                 href="{{ $contract->product_link }}"
                                 target="_blank"
                                 rel="noopener noreferrer"
+                                @click="$track('Contract Info Clicked', {
+                                    contract_id: {{ $contract->id }},
+                                    company: '{{ addslashes($contract->company?->name) }}'
+                                })"
                                 class="inline-flex items-center justify-center px-6 py-3.5 bg-white hover:bg-slate-100 text-slate-900 font-bold rounded-xl transition-colors"
                             >
                                 Lisätietoja

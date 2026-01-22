@@ -222,6 +222,15 @@ class ConsumptionCalculator extends Component
             $this->supplementaryHeating = null;
 
             $this->calculate();
+
+            // Track preset selection
+            $this->dispatch('track',
+                event: 'Energy Preset Selected',
+                props: [
+                    'preset' => $preset,
+                    'consumption' => $this->presets[$preset]['consumption'],
+                ]
+            );
         }
     }
 
@@ -301,6 +310,15 @@ class ConsumptionCalculator extends Component
 
     public function compareContracts(): void
     {
+        // Track compare button click
+        $this->dispatch('track',
+            event: 'Energy Compare Clicked',
+            props: [
+                'total_kwh' => $this->totalConsumption,
+                'includes_heating' => $this->includeHeating,
+            ]
+        );
+
         $this->redirect('/?consumption=' . $this->totalConsumption);
     }
 
