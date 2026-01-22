@@ -6,6 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Voltikka is a Finnish electricity contract comparison platform built with **Laravel 11 and Livewire 3**. The site helps consumers find and compare electricity contracts, view real-time spot prices, and calculate solar panel production estimates.
 
+## Production site
+
+- Production site URL https://voltikka.fi/
+- Hosting: Railway with MySQL database
+
+## Browser based testing
+
+You can use agent browser skill to access a browser and do browser-based testing or access websites.
+
+
 ## Repository Structure
 
 ```

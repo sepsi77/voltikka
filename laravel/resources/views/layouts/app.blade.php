@@ -139,8 +139,12 @@
         @endif
 
         <!-- Privacy-friendly analytics by Plausible -->
-        <script defer data-domain="voltikka.fi" src="https://plausible.io/js/script.js"></script>
-        <script>window.plausible = window.plausible || function() { (window.plausible.q = window.plausible.q || []).push(arguments) }</script>
+        <script async src="https://plausible.io/js/pa-pDXhgmi5eZqoIa4scLqJt.js"></script>
+        <script>
+          window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+          plausible.init()
+        </script>
+
 
         @livewireStyles
     </head>
