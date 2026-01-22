@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\CalculationController;
 use App\Http\Controllers\Api\ContractController;
+use App\Http\Controllers\Api\SolarController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -22,3 +23,6 @@ Route::get('/contracts/{id}', [ContractController::class, 'show']);
 // Calculation routes
 Route::post('/calculate-price', [CalculationController::class, 'calculatePrice']);
 Route::post('/estimate-consumption', [CalculationController::class, 'estimateConsumption']);
+
+// Solar calculator routes
+Route::get('/solar/geocode', [SolarController::class, 'geocode']);
