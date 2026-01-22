@@ -356,11 +356,28 @@
 
         </section>
 
+        <!-- Loading Overlay for Results -->
+        <div wire:loading.delay wire:target="livingArea, roomHeight, buildingRegion, buildingEnergyEfficiency, numPeople, inputMode, currentHeatingMethod, oilLitersPerYear, electricityKwhPerYear, districtHeatingEurosPerYear, electricityPrice, oilPrice, districtHeatingPrice, pelletPrice, investments, interestRate, calculationPeriod" class="fixed inset-0 bg-white/50 z-50 flex items-center justify-center">
+            <div class="bg-white rounded-xl shadow-lg p-6 flex items-center space-x-3">
+                <svg class="animate-spin h-6 w-6 text-coral-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="text-slate-700 font-medium">Lasketaan...</span>
+            </div>
+        </div>
+
         <!-- Results Section -->
         @if ($this->hasResults)
             <!-- Energy Need Summary -->
             <section class="bg-slate-100 rounded-2xl p-6 mb-8">
-                <h3 class="font-semibold text-slate-900 mb-4">Arvioitu lämmitysenergian tarve</h3>
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold text-slate-900">Arvioitu lämmitysenergian tarve</h3>
+                    <svg wire:loading wire:target="livingArea, roomHeight, buildingRegion, buildingEnergyEfficiency, numPeople, inputMode, currentHeatingMethod, oilLitersPerYear, electricityKwhPerYear, districtHeatingEurosPerYear" class="animate-spin h-5 w-5 text-coral-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
                 <div class="grid grid-cols-3 gap-4">
                     <div class="bg-white rounded-lg p-4 text-center">
                         <p class="text-sm text-slate-600 mb-1">Tilojen lämmitys</p>
@@ -380,83 +397,159 @@
                 </div>
             </section>
 
-            <!-- Current System -->
-            <section class="bg-slate-800 rounded-2xl p-6 mb-8 text-white">
-                <h3 class="font-semibold mb-4">Nykyinen järjestelmä: {{ $this->currentSystem['label'] }}</h3>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <!-- Current System - Improved legibility -->
+            <section class="bg-slate-800 rounded-2xl p-8 mb-8">
+                <div class="flex items-center justify-between mb-6">
                     <div>
-                        <p class="text-slate-400 text-sm">Vuosikustannus</p>
-                        <p class="text-2xl font-bold">{{ number_format($this->currentSystem['annualCost'], 0, ',', ' ') }} €</p>
+                        <p class="text-slate-400 text-sm uppercase tracking-wide font-medium">Nykyinen järjestelmä</p>
+                        <h3 class="text-2xl font-bold text-white mt-1">{{ $this->currentSystem['label'] }}</h3>
                     </div>
-                    <div>
-                        <p class="text-slate-400 text-sm">CO₂-päästöt</p>
-                        <p class="text-2xl font-bold">{{ number_format($this->currentSystem['co2KgPerYear'], 0, ',', ' ') }} kg</p>
+                    <div class="bg-slate-700 rounded-full px-4 py-2">
+                        <span class="text-slate-300 text-sm">Vertailukohta</span>
                     </div>
-                    <div>
-                        <p class="text-slate-400 text-sm">Vertailukohta</p>
-                        <p class="text-lg font-medium text-slate-300">Säästöt lasketaan tähän verrattuna</p>
+                </div>
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="bg-slate-700 rounded-xl p-5">
+                        <p class="text-slate-400 text-sm mb-2">Vuosikustannus</p>
+                        <p class="text-3xl font-bold text-white">{{ number_format($this->currentSystem['annualCost'], 0, ',', ' ') }} €</p>
+                    </div>
+                    <div class="bg-slate-700 rounded-xl p-5">
+                        <p class="text-slate-400 text-sm mb-2">CO₂-päästöt</p>
+                        <p class="text-3xl font-bold text-white">{{ number_format($this->currentSystem['co2KgPerYear'], 0, ',', ' ') }} kg</p>
                     </div>
                 </div>
             </section>
 
-            <!-- Alternatives -->
-            <section class="mb-8">
-                <h3 class="font-semibold text-slate-900 mb-4">Vaihtoehdot</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    @foreach ($this->alternatives as $index => $alt)
-                        @php
-                            $isBest = $index === 0;
-                            $savingsPositive = $alt['annualSavings'] > 0;
-                        @endphp
-                        <div class="bg-white rounded-xl border {{ $isBest ? 'border-green-500 ring-2 ring-green-100' : 'border-slate-200' }} p-5 relative">
-                            @if ($isBest)
-                                <span class="absolute -top-3 left-4 bg-green-500 text-white text-xs font-semibold px-2 py-1 rounded">Suositeltu</span>
-                            @endif
-                            <h4 class="font-semibold text-slate-900 mb-3">{{ $alt['label'] }}</h4>
+            @php
+                // Classify alternatives into primary (full replacement) and supplementary
+                $primarySystems = ['ground_source_hp', 'air_to_water_hp', 'pellets'];
+                $primary = collect($this->alternatives)->filter(fn($alt) => in_array($alt['key'], $primarySystems))->values();
+                $supplementary = collect($this->alternatives)->filter(fn($alt) => !in_array($alt['key'], $primarySystems))->values();
+            @endphp
 
-                            <div class="space-y-2 text-sm">
-                                <div class="flex justify-between">
-                                    <span class="text-slate-600">Vuosikustannus</span>
-                                    <span class="font-semibold">{{ number_format($alt['annualCost'], 0, ',', ' ') }} €</span>
+            <!-- Primary Heating Options -->
+            @if ($primary->isNotEmpty())
+                <section class="mb-8">
+                    <div class="mb-5">
+                        <h3 class="text-xl font-bold text-slate-900">Täydelliset lämmitysratkaisut</h3>
+                        <p class="text-sm text-slate-500 mt-1">Nämä järjestelmät voivat korvata nykyisen lämmityksen kokonaan tai lähes kokonaan</p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-5">
+                        @foreach ($primary as $alt)
+                            @php
+                                $savingsPositive = $alt['annualSavings'] > 0;
+                            @endphp
+                            <div class="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-lg transition-shadow">
+                                <h4 class="text-lg font-bold text-slate-900 mb-4">{{ $alt['label'] }}</h4>
+
+                                <div class="space-y-3">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-slate-600">Vuosikustannus</span>
+                                        <span class="text-lg font-bold text-slate-900 whitespace-nowrap">{{ number_format($alt['annualCost'], 0, ',', ' ') }} €</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-slate-600">Vuosisäästö</span>
+                                        <span class="text-lg font-bold whitespace-nowrap {{ $savingsPositive ? 'text-green-600' : 'text-red-600' }}">
+                                            {{ $savingsPositive ? '+' : '' }}{{ number_format($alt['annualSavings'], 0, ',', ' ') }} €
+                                        </span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-slate-600">Investointi</span>
+                                        <span class="text-lg font-semibold text-slate-900 whitespace-nowrap">{{ number_format($alt['investment'], 0, ',', ' ') }} €</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-slate-600">Takaisinmaksuaika</span>
+                                        <span class="text-lg font-semibold text-slate-900 whitespace-nowrap">
+                                            @if ($alt['paybackYears'])
+                                                {{ number_format($alt['paybackYears'], 1, ',', ' ') }} v
+                                            @else
+                                                -
+                                            @endif
+                                        </span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-slate-600">CO₂-päästöt</span>
+                                        <span class="text-lg font-semibold text-slate-900 whitespace-nowrap">{{ number_format($alt['co2KgPerYear'], 0, ',', ' ') }} kg</span>
+                                    </div>
+                                    <div class="border-t border-slate-100 pt-3 mt-3">
+                                        <div class="flex justify-between items-baseline gap-2">
+                                            <span class="text-slate-700 font-medium text-sm">Kokonaiskustannus/v*</span>
+                                            <span class="text-xl font-bold text-coral-600 whitespace-nowrap">{{ number_format($alt['annualizedTotalCost'], 0, ',', ' ') }} €</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-600">Vuosisäästö</span>
-                                    <span class="font-semibold {{ $savingsPositive ? 'text-green-600' : 'text-red-600' }}">
-                                        {{ $savingsPositive ? '+' : '' }}{{ number_format($alt['annualSavings'], 0, ',', ' ') }} €
-                                    </span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-600">Investointi</span>
-                                    <span class="font-semibold">{{ number_format($alt['investment'], 0, ',', ' ') }} €</span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-600">Takaisinmaksuaika</span>
-                                    <span class="font-semibold">
-                                        @if ($alt['paybackYears'])
-                                            {{ number_format($alt['paybackYears'], 1, ',', ' ') }} v
-                                        @else
-                                            -
-                                        @endif
-                                    </span>
-                                </div>
-                                <div class="flex justify-between">
-                                    <span class="text-slate-600">CO₂-päästöt</span>
-                                    <span class="font-semibold">{{ number_format($alt['co2KgPerYear'], 0, ',', ' ') }} kg</span>
-                                </div>
-                                <div class="flex justify-between border-t border-slate-100 pt-2 mt-2">
-                                    <span class="text-slate-600">Kokonaiskustannus/v*</span>
-                                    <span class="font-bold text-coral-600">{{ number_format($alt['annualizedTotalCost'], 0, ',', ' ') }} €</span>
-                                </div>
+
+                                @if ($alt['notes'])
+                                    <p class="mt-4 text-sm text-slate-500 bg-slate-50 rounded-lg p-3">{{ $alt['notes'] }}</p>
+                                @endif
                             </div>
+                        @endforeach
+                    </div>
+                </section>
+            @endif
 
-                            @if ($alt['notes'])
-                                <p class="mt-3 text-xs text-slate-500 italic">{{ $alt['notes'] }}</p>
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-                <p class="mt-3 text-xs text-slate-500">* Kokonaiskustannus sisältää käyttökustannukset ja investoinnin annuiteetin {{ $calculationPeriod }} vuodelle {{ number_format($interestRate, 1, ',', ' ') }}% korolla.</p>
-            </section>
+            <!-- Supplementary Heating Options -->
+            @if ($supplementary->isNotEmpty())
+                <section class="mb-8">
+                    <div class="mb-5">
+                        <h3 class="text-xl font-bold text-slate-900">Täydentävät lämmitysvaihtoehdot</h3>
+                        <p class="text-sm text-slate-500 mt-1">Nämä ratkaisut täydentävät nykyistä lämmitystä ja vähentävät kustannuksia</p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-5">
+                        @foreach ($supplementary as $alt)
+                            @php
+                                $savingsPositive = $alt['annualSavings'] > 0;
+                            @endphp
+                            <div class="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-lg transition-shadow">
+                                <h4 class="text-lg font-bold text-slate-900 mb-4">{{ $alt['label'] }}</h4>
+
+                                <div class="space-y-3">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-slate-600">Vuosikustannus</span>
+                                        <span class="text-lg font-bold text-slate-900 whitespace-nowrap">{{ number_format($alt['annualCost'], 0, ',', ' ') }} €</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-slate-600">Vuosisäästö</span>
+                                        <span class="text-lg font-bold whitespace-nowrap {{ $savingsPositive ? 'text-green-600' : 'text-red-600' }}">
+                                            {{ $savingsPositive ? '+' : '' }}{{ number_format($alt['annualSavings'], 0, ',', ' ') }} €
+                                        </span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-slate-600">Investointi</span>
+                                        <span class="text-lg font-semibold text-slate-900 whitespace-nowrap">{{ number_format($alt['investment'], 0, ',', ' ') }} €</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-slate-600">Takaisinmaksuaika</span>
+                                        <span class="text-lg font-semibold text-slate-900 whitespace-nowrap">
+                                            @if ($alt['paybackYears'])
+                                                {{ number_format($alt['paybackYears'], 1, ',', ' ') }} v
+                                            @else
+                                                -
+                                            @endif
+                                        </span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-slate-600">CO₂-päästöt</span>
+                                        <span class="text-lg font-semibold text-slate-900 whitespace-nowrap">{{ number_format($alt['co2KgPerYear'], 0, ',', ' ') }} kg</span>
+                                    </div>
+                                    <div class="border-t border-slate-100 pt-3 mt-3">
+                                        <div class="flex justify-between items-baseline gap-2">
+                                            <span class="text-slate-700 font-medium text-sm">Kokonaiskustannus/v*</span>
+                                            <span class="text-xl font-bold text-coral-600 whitespace-nowrap">{{ number_format($alt['annualizedTotalCost'], 0, ',', ' ') }} €</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                @if ($alt['notes'])
+                                    <p class="mt-4 text-sm text-slate-500 bg-slate-50 rounded-lg p-3">{{ $alt['notes'] }}</p>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </section>
+            @endif
+
+            <p class="text-xs text-slate-500 mb-8">* Kokonaiskustannus sisältää käyttökustannukset ja investoinnin annuiteetin {{ $calculationPeriod }} vuodelle {{ number_format($interestRate, 1, ',', ' ') }}% korolla.</p>
         @endif
 
         <!-- Info Section -->
