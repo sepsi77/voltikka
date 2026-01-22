@@ -1,0 +1,163 @@
+{
+  "session": "solar-panel-calculator",
+  "description": "Implement solar panel calculator for Finnish electricity contract comparison site. Users enter an address to get PV production estimates using Digitransit (geocoding) and PVGIS (PV yield calculation).",
+  "tasks": [
+    {
+      "id": "phase1-config",
+      "title": "Add Digitransit configuration",
+      "description": "Add Digitransit config to config/services.php and DIGITRANSIT_API_KEY to .env.example. The API requires a subscription key passed as 'digitransit-subscription-key' header.",
+      "status": "completed",
+      "priority": 1,
+      "completed_at": "2026-01-22T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "phase1-dto",
+      "title": "Create GeocodingResult DTO",
+      "description": "Create app/Services/DTO/GeocodingResult.php - A simple DTO class with properties: label (string), lat (float), lon (float). Include a static fromDigitransitFeature() factory method that parses a Digitransit GeoJSON feature (note: coordinates are [lon, lat] order).",
+      "status": "completed",
+      "priority": 2,
+      "depends_on": ["phase1-config"],
+      "completed_at": "2026-01-22T12:05:00Z",
+      "passes": true
+    },
+    {
+      "id": "phase1-service",
+      "title": "Create DigitransitGeocodingService",
+      "description": "Create app/Services/DigitransitGeocodingService.php. Endpoint: https://api.digitransit.fi/geocoding/v1/autocomplete. Required header: digitransit-subscription-key. Params: text={query}, layers=address, lang=fi. Cache results for 7 days with key digitransit:geocode:{md5(query)}. Implement retry logic: 3 attempts with 500ms delay. Return array of GeocodingResult DTOs.",
+      "status": "completed",
+      "priority": 3,
+      "depends_on": ["phase1-dto"],
+      "completed_at": "2026-01-22T12:10:00Z",
+      "passes": true
+    },
+    {
+      "id": "phase1-request",
+      "title": "Create GeocodeRequest form request",
+      "description": "Create app/Http/Requests/GeocodeRequest.php for validating geocode API requests. Validate 'q' parameter: required, string, min:2, max:200.",
+      "status": "completed",
+      "priority": 4,
+      "depends_on": ["phase1-service"],
+      "completed_at": "2026-01-22T12:15:00Z",
+      "passes": true
+    },
+    {
+      "id": "phase1-controller",
+      "title": "Create SolarController with geocode endpoint",
+      "description": "Create app/Http/Controllers/Api/SolarController.php with geocode() method. Route: GET /api/solar/geocode?q={query}. Use DigitransitGeocodingService. Return JSON: {data: [{label, lat, lon}, ...]}",
+      "status": "completed",
+      "priority": 5,
+      "depends_on": ["phase1-request"],
+      "completed_at": "2026-01-22T12:20:00Z",
+      "passes": true
+    },
+    {
+      "id": "phase1-rate-limiter",
+      "title": "Add rate limiter for geocode API",
+      "description": "In AppServiceProvider boot(), add RateLimiter::for('solar-geocode', ...) limiting to 60 requests per minute per IP. Apply the rate limiter to the /api/solar/geocode route.",
+      "status": "completed",
+      "priority": 6,
+      "depends_on": ["phase1-controller"],
+      "completed_at": "2026-01-22T12:25:00Z",
+      "passes": true
+    },
+    {
+      "id": "phase1-tests",
+      "title": "Write tests for Phase 1",
+      "description": "Create tests/Unit/DigitransitGeocodingServiceTest.php with mocked HTTP responses testing: successful geocoding, empty results, API errors, caching. Create tests/Feature/SolarGeocodeApiTest.php testing: valid requests return addresses, missing q param returns 422, rate limiting works. Run all tests to verify they pass.",
+      "status": "completed",
+      "priority": 7,
+      "depends_on": ["phase1-rate-limiter"],
+      "completed_at": "2026-01-22T12:35:00Z",
+      "passes": true
+    },
+    {
+      "id": "phase2-dtos",
+      "title": "Create PVGIS DTOs",
+      "description": "Create app/Services/DTO/SolarEstimateRequest.php with properties: lat, lon, system_kwp (default 5.0), roof_tilt_deg (nullable), roof_aspect_deg (nullable), shading_level (enum: none/some/heavy, default none). Create app/Services/DTO/SolarEstimateResult.php with: annual_kwh, monthly_kwh (array of 12 floats), assumptions array.",
+      "status": "pending",
+      "priority": 8,
+      "depends_on": ["phase1-tests"]
+    },
+    {
+      "id": "phase2-pvgis-service",
+      "title": "Create PvgisService",
+      "description": "Create app/Services/PvgisService.php. Endpoint: https://re.jrc.ec.europa.eu/api/v5_3/PVcalc. Params: lat, lon, peakpower, loss, outputformat=json, optimalangles=1 (or angle/aspect if provided). Parse response: outputs.totals.fixed.E_y for annual, outputs.monthly.fixed[].E_m for monthly. Cache 30 days. Calculate losses: base 14% + shading (none=0%, some=5%, heavy=12%).",
+      "status": "pending",
+      "priority": 9,
+      "depends_on": ["phase2-dtos"]
+    },
+    {
+      "id": "phase2-calculator-service",
+      "title": "Create SolarCalculatorService",
+      "description": "Create app/Services/SolarCalculatorService.php that orchestrates the calculation. Takes SolarEstimateRequest DTO, calls PvgisService, returns SolarEstimateResult. Include logic to convert roof_area to system_kwp if needed (0.20 kWp/m2).",
+      "status": "pending",
+      "priority": 10,
+      "depends_on": ["phase2-pvgis-service"]
+    },
+    {
+      "id": "phase2-estimate-request",
+      "title": "Create SolarEstimateRequest form request",
+      "description": "Create app/Http/Requests/SolarEstimateRequest.php. Validate: lat (required, numeric, -90 to 90), lon (required, numeric, -180 to 180), system_kwp (nullable, numeric, 0.1 to 100), roof_tilt_deg (nullable, integer, 0 to 90), roof_aspect_deg (nullable, integer, -180 to 180), shading_level (nullable, in:none,some,heavy).",
+      "status": "pending",
+      "priority": 11,
+      "depends_on": ["phase2-calculator-service"]
+    },
+    {
+      "id": "phase2-controller-estimate",
+      "title": "Add estimate endpoint to SolarController",
+      "description": "Add estimate() method to SolarController. Route: POST /api/solar/estimate. Use SolarCalculatorService. Return JSON with annual_kwh, monthly_kwh array, and assumptions object.",
+      "status": "pending",
+      "priority": 12,
+      "depends_on": ["phase2-estimate-request"]
+    },
+    {
+      "id": "phase2-tests",
+      "title": "Write tests for Phase 2",
+      "description": "Create tests/Unit/PvgisServiceTest.php with mocked responses. Create tests/Unit/SolarCalculatorServiceTest.php. Create tests/Feature/SolarEstimateApiTest.php testing the API endpoint. Verify all tests pass.",
+      "status": "pending",
+      "priority": 13,
+      "depends_on": ["phase2-controller-estimate"]
+    },
+    {
+      "id": "phase3-livewire-component",
+      "title": "Create SolarCalculator Livewire component",
+      "description": "Create app/Livewire/SolarCalculator.php with: addressQuery property with debounce, addressSuggestions array, selected address (lat, lon, label), systemKwp slider (1-20, default 5), shadingLevel dropdown, results display. Use the /api/solar/geocode and /api/solar/estimate endpoints internally via HTTP client or direct service calls.",
+      "status": "pending",
+      "priority": 14,
+      "depends_on": ["phase2-tests"]
+    },
+    {
+      "id": "phase3-blade-template",
+      "title": "Create solar calculator Blade template",
+      "description": "Create resources/views/livewire/solar-calculator.blade.php. Include: address input with autocomplete dropdown, system size slider, shading dropdown (ei varjostusta/vähän/paljon), results section showing annual kWh and monthly breakdown. Use Finnish labels: Osoite, Järjestelmän koko, Varjostus, Arvioitu vuosituotto, Kuukausituotto. Style consistently with existing site design.",
+      "status": "pending",
+      "priority": 15,
+      "depends_on": ["phase3-livewire-component"]
+    },
+    {
+      "id": "phase3-route",
+      "title": "Add /aurinkopaneelit route",
+      "description": "Add route to routes/web.php for /aurinkopaneelit pointing to the SolarCalculator Livewire component. Include appropriate SEO meta tags in the component.",
+      "status": "pending",
+      "priority": 16,
+      "depends_on": ["phase3-blade-template"]
+    },
+    {
+      "id": "phase4-savings",
+      "title": "Add savings calculation feature",
+      "description": "Enhance SolarCalculator with: electricity price input (c/kWh), self-consumption percentage input (default 30%), calculated annual savings display. Formula: savings = annual_kwh * self_consumption_pct * price_cents / 100. Add Finnish labels: Sähkön hinta, Oman käytön osuus, Arvioitu säästö.",
+      "status": "pending",
+      "priority": 17,
+      "depends_on": ["phase3-route"]
+    },
+    {
+      "id": "final-verification",
+      "title": "Final testing and verification",
+      "description": "Run all tests with 'php artisan test'. Manually verify the /aurinkopaneelit page works: address autocomplete shows suggestions, selecting address triggers calculation, adjusting settings updates results, savings calculation displays correctly. Fix any issues found.",
+      "status": "pending",
+      "priority": 18,
+      "depends_on": ["phase4-savings"]
+    }
+  ]
+}
