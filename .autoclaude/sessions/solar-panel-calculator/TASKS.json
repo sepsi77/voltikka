@@ -165,7 +165,7 @@
       "id": "phase4-savings",
       "title": "Add savings calculation with real electricity prices",
       "description": "Enhance SolarCalculator with savings calculation using real contract data from database. Features: (1) Dropdown to select from actual electricity contracts in the database (using PriceComponent data), or manual price entry option. (2) Self-consumption percentage slider (default 30%). (3) For selected contracts, calculate savings using the actual price (General, or weighted DayTime/NightTime for time-based). (4) Show savings in EUR/year. (5) Display the contract name and company when a contract is selected. Query ElectricityContract with priceComponents relationship. Formula: savings = annual_kwh * self_consumption_pct * price_cents / 100. Finnish labels: Valitse sähkösopimus, Oman käytön osuus, Arvioitu säästö.",
-      "status": "pending",
+      "status": "in_progress",
       "priority": 17,
       "depends_on": ["phase3-route"]
     },

@@ -135,6 +135,92 @@
                 </div>
             </div>
 
+            <!-- Savings Calculation Section -->
+            <div class="border-t border-slate-200 pt-8 mt-8">
+                <h3 class="text-lg font-semibold text-slate-900 mb-6">Säästölaskuri</h3>
+
+                <!-- Price Mode Toggle -->
+                <div class="mb-6">
+                    <div class="flex gap-4">
+                        <button
+                            wire:click="$set('priceMode', 'contract')"
+                            class="flex-1 p-3 border rounded-lg text-center transition-all {{ $priceMode === 'contract' ? 'border-coral-500 bg-coral-50' : 'border-slate-200 hover:border-slate-300' }}"
+                        >
+                            <span class="text-sm font-medium {{ $priceMode === 'contract' ? 'text-coral-700' : 'text-slate-700' }}">Valitse sopimus</span>
+                        </button>
+                        <button
+                            wire:click="$set('priceMode', 'manual')"
+                            class="flex-1 p-3 border rounded-lg text-center transition-all {{ $priceMode === 'manual' ? 'border-coral-500 bg-coral-50' : 'border-slate-200 hover:border-slate-300' }}"
+                        >
+                            <span class="text-sm font-medium {{ $priceMode === 'manual' ? 'text-coral-700' : 'text-slate-700' }}">Syötä hinta</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contract Selection -->
+                @if ($priceMode === 'contract')
+                    <div class="mb-6">
+                        <label class="block font-semibold text-slate-900 mb-2">Valitse sähkösopimus</label>
+                        <select
+                            wire:model.live="selectedContractId"
+                            class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
+                        >
+                            <option value="">-- Valitse sopimus --</option>
+                            @foreach ($this->availableContracts as $contract)
+                                <option value="{{ $contract['id'] }}">
+                                    {{ $contract['name'] }} - {{ $contract['company_name'] }} ({{ number_format($contract['price_cents'], 2, ',', ' ') }} c/kWh)
+                                </option>
+                            @endforeach
+                        </select>
+                        @if ($this->selectedContract)
+                            <div class="mt-2 text-sm text-slate-600">
+                                <span class="font-medium">{{ $this->selectedContract['name'] }}</span>
+                                <span class="text-slate-400">•</span>
+                                <span>{{ $this->selectedContract['company_name'] }}</span>
+                            </div>
+                        @endif
+                    </div>
+                @else
+                    <!-- Manual Price Input -->
+                    <div class="mb-6">
+                        <label class="block font-semibold text-slate-900 mb-2">Sähkön hinta (c/kWh)</label>
+                        <input
+                            type="number"
+                            wire:model.live.debounce.300ms="manualPrice"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            placeholder="esim. 10,5"
+                            class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
+                        >
+                        <p class="mt-1 text-sm text-slate-500">Syötä sähkösopimuksesi energiahinta senttiä per kilowattitunti</p>
+                    </div>
+                @endif
+
+                <!-- Self-Consumption Slider -->
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-semibold text-slate-900">Oman käytön osuus</h4>
+                        <span class="text-coral-600 font-bold text-lg">{{ $selfConsumptionPercent }}%</span>
+                    </div>
+                    <input
+                        type="range"
+                        wire:model.live.debounce.200ms="selfConsumptionPercent"
+                        min="10"
+                        max="80"
+                        step="5"
+                        class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-coral-500"
+                    >
+                    <div class="flex justify-between text-xs text-slate-500 mt-1">
+                        <span>10%</span>
+                        <span>80%</span>
+                    </div>
+                    <p class="text-sm text-slate-500 mt-2">
+                        Kuinka suuren osan tuotetusta sähköstä käytät itse. Tyypillisesti 20-40%.
+                    </p>
+                </div>
+            </div>
+
             <!-- Error Message -->
             @if ($errorMessage)
                 <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
@@ -213,6 +299,42 @@
                     </div>
                 @endif
             </section>
+
+            <!-- Savings Section -->
+            @if ($this->hasSavings)
+                <section class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl shadow-lg p-6 text-white mb-8">
+                    <div class="text-center mb-4">
+                        <p class="text-emerald-100 text-sm mb-1">Arvioitu säästö</p>
+                        <p class="text-4xl font-bold">
+                            {{ number_format($this->annualSavings, 0, ',', ' ') }}
+                            <span class="text-xl font-normal">€/vuosi</span>
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="bg-white/10 rounded-lg p-3">
+                            <p class="text-emerald-100 text-xs">Oma käyttö</p>
+                            <p class="text-lg font-semibold">{{ $selfConsumptionPercent }}%</p>
+                        </div>
+                        <div class="bg-white/10 rounded-lg p-3">
+                            <p class="text-emerald-100 text-xs">Sähkön hinta</p>
+                            <p class="text-lg font-semibold">{{ number_format($this->effectivePrice, 2, ',', ' ') }} c/kWh</p>
+                        </div>
+                    </div>
+
+                    @if ($this->selectedContract)
+                        <div class="bg-white/10 rounded-lg p-3 text-sm">
+                            <p class="text-emerald-100 text-xs mb-1">Valittu sopimus</p>
+                            <p class="font-medium">{{ $this->selectedContract['name'] }}</p>
+                            <p class="text-emerald-200">{{ $this->selectedContract['company_name'] }}</p>
+                        </div>
+                    @endif
+
+                    <p class="text-emerald-100 text-xs mt-4 text-center">
+                        Säästö = {{ number_format($this->annualKwh, 0, ',', ' ') }} kWh × {{ $selfConsumptionPercent }}% × {{ number_format($this->effectivePrice, 2, ',', ' ') }} c/kWh
+                    </p>
+                </section>
+            @endif
         @elseif ($isCalculating)
             <section class="bg-slate-100 rounded-2xl p-6 mb-8 text-center">
                 <div class="animate-pulse">

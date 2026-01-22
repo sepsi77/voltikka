@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\ElectricityContract;
 use App\Services\DigitransitGeocodingService;
 use App\Services\DTO\GeocodingResult;
 use App\Services\DTO\SolarEstimateRequest;
@@ -29,6 +30,12 @@ class SolarCalculator extends Component
     public array $calculationResult = [];
     public bool $isCalculating = false;
     public ?string $errorMessage = null;
+
+    // Savings calculation
+    public ?string $selectedContractId = null;
+    public string $priceMode = 'contract'; // 'contract' or 'manual'
+    public ?float $manualPrice = null;
+    public int $selfConsumptionPercent = 30;
 
     // Shading level labels
     public array $shadingLabels = [
@@ -119,6 +126,15 @@ class SolarCalculator extends Component
         }
     }
 
+    public function updatedPriceMode(): void
+    {
+        if ($this->priceMode === 'manual') {
+            $this->selectedContractId = null;
+        } else {
+            $this->manualPrice = null;
+        }
+    }
+
     public function calculateEstimate(): void
     {
         if ($this->selectedLat === null || $this->selectedLon === null) {
@@ -172,6 +188,88 @@ class SolarCalculator extends Component
     {
         $monthly = $this->monthlyKwh;
         return count($monthly) > 0 ? max($monthly) : 0;
+    }
+
+    #[Computed]
+    public function availableContracts(): array
+    {
+        return ElectricityContract::with(['priceComponents' => function ($query) {
+            $query->orderByDesc('price_date');
+        }])
+            ->where('target_group', 'Household')
+            ->whereIn('pricing_model', ['FixedPrice', 'Hybrid'])
+            ->orderBy('company_name')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($contract) {
+                $price = $this->getContractPrice($contract);
+                return [
+                    'id' => $contract->id,
+                    'name' => $contract->name,
+                    'company_name' => $contract->company_name,
+                    'metering' => $contract->metering,
+                    'price_cents' => $price,
+                ];
+            })
+            ->filter(fn($c) => $c['price_cents'] !== null)
+            ->values()
+            ->toArray();
+    }
+
+    #[Computed]
+    public function selectedContract(): ?array
+    {
+        if (!$this->selectedContractId) {
+            return null;
+        }
+
+        return collect($this->availableContracts)->firstWhere('id', $this->selectedContractId);
+    }
+
+    #[Computed]
+    public function effectivePrice(): ?float
+    {
+        if ($this->priceMode === 'manual' && $this->manualPrice !== null) {
+            return $this->manualPrice;
+        }
+
+        if ($this->selectedContract) {
+            return $this->selectedContract['price_cents'];
+        }
+
+        return null;
+    }
+
+    #[Computed]
+    public function annualSavings(): float
+    {
+        if (!$this->hasResults || $this->effectivePrice === null) {
+            return 0;
+        }
+
+        // Formula: annual_kwh * self_consumption_pct * price_cents / 100
+        return $this->annualKwh * ($this->selfConsumptionPercent / 100) * $this->effectivePrice / 100;
+    }
+
+    #[Computed]
+    public function hasSavings(): bool
+    {
+        return $this->hasResults && $this->effectivePrice !== null;
+    }
+
+    private function getContractPrice(ElectricityContract $contract): ?float
+    {
+        $priceComponents = $contract->priceComponents;
+
+        if ($contract->metering === 'Time') {
+            // For time-based contracts, use day price (solar production is primarily during day)
+            $dayPrice = $priceComponents->firstWhere('price_component_type', 'DayTime');
+            return $dayPrice?->price;
+        }
+
+        // For general metering, use the General price
+        $generalPrice = $priceComponents->firstWhere('price_component_type', 'General');
+        return $generalPrice?->price;
     }
 
     public function render()
