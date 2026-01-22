@@ -7,6 +7,7 @@ use App\Livewire\CompanyList;
 use App\Livewire\ConsumptionCalculator;
 use App\Livewire\ContractDetail;
 use App\Livewire\ContractsList;
+use App\Livewire\HomePage;
 use App\Livewire\LocationsList;
 use App\Livewire\SahkosopimusIndex;
 use App\Livewire\SeoContractsList;
@@ -17,7 +18,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 
 // Main pages (keep at root level)
-Route::get('/', ContractsList::class);
+Route::get('/', HomePage::class);
 Route::get('/spot-price', SpotPrice::class)->name('spot-price');
 
 // Sitemap (cached for 7 days)
