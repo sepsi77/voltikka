@@ -75,49 +75,61 @@
       "id": "phase2-dtos",
       "title": "Create PVGIS DTOs",
       "description": "Create app/Services/DTO/SolarEstimateRequest.php with properties: lat, lon, system_kwp (default 5.0), roof_tilt_deg (nullable), roof_aspect_deg (nullable), shading_level (enum: none/some/heavy, default none). Create app/Services/DTO/SolarEstimateResult.php with: annual_kwh, monthly_kwh (array of 12 floats), assumptions array.",
-      "status": "pending",
+      "status": "completed",
       "priority": 8,
-      "depends_on": ["phase1-tests"]
+      "depends_on": ["phase1-tests"],
+      "completed_at": "2026-01-22T14:00:00Z",
+      "passes": true
     },
     {
       "id": "phase2-pvgis-service",
       "title": "Create PvgisService",
       "description": "Create app/Services/PvgisService.php. Endpoint: https://re.jrc.ec.europa.eu/api/v5_3/PVcalc. Params: lat, lon, peakpower, loss, outputformat=json, optimalangles=1 (or angle/aspect if provided). Parse response: outputs.totals.fixed.E_y for annual, outputs.monthly.fixed[].E_m for monthly. Cache 30 days. Calculate losses: base 14% + shading (none=0%, some=5%, heavy=12%).",
-      "status": "pending",
+      "status": "completed",
       "priority": 9,
-      "depends_on": ["phase2-dtos"]
+      "depends_on": ["phase2-dtos"],
+      "completed_at": "2026-01-22T14:15:00Z",
+      "passes": true
     },
     {
       "id": "phase2-calculator-service",
       "title": "Create SolarCalculatorService",
       "description": "Create app/Services/SolarCalculatorService.php that orchestrates the calculation. Takes SolarEstimateRequest DTO, calls PvgisService, returns SolarEstimateResult. Include logic to convert roof_area to system_kwp if needed (0.20 kWp/m2).",
-      "status": "pending",
+      "status": "completed",
       "priority": 10,
-      "depends_on": ["phase2-pvgis-service"]
+      "depends_on": ["phase2-pvgis-service"],
+      "completed_at": "2026-01-22T14:25:00Z",
+      "passes": true
     },
     {
       "id": "phase2-estimate-request",
       "title": "Create SolarEstimateRequest form request",
       "description": "Create app/Http/Requests/SolarEstimateRequest.php. Validate: lat (required, numeric, -90 to 90), lon (required, numeric, -180 to 180), system_kwp (nullable, numeric, 0.1 to 100), roof_tilt_deg (nullable, integer, 0 to 90), roof_aspect_deg (nullable, integer, -180 to 180), shading_level (nullable, in:none,some,heavy).",
-      "status": "pending",
+      "status": "completed",
       "priority": 11,
-      "depends_on": ["phase2-calculator-service"]
+      "depends_on": ["phase2-calculator-service"],
+      "completed_at": "2026-01-22T14:35:00Z",
+      "passes": true
     },
     {
       "id": "phase2-controller-estimate",
       "title": "Add estimate endpoint to SolarController",
       "description": "Add estimate() method to SolarController. Route: POST /api/solar/estimate. Use SolarCalculatorService. Return JSON with annual_kwh, monthly_kwh array, and assumptions object.",
-      "status": "pending",
+      "status": "completed",
       "priority": 12,
-      "depends_on": ["phase2-estimate-request"]
+      "depends_on": ["phase2-estimate-request"],
+      "completed_at": "2026-01-22T14:45:00Z",
+      "passes": true
     },
     {
       "id": "phase2-tests",
       "title": "Write tests for Phase 2",
       "description": "Create tests/Unit/PvgisServiceTest.php with mocked responses. Create tests/Unit/SolarCalculatorServiceTest.php. Create tests/Feature/SolarEstimateApiTest.php testing the API endpoint. Verify all tests pass.",
-      "status": "pending",
+      "status": "completed",
       "priority": 13,
-      "depends_on": ["phase2-controller-estimate"]
+      "depends_on": ["phase2-controller-estimate"],
+      "completed_at": "2026-01-22T14:50:00Z",
+      "passes": true
     },
     {
       "id": "phase3-livewire-component",
@@ -145,8 +157,8 @@
     },
     {
       "id": "phase4-savings",
-      "title": "Add savings calculation feature",
-      "description": "Enhance SolarCalculator with: electricity price input (c/kWh), self-consumption percentage input (default 30%), calculated annual savings display. Formula: savings = annual_kwh * self_consumption_pct * price_cents / 100. Add Finnish labels: Sähkön hinta, Oman käytön osuus, Arvioitu säästö.",
+      "title": "Add savings calculation with real electricity prices",
+      "description": "Enhance SolarCalculator with savings calculation using real contract data from database. Features: (1) Dropdown to select from actual electricity contracts in the database (using PriceComponent data), or manual price entry option. (2) Self-consumption percentage slider (default 30%). (3) For selected contracts, calculate savings using the actual price (General, or weighted DayTime/NightTime for time-based). (4) Show savings in EUR/year. (5) Display the contract name and company when a contract is selected. Query ElectricityContract with priceComponents relationship. Formula: savings = annual_kwh * self_consumption_pct * price_cents / 100. Finnish labels: Valitse sähkösopimus, Oman käytön osuus, Arvioitu säästö.",
       "status": "pending",
       "priority": 17,
       "depends_on": ["phase3-route"]

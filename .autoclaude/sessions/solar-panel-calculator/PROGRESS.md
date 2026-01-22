@@ -131,3 +131,123 @@ Created `laravel/app/Http/Requests/GeocodeRequest.php` with:
 **Files created:**
 - `laravel/tests/Unit/DigitransitGeocodingServiceTest.php`
 - `laravel/tests/Feature/SolarGeocodeApiTest.php`
+
+---
+
+## Phase 2 - PVGIS Solar Production Estimation
+
+### Task: phase2-dtos - Create PVGIS DTOs
+
+**Status:** Completed
+
+**Changes made:**
+1. Created `laravel/app/Services/DTO/SolarEstimateRequest.php` with:
+   - `lat`, `lon` (required float coordinates)
+   - `system_kwp` (default 5.0 kWp)
+   - `roof_tilt_deg`, `roof_aspect_deg` (nullable integers)
+   - `shading_level` (enum: none/some/heavy, default 'none')
+
+2. Created `laravel/app/Services/DTO/SolarEstimateResult.php` with:
+   - `annual_kwh` (float)
+   - `monthly_kwh` (array of 12 floats)
+   - `assumptions` (array of calculation assumptions)
+   - `toArray()` method for JSON serialization
+
+**Test results:** 6 tests pass (21 assertions)
+
+**Files created:**
+- `laravel/app/Services/DTO/SolarEstimateRequest.php`
+- `laravel/app/Services/DTO/SolarEstimateResult.php`
+- `laravel/tests/Unit/SolarEstimateDtoTest.php`
+
+---
+
+### Task: phase2-pvgis-service - Create PvgisService
+
+**Status:** Completed
+
+**Changes made:**
+Created `laravel/app/Services/PvgisService.php` with:
+- Calls PVGIS API v5.3 at `https://re.jrc.ec.europa.eu/api/v5_3/PVcalc`
+- Parameters: lat, lon, peakpower, loss, outputformat=json
+- Supports `optimalangles=1` or custom `angle`/`aspect` parameters
+- Loss calculation: base 14% + shading (none=0%, some=5%, heavy=12%)
+- Parses response: `outputs.totals.fixed.E_y` for annual, `outputs.monthly.fixed[].E_m` for monthly
+- Caches results for 30 days with key `pvgis:{md5(params)}`
+
+**Test results:** 11 tests pass (21 assertions)
+
+**Files created:**
+- `laravel/app/Services/PvgisService.php`
+- `laravel/tests/Unit/PvgisServiceTest.php`
+
+---
+
+### Task: phase2-calculator-service - Create SolarCalculatorService
+
+**Status:** Completed
+
+**Changes made:**
+Created `laravel/app/Services/SolarCalculatorService.php` with:
+- `calculate(SolarEstimateRequest): SolarEstimateResult` - orchestrates PVGIS API calls
+- `roofAreaToSystemKwp(float): float` - converts roof area to kWp (0.20 kWp/m²)
+
+**Test results:** 5 tests pass (8 assertions)
+
+**Files created:**
+- `laravel/app/Services/SolarCalculatorService.php`
+- `laravel/tests/Unit/SolarCalculatorServiceTest.php`
+
+---
+
+### Task: phase2-estimate-request - Create SolarEstimateFormRequest
+
+**Status:** Completed
+
+**Changes made:**
+Created `laravel/app/Http/Requests/SolarEstimateFormRequest.php` with validation rules:
+- `lat`: required, numeric, between -90 and 90
+- `lon`: required, numeric, between -180 and 180
+- `system_kwp`: nullable, numeric, between 0.1 and 100
+- `roof_tilt_deg`: nullable, integer, between 0 and 90
+- `roof_aspect_deg`: nullable, integer, between -180 and 180
+- `shading_level`: nullable, in:none,some,heavy
+
+**Test results:** 24 tests pass (44 assertions)
+
+**Files created:**
+- `laravel/app/Http/Requests/SolarEstimateFormRequest.php`
+- `laravel/tests/Unit/SolarEstimateRequestValidationTest.php`
+
+---
+
+### Task: phase2-controller-estimate - Add estimate endpoint to SolarController
+
+**Status:** Completed
+
+**Changes made:**
+1. Added `estimate(SolarEstimateFormRequest)` method to `SolarController`
+2. Added route: `POST /api/solar/estimate`
+3. Returns JSON: `{data: {annual_kwh, monthly_kwh, assumptions}}`
+
+**Files modified:**
+- `laravel/app/Http/Controllers/Api/SolarController.php`
+- `laravel/routes/api.php`
+
+---
+
+### Task: phase2-tests - Write tests for Phase 2
+
+**Status:** Completed
+
+**Test results:** All Phase 2 tests pass
+- `SolarEstimateDtoTest`: 6 tests (21 assertions)
+- `PvgisServiceTest`: 11 tests (21 assertions)
+- `SolarCalculatorServiceTest`: 5 tests (8 assertions)
+- `SolarEstimateRequestValidationTest`: 24 tests (44 assertions)
+- `SolarEstimateApiTest`: 11 tests (30 assertions)
+
+**Total Phase 2:** 57 tests (124 assertions)
+
+**Files created:**
+- `laravel/tests/Feature/SolarEstimateApiTest.php`
