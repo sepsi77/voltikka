@@ -348,3 +348,67 @@ Created `laravel/tests/Feature/SolarCalculatorLivewireTest.php` with tests for:
 - `laravel/tests/Feature/SolarCalculatorLivewireTest.php`
 
 **Total tests after Phase 3:** 839 tests (2238 assertions) - all passing
+
+---
+
+## Phase 4 - Savings Calculation with Real Electricity Prices
+
+### Task: phase4-savings - Add savings calculation with real electricity prices
+
+**Status:** Completed
+
+**Changes made:**
+
+1. Enhanced `laravel/app/Livewire/SolarCalculator.php` with:
+   - `selectedContractId` - ID of selected electricity contract
+   - `priceMode` - Toggle between 'contract' and 'manual' price entry
+   - `manualPrice` - Manual price entry in c/kWh
+   - `selfConsumptionPercent` - Self-consumption percentage (default 30%)
+   - `availableContracts` computed property - Loads household contracts with prices
+   - `selectedContract` computed property - Gets selected contract details
+   - `effectivePrice` computed property - Returns manual price or contract price
+   - `annualSavings` computed property - Calculates savings (kWh × self-consumption × price)
+   - `hasSavings` computed property - Checks if savings can be displayed
+   - `getContractPrice()` method - Extracts price from contract (General or DayTime for time-based)
+   - `updatedPriceMode()` hook - Clears contract/manual price when switching modes
+
+2. Updated `laravel/resources/views/livewire/solar-calculator.blade.php` with:
+   - Price mode toggle (contract vs manual entry)
+   - Contract selection dropdown with prices
+   - Manual price input field
+   - Self-consumption percentage slider (10-80%)
+   - Emerald-themed savings display section showing:
+     - Annual savings in EUR
+     - Self-consumption percentage
+     - Electricity price
+     - Selected contract info (name and company)
+     - Savings formula breakdown
+
+3. Created `laravel/tests/Feature/SolarCalculatorSavingsTest.php` with 24 tests covering:
+   - Component properties (contract selection, price mode, self-consumption)
+   - Contract loading and selection
+   - Manual price entry
+   - Price mode switching
+   - Savings calculations
+   - Time-based contract support
+   - UI display elements
+   - Computed properties
+
+**Finnish labels used:**
+- Säästölaskuri (Savings calculator section)
+- Valitse sähkösopimus (Select electricity contract)
+- Syötä hinta (Enter price)
+- Sähkön hinta (Electricity price)
+- Oman käytön osuus (Self-consumption percentage)
+- Arvioitu säästö (Estimated savings)
+
+**Test results:** 40 SolarCalculator tests pass (78 assertions)
+
+**Commit:** `8595949` - feat(solar): add savings calculation with contract selection
+
+**Files modified:**
+- `laravel/app/Livewire/SolarCalculator.php`
+- `laravel/resources/views/livewire/solar-calculator.blade.php`
+
+**Files created:**
+- `laravel/tests/Feature/SolarCalculatorSavingsTest.php`
