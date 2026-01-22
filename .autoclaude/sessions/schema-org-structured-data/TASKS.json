@@ -1,0 +1,92 @@
+{
+  "session": "schema-org-structured-data",
+  "description": "Implement schema.org structured data markup for SEO across Voltikka pages",
+  "tasks": [
+    {
+      "id": "create-schema-blade-component",
+      "title": "Create reusable Blade component for JSON-LD output",
+      "description": "Create a Blade component at resources/views/components/schema-markup.blade.php that outputs JSON-LD script tags. It should accept a 'schemas' array parameter and render each schema as a separate script tag with type application/ld+json. Handle proper JSON encoding with unescaped slashes and unicode.",
+      "status": "completed",
+      "priority": 1,
+      "started_at": "2026-01-22T12:00:00Z",
+      "completed_at": "2026-01-22T12:05:00Z",
+      "passes": true
+    },
+    {
+      "id": "implement-contract-detail-schema",
+      "title": "Add Product schema to contract detail page",
+      "description": "In the ContractDetail Livewire component view (resources/views/livewire/contract-detail.blade.php), add schema.org Product markup including: name, description, brand (Organization with company name/logo), offers with UnitPriceSpecification for each price component (margin, monthly fee, day/night rates, seasonal rates). Use additionalProperty for: pricingModel, contractType, meteringType, renewablePercentage, nuclearPercentage, fossilPercentage, emissionFactor (gCO2/kWh), windPower, hydroPower percentages. Include BreadcrumbList schema.",
+      "status": "completed",
+      "priority": 2,
+      "depends_on": ["create-schema-blade-component"],
+      "started_at": "2026-01-22T12:05:00Z",
+      "completed_at": "2026-01-22T12:15:00Z",
+      "passes": true
+    },
+    {
+      "id": "implement-contract-list-schema",
+      "title": "Add ItemList schema to contract listing page",
+      "description": "In the ContractsList Livewire component view, add schema.org ItemList markup containing ListItem entries for each displayed contract. Each ListItem should have position and reference the Product with name, url, brand, and basic offer info. Also add BreadcrumbList schema. Keep it lightweight - detailed info is on detail pages.",
+      "status": "completed",
+      "priority": 3,
+      "depends_on": ["create-schema-blade-component"],
+      "started_at": "2026-01-22T12:15:00Z",
+      "completed_at": "2026-01-22T12:25:00Z",
+      "passes": true
+    },
+    {
+      "id": "implement-company-detail-schema",
+      "title": "Add Organization schema to company detail page",
+      "description": "In the CompanyDetail Livewire component view, add schema.org Organization markup including: name, url, logo, address (PostalAddress with streetAddress, postalCode, addressLocality, addressCountry=FI), areaServed (Country Finland), and makesOffer array referencing their contracts. Add BreadcrumbList schema.",
+      "status": "completed",
+      "priority": 4,
+      "depends_on": ["create-schema-blade-component"],
+      "started_at": "2026-01-22T12:25:00Z",
+      "completed_at": "2026-01-22T12:35:00Z",
+      "passes": true
+    },
+    {
+      "id": "implement-website-schema",
+      "title": "Add WebSite schema to homepage/layout",
+      "description": "Add schema.org WebSite markup to the main layout or homepage. Include: name (Voltikka), url, description, and potentialAction SearchAction targeting the postcode search. This should only appear on the homepage/main listing page.",
+      "status": "completed",
+      "priority": 5,
+      "depends_on": ["create-schema-blade-component"],
+      "started_at": "2026-01-22T12:25:00Z",
+      "completed_at": "2026-01-22T12:30:00Z",
+      "passes": true
+    },
+    {
+      "id": "test-locally",
+      "title": "Test schema markup locally",
+      "description": "Start Laravel server locally (php artisan serve) and verify schema markup renders correctly on: contract detail page, contract listing page, company detail page. Check that JSON-LD is valid JSON and contains expected data. Use curl or browser dev tools to inspect the HTML source.",
+      "status": "completed",
+      "priority": 6,
+      "depends_on": ["implement-contract-detail-schema", "implement-contract-list-schema", "implement-company-detail-schema", "implement-website-schema"],
+      "started_at": "2026-01-22T12:35:00Z",
+      "completed_at": "2026-01-22T12:40:00Z",
+      "passes": true
+    },
+    {
+      "id": "commit-and-push",
+      "title": "Commit changes and push to remote",
+      "description": "Stage all schema-related changes, create a descriptive commit message, and push to the remote repository. The commit should summarize the schema.org implementation for SEO.",
+      "status": "completed",
+      "priority": 7,
+      "depends_on": ["test-locally"],
+      "started_at": "2026-01-22T12:40:00Z",
+      "completed_at": "2026-01-22T12:45:00Z",
+      "passes": true,
+      "notes": "Commit 4d62070: feat(seo): add schema.org structured data for rich search results"
+    },
+    {
+      "id": "verify-production",
+      "title": "Verify schema markup in production",
+      "description": "After Railway deploys (wait a few minutes after push), fetch pages from voltikka.fi and verify schema markup is present: /sopimus/{id} for Product schema, /sahkosopimus for ItemList schema, /yritys/{slug} for Organization schema. Check JSON-LD renders with real production data.",
+      "status": "pending",
+      "priority": 8,
+      "depends_on": ["commit-and-push"],
+      "notes": "Awaiting deployment - user can verify manually after push"
+    }
+  ]
+}

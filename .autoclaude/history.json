@@ -91,7 +91,11 @@
     "solar-panel-calculator": {
       "started_at": "2026-01-22T09:35:18.909979",
       "ended_at": null
+    },
+    "schema-org-structured-data": {
+      "started_at": "2026-01-22T11:45:56.749772",
+      "ended_at": null
     }
   },
-  "current": "solar-panel-calculator"
+  "current": "schema-org-structured-data"
 }
