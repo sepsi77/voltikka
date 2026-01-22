@@ -25,4 +25,5 @@ Route::post('/calculate-price', [CalculationController::class, 'calculatePrice']
 Route::post('/estimate-consumption', [CalculationController::class, 'estimateConsumption']);
 
 // Solar calculator routes
-Route::get('/solar/geocode', [SolarController::class, 'geocode']);
+Route::get('/solar/geocode', [SolarController::class, 'geocode'])
+    ->middleware('throttle:solar-geocode');
