@@ -10,6 +10,7 @@ use App\Livewire\ContractsList;
 use App\Livewire\LocationsList;
 use App\Livewire\SahkosopimusIndex;
 use App\Livewire\SeoContractsList;
+use App\Livewire\SolarCalculator;
 use App\Livewire\SpotPrice;
 use App\Services\SitemapService;
 use Illuminate\Support\Facades\Cache;
@@ -37,6 +38,9 @@ Route::get('/sitemap.xml', function (SitemapService $sitemapService) {
 
 // Calculator
 Route::get('/sahkosopimus/laskuri', ConsumptionCalculator::class)->name('calculator');
+
+// Solar panel calculator
+Route::get('/aurinkopaneelit', SolarCalculator::class)->name('solar.calculator');
 
 // Contract detail
 Route::get('/sahkosopimus/sopimus/{contractId}', ContractDetail::class)->name('contract.detail');
