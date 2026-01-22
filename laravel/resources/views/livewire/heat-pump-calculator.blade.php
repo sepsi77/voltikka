@@ -59,11 +59,8 @@
 
         <!-- Introduction -->
         <div class="mb-8 text-center max-w-2xl mx-auto">
-            <p class="text-slate-600 mb-4">
+            <p class="text-slate-600">
                 Lämpöpumppulaskuri auttaa sinua vertailemaan eri lämpöpumppuvaihtoehtoja ja arvioimaan, paljonko voisit säästää lämmityskustannuksissa. Syötä rakennuksesi tiedot ja nykyinen lämmitystapa.
-            </p>
-            <p class="text-slate-500 text-sm">
-                Laskuri käyttää Motivan ja energianeuvonnan vertailutietoja lämmitysenergian tarpeesta ja lämpöpumppujen hyötysuhteista.
             </p>
         </div>
 
