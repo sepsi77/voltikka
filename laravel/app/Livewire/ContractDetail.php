@@ -281,6 +281,330 @@ class ContractDetail extends Component
         return CO2EmissionsCalculator::EMISSION_FACTOR_SOURCES;
     }
 
+    /**
+     * Get the canonical URL for this page.
+     */
+    public function getCanonicalUrlProperty(): string
+    {
+        return config('app.url') . '/sopimus/' . $this->contractId;
+    }
+
+    /**
+     * Generate Product JSON-LD schema for SEO.
+     */
+    public function getProductSchemaProperty(): array
+    {
+        $contract = $this->contract;
+
+        if (! $contract) {
+            return [];
+        }
+
+        $schema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'Product',
+            'name' => $contract->name,
+            'description' => $contract->short_description ?? $contract->long_description ?? "Sähkösopimus: {$contract->name}",
+            'url' => $this->canonicalUrl,
+            'category' => 'Electricity Contract',
+        ];
+
+        // Add brand (Organization)
+        if ($contract->company) {
+            $brand = [
+                '@type' => 'Organization',
+                'name' => $contract->company->name,
+            ];
+
+            if ($contract->company->getLogoUrl()) {
+                $brand['logo'] = $contract->company->getLogoUrl();
+            }
+
+            if ($contract->company->company_url) {
+                $brand['url'] = $contract->company->company_url;
+            }
+
+            $schema['brand'] = $brand;
+        }
+
+        // Add offers with price specifications
+        $offers = [];
+        $latestPrices = $this->latestPrices;
+
+        // For spot contracts, show the margin
+        if ($contract->pricing_model === 'Spot' && isset($latestPrices['General'])) {
+            $offers[] = [
+                '@type' => 'Offer',
+                'name' => 'Spot-marginaali',
+                'priceSpecification' => [
+                    '@type' => 'UnitPriceSpecification',
+                    'price' => $latestPrices['General']['price'],
+                    'priceCurrency' => 'EUR',
+                    'unitCode' => 'KWH',
+                    'unitText' => 'c/kWh',
+                ],
+            ];
+        }
+
+        // Monthly fee
+        if (isset($latestPrices['Monthly'])) {
+            $offers[] = [
+                '@type' => 'Offer',
+                'name' => 'Perusmaksu',
+                'priceSpecification' => [
+                    '@type' => 'UnitPriceSpecification',
+                    'price' => $latestPrices['Monthly']['price'],
+                    'priceCurrency' => 'EUR',
+                    'unitCode' => 'MON',
+                    'unitText' => 'EUR/kk',
+                ],
+            ];
+        }
+
+        // General energy price (for fixed price contracts)
+        if ($contract->pricing_model !== 'Spot' && isset($latestPrices['General'])) {
+            $offers[] = [
+                '@type' => 'Offer',
+                'name' => 'Energiahinta',
+                'priceSpecification' => [
+                    '@type' => 'UnitPriceSpecification',
+                    'price' => $latestPrices['General']['price'],
+                    'priceCurrency' => 'EUR',
+                    'unitCode' => 'KWH',
+                    'unitText' => 'c/kWh',
+                ],
+            ];
+        }
+
+        // Day/Night rates
+        if (isset($latestPrices['DayTime'])) {
+            $offers[] = [
+                '@type' => 'Offer',
+                'name' => 'Päiväsähkö (07:00-22:00)',
+                'priceSpecification' => [
+                    '@type' => 'UnitPriceSpecification',
+                    'price' => $latestPrices['DayTime']['price'],
+                    'priceCurrency' => 'EUR',
+                    'unitCode' => 'KWH',
+                    'unitText' => 'c/kWh',
+                ],
+            ];
+        }
+
+        if (isset($latestPrices['NightTime'])) {
+            $offers[] = [
+                '@type' => 'Offer',
+                'name' => 'Yösähkö (22:00-07:00)',
+                'priceSpecification' => [
+                    '@type' => 'UnitPriceSpecification',
+                    'price' => $latestPrices['NightTime']['price'],
+                    'priceCurrency' => 'EUR',
+                    'unitCode' => 'KWH',
+                    'unitText' => 'c/kWh',
+                ],
+            ];
+        }
+
+        // Seasonal rates
+        if (isset($latestPrices['SeasonalWinterDay'])) {
+            $offers[] = [
+                '@type' => 'Offer',
+                'name' => 'Talvihinta (marras-maaliskuu)',
+                'priceSpecification' => [
+                    '@type' => 'UnitPriceSpecification',
+                    'price' => $latestPrices['SeasonalWinterDay']['price'],
+                    'priceCurrency' => 'EUR',
+                    'unitCode' => 'KWH',
+                    'unitText' => 'c/kWh',
+                ],
+            ];
+        }
+
+        if (isset($latestPrices['SeasonalOther'])) {
+            $offers[] = [
+                '@type' => 'Offer',
+                'name' => 'Muu aika',
+                'priceSpecification' => [
+                    '@type' => 'UnitPriceSpecification',
+                    'price' => $latestPrices['SeasonalOther']['price'],
+                    'priceCurrency' => 'EUR',
+                    'unitCode' => 'KWH',
+                    'unitText' => 'c/kWh',
+                ],
+            ];
+        }
+
+        if (! empty($offers)) {
+            $schema['offers'] = $offers;
+        }
+
+        // Add additional properties for contract details
+        $additionalProperties = [];
+
+        // Pricing model
+        $pricingModelLabels = [
+            'Spot' => 'Pörssisähkö',
+            'FixedPrice' => 'Kiinteä hinta',
+            'Hybrid' => 'Hybridisähkö',
+        ];
+        $additionalProperties[] = [
+            '@type' => 'PropertyValue',
+            'name' => 'pricingModel',
+            'value' => $pricingModelLabels[$contract->pricing_model] ?? $contract->pricing_model,
+        ];
+
+        // Contract type
+        $contractTypeLabels = [
+            'OpenEnded' => 'Toistaiseksi voimassa',
+            'FixedTerm' => 'Määräaikainen',
+        ];
+        $additionalProperties[] = [
+            '@type' => 'PropertyValue',
+            'name' => 'contractType',
+            'value' => $contractTypeLabels[$contract->contract_type] ?? $contract->contract_type,
+        ];
+
+        // Metering type
+        $meteringLabels = [
+            'General' => 'Yleissähkö',
+            'Time' => 'Aikasähkö',
+            'Season' => 'Kausisähkö',
+        ];
+        $additionalProperties[] = [
+            '@type' => 'PropertyValue',
+            'name' => 'meteringType',
+            'value' => $meteringLabels[$contract->metering] ?? $contract->metering,
+        ];
+
+        // Energy source percentages
+        $source = $contract->electricitySource;
+        if ($source) {
+            if ($source->renewable_total !== null) {
+                $additionalProperties[] = [
+                    '@type' => 'PropertyValue',
+                    'name' => 'renewablePercentage',
+                    'value' => $source->renewable_total,
+                    'unitCode' => 'P1',
+                    'unitText' => '%',
+                ];
+            }
+
+            if ($source->nuclear_total !== null) {
+                $additionalProperties[] = [
+                    '@type' => 'PropertyValue',
+                    'name' => 'nuclearPercentage',
+                    'value' => $source->nuclear_total,
+                    'unitCode' => 'P1',
+                    'unitText' => '%',
+                ];
+            }
+
+            if ($source->fossil_total !== null) {
+                $additionalProperties[] = [
+                    '@type' => 'PropertyValue',
+                    'name' => 'fossilPercentage',
+                    'value' => $source->fossil_total,
+                    'unitCode' => 'P1',
+                    'unitText' => '%',
+                ];
+            }
+
+            if ($source->renewable_wind !== null && $source->renewable_wind > 0) {
+                $additionalProperties[] = [
+                    '@type' => 'PropertyValue',
+                    'name' => 'windPowerPercentage',
+                    'value' => $source->renewable_wind,
+                    'unitCode' => 'P1',
+                    'unitText' => '%',
+                ];
+            }
+
+            if ($source->renewable_hydro !== null && $source->renewable_hydro > 0) {
+                $additionalProperties[] = [
+                    '@type' => 'PropertyValue',
+                    'name' => 'hydroPowerPercentage',
+                    'value' => $source->renewable_hydro,
+                    'unitCode' => 'P1',
+                    'unitText' => '%',
+                ];
+            }
+        }
+
+        // Emission factor
+        $co2Emissions = $this->co2Emissions;
+        if (! empty($co2Emissions) && isset($co2Emissions['emission_factor_g_per_kwh'])) {
+            $additionalProperties[] = [
+                '@type' => 'PropertyValue',
+                'name' => 'emissionFactor',
+                'value' => $co2Emissions['emission_factor_g_per_kwh'],
+                'unitCode' => 'GRM',
+                'unitText' => 'gCO2/kWh',
+            ];
+        }
+
+        if (! empty($additionalProperties)) {
+            $schema['additionalProperty'] = $additionalProperties;
+        }
+
+        return $schema;
+    }
+
+    /**
+     * Generate BreadcrumbList JSON-LD schema for SEO.
+     */
+    public function getBreadcrumbSchemaProperty(): array
+    {
+        $contract = $this->contract;
+
+        if (! $contract) {
+            return [];
+        }
+
+        $breadcrumbs = [
+            [
+                '@type' => 'ListItem',
+                'position' => 1,
+                'name' => 'Etusivu',
+                'item' => config('app.url'),
+            ],
+            [
+                '@type' => 'ListItem',
+                'position' => 2,
+                'name' => 'Sähkösopimukset',
+                'item' => config('app.url') . '/sahkosopimus',
+            ],
+        ];
+
+        // Add company if available
+        if ($contract->company) {
+            $breadcrumbs[] = [
+                '@type' => 'ListItem',
+                'position' => 3,
+                'name' => $contract->company->name,
+                'item' => config('app.url') . '/sahkosopimus/sahkoyhtiot/' . $contract->company->name_slug,
+            ];
+            $breadcrumbs[] = [
+                '@type' => 'ListItem',
+                'position' => 4,
+                'name' => $contract->name,
+                'item' => $this->canonicalUrl,
+            ];
+        } else {
+            $breadcrumbs[] = [
+                '@type' => 'ListItem',
+                'position' => 3,
+                'name' => $contract->name,
+                'item' => $this->canonicalUrl,
+            ];
+        }
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => $breadcrumbs,
+        ];
+    }
+
     public function render()
     {
         $contract = $this->contract;
@@ -297,9 +621,14 @@ class ContractDetail extends Component
             'presets' => $this->presets,
             'co2Emissions' => $this->co2Emissions,
             'emissionFactorSources' => $this->emissionFactorSources,
+            'schemas' => [
+                $this->productSchema,
+                $this->breadcrumbSchema,
+            ],
         ])->layout('layouts.app', [
             'title' => $this->pageTitle,
             'metaDescription' => $this->metaDescription,
+            'canonical' => $this->canonicalUrl,
         ]);
     }
 }

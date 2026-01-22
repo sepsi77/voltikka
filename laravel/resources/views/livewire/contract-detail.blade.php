@@ -1,4 +1,7 @@
 <div>
+    {{-- Schema.org structured data --}}
+    <x-schema-markup :schemas="$schemas" />
+
     <!-- Hero Section - Dark slate background -->
     <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -1070,8 +1070,162 @@ class ContractsList extends Component
         return $baseUrl . '?page=' . ($this->page + 1);
     }
 
+    /**
+     * Generate ItemList JSON-LD schema for SEO.
+     * Contains lightweight references to contracts on the current page.
+     */
+    public function getItemListSchemaProperty(): array
+    {
+        $contracts = $this->contracts;
+
+        if ($contracts->isEmpty()) {
+            return [];
+        }
+
+        $items = [];
+        $basePosition = ($this->page - 1) * $this->perPage;
+
+        foreach ($contracts as $index => $contract) {
+            $position = $basePosition + $index + 1;
+
+            $item = [
+                '@type' => 'ListItem',
+                'position' => $position,
+                'item' => [
+                    '@type' => 'Product',
+                    'name' => $contract->name,
+                    'url' => config('app.url') . '/sopimus/' . $contract->id,
+                ],
+            ];
+
+            // Add brand (company)
+            if ($contract->company) {
+                $item['item']['brand'] = [
+                    '@type' => 'Organization',
+                    'name' => $contract->company->name,
+                ];
+
+                if ($contract->company->getLogoUrl()) {
+                    $item['item']['brand']['logo'] = $contract->company->getLogoUrl();
+                }
+            }
+
+            // Add basic offer info (total cost if available)
+            if (isset($contract->calculated_cost['total_cost'])) {
+                $item['item']['offers'] = [
+                    '@type' => 'Offer',
+                    'price' => $contract->calculated_cost['total_cost'],
+                    'priceCurrency' => 'EUR',
+                    'description' => 'Arvioitu vuosikustannus ' . number_format($this->consumption, 0, ',', ' ') . ' kWh kulutuksella',
+                ];
+            }
+
+            $items[] = $item;
+        }
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'ItemList',
+            'name' => $this->pageTitle,
+            'numberOfItems' => $contracts->total(),
+            'itemListElement' => $items,
+        ];
+    }
+
+    /**
+     * Generate BreadcrumbList JSON-LD schema for SEO.
+     */
+    public function getBreadcrumbSchemaProperty(): array
+    {
+        $breadcrumbs = [
+            [
+                '@type' => 'ListItem',
+                'position' => 1,
+                'name' => 'Etusivu',
+                'item' => config('app.url'),
+            ],
+            [
+                '@type' => 'ListItem',
+                'position' => 2,
+                'name' => 'Sähkösopimukset',
+                'item' => config('app.url') . '/sahkosopimus',
+            ],
+        ];
+
+        // Add filter-specific breadcrumb if a filter is active
+        if ($this->pricingModelFilter !== '') {
+            $filterLabels = [
+                'Spot' => 'Pörssisähkö',
+                'FixedPrice' => 'Kiinteä hinta',
+                'Hybrid' => 'Hybridisähkö',
+            ];
+            $breadcrumbs[] = [
+                '@type' => 'ListItem',
+                'position' => 3,
+                'name' => $filterLabels[$this->pricingModelFilter] ?? $this->pricingModelFilter,
+                'item' => $this->canonicalUrl,
+            ];
+        } elseif ($this->contractTypeFilter !== '') {
+            $filterLabels = [
+                'FixedTerm' => 'Määräaikaiset',
+                'OpenEnded' => 'Toistaiseksi voimassa',
+            ];
+            $breadcrumbs[] = [
+                '@type' => 'ListItem',
+                'position' => 3,
+                'name' => $filterLabels[$this->contractTypeFilter] ?? $this->contractTypeFilter,
+                'item' => $this->canonicalUrl,
+            ];
+        }
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => $breadcrumbs,
+        ];
+    }
+
+    /**
+     * Generate WebSite JSON-LD schema for SEO.
+     * Only included on the main listing page (page 1, no filters).
+     */
+    public function getWebSiteSchemaProperty(): array
+    {
+        // Only show WebSite schema on the main listing page without filters
+        if ($this->page > 1 || $this->hasActiveFilters()) {
+            return [];
+        }
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'WebSite',
+            'name' => 'Voltikka',
+            'url' => config('app.url'),
+            'description' => 'Suomen kattavin sähkösopimusten vertailupalvelu. Vertaile hintoja ja löydä edullisin sähkösopimus.',
+            'potentialAction' => [
+                '@type' => 'SearchAction',
+                'target' => [
+                    '@type' => 'EntryPoint',
+                    'urlTemplate' => config('app.url') . '/sahkosopimus?postcodeFilter={postcode}',
+                ],
+                'query-input' => 'required name=postcode',
+            ],
+        ];
+    }
+
     public function render()
     {
+        $schemas = [
+            $this->itemListSchema,
+            $this->breadcrumbSchema,
+        ];
+
+        // Add WebSite schema only on main page
+        $webSiteSchema = $this->webSiteSchema;
+        if (! empty($webSiteSchema)) {
+            $schemas[] = $webSiteSchema;
+        }
+
         return view('livewire.contracts-list', [
             'contracts' => $this->contracts,
             'postcodeSuggestions' => $this->postcodeSuggestions,
@@ -1079,6 +1233,7 @@ class ContractsList extends Component
             'metaDescription' => $this->metaDescription,
             'basePath' => $this->basePath,
             'showSeoFilterLinks' => $this->showSeoFilterLinks,
+            'schemas' => $schemas,
         ])->layout('layouts.app', [
             'title' => $this->pageTitle . ' | Voltikka',
             'metaDescription' => $this->metaDescription,

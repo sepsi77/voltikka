@@ -1,36 +1,6 @@
 <div>
-    {{-- JSON-LD Structured Data --}}
-    <script type="application/ld+json">
-        {!! json_encode($jsonLd, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) !!}
-    </script>
-
-    {{-- Breadcrumb JSON-LD --}}
-    <script type="application/ld+json">
-        {!! json_encode([
-            '@context' => 'https://schema.org',
-            '@type' => 'BreadcrumbList',
-            'itemListElement' => [
-                [
-                    '@type' => 'ListItem',
-                    'position' => 1,
-                    'name' => 'Etusivu',
-                    'item' => config('app.url'),
-                ],
-                [
-                    '@type' => 'ListItem',
-                    'position' => 2,
-                    'name' => 'Sahkoyhtiot',
-                    'item' => config('app.url') . '/sahkosopimus/sahkoyhtiot',
-                ],
-                [
-                    '@type' => 'ListItem',
-                    'position' => 3,
-                    'name' => $company->name,
-                    'item' => $this->canonicalUrl,
-                ],
-            ],
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) !!}
-    </script>
+    {{-- Schema.org structured data --}}
+    <x-schema-markup :schemas="$schemas" />
 
     <!-- Hero Section - Dark slate background -->
     <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8">

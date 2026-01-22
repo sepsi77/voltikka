@@ -233,7 +233,7 @@ class CompanyDetail extends Component
     /**
      * Generate Organization JSON-LD schema for SEO.
      */
-    public function getJsonLdProperty(): array
+    public function getOrganizationSchemaProperty(): array
     {
         if (!$this->company) {
             return [];
@@ -269,6 +269,12 @@ class CompanyDetail extends Component
             $schema['logo'] = $this->company->getLogoUrl();
         }
 
+        // Add area served (Finland)
+        $schema['areaServed'] = [
+            '@type' => 'Country',
+            'name' => 'Finland',
+        ];
+
         // Add service/product offerings info
         $contracts = $this->contracts;
         if ($contracts->isNotEmpty()) {
@@ -276,15 +282,50 @@ class CompanyDetail extends Component
                 return [
                     '@type' => 'Offer',
                     'itemOffered' => [
-                        '@type' => 'Service',
+                        '@type' => 'Product',
                         'name' => $contract->name,
-                        'serviceType' => 'Electricity Supply',
+                        'url' => config('app.url') . '/sopimus/' . $contract->id,
                     ],
                 ];
             })->values()->all();
         }
 
         return $schema;
+    }
+
+    /**
+     * Generate BreadcrumbList JSON-LD schema for SEO.
+     */
+    public function getBreadcrumbSchemaProperty(): array
+    {
+        if (!$this->company) {
+            return [];
+        }
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => [
+                [
+                    '@type' => 'ListItem',
+                    'position' => 1,
+                    'name' => 'Etusivu',
+                    'item' => config('app.url'),
+                ],
+                [
+                    '@type' => 'ListItem',
+                    'position' => 2,
+                    'name' => 'Sähköyhtiöt',
+                    'item' => config('app.url') . '/sahkosopimus/sahkoyhtiot',
+                ],
+                [
+                    '@type' => 'ListItem',
+                    'position' => 3,
+                    'name' => $this->company->name,
+                    'item' => $this->canonicalUrl,
+                ],
+            ],
+        ];
     }
 
     /**
@@ -404,7 +445,10 @@ class CompanyDetail extends Component
         return view('livewire.company-detail', [
             'contracts' => $this->contracts,
             'companyStats' => $this->companyStats,
-            'jsonLd' => $this->jsonLd,
+            'schemas' => [
+                $this->organizationSchema,
+                $this->breadcrumbSchema,
+            ],
             'h1' => $this->h1,
             'heroDescription' => $this->heroDescription,
         ])->layout('layouts.app', [

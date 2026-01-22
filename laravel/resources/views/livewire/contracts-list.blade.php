@@ -1,4 +1,7 @@
 <div>
+    {{-- Schema.org structured data --}}
+    <x-schema-markup :schemas="$schemas" />
+
     <!-- Hero Section - Dark slate with coral gradient accents -->
     <section class="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8 relative overflow-hidden">
         <!-- Decorative gradient blobs -->
