@@ -48,8 +48,8 @@ Route::redirect('/aurinkopaneelit', '/aurinkopaneelit/laskuri', 302);
 Route::get('/lampopumput/laskuri', \App\Livewire\HeatPumpCalculator::class)->name('heatpump.calculator');
 Route::redirect('/lampopumput', '/lampopumput/laskuri', 302);
 
-// Contract detail - handles both legacy UUID redirects and normal rendering
-Route::get('/sahkosopimus/sopimus/{contractId}', \App\Http\Controllers\ContractDetailController::class)
+// Contract detail
+Route::get('/sahkosopimus/sopimus/{contractId}', ContractDetail::class)
     ->name('contract.detail');
 
 // Old company detail URL - redirect to new location

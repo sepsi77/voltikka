@@ -40,6 +40,11 @@ class ContractDetail extends Component
     {
         $this->contractId = $contractId;
 
+        // Handle legacy UUID redirect
+        if ($this->shouldRedirectLegacyUuid($contractId)) {
+            return; // Redirect was initiated, stop further processing
+        }
+
         // Adjust default consumption if it falls outside the contract's limits
         $contract = $this->contract;
         if ($contract) {
@@ -106,6 +111,31 @@ class ContractDetail extends Component
             $this->defaultPresets,
             fn (int $value) => $contract->isConsumptionInRange($value)
         );
+    }
+
+    /**
+     * Check if this is a legacy UUID and redirect if so.
+     * Returns true if redirect was initiated.
+     */
+    protected function shouldRedirectLegacyUuid(string $contractId): bool
+    {
+        // Check if this looks like a legacy UUID (36 chars with hyphens)
+        if (!preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i', $contractId)) {
+            return false;
+        }
+
+        // Look up by api_id
+        $contract = ElectricityContract::where('api_id', $contractId)->first();
+
+        if ($contract) {
+            // Create a proper Laravel redirect response (not Livewire's redirector)
+            $url = route('contract.detail', ['contractId' => $contract->id]);
+            $response = new \Illuminate\Http\RedirectResponse($url, 301);
+
+            throw new \Illuminate\Http\Exceptions\HttpResponseException($response);
+        }
+
+        return false;
     }
 
     /**
