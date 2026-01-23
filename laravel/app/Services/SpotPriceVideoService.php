@@ -843,6 +843,7 @@ class SpotPriceVideoService
 
         $yesterdayPrices = SpotPriceHour::forRegion(self::REGION)
             ->whereBetween('utc_datetime', [$yesterdayStart, $yesterdayEnd])
+            ->get()
             ->pluck('price_with_tax')
             ->toArray();
 
