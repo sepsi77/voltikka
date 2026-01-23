@@ -126,9 +126,9 @@ class ContractDetail extends Component
                 ->where('api_id', $this->contractId)
                 ->first();
 
-            // If found by api_id, redirect to the canonical URL with the new ID
+            // If found by api_id, redirect to the canonical URL with the new ID (301 permanent)
             if ($contract) {
-                redirect()->route('contract.detail', ['contractId' => $contract->id]);
+                return redirect()->route('contract.detail', ['contractId' => $contract->id], 301);
             }
         }
 
