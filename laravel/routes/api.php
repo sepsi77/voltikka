@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\CalculationController;
 use App\Http\Controllers\Api\ContractController;
 use App\Http\Controllers\Api\SolarController;
+use App\Http\Controllers\Api\VideoController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -28,3 +29,7 @@ Route::post('/estimate-consumption', [CalculationController::class, 'estimateCon
 Route::get('/solar/geocode', [SolarController::class, 'geocode'])
     ->middleware('throttle:solar-geocode');
 Route::post('/solar/estimate', [SolarController::class, 'estimate']);
+
+// Video generation routes (for Remotion)
+Route::get('/video/daily', [VideoController::class, 'daily']);
+Route::get('/video/weekly', [VideoController::class, 'weekly']);
