@@ -110,6 +110,18 @@ class SitemapService
                 'changefreq' => 'weekly',
                 'priority' => 0.8,
             ],
+            [
+                'loc' => $baseUrl . '/aurinkopaneelit/laskuri',
+                'lastmod' => $today,
+                'changefreq' => 'monthly',
+                'priority' => 0.7,
+            ],
+            [
+                'loc' => $baseUrl . '/lampopumput/laskuri',
+                'lastmod' => $today,
+                'changefreq' => 'monthly',
+                'priority' => 0.7,
+            ],
         ];
     }
 
