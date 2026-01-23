@@ -110,29 +110,12 @@ class ContractDetail extends Component
 
     /**
      * Get the contract with all relations.
-     * Supports both new IDs and legacy API UUIDs for backward compatibility.
      */
     public function getContractProperty(): ?ElectricityContract
     {
-        // First try to find by primary key (new SEO-friendly ID)
-        $contract = ElectricityContract::query()
+        return ElectricityContract::query()
             ->with(['company', 'priceComponents', 'electricitySource'])
             ->find($this->contractId);
-
-        // If not found, try by api_id (legacy UUID from old URLs)
-        if (!$contract) {
-            $contract = ElectricityContract::query()
-                ->with(['company', 'priceComponents', 'electricitySource'])
-                ->where('api_id', $this->contractId)
-                ->first();
-
-            // If found by api_id, redirect to the canonical URL with the new ID (301 permanent)
-            if ($contract) {
-                return redirect()->route('contract.detail', ['contractId' => $contract->id], 301);
-            }
-        }
-
-        return $contract;
     }
 
     /**
