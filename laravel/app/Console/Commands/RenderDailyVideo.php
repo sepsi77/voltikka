@@ -34,6 +34,11 @@ class RenderDailyVideo extends Command
         'very_expensive' => 'Pörssisähkö on tänään KALLISTA!',
     ];
 
+    /**
+     * Hashtags to append to all social media posts.
+     */
+    private const HASHTAGS = '#pörssisähkö #sähkö #sähkönhinta #spothinnat #voltikka';
+
     private function getRemotionPath(): string
     {
         return config('services.remotion.path', '/app/remotion');
@@ -87,6 +92,9 @@ class RenderDailyVideo extends Command
 
             // Prepend deterministic opening based on day rating
             $socialTexts = $this->prependDayRatingOpening($socialTexts, $videoData);
+
+            // Append hashtags
+            $socialTexts = $this->appendHashtags($socialTexts);
 
             $this->info('Social media texts:');
             foreach ($socialTexts as $platform => $text) {
@@ -370,6 +378,18 @@ class RenderDailyVideo extends Command
 
         foreach ($texts as $platform => $text) {
             $texts[$platform] = $opening . ' ' . $text;
+        }
+
+        return $texts;
+    }
+
+    /**
+     * Append hashtags to all social media posts.
+     */
+    private function appendHashtags(array $texts): array
+    {
+        foreach ($texts as $platform => $text) {
+            $texts[$platform] = $text . "\n\n" . self::HASHTAGS;
         }
 
         return $texts;
