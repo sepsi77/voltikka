@@ -424,78 +424,33 @@
             </div>
         </section>
 
-        <!-- Price Comparison Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <!-- Today's Average -->
-            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:border-coral-300 transition-colors">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-medium text-slate-500 uppercase tracking-wider">Tänään</span>
-                    @if ($historicalComparison['change_from_yesterday_percent'] !== null)
+        <!-- Cheapest Remaining Hours - Moved above bar chart for quick action -->
+        @if (!empty($cheapestRemainingHours))
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-8">
+                <h3 class="text-lg font-semibold text-slate-900 mb-2">Edullisimmat tunnit</h3>
+                <p class="text-sm text-slate-500 mb-4">Tulevat edullisimmat tunnit (sis. huomisen)</p>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    @foreach ($cheapestRemainingHours as $index => $hour)
                         @php
-                            $change = $historicalComparison['change_from_yesterday_percent'];
-                            $isPositive = $change > 0;
+                            $hourNum = $hour['helsinki_hour'];
+                            $nextHourNum = ($hourNum + 1) % 24;
+                            $isTomorrow = $hour['helsinki_date'] !== now('Europe/Helsinki')->format('Y-m-d');
                         @endphp
-                        <span class="text-xs font-medium px-2 py-1 rounded-full {{ $isPositive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700' }}">
-                            {{ $isPositive ? '+' : '' }}{{ number_format($change, 1, ',', ' ') }}%
-                        </span>
-                    @endif
+                        <div class="p-3 rounded-lg {{ $index === 0 ? 'bg-green-100 border-2 border-green-300' : 'bg-slate-50' }}">
+                            <p class="font-semibold text-slate-900">
+                                {{ str_pad($hourNum, 2, '0', STR_PAD_LEFT) }}:00-{{ str_pad($nextHourNum, 2, '0', STR_PAD_LEFT) }}:00
+                            </p>
+                            <p class="{{ $index === 0 ? 'text-green-700' : 'text-slate-600' }} font-medium">
+                                {{ number_format($hour['price_without_tax'], 2, ',', ' ') }} c/kWh
+                            </p>
+                            @if ($isTomorrow)
+                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Huomenna</span>
+                            @endif
+                        </div>
+                    @endforeach
                 </div>
-                <p class="text-2xl md:text-3xl font-bold text-slate-900">
-                    @if ($todayStatistics['average'] !== null)
-                        {{ number_format($todayStatistics['average'], 2, ',', ' ') }}
-                    @else
-                        -
-                    @endif
-                    <span class="text-base font-normal text-slate-500">c/kWh</span>
-                </p>
-                <p class="text-sm text-slate-500 mt-1">Keskihinta (ALV 0%)</p>
             </div>
-
-            <!-- Yesterday's Average -->
-            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                <span class="text-sm font-medium text-slate-500 uppercase tracking-wider">Eilen</span>
-                <p class="text-2xl md:text-3xl font-bold text-slate-900 mt-2">
-                    @if ($historicalComparison['yesterday_average'] !== null)
-                        {{ number_format($historicalComparison['yesterday_average'], 2, ',', ' ') }}
-                    @else
-                        -
-                    @endif
-                    <span class="text-base font-normal text-slate-500">c/kWh</span>
-                </p>
-                <p class="text-sm text-slate-500 mt-1">Keskihinta (ALV 0%)</p>
-            </div>
-
-            <!-- Weekly Average -->
-            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-medium text-slate-500 uppercase tracking-wider">Viikon ka.</span>
-                    @if ($historicalComparison['change_from_weekly_percent'] !== null)
-                        @php
-                            $change = $historicalComparison['change_from_weekly_percent'];
-                            $isPositive = $change > 0;
-                        @endphp
-                        <span class="text-xs font-medium px-2 py-1 rounded-full {{ $isPositive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700' }}">
-                            {{ $isPositive ? '+' : '' }}{{ number_format($change, 1, ',', ' ') }}%
-                        </span>
-                    @endif
-                </div>
-                <p class="text-2xl md:text-3xl font-bold text-slate-900">
-                    @if ($historicalComparison['weekly_average'] !== null)
-                        {{ number_format($historicalComparison['weekly_average'], 2, ',', ' ') }}
-                    @else
-                        -
-                    @endif
-                    <span class="text-base font-normal text-slate-500">c/kWh</span>
-                </p>
-                <p class="text-sm text-slate-500 mt-1">
-                    @if ($historicalComparison['weekly_days_available'] > 0)
-                        {{ $historicalComparison['weekly_days_available'] }} päivää
-                    @else
-                        Ei dataa
-                    @endif
-                </p>
-            </div>
-        </div>
+        @endif
 
         <!-- Horizontal Bar Chart with Accordion Quarters -->
         @if (!empty($todayPricesWithMeta))
@@ -753,127 +708,6 @@
                         </div>
                     </div>
                 @endif
-            </div>
-        @endif
-
-        <!-- Statistics Section -->
-        @if ($todayStatistics['average'] !== null)
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div class="bg-slate-50 p-4 rounded-lg">
-                    <p class="text-sm text-slate-500">Keskihinta</p>
-                    <p class="text-lg font-semibold">{{ number_format($todayStatistics['average'], 2, ',', ' ') }} c/kWh</p>
-                </div>
-                <div class="bg-slate-50 p-4 rounded-lg">
-                    <p class="text-sm text-slate-500">Mediaani</p>
-                    <p class="text-lg font-semibold">{{ number_format($todayStatistics['median'], 2, ',', ' ') }} c/kWh</p>
-                </div>
-                <div class="bg-green-50 p-4 rounded-lg">
-                    <p class="text-sm text-slate-500">Alin</p>
-                    <p class="text-lg font-semibold text-green-700">{{ number_format($todayStatistics['min'], 2, ',', ' ') }} c/kWh</p>
-                </div>
-                <div class="bg-red-50 p-4 rounded-lg">
-                    <p class="text-sm text-slate-500">Ylin</p>
-                    <p class="text-lg font-semibold text-red-700">{{ number_format($todayStatistics['max'], 2, ',', ' ') }} c/kWh</p>
-                </div>
-            </div>
-        @endif
-
-        <!-- Best Hours Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-            <!-- Cheapest Hour -->
-            <div class="bg-green-50 p-5 rounded-xl border-2 border-green-200">
-                <div class="flex items-center mb-3">
-                    <span class="bg-green-200 p-2 rounded-lg">
-                        <svg class="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                        </svg>
-                    </span>
-                    <h4 class="ml-3 font-semibold text-slate-900">Edullisin tunti</h4>
-                </div>
-                @if ($cheapestHour)
-                    @php
-                        $cheapHour = $cheapestHour['helsinki_hour'];
-                        $nextHour = ($cheapHour + 1) % 24;
-                    @endphp
-                    <p class="text-2xl font-bold text-green-700">
-                        {{ str_pad($cheapHour, 2, '0', STR_PAD_LEFT) }}-{{ str_pad($nextHour, 2, '0', STR_PAD_LEFT) }}
-                    </p>
-                    <p class="text-sm text-slate-600">{{ number_format($cheapestHour['price_without_tax'] ?? 0, 2, ',', ' ') }} c/kWh (ALV 0%)</p>
-                @else
-                    <p class="text-slate-500">-</p>
-                @endif
-            </div>
-
-            <!-- Most Expensive Hour -->
-            <div class="bg-red-50 p-5 rounded-xl border-2 border-red-200">
-                <div class="flex items-center mb-3">
-                    <span class="bg-red-200 p-2 rounded-lg">
-                        <svg class="w-5 h-5 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                        </svg>
-                    </span>
-                    <h4 class="ml-3 font-semibold text-slate-900">Kallein tunti</h4>
-                </div>
-                @if ($mostExpensiveHour)
-                    @php
-                        $expensiveHour = $mostExpensiveHour['helsinki_hour'];
-                        $nextExpHour = ($expensiveHour + 1) % 24;
-                    @endphp
-                    <p class="text-2xl font-bold text-red-700">
-                        {{ str_pad($expensiveHour, 2, '0', STR_PAD_LEFT) }}-{{ str_pad($nextExpHour, 2, '0', STR_PAD_LEFT) }}
-                    </p>
-                    <p class="text-sm text-slate-600">{{ number_format($mostExpensiveHour['price_without_tax'] ?? 0, 2, ',', ' ') }} c/kWh (ALV 0%)</p>
-                @else
-                    <p class="text-slate-500">-</p>
-                @endif
-            </div>
-
-            <!-- Price Volatility -->
-            <div class="bg-yellow-50 p-5 rounded-xl border-2 border-yellow-200">
-                <div class="flex items-center mb-3">
-                    <span class="bg-yellow-200 p-2 rounded-lg">
-                        <svg class="w-5 h-5 text-yellow-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-                        </svg>
-                    </span>
-                    <h4 class="ml-3 font-semibold text-slate-900">Hintavaihtelu</h4>
-                </div>
-                @if ($priceVolatility['range'] !== null)
-                    <p class="text-2xl font-bold text-yellow-700">
-                        {{ number_format($priceVolatility['range'], 2, ',', ' ') }} c/kWh
-                    </p>
-                    <p class="text-sm text-slate-600">Vaihteluväli (min-max)</p>
-                @else
-                    <p class="text-slate-500">-</p>
-                @endif
-            </div>
-        </div>
-
-        <!-- Cheapest Remaining Hours -->
-        @if (!empty($cheapestRemainingHours))
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-8">
-                <h3 class="text-lg font-semibold text-slate-900 mb-4">Edullisimmat tunnit</h3>
-                <p class="text-sm text-slate-500 mb-4">Tulevat edullisimmat tunnit (sis. huomisen)</p>
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    @foreach ($cheapestRemainingHours as $index => $hour)
-                        @php
-                            $hourNum = $hour['helsinki_hour'];
-                            $nextHourNum = ($hourNum + 1) % 24;
-                            $isTomorrow = $hour['helsinki_date'] !== now('Europe/Helsinki')->format('Y-m-d');
-                        @endphp
-                        <div class="p-3 rounded-lg {{ $index === 0 ? 'bg-green-100 border-2 border-green-300' : 'bg-slate-50' }}">
-                            <p class="font-semibold text-slate-900">
-                                {{ str_pad($hourNum, 2, '0', STR_PAD_LEFT) }}:00-{{ str_pad($nextHourNum, 2, '0', STR_PAD_LEFT) }}:00
-                            </p>
-                            <p class="{{ $index === 0 ? 'text-green-700' : 'text-slate-600' }} font-medium">
-                                {{ number_format($hour['price_without_tax'], 2, ',', ' ') }} c/kWh
-                            </p>
-                            @if ($isTomorrow)
-                                <span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Huomenna</span>
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
             </div>
         @endif
 
