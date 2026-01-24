@@ -588,11 +588,19 @@ class SpotPrice extends Component
             return null;
         }
 
+        // Calculate diff from 30-day average
+        $priceWithVat = $bestAverage * 1.255;
+        $diffFrom30dPercent = null;
+        if ($this->rolling30DayAvgWithVat !== null && $this->rolling30DayAvgWithVat > 0) {
+            $diffFrom30dPercent = round((($priceWithVat - $this->rolling30DayAvgWithVat) / $this->rolling30DayAvgWithVat) * 100, 1);
+        }
+
         return [
             'start_hour' => $bestWindow[0]['helsinki_hour'],
             'end_hour' => $bestWindow[count($bestWindow) - 1]['helsinki_hour'],
             'average_price' => $bestAverage,
             'prices' => $bestWindow,
+            'diff_from_30d_percent' => $diffFrom30dPercent,
         ];
     }
 
@@ -809,6 +817,13 @@ class SpotPrice extends Component
         $expensiveCost = $mostExpensiveHour['price_without_tax'] * $kw;
         $costDifference = $expensiveCost - $cheapestCost;
 
+        // Calculate diff from 30-day average
+        $priceWithVat = $cheapestHour['price_without_tax'] * 1.255;
+        $diffFrom30dPercent = null;
+        if ($this->rolling30DayAvgWithVat !== null && $this->rolling30DayAvgWithVat > 0) {
+            $diffFrom30dPercent = round((($priceWithVat - $this->rolling30DayAvgWithVat) / $this->rolling30DayAvgWithVat) * 100, 1);
+        }
+
         return [
             'cheapest_hour' => $cheapestHour['helsinki_hour'],
             'cheapest_price' => $cheapestHour['price_without_tax'],
@@ -820,6 +835,7 @@ class SpotPrice extends Component
             'cost_difference_euros' => $costDifference / 100,
             'kw' => $kw,
             'time_window' => '17:00-22:00',
+            'diff_from_30d_percent' => $diffFrom30dPercent,
         ];
     }
 
@@ -850,6 +866,13 @@ class SpotPrice extends Component
         $expensiveCost = $mostExpensiveResult ? $mostExpensiveResult['average_price'] * $totalKwh : null;
         $costDifference = $expensiveCost !== null ? $expensiveCost - $cheapestCost : null;
 
+        // Calculate diff from 30-day average
+        $priceWithVat = $cheapestResult['average_price'] * 1.255;
+        $diffFrom30dPercent = null;
+        if ($this->rolling30DayAvgWithVat !== null && $this->rolling30DayAvgWithVat > 0) {
+            $diffFrom30dPercent = round((($priceWithVat - $this->rolling30DayAvgWithVat) / $this->rolling30DayAvgWithVat) * 100, 1);
+        }
+
         return [
             'start_hour' => $cheapestResult['start_hour'],
             'end_hour' => ($cheapestResult['end_hour'] + 1) % 24,
@@ -862,6 +885,7 @@ class SpotPrice extends Component
             'duration' => $duration,
             'total_kwh' => $totalKwh,
             'time_window' => '07:00-22:00',
+            'diff_from_30d_percent' => $diffFrom30dPercent,
         ];
     }
 
@@ -893,6 +917,13 @@ class SpotPrice extends Component
         $expensiveCost = $mostExpensiveResult ? $mostExpensiveResult['average_price'] * $totalKwh : null;
         $costDifference = $expensiveCost !== null ? $expensiveCost - $cheapestCost : null;
 
+        // Calculate diff from 30-day average
+        $priceWithVat = $cheapestResult['average_price'] * 1.255;
+        $diffFrom30dPercent = null;
+        if ($this->rolling30DayAvgWithVat !== null && $this->rolling30DayAvgWithVat > 0) {
+            $diffFrom30dPercent = round((($priceWithVat - $this->rolling30DayAvgWithVat) / $this->rolling30DayAvgWithVat) * 100, 1);
+        }
+
         return [
             'start_hour' => $cheapestResult['start_hour'],
             'end_hour' => ($cheapestResult['end_hour'] + 1) % 24,
@@ -905,6 +936,7 @@ class SpotPrice extends Component
             'duration' => $duration,
             'total_kwh' => $totalKwh,
             'time_window' => '18:00-08:00',
+            'diff_from_30d_percent' => $diffFrom30dPercent,
         ];
     }
 
@@ -936,6 +968,13 @@ class SpotPrice extends Component
         $expensiveCost = $mostExpensiveResult ? $mostExpensiveResult['average_price'] * $totalKwh : null;
         $costDifference = $expensiveCost !== null ? $expensiveCost - $cheapestCost : null;
 
+        // Calculate diff from 30-day average
+        $priceWithVat = $cheapestResult['average_price'] * 1.255;
+        $diffFrom30dPercent = null;
+        if ($this->rolling30DayAvgWithVat !== null && $this->rolling30DayAvgWithVat > 0) {
+            $diffFrom30dPercent = round((($priceWithVat - $this->rolling30DayAvgWithVat) / $this->rolling30DayAvgWithVat) * 100, 1);
+        }
+
         return [
             'start_hour' => $cheapestResult['start_hour'],
             'end_hour' => ($cheapestResult['end_hour'] + 1) % 24,
@@ -948,6 +987,7 @@ class SpotPrice extends Component
             'duration' => $duration,
             'total_kwh' => $totalKwh,
             'time_window' => 'Koko päivä',
+            'diff_from_30d_percent' => $diffFrom30dPercent,
         ];
     }
 

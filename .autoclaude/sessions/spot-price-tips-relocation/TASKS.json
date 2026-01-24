@@ -1,0 +1,45 @@
+{
+  "session": "spot-price-tips-relocation",
+  "description": "Move 'Kodin energiavinkit' section below clock chart and add 30-day average differentials to appliance cost calculators",
+  "tasks": [
+    {
+      "id": "add-diff-to-calculators",
+      "title": "Add 30-day differential to appliance calculator methods",
+      "description": "In SpotPrice.php, add 'diff_from_30d_percent' to the return arrays of: calculateSaunaCost(), calculateLaundryCost(), calculateDishwasherCost(), calculateWaterHeaterCost(), and getBestConsecutiveHours(). Calculate as: (($cheapestPrice * 1.255 - $this->rolling30DayAvgWithVat) / $this->rolling30DayAvgWithVat) * 100. Round to 1 decimal place.",
+      "status": "completed",
+      "completed_at": "2026-01-24T12:00:00Z",
+      "passes": true,
+      "priority": 1
+    },
+    {
+      "id": "move-energy-tips-section",
+      "title": "Move Kodin energiavinkit section below clock chart",
+      "description": "In spot-price.blade.php, cut the entire 'Kodin energiavinkit' section (currently around lines 503-672) and move it to appear directly after the clock chart section (around line 66). The new page order should be: Hero, Current Price Card, Clock Chart, Kodin energiavinkit, Price Comparison Cards, Horizontal Bar Chart, etc.",
+      "status": "completed",
+      "completed_at": "2026-01-24T12:05:00Z",
+      "passes": true,
+      "priority": 2,
+      "depends_on": ["add-diff-to-calculators"]
+    },
+    {
+      "id": "add-differential-badges",
+      "title": "Add differential badges to appliance cards",
+      "description": "In spot-price.blade.php, add a badge below the recommended time in each appliance card showing comparison to 30-day average. Badge should be: green 'X% halvempi kuin 30 pv keskiarvo' if >5% below, yellow 'Lähellä 30 pv keskiarvoa' if within ±5%, red 'X% kalliimpi kuin 30 pv keskiarvo' if >5% above. Add down arrow icon for green, up arrow for red. Apply to: EV Charging, Sauna, Laundry, Dishwasher, Water heater cards.",
+      "status": "completed",
+      "completed_at": "2026-01-24T12:15:00Z",
+      "passes": true,
+      "priority": 3,
+      "depends_on": ["move-energy-tips-section"]
+    },
+    {
+      "id": "build-and-verify",
+      "title": "Build and verify changes",
+      "description": "Run 'cd laravel && npm run build'. Verify: 1) Kodin energiavinkit appears directly below clock chart, 2) Each appliance card shows a differential badge with correct color coding, 3) Badges show correct percentages compared to 30-day average. Create git commit with all changes.",
+      "status": "completed",
+      "completed_at": "2026-01-24T12:20:00Z",
+      "passes": true,
+      "priority": 4,
+      "depends_on": ["add-differential-badges"]
+    }
+  ]
+}
