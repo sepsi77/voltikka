@@ -51,49 +51,66 @@ export const PriceHeadline: React.FC<PriceHeadlineProps> = ({
 
   const rating = getDayRating(changePercent);
 
+  // Frame 0 shows final state for thumbnail, then animation starts from frame 1
+  const isThumbnailFrame = frame === 0;
+  const animationFrame = frame > 0 ? frame - 1 : 0;
+
   // === STAGGERED ANIMATIONS ===
+  // If thumbnail frame, all springs = 1 (final state)
 
   // 1. Title drops in
-  const titleSpring = spring({
-    frame,
-    fps,
-    config: SNAP,
-  });
+  const titleSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame,
+        fps,
+        config: SNAP,
+      });
 
   // 2. Date
-  const dateSpring = spring({
-    frame: frame - 0.15 * fps,
-    fps,
-    config: SNAP,
-  });
+  const dateSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 0.15 * fps,
+        fps,
+        config: SNAP,
+      });
 
   // 3. Verdict badge
-  const verdictSpring = spring({
-    frame: frame - 0.4 * fps,
-    fps,
-    config: { damping: 12, stiffness: 100 },
-  });
+  const verdictSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 0.4 * fps,
+        fps,
+        config: { damping: 12, stiffness: 100 },
+      });
 
   // 4. Price card
-  const cardSpring = spring({
-    frame: frame - 0.7 * fps,
-    fps,
-    config: { damping: 12, stiffness: 100 },
-  });
+  const cardSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 0.7 * fps,
+        fps,
+        config: { damping: 12, stiffness: 100 },
+      });
 
   // 5. Price number counts up
-  const priceSpring = spring({
-    frame: frame - 0.9 * fps,
-    fps,
-    config: FLOW,
-  });
+  const priceSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 0.9 * fps,
+        fps,
+        config: FLOW,
+      });
 
   // 6. Comparison badge
-  const comparisonSpring = spring({
-    frame: frame - 1.2 * fps,
-    fps,
-    config: FLOW,
-  });
+  const comparisonSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 1.2 * fps,
+        fps,
+        config: FLOW,
+      });
 
   // Count-up animation for price
   const displayPrice = interpolate(priceSpring, [0, 1], [0, averagePrice]);
@@ -240,17 +257,25 @@ const LowerThird: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  const barSpring = spring({
-    frame: frame - 0.3 * fps,
-    fps,
-    config: { damping: 20, stiffness: 150 },
-  });
+  // Frame 0 shows final state for thumbnail
+  const isThumbnailFrame = frame === 0;
+  const animationFrame = frame > 0 ? frame - 1 : 0;
 
-  const logoSpring = spring({
-    frame: frame - 0.5 * fps,
-    fps,
-    config: { damping: 25, stiffness: 200 },
-  });
+  const barSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 0.3 * fps,
+        fps,
+        config: { damping: 20, stiffness: 150 },
+      });
+
+  const logoSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 0.5 * fps,
+        fps,
+        config: { damping: 25, stiffness: 200 },
+      });
 
   return (
     <div
