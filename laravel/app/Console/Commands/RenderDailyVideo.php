@@ -150,15 +150,17 @@ class RenderDailyVideo extends Command
         $this->line("Using API URL: {$apiUrl}");
         $this->line("Output path: {$outputPath}");
 
-        // Run Remotion render command
+        // Run Remotion render command using local binary
+        $remotionBin = $this->getRemotionPath() . '/node_modules/.bin/remotion';
+
         $result = Process::path($this->getRemotionPath())
             ->timeout(600) // 10 minutes timeout
             ->env([
                 'VOLTIKKA_API_URL' => $apiUrl,
+                'PUPPETEER_EXECUTABLE_PATH' => env('PUPPETEER_EXECUTABLE_PATH', '/usr/bin/chromium'),
             ])
             ->run([
-                'npx',
-                'remotion',
+                $remotionBin,
                 'render',
                 'src/index.ts',
                 self::COMPOSITION_ID,
