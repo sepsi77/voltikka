@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chart Scene Concepts - 1080×1080 Square</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Inter', sans-serif; }
+    .video-frame {
+      width: 1080px;
+      height: 1080px;
+      transform-origin: top left;
+      transform: scale(0.45);
+    }
+    :root {
+      --coral: #f97316;
+      --green: #22c55e;
+      --red: #ef4444;
+      --bg: #f8fafc;
+    }
+  </style>
+</head>
+<body class="bg-gray-900 p-4">
+  <h1 class="text-white text-2xl font-bold mb-6">Chart Scene Concepts (1080×1080 square)</h1>
+
+  <div class="flex flex-wrap gap-8">
+
+    <!-- ============================================ -->
+    <!-- CONCEPT A: Clock/Radial View -->
+    <!-- ============================================ -->
+    <div>
+      <p class="text-white mb-2 font-semibold">Concept A: Clock View</p>
+      <p class="text-gray-400 mb-3 text-sm max-w-md">24-hour clock face with colored segments. Intuitive time-of-day mental model.</p>
+      <div class="video-frame bg-[#f8fafc] relative overflow-hidden">
+        <!-- Background -->
+        <div class="absolute inset-0" style="background: radial-gradient(circle at 50% 50%, rgba(249,115,22,0.03) 0%, transparent 70%);"></div>
+
+        <!-- Title -->
+        <div class="absolute top-12 left-0 right-0 text-center">
+          <h1 class="text-5xl font-black text-[#1e293b]">Päivän <span class="text-[#f97316]">hinnat</span></h1>
+        </div>
+
+        <!-- Clock container -->
+        <div class="absolute inset-0 flex items-center justify-center" style="padding-top: 40px;">
+          <div class="relative" style="width: 700px; height: 700px;">
+            <!-- Clock SVG -->
+            <svg viewBox="0 0 400 400" class="w-full h-full">
+              <!-- 24 hour segments -->
+              <g id="clock-segments"></g>
+
+              <!-- Center circle with today's avg -->
+              <circle cx="200" cy="200" r="100" fill="#0f172a"/>
+              <text x="200" y="180" text-anchor="middle" fill="#94a3b8" font-size="14" font-weight="600">KESKIHINTA</text>
+              <text x="200" y="220" text-anchor="middle" fill="white" font-size="36" font-weight="900">8.4</text>
+              <text x="200" y="245" text-anchor="middle" fill="#94a3b8" font-size="14" font-weight="500">c/kWh</text>
+
+              <!-- Hour labels -->
+              <text x="200" y="45" text-anchor="middle" fill="#64748b" font-size="16" font-weight="700">00</text>
+              <text x="355" y="205" text-anchor="middle" fill="#64748b" font-size="16" font-weight="700">06</text>
+              <text x="200" y="375" text-anchor="middle" fill="#64748b" font-size="16" font-weight="700">12</text>
+              <text x="45" y="205" text-anchor="middle" fill="#64748b" font-size="16" font-weight="700">18</text>
+            </svg>
+
+            <!-- Cheap zone callout -->
+            <div class="absolute top-8 right-0 flex items-center gap-3">
+              <div class="w-4 h-4 rounded-full bg-[#22c55e]"></div>
+              <div>
+                <div class="text-sm font-semibold text-slate-600">Halvimmat</div>
+                <div class="text-2xl font-black text-[#22c55e]">00-06</div>
+              </div>
+            </div>
+
+            <!-- Expensive zone callout -->
+            <div class="absolute bottom-20 left-0 flex items-center gap-3">
+              <div class="w-4 h-4 rounded-full bg-[#ef4444]"></div>
+              <div>
+                <div class="text-sm font-semibold text-slate-600">Kalleimmat</div>
+                <div class="text-2xl font-black text-[#ef4444]">16-19</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="absolute bottom-0 left-0 right-0 h-[80px] bg-[#0f172a]">
+          <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#f97316] to-[#ea580c]"></div>
+          <div class="h-full flex items-center justify-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#f97316] to-[#ea580c] flex items-center justify-center">
+              <svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg>
+            </div>
+            <span class="text-3xl font-black text-white">Voltikka.fi</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- CONCEPT B: Zone Focus (No Chart) -->
+    <!-- ============================================ -->
+    <div>
+      <p class="text-white mb-2 font-semibold">Concept B: Zone Focus</p>
+      <p class="text-gray-400 mb-3 text-sm max-w-md">Skip the chart entirely. Just show what matters: when to use, when to avoid.</p>
+      <div class="video-frame bg-[#0f172a] relative overflow-hidden">
+        <!-- Gradient background -->
+        <div class="absolute inset-0" style="background: radial-gradient(ellipse at 30% 30%, rgba(34,197,94,0.15) 0%, transparent 50%), radial-gradient(ellipse at 70% 70%, rgba(239,68,68,0.15) 0%, transparent 50%);"></div>
+
+        <!-- Title -->
+        <div class="absolute top-12 left-0 right-0 text-center">
+          <h1 class="text-5xl font-black text-white">Päivän <span class="text-[#f97316]">hinnat</span></h1>
+        </div>
+
+        <!-- Main content: Two zones -->
+        <div class="absolute inset-0 flex flex-col items-center justify-center gap-8 px-16" style="padding-top: 60px; padding-bottom: 100px;">
+
+          <!-- Cheap zone - the star -->
+          <div class="w-full bg-gradient-to-r from-[#22c55e] to-[#16a34a] rounded-3xl p-8 shadow-2xl shadow-green-500/30">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-white/80 text-xl font-semibold mb-1">Halvimmat tunnit</div>
+                <div class="text-white text-7xl font-black">02-06</div>
+              </div>
+              <div class="text-right">
+                <div class="text-white/80 text-lg">Keskihinta</div>
+                <div class="text-white text-5xl font-black">2.8<span class="text-3xl ml-1">c</span></div>
+              </div>
+            </div>
+            <div class="mt-4 flex gap-3">
+              <span class="px-4 py-2 bg-white/20 rounded-full text-white font-semibold">🔌 Lataa auto</span>
+              <span class="px-4 py-2 bg-white/20 rounded-full text-white font-semibold">🧺 Pyykinpesu</span>
+            </div>
+          </div>
+
+          <!-- Expensive zone - smaller, warning -->
+          <div class="w-full bg-gradient-to-r from-[#ef4444] to-[#dc2626] rounded-2xl p-6 shadow-xl shadow-red-500/20">
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-white/80 text-lg font-semibold">Vältä käyttöä</div>
+                <div class="text-white text-5xl font-black">16-19</div>
+              </div>
+              <div class="text-right">
+                <div class="text-white/80 text-sm">Keskihinta</div>
+                <div class="text-white text-3xl font-black">15.2<span class="text-xl ml-1">c</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Today's average context -->
+          <div class="flex items-center gap-6 mt-4">
+            <div class="text-center">
+              <div class="text-slate-400 text-sm font-medium">Päivän keskihinta</div>
+              <div class="text-white text-4xl font-black">8.4 <span class="text-xl text-slate-400">c/kWh</span></div>
+            </div>
+            <div class="w-px h-12 bg-slate-600"></div>
+            <div class="text-center">
+              <div class="text-slate-400 text-sm font-medium">vs. 30 pv keskiarvo</div>
+              <div class="text-[#22c55e] text-3xl font-black">−22%</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="absolute bottom-0 left-0 right-0 h-[80px]">
+          <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#f97316] to-[#ea580c]"></div>
+          <div class="h-full flex items-center justify-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#f97316] to-[#ea580c] flex items-center justify-center">
+              <svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg>
+            </div>
+            <span class="text-3xl font-black text-white">Voltikka.fi</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- CONCEPT C: Timeline Heatmap Strip -->
+    <!-- ============================================ -->
+    <div>
+      <p class="text-white mb-2 font-semibold">Concept C: Timeline Heatmap</p>
+      <p class="text-gray-400 mb-3 text-sm max-w-md">Horizontal timeline with color-coded hours. Simple, scannable.</p>
+      <div class="video-frame bg-[#f8fafc] relative overflow-hidden">
+        <!-- Background -->
+        <div class="absolute inset-0" style="background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);"></div>
+
+        <!-- Title -->
+        <div class="absolute top-12 left-0 right-0 text-center">
+          <h1 class="text-5xl font-black text-[#1e293b]">Päivän <span class="text-[#f97316]">hinnat</span></h1>
+        </div>
+
+        <!-- Main content -->
+        <div class="absolute inset-0 flex flex-col items-center justify-center px-12" style="padding-top: 80px; padding-bottom: 100px;">
+
+          <!-- Today's summary -->
+          <div class="text-center mb-12">
+            <div class="text-slate-500 text-lg font-medium mb-2">Päivän keskihinta</div>
+            <div class="text-[#1e293b] text-6xl font-black">8.4 <span class="text-3xl text-slate-400">c/kWh</span></div>
+            <div class="mt-2 inline-block px-4 py-1 bg-green-100 text-[#22c55e] font-bold rounded-full">22% halvempi kuin normaalisti</div>
+          </div>
+
+          <!-- Timeline strip -->
+          <div class="w-full">
+            <!-- Cheap zone bracket -->
+            <div class="flex items-end mb-2 ml-[4%] w-[22%]">
+              <div class="flex-1 border-l-2 border-t-2 border-r-2 border-[#22c55e] rounded-t-lg h-6"></div>
+            </div>
+            <div class="text-center mb-3 ml-[4%] w-[22%]">
+              <span class="bg-[#22c55e] text-white font-bold px-4 py-1.5 rounded-full text-lg">Halvimmat 00-05</span>
+            </div>
+
+            <!-- The actual timeline -->
+            <div class="flex gap-1 mb-3" id="timeline">
+              <!-- Generated by JS -->
+            </div>
+
+            <!-- Hour markers -->
+            <div class="flex justify-between text-slate-500 font-semibold px-1">
+              <span>00</span>
+              <span>06</span>
+              <span>12</span>
+              <span>18</span>
+              <span>24</span>
+            </div>
+
+            <!-- Expensive zone bracket below -->
+            <div class="flex items-start mt-4 ml-[66%] w-[14%]">
+              <div class="flex-1 border-l-2 border-b-2 border-r-2 border-[#ef4444] rounded-b-lg h-6"></div>
+            </div>
+            <div class="text-center mt-2 ml-[66%] w-[14%]">
+              <span class="bg-[#ef4444] text-white font-bold px-4 py-1.5 rounded-full text-lg">Kallis 16-19</span>
+            </div>
+          </div>
+
+          <!-- Legend -->
+          <div class="flex items-center gap-8 mt-16">
+            <div class="flex items-center gap-2">
+              <div class="w-6 h-6 rounded bg-[#22c55e]"></div>
+              <span class="text-slate-600 font-medium">Halpa</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-6 h-6 rounded bg-[#eab308]"></div>
+              <span class="text-slate-600 font-medium">Normaali</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-6 h-6 rounded bg-[#ef4444]"></div>
+              <span class="text-slate-600 font-medium">Kallis</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="absolute bottom-0 left-0 right-0 h-[80px] bg-[#0f172a]">
+          <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#f97316] to-[#ea580c]"></div>
+          <div class="h-full flex items-center justify-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#f97316] to-[#ea580c] flex items-center justify-center">
+              <svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg>
+            </div>
+            <span class="text-3xl font-black text-white">Voltikka.fi</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- CONCEPT D: Split Screen DO/DON'T -->
+    <!-- ============================================ -->
+    <div>
+      <p class="text-white mb-2 font-semibold">Concept D: Do / Don't Split</p>
+      <p class="text-gray-400 mb-3 text-sm max-w-md">Action-oriented. Clear guidance on when to use vs avoid.</p>
+      <div class="video-frame relative overflow-hidden">
+        <!-- Split background -->
+        <div class="absolute inset-0 flex">
+          <div class="flex-1 bg-gradient-to-br from-[#22c55e] to-[#16a34a]"></div>
+          <div class="flex-1 bg-gradient-to-br from-[#ef4444] to-[#dc2626]"></div>
+        </div>
+
+        <!-- Diagonal divider -->
+        <div class="absolute inset-0">
+          <svg class="w-full h-full" preserveAspectRatio="none">
+            <polygon points="540,0 560,0 560,1080 540,1080" fill="#0f172a"/>
+          </svg>
+        </div>
+
+        <!-- Title bar -->
+        <div class="absolute top-0 left-0 right-0 h-24 bg-[#0f172a]/90 flex items-center justify-center">
+          <h1 class="text-4xl font-black text-white">Päivän <span class="text-[#f97316]">hinnat</span></h1>
+        </div>
+
+        <!-- Left: DO -->
+        <div class="absolute left-0 top-24 bottom-[80px] w-1/2 flex flex-col items-center justify-center p-8">
+          <div class="text-white/70 text-2xl font-bold mb-2">KÄYTÄ SÄHKÖÄ</div>
+          <div class="text-white text-8xl font-black mb-4">02-06</div>
+          <div class="text-white/90 text-3xl font-bold mb-8">2.8 c/kWh</div>
+
+          <div class="space-y-3 text-left">
+            <div class="flex items-center gap-3 text-white text-xl font-semibold">
+              <span class="text-3xl">🔌</span> Lataa sähköauto
+            </div>
+            <div class="flex items-center gap-3 text-white text-xl font-semibold">
+              <span class="text-3xl">🧺</span> Pyykinpesu
+            </div>
+            <div class="flex items-center gap-3 text-white text-xl font-semibold">
+              <span class="text-3xl">🍽️</span> Astianpesukone
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: DON'T -->
+        <div class="absolute right-0 top-24 bottom-[80px] w-1/2 flex flex-col items-center justify-center p-8">
+          <div class="text-white/70 text-2xl font-bold mb-2">VÄLTÄ KÄYTTÖÄ</div>
+          <div class="text-white text-8xl font-black mb-4">16-19</div>
+          <div class="text-white/90 text-3xl font-bold mb-8">15.2 c/kWh</div>
+
+          <div class="text-center text-white/80 text-xl">
+            <div class="text-6xl mb-4">⚠️</div>
+            <div class="font-semibold">5× kalliimpi<br/>kuin yöllä</div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="absolute bottom-0 left-0 right-0 h-[80px] bg-[#0f172a]">
+          <div class="h-full flex items-center justify-center gap-4">
+            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-[#f97316] to-[#ea580c] flex items-center justify-center">
+              <svg class="w-7 h-7 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M13 3L4 14h7l-2 7 9-11h-7l2-7z"/></svg>
+            </div>
+            <span class="text-3xl font-black text-white">Voltikka.fi</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Price data
+    const prices = [3.2, 2.8, 2.5, 2.9, 3.5, 4.2, 5.8, 7.2, 8.1, 7.5, 6.9, 7.8, 8.5, 9.2, 10.5, 12.8, 15.2, 18.7, 17.2, 14.5, 11.2, 9.8, 7.5, 5.2];
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+    const range = maxPrice - minPrice;
+
+    function getColor(price) {
+      const normalized = (price - minPrice) / range;
+      if (normalized < 0.25) return '#22c55e';
+      if (normalized < 0.5) return '#84cc16';
+      if (normalized < 0.65) return '#eab308';
+      if (normalized < 0.8) return '#f97316';
+      return '#ef4444';
+    }
+
+    // Clock segments (Concept A)
+    const clockSvg = document.getElementById('clock-segments');
+    if (clockSvg) {
+      prices.forEach((price, i) => {
+        const startAngle = (i * 15 - 90) * Math.PI / 180;
+        const endAngle = ((i + 1) * 15 - 90) * Math.PI / 180;
+        const innerR = 110;
+        const outerR = 170;
+
+        const x1 = 200 + innerR * Math.cos(startAngle);
+        const y1 = 200 + innerR * Math.sin(startAngle);
+        const x2 = 200 + outerR * Math.cos(startAngle);
+        const y2 = 200 + outerR * Math.sin(startAngle);
+        const x3 = 200 + outerR * Math.cos(endAngle);
+        const y3 = 200 + outerR * Math.sin(endAngle);
+        const x4 = 200 + innerR * Math.cos(endAngle);
+        const y4 = 200 + innerR * Math.sin(endAngle);
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', `M${x1},${y1} L${x2},${y2} A${outerR},${outerR} 0 0,1 ${x3},${y3} L${x4},${y4} A${innerR},${innerR} 0 0,0 ${x1},${y1}`);
+        path.setAttribute('fill', getColor(price));
+        path.setAttribute('stroke', '#f8fafc');
+        path.setAttribute('stroke-width', '2');
+        clockSvg.appendChild(path);
+      });
+    }
+
+    // Timeline (Concept C)
+    const timeline = document.getElementById('timeline');
+    if (timeline) {
+      prices.forEach((price, i) => {
+        const cell = document.createElement('div');
+        cell.className = 'flex-1 h-20 rounded-lg';
+        cell.style.backgroundColor = getColor(price);
+        timeline.appendChild(cell);
+      });
+    }
+  </script>
+</body>
+</html>
