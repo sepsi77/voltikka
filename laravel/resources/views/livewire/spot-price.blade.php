@@ -83,7 +83,8 @@
                         </p>
                     </div>
                     <div class="mt-4 md:mt-0 text-right">
-                        <p class="text-coral-100 text-sm">sis. ALV 25,5%</p>
+                        <p class="text-coral-100 text-sm">Spot-hinta sis. ALV</p>
+                        <p class="text-coral-200 text-xs">Ei siirtoa/marginaalia</p>
                     </div>
                 </div>
             </div>
@@ -431,7 +432,7 @@
         @if (!empty($cheapestRemainingHours))
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-8">
                 <h3 class="text-lg font-semibold text-slate-900 mb-2">Edullisimmat tunnit</h3>
-                <p class="text-sm text-slate-500 mb-4">Tulevat edullisimmat tunnit (sis. huomisen) • Spot-hinta sis. ALV, ei siirtoa/marginaalia</p>
+                <p class="text-sm text-slate-500 mb-4">Tulevat edullisimmat tunnit (sis. huomisen)</p>
                 <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                     @foreach ($cheapestRemainingHours as $index => $hour)
                         @php
