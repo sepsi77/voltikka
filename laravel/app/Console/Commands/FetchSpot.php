@@ -100,11 +100,11 @@ class FetchSpot extends Command
     }
 
     /**
-     * Get the latest spot price timestamp from the database.
+     * Get the latest spot price timestamp from the database (quarter-hour data).
      */
     private function getLatestSpotPriceTimestamp(): ?Carbon
     {
-        $latest = SpotPriceHour::forRegion('FI')
+        $latest = SpotPriceQuarter::where('region', 'FI')
             ->orderBy('utc_datetime', 'desc')
             ->first();
 
