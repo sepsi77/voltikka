@@ -44,9 +44,7 @@ RUN npm ci && npm run build && rm -rf node_modules
 # Copy and install Remotion project for video rendering
 COPY remotion/ /app/remotion/
 WORKDIR /app/remotion
-RUN npm ci --omit=dev
-# Pre-download Chrome Headless Shell for Remotion (gets cached in build)
-RUN npx remotion browser ensure
+RUN npm ci
 WORKDIR /app
 
 # Create storage directories and set permissions
