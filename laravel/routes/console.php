@@ -31,3 +31,6 @@ Schedule::command('descriptions:generate')
     ->withoutOverlapping()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/descriptions-generate.log'));
+
+// Note: social:daily-video is triggered automatically by spot:fetch
+// when tomorrow's prices become available (typically around 13:00-14:00 Finnish time)

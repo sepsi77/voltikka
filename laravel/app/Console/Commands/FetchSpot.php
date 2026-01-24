@@ -9,6 +9,7 @@ use App\Services\SpotPriceAverageService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
 
 class FetchSpot extends Command
@@ -44,6 +45,10 @@ class FetchSpot extends Command
     {
         $this->info('Fetching spot prices from ENTSO-E API...');
 
+        // Check if tomorrow's prices already exist before fetching
+        $tomorrowDate = Carbon::tomorrow('Europe/Helsinki')->format('Y-m-d');
+        $hadTomorrowPrices = $this->hasPricesForDate($tomorrowDate);
+
         try {
             // Fetch today and tomorrow (using Helsinki timezone to ensure we get all Finnish hours)
             // Helsinki is UTC+2 in winter (UTC+3 in summer), so we need to start from yesterday 22:00 UTC
@@ -75,6 +80,12 @@ class FetchSpot extends Command
             $this->averageService->calculateAllAverages();
             $this->info('Averages calculated successfully.');
 
+            // Check if tomorrow's prices are newly available and trigger social media pipeline
+            $hasTomorrowPrices = $this->hasPricesForDate($tomorrowDate);
+            if (!$hadTomorrowPrices && $hasTomorrowPrices) {
+                $this->triggerSocialMediaPipeline($tomorrowDate);
+            }
+
             return Command::SUCCESS;
         } catch (\Exception $e) {
             $this->error('Error saving spot prices: ' . $e->getMessage());
@@ -83,6 +94,42 @@ class FetchSpot extends Command
                 'trace' => $e->getTraceAsString(),
             ]);
             return Command::FAILURE;
+        }
+    }
+
+    /**
+     * Check if we have prices for a given date (Helsinki timezone).
+     */
+    private function hasPricesForDate(string $date): bool
+    {
+        $startOfDay = Carbon::parse($date, 'Europe/Helsinki')->startOfDay()->setTimezone('UTC');
+        $endOfDay = Carbon::parse($date, 'Europe/Helsinki')->endOfDay()->setTimezone('UTC');
+
+        return SpotPriceHour::forRegion('FI')
+            ->whereBetween('utc_datetime', [$startOfDay, $endOfDay])
+            ->exists();
+    }
+
+    /**
+     * Trigger the social media pipeline when tomorrow's prices become available.
+     */
+    private function triggerSocialMediaPipeline(string $tomorrowDate): void
+    {
+        $this->info("Tomorrow's prices ({$tomorrowDate}) are now available!");
+        $this->info('Triggering social media pipeline...');
+
+        Log::info('Tomorrow prices available, triggering social media pipeline', [
+            'date' => $tomorrowDate,
+        ]);
+
+        try {
+            Artisan::call('social:daily-video', [], $this->output);
+            $this->info('Social media pipeline completed.');
+        } catch (\Exception $e) {
+            $this->error('Social media pipeline failed: ' . $e->getMessage());
+            Log::error('Social media pipeline failed after spot fetch', [
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

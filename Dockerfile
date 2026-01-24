@@ -3,6 +3,7 @@ FROM dunglas/frankenphp:1-php8.4
 
 # Install system dependencies and PHP extensions
 # Note: libjpeg62-turbo-dev for JPEG, libwebp-dev for WebP support in GD
+# Note: chromium for Remotion video rendering
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -17,9 +18,13 @@ RUN apt-get update && apt-get install -y \
     supervisor \
     nodejs \
     npm \
+    chromium \
     && docker-php-ext-configure gd --with-jpeg --with-webp \
     && docker-php-ext-install pdo pdo_pgsql pdo_mysql mbstring exif pcntl bcmath gd \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Set Chromium path for Remotion/Puppeteer
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -35,6 +40,14 @@ RUN composer install --no-dev --optimize-autoloader
 
 # Install Node.js dependencies and build assets
 RUN npm ci && npm run build && rm -rf node_modules
+
+# Copy and install Remotion project for video rendering
+COPY remotion/ /app/remotion/
+WORKDIR /app/remotion
+RUN npm ci --omit=dev
+# Pre-download Chrome Headless Shell for Remotion (gets cached in build)
+RUN npx remotion browser ensure
+WORKDIR /app
 
 # Create storage directories and set permissions
 RUN mkdir -p storage/logs storage/framework/{cache,sessions,views} bootstrap/cache \
