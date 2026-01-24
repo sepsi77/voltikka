@@ -45,9 +45,8 @@ class FetchSpot extends Command
     {
         $this->info('Fetching spot prices from ENTSO-E API...');
 
-        // Check if tomorrow's prices already exist before fetching
-        $tomorrowDate = Carbon::tomorrow('Europe/Helsinki')->format('Y-m-d');
-        $hadTomorrowPrices = $this->hasPricesForDate($tomorrowDate);
+        // Get the latest spot price timestamp before fetching
+        $latestBeforeFetch = $this->getLatestSpotPriceTimestamp();
 
         try {
             // Fetch today and tomorrow (using Helsinki timezone to ensure we get all Finnish hours)
@@ -68,6 +67,9 @@ class FetchSpot extends Command
             return Command::SUCCESS;
         }
 
+        // Find the latest timestamp from the API response
+        $latestFromApi = $this->getLatestTimestampFromApiResponse($spotPrices);
+
         $this->info("Fetched " . count($spotPrices) . " hourly prices. Processing...");
 
         try {
@@ -80,10 +82,10 @@ class FetchSpot extends Command
             $this->averageService->calculateAllAverages();
             $this->info('Averages calculated successfully.');
 
-            // Check if tomorrow's prices are newly available and trigger social media pipeline
-            $hasTomorrowPrices = $this->hasPricesForDate($tomorrowDate);
-            if (!$hadTomorrowPrices && $hasTomorrowPrices) {
-                $this->triggerSocialMediaPipeline($tomorrowDate);
+            // Trigger social media pipeline if we got newer data than before
+            if ($latestFromApi && (!$latestBeforeFetch || $latestFromApi->gt($latestBeforeFetch))) {
+                $this->info("New spot price data available up to: {$latestFromApi->format('Y-m-d H:i')} UTC");
+                $this->triggerSocialMediaPipeline();
             }
 
             return Command::SUCCESS;
@@ -98,29 +100,44 @@ class FetchSpot extends Command
     }
 
     /**
-     * Check if we have prices for a given date (Helsinki timezone).
+     * Get the latest spot price timestamp from the database.
      */
-    private function hasPricesForDate(string $date): bool
+    private function getLatestSpotPriceTimestamp(): ?Carbon
     {
-        $startOfDay = Carbon::parse($date, 'Europe/Helsinki')->startOfDay()->setTimezone('UTC');
-        $endOfDay = Carbon::parse($date, 'Europe/Helsinki')->endOfDay()->setTimezone('UTC');
+        $latest = SpotPriceHour::forRegion('FI')
+            ->orderBy('utc_datetime', 'desc')
+            ->first();
 
-        return SpotPriceHour::forRegion('FI')
-            ->whereBetween('utc_datetime', [$startOfDay, $endOfDay])
-            ->exists();
+        return $latest?->utc_datetime;
     }
 
     /**
-     * Trigger the social media pipeline when tomorrow's prices become available.
+     * Get the latest timestamp from the API response.
      */
-    private function triggerSocialMediaPipeline(string $tomorrowDate): void
+    private function getLatestTimestampFromApiResponse(array $spotPrices): ?Carbon
     {
-        $this->info("Tomorrow's prices ({$tomorrowDate}) are now available!");
-        $this->info('Triggering social media pipeline...');
+        $latestTimestamp = null;
 
-        Log::info('Tomorrow prices available, triggering social media pipeline', [
-            'date' => $tomorrowDate,
-        ]);
+        foreach ($spotPrices as $item) {
+            $timestamp = $item['utc_datetime'];
+            if ($timestamp instanceof Carbon) {
+                if (!$latestTimestamp || $timestamp->gt($latestTimestamp)) {
+                    $latestTimestamp = $timestamp->copy();
+                }
+            }
+        }
+
+        return $latestTimestamp;
+    }
+
+    /**
+     * Trigger the social media pipeline when new spot price data is available.
+     */
+    private function triggerSocialMediaPipeline(): void
+    {
+        $this->info('New spot price data detected! Triggering social media pipeline...');
+
+        Log::info('New spot price data available, triggering social media pipeline');
 
         try {
             Artisan::call('social:daily-video', [], $this->output);
