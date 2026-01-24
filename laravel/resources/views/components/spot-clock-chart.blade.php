@@ -269,15 +269,32 @@
         </div>
     </div>
 
-    <!-- Legend -->
-    <div class="clock-legend flex justify-center gap-6 mt-4 text-base">
-        <div class="flex items-center gap-2">
-            <span class="w-4 h-4 rounded-full bg-green-500"></span>
-            <span class="text-slate-600">Alle keskiarvon</span>
+    <!-- Legend and explanation -->
+    <div class="mt-6 space-y-4">
+        <!-- Color legend with explicit meaning -->
+        <div class="flex flex-wrap justify-center gap-4 text-sm">
+            <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded-full bg-green-500"></span>
+                <span class="text-slate-700 font-medium">Edullinen</span>
+                <span class="text-slate-500">(yli 5% alle)</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded-full bg-yellow-400"></span>
+                <span class="text-slate-700 font-medium">Normaali</span>
+                <span class="text-slate-500">(±5% sisällä)</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="w-4 h-4 rounded-full bg-red-500"></span>
+                <span class="text-slate-700 font-medium">Kallis</span>
+                <span class="text-slate-500">(yli 5% yli)</span>
+            </div>
         </div>
-        <div class="flex items-center gap-2">
-            <span class="w-4 h-4 rounded-full bg-red-500"></span>
-            <span class="text-slate-600">Yli keskiarvon</span>
-        </div>
+
+        <!-- Explicit explanation text -->
+        <p class="text-center text-sm text-slate-500">
+            Värit kertovat suhteen 30 pv keskiarvoon: <span class="text-green-600 font-medium">vihreä</span> = alle,
+            <span class="text-yellow-600 font-medium">keltainen</span> = lähellä,
+            <span class="text-red-600 font-medium">punainen</span> = yli.
+        </p>
     </div>
 </div>

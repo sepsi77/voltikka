@@ -107,6 +107,30 @@ class SpotPrice extends Component
     }
 
     /**
+     * Get price badge (Edullinen/Normaali/Kallis) based on 5% threshold from 30d average.
+     *
+     * @param float $price The price to evaluate
+     * @param float|null $avg30d The 30-day average to compare against
+     * @return array{label: string, type: string} Badge label and type (cheap/normal/expensive)
+     */
+    private function getPriceBadge(float $price, ?float $avg30d): array
+    {
+        if ($avg30d === null || $avg30d <= 0) {
+            return ['label' => 'Normaali', 'type' => 'normal'];
+        }
+
+        $percentDiff = (($price - $avg30d) / $avg30d) * 100;
+
+        if ($percentDiff <= -5) {
+            return ['label' => 'Edullinen', 'type' => 'cheap'];
+        } elseif ($percentDiff >= 5) {
+            return ['label' => 'Kallis', 'type' => 'expensive'];
+        } else {
+            return ['label' => 'Normaali', 'type' => 'normal'];
+        }
+    }
+
+    /**
      * Get today's prices with metadata for the horizontal bar chart.
      *
      * Returns an array of prices for today with:
@@ -159,6 +183,9 @@ class SpotPrice extends Component
             // Calculate width as absolute percentage (price / scaleMax * 100)
             $widthPercent = min(100, max(3, round(($priceWithVat / $scaleMax) * 100)));
 
+            // Get badge (Edullinen/Normaali/Kallis)
+            $badge = $this->getPriceBadge($priceWithVat, $avg30dWithVat);
+
             return [
                 'timestamp' => $price['timestamp'],
                 'hour' => $price['helsinki_hour'],
@@ -167,6 +194,7 @@ class SpotPrice extends Component
                 'colorClass' => $colorClass,
                 'widthPercent' => $widthPercent,
                 'isCurrentHour' => $isCurrentHour,
+                'badge' => $badge,
             ];
         }, $todayPrices);
     }
@@ -213,6 +241,9 @@ class SpotPrice extends Component
             // Calculate width as absolute percentage (price / scaleMax * 100)
             $widthPercent = min(100, max(3, round(($priceWithVat / $scaleMax) * 100)));
 
+            // Get badge (Edullinen/Normaali/Kallis)
+            $badge = $this->getPriceBadge($priceWithVat, $avg30dWithVat);
+
             return [
                 'timestamp' => $price['timestamp'],
                 'hour' => $price['helsinki_hour'],
@@ -221,6 +252,7 @@ class SpotPrice extends Component
                 'colorClass' => $colorClass,
                 'widthPercent' => $widthPercent,
                 'isCurrentHour' => false, // Tomorrow's hours are never "current"
+                'badge' => $badge,
             ];
         }, array_values($tomorrowPrices));
     }
@@ -480,6 +512,79 @@ class SpotPrice extends Component
         usort($sorted, fn($a, $b) => $b['price_without_tax'] <=> $a['price_without_tax']);
 
         return $sorted[0] ?? null;
+    }
+
+    /**
+     * Get today's verdict comparing day average vs 30-day average.
+     *
+     * Returns:
+     * - verdict: 'cheap' (≤-10%), 'normal' (-10% to +10%), 'expensive' (≥+10%)
+     * - verdict_label: Finnish label (Edullinen/Normaali/Kallis päivä)
+     * - today_avg_with_vat: Today's average price with VAT
+     * - avg_30d_with_vat: 30-day average with VAT
+     * - percent_diff: Percentage difference from 30d average
+     * - hours_above_avg: Number of hours above 30d average
+     * - hours_below_avg: Number of hours below 30d average
+     * - total_hours: Total hours with prices today
+     */
+    public function getTodayVerdict(): array
+    {
+        $todayPrices = $this->getTodayPrices();
+        $avg30dWithVat = $this->rolling30DayAvgWithVat;
+
+        if (empty($todayPrices) || $avg30dWithVat === null || $avg30dWithVat <= 0) {
+            return [
+                'verdict' => null,
+                'verdict_label' => null,
+                'today_avg_with_vat' => null,
+                'avg_30d_with_vat' => $avg30dWithVat,
+                'percent_diff' => null,
+                'hours_above_avg' => 0,
+                'hours_below_avg' => 0,
+                'total_hours' => 0,
+            ];
+        }
+
+        // Calculate today's average with VAT
+        $pricesWithVat = array_map(fn($p) => $p['price_with_tax'], $todayPrices);
+        $todayAvgWithVat = array_sum($pricesWithVat) / count($pricesWithVat);
+
+        // Calculate percentage difference
+        $percentDiff = (($todayAvgWithVat - $avg30dWithVat) / $avg30dWithVat) * 100;
+
+        // Determine verdict based on thresholds
+        if ($percentDiff <= -10) {
+            $verdict = 'cheap';
+            $verdictLabel = 'Edullinen päivä';
+        } elseif ($percentDiff >= 10) {
+            $verdict = 'expensive';
+            $verdictLabel = 'Kallis päivä';
+        } else {
+            $verdict = 'normal';
+            $verdictLabel = 'Normaali päivä';
+        }
+
+        // Count hours above and below 30d average
+        $hoursAbove = 0;
+        $hoursBelow = 0;
+        foreach ($pricesWithVat as $price) {
+            if ($price > $avg30dWithVat) {
+                $hoursAbove++;
+            } else {
+                $hoursBelow++;
+            }
+        }
+
+        return [
+            'verdict' => $verdict,
+            'verdict_label' => $verdictLabel,
+            'today_avg_with_vat' => round($todayAvgWithVat, 2),
+            'avg_30d_with_vat' => round($avg30dWithVat, 2),
+            'percent_diff' => round($percentDiff, 1),
+            'hours_above_avg' => $hoursAbove,
+            'hours_below_avg' => $hoursBelow,
+            'total_hours' => count($todayPrices),
+        ];
     }
 
     /**
@@ -1665,6 +1770,7 @@ class SpotPrice extends Component
             'cheapestHour' => $this->getCheapestHour(),
             'mostExpensiveHour' => $this->getMostExpensiveHour(),
             'todayStatistics' => $this->getTodayStatistics(),
+            'todayVerdict' => $this->getTodayVerdict(),
             // Analytics data
             'priceVolatility' => $this->getPriceVolatility(),
             'historicalComparison' => $this->getHistoricalComparison(),

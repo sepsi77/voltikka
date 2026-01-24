@@ -1,0 +1,55 @@
+{
+  "session": "spot-price-clarity-improvements",
+  "description": "Add clarity improvements to spot price page: day verdict, explicit color meanings, hourly badges, and price info tooltip",
+  "tasks": [
+    {
+      "id": "add-today-verdict",
+      "title": "Add 'Today verdict' summary above clock chart",
+      "description": "Add a summary block above the clock chart showing: 1) 'Tänään: Kallis päivä' / 'Tänään: Edullinen päivä' / 'Tänään: Normaali päivä' based on day avg vs 30d avg (Cheap: ≤-10%, Normal: -10% to +10%, Expensive: ≥+10%), 2) 'X/24 tuntia yli 30 pv keskiarvon', 3) 'Tänään keskiarvo: X c/kWh (30 pv: Y c/kWh)'. Add a method in SpotPrice.php to calculate these values, then display in spot-price.blade.php above the clock chart section.",
+      "status": "completed",
+      "priority": 1,
+      "completed_at": "2026-01-24",
+      "passes": true
+    },
+    {
+      "id": "explicit-color-legend",
+      "title": "Make color meaning explicit in text below clock",
+      "description": "Replace/augment the legend under the clock chart with explicit text explanation. Add: 'Värit kertovat suhteen 30 pv keskiarvoon: vihreä = alle, oranssi = lähellä, punainen = yli.' Also add threshold definition: 'Vihreä: yli 5% alle • Oranssi: ±5% sisällä • Punainen: yli 5% yli'. This clarifies that orange means 'near average', not warning.",
+      "status": "completed",
+      "priority": 2,
+      "depends_on": ["add-today-verdict"],
+      "completed_at": "2026-01-24",
+      "passes": true
+    },
+    {
+      "id": "hourly-row-badges",
+      "title": "Add Edullinen/Normaali/Kallis badges to hourly rows",
+      "description": "Add pill badges to each hourly bar in the horizontal bar chart. Badge text: 'Edullinen' (green, bg-green-100 text-green-800), 'Normaali' (orange, bg-yellow-100 text-yellow-800), 'Kallis' (red, bg-red-100 text-red-800). Use same threshold logic: Edullinen if >5% below 30d avg, Normaali if within ±5%, Kallis if >5% above. Add badge rendering in both Today and Tomorrow sections of spot-price.blade.php.",
+      "status": "completed",
+      "priority": 3,
+      "depends_on": ["explicit-color-legend"],
+      "completed_at": "2026-01-24",
+      "passes": true
+    },
+    {
+      "id": "price-info-tooltip",
+      "title": "Add 'What's included' info tooltip near main price",
+      "description": "Add a small info icon (i) with tooltip/popover next to 'Tämänhetkinen hinta' in the hero card. Tooltip text: 'Spot-hinta (Nord Pool) + ALV. Ei sisällä sähkönsiirtoa eikä sopimuksesi marginaalia.' Use Alpine.js for tooltip toggle. Style with dark background, white text, positioned below the icon.",
+      "status": "completed",
+      "priority": 4,
+      "depends_on": ["hourly-row-badges"],
+      "completed_at": "2026-01-24",
+      "passes": true
+    },
+    {
+      "id": "build-and-verify",
+      "title": "Build and verify all changes",
+      "description": "Run 'cd laravel && npm run build'. Verify: 1) Today verdict shows above clock with correct cheap/normal/expensive label, 2) Color legend has explicit text explanation with thresholds, 3) Each hourly row has Edullinen/Normaali/Kallis badge, 4) Main price has info icon with tooltip. Create git commit.",
+      "status": "completed",
+      "priority": 5,
+      "depends_on": ["price-info-tooltip"],
+      "completed_at": "2026-01-24",
+      "passes": true
+    }
+  ]
+}

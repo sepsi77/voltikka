@@ -37,7 +37,38 @@
             <div class="bg-gradient-to-r from-coral-500 to-coral-600 rounded-2xl shadow-lg p-6 md:p-8 mb-8 text-white">
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between">
                     <div>
-                        <p class="text-coral-100 text-sm uppercase tracking-wider mb-1">Tämänhetkinen hinta</p>
+                        <div class="flex items-center gap-2 mb-1" x-data="{ showTooltip: false }">
+                            <p class="text-coral-100 text-sm uppercase tracking-wider">Tämänhetkinen hinta</p>
+                            <!-- Info icon with tooltip -->
+                            <div class="relative">
+                                <button
+                                    type="button"
+                                    @click="showTooltip = !showTooltip"
+                                    @click.outside="showTooltip = false"
+                                    class="text-coral-100 hover:text-white focus:outline-none transition-colors"
+                                    aria-label="Lisätietoja hinnasta"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </button>
+                                <div
+                                    x-show="showTooltip"
+                                    x-transition:enter="transition ease-out duration-200"
+                                    x-transition:enter-start="opacity-0 translate-y-1"
+                                    x-transition:enter-end="opacity-100 translate-y-0"
+                                    x-transition:leave="transition ease-in duration-150"
+                                    x-transition:leave-start="opacity-100 translate-y-0"
+                                    x-transition:leave-end="opacity-0 translate-y-1"
+                                    class="absolute left-0 top-full mt-2 z-50 w-64 p-3 bg-slate-900 text-white text-sm rounded-lg shadow-xl"
+                                >
+                                    <p class="font-medium mb-1">Mitä hinta sisältää?</p>
+                                    <p class="text-slate-300">Spot-hinta (Nord Pool) + ALV 25,5%.</p>
+                                    <p class="text-slate-300 mt-1">Ei sisällä sähkönsiirtoa eikä sopimuksesi marginaalia.</p>
+                                    <div class="absolute left-4 -top-1 w-2 h-2 bg-slate-900 transform rotate-45"></div>
+                                </div>
+                            </div>
+                        </div>
                         <p class="text-4xl md:text-5xl font-bold">
                             {{ number_format($currentPrice['price_with_tax'] ?? 0, 2, ',', ' ') }}
                             <span class="text-2xl">c/kWh</span>
@@ -50,6 +81,63 @@
                     <div class="mt-4 md:mt-0 text-right">
                         <p class="text-coral-100 text-sm">ALV 0%</p>
                         <p class="text-2xl font-semibold">{{ number_format($currentPrice['price_without_tax'] ?? 0, 2, ',', ' ') }} c/kWh</p>
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        <!-- Today Verdict Summary -->
+        @if ($todayVerdict['verdict'] !== null)
+            <div class="mb-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <!-- Verdict Badge -->
+                        <div class="flex items-center gap-3">
+                            @if ($todayVerdict['verdict'] === 'cheap')
+                                <span class="inline-flex items-center px-4 py-2 rounded-xl text-lg font-bold bg-green-100 text-green-800">
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    Tänään: {{ $todayVerdict['verdict_label'] }}
+                                </span>
+                            @elseif ($todayVerdict['verdict'] === 'expensive')
+                                <span class="inline-flex items-center px-4 py-2 rounded-xl text-lg font-bold bg-red-100 text-red-800">
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                    </svg>
+                                    Tänään: {{ $todayVerdict['verdict_label'] }}
+                                </span>
+                            @else
+                                <span class="inline-flex items-center px-4 py-2 rounded-xl text-lg font-bold bg-yellow-100 text-yellow-800">
+                                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Tänään: {{ $todayVerdict['verdict_label'] }}
+                                </span>
+                            @endif
+
+                            @if ($todayVerdict['percent_diff'] !== null)
+                                <span class="text-sm {{ $todayVerdict['percent_diff'] < 0 ? 'text-green-600' : ($todayVerdict['percent_diff'] > 0 ? 'text-red-600' : 'text-slate-600') }}">
+                                    ({{ $todayVerdict['percent_diff'] > 0 ? '+' : '' }}{{ number_format($todayVerdict['percent_diff'], 1, ',', ' ') }}% vs 30 pv ka.)
+                                </span>
+                            @endif
+                        </div>
+
+                        <!-- Statistics -->
+                        <div class="flex flex-wrap gap-4 text-sm">
+                            <div class="flex items-center gap-2">
+                                <span class="text-slate-500">Tänään keskiarvo:</span>
+                                <span class="font-semibold text-slate-900">{{ number_format($todayVerdict['today_avg_with_vat'], 2, ',', ' ') }} c/kWh</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-slate-500">30 pv ka.:</span>
+                                <span class="font-semibold text-slate-900">{{ number_format($todayVerdict['avg_30d_with_vat'], 2, ',', ' ') }} c/kWh</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-red-500">{{ $todayVerdict['hours_above_avg'] }}/{{ $todayVerdict['total_hours'] }} tuntia</span>
+                                <span class="text-slate-500">yli 30 pv ka.</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -490,6 +578,15 @@
                                         {{ number_format($price['price_with_vat'], 2, ',', ' ') }} c
                                     </span>
 
+                                    <!-- Price badge (Edullinen/Normaali/Kallis) -->
+                                    <span class="hidden sm:inline-flex w-20 justify-center items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                        {{ $price['badge']['type'] === 'cheap' ? 'bg-green-100 text-green-800' : '' }}
+                                        {{ $price['badge']['type'] === 'normal' ? 'bg-yellow-100 text-yellow-800' : '' }}
+                                        {{ $price['badge']['type'] === 'expensive' ? 'bg-red-100 text-red-800' : '' }}
+                                    ">
+                                        {{ $price['badge']['label'] }}
+                                    </span>
+
                                     <!-- Expand icon -->
                                     <svg
                                         class="w-4 h-4 text-slate-400 transition-transform duration-200"
@@ -591,6 +688,15 @@
                                         <!-- Price value -->
                                         <span class="w-24 text-sm text-right text-slate-600">
                                             {{ number_format($price['price_with_vat'], 2, ',', ' ') }} c
+                                        </span>
+
+                                        <!-- Price badge (Edullinen/Normaali/Kallis) -->
+                                        <span class="hidden sm:inline-flex w-20 justify-center items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                            {{ $price['badge']['type'] === 'cheap' ? 'bg-green-100 text-green-800' : '' }}
+                                            {{ $price['badge']['type'] === 'normal' ? 'bg-yellow-100 text-yellow-800' : '' }}
+                                            {{ $price['badge']['type'] === 'expensive' ? 'bg-red-100 text-red-800' : '' }}
+                                        ">
+                                            {{ $price['badge']['label'] }}
                                         </span>
 
                                         <!-- Expand icon -->
