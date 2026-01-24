@@ -79,9 +79,10 @@
     }
 
     // SVG dimensions and positioning
-    $viewBoxSize = 400;
-    $cx = 200;
-    $cy = 200;
+    // Increased viewBox to 440 to ensure hour markers are not cut off
+    $viewBoxSize = 440;
+    $cx = 220;
+    $cy = 220;
     $innerRadius = 105;
     $outerRadius = 175;
     $centerRadius = 85;
@@ -98,12 +99,26 @@
         $price = $pricesByHour[$hour] ?? null;
         if ($price !== null && $avg30d !== null) {
             $percentDiff = $avg30d > 0 ? (($price - $avg30d) / $avg30d) * 100 : 0;
+
+            // Calculate the center angle of the segment (midpoint) for tooltip positioning
+            $segmentAngle = 15;
+            $startAngle = ($hour * $segmentAngle) - 90;
+            $centerAngle = $startAngle + ($segmentAngle / 2);
+            $centerRad = deg2rad($centerAngle);
+
+            // Position tooltip at outer edge of segment
+            $tooltipRadius = $outerRadius + 10;
+            $tooltipSvgX = $cx + $tooltipRadius * cos($centerRad);
+            $tooltipSvgY = $cy + $tooltipRadius * sin($centerRad);
+
             $segments[] = [
                 'hour' => $hour,
                 'price' => $price,
                 'percentDiff' => round($percentDiff, 1),
                 'color' => getClockSegmentColor($price, $avg30d),
                 'path' => getClockSegmentPath($hour, $innerRadius, $outerRadius, $cx, $cy),
+                'tooltipSvgX' => round($tooltipSvgX, 2),
+                'tooltipSvgY' => round($tooltipSvgY, 2),
             ];
         }
     }
@@ -116,7 +131,7 @@
         ['hour' => 18, 'label' => '18', 'angle' => 180],
     ];
 
-    $markerRadius = $outerRadius + 18;
+    $markerRadius = $outerRadius + 22;
 @endphp
 
 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-6">
@@ -129,12 +144,23 @@
             tooltipX: 0,
             tooltipY: 0,
             segments: {{ Js::from($segments) }},
+            viewBoxSize: {{ $viewBoxSize }},
             showTooltip(event, segment) {
                 this.hovered = segment;
-                const rect = event.target.getBoundingClientRect();
+                // Get the SVG element and its dimensions
+                const svg = this.$el.querySelector('svg');
+                const svgRect = svg.getBoundingClientRect();
                 const containerRect = this.$el.getBoundingClientRect();
-                this.tooltipX = rect.left + rect.width / 2 - containerRect.left;
-                this.tooltipY = rect.top - containerRect.top;
+
+                // Calculate scale factor between viewBox and actual SVG size
+                const scale = svgRect.width / this.viewBoxSize;
+
+                // Convert SVG coordinates to pixel coordinates relative to container
+                const pixelX = (segment.tooltipSvgX * scale) + (svgRect.left - containerRect.left);
+                const pixelY = (segment.tooltipSvgY * scale) + (svgRect.top - containerRect.top);
+
+                this.tooltipX = pixelX;
+                this.tooltipY = pixelY;
             },
             hideTooltip() {
                 this.hovered = null;

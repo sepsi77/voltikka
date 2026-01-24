@@ -3,78 +3,45 @@
   "description": "Enhance the spot price page with improved clock chart visuals, hover interactions, and a horizontal bar chart with expandable quarter-hour details",
   "tasks": [
     {
-      "id": "clock-chart-fonts",
-      "title": "Increase clock chart font sizes and legend sizes",
-      "description": "Update spot-clock-chart.blade.php: Increase hour marker font-size from 13 to 16 (lines 161, 194-196). Increase legend text to text-base and dots to w-4 h-4 (lines 203-211).",
+      "id": "fix-clock-tooltip-position",
+      "title": "Fix clock chart tooltip positioning",
+      "description": "The tooltip is appearing in the wrong position (floating at top-left instead of near the hovered segment). Fix the tooltip positioning in spot-clock-chart.blade.php. The tooltip should appear centered above the hovered segment, not at a fixed position. Calculate position based on the segment's actual coordinates (use the path's center point based on hour angle). Update the showTooltip function to position tooltip correctly near the hovered segment.",
       "status": "completed",
-      "priority": 1,
-      "started_at": "2026-01-24T12:00:00Z",
-      "completed_at": "2026-01-24T12:01:00Z",
-      "passes": true
+      "completed_at": "2026-01-24T12:00:00Z",
+      "priority": 1
     },
     {
-      "id": "clock-chart-gaps",
-      "title": "Add gaps between clock chart segments",
-      "description": "Update spot-clock-chart.blade.php: Add stroke='#ffffff' and stroke-width='1.5' to segment paths (lines 133-143) to create visible white gaps between colored segments.",
+      "id": "fix-clock-hour-markers",
+      "title": "Fix clock chart hour markers being cut off",
+      "description": "The hour markers (00, 06, 12, 18) are being slightly cut off at the edges. In spot-clock-chart.blade.php, increase the viewBox size from 400 to 440 (or adjust as needed) and update cx/cy to center the clock properly. Also increase markerRadius to ensure hour labels have enough space and are fully visible.",
       "status": "completed",
-      "priority": 2,
-      "depends_on": ["clock-chart-fonts"],
-      "started_at": "2026-01-24T12:01:00Z",
-      "completed_at": "2026-01-24T12:02:00Z",
-      "passes": true
+      "completed_at": "2026-01-24T12:00:00Z",
+      "priority": 2
     },
     {
-      "id": "clock-chart-hover",
-      "title": "Add hover tooltip to clock chart segments",
-      "description": "Update spot-clock-chart.blade.php: Wrap SVG in Alpine.js component with x-data='{ hovered: null }'. Add @mouseenter and @mouseleave events to paths. Show tooltip with hour range, price, and % difference from average when hovered. Add CSS in app.css for .clock-segment:hover with filter: brightness(1.1) and subtle transform scale.",
+      "id": "quarter-mini-bars",
+      "title": "Replace quarter number cards with mini horizontal bar charts",
+      "description": "In spot-price.blade.php, replace the quarter-hour number cards with mini horizontal bar charts. Each quarter should show: time label (05:00-05:15), a small horizontal bar proportional to its price, and the price value. The bars should use the same color coding (green/yellow/orange/red) as the hourly bars. Current quarter should be highlighted with orange. This makes visual comparison much faster than reading numbers.",
       "status": "completed",
-      "priority": 3,
-      "depends_on": ["clock-chart-gaps"],
-      "started_at": "2026-01-24T12:02:00Z",
-      "completed_at": "2026-01-24T12:05:00Z",
-      "passes": true
+      "completed_at": "2026-01-24T12:00:00Z",
+      "priority": 3
     },
     {
-      "id": "spotprice-data-methods",
-      "title": "Add helper methods for bar chart data in SpotPrice.php",
-      "description": "Update SpotPrice.php: Add method getTodayPricesWithMeta() that returns today's prices with colorClass, widthPercent, and timestamp. Add method getTomorrowPricesWithMeta() for tomorrow's prices (if available after ~14:00). Ensure quarterPricesByHour is accessible as a public property keyed by hour timestamp.",
+      "id": "remove-tuntihinnat-table",
+      "title": "Remove duplicate Tuntihinnat table",
+      "description": "In spot-price.blade.php, remove the 'Tuntihinnat' table section (the table with expandable 15-min details). This is now duplicate information since we have the horizontal bar chart with quarter-hour accordions. Find and remove the entire section starting with '<!-- Hourly Prices Table with Expandable 15-min Details -->' including the table and all its contents.",
       "status": "completed",
-      "priority": 4,
-      "started_at": "2026-01-24T12:06:00Z",
-      "completed_at": "2026-01-24T12:08:00Z",
-      "passes": true
+      "completed_at": "2026-01-24T12:00:00Z",
+      "priority": 4
     },
     {
-      "id": "horizontal-bar-chart",
-      "title": "Create horizontal bar chart with accordion quarters",
-      "description": "Update spot-price.blade.php: Replace the Chart.js canvas section with a custom Alpine.js horizontal bar chart. Show 'Tänään' section with today's remaining hours as horizontal bars. Add 'Huomenna' section if tomorrow prices are available. Each bar is clickable to expand an accordion showing 4 quarter-hour prices in a grid. Color-code bars based on price range (green/yellow/red). Highlight current hour/quarter with coral color.",
+      "id": "build-and-verify-fixes",
+      "title": "Build and verify all fixes",
+      "description": "Run 'cd laravel && npm run build'. Verify: 1) Clock tooltip appears near hovered segment (not top-left), 2) Hour markers (00, 06, 12, 18) are fully visible, 3) Quarter accordion shows mini bar charts instead of number cards, 4) Tuntihinnat table is removed. Create git commit with all fixes.",
       "status": "completed",
+      "completed_at": "2026-01-24T12:00:00Z",
       "priority": 5,
-      "depends_on": ["spotprice-data-methods"],
-      "started_at": "2026-01-24T12:10:00Z",
-      "completed_at": "2026-01-24T12:15:00Z",
-      "passes": true
-    },
-    {
-      "id": "accordion-styles",
-      "title": "Style quarter accordion with CSS",
-      "description": "Update app.css: Add smooth collapse animation for accordion if needed. Style quarter cards with consistent padding and colors. Ensure responsive layout works on mobile.",
-      "status": "completed",
-      "priority": 6,
-      "depends_on": ["horizontal-bar-chart"],
-      "started_at": "2026-01-24T12:15:00Z",
-      "completed_at": "2026-01-24T12:17:00Z",
-      "passes": true
-    },
-    {
-      "id": "build-and-verify",
-      "title": "Build assets and verify implementation",
-      "description": "Run 'cd laravel && npm run build' to compile assets. Run 'php artisan serve' and verify at http://127.0.0.1:8000/spot-price that: 1) Hour markers are larger, 2) White gaps visible between segments, 3) Hover shows tooltip, 4) Horizontal bars show today+tomorrow, 5) Clicking bar expands quarter details.",
-      "status": "completed",
-      "priority": 7,
-      "depends_on": ["clock-chart-hover", "accordion-styles"],
-      "started_at": "2026-01-24T12:17:00Z",
-      "completed_at": "2026-01-24T12:20:00Z",
+      "depends_on": ["fix-clock-tooltip-position", "fix-clock-hour-markers", "quarter-mini-bars", "remove-tuntihinnat-table"],
       "passes": true
     }
   ]

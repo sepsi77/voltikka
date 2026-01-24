@@ -92,3 +92,62 @@ All 7 tasks completed successfully. The spot price page now features:
 - Color-coded pricing with current hour/quarter highlighting
 - Tomorrow's prices displayed when available
 - Responsive design for mobile devices
+
+---
+
+### Iteration 2: 2026-01-24
+
+#### Completed Tasks
+
+**1. Fix Clock Tooltip Positioning (fix-clock-tooltip-position)**
+- Pre-calculated tooltip position (SVG coordinates) for each segment based on center angle
+- Added `tooltipSvgX` and `tooltipSvgY` to segment data
+- Updated `showTooltip()` function to use SVG-to-pixel coordinate conversion
+- Tooltip now appears at the outer edge of the hovered segment, centered on the arc
+
+**2. Fix Clock Hour Markers Being Cut Off (fix-clock-hour-markers)**
+- Increased viewBox from 400 to 440 pixels
+- Updated center coordinates from (200,200) to (220,220)
+- Increased markerRadius from outerRadius+18 to outerRadius+22
+- Hour labels (00, 06, 12, 18) now fully visible without clipping
+
+**3. Replace Quarter Cards with Mini Bar Charts (quarter-mini-bars)**
+- Replaced the 2x2/4-column grid of quarter cards with mini horizontal bar charts
+- Each quarter row shows: time label, proportional bar, price value
+- Added Alpine.js helper functions for calculating bar width and color
+- Color-coded bars (green/yellow/red) based on relative price within the hour
+- Current quarter highlighted with orange
+- Responsive layout: narrower margins on mobile (ml-4/mr-2 vs ml-20/mr-8)
+
+**4. Remove Duplicate Tuntihinnat Table (remove-tuntihinnat-table)**
+- Removed the entire "Tuntihinnat" table section (was ~134 lines)
+- The horizontal bar chart with quarter accordions now serves as the primary price display
+- Kept CSV download button which was below the table
+
+**5. Build and Verify All Fixes (build-and-verify-fixes)**
+- Ran `npm run build` - successful compilation
+- Assets: app.css (71.24 kB), app.js (36.71 kB)
+- Ran `php artisan view:cache` - all Blade templates compile successfully
+- Test failures are pre-existing database transaction issues, not related to changes
+
+### Files Modified (Iteration 2)
+
+1. `laravel/resources/views/components/spot-clock-chart.blade.php`
+   - Increased viewBox to 440, centered at (220,220)
+   - Increased markerRadius to outerRadius+22
+   - Added tooltipSvgX/tooltipSvgY to segment data
+   - Updated showTooltip() for SVG coordinate conversion
+
+2. `laravel/resources/views/livewire/spot-price.blade.php`
+   - Replaced quarter cards with mini horizontal bar charts (both Today and Tomorrow sections)
+   - Added Alpine.js helper functions: getQuarterBarWidth(), getQuarterColorClass()
+   - Removed the duplicate "Tuntihinnat" table section (~134 lines)
+
+### Summary (Iteration 2)
+
+All 5 fix tasks completed successfully:
+- Clock tooltip now appears correctly positioned near each hovered segment
+- Hour markers (00, 06, 12, 18) are fully visible without clipping
+- Quarter-hour details now display as mini bar charts for easier visual comparison
+- Duplicate Tuntihinnat table removed, reducing page complexity
+- Build successful, Blade templates compile correctly

@@ -203,31 +203,65 @@
                                     </svg>
                                 </button>
 
-                                <!-- Quarter prices accordion -->
+                                <!-- Quarter prices accordion - Mini bar charts -->
                                 <div
                                     x-show="expandedHour === {{ $price['timestamp'] }}"
                                     x-collapse
-                                    class="mt-2 ml-20 mr-8"
+                                    class="mt-2 ml-4 sm:ml-20 mr-2 sm:mr-8"
+                                    x-data="{
+                                        getQuarterBarWidth(quarters, price) {
+                                            if (!quarters || quarters.length === 0) return 20;
+                                            const prices = quarters.map(q => q.price_with_tax);
+                                            const min = Math.min(...prices);
+                                            const max = Math.max(...prices);
+                                            const range = max - min;
+                                            if (range <= 0) return 60;
+                                            return 20 + ((price - min) / range) * 80;
+                                        },
+                                        getQuarterColorClass(quarters, price) {
+                                            if (!quarters || quarters.length === 0) return 'bg-yellow-500';
+                                            const prices = quarters.map(q => q.price_with_tax);
+                                            const min = Math.min(...prices);
+                                            const max = Math.max(...prices);
+                                            const range = max - min;
+                                            if (range <= 0) return 'bg-yellow-500';
+                                            const normalized = (price - min) / range;
+                                            if (normalized < 0.33) return 'bg-green-500';
+                                            if (normalized < 0.66) return 'bg-yellow-500';
+                                            return 'bg-red-500';
+                                        }
+                                    }"
                                 >
                                     <template x-if="quarterPricesByHour[{{ $price['timestamp'] }}] && quarterPricesByHour[{{ $price['timestamp'] }}].length > 0">
-                                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                        <div class="space-y-1.5 py-2">
                                             <template x-for="(quarter, idx) in quarterPricesByHour[{{ $price['timestamp'] }}]" :key="idx">
-                                                <div
-                                                    class="quarter-card rounded-lg p-3 border transition-colors"
-                                                    :class="{
-                                                        'bg-orange-50 border-orange-300': quarter.is_current_slot,
-                                                        'bg-slate-50 border-slate-200': !quarter.is_current_slot
-                                                    }"
-                                                >
-                                                    <p class="text-xs mb-1" :class="quarter.is_current_slot ? 'text-orange-600 font-medium' : 'text-slate-500'">
+                                                <div class="flex items-center gap-2">
+                                                    <!-- Time label -->
+                                                    <span
+                                                        class="w-24 sm:w-28 text-xs font-medium flex items-center gap-1"
+                                                        :class="quarter.is_current_slot ? 'text-orange-600' : 'text-slate-600'"
+                                                    >
                                                         <span x-text="quarter.time_label"></span>
                                                         <template x-if="quarter.is_current_slot">
-                                                            <span class="ml-1 bg-orange-200 text-orange-700 px-1.5 py-0.5 rounded text-xs">Nyt</span>
+                                                            <span class="bg-orange-200 text-orange-700 px-1 py-0.5 rounded text-xs">Nyt</span>
                                                         </template>
-                                                    </p>
-                                                    <p class="text-sm font-semibold" :class="quarter.is_current_slot ? 'text-orange-700' : 'text-slate-900'">
-                                                        <span x-text="quarter.price_with_tax.toFixed(2).replace('.', ',')"></span> c
-                                                    </p>
+                                                    </span>
+
+                                                    <!-- Mini bar -->
+                                                    <div class="flex-1 h-5 bg-slate-100 rounded relative overflow-hidden">
+                                                        <div
+                                                            class="h-full rounded transition-all duration-200"
+                                                            :class="quarter.is_current_slot ? 'bg-orange-500' : getQuarterColorClass(quarterPricesByHour[{{ $price['timestamp'] }}], quarter.price_with_tax)"
+                                                            :style="'width: ' + getQuarterBarWidth(quarterPricesByHour[{{ $price['timestamp'] }}], quarter.price_with_tax) + '%'"
+                                                        ></div>
+                                                    </div>
+
+                                                    <!-- Price value -->
+                                                    <span
+                                                        class="w-16 sm:w-20 text-xs text-right font-medium"
+                                                        :class="quarter.is_current_slot ? 'text-orange-600' : 'text-slate-700'"
+                                                        x-text="quarter.price_with_tax.toFixed(2).replace('.', ',') + ' c'"
+                                                    ></span>
                                                 </div>
                                             </template>
                                         </div>
@@ -295,22 +329,58 @@
                                         </svg>
                                     </button>
 
-                                    <!-- Quarter prices accordion -->
+                                    <!-- Quarter prices accordion - Mini bar charts -->
                                     <div
                                         x-show="expandedHour === {{ $price['timestamp'] }}"
                                         x-collapse
-                                        class="mt-2 ml-20 mr-8"
+                                        class="mt-2 ml-4 sm:ml-20 mr-2 sm:mr-8"
+                                        x-data="{
+                                            getQuarterBarWidth(quarters, price) {
+                                                if (!quarters || quarters.length === 0) return 20;
+                                                const prices = quarters.map(q => q.price_with_tax);
+                                                const min = Math.min(...prices);
+                                                const max = Math.max(...prices);
+                                                const range = max - min;
+                                                if (range <= 0) return 60;
+                                                return 20 + ((price - min) / range) * 80;
+                                            },
+                                            getQuarterColorClass(quarters, price) {
+                                                if (!quarters || quarters.length === 0) return 'bg-yellow-500';
+                                                const prices = quarters.map(q => q.price_with_tax);
+                                                const min = Math.min(...prices);
+                                                const max = Math.max(...prices);
+                                                const range = max - min;
+                                                if (range <= 0) return 'bg-yellow-500';
+                                                const normalized = (price - min) / range;
+                                                if (normalized < 0.33) return 'bg-green-500';
+                                                if (normalized < 0.66) return 'bg-yellow-500';
+                                                return 'bg-red-500';
+                                            }
+                                        }"
                                     >
                                         <template x-if="quarterPricesByHour[{{ $price['timestamp'] }}] && quarterPricesByHour[{{ $price['timestamp'] }}].length > 0">
-                                            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                            <div class="space-y-1.5 py-2">
                                                 <template x-for="(quarter, idx) in quarterPricesByHour[{{ $price['timestamp'] }}]" :key="idx">
-                                                    <div class="quarter-card rounded-lg p-3 border bg-slate-50 border-slate-200 transition-colors">
-                                                        <p class="text-xs text-slate-500 mb-1">
+                                                    <div class="flex items-center gap-2">
+                                                        <!-- Time label -->
+                                                        <span class="w-24 sm:w-28 text-xs font-medium text-slate-600">
                                                             <span x-text="quarter.time_label"></span>
-                                                        </p>
-                                                        <p class="text-sm font-semibold text-slate-900">
-                                                            <span x-text="quarter.price_with_tax.toFixed(2).replace('.', ',')"></span> c
-                                                        </p>
+                                                        </span>
+
+                                                        <!-- Mini bar -->
+                                                        <div class="flex-1 h-5 bg-slate-100 rounded relative overflow-hidden">
+                                                            <div
+                                                                class="h-full rounded transition-all duration-200"
+                                                                :class="getQuarterColorClass(quarterPricesByHour[{{ $price['timestamp'] }}], quarter.price_with_tax)"
+                                                                :style="'width: ' + getQuarterBarWidth(quarterPricesByHour[{{ $price['timestamp'] }}], quarter.price_with_tax) + '%'"
+                                                            ></div>
+                                                        </div>
+
+                                                        <!-- Price value -->
+                                                        <span
+                                                            class="w-16 sm:w-20 text-xs text-right font-medium text-slate-700"
+                                                            x-text="quarter.price_with_tax.toFixed(2).replace('.', ',') + ' c'"
+                                                        ></span>
                                                     </div>
                                                 </template>
                                             </div>
@@ -618,141 +688,6 @@
                 @endif
             </div>
         </section>
-
-        <!-- Hourly Prices Table with Expandable 15-min Details -->
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-8">
-            <div class="p-4 border-b border-slate-200">
-                <h3 class="text-lg font-semibold text-slate-900">Tuntihinnat</h3>
-                <p class="text-sm text-slate-500 mt-1">Klikkaa riviä nähdäksesi 15 minuutin hinnat</p>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead class="bg-slate-50">
-                        <tr class="flex">
-                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider w-10 flex-shrink-0"></th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider flex-1">Tunti</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider flex-1">Hinta (ALV 0%)</th>
-                            <th class="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider flex-1">Hinta (sis. ALV)</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        @foreach ($hourlyPrices as $index => $price)
-                            @php
-                                $hour = $price['helsinki_hour'];
-                                $currentHourNow = (int) now('Europe/Helsinki')->format('H');
-                                $todayDate = now('Europe/Helsinki')->format('Y-m-d');
-                                $isCurrentHour = $currentHourNow === $hour && $price['helsinki_date'] === $todayDate;
-                                $isTomorrow = $price['helsinki_date'] !== $todayDate;
-                                $vatPercent = round($price['vat_rate'] * 100, 1);
-
-                                // Color coding
-                                $priceValue = $price['price_without_tax'];
-                                $min = $todayMinMax['min'] ?? 0;
-                                $max = $todayMinMax['max'] ?? 0;
-                                $range = $max - $min;
-                                if ($range > 0) {
-                                    $normalized = ($priceValue - $min) / $range;
-                                } else {
-                                    $normalized = 0.5;
-                                }
-                            @endphp
-                            @php
-                                $quarterPricesForHour = $quarterPricesByHour[$price['timestamp']] ?? [];
-                            @endphp
-                            <tr
-                                x-data="{ expanded: false, quarterPrices: @js($quarterPricesForHour) }"
-                                class="{{ $isCurrentHour ? 'bg-coral-50' : '' }}"
-                            >
-                                <td colspan="4" class="p-0">
-                                    <!-- Main row (clickable) -->
-                                    <button
-                                        type="button"
-                                        class="w-full flex items-center hover:bg-slate-50 transition-colors {{ $isCurrentHour ? 'hover:bg-coral-100' : '' }}"
-                                        @click="expanded = !expanded"
-                                    >
-                                        <span class="px-4 py-3 w-10 flex-shrink-0">
-                                            <svg
-                                                class="w-4 h-4 text-slate-400 transition-transform duration-200"
-                                                :class="{ 'rotate-90': expanded }"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                            </svg>
-                                        </span>
-                                        <span class="px-4 py-3 whitespace-nowrap text-sm text-left flex-1 {{ $isCurrentHour ? 'font-bold text-coral-700' : 'text-slate-900' }}">
-                                            {{ str_pad($hour, 2, '0', STR_PAD_LEFT) }}:00 - {{ str_pad(($hour + 1) % 24, 2, '0', STR_PAD_LEFT) }}:00
-                                            @if ($isCurrentHour)
-                                                <span class="ml-2 text-xs bg-coral-200 text-coral-800 px-2 py-1 rounded">Nyt</span>
-                                            @endif
-                                            @if ($isTomorrow)
-                                                <span class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Huomenna</span>
-                                            @endif
-                                        </span>
-                                        <span class="px-4 py-3 whitespace-nowrap text-sm text-right flex-1">
-                                            <span class="inline-flex items-center justify-end">
-                                                @if ($normalized < 0.33)
-                                                    <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-                                                @elseif ($normalized < 0.66)
-                                                    <span class="w-2 h-2 rounded-full bg-yellow-500 mr-2"></span>
-                                                @else
-                                                    <span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
-                                                @endif
-                                                <span class="text-slate-900">{{ number_format($price['price_without_tax'] ?? 0, 2, ',', ' ') }} c/kWh</span>
-                                            </span>
-                                        </span>
-                                        <span class="px-4 py-3 whitespace-nowrap text-sm text-slate-900 text-right flex-1">
-                                            {{ number_format($price['price_with_tax'] ?? 0, 2, ',', ' ') }} c/kWh
-                                            <span class="text-xs text-slate-400">(ALV {{ $vatPercent }}%)</span>
-                                        </span>
-                                    </button>
-
-                                    <!-- Expanded quarter-hour details -->
-                                    <div
-                                        x-show="expanded"
-                                        x-collapse
-                                        class="bg-slate-50 border-t border-slate-200"
-                                    >
-                                        <template x-if="quarterPrices.length === 0">
-                                            <div class="px-8 py-3 text-sm text-slate-500">
-                                                15 minuutin hintatietoja ei saatavilla tälle tunnille.
-                                            </div>
-                                        </template>
-                                        <template x-if="quarterPrices.length > 0">
-                                            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 p-3">
-                                                <template x-for="(quarter, qIndex) in quarterPrices" :key="qIndex">
-                                                    <div
-                                                        class="rounded-lg p-3 border"
-                                                        :class="{
-                                                            'bg-coral-50 border-coral-300 ring-2 ring-coral-200': quarter.is_current_slot,
-                                                            'bg-white border-slate-200': !quarter.is_current_slot
-                                                        }"
-                                                    >
-                                                        <p class="text-xs mb-1" :class="quarter.is_current_slot ? 'text-coral-600 font-medium' : 'text-slate-500'">
-                                                            <span x-text="quarter.time_label"></span>
-                                                            <template x-if="quarter.is_current_slot">
-                                                                <span class="ml-1 bg-coral-200 text-coral-800 px-1.5 py-0.5 rounded text-xs">Nyt</span>
-                                                            </template>
-                                                        </p>
-                                                        <p class="text-sm font-semibold" :class="quarter.is_current_slot ? 'text-coral-700' : 'text-slate-900'">
-                                                            <span x-text="quarter.price_without_tax.toFixed(2).replace('.', ',')"></span> c/kWh
-                                                        </p>
-                                                        <p class="text-xs text-slate-500">
-                                                            <span x-text="quarter.price_with_tax.toFixed(2).replace('.', ',')"></span> c/kWh (ALV)
-                                                        </p>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
 
     <!-- CSV Download Button -->
         <div class="flex justify-end mb-8">
