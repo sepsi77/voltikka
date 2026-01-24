@@ -270,7 +270,7 @@
     </div>
 
     <!-- Legend and explanation -->
-    <div class="mt-6 space-y-4">
+    <div class="mt-6 space-y-3">
         <!-- Color legend with explicit meaning -->
         <div class="flex flex-wrap justify-center gap-4 text-sm">
             <div class="flex items-center gap-2">
@@ -290,11 +290,10 @@
             </div>
         </div>
 
-        <!-- Explicit explanation text -->
+        <!-- Explicit explanation text with threshold -->
         <p class="text-center text-sm text-slate-500">
-            Värit kertovat suhteen 30 pv keskiarvoon: <span class="text-green-600 font-medium">vihreä</span> = alle,
-            <span class="text-yellow-600 font-medium">keltainen</span> = lähellä,
-            <span class="text-red-600 font-medium">punainen</span> = yli.
+            Värit kertovat suhteen 30 pv keskiarvoon ({{ number_format($avg30d ?? 0, 2, ',', ' ') }} c/kWh).
+            Normaali = ±5% keskiarvosta.
         </p>
     </div>
 </div>

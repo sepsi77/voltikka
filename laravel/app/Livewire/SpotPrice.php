@@ -155,6 +155,14 @@ class SpotPrice extends Component
         // Sort by hour
         usort($todayPrices, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
 
+        // Calculate rank within today (1 = cheapest, 24 = most expensive)
+        $pricesForRanking = $todayPrices;
+        usort($pricesForRanking, fn($a, $b) => $a['price_with_tax'] <=> $b['price_with_tax']);
+        $todayRanks = [];
+        foreach ($pricesForRanking as $rank => $price) {
+            $todayRanks[$price['helsinki_hour']] = $rank + 1; // 1-indexed
+        }
+
         // Find max price across today+tomorrow for consistent absolute scale
         $allPrices = array_column($this->hourlyPrices, 'price_with_tax');
         $maxPrice = !empty($allPrices) ? max($allPrices) : 20;
@@ -169,32 +177,35 @@ class SpotPrice extends Component
         $currentHour = (int) $helsinkiNow->format('H');
         $todayDate = $helsinkiNow->format('Y-m-d');
 
-        return array_map(function ($price) use ($scaleMax, $avg30dWithVat, $currentHour, $todayDate) {
+        return array_map(function ($price) use ($scaleMax, $avg30dWithVat, $currentHour, $todayDate, $todayRanks) {
             $priceWithVat = $price['price_with_tax'];
+            $hour = $price['helsinki_hour'];
 
             // Check if this is the current hour
-            $isCurrentHour = $price['helsinki_date'] === $todayDate && $price['helsinki_hour'] === $currentHour;
+            $isCurrentHour = $price['helsinki_date'] === $todayDate && $hour === $currentHour;
 
-            // Get color based on % difference from 30d average (or orange for current hour)
-            $colorClass = $isCurrentHour
-                ? 'bg-orange-500'
-                : $this->getColorClassFromAvgDiff($priceWithVat, $avg30dWithVat);
+            // Get color based on % difference from 30d average (same for all hours, including current)
+            $colorClass = $this->getColorClassFromAvgDiff($priceWithVat, $avg30dWithVat);
 
             // Calculate width as absolute percentage (price / scaleMax * 100)
             $widthPercent = min(100, max(3, round(($priceWithVat / $scaleMax) * 100)));
 
-            // Get badge (Edullinen/Normaali/Kallis)
+            // Get badge (Edullinen/Normaali/Kallis) - relative to 30d avg
             $badge = $this->getPriceBadge($priceWithVat, $avg30dWithVat);
+
+            // Get today's rank (1 = cheapest today)
+            $todayRank = $todayRanks[$hour] ?? null;
 
             return [
                 'timestamp' => $price['timestamp'],
-                'hour' => $price['helsinki_hour'],
+                'hour' => $hour,
                 'price_with_vat' => $priceWithVat,
                 'price_without_vat' => $price['price_without_tax'],
                 'colorClass' => $colorClass,
                 'widthPercent' => $widthPercent,
                 'isCurrentHour' => $isCurrentHour,
                 'badge' => $badge,
+                'todayRank' => $todayRank,
             ];
         }, $todayPrices);
     }

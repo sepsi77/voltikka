@@ -60,11 +60,15 @@
                                     x-transition:leave="transition ease-in duration-150"
                                     x-transition:leave-start="opacity-100 translate-y-0"
                                     x-transition:leave-end="opacity-0 translate-y-1"
-                                    class="absolute left-0 top-full mt-2 z-50 w-64 p-3 bg-slate-900 text-white text-sm rounded-lg shadow-xl"
+                                    class="absolute left-0 top-full mt-2 z-50 w-72 p-3 bg-slate-900 text-white text-sm rounded-lg shadow-xl"
                                 >
-                                    <p class="font-medium mb-1">Mitä hinta sisältää?</p>
+                                    <p class="font-medium mb-2">Mitä hinta sisältää?</p>
                                     <p class="text-slate-300">Spot-hinta (Nord Pool) + ALV 25,5%.</p>
-                                    <p class="text-slate-300 mt-1">Ei sisällä sähkönsiirtoa eikä sopimuksesi marginaalia.</p>
+                                    <p class="text-slate-300 mt-2">Ei sisällä:</p>
+                                    <ul class="text-slate-300 text-xs mt-1 ml-3 list-disc">
+                                        <li>Sähkönsiirtoa (~3-5 c/kWh)</li>
+                                        <li>Sopimuksesi marginaalia (~0,3-0,5 c/kWh)</li>
+                                    </ul>
                                     <div class="absolute left-4 -top-1 w-2 h-2 bg-slate-900 transform rotate-45"></div>
                                 </div>
                             </div>
@@ -79,8 +83,7 @@
                         </p>
                     </div>
                     <div class="mt-4 md:mt-0 text-right">
-                        <p class="text-coral-100 text-sm">ALV 0%</p>
-                        <p class="text-2xl font-semibold">{{ number_format($currentPrice['price_without_tax'] ?? 0, 2, ',', ' ') }} c/kWh</p>
+                        <p class="text-coral-100 text-sm">sis. ALV 25,5%</p>
                     </div>
                 </div>
             </div>
@@ -428,7 +431,7 @@
         @if (!empty($cheapestRemainingHours))
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-8">
                 <h3 class="text-lg font-semibold text-slate-900 mb-2">Edullisimmat tunnit</h3>
-                <p class="text-sm text-slate-500 mb-4">Tulevat edullisimmat tunnit (sis. huomisen)</p>
+                <p class="text-sm text-slate-500 mb-4">Tulevat edullisimmat tunnit (sis. huomisen) • Spot-hinta sis. ALV, ei siirtoa/marginaalia</p>
                 <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
                     @foreach ($cheapestRemainingHours as $index => $hour)
                         @php
@@ -441,7 +444,7 @@
                                 {{ str_pad($hourNum, 2, '0', STR_PAD_LEFT) }}:00-{{ str_pad($nextHourNum, 2, '0', STR_PAD_LEFT) }}:00
                             </p>
                             <p class="{{ $index === 0 ? 'text-green-700' : 'text-slate-600' }} font-medium">
-                                {{ number_format($hour['price_without_tax'], 2, ',', ' ') }} c/kWh
+                                {{ number_format($hour['price_with_tax'], 2, ',', ' ') }} c/kWh
                             </p>
                             @if ($isTomorrow)
                                 <span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Huomenna</span>
@@ -517,7 +520,7 @@
                                     </span>
 
                                     <!-- Bar container -->
-                                    <div class="flex-1 h-8 bg-slate-100 rounded-lg relative overflow-hidden">
+                                    <div class="flex-1 h-8 bg-slate-100 rounded-lg relative {{ $price['isCurrentHour'] ? 'ring-2 ring-orange-500' : '' }}">
                                         <div
                                             class="h-full {{ $price['colorClass'] }} rounded-lg transition-all duration-300 flex items-center justify-end pr-2"
                                             style="width: {{ $price['widthPercent'] }}%"
@@ -533,14 +536,32 @@
                                         {{ number_format($price['price_with_vat'], 2, ',', ' ') }} c
                                     </span>
 
-                                    <!-- Price badge (Edullinen/Normaali/Kallis) -->
-                                    <span class="hidden sm:inline-flex w-20 justify-center items-center px-2 py-0.5 rounded-full text-xs font-medium
-                                        {{ $price['badge']['type'] === 'cheap' ? 'bg-green-100 text-green-800' : '' }}
-                                        {{ $price['badge']['type'] === 'normal' ? 'bg-yellow-100 text-yellow-800' : '' }}
-                                        {{ $price['badge']['type'] === 'expensive' ? 'bg-red-100 text-red-800' : '' }}
-                                    ">
-                                        {{ $price['badge']['label'] }}
-                                    </span>
+                                    <!-- Price badges -->
+                                    <div class="hidden sm:flex items-center gap-1.5">
+                                        {{-- Today's rank badge (relative to today) --}}
+                                        @if (($price['todayRank'] ?? 0) === 1)
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                                🏆 Halvin
+                                            </span>
+                                        @elseif (($price['todayRank'] ?? 0) <= 3)
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                Top 3
+                                            </span>
+                                        @elseif (($price['todayRank'] ?? 0) >= 23)
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">
+                                                Kallein
+                                            </span>
+                                        @endif
+
+                                        {{-- 30d average badge --}}
+                                        <span class="inline-flex w-16 justify-center items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                            {{ $price['badge']['type'] === 'cheap' ? 'bg-green-100 text-green-800' : '' }}
+                                            {{ $price['badge']['type'] === 'normal' ? 'bg-yellow-100 text-yellow-800' : '' }}
+                                            {{ $price['badge']['type'] === 'expensive' ? 'bg-red-100 text-red-800' : '' }}
+                                        ">
+                                            {{ $price['badge']['label'] }}
+                                        </span>
+                                    </div>
 
                                     <!-- Expand icon -->
                                     <svg
