@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
 use App\Models\SpotPriceQuarter;
 use Carbon\Carbon;
@@ -14,6 +15,7 @@ class SpotPrice extends Component
     public bool $loading = true;
     public ?string $error = null;
     public bool $historicalDataLoaded = false;
+    public ?float $rolling30DayAvgWithVat = null;
 
     // Historical data (lazy loaded)
     public array $weeklyDailyAverages = [];
@@ -43,6 +45,44 @@ class SpotPrice extends Component
     {
         $this->fetchPrices();
         $this->loadHistoricalData();
+        $this->loadRolling30DayAverage();
+    }
+
+    /**
+     * Load the 30-day rolling average with VAT for the clock chart.
+     */
+    private function loadRolling30DayAverage(): void
+    {
+        $rolling30 = SpotPriceAverage::latestRolling30Days(self::REGION);
+        $this->rolling30DayAvgWithVat = $rolling30?->avg_price_without_tax
+            ? round($rolling30->avg_price_without_tax * 1.255, 2)
+            : null;
+    }
+
+    /**
+     * Get today's 24 hourly prices (with VAT) for the clock chart.
+     *
+     * Returns an array of 24 prices indexed by hour (0-23), each with:
+     * - hour: 0-23
+     * - price_with_vat: price in c/kWh with VAT
+     *
+     * @return array
+     */
+    public function getTodayPricesForClock(): array
+    {
+        $todayPrices = $this->getTodayPrices();
+
+        if (empty($todayPrices)) {
+            return [];
+        }
+
+        // Sort by hour and extract just what the clock needs
+        usort($todayPrices, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
+
+        return array_map(fn($price) => [
+            'hour' => $price['helsinki_hour'],
+            'price_with_vat' => $price['price_with_tax'],
+        ], $todayPrices);
     }
 
     public function fetchPrices(): void

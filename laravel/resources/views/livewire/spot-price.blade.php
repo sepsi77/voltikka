@@ -55,6 +55,16 @@
             </div>
         @endif
 
+        <!-- 24-Hour Clock Chart: Today's prices vs 30-day average -->
+        @if ($rolling30DayAvgWithVat && count($this->getTodayPricesForClock()) === 24)
+            <div class="mb-8">
+                <x-spot-clock-chart
+                    :prices="$this->getTodayPricesForClock()"
+                    :avg30d="$rolling30DayAvgWithVat"
+                />
+            </div>
+        @endif
+
         <!-- Price Comparison Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <!-- Today's Average -->
