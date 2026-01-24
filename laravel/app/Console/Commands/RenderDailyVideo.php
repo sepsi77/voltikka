@@ -454,6 +454,12 @@ class RenderDailyVideo extends Command
                 'posted_count' => $result['posted_count'],
                 'skipped_platforms' => $result['skipped_platforms'],
             ]);
+
+            // Clean up local video file after successful upload
+            if (file_exists($videoPath)) {
+                unlink($videoPath);
+                $this->line("Local video file deleted: {$videoPath}");
+            }
         } catch (\Exception $e) {
             $this->error('PostFast posting failed: ' . $e->getMessage());
             Log::error('PostFast posting failed', [
