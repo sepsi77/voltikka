@@ -168,7 +168,7 @@ class PostFastService
             // Use the first connected account for this platform
             $account = $accountsByPlatform[$platform][0];
 
-            $posts[] = [
+            $post = [
                 'socialMediaId' => $account['id'],
                 'content' => $text,
                 'mediaItems' => [
@@ -179,6 +179,13 @@ class PostFastService
                     ],
                 ],
             ];
+
+            // Add scheduledAt to each post if not draft mode
+            if (!$asDraft) {
+                $post['scheduledAt'] = $scheduledAt->toIso8601String();
+            }
+
+            $posts[] = $post;
 
             Log::info("PostFast: Prepared post for {$platform}", [
                 'account_name' => $account['name'] ?? 'unknown',
@@ -208,7 +215,7 @@ class PostFastService
             ]);
         } else {
             $payload['status'] = 'SCHEDULED';
-            $payload['scheduledAt'] = $scheduledAt->toIso8601String();
+            // Note: scheduledAt is set per-post, not at the top level
             Log::info('PostFast: Scheduling posts', [
                 'post_count' => count($posts),
                 'scheduled_at' => $scheduledAt->toIso8601String(),
