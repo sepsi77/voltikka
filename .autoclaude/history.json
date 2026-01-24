@@ -107,7 +107,11 @@
     "spot-price-enhancement": {
       "started_at": "2026-01-24T10:36:12.305211",
       "ended_at": null
+    },
+    "spot-price-tips-relocation": {
+      "started_at": "2026-01-24T12:13:21.435452",
+      "ended_at": null
     }
   },
-  "current": "spot-price-enhancement"
+  "current": "spot-price-tips-relocation"
 }
