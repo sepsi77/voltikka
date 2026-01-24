@@ -536,25 +536,28 @@
                                         {{ number_format($price['price_with_vat'], 2, ',', ' ') }} c
                                     </span>
 
-                                    <!-- Price badges -->
-                                    <div class="hidden sm:flex items-center gap-1.5">
+                                    <!-- Price badges - fixed width container to keep bars consistent -->
+                                    <div class="hidden sm:flex items-center justify-end gap-1 w-32 shrink-0">
                                         {{-- Today's rank badge (relative to today) --}}
                                         @if (($price['todayRank'] ?? 0) === 1)
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                                🏆 Halvin
+                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-300" title="Päivän halvin">
+                                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401z" clip-rule="evenodd"/></svg>
+                                                <span>1.</span>
                                             </span>
                                         @elseif (($price['todayRank'] ?? 0) <= 3)
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                Top 3
+                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600 border border-emerald-200" title="Top 3 halvin">
+                                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.236 4.457L7.73 10.09a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
+                                                <span>{{ $price['todayRank'] }}.</span>
                                             </span>
-                                        @elseif (($price['todayRank'] ?? 0) >= 23)
-                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">
-                                                Kallein
+                                        @elseif (($price['todayRank'] ?? 0) >= 22)
+                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-600 border border-rose-200" title="Päivän kallein">
+                                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 17a.75.75 0 01-.75-.75V5.612L5.29 9.77a.75.75 0 01-1.08-1.04l5.25-5.5a.75.75 0 011.08 0l5.25 5.5a.75.75 0 11-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0110 17z" clip-rule="evenodd"/></svg>
+                                                <span>{{ $price['todayRank'] }}.</span>
                                             </span>
                                         @endif
 
                                         {{-- 30d average badge --}}
-                                        <span class="inline-flex w-16 justify-center items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                        <span class="inline-flex w-14 justify-center items-center px-1.5 py-0.5 rounded-full text-xs font-medium
                                             {{ $price['badge']['type'] === 'cheap' ? 'bg-green-100 text-green-800' : '' }}
                                             {{ $price['badge']['type'] === 'normal' ? 'bg-yellow-100 text-yellow-800' : '' }}
                                             {{ $price['badge']['type'] === 'expensive' ? 'bg-red-100 text-red-800' : '' }}
