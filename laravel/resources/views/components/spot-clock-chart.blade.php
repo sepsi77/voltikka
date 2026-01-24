@@ -97,9 +97,11 @@
     for ($hour = 0; $hour < 24; $hour++) {
         $price = $pricesByHour[$hour] ?? null;
         if ($price !== null && $avg30d !== null) {
+            $percentDiff = $avg30d > 0 ? (($price - $avg30d) / $avg30d) * 100 : 0;
             $segments[] = [
                 'hour' => $hour,
                 'price' => $price,
+                'percentDiff' => round($percentDiff, 1),
                 'color' => getClockSegmentColor($price, $avg30d),
                 'path' => getClockSegmentPath($hour, $innerRadius, $outerRadius, $cx, $cy),
             ];
@@ -120,7 +122,51 @@
 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-6">
     <h3 class="text-lg font-semibold text-slate-900 mb-4 text-center">Tuntihinnat vs. 30 pv keskiarvo</h3>
 
-    <div class="flex justify-center">
+    <div
+        class="flex justify-center relative"
+        x-data="{
+            hovered: null,
+            tooltipX: 0,
+            tooltipY: 0,
+            segments: {{ Js::from($segments) }},
+            showTooltip(event, segment) {
+                this.hovered = segment;
+                const rect = event.target.getBoundingClientRect();
+                const containerRect = this.$el.getBoundingClientRect();
+                this.tooltipX = rect.left + rect.width / 2 - containerRect.left;
+                this.tooltipY = rect.top - containerRect.top;
+            },
+            hideTooltip() {
+                this.hovered = null;
+            },
+            formatDiff(diff) {
+                return diff >= 0 ? '+' + diff : diff;
+            }
+        }"
+    >
+        <!-- Tooltip -->
+        <div
+            x-show="hovered"
+            x-transition:enter="transition ease-out duration-150"
+            x-transition:enter-start="opacity-0 translate-y-1"
+            x-transition:enter-end="opacity-100 translate-y-0"
+            x-transition:leave="transition ease-in duration-100"
+            x-transition:leave-start="opacity-100 translate-y-0"
+            x-transition:leave-end="opacity-0 translate-y-1"
+            class="clock-tooltip"
+            :style="'left: ' + tooltipX + 'px; top: ' + tooltipY + 'px;'"
+        >
+            <div class="font-semibold" x-text="hovered ? String(hovered.hour).padStart(2, '0') + ':00–' + String((hovered.hour + 1) % 24).padStart(2, '0') + ':00' : ''"></div>
+            <div class="flex items-center gap-2">
+                <span x-text="hovered ? hovered.price.toFixed(2) + ' c/kWh' : ''"></span>
+                <span
+                    class="text-xs px-1.5 py-0.5 rounded"
+                    :class="hovered && hovered.percentDiff <= 0 ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'"
+                    x-text="hovered ? formatDiff(hovered.percentDiff) + '%' : ''"
+                ></span>
+            </div>
+        </div>
+
         <svg
             viewBox="0 0 {{ $viewBoxSize }} {{ $viewBoxSize }}"
             class="w-full max-w-[280px] sm:max-w-[350px]"
@@ -133,10 +179,14 @@
                     <path
                         d="{{ $segment['path'] }}"
                         fill="{{ $segment['color'] }}"
+                        stroke="#ffffff"
+                        stroke-width="1.5"
                         class="clock-segment"
                         style="--segment-index: {{ $index }}"
                         data-hour="{{ $segment['hour'] }}"
                         data-price="{{ number_format($segment['price'], 2) }}"
+                        @mouseenter="showTooltip($event, segments[{{ $index }}])"
+                        @mouseleave="hideTooltip()"
                     >
                         <title>{{ sprintf('%02d:00', $segment['hour']) }} - {{ number_format($segment['price'], 2) }} c/kWh</title>
                     </path>
@@ -191,7 +241,7 @@
                         y="{{ $my + 4 }}"
                         text-anchor="middle"
                         fill="#475569"
-                        font-size="13"
+                        font-size="16"
                         font-weight="600"
                     >{{ $marker['label'] }}</text>
                 @endforeach
@@ -200,13 +250,13 @@
     </div>
 
     <!-- Legend -->
-    <div class="clock-legend flex justify-center gap-6 mt-4 text-sm">
+    <div class="clock-legend flex justify-center gap-6 mt-4 text-base">
         <div class="flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full bg-green-500"></span>
+            <span class="w-4 h-4 rounded-full bg-green-500"></span>
             <span class="text-slate-600">Alle keskiarvon</span>
         </div>
         <div class="flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full bg-red-500"></span>
+            <span class="w-4 h-4 rounded-full bg-red-500"></span>
             <span class="text-slate-600">Yli keskiarvon</span>
         </div>
     </div>

@@ -85,6 +85,147 @@ class SpotPrice extends Component
         ], $todayPrices);
     }
 
+    /**
+     * Get today's prices with metadata for the horizontal bar chart.
+     *
+     * Returns an array of prices for today with:
+     * - timestamp: Unix timestamp for the hour start
+     * - hour: 0-23
+     * - price_with_vat: Price in c/kWh with VAT
+     * - price_without_vat: Price in c/kWh without VAT
+     * - colorClass: Tailwind color class based on price relative to day range
+     * - widthPercent: Bar width percentage (0-100) based on price
+     * - isCurrentHour: Whether this is the current hour
+     *
+     * @return array
+     */
+    public function getTodayPricesWithMeta(): array
+    {
+        $todayPrices = $this->getTodayPrices();
+
+        if (empty($todayPrices)) {
+            return [];
+        }
+
+        // Sort by hour
+        usort($todayPrices, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
+
+        // Calculate price range for normalization
+        $prices = array_column($todayPrices, 'price_without_tax');
+        $minPrice = min($prices);
+        $maxPrice = max($prices);
+        $priceRange = $maxPrice - $minPrice;
+
+        // Get current hour for highlighting
+        $helsinkiNow = Carbon::now(self::TIMEZONE);
+        $currentHour = (int) $helsinkiNow->format('H');
+        $todayDate = $helsinkiNow->format('Y-m-d');
+
+        return array_map(function ($price) use ($minPrice, $priceRange, $currentHour, $todayDate) {
+            $priceValue = $price['price_without_tax'];
+            $normalizedPrice = $priceRange > 0 ? ($priceValue - $minPrice) / $priceRange : 0.5;
+
+            // Determine color class based on normalized price
+            if ($normalizedPrice < 0.33) {
+                $colorClass = 'bg-green-500';
+            } elseif ($normalizedPrice < 0.66) {
+                $colorClass = 'bg-yellow-500';
+            } else {
+                $colorClass = 'bg-red-500';
+            }
+
+            // Check if this is the current hour
+            $isCurrentHour = $price['helsinki_date'] === $todayDate && $price['helsinki_hour'] === $currentHour;
+
+            // Use coral color for current hour
+            if ($isCurrentHour) {
+                $colorClass = 'bg-orange-500';
+            }
+
+            // Calculate width percentage (minimum 5% for visibility)
+            $widthPercent = max(5, round($normalizedPrice * 100));
+
+            return [
+                'timestamp' => $price['timestamp'],
+                'hour' => $price['helsinki_hour'],
+                'price_with_vat' => $price['price_with_tax'],
+                'price_without_vat' => $price['price_without_tax'],
+                'colorClass' => $colorClass,
+                'widthPercent' => $widthPercent,
+                'isCurrentHour' => $isCurrentHour,
+            ];
+        }, $todayPrices);
+    }
+
+    /**
+     * Get tomorrow's prices with metadata for the horizontal bar chart.
+     *
+     * Tomorrow's prices are typically available after ~14:00 Finnish time from ENTSO-E.
+     *
+     * @return array Empty array if tomorrow's prices are not yet available
+     */
+    public function getTomorrowPricesWithMeta(): array
+    {
+        $helsinkiNow = Carbon::now(self::TIMEZONE);
+        $tomorrowDate = $helsinkiNow->copy()->addDay()->format('Y-m-d');
+
+        // Filter to only tomorrow's prices
+        $tomorrowPrices = array_filter(
+            $this->hourlyPrices,
+            fn($price) => $price['helsinki_date'] === $tomorrowDate
+        );
+
+        if (empty($tomorrowPrices)) {
+            return [];
+        }
+
+        // Sort by hour
+        usort($tomorrowPrices, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
+
+        // Calculate price range for normalization (use tomorrow's range)
+        $prices = array_column($tomorrowPrices, 'price_without_tax');
+        $minPrice = min($prices);
+        $maxPrice = max($prices);
+        $priceRange = $maxPrice - $minPrice;
+
+        return array_map(function ($price) use ($minPrice, $priceRange) {
+            $priceValue = $price['price_without_tax'];
+            $normalizedPrice = $priceRange > 0 ? ($priceValue - $minPrice) / $priceRange : 0.5;
+
+            // Determine color class based on normalized price
+            if ($normalizedPrice < 0.33) {
+                $colorClass = 'bg-green-500';
+            } elseif ($normalizedPrice < 0.66) {
+                $colorClass = 'bg-yellow-500';
+            } else {
+                $colorClass = 'bg-red-500';
+            }
+
+            // Calculate width percentage (minimum 5% for visibility)
+            $widthPercent = max(5, round($normalizedPrice * 100));
+
+            return [
+                'timestamp' => $price['timestamp'],
+                'hour' => $price['helsinki_hour'],
+                'price_with_vat' => $price['price_with_tax'],
+                'price_without_vat' => $price['price_without_tax'],
+                'colorClass' => $colorClass,
+                'widthPercent' => $widthPercent,
+                'isCurrentHour' => false, // Tomorrow's hours are never "current"
+            ];
+        }, array_values($tomorrowPrices));
+    }
+
+    /**
+     * Check if tomorrow's prices are available.
+     *
+     * @return bool
+     */
+    public function hasTomorrowPrices(): bool
+    {
+        return !empty($this->getTomorrowPricesWithMeta());
+    }
+
     public function fetchPrices(): void
     {
         $this->loading = true;
@@ -1488,6 +1629,10 @@ class SpotPrice extends Component
             'waterHeaterCost' => $this->calculateWaterHeaterCost(), // 1 hour at 2.5 kW (anytime)
             // Chart data
             'chartData' => $this->getChartData(),
+            // Bar chart data
+            'todayPricesWithMeta' => $this->getTodayPricesWithMeta(),
+            'tomorrowPricesWithMeta' => $this->getTomorrowPricesWithMeta(),
+            'hasTomorrowPrices' => $this->hasTomorrowPrices(),
         ];
 
         // Add historical data if loaded

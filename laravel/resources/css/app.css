@@ -268,3 +268,87 @@
   animation: fadeIn 0.3s ease-out 1.5s forwards;
   opacity: 0;
 }
+
+/* Clock segment hover effects */
+.clock-segment {
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.clock-segment:hover {
+  filter: brightness(1.15);
+  transform: scale(1.03);
+}
+
+/* Clock chart tooltip */
+.clock-tooltip {
+  position: absolute;
+  background: var(--color-slate-900);
+  color: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: var(--z-tooltip);
+  box-shadow: var(--shadow-lg);
+  transform: translate(-50%, -100%);
+  margin-top: -8px;
+}
+
+.clock-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--color-slate-900);
+  border-bottom: 0;
+}
+
+/* ========================================
+   HORIZONTAL PRICE BAR CHART STYLES
+   ======================================== */
+
+.price-bar-row {
+  border-radius: var(--radius-lg);
+  transition: background-color var(--transition-fast);
+}
+
+.price-bar-row:hover {
+  background-color: var(--color-slate-50);
+}
+
+/* Quarter price cards */
+.quarter-card {
+  transition: all var(--transition-fast);
+}
+
+.quarter-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Responsive adjustments for mobile */
+@media (max-width: 640px) {
+  .price-bar-row button {
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+
+  .price-bar-row button > span:first-child {
+    width: 4rem;
+    font-size: 0.75rem;
+  }
+
+  .price-bar-row button > span:last-of-type:not(svg) {
+    width: 5rem;
+    font-size: 0.75rem;
+  }
+
+  /* Stack quarter cards vertically on mobile */
+  .quarter-card {
+    padding: 0.625rem;
+  }
+}

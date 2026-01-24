@@ -138,13 +138,192 @@
             </div>
         </div>
 
-        <!-- Hourly Price Chart -->
-        @if (!empty($chartData['labels']))
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 md:p-6 mb-8">
-                <h3 class="text-lg font-semibold text-slate-900 mb-4">Päivän tuntihinnat</h3>
-                <div class="h-64 md:h-80">
-                    <canvas id="priceChart"></canvas>
+        <!-- Horizontal Bar Chart with Accordion Quarters -->
+        @if (!empty($todayPricesWithMeta))
+            <div
+                x-data="{
+                    expandedHour: null,
+                    quarterPricesByHour: {{ Js::from($quarterPricesByHour) }},
+                    toggleHour(timestamp) {
+                        this.expandedHour = this.expandedHour === timestamp ? null : timestamp;
+                    }
+                }"
+                class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 md:p-6 mb-8"
+            >
+                <!-- Today's prices -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-slate-900 mb-4">Tänään</h3>
+                    <div class="space-y-2">
+                        @foreach ($todayPricesWithMeta as $price)
+                            @php
+                                $hourStart = str_pad($price['hour'], 2, '0', STR_PAD_LEFT);
+                                $hourEnd = str_pad(($price['hour'] + 1) % 24, 2, '0', STR_PAD_LEFT);
+                            @endphp
+                            <div class="price-bar-row">
+                                <!-- Clickable bar row -->
+                                <button
+                                    type="button"
+                                    class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors group"
+                                    @click="toggleHour({{ $price['timestamp'] }})"
+                                >
+                                    <!-- Hour label -->
+                                    <span class="w-20 text-sm font-medium text-slate-700 {{ $price['isCurrentHour'] ? 'text-orange-600' : '' }}">
+                                        {{ $hourStart }}:00
+                                        @if ($price['isCurrentHour'])
+                                            <span class="ml-1 text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded">Nyt</span>
+                                        @endif
+                                    </span>
+
+                                    <!-- Bar container -->
+                                    <div class="flex-1 h-8 bg-slate-100 rounded-lg relative overflow-hidden">
+                                        <div
+                                            class="h-full {{ $price['colorClass'] }} rounded-lg transition-all duration-300 flex items-center justify-end pr-2"
+                                            style="width: {{ $price['widthPercent'] }}%"
+                                        >
+                                            <span class="text-xs font-semibold text-white drop-shadow-sm">
+                                                {{ number_format($price['price_with_vat'], 1, ',', '') }}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Price value -->
+                                    <span class="w-24 text-sm text-right {{ $price['isCurrentHour'] ? 'font-bold text-orange-600' : 'text-slate-600' }}">
+                                        {{ number_format($price['price_with_vat'], 2, ',', ' ') }} c
+                                    </span>
+
+                                    <!-- Expand icon -->
+                                    <svg
+                                        class="w-4 h-4 text-slate-400 transition-transform duration-200"
+                                        :class="{ 'rotate-180': expandedHour === {{ $price['timestamp'] }} }"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </button>
+
+                                <!-- Quarter prices accordion -->
+                                <div
+                                    x-show="expandedHour === {{ $price['timestamp'] }}"
+                                    x-collapse
+                                    class="mt-2 ml-20 mr-8"
+                                >
+                                    <template x-if="quarterPricesByHour[{{ $price['timestamp'] }}] && quarterPricesByHour[{{ $price['timestamp'] }}].length > 0">
+                                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                            <template x-for="(quarter, idx) in quarterPricesByHour[{{ $price['timestamp'] }}]" :key="idx">
+                                                <div
+                                                    class="quarter-card rounded-lg p-3 border transition-colors"
+                                                    :class="{
+                                                        'bg-orange-50 border-orange-300': quarter.is_current_slot,
+                                                        'bg-slate-50 border-slate-200': !quarter.is_current_slot
+                                                    }"
+                                                >
+                                                    <p class="text-xs mb-1" :class="quarter.is_current_slot ? 'text-orange-600 font-medium' : 'text-slate-500'">
+                                                        <span x-text="quarter.time_label"></span>
+                                                        <template x-if="quarter.is_current_slot">
+                                                            <span class="ml-1 bg-orange-200 text-orange-700 px-1.5 py-0.5 rounded text-xs">Nyt</span>
+                                                        </template>
+                                                    </p>
+                                                    <p class="text-sm font-semibold" :class="quarter.is_current_slot ? 'text-orange-700' : 'text-slate-900'">
+                                                        <span x-text="quarter.price_with_tax.toFixed(2).replace('.', ',')"></span> c
+                                                    </p>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                    <template x-if="!quarterPricesByHour[{{ $price['timestamp'] }}] || quarterPricesByHour[{{ $price['timestamp'] }}].length === 0">
+                                        <p class="text-sm text-slate-500 py-2">15 min hinnat eivät saatavilla</p>
+                                    </template>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
+
+                <!-- Tomorrow's prices (if available) -->
+                @if ($hasTomorrowPrices)
+                    <div class="border-t border-slate-200 pt-6">
+                        <h3 class="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                            Huomenna
+                            <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium">Uudet hinnat</span>
+                        </h3>
+                        <div class="space-y-2">
+                            @foreach ($tomorrowPricesWithMeta as $price)
+                                @php
+                                    $hourStart = str_pad($price['hour'], 2, '0', STR_PAD_LEFT);
+                                    $hourEnd = str_pad(($price['hour'] + 1) % 24, 2, '0', STR_PAD_LEFT);
+                                @endphp
+                                <div class="price-bar-row">
+                                    <!-- Clickable bar row -->
+                                    <button
+                                        type="button"
+                                        class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors group"
+                                        @click="toggleHour({{ $price['timestamp'] }})"
+                                    >
+                                        <!-- Hour label -->
+                                        <span class="w-20 text-sm font-medium text-slate-700">
+                                            {{ $hourStart }}:00
+                                        </span>
+
+                                        <!-- Bar container -->
+                                        <div class="flex-1 h-8 bg-slate-100 rounded-lg relative overflow-hidden">
+                                            <div
+                                                class="h-full {{ $price['colorClass'] }} rounded-lg transition-all duration-300 flex items-center justify-end pr-2"
+                                                style="width: {{ $price['widthPercent'] }}%"
+                                            >
+                                                <span class="text-xs font-semibold text-white drop-shadow-sm">
+                                                    {{ number_format($price['price_with_vat'], 1, ',', '') }}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <!-- Price value -->
+                                        <span class="w-24 text-sm text-right text-slate-600">
+                                            {{ number_format($price['price_with_vat'], 2, ',', ' ') }} c
+                                        </span>
+
+                                        <!-- Expand icon -->
+                                        <svg
+                                            class="w-4 h-4 text-slate-400 transition-transform duration-200"
+                                            :class="{ 'rotate-180': expandedHour === {{ $price['timestamp'] }} }"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </button>
+
+                                    <!-- Quarter prices accordion -->
+                                    <div
+                                        x-show="expandedHour === {{ $price['timestamp'] }}"
+                                        x-collapse
+                                        class="mt-2 ml-20 mr-8"
+                                    >
+                                        <template x-if="quarterPricesByHour[{{ $price['timestamp'] }}] && quarterPricesByHour[{{ $price['timestamp'] }}].length > 0">
+                                            <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                                <template x-for="(quarter, idx) in quarterPricesByHour[{{ $price['timestamp'] }}]" :key="idx">
+                                                    <div class="quarter-card rounded-lg p-3 border bg-slate-50 border-slate-200 transition-colors">
+                                                        <p class="text-xs text-slate-500 mb-1">
+                                                            <span x-text="quarter.time_label"></span>
+                                                        </p>
+                                                        <p class="text-sm font-semibold text-slate-900">
+                                                            <span x-text="quarter.price_with_tax.toFixed(2).replace('.', ',')"></span> c
+                                                        </p>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </template>
+                                        <template x-if="!quarterPricesByHour[{{ $price['timestamp'] }}] || quarterPricesByHour[{{ $price['timestamp'] }}].length === 0">
+                                            <p class="text-sm text-slate-500 py-2">15 min hinnat eivät saatavilla</p>
+                                        </template>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
             </div>
         @endif
 
@@ -741,56 +920,7 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Initialize daily price chart
-    @if (!empty($chartData['labels']))
-    document.addEventListener('DOMContentLoaded', function() {
-        const ctx = document.getElementById('priceChart');
-        if (ctx) {
-            new Chart(ctx, {
-                type: 'bar',
-                data: @json($chartData),
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return context.parsed.y.toFixed(2).replace('.', ',') + ' c/kWh';
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'c/kWh (ALV 0%)'
-                            },
-                            ticks: {
-                                callback: function(value) {
-                                    return value.toFixed(1).replace('.', ',');
-                                }
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Kellonaika'
-                            }
-                        }
-                    }
-                }
-            });
-        }
-    });
-    @endif
-
-    // Weekly chart initialization function (always defined)
+    // Weekly chart initialization function
     function initWeeklyChart() {
         const weeklyCtx = document.getElementById('weeklyPriceChart');
         if (!weeklyCtx) return;
