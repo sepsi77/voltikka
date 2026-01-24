@@ -103,7 +103,11 @@
     "spot-clock-chart": {
       "started_at": "2026-01-24T10:03:14.312467",
       "ended_at": null
+    },
+    "spot-price-enhancement": {
+      "started_at": "2026-01-24T10:36:12.305211",
+      "ended_at": null
     }
   },
-  "current": "spot-clock-chart"
+  "current": "spot-price-enhancement"
 }
