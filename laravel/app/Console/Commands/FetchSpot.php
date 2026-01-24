@@ -45,9 +45,11 @@ class FetchSpot extends Command
         $this->info('Fetching spot prices from ENTSO-E API...');
 
         try {
-            // Fetch today and tomorrow
-            $startDate = Carbon::today('UTC');
-            $endDate = Carbon::tomorrow('UTC')->addDay();
+            // Fetch today and tomorrow (using Helsinki timezone to ensure we get all Finnish hours)
+            // Helsinki is UTC+2 in winter (UTC+3 in summer), so we need to start from yesterday 22:00 UTC
+            // to capture midnight Helsinki time
+            $startDate = Carbon::today('Europe/Helsinki')->setTimezone('UTC');
+            $endDate = Carbon::tomorrow('Europe/Helsinki')->addDay()->setTimezone('UTC');
 
             $spotPrices = $this->entsoeService->fetchDayAheadPrices($startDate, $endDate);
         } catch (RequestException $e) {
