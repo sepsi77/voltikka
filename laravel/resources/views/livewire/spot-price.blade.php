@@ -140,19 +140,47 @@
 
         <!-- Horizontal Bar Chart with Accordion Quarters -->
         @if (!empty($todayPricesWithMeta))
+            @php
+                // Calculate scale max for absolute bar widths
+                $allPrices = array_column($hourlyPrices, 'price_with_tax');
+                $barScaleMax = !empty($allPrices) ? max(max($allPrices), 20) : 20;
+            @endphp
             <div
                 x-data="{
                     expandedHour: null,
                     quarterPricesByHour: {{ Js::from($quarterPricesByHour) }},
+                    avg30d: {{ $rolling30DayAvgWithVat ?? 'null' }},
+                    scaleMax: {{ $barScaleMax }},
                     toggleHour(timestamp) {
                         this.expandedHour = this.expandedHour === timestamp ? null : timestamp;
+                    },
+                    // Get color class based on % difference from 30d average (7-tier scale)
+                    getColorFromAvg(price) {
+                        if (!this.avg30d || this.avg30d <= 0) return 'bg-yellow-400';
+                        const percentDiff = ((price - this.avg30d) / this.avg30d) * 100;
+                        if (percentDiff <= -30) return 'bg-green-700';
+                        if (percentDiff <= -15) return 'bg-green-500';
+                        if (percentDiff <= -5) return 'bg-green-300';
+                        if (percentDiff <= 5) return 'bg-yellow-400';
+                        if (percentDiff <= 15) return 'bg-orange-400';
+                        if (percentDiff <= 30) return 'bg-red-500';
+                        return 'bg-red-700';
+                    },
+                    // Get bar width as absolute percentage (price / scaleMax)
+                    getBarWidth(price) {
+                        return Math.max(3, Math.min(100, Math.round((price / this.scaleMax) * 100)));
                     }
                 }"
                 class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 md:p-6 mb-8"
             >
                 <!-- Today's prices -->
                 <div class="mb-6">
-                    <h3 class="text-lg font-semibold text-slate-900 mb-4">Tänään</h3>
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                        <h3 class="text-lg font-semibold text-slate-900">Tänään</h3>
+                        <p class="text-sm text-slate-500 mt-1 sm:mt-0">
+                            Väri suhteessa 30 pv keskiarvoon ({{ number_format($rolling30DayAvgWithVat ?? 0, 2, ',', ' ') }} c/kWh)
+                        </p>
+                    </div>
                     <div class="space-y-2">
                         @foreach ($todayPricesWithMeta as $price)
                             @php
@@ -208,29 +236,6 @@
                                     x-show="expandedHour === {{ $price['timestamp'] }}"
                                     x-collapse
                                     class="mt-2 ml-4 sm:ml-20 mr-2 sm:mr-8"
-                                    x-data="{
-                                        getQuarterBarWidth(quarters, price) {
-                                            if (!quarters || quarters.length === 0) return 20;
-                                            const prices = quarters.map(q => q.price_with_tax);
-                                            const min = Math.min(...prices);
-                                            const max = Math.max(...prices);
-                                            const range = max - min;
-                                            if (range <= 0) return 60;
-                                            return 20 + ((price - min) / range) * 80;
-                                        },
-                                        getQuarterColorClass(quarters, price) {
-                                            if (!quarters || quarters.length === 0) return 'bg-yellow-500';
-                                            const prices = quarters.map(q => q.price_with_tax);
-                                            const min = Math.min(...prices);
-                                            const max = Math.max(...prices);
-                                            const range = max - min;
-                                            if (range <= 0) return 'bg-yellow-500';
-                                            const normalized = (price - min) / range;
-                                            if (normalized < 0.33) return 'bg-green-500';
-                                            if (normalized < 0.66) return 'bg-yellow-500';
-                                            return 'bg-red-500';
-                                        }
-                                    }"
                                 >
                                     <template x-if="quarterPricesByHour[{{ $price['timestamp'] }}] && quarterPricesByHour[{{ $price['timestamp'] }}].length > 0">
                                         <div class="space-y-1.5 py-2">
@@ -251,8 +256,8 @@
                                                     <div class="flex-1 h-5 bg-slate-100 rounded relative overflow-hidden">
                                                         <div
                                                             class="h-full rounded transition-all duration-200"
-                                                            :class="quarter.is_current_slot ? 'bg-orange-500' : getQuarterColorClass(quarterPricesByHour[{{ $price['timestamp'] }}], quarter.price_with_tax)"
-                                                            :style="'width: ' + getQuarterBarWidth(quarterPricesByHour[{{ $price['timestamp'] }}], quarter.price_with_tax) + '%'"
+                                                            :class="quarter.is_current_slot ? 'bg-orange-500' : getColorFromAvg(quarter.price_with_tax)"
+                                                            :style="'width: ' + getBarWidth(quarter.price_with_tax) + '%'"
                                                         ></div>
                                                     </div>
 
@@ -334,29 +339,6 @@
                                         x-show="expandedHour === {{ $price['timestamp'] }}"
                                         x-collapse
                                         class="mt-2 ml-4 sm:ml-20 mr-2 sm:mr-8"
-                                        x-data="{
-                                            getQuarterBarWidth(quarters, price) {
-                                                if (!quarters || quarters.length === 0) return 20;
-                                                const prices = quarters.map(q => q.price_with_tax);
-                                                const min = Math.min(...prices);
-                                                const max = Math.max(...prices);
-                                                const range = max - min;
-                                                if (range <= 0) return 60;
-                                                return 20 + ((price - min) / range) * 80;
-                                            },
-                                            getQuarterColorClass(quarters, price) {
-                                                if (!quarters || quarters.length === 0) return 'bg-yellow-500';
-                                                const prices = quarters.map(q => q.price_with_tax);
-                                                const min = Math.min(...prices);
-                                                const max = Math.max(...prices);
-                                                const range = max - min;
-                                                if (range <= 0) return 'bg-yellow-500';
-                                                const normalized = (price - min) / range;
-                                                if (normalized < 0.33) return 'bg-green-500';
-                                                if (normalized < 0.66) return 'bg-yellow-500';
-                                                return 'bg-red-500';
-                                            }
-                                        }"
                                     >
                                         <template x-if="quarterPricesByHour[{{ $price['timestamp'] }}] && quarterPricesByHour[{{ $price['timestamp'] }}].length > 0">
                                             <div class="space-y-1.5 py-2">
@@ -371,8 +353,8 @@
                                                         <div class="flex-1 h-5 bg-slate-100 rounded relative overflow-hidden">
                                                             <div
                                                                 class="h-full rounded transition-all duration-200"
-                                                                :class="getQuarterColorClass(quarterPricesByHour[{{ $price['timestamp'] }}], quarter.price_with_tax)"
-                                                                :style="'width: ' + getQuarterBarWidth(quarterPricesByHour[{{ $price['timestamp'] }}], quarter.price_with_tax) + '%'"
+                                                                :class="getColorFromAvg(quarter.price_with_tax)"
+                                                                :style="'width: ' + getBarWidth(quarter.price_with_tax) + '%'"
                                                             ></div>
                                                         </div>
 

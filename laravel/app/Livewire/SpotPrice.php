@@ -86,6 +86,27 @@ class SpotPrice extends Component
     }
 
     /**
+     * Get color class based on percentage difference from 30d average.
+     * Uses the same 7-tier scale as the clock chart.
+     */
+    private function getColorClassFromAvgDiff(float $price, ?float $avg30d): string
+    {
+        if ($avg30d === null || $avg30d <= 0) {
+            return 'bg-yellow-400'; // Default to yellow if no average
+        }
+
+        $percentDiff = (($price - $avg30d) / $avg30d) * 100;
+
+        if ($percentDiff <= -30) return 'bg-green-700';
+        if ($percentDiff <= -15) return 'bg-green-500';
+        if ($percentDiff <= -5) return 'bg-green-300';
+        if ($percentDiff <= 5) return 'bg-yellow-400';
+        if ($percentDiff <= 15) return 'bg-orange-400';
+        if ($percentDiff <= 30) return 'bg-red-500';
+        return 'bg-red-700';
+    }
+
+    /**
      * Get today's prices with metadata for the horizontal bar chart.
      *
      * Returns an array of prices for today with:
@@ -93,8 +114,8 @@ class SpotPrice extends Component
      * - hour: 0-23
      * - price_with_vat: Price in c/kWh with VAT
      * - price_without_vat: Price in c/kWh without VAT
-     * - colorClass: Tailwind color class based on price relative to day range
-     * - widthPercent: Bar width percentage (0-100) based on price
+     * - colorClass: Tailwind color class based on % diff from 30d average
+     * - widthPercent: Bar width percentage (0-100) based on absolute price
      * - isCurrentHour: Whether this is the current hour
      *
      * @return array
@@ -110,45 +131,38 @@ class SpotPrice extends Component
         // Sort by hour
         usort($todayPrices, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
 
-        // Calculate price range for normalization
-        $prices = array_column($todayPrices, 'price_without_tax');
-        $minPrice = min($prices);
-        $maxPrice = max($prices);
-        $priceRange = $maxPrice - $minPrice;
+        // Find max price across today+tomorrow for consistent absolute scale
+        $allPrices = array_column($this->hourlyPrices, 'price_with_tax');
+        $maxPrice = !empty($allPrices) ? max($allPrices) : 20;
+        // Ensure minimum scale of 20 c/kWh so bars are visible
+        $scaleMax = max($maxPrice, 20);
+
+        // Get 30d average (with VAT) for color calculation
+        $avg30dWithVat = $this->rolling30DayAvgWithVat;
 
         // Get current hour for highlighting
         $helsinkiNow = Carbon::now(self::TIMEZONE);
         $currentHour = (int) $helsinkiNow->format('H');
         $todayDate = $helsinkiNow->format('Y-m-d');
 
-        return array_map(function ($price) use ($minPrice, $priceRange, $currentHour, $todayDate) {
-            $priceValue = $price['price_without_tax'];
-            $normalizedPrice = $priceRange > 0 ? ($priceValue - $minPrice) / $priceRange : 0.5;
-
-            // Determine color class based on normalized price
-            if ($normalizedPrice < 0.33) {
-                $colorClass = 'bg-green-500';
-            } elseif ($normalizedPrice < 0.66) {
-                $colorClass = 'bg-yellow-500';
-            } else {
-                $colorClass = 'bg-red-500';
-            }
+        return array_map(function ($price) use ($scaleMax, $avg30dWithVat, $currentHour, $todayDate) {
+            $priceWithVat = $price['price_with_tax'];
 
             // Check if this is the current hour
             $isCurrentHour = $price['helsinki_date'] === $todayDate && $price['helsinki_hour'] === $currentHour;
 
-            // Use coral color for current hour
-            if ($isCurrentHour) {
-                $colorClass = 'bg-orange-500';
-            }
+            // Get color based on % difference from 30d average (or orange for current hour)
+            $colorClass = $isCurrentHour
+                ? 'bg-orange-500'
+                : $this->getColorClassFromAvgDiff($priceWithVat, $avg30dWithVat);
 
-            // Calculate width percentage (minimum 5% for visibility)
-            $widthPercent = max(5, round($normalizedPrice * 100));
+            // Calculate width as absolute percentage (price / scaleMax * 100)
+            $widthPercent = min(100, max(3, round(($priceWithVat / $scaleMax) * 100)));
 
             return [
                 'timestamp' => $price['timestamp'],
                 'hour' => $price['helsinki_hour'],
-                'price_with_vat' => $price['price_with_tax'],
+                'price_with_vat' => $priceWithVat,
                 'price_without_vat' => $price['price_without_tax'],
                 'colorClass' => $colorClass,
                 'widthPercent' => $widthPercent,
@@ -182,32 +196,27 @@ class SpotPrice extends Component
         // Sort by hour
         usort($tomorrowPrices, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
 
-        // Calculate price range for normalization (use tomorrow's range)
-        $prices = array_column($tomorrowPrices, 'price_without_tax');
-        $minPrice = min($prices);
-        $maxPrice = max($prices);
-        $priceRange = $maxPrice - $minPrice;
+        // Find max price across today+tomorrow for consistent absolute scale
+        $allPrices = array_column($this->hourlyPrices, 'price_with_tax');
+        $maxPrice = !empty($allPrices) ? max($allPrices) : 20;
+        $scaleMax = max($maxPrice, 20);
 
-        return array_map(function ($price) use ($minPrice, $priceRange) {
-            $priceValue = $price['price_without_tax'];
-            $normalizedPrice = $priceRange > 0 ? ($priceValue - $minPrice) / $priceRange : 0.5;
+        // Get 30d average (with VAT) for color calculation
+        $avg30dWithVat = $this->rolling30DayAvgWithVat;
 
-            // Determine color class based on normalized price
-            if ($normalizedPrice < 0.33) {
-                $colorClass = 'bg-green-500';
-            } elseif ($normalizedPrice < 0.66) {
-                $colorClass = 'bg-yellow-500';
-            } else {
-                $colorClass = 'bg-red-500';
-            }
+        return array_map(function ($price) use ($scaleMax, $avg30dWithVat) {
+            $priceWithVat = $price['price_with_tax'];
 
-            // Calculate width percentage (minimum 5% for visibility)
-            $widthPercent = max(5, round($normalizedPrice * 100));
+            // Get color based on % difference from 30d average
+            $colorClass = $this->getColorClassFromAvgDiff($priceWithVat, $avg30dWithVat);
+
+            // Calculate width as absolute percentage (price / scaleMax * 100)
+            $widthPercent = min(100, max(3, round(($priceWithVat / $scaleMax) * 100)));
 
             return [
                 'timestamp' => $price['timestamp'],
                 'hour' => $price['helsinki_hour'],
-                'price_with_vat' => $price['price_with_tax'],
+                'price_with_vat' => $priceWithVat,
                 'price_without_vat' => $price['price_without_tax'],
                 'colorClass' => $colorClass,
                 'widthPercent' => $widthPercent,

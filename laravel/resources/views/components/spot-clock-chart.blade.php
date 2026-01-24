@@ -138,71 +138,64 @@
     <h3 class="text-lg font-semibold text-slate-900 mb-4 text-center">Tuntihinnat vs. 30 pv keskiarvo</h3>
 
     <div
-        class="flex justify-center relative"
+        class="flex justify-center"
         x-data="{
             hovered: null,
-            tooltipX: 0,
-            tooltipY: 0,
             segments: {{ Js::from($segments) }},
             viewBoxSize: {{ $viewBoxSize }},
             showTooltip(event, segment) {
                 this.hovered = segment;
-                // Get the SVG element and its dimensions
-                const svg = this.$el.querySelector('svg');
-                const svgRect = svg.getBoundingClientRect();
-                const containerRect = this.$el.getBoundingClientRect();
-
-                // Calculate scale factor between viewBox and actual SVG size
-                const scale = svgRect.width / this.viewBoxSize;
-
-                // Convert SVG coordinates to pixel coordinates relative to container
-                const pixelX = (segment.tooltipSvgX * scale) + (svgRect.left - containerRect.left);
-                const pixelY = (segment.tooltipSvgY * scale) + (svgRect.top - containerRect.top);
-
-                this.tooltipX = pixelX;
-                this.tooltipY = pixelY;
             },
             hideTooltip() {
                 this.hovered = null;
             },
             formatDiff(diff) {
                 return diff >= 0 ? '+' + diff : diff;
+            },
+            getTooltipStyle(segment) {
+                if (!segment) return '';
+                // Position tooltip using percentage of viewBox (converts to % of SVG element)
+                const leftPercent = (segment.tooltipSvgX / this.viewBoxSize) * 100;
+                const topPercent = (segment.tooltipSvgY / this.viewBoxSize) * 100;
+                return 'left: ' + leftPercent + '%; top: ' + topPercent + '%;';
             }
         }"
     >
-        <!-- Tooltip -->
-        <div
-            x-show="hovered"
-            x-transition:enter="transition ease-out duration-150"
-            x-transition:enter-start="opacity-0 translate-y-1"
-            x-transition:enter-end="opacity-100 translate-y-0"
-            x-transition:leave="transition ease-in duration-100"
-            x-transition:leave-start="opacity-100 translate-y-0"
-            x-transition:leave-end="opacity-0 translate-y-1"
-            class="clock-tooltip"
-            :style="'left: ' + tooltipX + 'px; top: ' + tooltipY + 'px;'"
-        >
-            <div class="font-semibold" x-text="hovered ? String(hovered.hour).padStart(2, '0') + ':00–' + String((hovered.hour + 1) % 24).padStart(2, '0') + ':00' : ''"></div>
-            <div class="flex items-center gap-2">
-                <span x-text="hovered ? hovered.price.toFixed(2) + ' c/kWh' : ''"></span>
-                <span
-                    class="text-xs px-1.5 py-0.5 rounded"
-                    :class="hovered && hovered.percentDiff <= 0 ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'"
-                    x-text="hovered ? formatDiff(hovered.percentDiff) + '%' : ''"
-                ></span>
+        <!-- SVG Container with relative positioning for tooltip -->
+        <div class="relative w-full max-w-[280px] sm:max-w-[350px]">
+            <!-- Tooltip -->
+            <div
+                x-show="hovered"
+                x-transition:enter="transition ease-out duration-150"
+                x-transition:enter-start="opacity-0 scale-95"
+                x-transition:enter-end="opacity-100 scale-100"
+                x-transition:leave="transition ease-in duration-100"
+                x-transition:leave-start="opacity-100 scale-100"
+                x-transition:leave-end="opacity-0 scale-95"
+                class="clock-tooltip"
+                :style="getTooltipStyle(hovered)"
+            >
+                <div class="font-semibold" x-text="hovered ? String(hovered.hour).padStart(2, '0') + ':00–' + String((hovered.hour + 1) % 24).padStart(2, '0') + ':00' : ''"></div>
+                <div class="flex items-center gap-2">
+                    <span x-text="hovered ? hovered.price.toFixed(2) + ' c/kWh' : ''"></span>
+                    <span
+                        class="text-xs px-1.5 py-0.5 rounded"
+                        :class="hovered && hovered.percentDiff <= 0 ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300'"
+                        x-text="hovered ? formatDiff(hovered.percentDiff) + '%' : ''"
+                    ></span>
+                </div>
             </div>
-        </div>
 
-        <svg
-            viewBox="0 0 {{ $viewBoxSize }} {{ $viewBoxSize }}"
-            class="w-full max-w-[280px] sm:max-w-[350px]"
-            role="img"
-            aria-label="24-tunnin kellotaulukko, jossa tuntihinnat verrattuna 30 päivän keskiarvoon"
-        >
-            <!-- Hour segments -->
-            <g class="clock-segments">
-                @foreach ($segments as $index => $segment)
-                    <path
+            <svg
+                viewBox="0 0 {{ $viewBoxSize }} {{ $viewBoxSize }}"
+                class="w-full"
+                role="img"
+                aria-label="24-tunnin kellotaulukko, jossa tuntihinnat verrattuna 30 päivän keskiarvoon"
+            >
+                <!-- Hour segments -->
+                <g class="clock-segments">
+                    @foreach ($segments as $index => $segment)
+                        <path
                         d="{{ $segment['path'] }}"
                         fill="{{ $segment['color'] }}"
                         stroke="#ffffff"
@@ -273,6 +266,7 @@
                 @endforeach
             </g>
         </svg>
+        </div>
     </div>
 
     <!-- Legend -->
