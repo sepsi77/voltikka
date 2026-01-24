@@ -111,7 +111,11 @@
     "spot-price-tips-relocation": {
       "started_at": "2026-01-24T12:13:21.435452",
       "ended_at": null
+    },
+    "spot-price-clarity-improvements": {
+      "started_at": "2026-01-24T13:29:34.359564",
+      "ended_at": null
     }
   },
-  "current": "spot-price-tips-relocation"
+  "current": "spot-price-clarity-improvements"
 }
