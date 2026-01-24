@@ -117,13 +117,13 @@
     $markerRadius = $outerRadius + 18;
 @endphp
 
-<div class="bg-slate-800/50 rounded-xl p-4 sm:p-6 border border-slate-700/50">
-    <h3 class="text-lg font-semibold text-white mb-4 text-center">Tuntihinnat vs. 30 pv keskiarvo</h3>
+<div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 sm:p-6">
+    <h3 class="text-lg font-semibold text-slate-900 mb-4 text-center">Tuntihinnat vs. 30 pv keskiarvo</h3>
 
     <div class="flex justify-center">
         <svg
             viewBox="0 0 {{ $viewBoxSize }} {{ $viewBoxSize }}"
-            class="w-full max-w-[320px] sm:max-w-[400px]"
+            class="w-full max-w-[280px] sm:max-w-[350px]"
             role="img"
             aria-label="24-tunnin kellotaulukko, jossa tuntihinnat verrattuna 30 päivän keskiarvoon"
         >
@@ -190,7 +190,7 @@
                         x="{{ $mx }}"
                         y="{{ $my + 4 }}"
                         text-anchor="middle"
-                        fill="#94a3b8"
+                        fill="#475569"
                         font-size="13"
                         font-weight="600"
                     >{{ $marker['label'] }}</text>
@@ -203,11 +203,11 @@
     <div class="clock-legend flex justify-center gap-6 mt-4 text-sm">
         <div class="flex items-center gap-2">
             <span class="w-3 h-3 rounded-full bg-green-500"></span>
-            <span class="text-slate-400">Alle keskiarvon</span>
+            <span class="text-slate-600">Alle keskiarvon</span>
         </div>
         <div class="flex items-center gap-2">
             <span class="w-3 h-3 rounded-full bg-red-500"></span>
-            <span class="text-slate-400">Yli keskiarvon</span>
+            <span class="text-slate-600">Yli keskiarvon</span>
         </div>
     </div>
 </div>
