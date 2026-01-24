@@ -99,7 +99,11 @@
     "heat-pump-calculator": {
       "started_at": "2026-01-22T15:54:56.868821",
       "ended_at": null
+    },
+    "spot-clock-chart": {
+      "started_at": "2026-01-24T10:03:14.312467",
+      "ended_at": null
     }
   },
-  "current": "heat-pump-calculator"
+  "current": "spot-clock-chart"
 }
