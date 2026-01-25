@@ -71,6 +71,7 @@ class LocationsList extends Component
 
         // Get contracts that are available nationally or in these postcodes
         return \App\Models\ElectricityContract::query()
+            ->active()
             ->with(['company', 'priceComponents', 'electricitySource'])
             ->where(function ($query) use ($postcodes) {
                 $query->where('availability_is_national', true)

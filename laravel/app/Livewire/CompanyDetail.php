@@ -129,6 +129,7 @@ class CompanyDetail extends Component
         $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
 
         $contracts = ElectricityContract::query()
+            ->active()
             ->with(['priceComponents', 'electricitySource'])
             ->where('company_name', $this->company->name)
             ->get();

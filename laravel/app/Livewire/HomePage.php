@@ -17,7 +17,7 @@ class HomePage extends Component
     public function render()
     {
         return view('livewire.home-page', [
-            'contractCount' => ElectricityContract::count(),
+            'contractCount' => ElectricityContract::active()->count(),
             'companyCount' => Company::count(),
             'currentSpotPrice' => $this->getCurrentSpotPrice(),
         ])->layout('layouts.app', [

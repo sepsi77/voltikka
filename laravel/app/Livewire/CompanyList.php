@@ -51,6 +51,7 @@ class CompanyList extends Component
 
         // Load all contracts with their relationships
         $contracts = ElectricityContract::query()
+            ->active()
             ->with(['company', 'priceComponents', 'electricitySource'])
             ->whereHas('company')
             ->get();

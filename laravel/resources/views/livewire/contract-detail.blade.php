@@ -101,6 +101,22 @@
         </div>
     </section>
 
+    {{-- Inactive contract banner --}}
+    @if(!$this->isActive)
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+        <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg">
+            <div class="flex items-center">
+                <svg class="w-5 h-5 text-amber-400 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+                <p class="text-sm text-amber-700">
+                    Tämä sopimus ei ole enää tarjolla.
+                </p>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Left Column: Pricing & Cost Calculator -->

@@ -5,6 +5,7 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -192,6 +193,32 @@ class ElectricityContract extends Model
             'id',
             'postcode'
         );
+    }
+
+    /**
+     * Get the active contract record for this contract.
+     */
+    public function activeContract(): HasOne
+    {
+        return $this->hasOne(ActiveContract::class, 'id', 'id');
+    }
+
+    /**
+     * Scope a query to only include active contracts.
+     *
+     * Active contracts are those that have a corresponding record in the active_contracts table.
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereHas('activeContract');
+    }
+
+    /**
+     * Check if this contract is active (present in the active_contracts table).
+     */
+    public function isActive(): bool
+    {
+        return $this->activeContract()->exists();
     }
 
     /**

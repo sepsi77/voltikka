@@ -393,6 +393,7 @@ class CompanyContractsList extends Component
         $calculator = app(ContractPriceCalculator::class);
 
         $query = ElectricityContract::query()
+            ->active()
             ->with(['company', 'priceComponents', 'electricitySource'])
             // Filter for company contracts only
             ->where(function ($q) {

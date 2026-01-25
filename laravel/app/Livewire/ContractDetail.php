@@ -149,6 +149,14 @@ class ContractDetail extends Component
     }
 
     /**
+     * Check if the contract is currently active (present in active_contracts table).
+     */
+    public function getIsActiveProperty(): bool
+    {
+        return $this->contract?->isActive() ?? false;
+    }
+
+    /**
      * Get SEO page title.
      */
     public function getPageTitleProperty(): string

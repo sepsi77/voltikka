@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
@@ -32,6 +33,14 @@ class ContractsListPageTest extends TestCase
             'company_url' => 'https://halpasahko.fi',
             'logo_url' => 'https://storage.example.com/logos/halpa.png',
         ]);
+    }
+
+    /**
+     * Helper method to mark a contract as active.
+     */
+    private function markAsActive(string $contractId): void
+    {
+        ActiveContract::create(['id' => $contractId]);
     }
 
     /**

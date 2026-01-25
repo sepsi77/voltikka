@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
@@ -82,6 +83,9 @@ class SeoContractsListTest extends TestCase
                 'contract_id' => $id,
             ], $energySource));
         }
+
+        // Mark contract as active so it appears in listings
+        ActiveContract::create(['id' => $id]);
 
         return $contract;
     }

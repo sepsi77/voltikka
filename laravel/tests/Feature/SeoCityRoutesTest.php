@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\Postcode;
@@ -116,6 +117,9 @@ class SeoCityRoutesTest extends TestCase
                 $contract->availabilityPostcodes()->attach($postcode);
             }
         }
+
+        // Mark contract as active so it appears in listings
+        ActiveContract::create(['id' => $id]);
 
         return $contract;
     }
