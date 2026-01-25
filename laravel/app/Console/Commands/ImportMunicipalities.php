@@ -27,16 +27,16 @@ class ImportMunicipalities extends Command
     protected $description = 'Import municipalities with grammatical forms from JSON file';
 
     /**
-     * Default source file path.
+     * Default source file path (relative to Laravel base path).
      */
-    private const DEFAULT_SOURCE = '/Users/seppo/code/likaiset-sivut/source-data/municipalities.json';
+    private const DEFAULT_SOURCE = 'database/data/municipalities.json';
 
     /**
      * Execute the console command.
      */
     public function handle(): int
     {
-        $sourcePath = $this->option('source') ?? self::DEFAULT_SOURCE;
+        $sourcePath = $this->option('source') ?? base_path(self::DEFAULT_SOURCE);
 
         if (!File::exists($sourcePath)) {
             $this->error("Source file not found: {$sourcePath}");

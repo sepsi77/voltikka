@@ -1,0 +1,2466 @@
+[
+  {
+    "code": "005",
+    "name": "Alajärvi",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Alajärvissä",
+    "name_genitive": "Alajärvin"
+  },
+  {
+    "code": "009",
+    "name": "Alavieska",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Alavieskalla",
+    "name_genitive": "Alavieskan"
+  },
+  {
+    "code": "010",
+    "name": "Alavus",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Alavusssa",
+    "name_genitive": "Alavuskin"
+  },
+  {
+    "code": "016",
+    "name": "Asikkala",
+    "region_code": "07",
+    "region_name": "Päijät-Häme",
+    "name_locative": "Asikkalalla",
+    "name_genitive": "Asikkalan"
+  },
+  {
+    "code": "018",
+    "name": "Askola",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Askolassa",
+    "name_genitive": "Askolan"
+  },
+  {
+    "code": "019",
+    "name": "Aura",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Aurassa",
+    "name_genitive": "Auran"
+  },
+  {
+    "code": "020",
+    "name": "Akaa",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Akaalla",
+    "name_genitive": "Akaan"
+  },
+  {
+    "code": "035",
+    "name": "Brändö",
+    "region_code": "21",
+    "region_name": "Ahvenanmaa",
+    "name_locative": "Brändössä",
+    "name_genitive": "Brändön"
+  },
+  {
+    "code": "043",
+    "name": "Eckerö",
+    "region_code": "21",
+    "region_name": "Ahvenanmaa",
+    "name_locative": "Eckerössä",
+    "name_genitive": "Eckerön"
+  },
+  {
+    "code": "046",
+    "name": "Enonkoski",
+    "region_code": "10",
+    "region_name": "Etelä-Savo",
+    "name_locative": "Enonkoskilla",
+    "name_genitive": "Enonkoskin"
+  },
+  {
+    "code": "047",
+    "name": "Enontekiö",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Enontekiöllä",
+    "name_genitive": "Enontekiön"
+  },
+  {
+    "code": "049",
+    "name": "Espoo",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Espoossa",
+    "name_genitive": "Espoon"
+  },
+  {
+    "code": "050",
+    "name": "Eura",
+    "region_code": "04",
+    "region_name": "Satakunta",
+    "name_locative": "Eurassa",
+    "name_genitive": "Euran"
+  },
+  {
+    "code": "051",
+    "name": "Eurajoki",
+    "region_code": "04",
+    "region_name": "Satakunta",
+    "name_locative": "Eurajoissa",
+    "name_genitive": "Eurajoin"
+  },
+  {
+    "code": "052",
+    "name": "Evijärvi",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Evijärvissä",
+    "name_genitive": "Evijärvin"
+  },
+  {
+    "code": "060",
+    "name": "Finström",
+    "region_code": "21",
+    "region_name": "Ahvenanmaa",
+    "name_locative": "Finströmissä",
+    "name_genitive": "Finströmin"
+  },
+  {
+    "code": "061",
+    "name": "Forssa",
+    "region_code": "05",
+    "region_name": "Kanta-Häme",
+    "name_locative": "Forssassa",
+    "name_genitive": "Forssan"
+  },
+  {
+    "code": "062",
+    "name": "Föglö",
+    "region_code": "21",
+    "region_name": "Ahvenanmaa",
+    "name_locative": "Föglössä",
+    "name_genitive": "Föglön"
+  },
+  {
+    "code": "065",
+    "name": "Geta",
+    "region_code": "21",
+    "region_name": "Ahvenanmaa",
+    "name_locative": "Getassa",
+    "name_genitive": "Getan"
+  },
+  {
+    "code": "069",
+    "name": "Haapajärvi",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Haapajärvillä",
+    "name_genitive": "Haapajärvin"
+  },
+  {
+    "code": "071",
+    "name": "Haapavesi",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Haapavesillä",
+    "name_genitive": "Haapavesin"
+  },
+  {
+    "code": "072",
+    "name": "Hailuoto",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Hai luotolla",
+    "name_genitive": "Hai luoton"
+  },
+  {
+    "code": "074",
+    "name": "Halsua",
+    "region_code": "16",
+    "region_name": "Keski-Pohjanmaa",
+    "name_locative": "Halsuassa",
+    "name_genitive": "Halsuan"
+  },
+  {
+    "code": "075",
+    "name": "Hamina",
+    "region_code": "08",
+    "region_name": "Kymenlaakso",
+    "name_locative": "Haminassa",
+    "name_genitive": "Haminan"
+  },
+  {
+    "code": "076",
+    "name": "Hammarland",
+    "region_code": "21",
+    "region_name": "Ahvenanmaa",
+    "name_locative": "Hammarlandissa",
+    "name_genitive": "Hammarlandin"
+  },
+  {
+    "code": "077",
+    "name": "Hankasalmi",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Hankasalmilla",
+    "name_genitive": "Hankasalmin"
+  },
+  {
+    "code": "078",
+    "name": "Hanko",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Hangossa",
+    "name_genitive": "Hangon"
+  },
+  {
+    "code": "079",
+    "name": "Harjavalta",
+    "region_code": "04",
+    "region_name": "Satakunta",
+    "name_locative": "Harjavallassa",
+    "name_genitive": "Harjavalta"
+  },
+  {
+    "code": "081",
+    "name": "Hartola",
+    "region_code": "07",
+    "region_name": "Päijät-Häme",
+    "name_locative": "Hartolalla",
+    "name_genitive": "Hartolan"
+  },
+  {
+    "code": "082",
+    "name": "Hattula",
+    "region_code": "05",
+    "region_name": "Kanta-Häme",
+    "name_locative": "Hattulassa",
+    "name_genitive": "Hattulan"
+  },
+  {
+    "code": "086",
+    "name": "Hausjärvi",
+    "region_code": "05",
+    "region_name": "Kanta-Häme",
+    "name_locative": "Hausjärvissä",
+    "name_genitive": "Hausjärvin"
+  },
+  {
+    "code": "090",
+    "name": "Heinävesi",
+    "region_code": "12",
+    "region_name": "Pohjois-Karjala",
+    "name_locative": "Heinävesillä",
+    "name_genitive": "Heinävesin"
+  },
+  {
+    "code": "091",
+    "name": "Helsinki",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Helsingissä",
+    "name_genitive": "Helsingin"
+  },
+  {
+    "code": "092",
+    "name": "Vantaa",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Vantaalla",
+    "name_genitive": "Vantaan"
+  },
+  {
+    "code": "097",
+    "name": "Hirvensalmi",
+    "region_code": "10",
+    "region_name": "Etelä-Savo",
+    "name_locative": "Hirvensalmilla",
+    "name_genitive": "Hirvensalmin"
+  },
+  {
+    "code": "098",
+    "name": "Hollola",
+    "region_code": "07",
+    "region_name": "Päijät-Häme",
+    "name_locative": "Hollolassa",
+    "name_genitive": "Hollolan"
+  },
+  {
+    "code": "102",
+    "name": "Huittinen",
+    "region_code": "04",
+    "region_name": "Satakunta",
+    "name_locative": "Huittisissa",
+    "name_genitive": "Huittisen"
+  },
+  {
+    "code": "103",
+    "name": "Humppila",
+    "region_code": "05",
+    "region_name": "Kanta-Häme",
+    "name_locative": "Humppilassa",
+    "name_genitive": "Humppilan"
+  },
+  {
+    "code": "105",
+    "name": "Hyrynsalmi",
+    "region_code": "18",
+    "region_name": "Kainuu",
+    "name_locative": "Hyrynsalmissa",
+    "name_genitive": "Hyrynsalmin"
+  },
+  {
+    "code": "106",
+    "name": "Hyvinkää",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Hyvinkäällä",
+    "name_genitive": "Hyvinkään"
+  },
+  {
+    "code": "108",
+    "name": "Hämeenkyrö",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Hämeenkyröllä",
+    "name_genitive": "Hämeenkyrön"
+  },
+  {
+    "code": "109",
+    "name": "Hämeenlinna",
+    "region_code": "05",
+    "region_name": "Kanta-Häme",
+    "name_locative": "Hämeenlinnassa",
+    "name_genitive": "Hämeenlinnan"
+  },
+  {
+    "code": "111",
+    "name": "Heinola",
+    "region_code": "07",
+    "region_name": "Päijät-Häme",
+    "name_locative": "Heinolassa",
+    "name_genitive": "Heinolan"
+  },
+  {
+    "code": "139",
+    "name": "Ii",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Iillä",
+    "name_genitive": "Iin"
+  },
+  {
+    "code": "140",
+    "name": "Iisalmi",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Iisalmessa",
+    "name_genitive": "Iisalmen"
+  },
+  {
+    "code": "142",
+    "name": "Iitti",
+    "region_code": "07",
+    "region_name": "Päijät-Häme",
+    "name_locative": "Iitillä",
+    "name_genitive": "Iitti"
+  },
+  {
+    "code": "143",
+    "name": "Ikaalinen",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Ikaalinenssa",
+    "name_genitive": "Ikaalinenkin"
+  },
+  {
+    "code": "145",
+    "name": "Ilmajoki",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Ilmajoissa",
+    "name_genitive": "Ilmajoogin"
+  },
+  {
+    "code": "146",
+    "name": "Ilomantsi",
+    "region_code": "12",
+    "region_name": "Pohjois-Karjala",
+    "name_locative": "Ilomantsilla",
+    "name_genitive": "Ilomantsin"
+  },
+  {
+    "code": "148",
+    "name": "Inari",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Inarilla",
+    "name_genitive": "Inarin"
+  },
+  {
+    "code": "149",
+    "name": "Inkoo",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Inkoossa",
+    "name_genitive": "Inkoon"
+  },
+  {
+    "code": "151",
+    "name": "Isojoki",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Isojoissa",
+    "name_genitive": "Isojoogin"
+  },
+  {
+    "code": "152",
+    "name": "Isokyrö",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Isokydössä",
+    "name_genitive": "Isokyrö"
+  },
+  {
+    "code": "153",
+    "name": "Imatra",
+    "region_code": "09",
+    "region_name": "Etelä-Karjala",
+    "name_locative": "Imatralla",
+    "name_genitive": "Imatran"
+  },
+  {
+    "code": "165",
+    "name": "Janakkala",
+    "region_code": "05",
+    "region_name": "Kanta-Häme",
+    "name_locative": "Janakkalassa",
+    "name_genitive": "Janakkalan"
+  },
+  {
+    "code": "167",
+    "name": "Joensuu",
+    "region_code": "12",
+    "region_name": "Pohjois-Karjala",
+    "name_locative": "Joensuussa",
+    "name_genitive": "Joensuun"
+  },
+  {
+    "code": "169",
+    "name": "Jokioinen",
+    "region_code": "05",
+    "region_name": "Kanta-Häme",
+    "name_locative": "Jokioinenssa",
+    "name_genitive": "Jokioinenkin"
+  },
+  {
+    "code": "170",
+    "name": "Jomala",
+    "region_code": "21",
+    "region_name": "Ahvenanmaa",
+    "name_locative": "Jomalassa",
+    "name_genitive": "Jomalan"
+  },
+  {
+    "code": "171",
+    "name": "Joroinen",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Joroinenlla",
+    "name_genitive": "Joroinenkin"
+  },
+  {
+    "code": "172",
+    "name": "Joutsa",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Joutsalla",
+    "name_genitive": "Joutsan"
+  },
+  {
+    "code": "176",
+    "name": "Juuka",
+    "region_code": "12",
+    "region_name": "Pohjois-Karjala",
+    "name_locative": "Kuukassa",
+    "name_genitive": "Kuukan"
+  },
+  {
+    "code": "177",
+    "name": "Juupajoki",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Juupajoissa",
+    "name_genitive": "Juupajoin"
+  },
+  {
+    "code": "178",
+    "name": "Juva",
+    "region_code": "10",
+    "region_name": "Etelä-Savo",
+    "name_locative": "Juvalla",
+    "name_genitive": "Juvan"
+  },
+  {
+    "code": "179",
+    "name": "Jyväskylä",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Jyväskylässä",
+    "name_genitive": "Jyväskylän"
+  },
+  {
+    "code": "181",
+    "name": "Jämijärvi",
+    "region_code": "04",
+    "region_name": "Satakunta",
+    "name_locative": "Jämijärvissä",
+    "name_genitive": "Jämijärvin"
+  },
+  {
+    "code": "182",
+    "name": "Jämsä",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Jämsässä",
+    "name_genitive": "Jämsän"
+  },
+  {
+    "code": "186",
+    "name": "Järvenpää",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Järvenpäässä",
+    "name_genitive": "Järvenpään"
+  },
+  {
+    "code": "202",
+    "name": "Kaarina",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Kaarinassa",
+    "name_genitive": "Kaarinan"
+  },
+  {
+    "code": "204",
+    "name": "Kaavi",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Kaavilla",
+    "name_genitive": "Kaavin"
+  },
+  {
+    "code": "205",
+    "name": "Kajaani",
+    "region_code": "18",
+    "region_name": "Kainuu",
+    "name_locative": "Kajaanissa",
+    "name_genitive": "Kajaanin"
+  },
+  {
+    "code": "208",
+    "name": "Kalajoki",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Kalajoilla",
+    "name_genitive": "Kalajoogin"
+  },
+  {
+    "code": "211",
+    "name": "Kangasala",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Kangasalla",
+    "name_genitive": "Kangasalan"
+  },
+  {
+    "code": "213",
+    "name": "Kangasniemi",
+    "region_code": "10",
+    "region_name": "Etelä-Savo",
+    "name_locative": "Kangasniemillä",
+    "name_genitive": "Kangasniemin"
+  },
+  {
+    "code": "214",
+    "name": "Kankaanpää",
+    "region_code": "04",
+    "region_name": "Satakunta",
+    "name_locative": "Kankaanpäässä",
+    "name_genitive": "Kankaanpään"
+  },
+  {
+    "code": "216",
+    "name": "Kannonkoski",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Kannonkoskissa",
+    "name_genitive": "Kannonkoskin"
+  },
+  {
+    "code": "217",
+    "name": "Kannus",
+    "region_code": "16",
+    "region_name": "Keski-Pohjanmaa",
+    "name_locative": "Kannussa",
+    "name_genitive": "Kannuskin"
+  },
+  {
+    "code": "218",
+    "name": "Karijoki",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Karijoissa",
+    "name_genitive": "Karijoogin"
+  },
+  {
+    "code": "224",
+    "name": "Karkkila",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Karkkilalla",
+    "name_genitive": "Karkkilan"
+  },
+  {
+    "code": "226",
+    "name": "Karstula",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Karstulassa",
+    "name_genitive": "Karstulan"
+  },
+  {
+    "code": "230",
+    "name": "Karvia",
+    "region_code": "04",
+    "region_name": "Satakunta",
+    "name_locative": "Karviassa",
+    "name_genitive": "Karvian"
+  },
+  {
+    "code": "231",
+    "name": "Kaskinen",
+    "region_code": "15",
+    "region_name": "Pohjanmaa",
+    "name_locative": "Kaskinensa",
+    "name_genitive": "Kaskinenin"
+  },
+  {
+    "code": "232",
+    "name": "Kauhajoki",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Kauhajoissa",
+    "name_genitive": "Kauhajoogin"
+  },
+  {
+    "code": "233",
+    "name": "Kauhava",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Kauhavassa",
+    "name_genitive": "Kauhavan"
+  },
+  {
+    "code": "235",
+    "name": "Kauniainen",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Kauniainenssa",
+    "name_genitive": "Kauniainenkin"
+  },
+  {
+    "code": "236",
+    "name": "Kaustinen",
+    "region_code": "16",
+    "region_name": "Keski-Pohjanmaa",
+    "name_locative": "Kaustinenssa",
+    "name_genitive": "Kaustinenkin"
+  },
+  {
+    "code": "239",
+    "name": "Keitele",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Keiteleellä",
+    "name_genitive": "Keitele"
+  },
+  {
+    "code": "240",
+    "name": "Kemi",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Kemissä",
+    "name_genitive": "Kemin"
+  },
+  {
+    "code": "241",
+    "name": "Keminmaa",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Keminmaalla",
+    "name_genitive": "Keminmaan"
+  },
+  {
+    "code": "244",
+    "name": "Kempele",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Kempeleessä",
+    "name_genitive": "Kempeleen"
+  },
+  {
+    "code": "245",
+    "name": "Kerava",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Keravalla",
+    "name_genitive": "Keravan"
+  },
+  {
+    "code": "249",
+    "name": "Keuruu",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Keuruussa",
+    "name_genitive": "Keuruun"
+  },
+  {
+    "code": "250",
+    "name": "Kihniö",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Kihniössä",
+    "name_genitive": "Kihniön"
+  },
+  {
+    "code": "256",
+    "name": "Kinnula",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Kinnulassa",
+    "name_genitive": "Kinnulan"
+  },
+  {
+    "code": "257",
+    "name": "Kirkkonummi",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Kirkkonummella",
+    "name_genitive": "Kirkkonummen"
+  },
+  {
+    "code": "260",
+    "name": "Kitee",
+    "region_code": "12",
+    "region_name": "Pohjois-Karjala",
+    "name_locative": "Kiteellä",
+    "name_genitive": "Kiteen"
+  },
+  {
+    "code": "261",
+    "name": "Kittilä",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Kittilällä",
+    "name_genitive": "Kittilän"
+  },
+  {
+    "code": "263",
+    "name": "Kiuruvesi",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Kiuruvesillä",
+    "name_genitive": "Kiuruvesin"
+  },
+  {
+    "code": "265",
+    "name": "Kivijärvi",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Kivijärvissä",
+    "name_genitive": "Kivijärvin"
+  },
+  {
+    "code": "271",
+    "name": "Kokemäki",
+    "region_code": "04",
+    "region_name": "Satakunta",
+    "name_locative": "Kokemäissä",
+    "name_genitive": "Kokemäin"
+  },
+  {
+    "code": "272",
+    "name": "Kokkola",
+    "region_code": "16",
+    "region_name": "Keski-Pohjanmaa",
+    "name_locative": "Kokkolassa",
+    "name_genitive": "Kokkolan"
+  },
+  {
+    "code": "273",
+    "name": "Kolari",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Kolarilla",
+    "name_genitive": "Kolarin"
+  },
+  {
+    "code": "275",
+    "name": "Konnevesi",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Konnevesillä",
+    "name_genitive": "Konnevesin"
+  },
+  {
+    "code": "276",
+    "name": "Kontiolahti",
+    "region_code": "12",
+    "region_name": "Pohjois-Karjala",
+    "name_locative": "Kontiolahdilla",
+    "name_genitive": "Kontiolahti"
+  },
+  {
+    "code": "280",
+    "name": "Korsnäs",
+    "region_code": "15",
+    "region_name": "Pohjanmaa",
+    "name_locative": "Korsnäsissä",
+    "name_genitive": "Korsnäsin"
+  },
+  {
+    "code": "284",
+    "name": "Koski Tl",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Koski Tlssa",
+    "name_genitive": "Koski Tlin"
+  },
+  {
+    "code": "285",
+    "name": "Kotka",
+    "region_code": "08",
+    "region_name": "Kymenlaakso",
+    "name_locative": "Kotkassa",
+    "name_genitive": "Kotkan"
+  },
+  {
+    "code": "286",
+    "name": "Kouvola",
+    "region_code": "08",
+    "region_name": "Kymenlaakso",
+    "name_locative": "Kouvolassa",
+    "name_genitive": "Kouvolan"
+  },
+  {
+    "code": "287",
+    "name": "Kristiinankaupunki",
+    "region_code": "15",
+    "region_name": "Pohjanmaa",
+    "name_locative": "Kristiinankaupungissa",
+    "name_genitive": "Kristiinankaupungin"
+  },
+  {
+    "code": "288",
+    "name": "Kruunupyy",
+    "region_code": "15",
+    "region_name": "Pohjanmaa",
+    "name_locative": "Kruunupyyssä",
+    "name_genitive": "Kruunupyyn"
+  },
+  {
+    "code": "290",
+    "name": "Kuhmo",
+    "region_code": "18",
+    "region_name": "Kainuu",
+    "name_locative": "Kuhmossa",
+    "name_genitive": "Kuhmon"
+  },
+  {
+    "code": "291",
+    "name": "Kuhmoinen",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Kuhmoinenlla",
+    "name_genitive": "Kuhmoinenkin"
+  },
+  {
+    "code": "295",
+    "name": "Kumlinge",
+    "region_code": "21",
+    "region_name": "Ahvenanmaa",
+    "name_locative": "Kumlingessa",
+    "name_genitive": "Kumlingen"
+  },
+  {
+    "code": "297",
+    "name": "Kuopio",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Kuopiossa",
+    "name_genitive": "Kuopion"
+  },
+  {
+    "code": "300",
+    "name": "Kuortane",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Kuortaneessa",
+    "name_genitive": "Kuortane"
+  },
+  {
+    "code": "301",
+    "name": "Kurikka",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Kurikassa",
+    "name_genitive": "Kurikka"
+  },
+  {
+    "code": "304",
+    "name": "Kustavi",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Kustavissa",
+    "name_genitive": "Kustavin"
+  },
+  {
+    "code": "305",
+    "name": "Kuusamo",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Kuusamossa",
+    "name_genitive": "Kuusamon"
+  },
+  {
+    "code": "309",
+    "name": "Outokumpu",
+    "region_code": "12",
+    "region_name": "Pohjois-Karjala",
+    "name_locative": "Outokimpulla",
+    "name_genitive": "Outokumpu"
+  },
+  {
+    "code": "312",
+    "name": "Kyyjärvi",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Kyyjärvissä",
+    "name_genitive": "Kyyjärvin"
+  },
+  {
+    "code": "316",
+    "name": "Kärkölä",
+    "region_code": "07",
+    "region_name": "Päijät-Häme",
+    "name_locative": "Kärkölässä",
+    "name_genitive": "Kärkölän"
+  },
+  {
+    "code": "317",
+    "name": "Kärsämäki",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Kärsämäillä",
+    "name_genitive": "Kärsämäin"
+  },
+  {
+    "code": "318",
+    "name": "Kökar",
+    "region_code": "21",
+    "region_name": "Ahvenanmaa",
+    "name_locative": "Kökarssä",
+    "name_genitive": "Kökarin"
+  },
+  {
+    "code": "320",
+    "name": "Kemijärvi",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Kemijärvillä",
+    "name_genitive": "Kemijärvin"
+  },
+  {
+    "code": "322",
+    "name": "Kemiönsaari",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Kemiönsaarissa",
+    "name_genitive": "Kemiönsaarin"
+  },
+  {
+    "code": "398",
+    "name": "Lahti",
+    "region_code": "07",
+    "region_name": "Päijät-Häme",
+    "name_locative": "Lahdessa",
+    "name_genitive": "Lahden"
+  },
+  {
+    "code": "399",
+    "name": "Laihia",
+    "region_code": "15",
+    "region_name": "Pohjanmaa",
+    "name_locative": "Laihiassa",
+    "name_genitive": "Laihian"
+  },
+  {
+    "code": "400",
+    "name": "Laitila",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Laitilassa",
+    "name_genitive": "Laitilan"
+  },
+  {
+    "code": "402",
+    "name": "Lapinlahti",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Lapinlahdilla",
+    "name_genitive": "Lapinlahti"
+  },
+  {
+    "code": "403",
+    "name": "Lappajärvi",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Lappajärvissä",
+    "name_genitive": "Lappajärvin"
+  },
+  {
+    "code": "405",
+    "name": "Lappeenranta",
+    "region_code": "09",
+    "region_name": "Etelä-Karjala",
+    "name_locative": "Lappeenrannassa",
+    "name_genitive": "Lappeenrannan"
+  },
+  {
+    "code": "407",
+    "name": "Lapinjärvi",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Lapinjärvissä",
+    "name_genitive": "Lapinjärvin"
+  },
+  {
+    "code": "408",
+    "name": "Lapua",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Lapuassa",
+    "name_genitive": "Lapuan"
+  },
+  {
+    "code": "410",
+    "name": "Laukaa",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Laukaassa",
+    "name_genitive": "Laukaan"
+  },
+  {
+    "code": "416",
+    "name": "Lemi",
+    "region_code": "09",
+    "region_name": "Etelä-Karjala",
+    "name_locative": "Lemissä",
+    "name_genitive": "Lemin"
+  },
+  {
+    "code": "417",
+    "name": "Lemland",
+    "region_code": "21",
+    "region_name": "Ahvenanmaa",
+    "name_locative": "Lemlandssa",
+    "name_genitive": "Lemlandin"
+  },
+  {
+    "code": "418",
+    "name": "Lempäälä",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Lempäälässä",
+    "name_genitive": "Lempäälän"
+  },
+  {
+    "code": "420",
+    "name": "Leppävirta",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Leppävirralla",
+    "name_genitive": "Leppävirta"
+  },
+  {
+    "code": "421",
+    "name": "Lestijärvi",
+    "region_code": "16",
+    "region_name": "Keski-Pohjanmaa",
+    "name_locative": "Lestijärvissä",
+    "name_genitive": "Lestijärvin"
+  },
+  {
+    "code": "422",
+    "name": "Lieksa",
+    "region_code": "12",
+    "region_name": "Pohjois-Karjala",
+    "name_locative": "Lieksalla",
+    "name_genitive": "Lieksan"
+  },
+  {
+    "code": "423",
+    "name": "Lieto",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Liedossa",
+    "name_genitive": "Liedon"
+  },
+  {
+    "code": "425",
+    "name": "Liminka",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Limingalla",
+    "name_genitive": "Liminka"
+  },
+  {
+    "code": "426",
+    "name": "Liperi",
+    "region_code": "12",
+    "region_name": "Pohjois-Karjala",
+    "name_locative": "Liperillä",
+    "name_genitive": "Liperin"
+  },
+  {
+    "code": "430",
+    "name": "Loimaa",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Loimaassa",
+    "name_genitive": "Loimaan"
+  },
+  {
+    "code": "433",
+    "name": "Loppi",
+    "region_code": "05",
+    "region_name": "Kanta-Häme",
+    "name_locative": "Lopissa",
+    "name_genitive": "Loppi"
+  },
+  {
+    "code": "434",
+    "name": "Loviisa",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Loviisassa",
+    "name_genitive": "Loviisan"
+  },
+  {
+    "code": "435",
+    "name": "Luhanka",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Luhangalla",
+    "name_genitive": "Luhanka"
+  },
+  {
+    "code": "436",
+    "name": "Lumijoki",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Lumijoilla",
+    "name_genitive": "Lumijoogin"
+  },
+  {
+    "code": "438",
+    "name": "Lumparland",
+    "region_code": "21",
+    "region_name": "Ahvenanmaa",
+    "name_locative": "Lumparlandssa",
+    "name_genitive": "Lumparlandin"
+  },
+  {
+    "code": "440",
+    "name": "Luoto",
+    "region_code": "15",
+    "region_name": "Pohjanmaa",
+    "name_locative": "Luotossa",
+    "name_genitive": "Luoton"
+  },
+  {
+    "code": "441",
+    "name": "Luumäki",
+    "region_code": "09",
+    "region_name": "Etelä-Karjala",
+    "name_locative": "Luumäissä",
+    "name_genitive": "Luumäin"
+  },
+  {
+    "code": "444",
+    "name": "Lohja",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Lohjalla",
+    "name_genitive": "Lohjan"
+  },
+  {
+    "code": "445",
+    "name": "Parainen",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Paranneissa",
+    "name_genitive": "Parainenkin"
+  },
+  {
+    "code": "475",
+    "name": "Maalahti",
+    "region_code": "15",
+    "region_name": "Pohjanmaa",
+    "name_locative": "Maalahdissa",
+    "name_genitive": "Maalahti"
+  },
+  {
+    "code": "478",
+    "name": "Maarianhamina",
+    "region_code": "21",
+    "region_name": "Ahvenanmaa",
+    "name_locative": "Maarianhaminassa",
+    "name_genitive": "Maarianhaminan"
+  },
+  {
+    "code": "480",
+    "name": "Marttila",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Marttilassa",
+    "name_genitive": "Marttilan"
+  },
+  {
+    "code": "481",
+    "name": "Masku",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Maskussa",
+    "name_genitive": "Maskun"
+  },
+  {
+    "code": "483",
+    "name": "Merijärvi",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Merijärvillä",
+    "name_genitive": "Merijärvin"
+  },
+  {
+    "code": "484",
+    "name": "Merikarvia",
+    "region_code": "04",
+    "region_name": "Satakunta",
+    "name_locative": "Merikarviassa",
+    "name_genitive": "Merikarvian"
+  },
+  {
+    "code": "489",
+    "name": "Miehikkälä",
+    "region_code": "08",
+    "region_name": "Kymenlaakso",
+    "name_locative": "Miehikkälässä",
+    "name_genitive": "Miehikkälän"
+  },
+  {
+    "code": "491",
+    "name": "Mikkeli",
+    "region_code": "10",
+    "region_name": "Etelä-Savo",
+    "name_locative": "Mikkelissä",
+    "name_genitive": "Mikkelin"
+  },
+  {
+    "code": "494",
+    "name": "Muhos",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Muholla",
+    "name_genitive": "Muhosin"
+  },
+  {
+    "code": "495",
+    "name": "Multia",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Multiassa",
+    "name_genitive": "Multian"
+  },
+  {
+    "code": "498",
+    "name": "Muonio",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Muoniolla",
+    "name_genitive": "Muonion"
+  },
+  {
+    "code": "499",
+    "name": "Mustasaari",
+    "region_code": "15",
+    "region_name": "Pohjanmaa",
+    "name_locative": "Mustasaarissa",
+    "name_genitive": "Mustasaarin"
+  },
+  {
+    "code": "500",
+    "name": "Muurame",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Muuramessa",
+    "name_genitive": "Muuramen"
+  },
+  {
+    "code": "503",
+    "name": "Mynämäki",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Mynämäissä",
+    "name_genitive": "Mynämäin"
+  },
+  {
+    "code": "504",
+    "name": "Myrskylä",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Myrskylässä",
+    "name_genitive": "Myrskylän"
+  },
+  {
+    "code": "505",
+    "name": "Mäntsälä",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Mäntsälässä",
+    "name_genitive": "Mäntsälän"
+  },
+  {
+    "code": "507",
+    "name": "Mäntyharju",
+    "region_code": "10",
+    "region_name": "Etelä-Savo",
+    "name_locative": "Mäntyharjulla",
+    "name_genitive": "Mäntyharjun"
+  },
+  {
+    "code": "508",
+    "name": "Mänttä-Vilppula",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Mänttä-Vilppulassa",
+    "name_genitive": "Mänttä-Vilppulan"
+  },
+  {
+    "code": "529",
+    "name": "Naantali",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Naantalissa",
+    "name_genitive": "Naantalin"
+  },
+  {
+    "code": "531",
+    "name": "Nakkila",
+    "region_code": "04",
+    "region_name": "Satakunta",
+    "name_locative": "Nakkilassa",
+    "name_genitive": "Nakkilan"
+  },
+  {
+    "code": "535",
+    "name": "Nivala",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Nivalalla",
+    "name_genitive": "Nivalan"
+  },
+  {
+    "code": "536",
+    "name": "Nokia",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Nokialla",
+    "name_genitive": "Nokian"
+  },
+  {
+    "code": "538",
+    "name": "Nousiainen",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Nousiainenssa",
+    "name_genitive": "Nousiainenkin"
+  },
+  {
+    "code": "541",
+    "name": "Nurmes",
+    "region_code": "12",
+    "region_name": "Pohjois-Karjala",
+    "name_locative": "Nurmella",
+    "name_genitive": "Nurmesi"
+  },
+  {
+    "code": "543",
+    "name": "Nurmijärvi",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Nurmijärvillä",
+    "name_genitive": "Nurmijärvin"
+  },
+  {
+    "code": "545",
+    "name": "Närpiö",
+    "region_code": "15",
+    "region_name": "Pohjanmaa",
+    "name_locative": "Närpiössä",
+    "name_genitive": "Närpiön"
+  },
+  {
+    "code": "560",
+    "name": "Orimattila",
+    "region_code": "07",
+    "region_name": "Päijät-Häme",
+    "name_locative": "Orimattilassa",
+    "name_genitive": "Orimattilan"
+  },
+  {
+    "code": "561",
+    "name": "Oripää",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Oripäässä",
+    "name_genitive": "Oripään"
+  },
+  {
+    "code": "562",
+    "name": "Orivesi",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Orivesissä",
+    "name_genitive": "Orivesin"
+  },
+  {
+    "code": "563",
+    "name": "Oulainen",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Oulainenlla",
+    "name_genitive": "Oulainenkin"
+  },
+  {
+    "code": "564",
+    "name": "Oulu",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Oulussa",
+    "name_genitive": "Oulun"
+  },
+  {
+    "code": "576",
+    "name": "Padasjoki",
+    "region_code": "07",
+    "region_name": "Päijät-Häme",
+    "name_locative": "Padasjoilla",
+    "name_genitive": "Padasjoin"
+  },
+  {
+    "code": "577",
+    "name": "Paimio",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Paimiossa",
+    "name_genitive": "Paimion"
+  },
+  {
+    "code": "578",
+    "name": "Paltamo",
+    "region_code": "18",
+    "region_name": "Kainuu",
+    "name_locative": "Paltamossa",
+    "name_genitive": "Paltamon"
+  },
+  {
+    "code": "580",
+    "name": "Parikkala",
+    "region_code": "09",
+    "region_name": "Etelä-Karjala",
+    "name_locative": "Parikkalalla",
+    "name_genitive": "Parikkalan"
+  },
+  {
+    "code": "581",
+    "name": "Parkano",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Parkanossa",
+    "name_genitive": "Parkanon"
+  },
+  {
+    "code": "583",
+    "name": "Pelkosenniemi",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Pelkosenniemillä",
+    "name_genitive": "Pelkosenniemin"
+  },
+  {
+    "code": "584",
+    "name": "Perho",
+    "region_code": "16",
+    "region_name": "Keski-Pohjanmaa",
+    "name_locative": "Perhossa",
+    "name_genitive": "Perhon"
+  },
+  {
+    "code": "592",
+    "name": "Petäjävesi",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Petäjävesissä",
+    "name_genitive": "Petäjävesin"
+  },
+  {
+    "code": "593",
+    "name": "Pieksämäki",
+    "region_code": "10",
+    "region_name": "Etelä-Savo",
+    "name_locative": "Pieksämäellä",
+    "name_genitive": "Pieksämäen"
+  },
+  {
+    "code": "595",
+    "name": "Pielavesi",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Pielavesillä",
+    "name_genitive": "Pielavesin"
+  },
+  {
+    "code": "598",
+    "name": "Pietarsaari",
+    "region_code": "15",
+    "region_name": "Pohjanmaa",
+    "name_locative": "Pietarsaaressa",
+    "name_genitive": "Pietarsaaren"
+  },
+  {
+    "code": "599",
+    "name": "Pedersören kunta",
+    "region_code": "15",
+    "region_name": "Pohjanmaa",
+    "name_locative": "Pedersören kuntassä",
+    "name_genitive": "Pedersören kuntan"
+  },
+  {
+    "code": "601",
+    "name": "Pihtipudas",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Pihtipudasssa",
+    "name_genitive": "Pihtipudaskin"
+  },
+  {
+    "code": "604",
+    "name": "Pirkkala",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Pirkkalassa",
+    "name_genitive": "Pirkkalan"
+  },
+  {
+    "code": "607",
+    "name": "Polvijärvi",
+    "region_code": "12",
+    "region_name": "Pohjois-Karjala",
+    "name_locative": "Polvijärvillä",
+    "name_genitive": "Polvijärvin"
+  },
+  {
+    "code": "608",
+    "name": "Pomarkku",
+    "region_code": "04",
+    "region_name": "Satakunta",
+    "name_locative": "Pomarkussa",
+    "name_genitive": "Pomarkku"
+  },
+  {
+    "code": "609",
+    "name": "Pori",
+    "region_code": "04",
+    "region_name": "Satakunta",
+    "name_locative": "Porissa",
+    "name_genitive": "Porin"
+  },
+  {
+    "code": "611",
+    "name": "Pornainen",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Pornainenssa",
+    "name_genitive": "Pornainenkin"
+  },
+  {
+    "code": "614",
+    "name": "Posio",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Posiolla",
+    "name_genitive": "Posion"
+  },
+  {
+    "code": "615",
+    "name": "Pudasjärvi",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Pudasjärvillä",
+    "name_genitive": "Pudasjärvin"
+  },
+  {
+    "code": "616",
+    "name": "Pukkila",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Pukkilassa",
+    "name_genitive": "Pukkilan"
+  },
+  {
+    "code": "619",
+    "name": "Punkalaidun",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Punkalaidunssa",
+    "name_genitive": "Punkalaidunkin"
+  },
+  {
+    "code": "620",
+    "name": "Puolanka",
+    "region_code": "18",
+    "region_name": "Kainuu",
+    "name_locative": "Puolankassa",
+    "name_genitive": "Puolanka"
+  },
+  {
+    "code": "623",
+    "name": "Puumala",
+    "region_code": "10",
+    "region_name": "Etelä-Savo",
+    "name_locative": "Puumalalla",
+    "name_genitive": "Puumalan"
+  },
+  {
+    "code": "624",
+    "name": "Pyhtää",
+    "region_code": "08",
+    "region_name": "Kymenlaakso",
+    "name_locative": "Pyhtäässä",
+    "name_genitive": "Pyhtään"
+  },
+  {
+    "code": "625",
+    "name": "Pyhäjoki",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Pyhäjoilla",
+    "name_genitive": "Pyhäjoogin"
+  },
+  {
+    "code": "626",
+    "name": "Pyhäjärvi",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Pyhäjärvillä",
+    "name_genitive": "Pyhäjärvin"
+  },
+  {
+    "code": "630",
+    "name": "Pyhäntä",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Pyhän tässä",
+    "name_genitive": "Pyhäntä"
+  },
+  {
+    "code": "631",
+    "name": "Pyhäranta",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Pyhärantaässä",
+    "name_genitive": "Pyhäranta"
+  },
+  {
+    "code": "635",
+    "name": "Pälkäne",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Pälkäneessä",
+    "name_genitive": "Pälkäne"
+  },
+  {
+    "code": "636",
+    "name": "Pöytyä",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Pöytyässä",
+    "name_genitive": "Pöytyän"
+  },
+  {
+    "code": "638",
+    "name": "Porvoo",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Porvoossa",
+    "name_genitive": "Porvoon"
+  },
+  {
+    "code": "678",
+    "name": "Raahe",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Raahessa",
+    "name_genitive": "Raahen"
+  },
+  {
+    "code": "680",
+    "name": "Raisio",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Raisiossa",
+    "name_genitive": "Raision"
+  },
+  {
+    "code": "681",
+    "name": "Rantasalmi",
+    "region_code": "10",
+    "region_name": "Etelä-Savo",
+    "name_locative": "Rantasalmilla",
+    "name_genitive": "Rantasalmin"
+  },
+  {
+    "code": "683",
+    "name": "Ranua",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Ranualla",
+    "name_genitive": "Ranuan"
+  },
+  {
+    "code": "684",
+    "name": "Rauma",
+    "region_code": "04",
+    "region_name": "Satakunta",
+    "name_locative": "Raumalla",
+    "name_genitive": "Rauman"
+  },
+  {
+    "code": "686",
+    "name": "Rautalampi",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Rautalampulla",
+    "name_genitive": "Rautalampi"
+  },
+  {
+    "code": "687",
+    "name": "Rautavaara",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Rautavaaralla",
+    "name_genitive": "Rautavaaran"
+  },
+  {
+    "code": "689",
+    "name": "Rautjärvi",
+    "region_code": "09",
+    "region_name": "Etelä-Karjala",
+    "name_locative": "Rautjärvillä",
+    "name_genitive": "Rautjärvin"
+  },
+  {
+    "code": "691",
+    "name": "Reisjärvi",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Reisjärvillä",
+    "name_genitive": "Reisjärvin"
+  },
+  {
+    "code": "694",
+    "name": "Riihimäki",
+    "region_code": "05",
+    "region_name": "Kanta-Häme",
+    "name_locative": "Riihimäellä",
+    "name_genitive": "Riihimäen"
+  },
+  {
+    "code": "697",
+    "name": "Ristijärvi",
+    "region_code": "18",
+    "region_name": "Kainuu",
+    "name_locative": "Ristijärvissä",
+    "name_genitive": "Ristijärvin"
+  },
+  {
+    "code": "698",
+    "name": "Rovaniemi",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Rovaniemellä",
+    "name_genitive": "Rovaniemen"
+  },
+  {
+    "code": "700",
+    "name": "Ruokolahti",
+    "region_code": "09",
+    "region_name": "Etelä-Karjala",
+    "name_locative": "Ruokolahdissa",
+    "name_genitive": "Ruokolahti"
+  },
+  {
+    "code": "702",
+    "name": "Ruovesi",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Ruovesissä",
+    "name_genitive": "Ruovesin"
+  },
+  {
+    "code": "704",
+    "name": "Rusko",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Ruskossa",
+    "name_genitive": "Ruskon"
+  },
+  {
+    "code": "707",
+    "name": "Rääkkylä",
+    "region_code": "12",
+    "region_name": "Pohjois-Karjala",
+    "name_locative": "Rääkkylässä",
+    "name_genitive": "Rääkkylän"
+  },
+  {
+    "code": "710",
+    "name": "Raasepori",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Raaseporissa",
+    "name_genitive": "Raaseporin"
+  },
+  {
+    "code": "729",
+    "name": "Saarijärvi",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Saarijärvissä",
+    "name_genitive": "Saarijärvin"
+  },
+  {
+    "code": "732",
+    "name": "Salla",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Sallalla",
+    "name_genitive": "Sallan"
+  },
+  {
+    "code": "734",
+    "name": "Salo",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Salossa",
+    "name_genitive": "Salon"
+  },
+  {
+    "code": "736",
+    "name": "Saltvik",
+    "region_code": "21",
+    "region_name": "Ahvenanmaa",
+    "name_locative": "Saltvikssa",
+    "name_genitive": "Saltvikin"
+  },
+  {
+    "code": "738",
+    "name": "Sauvo",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Sauvossa",
+    "name_genitive": "Sauvon"
+  },
+  {
+    "code": "739",
+    "name": "Savitaipale",
+    "region_code": "09",
+    "region_name": "Etelä-Karjala",
+    "name_locative": "Savitaipalella",
+    "name_genitive": "Savitaipalen"
+  },
+  {
+    "code": "740",
+    "name": "Savonlinna",
+    "region_code": "10",
+    "region_name": "Etelä-Savo",
+    "name_locative": "Savonlinnassa",
+    "name_genitive": "Savonlinnan"
+  },
+  {
+    "code": "742",
+    "name": "Savukoski",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Savukoskilla",
+    "name_genitive": "Savukoskin"
+  },
+  {
+    "code": "743",
+    "name": "Seinäjoki",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Seinäjoella",
+    "name_genitive": "Seinäjoen"
+  },
+  {
+    "code": "746",
+    "name": "Sievi",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Sievissä",
+    "name_genitive": "Sievin"
+  },
+  {
+    "code": "747",
+    "name": "Siikainen",
+    "region_code": "04",
+    "region_name": "Satakunta",
+    "name_locative": "Siikainenossa",
+    "name_genitive": "Siikainenkin"
+  },
+  {
+    "code": "748",
+    "name": "Siikajoki",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Siikajoilla",
+    "name_genitive": "Siikajoogin"
+  },
+  {
+    "code": "749",
+    "name": "Siilinjärvi",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Siilinjärvellä",
+    "name_genitive": "Siilinjärven"
+  },
+  {
+    "code": "751",
+    "name": "Simo",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Simolla",
+    "name_genitive": "Simon"
+  },
+  {
+    "code": "753",
+    "name": "Sipoo",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Sipoolla",
+    "name_genitive": "Sipoon"
+  },
+  {
+    "code": "755",
+    "name": "Siuntio",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Siuntiossa",
+    "name_genitive": "Siuntion"
+  },
+  {
+    "code": "758",
+    "name": "Sodankylä",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Sodankylällä",
+    "name_genitive": "Sodankylän"
+  },
+  {
+    "code": "759",
+    "name": "Soini",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Soinissa",
+    "name_genitive": "Soinin"
+  },
+  {
+    "code": "761",
+    "name": "Somero",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Somerossa",
+    "name_genitive": "Someron"
+  },
+  {
+    "code": "762",
+    "name": "Sonkajärvi",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Sonkajärvillä",
+    "name_genitive": "Sonkajärvin"
+  },
+  {
+    "code": "765",
+    "name": "Sotkamo",
+    "region_code": "18",
+    "region_name": "Kainuu",
+    "name_locative": "Sotkamossa",
+    "name_genitive": "Sotkamon"
+  },
+  {
+    "code": "766",
+    "name": "Sottunga",
+    "region_code": "21",
+    "region_name": "Ahvenanmaa",
+    "name_locative": "Sottungassa",
+    "name_genitive": "Sottungan"
+  },
+  {
+    "code": "768",
+    "name": "Sulkava",
+    "region_code": "10",
+    "region_name": "Etelä-Savo",
+    "name_locative": "Sulkavalla",
+    "name_genitive": "Sulkavan"
+  },
+  {
+    "code": "771",
+    "name": "Sund",
+    "region_code": "21",
+    "region_name": "Ahvenanmaa",
+    "name_locative": "Sundssa",
+    "name_genitive": "Sunin"
+  },
+  {
+    "code": "777",
+    "name": "Suomussalmi",
+    "region_code": "18",
+    "region_name": "Kainuu",
+    "name_locative": "Suomussalmissa",
+    "name_genitive": "Suomussalmin"
+  },
+  {
+    "code": "778",
+    "name": "Suonenjoki",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Suonenjoilla",
+    "name_genitive": "Suonenjoogin"
+  },
+  {
+    "code": "781",
+    "name": "Sysmä",
+    "region_code": "07",
+    "region_name": "Päijät-Häme",
+    "name_locative": "Sysmällä",
+    "name_genitive": "Sysmän"
+  },
+  {
+    "code": "783",
+    "name": "Säkylä",
+    "region_code": "04",
+    "region_name": "Satakunta",
+    "name_locative": "Säkylässä",
+    "name_genitive": "Säkylän"
+  },
+  {
+    "code": "785",
+    "name": "Vaala",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Vaalalla",
+    "name_genitive": "Vaalan"
+  },
+  {
+    "code": "790",
+    "name": "Sastamala",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Sastamalassa",
+    "name_genitive": "Sastamalan"
+  },
+  {
+    "code": "791",
+    "name": "Siikalatva",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Siikalatvalla",
+    "name_genitive": "Siikalatvan"
+  },
+  {
+    "code": "831",
+    "name": "Taipalsaari",
+    "region_code": "09",
+    "region_name": "Etelä-Karjala",
+    "name_locative": "Taipalsaarilla",
+    "name_genitive": "Taipalsaarin"
+  },
+  {
+    "code": "832",
+    "name": "Taivalkoski",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Taivalkoskilla",
+    "name_genitive": "Taivalkoskin"
+  },
+  {
+    "code": "833",
+    "name": "Taivassalo",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Taivassalossa",
+    "name_genitive": "Taivassalon"
+  },
+  {
+    "code": "834",
+    "name": "Tammela",
+    "region_code": "05",
+    "region_name": "Kanta-Häme",
+    "name_locative": "Tammelassa",
+    "name_genitive": "Tammelan"
+  },
+  {
+    "code": "837",
+    "name": "Tampere",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Tampereella",
+    "name_genitive": "Tampereen"
+  },
+  {
+    "code": "844",
+    "name": "Tervo",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Tervolla",
+    "name_genitive": "Tervon"
+  },
+  {
+    "code": "845",
+    "name": "Tervola",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Tervolalla",
+    "name_genitive": "Tervolan"
+  },
+  {
+    "code": "846",
+    "name": "Teuva",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Teuvassa",
+    "name_genitive": "Teuvan"
+  },
+  {
+    "code": "848",
+    "name": "Tohmajärvi",
+    "region_code": "12",
+    "region_name": "Pohjois-Karjala",
+    "name_locative": "Tohmajärvillä",
+    "name_genitive": "Tohmajärvin"
+  },
+  {
+    "code": "849",
+    "name": "Toholampi",
+    "region_code": "16",
+    "region_name": "Keski-Pohjanmaa",
+    "name_locative": "Toholampissa",
+    "name_genitive": "Toholampi"
+  },
+  {
+    "code": "850",
+    "name": "Toivakka",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Toivakassa",
+    "name_genitive": "Toivakka"
+  },
+  {
+    "code": "851",
+    "name": "Tornio",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Torniossa",
+    "name_genitive": "Tornion"
+  },
+  {
+    "code": "853",
+    "name": "Turku",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Turussa",
+    "name_genitive": "Turun"
+  },
+  {
+    "code": "854",
+    "name": "Pello",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Pellolla",
+    "name_genitive": "Pellon"
+  },
+  {
+    "code": "857",
+    "name": "Tuusniemi",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Tuusniemillä",
+    "name_genitive": "Tuusniemin"
+  },
+  {
+    "code": "858",
+    "name": "Tuusula",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Tuusulalla",
+    "name_genitive": "Tuusulan"
+  },
+  {
+    "code": "859",
+    "name": "Tyrnävä",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Tyrnävällä",
+    "name_genitive": "Tyrnävän"
+  },
+  {
+    "code": "886",
+    "name": "Ulvila",
+    "region_code": "04",
+    "region_name": "Satakunta",
+    "name_locative": "Ulvilassa",
+    "name_genitive": "Ulvilan"
+  },
+  {
+    "code": "887",
+    "name": "Urjala",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Urjalalla",
+    "name_genitive": "Urjalan"
+  },
+  {
+    "code": "889",
+    "name": "Utajärvi",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Utajärvillä",
+    "name_genitive": "Utajärvin"
+  },
+  {
+    "code": "890",
+    "name": "Utsjoki",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Utsjoilla",
+    "name_genitive": "Utsjoin"
+  },
+  {
+    "code": "892",
+    "name": "Uurainen",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Uurainenssa",
+    "name_genitive": "Uurainenkin"
+  },
+  {
+    "code": "893",
+    "name": "Uusikaarlepyy",
+    "region_code": "15",
+    "region_name": "Pohjanmaa",
+    "name_locative": "Uusikaarlepyyssä",
+    "name_genitive": "Uusikaarlepyyn"
+  },
+  {
+    "code": "895",
+    "name": "Uusikaupunki",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Uudessakaupungissa",
+    "name_genitive": "Uudenkaupungin"
+  },
+  {
+    "code": "905",
+    "name": "Vaasa",
+    "region_code": "15",
+    "region_name": "Pohjanmaa",
+    "name_locative": "Vaasassa",
+    "name_genitive": "Vaasan"
+  },
+  {
+    "code": "908",
+    "name": "Valkeakoski",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Valkeakoskella",
+    "name_genitive": "Valkeakosken"
+  },
+  {
+    "code": "915",
+    "name": "Varkaus",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Varkaudessa",
+    "name_genitive": "Varkauden"
+  },
+  {
+    "code": "918",
+    "name": "Vehmaa",
+    "region_code": "02",
+    "region_name": "Varsinais-Suomi",
+    "name_locative": "Vehmaassa",
+    "name_genitive": "Vehmaan"
+  },
+  {
+    "code": "921",
+    "name": "Vesanto",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Vesantokka",
+    "name_genitive": "Vesanto"
+  },
+  {
+    "code": "922",
+    "name": "Vesilahti",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Vesilahdissa",
+    "name_genitive": "Vesilahti"
+  },
+  {
+    "code": "924",
+    "name": "Veteli",
+    "region_code": "16",
+    "region_name": "Keski-Pohjanmaa",
+    "name_locative": "Vetelissä",
+    "name_genitive": "Vetelin"
+  },
+  {
+    "code": "925",
+    "name": "Vieremä",
+    "region_code": "11",
+    "region_name": "Pohjois-Savo",
+    "name_locative": "Vieremällä",
+    "name_genitive": "Vieremän"
+  },
+  {
+    "code": "927",
+    "name": "Vihti",
+    "region_code": "01",
+    "region_name": "Uusimaa",
+    "name_locative": "Vihdillä",
+    "name_genitive": "Vihti"
+  },
+  {
+    "code": "931",
+    "name": "Viitasaari",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Viitasaarissa",
+    "name_genitive": "Viitasaarin"
+  },
+  {
+    "code": "934",
+    "name": "Vimpeli",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Vimpelissä",
+    "name_genitive": "Vimpelin"
+  },
+  {
+    "code": "935",
+    "name": "Virolahti",
+    "region_code": "08",
+    "region_name": "Kymenlaakso",
+    "name_locative": "Virolahdissa",
+    "name_genitive": "Virolahti"
+  },
+  {
+    "code": "936",
+    "name": "Virrat",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Virrassa",
+    "name_genitive": "Virratkin"
+  },
+  {
+    "code": "941",
+    "name": "Vårdö",
+    "region_code": "21",
+    "region_name": "Ahvenanmaa",
+    "name_locative": "Vårdössä",
+    "name_genitive": "Vårdön"
+  },
+  {
+    "code": "946",
+    "name": "Vöyri",
+    "region_code": "15",
+    "region_name": "Pohjanmaa",
+    "name_locative": "Vöyrissä",
+    "name_genitive": "Vöyrin"
+  },
+  {
+    "code": "976",
+    "name": "Ylitornio",
+    "region_code": "19",
+    "region_name": "Lappi",
+    "name_locative": "Ylitorniolla",
+    "name_genitive": "Ylitornion"
+  },
+  {
+    "code": "977",
+    "name": "Ylivieska",
+    "region_code": "17",
+    "region_name": "Pohjois-Pohjanmaa",
+    "name_locative": "Ylivieskassa",
+    "name_genitive": "Ylivieskan"
+  },
+  {
+    "code": "980",
+    "name": "Ylöjärvi",
+    "region_code": "06",
+    "region_name": "Pirkanmaa",
+    "name_locative": "Ylöjärvellä",
+    "name_genitive": "Ylöjärven"
+  },
+  {
+    "code": "981",
+    "name": "Ypäjä",
+    "region_code": "05",
+    "region_name": "Kanta-Häme",
+    "name_locative": "Ypäjässä",
+    "name_genitive": "Ypäjän"
+  },
+  {
+    "code": "989",
+    "name": "Ähtäri",
+    "region_code": "14",
+    "region_name": "Etelä-Pohjanmaa",
+    "name_locative": "Ähtärissä",
+    "name_genitive": "Ähtärin"
+  },
+  {
+    "code": "992",
+    "name": "Äänekoski",
+    "region_code": "13",
+    "region_name": "Keski-Suomi",
+    "name_locative": "Äänekoskella",
+    "name_genitive": "Äänekosken"
+  }
+]

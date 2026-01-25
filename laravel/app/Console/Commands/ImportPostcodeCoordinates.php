@@ -25,16 +25,16 @@ class ImportPostcodeCoordinates extends Command
     protected $description = 'Import latitude/longitude coordinates for postcodes from JSON file';
 
     /**
-     * Default source file path.
+     * Default source file path (relative to Laravel base path).
      */
-    private const DEFAULT_SOURCE = '/Users/seppo/code/likaiset-sivut/source-data/postcodes.json';
+    private const DEFAULT_SOURCE = 'database/data/postcodes.json';
 
     /**
      * Execute the console command.
      */
     public function handle(): int
     {
-        $sourcePath = $this->option('source') ?? self::DEFAULT_SOURCE;
+        $sourcePath = $this->option('source') ?? base_path(self::DEFAULT_SOURCE);
 
         if (!File::exists($sourcePath)) {
             $this->error("Source file not found: {$sourcePath}");
