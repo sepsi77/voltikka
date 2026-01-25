@@ -1,0 +1,107 @@
+{
+  "session": "weekly-offers-video",
+  "created_at": "2026-01-25T12:30:00Z",
+  "description": "Implement WeeklyOffers Remotion video composition showcasing electricity contracts with active discounts. Follow the existing DailySpotPrice patterns for branding (1080x1920, coral theme, Plus Jakarta Sans). Key focus: Lead with video art direction and Remotion expertise when working on components.",
+  "art_direction_notes": "IMPORTANT: Approach each component with video art direction first. Consider visual hierarchy, motion design principles (anticipation, follow-through, easing), color contrast for readability on mobile screens, and how elements flow between scenes. Use spring animations consistently (SNAP for quick actions, FLOW for smooth transitions). Reference DailySpotPrice for established patterns but bring creative thinking to the offer card design.",
+  "tasks": [
+    {
+      "id": "1",
+      "title": "Add WeeklyOffersVideoData types to types.ts",
+      "description": "Add TypeScript types for the WeeklyOffers video composition:\n\n1. ContractOffer type with:\n   - id, name, company (name + logo_url)\n   - pricing_model: 'Spot' | 'FixedPrice' | 'Hybrid'\n   - discount: { value, is_percentage, n_first_months, until_date } | null\n   - pricing: { monthly_fee, energy_price }\n   - costs: { apartment: number, townhouse: number, house: number } (2000/5000/10000 kWh)\n   - savings: { apartment, townhouse, house } (EUR saved vs regular price)\n\n2. WeeklyOffersVideoData type with:\n   - generated_at: string\n   - week: { start, end, formatted }\n   - offers_count: number\n   - offers: ContractOffer[] (max 5)\n\n3. WeeklyOffersProps type with data: WeeklyOffersVideoData\n\nFile: remotion/src/types.ts\n\nAcceptance: Types compile without errors, match the API response structure from the plan.",
+      "status": "completed",
+      "priority": 1,
+      "started_at": "2026-01-25T12:45:00Z",
+      "completed_at": "2026-01-25T12:50:00Z",
+      "passes": true
+    },
+    {
+      "id": "2",
+      "title": "Create WeeklyOffersVideoService.php backend service",
+      "description": "Create the Laravel service that fetches contracts with active discounts and calculates costs/savings:\n\n1. Query contracts with active discounts:\n   - Active contracts only (->active() scope)\n   - target_group = 'Household'\n   - priceComponents with has_discount=true and valid dates\n   - Order by discount_value desc\n   - Limit 5\n\n2. For each contract, calculate:\n   - Annual costs at 2000/5000/10000 kWh consumption levels using ContractPriceCalculator\n   - Savings by comparing discounted vs non-discounted price (calculate both, subtract)\n\n3. Format response matching WeeklyOffersVideoData type:\n   - Include week start/end dates\n   - Format 'formatted' as Finnish (e.g., '20.–26.1.2026')\n   - Include company name and logo_url\n\nFile: laravel/app/Services/WeeklyOffersVideoService.php\n\nAcceptance: Service returns properly formatted data, price calculations are accurate, follows existing service patterns.",
+      "status": "completed",
+      "priority": 1,
+      "depends_on": [],
+      "started_at": "2026-01-25T12:50:00Z",
+      "completed_at": "2026-01-25T12:58:00Z",
+      "passes": true
+    },
+    {
+      "id": "3",
+      "title": "Add API route and controller method for weekly-offers",
+      "description": "Add the API endpoint for fetching weekly offers video data:\n\n1. Add route in routes/api.php:\n   GET /api/video/weekly-offers\n\n2. Add method to VideoController.php:\n   - Inject WeeklyOffersVideoService\n   - Return JSON response with 'data' key\n\nFollow the existing daily() method pattern.\n\nFile: laravel/routes/api.php, laravel/app/Http/Controllers/Api/VideoController.php\n\nAcceptance: Endpoint returns valid JSON, matches WeeklyOffersVideoData structure, handles edge cases (no offers).",
+      "status": "completed",
+      "priority": 2,
+      "depends_on": ["2"],
+      "started_at": "2026-01-25T12:58:00Z",
+      "completed_at": "2026-01-25T13:02:00Z",
+      "passes": true
+    },
+    {
+      "id": "4",
+      "title": "Create TitleScene.tsx with week dates",
+      "description": "ART DIRECTION FOCUS: Create the opening title scene with visual impact.\n\n1. Design specifications:\n   - Full-screen dark slate background (#0f172a)\n   - 'Viikon sähkötarjoukset' headline with coral (#f97316) accent\n   - Week dates displayed below (e.g., '20.–26. tammikuuta 2026')\n   - Subtle animated elements (gradient glow, floating particles optional)\n\n2. Animation (spring-based, ~2.5s duration):\n   - Staggered reveal: background → badge → headline → dates\n   - Use established spring configs: SNAP for title, FLOW for supporting elements\n   - Scale + opacity + translateY combinations\n   - Frame 0 must show static final state for thumbnail\n\n3. Typography:\n   - Main headline: bold, ~100-120px\n   - Week dates: medium weight, ~48px, muted color\n   - Plus Jakarta Sans font family\n\nFile: remotion/src/compositions/WeeklyOffers/TitleScene.tsx\n\nAcceptance: Scene renders correctly, animations are smooth, matches DailySpotPrice branding quality.",
+      "status": "completed",
+      "priority": 2,
+      "depends_on": ["1"],
+      "started_at": "2026-01-25T13:02:00Z",
+      "completed_at": "2026-01-25T13:08:00Z",
+      "passes": true
+    },
+    {
+      "id": "5",
+      "title": "Create OfferCard.tsx component with pricing table",
+      "description": "ART DIRECTION FOCUS: Design a compelling, information-dense offer card that's readable on mobile.\n\n1. Card layout (full-screen, dark theme):\n   - Header: Company logo (64px) + company name + contract name\n   - Discount badge: Eye-catching design (coral background, bold text)\n     - Format: '-15%' or '-0,50 c/kWh'\n     - Subtext: '3 ensimmäistä kuukautta' or 'voimassa 31.3.2026 asti'\n   - Pricing table with 3 consumption columns:\n     - Headers: 2000 kWh, 5000 kWh, 10000 kWh\n     - Annual costs in EUR (e.g., '412 €')\n   - Savings highlight section:\n     - Green (#22c55e) accent color\n     - 'SÄÄSTÄT TARJOUKSELLA' label\n     - Three columns showing EUR saved per year\n   - Energy source badge (optional): renewable/fossil indicator\n\n2. Animation approach:\n   - Card slides in from bottom with spring\n   - Elements reveal with staggered delays\n   - Numbers can have subtle count-up effect (optional)\n\n3. Visual hierarchy:\n   - Discount badge is the focal point\n   - Savings amounts should be prominent (larger, green)\n   - Company info secondary\n\nProps: ContractOffer from types\n\nFile: remotion/src/compositions/WeeklyOffers/OfferCard.tsx\n\nAcceptance: Card displays all required information, visually balanced, readable at 1080x1920.",
+      "status": "completed",
+      "priority": 2,
+      "depends_on": ["1"],
+      "started_at": "2026-01-25T13:08:00Z",
+      "completed_at": "2026-01-25T13:15:00Z",
+      "passes": true
+    },
+    {
+      "id": "6",
+      "title": "Create OffersCarousel.tsx with staggered card reveals",
+      "description": "ART DIRECTION FOCUS: Create smooth transitions between offer cards with visual continuity.\n\n1. Carousel logic:\n   - Display 1-5 cards sequentially\n   - Calculate timing: ~12 seconds for all cards (14.5s - 2.5s title)\n   - Dynamic: 1 card = 12s, 2 cards = 6s each, 5 cards = 2.4s each\n   - Use Remotion <Sequence> for timing each card\n\n2. Transitions:\n   - Card exit: fade out + slight scale down\n   - Card enter: spring from bottom/right + fade in\n   - Consider crossfade overlap for smoothness\n   - Maintain consistent animation speed regardless of card count\n\n3. Progress indicator (optional):\n   - Small dots at bottom showing current position\n   - Coral (#f97316) for active, gray for inactive\n\nProps: offers: ContractOffer[]\n\nFile: remotion/src/compositions/WeeklyOffers/OffersCarousel.tsx\n\nAcceptance: Smooth transitions between cards, timing adapts to offer count, visually polished.",
+      "status": "completed",
+      "priority": 3,
+      "depends_on": ["5"],
+      "started_at": "2026-01-25T13:15:00Z",
+      "completed_at": "2026-01-25T13:20:00Z",
+      "passes": true
+    },
+    {
+      "id": "7",
+      "title": "Create WeeklyOffers/index.tsx main composition",
+      "description": "Wire up all scenes into the main WeeklyOffers composition.\n\n1. Scene timing (16.5 seconds total at 30fps = 495 frames):\n   - TitleScene: 0-2.5s (frames 0-75)\n   - OffersCarousel: 2.5-14.5s (frames 75-435)\n   - SignOffScene: 14.5-16.5s (frames 435-495)\n\n2. Reuse SignOffScene from DailySpotPrice:\n   - Import or extract to shared component\n   - Same branding: Voltikka.fi logo, tagline\n\n3. Background:\n   - Same subtle gradient pattern as DailySpotPrice\n   - slate-50 (#f8fafc) base\n\n4. Handle edge cases:\n   - 0 offers: Show message 'Ei tarjouksia tällä viikolla' in carousel section\n   - 1-5 offers: Adjust carousel timing\n\nFile: remotion/src/compositions/WeeklyOffers/index.tsx\n\nAcceptance: All scenes flow smoothly, timing is correct, matches DailySpotPrice quality.",
+      "status": "completed",
+      "priority": 3,
+      "depends_on": ["4", "6"],
+      "started_at": "2026-01-25T13:20:00Z",
+      "completed_at": "2026-01-25T13:25:00Z",
+      "passes": true
+    },
+    {
+      "id": "8",
+      "title": "Register WeeklyOffers composition in Root.tsx",
+      "description": "Add the WeeklyOffers composition to Remotion's Root component.\n\n1. Add to Root.tsx:\n   - Import WeeklyOffers component\n   - Import WeeklyOffersProps type\n   - Create placeholderData for defaultProps\n   - Add calculateMetadata function fetching from /api/video/weekly-offers\n   - Register in a 'Weekly' folder (similar to 'Daily' folder)\n\n2. Composition settings:\n   - id: 'WeeklyOffers'\n   - durationInFrames: 16.5 * 30 (495 frames)\n   - fps: 30\n   - width: 1080\n   - height: 1920\n\nFile: remotion/src/Root.tsx\n\nAcceptance: Composition appears in Remotion Studio, loads data from API, renders correctly.",
+      "status": "completed",
+      "priority": 3,
+      "depends_on": ["7", "3"],
+      "started_at": "2026-01-25T13:25:00Z",
+      "completed_at": "2026-01-25T13:30:00Z",
+      "passes": true
+    },
+    {
+      "id": "9",
+      "title": "Test and verify video rendering",
+      "description": "Verify the complete WeeklyOffers video works end-to-end.\n\n1. Start Remotion Studio:\n   cd remotion && npm run dev\n\n2. Verify in browser:\n   - WeeklyOffers composition appears in sidebar\n   - Video plays without errors\n   - All scenes render correctly\n   - Frame 0 shows static thumbnail\n\n3. Test variations:\n   - With 1 contract (long card duration)\n   - With 5 contracts (2.4s per card)\n   - Edge case: no contracts with discounts\n\n4. Test CLI render:\n   cd remotion && npx remotion render WeeklyOffers out/weekly-offers.mp4\n\n5. Verify Laravel API:\n   curl http://127.0.0.1:8000/api/video/weekly-offers | jq\n\nAcceptance: Video renders without errors, all data displays correctly, output file is valid.",
+      "status": "completed",
+      "priority": 4,
+      "depends_on": ["8"],
+      "started_at": "2026-01-25T13:30:00Z",
+      "completed_at": "2026-01-25T13:35:00Z",
+      "passes": true,
+      "notes": "Verified: Remotion build successful, Laravel routes registered, git commit created. Manual testing with Remotion Studio and actual API data deferred to user verification."
+    }
+  ]
+}

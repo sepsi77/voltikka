@@ -123,7 +123,11 @@
     "active-contract-filter": {
       "started_at": "2026-01-25T11:39:06.042646",
       "ended_at": "2026-01-25T11:50:44.363146"
+    },
+    "weekly-offers-video": {
+      "started_at": "2026-01-25T12:12:31.088716",
+      "ended_at": null
     }
   },
-  "current": null
+  "current": "weekly-offers-video"
 }
