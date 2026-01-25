@@ -1,0 +1,82 @@
+{
+  "session": "city-page-url-unification",
+  "description": "Unify city page URLs to /sahkosopimus/paikkakunnat/{location} pattern with 301 redirects from old URLs",
+  "tasks": [
+    {
+      "id": "1",
+      "title": "Update routes/web.php to new URL structure",
+      "description": "Update routes in routes/web.php:\n1. Split LocationsList route: keep /sahkosopimus/paikkakunnat (no param) for municipality browser\n2. Add new SeoContractsList route: /sahkosopimus/paikkakunnat/{location} for city pages with local flavor\n3. Add 301 redirect from old /sahkosopimus/{city} pattern to new /sahkosopimus/paikkakunnat/{city}\n\nIMPORTANT: The redirect route MUST come AFTER all specific /sahkosopimus/* routes (housing types, energy sources, etc.) to avoid catching them.\n\nAcceptance criteria:\n- /sahkosopimus/paikkakunnat routes to LocationsList (no param)\n- /sahkosopimus/paikkakunnat/helsinki routes to SeoContractsList with location param\n- /sahkosopimus/helsinki 301 redirects to /sahkosopimus/paikkakunnat/helsinki\n- Other routes (/sahkosopimus/omakotitalo, /sahkosopimus/porssisahko) still work correctly",
+      "status": "completed",
+      "priority": 1,
+      "completed_at": "2026-01-25T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "2",
+      "title": "Update SeoContractsList component for new URL",
+      "description": "Update app/Livewire/SeoContractsList.php:\n1. Update mount() to accept 'location' parameter (the route will pass it as $location)\n2. Map the $location param to $this->city internally\n3. Update generateCanonicalUrl() to use new pattern: /sahkosopimus/paikkakunnat/{city} instead of /sahkosopimus/{city}\n\nAcceptance criteria:\n- Component accepts $location parameter and maps it to $city property\n- Canonical URL for city pages is /sahkosopimus/paikkakunnat/{city}\n- All existing functionality still works (housing, energy, pricing type pages unchanged)",
+      "status": "completed",
+      "priority": 1,
+      "depends_on": ["1"],
+      "completed_at": "2026-01-25T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "3",
+      "title": "Update LocationsList component to remove location handling",
+      "description": "Update app/Livewire/LocationsList.php:\n1. Remove the $location parameter from mount() method\n2. Remove selectedMunicipality logic (no longer needed - city pages now go to SeoContractsList)\n3. Keep only the municipality browsing/search functionality\n4. Component should only render the municipality list view, not individual city views\n\nAcceptance criteria:\n- mount() has no parameters\n- Component shows searchable municipality list only\n- No selectedMunicipality handling",
+      "status": "completed",
+      "priority": 2,
+      "depends_on": ["1"],
+      "completed_at": "2026-01-25T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "4",
+      "title": "Update locations-list.blade.php view links",
+      "description": "Update resources/views/livewire/locations-list.blade.php:\n1. Update municipality links from route('locations', ['location' => $slug]) to /sahkosopimus/paikkakunnat/{slug}\n2. Remove the @if ($selectedMunicipality) section since LocationsList no longer handles individual cities\n3. Keep only the municipality browser section with search\n\nAcceptance criteria:\n- Municipality links point to /sahkosopimus/paikkakunnat/{slug}\n- View only shows municipality browser, not individual city content\n- Search functionality still works",
+      "status": "completed",
+      "priority": 2,
+      "depends_on": ["3"],
+      "completed_at": "2026-01-25T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "5",
+      "title": "Update footer city links in app.blade.php",
+      "description": "Update resources/views/layouts/app.blade.php footer section (lines 336-352):\n1. Change city links from /sahkosopimus/{city} to /sahkosopimus/paikkakunnat/{city}\n2. Update all: Helsinki, Espoo, Tampere, Vantaa, Oulu, Turku, Jyväskylä, Lahti, Kuopio, Pori\n\nAcceptance criteria:\n- All 10 city links use new URL pattern /sahkosopimus/paikkakunnat/{city}\n- 'Kaikki paikkakunnat' link still uses route('locations')",
+      "status": "completed",
+      "priority": 3,
+      "completed_at": "2026-01-25T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "6",
+      "title": "Update SitemapService for unified city URLs",
+      "description": "Update app/Services/SitemapService.php:\n1. Update getCityUrls() to generate /sahkosopimus/paikkakunnat/{slug} instead of /sahkosopimus/{slug}\n2. Remove getMunicipalityUrls() method (now redundant - was generating same URLs)\n3. Remove getMunicipalityUrls() from getAllUrls() merge\n4. Update getCityUrls() priority to 0.6 (same as what municipality URLs had)\n\nAcceptance criteria:\n- City URLs in sitemap use /sahkosopimus/paikkakunnat/{slug} format\n- No duplicate municipality/city URLs in sitemap\n- Only one method generates city/municipality URLs",
+      "status": "completed",
+      "priority": 3,
+      "completed_at": "2026-01-25T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "7",
+      "title": "Update SeoCityRoutesTest for new URL structure",
+      "description": "Update tests/Feature/SeoCityRoutesTest.php:\n1. Update all test URLs from /sahkosopimus/{city} to /sahkosopimus/paikkakunnat/{city}\n2. Add new test for 301 redirect: GET /sahkosopimus/helsinki should 301 redirect to /sahkosopimus/paikkakunnat/helsinki\n3. Update route name test: route('seo.city', ['location' => 'helsinki']) should return new URL\n4. Verify existing SEO routes (/omakotitalo, /tuulisahko) are not affected\n\nAcceptance criteria:\n- All tests use new URL pattern\n- New redirect test passes\n- All existing tests pass with updated URLs",
+      "status": "completed",
+      "priority": 2,
+      "completed_at": "2026-01-25T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "8",
+      "title": "Run tests and verify all changes work",
+      "description": "Run the test suite to verify all changes:\n1. Run: php artisan test --filter=SeoCityRoutesTest\n2. Run: php artisan test (full suite to catch regressions)\n3. If tests fail, identify and fix the issues\n\nAcceptance criteria:\n- SeoCityRoutesTest passes\n- Full test suite passes\n- No regressions",
+      "status": "completed",
+      "priority": 1,
+      "depends_on": ["1", "2", "3", "4", "5", "6", "7"],
+      "completed_at": "2026-01-25T12:00:00Z",
+      "passes": true
+    }
+  ]
+}

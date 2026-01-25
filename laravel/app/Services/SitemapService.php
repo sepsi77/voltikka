@@ -49,8 +49,7 @@ class SitemapService
             $this->getOfferUrls(),
             $this->getContractUrls(),
             $this->getCompanyUrls(),
-            $this->getCityUrls(),
-            $this->getMunicipalityUrls()
+            $this->getCityUrls()
         );
     }
 
@@ -247,6 +246,7 @@ class SitemapService
 
     /**
      * Get city SEO page URLs based on municipalities in database.
+     * Uses the unified /sahkosopimus/paikkakunnat/{slug} URL pattern.
      */
     public function getCityUrls(): array
     {
@@ -264,39 +264,12 @@ class SitemapService
 
         return array_map(function ($citySlug) use ($baseUrl, $today) {
             return [
-                'loc' => $baseUrl . '/sahkosopimus/' . $citySlug,
+                'loc' => $baseUrl . '/sahkosopimus/paikkakunnat/' . $citySlug,
                 'lastmod' => $today,
                 'changefreq' => 'weekly',
                 'priority' => 0.6,
             ];
         }, $cities);
-    }
-
-    /**
-     * Get municipality page URLs (for the locations/paikkakunnat section).
-     */
-    public function getMunicipalityUrls(): array
-    {
-        $baseUrl = config('app.url');
-        $today = Carbon::today()->toDateString();
-
-        // Get unique municipalities from postcodes
-        $municipalities = Postcode::select('municipal_name_fi_slug')
-            ->whereNotNull('municipal_name_fi_slug')
-            ->distinct()
-            ->pluck('municipal_name_fi_slug')
-            ->filter()
-            ->values()
-            ->toArray();
-
-        return array_map(function ($slug) use ($baseUrl, $today) {
-            return [
-                'loc' => $baseUrl . '/sahkosopimus/paikkakunnat/' . $slug,
-                'lastmod' => $today,
-                'changefreq' => 'weekly',
-                'priority' => 0.5,
-            ];
-        }, $municipalities);
     }
 
     /**

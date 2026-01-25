@@ -337,16 +337,16 @@
                     <div>
                         <h3 class="text-white font-semibold mb-4">Paikkakunnat</h3>
                         <ul class="space-y-2">
-                            <li><a href="/sahkosopimus/helsinki" class="text-slate-400 hover:text-white text-sm transition-colors">Helsinki</a></li>
-                            <li><a href="/sahkosopimus/espoo" class="text-slate-400 hover:text-white text-sm transition-colors">Espoo</a></li>
-                            <li><a href="/sahkosopimus/tampere" class="text-slate-400 hover:text-white text-sm transition-colors">Tampere</a></li>
-                            <li><a href="/sahkosopimus/vantaa" class="text-slate-400 hover:text-white text-sm transition-colors">Vantaa</a></li>
-                            <li><a href="/sahkosopimus/oulu" class="text-slate-400 hover:text-white text-sm transition-colors">Oulu</a></li>
-                            <li><a href="/sahkosopimus/turku" class="text-slate-400 hover:text-white text-sm transition-colors">Turku</a></li>
-                            <li><a href="/sahkosopimus/jyvaskyla" class="text-slate-400 hover:text-white text-sm transition-colors">Jyväskylä</a></li>
-                            <li><a href="/sahkosopimus/lahti" class="text-slate-400 hover:text-white text-sm transition-colors">Lahti</a></li>
-                            <li><a href="/sahkosopimus/kuopio" class="text-slate-400 hover:text-white text-sm transition-colors">Kuopio</a></li>
-                            <li><a href="/sahkosopimus/pori" class="text-slate-400 hover:text-white text-sm transition-colors">Pori</a></li>
+                            <li><a href="/sahkosopimus/paikkakunnat/helsinki" class="text-slate-400 hover:text-white text-sm transition-colors">Helsinki</a></li>
+                            <li><a href="/sahkosopimus/paikkakunnat/espoo" class="text-slate-400 hover:text-white text-sm transition-colors">Espoo</a></li>
+                            <li><a href="/sahkosopimus/paikkakunnat/tampere" class="text-slate-400 hover:text-white text-sm transition-colors">Tampere</a></li>
+                            <li><a href="/sahkosopimus/paikkakunnat/vantaa" class="text-slate-400 hover:text-white text-sm transition-colors">Vantaa</a></li>
+                            <li><a href="/sahkosopimus/paikkakunnat/oulu" class="text-slate-400 hover:text-white text-sm transition-colors">Oulu</a></li>
+                            <li><a href="/sahkosopimus/paikkakunnat/turku" class="text-slate-400 hover:text-white text-sm transition-colors">Turku</a></li>
+                            <li><a href="/sahkosopimus/paikkakunnat/jyvaskyla" class="text-slate-400 hover:text-white text-sm transition-colors">Jyväskylä</a></li>
+                            <li><a href="/sahkosopimus/paikkakunnat/lahti" class="text-slate-400 hover:text-white text-sm transition-colors">Lahti</a></li>
+                            <li><a href="/sahkosopimus/paikkakunnat/kuopio" class="text-slate-400 hover:text-white text-sm transition-colors">Kuopio</a></li>
+                            <li><a href="/sahkosopimus/paikkakunnat/pori" class="text-slate-400 hover:text-white text-sm transition-colors">Pori</a></li>
                             <li><a href="{{ route('locations') }}" class="text-coral-400 hover:text-coral-300 text-sm font-medium transition-colors">Kaikki paikkakunnat →</a></li>
                         </ul>
                     </div>

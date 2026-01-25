@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
+use App\Models\Municipality;
 use App\Models\Postcode;
 use App\Models\PriceComponent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -31,6 +32,71 @@ class SeoCityRoutesTest extends TestCase
             'name_slug' => 'helsinki-voima-oy',
             'company_url' => 'https://helsinkivoima.fi',
             'logo_url' => 'https://storage.example.com/logos/helsinki-voima.png',
+        ]);
+
+        // Create municipalities with proper locative forms
+        Municipality::create([
+            'code' => '091',
+            'slug' => 'helsinki',
+            'name' => 'Helsinki',
+            'name_locative' => 'Helsingissä',
+            'name_genitive' => 'Helsingin',
+        ]);
+
+        Municipality::create([
+            'code' => '837',
+            'slug' => 'tampere',
+            'name' => 'Tampere',
+            'name_locative' => 'Tampereella',
+            'name_genitive' => 'Tampereen',
+        ]);
+
+        Municipality::create([
+            'code' => '049',
+            'slug' => 'espoo',
+            'name' => 'Espoo',
+            'name_locative' => 'Espoossa',
+            'name_genitive' => 'Espoon',
+        ]);
+
+        Municipality::create([
+            'code' => '564',
+            'slug' => 'oulu',
+            'name' => 'Oulu',
+            'name_locative' => 'Oulussa',
+            'name_genitive' => 'Oulun',
+        ]);
+
+        Municipality::create([
+            'code' => '853',
+            'slug' => 'turku',
+            'name' => 'Turku',
+            'name_locative' => 'Turussa',
+            'name_genitive' => 'Turun',
+        ]);
+
+        Municipality::create([
+            'code' => '179',
+            'slug' => 'jyvaskyla',
+            'name' => 'Jyväskylä',
+            'name_locative' => 'Jyväskylässä',
+            'name_genitive' => 'Jyväskylän',
+        ]);
+
+        Municipality::create([
+            'code' => '743',
+            'slug' => 'seinajoki',
+            'name' => 'Seinäjoki',
+            'name_locative' => 'Seinäjoella',
+            'name_genitive' => 'Seinäjoen',
+        ]);
+
+        Municipality::create([
+            'code' => '698',
+            'slug' => 'rovaniemi',
+            'name' => 'Rovaniemi',
+            'name_locative' => 'Rovaniemellä',
+            'name_genitive' => 'Rovaniemen',
         ]);
 
         // Create postcodes for Helsinki
@@ -127,20 +193,20 @@ class SeoCityRoutesTest extends TestCase
     // ==================== Route Accessibility Tests ====================
 
     /**
-     * Test that Helsinki city route is accessible.
+     * Test that Helsinki city route is accessible at new URL.
      */
     public function test_helsinki_route_is_accessible(): void
     {
-        $response = $this->get('/sahkosopimus/helsinki');
+        $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         $response->assertStatus(200);
     }
 
     /**
-     * Test that Tampere city route is accessible.
+     * Test that Tampere city route is accessible at new URL.
      */
     public function test_tampere_route_is_accessible(): void
     {
-        $response = $this->get('/sahkosopimus/tampere');
+        $response = $this->get('/sahkosopimus/paikkakunnat/tampere');
         $response->assertStatus(200);
     }
 
@@ -149,8 +215,40 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_espoo_route_is_accessible(): void
     {
-        $response = $this->get('/sahkosopimus/espoo');
+        $response = $this->get('/sahkosopimus/paikkakunnat/espoo');
         $response->assertStatus(200);
+    }
+
+    // ==================== 301 Redirect Tests ====================
+
+    /**
+     * Test that old Helsinki URL redirects to new URL with 301.
+     */
+    public function test_old_helsinki_url_redirects_to_new(): void
+    {
+        $response = $this->get('/sahkosopimus/helsinki');
+        $response->assertStatus(301);
+        $response->assertRedirect('/sahkosopimus/paikkakunnat/helsinki');
+    }
+
+    /**
+     * Test that old Tampere URL redirects to new URL with 301.
+     */
+    public function test_old_tampere_url_redirects_to_new(): void
+    {
+        $response = $this->get('/sahkosopimus/tampere');
+        $response->assertStatus(301);
+        $response->assertRedirect('/sahkosopimus/paikkakunnat/tampere');
+    }
+
+    /**
+     * Test that old city URL pattern redirects for any city.
+     */
+    public function test_old_city_url_pattern_redirects(): void
+    {
+        $response = $this->get('/sahkosopimus/oulu');
+        $response->assertStatus(301);
+        $response->assertRedirect('/sahkosopimus/paikkakunnat/oulu');
     }
 
     // ==================== H1 Content Tests ====================
@@ -160,7 +258,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_helsinki_page_has_unique_h1(): void
     {
-        $response = $this->get('/sahkosopimus/helsinki');
+        $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         $response->assertSee('Sähkösopimukset Helsingissä');
     }
 
@@ -169,7 +267,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_tampere_page_has_unique_h1(): void
     {
-        $response = $this->get('/sahkosopimus/tampere');
+        $response = $this->get('/sahkosopimus/paikkakunnat/tampere');
         $response->assertSee('Sähkösopimukset Tampereella');
     }
 
@@ -178,7 +276,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_espoo_page_has_unique_h1(): void
     {
-        $response = $this->get('/sahkosopimus/espoo');
+        $response = $this->get('/sahkosopimus/paikkakunnat/espoo');
         $response->assertSee('Sähkösopimukset Espoossa');
     }
 
@@ -189,7 +287,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_page_shows_intro_text(): void
     {
-        $response = $this->get('/sahkosopimus/helsinki');
+        $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         $response->assertSee('Helsingissä');
     }
 
@@ -198,7 +296,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_page_has_meta_description(): void
     {
-        $response = $this->get('/sahkosopimus/helsinki');
+        $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         // Meta description should mention the city
         $response->assertSee('Helsinki', false);
     }
@@ -210,7 +308,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_national_contracts_shown_on_city_pages(): void
     {
-        $response = $this->get('/sahkosopimus/helsinki');
+        $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         $response->assertSee('Perussähkö');
     }
 
@@ -219,7 +317,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_specific_contracts_shown_on_correct_city(): void
     {
-        $response = $this->get('/sahkosopimus/helsinki');
+        $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         $response->assertSee('Helsinki Sähkö');
     }
 
@@ -228,7 +326,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_specific_contracts_not_shown_on_other_cities(): void
     {
-        $response = $this->get('/sahkosopimus/tampere');
+        $response = $this->get('/sahkosopimus/paikkakunnat/tampere');
         $response->assertDontSee('Helsinki Sähkö');
     }
 
@@ -237,7 +335,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_tampere_contracts_shown_on_tampere_page(): void
     {
-        $response = $this->get('/sahkosopimus/tampere');
+        $response = $this->get('/sahkosopimus/paikkakunnat/tampere');
         $response->assertSee('Tampere Sähkö');
     }
 
@@ -248,7 +346,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_page_has_breadcrumb(): void
     {
-        $response = $this->get('/sahkosopimus/helsinki');
+        $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         $response->assertSee('Etusivu');
         $response->assertSee('Sähkösopimukset');
     }
@@ -260,7 +358,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_page_has_internal_links(): void
     {
-        $response = $this->get('/sahkosopimus/helsinki');
+        $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         // Should have links to housing types
         $response->assertSee('/sahkosopimus/omakotitalo');
         // Should have links to energy sources
@@ -274,7 +372,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_page_shows_provider_count(): void
     {
-        $response = $this->get('/sahkosopimus/helsinki');
+        $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         // Should show number of providers available in Helsinki
         $response->assertSee('sopimusta');
     }
@@ -287,19 +385,19 @@ class SeoCityRoutesTest extends TestCase
     public function test_city_route_uses_wildcard(): void
     {
         // Test that routes work for various cities
-        $this->get('/sahkosopimus/helsinki')->assertStatus(200);
-        $this->get('/sahkosopimus/tampere')->assertStatus(200);
-        $this->get('/sahkosopimus/oulu')->assertStatus(200);
-        $this->get('/sahkosopimus/turku')->assertStatus(200);
+        $this->get('/sahkosopimus/paikkakunnat/helsinki')->assertStatus(200);
+        $this->get('/sahkosopimus/paikkakunnat/tampere')->assertStatus(200);
+        $this->get('/sahkosopimus/paikkakunnat/oulu')->assertStatus(200);
+        $this->get('/sahkosopimus/paikkakunnat/turku')->assertStatus(200);
     }
 
     /**
-     * Test that city route is named.
+     * Test that city route is named and uses new URL pattern.
      */
     public function test_city_route_is_named(): void
     {
-        $url = route('seo.city', ['city' => 'helsinki']);
-        $this->assertEquals(url('/sahkosopimus/helsinki'), $url);
+        $url = route('seo.city', ['location' => 'helsinki']);
+        $this->assertEquals(url('/sahkosopimus/paikkakunnat/helsinki'), $url);
     }
 
     // ==================== Locative Form Tests ====================
@@ -309,7 +407,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_oulu_has_correct_locative(): void
     {
-        $response = $this->get('/sahkosopimus/oulu');
+        $response = $this->get('/sahkosopimus/paikkakunnat/oulu');
         $response->assertSee('Oulussa');
     }
 
@@ -318,7 +416,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_turku_has_correct_locative(): void
     {
-        $response = $this->get('/sahkosopimus/turku');
+        $response = $this->get('/sahkosopimus/paikkakunnat/turku');
         $response->assertSee('Turussa');
     }
 
@@ -327,7 +425,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_jyvaskyla_has_correct_locative(): void
     {
-        $response = $this->get('/sahkosopimus/jyvaskyla');
+        $response = $this->get('/sahkosopimus/paikkakunnat/jyvaskyla');
         $response->assertSee('Jyväskylässä');
     }
 
@@ -336,7 +434,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_seinajoki_has_correct_locative(): void
     {
-        $response = $this->get('/sahkosopimus/seinajoki');
+        $response = $this->get('/sahkosopimus/paikkakunnat/seinajoki');
         $response->assertSee('Seinäjoella');
     }
 
@@ -345,7 +443,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_rovaniemi_has_correct_locative(): void
     {
-        $response = $this->get('/sahkosopimus/rovaniemi');
+        $response = $this->get('/sahkosopimus/paikkakunnat/rovaniemi');
         $response->assertSee('Rovaniemellä');
     }
 
@@ -356,7 +454,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_unknown_city_uses_generic_locative(): void
     {
-        $response = $this->get('/sahkosopimus/testcity');
+        $response = $this->get('/sahkosopimus/paikkakunnat/testcity');
         $response->assertStatus(200);
         // Should use generic -ssa ending
         $response->assertSee('Testcityssa');
@@ -369,14 +467,14 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_page_has_json_ld(): void
     {
-        $response = $this->get('/sahkosopimus/helsinki');
+        $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         $response->assertSee('application/ld+json', false);
     }
 
     // ==================== Route Conflict Tests ====================
 
     /**
-     * Test that housing routes still work (not overridden by city route).
+     * Test that housing routes still work (not overridden by city route or redirect).
      */
     public function test_housing_routes_not_overridden(): void
     {
@@ -386,13 +484,41 @@ class SeoCityRoutesTest extends TestCase
     }
 
     /**
-     * Test that energy routes still work (not overridden by city route).
+     * Test that energy routes still work (not overridden by city route or redirect).
      */
     public function test_energy_routes_not_overridden(): void
     {
         $response = $this->get('/sahkosopimus/tuulisahko');
         $response->assertStatus(200);
         $response->assertSee('Tuulisähkösopimukset');
+    }
+
+    /**
+     * Test that pricing routes still work (not overridden by city route or redirect).
+     */
+    public function test_pricing_routes_not_overridden(): void
+    {
+        $response = $this->get('/sahkosopimus/porssisahko');
+        $response->assertStatus(200);
+        $response->assertSee('Pörssisähkösopimukset');
+    }
+
+    /**
+     * Test that cheapest contracts route still works.
+     */
+    public function test_cheapest_contracts_route_not_overridden(): void
+    {
+        $response = $this->get('/sahkosopimus/halvin-sahkosopimus');
+        $response->assertStatus(200);
+    }
+
+    /**
+     * Test that company contracts route still works.
+     */
+    public function test_company_contracts_route_not_overridden(): void
+    {
+        $response = $this->get('/sahkosopimus/yritykselle');
+        $response->assertStatus(200);
     }
 
     // ==================== City-Specific Info Tests ====================
@@ -402,7 +528,7 @@ class SeoCityRoutesTest extends TestCase
      */
     public function test_city_page_shows_contracts_count(): void
     {
-        $response = $this->get('/sahkosopimus/helsinki');
+        $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         // Should show count of contracts found
         $response->assertSee('löytyi');
     }
@@ -432,5 +558,27 @@ class SeoCityRoutesTest extends TestCase
         $this->assertContains('Helsinki', $municipalities);
         $this->assertContains('Tampere', $municipalities);
         $this->assertContains('Espoo', $municipalities);
+    }
+
+    // ==================== Locations Browser Tests ====================
+
+    /**
+     * Test that locations browser route is accessible.
+     */
+    public function test_locations_browser_is_accessible(): void
+    {
+        $response = $this->get('/sahkosopimus/paikkakunnat');
+        $response->assertStatus(200);
+        $response->assertSee('paikkakunnittain');
+    }
+
+    /**
+     * Test that locations browser lists municipalities.
+     */
+    public function test_locations_browser_shows_municipalities(): void
+    {
+        $response = $this->get('/sahkosopimus/paikkakunnat');
+        $response->assertSee('Helsinki');
+        $response->assertSee('Tampere');
     }
 }

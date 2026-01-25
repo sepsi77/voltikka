@@ -101,11 +101,13 @@ class SeoContractsList extends ContractsList
         ?string $energySource = null,
         ?string $city = null,
         ?string $pricingType = null,
-        ?string $offerType = null
+        ?string $offerType = null,
+        ?string $location = null
     ): void {
         $this->housingType = $housingType;
         $this->energySource = $energySource;
-        $this->city = $city;
+        // Support both 'city' (legacy) and 'location' (new route param)
+        $this->city = $location ?? $city;
         $this->pricingType = $pricingType;
         $this->offerType = $offerType;
 
@@ -463,7 +465,7 @@ class SeoContractsList extends ContractsList
         }
 
         if ($this->city) {
-            return "{$baseUrl}/sahkosopimus/{$this->city}";
+            return "{$baseUrl}/sahkosopimus/paikkakunnat/{$this->city}";
         }
 
         return "{$baseUrl}/sahkosopimus";

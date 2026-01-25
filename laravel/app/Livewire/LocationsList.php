@@ -16,25 +16,6 @@ class LocationsList extends Component
     public string $search = '';
 
     /**
-     * Currently selected municipality slug.
-     */
-    public ?string $selectedMunicipality = null;
-
-    /**
-     * Mount the component with optional location slug.
-     */
-    public function mount(?string $location = null): void
-    {
-        if ($location) {
-            // Find the municipality by slug
-            $postcode = Postcode::where('municipal_name_fi_slug', $location)->first();
-            if ($postcode) {
-                $this->selectedMunicipality = $postcode->municipal_name_fi;
-            }
-        }
-    }
-
-    /**
      * Get all unique municipalities with their counts.
      */
     public function getMunicipalitiesProperty(): Collection
@@ -52,61 +33,10 @@ class LocationsList extends Component
     }
 
     /**
-     * Get contracts available in selected municipality.
-     */
-    public function getContractsProperty(): Collection
-    {
-        if (!$this->selectedMunicipality) {
-            return collect();
-        }
-
-        // Get all postcodes in this municipality
-        $postcodes = Postcode::where('municipal_name_fi', $this->selectedMunicipality)
-            ->pluck('postcode')
-            ->toArray();
-
-        if (empty($postcodes)) {
-            return collect();
-        }
-
-        // Get contracts that are available nationally or in these postcodes
-        return \App\Models\ElectricityContract::query()
-            ->active()
-            ->with(['company', 'priceComponents', 'electricitySource'])
-            ->where(function ($query) use ($postcodes) {
-                $query->where('availability_is_national', true)
-                      ->orWhereExists(function ($subquery) use ($postcodes) {
-                          $subquery->selectRaw(1)
-                                   ->from('contract_postcode')
-                                   ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
-                                   ->whereIn('contract_postcode.postcode', $postcodes);
-                      });
-            })
-            ->get();
-    }
-
-    /**
-     * Get the municipality slug for the currently selected municipality.
-     */
-    public function getMunicipalitySlugProperty(): ?string
-    {
-        if (!$this->selectedMunicipality) {
-            return null;
-        }
-
-        return Postcode::where('municipal_name_fi', $this->selectedMunicipality)
-            ->value('municipal_name_fi_slug');
-    }
-
-    /**
      * Get meta description for SEO.
      */
     public function getMetaDescriptionProperty(): string
     {
-        if ($this->selectedMunicipality) {
-            return "Vertaile sähkösopimuksia paikkakunnalla {$this->selectedMunicipality}. Löydä edullisin sähkösopimus alueellesi.";
-        }
-
         return 'Selaa sähkösopimuksia paikkakunnittain. Vertaile hintoja ja löydä paras sähkösopimus omalle alueellesi.';
     }
 
@@ -114,11 +44,8 @@ class LocationsList extends Component
     {
         return view('livewire.locations-list', [
             'municipalities' => $this->municipalities,
-            'contracts' => $this->contracts,
         ])->layout('layouts.app', [
-            'title' => $this->selectedMunicipality
-                ? "Sähkösopimukset - {$this->selectedMunicipality}"
-                : 'Paikkakunnat - Sähkösopimukset paikkakunnittain',
+            'title' => 'Paikkakunnat - Sähkösopimukset paikkakunnittain',
             'metaDescription' => $this->metaDescription,
         ]);
     }

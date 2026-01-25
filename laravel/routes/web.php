@@ -56,7 +56,13 @@ Route::get('/sahkosopimus/sopimus/{contractId}', ContractDetail::class)
 // (Route added in redirects section below)
 
 // Location pages
-Route::get('/sahkosopimus/paikkakunnat/{location?}', LocationsList::class)->name('locations');
+// Municipality browser (no param) - lists all municipalities for browsing
+Route::get('/sahkosopimus/paikkakunnat', LocationsList::class)->name('locations');
+
+// City pages with local flavor - individual city contract listings
+Route::get('/sahkosopimus/paikkakunnat/{location}', SeoContractsList::class)
+    ->name('seo.city')
+    ->where('location', '[a-z0-9-]+');
 
 // SEO Housing Type Routes
 Route::get('/sahkosopimus/omakotitalo', SeoContractsList::class)
@@ -113,10 +119,11 @@ Route::get('/sahkosopimus/sahkoyhtiot/{companySlug}', CompanyDetail::class)
 Route::get('/sahkosopimus', SahkosopimusIndex::class)
     ->name('sahkosopimus.index');
 
-// SEO City Routes (must come AFTER specific routes to avoid overriding them)
-Route::get('/sahkosopimus/{city}', SeoContractsList::class)
-    ->name('seo.city')
-    ->where('city', '[a-z0-9-]+');
+// SEO City Routes - 301 redirect from old URLs to new /paikkakunnat/ pattern
+// (must come AFTER specific routes to avoid overriding them)
+Route::get('/sahkosopimus/{city}', function ($city) {
+    return redirect("/sahkosopimus/paikkakunnat/{$city}", 301);
+})->where('city', '[a-z0-9-]+');
 
 // =============================================================================
 // 301 Redirects from old URLs to new URLs (for SEO preservation)
@@ -143,7 +150,7 @@ Route::get('/sahkosopimus/yritys/{companySlug}', function ($companySlug) {
 // Redirect old /paikkakunnat to new location
 Route::get('/paikkakunnat/{location?}', function ($location = null) {
     if ($location) {
-        return redirect()->route('locations', ['location' => $location], 301);
+        return redirect("/sahkosopimus/paikkakunnat/{$location}", 301);
     }
     return redirect()->route('locations', [], 301);
 });
