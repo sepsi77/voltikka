@@ -10,7 +10,10 @@ import type {
 } from "./types";
 
 // API URL for fetching video data
-const API_BASE_URL = process.env.VOLTIKKA_API_URL || "https://voltikka.fi";
+// Use localhost for development, production URL for rendering
+const API_BASE_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+  ? "http://127.0.0.1:8000"
+  : (process.env.VOLTIKKA_API_URL || "https://voltikka.fi");
 
 // Placeholder for defaultProps - actual data is fetched via calculateMetadata
 const placeholderData: DailyVideoData = {
@@ -114,7 +117,7 @@ export const RemotionRoot: React.FC = () => {
         <Composition
           id="WeeklyOffers"
           component={WeeklyOffers}
-          durationInFrames={16.5 * 30} // 16.5 seconds at 30fps (495 frames)
+          durationInFrames={19 * 30} // 19 seconds at 30fps (570 frames)
           fps={30}
           width={1080}
           height={1920}

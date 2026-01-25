@@ -2,6 +2,7 @@ import { AbsoluteFill, Sequence, useVideoConfig } from "remotion";
 import type { WeeklyOffersProps } from "../../types";
 import { TitleScene } from "./TitleScene";
 import { OffersCarousel } from "./OffersCarousel";
+import { PromoScene } from "./PromoScene";
 import { SignOffScene } from "./SignOffScene";
 
 // Brand colors
@@ -10,10 +11,11 @@ const BG_LIGHT = "#f8fafc"; // slate-50
 /**
  * WeeklyOffers - Main composition for weekly electricity offers video
  *
- * Video Structure (16.5 seconds total at 30fps = 495 frames):
+ * Video Structure (19 seconds total at 30fps = 570 frames):
  * - TitleScene: 0-2.5s (frames 0-75)
  * - OffersCarousel: 2.5-14.5s (frames 75-435)
- * - SignOffScene: 14.5-16.5s (frames 435-495)
+ * - PromoScene: 14.5-17s (frames 435-510)
+ * - SignOffScene: 17-19s (frames 510-570)
  */
 export const WeeklyOffers: React.FC<WeeklyOffersProps> = ({ data }) => {
   const { fps } = useVideoConfig();
@@ -21,7 +23,9 @@ export const WeeklyOffers: React.FC<WeeklyOffersProps> = ({ data }) => {
   // Section timing (in seconds)
   const TITLE_END = 2.5;
   const CAROUSEL_END = 14.5;
-  const SIGNOFF_START = 14.5;
+  const PROMO_START = 14.5;
+  const PROMO_END = 17;
+  const SIGNOFF_START = 17;
 
   return (
     <AbsoluteFill
@@ -57,7 +61,15 @@ export const WeeklyOffers: React.FC<WeeklyOffersProps> = ({ data }) => {
         <OffersCarousel offers={data.offers} />
       </Sequence>
 
-      {/* === SECTION 3: Sign-off (14.5-16.5s) === */}
+      {/* === SECTION 3: Promo CTA (14.5-17s) === */}
+      <Sequence
+        from={PROMO_START * fps}
+        durationInFrames={(PROMO_END - PROMO_START) * fps}
+      >
+        <PromoScene />
+      </Sequence>
+
+      {/* === SECTION 4: Sign-off (17-19s) === */}
       <Sequence from={SIGNOFF_START * fps}>
         <SignOffScene />
       </Sequence>

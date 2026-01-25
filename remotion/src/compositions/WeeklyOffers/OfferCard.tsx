@@ -7,18 +7,21 @@ import {
   useVideoConfig,
   Img,
 } from "remotion";
-import { Building2 } from "lucide-react";
+import { Building2, Zap } from "lucide-react";
 import type { ContractOffer } from "../../types";
 
-// Brand colors - Light theme to match DailySpotPrice
+// Brand colors
 const BG_LIGHT = "#f8fafc"; // slate-50
 const CORAL = "#f97316";
+const CORAL_DARK = "#ea580c";
 const GREEN = "#22c55e";
-const GREEN_DARK = "#16a34a"; // green-600 for text on light bg
+const DARK_SLATE = "#0f172a"; // slate-900
+const DARK_SLATE_LIGHTER = "#1e293b"; // slate-800
 
 // Spring configurations
 const SPRING_SNAP = { damping: 25, stiffness: 300 };
 const SPRING_FLOW = { damping: 20, stiffness: 150 };
+const SPRING_POP = { damping: 15, stiffness: 250 };
 
 type OfferCardProps = {
   offer: ContractOffer;
@@ -27,38 +30,31 @@ type OfferCardProps = {
 };
 
 /**
- * Format discount value for display
- * - Percentage: "-15%"
- * - Absolute: "-0,50 c/kWh"
+ * Format discount value for display - split into value and unit
  */
-function formatDiscount(discount: ContractOffer["discount"]): string {
-  if (!discount) return "";
+function formatDiscountParts(discount: ContractOffer["discount"]): { value: string; unit: string } {
+  if (!discount) return { value: "", unit: "" };
 
   if (discount.is_percentage) {
-    return `-${discount.value}%`;
+    return { value: `-${discount.value}`, unit: "%" };
   }
 
   // Absolute value in cents - use Finnish comma
   const formatted = discount.value.toFixed(2).replace(".", ",");
-  return `-${formatted} c/kWh`;
+  return { value: `-${formatted}`, unit: "c/kWh" };
 }
 
 /**
  * Format discount subtext
- * - "3 ensimmäistä kuukautta"
- * - "Voimassa 31.3.2026 asti"
- * - Empty string if no duration info
  */
 function formatDiscountSubtext(discount: ContractOffer["discount"]): string | null {
   if (!discount) return null;
 
-  // Check n_first_months explicitly (0 is falsy but should mean "no months limit")
   if (discount.n_first_months !== null && discount.n_first_months !== undefined && discount.n_first_months > 0) {
     return `${discount.n_first_months} ensimmäistä kuukautta`;
   }
 
   if (discount.until_date) {
-    // Parse date and format as Finnish
     const date = new Date(discount.until_date);
     const day = date.getDate();
     const month = date.getMonth() + 1;
@@ -66,7 +62,6 @@ function formatDiscountSubtext(discount: ContractOffer["discount"]): string | nu
     return `Voimassa ${day}.${month}.${year} asti`;
   }
 
-  // No specific duration info - return null to hide the subtext
   return null;
 }
 
@@ -78,15 +73,7 @@ function formatEur(amount: number): string {
 }
 
 /**
- * OfferCard - Full-screen card showing contract offer details
- *
- * Art Direction:
- * - Light background matching DailySpotPrice (slate-50)
- * - Discount badge is the visual focal point (coral background)
- * - Description text explains the offer
- * - Pricing table shows costs at 3 consumption levels
- * - Savings section in green for positive emphasis
- * - Company logo provides brand recognition
+ * OfferCard - Bold editorial design with dramatic typography
  */
 export const OfferCard: React.FC<OfferCardProps> = ({
   offer,
@@ -97,72 +84,66 @@ export const OfferCard: React.FC<OfferCardProps> = ({
   const { fps } = useVideoConfig();
   const [logoError, setLogoError] = useState(false);
 
-  // Frame 0 shows final state for thumbnail, then animation starts from frame 1
+  // Frame 0 shows final state for thumbnail
   const isThumbnailFrame = frame === 0;
   const animationFrame = frame > 0 ? frame - 1 : 0;
 
-  // Animation sequence:
-  // 1. Card background (0s)
-  // 2. Company header (0.15s)
-  // 3. Discount badge (0.3s)
-  // 4. Contract name (0.45s)
-  // 5. Pricing table (0.6s)
-  // 6. Savings section (0.8s)
-  // If thumbnail frame, all springs = 1 (final state)
+  // Animation springs
+  const bgSpring = isThumbnailFrame ? 1 : spring({
+    frame: animationFrame,
+    fps,
+    config: SPRING_FLOW,
+  });
 
-  const bgSpring = isThumbnailFrame
-    ? 1
-    : spring({
-        frame: animationFrame,
-        fps,
-        config: SPRING_FLOW,
-      });
+  const dotsSpring = isThumbnailFrame ? 1 : spring({
+    frame: animationFrame - 0.1 * fps,
+    fps,
+    config: SPRING_FLOW,
+  });
 
-  const headerSpring = isThumbnailFrame
-    ? 1
-    : spring({
-        frame: animationFrame - 0.15 * fps,
-        fps,
-        config: SPRING_SNAP,
-      });
+  const companySpring = isThumbnailFrame ? 1 : spring({
+    frame: animationFrame - 0.2 * fps,
+    fps,
+    config: SPRING_SNAP,
+  });
 
-  const discountSpring = isThumbnailFrame
-    ? 1
-    : spring({
-        frame: animationFrame - 0.3 * fps,
-        fps,
-        config: SPRING_SNAP,
-      });
+  const discountSpring = isThumbnailFrame ? 1 : spring({
+    frame: animationFrame - 0.4 * fps,
+    fps,
+    config: SPRING_POP,
+  });
 
-  const nameSpring = isThumbnailFrame
-    ? 1
-    : spring({
-        frame: animationFrame - 0.45 * fps,
-        fps,
-        config: SPRING_FLOW,
-      });
+  const nameSpring = isThumbnailFrame ? 1 : spring({
+    frame: animationFrame - 0.7 * fps,
+    fps,
+    config: SPRING_FLOW,
+  });
 
-  const tableSpring = isThumbnailFrame
-    ? 1
-    : spring({
-        frame: animationFrame - 0.6 * fps,
-        fps,
-        config: SPRING_FLOW,
-      });
+  const pricingSpring = isThumbnailFrame ? 1 : spring({
+    frame: animationFrame - 0.9 * fps,
+    fps,
+    config: SPRING_FLOW,
+  });
 
-  const savingsSpring = isThumbnailFrame
-    ? 1
-    : spring({
-        frame: animationFrame - 0.8 * fps,
-        fps,
-        config: SPRING_FLOW,
-      });
+  const savingsSpring = isThumbnailFrame ? 1 : spring({
+    frame: animationFrame - 1.2 * fps,
+    fps,
+    config: SPRING_POP,
+  });
 
-  // Check if we have any positive savings to display
-  const hasSavings =
-    offer.savings.apartment > 0 ||
-    offer.savings.townhouse > 0 ||
-    offer.savings.house > 0;
+  const lowerThirdSpring = isThumbnailFrame ? 1 : spring({
+    frame: animationFrame - 1.4 * fps,
+    fps,
+    config: SPRING_FLOW,
+  });
+
+  // Get featured savings (townhouse = 5000 kWh)
+  const featuredSavings = offer.savings.townhouse;
+  const hasSavings = featuredSavings > 0;
+
+  // Parse discount parts
+  const discountParts = formatDiscountParts(offer.discount);
+  const discountSubtext = formatDiscountSubtext(offer.discount);
 
   return (
     <AbsoluteFill
@@ -172,54 +153,61 @@ export const OfferCard: React.FC<OfferCardProps> = ({
         opacity: bgSpring,
       }}
     >
-      {/* Subtle gradient pattern matching DailySpotPrice */}
+      {/* Subtle gradient pattern */}
       <div
         className="absolute inset-0"
         style={{
           backgroundImage: `
-            radial-gradient(circle at 20% 20%, rgba(249, 115, 22, 0.06) 0%, transparent 50%),
-            radial-gradient(circle at 80% 80%, rgba(249, 115, 22, 0.04) 0%, transparent 40%)
+            radial-gradient(circle at 20% 20%, rgba(249, 115, 22, 0.05) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(249, 115, 22, 0.03) 0%, transparent 40%)
           `,
           opacity: bgSpring,
         }}
       />
 
-      {/* Card content */}
-      <div className="absolute inset-0 flex flex-col px-16 py-20">
+      {/* Main content - centered vertically with justify-between for even distribution */}
+      <div
+        className="absolute inset-0 flex flex-col px-12"
+        style={{
+          paddingTop: 60,
+          paddingBottom: 110, // Space for lower third
+        }}
+      >
         {/* Progress dots */}
         <div
-          className="absolute top-10 left-0 right-0 flex justify-center gap-3"
-          style={{ opacity: bgSpring }}
+          className="flex justify-center gap-3 mb-10"
+          style={{ opacity: dotsSpring }}
         >
           {Array.from({ length: totalCards }).map((_, i) => (
             <div
               key={i}
               className="rounded-full"
               style={{
-                width: 16,
-                height: 16,
+                width: 18,
+                height: 18,
                 backgroundColor: i === cardIndex ? CORAL : "rgba(0,0,0,0.15)",
               }}
             />
           ))}
         </div>
 
-        {/* Company header */}
+        {/* Company header with logo */}
         <div
-          className="flex items-center gap-5 mb-6"
+          className="flex items-center gap-6 mb-8"
           style={{
-            opacity: headerSpring,
-            transform: `translateY(${interpolate(headerSpring, [0, 1], [-15, 0])}px)`,
+            opacity: companySpring,
+            transform: `translateY(${interpolate(companySpring, [0, 1], [-20, 0])}px)`,
           }}
         >
-          {/* Company logo with fallback */}
+          {/* Company logo */}
           <div
             className="rounded-2xl overflow-hidden flex items-center justify-center shadow-lg"
             style={{
-              width: 80,
-              height: 80,
+              width: 88,
+              height: 88,
               backgroundColor: "white",
               padding: 8,
+              flexShrink: 0,
             }}
           >
             {offer.company.logo_url && !logoError ? (
@@ -242,14 +230,22 @@ export const OfferCard: React.FC<OfferCardProps> = ({
           </div>
           <div>
             <div
-              className="text-3xl font-semibold"
-              style={{ color: "#334155" }}
+              className="font-bold"
+              style={{
+                fontSize: 52,
+                color: "#1e293b",
+                lineHeight: 1.1,
+              }}
             >
               {offer.company.name}
             </div>
             <div
-              className="text-xl font-medium"
-              style={{ color: "#64748b" }}
+              className="font-medium"
+              style={{
+                fontSize: 32,
+                color: "#64748b",
+                marginTop: 4,
+              }}
             >
               {offer.pricing_model === "Spot"
                 ? "Pörssisähkö"
@@ -260,209 +256,247 @@ export const OfferCard: React.FC<OfferCardProps> = ({
           </div>
         </div>
 
-        {/* Discount badge - FOCAL POINT */}
-        <div
-          className="self-start rounded-2xl px-10 py-6 mb-8"
-          style={{
-            background: `linear-gradient(135deg, ${CORAL} 0%, #ea580c 100%)`,
-            boxShadow: "0 8px 32px rgba(249, 115, 22, 0.4)",
-            opacity: discountSpring,
-            transform: `scale(${interpolate(discountSpring, [0, 0.7, 1], [0.8, 1.05, 1])})`,
-          }}
-        >
+        {/* === HERO: Discount section === */}
+        {offer.discount && (
           <div
-            className="text-6xl font-black"
-            style={{ color: "white" }}
+            className="rounded-3xl mb-10"
+            style={{
+              background: `linear-gradient(135deg, ${CORAL} 0%, ${CORAL_DARK} 100%)`,
+              boxShadow: "0 12px 40px rgba(249, 115, 22, 0.35)",
+              padding: "40px 48px",
+              opacity: discountSpring,
+              transform: `scale(${interpolate(discountSpring, [0, 0.7, 1], [0.85, 1.03, 1])})`,
+            }}
           >
-            {formatDiscount(offer.discount)}
-          </div>
-          {formatDiscountSubtext(offer.discount) && (
-            <div
-              className="text-2xl font-medium mt-1"
-              style={{ color: "rgba(255,255,255,0.85)" }}
-            >
-              {formatDiscountSubtext(offer.discount)}
+            {/* Discount value - HERO typography */}
+            <div className="flex items-baseline justify-center gap-4">
+              <span
+                className="font-black"
+                style={{
+                  fontSize: 180,
+                  color: "white",
+                  lineHeight: 0.9,
+                  letterSpacing: "-0.03em",
+                }}
+              >
+                {discountParts.value}
+              </span>
+              <span
+                className="font-bold"
+                style={{
+                  fontSize: 56,
+                  color: "rgba(255,255,255,0.9)",
+                }}
+              >
+                {discountParts.unit}
+              </span>
             </div>
-          )}
-        </div>
+            {/* Subtext */}
+            {discountSubtext && (
+              <div
+                className="text-center font-semibold"
+                style={{
+                  fontSize: 36,
+                  color: "rgba(255,255,255,0.9)",
+                  marginTop: 16,
+                }}
+              >
+                {discountSubtext}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Contract name */}
         <h2
-          className="text-5xl font-bold mb-4"
+          className="font-bold mb-10"
           style={{
+            fontSize: 64,
             color: "#0f172a",
+            lineHeight: 1.15,
             opacity: nameSpring,
-            transform: `translateY(${interpolate(nameSpring, [0, 1], [10, 0])}px)`,
+            transform: `translateY(${interpolate(nameSpring, [0, 1], [15, 0])}px)`,
           }}
         >
           {offer.name}
         </h2>
 
-        {/* Description - explains what the offer is */}
-        {offer.description && (
-          <p
-            className="text-2xl leading-relaxed mb-8"
-            style={{
-              color: "#475569",
-              opacity: nameSpring,
-              transform: `translateY(${interpolate(nameSpring, [0, 1], [10, 0])}px)`,
-              maxWidth: "100%",
-            }}
-          >
-            {offer.description}
-          </p>
-        )}
-
-        {/* Pricing table */}
+        {/* === DARK PRICING CARD === */}
         <div
-          className="rounded-3xl p-8 mb-6"
+          className="rounded-3xl overflow-hidden"
           style={{
-            background: "white",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
-            opacity: tableSpring,
-            transform: `translateY(${interpolate(tableSpring, [0, 1], [15, 0])}px)`,
+            background: `linear-gradient(180deg, ${DARK_SLATE} 0%, ${DARK_SLATE_LIGHTER} 100%)`,
+            boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+            opacity: pricingSpring,
+            transform: `translateY(${interpolate(pricingSpring, [0, 1], [30, 0])}px)`,
+            padding: "40px 32px",
           }}
         >
-          <div className="text-2xl font-semibold mb-6" style={{ color: "#64748b" }}>
-            Vuosikustannukset
+          {/* Label */}
+          <div
+            className="text-center font-bold tracking-widest mb-2"
+            style={{
+              fontSize: 26,
+              color: "#64748b",
+            }}
+          >
+            VUOSIKUSTANNUS
           </div>
 
-          {/* Column headers - larger for mobile readability */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="text-center">
-              <div className="text-2xl font-semibold" style={{ color: "#475569" }}>
+          {/* All three tiers in a row */}
+          <div className="flex justify-between items-end mt-6">
+            {/* Kerrostalo */}
+            <div className="text-center flex-1">
+              <div
+                className="font-semibold"
+                style={{ fontSize: 30, color: "#94a3b8" }}
+              >
                 Kerrostalo
               </div>
-              <div className="text-xl" style={{ color: "#94a3b8" }}>
+              <div
+                className="font-medium"
+                style={{ fontSize: 24, color: "#64748b", marginTop: 4 }}
+              >
                 2000 kWh
               </div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-semibold" style={{ color: "#475569" }}>
-                Rivitalo
-              </div>
-              <div className="text-xl" style={{ color: "#94a3b8" }}>
-                5000 kWh
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-semibold" style={{ color: "#475569" }}>
-                Omakotitalo
-              </div>
-              <div className="text-xl" style={{ color: "#94a3b8" }}>
-                10000 kWh
-              </div>
-            </div>
-          </div>
-
-          {/* Cost values */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center">
-              <div className="text-5xl font-bold" style={{ color: "#0f172a" }}>
+              <div
+                className="font-bold"
+                style={{ fontSize: 56, color: "white", marginTop: 12 }}
+              >
                 {formatEur(offer.costs.apartment)}
               </div>
             </div>
-            <div className="text-center">
-              <div className="text-5xl font-bold" style={{ color: "#0f172a" }}>
+
+            {/* Rivitalo - FEATURED */}
+            <div className="text-center flex-1 mx-4">
+              <div
+                className="font-bold"
+                style={{ fontSize: 34, color: CORAL }}
+              >
+                Rivitalo
+              </div>
+              <div
+                className="font-semibold"
+                style={{ fontSize: 26, color: CORAL, marginTop: 4, opacity: 0.8 }}
+              >
+                5000 kWh
+              </div>
+              <div
+                className="font-black"
+                style={{
+                  fontSize: 96,
+                  color: "white",
+                  marginTop: 8,
+                  lineHeight: 1,
+                  letterSpacing: "-0.02em",
+                }}
+              >
                 {formatEur(offer.costs.townhouse)}
               </div>
             </div>
-            <div className="text-center">
-              <div className="text-5xl font-bold" style={{ color: "#0f172a" }}>
+
+            {/* Omakotitalo */}
+            <div className="text-center flex-1">
+              <div
+                className="font-semibold"
+                style={{ fontSize: 30, color: "#94a3b8" }}
+              >
+                Omakotitalo
+              </div>
+              <div
+                className="font-medium"
+                style={{ fontSize: 24, color: "#64748b", marginTop: 4 }}
+              >
+                10000 kWh
+              </div>
+              <div
+                className="font-bold"
+                style={{ fontSize: 56, color: "white", marginTop: 12 }}
+              >
                 {formatEur(offer.costs.house)}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Savings section */}
+        {/* Spacer to push savings badge down */}
+        <div className="flex-1" />
+
+        {/* === SAVINGS BADGE === */}
         {hasSavings && (
           <div
-            className="rounded-3xl p-8"
+            className="rounded-2xl px-10 py-6 flex items-center justify-center"
             style={{
-              background: "rgba(34, 197, 94, 0.1)",
-              border: `2px solid ${GREEN}`,
+              background: GREEN,
+              boxShadow: "0 8px 24px rgba(34, 197, 94, 0.35)",
               opacity: savingsSpring,
-              transform: `translateY(${interpolate(savingsSpring, [0, 1], [15, 0])}px)`,
+              transform: `scale(${interpolate(savingsSpring, [0, 0.7, 1], [0.9, 1.05, 1])})`,
+              marginTop: 24,
             }}
           >
-            <div
-              className="text-xl font-bold mb-5 tracking-wider"
-              style={{ color: GREEN_DARK }}
+            <span
+              className="font-black"
+              style={{ fontSize: 44, color: "white" }}
             >
-              SÄÄSTÄT TARJOUKSELLA
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <div
-                  className="text-4xl font-bold"
-                  style={{ color: GREEN_DARK }}
-                >
-                  {offer.savings.apartment > 0
-                    ? formatEur(offer.savings.apartment)
-                    : "—"}
-                </div>
-                <div className="text-lg" style={{ color: GREEN_DARK }}>
-                  /vuosi
-                </div>
-              </div>
-              <div className="text-center">
-                <div
-                  className="text-4xl font-bold"
-                  style={{ color: GREEN_DARK }}
-                >
-                  {offer.savings.townhouse > 0
-                    ? formatEur(offer.savings.townhouse)
-                    : "—"}
-                </div>
-                <div className="text-lg" style={{ color: GREEN_DARK }}>
-                  /vuosi
-                </div>
-              </div>
-              <div className="text-center">
-                <div
-                  className="text-4xl font-bold"
-                  style={{ color: GREEN_DARK }}
-                >
-                  {offer.savings.house > 0
-                    ? formatEur(offer.savings.house)
-                    : "—"}
-                </div>
-                <div className="text-lg" style={{ color: GREEN_DARK }}>
-                  /vuosi
-                </div>
-              </div>
-            </div>
+              SÄÄSTÄT {formatEur(featuredSavings)}/vuosi
+            </span>
           </div>
         )}
+      </div>
 
-        {/* Pricing details at bottom */}
+      {/* === LOWER THIRD: Voltikka branding === */}
+      <div
+        className="absolute bottom-0 left-0 right-0"
+        style={{
+          height: 90,
+          opacity: lowerThirdSpring,
+          transform: `translateY(${interpolate(lowerThirdSpring, [0, 1], [90, 0])}px)`,
+        }}
+      >
+        {/* Background bar */}
         <div
-          className="mt-auto flex items-center gap-8 pt-6"
+          className="absolute inset-0"
+          style={{ background: DARK_SLATE }}
+        />
+
+        {/* Coral accent line at top */}
+        <div
+          className="absolute top-0 left-0 right-0"
           style={{
-            opacity: tableSpring,
-            borderTop: "1px solid rgba(0,0,0,0.1)",
+            height: 4,
+            background: `linear-gradient(90deg, ${CORAL} 0%, ${CORAL_DARK} 100%)`,
           }}
-        >
-          <div>
-            <span className="text-xl" style={{ color: "#64748b" }}>
-              Perusmaksu:{" "}
-            </span>
-            <span className="text-xl font-semibold" style={{ color: "#334155" }}>
-              {offer.pricing.monthly_fee.toFixed(2).replace(".", ",")} €/kk
-            </span>
+        />
+
+        {/* Content */}
+        <div className="relative h-full flex items-center px-12">
+          {/* Logo icon */}
+          <div
+            className="rounded-full flex items-center justify-center mr-5"
+            style={{
+              width: 56,
+              height: 56,
+              background: `linear-gradient(135deg, ${CORAL} 0%, ${CORAL_DARK} 100%)`,
+            }}
+          >
+            <Zap size={32} strokeWidth={2.5} className="text-white" fill="white" />
           </div>
-          {offer.pricing.energy_price !== null && (
-            <div>
-              <span className="text-xl" style={{ color: "#64748b" }}>
-                Energia:{" "}
-              </span>
-              <span className="text-xl font-semibold" style={{ color: "#334155" }}>
-                {offer.pricing.energy_price.toFixed(2).replace(".", ",")} c/kWh
-              </span>
-            </div>
-          )}
+
+          {/* Site name */}
+          <span
+            className="font-black tracking-tight"
+            style={{ fontSize: 36, color: "white" }}
+          >
+            Voltikka.fi
+          </span>
+
+          {/* Tagline */}
+          <span
+            className="ml-auto font-medium"
+            style={{ fontSize: 26, color: "#94a3b8" }}
+          >
+            Suomen kattavin energiapalvelu
+          </span>
         </div>
       </div>
     </AbsoluteFill>
