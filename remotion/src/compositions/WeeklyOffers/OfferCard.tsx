@@ -84,55 +84,51 @@ export const OfferCard: React.FC<OfferCardProps> = ({
   const { fps } = useVideoConfig();
   const [logoError, setLogoError] = useState(false);
 
-  // Frame 0 shows final state for thumbnail
-  const isThumbnailFrame = frame === 0;
-  const animationFrame = frame > 0 ? frame - 1 : 0;
-
-  // Animation springs
-  const bgSpring = isThumbnailFrame ? 1 : spring({
-    frame: animationFrame,
+  // Animation springs - staggered entrance
+  const bgSpring = spring({
+    frame,
     fps,
     config: SPRING_FLOW,
   });
 
-  const dotsSpring = isThumbnailFrame ? 1 : spring({
-    frame: animationFrame - 0.1 * fps,
+  const dotsSpring = spring({
+    frame: frame - 0.1 * fps,
     fps,
     config: SPRING_FLOW,
   });
 
-  const companySpring = isThumbnailFrame ? 1 : spring({
-    frame: animationFrame - 0.2 * fps,
+  const companySpring = spring({
+    frame: frame - 0.2 * fps,
     fps,
     config: SPRING_SNAP,
   });
 
-  const discountSpring = isThumbnailFrame ? 1 : spring({
-    frame: animationFrame - 0.4 * fps,
+  const discountSpring = spring({
+    frame: frame - 0.4 * fps,
     fps,
     config: SPRING_POP,
   });
 
-  const nameSpring = isThumbnailFrame ? 1 : spring({
-    frame: animationFrame - 0.7 * fps,
+  const nameSpring = spring({
+    frame: frame - 0.7 * fps,
     fps,
     config: SPRING_FLOW,
   });
 
-  const pricingSpring = isThumbnailFrame ? 1 : spring({
-    frame: animationFrame - 0.9 * fps,
+  const pricingSpring = spring({
+    frame: frame - 0.9 * fps,
     fps,
     config: SPRING_FLOW,
   });
 
-  const savingsSpring = isThumbnailFrame ? 1 : spring({
-    frame: animationFrame - 1.2 * fps,
+  const savingsSpring = spring({
+    frame: frame - 1.2 * fps,
     fps,
     config: SPRING_POP,
   });
 
-  const lowerThirdSpring = isThumbnailFrame ? 1 : spring({
-    frame: animationFrame - 1.4 * fps,
+  const lowerThirdSpring = spring({
+    frame: frame - 1.4 * fps,
     fps,
     config: SPRING_FLOW,
   });
