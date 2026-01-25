@@ -122,8 +122,8 @@
     },
     "active-contract-filter": {
       "started_at": "2026-01-25T11:39:06.042646",
-      "ended_at": null
+      "ended_at": "2026-01-25T11:50:44.363146"
     }
   },
-  "current": "active-contract-filter"
+  "current": null
 }
