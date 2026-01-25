@@ -119,7 +119,11 @@
     "sahkotarjous-page": {
       "started_at": "2026-01-25T09:58:38.515456",
       "ended_at": "2026-01-25T11:39:02.479079"
+    },
+    "active-contract-filter": {
+      "started_at": "2026-01-25T11:39:06.042646",
+      "ended_at": null
     }
   },
-  "current": null
+  "current": "active-contract-filter"
 }

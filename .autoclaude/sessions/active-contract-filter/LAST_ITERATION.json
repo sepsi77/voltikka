@@ -1,0 +1,15 @@
+{
+  "iteration": 1,
+  "task_id": null,
+  "task_title": null,
+  "exit_reason": "task_complete",
+  "exit_signal": "TASK_COMPLETE",
+  "files_changed": [
+    ".autoclaude/history.json",
+    ".claude/commands/autoclaude-manager.md"
+  ],
+  "test_passed": null,
+  "commit_sha": null,
+  "summary": "The implementation is complete. Here's a summary of what was accomplished:\n\n## Summary\n\n### Implemented Active Contract Filtering\n\n1. **ElectricityContract Model Enhancements** (`app/Models/ElectricityContract.php`):\n   - Added `activeContract()` relationship (HasOne to ActiveContract)\n   - Added `scopeActive()` query scope for filtering\n   - Added `isActive()` helper method\n\n2. **Livewire Components Updated** (7 components):\n   - ContractsList, SeoContractsList, CompanyContractsList\n   - CompanyDetail, CompanyList, LocationsList, HomePage\n   - All now use `->active()` scope to filter contracts\n\n3. **Contract Detail Page Banner** (`contract-detail.blade.php`):\n   - Added warning banner for inactive contracts\n   - Text: \"Tämä sopimus ei ole enää tarjolla.\" (This contract is no longer available)\n   - Amber/yellow styling for visibility\n\n4. **Comprehensive Test Suite** (`ActiveContractFilterTest.php`):\n   - 13 tests covering all functionality\n   - Model scope tests, Livewire component tes",
+  "timestamp": "2026-01-25T11:49:50.387934"
+}
