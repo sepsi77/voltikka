@@ -1,0 +1,15 @@
+{
+  "iteration": 1,
+  "task_id": null,
+  "task_title": null,
+  "exit_reason": "task_complete",
+  "exit_signal": "TASK_COMPLETE",
+  "files_changed": [
+    ".autoclaude/history.json",
+    ".claude/commands/autoclaude-manager.md"
+  ],
+  "test_passed": null,
+  "commit_sha": null,
+  "summary": "I have successfully completed all tasks for the sähkötarjous page implementation:\n\n## Summary\n\nAll 8 tasks have been completed and committed:\n\n1. **Model helpers** - Added `hasActiveDiscounts()` and `getActiveDiscountInfo()` methods to ElectricityContract model\n2. **Route** - Added `/sahkosopimus/sahkotarjous` route before the city catch-all\n3. **Filter logic** - Added offerType filter to SeoContractsList with database-level promotion filtering\n4. **SEO metadata** - Added Finnish SEO title, description, canonical URL, heading, and intro text\n5. **Contract badge** - Added amber/yellow promotion badge showing discount duration\n6. **Sitemap** - Added sahkotarjous URL with daily changefreq and 0.85 priority\n7. **JSON-LD** - Enriched schema with priceValidUntil and discount descriptions\n8. **Verification** - All PHP syntax checks pass, route is registered, ElectricityContract unit tests pass\n\n**Commit:** `4f762bf` - \"feat(seo): add sahkotarjous page for contracts with active promotions\"\n\nNo",
+  "timestamp": "2026-01-25T10:07:07.775775"
+}

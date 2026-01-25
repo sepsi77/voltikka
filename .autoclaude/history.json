@@ -115,7 +115,11 @@
     "spot-price-clarity-improvements": {
       "started_at": "2026-01-24T13:29:34.359564",
       "ended_at": null
+    },
+    "sahkotarjous-page": {
+      "started_at": "2026-01-25T09:58:38.515456",
+      "ended_at": null
     }
   },
-  "current": "spot-price-clarity-improvements"
+  "current": "sahkotarjous-page"
 }
