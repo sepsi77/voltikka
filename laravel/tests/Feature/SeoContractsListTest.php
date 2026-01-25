@@ -6,6 +6,7 @@ use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
+use App\Models\Municipality;
 use App\Models\PriceComponent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -32,6 +33,19 @@ class SeoContractsListTest extends TestCase
             'name_slug' => 'vihrea-voima-ab',
             'company_url' => 'https://vihreavoima.fi',
             'logo_url' => 'https://storage.example.com/logos/vihrea.png',
+        ]);
+
+        // Create test municipality for city tests
+        Municipality::create([
+            'code' => '091',
+            'slug' => 'helsinki',
+            'name' => 'Helsinki',
+            'name_locative' => 'Helsingissä',
+            'name_genitive' => 'Helsingin',
+            'region_code' => '01',
+            'region_name' => 'Uusimaa',
+            'center_latitude' => 60.1699,
+            'center_longitude' => 24.9384,
         ]);
     }
 

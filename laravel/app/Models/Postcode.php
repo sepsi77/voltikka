@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Postcode extends Model
@@ -64,6 +65,9 @@ class Postcode extends Model
         'municipal_name_sv',
         'municipal_name_sv_slug',
         'municipal_language_ratio_code',
+        // Coordinates
+        'latitude',
+        'longitude',
     ];
 
     /**
@@ -97,6 +101,14 @@ class Postcode extends Model
             'postcode',
             'id'
         );
+    }
+
+    /**
+     * Get the municipality this postcode belongs to.
+     */
+    public function municipality(): BelongsTo
+    {
+        return $this->belongsTo(Municipality::class, 'municipal_code', 'code');
     }
 
     /**

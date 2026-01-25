@@ -196,6 +196,29 @@ class ElectricityContract extends Model
     }
 
     /**
+     * Get the DSOs (Distribution System Operators) where this contract is available.
+     */
+    public function dsos(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Dso::class,
+            'contract_dso',
+            'contract_id',
+            'dso_id',
+            'id',
+            'id'
+        );
+    }
+
+    /**
+     * Check if this contract is regional (not available nationally).
+     */
+    public function isRegional(): bool
+    {
+        return $this->availability_is_national === false;
+    }
+
+    /**
      * Get the active contract record for this contract.
      */
     public function activeContract(): HasOne

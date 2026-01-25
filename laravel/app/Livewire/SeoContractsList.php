@@ -4,11 +4,14 @@ namespace App\Livewire;
 
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
+use App\Models\Municipality;
 use App\Models\Postcode;
 use App\Models\SpotPriceAverage;
+use App\Services\CitySolarService;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
+use App\Services\LocalContractsService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -77,30 +80,9 @@ class SeoContractsList extends ContractsList
     ];
 
     /**
-     * Finnish city names with locative forms (ssa/ssä).
+     * Cached municipality instance for city pages.
      */
-    protected array $cityLocativeForms = [
-        'helsinki' => ['name' => 'Helsinki', 'locative' => 'Helsingissä'],
-        'espoo' => ['name' => 'Espoo', 'locative' => 'Espoossa'],
-        'tampere' => ['name' => 'Tampere', 'locative' => 'Tampereella'],
-        'vantaa' => ['name' => 'Vantaa', 'locative' => 'Vantaalla'],
-        'oulu' => ['name' => 'Oulu', 'locative' => 'Oulussa'],
-        'turku' => ['name' => 'Turku', 'locative' => 'Turussa'],
-        'jyvaskyla' => ['name' => 'Jyväskylä', 'locative' => 'Jyväskylässä'],
-        'lahti' => ['name' => 'Lahti', 'locative' => 'Lahdessa'],
-        'kuopio' => ['name' => 'Kuopio', 'locative' => 'Kuopiossa'],
-        'pori' => ['name' => 'Pori', 'locative' => 'Porissa'],
-        'kouvola' => ['name' => 'Kouvola', 'locative' => 'Kouvolassa'],
-        'joensuu' => ['name' => 'Joensuu', 'locative' => 'Joensuussa'],
-        'lappeenranta' => ['name' => 'Lappeenranta', 'locative' => 'Lappeenrannassa'],
-        'vaasa' => ['name' => 'Vaasa', 'locative' => 'Vaasassa'],
-        'hameenlinna' => ['name' => 'Hämeenlinna', 'locative' => 'Hämeenlinnassa'],
-        'seinajoki' => ['name' => 'Seinäjoki', 'locative' => 'Seinäjoella'],
-        'rovaniemi' => ['name' => 'Rovaniemi', 'locative' => 'Rovaniemellä'],
-        'mikkeli' => ['name' => 'Mikkeli', 'locative' => 'Mikkelissä'],
-        'kotka' => ['name' => 'Kotka', 'locative' => 'Kotkassa'],
-        'salo' => ['name' => 'Salo', 'locative' => 'Salossa'],
-    ];
+    protected ?Municipality $municipality = null;
 
     /**
      * Housing type to preset mapping.
@@ -322,6 +304,15 @@ class SeoContractsList extends ContractsList
             $bCost = $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
             return $aCost <=> $bCost;
         })->values();
+
+        // For city pages, exclude contracts already shown in local/regional sections
+        if ($this->city) {
+            $localData = $this->localContractsData;
+            $excludedIds = $localData['excluded_ids'] ?? [];
+            if (!empty($excludedIds)) {
+                $sorted = $sorted->filter(fn ($c) => !in_array($c->id, $excludedIds))->values();
+            }
+        }
 
         // Create a manual paginator from the sorted collection
         $total = $sorted->count();
@@ -669,8 +660,16 @@ class SeoContractsList extends ContractsList
      */
     protected function getCityData(string $slug): array
     {
-        if (isset($this->cityLocativeForms[$slug])) {
-            return $this->cityLocativeForms[$slug];
+        // Look up municipality from database
+        $municipality = $this->getMunicipality($slug);
+
+        if ($municipality) {
+            return [
+                'name' => $municipality->name,
+                'locative' => $municipality->name_locative,
+                'genitive' => $municipality->name_genitive,
+                'municipality' => $municipality,
+            ];
         }
 
         // Fallback: capitalize first letter and add generic locative
@@ -678,6 +677,77 @@ class SeoContractsList extends ContractsList
         return [
             'name' => $name,
             'locative' => "{$name}ssa", // Generic -ssa ending
+            'genitive' => "{$name}n",
+            'municipality' => null,
+        ];
+    }
+
+    /**
+     * Get the municipality for the current city slug.
+     */
+    protected function getMunicipality(string $slug): ?Municipality
+    {
+        if ($this->municipality === null || $this->municipality->slug !== $slug) {
+            $this->municipality = Municipality::where('slug', $slug)->first();
+        }
+        return $this->municipality;
+    }
+
+    /**
+     * Get the municipality property for the view.
+     */
+    public function getMunicipalityProperty(): ?Municipality
+    {
+        if (!$this->city) {
+            return null;
+        }
+        return $this->getMunicipality($this->city);
+    }
+
+    /**
+     * Get solar estimate for the current city.
+     */
+    public function getSolarEstimateProperty(): ?array
+    {
+        $municipality = $this->municipality;
+        if (!$municipality) {
+            return null;
+        }
+
+        $service = app(CitySolarService::class);
+        return $service->getSolarEstimate($municipality);
+    }
+
+    /**
+     * Get local contracts for the current city.
+     * Returns array with local_companies, regional_contracts, and has_content keys.
+     */
+    public function getLocalContractsDataProperty(): array
+    {
+        $municipality = $this->municipality;
+        if (!$municipality) {
+            return [
+                'local_companies' => collect(),
+                'regional_contracts' => collect(),
+                'has_content' => false,
+                'excluded_ids' => [],
+            ];
+        }
+
+        $service = app(LocalContractsService::class);
+        $data = $service->getLocalContracts($municipality, $this->consumption);
+
+        // Collect IDs to exclude from main listing
+        $excludedIds = $data['local_companies']->pluck('id')
+            ->merge($data['regional_contracts']->pluck('id'))
+            ->unique()
+            ->toArray();
+
+        return [
+            'local_companies' => $data['local_companies'],
+            'regional_contracts' => $data['regional_contracts'],
+            'has_content' => $data['has_content'],
+            'excluded_ids' => $excludedIds,
         ];
     }
 
@@ -809,6 +879,10 @@ class SeoContractsList extends ContractsList
             'isPricingTypePage' => $this->pricingType !== null,
             'isCityPage' => $this->city !== null,
             'cityInfo' => $this->cityInfo,
+            'citySlug' => $this->city,
+            'municipality' => $this->municipality,
+            'solarEstimate' => $this->solarEstimate,
+            'localContractsData' => $this->localContractsData,
             'basePath' => $this->basePath,
             'showSeoFilterLinks' => $this->showSeoFilterLinks,
         ])->layout('layouts.app', [

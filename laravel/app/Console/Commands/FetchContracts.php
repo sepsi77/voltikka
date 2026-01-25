@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\ActiveContract;
 use App\Models\Company;
+use App\Models\Dso;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\Postcode;
@@ -105,6 +106,9 @@ class FetchContracts extends Command
 
             // Upload contract-postcode relationships
             $this->processContractPostcodes($allContracts, $validPostcodes);
+
+            // Upload DSOs and contract-DSO relationships
+            $this->processDsos($allContracts);
 
             // Upload spot futures (from first contract)
             $this->processSpotFutures($allContracts, $today);
@@ -556,5 +560,77 @@ class FetchContracts extends Command
             }
         }
         return $result;
+    }
+
+    /**
+     * Process DSOs and contract-DSO relationships.
+     */
+    private function processDsos(array $contracts): void
+    {
+        // Build a mapping of API IDs to our internal IDs
+        $apiIds = array_map(fn($c) => $c['Id'], $contracts);
+        $contractIdMap = ElectricityContract::whereIn('api_id', $apiIds)
+            ->pluck('id', 'api_id')
+            ->toArray();
+
+        // Collect all unique DSO names
+        $allDsoNames = [];
+        foreach ($contracts as $data) {
+            $dsoNames = $data['Details']['AvailabilityArea']['Dsos'] ?? [];
+            foreach ($dsoNames as $name) {
+                $name = trim($name);
+                if ($name !== '') {
+                    $allDsoNames[$name] = true;
+                }
+            }
+        }
+
+        // Create or update DSOs
+        $dsoIdMap = [];
+        foreach (array_keys($allDsoNames) as $name) {
+            $dso = Dso::firstOrCreate(
+                ['name' => $name],
+                ['name_slug' => Dso::generateSlug($name)]
+            );
+            $dsoIdMap[$name] = $dso->id;
+        }
+
+        // Build contract-DSO relationships
+        $relationships = [];
+        $processedPairs = [];
+
+        foreach ($contracts as $data) {
+            $data = $this->trimDictValues($data);
+            $apiId = $data['Id'];
+            $contractId = $contractIdMap[$apiId] ?? null;
+            if (!$contractId) {
+                continue;
+            }
+
+            $dsoNames = $data['Details']['AvailabilityArea']['Dsos'] ?? [];
+            foreach ($dsoNames as $name) {
+                $name = trim($name);
+                if ($name === '' || !isset($dsoIdMap[$name])) {
+                    continue;
+                }
+
+                $dsoId = $dsoIdMap[$name];
+                $pairKey = "{$contractId}:{$dsoId}";
+                if (!isset($processedPairs[$pairKey])) {
+                    $relationships[] = [
+                        'contract_id' => $contractId,
+                        'dso_id' => $dsoId,
+                    ];
+                    $processedPairs[$pairKey] = true;
+                }
+            }
+        }
+
+        // Use insertOrIgnore to handle duplicate entries
+        foreach (array_chunk($relationships, 500) as $chunk) {
+            DB::table('contract_dso')->insertOrIgnore($chunk);
+        }
+
+        $this->info("Processed " . count($dsoIdMap) . " DSOs and " . count($relationships) . " contract-DSO relationships.");
     }
 }

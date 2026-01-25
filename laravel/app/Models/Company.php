@@ -91,6 +91,15 @@ class Company extends Model
     }
 
     /**
+     * Check if the company is headquartered in the given municipality.
+     * Matches by postal_name (city name in the company's address).
+     */
+    public function isHeadquarteredIn(string $municipalityName): bool
+    {
+        return mb_strtolower($this->postal_name ?? '') === mb_strtolower($municipalityName);
+    }
+
+    /**
      * Get the logo URL, preferring local storage over external URL.
      */
     protected function logoUrlResolved(): Attribute
