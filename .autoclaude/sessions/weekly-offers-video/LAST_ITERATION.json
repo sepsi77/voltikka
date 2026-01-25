@@ -5,19 +5,29 @@
   "exit_reason": "task_complete",
   "exit_signal": "TASK_COMPLETE",
   "files_changed": [
-    ".autoclaude/history.json",
+    "laravel/app/Console/Commands/FetchContracts.php",
+    "laravel/app/Livewire/SeoContractsList.php",
     "laravel/app/Models/Company.php",
     "laravel/app/Models/ElectricityContract.php",
     "laravel/app/Models/Postcode.php",
-    ".autoclaude/sessions/weekly-offers-video/",
+    "laravel/resources/views/livewire/seo-contracts-list.blade.php",
+    "laravel/tests/Feature/SeoContractsListTest.php",
+    "remotion/src/Root.tsx",
+    ".claude/video-review/",
+    "laravel/app/Console/Commands/ImportMunicipalities.php",
+    "laravel/app/Console/Commands/ImportPostcodeCoordinates.php",
+    "laravel/app/Livewire/LocalContractsSection.php",
     "laravel/app/Models/Dso.php",
     "laravel/app/Models/Municipality.php",
+    "laravel/app/Services/CitySolarService.php",
+    "laravel/app/Services/LocalContractsService.php",
     "laravel/database/migrations/2026_01_25_000001_add_coordinates_to_postcodes_table.php",
     "laravel/database/migrations/2026_01_25_000002_create_municipalities_table.php",
-    "laravel/database/migrations/2026_01_25_000003_create_dsos_table.php"
+    "laravel/database/migrations/2026_01_25_000003_create_dsos_table.php",
+    "laravel/resources/views/livewire/local-contracts-section.blade.php"
   ],
   "test_passed": null,
   "commit_sha": null,
-  "summary": "I have completed all 9 tasks for the WeeklyOffers Remotion video composition. Here's a summary of what was accomplished:\n\n## Summary\n\n**Completed Tasks (9/9)**\n\n### Backend (Laravel)\n1. **WeeklyOffersVideoService.php** - Created service to:\n   - Query contracts with active discounts (Household only)\n   - Calculate costs at 3 consumption levels (2000/5000/10000 kWh)\n   - Compute savings by comparing discounted vs non-discounted prices\n   - Format Finnish date strings for week period\n\n2. **API Endpoint** - Added `GET /api/video/weekly-offers` route\n\n### Frontend (Remotion)\n3. **TypeScript Types** - `ContractOffer`, `WeeklyOffersVideoData`, `WeeklyOffersProps`\n\n4. **TitleScene.tsx** - Opening scene with:\n   - Dark slate background with coral gradient glow\n   - \"Sähkötarjoukset\" headline with coral accent\n   - Week dates and offers count badge\n   - Spring-based staggered animations\n\n5. **OfferCard.tsx** - Full-screen offer card featuring:\n   - Company logo and name header\n   - Discount bad",
-  "timestamp": "2026-01-25T12:25:57.888138"
+  "summary": "All bug fixes for the WeeklyOffers video composition have been completed and committed. Here's a summary of what was accomplished:\n\n## Summary\n\n**All 5 bug fix tasks completed (tasks 10-14):**\n\n1. **Frame 0 Black Screen Fix (Task 10)** - Added `isThumbnailFrame` check to TitleScene, OfferCard, and SignOffScene. When frame is 0, all spring animation values are set to 1 (final state) instead of animating from 0, ensuring proper thumbnail generation.\n\n2. **Logo Fallback Handling (Task 11)** - Added error handling with `useState` for `logoError`, `onError` handler on the Remotion `Img` component, and a Building2 icon from lucide-react as fallback. The logo container now always renders with either the company logo or a placeholder icon.\n\n3. **Discount Subtext Fix (Task 12)** - Changed `formatDiscountSubtext()` to return `null` instead of \"Rajoitettu tarjous\" when no duration info is available. Fixed the condition to explicitly check `n_first_months > 0` (not just truthiness). Subtext now co",
+  "timestamp": "2026-01-25T12:40:06.186813"
 }
