@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   AbsoluteFill,
   interpolate,
@@ -6,6 +7,7 @@ import {
   useVideoConfig,
   Img,
 } from "remotion";
+import { Building2 } from "lucide-react";
 import type { ContractOffer } from "../../types";
 
 // Brand colors
@@ -45,11 +47,13 @@ function formatDiscount(discount: ContractOffer["discount"]): string {
  * Format discount subtext
  * - "3 ensimmäistä kuukautta"
  * - "Voimassa 31.3.2026 asti"
+ * - Empty string if no duration info
  */
-function formatDiscountSubtext(discount: ContractOffer["discount"]): string {
-  if (!discount) return "";
+function formatDiscountSubtext(discount: ContractOffer["discount"]): string | null {
+  if (!discount) return null;
 
-  if (discount.n_first_months) {
+  // Check n_first_months explicitly (0 is falsy but should mean "no months limit")
+  if (discount.n_first_months !== null && discount.n_first_months !== undefined && discount.n_first_months > 0) {
     return `${discount.n_first_months} ensimmäistä kuukautta`;
   }
 
@@ -62,7 +66,8 @@ function formatDiscountSubtext(discount: ContractOffer["discount"]): string {
     return `Voimassa ${day}.${month}.${year} asti`;
   }
 
-  return "Rajoitettu tarjous";
+  // No specific duration info - return null to hide the subtext
+  return null;
 }
 
 /**
@@ -89,6 +94,11 @@ export const OfferCard: React.FC<OfferCardProps> = ({
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const [logoError, setLogoError] = useState(false);
+
+  // Frame 0 shows final state for thumbnail, then animation starts from frame 1
+  const isThumbnailFrame = frame === 0;
+  const animationFrame = frame > 0 ? frame - 1 : 0;
 
   // Animation sequence:
   // 1. Card background (0s)
@@ -97,42 +107,55 @@ export const OfferCard: React.FC<OfferCardProps> = ({
   // 4. Contract name (0.45s)
   // 5. Pricing table (0.6s)
   // 6. Savings section (0.8s)
+  // If thumbnail frame, all springs = 1 (final state)
 
-  const bgSpring = spring({
-    frame,
-    fps,
-    config: SPRING_FLOW,
-  });
+  const bgSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame,
+        fps,
+        config: SPRING_FLOW,
+      });
 
-  const headerSpring = spring({
-    frame: frame - 0.15 * fps,
-    fps,
-    config: SPRING_SNAP,
-  });
+  const headerSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 0.15 * fps,
+        fps,
+        config: SPRING_SNAP,
+      });
 
-  const discountSpring = spring({
-    frame: frame - 0.3 * fps,
-    fps,
-    config: SPRING_SNAP,
-  });
+  const discountSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 0.3 * fps,
+        fps,
+        config: SPRING_SNAP,
+      });
 
-  const nameSpring = spring({
-    frame: frame - 0.45 * fps,
-    fps,
-    config: SPRING_FLOW,
-  });
+  const nameSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 0.45 * fps,
+        fps,
+        config: SPRING_FLOW,
+      });
 
-  const tableSpring = spring({
-    frame: frame - 0.6 * fps,
-    fps,
-    config: SPRING_FLOW,
-  });
+  const tableSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 0.6 * fps,
+        fps,
+        config: SPRING_FLOW,
+      });
 
-  const savingsSpring = spring({
-    frame: frame - 0.8 * fps,
-    fps,
-    config: SPRING_FLOW,
-  });
+  const savingsSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 0.8 * fps,
+        fps,
+        config: SPRING_FLOW,
+      });
 
   // Check if we have any positive savings to display
   const hasSavings =
@@ -188,16 +211,17 @@ export const OfferCard: React.FC<OfferCardProps> = ({
             transform: `translateY(${interpolate(headerSpring, [0, 1], [-15, 0])}px)`,
           }}
         >
-          {offer.company.logo_url && (
-            <div
-              className="rounded-2xl overflow-hidden flex items-center justify-center"
-              style={{
-                width: 80,
-                height: 80,
-                backgroundColor: "white",
-                padding: 8,
-              }}
-            >
+          {/* Company logo with fallback */}
+          <div
+            className="rounded-2xl overflow-hidden flex items-center justify-center"
+            style={{
+              width: 80,
+              height: 80,
+              backgroundColor: "white",
+              padding: 8,
+            }}
+          >
+            {offer.company.logo_url && !logoError ? (
               <Img
                 src={offer.company.logo_url}
                 style={{
@@ -205,9 +229,16 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                   maxHeight: "100%",
                   objectFit: "contain",
                 }}
+                onError={() => setLogoError(true)}
               />
-            </div>
-          )}
+            ) : (
+              <Building2
+                size={48}
+                strokeWidth={1.5}
+                style={{ color: "#94a3b8" }}
+              />
+            )}
+          </div>
           <div>
             <div
               className="text-3xl font-semibold"
@@ -239,17 +270,19 @@ export const OfferCard: React.FC<OfferCardProps> = ({
           }}
         >
           <div
-            className="text-6xl font-black mb-1"
+            className="text-6xl font-black"
             style={{ color: "white" }}
           >
             {formatDiscount(offer.discount)}
           </div>
-          <div
-            className="text-2xl font-medium"
-            style={{ color: "rgba(255,255,255,0.85)" }}
-          >
-            {formatDiscountSubtext(offer.discount)}
-          </div>
+          {formatDiscountSubtext(offer.discount) && (
+            <div
+              className="text-2xl font-medium mt-1"
+              style={{ color: "rgba(255,255,255,0.85)" }}
+            >
+              {formatDiscountSubtext(offer.discount)}
+            </div>
+          )}
         </div>
 
         {/* Contract name */}
@@ -278,29 +311,29 @@ export const OfferCard: React.FC<OfferCardProps> = ({
             Vuosikustannukset
           </div>
 
-          {/* Column headers */}
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          {/* Column headers - larger for mobile readability */}
+          <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="text-center">
-              <div className="text-xl font-medium" style={{ color: "#64748b" }}>
+              <div className="text-2xl font-semibold" style={{ color: "#94a3b8" }}>
                 Kerrostalo
               </div>
-              <div className="text-lg" style={{ color: "#475569" }}>
+              <div className="text-xl" style={{ color: "#64748b" }}>
                 2000 kWh
               </div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-medium" style={{ color: "#64748b" }}>
+              <div className="text-2xl font-semibold" style={{ color: "#94a3b8" }}>
                 Rivitalo
               </div>
-              <div className="text-lg" style={{ color: "#475569" }}>
+              <div className="text-xl" style={{ color: "#64748b" }}>
                 5000 kWh
               </div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-medium" style={{ color: "#64748b" }}>
+              <div className="text-2xl font-semibold" style={{ color: "#94a3b8" }}>
                 Omakotitalo
               </div>
-              <div className="text-lg" style={{ color: "#475569" }}>
+              <div className="text-xl" style={{ color: "#64748b" }}>
                 10000 kWh
               </div>
             </div>

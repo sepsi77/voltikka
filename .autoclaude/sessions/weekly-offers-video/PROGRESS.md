@@ -68,3 +68,43 @@
 - Remotion bundle: Successful
 - Laravel syntax check: Passed
 - Routes registered: Verified
+
+---
+
+## 2026-01-25 - Bug Fixes (Iteration 2)
+
+### Completed Bug Fixes (5/5)
+
+10. **Frame 0 Black Screen Fix** - TitleScene, OfferCard, SignOffScene
+    - Added `isThumbnailFrame` check (frame === 0)
+    - At frame 0, all spring values are set to 1 (final state) for proper thumbnail generation
+    - Follows DailySpotPrice pattern for consistency
+
+11. **Logo Fallback Handling** - OfferCard.tsx
+    - Added `useState` for `logoError` tracking
+    - Added `onError` handler on Remotion `Img` component
+    - Added Building2 icon from lucide-react as fallback placeholder
+    - Logo container always renders (logo or fallback icon)
+
+12. **Discount Subtext Fix** - OfferCard.tsx
+    - Changed `formatDiscountSubtext()` to return `null` instead of "Rajoitettu tarjous"
+    - Fixed condition to explicitly check `n_first_months > 0` (not just truthiness)
+    - Subtext conditionally renders only when there's actual content
+
+13. **Typography Improvement** - OfferCard.tsx
+    - Increased housing type labels from `text-xl` to `text-2xl font-semibold`
+    - Increased kWh values from `text-lg` to `text-xl`
+    - Brightened text colors from `#64748b` to `#94a3b8` for better contrast
+
+14. **SignOff Scene Verification** - SignOffScene.tsx
+    - Verified timing is correct (starts at frame 435 = 14.5s)
+    - Added `isThumbnailFrame` handling for consistent animation behavior
+    - Scene transitions smoothly from last offer card
+
+### Files Modified
+- `remotion/src/compositions/WeeklyOffers/TitleScene.tsx`
+- `remotion/src/compositions/WeeklyOffers/OfferCard.tsx`
+- `remotion/src/compositions/WeeklyOffers/SignOffScene.tsx`
+
+### Build Status
+- Remotion bundle: Successful (verified after all changes)

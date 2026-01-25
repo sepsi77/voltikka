@@ -14,35 +14,48 @@ const CORAL = "#f97316";
  * SignOffScene - Closing scene with Voltikka.fi branding
  *
  * Reused from DailySpotPrice for brand consistency.
+ * Frame 0 shows final state for consistent video structure.
  */
 export const SignOffScene: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
+  // Frame 0 shows final state for thumbnail
+  const isThumbnailFrame = frame === 0;
+  const animationFrame = frame > 0 ? frame - 1 : 0;
+
   // Staggered animation sequence
-  const bgIn = spring({
-    frame,
-    fps,
-    config: { damping: 30, stiffness: 200 },
-  });
+  const bgIn = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame,
+        fps,
+        config: { damping: 30, stiffness: 200 },
+      });
 
-  const badgeIn = spring({
-    frame: frame - 0.2 * fps,
-    fps,
-    config: { damping: 20, stiffness: 150 },
-  });
+  const badgeIn = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 0.2 * fps,
+        fps,
+        config: { damping: 20, stiffness: 150 },
+      });
 
-  const logoIn = spring({
-    frame: frame - 0.5 * fps,
-    fps,
-    config: { damping: 18, stiffness: 120 },
-  });
+  const logoIn = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 0.5 * fps,
+        fps,
+        config: { damping: 18, stiffness: 120 },
+      });
 
-  const descIn = spring({
-    frame: frame - 1.0 * fps,
-    fps,
-    config: { damping: 20, stiffness: 150 },
-  });
+  const descIn = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 1.0 * fps,
+        fps,
+        config: { damping: 20, stiffness: 150 },
+      });
 
   return (
     <AbsoluteFill

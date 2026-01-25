@@ -36,42 +36,57 @@ export const TitleScene: React.FC<TitleSceneProps> = ({
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
+  // Frame 0 shows final state for thumbnail, then animation starts from frame 1
+  const isThumbnailFrame = frame === 0;
+  const animationFrame = frame > 0 ? frame - 1 : 0;
+
   // Animation sequence (2.5s total):
   // 1. Background glow fades in (0s)
   // 2. Badge appears (0.2s)
   // 3. Headline reveals (0.5s)
   // 4. Week dates fade in (0.9s)
   // 5. Offers count badge (1.2s)
+  // If thumbnail frame, all springs = 1 (final state)
 
-  const bgGlow = spring({
-    frame,
-    fps,
-    config: SPRING_FLOW,
-  });
+  const bgGlow = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame,
+        fps,
+        config: SPRING_FLOW,
+      });
 
-  const badgeSpring = spring({
-    frame: frame - 0.2 * fps,
-    fps,
-    config: SPRING_SNAP,
-  });
+  const badgeSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 0.2 * fps,
+        fps,
+        config: SPRING_SNAP,
+      });
 
-  const headlineSpring = spring({
-    frame: frame - 0.5 * fps,
-    fps,
-    config: SPRING_SNAP,
-  });
+  const headlineSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 0.5 * fps,
+        fps,
+        config: SPRING_SNAP,
+      });
 
-  const datesSpring = spring({
-    frame: frame - 0.9 * fps,
-    fps,
-    config: SPRING_FLOW,
-  });
+  const datesSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 0.9 * fps,
+        fps,
+        config: SPRING_FLOW,
+      });
 
-  const countSpring = spring({
-    frame: frame - 1.2 * fps,
-    fps,
-    config: SPRING_FLOW,
-  });
+  const countSpring = isThumbnailFrame
+    ? 1
+    : spring({
+        frame: animationFrame - 1.2 * fps,
+        fps,
+        config: SPRING_FLOW,
+      });
 
   return (
     <AbsoluteFill
