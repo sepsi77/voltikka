@@ -47,6 +47,7 @@ Each task in TASKS.json must:
 3. Run tests and verify functionality
 4. Create correction tasks if needed
 5. Continue execution or end session
+6. Use agent browser skill to verify execution in browser (if relevant)
 
 **Phase 4: Completion**
 1. Verify all tasks completed successfully

@@ -58,8 +58,8 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                // PHP 8.5+ uses Pdo\Mysql::ATTR_SSL_CA, fallback to PDO constant for older versions
-                (defined('Pdo\Mysql::ATTR_SSL_CA') ? \Pdo\Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+                // PHP 8.4+ deprecated PDO::MYSQL_ATTR_SSL_CA (value 1009), use Pdo\Mysql::ATTR_SSL_CA instead
+                (defined('Pdo\Mysql::ATTR_SSL_CA') ? constant('Pdo\Mysql::ATTR_SSL_CA') : 1009) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 
@@ -79,8 +79,8 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                // PHP 8.5+ uses Pdo\Mysql::ATTR_SSL_CA, fallback to PDO constant for older versions
-                (defined('Pdo\Mysql::ATTR_SSL_CA') ? \Pdo\Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+                // PHP 8.4+ deprecated PDO::MYSQL_ATTR_SSL_CA (value 1009), use Pdo\Mysql::ATTR_SSL_CA instead
+                (defined('Pdo\Mysql::ATTR_SSL_CA') ? constant('Pdo\Mysql::ATTR_SSL_CA') : 1009) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
         ],
 

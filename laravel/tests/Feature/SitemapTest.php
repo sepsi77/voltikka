@@ -65,24 +65,21 @@ class SitemapTest extends TestCase
         ]);
     }
 
-    /** @test */
-    public function sitemap_route_is_accessible(): void
+    public function test_sitemap_route_is_accessible(): void
     {
         $response = $this->get('/sitemap.xml');
 
         $response->assertStatus(200);
     }
 
-    /** @test */
-    public function sitemap_returns_xml_content_type(): void
+    public function test_sitemap_returns_xml_content_type(): void
     {
         $response = $this->get('/sitemap.xml');
 
         $response->assertHeader('Content-Type', 'text/xml; charset=UTF-8');
     }
 
-    /** @test */
-    public function sitemap_has_valid_xml_structure(): void
+    public function test_sitemap_has_valid_xml_structure(): void
     {
         $response = $this->get('/sitemap.xml');
 
@@ -96,8 +93,7 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString('</urlset>', $content);
     }
 
-    /** @test */
-    public function sitemap_includes_main_pages(): void
+    public function test_sitemap_includes_main_pages(): void
     {
         $response = $this->get('/sitemap.xml');
 
@@ -114,8 +110,7 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/paikkakunnat</loc>", $content);
     }
 
-    /** @test */
-    public function sitemap_includes_housing_type_pages(): void
+    public function test_sitemap_includes_housing_type_pages(): void
     {
         $response = $this->get('/sitemap.xml');
 
@@ -127,8 +122,7 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/rivitalo</loc>", $content);
     }
 
-    /** @test */
-    public function sitemap_includes_energy_source_pages(): void
+    public function test_sitemap_includes_energy_source_pages(): void
     {
         $response = $this->get('/sitemap.xml');
 
@@ -140,8 +134,7 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/vihrea-sahko</loc>", $content);
     }
 
-    /** @test */
-    public function sitemap_includes_city_pages(): void
+    public function test_sitemap_includes_city_pages(): void
     {
         $response = $this->get('/sitemap.xml');
 
@@ -156,8 +149,7 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/turku</loc>", $content);
     }
 
-    /** @test */
-    public function sitemap_does_not_duplicate_cities(): void
+    public function test_sitemap_does_not_duplicate_cities(): void
     {
         $response = $this->get('/sitemap.xml');
 
@@ -169,8 +161,7 @@ class SitemapTest extends TestCase
         $this->assertEquals(1, $helsinkiCount);
     }
 
-    /** @test */
-    public function sitemap_has_priority_values(): void
+    public function test_sitemap_has_priority_values(): void
     {
         $response = $this->get('/sitemap.xml');
 
@@ -183,8 +174,7 @@ class SitemapTest extends TestCase
         $this->assertMatchesRegularExpression('/<loc>[^<]+<\/loc>\s*<lastmod>[^<]+<\/lastmod>\s*<changefreq>[^<]+<\/changefreq>\s*<priority>1\.0<\/priority>/s', $content);
     }
 
-    /** @test */
-    public function sitemap_has_changefreq_values(): void
+    public function test_sitemap_has_changefreq_values(): void
     {
         $response = $this->get('/sitemap.xml');
 
@@ -197,8 +187,7 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString('<changefreq>weekly</changefreq>', $content);
     }
 
-    /** @test */
-    public function sitemap_has_lastmod_values(): void
+    public function test_sitemap_has_lastmod_values(): void
     {
         $response = $this->get('/sitemap.xml');
 
@@ -208,8 +197,7 @@ class SitemapTest extends TestCase
         $this->assertMatchesRegularExpression('/<lastmod>\d{4}-\d{2}-\d{2}<\/lastmod>/', $content);
     }
 
-    /** @test */
-    public function sitemap_url_elements_have_required_structure(): void
+    public function test_sitemap_url_elements_have_required_structure(): void
     {
         $response = $this->get('/sitemap.xml');
 
@@ -222,8 +210,7 @@ class SitemapTest extends TestCase
         );
     }
 
-    /** @test */
-    public function sitemap_priorities_are_valid(): void
+    public function test_sitemap_priorities_are_valid(): void
     {
         $response = $this->get('/sitemap.xml');
 
@@ -239,8 +226,7 @@ class SitemapTest extends TestCase
         }
     }
 
-    /** @test */
-    public function sitemap_changefreqs_are_valid(): void
+    public function test_sitemap_changefreqs_are_valid(): void
     {
         $response = $this->get('/sitemap.xml');
 
@@ -256,8 +242,7 @@ class SitemapTest extends TestCase
         }
     }
 
-    /** @test */
-    public function sitemap_xml_is_well_formed(): void
+    public function test_sitemap_xml_is_well_formed(): void
     {
         $response = $this->get('/sitemap.xml');
 
@@ -273,15 +258,13 @@ class SitemapTest extends TestCase
         $this->assertEmpty($errors, 'Sitemap XML should have no errors');
     }
 
-    /** @test */
-    public function sitemap_artisan_command_exists(): void
+    public function test_sitemap_artisan_command_exists(): void
     {
         $this->artisan('sitemap:generate')
             ->assertSuccessful();
     }
 
-    /** @test */
-    public function sitemap_artisan_command_creates_file(): void
+    public function test_sitemap_artisan_command_creates_file(): void
     {
         // Clean up any existing file
         $path = public_path('sitemap.xml');
@@ -300,16 +283,14 @@ class SitemapTest extends TestCase
         }
     }
 
-    /** @test */
-    public function sitemap_artisan_command_outputs_url_count(): void
+    public function test_sitemap_artisan_command_outputs_url_count(): void
     {
         $this->artisan('sitemap:generate')
             ->expectsOutputToContain('URLs')
             ->assertSuccessful();
     }
 
-    /** @test */
-    public function sitemap_service_can_get_all_urls(): void
+    public function test_sitemap_service_can_get_all_urls(): void
     {
         $service = app(\App\Services\SitemapService::class);
 
@@ -326,8 +307,7 @@ class SitemapTest extends TestCase
         }
     }
 
-    /** @test */
-    public function sitemap_service_returns_main_page_urls(): void
+    public function test_sitemap_service_returns_main_page_urls(): void
     {
         $service = app(\App\Services\SitemapService::class);
 
@@ -340,8 +320,7 @@ class SitemapTest extends TestCase
         $this->assertContains(config('app.url') . '/sahkosopimus/paikkakunnat', $locs);
     }
 
-    /** @test */
-    public function sitemap_service_returns_housing_type_urls(): void
+    public function test_sitemap_service_returns_housing_type_urls(): void
     {
         $service = app(\App\Services\SitemapService::class);
 
@@ -355,8 +334,7 @@ class SitemapTest extends TestCase
         $this->assertContains($baseUrl . '/sahkosopimus/rivitalo', $locs);
     }
 
-    /** @test */
-    public function sitemap_service_returns_energy_source_urls(): void
+    public function test_sitemap_service_returns_energy_source_urls(): void
     {
         $service = app(\App\Services\SitemapService::class);
 
@@ -370,8 +348,7 @@ class SitemapTest extends TestCase
         $this->assertContains($baseUrl . '/sahkosopimus/vihrea-sahko', $locs);
     }
 
-    /** @test */
-    public function sitemap_service_returns_city_urls(): void
+    public function test_sitemap_service_returns_city_urls(): void
     {
         $service = app(\App\Services\SitemapService::class);
 
@@ -385,8 +362,7 @@ class SitemapTest extends TestCase
         $this->assertContains($baseUrl . '/sahkosopimus/tampere', $locs);
     }
 
-    /** @test */
-    public function sitemap_service_generates_valid_xml(): void
+    public function test_sitemap_service_generates_valid_xml(): void
     {
         $service = app(\App\Services\SitemapService::class);
 
@@ -405,8 +381,7 @@ class SitemapTest extends TestCase
         $this->assertEmpty($errors);
     }
 
-    /** @test */
-    public function sitemap_homepage_has_highest_priority(): void
+    public function test_sitemap_homepage_has_highest_priority(): void
     {
         $service = app(\App\Services\SitemapService::class);
 
@@ -418,8 +393,7 @@ class SitemapTest extends TestCase
         $this->assertEquals(1.0, $homepage['priority']);
     }
 
-    /** @test */
-    public function sitemap_seo_pages_have_appropriate_priority(): void
+    public function test_sitemap_seo_pages_have_appropriate_priority(): void
     {
         $service = app(\App\Services\SitemapService::class);
 
@@ -436,8 +410,7 @@ class SitemapTest extends TestCase
         }
     }
 
-    /** @test */
-    public function sitemap_city_pages_have_medium_priority(): void
+    public function test_sitemap_city_pages_have_medium_priority(): void
     {
         $service = app(\App\Services\SitemapService::class);
 
@@ -449,8 +422,7 @@ class SitemapTest extends TestCase
         }
     }
 
-    /** @test */
-    public function sitemap_updates_when_new_cities_are_added(): void
+    public function test_sitemap_updates_when_new_cities_are_added(): void
     {
         // Get initial sitemap
         $response1 = $this->get('/sitemap.xml');
@@ -480,8 +452,7 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/jyvaskyla</loc>", $content2);
     }
 
-    /** @test */
-    public function sitemap_route_has_cache_headers(): void
+    public function test_sitemap_route_has_cache_headers(): void
     {
         $response = $this->get('/sitemap.xml');
 
