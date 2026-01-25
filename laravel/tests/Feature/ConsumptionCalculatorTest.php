@@ -155,7 +155,7 @@ class ConsumptionCalculatorTest extends TestCase
             ->set('livingArea', 80)
             ->set('numPeople', 2)
             ->call('compareContracts')
-            ->assertRedirect('/?consumption=' . (2 * 400 + 80 * 30));
+            ->assertRedirect('/sahkosopimus?consumption=' . (2 * 400 + 80 * 30));
     }
 
     public function test_page_has_correct_title(): void

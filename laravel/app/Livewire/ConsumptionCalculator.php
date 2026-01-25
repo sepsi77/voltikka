@@ -319,7 +319,7 @@ class ConsumptionCalculator extends Component
             ]
         );
 
-        $this->redirect('/?consumption=' . $this->totalConsumption);
+        $this->redirect('/sahkosopimus?consumption=' . $this->totalConsumption);
     }
 
     public function render()
