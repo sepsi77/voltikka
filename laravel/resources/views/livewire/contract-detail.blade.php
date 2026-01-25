@@ -160,6 +160,47 @@
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <h2 class="text-lg font-semibold text-slate-900 mb-4">Hintatiedot</h2>
 
+                {{-- Promotion/Discount Info Banner --}}
+                @if ($contract->hasActiveDiscounts())
+                    @php
+                        $discountInfo = $contract->getActiveDiscountInfo();
+                    @endphp
+                    <div class="mb-4 p-4 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-xl">
+                        <div class="flex items-start gap-3">
+                            <div class="flex-shrink-0">
+                                <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <p class="font-semibold text-amber-800">
+                                    @if ($discountInfo && $discountInfo['n_first_months'])
+                                        Tarjous: {{ $discountInfo['n_first_months'] }} ensimmäistä kuukautta
+                                    @else
+                                        Tarjoussopimus
+                                    @endif
+                                </p>
+                                <p class="text-sm text-amber-700 mt-1">
+                                    @if ($discountInfo)
+                                        @if ($discountInfo['value'] && $discountInfo['is_percentage'])
+                                            -{{ number_format($discountInfo['value'], 0) }}% alennus
+                                        @elseif ($discountInfo['value'])
+                                            -{{ number_format($discountInfo['value'], 2, ',', ' ') }} c/kWh alennus
+                                        @endif
+                                        @if ($discountInfo['until_date'])
+                                            <span class="ml-2 text-amber-600">
+                                                Voimassa {{ $discountInfo['until_date']->format('d.m.Y') }} asti
+                                            </span>
+                                        @endif
+                                    @else
+                                        Tällä sopimuksella on voimassa oleva tarjous.
+                                    @endif
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 @if ($calculatedCost['is_spot_contract'] ?? false)
                     {{-- Spot contract pricing --}}
                     <div class="space-y-4">
