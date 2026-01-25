@@ -1,7 +1,13 @@
 import "./index.css";
 import { Composition, Folder } from "remotion";
 import { DailySpotPrice } from "./compositions/DailySpotPrice";
-import type { DailySpotPriceProps, DailyVideoData } from "./types";
+import { WeeklyOffers } from "./compositions/WeeklyOffers";
+import type {
+  DailySpotPriceProps,
+  DailyVideoData,
+  WeeklyOffersProps,
+  WeeklyOffersVideoData,
+} from "./types";
 
 // API URL for fetching video data
 const API_BASE_URL = process.env.VOLTIKKA_API_URL || "https://voltikka.fi";
@@ -37,6 +43,14 @@ const placeholderData: DailyVideoData = {
   prices: { today: [], tomorrow: [] },
 };
 
+// Placeholder for Weekly Offers - actual data is fetched via calculateMetadata
+const placeholderWeeklyOffersData: WeeklyOffersVideoData = {
+  generated_at: "",
+  week: { start: "", end: "", formatted: "" },
+  offers_count: 0,
+  offers: [],
+};
+
 // Fetch data from API for video rendering
 const calculateDailyMetadata = async ({
   props,
@@ -46,6 +60,27 @@ const calculateDailyMetadata = async ({
   abortSignal: AbortSignal;
 }): Promise<{ props: DailySpotPriceProps }> => {
   const response = await fetch(`${API_BASE_URL}/api/video/daily`, {
+    signal: abortSignal,
+  });
+  const json = await response.json();
+
+  return {
+    props: {
+      ...props,
+      data: json.data,
+    },
+  };
+};
+
+// Fetch Weekly Offers data from API
+const calculateWeeklyOffersMetadata = async ({
+  props,
+  abortSignal,
+}: {
+  props: WeeklyOffersProps;
+  abortSignal: AbortSignal;
+}): Promise<{ props: WeeklyOffersProps }> => {
+  const response = await fetch(`${API_BASE_URL}/api/video/weekly-offers`, {
     signal: abortSignal,
   });
   const json = await response.json();
@@ -73,6 +108,20 @@ export const RemotionRoot: React.FC = () => {
             data: placeholderData,
           } satisfies DailySpotPriceProps}
           calculateMetadata={calculateDailyMetadata}
+        />
+      </Folder>
+      <Folder name="Weekly">
+        <Composition
+          id="WeeklyOffers"
+          component={WeeklyOffers}
+          durationInFrames={16.5 * 30} // 16.5 seconds at 30fps (495 frames)
+          fps={30}
+          width={1080}
+          height={1920}
+          defaultProps={{
+            data: placeholderWeeklyOffersData,
+          } satisfies WeeklyOffersProps}
+          calculateMetadata={calculateWeeklyOffersMetadata}
         />
       </Folder>
     </>

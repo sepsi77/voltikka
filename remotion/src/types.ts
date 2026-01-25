@@ -146,3 +146,51 @@ export type WeeklyVideoData = {
 export type DailySpotPriceProps = {
   data: DailyVideoData;
 };
+
+// Types for WeeklyOffers video composition
+
+export type ContractOffer = {
+  id: string;
+  name: string;
+  company: {
+    name: string;
+    logo_url: string | null;
+  };
+  pricing_model: 'Spot' | 'FixedPrice' | 'Hybrid';
+  discount: {
+    value: number;
+    is_percentage: boolean;
+    n_first_months: number | null;
+    until_date: string | null;
+  } | null;
+  pricing: {
+    monthly_fee: number;
+    energy_price: number | null;
+  };
+  costs: {
+    apartment: number; // 2000 kWh
+    townhouse: number; // 5000 kWh
+    house: number; // 10000 kWh
+  };
+  savings: {
+    apartment: number;
+    townhouse: number;
+    house: number;
+  };
+};
+
+export type WeeklyOffersVideoData = {
+  generated_at: string;
+  week: {
+    start: string;
+    end: string;
+    formatted: string;
+  };
+  offers_count: number;
+  offers: ContractOffer[];
+};
+
+// Props for WeeklyOffers composition
+export type WeeklyOffersProps = {
+  data: WeeklyOffersVideoData;
+};

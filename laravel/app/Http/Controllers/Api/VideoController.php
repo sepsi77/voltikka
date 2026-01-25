@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\SpotPriceVideoService;
+use App\Services\WeeklyOffersVideoService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class VideoController extends Controller
 {
     public function __construct(
         private readonly SpotPriceVideoService $videoService,
+        private readonly WeeklyOffersVideoService $weeklyOffersService,
     ) {
     }
 
@@ -64,6 +66,24 @@ class VideoController extends Controller
     public function weekly(): JsonResponse
     {
         $data = $this->videoService->getWeeklySummaryData();
+
+        return response()->json([
+            'data' => $data,
+        ]);
+    }
+
+    /**
+     * Get weekly offers data for video generation.
+     *
+     * Returns contracts with active discounts including:
+     * - Contract details with company info
+     * - Discount information
+     * - Calculated costs at different consumption levels
+     * - Savings compared to non-discounted prices
+     */
+    public function weeklyOffers(): JsonResponse
+    {
+        $data = $this->weeklyOffersService->getWeeklyOffersData();
 
         return response()->json([
             'data' => $data,

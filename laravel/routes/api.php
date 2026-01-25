@@ -33,3 +33,4 @@ Route::post('/solar/estimate', [SolarController::class, 'estimate']);
 // Video generation routes (for Remotion)
 Route::get('/video/daily', [VideoController::class, 'daily']);
 Route::get('/video/weekly', [VideoController::class, 'weekly']);
+Route::get('/video/weekly-offers', [VideoController::class, 'weeklyOffers']);
