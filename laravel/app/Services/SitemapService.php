@@ -46,6 +46,7 @@ class SitemapService
             $this->getPricingTypeUrls(),
             $this->getHousingTypeUrls(),
             $this->getEnergySourceUrls(),
+            $this->getOfferUrls(),
             $this->getContractUrls(),
             $this->getCompanyUrls(),
             $this->getCityUrls(),
@@ -177,6 +178,24 @@ class SitemapService
                 'priority' => 0.8,
             ];
         }, $this->energySources);
+    }
+
+    /**
+     * Get offer/promotion SEO page URLs.
+     */
+    public function getOfferUrls(): array
+    {
+        $baseUrl = config('app.url');
+        $today = Carbon::today()->toDateString();
+
+        return [
+            [
+                'loc' => $baseUrl . '/sahkosopimus/sahkotarjous',
+                'lastmod' => $today,
+                'changefreq' => 'daily',
+                'priority' => 0.85,
+            ],
+        ];
     }
 
     /**

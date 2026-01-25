@@ -37,6 +37,11 @@ class SeoContractsList extends ContractsList
     public ?string $pricingType = null;
 
     /**
+     * Offer type filter (promotion).
+     */
+    public ?string $offerType = null;
+
+    /**
      * Housing type to consumption mapping.
      */
     protected array $housingTypeConsumption = [
@@ -113,12 +118,14 @@ class SeoContractsList extends ContractsList
         ?string $housingType = null,
         ?string $energySource = null,
         ?string $city = null,
-        ?string $pricingType = null
+        ?string $pricingType = null,
+        ?string $offerType = null
     ): void {
         $this->housingType = $housingType;
         $this->energySource = $energySource;
         $this->city = $city;
         $this->pricingType = $pricingType;
+        $this->offerType = $offerType;
 
         // Set consumption and preset based on housing type
         if ($housingType && isset($this->housingTypeConsumption[$housingType])) {
@@ -199,6 +206,24 @@ class SeoContractsList extends ContractsList
                                ->join('postcodes', 'contract_postcode.postcode', '=', 'postcodes.postcode')
                                ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
                                ->where('postcodes.municipal_name_fi', $cityName);
+                  });
+            });
+        }
+
+        // Apply promotion filter (contracts with active discounts)
+        if ($this->offerType === 'promotion') {
+            $now = now();
+            $query->where(function ($q) use ($now) {
+                $q->where('pricing_has_discounts', true)
+                  ->orWhereExists(function ($subquery) use ($now) {
+                      $subquery->select(DB::raw(1))
+                               ->from('price_components')
+                               ->whereColumn('price_components.electricity_contract_id', 'electricity_contracts.id')
+                               ->where('price_components.has_discount', true)
+                               ->where(function ($dateQuery) use ($now) {
+                                   $dateQuery->whereNull('price_components.discount_discount_until_date')
+                                             ->orWhere('price_components.discount_discount_until_date', '>', $now);
+                               });
                   });
             });
         }
@@ -361,6 +386,10 @@ class SeoContractsList extends ContractsList
      */
     protected function generateSeoTitle(): string
     {
+        if ($this->offerType === 'promotion') {
+            return 'Sähkötarjoukset ja alennukset | Voltikka';
+        }
+
         if ($this->housingType && isset($this->housingTypeNames[$this->housingType])) {
             return "Sähkösopimukset {$this->housingTypeNames[$this->housingType]}on | Voltikka";
         }
@@ -386,6 +415,10 @@ class SeoContractsList extends ContractsList
      */
     protected function generateMetaDescription(): string
     {
+        if ($this->offerType === 'promotion') {
+            return 'Löydä parhaat sähkötarjoukset ja alennukset. Vertaile kampanjahintaisia sähkösopimuksia ja säästä sähkölaskussa.';
+        }
+
         if ($this->housingType && isset($this->housingTypeNames[$this->housingType])) {
             $housingName = mb_strtolower($this->housingTypeNames[$this->housingType]);
             $consumption = $this->housingTypeConsumption[$this->housingType] ?? 5000;
@@ -420,6 +453,10 @@ class SeoContractsList extends ContractsList
     {
         $baseUrl = config('app.url');
 
+        if ($this->offerType === 'promotion') {
+            return "{$baseUrl}/sahkosopimus/sahkotarjous";
+        }
+
         if ($this->housingType) {
             return "{$baseUrl}/sahkosopimus/{$this->housingType}";
         }
@@ -453,6 +490,44 @@ class SeoContractsList extends ContractsList
             $generalPrice = $prices['General']['price'] ?? null;
             $monthlyFee = $prices['Monthly']['price'] ?? 0;
 
+            $offer = [
+                '@type' => 'Offer',
+                'priceCurrency' => 'EUR',
+                'price' => $contract->calculated_cost['total_cost'] ?? 0,
+                'priceSpecification' => [
+                    '@type' => 'UnitPriceSpecification',
+                    'price' => $generalPrice,
+                    'priceCurrency' => 'EUR',
+                    'unitCode' => 'KWH',
+                    'unitText' => 'c/kWh',
+                ],
+            ];
+
+            // Add promotion info if contract has active discounts
+            if ($contract->hasActiveDiscounts()) {
+                $discountInfo = $contract->getActiveDiscountInfo();
+                if ($discountInfo) {
+                    // Add priceValidUntil if until_date exists
+                    if ($discountInfo['until_date']) {
+                        $offer['priceValidUntil'] = $discountInfo['until_date']->format('Y-m-d');
+                    }
+
+                    // Build discount description
+                    $discountDesc = '';
+                    if ($discountInfo['is_percentage'] && $discountInfo['value']) {
+                        $discountDesc = '-' . number_format($discountInfo['value'], 0) . '%';
+                    } elseif ($discountInfo['value']) {
+                        $discountDesc = '-' . number_format($discountInfo['value'], 2, ',', '') . ' c/kWh';
+                    }
+                    if ($discountInfo['n_first_months'] && $discountDesc) {
+                        $discountDesc .= ' ensimmäiset ' . $discountInfo['n_first_months'] . ' kk';
+                    }
+                    if ($discountDesc) {
+                        $offer['description'] = $discountDesc;
+                    }
+                }
+            }
+
             $items[] = [
                 '@type' => 'ListItem',
                 'position' => $index + 1,
@@ -464,18 +539,7 @@ class SeoContractsList extends ContractsList
                         '@type' => 'Brand',
                         'name' => $contract->company?->name ?? 'Unknown',
                     ],
-                    'offers' => [
-                        '@type' => 'Offer',
-                        'priceCurrency' => 'EUR',
-                        'price' => $contract->calculated_cost['total_cost'] ?? 0,
-                        'priceSpecification' => [
-                            '@type' => 'UnitPriceSpecification',
-                            'price' => $generalPrice,
-                            'priceCurrency' => 'EUR',
-                            'unitCode' => 'KWH',
-                            'unitText' => 'c/kWh',
-                        ],
-                    ],
+                    'offers' => $offer,
                 ],
             ];
         }
@@ -493,6 +557,10 @@ class SeoContractsList extends ContractsList
      */
     public function getPageHeadingProperty(): string
     {
+        if ($this->offerType === 'promotion') {
+            return 'Sähkötarjoukset ja alennukset';
+        }
+
         if ($this->housingType && isset($this->housingTypeNames[$this->housingType])) {
             return "Sähkösopimukset {$this->housingTypeNamesLocative()[$this->housingType]}";
         }
@@ -530,6 +598,10 @@ class SeoContractsList extends ContractsList
      */
     public function getSeoIntroTextProperty(): string
     {
+        if ($this->offerType === 'promotion') {
+            return 'Löydä parhaat sähkötarjoukset ja kampanjat. Monet sähköyhtiöt tarjoavat alennuksia uusille asiakkaille, kuten alennettuja hintoja ensimmäisille kuukausille tai prosenttialennuksia energiahinnasta. Vertaile tarjouksia ja säästä sähkölaskussa.';
+        }
+
         if ($this->housingType && isset($this->housingTypeNames[$this->housingType])) {
             return $this->getHousingTypeIntroText($this->housingType);
         }
@@ -616,7 +688,8 @@ class SeoContractsList extends ContractsList
         return $this->housingType !== null
             || $this->energySource !== null
             || $this->pricingType !== null
-            || $this->city !== null;
+            || $this->city !== null
+            || $this->offerType !== null;
     }
 
     /**

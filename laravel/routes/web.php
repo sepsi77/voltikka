@@ -96,6 +96,11 @@ Route::get('/sahkosopimus/halvin-sahkosopimus', CheapestContracts::class)
 Route::get('/sahkosopimus/yritykselle', CompanyContractsList::class)
     ->name('company.contracts');
 
+// SEO Promotion/Offer Route (must come BEFORE city catch-all)
+Route::get('/sahkosopimus/sahkotarjous', SeoContractsList::class)
+    ->name('seo.offer.sahkotarjous')
+    ->defaults('offerType', 'promotion');
+
 // Company list page (all companies)
 Route::get('/sahkosopimus/sahkoyhtiot', CompanyList::class)
     ->name('companies.list');

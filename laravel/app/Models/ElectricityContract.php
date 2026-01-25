@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -226,5 +227,63 @@ class ElectricityContract extends Model
     {
         return $this->consumption_limitation_min_x_kwh_per_y !== null
             || $this->consumption_limitation_max_x_kwh_per_y !== null;
+    }
+
+    /**
+     * Check if the contract has any active discounts.
+     *
+     * A discount is considered active if:
+     * - The contract's pricing_has_discounts flag is true, OR
+     * - Any price component has has_discount=true AND the discount hasn't expired
+     *   (discount_discount_until_date is NULL or in the future)
+     *
+     * @return bool True if the contract has active discounts
+     */
+    public function hasActiveDiscounts(): bool
+    {
+        if ($this->pricing_has_discounts) {
+            return true;
+        }
+
+        $now = Carbon::now();
+
+        return $this->priceComponents()
+            ->where('has_discount', true)
+            ->where(function ($query) use ($now) {
+                $query->whereNull('discount_discount_until_date')
+                    ->orWhere('discount_discount_until_date', '>', $now);
+            })
+            ->exists();
+    }
+
+    /**
+     * Get information about the first active discount found on this contract.
+     *
+     * Returns an array with discount details or null if no active discount exists.
+     *
+     * @return array{value: float|null, is_percentage: bool|null, n_first_months: int|null, until_date: \Carbon\Carbon|null}|null
+     */
+    public function getActiveDiscountInfo(): ?array
+    {
+        $now = Carbon::now();
+
+        $priceComponent = $this->priceComponents()
+            ->where('has_discount', true)
+            ->where(function ($query) use ($now) {
+                $query->whereNull('discount_discount_until_date')
+                    ->orWhere('discount_discount_until_date', '>', $now);
+            })
+            ->first();
+
+        if (!$priceComponent) {
+            return null;
+        }
+
+        return [
+            'value' => $priceComponent->discount_value,
+            'is_percentage' => $priceComponent->discount_is_percentage,
+            'n_first_months' => $priceComponent->discount_discount_n_first_months,
+            'until_date' => $priceComponent->discount_discount_until_date,
+        ];
     }
 }

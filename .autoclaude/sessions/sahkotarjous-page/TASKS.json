@@ -1,0 +1,85 @@
+{
+  "session": "sahkotarjous-page",
+  "description": "Implement sähkötarjous (promotion/offer) page at /sahkosopimus/sahkotarjous showing contracts with active discounts",
+  "tasks": [
+    {
+      "id": "model-helpers",
+      "title": "Add discount helper methods to ElectricityContract model",
+      "description": "Add two methods to ElectricityContract model:\n\n1. `hasActiveDiscounts(): bool` - Returns true if contract has active discounts. Check:\n   - If `pricing_has_discounts` is true, return true\n   - Otherwise, check if any priceComponent has `has_discount=true` AND (`discount_discount_until_date` is NULL OR > now())\n\n2. `getActiveDiscountInfo(): ?array` - Returns discount details or null. Loop through priceComponents and return first active discount with: value, is_percentage, n_first_months, until_date\n\nAcceptance criteria:\n- Both methods are added to laravel/app/Models/ElectricityContract.php\n- Methods handle edge cases: expired discounts, null dates, missing data\n- Use Carbon's now() for date comparisons",
+      "status": "completed",
+      "priority": 1,
+      "completed_at": "2026-01-25T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "route",
+      "title": "Add route for /sahkosopimus/sahkotarjous",
+      "description": "Add new route in laravel/routes/web.php BEFORE the city catch-all route (before line 112).\n\nAdd:\n```php\n// SEO Promotion/Offer Route\nRoute::get('/sahkosopimus/sahkotarjous', SeoContractsList::class)\n    ->name('seo.offer.sahkotarjous')\n    ->defaults('offerType', 'promotion');\n```\n\nAcceptance criteria:\n- Route is placed BEFORE the city catch-all route\n- Route uses SeoContractsList component\n- Route has proper name and defaults",
+      "status": "completed",
+      "priority": 1,
+      "depends_on": ["model-helpers"],
+      "completed_at": "2026-01-25T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "seo-filter-logic",
+      "title": "Add offerType filter to SeoContractsList component",
+      "description": "Modify laravel/app/Livewire/SeoContractsList.php to support offerType filtering:\n\n1. Add property: `public ?string $offerType = null;`\n\n2. Update mount() to accept offerType parameter and assign it\n\n3. In getContractsProperty(), add filter logic when offerType='promotion':\n   - Filter using: where pricing_has_discounts=true OR exists subquery checking price_components with has_discount=true AND (discount_discount_until_date IS NULL OR > now())\n   - Use DB::raw for subquery\n\nAcceptance criteria:\n- offerType property exists\n- mount() accepts and sets offerType\n- Query filters for active promotions only when offerType='promotion'",
+      "status": "completed",
+      "priority": 2,
+      "depends_on": ["model-helpers"],
+      "completed_at": "2026-01-25T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "seo-metadata",
+      "title": "Add SEO metadata for sahkotarjous page",
+      "description": "Update SeoContractsList.php to handle SEO metadata for offerType='promotion':\n\n1. In generateSeoTitle(): Add condition for offerType='promotion' returning 'Sähkötarjoukset ja alennukset | Voltikka'\n\n2. In generateMetaDescription(): Add condition returning 'Löydä parhaat sähkötarjoukset ja alennukset. Vertaile kampanjahintaisia sähkösopimuksia ja säästä sähkölaskussa.'\n\n3. In generateCanonicalUrl(): Add condition returning '{baseUrl}/sahkosopimus/sahkotarjous'\n\n4. In getPageHeadingProperty(): Add condition returning 'Sähkötarjoukset ja alennukset'\n\n5. In getSeoIntroTextProperty(): Add condition returning intro text about promotions\n\n6. In getHasSeoFilterProperty(): Add offerType check\n\nAcceptance criteria:\n- All 6 methods updated with offerType conditions\n- Finnish text is correct and natural",
+      "status": "completed",
+      "priority": 2,
+      "depends_on": ["seo-filter-logic"],
+      "completed_at": "2026-01-25T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "contract-badge",
+      "title": "Add promotion badge to contract card component",
+      "description": "Modify laravel/resources/views/components/contract-card.blade.php to show promotion badge.\n\nIn the badges section (after consumption limit warning around line 246, before CO2 badge):\n\n1. Check if contract has active discounts using hasActiveDiscounts()\n2. Get discount info using getActiveDiscountInfo()\n3. If active discount exists, show badge:\n   - Use amber/yellow gradient styling (bg-gradient-to-r from-amber-100 to-yellow-100)\n   - Include tag/price icon SVG\n   - Show 'X kk tarjous' if n_first_months is set, otherwise just 'Tarjous'\n   - Style: rounded-lg, uppercase, font-bold, text-amber-800\n\nAcceptance criteria:\n- Badge appears only for contracts with active discounts\n- Badge shows duration if available\n- Styling matches existing badge patterns",
+      "status": "completed",
+      "priority": 3,
+      "depends_on": ["model-helpers"],
+      "completed_at": "2026-01-25T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "sitemap",
+      "title": "Add sahkotarjous page to sitemap",
+      "description": "Update laravel/app/Services/SitemapService.php:\n\n1. Add new method getOfferUrls() returning array with sahkotarjous URL\n2. Set changefreq='daily' and priority=0.85\n3. Add getOfferUrls() to getAllUrls() method\n\nAcceptance criteria:\n- New URL appears in sitemap XML\n- Priority and changefreq are set correctly",
+      "status": "completed",
+      "priority": 3,
+      "depends_on": ["route"],
+      "completed_at": "2026-01-25T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "jsonld-schema",
+      "title": "Add promotion info to JSON-LD schema",
+      "description": "Update generateJsonLd() method in SeoContractsList.php to include promotion data:\n\n1. For each contract, check hasActiveDiscounts()\n2. If has discounts, get info via getActiveDiscountInfo()\n3. Add to offer object:\n   - priceValidUntil (if until_date exists, format as Y-m-d)\n   - description with discount info (e.g., '-X% ensimmäiset Y kk')\n\nAcceptance criteria:\n- JSON-LD includes priceValidUntil for promoted contracts\n- Description field shows discount details",
+      "status": "completed",
+      "priority": 4,
+      "depends_on": ["model-helpers", "seo-filter-logic"],
+      "completed_at": "2026-01-25T12:00:00Z",
+      "passes": true
+    },
+    {
+      "id": "verify",
+      "title": "Verify implementation",
+      "description": "Run verification checks:\n\n1. Run Laravel tests: php artisan test\n2. Check PHP syntax: php -l for modified files\n3. Verify route exists: php artisan route:list | grep sahkotarjous\n\nAcceptance criteria:\n- Tests pass\n- No PHP syntax errors\n- Route is registered",
+      "status": "completed",
+      "priority": 5,
+      "depends_on": ["route", "seo-filter-logic", "seo-metadata", "contract-badge", "sitemap", "jsonld-schema"],
+      "completed_at": "2026-01-25T12:00:00Z",
+      "passes": true
+    }
+  ]
+}
