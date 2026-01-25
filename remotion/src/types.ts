@@ -152,6 +152,7 @@ export type DailySpotPriceProps = {
 export type ContractOffer = {
   id: string;
   name: string;
+  description: string | null;
   company: {
     name: string;
     logo_url: string | null;

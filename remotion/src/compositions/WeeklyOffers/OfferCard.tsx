@@ -10,11 +10,11 @@ import {
 import { Building2 } from "lucide-react";
 import type { ContractOffer } from "../../types";
 
-// Brand colors
-const BG_DARK = "#0f172a"; // slate-900
+// Brand colors - Light theme to match DailySpotPrice
+const BG_LIGHT = "#f8fafc"; // slate-50
 const CORAL = "#f97316";
 const GREEN = "#22c55e";
-const GREEN_LIGHT = "#86efac";
+const GREEN_DARK = "#16a34a"; // green-600 for text on light bg
 
 // Spring configurations
 const SPRING_SNAP = { damping: 25, stiffness: 300 };
@@ -81,8 +81,9 @@ function formatEur(amount: number): string {
  * OfferCard - Full-screen card showing contract offer details
  *
  * Art Direction:
- * - Dark background with subtle gradient
+ * - Light background matching DailySpotPrice (slate-50)
  * - Discount badge is the visual focal point (coral background)
+ * - Description text explains the offer
  * - Pricing table shows costs at 3 consumption levels
  * - Savings section in green for positive emphasis
  * - Company logo provides brand recognition
@@ -166,18 +167,18 @@ export const OfferCard: React.FC<OfferCardProps> = ({
   return (
     <AbsoluteFill
       style={{
-        backgroundColor: BG_DARK,
+        backgroundColor: BG_LIGHT,
         fontFamily: "var(--font-primary)",
         opacity: bgSpring,
       }}
     >
-      {/* Gradient accent */}
+      {/* Subtle gradient pattern matching DailySpotPrice */}
       <div
         className="absolute inset-0"
         style={{
-          background: `
-            radial-gradient(ellipse at 30% 20%, rgba(249, 115, 22, 0.08) 0%, transparent 50%),
-            radial-gradient(ellipse at 70% 80%, rgba(34, 197, 94, 0.06) 0%, transparent 50%)
+          backgroundImage: `
+            radial-gradient(circle at 20% 20%, rgba(249, 115, 22, 0.06) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(249, 115, 22, 0.04) 0%, transparent 40%)
           `,
           opacity: bgSpring,
         }}
@@ -197,7 +198,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
               style={{
                 width: 16,
                 height: 16,
-                backgroundColor: i === cardIndex ? CORAL : "rgba(255,255,255,0.2)",
+                backgroundColor: i === cardIndex ? CORAL : "rgba(0,0,0,0.15)",
               }}
             />
           ))}
@@ -205,7 +206,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
 
         {/* Company header */}
         <div
-          className="flex items-center gap-5 mb-8"
+          className="flex items-center gap-5 mb-6"
           style={{
             opacity: headerSpring,
             transform: `translateY(${interpolate(headerSpring, [0, 1], [-15, 0])}px)`,
@@ -213,7 +214,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
         >
           {/* Company logo with fallback */}
           <div
-            className="rounded-2xl overflow-hidden flex items-center justify-center"
+            className="rounded-2xl overflow-hidden flex items-center justify-center shadow-lg"
             style={{
               width: 80,
               height: 80,
@@ -235,14 +236,14 @@ export const OfferCard: React.FC<OfferCardProps> = ({
               <Building2
                 size={48}
                 strokeWidth={1.5}
-                style={{ color: "#94a3b8" }}
+                style={{ color: "#64748b" }}
               />
             )}
           </div>
           <div>
             <div
               className="text-3xl font-semibold"
-              style={{ color: "#94a3b8" }}
+              style={{ color: "#334155" }}
             >
               {offer.company.name}
             </div>
@@ -287,9 +288,9 @@ export const OfferCard: React.FC<OfferCardProps> = ({
 
         {/* Contract name */}
         <h2
-          className="text-5xl font-bold mb-12"
+          className="text-5xl font-bold mb-4"
           style={{
-            color: "white",
+            color: "#0f172a",
             opacity: nameSpring,
             transform: `translateY(${interpolate(nameSpring, [0, 1], [10, 0])}px)`,
           }}
@@ -297,43 +298,58 @@ export const OfferCard: React.FC<OfferCardProps> = ({
           {offer.name}
         </h2>
 
+        {/* Description - explains what the offer is */}
+        {offer.description && (
+          <p
+            className="text-2xl leading-relaxed mb-8"
+            style={{
+              color: "#475569",
+              opacity: nameSpring,
+              transform: `translateY(${interpolate(nameSpring, [0, 1], [10, 0])}px)`,
+              maxWidth: "100%",
+            }}
+          >
+            {offer.description}
+          </p>
+        )}
+
         {/* Pricing table */}
         <div
-          className="rounded-3xl p-8 mb-8"
+          className="rounded-3xl p-8 mb-6"
           style={{
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
+            background: "white",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
             opacity: tableSpring,
             transform: `translateY(${interpolate(tableSpring, [0, 1], [15, 0])}px)`,
           }}
         >
-          <div className="text-2xl font-semibold mb-6" style={{ color: "#94a3b8" }}>
+          <div className="text-2xl font-semibold mb-6" style={{ color: "#64748b" }}>
             Vuosikustannukset
           </div>
 
           {/* Column headers - larger for mobile readability */}
           <div className="grid grid-cols-3 gap-4 mb-6">
             <div className="text-center">
-              <div className="text-2xl font-semibold" style={{ color: "#94a3b8" }}>
+              <div className="text-2xl font-semibold" style={{ color: "#475569" }}>
                 Kerrostalo
               </div>
-              <div className="text-xl" style={{ color: "#64748b" }}>
+              <div className="text-xl" style={{ color: "#94a3b8" }}>
                 2000 kWh
               </div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-semibold" style={{ color: "#94a3b8" }}>
+              <div className="text-2xl font-semibold" style={{ color: "#475569" }}>
                 Rivitalo
               </div>
-              <div className="text-xl" style={{ color: "#64748b" }}>
+              <div className="text-xl" style={{ color: "#94a3b8" }}>
                 5000 kWh
               </div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-semibold" style={{ color: "#94a3b8" }}>
+              <div className="text-2xl font-semibold" style={{ color: "#475569" }}>
                 Omakotitalo
               </div>
-              <div className="text-xl" style={{ color: "#64748b" }}>
+              <div className="text-xl" style={{ color: "#94a3b8" }}>
                 10000 kWh
               </div>
             </div>
@@ -342,17 +358,17 @@ export const OfferCard: React.FC<OfferCardProps> = ({
           {/* Cost values */}
           <div className="grid grid-cols-3 gap-4">
             <div className="text-center">
-              <div className="text-5xl font-bold" style={{ color: "white" }}>
+              <div className="text-5xl font-bold" style={{ color: "#0f172a" }}>
                 {formatEur(offer.costs.apartment)}
               </div>
             </div>
             <div className="text-center">
-              <div className="text-5xl font-bold" style={{ color: "white" }}>
+              <div className="text-5xl font-bold" style={{ color: "#0f172a" }}>
                 {formatEur(offer.costs.townhouse)}
               </div>
             </div>
             <div className="text-center">
-              <div className="text-5xl font-bold" style={{ color: "white" }}>
+              <div className="text-5xl font-bold" style={{ color: "#0f172a" }}>
                 {formatEur(offer.costs.house)}
               </div>
             </div>
@@ -365,14 +381,14 @@ export const OfferCard: React.FC<OfferCardProps> = ({
             className="rounded-3xl p-8"
             style={{
               background: "rgba(34, 197, 94, 0.1)",
-              border: `2px solid rgba(34, 197, 94, 0.3)`,
+              border: `2px solid ${GREEN}`,
               opacity: savingsSpring,
               transform: `translateY(${interpolate(savingsSpring, [0, 1], [15, 0])}px)`,
             }}
           >
             <div
               className="text-xl font-bold mb-5 tracking-wider"
-              style={{ color: GREEN }}
+              style={{ color: GREEN_DARK }}
             >
               SÄÄSTÄT TARJOUKSELLA
             </div>
@@ -381,39 +397,39 @@ export const OfferCard: React.FC<OfferCardProps> = ({
               <div className="text-center">
                 <div
                   className="text-4xl font-bold"
-                  style={{ color: GREEN_LIGHT }}
+                  style={{ color: GREEN_DARK }}
                 >
                   {offer.savings.apartment > 0
                     ? formatEur(offer.savings.apartment)
                     : "—"}
                 </div>
-                <div className="text-lg" style={{ color: GREEN }}>
+                <div className="text-lg" style={{ color: GREEN_DARK }}>
                   /vuosi
                 </div>
               </div>
               <div className="text-center">
                 <div
                   className="text-4xl font-bold"
-                  style={{ color: GREEN_LIGHT }}
+                  style={{ color: GREEN_DARK }}
                 >
                   {offer.savings.townhouse > 0
                     ? formatEur(offer.savings.townhouse)
                     : "—"}
                 </div>
-                <div className="text-lg" style={{ color: GREEN }}>
+                <div className="text-lg" style={{ color: GREEN_DARK }}>
                   /vuosi
                 </div>
               </div>
               <div className="text-center">
                 <div
                   className="text-4xl font-bold"
-                  style={{ color: GREEN_LIGHT }}
+                  style={{ color: GREEN_DARK }}
                 >
                   {offer.savings.house > 0
                     ? formatEur(offer.savings.house)
                     : "—"}
                 </div>
-                <div className="text-lg" style={{ color: GREEN }}>
+                <div className="text-lg" style={{ color: GREEN_DARK }}>
                   /vuosi
                 </div>
               </div>
@@ -423,17 +439,17 @@ export const OfferCard: React.FC<OfferCardProps> = ({
 
         {/* Pricing details at bottom */}
         <div
-          className="mt-auto flex items-center gap-8 pt-8"
+          className="mt-auto flex items-center gap-8 pt-6"
           style={{
             opacity: tableSpring,
-            borderTop: "1px solid rgba(255,255,255,0.1)",
+            borderTop: "1px solid rgba(0,0,0,0.1)",
           }}
         >
           <div>
             <span className="text-xl" style={{ color: "#64748b" }}>
               Perusmaksu:{" "}
             </span>
-            <span className="text-xl font-semibold" style={{ color: "#94a3b8" }}>
+            <span className="text-xl font-semibold" style={{ color: "#334155" }}>
               {offer.pricing.monthly_fee.toFixed(2).replace(".", ",")} €/kk
             </span>
           </div>
@@ -442,7 +458,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
               <span className="text-xl" style={{ color: "#64748b" }}>
                 Energia:{" "}
               </span>
-              <span className="text-xl font-semibold" style={{ color: "#94a3b8" }}>
+              <span className="text-xl font-semibold" style={{ color: "#334155" }}>
                 {offer.pricing.energy_price.toFixed(2).replace(".", ",")} c/kWh
               </span>
             </div>

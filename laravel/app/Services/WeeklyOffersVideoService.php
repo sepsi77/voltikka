@@ -63,8 +63,8 @@ class WeeklyOffersVideoService
         $weekStart = $now->copy()->startOfWeek();
         $weekEnd = $now->copy()->endOfWeek();
 
-        // Fetch contracts with active discounts
-        $contracts = $this->getContractsWithActiveDiscounts(5);
+        // Fetch contracts with active discounts (max 3 for better per-card display time)
+        $contracts = $this->getContractsWithActiveDiscounts(3);
 
         // Get spot price averages for calculations
         $spotPrices = $this->getSpotPriceAverages();
@@ -88,13 +88,17 @@ class WeeklyOffersVideoService
     }
 
     /**
-     * Get contracts with active discounts, ordered by discount value.
+     * Get contracts with active discounts, prioritizing company diversity.
+     *
+     * Selects at most one contract per company, preferring the best discount
+     * from each company, then orders all by discount value.
      */
     private function getContractsWithActiveDiscounts(int $limit): Collection
     {
         $now = Carbon::now();
 
-        return ElectricityContract::query()
+        // Fetch all contracts with active discounts
+        $allContracts = ElectricityContract::query()
             ->active()
             ->where('target_group', 'Household')
             ->whereHas('priceComponents', function ($query) use ($now) {
@@ -105,7 +109,23 @@ class WeeklyOffersVideoService
                     });
             })
             ->with(['company', 'priceComponents', 'electricitySource'])
-            ->get()
+            ->get();
+
+        // Group by company and select the best discount from each
+        $bestByCompany = $allContracts
+            ->groupBy('company_name')
+            ->map(function ($companyContracts) {
+                // For each company, pick the contract with the highest discount value
+                return $companyContracts->sortByDesc(function ($contract) {
+                    $discountInfo = $contract->getActiveDiscountInfo();
+                    return $discountInfo ? abs($discountInfo['value']) : 0;
+                })->first();
+            })
+            ->filter() // Remove nulls
+            ->values();
+
+        // Sort all selected contracts by discount value and take the limit
+        return $bestByCompany
             ->sortByDesc(function ($contract) {
                 $discountInfo = $contract->getActiveDiscountInfo();
                 return $discountInfo ? abs($discountInfo['value']) : 0;
@@ -192,6 +212,7 @@ class WeeklyOffersVideoService
         return [
             'id' => $contract->id,
             'name' => $contract->name,
+            'description' => $contract->short_description,
             'company' => [
                 'name' => $contract->company_name,
                 'logo_url' => $contract->company?->getLogoUrl(),
