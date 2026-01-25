@@ -193,6 +193,7 @@
                             <div x-show="open" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="transform opacity-0 scale-95" x-transition:enter-end="transform opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="transform opacity-100 scale-100" x-transition:leave-end="transform opacity-0 scale-95" class="absolute left-0 mt-1 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50" style="display: none;">
                                 <a href="/sahkosopimus" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus') && !request()->is('sahkosopimus/*') ? 'bg-slate-100 font-semibold' : '' }}">Vertaa sopimuksia</a>
                                 <a href="/sahkosopimus/halvin-sahkosopimus" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/halvin-sahkosopimus') ? 'bg-slate-100 font-semibold' : '' }}">Halvimmat sopimukset</a>
+                                <a href="/sahkosopimus/sahkotarjous" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/sahkotarjous') ? 'bg-slate-100 font-semibold' : '' }}">Tarjoukset</a>
                                 <a href="/spot-price" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('spot-price') ? 'bg-slate-100 font-semibold' : '' }}">Pörssisähkö</a>
                                 <a href="/sahkosopimus/yritykselle" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/yritykselle') ? 'bg-slate-100 font-semibold' : '' }}">Yrityksille</a>
                                 <a href="/sahkosopimus/sahkoyhtiot" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/sahkoyhtiot*') ? 'bg-slate-100 font-semibold' : '' }}">Sähköyhtiöt</a>
@@ -254,6 +255,9 @@
                             <a href="/sahkosopimus/halvin-sahkosopimus" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/halvin-sahkosopimus') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                                 Halvimmat sopimukset
                             </a>
+                            <a href="/sahkosopimus/sahkotarjous" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/sahkotarjous') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                                Tarjoukset
+                            </a>
                             <a href="/spot-price" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('spot-price') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                                 Pörssisähkö
                             </a>
@@ -293,6 +297,7 @@
                             <li><a href="/" class="text-slate-400 hover:text-white text-sm transition-colors">Kaikki sopimukset</a></li>
                             <li><a href="/sahkosopimus" class="text-slate-400 hover:text-white text-sm transition-colors">Vertaa sopimuksia</a></li>
                             <li><a href="/sahkosopimus/halvin-sahkosopimus" class="text-slate-400 hover:text-white text-sm transition-colors">Halvimmat sopimukset</a></li>
+                            <li><a href="/sahkosopimus/sahkotarjous" class="text-slate-400 hover:text-white text-sm transition-colors">Tarjoukset</a></li>
                             <li><a href="/sahkosopimus/porssisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Pörssisähkö</a></li>
                             <li><a href="/sahkosopimus/kiintea-hinta" class="text-slate-400 hover:text-white text-sm transition-colors">Kiinteä hinta</a></li>
                             <li><a href="/sahkosopimus/yritykselle" class="text-slate-400 hover:text-white text-sm transition-colors">Yrityksille</a></li>
