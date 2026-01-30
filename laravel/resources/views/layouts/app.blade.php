@@ -300,6 +300,8 @@
                             <li><a href="/sahkosopimus/sahkotarjous" class="text-slate-400 hover:text-white text-sm transition-colors">Tarjoukset</a></li>
                             <li><a href="/sahkosopimus/porssisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Pörssisähkö</a></li>
                             <li><a href="/sahkosopimus/kiintea-hinta" class="text-slate-400 hover:text-white text-sm transition-colors">Kiinteä hinta</a></li>
+                            <li><a href="/sahkosopimus/kannattaako-porssisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Kannattaako pörssisähkö?</a></li>
+                            <li><a href="/sahkosopimus/kannattaako-maaraaikainen" class="text-slate-400 hover:text-white text-sm transition-colors">Kannattaako määräaikainen?</a></li>
                             <li><a href="/sahkosopimus/yritykselle" class="text-slate-400 hover:text-white text-sm transition-colors">Yrityksille</a></li>
                             <li><a href="/sahkosopimus/sahkoyhtiot" class="text-slate-400 hover:text-white text-sm transition-colors">Sähköyhtiöt</a></li>
                             <li><a href="{{ route('calculator') }}" class="text-slate-400 hover:text-white text-sm transition-colors">Sähkölaskuri</a></li>
