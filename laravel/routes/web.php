@@ -115,6 +115,14 @@ Route::get('/sahkosopimus/sahkoyhtiot', CompanyList::class)
 Route::get('/sahkosopimus/sahkoyhtiot/{companySlug}', CompanyDetail::class)
     ->name('company.detail');
 
+// SEO Article: Kannattaako pörssisähkö
+Route::get('/sahkosopimus/kannattaako-porssisahko', \App\Livewire\ArticleSpotElectricity::class)
+    ->name('article.spot-electricity');
+
+// SEO Article: Kannattaako määräaikainen sähkösopimus
+Route::get('/sahkosopimus/kannattaako-maaraaikainen', \App\Livewire\ArticleFixedTermContract::class)
+    ->name('article.fixed-term-contract');
+
 // Main comparison index page (must come BEFORE city catch-all)
 Route::get('/sahkosopimus', SahkosopimusIndex::class)
     ->name('sahkosopimus.index');
@@ -154,3 +162,9 @@ Route::get('/paikkakunnat/{location?}', function ($location = null) {
     }
     return redirect()->route('locations', [], 301);
 });
+
+// =============================================================================
+// Temporary test route for Contract Type Comparison widget (remove after testing)
+// =============================================================================
+Route::get('/test-comparison', \App\Livewire\ContractTypeComparison::class)
+    ->name('test.comparison');
