@@ -117,6 +117,18 @@
     </div>
     @endif
 
+    <!-- Contract Description (extra information from API) -->
+    @if ($contract->extra_information_fi)
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <h2 class="text-lg font-semibold text-slate-900 mb-4">Sopimuksen kuvaus</h2>
+                <div class="prose prose-slate max-w-none prose-a:text-coral-600 hover:prose-a:text-coral-700">
+                    {!! $contract->extra_information_fi !!}
+                </div>
+            </div>
+        </div>
+    @endif
+
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Left Column: Pricing & Cost Calculator -->

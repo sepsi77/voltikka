@@ -93,6 +93,15 @@ Route::get('/sahkosopimus/porssisahko', SeoContractsList::class)
 Route::get('/sahkosopimus/kiintea-hinta', SeoContractsList::class)
     ->name('seo.pricing.kiintea-hinta')
     ->defaults('pricingType', 'FixedPrice');
+Route::get('/sahkosopimus/kvartaalisahko', SeoContractsList::class)
+    ->name('seo.pricing.kvartaalisahko')
+    ->defaults('pricingType', 'Quarterly');
+Route::get('/sahkosopimus/aikasahko', SeoContractsList::class)
+    ->name('seo.pricing.aikasahko')
+    ->defaults('pricingType', 'TimeOfUse');
+Route::get('/sahkosopimus/kausisahko', SeoContractsList::class)
+    ->name('seo.pricing.kausisahko')
+    ->defaults('pricingType', 'Seasonal');
 
 // Cheapest contracts page (must come BEFORE city catch-all)
 Route::get('/sahkosopimus/halvin-sahkosopimus', CheapestContracts::class)

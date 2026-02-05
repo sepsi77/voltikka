@@ -195,6 +195,9 @@
                                 <a href="/sahkosopimus/halvin-sahkosopimus" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/halvin-sahkosopimus') ? 'bg-slate-100 font-semibold' : '' }}">Halvimmat sopimukset</a>
                                 <a href="/sahkosopimus/sahkotarjous" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/sahkotarjous') ? 'bg-slate-100 font-semibold' : '' }}">Tarjoukset</a>
                                 <a href="/spot-price" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('spot-price') ? 'bg-slate-100 font-semibold' : '' }}">Pörssisähkö</a>
+                                <a href="/sahkosopimus/kvartaalisahko" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/kvartaalisahko') ? 'bg-slate-100 font-semibold' : '' }}">Kvartaalisähkö</a>
+                                <a href="/sahkosopimus/aikasahko" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/aikasahko') ? 'bg-slate-100 font-semibold' : '' }}">Aikasähkö</a>
+                                <a href="/sahkosopimus/kausisahko" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/kausisahko') ? 'bg-slate-100 font-semibold' : '' }}">Kausisähkö</a>
                                 <a href="/sahkosopimus/yritykselle" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/yritykselle') ? 'bg-slate-100 font-semibold' : '' }}">Yrityksille</a>
                                 <a href="/sahkosopimus/sahkoyhtiot" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/sahkoyhtiot*') ? 'bg-slate-100 font-semibold' : '' }}">Sähköyhtiöt</a>
                             </div>
@@ -261,6 +264,15 @@
                             <a href="/spot-price" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('spot-price') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                                 Pörssisähkö
                             </a>
+                            <a href="/sahkosopimus/kvartaalisahko" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/kvartaalisahko') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                                Kvartaalisähkö
+                            </a>
+                            <a href="/sahkosopimus/aikasahko" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/aikasahko') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                                Aikasähkö
+                            </a>
+                            <a href="/sahkosopimus/kausisahko" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/kausisahko') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                                Kausisähkö
+                            </a>
                             <a href="/sahkosopimus/yritykselle" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/yritykselle') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                                 Yrityksille
                             </a>
@@ -299,6 +311,9 @@
                             <li><a href="/sahkosopimus/halvin-sahkosopimus" class="text-slate-400 hover:text-white text-sm transition-colors">Halvimmat sopimukset</a></li>
                             <li><a href="/sahkosopimus/sahkotarjous" class="text-slate-400 hover:text-white text-sm transition-colors">Tarjoukset</a></li>
                             <li><a href="/sahkosopimus/porssisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Pörssisähkö</a></li>
+                            <li><a href="/sahkosopimus/kvartaalisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Kvartaalisähkö</a></li>
+                            <li><a href="/sahkosopimus/aikasahko" class="text-slate-400 hover:text-white text-sm transition-colors">Aikasähkö</a></li>
+                            <li><a href="/sahkosopimus/kausisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Kausisähkö</a></li>
                             <li><a href="/sahkosopimus/kiintea-hinta" class="text-slate-400 hover:text-white text-sm transition-colors">Kiinteä hinta</a></li>
                             <li><a href="/sahkosopimus/kannattaako-porssisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Kannattaako pörssisähkö?</a></li>
                             <li><a href="/sahkosopimus/kannattaako-maaraaikainen" class="text-slate-400 hover:text-white text-sm transition-colors">Kannattaako määräaikainen?</a></li>

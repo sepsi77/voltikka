@@ -338,6 +338,9 @@ class ContractsList extends Component
         'FixedPrice' => 'Kiinteä hinta',
         'Spot' => 'Pörssisähkö',
         'Hybrid' => 'Hybridi',
+        'Quarterly' => 'Kvartaalisähkö',
+        'TimeOfUse' => 'Aikasähkö',
+        'Seasonal' => 'Kausisähkö',
     ];
 
     /**
@@ -825,6 +828,12 @@ class ContractsList extends Component
             $parts[] = $energySourcePrefix . 'kiinteähintaiset sähkösopimukset';
         } elseif ($this->pricingModelFilter === 'Hybrid') {
             $parts[] = $energySourcePrefix . 'hybridisähkösopimukset';
+        } elseif ($this->pricingModelFilter === 'Quarterly') {
+            $parts[] = $energySourcePrefix . 'kvartaalisähkösopimukset';
+        } elseif ($this->pricingModelFilter === 'TimeOfUse') {
+            $parts[] = $energySourcePrefix . 'aikasähkösopimukset';
+        } elseif ($this->pricingModelFilter === 'Seasonal') {
+            $parts[] = $energySourcePrefix . 'kausisähkösopimukset';
         } else {
             $parts[] = $energySourcePrefix . 'sähkösopimukset';
         }
@@ -860,6 +869,18 @@ class ContractsList extends Component
 
         if ($this->pricingModelFilter === 'Hybrid') {
             return 'Vertaile hybridisähkösopimuksia, jotka yhdistävät kiinteän hinnan ja pörssisähkön edut.';
+        }
+
+        if ($this->pricingModelFilter === 'Quarterly') {
+            return 'Vertaile kvartaalisähkösopimuksia. Kvartaalisähkössä hinta päivittyy neljä kertaa vuodessa. Löydä paras kvartaalisähkösopimus.';
+        }
+
+        if ($this->pricingModelFilter === 'TimeOfUse') {
+            return 'Vertaile aikasähkösopimuksia. Aikasähkössä sähkön hinta vaihtelee vuorokaudenajan mukaan. Edullisempi yöhinta 22-07.';
+        }
+
+        if ($this->pricingModelFilter === 'Seasonal') {
+            return 'Vertaile kausisähkösopimuksia. Kausisähkössä hinta vaihtelee vuodenajan mukaan. Talvella korkeampi, muulloin edullisempi.';
         }
 
         if ($this->contractTypeFilter === 'FixedTerm') {
@@ -912,9 +933,36 @@ class ContractsList extends Component
             $query->where('contract_type', $this->contractTypeFilter);
         }
 
-        // Apply pricing model filter (Spot, FixedPrice, Hybrid)
+        // Apply pricing model filter (Spot, FixedPrice, Hybrid, Quarterly, TimeOfUse)
         if ($this->pricingModelFilter !== '') {
-            $query->where('pricing_model', $this->pricingModelFilter);
+            if ($this->pricingModelFilter === 'Quarterly') {
+                // Quarterly contracts are identified by name or description patterns
+                $query->where(function ($q) {
+                    $q->where('name', 'LIKE', '%kvartaali%')
+                      ->orWhere('extra_information_fi', 'LIKE', '%kvartaali%')
+                      ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden jaksoissa%')
+                      ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden jaksolle%')
+                      ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden välein%');
+                });
+            } elseif ($this->pricingModelFilter === 'TimeOfUse') {
+                // Time-of-use (aikasähkö) contracts have day/night pricing
+                $query->where(function ($q) {
+                    $q->where('metering', 'Time')
+                      ->orWhere('name', 'LIKE', '%aikasähkö%')
+                      ->orWhere('name', 'LIKE', '%Aikasähkö%')
+                      ->orWhere('extra_information_fi', 'LIKE', '%aikasähkö%');
+                });
+            } elseif ($this->pricingModelFilter === 'Seasonal') {
+                // Seasonal (kausisähkö) contracts have seasonal pricing
+                $query->where(function ($q) {
+                    $q->where('metering', 'Season')
+                      ->orWhere('name', 'LIKE', '%kausisähkö%')
+                      ->orWhere('name', 'LIKE', '%Kausisähkö%')
+                      ->orWhere('extra_information_fi', 'LIKE', '%kausisähkö%');
+                });
+            } else {
+                $query->where('pricing_model', $this->pricingModelFilter);
+            }
         }
 
         // Apply metering type filter
@@ -1214,6 +1262,9 @@ class ContractsList extends Component
                 'Spot' => 'Pörssisähkö',
                 'FixedPrice' => 'Kiinteä hinta',
                 'Hybrid' => 'Hybridisähkö',
+                'Quarterly' => 'Kvartaalisähkö',
+                'TimeOfUse' => 'Aikasähkö',
+                'Seasonal' => 'Kausisähkö',
             ];
             $breadcrumbs[] = [
                 '@type' => 'ListItem',

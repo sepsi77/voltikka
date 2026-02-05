@@ -77,6 +77,9 @@ class SeoContractsList extends ContractsList
     protected array $pricingTypeNames = [
         'Spot' => 'Pörssisähkö',
         'FixedPrice' => 'Kiinteähintainen',
+        'Quarterly' => 'Kvartaalisähkö',
+        'TimeOfUse' => 'Aikasähkö',
+        'Seasonal' => 'Kausisähkö',
     ];
 
     /**
@@ -148,14 +151,42 @@ class SeoContractsList extends ContractsList
             $query->where('contract_type', $this->contractTypeFilter);
         }
 
-        // Apply pricing model filter from parent
-        if ($this->pricingModelFilter !== '') {
-            $query->where('pricing_model', $this->pricingModelFilter);
-        }
+        // Apply pricing model filter from parent (or SEO pricing type)
+        // Determine the effective pricing filter (pricingType takes precedence if set)
+        $effectivePricingFilter = $this->pricingType ?: $this->pricingModelFilter;
 
-        // Apply SEO pricing type filter (overrides pricingModelFilter if set)
-        if ($this->pricingType) {
-            $query->where('pricing_model', $this->pricingType);
+        if ($effectivePricingFilter !== '' && $effectivePricingFilter !== null) {
+            if ($effectivePricingFilter === 'Quarterly') {
+                // Quarterly contracts are identified by name or description patterns
+                $query->where(function ($q) {
+                    $q->where('name', 'LIKE', '%kvartaali%')
+                      ->orWhere('extra_information_fi', 'LIKE', '%kvartaali%')
+                      ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden jaksoissa%')
+                      ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden jaksolle%')
+                      ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden välein%')
+                      ->orWhere('extra_information_fi', 'LIKE', '%neljästi vuodessa%')
+                      ->orWhere('extra_information_fi', 'LIKE', '%neljä kertaa vuodessa%');
+                });
+            } elseif ($effectivePricingFilter === 'TimeOfUse') {
+                // Time-of-use (aikasähkö) contracts have day/night pricing
+                $query->where(function ($q) {
+                    $q->where('metering', 'Time')
+                      ->orWhere('name', 'LIKE', '%aikasähkö%')
+                      ->orWhere('name', 'LIKE', '%Aikasähkö%')
+                      ->orWhere('extra_information_fi', 'LIKE', '%aikasähkö%');
+                });
+            } elseif ($effectivePricingFilter === 'Seasonal') {
+                // Seasonal (kausisähkö) contracts have seasonal pricing
+                $query->where(function ($q) {
+                    $q->where('metering', 'Season')
+                      ->orWhere('name', 'LIKE', '%kausisähkö%')
+                      ->orWhere('name', 'LIKE', '%Kausisähkö%')
+                      ->orWhere('extra_information_fi', 'LIKE', '%kausisähkö%');
+                });
+            } else {
+                // Standard pricing models (Spot, FixedPrice, Hybrid)
+                $query->where('pricing_model', $effectivePricingFilter);
+            }
         }
 
         // Apply metering type filter
@@ -380,28 +411,41 @@ class SeoContractsList extends ContractsList
      */
     protected function generateSeoTitle(): string
     {
+        // Get contract count for title
+        $count = $this->contracts->total();
+        $countSuffix = $count > 0 ? " ({$count} sopimusta)" : '';
+
         if ($this->offerType === 'promotion') {
-            return 'Sähkötarjoukset ja alennukset | Voltikka';
+            return "Sähkötarjoukset ja alennukset{$countSuffix} | Voltikka";
         }
 
         if ($this->housingType && isset($this->housingTypeNames[$this->housingType])) {
-            return "Sähkösopimukset {$this->housingTypeNames[$this->housingType]}on | Voltikka";
+            return "Sähkösopimukset {$this->housingTypeNames[$this->housingType]}on{$countSuffix} | Voltikka";
         }
 
         if ($this->energySource && isset($this->energySourceNames[$this->energySource])) {
-            return "{$this->energySourceNames[$this->energySource]}sopimukset | Voltikka";
+            return "{$this->energySourceNames[$this->energySource]}sopimukset{$countSuffix} | Voltikka";
         }
 
         if ($this->pricingType && isset($this->pricingTypeNames[$this->pricingType])) {
-            return "{$this->pricingTypeNames[$this->pricingType]}sopimukset | Voltikka";
+            // SEO-optimized titles for each pricing type (focus on comparison)
+            $baseTitle = match ($this->pricingType) {
+                'Spot' => 'Vertaa pörssisähkösopimuksia',
+                'FixedPrice' => 'Vertaa kiinteähintaisia sähkösopimuksia',
+                'Quarterly' => 'Vertaa kvartaalisähkösopimuksia',
+                'TimeOfUse' => 'Vertaa aikasähkösopimuksia',
+                'Seasonal' => 'Vertaa kausisähkösopimuksia',
+                default => "Vertaa {$this->pricingTypeNames[$this->pricingType]}sopimuksia",
+            };
+            return "{$baseTitle}{$countSuffix} | Voltikka";
         }
 
         if ($this->city) {
             $cityData = $this->getCityData($this->city);
-            return "Sähkösopimukset {$cityData['locative']} | Voltikka";
+            return "Sähkösopimukset {$cityData['locative']}{$countSuffix} | Voltikka";
         }
 
-        return 'Vertaa sähkösopimuksia | Voltikka';
+        return "Vertaa sähkösopimuksia{$countSuffix} | Voltikka";
     }
 
     /**
@@ -425,9 +469,17 @@ class SeoContractsList extends ContractsList
         }
 
         if ($this->pricingType && isset($this->pricingTypeNames[$this->pricingType])) {
-            $pricingName = mb_strtolower($this->pricingTypeNames[$this->pricingType]);
             if ($this->pricingType === 'Spot') {
                 return "Vertaile pörssisähkösopimuksia. Pörssisähkö seuraa tuntikohtaista sähkön pörssihintaa. Löydä paras pörssisähkösopimus.";
+            }
+            if ($this->pricingType === 'Quarterly') {
+                return 'Vertaile kvartaalisähkösopimuksia. Kvartaalisähkössä hinta päivittyy neljä kertaa vuodessa. Löydä paras kvartaalisähkösopimus kotitalouksille.';
+            }
+            if ($this->pricingType === 'TimeOfUse') {
+                return 'Vertaile aikasähkösopimuksia. Aikasähkössä sähkön hinta vaihtelee vuorokaudenajan mukaan. Edullisempi yöhinta 22-07.';
+            }
+            if ($this->pricingType === 'Seasonal') {
+                return 'Vertaile kausisähkösopimuksia. Kausisähkössä hinta vaihtelee vuodenajan mukaan. Talvella korkeampi, muulloin edullisempi.';
             }
             return "Vertaile kiinteähintaisia sähkösopimuksia. Kiinteä hinta tuo ennustettavuutta sähkölaskuun. Löydä paras kiinteähintainen sopimus.";
         }
@@ -460,7 +512,14 @@ class SeoContractsList extends ContractsList
         }
 
         if ($this->pricingType) {
-            $slug = $this->pricingType === 'Spot' ? 'porssisahko' : 'kiintea-hinta';
+            $slugMap = [
+                'Spot' => 'porssisahko',
+                'FixedPrice' => 'kiintea-hinta',
+                'Quarterly' => 'kvartaalisahko',
+                'TimeOfUse' => 'aikasahko',
+                'Seasonal' => 'kausisahko',
+            ];
+            $slug = $slugMap[$this->pricingType] ?? 'porssisahko';
             return "{$baseUrl}/sahkosopimus/{$slug}";
         }
 
@@ -653,6 +712,9 @@ class SeoContractsList extends ContractsList
         return match ($pricingType) {
             'Spot' => 'Pörssisähkösopimuksessa sähkön hinta vaihtelee tunneittain Nord Pool -sähköpörssin hinnan mukaan. Pörssisähkö voi olla edullinen vaihtoehto, jos pystyt ajoittamaan kulutustasi edullisempiin tunteihin. Vertaile pörssisähkösopimuksia ja löydä sopimus, jossa marginaali ja kuukausimaksu sopivat sinulle.',
             'FixedPrice' => 'Kiinteähintaisessa sähkösopimuksessa maksat saman hinnan jokaisesta kilowattitunnista sopimuskauden ajan. Kiinteä hinta tuo ennustettavuutta sähkölaskuun ja suojaa markkinaheilahteluilta. Vertaile kiinteähintaisia sopimuksia ja löydä paras tarjous.',
+            'Quarterly' => 'Kvartaalisähkösopimuksessa sähkön hinta päivittyy neljännesvuosittain eli neljä kertaa vuodessa. Kvartaalisähkö tarjoaa kompromissin kiinteän hinnan ennustettavuuden ja pörssisähkön markkinahinnan välillä. Hinta seuraa markkinoiden kehitystä maltillisesti ilman tuntikohtaista vaihtelua.',
+            'TimeOfUse' => 'Aikasähkösopimuksessa sähkön hinta vaihtelee vuorokaudenajan mukaan. Yöllä (22-07) sähkö on edullisempaa kuin päivällä. Aikasähkö sopii erityisesti niille, jotka voivat ajoittaa suurimmat kulutuspiikkinsä yöaikaan, esimerkiksi lämminvesivaraajan tai sähköauton latauksen.',
+            'Seasonal' => 'Kausisähkösopimuksessa sähkön hinta vaihtelee vuodenajan mukaan. Talvikuukausina (marras-maaliskuu) hinta on korkeampi, muulloin edullisempi. Kausisähkö heijastaa sähkön tuotantokustannusten kausivaihtelua ja sopii niille, jotka haluavat ennustettavuutta ilman tuntikohtaista vaihtelua.',
             default => 'Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto.',
         };
     }
