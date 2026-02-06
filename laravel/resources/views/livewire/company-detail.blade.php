@@ -12,7 +12,7 @@
                     <svg class="w-4 h-4 mx-2 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                     </svg>
-                    <a href="/sahkosopimus/sahkoyhtiot" class="hover:text-white transition-colors">Sahkoyhtiot</a>
+                    <a href="/sahkosopimus/sahkoyhtiot" class="hover:text-white transition-colors">Sähköyhtiöt</a>
                     <svg class="w-4 h-4 mx-2 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                     </svg>
@@ -203,7 +203,7 @@
                     {{-- Average Emission Factor --}}
                     @if ($companyStats['avg_emission_factor'] !== null)
                         <div>
-                            <p class="text-sm text-slate-500 mb-1">Paastokerroin</p>
+                            <p class="text-sm text-slate-500 mb-1">Päästökerroin</p>
                             <p class="text-2xl font-bold {{ $companyStats['avg_emission_factor'] == 0 ? 'text-green-600' : ($companyStats['avg_emission_factor'] < 100 ? 'text-green-500' : ($companyStats['avg_emission_factor'] < 300 ? 'text-amber-600' : 'text-red-600')) }}">
                                 {{ number_format($companyStats['avg_emission_factor'], 0) }} <span class="text-base font-normal text-slate-500">gCO2/kWh</span>
                             </p>
@@ -217,12 +217,12 @@
                         <div class="flex flex-wrap gap-2">
                             @if ($companyStats['spot_contract_count'] > 0)
                                 <span class="inline-flex items-center px-2 py-1 bg-coral-50 text-coral-700 text-xs font-medium rounded-lg">
-                                    {{ $companyStats['spot_contract_count'] }} porssisopimus{{ $companyStats['spot_contract_count'] > 1 ? 'ta' : '' }}
+                                    {{ $companyStats['spot_contract_count'] }} pörssisopimus{{ $companyStats['spot_contract_count'] > 1 ? 'ta' : '' }}
                                 </span>
                             @endif
                             @if ($companyStats['fixed_price_contract_count'] > 0)
                                 <span class="inline-flex items-center px-2 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-lg">
-                                    {{ $companyStats['fixed_price_contract_count'] }} kiinteahintainen{{ $companyStats['fixed_price_contract_count'] > 1 ? 'ta' : '' }}
+                                    {{ $companyStats['fixed_price_contract_count'] }} kiinteähintainen{{ $companyStats['fixed_price_contract_count'] > 1 ? 'ta' : '' }}
                                 </span>
                             @endif
                         </div>
@@ -234,7 +234,7 @@
 
     <!-- Contracts Section -->
     <h2 class="text-2xl font-bold text-slate-900 mb-4">
-        Sahkosopimukset
+        Sähkösopimukset
     </h2>
 
     <p class="text-slate-600 mb-6">
@@ -255,7 +255,7 @@
             />
         @empty
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
-                <p class="text-slate-500">Ei sahkosopimuksia saatavilla.</p>
+                <p class="text-slate-500">Ei sähkösopimuksia saatavilla.</p>
             </div>
         @endforelse
     </div>
@@ -269,7 +269,7 @@
             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
             </svg>
-            Takaisin sahkoyhtioihin
+            Takaisin sähköyhtiöihin
         </a>
     </div>
     </div>
