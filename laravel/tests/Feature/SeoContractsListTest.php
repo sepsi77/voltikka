@@ -452,9 +452,9 @@ class SeoContractsListTest extends TestCase
         $this->assertEquals('ListItem', $listItem['@type']);
         $this->assertArrayHasKey('position', $listItem);
         $this->assertArrayHasKey('item', $listItem);
-        $this->assertEquals('Product', $listItem['item']['@type']);
+        $this->assertEquals('Service', $listItem['item']['@type']);
         $this->assertArrayHasKey('name', $listItem['item']);
-        $this->assertArrayHasKey('offers', $listItem['item']);
+        $this->assertEquals('Electricity Contract', $listItem['item']['serviceType']);
     }
 
     // ==================== Reuses Parent Filter Logic Tests ====================

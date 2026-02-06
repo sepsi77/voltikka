@@ -1192,37 +1192,32 @@ class ContractsList extends Component
         foreach ($contracts as $index => $contract) {
             $position = $basePosition + $index + 1;
 
-            $item = [
-                '@type' => 'ListItem',
-                'position' => $position,
-                'item' => [
-                    '@type' => 'Product',
-                    'name' => $contract->name,
-                    'url' => config('app.url') . '/sopimus/' . $contract->id,
-                ],
+            $serviceItem = [
+                '@type' => 'Service',
+                'name' => $contract->name,
+                'url' => config('app.url') . '/sopimus/' . $contract->id,
+                'serviceType' => 'Electricity Contract',
+                'description' => 'Arvioitu vuosikustannus ' . number_format($this->consumption, 0, ',', ' ') . ' kWh kulutuksella',
             ];
 
-            // Add brand (company)
             if ($contract->company) {
-                $item['item']['brand'] = [
+                $provider = [
                     '@type' => 'Organization',
                     'name' => $contract->company->name,
                 ];
 
                 if ($contract->company->getLogoUrl()) {
-                    $item['item']['brand']['logo'] = $contract->company->getLogoUrl();
+                    $provider['logo'] = $contract->company->getLogoUrl();
                 }
+
+                $serviceItem['provider'] = $provider;
             }
 
-            // Add basic offer info (total cost if available)
-            if (isset($contract->calculated_cost['total_cost'])) {
-                $item['item']['offers'] = [
-                    '@type' => 'Offer',
-                    'price' => $contract->calculated_cost['total_cost'],
-                    'priceCurrency' => 'EUR',
-                    'description' => 'Arvioitu vuosikustannus ' . number_format($this->consumption, 0, ',', ' ') . ' kWh kulutuksella',
-                ];
-            }
+            $item = [
+                '@type' => 'ListItem',
+                'position' => $position,
+                'item' => $serviceItem,
+            ];
 
             $items[] = $item;
         }

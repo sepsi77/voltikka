@@ -276,19 +276,14 @@ class CompanyDetail extends Component
             'name' => 'Finland',
         ];
 
-        // Add service/product offerings info
+        // Add service offerings info
         $contracts = $this->contracts;
         if ($contracts->isNotEmpty()) {
-            $schema['makesOffer'] = $contracts->map(function ($contract) {
-                return [
-                    '@type' => 'Offer',
-                    'itemOffered' => [
-                        '@type' => 'Product',
-                        'name' => $contract->name,
-                        'url' => config('app.url') . '/sopimus/' . $contract->id,
-                    ],
-                ];
-            })->values()->all();
+            $schema['knowsAbout'] = $contracts->map(fn ($contract) => [
+                '@type' => 'Service',
+                'name' => $contract->name,
+                'url' => config('app.url') . '/sopimus/' . $contract->id,
+            ])->values()->all();
         }
 
         return $schema;

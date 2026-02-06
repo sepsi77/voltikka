@@ -531,7 +531,7 @@ class SeoContractsList extends ContractsList
     }
 
     /**
-     * Generate JSON-LD structured data for product listings.
+     * Generate JSON-LD structured data for service listings.
      */
     protected function generateJsonLd(): array
     {
@@ -539,33 +539,12 @@ class SeoContractsList extends ContractsList
         $items = [];
 
         foreach ($contracts as $index => $contract) {
-            $prices = $this->getLatestPrices($contract);
-            $generalPrice = $prices['General']['price'] ?? null;
-            $monthlyFee = $prices['Monthly']['price'] ?? 0;
+            $description = $contract->short_description ?? "Sähkösopimus yritykseltä {$contract->company?->name}";
 
-            $offer = [
-                '@type' => 'Offer',
-                'priceCurrency' => 'EUR',
-                'price' => $contract->calculated_cost['total_cost'] ?? 0,
-                'priceSpecification' => [
-                    '@type' => 'UnitPriceSpecification',
-                    'price' => $generalPrice,
-                    'priceCurrency' => 'EUR',
-                    'unitCode' => 'KWH',
-                    'unitText' => 'c/kWh',
-                ],
-            ];
-
-            // Add promotion info if contract has active discounts
+            // Append discount info to description if contract has active discounts
             if ($contract->hasActiveDiscounts()) {
                 $discountInfo = $contract->getActiveDiscountInfo();
                 if ($discountInfo) {
-                    // Add priceValidUntil if until_date exists
-                    if ($discountInfo['until_date']) {
-                        $offer['priceValidUntil'] = $discountInfo['until_date']->format('Y-m-d');
-                    }
-
-                    // Build discount description
                     $discountDesc = '';
                     if ($discountInfo['is_percentage'] && $discountInfo['value']) {
                         $discountDesc = '-' . number_format($discountInfo['value'], 0) . '%';
@@ -576,7 +555,7 @@ class SeoContractsList extends ContractsList
                         $discountDesc .= ' ensimmäiset ' . $discountInfo['n_first_months'] . ' kk';
                     }
                     if ($discountDesc) {
-                        $offer['description'] = $discountDesc;
+                        $description .= ' (' . $discountDesc . ')';
                     }
                 }
             }
@@ -585,14 +564,14 @@ class SeoContractsList extends ContractsList
                 '@type' => 'ListItem',
                 'position' => $index + 1,
                 'item' => [
-                    '@type' => 'Product',
+                    '@type' => 'Service',
                     'name' => $contract->name,
-                    'description' => $contract->short_description ?? "Sähkösopimus yritykseltä {$contract->company?->name}",
-                    'brand' => [
-                        '@type' => 'Brand',
+                    'description' => $description,
+                    'serviceType' => 'Electricity Contract',
+                    'provider' => [
+                        '@type' => 'Organization',
                         'name' => $contract->company?->name ?? 'Unknown',
                     ],
-                    'offers' => $offer,
                 ],
             ];
         }

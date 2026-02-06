@@ -321,9 +321,9 @@ class ContractDetail extends Component
     }
 
     /**
-     * Generate Product JSON-LD schema for SEO.
+     * Generate Service JSON-LD schema for SEO.
      */
-    public function getProductSchemaProperty(): array
+    public function getServiceSchemaProperty(): array
     {
         $contract = $this->contract;
 
@@ -333,144 +333,104 @@ class ContractDetail extends Component
 
         $schema = [
             '@context' => 'https://schema.org',
-            '@type' => 'Product',
+            '@type' => 'Service',
             'name' => $contract->name,
             'description' => $contract->short_description ?? $contract->long_description ?? "Sähkösopimus: {$contract->name}",
             'url' => $this->canonicalUrl,
-            'category' => 'Electricity Contract',
+            'serviceType' => 'Electricity Contract',
         ];
 
-        // Add brand (Organization)
+        // Add provider (Organization)
         if ($contract->company) {
-            $brand = [
+            $provider = [
                 '@type' => 'Organization',
                 'name' => $contract->company->name,
             ];
 
             if ($contract->company->getLogoUrl()) {
-                $brand['logo'] = $contract->company->getLogoUrl();
+                $provider['logo'] = $contract->company->getLogoUrl();
             }
 
             if ($contract->company->company_url) {
-                $brand['url'] = $contract->company->company_url;
+                $provider['url'] = $contract->company->company_url;
             }
 
-            $schema['brand'] = $brand;
+            $schema['provider'] = $provider;
         }
 
-        // Add offers with price specifications
-        $offers = [];
+        // Add pricing info as additionalProperty values (informational, not transactional)
+        $additionalProperties = [];
         $latestPrices = $this->latestPrices;
 
         // For spot contracts, show the margin
         if ($contract->pricing_model === 'Spot' && isset($latestPrices['General'])) {
-            $offers[] = [
-                '@type' => 'Offer',
-                'name' => 'Spot-marginaali',
-                'priceSpecification' => [
-                    '@type' => 'UnitPriceSpecification',
-                    'price' => $latestPrices['General']['price'],
-                    'priceCurrency' => 'EUR',
-                    'unitCode' => 'KWH',
-                    'unitText' => 'c/kWh',
-                ],
+            $additionalProperties[] = [
+                '@type' => 'PropertyValue',
+                'name' => 'spotMargin',
+                'value' => $latestPrices['General']['price'],
+                'unitText' => 'c/kWh',
             ];
         }
 
         // Monthly fee
         if (isset($latestPrices['Monthly'])) {
-            $offers[] = [
-                '@type' => 'Offer',
-                'name' => 'Perusmaksu',
-                'priceSpecification' => [
-                    '@type' => 'UnitPriceSpecification',
-                    'price' => $latestPrices['Monthly']['price'],
-                    'priceCurrency' => 'EUR',
-                    'unitCode' => 'MON',
-                    'unitText' => 'EUR/kk',
-                ],
+            $additionalProperties[] = [
+                '@type' => 'PropertyValue',
+                'name' => 'monthlyFee',
+                'value' => $latestPrices['Monthly']['price'],
+                'unitText' => 'EUR/kk',
             ];
         }
 
         // General energy price (for fixed price contracts)
         if ($contract->pricing_model !== 'Spot' && isset($latestPrices['General'])) {
-            $offers[] = [
-                '@type' => 'Offer',
-                'name' => 'Energiahinta',
-                'priceSpecification' => [
-                    '@type' => 'UnitPriceSpecification',
-                    'price' => $latestPrices['General']['price'],
-                    'priceCurrency' => 'EUR',
-                    'unitCode' => 'KWH',
-                    'unitText' => 'c/kWh',
-                ],
+            $additionalProperties[] = [
+                '@type' => 'PropertyValue',
+                'name' => 'energyPrice',
+                'value' => $latestPrices['General']['price'],
+                'unitText' => 'c/kWh',
             ];
         }
 
         // Day/Night rates
         if (isset($latestPrices['DayTime'])) {
-            $offers[] = [
-                '@type' => 'Offer',
-                'name' => 'Päiväsähkö (07:00-22:00)',
-                'priceSpecification' => [
-                    '@type' => 'UnitPriceSpecification',
-                    'price' => $latestPrices['DayTime']['price'],
-                    'priceCurrency' => 'EUR',
-                    'unitCode' => 'KWH',
-                    'unitText' => 'c/kWh',
-                ],
+            $additionalProperties[] = [
+                '@type' => 'PropertyValue',
+                'name' => 'dayTimePrice',
+                'value' => $latestPrices['DayTime']['price'],
+                'unitText' => 'c/kWh',
             ];
         }
 
         if (isset($latestPrices['NightTime'])) {
-            $offers[] = [
-                '@type' => 'Offer',
-                'name' => 'Yösähkö (22:00-07:00)',
-                'priceSpecification' => [
-                    '@type' => 'UnitPriceSpecification',
-                    'price' => $latestPrices['NightTime']['price'],
-                    'priceCurrency' => 'EUR',
-                    'unitCode' => 'KWH',
-                    'unitText' => 'c/kWh',
-                ],
+            $additionalProperties[] = [
+                '@type' => 'PropertyValue',
+                'name' => 'nightTimePrice',
+                'value' => $latestPrices['NightTime']['price'],
+                'unitText' => 'c/kWh',
             ];
         }
 
         // Seasonal rates
         if (isset($latestPrices['SeasonalWinterDay'])) {
-            $offers[] = [
-                '@type' => 'Offer',
-                'name' => 'Talvihinta (marras-maaliskuu)',
-                'priceSpecification' => [
-                    '@type' => 'UnitPriceSpecification',
-                    'price' => $latestPrices['SeasonalWinterDay']['price'],
-                    'priceCurrency' => 'EUR',
-                    'unitCode' => 'KWH',
-                    'unitText' => 'c/kWh',
-                ],
+            $additionalProperties[] = [
+                '@type' => 'PropertyValue',
+                'name' => 'seasonalWinterPrice',
+                'value' => $latestPrices['SeasonalWinterDay']['price'],
+                'unitText' => 'c/kWh',
             ];
         }
 
         if (isset($latestPrices['SeasonalOther'])) {
-            $offers[] = [
-                '@type' => 'Offer',
-                'name' => 'Muu aika',
-                'priceSpecification' => [
-                    '@type' => 'UnitPriceSpecification',
-                    'price' => $latestPrices['SeasonalOther']['price'],
-                    'priceCurrency' => 'EUR',
-                    'unitCode' => 'KWH',
-                    'unitText' => 'c/kWh',
-                ],
+            $additionalProperties[] = [
+                '@type' => 'PropertyValue',
+                'name' => 'seasonalOtherPrice',
+                'value' => $latestPrices['SeasonalOther']['price'],
+                'unitText' => 'c/kWh',
             ];
         }
 
-        if (! empty($offers)) {
-            $schema['offers'] = $offers;
-        }
-
         // Add additional properties for contract details
-        $additionalProperties = [];
 
         // Pricing model
         $pricingModelLabels = [
@@ -653,7 +613,7 @@ class ContractDetail extends Component
             'co2Emissions' => $this->co2Emissions,
             'emissionFactorSources' => $this->emissionFactorSources,
             'schemas' => [
-                $this->productSchema,
+                $this->serviceSchema,
                 $this->breadcrumbSchema,
             ],
         ])->layout('layouts.app', [

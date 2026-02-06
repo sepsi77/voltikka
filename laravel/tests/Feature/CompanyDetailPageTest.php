@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
@@ -237,7 +238,8 @@ class CompanyDetailPageTest extends TestCase
         $this->createContract('test-contract', 'Test Sähkö', 5.0, 2.0);
 
         $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
-        $jsonLd = $component->viewData('jsonLd');
+        $schemas = $component->viewData('schemas');
+        $jsonLd = $schemas[0]; // Organization schema is first
 
         $this->assertEquals('https://schema.org', $jsonLd['@context']);
         $this->assertEquals('Organization', $jsonLd['@type']);
@@ -253,7 +255,8 @@ class CompanyDetailPageTest extends TestCase
         $this->createContract('test-contract', 'Test Sähkö', 5.0, 2.0);
 
         $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
-        $jsonLd = $component->viewData('jsonLd');
+        $schemas = $component->viewData('schemas');
+        $jsonLd = $schemas[0];
 
         $this->assertArrayHasKey('address', $jsonLd);
         $this->assertEquals('PostalAddress', $jsonLd['address']['@type']);
@@ -263,19 +266,20 @@ class CompanyDetailPageTest extends TestCase
     }
 
     /**
-     * Test JSON-LD includes offers for contracts.
+     * Test JSON-LD includes services for contracts.
      */
-    public function test_json_ld_includes_contract_offers(): void
+    public function test_json_ld_includes_contract_services(): void
     {
         $this->createContract('test-contract', 'Test Sähkö', 5.0, 2.0);
 
         $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
-        $jsonLd = $component->viewData('jsonLd');
+        $schemas = $component->viewData('schemas');
+        $jsonLd = $schemas[0];
 
-        $this->assertArrayHasKey('makesOffer', $jsonLd);
-        $this->assertCount(1, $jsonLd['makesOffer']);
-        $this->assertEquals('Offer', $jsonLd['makesOffer'][0]['@type']);
-        $this->assertEquals('Test Sähkö', $jsonLd['makesOffer'][0]['itemOffered']['name']);
+        $this->assertArrayHasKey('knowsAbout', $jsonLd);
+        $this->assertCount(1, $jsonLd['knowsAbout']);
+        $this->assertEquals('Service', $jsonLd['knowsAbout'][0]['@type']);
+        $this->assertEquals('Test Sähkö', $jsonLd['knowsAbout'][0]['name']);
     }
 
     /**
@@ -418,6 +422,8 @@ class CompanyDetailPageTest extends TestCase
             'payment_unit' => 'EUR/month',
         ]);
 
+        ActiveContract::create(['id' => $contract->id]);
+
         // Create a fixed price contract
         $this->createContract('fixed-contract', 'Kiinteä Sähkö', 5.0, 2.0);
 
@@ -465,6 +471,8 @@ class CompanyDetailPageTest extends TestCase
             'price' => $monthlyFee,
             'payment_unit' => 'EUR/month',
         ]);
+
+        ActiveContract::create(['id' => $contract->id]);
 
         return $contract;
     }
