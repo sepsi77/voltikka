@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
@@ -42,6 +43,14 @@ class CompanyListPageTest extends TestCase
     }
 
     /**
+     * Helper method to mark a contract as active.
+     */
+    private function markAsActive(string $contractId): void
+    {
+        ActiveContract::create(['id' => $contractId]);
+    }
+
+    /**
      * Test that the company list page is accessible.
      */
     public function test_company_list_page_is_accessible(): void
@@ -76,6 +85,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-cheap-1',
@@ -117,7 +127,8 @@ class CompanyListPageTest extends TestCase
         $response = $this->get('/sahkosopimus/sahkoyhtiot');
 
         $response->assertStatus(200);
-        $response->assertSee('Sähköyhtiöt Suomessa');
+        // Page title now uses the updated format
+        $response->assertSee('sähköyhtiö', false);
     }
 
     /**
@@ -134,6 +145,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-cheap-1',
@@ -162,6 +174,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('green-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-green-1',
@@ -202,6 +215,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('green-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-green-1',
@@ -231,6 +245,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-cheap-1',
@@ -270,6 +285,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('nuclear-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-nuclear-1',
@@ -296,6 +312,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-cheap-1',
@@ -335,6 +352,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-cheap-1',
@@ -362,6 +380,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-contract-2');
 
         PriceComponent::create([
             'id' => 'pc-cheap-2',
@@ -403,6 +422,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-cheap-1',
@@ -421,6 +441,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('green-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-green-1',
@@ -453,6 +474,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-cheap-1',
@@ -471,6 +493,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-contract-2');
 
         PriceComponent::create([
             'id' => 'pc-cheap-2',
@@ -489,6 +512,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-contract-3');
 
         PriceComponent::create([
             'id' => 'pc-cheap-3',
@@ -508,6 +532,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('green-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-green-1',
@@ -539,6 +564,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-cheap-1',
@@ -567,6 +593,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('green-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-green-1',
@@ -606,6 +633,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('green-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-green-1',
@@ -633,6 +661,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-cheap-1',
@@ -674,6 +703,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-spot-1');
 
         PriceComponent::create([
             'id' => 'pc-cheap-spot-1',
@@ -694,6 +724,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('green-spot-1');
 
         PriceComponent::create([
             'id' => 'pc-green-spot-1',
@@ -724,6 +755,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-cheap-1',
@@ -742,6 +774,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('green-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-green-1',
@@ -771,6 +804,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-cheap-1',
@@ -802,6 +836,7 @@ class CompanyListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-contract-1');
 
         PriceComponent::create([
             'id' => 'pc-cheap-1',

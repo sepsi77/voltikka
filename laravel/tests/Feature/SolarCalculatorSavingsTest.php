@@ -60,25 +60,38 @@ class SolarCalculatorSavingsTest extends TestCase
 
     public function test_component_has_default_self_consumption(): void
     {
-        Livewire::test(SolarCalculator::class)
-            ->assertSet('selfConsumptionPercent', 30);
+        $component = Livewire::test(SolarCalculator::class);
+
+        // Default scenario is 'with_battery' which has 70% self-consumption
+        $component->assertSet('selfConsumptionScenario', 'with_battery');
+        $this->assertEquals(70, $component->get('selfConsumptionPercent'));
     }
 
     // =========================================================================
     // Self-Consumption Slider Tests
     // =========================================================================
 
-    public function test_self_consumption_slider_defaults_to_30_percent(): void
+    public function test_self_consumption_defaults_to_with_battery_scenario(): void
     {
-        Livewire::test(SolarCalculator::class)
-            ->assertSet('selfConsumptionPercent', 30);
+        $component = Livewire::test(SolarCalculator::class);
+
+        // Default scenario is 'with_battery' = 70%
+        $component->assertSet('selfConsumptionScenario', 'with_battery');
+        $this->assertEquals(70, $component->get('selfConsumptionPercent'));
     }
 
     public function test_self_consumption_can_be_adjusted(): void
     {
-        Livewire::test(SolarCalculator::class)
-            ->set('selfConsumptionPercent', 50)
-            ->assertSet('selfConsumptionPercent', 50);
+        $component = Livewire::test(SolarCalculator::class)
+            ->set('selfConsumptionScenario', 'no_battery');
+
+        // 'no_battery' scenario = 30%
+        $this->assertEquals(30, $component->get('selfConsumptionPercent'));
+
+        $component->set('selfConsumptionScenario', 'smart_system');
+
+        // 'smart_system' scenario = 90%
+        $this->assertEquals(90, $component->get('selfConsumptionPercent'));
     }
 
     // =========================================================================
@@ -111,7 +124,7 @@ class SolarCalculatorSavingsTest extends TestCase
         $component = Livewire::test(SolarCalculator::class)
             ->call('selectAddress', 'Test Address', 60.0, 25.0)
             ->set('manualPrice', 10.0) // 10 c/kWh
-            ->set('selfConsumptionPercent', 30);
+            ->set('selfConsumptionScenario', 'no_battery'); // 30%
 
         // 5000 kWh * 30% self-consumption * 10 c/kWh / 100 = 150 EUR
         $savings = $component->get('annualSavings');
@@ -125,11 +138,11 @@ class SolarCalculatorSavingsTest extends TestCase
         $component = Livewire::test(SolarCalculator::class)
             ->call('selectAddress', 'Test Address', 60.0, 25.0)
             ->set('manualPrice', 8.0) // 8 c/kWh
-            ->set('selfConsumptionPercent', 40);
+            ->set('selfConsumptionScenario', 'with_battery'); // 70%
 
-        // 5000 kWh * 40% self-consumption * 8 c/kWh / 100 = 160 EUR
+        // 5000 kWh * 70% self-consumption * 8 c/kWh / 100 = 280 EUR
         $savings = $component->get('annualSavings');
-        $this->assertEqualsWithDelta(160.0, $savings, 0.01);
+        $this->assertEqualsWithDelta(280.0, $savings, 0.01);
     }
 
     public function test_savings_zero_without_production_results(): void
@@ -173,14 +186,14 @@ class SolarCalculatorSavingsTest extends TestCase
         $component = Livewire::test(SolarCalculator::class)
             ->call('selectAddress', 'Test Address', 60.0, 25.0)
             ->set('manualPrice', 10.0)
-            ->set('selfConsumptionPercent', 30);
+            ->set('selfConsumptionScenario', 'no_battery'); // 30%
 
         // 5000 * 0.3 * 10 / 100 = 150 EUR
         $this->assertEqualsWithDelta(150.0, $component->get('annualSavings'), 0.01);
 
-        $component->set('selfConsumptionPercent', 50);
-        // 5000 * 0.5 * 10 / 100 = 250 EUR
-        $this->assertEqualsWithDelta(250.0, $component->get('annualSavings'), 0.01);
+        $component->set('selfConsumptionScenario', 'smart_system'); // 90%
+        // 5000 * 0.9 * 10 / 100 = 450 EUR
+        $this->assertEqualsWithDelta(450.0, $component->get('annualSavings'), 0.01);
     }
 
     public function test_savings_recalculates_when_price_changes(): void
@@ -190,7 +203,7 @@ class SolarCalculatorSavingsTest extends TestCase
         $component = Livewire::test(SolarCalculator::class)
             ->call('selectAddress', 'Test Address', 60.0, 25.0)
             ->set('manualPrice', 10.0)
-            ->set('selfConsumptionPercent', 30);
+            ->set('selfConsumptionScenario', 'no_battery'); // 30%
 
         // 5000 * 0.3 * 10 / 100 = 150 EUR
         $this->assertEqualsWithDelta(150.0, $component->get('annualSavings'), 0.01);
@@ -212,14 +225,14 @@ class SolarCalculatorSavingsTest extends TestCase
             ->call('selectAddress', 'Test Address', 60.0, 25.0)
             ->set('manualPrice', 10.0)
             ->assertSee('Arvioitu säästö')
-            ->assertSee('150'); // 150 EUR savings (5000 * 0.30 * 10 / 100)
+            ->assertSee('350'); // 350 EUR savings (5000 * 0.70 * 10 / 100) - default scenario is 'with_battery' (70%)
     }
 
-    public function test_self_consumption_slider_displayed(): void
+    public function test_self_consumption_scenarios_displayed(): void
     {
         Livewire::test(SolarCalculator::class)
             ->assertSee('Oman käytön osuus')
-            ->assertSee('30'); // Default 30%
+            ->assertSee('Akun kanssa'); // Default scenario label ('with_battery')
     }
 
     public function test_price_input_displayed(): void

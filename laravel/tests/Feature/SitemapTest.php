@@ -141,12 +141,12 @@ class SitemapTest extends TestCase
         $content = $response->getContent();
         $baseUrl = config('app.url');
 
-        // Should include cities from database
-        $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/helsinki</loc>", $content);
-        $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/tampere</loc>", $content);
-        $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/espoo</loc>", $content);
-        $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/oulu</loc>", $content);
-        $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/turku</loc>", $content);
+        // Should include cities from database (using /sahkosopimus/paikkakunnat/{slug} URL pattern)
+        $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/paikkakunnat/helsinki</loc>", $content);
+        $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/paikkakunnat/tampere</loc>", $content);
+        $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/paikkakunnat/espoo</loc>", $content);
+        $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/paikkakunnat/oulu</loc>", $content);
+        $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/paikkakunnat/turku</loc>", $content);
     }
 
     public function test_sitemap_does_not_duplicate_cities(): void
@@ -157,7 +157,7 @@ class SitemapTest extends TestCase
         $baseUrl = config('app.url');
 
         // Helsinki has 2 postcodes but should only appear once in sitemap
-        $helsinkiCount = substr_count($content, "<loc>{$baseUrl}/sahkosopimus/helsinki</loc>");
+        $helsinkiCount = substr_count($content, "<loc>{$baseUrl}/sahkosopimus/paikkakunnat/helsinki</loc>");
         $this->assertEquals(1, $helsinkiCount);
     }
 
@@ -357,9 +357,9 @@ class SitemapTest extends TestCase
         $locs = array_column($urls, 'loc');
         $baseUrl = config('app.url');
 
-        // Should include cities from database
-        $this->assertContains($baseUrl . '/sahkosopimus/helsinki', $locs);
-        $this->assertContains($baseUrl . '/sahkosopimus/tampere', $locs);
+        // Should include cities from database (using /sahkosopimus/paikkakunnat/{slug} URL pattern)
+        $this->assertContains($baseUrl . '/sahkosopimus/paikkakunnat/helsinki', $locs);
+        $this->assertContains($baseUrl . '/sahkosopimus/paikkakunnat/tampere', $locs);
     }
 
     public function test_sitemap_service_generates_valid_xml(): void
@@ -430,7 +430,7 @@ class SitemapTest extends TestCase
         $baseUrl = config('app.url');
 
         // Jyvaskyla should not be in sitemap yet
-        $this->assertStringNotContainsString("<loc>{$baseUrl}/sahkosopimus/jyvaskyla</loc>", $content1);
+        $this->assertStringNotContainsString("<loc>{$baseUrl}/sahkosopimus/paikkakunnat/jyvaskyla</loc>", $content1);
 
         // Add new city
         Postcode::create([
@@ -449,7 +449,7 @@ class SitemapTest extends TestCase
         $content2 = $response2->getContent();
 
         // New city should now be in sitemap
-        $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/jyvaskyla</loc>", $content2);
+        $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/paikkakunnat/jyvaskyla</loc>", $content2);
     }
 
     public function test_sitemap_route_has_cache_headers(): void

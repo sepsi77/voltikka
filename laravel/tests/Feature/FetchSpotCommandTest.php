@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\SpotPriceHour;
 use App\Services\EntsoeService;
+use App\Services\SpotPriceAverageService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\RequestException;
@@ -14,6 +15,16 @@ class FetchSpotCommandTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Mock SpotPriceAverageService to prevent actual calculations
+        $mockAverageService = Mockery::mock(SpotPriceAverageService::class);
+        $mockAverageService->shouldReceive('calculateAllAverages')->zeroOrMoreTimes();
+        $this->app->instance(SpotPriceAverageService::class, $mockAverageService);
+    }
+
     protected function tearDown(): void
     {
         Mockery::close();
@@ -21,29 +32,39 @@ class FetchSpotCommandTest extends TestCase
     }
 
     /**
-     * Test command fetches today's prices and saves to database.
+     * Helper to create an EntsoeService mock that returns given prices.
      */
-    public function test_command_fetches_todays_prices_and_saves_to_database(): void
+    private function mockEntsoeService(array $prices): void
     {
         $mockService = Mockery::mock(EntsoeService::class);
         $mockService->shouldReceive('fetchDayAheadPrices')
             ->once()
-            ->andReturn([
-                [
-                    'region' => 'FI',
-                    'timestamp' => 1705644000,
-                    'utc_datetime' => Carbon::createFromTimestamp(1705644000, 'UTC'),
-                    'price_without_tax' => 5.235,
-                ],
-                [
-                    'region' => 'FI',
-                    'timestamp' => 1705647600,
-                    'utc_datetime' => Carbon::createFromTimestamp(1705647600, 'UTC'),
-                    'price_without_tax' => 5.512,
-                ],
-            ]);
+            ->andReturn($prices);
 
         $this->app->instance(EntsoeService::class, $mockService);
+    }
+
+    /**
+     * Test command fetches today's prices and saves to database.
+     */
+    public function test_command_fetches_todays_prices_and_saves_to_database(): void
+    {
+        $this->mockEntsoeService([
+            [
+                'region' => 'FI',
+                'timestamp' => 1705644000,
+                'utc_datetime' => Carbon::createFromTimestamp(1705644000, 'UTC'),
+                'price_without_tax' => 5.235,
+                'resolution_minutes' => 60,
+            ],
+            [
+                'region' => 'FI',
+                'timestamp' => 1705647600,
+                'utc_datetime' => Carbon::createFromTimestamp(1705647600, 'UTC'),
+                'price_without_tax' => 5.512,
+                'resolution_minutes' => 60,
+            ],
+        ]);
 
         $this->artisan('spot:fetch')
             ->assertExitCode(0);
@@ -66,19 +87,15 @@ class FetchSpotCommandTest extends TestCase
         // Timestamp for January 2026 (after September 2024 VAT increase)
         $timestamp = Carbon::create(2026, 1, 19, 10, 0, 0, 'UTC')->timestamp;
 
-        $mockService = Mockery::mock(EntsoeService::class);
-        $mockService->shouldReceive('fetchDayAheadPrices')
-            ->once()
-            ->andReturn([
-                [
-                    'region' => 'FI',
-                    'timestamp' => $timestamp,
-                    'utc_datetime' => Carbon::createFromTimestamp($timestamp, 'UTC'),
-                    'price_without_tax' => 5.0,
-                ],
-            ]);
-
-        $this->app->instance(EntsoeService::class, $mockService);
+        $this->mockEntsoeService([
+            [
+                'region' => 'FI',
+                'timestamp' => $timestamp,
+                'utc_datetime' => Carbon::createFromTimestamp($timestamp, 'UTC'),
+                'price_without_tax' => 5.0,
+                'resolution_minutes' => 60,
+            ],
+        ]);
 
         $this->artisan('spot:fetch')
             ->assertExitCode(0);
@@ -95,19 +112,15 @@ class FetchSpotCommandTest extends TestCase
         // Timestamp for August 2024 (before VAT increase)
         $timestamp = Carbon::create(2024, 8, 15, 10, 0, 0, 'UTC')->timestamp;
 
-        $mockService = Mockery::mock(EntsoeService::class);
-        $mockService->shouldReceive('fetchDayAheadPrices')
-            ->once()
-            ->andReturn([
-                [
-                    'region' => 'FI',
-                    'timestamp' => $timestamp,
-                    'utc_datetime' => Carbon::createFromTimestamp($timestamp, 'UTC'),
-                    'price_without_tax' => 5.0,
-                ],
-            ]);
-
-        $this->app->instance(EntsoeService::class, $mockService);
+        $this->mockEntsoeService([
+            [
+                'region' => 'FI',
+                'timestamp' => $timestamp,
+                'utc_datetime' => Carbon::createFromTimestamp($timestamp, 'UTC'),
+                'price_without_tax' => 5.0,
+                'resolution_minutes' => 60,
+            ],
+        ]);
 
         $this->artisan('spot:fetch')
             ->assertExitCode(0);
@@ -124,19 +137,15 @@ class FetchSpotCommandTest extends TestCase
         // Timestamp for January 2023 (temporary reduced VAT period)
         $timestamp = Carbon::create(2023, 1, 15, 10, 0, 0, 'UTC')->timestamp;
 
-        $mockService = Mockery::mock(EntsoeService::class);
-        $mockService->shouldReceive('fetchDayAheadPrices')
-            ->once()
-            ->andReturn([
-                [
-                    'region' => 'FI',
-                    'timestamp' => $timestamp,
-                    'utc_datetime' => Carbon::createFromTimestamp($timestamp, 'UTC'),
-                    'price_without_tax' => 5.0,
-                ],
-            ]);
-
-        $this->app->instance(EntsoeService::class, $mockService);
+        $this->mockEntsoeService([
+            [
+                'region' => 'FI',
+                'timestamp' => $timestamp,
+                'utc_datetime' => Carbon::createFromTimestamp($timestamp, 'UTC'),
+                'price_without_tax' => 5.0,
+                'resolution_minutes' => 60,
+            ],
+        ]);
 
         $this->artisan('spot:fetch')
             ->assertExitCode(0);
@@ -159,19 +168,15 @@ class FetchSpotCommandTest extends TestCase
             'vat_rate' => 0.24,
         ]);
 
-        $mockService = Mockery::mock(EntsoeService::class);
-        $mockService->shouldReceive('fetchDayAheadPrices')
-            ->once()
-            ->andReturn([
-                [
-                    'region' => 'FI',
-                    'timestamp' => 1705644000,
-                    'utc_datetime' => Carbon::createFromTimestamp(1705644000, 'UTC'),
-                    'price_without_tax' => 6.0, // Different price from API
-                ],
-            ]);
-
-        $this->app->instance(EntsoeService::class, $mockService);
+        $this->mockEntsoeService([
+            [
+                'region' => 'FI',
+                'timestamp' => 1705644000,
+                'utc_datetime' => Carbon::createFromTimestamp(1705644000, 'UTC'),
+                'price_without_tax' => 6.0, // Different price from API
+                'resolution_minutes' => 60,
+            ],
+        ]);
 
         $this->artisan('spot:fetch')
             ->assertExitCode(0);
@@ -193,12 +198,12 @@ class FetchSpotCommandTest extends TestCase
         $mockService->shouldReceive('fetchDayAheadPrices')
             ->once()
             ->withArgs(function (Carbon $start, Carbon $end) {
-                // Start should be today 00:00 UTC
-                $todayStart = Carbon::create(2026, 1, 19, 0, 0, 0, 'UTC');
-                // End should be tomorrow 23:59 UTC (or day after at 00:00)
-                $tomorrowEnd = Carbon::create(2026, 1, 21, 0, 0, 0, 'UTC');
+                // Start should be today at midnight Helsinki time, converted to UTC
+                $expectedStart = Carbon::create(2026, 1, 19, 0, 0, 0, 'Europe/Helsinki')->setTimezone('UTC');
+                // End should be day after tomorrow at midnight Helsinki time, converted to UTC
+                $expectedEnd = Carbon::create(2026, 1, 21, 0, 0, 0, 'Europe/Helsinki')->setTimezone('UTC');
 
-                return $start->isSameDay($todayStart) && $end->isSameDay($tomorrowEnd);
+                return $start->eq($expectedStart) && $end->eq($expectedEnd);
             })
             ->andReturn([]);
 
@@ -235,12 +240,7 @@ class FetchSpotCommandTest extends TestCase
      */
     public function test_command_handles_empty_response(): void
     {
-        $mockService = Mockery::mock(EntsoeService::class);
-        $mockService->shouldReceive('fetchDayAheadPrices')
-            ->once()
-            ->andReturn([]);
-
-        $this->app->instance(EntsoeService::class, $mockService);
+        $this->mockEntsoeService([]);
 
         $this->artisan('spot:fetch')
             ->assertExitCode(0);
@@ -253,25 +253,22 @@ class FetchSpotCommandTest extends TestCase
      */
     public function test_command_outputs_success_message(): void
     {
-        $mockService = Mockery::mock(EntsoeService::class);
-        $mockService->shouldReceive('fetchDayAheadPrices')
-            ->once()
-            ->andReturn([
-                [
-                    'region' => 'FI',
-                    'timestamp' => 1705644000,
-                    'utc_datetime' => Carbon::createFromTimestamp(1705644000, 'UTC'),
-                    'price_without_tax' => 5.235,
-                ],
-                [
-                    'region' => 'FI',
-                    'timestamp' => 1705647600,
-                    'utc_datetime' => Carbon::createFromTimestamp(1705647600, 'UTC'),
-                    'price_without_tax' => 5.512,
-                ],
-            ]);
-
-        $this->app->instance(EntsoeService::class, $mockService);
+        $this->mockEntsoeService([
+            [
+                'region' => 'FI',
+                'timestamp' => 1705644000,
+                'utc_datetime' => Carbon::createFromTimestamp(1705644000, 'UTC'),
+                'price_without_tax' => 5.235,
+                'resolution_minutes' => 60,
+            ],
+            [
+                'region' => 'FI',
+                'timestamp' => 1705647600,
+                'utc_datetime' => Carbon::createFromTimestamp(1705647600, 'UTC'),
+                'price_without_tax' => 5.512,
+                'resolution_minutes' => 60,
+            ],
+        ]);
 
         $this->artisan('spot:fetch')
             ->expectsOutput('Fetching spot prices from ENTSO-E API...')
@@ -284,19 +281,15 @@ class FetchSpotCommandTest extends TestCase
      */
     public function test_command_logs_success(): void
     {
-        $mockService = Mockery::mock(EntsoeService::class);
-        $mockService->shouldReceive('fetchDayAheadPrices')
-            ->once()
-            ->andReturn([
-                [
-                    'region' => 'FI',
-                    'timestamp' => 1705644000,
-                    'utc_datetime' => Carbon::createFromTimestamp(1705644000, 'UTC'),
-                    'price_without_tax' => 5.235,
-                ],
-            ]);
-
-        $this->app->instance(EntsoeService::class, $mockService);
+        $this->mockEntsoeService([
+            [
+                'region' => 'FI',
+                'timestamp' => 1705644000,
+                'utc_datetime' => Carbon::createFromTimestamp(1705644000, 'UTC'),
+                'price_without_tax' => 5.235,
+                'resolution_minutes' => 60,
+            ],
+        ]);
 
         // Allow any Log calls to pass through
         \Illuminate\Support\Facades\Log::shouldReceive('info')->zeroOrMoreTimes();
@@ -311,19 +304,15 @@ class FetchSpotCommandTest extends TestCase
      */
     public function test_command_handles_negative_prices(): void
     {
-        $mockService = Mockery::mock(EntsoeService::class);
-        $mockService->shouldReceive('fetchDayAheadPrices')
-            ->once()
-            ->andReturn([
-                [
-                    'region' => 'FI',
-                    'timestamp' => 1705644000,
-                    'utc_datetime' => Carbon::createFromTimestamp(1705644000, 'UTC'),
-                    'price_without_tax' => -1.0, // Negative price (c/kWh)
-                ],
-            ]);
-
-        $this->app->instance(EntsoeService::class, $mockService);
+        $this->mockEntsoeService([
+            [
+                'region' => 'FI',
+                'timestamp' => 1705644000,
+                'utc_datetime' => Carbon::createFromTimestamp(1705644000, 'UTC'),
+                'price_without_tax' => -1.0, // Negative price (c/kWh)
+                'resolution_minutes' => 60,
+            ],
+        ]);
 
         $this->artisan('spot:fetch')
             ->assertExitCode(0);
@@ -340,19 +329,15 @@ class FetchSpotCommandTest extends TestCase
         $timestamp = 1705644000; // 2024-01-19 06:00:00 UTC
         $utcDatetime = Carbon::createFromTimestamp($timestamp, 'UTC');
 
-        $mockService = Mockery::mock(EntsoeService::class);
-        $mockService->shouldReceive('fetchDayAheadPrices')
-            ->once()
-            ->andReturn([
-                [
-                    'region' => 'FI',
-                    'timestamp' => $timestamp,
-                    'utc_datetime' => $utcDatetime,
-                    'price_without_tax' => 5.0,
-                ],
-            ]);
-
-        $this->app->instance(EntsoeService::class, $mockService);
+        $this->mockEntsoeService([
+            [
+                'region' => 'FI',
+                'timestamp' => $timestamp,
+                'utc_datetime' => $utcDatetime,
+                'price_without_tax' => 5.0,
+                'resolution_minutes' => 60,
+            ],
+        ]);
 
         $this->artisan('spot:fetch')
             ->assertExitCode(0);
@@ -366,9 +351,7 @@ class FetchSpotCommandTest extends TestCase
      */
     public function test_command_signature_is_correct(): void
     {
-        $mockService = Mockery::mock(EntsoeService::class);
-        $mockService->shouldReceive('fetchDayAheadPrices')->andReturn([]);
-        $this->app->instance(EntsoeService::class, $mockService);
+        $this->mockEntsoeService([]);
 
         // Verify command is registered and callable
         $this->artisan('spot:fetch')
@@ -388,15 +371,11 @@ class FetchSpotCommandTest extends TestCase
                 'timestamp' => $timestamp,
                 'utc_datetime' => Carbon::createFromTimestamp($timestamp, 'UTC'),
                 'price_without_tax' => 5.0 + ($i * 0.1),
+                'resolution_minutes' => 60,
             ];
         }
 
-        $mockService = Mockery::mock(EntsoeService::class);
-        $mockService->shouldReceive('fetchDayAheadPrices')
-            ->once()
-            ->andReturn($prices);
-
-        $this->app->instance(EntsoeService::class, $mockService);
+        $this->mockEntsoeService($prices);
 
         $this->artisan('spot:fetch')
             ->assertExitCode(0);
@@ -413,19 +392,15 @@ class FetchSpotCommandTest extends TestCase
         $timestamp = Carbon::create(2024, 9, 1, 0, 0, 0, 'Europe/Helsinki')
             ->setTimezone('UTC')->timestamp;
 
-        $mockService = Mockery::mock(EntsoeService::class);
-        $mockService->shouldReceive('fetchDayAheadPrices')
-            ->once()
-            ->andReturn([
-                [
-                    'region' => 'FI',
-                    'timestamp' => $timestamp,
-                    'utc_datetime' => Carbon::createFromTimestamp($timestamp, 'UTC'),
-                    'price_without_tax' => 5.0,
-                ],
-            ]);
-
-        $this->app->instance(EntsoeService::class, $mockService);
+        $this->mockEntsoeService([
+            [
+                'region' => 'FI',
+                'timestamp' => $timestamp,
+                'utc_datetime' => Carbon::createFromTimestamp($timestamp, 'UTC'),
+                'price_without_tax' => 5.0,
+                'resolution_minutes' => 60,
+            ],
+        ]);
 
         $this->artisan('spot:fetch')
             ->assertExitCode(0);
@@ -443,19 +418,15 @@ class FetchSpotCommandTest extends TestCase
         $timestamp = Carbon::create(2024, 8, 31, 23, 0, 0, 'Europe/Helsinki')
             ->setTimezone('UTC')->timestamp;
 
-        $mockService = Mockery::mock(EntsoeService::class);
-        $mockService->shouldReceive('fetchDayAheadPrices')
-            ->once()
-            ->andReturn([
-                [
-                    'region' => 'FI',
-                    'timestamp' => $timestamp,
-                    'utc_datetime' => Carbon::createFromTimestamp($timestamp, 'UTC'),
-                    'price_without_tax' => 5.0,
-                ],
-            ]);
-
-        $this->app->instance(EntsoeService::class, $mockService);
+        $this->mockEntsoeService([
+            [
+                'region' => 'FI',
+                'timestamp' => $timestamp,
+                'utc_datetime' => Carbon::createFromTimestamp($timestamp, 'UTC'),
+                'price_without_tax' => 5.0,
+                'resolution_minutes' => 60,
+            ],
+        ]);
 
         $this->artisan('spot:fetch')
             ->assertExitCode(0);

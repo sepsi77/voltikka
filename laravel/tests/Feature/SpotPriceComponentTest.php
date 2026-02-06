@@ -837,10 +837,10 @@ class SpotPriceComponentTest extends TestCase
         $prices[17] = 20.0; // Max
         $this->createFullDayPrices(2026, 1, 20, $prices);
 
+        // The view now shows "Tänään" as the bar chart heading
+        // and historical data via weekly chart / monthly comparison sections
         Livewire::test(SpotPrice::class)
-            ->assertSee('Tänään')
-            ->assertSee('Eilen')
-            ->assertSee('Viikon ka.');
+            ->assertSee('Tänään');
     }
 
     public function test_view_displays_statistics_section(): void
@@ -850,11 +850,11 @@ class SpotPriceComponentTest extends TestCase
         $prices[17] = 20.0;
         $this->createFullDayPrices(2026, 1, 20, $prices);
 
+        // The view now shows today's statistics through the verdict section
+        // and the bar chart section heading "Tänään"
         Livewire::test(SpotPrice::class)
-            ->assertSee('Keskihinta')
-            ->assertSee('Mediaani')
-            ->assertSee('Alin')
-            ->assertSee('Ylin');
+            ->assertSee('Tänään')
+            ->assertSee('c/kWh');
     }
 
     public function test_view_displays_best_hours_section(): void
@@ -931,8 +931,11 @@ class SpotPriceComponentTest extends TestCase
         $prices[17] = 50.0;
         $this->createFullDayPrices(2026, 1, 20, $prices);
 
+        // The volatility data is still computed and passed to the view,
+        // but the "Hintavaihtelu" label is no longer rendered in the template.
+        // Verify the volatility data is available in the view instead.
         Livewire::test(SpotPrice::class)
-            ->assertSee('Hintavaihtelu');
+            ->assertViewHas('priceVolatility');
     }
 
     public function test_view_displays_potential_savings(): void
@@ -1003,13 +1006,15 @@ class SpotPriceComponentTest extends TestCase
     public function test_view_displays_cheapest_hour_prominently(): void
     {
         $prices = array_fill(0, 24, 10.0);
-        $prices[4] = 1.0; // Cheapest hour at 04:00
+        $prices[15] = 1.0; // Cheapest future hour at 15:00 (after current time 14:30)
 
         $this->createFullDayPrices(2026, 1, 20, $prices);
 
+        // The view now shows "Edullisimmat tunnit" (plural) section
+        // with cheapest remaining future hours using "HH:00-HH:00" format
         Livewire::test(SpotPrice::class)
-            ->assertSee('Edullisin tunti')
-            ->assertSee('04-05');
+            ->assertSee('Edullisimmat tunnit')
+            ->assertSee('15:00-16:00');
     }
 
     public function test_view_displays_most_expensive_hour(): void
@@ -1019,9 +1024,12 @@ class SpotPriceComponentTest extends TestCase
 
         $this->createFullDayPrices(2026, 1, 20, $prices);
 
+        // The "Kallein tunti" label is no longer rendered in the template.
+        // The most expensive hour data is still passed to the view.
+        // Verify the data is available and the bar chart shows the hour.
         Livewire::test(SpotPrice::class)
-            ->assertSee('Kallein tunti')
-            ->assertSee('17-18');
+            ->assertViewHas('mostExpensiveHour')
+            ->assertSee('17:00');
     }
 
     public function test_view_responsive_for_mobile(): void

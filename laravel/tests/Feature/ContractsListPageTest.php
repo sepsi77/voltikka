@@ -58,10 +58,10 @@ class ContractsListPageTest extends TestCase
      */
     public function test_contracts_page_renders_livewire_component(): void
     {
-        $response = $this->get('/');
+        $response = $this->get('/sahkosopimus');
 
         $response->assertStatus(200);
-        $response->assertSeeLivewire('contracts-list');
+        $response->assertSeeLivewire('sahkosopimus-index');
     }
 
     /**
@@ -79,6 +79,7 @@ class ContractsListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('contract-1');
 
         PriceComponent::create([
             'id' => 'pc-general-1',
@@ -116,6 +117,7 @@ class ContractsListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('contract-1');
 
         PriceComponent::create([
             'id' => 'pc-general-1',
@@ -195,6 +197,7 @@ class ContractsListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('contract-1');
 
         PriceComponent::create([
             'id' => 'pc-general-1',
@@ -238,6 +241,7 @@ class ContractsListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('expensive-contract');
 
         PriceComponent::create([
             'id' => 'pc-general-expensive',
@@ -266,6 +270,7 @@ class ContractsListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('cheap-contract');
 
         PriceComponent::create([
             'id' => 'pc-general-cheap',
@@ -308,6 +313,7 @@ class ContractsListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('contract-1');
 
         PriceComponent::create([
             'id' => 'pc-general-1',
@@ -346,6 +352,7 @@ class ContractsListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('contract-1');
 
         PriceComponent::create([
             'id' => 'pc-general-1',
@@ -460,6 +467,7 @@ class ContractsListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('national-contract');
 
         PriceComponent::create([
             'id' => 'pc-national',
@@ -479,6 +487,7 @@ class ContractsListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => false,
         ]);
+        $this->markAsActive('helsinki-contract');
 
         PriceComponent::create([
             'id' => 'pc-helsinki',
@@ -544,6 +553,7 @@ class ContractsListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => false,
         ]);
+        $this->markAsActive('multi-postcode-contract');
 
         PriceComponent::create([
             'id' => 'pc-multi',
@@ -590,6 +600,7 @@ class ContractsListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('contract-with-history');
 
         // Create old price components
         PriceComponent::create([
@@ -1130,6 +1141,7 @@ class ContractsListPageTest extends TestCase
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
+        $this->markAsActive('contract-1');
 
         PriceComponent::create([
             'id' => 'pc-general-1',
@@ -1266,6 +1278,7 @@ class ContractsListPageTest extends TestCase
             'consumption_limitation_min_x_kwh_per_y' => null,
             'consumption_limitation_max_x_kwh_per_y' => null,
         ]);
+        $this->markAsActive('no-limit-contract');
 
         PriceComponent::create([
             'id' => 'pc-no-limit',
@@ -1287,6 +1300,7 @@ class ContractsListPageTest extends TestCase
             'consumption_limitation_min_x_kwh_per_y' => 10000,
             'consumption_limitation_max_x_kwh_per_y' => null,
         ]);
+        $this->markAsActive('high-min-contract');
 
         PriceComponent::create([
             'id' => 'pc-high-min',
@@ -1332,6 +1346,7 @@ class ContractsListPageTest extends TestCase
             'consumption_limitation_min_x_kwh_per_y' => null,
             'consumption_limitation_max_x_kwh_per_y' => null,
         ]);
+        $this->markAsActive('no-limit-contract');
 
         PriceComponent::create([
             'id' => 'pc-no-limit',
@@ -1353,6 +1368,7 @@ class ContractsListPageTest extends TestCase
             'consumption_limitation_min_x_kwh_per_y' => null,
             'consumption_limitation_max_x_kwh_per_y' => 8000,
         ]);
+        $this->markAsActive('low-max-contract');
 
         PriceComponent::create([
             'id' => 'pc-low-max',
@@ -1398,6 +1414,7 @@ class ContractsListPageTest extends TestCase
             'consumption_limitation_min_x_kwh_per_y' => 5000,
             'consumption_limitation_max_x_kwh_per_y' => 15000,
         ]);
+        $this->markAsActive('range-contract');
 
         PriceComponent::create([
             'id' => 'pc-range',
@@ -1643,7 +1660,7 @@ class ContractsListPageTest extends TestCase
      */
     public function test_page_title_is_passed_to_layout(): void
     {
-        $response = $this->get('/?pricingModelFilter=Spot');
+        $response = $this->get('/sahkosopimus?pricingModelFilter=Spot');
 
         $response->assertStatus(200);
         $response->assertSee('Pörssisähkösopimukset');

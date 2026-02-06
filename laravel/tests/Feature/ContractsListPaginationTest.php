@@ -311,7 +311,7 @@ class ContractsListPaginationTest extends TestCase
     {
         $this->createContracts(75); // 3 pages at 25 per page
 
-        $response = $this->get('/?page=2');
+        $response = $this->get('/sahkosopimus?page=2');
 
         $response->assertStatus(200);
         $response->assertSee('rel="canonical"', false);
@@ -423,6 +423,8 @@ class ContractsListPaginationTest extends TestCase
                 'price' => 0.5 + ($i * 0.01),
                 'payment_unit' => 'c/kWh',
             ]);
+
+            ActiveContract::create(['id' => $contract->id]);
         }
 
         // Create 10 fixed contracts (should be filtered out)
@@ -445,6 +447,8 @@ class ContractsListPaginationTest extends TestCase
                 'price' => 5.0,
                 'payment_unit' => 'c/kWh',
             ]);
+
+            ActiveContract::create(['id' => $contract->id]);
         }
 
         $component = Livewire::test('contracts-list')
@@ -482,11 +486,11 @@ class ContractsListPaginationTest extends TestCase
     {
         $this->createContracts(60);
 
-        $response = $this->get('/?page=2');
+        $response = $this->get('/sahkosopimus?page=2');
         $response->assertStatus(200);
 
         // The component should be on page 2
-        $response->assertSeeLivewire('contracts-list');
+        $response->assertSeeLivewire('sahkosopimus-index');
     }
 
     /**
