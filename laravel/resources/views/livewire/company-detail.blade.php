@@ -222,7 +222,7 @@
                             @endif
                             @if ($companyStats['fixed_price_contract_count'] > 0)
                                 <span class="inline-flex items-center px-2 py-1 bg-slate-100 text-slate-700 text-xs font-medium rounded-lg">
-                                    {{ $companyStats['fixed_price_contract_count'] }} kiinteähintainen{{ $companyStats['fixed_price_contract_count'] > 1 ? 'ta' : '' }}
+                                    {{ $companyStats['fixed_price_contract_count'] }} {{ $companyStats['fixed_price_contract_count'] > 1 ? 'kiinteähintaista' : 'kiinteähintainen' }}
                                 </span>
                             @endif
                         </div>
