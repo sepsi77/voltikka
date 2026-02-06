@@ -269,7 +269,7 @@ class CompanyList extends Component
      */
     public function getJsonLdProperty(): array
     {
-        $listItems = $this->companies->take(20)->map(function ($data, $index) {
+        $listItems = $this->companies->map(function ($data, $index) {
             return [
                 '@type' => 'ListItem',
                 'position' => $index + 1,
@@ -284,8 +284,8 @@ class CompanyList extends Component
         return [
             '@context' => 'https://schema.org',
             '@type' => 'ItemList',
-            'name' => 'Sähköyhtiöt Suomessa',
-            'description' => 'Lista suomalaisista sähköyhtiöistä ja niiden sähkösopimuksista',
+            'name' => 'Sähköyhtiöiden vertailu Suomessa',
+            'description' => 'Vertaile ja kilpailuta suomalaisia sähköyhtiöitä – hinnat, sopimukset ja päästötiedot',
             'numberOfItems' => $this->companyCount,
             'itemListElement' => $listItems,
         ];
@@ -296,7 +296,7 @@ class CompanyList extends Component
      */
     public function getPageTitleProperty(): string
     {
-        return 'Sähköyhtiöt Suomessa';
+        return 'Kaikki Suomen sähköyhtiöt vertailussa – katso hinnat ja sopimukset';
     }
 
     /**
@@ -304,7 +304,7 @@ class CompanyList extends Component
      */
     public function getMetaDescriptionProperty(): string
     {
-        return "Vertaile {$this->companyCount} suomalaista sähköyhtiötä. Katso hinnat, uusiutuvan energian osuudet ja päästötiedot yhdestä paikasta.";
+        return "Kilpailuta sähkösopimus helposti! Vertaile {$this->companyCount} sähköyhtiön hintoja, sopimuksia ja päästötietoja. Löydä edullisin sähköyhtiö vertailussa.";
     }
 
     /**
