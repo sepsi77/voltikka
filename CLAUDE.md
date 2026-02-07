@@ -181,17 +181,21 @@ php artisan test --filter="ContractsFilterTest"
 | `/sahkosopimus/sahkoyhtiot/{slug}` | CompanyDetail | Company profile |
 | `/sahkosopimus/laskuri` | ConsumptionCalculator | Consumption calculator |
 | `/sahkosopimus/halvin-sahkosopimus` | CheapestContracts | Cheapest contracts |
-| `/sahkosopimus/yritykselle` | CompanyContractsList | Business contracts |
+| `/sahkosopimus/yritykselle` | SeoContractsList | Business contracts |
 | `/spot-price` | SpotPrice | Spot price analytics |
 | `/aurinkopaneelit/laskuri` | SolarCalculator | Solar calculator |
 
 ### SEO Routes
 | Route Pattern | Type |
 |---------------|------|
-| `/sahkosopimus/{city}` | City-specific (e.g., /sahkosopimus/helsinki) |
+| `/sahkosopimus/paikkakunnat/{location}` | City-specific (e.g., /sahkosopimus/paikkakunnat/helsinki) |
 | `/sahkosopimus/omakotitalo`, `/kerrostalo`, `/rivitalo` | Housing type |
-| `/sahkosopimus/porssisahko`, `/kiintea-hinta` | Pricing type |
+| `/sahkosopimus/porssisahko`, `/kiintea-hinta`, `/kvartaalisahko`, `/aikasahko`, `/kausisahko`, `/joustosahko`, `/yleissahko` | Pricing type |
 | `/sahkosopimus/tuulisahko`, `/aurinkosahko`, `/vihrea-sahko` | Energy source |
+| `/sahkosopimus/sahkotarjous` | Promotions/offers |
+| `/sahkosopimus/yritykselle` | Business contracts |
+
+All SEO listing pages use `SeoContractsList` component. See "Creating SEO Contract Listing Pages" section for how to add new ones.
 
 ## External APIs
 
@@ -306,6 +310,101 @@ The `showSeoFilterLinks` property controls this behavior - enabled only on `/sah
 - Page titles include "– Sivu N" suffix for pages > 1
 - `rel="canonical"`, `rel="prev"`, and `rel="next"` link tags are added
 - Changing filters or consumption resets pagination to page 1
+
+### Creating SEO Contract Listing Pages (Step-by-Step)
+
+All SEO contract listing pages use the **`SeoContractsList`** Livewire component (`app/Livewire/SeoContractsList.php`) and the shared Blade template (`resources/views/livewire/seo-contracts-list.blade.php`). New pages are added by configuring the existing component, NOT by creating new components.
+
+#### Page Categories
+
+There are several types of SEO listing pages, each differentiated by a route parameter:
+
+| Category | Route Parameter | Example Slug | Example URL |
+|----------|----------------|-------------|-------------|
+| Pricing type | `pricingType` | `porssisahko` | `/sahkosopimus/porssisahko` |
+| Housing type | `housingType` | `omakotitalo` | `/sahkosopimus/omakotitalo` |
+| Energy source | `energySource` | `tuulisahko` | `/sahkosopimus/tuulisahko` |
+| City/Location | `location` | `helsinki` | `/sahkosopimus/paikkakunnat/helsinki` |
+| Target group | `targetGroup` | `Company` | `/sahkosopimus/yritykselle` |
+| Offer type | `offerType` | `promotion` | `/sahkosopimus/sahkotarjous` |
+
+#### Checklist: Adding a New SEO Pricing Type Page
+
+When adding a new pricing type page (e.g., `/sahkosopimus/yleissahko`), update these files in order:
+
+**1. Route — `routes/web.php`**
+Add a new route in the "SEO Pricing Type Routes" section (BEFORE the city catch-all route at the bottom):
+```php
+Route::get('/sahkosopimus/yleissahko', SeoContractsList::class)
+    ->name('seo.pricing.yleissahko')
+    ->defaults('pricingType', 'PricingTypeKey');
+```
+The `pricingType` default value must match a key used in the component's filtering logic.
+
+**2. Component — `app/Livewire/SeoContractsList.php`**
+Update these arrays/methods in the component:
+
+- **`$pricingTypeNames`** — Add the Finnish display name:
+  ```php
+  'PricingTypeKey' => 'Display Name',
+  ```
+- **`generateSeoTitle()`** — Add a `match` case for the SEO page title (used in `<title>` tag)
+- **`generateMetaDescription()`** — Add a meta description (used in `<meta name="description">`)
+- **`generateCanonicalUrl()`** — Add the slug mapping in `$slugMap`:
+  ```php
+  'PricingTypeKey' => 'url-slug',
+  ```
+- **`getPageHeadingProperty()`** — The H1 heading is auto-generated from `$pricingTypeNames` as `"{Name}sopimukset"`. Override in the method if a custom heading is needed.
+- **`getPricingTypeIntroText()`** — Add a descriptive intro paragraph (2-3 sentences explaining the contract type, shown below the H1)
+- **`getContractsProperty()`** — If the new pricing type needs custom filtering logic (e.g., matching by name/description patterns instead of `pricing_model` field), add an `elseif` block in the pricing filter section. Standard `pricing_model` values (Spot, FixedPrice, Hybrid) are handled automatically.
+
+**3. Sitemap — `app/Services/SitemapService.php`**
+Add the URL slug to the `$pricingTypes` array:
+```php
+protected array $pricingTypes = [
+    'porssisahko',
+    'kiintea-hinta',
+    // ...
+    'yleissahko',  // Add here
+];
+```
+
+**4. Internal Links — `resources/views/livewire/seo-contracts-list.blade.php`**
+Add the new page to the "Katso myös" (See also) section's "Hinnoittelumalli" list:
+```html
+<li>
+    <a href="/sahkosopimus/yleissahko" class="hover:text-coral-600">Display Name</a>
+</li>
+```
+
+**5. Navigation (optional) — `resources/views/layouts/app.blade.php`**
+If the page should appear in the site navigation or footer, add links in:
+- Desktop dropdown menu (search for "kvartaalisahko" to find the section)
+- Mobile collapsible menu
+- Footer links section
+
+#### SEO Content Elements per Page
+
+Each SEO listing page automatically includes:
+
+| Element | Source Method | Description |
+|---------|-------------|-------------|
+| `<title>` tag | `generateSeoTitle()` | Format: "Vertaa {type}sopimuksia (N sopimusta) \| Voltikka" |
+| Meta description | `generateMetaDescription()` | 150-160 char description for search results |
+| Canonical URL | `generateCanonicalUrl()` | Self-referencing canonical with slug |
+| H1 heading | `getPageHeadingProperty()` | Usually "{Type}sopimukset" |
+| Intro text | `getSeoIntroTextProperty()` | 2-3 sentence description below H1 |
+| JSON-LD | `generateJsonLd()` | ItemList schema with Service items |
+| Breadcrumbs | Blade template | Etusivu > Sähkösopimukset > {Page heading} |
+| Internal links | Blade template | "Katso myös" section with cross-links |
+
+#### Contract Filtering Logic
+
+For pricing type pages, the `getContractsProperty()` method determines which contracts to show:
+
+- **Standard pricing models** (`Spot`, `FixedPrice`, `Hybrid`): Filter by `pricing_model` column directly
+- **Special types** (`Quarterly`, `TimeOfUse`, `Seasonal`): Filter by name/description patterns or `metering` field since these don't have a dedicated `pricing_model` value
+- New types should use whichever approach matches the data: direct field filtering is preferred when possible
 
 ## Performance Optimizations
 

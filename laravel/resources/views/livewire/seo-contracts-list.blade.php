@@ -21,7 +21,7 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                         </svg>
-                        Vertaile älykkäästi
+                        {{ $isBusinessPage ? 'Yrityksille' : 'Vertaile älykkäästi' }}
                     </div>
                     <h1 class="max-w-2xl mb-4 text-4xl font-extrabold text-white tracking-tight leading-tight md:text-5xl xl:text-6xl">
                         {{ $pageHeading }}
@@ -156,10 +156,11 @@
     {{-- Consumption Preset Selector --}}
     <section class="bg-transparent text-center mb-8">
         <h3 class="max-w-2xl mb-4 mx-auto text-3xl font-extrabold tracking-tight leading-none">
-            Valitse kulutustaso
+            {{ $isBusinessPage ? 'Valitse yrityksen kulutustaso' : 'Valitse kulutustaso' }}
         </h3>
 
         {{-- Tab Toggle --}}
+        @if($showCalculatorTab ?? true)
         <div class="flex justify-center mb-6">
             <div class="inline-flex rounded-full bg-slate-100 p-1">
                 <button
@@ -176,6 +177,7 @@
                 </button>
             </div>
         </div>
+        @endif
 
         {{-- Presets Tab --}}
         @if ($activeTab === 'presets')
@@ -190,6 +192,26 @@
                                 @if ($preset['icon'] === 'apartment')
                                     <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                    </svg>
+                                @elseif ($preset['icon'] === 'office')
+                                    <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                                    </svg>
+                                @elseif ($preset['icon'] === 'retail')
+                                    <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                                    </svg>
+                                @elseif ($preset['icon'] === 'restaurant')
+                                    <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                                    </svg>
+                                @elseif ($preset['icon'] === 'warehouse')
+                                    <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path>
+                                    </svg>
+                                @elseif ($preset['icon'] === 'factory')
+                                    <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
                                     </svg>
                                 @else
                                     <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -215,7 +237,7 @@
         @endif
 
         {{-- Calculator Tab --}}
-        @if ($activeTab === 'calculator')
+        @if (($showCalculatorTab ?? true) && $activeTab === 'calculator')
             <div class="max-w-4xl mx-auto">
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 text-left">
                     {{-- Row 1: Basic Inputs --}}
@@ -584,7 +606,7 @@
 
     {{-- Results Count --}}
     <div class="mb-4 text-sm text-slate-600">
-        <span class="font-semibold">{{ $contracts->total() }}</span> sopimusta löytyi
+        <span class="font-semibold">{{ $contracts->total() }}</span> {{ $isBusinessPage ? 'yrityksille suunnattua sopimusta löytyi' : 'sopimusta löytyi' }}
         @if ($this->hasActiveFilters() || $hasSeoFilter)
             suodattimilla
         @endif
@@ -653,6 +675,9 @@
                     </li>
                     <li>
                         <a href="/sahkosopimus/kiintea-hinta" class="hover:text-coral-600">Kiinteähintaiset sopimukset</a>
+                    </li>
+                    <li>
+                        <a href="/sahkosopimus/yleissahko" class="hover:text-coral-600">Yleissähkösopimukset</a>
                     </li>
                 </ul>
             </div>

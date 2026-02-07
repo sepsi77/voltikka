@@ -45,6 +45,11 @@ class SeoContractsList extends ContractsList
     public ?string $offerType = null;
 
     /**
+     * Target group filter (Company for business pages).
+     */
+    public ?string $targetGroup = null;
+
+    /**
      * Housing type to consumption mapping.
      */
     protected array $housingTypeConsumption = [
@@ -81,12 +86,27 @@ class SeoContractsList extends ContractsList
         'TimeOfUse' => 'Aikasähkö',
         'Seasonal' => 'Kausisähkö',
         'Hybrid' => 'Joustosähkö',
+        'GeneralElectricity' => 'Yleissähkö',
     ];
 
     /**
      * Cached municipality instance for city pages.
      */
     protected ?Municipality $municipality = null;
+
+    /**
+     * Business consumption presets.
+     */
+    protected array $businessPresets = [
+        'small_office'     => ['label' => 'Pieni toimisto',           'description' => '5-10 hlö, 150 m²',      'icon' => 'office',     'consumption' => 20000],
+        'medium_office'    => ['label' => 'Keskikokoinen toimisto',   'description' => '20-50 hlö, 500 m²',     'icon' => 'office',     'consumption' => 50000],
+        'large_office'     => ['label' => 'Suuri toimisto',           'description' => '100+ hlö, 1500 m²',     'icon' => 'office',     'consumption' => 150000],
+        'small_retail'     => ['label' => 'Pieni myymälä',            'description' => '100-200 m²',             'icon' => 'retail',     'consumption' => 30000],
+        'medium_retail'    => ['label' => 'Keskisuuri myymälä',       'description' => '500-1000 m²',            'icon' => 'retail',     'consumption' => 100000],
+        'restaurant'       => ['label' => 'Ravintola',                'description' => '50-100 asiakaspaikkaa',  'icon' => 'restaurant', 'consumption' => 80000],
+        'small_warehouse'  => ['label' => 'Pieni varasto',            'description' => '500 m²',                 'icon' => 'warehouse',  'consumption' => 40000],
+        'small_production' => ['label' => 'Pieni tuotantolaitos',     'description' => 'Kevyt teollisuus',       'icon' => 'factory',    'consumption' => 200000],
+    ];
 
     /**
      * Housing type to preset mapping.
@@ -106,7 +126,8 @@ class SeoContractsList extends ContractsList
         ?string $city = null,
         ?string $pricingType = null,
         ?string $offerType = null,
-        ?string $location = null
+        ?string $location = null,
+        ?string $targetGroup = null
     ): void {
         $this->housingType = $housingType;
         $this->energySource = $energySource;
@@ -114,9 +135,23 @@ class SeoContractsList extends ContractsList
         $this->city = $location ?? $city;
         $this->pricingType = $pricingType;
         $this->offerType = $offerType;
+        $this->targetGroup = $targetGroup;
 
         // Set basePath from the current request so pagination stays on this page
         $this->basePath = '/' . ltrim(request()->path(), '/');
+
+        // Business page: override presets, consumption, and pricing models
+        if ($targetGroup === 'Company') {
+            $this->presets = $this->businessPresets;
+            $this->consumption = 20000;
+            $this->selectedPreset = 'small_office';
+            $this->pricingModels = [
+                'FixedPrice' => 'Kiinteä hinta',
+                'Spot' => 'Pörssisähkö',
+                'Hybrid' => 'Hybridi',
+            ];
+            $this->activeTab = 'presets';
+        }
 
         // Set consumption and preset based on housing type
         if ($housingType && isset($this->housingTypeConsumption[$housingType])) {
@@ -144,10 +179,14 @@ class SeoContractsList extends ContractsList
         $query = ElectricityContract::query()
             ->active()
             ->with(['company', 'priceComponents', 'electricitySource'])
-            // Filter for household contracts only (exclude company-only contracts)
+            // Filter by target group
             ->where(function ($q) {
-                $q->whereIn('target_group', ['Household', 'Both'])
-                  ->orWhereNull('target_group');
+                if ($this->targetGroup === 'Company') {
+                    $q->whereIn('target_group', ['Company', 'Both']);
+                } else {
+                    $q->whereIn('target_group', ['Household', 'Both'])
+                      ->orWhereNull('target_group');
+                }
             });
 
         // Apply contract type filter (FixedTerm, OpenEnded)
@@ -187,6 +226,10 @@ class SeoContractsList extends ContractsList
                       ->orWhere('name', 'LIKE', '%Kausisähkö%')
                       ->orWhere('extra_information_fi', 'LIKE', '%kausisähkö%');
                 });
+            } elseif ($effectivePricingFilter === 'GeneralElectricity') {
+                // Yleissähkö: fixed-price contracts with general (single-tariff) metering
+                $query->where('pricing_model', 'FixedPrice')
+                      ->where('metering', 'General');
             } else {
                 // Standard pricing models (Spot, FixedPrice, Hybrid)
                 $query->where('pricing_model', $effectivePricingFilter);
@@ -419,6 +462,10 @@ class SeoContractsList extends ContractsList
         $count = $this->contracts->total();
         $countSuffix = $count > 0 ? " ({$count} sopimusta)" : '';
 
+        if ($this->targetGroup === 'Company') {
+            return "Sähkösopimukset yrityksille{$countSuffix} | Voltikka";
+        }
+
         if ($this->offerType === 'promotion') {
             return "Sähkötarjoukset ja alennukset{$countSuffix} | Voltikka";
         }
@@ -440,6 +487,7 @@ class SeoContractsList extends ContractsList
                 'TimeOfUse' => 'Vertaa aikasähkösopimuksia',
                 'Seasonal' => 'Vertaa kausisähkösopimuksia',
                 'Hybrid' => 'Vertaa joustosähkö- ja hybridisähkösopimuksia',
+                'GeneralElectricity' => 'Vertaa yleissähkösopimuksia – kiinteähintaiset sähkösopimukset',
                 default => "Vertaa {$this->pricingTypeNames[$this->pricingType]}sopimuksia",
             };
             return "{$baseTitle}{$countSuffix} | Voltikka";
@@ -458,6 +506,10 @@ class SeoContractsList extends ContractsList
      */
     protected function generateMetaDescription(): string
     {
+        if ($this->targetGroup === 'Company') {
+            return 'Vertaile yrityksille suunnattuja sähkösopimuksia ja löydä edullisin vaihtoehto yrityksellesi. Katso hinnat, sopimusehdot ja energialähteet yhdestä paikasta.';
+        }
+
         if ($this->offerType === 'promotion') {
             return 'Löydä parhaat sähkötarjoukset ja alennukset. Vertaile kampanjahintaisia sähkösopimuksia ja säästä sähkölaskussa.';
         }
@@ -489,6 +541,9 @@ class SeoContractsList extends ContractsList
             if ($this->pricingType === 'Hybrid') {
                 return 'Vertaile joustosähkö- ja hybridisähkösopimuksia. Joustosähkössä yhdistyy kiinteän hinnan turvallisuus ja pörssisähkön edullisuus. Löydä paras joustosähkösopimus.';
             }
+            if ($this->pricingType === 'GeneralElectricity') {
+                return 'Vertaile yleissähkösopimuksia eli kiinteähintaisia sähkösopimuksia. Yleissähkössä maksat saman hinnan kellon ympäri. Löydä edullisin yleissähkösopimus.';
+            }
             return "Vertaile kiinteähintaisia sähkösopimuksia. Kiinteä hinta tuo ennustettavuutta sähkölaskuun. Löydä paras kiinteähintainen sopimus.";
         }
 
@@ -506,6 +561,10 @@ class SeoContractsList extends ContractsList
     protected function generateCanonicalUrl(): string
     {
         $baseUrl = config('app.url');
+
+        if ($this->targetGroup === 'Company') {
+            return "{$baseUrl}/sahkosopimus/yritykselle";
+        }
 
         if ($this->offerType === 'promotion') {
             return "{$baseUrl}/sahkosopimus/sahkotarjous";
@@ -527,6 +586,7 @@ class SeoContractsList extends ContractsList
                 'TimeOfUse' => 'aikasahko',
                 'Seasonal' => 'kausisahko',
                 'Hybrid' => 'joustosahko',
+                'GeneralElectricity' => 'yleissahko',
             ];
             $slug = $slugMap[$this->pricingType] ?? 'porssisahko';
             return "{$baseUrl}/sahkosopimus/{$slug}";
@@ -598,6 +658,10 @@ class SeoContractsList extends ContractsList
      */
     public function getPageHeadingProperty(): string
     {
+        if ($this->targetGroup === 'Company') {
+            return 'Sähkösopimukset yrityksille';
+        }
+
         if ($this->offerType === 'promotion') {
             return 'Sähkötarjoukset ja alennukset';
         }
@@ -608,6 +672,10 @@ class SeoContractsList extends ContractsList
 
         if ($this->energySource && isset($this->energySourceNames[$this->energySource])) {
             return "{$this->energySourceNames[$this->energySource]}sopimukset";
+        }
+
+        if ($this->pricingType === 'GeneralElectricity') {
+            return 'Yleissähkö – kiinteähintaiset sähkösopimukset';
         }
 
         if ($this->pricingType && isset($this->pricingTypeNames[$this->pricingType])) {
@@ -639,6 +707,10 @@ class SeoContractsList extends ContractsList
      */
     public function getSeoIntroTextProperty(): string
     {
+        if ($this->targetGroup === 'Company') {
+            return 'Vertaile yrityksille suunnattuja sähkösopimuksia. Löydä edullisin vaihtoehto yrityksen kulutukseen ja vastuullisuustavoitteisiin.';
+        }
+
         if ($this->offerType === 'promotion') {
             return 'Löydä parhaat sähkötarjoukset ja kampanjat. Monet sähköyhtiöt tarjoavat alennuksia uusille asiakkaille, kuten alennettuja hintoja ensimmäisille kuukausille tai prosenttialennuksia energiahinnasta. Vertaile tarjouksia ja säästä sähkölaskussa.';
         }
@@ -704,6 +776,7 @@ class SeoContractsList extends ContractsList
             'TimeOfUse' => 'Aikasähkösopimuksessa sähkön hinta vaihtelee vuorokaudenajan mukaan. Yöllä (22-07) sähkö on edullisempaa kuin päivällä. Aikasähkö sopii erityisesti niille, jotka voivat ajoittaa suurimmat kulutuspiikkinsä yöaikaan, esimerkiksi lämminvesivaraajan tai sähköauton latauksen.',
             'Seasonal' => 'Kausisähkösopimuksessa sähkön hinta vaihtelee vuodenajan mukaan. Talvikuukausina (marras-maaliskuu) hinta on korkeampi, muulloin edullisempi. Kausisähkö heijastaa sähkön tuotantokustannusten kausivaihtelua ja sopii niille, jotka haluavat ennustettavuutta ilman tuntikohtaista vaihtelua.',
             'Hybrid' => 'Joustosähkö eli hybridisähkö yhdistää kiinteähintaisen sähkösopimuksen ennustettavuuden ja pörssisähkön edut. Joustosähkösopimuksessa osa hinnasta on kiinteä ja osa seuraa sähkön markkinahintaa. Tämä tarjoaa suojaa suurilta hintapiikeiltä, mutta mahdollistaa säästöt sähkön ollessa edullista. Vertaile hybridisähkösopimuksia ja löydä sopimus, joka sopii kulutukseesi.',
+            'GeneralElectricity' => 'Yleissähkö eli perussähkö on yleisin sähkösopimustyyppi, jossa maksat saman kiinteän hinnan kilowattitunnilta vuorokauden ympäri. Yleissähkösopimus on yksinkertainen ja helppo ymmärtää – hinta ei vaihtele kellonajan tai vuodenajan mukaan. Yleissähkö sopii erityisesti kotitalouksille, joiden sähkönkulutus jakautuu tasaisesti koko vuorokaudelle. Vertaile yleissähkösopimuksia ja löydä edullisin kiinteähintainen sähkösopimus.',
             default => 'Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto.',
         };
     }
@@ -813,7 +886,24 @@ class SeoContractsList extends ContractsList
             || $this->energySource !== null
             || $this->pricingType !== null
             || $this->city !== null
-            || $this->offerType !== null;
+            || $this->offerType !== null
+            || $this->targetGroup !== null;
+    }
+
+    /**
+     * Whether the calculator tab should be shown (hidden for business pages).
+     */
+    public function getShowCalculatorTabProperty(): bool
+    {
+        return $this->targetGroup !== 'Company';
+    }
+
+    /**
+     * Whether this is a business page.
+     */
+    public function getIsBusinessPageProperty(): bool
+    {
+        return $this->targetGroup === 'Company';
     }
 
     /**
@@ -938,6 +1028,8 @@ class SeoContractsList extends ContractsList
             'localContractsData' => $this->localContractsData,
             'basePath' => $this->basePath,
             'showSeoFilterLinks' => $this->showSeoFilterLinks,
+            'showCalculatorTab' => $this->showCalculatorTab,
+            'isBusinessPage' => $this->isBusinessPage,
         ])->layout('layouts.app', [
             'title' => $this->seoData['title'],
             'metaDescription' => $this->seoData['description'],

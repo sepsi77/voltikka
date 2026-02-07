@@ -21,7 +21,7 @@
     {{-- Filter Content --}}
     <div class="lg:flex flex-wrap gap-y-4" :class="{ 'hidden': !filtersOpen }" x-bind:class="{ 'hidden lg:flex': !filtersOpen }">
         {{-- Pricing Model Filters --}}
-        <div class="flex flex-col px-4 lg:w-full lg:mb-4">
+        <div class="flex flex-col px-4 lg:w-full lg:shrink-0 lg:mb-4">
             <h4 class="font-semibold text-slate-900 mb-2">Hinnoittelumalli</h4>
             <div class="flex flex-col lg:flex-row flex-wrap gap-2">
                 @foreach ($pricingModels as $model => $label)

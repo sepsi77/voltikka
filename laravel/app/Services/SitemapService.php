@@ -38,6 +38,7 @@ class SitemapService
         'aikasahko',
         'kausisahko',
         'joustosahko',
+        'yleissahko',
     ];
 
     /**

@@ -61,6 +61,7 @@ class SeoContractsListTest extends TestCase
         ?array $energySource = null,
         string $pricingModel = 'FixedPrice',
         string $contractType = 'OpenEnded',
+        string $targetGroup = 'Household',
     ): ElectricityContract {
         $contract = ElectricityContract::create([
             'id' => $id,
@@ -70,7 +71,7 @@ class SeoContractsListTest extends TestCase
             'contract_type' => $contractType,
             'metering' => 'General',
             'pricing_model' => $pricingModel,
-            'target_group' => 'Household',
+            'target_group' => $targetGroup,
             'availability_is_national' => true,
         ]);
 
@@ -690,5 +691,129 @@ class SeoContractsListTest extends TestCase
 
         Livewire::test('seo-contracts-list', ['pricingType' => 'Hybrid'])
             ->assertSee('Joustosähkösopimukset');
+    }
+
+    // ==================== Business (Company) Page Tests ====================
+
+    /**
+     * Test that the business page loads successfully.
+     */
+    public function test_business_page_loads_successfully(): void
+    {
+        $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
+
+        Livewire::test('seo-contracts-list', ['targetGroup' => 'Company'])
+            ->assertStatus(200);
+    }
+
+    /**
+     * Test that the business page filters only Company/Both target_group contracts.
+     */
+    public function test_business_page_filters_company_contracts(): void
+    {
+        $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
+        $this->createContract('biz-2', 'Vihreä Voima Ab', 'Both Electricity', 4.0, 2.0, null, 'FixedPrice', 'OpenEnded', 'Both');
+        $this->createContract('home-1', 'Test Energia Oy', 'Home Electricity', 3.0, 2.0, null, 'FixedPrice', 'OpenEnded', 'Household');
+
+        $component = Livewire::test('seo-contracts-list', ['targetGroup' => 'Company']);
+        $contracts = $component->viewData('contracts');
+
+        // Should include Company and Both, but not Household-only
+        $contractIds = $contracts->pluck('id')->toArray();
+        $this->assertContains('biz-1', $contractIds);
+        $this->assertContains('biz-2', $contractIds);
+        $this->assertNotContains('home-1', $contractIds);
+    }
+
+    /**
+     * Test that the business page sets correct defaults.
+     */
+    public function test_business_page_sets_correct_defaults(): void
+    {
+        $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
+
+        Livewire::test('seo-contracts-list', ['targetGroup' => 'Company'])
+            ->assertSet('consumption', 20000)
+            ->assertSet('selectedPreset', 'small_office');
+    }
+
+    /**
+     * Test that showCalculatorTab is false for business pages.
+     */
+    public function test_business_page_hides_calculator_tab(): void
+    {
+        $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
+
+        $component = Livewire::test('seo-contracts-list', ['targetGroup' => 'Company']);
+
+        $this->assertFalse($component->viewData('showCalculatorTab'));
+    }
+
+    /**
+     * Test that business page has business presets.
+     */
+    public function test_business_page_has_business_presets(): void
+    {
+        $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
+
+        $component = Livewire::test('seo-contracts-list', ['targetGroup' => 'Company']);
+        $presets = $component->get('presets');
+
+        $this->assertArrayHasKey('small_office', $presets);
+        $this->assertArrayHasKey('restaurant', $presets);
+        $this->assertArrayNotHasKey('large_apartment', $presets);
+    }
+
+    /**
+     * Test that business page SEO title contains "yrityksille".
+     */
+    public function test_business_page_seo_title_contains_yrityksille(): void
+    {
+        $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
+
+        $component = Livewire::test('seo-contracts-list', ['targetGroup' => 'Company']);
+        $seoData = $component->viewData('seoData');
+
+        $this->assertStringContainsString('yrityksille', mb_strtolower($seoData['title']));
+    }
+
+    /**
+     * Test that business page canonical URL ends with /sahkosopimus/yritykselle.
+     */
+    public function test_business_page_canonical_url(): void
+    {
+        $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
+
+        $component = Livewire::test('seo-contracts-list', ['targetGroup' => 'Company']);
+        $seoData = $component->viewData('seoData');
+
+        $this->assertStringEndsWith('/sahkosopimus/yritykselle', $seoData['canonical']);
+    }
+
+    /**
+     * Test that business page H1 is "Sähkösopimukset yrityksille".
+     */
+    public function test_business_page_h1(): void
+    {
+        $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
+
+        Livewire::test('seo-contracts-list', ['targetGroup' => 'Company'])
+            ->assertSee('Sähkösopimukset yrityksille');
+    }
+
+    /**
+     * Test that business page has only 3 pricing models.
+     */
+    public function test_business_page_has_three_pricing_models(): void
+    {
+        $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');
+
+        $component = Livewire::test('seo-contracts-list', ['targetGroup' => 'Company']);
+        $pricingModels = $component->get('pricingModels');
+
+        $this->assertCount(3, $pricingModels);
+        $this->assertArrayHasKey('FixedPrice', $pricingModels);
+        $this->assertArrayHasKey('Spot', $pricingModels);
+        $this->assertArrayHasKey('Hybrid', $pricingModels);
     }
 }

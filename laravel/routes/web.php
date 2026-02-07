@@ -1,7 +1,6 @@
 <?php
 
 use App\Livewire\CheapestContracts;
-use App\Livewire\CompanyContractsList;
 use App\Livewire\CompanyDetail;
 use App\Livewire\CompanyList;
 use App\Livewire\ConsumptionCalculator;
@@ -105,14 +104,18 @@ Route::get('/sahkosopimus/kausisahko', SeoContractsList::class)
 Route::get('/sahkosopimus/joustosahko', SeoContractsList::class)
     ->name('seo.pricing.joustosahko')
     ->defaults('pricingType', 'Hybrid');
+Route::get('/sahkosopimus/yleissahko', SeoContractsList::class)
+    ->name('seo.pricing.yleissahko')
+    ->defaults('pricingType', 'GeneralElectricity');
 
 // Cheapest contracts page (must come BEFORE city catch-all)
 Route::get('/sahkosopimus/halvin-sahkosopimus', CheapestContracts::class)
     ->name('cheapest.contracts');
 
 // Company contracts page (must come BEFORE city catch-all)
-Route::get('/sahkosopimus/yritykselle', CompanyContractsList::class)
-    ->name('company.contracts');
+Route::get('/sahkosopimus/yritykselle', SeoContractsList::class)
+    ->name('company.contracts')
+    ->defaults('targetGroup', 'Company');
 
 // SEO Promotion/Offer Route (must come BEFORE city catch-all)
 Route::get('/sahkosopimus/sahkotarjous', SeoContractsList::class)
