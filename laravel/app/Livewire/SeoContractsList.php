@@ -608,7 +608,15 @@ class SeoContractsList extends ContractsList
 
         if ($this->city) {
             $cityData = $this->getCityData($this->city);
-            return "Sähkösopimukset {$cityData['locative']}{$countSuffix}{$pageSuffix} | Voltikka";
+            $pricePart = '';
+            if ($this->cheapestTotalCost !== null) {
+                $price = number_format($this->cheapestTotalCost, 0, ',', ' ');
+                $pricePart = " – alk. {$price} €/v";
+            }
+            $localCount = $this->localContractsData['local_companies']->count();
+            $localPart = $localCount > 0 ? ", {$localCount} paikallista" : '';
+            $countSuffix = $count > 0 ? " ({$count} sopimusta{$localPart})" : '';
+            return "Sähkösopimukset {$cityData['locative']}{$pricePart}{$countSuffix}{$pageSuffix} | Voltikka";
         }
 
         return "Vertaa sähkösopimuksia{$countSuffix}{$pageSuffix} | Voltikka";
@@ -684,7 +692,14 @@ class SeoContractsList extends ContractsList
 
         if ($this->city) {
             $cityData = $this->getCityData($this->city);
-            return "Sähkösopimukset {$cityData['locative']}. Vertaile hintoja ja löydä paras sähkösopimus {$cityData['name']}n alueelle.";
+            $pricePart = '';
+            if ($this->cheapestTotalCost !== null) {
+                $price = number_format($this->cheapestTotalCost, 0, ',', ' ');
+                $pricePart = " alkaen {$price} €/vuosi";
+            }
+            $localCount = $this->localContractsData['local_companies']->count();
+            $localPart = $localCount > 0 ? " {$localCount} paikallista sähköyhtiötä." : '';
+            return "Sähkösopimukset {$cityData['locative']}{$pricePart}.{$localPart} Vertaile hintoja ja löydä paras sähkösopimus {$cityData['name']}n alueelle.";
         }
 
         return 'Vertaile sähkösopimuksia helposti. Löydä edullisin sähkösopimus kotiisi tai yritykseesi.';
