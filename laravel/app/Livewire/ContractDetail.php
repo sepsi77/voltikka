@@ -6,6 +6,7 @@ use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractPriceCalculator;
+use App\Services\ContractRankingService;
 use App\Services\DTO\EnergyUsage;
 use Livewire\Component;
 
@@ -157,6 +158,46 @@ class ContractDetail extends Component
     }
 
     /**
+     * Get the contract's price rank among all active household contracts.
+     */
+    public function getPriceRankProperty(): ?int
+    {
+        $contract = $this->contract;
+        if (! $contract) {
+            return null;
+        }
+
+        return app(ContractRankingService::class)->getContractRank($contract->id);
+    }
+
+    /**
+     * Get total number of active household contracts.
+     */
+    public function getTotalContractsProperty(): int
+    {
+        return app(ContractRankingService::class)->getTotalActiveContracts();
+    }
+
+    /**
+     * Truncate a contract name to fit within title limits.
+     * Cuts at word boundary and appends ellipsis if truncated.
+     */
+    protected function truncateName(string $name, int $maxLength = 40): string
+    {
+        if (mb_strlen($name) <= $maxLength) {
+            return $name;
+        }
+
+        $cut = mb_substr($name, 0, $maxLength);
+        $lastSpace = mb_strrpos($cut, ' ');
+        if ($lastSpace > 20) {
+            $cut = mb_substr($cut, 0, $lastSpace);
+        }
+
+        return rtrim($cut, ' -') . '…';
+    }
+
+    /**
      * Get SEO page title.
      */
     public function getPageTitleProperty(): string
@@ -166,10 +207,35 @@ class ContractDetail extends Component
             return 'Sähkösopimus | Voltikka';
         }
 
-        $companyName = $contract->company?->name ?? '';
-        $contractName = $contract->name;
+        $rank = $this->priceRank;
+        $total = $this->totalContracts;
+        $name = $this->truncateName($contract->name);
 
-        return "{$contractName} - {$companyName} | Voltikka";
+        if ($rank && $total) {
+            return "{$name} | #{$rank} halvin — Vertaa {$total} sopimuksessa | Voltikka";
+        }
+
+        return "{$contract->name} | Voltikka";
+    }
+
+    /**
+     * Get OG title (shorter version for social sharing).
+     */
+    public function getOgTitleProperty(): string
+    {
+        $contract = $this->contract;
+        if (! $contract) {
+            return 'Sähkösopimus | Voltikka';
+        }
+
+        $rank = $this->priceRank;
+        $name = $this->truncateName($contract->name);
+
+        if ($rank) {
+            return "{$name} | #{$rank} halvin | Voltikka";
+        }
+
+        return "{$contract->name} | Voltikka";
     }
 
     /**
@@ -182,15 +248,9 @@ class ContractDetail extends Component
             return '';
         }
 
-        $companyName = $contract->company?->name ?? '';
-        $pricingType = match ($contract->pricing_model) {
-            'Spot' => 'pörssisähkösopimus',
-            'FixedPrice' => 'kiinteähintainen sähkösopimus',
-            'Hybrid' => 'hybridisähkösopimus',
-            default => 'sähkösopimus',
-        };
+        $total = $this->totalContracts;
 
-        return "Vertaile {$companyName} {$contract->name} - {$pricingType}. Katso hinnat, sopimusehdot ja energialähteet.";
+        return "Vertaa {$contract->name} hinta ja CO₂-tiedot {$total} muuhun sopimukseen. Katso hintahistoria, sijoitus ja löydä omaan kulutukseesi paras vaihtoehto.";
     }
 
     /**
@@ -618,6 +678,7 @@ class ContractDetail extends Component
             ],
         ])->layout('layouts.app', [
             'title' => $this->pageTitle,
+            'ogTitle' => $this->ogTitle,
             'metaDescription' => $this->metaDescription,
             'canonical' => $this->canonicalUrl,
         ]);

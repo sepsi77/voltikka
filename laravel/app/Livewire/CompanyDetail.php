@@ -7,6 +7,7 @@ use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractPriceCalculator;
+use App\Services\ContractRankingService;
 use App\Services\DTO\EnergyUsage;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Url;
@@ -333,6 +334,26 @@ class CompanyDetail extends Component
     }
 
     /**
+     * Get the company's price rank among all companies.
+     */
+    public function getCompanyRankProperty(): ?int
+    {
+        if (!$this->company) {
+            return null;
+        }
+
+        return app(ContractRankingService::class)->getCompanyRank($this->company->name);
+    }
+
+    /**
+     * Get total number of active household contracts across all companies.
+     */
+    public function getTotalContractsProperty(): int
+    {
+        return app(ContractRankingService::class)->getTotalActiveContracts();
+    }
+
+    /**
      * Get the meta description for this page.
      */
     public function getMetaDescriptionProperty(): string
@@ -342,25 +363,9 @@ class CompanyDetail extends Component
         }
 
         $stats = $this->companyStats;
-        $parts = [];
+        $total = $this->totalContracts;
 
-        $parts[] = "{$this->company->name} sähkösopimukset";
-
-        if ($stats['contract_count'] > 0) {
-            $parts[] = "{$stats['contract_count']} sopimusta";
-        }
-
-        if ($stats['min_price'] !== null) {
-            $parts[] = "alkaen " . number_format($stats['min_price'], 0, ',', ' ') . " €/vuosi";
-        }
-
-        if ($stats['avg_renewable_percent'] !== null && $stats['avg_renewable_percent'] >= 50) {
-            $parts[] = number_format($stats['avg_renewable_percent'], 0) . "% uusiutuvaa energiaa";
-        }
-
-        $parts[] = "Vertaa hintoja ja löydä paras sopimus";
-
-        return implode('. ', $parts) . '.';
+        return "{$this->company->name}: {$stats['contract_count']} sopimusta vertailussa — katso hinnat ja CO₂-tiedot. Löydä yhtiön edullisin {$total} vaihtoehdosta.";
     }
 
     /**
@@ -373,16 +378,13 @@ class CompanyDetail extends Component
         }
 
         $stats = $this->companyStats;
-        $year = date('Y');
+        $rank = $this->companyRank;
 
-        // Build a descriptive title
-        $titleParts = ["{$this->company->name} sähkösopimukset {$year}"];
-
-        if ($stats['contract_count'] > 0) {
-            $titleParts[] = "Hinnat ja vertailu";
+        if ($rank && $stats['contract_count'] > 0) {
+            return "{$this->company->name} | #{$rank} halvin yhtiö — Vertaa {$stats['contract_count']} sopimusta | Voltikka";
         }
 
-        return implode(' - ', $titleParts) . ' | Voltikka';
+        return "{$this->company->name} sähkösopimukset | Voltikka";
     }
 
     /**
@@ -394,7 +396,9 @@ class CompanyDetail extends Component
             return 'Sähkösopimukset';
         }
 
-        return "{$this->company->name} sähkösopimukset";
+        $stats = $this->companyStats;
+
+        return "{$this->company->name} — Kaikki {$stats['contract_count']} sopimusta vertailussa";
     }
 
     /**

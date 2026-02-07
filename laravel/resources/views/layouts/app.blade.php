@@ -32,9 +32,9 @@
         <meta property="og:type" content="website">
         <meta property="og:locale" content="fi_FI">
         <meta property="og:site_name" content="Voltikka">
-        <meta property="og:title" content="{{ $title ?? 'Voltikka - Sähkösopimusten vertailu' }}">
-        @if (isset($metaDescription))
-        <meta property="og:description" content="{{ $metaDescription }}">
+        <meta property="og:title" content="{{ $ogTitle ?? $title ?? 'Voltikka - Sähkösopimusten vertailu' }}">
+        @if (isset($ogDescription) || isset($metaDescription))
+        <meta property="og:description" content="{{ $ogDescription ?? $metaDescription }}">
         @endif
         <meta property="og:url" content="{{ url()->current() }}">
 

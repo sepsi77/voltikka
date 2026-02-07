@@ -326,7 +326,7 @@ class ContractDetailPageTest extends TestCase
     public function test_back_to_list_link_is_present(): void
     {
         Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
-            ->assertSeeHtml('href="/"'); // Back link to contracts list
+            ->assertSeeHtml('href="/sahkosopimus"'); // Back link to contracts list
     }
 
     /**
