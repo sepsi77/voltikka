@@ -55,6 +55,11 @@ class SeoContractsList extends ContractsList
     public ?string $contractDuration = null;
 
     /**
+     * Consumption level filter (2000, 5000, 10000, 20000).
+     */
+    public ?string $consumptionLevel = null;
+
+    /**
      * Housing type to consumption mapping.
      */
     protected array $housingTypeConsumption = [
@@ -133,6 +138,26 @@ class SeoContractsList extends ContractsList
     ];
 
     /**
+     * Consumption level display names.
+     */
+    protected array $consumptionLevelNames = [
+        '2000' => "2\u{00A0}000\u{00A0}kWh",
+        '5000' => "5\u{00A0}000\u{00A0}kWh",
+        '10000' => "10\u{00A0}000\u{00A0}kWh",
+        '20000' => "20\u{00A0}000\u{00A0}kWh",
+    ];
+
+    /**
+     * Consumption level to preset mapping.
+     */
+    protected array $consumptionLevelPresets = [
+        '2000' => 'small_apartment',
+        '5000' => 'large_apartment',
+        '10000' => 'row_house',
+        '20000' => 'large_house_electric',
+    ];
+
+    /**
      * Mount the component with optional filter parameters.
      */
     public function mount(
@@ -143,7 +168,8 @@ class SeoContractsList extends ContractsList
         ?string $offerType = null,
         ?string $location = null,
         ?string $targetGroup = null,
-        ?string $contractDuration = null
+        ?string $contractDuration = null,
+        ?string $consumptionLevel = null
     ): void {
         $this->housingType = $housingType;
         $this->energySource = $energySource;
@@ -153,6 +179,7 @@ class SeoContractsList extends ContractsList
         $this->offerType = $offerType;
         $this->targetGroup = $targetGroup;
         $this->contractDuration = $contractDuration;
+        $this->consumptionLevel = $consumptionLevel;
 
         // Set basePath from the current request so pagination stays on this page
         $this->basePath = '/' . ltrim(request()->path(), '/');
@@ -177,6 +204,15 @@ class SeoContractsList extends ContractsList
             // Also select the appropriate preset
             if (isset($this->housingTypePresetMapping[$housingType])) {
                 $this->selectedPreset = $this->housingTypePresetMapping[$housingType];
+            }
+        }
+
+        // Set consumption and preset based on consumption level
+        if ($consumptionLevel && isset($this->consumptionLevelNames[$consumptionLevel])) {
+            $this->consumption = (int) $consumptionLevel;
+
+            if (isset($this->consumptionLevelPresets[$consumptionLevel])) {
+                $this->selectedPreset = $this->consumptionLevelPresets[$consumptionLevel];
             }
         }
     }
@@ -549,6 +585,11 @@ class SeoContractsList extends ContractsList
             return "{$baseTitle}{$countSuffix}{$pageSuffix} | Voltikka";
         }
 
+        if ($this->consumptionLevel && isset($this->consumptionLevelNames[$this->consumptionLevel])) {
+            $level = $this->consumptionLevelNames[$this->consumptionLevel];
+            return "Sähkösopimukset {$level} kulutukselle{$countSuffix}{$pageSuffix} | Voltikka";
+        }
+
         if ($this->city) {
             $cityData = $this->getCityData($this->city);
             return "Sähkösopimukset {$cityData['locative']}{$countSuffix}{$pageSuffix} | Voltikka";
@@ -615,6 +656,11 @@ class SeoContractsList extends ContractsList
             return "Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto. Vertaa hintoja, sopimusehtoja ja energialähteitä yhdestä paikasta.";
         }
 
+        if ($this->consumptionLevel && isset($this->consumptionLevelNames[$this->consumptionLevel])) {
+            $level = $this->consumptionLevelNames[$this->consumptionLevel];
+            return "Vertaile sähkösopimuksia {$level} vuosikulutukselle. Katso hinnat ja löydä edullisin sähkösopimus kulutukseesi sopivista vaihtoehdoista.";
+        }
+
         if ($this->city) {
             $cityData = $this->getCityData($this->city);
             return "Sähkösopimukset {$cityData['locative']}. Vertaile hintoja ja löydä paras sähkösopimus {$cityData['name']}n alueelle.";
@@ -667,6 +713,10 @@ class SeoContractsList extends ContractsList
             ];
             $slug = $slugMap[$this->pricingType] ?? 'porssisahko';
             return "{$baseUrl}/sahkosopimus/{$slug}{$pageSuffix}";
+        }
+
+        if ($this->consumptionLevel) {
+            return "{$baseUrl}/sahkosopimus/kulutus/{$this->consumptionLevel}-kwh{$pageSuffix}";
         }
 
         if ($this->city) {
@@ -772,6 +822,11 @@ class SeoContractsList extends ContractsList
             return "{$this->pricingTypeNames[$this->pricingType]}sopimukset";
         }
 
+        if ($this->consumptionLevel && isset($this->consumptionLevelNames[$this->consumptionLevel])) {
+            $level = $this->consumptionLevelNames[$this->consumptionLevel];
+            return "Sähkösopimukset {$level} vuosikulutukselle";
+        }
+
         if ($this->city) {
             $cityData = $this->getCityData($this->city);
             return "Sähkösopimukset {$cityData['locative']}";
@@ -819,6 +874,10 @@ class SeoContractsList extends ContractsList
 
         if ($this->pricingType && isset($this->pricingTypeNames[$this->pricingType])) {
             return $this->getPricingTypeIntroText($this->pricingType);
+        }
+
+        if ($this->consumptionLevel && isset($this->consumptionLevelNames[$this->consumptionLevel])) {
+            return $this->getConsumptionLevelIntroText($this->consumptionLevel);
         }
 
         if ($this->city) {
@@ -886,6 +945,20 @@ class SeoContractsList extends ContractsList
             'Hybrid' => 'Joustosähkö eli hybridisähkö yhdistää kiinteähintaisen sähkösopimuksen ennustettavuuden ja pörssisähkön edut. Joustosähkösopimuksessa osa hinnasta on kiinteä ja osa seuraa sähkön markkinahintaa. Tämä tarjoaa suojaa suurilta hintapiikeiltä, mutta mahdollistaa säästöt sähkön ollessa edullista. Vertaile hybridisähkösopimuksia ja löydä sopimus, joka sopii kulutukseesi.',
             'GeneralElectricity' => 'Yleissähkö eli perussähkö on yleisin sähkösopimustyyppi, jossa maksat saman kiinteän hinnan kilowattitunnilta vuorokauden ympäri. Yleissähkösopimus on yksinkertainen ja helppo ymmärtää – hinta ei vaihtele kellonajan tai vuodenajan mukaan. Yleissähkö sopii erityisesti kotitalouksille, joiden sähkönkulutus jakautuu tasaisesti koko vuorokaudelle. Vertaile yleissähkösopimuksia ja löydä edullisin kiinteähintainen sähkösopimus.',
             default => 'Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto.',
+        };
+    }
+
+    /**
+     * Get detailed intro text for consumption level pages.
+     */
+    protected function getConsumptionLevelIntroText(string $consumptionLevel): string
+    {
+        return match ($consumptionLevel) {
+            '2000' => 'Vertaile sähkösopimuksia 2 000 kWh vuosikulutukselle. Tämä kulutustaso on tyypillinen pienelle yksiölle tai yhden hengen kerrostaloasunnolle. Löydä edullisin sähkösopimus vertailemalla hintoja ja sopimusehtoja.',
+            '5000' => 'Vertaile sähkösopimuksia 5 000 kWh vuosikulutukselle. Tämä kulutustaso on tyypillinen 2–4 hengen kerrostaloasunnolle tai pienelle omakotitalolle ilman sähkölämmitystä. Vertaile hintoja ja löydä paras sopimus.',
+            '10000' => 'Vertaile sähkösopimuksia 10 000 kWh vuosikulutukselle. Tämä kulutustaso on tyypillinen rivitalolle tai omakotitalolle, jossa on ilmalämpöpumppu tai muu tukimuotoinen lämmitys. Kilpailuta sopimukset ja säästä sähkölaskussa.',
+            '20000' => 'Vertaile sähkösopimuksia 20 000 kWh vuosikulutukselle. Tämä kulutustaso on tyypillinen sähkölämmitteiselle omakotitalolle. Suurella kulutuksella pienikin ero kilowattituntihinnassa vaikuttaa merkittävästi vuosikustannuksiin.',
+            default => 'Vertaile sähkösopimuksia kulutuksesi mukaan ja löydä edullisin vaihtoehto.',
         };
     }
 
@@ -994,6 +1067,7 @@ class SeoContractsList extends ContractsList
             || $this->energySource !== null
             || $this->pricingType !== null
             || $this->contractDuration !== null
+            || $this->consumptionLevel !== null
             || $this->city !== null
             || $this->offerType !== null
             || $this->targetGroup !== null;

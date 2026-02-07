@@ -726,18 +726,30 @@
                 </ul>
             </div>
 
-            {{-- Related Links --}}
+            {{-- Consumption Levels & Related Links --}}
             <div>
-                <h3 class="font-semibold text-slate-900 mb-3">Muut palvelut</h3>
+                <h3 class="font-semibold text-slate-900 mb-3">Kulutustason mukaan</h3>
+                <ul class="space-y-2 text-slate-600">
+                    <li>
+                        <a href="/sahkosopimus/kulutus/2000-kwh" class="hover:text-coral-600">2 000 kWh sopimukset</a>
+                    </li>
+                    <li>
+                        <a href="/sahkosopimus/kulutus/5000-kwh" class="hover:text-coral-600">5 000 kWh sopimukset</a>
+                    </li>
+                    <li>
+                        <a href="/sahkosopimus/kulutus/10000-kwh" class="hover:text-coral-600">10 000 kWh sopimukset</a>
+                    </li>
+                    <li>
+                        <a href="/sahkosopimus/kulutus/20000-kwh" class="hover:text-coral-600">20 000 kWh sopimukset</a>
+                    </li>
+                </ul>
+                <h3 class="font-semibold text-slate-900 mb-3 mt-6">Muut palvelut</h3>
                 <ul class="space-y-2 text-slate-600">
                     <li>
                         <a href="/sahkosopimus" class="hover:text-coral-600">Vertaile sopimuksia</a>
                     </li>
                     <li>
                         <a href="/sahkosopimus/halvin-sahkosopimus" class="hover:text-coral-600">Halvimmat sopimukset</a>
-                    </li>
-                    <li>
-                        <a href="/" class="hover:text-coral-600">Kaikki sähkösopimukset</a>
                     </li>
                     <li>
                         <a href="/spot-price" class="hover:text-coral-600">Pörssisähkön hinta</a>

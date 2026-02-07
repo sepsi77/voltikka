@@ -133,6 +133,20 @@ Route::get('/sahkosopimus/ydinvoima', SeoContractsList::class)
     ->name('seo.energy.ydinvoima')
     ->defaults('energySource', 'ydinvoima');
 
+// SEO Consumption Level Routes
+Route::get('/sahkosopimus/kulutus/2000-kwh', SeoContractsList::class)
+    ->name('seo.consumption.2000')
+    ->defaults('consumptionLevel', '2000');
+Route::get('/sahkosopimus/kulutus/5000-kwh', SeoContractsList::class)
+    ->name('seo.consumption.5000')
+    ->defaults('consumptionLevel', '5000');
+Route::get('/sahkosopimus/kulutus/10000-kwh', SeoContractsList::class)
+    ->name('seo.consumption.10000')
+    ->defaults('consumptionLevel', '10000');
+Route::get('/sahkosopimus/kulutus/20000-kwh', SeoContractsList::class)
+    ->name('seo.consumption.20000')
+    ->defaults('consumptionLevel', '20000');
+
 // SEO Promotion/Offer Route (must come BEFORE city catch-all)
 Route::get('/sahkosopimus/sahkotarjous', SeoContractsList::class)
     ->name('seo.offer.sahkotarjous')

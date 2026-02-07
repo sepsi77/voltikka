@@ -40,6 +40,16 @@ class SitemapService
     ];
 
     /**
+     * Consumption levels for SEO pages.
+     */
+    protected array $consumptionLevels = [
+        '2000-kwh',
+        '5000-kwh',
+        '10000-kwh',
+        '20000-kwh',
+    ];
+
+    /**
      * Pricing types for SEO pages.
      */
     protected array $pricingTypes = [
@@ -62,6 +72,7 @@ class SitemapService
             $this->getHousingTypeUrls(),
             $this->getEnergySourceUrls(),
             $this->getContractDurationUrls(),
+            $this->getConsumptionLevelUrls(),
             $this->getOfferUrls(),
             $this->getContractUrls(),
             $this->getCompanyUrls(),
@@ -211,6 +222,24 @@ class SitemapService
                 'priority' => 0.85,
             ];
         }, $this->contractDurations);
+    }
+
+    /**
+     * Get consumption level SEO page URLs.
+     */
+    public function getConsumptionLevelUrls(): array
+    {
+        $baseUrl = config('app.url');
+        $today = Carbon::today()->toDateString();
+
+        return array_map(function ($level) use ($baseUrl, $today) {
+            return [
+                'loc' => $baseUrl . '/sahkosopimus/kulutus/' . $level,
+                'lastmod' => $today,
+                'changefreq' => 'weekly',
+                'priority' => 0.8,
+            ];
+        }, $this->consumptionLevels);
     }
 
     /**
