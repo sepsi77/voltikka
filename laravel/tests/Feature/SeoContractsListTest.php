@@ -612,4 +612,83 @@ class SeoContractsListTest extends TestCase
         $this->assertNotEmpty($seoData['title']);
         $this->assertNotEmpty($seoData['description']);
     }
+
+    // ==================== Hybrid (Joustosähkö) Pricing Type Tests ====================
+
+    /**
+     * Test that the Hybrid pricing type page loads successfully.
+     */
+    public function test_hybrid_pricing_type_page_loads(): void
+    {
+        $this->createContract('hybrid-1', 'Test Energia Oy', 'Joustosähkö Sopimus', 5.0, 3.0, null, 'Hybrid');
+
+        Livewire::test('seo-contracts-list', ['pricingType' => 'Hybrid'])
+            ->assertStatus(200);
+    }
+
+    /**
+     * Test that the Hybrid pricing type page filters only Hybrid contracts.
+     */
+    public function test_hybrid_pricing_type_filters_hybrid_contracts(): void
+    {
+        $this->createContract('hybrid-1', 'Test Energia Oy', 'Joustosähkö Sopimus', 5.0, 3.0, null, 'Hybrid');
+        $this->createContract('fixed-1', 'Vihreä Voima Ab', 'Kiinteä Sopimus', 4.0, 2.0, null, 'FixedPrice', 'FixedTerm');
+
+        $component = Livewire::test('seo-contracts-list', ['pricingType' => 'Hybrid']);
+        $contracts = $component->viewData('contracts');
+
+        $this->assertCount(1, $contracts);
+        $this->assertEquals('hybrid-1', $contracts->first()->id);
+    }
+
+    /**
+     * Test that the Hybrid page SEO title contains joustosähkö and hybridisähkö.
+     */
+    public function test_hybrid_seo_title_contains_jousto_and_hybridi(): void
+    {
+        $this->createContract('hybrid-1', 'Test Energia Oy', 'Joustosähkö Sopimus', 5.0, 3.0, null, 'Hybrid');
+
+        $component = Livewire::test('seo-contracts-list', ['pricingType' => 'Hybrid']);
+        $seoData = $component->viewData('seoData');
+
+        $this->assertStringContainsString('joustosähkö', mb_strtolower($seoData['title']));
+        $this->assertStringContainsString('hybridisähkö', mb_strtolower($seoData['title']));
+    }
+
+    /**
+     * Test that the Hybrid page meta description contains joustosähkö.
+     */
+    public function test_hybrid_meta_description_contains_joustosahko(): void
+    {
+        $this->createContract('hybrid-1', 'Test Energia Oy', 'Joustosähkö Sopimus', 5.0, 3.0, null, 'Hybrid');
+
+        $component = Livewire::test('seo-contracts-list', ['pricingType' => 'Hybrid']);
+        $seoData = $component->viewData('seoData');
+
+        $this->assertStringContainsString('joustosähkö', mb_strtolower($seoData['description']));
+    }
+
+    /**
+     * Test that the Hybrid page canonical URL is /sahkosopimus/joustosahko.
+     */
+    public function test_hybrid_canonical_url_is_joustosahko(): void
+    {
+        $this->createContract('hybrid-1', 'Test Energia Oy', 'Joustosähkö Sopimus', 5.0, 3.0, null, 'Hybrid');
+
+        $component = Livewire::test('seo-contracts-list', ['pricingType' => 'Hybrid']);
+        $seoData = $component->viewData('seoData');
+
+        $this->assertStringEndsWith('/sahkosopimus/joustosahko', $seoData['canonical']);
+    }
+
+    /**
+     * Test that the Hybrid page H1 heading is Joustosähkösopimukset.
+     */
+    public function test_hybrid_page_h1_is_joustosahkosopimukset(): void
+    {
+        $this->createContract('hybrid-1', 'Test Energia Oy', 'Joustosähkö Sopimus', 5.0, 3.0, null, 'Hybrid');
+
+        Livewire::test('seo-contracts-list', ['pricingType' => 'Hybrid'])
+            ->assertSee('Joustosähkösopimukset');
+    }
 }

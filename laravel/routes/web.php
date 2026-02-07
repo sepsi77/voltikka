@@ -102,6 +102,9 @@ Route::get('/sahkosopimus/aikasahko', SeoContractsList::class)
 Route::get('/sahkosopimus/kausisahko', SeoContractsList::class)
     ->name('seo.pricing.kausisahko')
     ->defaults('pricingType', 'Seasonal');
+Route::get('/sahkosopimus/joustosahko', SeoContractsList::class)
+    ->name('seo.pricing.joustosahko')
+    ->defaults('pricingType', 'Hybrid');
 
 // Cheapest contracts page (must come BEFORE city catch-all)
 Route::get('/sahkosopimus/halvin-sahkosopimus', CheapestContracts::class)

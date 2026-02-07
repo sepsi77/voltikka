@@ -80,6 +80,7 @@ class SeoContractsList extends ContractsList
         'Quarterly' => 'Kvartaalisähkö',
         'TimeOfUse' => 'Aikasähkö',
         'Seasonal' => 'Kausisähkö',
+        'Hybrid' => 'Joustosähkö',
     ];
 
     /**
@@ -113,6 +114,9 @@ class SeoContractsList extends ContractsList
         $this->city = $location ?? $city;
         $this->pricingType = $pricingType;
         $this->offerType = $offerType;
+
+        // Set basePath from the current request so pagination stays on this page
+        $this->basePath = '/' . ltrim(request()->path(), '/');
 
         // Set consumption and preset based on housing type
         if ($housingType && isset($this->housingTypeConsumption[$housingType])) {
@@ -435,6 +439,7 @@ class SeoContractsList extends ContractsList
                 'Quarterly' => 'Vertaa kvartaalisähkösopimuksia',
                 'TimeOfUse' => 'Vertaa aikasähkösopimuksia',
                 'Seasonal' => 'Vertaa kausisähkösopimuksia',
+                'Hybrid' => 'Vertaa joustosähkö- ja hybridisähkösopimuksia',
                 default => "Vertaa {$this->pricingTypeNames[$this->pricingType]}sopimuksia",
             };
             return "{$baseTitle}{$countSuffix} | Voltikka";
@@ -481,6 +486,9 @@ class SeoContractsList extends ContractsList
             if ($this->pricingType === 'Seasonal') {
                 return 'Vertaile kausisähkösopimuksia. Kausisähkössä hinta vaihtelee vuodenajan mukaan. Talvella korkeampi, muulloin edullisempi.';
             }
+            if ($this->pricingType === 'Hybrid') {
+                return 'Vertaile joustosähkö- ja hybridisähkösopimuksia. Joustosähkössä yhdistyy kiinteän hinnan turvallisuus ja pörssisähkön edullisuus. Löydä paras joustosähkösopimus.';
+            }
             return "Vertaile kiinteähintaisia sähkösopimuksia. Kiinteä hinta tuo ennustettavuutta sähkölaskuun. Löydä paras kiinteähintainen sopimus.";
         }
 
@@ -518,6 +526,7 @@ class SeoContractsList extends ContractsList
                 'Quarterly' => 'kvartaalisahko',
                 'TimeOfUse' => 'aikasahko',
                 'Seasonal' => 'kausisahko',
+                'Hybrid' => 'joustosahko',
             ];
             $slug = $slugMap[$this->pricingType] ?? 'porssisahko';
             return "{$baseUrl}/sahkosopimus/{$slug}";
@@ -694,6 +703,7 @@ class SeoContractsList extends ContractsList
             'Quarterly' => 'Kvartaalisähkösopimuksessa sähkön hinta päivittyy neljännesvuosittain eli neljä kertaa vuodessa. Kvartaalisähkö tarjoaa kompromissin kiinteän hinnan ennustettavuuden ja pörssisähkön markkinahinnan välillä. Hinta seuraa markkinoiden kehitystä maltillisesti ilman tuntikohtaista vaihtelua.',
             'TimeOfUse' => 'Aikasähkösopimuksessa sähkön hinta vaihtelee vuorokaudenajan mukaan. Yöllä (22-07) sähkö on edullisempaa kuin päivällä. Aikasähkö sopii erityisesti niille, jotka voivat ajoittaa suurimmat kulutuspiikkinsä yöaikaan, esimerkiksi lämminvesivaraajan tai sähköauton latauksen.',
             'Seasonal' => 'Kausisähkösopimuksessa sähkön hinta vaihtelee vuodenajan mukaan. Talvikuukausina (marras-maaliskuu) hinta on korkeampi, muulloin edullisempi. Kausisähkö heijastaa sähkön tuotantokustannusten kausivaihtelua ja sopii niille, jotka haluavat ennustettavuutta ilman tuntikohtaista vaihtelua.',
+            'Hybrid' => 'Joustosähkö eli hybridisähkö yhdistää kiinteähintaisen sähkösopimuksen ennustettavuuden ja pörssisähkön edut. Joustosähkösopimuksessa osa hinnasta on kiinteä ja osa seuraa sähkön markkinahintaa. Tämä tarjoaa suojaa suurilta hintapiikeiltä, mutta mahdollistaa säästöt sähkön ollessa edullista. Vertaile hybridisähkösopimuksia ja löydä sopimus, joka sopii kulutukseesi.',
             default => 'Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto.',
         };
     }

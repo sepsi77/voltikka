@@ -37,6 +37,7 @@ class SitemapService
         'kvartaalisahko',
         'aikasahko',
         'kausisahko',
+        'joustosahko',
     ];
 
     /**
