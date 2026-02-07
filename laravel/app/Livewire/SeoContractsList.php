@@ -97,7 +97,6 @@ class SeoContractsList extends ContractsList
      */
     protected array $pricingTypeNames = [
         'Spot' => 'Pörssisähkö',
-        'FixedPrice' => 'Kiinteähintainen',
         'Quarterly' => 'Kvartaalisähkö',
         'TimeOfUse' => 'Aikasähkö',
         'Seasonal' => 'Kausisähkö',
@@ -540,7 +539,6 @@ class SeoContractsList extends ContractsList
             // SEO-optimized titles for each pricing type (focus on comparison)
             $baseTitle = match ($this->pricingType) {
                 'Spot' => 'Vertaa pörssisähkösopimuksia',
-                'FixedPrice' => 'Vertaa kiinteähintaisia sähkösopimuksia',
                 'Quarterly' => 'Vertaa kvartaalisähkösopimuksia',
                 'TimeOfUse' => 'Vertaa aikasähkösopimuksia',
                 'Seasonal' => 'Vertaa kausisähkösopimuksia',
@@ -614,7 +612,7 @@ class SeoContractsList extends ContractsList
             if ($this->pricingType === 'GeneralElectricity') {
                 return 'Vertaile yleissähkösopimuksia eli kiinteähintaisia sähkösopimuksia. Yleissähkössä maksat saman hinnan kellon ympäri. Löydä edullisin yleissähkösopimus.';
             }
-            return "Vertaile kiinteähintaisia sähkösopimuksia. Kiinteä hinta tuo ennustettavuutta sähkölaskuun. Löydä paras kiinteähintainen sopimus.";
+            return "Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto. Vertaa hintoja, sopimusehtoja ja energialähteitä yhdestä paikasta.";
         }
 
         if ($this->city) {
@@ -661,7 +659,6 @@ class SeoContractsList extends ContractsList
         if ($this->pricingType) {
             $slugMap = [
                 'Spot' => 'porssisahko',
-                'FixedPrice' => 'kiintea-hinta',
                 'Quarterly' => 'kvartaalisahko',
                 'TimeOfUse' => 'aikasahko',
                 'Seasonal' => 'kausisahko',
@@ -883,7 +880,6 @@ class SeoContractsList extends ContractsList
     {
         return match ($pricingType) {
             'Spot' => 'Pörssisähkösopimuksessa sähkön hinta vaihtelee tunneittain Nord Pool -sähköpörssin hinnan mukaan. Pörssisähkö voi olla edullinen vaihtoehto, jos pystyt ajoittamaan kulutustasi edullisempiin tunteihin. Vertaile pörssisähkösopimuksia ja löydä sopimus, jossa marginaali ja kuukausimaksu sopivat sinulle.',
-            'FixedPrice' => 'Kiinteähintaisessa sähkösopimuksessa maksat saman hinnan jokaisesta kilowattitunnista sopimuskauden ajan. Kiinteä hinta tuo ennustettavuutta sähkölaskuun ja suojaa markkinaheilahteluilta. Vertaile kiinteähintaisia sopimuksia ja löydä paras tarjous.',
             'Quarterly' => 'Kvartaalisähkösopimuksessa sähkön hinta päivittyy neljännesvuosittain eli neljä kertaa vuodessa. Kvartaalisähkö tarjoaa kompromissin kiinteän hinnan ennustettavuuden ja pörssisähkön markkinahinnan välillä. Hinta seuraa markkinoiden kehitystä maltillisesti ilman tuntikohtaista vaihtelua.',
             'TimeOfUse' => 'Aikasähkösopimuksessa sähkön hinta vaihtelee vuorokaudenajan mukaan. Yöllä (22-07) sähkö on edullisempaa kuin päivällä. Aikasähkö sopii erityisesti niille, jotka voivat ajoittaa suurimmat kulutuspiikkinsä yöaikaan, esimerkiksi lämminvesivaraajan tai sähköauton latauksen.',
             'Seasonal' => 'Kausisähkösopimuksessa sähkön hinta vaihtelee vuodenajan mukaan. Talvikuukausina (marras-maaliskuu) hinta on korkeampi, muulloin edullisempi. Kausisähkö heijastaa sähkön tuotantokustannusten kausivaihtelua ja sopii niille, jotka haluavat ennustettavuutta ilman tuntikohtaista vaihtelua.',

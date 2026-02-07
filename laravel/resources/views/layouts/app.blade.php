@@ -315,7 +315,6 @@
                             <li><a href="/sahkosopimus/aikasahko" class="text-slate-400 hover:text-white text-sm transition-colors">Aikasähkö</a></li>
                             <li><a href="/sahkosopimus/kausisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Kausisähkö</a></li>
                             <li><a href="/sahkosopimus/joustosahko" class="text-slate-400 hover:text-white text-sm transition-colors">Joustosähkö</a></li>
-                            <li><a href="/sahkosopimus/kiintea-hinta" class="text-slate-400 hover:text-white text-sm transition-colors">Kiinteä hinta</a></li>
                             <li><a href="/sahkosopimus/yleissahko" class="text-slate-400 hover:text-white text-sm transition-colors">Yleissähkö</a></li>
                             <li><a href="/sahkosopimus/maaraaikainen" class="text-slate-400 hover:text-white text-sm transition-colors">Määräaikainen</a></li>
                             <li><a href="/sahkosopimus/toistaiseksi" class="text-slate-400 hover:text-white text-sm transition-colors">Toistaiseksi voimassa oleva</a></li>

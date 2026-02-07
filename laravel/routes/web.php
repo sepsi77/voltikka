@@ -89,9 +89,6 @@ Route::get('/sahkosopimus/vihrea-sahko', SeoContractsList::class)
 Route::get('/sahkosopimus/porssisahko', SeoContractsList::class)
     ->name('seo.pricing.porssisahko')
     ->defaults('pricingType', 'Spot');
-Route::get('/sahkosopimus/kiintea-hinta', SeoContractsList::class)
-    ->name('seo.pricing.kiintea-hinta')
-    ->defaults('pricingType', 'FixedPrice');
 Route::get('/sahkosopimus/kvartaalisahko', SeoContractsList::class)
     ->name('seo.pricing.kvartaalisahko')
     ->defaults('pricingType', 'Quarterly');
@@ -170,6 +167,9 @@ Route::get('/sahkosopimus/{city}', function ($city) {
 // =============================================================================
 // 301 Redirects from old URLs to new URLs (for SEO preservation)
 // =============================================================================
+
+// Redirect removed kiintea-hinta page to main comparison page
+Route::redirect('/sahkosopimus/kiintea-hinta', '/sahkosopimus', 301);
 
 // Redirect old /laskuri to new location
 Route::redirect('/laskuri', '/sahkosopimus/laskuri', 301);

@@ -207,7 +207,7 @@
                         <a href="/sahkosopimus/porssisahko" class="hover:text-coral-600">Pörssisähkösopimukset</a>
                     </li>
                     <li>
-                        <a href="/sahkosopimus/kiintea-hinta" class="hover:text-coral-600">Kiinteähintaiset sopimukset</a>
+                        <a href="/sahkosopimus/yleissahko" class="hover:text-coral-600">Yleissähkösopimukset</a>
                     </li>
                 </ul>
             </div>

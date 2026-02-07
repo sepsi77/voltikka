@@ -232,7 +232,7 @@
                         </div>
                     </div>
                 </a>
-                <a href="/sahkosopimus/kiintea-hinta" class="group bg-white border border-slate-200 rounded-xl p-5 hover:border-coral-400 hover:shadow-md transition-all">
+                <a href="/sahkosopimus/yleissahko" class="group bg-white border border-slate-200 rounded-xl p-5 hover:border-coral-400 hover:shadow-md transition-all">
                     <div class="flex items-center gap-4">
                         <div class="p-3 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
                             <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -240,8 +240,8 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="font-semibold text-slate-900 group-hover:text-coral-600 transition-colors">Kiinteähintaiset sopimukset</h3>
-                            <p class="text-sm text-slate-500">Vertaile kiinteähintaisia sopimuksia</p>
+                            <h3 class="font-semibold text-slate-900 group-hover:text-coral-600 transition-colors">Yleissähkösopimukset</h3>
+                            <p class="text-sm text-slate-500">Vertaile kiinteähintaisia yleissähkösopimuksia</p>
                         </div>
                     </div>
                 </a>

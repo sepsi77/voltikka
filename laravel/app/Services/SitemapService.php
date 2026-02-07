@@ -44,7 +44,6 @@ class SitemapService
      */
     protected array $pricingTypes = [
         'porssisahko',
-        'kiintea-hinta',
         'kvartaalisahko',
         'aikasahko',
         'kausisahko',

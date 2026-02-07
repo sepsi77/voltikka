@@ -674,9 +674,6 @@
                         <a href="/sahkosopimus/joustosahko" class="hover:text-coral-600">Joustosähkösopimukset</a>
                     </li>
                     <li>
-                        <a href="/sahkosopimus/kiintea-hinta" class="hover:text-coral-600">Kiinteähintaiset sopimukset</a>
-                    </li>
-                    <li>
                         <a href="/sahkosopimus/yleissahko" class="hover:text-coral-600">Yleissähkösopimukset</a>
                     </li>
                 </ul>
