@@ -46,6 +46,7 @@ class SitemapService
         '2000-kwh',
         '5000-kwh',
         '10000-kwh',
+        '18000-kwh',
         '20000-kwh',
     ];
 

@@ -740,6 +740,9 @@
                         <a href="/sahkosopimus/kulutus/10000-kwh" class="hover:text-coral-600">10 000 kWh sopimukset</a>
                     </li>
                     <li>
+                        <a href="/sahkosopimus/kulutus/18000-kwh" class="hover:text-coral-600">18 000 kWh sopimukset</a>
+                    </li>
+                    <li>
                         <a href="/sahkosopimus/kulutus/20000-kwh" class="hover:text-coral-600">20 000 kWh sopimukset</a>
                     </li>
                 </ul>

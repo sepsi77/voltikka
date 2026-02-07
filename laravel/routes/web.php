@@ -143,6 +143,9 @@ Route::get('/sahkosopimus/kulutus/5000-kwh', SeoContractsList::class)
 Route::get('/sahkosopimus/kulutus/10000-kwh', SeoContractsList::class)
     ->name('seo.consumption.10000')
     ->defaults('consumptionLevel', '10000');
+Route::get('/sahkosopimus/kulutus/18000-kwh', SeoContractsList::class)
+    ->name('seo.consumption.18000')
+    ->defaults('consumptionLevel', '18000');
 Route::get('/sahkosopimus/kulutus/20000-kwh', SeoContractsList::class)
     ->name('seo.consumption.20000')
     ->defaults('consumptionLevel', '20000');

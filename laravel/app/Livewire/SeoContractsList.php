@@ -110,6 +110,11 @@ class SeoContractsList extends ContractsList
     ];
 
     /**
+     * Cheapest annual total cost from the current contract listing.
+     */
+    protected ?float $cheapestTotalCost = null;
+
+    /**
      * Cached municipality instance for city pages.
      */
     protected ?Municipality $municipality = null;
@@ -144,6 +149,7 @@ class SeoContractsList extends ContractsList
         '2000' => "2\u{00A0}000\u{00A0}kWh",
         '5000' => "5\u{00A0}000\u{00A0}kWh",
         '10000' => "10\u{00A0}000\u{00A0}kWh",
+        '18000' => "18\u{00A0}000\u{00A0}kWh",
         '20000' => "20\u{00A0}000\u{00A0}kWh",
     ];
 
@@ -154,6 +160,7 @@ class SeoContractsList extends ContractsList
         '2000' => 'small_apartment',
         '5000' => 'large_apartment',
         '10000' => 'row_house',
+        '18000' => 'large_house_electric',
         '20000' => 'large_house_electric',
     ];
 
@@ -443,6 +450,9 @@ class SeoContractsList extends ContractsList
             return $aCost <=> $bCost;
         })->values();
 
+        // Store cheapest total cost for SEO titles
+        $this->cheapestTotalCost = $sorted->first()?->calculated_cost['total_cost'] ?? null;
+
         // For city pages, exclude contracts already shown in local/regional sections
         if ($this->city) {
             $localData = $this->localContractsData;
@@ -587,7 +597,13 @@ class SeoContractsList extends ContractsList
 
         if ($this->consumptionLevel && isset($this->consumptionLevelNames[$this->consumptionLevel])) {
             $level = $this->consumptionLevelNames[$this->consumptionLevel];
-            return "Sähkösopimukset {$level} kulutukselle{$countSuffix}{$pageSuffix} | Voltikka";
+            $year = date('Y');
+            $pricePart = '';
+            if ($this->cheapestTotalCost !== null) {
+                $price = number_format($this->cheapestTotalCost, 0, ',', ' ');
+                $pricePart = " – alk. {$price} €/v";
+            }
+            return "{$level} sähkön hinta {$year}{$pricePart}{$pageSuffix} | Voltikka";
         }
 
         if ($this->city) {
@@ -658,7 +674,12 @@ class SeoContractsList extends ContractsList
 
         if ($this->consumptionLevel && isset($this->consumptionLevelNames[$this->consumptionLevel])) {
             $level = $this->consumptionLevelNames[$this->consumptionLevel];
-            return "Vertaile sähkösopimuksia {$level} vuosikulutukselle. Katso hinnat ja löydä edullisin sähkösopimus kulutukseesi sopivista vaihtoehdoista.";
+            $year = date('Y');
+            if ($this->cheapestTotalCost !== null) {
+                $price = number_format($this->cheapestTotalCost, 0, ',', ' ');
+                return "{$level} sähkön hinta vuonna {$year} alkaen {$price} €/vuosi. Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto kulutuksellesi.";
+            }
+            return "Vertaile sähkösopimuksia {$level} vuosikulutukselle. Katso hinnat ja löydä edullisin sähkösopimus.";
         }
 
         if ($this->city) {
@@ -957,6 +978,7 @@ class SeoContractsList extends ContractsList
             '2000' => 'Vertaile sähkösopimuksia 2 000 kWh vuosikulutukselle. Tämä kulutustaso on tyypillinen pienelle yksiölle tai yhden hengen kerrostaloasunnolle. Löydä edullisin sähkösopimus vertailemalla hintoja ja sopimusehtoja.',
             '5000' => 'Vertaile sähkösopimuksia 5 000 kWh vuosikulutukselle. Tämä kulutustaso on tyypillinen 2–4 hengen kerrostaloasunnolle tai pienelle omakotitalolle ilman sähkölämmitystä. Vertaile hintoja ja löydä paras sopimus.',
             '10000' => 'Vertaile sähkösopimuksia 10 000 kWh vuosikulutukselle. Tämä kulutustaso on tyypillinen rivitalolle tai omakotitalolle, jossa on ilmalämpöpumppu tai muu tukimuotoinen lämmitys. Kilpailuta sopimukset ja säästä sähkölaskussa.',
+            '18000' => 'Vertaile sähkösopimuksia 18 000 kWh vuosikulutukselle. Tämä kulutustaso on tyypillinen sähkölämmitteiselle omakotitalolle. Vertaile hintoja ja löydä edullisin sähkösopimus – suurella kulutuksella pienikin hintaero tuo merkittävät säästöt.',
             '20000' => 'Vertaile sähkösopimuksia 20 000 kWh vuosikulutukselle. Tämä kulutustaso on tyypillinen sähkölämmitteiselle omakotitalolle. Suurella kulutuksella pienikin ero kilowattituntihinnassa vaikuttaa merkittävästi vuosikustannuksiin.',
             default => 'Vertaile sähkösopimuksia kulutuksesi mukaan ja löydä edullisin vaihtoehto.',
         };
