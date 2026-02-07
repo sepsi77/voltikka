@@ -18,7 +18,7 @@ class ContractRankingService
     ) {}
 
     /**
-     * Get the price rank of a specific contract among all active contracts.
+     * Get the price rank of a specific contract among all active household contracts.
      * Returns null if the contract is not found in the rankings.
      */
     public function getContractRank(string $contractId): ?int
@@ -29,7 +29,7 @@ class ContractRankingService
     }
 
     /**
-     * Get the company rank by cheapest contract among all active contracts.
+     * Get the company rank by cheapest contract among all active household contracts.
      * Returns null if the company is not found in the rankings.
      */
     public function getCompanyRank(string $companyName): ?int
@@ -40,7 +40,7 @@ class ContractRankingService
     }
 
     /**
-     * Get the total number of active contracts.
+     * Get the total number of active household contracts.
      */
     public function getTotalActiveContracts(): int
     {
@@ -50,7 +50,7 @@ class ContractRankingService
     }
 
     /**
-     * Get the total number of companies with active contracts.
+     * Get the total number of companies with active household contracts.
      */
     public function getTotalActiveCompanies(): int
     {
@@ -72,13 +72,17 @@ class ContractRankingService
     }
 
     /**
-     * Calculate rankings for all active contracts.
+     * Calculate rankings for all active household contracts.
      */
     private function calculateRankings(): array
     {
         $contracts = ElectricityContract::query()
             ->active()
             ->with(['priceComponents'])
+            ->where(function ($q) {
+                $q->whereIn('target_group', ['Household', 'Both'])
+                  ->orWhereNull('target_group');
+            })
             ->get();
 
         $spotPriceAvg = SpotPriceAverage::latestRolling365Days();

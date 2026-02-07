@@ -215,7 +215,10 @@ class ContractDetail extends Component
             return "{$name} | #{$rank} halvin — Vertaa {$total} sopimuksessa | Voltikka";
         }
 
-        return "{$contract->name} | Voltikka";
+        // Fallback for company-only contracts without ranking
+        $companyName = $contract->company?->name ?? '';
+
+        return "{$name} — {$companyName} | Voltikka";
     }
 
     /**
@@ -235,7 +238,9 @@ class ContractDetail extends Component
             return "{$name} | #{$rank} halvin | Voltikka";
         }
 
-        return "{$contract->name} | Voltikka";
+        $companyName = $contract->company?->name ?? '';
+
+        return "{$name} — {$companyName} | Voltikka";
     }
 
     /**
