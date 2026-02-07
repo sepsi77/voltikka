@@ -1,11 +1,6 @@
 {{-- Shared Contract Filters Partial --}}
 {{-- Used by both contracts-list.blade.php and seo-contracts-list.blade.php --}}
 
-@php
-    // Only use SEO links when enabled AND no filters are active (to prevent URL explosion)
-    $useLinks = $showSeoFilterLinks && !$this->hasActiveFilters();
-@endphp
-
 <div class="bg-white rounded-2xl py-5 border border-slate-200 mb-8" x-data="{ filtersOpen: false }">
     {{-- Mobile Accordion Trigger --}}
     <button
@@ -37,28 +32,15 @@
                         $icon = $icons[$model] ?? $icons['FixedPrice'];
                         $isActive = $pricingModelFilter === $model;
                     @endphp
-                    @if ($useLinks && !$isActive)
-                        <a
-                            href="{{ $basePath }}?pricingModelFilter={{ $model }}"
-                            wire:click.prevent="setPricingModelFilter('{{ $model }}')"
-                            class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
-                        >
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icon }}"></path>
-                            </svg>
-                            {{ $label }}
-                        </a>
-                    @else
-                        <button
-                            wire:click="setPricingModelFilter('{{ $model }}')"
-                            class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $isActive ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
-                        >
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icon }}"></path>
-                            </svg>
-                            {{ $label }}
-                        </button>
-                    @endif
+                    <button
+                        wire:click="setPricingModelFilter('{{ $model }}')"
+                        class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $isActive ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
+                    >
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icon }}"></path>
+                        </svg>
+                        {{ $label }}
+                    </button>
                 @endforeach
             </div>
         </div>
@@ -76,28 +58,15 @@
                         $icon = $icons[$type] ?? $icons['OpenEnded'];
                         $isActive = $contractTypeFilter === $type;
                     @endphp
-                    @if ($useLinks && !$isActive)
-                        <a
-                            href="{{ $basePath }}?contractTypeFilter={{ $type }}"
-                            wire:click.prevent="setContractTypeFilter('{{ $type }}')"
-                            class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
-                        >
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icon }}"></path>
-                            </svg>
-                            {{ $label }}
-                        </a>
-                    @else
-                        <button
-                            wire:click="setContractTypeFilter('{{ $type }}')"
-                            class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $isActive ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
-                        >
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icon }}"></path>
-                            </svg>
-                            {{ $label }}
-                        </button>
-                    @endif
+                    <button
+                        wire:click="setContractTypeFilter('{{ $type }}')"
+                        class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $isActive ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
+                    >
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $icon }}"></path>
+                        </svg>
+                        {{ $label }}
+                    </button>
                 @endforeach
             </div>
         </div>
@@ -106,72 +75,33 @@
         <div class="flex flex-col border-t lg:border-t-0 lg:border-l border-slate-200 px-4 mt-4 pt-4 lg:pt-4">
             <h4 class="font-semibold text-slate-900 mb-2">Energialähde</h4>
             <div class="flex flex-col lg:flex-row gap-2">
-                @if ($useLinks && !$fossilFreeFilter)
-                    <a
-                        href="{{ $basePath }}?fossilFreeFilter=1"
-                        wire:click.prevent="$toggle('fossilFreeFilter')"
-                        class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
-                    >
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
-                        </svg>
-                        Fossiiliton
-                    </a>
-                @else
-                    <button
-                        wire:click="$toggle('fossilFreeFilter')"
-                        class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $fossilFreeFilter ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
-                    >
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
-                        </svg>
-                        Fossiiliton
-                    </button>
-                @endif
-                @if ($useLinks && !$renewableFilter)
-                    <a
-                        href="{{ $basePath }}?renewableFilter=1"
-                        wire:click.prevent="$toggle('renewableFilter')"
-                        class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
-                    >
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                        </svg>
-                        Uusiutuva
-                    </a>
-                @else
-                    <button
-                        wire:click="$toggle('renewableFilter')"
-                        class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $renewableFilter ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
-                    >
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                        </svg>
-                        Uusiutuva
-                    </button>
-                @endif
-                @if ($useLinks && !$nuclearFilter)
-                    <a
-                        href="{{ $basePath }}?nuclearFilter=1"
-                        wire:click.prevent="$toggle('nuclearFilter')"
-                        class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300"
-                    >
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                        Ydinvoima
-                    </a>
-                @else
-                    <button
-                        wire:click="$toggle('nuclearFilter')"
-                        class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $nuclearFilter ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
-                    >
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                        Ydinvoima
-                    </button>
-                @endif
+                <button
+                    wire:click="$toggle('fossilFreeFilter')"
+                    class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $fossilFreeFilter ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
+                >
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path>
+                    </svg>
+                    Fossiiliton
+                </button>
+                <button
+                    wire:click="$toggle('renewableFilter')"
+                    class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $renewableFilter ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
+                >
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                    Uusiutuva
+                </button>
+                <button
+                    wire:click="$toggle('nuclearFilter')"
+                    class="flex items-center border focus:outline-none font-medium rounded-lg text-sm px-4 py-2 transition-all {{ $nuclearFilter ? 'bg-slate-950 border-slate-950 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300' }}"
+                >
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    Ydinvoima
+                </button>
             </div>
         </div>
     </div>

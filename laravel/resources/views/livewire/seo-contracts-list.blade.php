@@ -682,9 +682,9 @@
                 </ul>
             </div>
 
-            {{-- Housing Types --}}
+            {{-- Housing Types & Contract Duration --}}
             <div>
-                <h3 class="font-semibold text-slate-900 mb-3">Asumismuodoittain</h3>
+                <h3 class="font-semibold text-slate-900 mb-3">Asumismuoto & sopimustyyppi</h3>
                 <ul class="space-y-2 text-slate-600">
                     <li>
                         <a href="/sahkosopimus/omakotitalo" class="hover:text-coral-600">Omakotitalon sähkösopimukset</a>
@@ -694,6 +694,12 @@
                     </li>
                     <li>
                         <a href="/sahkosopimus/rivitalo" class="hover:text-coral-600">Rivitalon sähkösopimukset</a>
+                    </li>
+                    <li>
+                        <a href="/sahkosopimus/maaraaikainen" class="hover:text-coral-600">Määräaikaiset sopimukset</a>
+                    </li>
+                    <li>
+                        <a href="/sahkosopimus/toistaiseksi" class="hover:text-coral-600">Toistaiseksi voimassa olevat</a>
                     </li>
                 </ul>
             </div>
@@ -710,6 +716,15 @@
                     </li>
                     <li>
                         <a href="/sahkosopimus/vihrea-sahko" class="hover:text-coral-600">Vihreä sähkö</a>
+                    </li>
+                    <li>
+                        <a href="/sahkosopimus/fossiiliton" class="hover:text-coral-600">Fossiiliton sähkö</a>
+                    </li>
+                    <li>
+                        <a href="/sahkosopimus/uusiutuva-sahko" class="hover:text-coral-600">Uusiutuva sähkö</a>
+                    </li>
+                    <li>
+                        <a href="/sahkosopimus/ydinvoima" class="hover:text-coral-600">Ydinvoimasähkö</a>
                     </li>
                 </ul>
             </div>

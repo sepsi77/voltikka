@@ -23,11 +23,6 @@ class SahkosopimusIndex extends SeoContractsList
     public string $basePath = '/sahkosopimus';
 
     /**
-     * Whether this page should show SEO filter links.
-     */
-    public bool $showSeoFilterLinks = true;
-
-    /**
      * Generate SEO-optimized title for the comparison index page.
      * When filters are active, use filter-aware title from parent.
      * Page suffix is added for pages > 1.
@@ -41,7 +36,8 @@ class SahkosopimusIndex extends SeoContractsList
         $title = 'Sähkösopimusten vertailu ' . date('Y');
 
         if ($this->page > 1) {
-            $title .= ' – Sivu ' . $this->page;
+            $lastPage = $this->contracts->lastPage();
+            $title .= " – Sivu {$this->page}/{$lastPage}";
         }
 
         return $title . ' | Voltikka';
@@ -62,11 +58,17 @@ class SahkosopimusIndex extends SeoContractsList
 
     /**
      * Generate canonical URL for the comparison index page.
-     * Always use the base URL without query params to avoid duplicate content.
+     * Self-referencing: includes ?page=N for paginated pages.
      */
     protected function generateCanonicalUrl(): string
     {
-        return config('app.url') . '/sahkosopimus';
+        $baseUrl = config('app.url') . '/sahkosopimus';
+
+        if ($this->page > 1) {
+            return $baseUrl . '?page=' . $this->page;
+        }
+
+        return $baseUrl;
     }
 
     /**

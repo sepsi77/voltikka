@@ -117,6 +117,25 @@ Route::get('/sahkosopimus/yritykselle', SeoContractsList::class)
     ->name('company.contracts')
     ->defaults('targetGroup', 'Company');
 
+// SEO Contract Duration Routes
+Route::get('/sahkosopimus/maaraaikainen', SeoContractsList::class)
+    ->name('seo.duration.maaraaikainen')
+    ->defaults('contractDuration', 'FixedTerm');
+Route::get('/sahkosopimus/toistaiseksi', SeoContractsList::class)
+    ->name('seo.duration.toistaiseksi')
+    ->defaults('contractDuration', 'OpenEnded');
+
+// SEO Energy Source Routes (additional)
+Route::get('/sahkosopimus/fossiiliton', SeoContractsList::class)
+    ->name('seo.energy.fossiiliton')
+    ->defaults('energySource', 'fossiiliton');
+Route::get('/sahkosopimus/uusiutuva-sahko', SeoContractsList::class)
+    ->name('seo.energy.uusiutuva-sahko')
+    ->defaults('energySource', 'uusiutuva-sahko');
+Route::get('/sahkosopimus/ydinvoima', SeoContractsList::class)
+    ->name('seo.energy.ydinvoima')
+    ->defaults('energySource', 'ydinvoima');
+
 // SEO Promotion/Offer Route (must come BEFORE city catch-all)
 Route::get('/sahkosopimus/sahkotarjous', SeoContractsList::class)
     ->name('seo.offer.sahkotarjous')

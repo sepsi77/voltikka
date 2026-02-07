@@ -26,6 +26,17 @@ class SitemapService
         'tuulisahko',
         'aurinkosahko',
         'vihrea-sahko',
+        'fossiiliton',
+        'uusiutuva-sahko',
+        'ydinvoima',
+    ];
+
+    /**
+     * Contract durations for SEO pages.
+     */
+    protected array $contractDurations = [
+        'maaraaikainen',
+        'toistaiseksi',
     ];
 
     /**
@@ -51,6 +62,7 @@ class SitemapService
             $this->getPricingTypeUrls(),
             $this->getHousingTypeUrls(),
             $this->getEnergySourceUrls(),
+            $this->getContractDurationUrls(),
             $this->getOfferUrls(),
             $this->getContractUrls(),
             $this->getCompanyUrls(),
@@ -182,6 +194,24 @@ class SitemapService
                 'priority' => 0.8,
             ];
         }, $this->energySources);
+    }
+
+    /**
+     * Get contract duration SEO page URLs.
+     */
+    public function getContractDurationUrls(): array
+    {
+        $baseUrl = config('app.url');
+        $today = Carbon::today()->toDateString();
+
+        return array_map(function ($duration) use ($baseUrl, $today) {
+            return [
+                'loc' => $baseUrl . '/sahkosopimus/' . $duration,
+                'lastmod' => $today,
+                'changefreq' => 'daily',
+                'priority' => 0.85,
+            ];
+        }, $this->contractDurations);
     }
 
     /**

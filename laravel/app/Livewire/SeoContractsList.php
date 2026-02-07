@@ -50,6 +50,11 @@ class SeoContractsList extends ContractsList
     public ?string $targetGroup = null;
 
     /**
+     * Contract duration filter (FixedTerm, OpenEnded).
+     */
+    public ?string $contractDuration = null;
+
+    /**
      * Housing type to consumption mapping.
      */
     protected array $housingTypeConsumption = [
@@ -74,6 +79,17 @@ class SeoContractsList extends ContractsList
         'tuulisahko' => 'Tuulisähkö',
         'aurinkosahko' => 'Aurinkosähkö',
         'vihrea-sahko' => 'Vihreä sähkö',
+        'fossiiliton' => 'Fossiiliton sähkö',
+        'uusiutuva-sahko' => 'Uusiutuva sähkö',
+        'ydinvoima' => 'Ydinvoimasähkö',
+    ];
+
+    /**
+     * Contract duration display names in Finnish.
+     */
+    protected array $contractDurationNames = [
+        'FixedTerm' => 'Määräaikainen',
+        'OpenEnded' => 'Toistaiseksi voimassa oleva',
     ];
 
     /**
@@ -127,7 +143,8 @@ class SeoContractsList extends ContractsList
         ?string $pricingType = null,
         ?string $offerType = null,
         ?string $location = null,
-        ?string $targetGroup = null
+        ?string $targetGroup = null,
+        ?string $contractDuration = null
     ): void {
         $this->housingType = $housingType;
         $this->energySource = $energySource;
@@ -136,6 +153,7 @@ class SeoContractsList extends ContractsList
         $this->pricingType = $pricingType;
         $this->offerType = $offerType;
         $this->targetGroup = $targetGroup;
+        $this->contractDuration = $contractDuration;
 
         // Set basePath from the current request so pagination stays on this page
         $this->basePath = '/' . ltrim(request()->path(), '/');
@@ -192,6 +210,11 @@ class SeoContractsList extends ContractsList
         // Apply contract type filter (FixedTerm, OpenEnded)
         if ($this->contractTypeFilter !== '') {
             $query->where('contract_type', $this->contractTypeFilter);
+        }
+
+        // Apply SEO contract duration filter
+        if ($this->contractDuration) {
+            $query->where('contract_type', $this->contractDuration);
         }
 
         // Apply pricing model filter from parent (or SEO pricing type)
@@ -436,6 +459,18 @@ class SeoContractsList extends ContractsList
                     && $source->renewable_total >= 50
                     && ($source->fossil_peat === null || $source->fossil_peat === 0.0);
             }),
+            'fossiiliton' => $contracts->filter(function ($contract) {
+                $source = $contract->electricitySource;
+                return $source && $source->isFossilFree();
+            }),
+            'uusiutuva-sahko' => $contracts->filter(function ($contract) {
+                $source = $contract->electricitySource;
+                return $source && $source->renewable_total >= 50;
+            }),
+            'ydinvoima' => $contracts->filter(function ($contract) {
+                $source = $contract->electricitySource;
+                return $source && $source->hasNuclear();
+            }),
             default => $contracts,
         };
     }
@@ -459,23 +494,46 @@ class SeoContractsList extends ContractsList
     protected function generateSeoTitle(): string
     {
         // Get contract count for title
-        $count = $this->contracts->total();
+        $contracts = $this->contracts;
+        $count = $contracts->total();
         $countSuffix = $count > 0 ? " ({$count} sopimusta)" : '';
 
+        // Page suffix for paginated pages (sivu N/Y)
+        $pageSuffix = '';
+        if ($this->page > 1) {
+            $lastPage = $contracts->lastPage();
+            $pageSuffix = " – Sivu {$this->page}/{$lastPage}";
+        }
+
         if ($this->targetGroup === 'Company') {
-            return "Sähkösopimukset yrityksille{$countSuffix} | Voltikka";
+            return "Sähkösopimukset yrityksille{$countSuffix}{$pageSuffix} | Voltikka";
         }
 
         if ($this->offerType === 'promotion') {
-            return "Sähkötarjoukset ja alennukset{$countSuffix} | Voltikka";
+            return "Sähkötarjoukset ja alennukset{$countSuffix}{$pageSuffix} | Voltikka";
         }
 
         if ($this->housingType && isset($this->housingTypeNames[$this->housingType])) {
-            return "Sähkösopimukset {$this->housingTypeNames[$this->housingType]}on{$countSuffix} | Voltikka";
+            return "Sähkösopimukset {$this->housingTypeNames[$this->housingType]}on{$countSuffix}{$pageSuffix} | Voltikka";
         }
 
         if ($this->energySource && isset($this->energySourceNames[$this->energySource])) {
-            return "{$this->energySourceNames[$this->energySource]}sopimukset{$countSuffix} | Voltikka";
+            $baseTitle = match ($this->energySource) {
+                'fossiiliton' => 'Vertaa fossiilittomia sähkösopimuksia',
+                'uusiutuva-sahko' => 'Vertaa uusiutuvan sähkön sopimuksia',
+                'ydinvoima' => 'Vertaa ydinvoimasähkösopimuksia',
+                default => "{$this->energySourceNames[$this->energySource]}sopimukset",
+            };
+            return "{$baseTitle}{$countSuffix}{$pageSuffix} | Voltikka";
+        }
+
+        if ($this->contractDuration && isset($this->contractDurationNames[$this->contractDuration])) {
+            $baseTitle = match ($this->contractDuration) {
+                'FixedTerm' => 'Vertaa määräaikaisia sähkösopimuksia',
+                'OpenEnded' => 'Vertaa toistaiseksi voimassa olevia sähkösopimuksia',
+                default => "Vertaa sähkösopimuksia",
+            };
+            return "{$baseTitle}{$countSuffix}{$pageSuffix} | Voltikka";
         }
 
         if ($this->pricingType && isset($this->pricingTypeNames[$this->pricingType])) {
@@ -490,15 +548,15 @@ class SeoContractsList extends ContractsList
                 'GeneralElectricity' => 'Vertaa yleissähkösopimuksia – kiinteähintaiset sähkösopimukset',
                 default => "Vertaa {$this->pricingTypeNames[$this->pricingType]}sopimuksia",
             };
-            return "{$baseTitle}{$countSuffix} | Voltikka";
+            return "{$baseTitle}{$countSuffix}{$pageSuffix} | Voltikka";
         }
 
         if ($this->city) {
             $cityData = $this->getCityData($this->city);
-            return "Sähkösopimukset {$cityData['locative']}{$countSuffix} | Voltikka";
+            return "Sähkösopimukset {$cityData['locative']}{$countSuffix}{$pageSuffix} | Voltikka";
         }
 
-        return "Vertaa sähkösopimuksia{$countSuffix} | Voltikka";
+        return "Vertaa sähkösopimuksia{$countSuffix}{$pageSuffix} | Voltikka";
     }
 
     /**
@@ -521,8 +579,20 @@ class SeoContractsList extends ContractsList
         }
 
         if ($this->energySource && isset($this->energySourceNames[$this->energySource])) {
-            $sourceName = mb_strtolower($this->energySourceNames[$this->energySource]);
-            return "Vertaile tuulisähkö- ja {$sourceName}sopimuksia. Valitse ympäristöystävällinen sähkösopimus.";
+            return match ($this->energySource) {
+                'fossiiliton' => 'Vertaile ja kilpailuta fossiilittomia sähkösopimuksia. Fossiiliton sähkö tuotetaan ydinvoimalla ja uusiutuvilla energialähteillä ilman CO₂-päästöjä.',
+                'uusiutuva-sahko' => 'Vertaile uusiutuvan energian sähkösopimuksia. Tuuli-, aurinko- ja vesivoimalla tuotettua sähköä. Kilpailuta vihreä sähkösopimus ja löydä edullisin.',
+                'ydinvoima' => 'Vertaile ja kilpailuta ydinvoimasähkösopimuksia. Ydinvoima on päästötöntä ja tuottaa sähköä tasaisesti ympäri vuoden. Löydä paras ydinvoimasähkösopimus.',
+                default => "Vertaile {$this->energySourceNames[$this->energySource]}sopimuksia. Valitse ympäristöystävällinen sähkösopimus.",
+            };
+        }
+
+        if ($this->contractDuration && isset($this->contractDurationNames[$this->contractDuration])) {
+            return match ($this->contractDuration) {
+                'FixedTerm' => 'Vertaile ja kilpailuta määräaikaiset sähkösopimukset. Määräaikainen sopimus takaa kiinteän hinnan sovituksi ajaksi. Löydä edullisin määräaikainen sähkösopimus.',
+                'OpenEnded' => 'Vertaile ja kilpailuta toistaiseksi voimassa olevat sähkösopimukset. Vaihda sopimusta joustavasti ilman sitoutumisaikaa. Löydä paras toistaiseksi voimassa oleva sopimus.',
+                default => 'Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto.',
+            };
         }
 
         if ($this->pricingType && isset($this->pricingTypeNames[$this->pricingType])) {
@@ -561,21 +631,31 @@ class SeoContractsList extends ContractsList
     protected function generateCanonicalUrl(): string
     {
         $baseUrl = config('app.url');
+        $pageSuffix = $this->page > 1 ? '?page=' . $this->page : '';
 
         if ($this->targetGroup === 'Company') {
-            return "{$baseUrl}/sahkosopimus/yritykselle";
+            return "{$baseUrl}/sahkosopimus/yritykselle{$pageSuffix}";
         }
 
         if ($this->offerType === 'promotion') {
-            return "{$baseUrl}/sahkosopimus/sahkotarjous";
+            return "{$baseUrl}/sahkosopimus/sahkotarjous{$pageSuffix}";
         }
 
         if ($this->housingType) {
-            return "{$baseUrl}/sahkosopimus/{$this->housingType}";
+            return "{$baseUrl}/sahkosopimus/{$this->housingType}{$pageSuffix}";
         }
 
         if ($this->energySource) {
-            return "{$baseUrl}/sahkosopimus/{$this->energySource}";
+            return "{$baseUrl}/sahkosopimus/{$this->energySource}{$pageSuffix}";
+        }
+
+        if ($this->contractDuration) {
+            $slugMap = [
+                'FixedTerm' => 'maaraaikainen',
+                'OpenEnded' => 'toistaiseksi',
+            ];
+            $slug = $slugMap[$this->contractDuration] ?? 'maaraaikainen';
+            return "{$baseUrl}/sahkosopimus/{$slug}{$pageSuffix}";
         }
 
         if ($this->pricingType) {
@@ -589,14 +669,14 @@ class SeoContractsList extends ContractsList
                 'GeneralElectricity' => 'yleissahko',
             ];
             $slug = $slugMap[$this->pricingType] ?? 'porssisahko';
-            return "{$baseUrl}/sahkosopimus/{$slug}";
+            return "{$baseUrl}/sahkosopimus/{$slug}{$pageSuffix}";
         }
 
         if ($this->city) {
-            return "{$baseUrl}/sahkosopimus/paikkakunnat/{$this->city}";
+            return "{$baseUrl}/sahkosopimus/paikkakunnat/{$this->city}{$pageSuffix}";
         }
 
-        return "{$baseUrl}/sahkosopimus";
+        return "{$baseUrl}/sahkosopimus{$pageSuffix}";
     }
 
     /**
@@ -671,7 +751,20 @@ class SeoContractsList extends ContractsList
         }
 
         if ($this->energySource && isset($this->energySourceNames[$this->energySource])) {
-            return "{$this->energySourceNames[$this->energySource]}sopimukset";
+            return match ($this->energySource) {
+                'fossiiliton' => 'Fossiiliton sähkö – vertaile päästöttömiä sähkösopimuksia',
+                'uusiutuva-sahko' => 'Uusiutuva sähkö – vertaile ja kilpailuta vihreä sähkösopimus',
+                'ydinvoima' => 'Ydinvoimasähkö – vertaile ydinvoimalla tuotettuja sähkösopimuksia',
+                default => "{$this->energySourceNames[$this->energySource]}sopimukset",
+            };
+        }
+
+        if ($this->contractDuration && isset($this->contractDurationNames[$this->contractDuration])) {
+            return match ($this->contractDuration) {
+                'FixedTerm' => 'Määräaikaiset sähkösopimukset – vertaile ja kilpailuta',
+                'OpenEnded' => 'Toistaiseksi voimassa olevat sähkösopimukset – vertaile ja kilpailuta',
+                default => 'Sähkösopimukset',
+            };
         }
 
         if ($this->pricingType === 'GeneralElectricity') {
@@ -723,6 +816,10 @@ class SeoContractsList extends ContractsList
             return $this->getEnergySourceIntroText($this->energySource);
         }
 
+        if ($this->contractDuration && isset($this->contractDurationNames[$this->contractDuration])) {
+            return $this->getContractDurationIntroText($this->contractDuration);
+        }
+
         if ($this->pricingType && isset($this->pricingTypeNames[$this->pricingType])) {
             return $this->getPricingTypeIntroText($this->pricingType);
         }
@@ -760,7 +857,22 @@ class SeoContractsList extends ContractsList
             'tuulisahko' => 'Tuulisähkö on yksi puhtaimmista energiamuodoista. Tuulivoimalla tuotettu sähkö on täysin päästötöntä käytössä eikä aiheuta hiilidioksidipäästöjä. Suomen tuulivoimakapasiteetti kasvaa jatkuvasti, ja tuulisähkö on yhä edullisempi vaihtoehto. Vertaile tuulisähkösopimuksia ja tue kotimaista tuulivoimatuotantoa.',
             'aurinkosahko' => 'Aurinkosähkö on uusiutuvaa energiaa, joka hyödyntää aurinkoenergiaa suoraan. Aurinkopaneelit tuottavat sähköä ilman päästöjä tai melua. Vaikka Suomen talvet ovat pimeitä, kesällä aurinkoenergiaa on runsaasti saatavilla. Aurinkosähkösopimuksella tuet puhtaan energian tuotantoa ja vähennät hiilijalanjälkeäsi.',
             'vihrea-sahko' => 'Vihreä sähkö tuotetaan uusiutuvilla energialähteillä kuten tuuli-, aurinko- ja vesivoimalla. Vihreän sähkön valitsemalla vähennät hiilidioksidipäästöjä ja tuet kestävää energiantuotantoa. Vertaile vihreän sähkön sopimuksia ja tee ympäristöystävällinen valinta.',
+            'fossiiliton' => 'Fossiiliton sähkö tuotetaan ilman fossiilisia polttoaineita – ydinvoimalla ja uusiutuvilla energialähteillä kuten tuuli-, aurinko- ja vesivoimalla. Fossiiliton sähkö ei aiheuta hiilidioksidipäästöjä tuotannossa. Vertaile ja kilpailuta fossiilittomat sähkösopimukset ja löydä edullisin päästötön vaihtoehto.',
+            'uusiutuva-sahko' => 'Uusiutuva sähkö tuotetaan tuuli-, aurinko- ja vesivoimalla sekä muilla uusiutuvilla energialähteillä. Uusiutuvan energian osuus Suomen sähköntuotannosta kasvaa jatkuvasti. Vertaile ja kilpailuta uusiutuvan sähkön sopimuksia ja löydä edullisin vihreä sähkösopimus.',
+            'ydinvoima' => 'Ydinvoimasähkö on päästötöntä ja tuottaa sähköä tasaisesti ympäri vuoden säästä riippumatta. Ydinvoima tuottaa noin kolmanneksen Suomen sähköstä ja on merkittävä osa päästötöntä energiantuotantoa. Vertaile ja kilpailuta ydinvoimasähkösopimuksia ja löydä paras vaihtoehto.',
             default => 'Vertaile sähkösopimuksia ja löydä ympäristöystävällinen vaihtoehto.',
+        };
+    }
+
+    /**
+     * Get detailed intro text for contract duration pages.
+     */
+    protected function getContractDurationIntroText(string $contractDuration): string
+    {
+        return match ($contractDuration) {
+            'FixedTerm' => 'Määräaikaisessa sähkösopimuksessa sitoudut sopimukseen sovituksi ajaksi, tyypillisesti 12, 24 tai 36 kuukaudeksi. Määräaikainen sopimus takaa kiinteän hinnan koko sopimuskauden ajan ja suojaa markkinaheilahteluilta. Vertaile ja kilpailuta määräaikaiset sähkösopimukset ja löydä edullisin vaihtoehto.',
+            'OpenEnded' => 'Toistaiseksi voimassa oleva sähkösopimus jatkuu ilman määräaikaa, kunnes irtisanot sen. Sopimuksen voi irtisanoa milloin tahansa 14 päivän irtisanomisajalla. Tämä sopimustyyppi tarjoaa täyden joustavuuden – voit kilpailuttaa sähkösopimuksen uudelleen aina kun haluat. Vertaile toistaiseksi voimassa olevia sopimuksia ja löydä paras.',
+            default => 'Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto.',
         };
     }
 
@@ -885,6 +997,7 @@ class SeoContractsList extends ContractsList
         return $this->housingType !== null
             || $this->energySource !== null
             || $this->pricingType !== null
+            || $this->contractDuration !== null
             || $this->city !== null
             || $this->offerType !== null
             || $this->targetGroup !== null;
@@ -979,6 +1092,9 @@ class SeoContractsList extends ContractsList
             'tuulisahko' => 'Tuulivoima on yksi vähäpäästöisimmistä sähköntuotantomuodoista. Tuulivoimalan elinkaaren aikaiset CO₂-päästöt ovat noin 7-15 g/kWh, kun fossiilisilla polttoaineilla tuotetun sähkön päästöt ovat 400-1000 g/kWh. Valitsemalla tuulisähkön vähennät merkittävästi hiilijalanjälkeäsi.',
             'aurinkosahko' => 'Aurinkosähkön tuotannon elinkaaren aikaiset CO₂-päästöt ovat noin 20-50 g/kWh, mikä on murto-osa fossiilisiin polttoaineisiin verrattuna. Aurinkopaneelit eivät tuota käytön aikana päästöjä, melua tai jätettä. Aurinkosähkö on erityisen puhdas vaihtoehto.',
             'vihrea-sahko' => 'Vihreä sähkö tuotetaan ilman merkittäviä hiilidioksidipäästöjä. Uusiutuvien energialähteiden keskimääräiset elinkaaren päästöt ovat alle 50 g/kWh, kun fossiilisten polttoaineiden päästöt ovat moninkertaiset. Vihreän sähkön valinta on tehokas tapa pienentää kotitaloutesi ilmastovaikutusta.',
+            'fossiiliton' => 'Fossiiliton sähkö tuotetaan ilman fossiilisia polttoaineita. Ydinvoiman ja uusiutuvien energialähteiden yhdistelmä tarjoaa luotettavan ja päästöttömän sähköntuotannon. Fossiilittoman sähkön valinta vähentää merkittävästi kotitaloutesi hiilijalanjälkeä.',
+            'uusiutuva-sahko' => 'Uusiutuva sähkö tuotetaan luonnonvaroista, jotka uusiutuvat jatkuvasti. Tuuli-, aurinko- ja vesivoiman elinkaaren aikaiset CO₂-päästöt ovat murto-osa fossiilisiin polttoaineisiin verrattuna. Uusiutuvan sähkön valinta tukee kestävää energiantuotantoa.',
+            'ydinvoima' => 'Ydinvoima on yksi vähäpäästöisimmistä sähköntuotantomuodoista. Ydinvoimalan elinkaaren aikaiset CO₂-päästöt ovat noin 5-15 g/kWh. Ydinvoima tuottaa sähköä tasaisesti ympäri vuoden ja on merkittävä osa Suomen päästötöntä energiapalettia.',
             default => null,
         };
     }
@@ -1020,6 +1136,7 @@ class SeoContractsList extends ContractsList
             'environmentalInfo' => $this->environmentalInfo,
             'isEnergySourcePage' => $this->energySource !== null,
             'isPricingTypePage' => $this->pricingType !== null,
+            'isContractDurationPage' => $this->contractDuration !== null,
             'isCityPage' => $this->city !== null,
             'cityInfo' => $this->cityInfo,
             'citySlug' => $this->city,
@@ -1027,13 +1144,14 @@ class SeoContractsList extends ContractsList
             'solarEstimate' => $this->solarEstimate,
             'localContractsData' => $this->localContractsData,
             'basePath' => $this->basePath,
-            'showSeoFilterLinks' => $this->showSeoFilterLinks,
             'showCalculatorTab' => $this->showCalculatorTab,
             'isBusinessPage' => $this->isBusinessPage,
         ])->layout('layouts.app', [
             'title' => $this->seoData['title'],
             'metaDescription' => $this->seoData['description'],
             'canonical' => $this->seoData['canonical'],
+            'prevUrl' => $this->prevUrl,
+            'nextUrl' => $this->nextUrl,
         ]);
     }
 }

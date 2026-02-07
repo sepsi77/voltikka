@@ -43,12 +43,6 @@ class ContractsList extends Component
     public string $basePath = '/';
 
     /**
-     * Whether this page should show SEO filter links.
-     * Disabled on homepage, enabled only on /sahkosopimus.
-     */
-    public bool $showSeoFilterLinks = false;
-
-    /**
      * Cache for all filtered contracts (before pagination).
      * Used for metrics that need to count all contracts, not just current page.
      */
@@ -844,7 +838,8 @@ class ContractsList extends Component
 
         // Add page suffix for pages > 1
         if ($this->page > 1) {
-            $title .= ' – Sivu ' . $this->page;
+            $lastPage = $this->contracts->lastPage();
+            $title .= " – Sivu {$this->page}/{$lastPage}";
         }
 
         return $title;
@@ -1334,7 +1329,6 @@ class ContractsList extends Component
             'pageTitle' => $this->pageTitle,
             'metaDescription' => $this->metaDescription,
             'basePath' => $this->basePath,
-            'showSeoFilterLinks' => $this->showSeoFilterLinks,
             'schemas' => $schemas,
         ])->layout('layouts.app', [
             'title' => $this->pageTitle . ' | Voltikka',
