@@ -244,6 +244,7 @@ class CompanyDetail extends Component
         $schema = [
             '@context' => 'https://schema.org',
             '@type' => 'Organization',
+            '@id' => $this->canonicalUrl . '#organization',
             'name' => $this->company->name,
             'url' => $this->company->company_url,
         ];
@@ -277,17 +278,74 @@ class CompanyDetail extends Component
             'name' => 'Finland',
         ];
 
-        // Add service offerings info
-        $contracts = $this->contracts;
-        if ($contracts->isNotEmpty()) {
-            $schema['knowsAbout'] = $contracts->map(fn ($contract) => [
-                '@type' => 'Service',
-                'name' => $contract->name,
-                'url' => config('app.url') . '/sopimus/' . $contract->id,
-            ])->values()->all();
+        return $schema;
+    }
+
+    /**
+     * Generate WebPage JSON-LD schema for SEO.
+     */
+    public function getWebPageSchemaProperty(): array
+    {
+        if (! $this->company) {
+            return [];
         }
 
-        return $schema;
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'WebPage',
+            '@id' => $this->canonicalUrl . '#webpage',
+            'url' => $this->canonicalUrl,
+            'name' => $this->pageTitle,
+            'description' => $this->metaDescription,
+            'mainEntity' => [
+                '@id' => $this->canonicalUrl . '#organization',
+            ],
+        ];
+    }
+
+    /**
+     * Generate ItemList JSON-LD schema for company contract products.
+     */
+    public function getItemListSchemaProperty(): array
+    {
+        $contracts = $this->contracts;
+
+        if ($contracts->isEmpty() || ! $this->company) {
+            return [];
+        }
+
+        $items = [];
+
+        foreach ($contracts as $index => $contract) {
+            $product = [
+                '@type' => 'Product',
+                '@id' => config('app.url') . '/sopimus/' . $contract->id . '#product',
+                'name' => $contract->name,
+                'url' => config('app.url') . '/sopimus/' . $contract->id,
+                'category' => 'Electricity Contract',
+                'brand' => [
+                    '@id' => $this->canonicalUrl . '#organization',
+                ],
+            ];
+
+            if ($contract->short_description) {
+                $product['description'] = $contract->short_description;
+            }
+
+            $items[] = [
+                '@type' => 'ListItem',
+                'position' => $index + 1,
+                'item' => $product,
+            ];
+        }
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'ItemList',
+            '@id' => $this->canonicalUrl . '#itemlist',
+            'name' => $this->company->name . ' sähkösopimukset',
+            'itemListElement' => $items,
+        ];
     }
 
     /**
@@ -446,7 +504,9 @@ class CompanyDetail extends Component
             'contracts' => $this->contracts,
             'companyStats' => $this->companyStats,
             'schemas' => [
+                $this->webPageSchema,
                 $this->organizationSchema,
+                $this->itemListSchema,
                 $this->breadcrumbSchema,
             ],
             'h1' => $this->h1,

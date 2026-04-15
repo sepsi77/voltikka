@@ -763,17 +763,17 @@ class SeoContractsList extends ContractsList
     }
 
     /**
-     * Generate JSON-LD structured data for service listings.
+     * Generate JSON-LD structured data for SEO contract listings.
      */
     protected function generateJsonLd(): array
     {
         $contracts = $this->contracts;
         $items = [];
+        $canonicalUrl = $this->generateCanonicalUrl();
 
         foreach ($contracts as $index => $contract) {
             $description = $contract->short_description ?? "Sähkösopimus yritykseltä {$contract->company?->name}";
 
-            // Append discount info to description if contract has active discounts
             if ($contract->hasActiveDiscounts()) {
                 $discountInfo = $contract->getActiveDiscountInfo();
                 if ($discountInfo) {
@@ -792,27 +792,62 @@ class SeoContractsList extends ContractsList
                 }
             }
 
+            $product = [
+                '@type' => 'Product',
+                '@id' => config('app.url') . '/sopimus/' . $contract->id . '#product',
+                'name' => $contract->name,
+                'url' => config('app.url') . '/sopimus/' . $contract->id,
+                'description' => $description,
+                'category' => 'Electricity Contract',
+            ];
+
+            if ($contract->company) {
+                $product['brand'] = [
+                    '@type' => 'Organization',
+                    'name' => $contract->company->name,
+                ];
+            }
+
             $items[] = [
                 '@type' => 'ListItem',
                 'position' => $index + 1,
-                'item' => [
-                    '@type' => 'Service',
-                    'name' => $contract->name,
-                    'description' => $description,
-                    'serviceType' => 'Electricity Contract',
-                    'provider' => [
-                        '@type' => 'Organization',
-                        'name' => $contract->company?->name ?? 'Unknown',
-                    ],
-                ],
+                'item' => $product,
             ];
         }
 
         return [
             '@context' => 'https://schema.org',
-            '@type' => 'ItemList',
-            'name' => $this->generateSeoTitle(),
-            'itemListElement' => $items,
+            '@graph' => [
+                [
+                    '@type' => 'WebPage',
+                    '@id' => $canonicalUrl . '#webpage',
+                    'url' => $canonicalUrl,
+                    'name' => $this->generateSeoTitle(),
+                    'description' => $this->generateMetaDescription(),
+                    'mainEntity' => [
+                        '@id' => $canonicalUrl . '#comparison-service',
+                    ],
+                ],
+                [
+                    '@type' => 'Service',
+                    '@id' => $canonicalUrl . '#comparison-service',
+                    'name' => $this->getPageHeadingProperty(),
+                    'description' => 'Voltikka vertailee sähkösopimuksia, hintoja ja sopimustyyppejä Suomessa.',
+                    'url' => $canonicalUrl,
+                    'serviceType' => 'Electricity contract comparison',
+                    'provider' => [
+                        '@type' => 'Organization',
+                        'name' => 'Voltikka',
+                        'url' => config('app.url'),
+                    ],
+                ],
+                [
+                    '@type' => 'ItemList',
+                    '@id' => $canonicalUrl . '#itemlist',
+                    'name' => $this->generateSeoTitle(),
+                    'itemListElement' => $items,
+                ],
+            ],
         ];
     }
 

@@ -1170,8 +1170,47 @@ class ContractsList extends Component
     }
 
     /**
+     * Generate WebPage JSON-LD schema for SEO.
+     */
+    public function getWebPageSchemaProperty(): array
+    {
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'WebPage',
+            '@id' => $this->canonicalUrl . '#webpage',
+            'url' => $this->canonicalUrl,
+            'name' => $this->pageTitle,
+            'description' => $this->metaDescription,
+            'mainEntity' => [
+                '@id' => $this->canonicalUrl . '#comparison-service',
+            ],
+        ];
+    }
+
+    /**
+     * Generate Service JSON-LD schema for the comparison page.
+     */
+    public function getComparisonServiceSchemaProperty(): array
+    {
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'Service',
+            '@id' => $this->canonicalUrl . '#comparison-service',
+            'name' => 'Sähkösopimusten vertailu',
+            'description' => 'Voltikka vertailee sähkösopimuksia, hintoja ja sopimustyyppejä Suomessa.',
+            'url' => $this->canonicalUrl,
+            'serviceType' => 'Electricity contract comparison',
+            'provider' => [
+                '@type' => 'Organization',
+                'name' => 'Voltikka',
+                'url' => config('app.url'),
+            ],
+        ];
+    }
+
+    /**
      * Generate ItemList JSON-LD schema for SEO.
-     * Contains lightweight references to contracts on the current page.
+     * Contains lightweight product references to contracts on the current page.
      */
     public function getItemListSchemaProperty(): array
     {
@@ -1187,34 +1226,33 @@ class ContractsList extends Component
         foreach ($contracts as $index => $contract) {
             $position = $basePosition + $index + 1;
 
-            $serviceItem = [
-                '@type' => 'Service',
+            $productItem = [
+                '@type' => 'Product',
+                '@id' => config('app.url') . '/sopimus/' . $contract->id . '#product',
                 'name' => $contract->name,
                 'url' => config('app.url') . '/sopimus/' . $contract->id,
-                'serviceType' => 'Electricity Contract',
+                'category' => 'Electricity Contract',
                 'description' => 'Arvioitu vuosikustannus ' . number_format($this->consumption, 0, ',', ' ') . ' kWh kulutuksella',
             ];
 
             if ($contract->company) {
-                $provider = [
+                $brand = [
                     '@type' => 'Organization',
                     'name' => $contract->company->name,
                 ];
 
                 if ($contract->company->getLogoUrl()) {
-                    $provider['logo'] = $contract->company->getLogoUrl();
+                    $brand['logo'] = $contract->company->getLogoUrl();
                 }
 
-                $serviceItem['provider'] = $provider;
+                $productItem['brand'] = $brand;
             }
 
-            $item = [
+            $items[] = [
                 '@type' => 'ListItem',
                 'position' => $position,
-                'item' => $serviceItem,
+                'item' => $productItem,
             ];
-
-            $items[] = $item;
         }
 
         return [
@@ -1313,6 +1351,8 @@ class ContractsList extends Component
     public function render()
     {
         $schemas = [
+            $this->webPageSchema,
+            $this->comparisonServiceSchema,
             $this->itemListSchema,
             $this->breadcrumbSchema,
         ];
