@@ -417,7 +417,7 @@ class ContractDetail extends Component
      */
     public function getCanonicalUrlProperty(): string
     {
-        return config('app.url') . '/sopimus/' . $this->contractId;
+        return route('contract.detail', ['contractId' => $this->contractId]);
     }
 
     /**

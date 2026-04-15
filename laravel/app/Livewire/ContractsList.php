@@ -1318,9 +1318,9 @@ class ContractsList extends Component
 
             $productItem = [
                 '@type' => 'Product',
-                '@id' => config('app.url') . '/sopimus/' . $contract->id . '#product',
+                '@id' => route('contract.detail', ['contractId' => $contract->id]) . '#product',
                 'name' => $contract->name,
-                'url' => config('app.url') . '/sopimus/' . $contract->id,
+                'url' => route('contract.detail', ['contractId' => $contract->id]),
                 'category' => 'Electricity Contract',
                 'description' => 'Arvioitu vuosikustannus ' . number_format($this->consumption, 0, ',', ' ') . ' kWh kulutuksella',
             ];
