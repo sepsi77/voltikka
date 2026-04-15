@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Http\Middleware\SetPublicCacheHeaders;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
@@ -317,6 +318,8 @@ class CompanyList extends Component
 
     public function render()
     {
+        $this->enableBackButtonCache();
+
         return view('livewire.company-list', [
             'companies' => $this->companies,
             'filteredCompanies' => $this->filteredCompanies,
@@ -335,6 +338,8 @@ class CompanyList extends Component
             'title' => $this->pageTitle . ' | Voltikka',
             'metaDescription' => $this->metaDescription,
             'canonical' => $this->canonicalUrl,
-        ]);
+        ])->response(function ($response) {
+            app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
+        });
     }
 }

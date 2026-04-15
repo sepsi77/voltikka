@@ -57,15 +57,13 @@ Route::get('/sahkosopimus/sopimus/{contractId}', ContractDetail::class)
 // Old company detail URL - redirect to new location
 // (Route added in redirects section below)
 
-$publicListingRouteMiddleware = ['public.cache.headers'];
 $publicListingWithoutMiddleware = [
     StartSession::class,
     ShareErrorsFromSession::class,
     ValidateCsrfToken::class,
 ];
 
-Route::middleware($publicListingRouteMiddleware)
-    ->withoutMiddleware($publicListingWithoutMiddleware)
+Route::withoutMiddleware($publicListingWithoutMiddleware)
     ->group(function () {
         // Location pages
         // Municipality browser (no param) - lists all municipalities for browsing
@@ -187,7 +185,6 @@ Route::get('/sahkosopimus/kannattaako-maaraaikainen', \App\Livewire\ArticleFixed
 
 // Main comparison index page (must come BEFORE city catch-all)
 Route::get('/sahkosopimus', SahkosopimusIndex::class)
-    ->middleware($publicListingRouteMiddleware)
     ->withoutMiddleware($publicListingWithoutMiddleware)
     ->name('sahkosopimus.index');
 

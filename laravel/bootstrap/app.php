@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Middleware\SetPublicCacheHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -21,9 +20,6 @@ return Application::configure(basePath: dirname(__DIR__))
             'livewire*/update',
         ]);
 
-        $middleware->alias([
-            'public.cache.headers' => SetPublicCacheHeaders::class,
-        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

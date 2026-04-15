@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Http\Middleware\SetPublicCacheHeaders;
 use App\Models\Postcode;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Url;
@@ -42,11 +43,15 @@ class LocationsList extends Component
 
     public function render()
     {
+        $this->enableBackButtonCache();
+
         return view('livewire.locations-list', [
             'municipalities' => $this->municipalities,
         ])->layout('layouts.app', [
             'title' => 'Paikkakunnat - Sähkösopimukset paikkakunnittain',
             'metaDescription' => $this->metaDescription,
-        ]);
+        ])->response(function ($response) {
+            app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
+        });
     }
 }

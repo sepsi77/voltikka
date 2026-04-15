@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Http\Middleware\SetPublicCacheHeaders;
 use App\Models\ElectricityContract;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -135,6 +136,8 @@ class CheapestContracts extends SeoContractsList
      */
     public function render()
     {
+        $this->enableBackButtonCache();
+
         return view('livewire.cheapest-contracts', [
             'contracts' => $this->contracts,
             'featuredContract' => $this->featuredContract,
@@ -147,6 +150,8 @@ class CheapestContracts extends SeoContractsList
             'title' => $this->seoData['title'],
             'metaDescription' => $this->seoData['description'],
             'canonical' => $this->seoData['canonical'],
-        ]);
+        ])->response(function ($response) {
+            app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
+        });
     }
 }

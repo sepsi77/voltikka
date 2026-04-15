@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Http\Middleware\SetPublicCacheHeaders;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\Municipality;
@@ -1272,6 +1273,8 @@ class SeoContractsList extends ContractsList
 
     public function render()
     {
+        $this->enableBackButtonCache();
+
         return view('livewire.seo-contracts-list', [
             'contracts' => $this->contracts,
             'postcodeSuggestions' => $this->postcodeSuggestions,
@@ -1299,6 +1302,8 @@ class SeoContractsList extends ContractsList
             'canonical' => $this->seoData['canonical'],
             'prevUrl' => $this->prevUrl,
             'nextUrl' => $this->nextUrl,
-        ]);
+        ])->response(function ($response) {
+            app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
+        });
     }
 }
