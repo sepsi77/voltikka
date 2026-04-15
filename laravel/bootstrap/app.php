@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\SetPublicCacheHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -14,6 +15,15 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         // Trust all proxies (Railway, load balancers, etc.)
         $middleware->trustProxies(at: '*');
+
+        // Livewire updates for public cached pages don't need CSRF/session-backed initial GET requests.
+        $middleware->validateCsrfTokens(except: [
+            'livewire*/update',
+        ]);
+
+        $middleware->alias([
+            'public.cache.headers' => SetPublicCacheHeaders::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

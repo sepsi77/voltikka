@@ -13,8 +13,11 @@ use App\Livewire\SeoContractsList;
 use App\Livewire\SolarCalculator;
 use App\Livewire\SpotPrice;
 use App\Services\SitemapService;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 // Main pages (keep at root level)
 Route::get('/', HomePage::class);
@@ -54,110 +57,121 @@ Route::get('/sahkosopimus/sopimus/{contractId}', ContractDetail::class)
 // Old company detail URL - redirect to new location
 // (Route added in redirects section below)
 
-// Location pages
-// Municipality browser (no param) - lists all municipalities for browsing
-Route::get('/sahkosopimus/paikkakunnat', LocationsList::class)->name('locations');
+$publicListingRouteMiddleware = ['public.cache.headers'];
+$publicListingWithoutMiddleware = [
+    StartSession::class,
+    ShareErrorsFromSession::class,
+    ValidateCsrfToken::class,
+];
 
-// City pages with local flavor - individual city contract listings
-Route::get('/sahkosopimus/paikkakunnat/{location}', SeoContractsList::class)
-    ->name('seo.city')
-    ->where('location', '[a-z0-9-]+');
+Route::middleware($publicListingRouteMiddleware)
+    ->withoutMiddleware($publicListingWithoutMiddleware)
+    ->group(function () {
+        // Location pages
+        // Municipality browser (no param) - lists all municipalities for browsing
+        Route::get('/sahkosopimus/paikkakunnat', LocationsList::class)->name('locations');
 
-// SEO Housing Type Routes
-Route::get('/sahkosopimus/omakotitalo', SeoContractsList::class)
-    ->name('seo.housing.omakotitalo')
-    ->defaults('housingType', 'omakotitalo');
-Route::get('/sahkosopimus/kerrostalo', SeoContractsList::class)
-    ->name('seo.housing.kerrostalo')
-    ->defaults('housingType', 'kerrostalo');
-Route::get('/sahkosopimus/rivitalo', SeoContractsList::class)
-    ->name('seo.housing.rivitalo')
-    ->defaults('housingType', 'rivitalo');
+        // City pages with local flavor - individual city contract listings
+        Route::get('/sahkosopimus/paikkakunnat/{location}', SeoContractsList::class)
+            ->name('seo.city')
+            ->where('location', '[a-z0-9-]+');
 
-// SEO Energy Source Routes
-Route::get('/sahkosopimus/tuulisahko', SeoContractsList::class)
-    ->name('seo.energy.tuulisahko')
-    ->defaults('energySource', 'tuulisahko');
-Route::get('/sahkosopimus/aurinkosahko', SeoContractsList::class)
-    ->name('seo.energy.aurinkosahko')
-    ->defaults('energySource', 'aurinkosahko');
-Route::get('/sahkosopimus/vihrea-sahko', SeoContractsList::class)
-    ->name('seo.energy.vihrea-sahko')
-    ->defaults('energySource', 'vihrea-sahko');
+        // SEO Housing Type Routes
+        Route::get('/sahkosopimus/omakotitalo', SeoContractsList::class)
+            ->name('seo.housing.omakotitalo')
+            ->defaults('housingType', 'omakotitalo');
+        Route::get('/sahkosopimus/kerrostalo', SeoContractsList::class)
+            ->name('seo.housing.kerrostalo')
+            ->defaults('housingType', 'kerrostalo');
+        Route::get('/sahkosopimus/rivitalo', SeoContractsList::class)
+            ->name('seo.housing.rivitalo')
+            ->defaults('housingType', 'rivitalo');
 
-// SEO Pricing Type Routes
-Route::get('/sahkosopimus/porssisahko', SeoContractsList::class)
-    ->name('seo.pricing.porssisahko')
-    ->defaults('pricingType', 'Spot');
-Route::get('/sahkosopimus/kvartaalisahko', SeoContractsList::class)
-    ->name('seo.pricing.kvartaalisahko')
-    ->defaults('pricingType', 'Quarterly');
-Route::get('/sahkosopimus/aikasahko', SeoContractsList::class)
-    ->name('seo.pricing.aikasahko')
-    ->defaults('pricingType', 'TimeOfUse');
-Route::get('/sahkosopimus/kausisahko', SeoContractsList::class)
-    ->name('seo.pricing.kausisahko')
-    ->defaults('pricingType', 'Seasonal');
-Route::get('/sahkosopimus/joustosahko', SeoContractsList::class)
-    ->name('seo.pricing.joustosahko')
-    ->defaults('pricingType', 'Hybrid');
-Route::get('/sahkosopimus/yleissahko', SeoContractsList::class)
-    ->name('seo.pricing.yleissahko')
-    ->defaults('pricingType', 'GeneralElectricity');
+        // SEO Energy Source Routes
+        Route::get('/sahkosopimus/tuulisahko', SeoContractsList::class)
+            ->name('seo.energy.tuulisahko')
+            ->defaults('energySource', 'tuulisahko');
+        Route::get('/sahkosopimus/aurinkosahko', SeoContractsList::class)
+            ->name('seo.energy.aurinkosahko')
+            ->defaults('energySource', 'aurinkosahko');
+        Route::get('/sahkosopimus/vihrea-sahko', SeoContractsList::class)
+            ->name('seo.energy.vihrea-sahko')
+            ->defaults('energySource', 'vihrea-sahko');
 
-// Cheapest contracts page (must come BEFORE city catch-all)
-Route::get('/sahkosopimus/halvin-sahkosopimus', CheapestContracts::class)
-    ->name('cheapest.contracts');
+        // SEO Pricing Type Routes
+        Route::get('/sahkosopimus/porssisahko', SeoContractsList::class)
+            ->name('seo.pricing.porssisahko')
+            ->defaults('pricingType', 'Spot');
+        Route::get('/sahkosopimus/kvartaalisahko', SeoContractsList::class)
+            ->name('seo.pricing.kvartaalisahko')
+            ->defaults('pricingType', 'Quarterly');
+        Route::get('/sahkosopimus/aikasahko', SeoContractsList::class)
+            ->name('seo.pricing.aikasahko')
+            ->defaults('pricingType', 'TimeOfUse');
+        Route::get('/sahkosopimus/kausisahko', SeoContractsList::class)
+            ->name('seo.pricing.kausisahko')
+            ->defaults('pricingType', 'Seasonal');
+        Route::get('/sahkosopimus/joustosahko', SeoContractsList::class)
+            ->name('seo.pricing.joustosahko')
+            ->defaults('pricingType', 'Hybrid');
+        Route::get('/sahkosopimus/yleissahko', SeoContractsList::class)
+            ->name('seo.pricing.yleissahko')
+            ->defaults('pricingType', 'GeneralElectricity');
 
-// Company contracts page (must come BEFORE city catch-all)
-Route::get('/sahkosopimus/yritykselle', SeoContractsList::class)
-    ->name('company.contracts')
-    ->defaults('targetGroup', 'Company');
+        // Cheapest contracts page (must come BEFORE city catch-all)
+        Route::get('/sahkosopimus/halvin-sahkosopimus', CheapestContracts::class)
+            ->name('cheapest.contracts');
 
-// SEO Contract Duration Routes
-Route::get('/sahkosopimus/maaraaikainen', SeoContractsList::class)
-    ->name('seo.duration.maaraaikainen')
-    ->defaults('contractDuration', 'FixedTerm');
-Route::get('/sahkosopimus/toistaiseksi', SeoContractsList::class)
-    ->name('seo.duration.toistaiseksi')
-    ->defaults('contractDuration', 'OpenEnded');
+        // Company contracts page (must come BEFORE city catch-all)
+        Route::get('/sahkosopimus/yritykselle', SeoContractsList::class)
+            ->name('company.contracts')
+            ->defaults('targetGroup', 'Company');
 
-// SEO Energy Source Routes (additional)
-Route::get('/sahkosopimus/fossiiliton', SeoContractsList::class)
-    ->name('seo.energy.fossiiliton')
-    ->defaults('energySource', 'fossiiliton');
-Route::get('/sahkosopimus/uusiutuva-sahko', SeoContractsList::class)
-    ->name('seo.energy.uusiutuva-sahko')
-    ->defaults('energySource', 'uusiutuva-sahko');
-Route::get('/sahkosopimus/ydinvoima', SeoContractsList::class)
-    ->name('seo.energy.ydinvoima')
-    ->defaults('energySource', 'ydinvoima');
+        // SEO Contract Duration Routes
+        Route::get('/sahkosopimus/maaraaikainen', SeoContractsList::class)
+            ->name('seo.duration.maaraaikainen')
+            ->defaults('contractDuration', 'FixedTerm');
+        Route::get('/sahkosopimus/toistaiseksi', SeoContractsList::class)
+            ->name('seo.duration.toistaiseksi')
+            ->defaults('contractDuration', 'OpenEnded');
 
-// SEO Consumption Level Routes
-Route::get('/sahkosopimus/kulutus/2000-kwh', SeoContractsList::class)
-    ->name('seo.consumption.2000')
-    ->defaults('consumptionLevel', '2000');
-Route::get('/sahkosopimus/kulutus/5000-kwh', SeoContractsList::class)
-    ->name('seo.consumption.5000')
-    ->defaults('consumptionLevel', '5000');
-Route::get('/sahkosopimus/kulutus/10000-kwh', SeoContractsList::class)
-    ->name('seo.consumption.10000')
-    ->defaults('consumptionLevel', '10000');
-Route::get('/sahkosopimus/kulutus/18000-kwh', SeoContractsList::class)
-    ->name('seo.consumption.18000')
-    ->defaults('consumptionLevel', '18000');
-Route::get('/sahkosopimus/kulutus/20000-kwh', SeoContractsList::class)
-    ->name('seo.consumption.20000')
-    ->defaults('consumptionLevel', '20000');
+        // SEO Energy Source Routes (additional)
+        Route::get('/sahkosopimus/fossiiliton', SeoContractsList::class)
+            ->name('seo.energy.fossiiliton')
+            ->defaults('energySource', 'fossiiliton');
+        Route::get('/sahkosopimus/uusiutuva-sahko', SeoContractsList::class)
+            ->name('seo.energy.uusiutuva-sahko')
+            ->defaults('energySource', 'uusiutuva-sahko');
+        Route::get('/sahkosopimus/ydinvoima', SeoContractsList::class)
+            ->name('seo.energy.ydinvoima')
+            ->defaults('energySource', 'ydinvoima');
 
-// SEO Promotion/Offer Route (must come BEFORE city catch-all)
-Route::get('/sahkosopimus/sahkotarjous', SeoContractsList::class)
-    ->name('seo.offer.sahkotarjous')
-    ->defaults('offerType', 'promotion');
+        // SEO Consumption Level Routes
+        Route::get('/sahkosopimus/kulutus/2000-kwh', SeoContractsList::class)
+            ->name('seo.consumption.2000')
+            ->defaults('consumptionLevel', '2000');
+        Route::get('/sahkosopimus/kulutus/5000-kwh', SeoContractsList::class)
+            ->name('seo.consumption.5000')
+            ->defaults('consumptionLevel', '5000');
+        Route::get('/sahkosopimus/kulutus/10000-kwh', SeoContractsList::class)
+            ->name('seo.consumption.10000')
+            ->defaults('consumptionLevel', '10000');
+        Route::get('/sahkosopimus/kulutus/18000-kwh', SeoContractsList::class)
+            ->name('seo.consumption.18000')
+            ->defaults('consumptionLevel', '18000');
+        Route::get('/sahkosopimus/kulutus/20000-kwh', SeoContractsList::class)
+            ->name('seo.consumption.20000')
+            ->defaults('consumptionLevel', '20000');
 
-// Company list page (all companies)
-Route::get('/sahkosopimus/sahkoyhtiot', CompanyList::class)
-    ->name('companies.list');
+        // SEO Promotion/Offer Route (must come BEFORE city catch-all)
+        Route::get('/sahkosopimus/sahkotarjous', SeoContractsList::class)
+            ->name('seo.offer.sahkotarjous')
+            ->defaults('offerType', 'promotion');
+
+        // Company list page (all companies)
+        Route::get('/sahkosopimus/sahkoyhtiot', CompanyList::class)
+            ->name('companies.list');
+    });
 
 // Company detail page (canonical URL)
 Route::get('/sahkosopimus/sahkoyhtiot/{companySlug}', CompanyDetail::class)
@@ -173,6 +187,8 @@ Route::get('/sahkosopimus/kannattaako-maaraaikainen', \App\Livewire\ArticleFixed
 
 // Main comparison index page (must come BEFORE city catch-all)
 Route::get('/sahkosopimus', SahkosopimusIndex::class)
+    ->middleware($publicListingRouteMiddleware)
+    ->withoutMiddleware($publicListingWithoutMiddleware)
     ->name('sahkosopimus.index');
 
 // SEO City Routes - 301 redirect from old URLs to new /paikkakunnat/ pattern
