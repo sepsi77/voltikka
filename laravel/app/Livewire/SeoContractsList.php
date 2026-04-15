@@ -236,7 +236,7 @@ class SeoContractsList extends ContractsList
     {
         $query = ElectricityContract::query()
             ->active()
-            ->with(['company', 'electricitySource'])
+            ->with(['electricitySource'])
             // Filter by target group
             ->where(function ($q) {
                 if ($this->targetGroup === 'Company') {
@@ -474,7 +474,7 @@ class SeoContractsList extends ContractsList
 
         // Calculate offset and get the slice for current page
         $offset = ($page - 1) * $perPage;
-        $items = $this->loadPriceComponentsForVisibleContracts($sorted->slice($offset, $perPage)->values());
+        $items = $this->loadVisibleContracts($sorted, $offset, $perPage);
 
         // Create and return a LengthAwarePaginator
         return new \Illuminate\Pagination\LengthAwarePaginator(

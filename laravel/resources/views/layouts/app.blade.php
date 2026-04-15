@@ -248,12 +248,12 @@
 
                     <!-- Spot Price Badge (Desktop) -->
                     <div class="hidden lg:block">
-                        @livewire('header-spot-price')
+                        <x-header-spot-price-shell />
                     </div>
 
                     <!-- Spot Price Badge + Mobile menu button -->
                     <div class="lg:hidden flex items-center gap-2">
-                        @livewire('header-spot-price')
+                        <x-header-spot-price-shell />
                         <button
                             @click="mobileMenuOpen = !mobileMenuOpen"
                             type="button"
@@ -433,6 +433,38 @@
             document.addEventListener('DOMContentLoaded', () => {
                 const navRoots = ['site-desktop-nav', 'site-mobile-nav'];
 
+                const loadHeaderSpotPrice = () => {
+                    document.querySelectorAll('[data-header-spot-price]').forEach((container) => {
+                        if (container.dataset.loaded === 'true' || container.dataset.loading === 'true') {
+                            return;
+                        }
+
+                        container.dataset.loading = 'true';
+
+                        fetch(container.dataset.url, {
+                            headers: {
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            credentials: 'same-origin',
+                        })
+                            .then((response) => response.ok ? response.text() : null)
+                            .then((html) => {
+                                if (!html) {
+                                    return;
+                                }
+
+                                container.innerHTML = html;
+                                container.dataset.loaded = 'true';
+                            })
+                            .catch(() => {
+                                // Keep the lightweight placeholder on failure.
+                            })
+                            .finally(() => {
+                                container.dataset.loading = 'false';
+                            });
+                    });
+                };
+
                 const clearPendingNavState = () => {
                     document.querySelectorAll('[data-nav-pending="true"]').forEach((link) => {
                         link.dataset.navPending = 'false';
@@ -523,6 +555,12 @@
                 window.addEventListener('pageshow', stopNavigationFeedback);
                 window.addEventListener('pagehide', stopNavigationFeedback);
                 window.addEventListener('popstate', startNavigationFeedback);
+
+                if ('requestIdleCallback' in window) {
+                    window.requestIdleCallback(loadHeaderSpotPrice, { timeout: 1500 });
+                } else {
+                    window.addEventListener('load', () => setTimeout(loadHeaderSpotPrice, 150), { once: true });
+                }
             });
         </script>
         @stack('scripts')

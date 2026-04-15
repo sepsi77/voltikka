@@ -915,7 +915,7 @@ class ContractsList extends Component
     {
         $query = ElectricityContract::query()
             ->active()
-            ->with(['company', 'electricitySource'])
+            ->with(['electricitySource'])
             // Filter for household contracts only (exclude company-only contracts)
             ->where(function ($q) {
                 $q->whereIn('target_group', ['Household', 'Both'])
@@ -1087,7 +1087,7 @@ class ContractsList extends Component
 
         // Calculate offset and get the slice for current page
         $offset = ($page - 1) * $perPage;
-        $items = $this->loadPriceComponentsForVisibleContracts($sorted->slice($offset, $perPage)->values());
+        $items = $this->loadVisibleContracts($sorted, $offset, $perPage);
 
         // Create and return a LengthAwarePaginator
         return new \Illuminate\Pagination\LengthAwarePaginator(
@@ -1154,24 +1154,54 @@ class ContractsList extends Component
                 return null;
             }
 
-            $contract->calculated_cost = $metrics['calculated_cost'];
-            $contract->emission_factor = $metrics['emission_factor'];
-            $contract->exceeds_consumption_limit = $metrics['exceeds_consumption_limit'];
+            $this->applyCachedMetricsToContract($contract, $metrics);
             $sortedContracts[] = $contract;
         }
 
         return new Collection($sortedContracts);
     }
 
-    /**
-     * Load price components only for the currently visible contracts.
-     */
-    protected function loadPriceComponentsForVisibleContracts($items): Collection
+    protected function applyCachedMetricsToContract(ElectricityContract $contract, array $metrics): ElectricityContract
     {
-        $visibleContracts = new Collection($items->all());
-        $visibleContracts->loadMissing('priceComponents');
+        $contract->calculated_cost = $metrics['calculated_cost'];
+        $contract->emission_factor = $metrics['emission_factor'];
+        $contract->exceeds_consumption_limit = $metrics['exceeds_consumption_limit'];
 
-        return $visibleContracts;
+        return $contract;
+    }
+
+    /**
+     * Load only the contracts visible on the current page with their full relations.
+     */
+    protected function loadVisibleContracts(Collection $sorted, int $offset, int $perPage): Collection
+    {
+        $visibleSummaries = $sorted->slice($offset, $perPage)->values();
+        $visibleIds = $visibleSummaries->pluck('id')->all();
+
+        if (empty($visibleIds)) {
+            return collect();
+        }
+
+        $contractsById = ElectricityContract::query()
+            ->with(['company', 'priceComponents', 'electricitySource'])
+            ->whereIn('id', $visibleIds)
+            ->get()
+            ->keyBy('id');
+
+        return $visibleSummaries->map(function (ElectricityContract $summary) use ($contractsById) {
+            /** @var ElectricityContract|null $contract */
+            $contract = $contractsById->get($summary->id);
+
+            if (! $contract) {
+                return null;
+            }
+
+            $contract->calculated_cost = $summary->calculated_cost;
+            $contract->emission_factor = $summary->emission_factor;
+            $contract->exceeds_consumption_limit = $summary->exceeds_consumption_limit;
+
+            return $contract;
+        })->filter()->values();
     }
 
     /**

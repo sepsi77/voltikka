@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\CalculationController;
 use App\Http\Controllers\Api\ContractController;
 use App\Http\Controllers\Api\SolarController;
 use App\Http\Controllers\Api\VideoController;
+use App\Services\HeaderSpotPriceService;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -16,6 +17,14 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "api" middleware group.
 |
 */
+
+Route::get('/header-spot-price', function (HeaderSpotPriceService $spotPriceService) {
+    return response()
+        ->view('livewire.header-spot-price', [
+            'currentPrice' => $spotPriceService->getCurrentPrice(),
+        ])
+        ->header('Cache-Control', 'public, max-age=60, s-maxage=60, stale-while-revalidate=300');
+});
 
 // Contract routes
 Route::get('/contracts', [ContractController::class, 'index']);
