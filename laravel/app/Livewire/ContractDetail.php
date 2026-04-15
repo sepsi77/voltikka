@@ -2,9 +2,11 @@
 
 namespace App\Livewire;
 
+use App\Http\Middleware\SetPublicCacheHeaders;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
 use App\Services\CO2EmissionsCalculator;
+use App\Services\ContractListCacheService;
 use App\Services\ContractPriceCalculator;
 use App\Services\ContractRankingService;
 use App\Services\DTO\EnergyUsage;
@@ -12,6 +14,12 @@ use Livewire\Component;
 
 class ContractDetail extends Component
 {
+    protected ?ElectricityContract $contractCache = null;
+
+    protected ?array $latestPricesCache = null;
+
+    protected ?array $priceHistoryCache = null;
+
     /**
      * The contract ID.
      */
@@ -144,7 +152,11 @@ class ContractDetail extends Component
      */
     public function getContractProperty(): ?ElectricityContract
     {
-        return ElectricityContract::query()
+        if ($this->contractCache !== null) {
+            return $this->contractCache;
+        }
+
+        return $this->contractCache = ElectricityContract::query()
             ->with(['company', 'priceComponents', 'electricitySource'])
             ->find($this->contractId);
     }
@@ -269,18 +281,17 @@ class ContractDetail extends Component
             return [];
         }
 
-        $calculator = app(ContractPriceCalculator::class);
+        /** @var ContractListCacheService $contractListCache */
+        $contractListCache = app(ContractListCacheService::class);
+        $cachedMetrics = $contractListCache->getCachedMetrics($this->consumption);
+        $cachedContract = $cachedMetrics['contracts'][$contract->id] ?? null;
 
-        $priceComponents = $contract->priceComponents
-            ->sortByDesc('price_date')
-            ->groupBy('price_component_type')
-            ->map(fn ($group) => $group->sortByDesc('price_date')->first(fn ($item) => $item->price > 0) ?? $group->sortByDesc('price_date')->first())
-            ->values()
-            ->map(fn ($pc) => [
-                'price_component_type' => $pc->price_component_type,
-                'price' => $pc->price,
-            ])
-            ->toArray();
+        if ($cachedContract) {
+            return $cachedContract['calculated_cost'];
+        }
+
+        $calculator = app(ContractPriceCalculator::class);
+        $priceComponents = $this->getNormalizedPriceComponents($contract);
 
         $usage = new EnergyUsage(
             total: $this->consumption,
@@ -293,7 +304,6 @@ class ContractDetail extends Component
             'metering' => $contract->metering,
         ];
 
-        // Get spot price averages for spot contract calculations
         $spotPriceAvg = SpotPriceAverage::latestRolling365Days();
         $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
         $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
@@ -308,6 +318,10 @@ class ContractDetail extends Component
      */
     public function getLatestPricesProperty(): array
     {
+        if ($this->latestPricesCache !== null) {
+            return $this->latestPricesCache;
+        }
+
         $contract = $this->contract;
 
         if (! $contract) {
@@ -324,7 +338,7 @@ class ContractDetail extends Component
             ];
         }
 
-        return $prices;
+        return $this->latestPricesCache = $prices;
     }
 
     /**
@@ -334,6 +348,10 @@ class ContractDetail extends Component
      */
     public function getPriceHistoryProperty(): array
     {
+        if ($this->priceHistoryCache !== null) {
+            return $this->priceHistoryCache;
+        }
+
         $contract = $this->contract;
 
         if (! $contract) {
@@ -349,7 +367,7 @@ class ContractDetail extends Component
             ])->values()->toArray();
         }
 
-        return $history;
+        return $this->priceHistoryCache = $history;
     }
 
     /**
@@ -375,6 +393,23 @@ class ContractDetail extends Component
     public function getEmissionFactorSourcesProperty(): array
     {
         return CO2EmissionsCalculator::EMISSION_FACTOR_SOURCES;
+    }
+
+    /**
+     * @return array<int, array{price_component_type: string, price: float|int|null}>
+     */
+    protected function getNormalizedPriceComponents(ElectricityContract $contract): array
+    {
+        return $contract->priceComponents
+            ->sortByDesc('price_date')
+            ->groupBy('price_component_type')
+            ->map(fn ($group) => $group->sortByDesc('price_date')->first(fn ($item) => $item->price > 0) ?? $group->sortByDesc('price_date')->first())
+            ->values()
+            ->map(fn ($pc) => [
+                'price_component_type' => $pc->price_component_type,
+                'price' => $pc->price,
+            ])
+            ->toArray();
     }
 
     /**
@@ -714,6 +749,8 @@ class ContractDetail extends Component
 
     public function render()
     {
+        $this->enableBackButtonCache();
+
         $contract = $this->contract;
 
         if (! $contract) {
@@ -738,6 +775,8 @@ class ContractDetail extends Component
             'ogTitle' => $this->ogTitle,
             'metaDescription' => $this->metaDescription,
             'canonical' => $this->canonicalUrl,
-        ]);
+        ])->response(function ($response) {
+            app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
+        });
     }
 }

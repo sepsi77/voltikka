@@ -3,12 +3,7 @@
 namespace App\Livewire;
 
 use App\Http\Middleware\SetPublicCacheHeaders;
-use App\Models\Company;
-use App\Models\ElectricityContract;
-use App\Models\SpotPriceAverage;
-use App\Services\CO2EmissionsCalculator;
-use App\Services\ContractPriceCalculator;
-use App\Services\DTO\EnergyUsage;
+use App\Services\CompanyListCacheService;
 use Illuminate\Support\Collection;
 use Livewire\Component;
 
@@ -32,9 +27,7 @@ class CompanyList extends Component
     protected ?Collection $cachedCompanies = null;
 
     /**
-     * Get all companies with their contracts and calculated metrics.
-     *
-     * @return Collection Collection of arrays with 'company', 'contracts', and metrics
+     * Get all companies with cached metrics.
      */
     public function getCompaniesProperty(): Collection
     {
@@ -42,123 +35,8 @@ class CompanyList extends Component
             return $this->cachedCompanies;
         }
 
-        $calculator = app(ContractPriceCalculator::class);
-        $emissionsCalculator = app(CO2EmissionsCalculator::class);
-
-        // Get spot price averages for calculations
-        $spotPriceAvg = SpotPriceAverage::latestRolling365Days();
-        $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
-        $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
-
-        // Load all contracts with their relationships
-        $contracts = ElectricityContract::query()
-            ->active()
-            ->with(['company', 'priceComponents', 'electricitySource'])
-            ->whereHas('company')
-            ->get();
-
-        // Group contracts by company
-        $contractsByCompany = $contracts->groupBy('company_name');
-
-        // Build company data with metrics
-        $companies = collect();
-
-        foreach ($contractsByCompany as $companyName => $companyContracts) {
-            $company = $companyContracts->first()->company;
-            if (!$company) {
-                continue;
-            }
-
-            // Calculate metrics for each contract
-            $contractsWithMetrics = $companyContracts->map(function ($contract) use ($calculator, $emissionsCalculator, $spotPriceDay, $spotPriceNight) {
-                $priceComponents = $contract->priceComponents
-                    ->sortByDesc('price_date')
-                    ->groupBy('price_component_type')
-                    ->map(fn ($group) => $group->sortByDesc('price_date')->first(fn ($item) => $item->price > 0) ?? $group->sortByDesc('price_date')->first())
-                    ->values()
-                    ->map(fn ($pc) => [
-                        'price_component_type' => $pc->price_component_type,
-                        'price' => $pc->price,
-                    ])
-                    ->toArray();
-
-                $usage = new EnergyUsage(
-                    total: $this->consumption,
-                    basicLiving: $this->consumption,
-                );
-
-                $contractData = [
-                    'contract_type' => $contract->contract_type,
-                    'pricing_model' => $contract->pricing_model,
-                    'metering' => $contract->metering,
-                ];
-
-                $result = $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
-                $contract->calculated_cost = $result->toArray();
-                $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
-
-                // Mark contracts where consumption exceeds their limit as not applicable for price comparisons
-                $maxConsumption = $contract->consumption_limitation_max_x_kwh_per_y;
-                $contract->exceeds_consumption_limit = $maxConsumption > 0 && $this->consumption > $maxConsumption;
-
-                return $contract;
-            });
-
-            // Filter contracts that are applicable for pricing (consumption within limits)
-            $priceApplicableContracts = $contractsWithMetrics->filter(fn ($c) => !$c->exceeds_consumption_limit);
-
-            // Calculate company-level metrics using only applicable contracts for price metrics
-            $avgPrice = $priceApplicableContracts->isNotEmpty()
-                ? $priceApplicableContracts->avg(fn ($c) => $c->calculated_cost['total_cost'] ?? 0)
-                : null;
-            $lowestPrice = $priceApplicableContracts->isNotEmpty()
-                ? $priceApplicableContracts->min(fn ($c) => $c->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX)
-                : null;
-            // Calculate emission and renewable metrics for all contracts
-            // Contracts without source data are treated as 0% renewable (unverified source)
-            $avgEmissions = $contractsWithMetrics->avg(fn ($c) => $c->emission_factor ?? 0);
-            $lowestEmissions = $contractsWithMetrics->min(fn ($c) => $c->emission_factor ?? PHP_FLOAT_MAX);
-            $avgRenewable = $contractsWithMetrics->avg(fn ($c) => $c->electricitySource?->renewable_total ?? 0);
-            $maxRenewable = $contractsWithMetrics->max(fn ($c) => $c->electricitySource?->renewable_total ?? 0);
-
-            // Get monthly fee (lowest available from applicable contracts)
-            $lowestMonthlyFee = $priceApplicableContracts
-                ->map(fn ($c) => $c->calculated_cost['monthly_fixed_fee'] ?? PHP_FLOAT_MAX)
-                ->filter(fn ($fee) => $fee < PHP_FLOAT_MAX)
-                ->min() ?? null;
-
-            // Get spot margin (lowest from applicable spot contracts only)
-            $spotContracts = $priceApplicableContracts->filter(fn ($c) => $c->pricing_model === 'Spot');
-            $lowestSpotMargin = $spotContracts
-                ->map(fn ($c) => $c->calculated_cost['spot_price_margin'] ?? PHP_FLOAT_MAX)
-                ->filter(fn ($margin) => $margin !== null && $margin < PHP_FLOAT_MAX)
-                ->min();
-
-            // Check if company has 100% renewable contracts
-            $hasFullyRenewable = $contractsWithMetrics->contains(fn ($c) =>
-                $c->electricitySource && $c->electricitySource->isFullyRenewable()
-            );
-
-            $companies->push([
-                'company' => $company,
-                'contracts' => $contractsWithMetrics,
-                'contractCount' => $contractsWithMetrics->count(),
-                'avgPrice' => $avgPrice,
-                'lowestPrice' => $lowestPrice,
-                'avgEmissions' => $avgEmissions,
-                'lowestEmissions' => $lowestEmissions,
-                'avgRenewable' => $avgRenewable,
-                'maxRenewable' => $maxRenewable,
-                'lowestMonthlyFee' => $lowestMonthlyFee,
-                'lowestSpotMargin' => $lowestSpotMargin,
-                'hasSpotContracts' => $spotContracts->isNotEmpty(),
-                'hasFullyRenewable' => $hasFullyRenewable,
-            ]);
-        }
-
-        $this->cachedCompanies = $companies;
-
-        return $companies;
+        return $this->cachedCompanies = app(CompanyListCacheService::class)
+            ->getCachedCompanies($this->consumption);
     }
 
     /**

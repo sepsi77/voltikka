@@ -21,7 +21,13 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 // Main pages (keep at root level)
 Route::get('/', HomePage::class);
-Route::get('/spot-price', SpotPrice::class)->name('spot-price');
+Route::get('/spot-price', SpotPrice::class)
+    ->withoutMiddleware([
+        StartSession::class,
+        ShareErrorsFromSession::class,
+        ValidateCsrfToken::class,
+    ])
+    ->name('spot-price');
 
 // Sitemap (cached for 7 days)
 Route::get('/sitemap.xml', function (SitemapService $sitemapService) {
@@ -52,6 +58,11 @@ Route::redirect('/lampopumput', '/lampopumput/laskuri', 302);
 
 // Contract detail
 Route::get('/sahkosopimus/sopimus/{contractId}', ContractDetail::class)
+    ->withoutMiddleware([
+        StartSession::class,
+        ShareErrorsFromSession::class,
+        ValidateCsrfToken::class,
+    ])
     ->name('contract.detail');
 
 // Old company detail URL - redirect to new location

@@ -6,6 +6,7 @@ use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
 use App\Models\SpotPriceQuarter;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
 class SpotPrice extends Component
@@ -53,10 +54,13 @@ class SpotPrice extends Component
      */
     private function loadRolling30DayAverage(): void
     {
-        $rolling30 = SpotPriceAverage::latestRolling30Days(self::REGION);
-        $this->rolling30DayAvgWithVat = $rolling30?->avg_price_without_tax
-            ? round($rolling30->avg_price_without_tax * 1.255, 2)
-            : null;
+        $this->rolling30DayAvgWithVat = Cache::remember('spot_price:rolling30:v1', 300, function () {
+            $rolling30 = SpotPriceAverage::latestRolling30Days(self::REGION);
+
+            return $rolling30?->avg_price_without_tax
+                ? round($rolling30->avg_price_without_tax * 1.255, 2)
+                : null;
+        });
     }
 
     /**
@@ -284,7 +288,9 @@ class SpotPrice extends Component
         $this->error = null;
 
         try {
-            $this->hourlyPrices = $this->loadPricesFromDatabase();
+            $priceData = Cache::remember('spot_price:current:v1', 60, fn () => $this->buildCurrentPriceData());
+            $this->hourlyPrices = $priceData['hourlyPrices'];
+            $this->quarterPricesByHour = $priceData['quarterPricesByHour'];
         } catch (\Exception $e) {
             $this->error = 'Hintatietojen lataaminen epäonnistui. Yritä myöhemmin uudelleen.';
         }
@@ -294,8 +300,10 @@ class SpotPrice extends Component
 
     /**
      * Load prices for today and tomorrow from the database.
+     *
+     * @return array{hourlyPrices: array<int, array<string, mixed>>, quarterPricesByHour: array<int, array<int, array<string, mixed>>>}
      */
-    private function loadPricesFromDatabase(): array
+    private function buildCurrentPriceData(): array
     {
         $helsinkiNow = Carbon::now(self::TIMEZONE);
         $todayStart = $helsinkiNow->copy()->startOfDay()->setTimezone('UTC');
@@ -306,38 +314,39 @@ class SpotPrice extends Component
             ->orderBy('utc_datetime')
             ->get();
 
-        // Pre-load all quarter prices for displayed hours (eliminates Livewire round-trips)
-        $this->loadQuarterPricesForRange($todayStart, $tomorrowEnd);
+        return [
+            'hourlyPrices' => $prices->map(function (SpotPriceHour $price) {
+                $utcTime = Carbon::parse($price->utc_datetime)->shiftTimezone('UTC');
+                $helsinkiTime = $utcTime->copy()->setTimezone(self::TIMEZONE);
 
-        return $prices->map(function (SpotPriceHour $price) {
-            // Parse as UTC explicitly, then convert to Helsinki
-            $utcTime = Carbon::parse($price->utc_datetime)->shiftTimezone('UTC');
-            $helsinkiTime = $utcTime->copy()->setTimezone(self::TIMEZONE);
-
-            return [
-                'region' => $price->region,
-                'timestamp' => $price->timestamp,
-                'utc_datetime' => $utcTime->toIso8601String(),
-                'price_without_tax' => $price->price_without_tax,
-                'vat_rate' => $price->vat_rate,
-                'price_with_tax' => round($price->price_with_tax, 2),
-                'helsinki_hour' => (int) $helsinkiTime->format('H'),
-                'helsinki_date' => $helsinkiTime->format('Y-m-d'),
-            ];
-        })->toArray();
+                return [
+                    'region' => $price->region,
+                    'timestamp' => $price->timestamp,
+                    'utc_datetime' => $utcTime->toIso8601String(),
+                    'price_without_tax' => $price->price_without_tax,
+                    'vat_rate' => $price->vat_rate,
+                    'price_with_tax' => round($price->price_with_tax, 2),
+                    'helsinki_hour' => (int) $helsinkiTime->format('H'),
+                    'helsinki_date' => $helsinkiTime->format('Y-m-d'),
+                ];
+            })->toArray(),
+            'quarterPricesByHour' => $this->loadQuarterPricesForRange($todayStart, $tomorrowEnd),
+        ];
     }
 
     /**
      * Pre-load all quarter prices for a time range and organize by hour timestamp.
+     *
+     * @return array<int, array<int, array<string, mixed>>>
      */
-    private function loadQuarterPricesForRange(Carbon $start, Carbon $end): void
+    private function loadQuarterPricesForRange(Carbon $start, Carbon $end): array
     {
         $quarterPrices = SpotPriceQuarter::forRegion(self::REGION)
             ->whereBetween('utc_datetime', [$start, $end])
             ->orderBy('utc_datetime')
             ->get();
 
-        $this->quarterPricesByHour = [];
+        $quarterPricesByHour = [];
 
         // Get current Helsinki time for determining the active slot
         $helsinkiNow = Carbon::now(self::TIMEZONE);
@@ -355,8 +364,8 @@ class SpotPrice extends Component
             $hourStart = $utcTime->copy()->minute(0)->second(0);
             $hourTimestamp = $hourStart->timestamp;
 
-            if (!isset($this->quarterPricesByHour[$hourTimestamp])) {
-                $this->quarterPricesByHour[$hourTimestamp] = [];
+            if (!isset($quarterPricesByHour[$hourTimestamp])) {
+                $quarterPricesByHour[$hourTimestamp] = [];
             }
 
             $minute = (int) $helsinkiTime->format('i');
@@ -371,7 +380,7 @@ class SpotPrice extends Component
                 $minute === $currentQuarterMinute
             );
 
-            $this->quarterPricesByHour[$hourTimestamp][] = [
+            $quarterPricesByHour[$hourTimestamp][] = [
                 'timestamp' => $price->timestamp,
                 'price_without_tax' => $price->price_without_tax,
                 'price_with_tax' => round($price->price_with_tax, 2),
@@ -387,6 +396,8 @@ class SpotPrice extends Component
                 ),
             ];
         }
+
+        return $quarterPricesByHour;
     }
 
     /**
@@ -439,29 +450,28 @@ class SpotPrice extends Component
      */
     private function getCurrentQuarterPrice(Carbon $helsinkiNow): ?array
     {
-        // Calculate current 15-minute interval start
         $minute = (int) $helsinkiNow->format('i');
         $quarterMinute = (int) floor($minute / 15) * 15;
-        $quarterStart = $helsinkiNow->copy()->minute($quarterMinute)->second(0)->setTimezone('UTC');
-        $quarterEnd = $quarterStart->copy()->addMinutes(15);
+        $hourStartTimestamp = $helsinkiNow->copy()->minute(0)->second(0)->setTimezone('UTC')->timestamp;
+        $quarters = $this->quarterPricesByHour[$hourStartTimestamp] ?? [];
 
-        $price = SpotPriceQuarter::forRegion(self::REGION)
-            ->where('utc_datetime', '>=', $quarterStart)
-            ->where('utc_datetime', '<', $quarterEnd)
-            ->first();
-
-        if (!$price) {
+        if (empty($quarters)) {
             return null;
         }
 
-        // Calculate which quarter of the hour (0-3)
+        $currentQuarter = collect($quarters)->first(fn (array $quarter) => ($quarter['helsinki_minute'] ?? null) === $quarterMinute);
+
+        if (! $currentQuarter) {
+            return null;
+        }
+
         $quarterIndex = (int) floor($minute / 15);
         $quarterStartMinute = $quarterIndex * 15;
         $quarterEndMinute = $quarterStartMinute + 15;
 
         return [
-            'price_with_tax' => round($price->price_with_tax, 2),
-            'price_without_tax' => round($price->price_without_tax, 2),
+            'price_with_tax' => $currentQuarter['price_with_tax'],
+            'price_without_tax' => $currentQuarter['price_without_tax'],
             'is_quarter' => true,
             'time_label' => sprintf(
                 '%s:%02d - %s:%02d',
@@ -1430,10 +1440,21 @@ class SpotPrice extends Component
      */
     public function loadHistoricalData(): void
     {
-        $this->weeklyDailyAverages = $this->getWeeklyDailyAverages();
-        $this->weeklyChartData = $this->getWeeklyChartData();
-        $this->monthlyComparison = $this->getMonthlyComparison();
-        $this->yearOverYearComparison = $this->getYearOverYearComparison();
+        $historicalData = Cache::remember('spot_price:historical:v1', 3600, function () {
+            $weeklyDailyAverages = $this->getWeeklyDailyAverages();
+
+            return [
+                'weeklyDailyAverages' => $weeklyDailyAverages,
+                'weeklyChartData' => $this->buildWeeklyChartData($weeklyDailyAverages),
+                'monthlyComparison' => $this->getMonthlyComparison(),
+                'yearOverYearComparison' => $this->getYearOverYearComparison(),
+            ];
+        });
+
+        $this->weeklyDailyAverages = $historicalData['weeklyDailyAverages'];
+        $this->weeklyChartData = $historicalData['weeklyChartData'];
+        $this->monthlyComparison = $historicalData['monthlyComparison'];
+        $this->yearOverYearComparison = $historicalData['yearOverYearComparison'];
         $this->historicalDataLoaded = true;
     }
 
@@ -1613,8 +1634,11 @@ class SpotPrice extends Component
      */
     public function getWeeklyChartData(): array
     {
-        $weeklyData = $this->getWeeklyDailyAverages();
+        return $this->buildWeeklyChartData($this->weeklyDailyAverages ?: $this->getWeeklyDailyAverages());
+    }
 
+    private function buildWeeklyChartData(array $weeklyData): array
+    {
         if (empty($weeklyData)) {
             return [
                 'labels' => [],
@@ -1775,6 +1799,8 @@ class SpotPrice extends Component
 
     public function render()
     {
+        $this->enableBackButtonCache();
+
         $viewData = [
             'currentPrice' => $this->getCurrentPrice(),
             'todayMinMax' => $this->getTodayMinMax(),
@@ -1813,6 +1839,14 @@ class SpotPrice extends Component
             ->layout('layouts.app', [
                 'title' => 'Pörssisähkön hinta tänään - Voltikka',
                 'metaDescription' => 'Katso pörssisähkön tuntihinnat tänään ja huomenna. Vertaile sähkön hintoja ja löydä edullisin aika sähkönkäytölle.',
-            ]);
+            ])->response(function ($response) {
+                $response->setPublic();
+                $response->setMaxAge(60);
+                $response->setSharedMaxAge(300);
+                $response->setStaleWhileRevalidate(900);
+                $response->headers->remove('Pragma');
+                $response->headers->remove('Expires');
+                $response->headers->set('Vary', 'Accept-Encoding', false);
+            });
     }
 }
