@@ -148,7 +148,14 @@
 
         @livewireStyles
     </head>
-    <body class="font-sans antialiased bg-slate-50 min-h-screen flex flex-col">
+    <body
+        x-data="{ pageNavigating: false }"
+        x-on:page-navigation-start.window="pageNavigating = true"
+        x-on:page-navigation-end.window="pageNavigating = false"
+        x-on:pageshow.window="pageNavigating = false"
+        :class="pageNavigating ? 'cursor-progress' : ''"
+        class="font-sans antialiased bg-slate-50 min-h-screen flex flex-col"
+    >
         {{-- Global Livewire Loading Indicator --}}
         <div
             x-data="{ show: false, timeout: null }"
@@ -167,6 +174,32 @@
             <div class="h-1 bg-coral-500 animate-pulse"></div>
         </div>
 
+        {{-- Immediate page navigation feedback for normal link clicks --}}
+        <div
+            x-show="pageNavigating"
+            x-transition:enter="transition ease-out duration-150"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-100"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            class="fixed top-0 left-0 right-0 z-[60] pointer-events-none"
+            style="display: none;"
+            aria-live="polite"
+            aria-label="Ladataan sivua"
+        >
+            <div class="h-1 bg-gradient-to-r from-coral-500 via-coral-400 to-coral-500 animate-pulse"></div>
+            <div class="absolute top-4 right-4">
+                <div class="inline-flex items-center gap-2 rounded-full bg-slate-900/92 text-white text-sm font-medium px-4 py-2 shadow-lg shadow-slate-900/20 backdrop-blur-sm">
+                    <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" class="opacity-25" stroke="currentColor" stroke-width="3"></circle>
+                        <path d="M21 12a9 9 0 0 0-9-9" class="opacity-90" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path>
+                    </svg>
+                    <span>Ladataan sivua…</span>
+                </div>
+            </div>
+        </div>
+
         <header class="bg-white border-b border-slate-200" x-data="{ mobileMenuOpen: false }">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="flex justify-between items-center h-16">
@@ -183,7 +216,7 @@
                     </div>
 
                     <!-- Desktop Navigation -->
-                    <nav class="hidden lg:flex items-center space-x-1">
+                    <nav class="hidden lg:flex items-center space-x-1" id="site-desktop-nav">
                         {{-- Sähkösopimukset dropdown --}}
                         <div class="relative" x-data="{ open: false }" @mouseenter="open = true" @mouseleave="open = false">
                             <a href="/sahkosopimus" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors inline-flex items-center gap-1 {{ request()->is('sahkosopimus*') || request()->is('spot-price') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
@@ -244,7 +277,7 @@
 
             <!-- Mobile menu -->
             <div x-show="mobileMenuOpen" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="transform opacity-0 scale-95" x-transition:enter-end="transform opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="transform opacity-100 scale-100" x-transition:leave-end="transform opacity-0 scale-95" class="lg:hidden" id="mobile-menu" style="display: none;">
-                <div class="px-2 pt-2 pb-3 space-y-1 bg-white border-t border-slate-200">
+                <div class="px-2 pt-2 pb-3 space-y-1 bg-white border-t border-slate-200" id="site-mobile-nav">
                     {{-- Sähkösopimukset collapsible section --}}
                     <div x-data="{ expanded: {{ request()->is('sahkosopimus*') || request()->is('spot-price') ? 'true' : 'false' }} }">
                         <button @click="expanded = !expanded" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus*') || request()->is('spot-price') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
@@ -396,6 +429,102 @@
         </footer>
 
         @livewireScripts
+        <script>
+            document.addEventListener('DOMContentLoaded', () => {
+                const navRoots = ['site-desktop-nav', 'site-mobile-nav'];
+
+                const clearPendingNavState = () => {
+                    document.querySelectorAll('[data-nav-pending="true"]').forEach((link) => {
+                        link.dataset.navPending = 'false';
+                        link.classList.remove('opacity-70', 'scale-[0.98]', 'bg-coral-50', 'text-coral-700', 'shadow-sm');
+                        link.removeAttribute('aria-busy');
+                    });
+                };
+
+                const markPendingNavLink = (link) => {
+                    clearPendingNavState();
+
+                    const insidePrimaryNav = navRoots.some((id) => link.closest(`#${id}`));
+                    if (!insidePrimaryNav) {
+                        return;
+                    }
+
+                    link.dataset.navPending = 'true';
+                    link.setAttribute('aria-busy', 'true');
+                    link.classList.add('opacity-70', 'scale-[0.98]', 'bg-coral-50', 'text-coral-700', 'shadow-sm');
+                };
+
+                const startNavigationFeedback = () => {
+                    window.dispatchEvent(new CustomEvent('page-navigation-start'));
+                };
+
+                const stopNavigationFeedback = () => {
+                    clearPendingNavState();
+                    window.dispatchEvent(new CustomEvent('page-navigation-end'));
+                };
+
+                document.addEventListener('click', (event) => {
+                    if (event.defaultPrevented || event.button !== 0) {
+                        return;
+                    }
+
+                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                        return;
+                    }
+
+                    const link = event.target.closest('a[href]');
+                    if (!link) {
+                        return;
+                    }
+
+                    if (link.hasAttribute('download') || link.dataset.noNavLoading !== undefined) {
+                        return;
+                    }
+
+                    const target = link.getAttribute('target');
+                    if (target && target !== '_self') {
+                        return;
+                    }
+
+                    const href = link.getAttribute('href');
+                    if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:')) {
+                        return;
+                    }
+
+                    let url;
+                    try {
+                        url = new URL(link.href, window.location.href);
+                    } catch {
+                        return;
+                    }
+
+                    if (url.origin !== window.location.origin) {
+                        return;
+                    }
+
+                    const currentUrl = new URL(window.location.href);
+                    const onlyHashChanged = url.pathname === currentUrl.pathname
+                        && url.search === currentUrl.search
+                        && url.hash
+                        && url.hash !== currentUrl.hash;
+
+                    if (onlyHashChanged) {
+                        return;
+                    }
+
+                    if (url.href === currentUrl.href) {
+                        return;
+                    }
+
+                    markPendingNavLink(link);
+                    startNavigationFeedback();
+                }, { passive: true });
+
+                window.addEventListener('pageshow', stopNavigationFeedback);
+                window.addEventListener('pagehide', stopNavigationFeedback);
+                window.addEventListener('popstate', startNavigationFeedback);
+            });
+        </script>
         @stack('scripts')
     </body>
 </html>

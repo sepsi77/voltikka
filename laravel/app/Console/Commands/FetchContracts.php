@@ -12,6 +12,7 @@ use App\Models\PriceComponent;
 use App\Models\SpotFutures;
 use App\Services\AzureConsumerApiClient;
 use App\Services\CompanyLogoService;
+use App\Services\ContractListCacheService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\RequestException;
@@ -114,6 +115,21 @@ class FetchContracts extends Command
             $this->processSpotFutures($allContracts, $today);
 
             DB::commit();
+
+            try {
+                /** @var ContractListCacheService $contractListCache */
+                $contractListCache = app(ContractListCacheService::class);
+                $version = $contractListCache->bumpVersion();
+                $this->info("Contract list cache version bumped to {$version}. Warming preset caches...");
+                $contractListCache->warmPresetCaches();
+                $this->info('Contract list caches warmed successfully.');
+            } catch (\Throwable $cacheException) {
+                Log::warning('Failed to warm contract list caches after contracts fetch', [
+                    'exception' => $cacheException->getMessage(),
+                ]);
+                $this->warn('Contracts were updated, but cache warming failed. The cache will be rebuilt on demand.');
+            }
+
             $this->info('Contracts fetched successfully!');
             return Command::SUCCESS;
         } catch (\Exception $e) {

@@ -11,6 +11,7 @@ use App\Models\ElectricityContract;
 use App\Models\Postcode;
 use App\Models\SpotPriceAverage;
 use App\Services\CO2EmissionsCalculator;
+use App\Services\ContractListCacheService;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyCalculatorRequest;
 use App\Services\DTO\EnergyUsage;
@@ -912,11 +913,9 @@ class ContractsList extends Component
      */
     public function getContractsProperty(): LengthAwarePaginator
     {
-        $calculator = app(ContractPriceCalculator::class);
-
         $query = ElectricityContract::query()
             ->active()
-            ->with(['company', 'priceComponents', 'electricitySource'])
+            ->with(['company', 'electricitySource'])
             // Filter for household contracts only (exclude company-only contracts)
             ->where(function ($q) {
                 $q->whereIn('target_group', ['Household', 'Both'])
@@ -1011,65 +1010,72 @@ class ContractsList extends Component
             return $contract->isConsumptionInRange($consumption);
         });
 
-        // Get spot price averages for calculations
-        $spotPriceAvg = SpotPriceAverage::latestRolling365Days();
-        $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
-        $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
-
-        // Get emission calculator
-        $emissionsCalculator = app(CO2EmissionsCalculator::class);
-
-        // Calculate cost and emissions for each contract and sort by cost
         $consumption = $this->consumption;
-        $contracts = $contracts->map(function ($contract) use ($calculator, $emissionsCalculator, $spotPriceDay, $spotPriceNight, $consumption) {
-            $priceComponents = $contract->priceComponents
-                ->sortByDesc('price_date')
-                ->groupBy('price_component_type')
-                ->map(fn ($group) => $group->sortByDesc('price_date')->first(fn ($item) => $item->price > 0) ?? $group->sortByDesc('price_date')->first())
-                ->values()
-                ->map(fn ($pc) => [
-                    'price_component_type' => $pc->price_component_type,
-                    'price' => $pc->price,
-                ])
-                ->toArray();
+        $sorted = $this->applyCachedMetricsToContracts($contracts, $consumption);
 
-            $usage = new EnergyUsage(
-                total: $consumption,
-                basicLiving: $consumption,
-            );
+        if ($sorted === null) {
+            $calculator = app(ContractPriceCalculator::class);
+            $emissionsCalculator = app(CO2EmissionsCalculator::class);
 
-            $contractData = [
-                'contract_type' => $contract->contract_type,
-                'pricing_model' => $contract->pricing_model,
-                'metering' => $contract->metering,
-            ];
+            // Load price components only when cache is not available
+            $contracts->loadMissing('priceComponents');
 
-            $result = $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
-            $contract->calculated_cost = $result->toArray();
+            // Get spot price averages for calculations
+            $spotPriceAvg = SpotPriceAverage::latestRolling365Days();
+            $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
+            $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
 
-            // Calculate emission factor for this contract
-            $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
+            // Calculate cost and emissions for each contract and sort by cost
+            $contracts = $contracts->map(function ($contract) use ($calculator, $emissionsCalculator, $spotPriceDay, $spotPriceNight, $consumption) {
+                $priceComponents = $contract->priceComponents
+                    ->sortByDesc('price_date')
+                    ->groupBy('price_component_type')
+                    ->map(fn ($group) => $group->sortByDesc('price_date')->first(fn ($item) => $item->price > 0) ?? $group->sortByDesc('price_date')->first())
+                    ->values()
+                    ->map(fn ($pc) => [
+                        'price_component_type' => $pc->price_component_type,
+                        'price' => $pc->price,
+                    ])
+                    ->toArray();
 
-            // Mark contracts where consumption exceeds their limit
-            $maxConsumption = $contract->consumption_limitation_max_x_kwh_per_y;
-            $contract->exceeds_consumption_limit = $maxConsumption > 0 && $consumption > $maxConsumption;
+                $usage = new EnergyUsage(
+                    total: $consumption,
+                    basicLiving: $consumption,
+                );
 
-            return $contract;
-        });
+                $contractData = [
+                    'contract_type' => $contract->contract_type,
+                    'pricing_model' => $contract->pricing_model,
+                    'metering' => $contract->metering,
+                ];
 
-        // Sort by total cost (ascending), but put contracts that exceed consumption limit at the end
-        $sorted = $contracts->sort(function ($a, $b) {
-            // First sort by exceeds_consumption_limit (false first, true last)
-            $aExceeds = $a->exceeds_consumption_limit ? 1 : 0;
-            $bExceeds = $b->exceeds_consumption_limit ? 1 : 0;
-            if ($aExceeds !== $bExceeds) {
-                return $aExceeds - $bExceeds;
-            }
-            // Then sort by total cost (ascending)
-            $aCost = $a->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
-            $bCost = $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
-            return $aCost <=> $bCost;
-        })->values();
+                $result = $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
+                $contract->calculated_cost = $result->toArray();
+
+                // Calculate emission factor for this contract
+                $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
+
+                // Mark contracts where consumption exceeds their limit
+                $maxConsumption = $contract->consumption_limitation_max_x_kwh_per_y;
+                $contract->exceeds_consumption_limit = $maxConsumption > 0 && $consumption > $maxConsumption;
+
+                return $contract;
+            });
+
+            // Sort by total cost (ascending), but put contracts that exceed consumption limit at the end
+            $sorted = $contracts->sort(function ($a, $b) {
+                // First sort by exceeds_consumption_limit (false first, true last)
+                $aExceeds = $a->exceeds_consumption_limit ? 1 : 0;
+                $bExceeds = $b->exceeds_consumption_limit ? 1 : 0;
+                if ($aExceeds !== $bExceeds) {
+                    return $aExceeds - $bExceeds;
+                }
+                // Then sort by total cost (ascending)
+                $aCost = $a->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
+                $bCost = $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
+                return $aCost <=> $bCost;
+            })->values();
+        }
 
         // Cache the full sorted collection for metrics
         $this->allFilteredContractsCache = $sorted;
@@ -1081,7 +1087,7 @@ class ContractsList extends Component
 
         // Calculate offset and get the slice for current page
         $offset = ($page - 1) * $perPage;
-        $items = $sorted->slice($offset, $perPage)->values();
+        $items = $this->loadPriceComponentsForVisibleContracts($sorted->slice($offset, $perPage)->values());
 
         // Create and return a LengthAwarePaginator
         return new \Illuminate\Pagination\LengthAwarePaginator(
@@ -1101,6 +1107,8 @@ class ContractsList extends Component
      */
     public function getLatestPrices(ElectricityContract $contract): array
     {
+        $contract->loadMissing('priceComponents');
+
         $prices = [];
 
         foreach ($contract->priceComponents->sortByDesc('price_date')->groupBy('price_component_type') as $type => $components) {
@@ -1112,6 +1120,58 @@ class ContractsList extends Component
         }
 
         return $prices;
+    }
+
+    /**
+     * Apply precomputed contract metrics when the selected consumption matches a preset cache.
+     */
+    protected function applyCachedMetricsToContracts(Collection $contracts, int $consumption): ?Collection
+    {
+        $cached = app(ContractListCacheService::class)->getCachedMetrics($consumption);
+
+        if ($cached === null) {
+            return null;
+        }
+
+        $metricsById = $cached['contracts'] ?? [];
+        $contractsById = $contracts->keyBy('id');
+
+        if ($contractsById->keys()->diff(array_keys($metricsById))->isNotEmpty()) {
+            return null;
+        }
+
+        $sortedContracts = [];
+
+        foreach ($cached['sorted_ids'] as $contractId) {
+            if (! $contractsById->has($contractId)) {
+                continue;
+            }
+
+            $contract = $contractsById->get($contractId);
+            $metrics = $metricsById[$contractId] ?? null;
+
+            if ($metrics === null) {
+                return null;
+            }
+
+            $contract->calculated_cost = $metrics['calculated_cost'];
+            $contract->emission_factor = $metrics['emission_factor'];
+            $contract->exceeds_consumption_limit = $metrics['exceeds_consumption_limit'];
+            $sortedContracts[] = $contract;
+        }
+
+        return new Collection($sortedContracts);
+    }
+
+    /**
+     * Load price components only for the currently visible contracts.
+     */
+    protected function loadPriceComponentsForVisibleContracts($items): Collection
+    {
+        $visibleContracts = new Collection($items->all());
+        $visibleContracts->loadMissing('priceComponents');
+
+        return $visibleContracts;
     }
 
     /**

@@ -24,5 +24,11 @@ php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 
+# Warm contract listing caches for common preset consumptions.
+# This must run at container start because it depends on the live database.
+if [ "${WARM_CONTRACT_CACHE_ON_START:-1}" = "1" ]; then
+    php artisan contracts:warm-cache || echo "Warning: contract cache warming failed, continuing startup"
+fi
+
 # Start supervisord
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

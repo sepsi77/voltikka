@@ -24,7 +24,10 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set Chromium path for Remotion/Puppeteer
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+# Contract list warming must happen at container start (not image build),
+# because it requires a live database connection.
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    WARM_CONTRACT_CACHE_ON_START=1
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
