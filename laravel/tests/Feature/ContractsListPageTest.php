@@ -139,12 +139,9 @@ class ContractsListPageTest extends TestCase
     {
         Livewire::test('contracts-list')
             ->assertSee('Pieni yksiö')           // 2000 kWh
-            ->assertSee('Kerrostalo 2 hlö')      // 3500 kWh
             ->assertSee('Kerrostalo perhe')       // 5000 kWh
-            ->assertSee('Pieni omakotitalo')     // 5000 kWh
-            ->assertSee('Omakotitalo + ILP')     // 8000 kWh
-            ->assertSee('Suuri talo + sähkö')    // 18000 kWh
-            ->assertSee('Suuri talo + MLP');     // 12000 kWh
+            ->assertSee('Rivitalo')              // 10000 kWh
+            ->assertSee('Suuri talo + sähkö');   // 18000 kWh
     }
 
     /**

@@ -124,13 +124,26 @@
     @endif
 
     {{-- Consumption Selection Section --}}
-    <section class="bg-transparent text-center mb-8">
+    <section x-data="{ panelOpen: false }" class="bg-transparent text-center mb-8">
         <h3 class="max-w-2xl mb-4 mx-auto text-2xl font-extrabold tracking-tight leading-none text-slate-900">
             Valitse kulutustaso
         </h3>
 
+        {{-- Mobile-only toggle --}}
+        <button
+            type="button"
+            @click="panelOpen = !panelOpen"
+            class="lg:hidden inline-flex items-center gap-2 mx-auto mb-5 bg-white border border-slate-200 rounded-full px-5 py-2.5 text-sm font-semibold text-slate-700 hover:border-coral-400 transition-colors"
+            :aria-expanded="panelOpen ? 'true' : 'false'"
+        >
+            <span x-text="panelOpen ? 'Piilota vaihtoehdot' : 'Vaihda kulutusta'"></span>
+            <svg class="w-4 h-4 transition-transform" :class="panelOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+        </button>
+
         {{-- Consumption Presets Grid --}}
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-w-5xl mx-auto">
+        <div :class="panelOpen ? 'grid' : 'hidden lg:grid'" class="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-w-5xl mx-auto">
             @foreach ($presets as $key => $preset)
                 <button
                     wire:click="selectPreset('{{ $key }}')"

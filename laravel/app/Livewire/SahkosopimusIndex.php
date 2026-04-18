@@ -53,7 +53,7 @@ class SahkosopimusIndex extends SeoContractsList
             return $this->metaDescription;
         }
 
-        return 'Vertaile sähkösopimuksia helposti. Näe hinnat, marginaalit, perusmaksut ja energialähteet yhdestä paikasta. Löydä edullisin sähkösopimus pörssisähköstä ja kiinteähintaisista sopimuksista.';
+        return 'Löydä edullisin sähkösopimus omalle kulutuksellesi. Vertaile hintoja, perusmaksuja ja energialähteitä pörssisähköstä kiinteähintaisiin sopimuksiin.';
     }
 
     /**
@@ -94,7 +94,7 @@ class SahkosopimusIndex extends SeoContractsList
             return $this->metaDescription;
         }
 
-        return 'Vertaile sähkösopimuksia helposti yhdestä paikasta. Näet hinnat, marginaalit, perusmaksut ja energialähteet. Löydä edullisin sähkösopimus omiin tarpeisiisi vertailemalla pörssisähköä ja kiinteähintaisia sopimuksia.';
+        return 'Löydä edullisin sähkösopimus omalle kulutuksellesi. Vertaile hintoja, perusmaksuja ja energialähteitä – pörssisähköstä kiinteähintaisiin sopimuksiin.';
     }
 
     /**

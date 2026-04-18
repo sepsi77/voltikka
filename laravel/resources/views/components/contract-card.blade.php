@@ -74,15 +74,15 @@
     // Get electricity source
     $source = $contract->electricitySource;
 
-    // Determine emissions color for left border
-    $fossilPercent = $source?->fossil_total ?? 0;
+    // Determine emissions color for left border (based on gCO2/kWh, matches badge thresholds)
+    $emissionFactor = $contract->emission_factor ?? 0;
     if ($featured) {
         $borderColorClass = 'border-l-coral-500';
         $borderWidth = 'border-l-[6px]';
-    } elseif ($fossilPercent == 0) {
+    } elseif ($emissionFactor < 100) {
         $borderColorClass = 'border-l-emissions-low';
         $borderWidth = 'border-l-4';
-    } elseif ($fossilPercent <= 30) {
+    } elseif ($emissionFactor < 300) {
         $borderColorClass = 'border-l-emissions-medium';
         $borderWidth = 'border-l-4';
     } else {
@@ -91,7 +91,6 @@
     }
 
     // Calculate emissions if consumption is provided
-    $emissionFactor = $contract->emission_factor ?? 0;
     $annualEmissionsKg = $consumption ? round($emissionFactor * $consumption / 1000) : 0;
     $isZeroEmission = $emissionFactor == 0;
     $emissionColorClass = $isZeroEmission
@@ -115,7 +114,7 @@
         @endif
 
         {{-- Company Logo and Contract Name --}}
-        <div class="flex items-center gap-4 flex-1 min-w-0">
+        <div class="flex items-center gap-4 w-full lg:w-auto lg:flex-1 min-w-0">
             @if ($contract->company?->getLogoUrl())
                 <img
                     src="{{ $contract->company->getLogoUrl() }}"
@@ -129,18 +128,18 @@
                     <span class="text-slate-500 text-xs font-bold">{{ substr($contract->company?->name ?? 'N/A', 0, 3) }}</span>
                 </div>
             @endif
-            <div class="flex flex-col min-w-0">
-                <h5 class="text-lg font-bold text-slate-900 truncate">
+            <div class="flex flex-col min-w-0 flex-1">
+                <h5 class="text-xl lg:text-lg font-bold text-slate-900 truncate tracking-tight">
                     {{ $contract->name }}
                 </h5>
-                <p class="text-sm text-slate-500">
+                <p class="text-sm text-slate-500 truncate">
                     {{ $contract->company?->name }}
                 </p>
             </div>
         </div>
 
         {{-- Pricing Grid --}}
-        <div class="flex flex-wrap lg:flex-nowrap items-center gap-4 lg:gap-6 w-full lg:w-auto">
+        <div class="flex flex-wrap items-center gap-x-5 gap-y-3 lg:flex-nowrap lg:gap-6 w-full lg:w-auto">
             @if ($isSpotContract)
                 {{-- Spot contract: show margin and estimated energy price --}}
                 <div class="text-left">
@@ -212,13 +211,22 @@
                 <p class="text-xs text-slate-500 uppercase tracking-wide">Perusmaksu</p>
             </div>
 
-            {{-- Total Cost - Featured gets coral color --}}
+            {{-- Total Cost - hero treatment on mobile, side block on desktop --}}
             @if ($totalCost !== null)
-                <div class="text-left lg:border-l lg:border-slate-200 lg:pl-6">
-                    <div class="text-2xl font-extrabold {{ $featured ? 'text-coral-600' : 'text-slate-900' }} tabular-nums">
-                        {{ number_format($totalCost, 0, ',', ' ') }} <span class="text-sm font-normal text-slate-400">{{ "\u{20AC}" }}/v</span>
+                <div class="order-first w-full pb-4 border-b border-slate-100 lg:order-none lg:w-auto lg:pb-0 lg:border-b-0 lg:border-l lg:border-slate-200 lg:pl-6">
+                    <p class="lg:hidden text-[10px] font-bold uppercase tracking-[0.18em] text-coral-600 mb-1.5">
+                        Vuosikustannus
+                        @if ($isSpotContract)
+                            <span class="font-medium normal-case text-slate-400">(arvio)</span>
+                        @endif
+                    </p>
+                    <div class="flex items-baseline gap-1.5">
+                        <span class="text-[2.5rem] lg:text-2xl font-extrabold {{ $featured ? 'text-coral-600' : 'text-slate-900' }} tabular-nums leading-none">
+                            {{ number_format($totalCost, 0, ',', ' ') }}
+                        </span>
+                        <span class="text-base lg:text-sm font-medium text-slate-400">{{ "\u{20AC}" }}/v</span>
                     </div>
-                    <p class="text-xs text-slate-500 uppercase tracking-wide">
+                    <p class="hidden lg:block text-xs text-slate-500 uppercase tracking-wide mt-1">
                         Vuosikustannus
                         @if ($isSpotContract)
                             <span class="normal-case">(arvio)</span>
@@ -282,13 +290,12 @@
                 </span>
             @else
                 {{-- Standard emissions badge --}}
-                <span class="inline-flex items-center gap-2 px-3 py-1.5 {{ $emissionColorClass }} border text-xs font-bold rounded-lg" title="Arvioitu paastökerroin: {{ number_format($emissionFactor, 0) }} gCO2/kWh">
+                <span class="inline-flex items-center gap-2 px-3 py-1.5 {{ $emissionColorClass }} border text-xs font-bold rounded-lg" title="Arvio: {{ number_format($annualEmissionsKg, 0, ',', ' ') }} kg CO2 vuodessa ({{ number_format($emissionFactor, 0) }} g/kWh)">
                     <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
                     </svg>
-                    <span class="font-extrabold">{{ number_format($annualEmissionsKg, 0, ',', ' ') }} kg</span>
+                    <span class="font-extrabold">~{{ number_format(round($annualEmissionsKg, -1), 0, ',', ' ') }} kg</span>
                     <span class="opacity-75 font-medium">CO2/v</span>
-                    <span class="text-[10px] opacity-60 font-normal">({{ number_format($emissionFactor, 0) }} g/kWh)</span>
                 </span>
             @endif
         @endif

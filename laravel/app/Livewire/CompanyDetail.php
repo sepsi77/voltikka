@@ -41,29 +41,11 @@ class CompanyDetail extends Component
             'icon' => 'apartment',
             'consumption' => 2000,
         ],
-        'medium_apartment' => [
-            'label' => 'Kerrostalo 2 hlö',
-            'description' => '2 hlö, 60 m²',
-            'icon' => 'apartment',
-            'consumption' => 3500,
-        ],
         'large_apartment' => [
             'label' => 'Kerrostalo perhe',
             'description' => '4 hlö, 80 m²',
             'icon' => 'apartment',
             'consumption' => 5000,
-        ],
-        'small_house_no_heat' => [
-            'label' => 'Pieni omakotitalo',
-            'description' => 'Ei sähkölämmitystä',
-            'icon' => 'house',
-            'consumption' => 5000,
-        ],
-        'medium_house_heat_pump' => [
-            'label' => 'Omakotitalo + ILP',
-            'description' => 'Ilma-vesilämpöpumppu',
-            'icon' => 'house',
-            'consumption' => 8000,
         ],
         'row_house' => [
             'label' => 'Rivitalo',
@@ -76,12 +58,6 @@ class CompanyDetail extends Component
             'description' => 'Suora sähkölämmitys',
             'icon' => 'house',
             'consumption' => 18000,
-        ],
-        'large_house_ground_pump' => [
-            'label' => 'Suuri talo + MLP',
-            'description' => 'Maalämpöpumppu',
-            'icon' => 'house',
-            'consumption' => 12000,
         ],
     ];
 

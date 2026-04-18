@@ -14,7 +14,7 @@
             <div class="absolute bottom-0 left-0 w-72 h-72 bg-coral-400 rounded-full blur-3xl opacity-10 -translate-x-1/2"></div>
         </div>
 
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 relative">
             <div class="grid max-w-screen-xl py-12 mx-auto lg:gap-8 xl:gap-0 lg:py-20 lg:grid-cols-12">
                 <div class="mx-auto place-self-center col-12 lg:col-span-7">
                     <div class="inline-flex items-center gap-2 bg-coral-500/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-coral-300 mb-6 border border-coral-500/20">
@@ -42,7 +42,7 @@
     {{-- Breadcrumb Navigation --}}
     @if($hasSeoFilter)
     <nav class="mb-6" aria-label="Breadcrumb">
-        <ol class="flex items-center space-x-2 text-sm text-slate-500">
+        <ol class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-500 min-w-0">
             <li>
                 <a href="/" class="hover:text-coral-600">Etusivu</a>
             </li>
@@ -154,10 +154,26 @@
     @endif
 
     {{-- Consumption Preset Selector --}}
-    <section class="bg-transparent text-center mb-8">
-        <h3 class="max-w-2xl mb-4 mx-auto text-3xl font-extrabold tracking-tight leading-none">
+    <section x-data="{ panelOpen: false }" class="bg-transparent text-center mb-8">
+        <h3 class="max-w-2xl mb-4 mx-auto text-2xl lg:text-3xl font-extrabold tracking-tight leading-none">
             {{ $isBusinessPage ? 'Valitse yrityksen kulutustaso' : 'Valitse kulutustaso' }}
         </h3>
+
+        {{-- Mobile-only toggle --}}
+        <button
+            type="button"
+            @click="panelOpen = !panelOpen"
+            class="lg:hidden inline-flex items-center gap-2 mx-auto mb-5 bg-white border border-slate-200 rounded-full px-5 py-2.5 text-sm font-semibold text-slate-700 hover:border-coral-400 transition-colors"
+            :aria-expanded="panelOpen ? 'true' : 'false'"
+        >
+            <span x-text="panelOpen ? 'Piilota vaihtoehdot' : 'Vaihda kulutusta'"></span>
+            <svg class="w-4 h-4 transition-transform" :class="panelOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+        </button>
+
+        {{-- Collapsible panel: hidden on mobile by default, always visible on desktop --}}
+        <div :class="panelOpen ? 'block' : 'hidden lg:block'">
 
         {{-- Tab Toggle --}}
         @if($showCalculatorTab ?? true)
@@ -576,6 +592,8 @@
                 </div>
             </div>
         @endif
+
+        </div> {{-- /collapsible panel --}}
 
         {{-- Current Selection Display --}}
         <div class="mt-6">
