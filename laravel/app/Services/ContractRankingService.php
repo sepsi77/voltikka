@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
 use App\Services\DTO\EnergyUsage;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class ContractRankingService
@@ -15,7 +16,132 @@ class ContractRankingService
 
     public function __construct(
         private ContractPriceCalculator $calculator,
+        private ContractListCacheService $listCache,
     ) {}
+
+    /**
+     * Contracts cheaper than the given one at the given consumption.
+     *
+     * Returns at most $limit contracts, ranked 1..N by annual cost. Matches the
+     * viewed contract's target group (household-eligible vs company-only) so we
+     * don't recommend a business contract to a household shopper. Falls back to
+     * an empty collection when the consumption isn't cache-supported or the
+     * contract itself isn't in the cached metrics.
+     *
+     * @return Collection<int, array{contract: ElectricityContract, total_cost: float, rank: int, savings: float}>
+     */
+    public function getCheaperContracts(string $contractId, int $consumption, int $limit = 4): Collection
+    {
+        $metrics = $this->listCache->getCachedMetrics($consumption);
+
+        if ($metrics === null) {
+            return collect();
+        }
+
+        $self = $metrics['contracts'][$contractId] ?? null;
+        if ($self === null) {
+            return collect();
+        }
+
+        $selfCost = (float) $self['total_cost'];
+        $selfPosition = array_search($contractId, $metrics['sorted_ids'], true);
+        if ($selfPosition === false || $selfPosition === 0) {
+            return collect();
+        }
+
+        $viewedContract = ElectricityContract::find($contractId);
+        $eligibleTargets = $this->eligibleTargetGroups($viewedContract?->target_group);
+
+        // Walk the sorted list from the top, collecting eligible contracts that
+        // are strictly cheaper than the viewed one.
+        $candidateIds = [];
+        foreach ($metrics['sorted_ids'] as $position => $id) {
+            if ($id === $contractId || $position >= $selfPosition) {
+                break;
+            }
+            $candidateIds[] = $id;
+        }
+
+        if (empty($candidateIds)) {
+            return collect();
+        }
+
+        $contracts = ElectricityContract::query()
+            ->with(['company'])
+            ->whereIn('id', $candidateIds)
+            ->get()
+            ->keyBy('id');
+
+        $results = collect();
+        foreach ($candidateIds as $position => $id) {
+            $contract = $contracts->get($id);
+            if (! $contract) {
+                continue;
+            }
+            if (! $this->matchesTargetGroup($contract->target_group, $eligibleTargets)) {
+                continue;
+            }
+
+            $cost = (float) ($metrics['contracts'][$id]['total_cost'] ?? 0);
+            $results->push([
+                'contract' => $contract,
+                'total_cost' => $cost,
+                'rank' => $position + 1,
+                'savings' => max(0.0, $selfCost - $cost),
+            ]);
+
+            if ($results->count() >= $limit) {
+                break;
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * Contract's rank within the sorted list for a given consumption.
+     */
+    public function getRankForConsumption(string $contractId, int $consumption): ?int
+    {
+        $metrics = $this->listCache->getCachedMetrics($consumption);
+        if ($metrics === null) {
+            return null;
+        }
+
+        $position = array_search($contractId, $metrics['sorted_ids'], true);
+        return $position === false ? null : $position + 1;
+    }
+
+    public function getTotalContractsForConsumption(int $consumption): ?int
+    {
+        $metrics = $this->listCache->getCachedMetrics($consumption);
+        return $metrics === null ? null : count($metrics['sorted_ids']);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function eligibleTargetGroups(?string $viewedTargetGroup): array
+    {
+        // Company-only viewed contract → recommend business-eligible.
+        // Anything else (Household, Both, null) → household-eligible is the safe default.
+        if ($viewedTargetGroup === 'Company') {
+            return ['Company', 'Both'];
+        }
+        return ['Household', 'Both'];
+    }
+
+    /**
+     * @param array<int, string> $eligible
+     */
+    private function matchesTargetGroup(?string $candidate, array $eligible): bool
+    {
+        if ($candidate === null) {
+            // Treat unset target group as household-eligible (matches existing ranking logic).
+            return in_array('Household', $eligible, true);
+        }
+        return in_array($candidate, $eligible, true);
+    }
 
     /**
      * Get the price rank of a specific contract among all active household contracts.

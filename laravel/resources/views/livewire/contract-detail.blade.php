@@ -2,101 +2,210 @@
     {{-- Schema.org structured data --}}
     <x-schema-markup :schemas="$schemas" />
 
+    @php
+        use App\Support\ContractLabels;
+
+        $rank = $liveRank ?? $this->priceRank;
+        $totalContracts = $liveTotalContracts ?? $this->totalContracts;
+        $companyName = $contract->company?->name ?? '';
+        $primaryCtaUrl = $contract->order_link ?: $contract->product_link;
+        $secondaryCtaUrl = ($contract->order_link && $contract->product_link) ? $contract->product_link : null;
+
+        $emissionFactor = $co2Emissions['emission_factor_g_per_kwh'] ?? null;
+        $annualEmissionsKg = $co2Emissions['total_emissions_kg'] ?? null;
+        // Average Finnish car fleet: ~140 gCO2/km (Traficom/Sitra)
+        $heroDrivingKm = ($annualEmissionsKg && $annualEmissionsKg > 0) ? round($annualEmissionsKg * 1000 / 140) : 0;
+        $heroGaugePercent = $emissionFactor !== null ? min(100, ($emissionFactor / 400) * 100) : 0;
+        $heroCo2SeverityLabel = null;
+        $heroCo2SeverityClass = 'bg-slate-500/15 text-slate-300 border-slate-500/30';
+        if ($emissionFactor !== null) {
+            if ($emissionFactor == 0) {
+                $heroCo2SeverityLabel = 'Päästötön';
+                $heroCo2SeverityClass = 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30';
+            } elseif ($emissionFactor < 50) {
+                $heroCo2SeverityLabel = 'Matala';
+                $heroCo2SeverityClass = 'bg-lime-500/15 text-lime-300 border-lime-500/30';
+            } elseif ($emissionFactor < 200) {
+                $heroCo2SeverityLabel = 'Keskitaso';
+                $heroCo2SeverityClass = 'bg-amber-500/15 text-amber-300 border-amber-500/30';
+            } else {
+                $heroCo2SeverityLabel = 'Korkea';
+                $heroCo2SeverityClass = 'bg-red-500/15 text-red-300 border-red-500/30';
+            }
+        }
+    @endphp
+
     <!-- Hero Section - Dark slate background -->
-    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="py-12 lg:py-16">
-                <!-- Back Link -->
-                <a href="/sahkosopimus" class="inline-flex items-center text-slate-300 hover:text-white font-medium mb-6">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-                    </svg>
-                    Takaisin sopimuksiin
-                </a>
+    <section class="bg-slate-950 mb-6 text-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-10">
+            <!-- Back Link -->
+            <a href="/sahkosopimus" class="inline-flex items-center text-slate-300 hover:text-white text-sm mb-6">
+                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                Takaisin sopimuksiin
+            </a>
 
-                <div class="flex flex-col md:flex-row md:items-start gap-6">
-                    <!-- Company Logo & Info -->
-                    <div class="flex items-center gap-4">
-                        @if ($contract->company?->getLogoUrl())
-                            <div class="bg-white p-3 rounded-xl">
-                                <img
-                                    src="{{ $contract->company->getLogoUrl() }}"
-                                    alt="{{ $contract->company->name }}"
-                                    class="h-16 w-auto object-contain"
-                                    loading="lazy"
-                                >
-                            </div>
-                        @else
-                            <div class="h-16 w-16 bg-slate-700 rounded-xl flex items-center justify-center">
-                                <span class="text-slate-300 text-lg font-bold">{{ substr($contract->company?->name ?? 'N/A', 0, 2) }}</span>
-                            </div>
-                        @endif
+            <!-- Title row -->
+            <div class="flex items-start gap-4 mb-8">
+                @if ($contract->company?->getLogoUrl())
+                    <div class="bg-white rounded-xl flex-shrink-0 h-16 w-16 p-2 flex items-center justify-center">
+                        <img
+                            src="{{ $contract->company->getLogoUrl() }}"
+                            alt="{{ $contract->company->name }}"
+                            class="h-full w-full object-contain"
+                            loading="lazy"
+                        >
                     </div>
-
-                    <!-- Contract Info -->
-                    <div class="flex-grow">
-                        <h1 class="text-2xl md:text-3xl font-bold text-white mb-2">{{ $contract->name }} — Tarkemmat tiedot ja vertailu</h1>
-                        <p class="text-lg text-slate-300 mb-3">{{ $contract->company?->name }}</p>
-
-                        <!-- Contract Type & Metering Badges -->
-                        <div class="flex flex-wrap gap-2 mb-4">
-                            <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium {{ $contract->contract_type === 'Spot' ? 'bg-coral-500/20 text-coral-300' : ($contract->contract_type === 'Fixed' ? 'bg-green-500/20 text-green-300' : 'bg-slate-700 text-slate-300') }}">
-                                {{ $contract->contract_type }}
-                            </span>
-                            <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-slate-700 text-slate-300">
-                                {{ $contract->metering }}
-                            </span>
-                            @if ($contract->fixed_time_range)
-                                <span class="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-coral-500/20 text-coral-300">
-                                    {{ $contract->fixed_time_range }}
-                                </span>
-                            @endif
-                        </div>
-
-                        @if ($contract->short_description)
-                            <p class="text-slate-300">{{ $contract->short_description }}</p>
-                        @endif
+                @else
+                    <div class="h-16 w-16 bg-slate-800 rounded-xl flex items-center justify-center flex-shrink-0 border border-slate-700">
+                        <span class="text-slate-200 text-lg font-bold">{{ mb_substr($companyName ?: 'N/A', 0, 2) }}</span>
                     </div>
-
-                    <!-- Action Buttons -->
-                    <div class="flex flex-col gap-3">
-                        @if ($contract->order_link)
-                            <a
-                                href="{{ $contract->order_link }}"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                @click="$track('Contract Order Clicked', {
-                                    contract_id: {{ $contract->id }},
-                                    company: '{{ addslashes($contract->company?->name) }}',
-                                    pricing_model: '{{ $contract->pricing_model }}'
-                                })"
-                                class="inline-flex items-center justify-center px-6 py-3.5 bg-gradient-to-r from-coral-500 to-coral-600 hover:from-coral-400 hover:to-coral-500 text-white font-bold rounded-xl shadow-coral transition-all"
-                            >
-                                Tilaa sopimus
-                                <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                                </svg>
-                            </a>
+                @endif
+                <div class="min-w-0 flex-1">
+                    <h1 class="text-2xl md:text-3xl font-bold text-white leading-tight">{{ $contract->name }}</h1>
+                    <p class="text-slate-200 text-base mt-1">{{ $companyName }}</p>
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        @if ($contract->contract_type)
+                            <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-white/10 text-slate-100 border border-white/20">
+                                {{ ContractLabels::contractType($contract->contract_type) }}
+                            </span>
                         @endif
-                        @if ($contract->product_link)
-                            <a
-                                href="{{ $contract->product_link }}"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                @click="$track('Contract Info Clicked', {
-                                    contract_id: {{ $contract->id }},
-                                    company: '{{ addslashes($contract->company?->name) }}'
-                                })"
-                                class="inline-flex items-center justify-center px-6 py-3.5 bg-white hover:bg-slate-100 text-slate-900 font-bold rounded-xl transition-colors"
-                            >
-                                Lisätietoja
-                                <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                                </svg>
-                            </a>
+                        @if ($contract->metering)
+                            <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-white/10 text-slate-100 border border-white/20">
+                                {{ ContractLabels::metering($contract->metering) }}
+                            </span>
+                        @endif
+                        @if ($contract->pricing_model && $contract->pricing_model !== 'FixedPrice')
+                            <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-white/10 text-slate-100 border border-white/20">
+                                {{ ContractLabels::pricingModel($contract->pricing_model) }}
+                            </span>
+                        @endif
+                        @if ($contract->fixed_time_range)
+                            <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-white/10 text-slate-100 border border-white/20">
+                                {{ ContractLabels::fixedTimeRange($contract->fixed_time_range) }}
+                            </span>
                         @endif
                     </div>
                 </div>
+            </div>
+
+            <!-- Hero body: cost block  |  sustainability block -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-x-16 gap-y-10 lg:divide-x lg:divide-white/10">
+                <!-- Left two-thirds: rank + cost + CTA -->
+                <div class="lg:col-span-2 lg:pr-16">
+                    @if ($rank && $totalContracts)
+                        <div class="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-amber-500/20 text-amber-200 border border-amber-400/40 whitespace-nowrap">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M10 15l-5.878 3.09 1.123-6.545L.49 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.755 4.635 1.123 6.545z"/>
+                                </svg>
+                                #{{ $rank }} halvin · {{ number_format($totalContracts, 0, ',', ' ') }} sopimuksesta
+                            </span>
+                            @if ($rank > 1 && $cheaperContracts->isNotEmpty())
+                                <a href="#halvemmat" class="text-sm font-medium text-coral-300 hover:text-coral-200 underline underline-offset-2">
+                                    Katso {{ $rank - 1 }} halvempaa sopimusta →
+                                </a>
+                            @endif
+                        </div>
+                    @endif
+
+                    <div class="flex flex-wrap items-baseline gap-x-5 gap-y-2">
+                        <div class="text-5xl sm:text-6xl md:text-7xl font-extrabold text-white tracking-tight leading-none">
+                            {{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} €
+                        </div>
+                        <div class="text-base text-slate-200">
+                            vuodessa · ≈ {{ number_format(($calculatedCost['total_cost'] ?? 0) / 12, 0, ',', ' ') }} €/kk · {{ number_format($consumption, 0, ',', ' ') }} kWh vuosikulutuksella
+                        </div>
+                    </div>
+
+                    @if ($primaryCtaUrl)
+                        <div class="mt-10">
+                            <div class="flex flex-wrap items-center gap-x-8 gap-y-4">
+                                <a
+                                    href="{{ $primaryCtaUrl }}"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    @click="$track('Contract Order Clicked', {
+                                        contract_id: {{ $contract->id }},
+                                        company: '{{ addslashes($companyName) }}',
+                                        pricing_model: '{{ $contract->pricing_model }}'
+                                    })"
+                                    class="inline-flex items-center justify-center gap-3 px-10 py-5 rounded-xl font-bold text-lg text-white bg-gradient-to-r from-coral-500 to-coral-600 hover:from-coral-400 hover:to-coral-500 shadow-coral transition-all"
+                                >
+                                    Siirry myyjän sivuille
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                                    </svg>
+                                </a>
+                                @if ($secondaryCtaUrl)
+                                    <a
+                                        href="{{ $secondaryCtaUrl }}"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        @click="$track('Contract Info Clicked', {
+                                            contract_id: {{ $contract->id }},
+                                            company: '{{ addslashes($companyName) }}'
+                                        })"
+                                        class="text-sm font-medium text-slate-200 hover:text-white underline underline-offset-2"
+                                    >
+                                        Lisätietoja sopimuksesta →
+                                    </a>
+                                @endif
+                            </div>
+                            <div class="mt-3 text-sm text-slate-400">Tilaus tehdään suoraan sähköyhtiön sivuilla</div>
+                        </div>
+                    @endif
+                </div>
+
+                <!-- Right third: sustainability -->
+                @if ($emissionFactor !== null)
+                    <aside class="pt-8 border-t border-white/10 lg:pt-0 lg:border-t-0 lg:pl-16">
+                        <div class="flex items-center gap-2 mb-3">
+                            <h3 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">Ympäristövaikutus</h3>
+                            @if ($heroCo2SeverityLabel)
+                                <span class="text-[11px] uppercase tracking-wider px-2 py-0.5 rounded border font-semibold {{ $heroCo2SeverityClass }}">{{ $heroCo2SeverityLabel }}</span>
+                            @endif
+                        </div>
+
+                        <div class="flex items-baseline gap-2">
+                            <div class="text-5xl font-extrabold text-white tracking-tight leading-none">
+                                {{ number_format($annualEmissionsKg ?? 0, 0, ',', ' ') }}
+                            </div>
+                            <div class="text-slate-200 text-base">kg CO₂/vuosi</div>
+                        </div>
+
+                        @if ($heroDrivingKm > 0)
+                            <div class="mt-3 flex items-center gap-2 text-base text-slate-200">
+                                <svg class="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 17h8m-8 0a2 2 0 11-4 0 2 2 0 014 0zm12 0a2 2 0 11-4 0 2 2 0 014 0zM3 13l2-7h14l2 7M3 13v4h18v-4M3 13h18"/>
+                                </svg>
+                                <span>Vastaa <span class="font-semibold text-white">{{ number_format($heroDrivingKm, 0, ',', ' ') }} km</span> henkilöautolla</span>
+                            </div>
+                        @endif
+
+                        <a href="/sahkosopimus/fossiiliton" class="mt-5 inline-flex items-center text-sm font-medium text-coral-300 hover:text-coral-200">
+                            Katso päästöttömät sopimukset →
+                        </a>
+                    </aside>
+                @endif
+            </div>
+        </div>
+    </section>
+
+    <!-- Consumption picker (moved out of hero) -->
+    <section id="consumption-picker" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-4 scroll-mt-20">
+        <div class="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap items-center gap-x-5 gap-y-3">
+            <span class="text-sm font-semibold text-slate-700 whitespace-nowrap">Hinta kulutuksella:</span>
+            <div class="flex flex-wrap gap-2">
+                @foreach ($presets as $label => $value)
+                    <button
+                        wire:click="setConsumption({{ $value }})"
+                        class="px-3 py-1.5 rounded-lg text-sm font-medium transition border {{ $consumption === $value ? 'bg-coral-500 text-white border-coral-500 shadow-sm' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50' }}"
+                    >
+                        {{ $label }} · {{ number_format($value, 0, ',', ' ') }} kWh
+                    </button>
+                @endforeach
             </div>
         </div>
     </section>
@@ -117,73 +226,74 @@
     </div>
     @endif
 
-    <!-- Contract Description (extra information from API) -->
-    @if ($contract->extra_information_fi)
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <h2 class="text-lg font-semibold text-slate-900 mb-4">Sopimuksen kuvaus</h2>
-                <div class="prose prose-slate max-w-none prose-a:text-coral-600 hover:prose-a:text-coral-700">
-                    {!! $contract->extra_information_fi !!}
+    <!-- Cheaper alternatives row -->
+    @if ($cheaperContracts->isNotEmpty())
+        <section id="halvemmat" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-6">
+            <div class="flex items-end justify-between mb-4 gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-900">
+                        @if ($rank && $rank > 1)
+                            {{ $rank - 1 }} halvempaa vaihtoehtoa
+                        @else
+                            Halvemmat vaihtoehdot
+                        @endif
+                    </h2>
+                    <p class="text-sm text-slate-500">{{ number_format($consumption, 0, ',', ' ') }} kWh vuosikulutuksella</p>
                 </div>
+                <a href="/sahkosopimus" class="hidden sm:inline text-sm font-semibold text-coral-600 hover:text-coral-700 whitespace-nowrap">Vertaa kaikkia →</a>
             </div>
-        </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                @foreach ($cheaperContracts as $alt)
+                    @php
+                        $altContract = $alt['contract'];
+                        $altCompany = $altContract->company;
+                        $altLogoUrl = $altCompany?->getLogoUrl();
+                        $altInitials = mb_substr($altCompany?->name ?: $altContract->name, 0, 1);
+                    @endphp
+                    <a
+                        href="{{ route('contract.detail', ['contractId' => $altContract->id]) }}"
+                        class="bg-white rounded-xl border border-slate-200 hover:border-coral-300 hover:shadow-md transition p-4 flex flex-col min-w-0"
+                    >
+                        <div class="flex items-center gap-2 mb-2 min-w-0">
+                            @if ($altLogoUrl)
+                                <div class="h-8 w-8 flex-shrink-0 rounded bg-white flex items-center justify-center overflow-hidden">
+                                    <img src="{{ $altLogoUrl }}" alt="{{ $altCompany?->name }}" class="h-full w-full object-contain" loading="lazy">
+                                </div>
+                            @else
+                                <div class="h-8 w-8 flex-shrink-0 bg-slate-100 rounded flex items-center justify-center text-xs font-bold text-slate-600">
+                                    {{ $altInitials }}
+                                </div>
+                            @endif
+                            <span class="text-xs text-slate-500 truncate flex-1">{{ $altCompany?->name }}</span>
+                            <span class="text-[10px] font-semibold {{ $alt['rank'] <= 3 ? 'text-amber-600' : 'text-slate-500' }} flex-shrink-0">#{{ $alt['rank'] }}</span>
+                        </div>
+                        <div class="font-semibold text-slate-900 text-sm leading-snug overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;">
+                            {{ $altContract->name }}
+                        </div>
+                        <div class="mt-auto pt-4">
+                            <div class="flex items-baseline gap-1">
+                                <span class="text-2xl font-extrabold text-slate-900">
+                                    {{ number_format($alt['total_cost'], 0, ',', ' ') }} €
+                                </span>
+                                <span class="text-xs text-slate-500">/v</span>
+                            </div>
+                            <div class="mt-1 inline-block text-xs font-semibold px-2 py-0.5 rounded {{ $alt['savings'] > 0 ? 'bg-emerald-50 text-emerald-700' : 'invisible' }}">
+                                Säästä {{ number_format(max($alt['savings'], 0), 0, ',', ' ') }} €
+                            </div>
+                        </div>
+                    </a>
+                @endforeach
+            </div>
+
+            <a href="/sahkosopimus" class="sm:hidden mt-4 block text-center text-sm font-semibold text-coral-600">Vertaa kaikkia sopimuksia →</a>
+        </section>
     @endif
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Left Column: Pricing & Cost Calculator -->
         <div class="lg:col-span-2 space-y-6">
-            <!-- Consumption Selector -->
-            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                <h2 class="text-lg font-semibold text-slate-900 mb-4">Arvioitu kulutus</h2>
-
-                @if ($contract->hasConsumptionLimits())
-                    <div class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
-                        <div class="flex items-center gap-2">
-                            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
-                            <span>
-                                Tämän sopimuksen kulutusrajat:
-                                @if ($contract->consumption_limitation_min_x_kwh_per_y !== null && $contract->consumption_limitation_max_x_kwh_per_y !== null)
-                                    {{ number_format($contract->consumption_limitation_min_x_kwh_per_y, 0, ',', ' ') }} - {{ number_format($contract->consumption_limitation_max_x_kwh_per_y, 0, ',', ' ') }} kWh/vuosi
-                                @elseif ($contract->consumption_limitation_min_x_kwh_per_y !== null)
-                                    vähintään {{ number_format($contract->consumption_limitation_min_x_kwh_per_y, 0, ',', ' ') }} kWh/vuosi
-                                @elseif ($contract->consumption_limitation_max_x_kwh_per_y !== null)
-                                    enintään {{ number_format($contract->consumption_limitation_max_x_kwh_per_y, 0, ',', ' ') }} kWh/vuosi
-                                @endif
-                            </span>
-                        </div>
-                    </div>
-                @endif
-
-                <div class="flex flex-wrap gap-3">
-                    @foreach ($presets as $label => $value)
-                        <button
-                            wire:click="setConsumption({{ $value }})"
-                            class="px-4 py-2.5 rounded-xl font-medium transition-all {{ $consumption === $value ? 'bg-gradient-to-r from-coral-500 to-coral-600 text-white shadow-coral' : 'bg-slate-100 text-slate-700 hover:bg-slate-200' }}"
-                        >
-                            {{ $label }} ({{ $value }} kWh)
-                        </button>
-                    @endforeach
-                </div>
-                <p class="mt-4 text-sm text-slate-500">
-                    Valittu kulutus: <span class="font-semibold">{{ number_format($consumption, 0, ',', ' ') }} kWh/vuosi</span>
-                </p>
-
-                <!-- Calculated Cost -->
-                <div class="mt-6 p-4 bg-coral-50 border border-coral-200 rounded-xl">
-                    <div class="flex justify-between items-center">
-                        <span class="text-slate-600">Vuosikustannus</span>
-                        <span class="text-3xl font-extrabold text-coral-600">{{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} EUR</span>
-                    </div>
-                    <div class="flex justify-between items-center mt-2 text-sm text-slate-500">
-                        <span>Keskimäärin kuukaudessa</span>
-                        <span>{{ number_format(($calculatedCost['total_cost'] ?? 0) / 12, 0, ',', ' ') }} EUR/kk</span>
-                    </div>
-                </div>
-            </div>
-
             <!-- Price Breakdown -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <h2 class="text-lg font-semibold text-slate-900 mb-4">Hintatiedot</h2>
@@ -370,8 +480,8 @@
                 @endif
             </div>
 
-            <!-- Price History -->
-            @if (count($priceHistory) > 0 && collect($priceHistory)->flatten(1)->count() > count($priceHistory))
+            <!-- Price History (collapsed teaser) -->
+            @if (count($priceHistory) > 0)
                 @php
                     $priceTypeLabels = [
                         'General' => 'Energiahinta',
@@ -381,35 +491,106 @@
                         'SeasonalWinterDay' => 'Talvihinta (marras-maaliskuu, päivä)',
                         'SeasonalOther' => 'Muu aika',
                     ];
+
+                    // De-dupe history: only keep rows where price changed from previous day.
+                    $dedupedHistory = [];
+                    foreach ($priceHistory as $type => $history) {
+                        $sorted = collect($history)->sortBy('date')->values();
+                        $previous = null;
+                        $rows = [];
+                        foreach ($sorted as $record) {
+                            if ($previous === null || (float) $record['price'] !== (float) $previous['price']) {
+                                $rows[] = $record;
+                            }
+                            $previous = $record;
+                        }
+                        if (count($rows) >= 1) {
+                            // Display latest first, and only include if there was an actual change
+                            // (dedup keeps the first occurrence; if it's only one row, it means price never changed).
+                            $dedupedHistory[$type] = array_reverse($rows);
+                        }
+                    }
+
+                    $changes = $priceChangeInfo['changes'];
+                    $since = $priceChangeInfo['since'];
+                    $latestChange = $priceChangeInfo['latest'];
                 @endphp
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                    <h2 class="text-lg font-semibold text-slate-900 mb-4">Hintahistoria</h2>
-                    <div class="space-y-4">
-                        @foreach ($priceHistory as $type => $history)
-                            @if (count($history) > 1)
-                                <div>
-                                    <h3 class="text-sm font-medium text-slate-700 mb-2">{{ $priceTypeLabels[$type] ?? $type }}</h3>
-                                    <div class="overflow-x-auto">
-                                        <table class="min-w-full text-sm">
-                                            <thead>
-                                                <tr class="text-left text-slate-500">
-                                                    <th class="py-2 pr-4">Päivämäärä</th>
-                                                    <th class="py-2">Hinta</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                @foreach ($history as $record)
-                                                    <tr class="border-t border-slate-100">
-                                                        <td class="py-2 pr-4 text-slate-600">{{ $record['date'] }}</td>
-                                                        <td class="py-2 font-medium text-slate-900">{{ number_format($record['price'], 2, ',', ' ') }} {{ $type === 'Monthly' ? 'EUR/kk' : 'c/kWh' }}</td>
-                                                    </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            @endif
-                        @endforeach
+                    <div class="flex items-start justify-between gap-4 flex-wrap">
+                        <div class="min-w-0">
+                            <h2 class="text-lg font-semibold text-slate-900">Hintakehitys</h2>
+                            <p class="text-sm text-slate-500 mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                                @if ($changes === 0)
+                                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                                    <span>Hinta ei ole muuttunut seurannan aikana.</span>
+                                @else
+                                    <span class="inline-block w-2 h-2 rounded-full bg-amber-500"></span>
+                                    <span>
+                                        Hinta on muuttunut
+                                        <span class="font-semibold text-slate-700">{{ $changes }} {{ $changes === 1 ? 'kerran' : 'kertaa' }}</span>
+                                        seurannan aikana.
+                                    </span>
+                                    @if ($latestChange)
+                                        <span class="text-slate-400">
+                                            Viimeisin: {{ $priceTypeLabels[$latestChange['type']] ?? $latestChange['type'] }}
+                                            {{ number_format($latestChange['from'], 2, ',', ' ') }} → {{ number_format($latestChange['to'], 2, ',', ' ') }}
+                                            ({{ $latestChange['date']->format('d.m.Y') }})
+                                        </span>
+                                    @endif
+                                @endif
+                                @if ($since)
+                                    <span class="text-slate-400">· Seurattu {{ $since->format('d.m.Y') }} alkaen</span>
+                                @endif
+                            </p>
+                        </div>
+                    </div>
+
+                    @if ($changes > 0)
+                        <details class="mt-4 group">
+                            <summary class="cursor-pointer inline-flex items-center gap-1.5 text-sm font-semibold text-coral-600 hover:text-coral-700 select-none">
+                                <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                                Näytä hintamuutokset
+                            </summary>
+                            <div class="mt-4 space-y-4">
+                                @foreach ($dedupedHistory as $type => $rows)
+                                    @if (count($rows) > 1)
+                                        <div>
+                                            <h3 class="text-sm font-medium text-slate-700 mb-2">{{ $priceTypeLabels[$type] ?? $type }}</h3>
+                                            <div class="overflow-x-auto">
+                                                <table class="min-w-full text-sm">
+                                                    <thead>
+                                                        <tr class="text-left text-slate-500">
+                                                            <th class="py-2 pr-4">Muutoksen päivä</th>
+                                                            <th class="py-2">Hinta</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach ($rows as $record)
+                                                            <tr class="border-t border-slate-100">
+                                                                <td class="py-2 pr-4 text-slate-600">{{ \Carbon\Carbon::parse($record['date'])->format('d.m.Y') }}</td>
+                                                                <td class="py-2 font-medium text-slate-900">{{ number_format($record['price'], 2, ',', ' ') }} {{ $type === 'Monthly' ? 'EUR/kk' : 'c/kWh' }}</td>
+                                                            </tr>
+                                                        @endforeach
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    @endif
+                                @endforeach
+                            </div>
+                        </details>
+                    @endif
+                </div>
+            @endif
+
+            <!-- Contract Description (moved from top of page) -->
+            @if ($contract->extra_information_fi)
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                    <h2 class="text-lg font-semibold text-slate-900 mb-4">Sopimuksen kuvaus</h2>
+                    <div class="prose prose-slate max-w-none prose-a:text-coral-600 hover:prose-a:text-coral-700">
+                        {!! $contract->extra_information_fi !!}
                     </div>
                 </div>
             @endif
@@ -475,7 +656,7 @@
                     $residualMix = \App\Services\CO2EmissionsCalculator::FINLAND_BENCHMARKS['residual_mix']; // 390.93 gCO₂/kWh
                     $physicalAveragePercent = min(100, ($physicalAverage / $gaugeMax) * 100);
                 @endphp
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <div id="ymparisto" class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 scroll-mt-20">
                     <h2 class="text-lg font-semibold text-slate-900 mb-6">Ympäristövaikutus</h2>
 
                     @if ($emissionFactor == 0)

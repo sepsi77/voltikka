@@ -191,6 +191,97 @@ class ContractDetail extends Component
     }
 
     /**
+     * Rank at the currently-selected consumption. Updates live when user
+     * changes the consumption chip, unlike priceRank which is fixed at 5000 kWh
+     * for SEO title stability.
+     */
+    public function getLiveRankProperty(): ?int
+    {
+        $contract = $this->contract;
+        if (! $contract) {
+            return null;
+        }
+        return app(ContractRankingService::class)
+            ->getRankForConsumption($contract->id, $this->consumption);
+    }
+
+    public function getLiveTotalContractsProperty(): ?int
+    {
+        return app(ContractRankingService::class)
+            ->getTotalContractsForConsumption($this->consumption);
+    }
+
+    /**
+     * Cheaper alternatives at current consumption. Empty if the contract
+     * is #1 (nothing is cheaper) or if consumption isn't cache-supported.
+     */
+    public function getCheaperContractsProperty(): \Illuminate\Support\Collection
+    {
+        $contract = $this->contract;
+        if (! $contract) {
+            return collect();
+        }
+        return app(ContractRankingService::class)
+            ->getCheaperContracts($contract->id, $this->consumption, 4);
+    }
+
+    /**
+     * Price-change summary for the collapsed "Hintakehitys" teaser.
+     *
+     * Counts distinct price transitions per component type (consecutive equal
+     * prices collapse), sums across types, and reports the earliest tracked date.
+     *
+     * @return array{changes: int, since: ?\Carbon\Carbon, latest: ?array{type: string, from: float, to: float, date: \Carbon\Carbon}}
+     */
+    public function getPriceChangeInfoProperty(): array
+    {
+        $contract = $this->contract;
+        if (! $contract) {
+            return ['changes' => 0, 'since' => null, 'latest' => null];
+        }
+
+        $changes = 0;
+        $earliest = null;
+        $latestChange = null;
+        $latestChangeTimestamp = null;
+
+        foreach ($contract->priceComponents->groupBy('price_component_type') as $type => $components) {
+            $sorted = $components->sortBy('price_date')->values();
+            $previous = null;
+            foreach ($sorted as $pc) {
+                $date = $pc->price_date instanceof \Carbon\Carbon
+                    ? $pc->price_date
+                    : \Carbon\Carbon::parse($pc->price_date);
+
+                if ($earliest === null || $date->lt($earliest)) {
+                    $earliest = $date->copy();
+                }
+
+                if ($previous !== null && (float) $pc->price !== (float) $previous->price) {
+                    $changes++;
+                    $ts = $date->timestamp;
+                    if ($latestChangeTimestamp === null || $ts > $latestChangeTimestamp) {
+                        $latestChangeTimestamp = $ts;
+                        $latestChange = [
+                            'type' => (string) $type,
+                            'from' => (float) $previous->price,
+                            'to' => (float) $pc->price,
+                            'date' => $date->copy(),
+                        ];
+                    }
+                }
+                $previous = $pc;
+            }
+        }
+
+        return [
+            'changes' => $changes,
+            'since' => $earliest,
+            'latest' => $latestChange,
+        ];
+    }
+
+    /**
      * Truncate a contract name to fit within title limits.
      * Cuts at word boundary and appends ellipsis if truncated.
      */
@@ -765,6 +856,10 @@ class ContractDetail extends Component
             'presets' => $this->presets,
             'co2Emissions' => $this->co2Emissions,
             'emissionFactorSources' => $this->emissionFactorSources,
+            'cheaperContracts' => $this->cheaperContracts,
+            'liveRank' => $this->liveRank,
+            'liveTotalContracts' => $this->liveTotalContracts,
+            'priceChangeInfo' => $this->priceChangeInfo,
             'schemas' => [
                 $this->webPageSchema,
                 $this->productSchema,
