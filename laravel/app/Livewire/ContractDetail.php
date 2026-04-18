@@ -207,8 +207,12 @@ class ContractDetail extends Component
 
     public function getLiveTotalContractsProperty(): ?int
     {
+        $contract = $this->contract;
+        if (! $contract) {
+            return null;
+        }
         return app(ContractRankingService::class)
-            ->getTotalContractsForConsumption($this->consumption);
+            ->getTotalContractsForConsumption($contract->id, $this->consumption);
     }
 
     /**

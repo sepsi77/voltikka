@@ -102,8 +102,8 @@
                                 </svg>
                                 #{{ $rank }} halvin · {{ number_format($totalContracts, 0, ',', ' ') }} sopimuksesta
                             </span>
-                            @if ($rank > 1 && $cheaperContracts->isNotEmpty())
-                                <a href="#halvemmat" class="text-sm font-medium text-coral-300 hover:text-coral-200 underline underline-offset-2">
+                            @if ($rank > 1)
+                                <a href="/sahkosopimus" class="text-sm font-medium text-coral-300 hover:text-coral-200 underline underline-offset-2">
                                     Katso {{ $rank - 1 }} halvempaa sopimusta →
                                 </a>
                             @endif

@@ -20,102 +20,134 @@ class ContractRankingService
     ) {}
 
     /**
+     * Request-scoped memo so the three public methods below share the same
+     * filtered list for a given viewed contract + consumption. Keyed by
+     * "{contractId}:{consumption}".
+     *
+     * @var array<string, array{sortedIds: list<string>, selfCost: float}|null>
+     */
+    private array $eligibleSortedIdsMemo = [];
+
+    /**
      * Contracts cheaper than the given one at the given consumption.
      *
-     * Returns at most $limit contracts, ranked 1..N by annual cost. Matches the
-     * viewed contract's target group (household-eligible vs company-only) so we
-     * don't recommend a business contract to a household shopper. Falls back to
-     * an empty collection when the consumption isn't cache-supported or the
-     * contract itself isn't in the cached metrics.
+     * Returns at most $limit contracts, ranked 1..N within the
+     * target-group-eligible universe (household-eligible vs company-only so
+     * we don't recommend a business contract to a household shopper). Empty
+     * when the consumption isn't cache-supported or the contract itself isn't
+     * in the eligible list.
      *
      * @return Collection<int, array{contract: ElectricityContract, total_cost: float, rank: int, savings: float}>
      */
     public function getCheaperContracts(string $contractId, int $consumption, int $limit = 4): Collection
     {
-        $metrics = $this->listCache->getCachedMetrics($consumption);
-
-        if ($metrics === null) {
+        $summary = $this->getEligibleSortedIds($contractId, $consumption);
+        if ($summary === null) {
             return collect();
         }
 
-        $self = $metrics['contracts'][$contractId] ?? null;
-        if ($self === null) {
-            return collect();
-        }
-
-        $selfCost = (float) $self['total_cost'];
-        $selfPosition = array_search($contractId, $metrics['sorted_ids'], true);
+        $selfPosition = array_search($contractId, $summary['sortedIds'], true);
         if ($selfPosition === false || $selfPosition === 0) {
             return collect();
         }
 
-        $viewedContract = ElectricityContract::find($contractId);
-        $eligibleTargets = $this->eligibleTargetGroups($viewedContract?->target_group);
-
-        // Walk the sorted list from the top, collecting eligible contracts that
-        // are strictly cheaper than the viewed one.
-        $candidateIds = [];
-        foreach ($metrics['sorted_ids'] as $position => $id) {
-            if ($id === $contractId || $position >= $selfPosition) {
-                break;
-            }
-            $candidateIds[] = $id;
-        }
-
+        $selfCost = $summary['selfCost'];
+        $candidateIds = array_slice($summary['sortedIds'], 0, $selfPosition);
         if (empty($candidateIds)) {
             return collect();
         }
 
+        $topIds = array_slice($candidateIds, 0, $limit);
         $contracts = ElectricityContract::query()
             ->with(['company'])
-            ->whereIn('id', $candidateIds)
+            ->whereIn('id', $topIds)
             ->get()
             ->keyBy('id');
 
-        $results = collect();
-        foreach ($candidateIds as $position => $id) {
-            $contract = $contracts->get($id);
-            if (! $contract) {
-                continue;
-            }
-            if (! $this->matchesTargetGroup($contract->target_group, $eligibleTargets)) {
-                continue;
-            }
+        $metrics = $this->listCache->getCachedMetrics($consumption);
 
-            $cost = (float) ($metrics['contracts'][$id]['total_cost'] ?? 0);
-            $results->push([
-                'contract' => $contract,
-                'total_cost' => $cost,
-                'rank' => $position + 1,
-                'savings' => max(0.0, $selfCost - $cost),
-            ]);
-
-            if ($results->count() >= $limit) {
-                break;
-            }
-        }
-
-        return $results;
+        return collect($topIds)
+            ->map(function (string $id, int $i) use ($contracts, $metrics, $selfCost) {
+                $contract = $contracts->get($id);
+                if (! $contract) {
+                    return null;
+                }
+                $cost = (float) ($metrics['contracts'][$id]['total_cost'] ?? 0);
+                return [
+                    'contract' => $contract,
+                    'total_cost' => $cost,
+                    'rank' => $i + 1,
+                    'savings' => max(0.0, $selfCost - $cost),
+                ];
+            })
+            ->filter()
+            ->values();
     }
 
     /**
-     * Contract's rank within the sorted list for a given consumption.
+     * Contract's rank within the target-group-eligible universe for the given
+     * consumption. Matches the household/business audience of the viewed
+     * contract so the number is consistent with getCheaperContracts().
      */
     public function getRankForConsumption(string $contractId, int $consumption): ?int
     {
-        $metrics = $this->listCache->getCachedMetrics($consumption);
-        if ($metrics === null) {
+        $summary = $this->getEligibleSortedIds($contractId, $consumption);
+        if ($summary === null) {
             return null;
         }
-
-        $position = array_search($contractId, $metrics['sorted_ids'], true);
+        $position = array_search($contractId, $summary['sortedIds'], true);
         return $position === false ? null : $position + 1;
     }
 
-    public function getTotalContractsForConsumption(int $consumption): ?int
+    /**
+     * Total number of contracts in the same target-group-eligible universe as
+     * the viewed contract, at the given consumption.
+     */
+    public function getTotalContractsForConsumption(string $contractId, int $consumption): ?int
     {
+        $summary = $this->getEligibleSortedIds($contractId, $consumption);
+        return $summary === null ? null : count($summary['sortedIds']);
+    }
+
+    /**
+     * Filter the cached sorted_ids to entries matching the viewed contract's
+     * target-group eligibility, preserving cost order. Returns null when the
+     * consumption isn't cache-supported or the viewed contract isn't in the
+     * cache (e.g. consumption exceeds its limits).
+     *
+     * @return array{sortedIds: list<string>, selfCost: float}|null
+     */
+    private function getEligibleSortedIds(string $viewedContractId, int $consumption): ?array
+    {
+        $memoKey = $viewedContractId . ':' . $consumption;
+        if (array_key_exists($memoKey, $this->eligibleSortedIdsMemo)) {
+            return $this->eligibleSortedIdsMemo[$memoKey];
+        }
+
         $metrics = $this->listCache->getCachedMetrics($consumption);
-        return $metrics === null ? null : count($metrics['sorted_ids']);
+        if ($metrics === null || ! isset($metrics['contracts'][$viewedContractId])) {
+            return $this->eligibleSortedIdsMemo[$memoKey] = null;
+        }
+
+        $viewed = ElectricityContract::find($viewedContractId);
+        $eligibleTargets = $this->eligibleTargetGroups($viewed?->target_group);
+
+        $targetGroups = ElectricityContract::query()
+            ->whereIn('id', $metrics['sorted_ids'])
+            ->pluck('target_group', 'id')
+            ->all();
+
+        $filtered = [];
+        foreach ($metrics['sorted_ids'] as $id) {
+            if ($this->matchesTargetGroup($targetGroups[$id] ?? null, $eligibleTargets)) {
+                $filtered[] = $id;
+            }
+        }
+
+        return $this->eligibleSortedIdsMemo[$memoKey] = [
+            'sortedIds' => $filtered,
+            'selfCost' => (float) $metrics['contracts'][$viewedContractId]['total_cost'],
+        ];
     }
 
     /**
