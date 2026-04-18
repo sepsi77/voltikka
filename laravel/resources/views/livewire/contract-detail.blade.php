@@ -110,7 +110,11 @@
                         </div>
                     @endif
 
-                    <div class="flex flex-wrap items-baseline gap-x-5 gap-y-2">
+                    <div
+                        class="flex flex-wrap items-baseline gap-x-5 gap-y-2 transition-opacity duration-150"
+                        wire:loading.class.delay="opacity-40"
+                        wire:target="setConsumption"
+                    >
                         <div class="text-5xl sm:text-6xl md:text-7xl font-extrabold text-white tracking-tight leading-none">
                             {{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} €
                         </div>
@@ -201,9 +205,20 @@
                 @foreach ($presets as $label => $value)
                     <button
                         wire:click="setConsumption({{ $value }})"
-                        class="px-3 py-1.5 rounded-lg text-sm font-medium transition border {{ $consumption === $value ? 'bg-coral-500 text-white border-coral-500 shadow-sm' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50' }}"
+                        wire:loading.attr="disabled"
+                        wire:target="setConsumption"
+                        class="relative px-3 py-1.5 rounded-lg text-sm font-medium transition border disabled:cursor-wait {{ $consumption === $value ? 'bg-coral-500 text-white border-coral-500 shadow-sm' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50' }}"
                     >
-                        {{ $label }} · {{ number_format($value, 0, ',', ' ') }} kWh
+                        <span wire:loading.delay.remove wire:target="setConsumption({{ $value }})">
+                            {{ $label }} · {{ number_format($value, 0, ',', ' ') }} kWh
+                        </span>
+                        <span wire:loading.delay wire:target="setConsumption({{ $value }})" class="inline-flex items-center gap-2">
+                            <svg class="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity="0.25" stroke-width="3"/>
+                                <path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                            </svg>
+                            Päivitetään…
+                        </span>
                     </button>
                 @endforeach
             </div>
@@ -243,7 +258,11 @@
                 <a href="/sahkosopimus" class="hidden sm:inline text-sm font-semibold text-coral-600 hover:text-coral-700 whitespace-nowrap">Vertaa kaikkia →</a>
             </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+            <div
+                class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 transition-opacity duration-150"
+                wire:loading.class.delay="opacity-40"
+                wire:target="setConsumption"
+            >
                 @foreach ($cheaperContracts as $alt)
                     @php
                         $altContract = $alt['contract'];
