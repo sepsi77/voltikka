@@ -439,6 +439,8 @@ class ContractDetailPageTest extends TestCase
             'payment_unit' => 'EUR/month',
         ]);
 
+        ActiveContract::create(['id' => 'time-metering-contract']);
+
         Livewire::test('contract-detail', ['contractId' => 'time-metering-contract'])
             ->assertSee('6,0')  // Day price
             ->assertSee('4,0'); // Night price
@@ -484,6 +486,8 @@ class ContractDetailPageTest extends TestCase
             'price' => 4.00,
             'payment_unit' => 'EUR/month',
         ]);
+
+        ActiveContract::create(['id' => 'seasonal-metering-contract']);
 
         Livewire::test('contract-detail', ['contractId' => 'seasonal-metering-contract'])
             ->assertSee('7,0')  // Winter price

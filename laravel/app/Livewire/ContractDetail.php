@@ -482,6 +482,92 @@ class ContractDetail extends Component
     }
 
     /**
+     * Get price components enriched with discount metadata for display.
+     *
+     * @return array<string, array{
+     *     price: float,
+     *     unit: string,
+     *     has_discount: bool,
+     *     discount_value: float|null,
+     *     discount_is_percentage: bool,
+     *     discount_type: string|null,
+     *     discount_n_first_months: int|null,
+     *     discount_until_date: \Carbon\Carbon|null,
+     *     discount_n_first_kwh: float|null,
+     *     discounted_price: float|null,
+     *     discount_label: string|null,
+     * }>
+     */
+    public function getDiscountedComponentsProperty(): array
+    {
+        $contract = $this->contract;
+
+        if (! $contract) {
+            return [];
+        }
+
+        $components = [];
+
+        foreach ($contract->getLatestPriceComponentsForCalculation() as $comp) {
+            $type = $comp['price_component_type'];
+            $hasDiscount = $comp['has_discount'] ?? false;
+            $discountValue = $comp['discount_value'] ?? null;
+            $isPercentage = $comp['discount_is_percentage'] ?? false;
+            $discountType = $comp['discount_type'] ?? null;
+
+            $unit = match ($comp['payment_unit'] ?? null) {
+                'EurPerMonth' => 'EUR/kk',
+                'CentPerKiwattHour' => 'c/kWh',
+                default => $type === 'Monthly' ? 'EUR/kk' : 'c/kWh',
+            };
+
+            $discountedPrice = null;
+            $discountLabel = null;
+
+            if ($hasDiscount && $discountValue) {
+                $price = (float) $comp['price'];
+
+                if ($isPercentage) {
+                    $discountedPrice = max(0, $price * (1 - ((float) $discountValue / 100)));
+                    $discountLabel = '-' . number_format($discountValue, 0, ',', ' ') . '% alennus';
+                } else {
+                    $discountedPrice = max(0, $price - (float) $discountValue);
+                    $unitLabel = $unit === 'EUR/kk' ? '€/kk' : 'c/kWh';
+                    $discountLabel = '-' . number_format($discountValue, 2, ',', ' ') . ' ' . $unitLabel . ' alennus';
+                }
+
+                if ($discountType === 'NFirstMonth' && ($comp['discount_discount_n_first_months'] ?? 0) > 0) {
+                    $n = (int) $comp['discount_discount_n_first_months'];
+                    $discountLabel .= ' · ' . $n . ' ensimmäistä kuukautta';
+                } elseif ($discountType === 'UntilDate' && ! empty($comp['discount_discount_until_date'])) {
+                    $until = $comp['discount_discount_until_date'] instanceof \Carbon\CarbonInterface
+                        ? $comp['discount_discount_until_date']
+                        : \Carbon\Carbon::parse($comp['discount_discount_until_date']);
+                    $discountLabel .= ' · voimassa ' . $until->format('d.m.Y') . ' asti';
+                } elseif ($discountType === 'NFirstKwh' && ($comp['discount_discount_n_first_kwh'] ?? 0) > 0) {
+                    $discountLabel = 'Ensimmäisille ' . number_format((float) $comp['discount_discount_n_first_kwh'], 0, ',', ' ') . ' kWh alennus -' . number_format($discountValue, 2, ',', ' ') . ' ' . ($unit === 'EUR/kk' ? '€/kk' : 'c/kWh');
+                }
+            }
+
+            $components[$type] = [
+                'price' => (float) $comp['price'],
+                'unit' => $unit,
+                'has_discount' => $hasDiscount,
+                'discount_value' => $discountValue,
+                'discount_is_percentage' => $isPercentage,
+                'discount_type' => $discountType,
+                'discount_n_first_months' => $comp['discount_discount_n_first_months'] ?? null,
+                'discount_until_date' => $comp['discount_discount_until_date'] ?? null,
+                'discount_n_first_kwh' => $comp['discount_discount_n_first_kwh'] ?? null,
+                'discounted_price' => $discountedPrice,
+                'discount_label' => $discountLabel,
+            ];
+        }
+
+        return $components;
+    }
+
+    /**
      * Get the price history for the contract.
      *
      * @return array<string, array<array{date: string, price: float}>>
@@ -1084,6 +1170,7 @@ class ContractDetail extends Component
         if ($isActive) {
             $viewData = array_merge($viewData, [
                 'latestPrices' => $this->latestPrices,
+                'discountedComponents' => $this->discountedComponents,
                 'calculatedCost' => $this->calculatedCost,
                 'priceHistory' => $this->priceHistory,
                 'contractHistory' => $this->contractHistory,

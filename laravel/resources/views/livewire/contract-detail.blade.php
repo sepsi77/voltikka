@@ -390,70 +390,123 @@
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <h2 class="text-lg font-semibold text-slate-900 mb-4">Hintatiedot</h2>
 
-                <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div class="rounded-xl bg-slate-50 border border-slate-200 p-4">
-                        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Ensimmäisen 12 kk arvio</div>
-                        <div class="mt-1 text-2xl font-extrabold text-slate-900">{{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} €</div>
-                    </div>
-                    @if (($calculatedCost['includes_discounts'] ?? false) && ($calculatedCost['discount_savings_total'] ?? 0) > 0)
-                        <div class="rounded-xl bg-emerald-50 border border-emerald-200 p-4">
-                            <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Tarjouksella säästät</div>
-                            <div class="mt-1 text-2xl font-extrabold text-emerald-700">{{ number_format($calculatedCost['discount_savings_total'], 0, ',', ' ') }} €</div>
-                        </div>
-                        <div class="rounded-xl bg-slate-50 border border-slate-200 p-4">
-                            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Ilman tarjousta</div>
-                            <div class="mt-1 text-2xl font-extrabold text-slate-900">{{ number_format($calculatedCost['base_total_cost'] ?? 0, 0, ',', ' ') }} €</div>
-                        </div>
-                    @else
-                        <div class="rounded-xl bg-slate-50 border border-slate-200 p-4 md:col-span-2">
-                            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Mitä arvio tarkoittaa?</div>
-                            <div class="mt-1 text-sm text-slate-600">Arvio näyttää sopimuksen kustannuksen seuraavan 12 kuukauden aikana nykyisellä kulutuksellasi.</div>
-                        </div>
-                    @endif
-                </div>
-
-                {{-- Promotion/Discount Info Banner --}}
-                @if ($contract->hasActiveDiscounts())
+                @if (($calculatedCost['includes_discounts'] ?? false) && ($calculatedCost['discount_savings_total'] ?? 0) > 0)
                     @php
-                        $discountInfo = $contract->getActiveDiscountInfo();
+                        $monthlySavings = $calculatedCost['monthly_discount_savings'] ?? [];
+                        $monthLabelsShort = ['Tammi', 'Helmi', 'Maalis', 'Huhti', 'Touko', 'Kesä', 'Heinä', 'Elo', 'Syys', 'Loka', 'Marras', 'Joulu'];
+                        $hasMonthlyChart = count(array_filter($monthlySavings, fn($v) => $v > 0)) > 0;
+                        $lastDiscountMonth = 0;
+                        foreach ($monthlySavings as $i => $s) { if ($s > 0.001) $lastDiscountMonth = $i + 1; }
                     @endphp
-                    <div class="mb-4 p-4 bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-xl">
-                        <div class="flex items-start gap-3">
-                            <div class="flex-shrink-0">
-                                <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-                                </svg>
+                    {{-- Promo block: ticket-like layout with flex accent bar --}}
+                    <div class="mb-8 rounded-2xl bg-white border border-slate-200 flex overflow-hidden">
+                        <div class="w-1.5 bg-coral-500 shrink-0"></div>
+                        <div class="flex-1 min-w-0 p-5 sm:p-6">
+                            {{-- Badge --}}
+                            <div class="flex items-center gap-2 mb-5 flex-wrap">
+                                <span class="inline-flex items-center gap-1.5 rounded-lg bg-coral-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-white">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                                    </svg>
+                                    Tarjous
+                                </span>
+                                @if ($lastDiscountMonth > 0)
+                                    <span class="text-[11px] font-semibold text-slate-400">
+                                        Alennus voimassa {{ $lastDiscountMonth }} ensimmäistä kuukautta
+                                    </span>
+                                @endif
                             </div>
-                            <div class="flex-1">
-                                <p class="font-semibold text-amber-800">
-                                    @if ($discountInfo && $discountInfo['n_first_months'])
-                                        Tarjous: {{ $discountInfo['n_first_months'] }} ensimmäistä kuukautta
-                                    @else
-                                        Tarjoussopimus
-                                    @endif
-                                </p>
-                                <p class="text-sm text-amber-700 mt-1">
-                                    @if ($discountInfo)
-                                        @if ($contract->formatActiveDiscountValue($discountInfo))
-                                            {{ $contract->formatActiveDiscountValue($discountInfo) }}
-                                        @endif
-                                        @if ($discountInfo['until_date'])
-                                            <span class="ml-2 text-amber-600">
-                                                Voimassa {{ $discountInfo['until_date']->format('d.m.Y') }} asti
-                                            </span>
-                                        @endif
-                                    @else
-                                        Tällä sopimuksella on voimassa oleva tarjous.
-                                    @endif
-                                </p>
+
+                            {{-- Asymmetric price layout --}}
+                            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 sm:gap-8">
+                                {{-- Hero: discounted price --}}
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                                        Hinta (12 kk)
+                                    </div>
+                                    <div class="mt-2 flex items-center gap-4 flex-wrap">
+                                        <span class="text-5xl sm:text-6xl font-extrabold text-slate-900 tracking-tight tabular-nums leading-tight">
+                                            {{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} €
+                                        </span>
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 ring-1 ring-inset ring-emerald-300/60 px-3 py-1.5 text-base font-bold text-emerald-700 tabular-nums">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                            </svg>
+                                            Säästät {{ number_format($calculatedCost['discount_savings_total'], 0, ',', ' ') }} €
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {{-- Subordinate: original price --}}
+                                <div class="shrink-0 sm:text-right">
+                                    <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                                        Normaalihinta
+                                    </div>
+                                    <div class="mt-1.5">
+                                        <span class="text-2xl font-bold text-slate-300 line-through decoration-slate-300 tabular-nums tracking-tight">
+                                            {{ number_format($calculatedCost['base_total_cost'] ?? 0, 0, ',', ' ') }} €
+                                        </span>
+                                        <span class="ml-1.5 text-sm text-slate-400">/ 12 kk</span>
+                                    </div>
+                                </div>
                             </div>
+
+                            {{-- Monthly timeline --}}
+                            @if ($hasMonthlyChart)
+                                <div class="mt-6 pt-5 border-t border-slate-100">
+                                    <div class="flex items-center justify-between mb-3">
+                                        <div class="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">
+                                            Alennusjakso
+                                        </div>
+                                        <div class="text-[11px] font-medium text-slate-400 tabular-nums">
+                                            1–{{ $lastDiscountMonth }} / 12 kk
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2" role="img" aria-label="Alennusjakson aikajana">
+                                        @foreach ($monthlySavings as $i => $saving)
+                                            @php
+                                                $hasSaving = $saving > 0.001;
+                                                $maxSaving = max($monthlySavings) ?: 1;
+                                                $heightPct = $hasSaving ? max(16, ($saving / $maxSaving) * 100) : 6;
+                                            @endphp
+                                            <div class="flex-1 flex flex-col items-center gap-1 group min-w-0">
+                                                <div class="w-full relative rounded-sm overflow-hidden" style="height: 28px;">
+                                                    <div
+                                                        class="absolute bottom-0 left-0 right-0 transition-all {{ $hasSaving ? 'bg-coral-400 group-hover:bg-coral-500' : 'bg-slate-100' }}"
+                                                        style="height: {{ $heightPct }}%;"
+                                                        title="{{ $monthLabelsShort[$i] }}: {{ $hasSaving ? number_format($saving, 2, ',', ' ') . ' € säästö' : 'Ei alennusta' }}"
+                                                    ></div>
+                                                </div>
+                                                <span class="text-[9px] font-medium tabular-nums {{ $hasSaving ? 'text-coral-600' : 'text-slate-300' }}">
+                                                    {{ $i + 1 }}
+                                                </span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                @else
+                    <div class="mb-8 rounded-2xl bg-white border border-slate-200 flex overflow-hidden">
+                        <div class="w-1.5 bg-slate-300 shrink-0"></div>
+                        <div class="flex-1 min-w-0 p-5 sm:p-6">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+                                Ensimmäisen 12 kk arvio
+                            </div>
+                            <div class="mt-2">
+                                <span class="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight tabular-nums leading-tight">
+                                    {{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} €
+                                </span>
+                            </div>
+                            <p class="mt-3 text-sm text-slate-500">Arvio näyttää sopimuksen kustannuksen seuraavan 12 kuukauden aikana nykyisellä kulutuksellasi.</p>
                         </div>
                     </div>
                 @endif
 
                 @if ($calculatedCost['is_spot_contract'] ?? false)
                     {{-- Spot contract pricing --}}
-                    <div class="space-y-4">
+                    <div class="space-y-0">
                         {{-- Spot price info banner --}}
                         <div class="p-3 bg-coral-50 border border-coral-200 rounded-xl text-sm text-coral-800 mb-4">
                             <div class="flex items-start gap-2">
@@ -464,30 +517,27 @@
                             </div>
                         </div>
 
-                        {{-- Margin (company's markup) --}}
-                        <div class="flex justify-between items-center py-3 border-b border-slate-100">
-                            <div>
-                                <span class="text-slate-600">Marginaali</span>
-                                <span class="text-sm text-slate-400 ml-2">(yhtiön lisä)</span>
-                            </div>
-                            <span class="text-xl font-semibold text-slate-900">{{ number_format($calculatedCost['spot_price_margin'] ?? 0, 2, ',', ' ') }} c/kWh</span>
-                        </div>
+                        <x-contract-price-row
+                            label="Marginaali"
+                            sublabel="(yhtiön lisä)"
+                            type="General"
+                            :discountedComponents="$discountedComponents"
+                        />
 
-                        {{-- Spot price averages --}}
                         @if (isset($calculatedCost['spot_price_day_avg']) && isset($calculatedCost['spot_price_night_avg']))
                             <div class="flex justify-between items-center py-3 border-b border-slate-100">
                                 <div>
                                     <span class="text-slate-600">Spot-hinta päivä</span>
                                     <span class="text-sm text-slate-400 ml-2">(365pv ka.)</span>
                                 </div>
-                                <span class="text-lg font-medium text-slate-700">{{ number_format($calculatedCost['spot_price_day_avg'], 2, ',', ' ') }} c/kWh</span>
+                                <span class="text-lg font-medium text-slate-700 tabular-nums">{{ number_format($calculatedCost['spot_price_day_avg'], 2, ',', ' ') }} c/kWh</span>
                             </div>
                             <div class="flex justify-between items-center py-3 border-b border-slate-100">
                                 <div>
                                     <span class="text-slate-600">Spot-hinta yö</span>
                                     <span class="text-sm text-slate-400 ml-2">(365pv ka.)</span>
                                 </div>
-                                <span class="text-lg font-medium text-slate-700">{{ number_format($calculatedCost['spot_price_night_avg'], 2, ',', ' ') }} c/kWh</span>
+                                <span class="text-lg font-medium text-slate-700 tabular-nums">{{ number_format($calculatedCost['spot_price_night_avg'], 2, ',', ' ') }} c/kWh</span>
                             </div>
                         @endif
 
@@ -498,96 +548,77 @@
                             $spotNight = $calculatedCost['spot_price_night_avg'] ?? 0;
                             $totalDayPrice = $spotDay + $margin;
                             $totalNightPrice = $spotNight + $margin;
-                            // Weighted average: 85% day, 15% night (typical household)
                             $avgTotalPrice = ($totalDayPrice * 0.85) + ($totalNightPrice * 0.15);
                         @endphp
-                        <div class="flex justify-between items-center py-3 border-b border-slate-100 bg-slate-50 -mx-6 px-6">
+                        <div class="flex justify-between items-center py-3.5 border-b border-slate-100 bg-slate-50 -mx-6 px-6">
                             <div>
                                 <span class="text-slate-900 font-medium">Energiahinta (arvio)</span>
                                 <span class="text-sm text-slate-500 ml-2">(spot + marginaali)</span>
                             </div>
-                            <span class="text-xl font-bold text-coral-600">{{ number_format($avgTotalPrice, 2, ',', ' ') }} c/kWh</span>
+                            <span class="text-xl font-bold text-coral-600 tabular-nums">{{ number_format($avgTotalPrice, 2, ',', ' ') }} c/kWh</span>
                         </div>
 
-                        {{-- Monthly fee --}}
-                        @if (isset($latestPrices['Monthly']))
-                            <div class="flex justify-between items-center py-3 border-b border-slate-100">
-                                <span class="text-slate-600">Perusmaksu</span>
-                                <span class="text-xl font-semibold text-slate-900">{{ number_format($latestPrices['Monthly']['price'], 2, ',', ' ') }} EUR/kk</span>
-                            </div>
-                        @endif
+                        <x-contract-price-row
+                            label="Perusmaksu"
+                            type="Monthly"
+                            :discountedComponents="$discountedComponents"
+                        />
                     </div>
                 @elseif ($contract->metering === 'General')
                     <!-- General metering (non-spot) -->
-                    <div class="space-y-4">
-                        @if (isset($latestPrices['General']))
-                            <div class="flex justify-between items-center py-3 border-b border-slate-100">
-                                <span class="text-slate-600">Energiahinta</span>
-                                <span class="text-xl font-semibold text-slate-900">{{ number_format($latestPrices['General']['price'], 2, ',', ' ') }} c/kWh</span>
-                            </div>
-                        @endif
-                        @if (isset($latestPrices['Monthly']))
-                            <div class="flex justify-between items-center py-3 border-b border-slate-100">
-                                <span class="text-slate-600">Perusmaksu</span>
-                                <span class="text-xl font-semibold text-slate-900">{{ number_format($latestPrices['Monthly']['price'], 2, ',', ' ') }} EUR/kk</span>
-                            </div>
-                        @endif
+                    <div class="space-y-0">
+                        <x-contract-price-row
+                            label="Energiahinta"
+                            type="General"
+                            :discountedComponents="$discountedComponents"
+                        />
+                        <x-contract-price-row
+                            label="Perusmaksu"
+                            type="Monthly"
+                            :discountedComponents="$discountedComponents"
+                        />
                     </div>
                 @elseif ($contract->metering === 'Time')
                     <!-- Time-based metering -->
-                    <div class="space-y-4">
-                        @if (isset($latestPrices['DayTime']))
-                            <div class="flex justify-between items-center py-3 border-b border-slate-100">
-                                <div>
-                                    <span class="text-slate-600">Päiväsähkö</span>
-                                    <span class="text-sm text-slate-400 ml-2">(07:00-22:00)</span>
-                                </div>
-                                <span class="text-xl font-semibold text-slate-900">{{ number_format($latestPrices['DayTime']['price'], 2, ',', ' ') }} c/kWh</span>
-                            </div>
-                        @endif
-                        @if (isset($latestPrices['NightTime']))
-                            <div class="flex justify-between items-center py-3 border-b border-slate-100">
-                                <div>
-                                    <span class="text-slate-600">Yösähkö</span>
-                                    <span class="text-sm text-slate-400 ml-2">(22:00-07:00)</span>
-                                </div>
-                                <span class="text-xl font-semibold text-slate-900">{{ number_format($latestPrices['NightTime']['price'], 2, ',', ' ') }} c/kWh</span>
-                            </div>
-                        @endif
-                        @if (isset($latestPrices['Monthly']))
-                            <div class="flex justify-between items-center py-3 border-b border-slate-100">
-                                <span class="text-slate-600">Perusmaksu</span>
-                                <span class="text-xl font-semibold text-slate-900">{{ number_format($latestPrices['Monthly']['price'], 2, ',', ' ') }} EUR/kk</span>
-                            </div>
-                        @endif
+                    <div class="space-y-0">
+                        <x-contract-price-row
+                            label="Päiväsähkö"
+                            sublabel="(07:00-22:00)"
+                            type="DayTime"
+                            :discountedComponents="$discountedComponents"
+                        />
+                        <x-contract-price-row
+                            label="Yösähkö"
+                            sublabel="(22:00-07:00)"
+                            type="NightTime"
+                            :discountedComponents="$discountedComponents"
+                        />
+                        <x-contract-price-row
+                            label="Perusmaksu"
+                            type="Monthly"
+                            :discountedComponents="$discountedComponents"
+                        />
                     </div>
                 @elseif ($contract->metering === 'Season')
                     <!-- Seasonal metering -->
-                    <div class="space-y-4">
-                        @if (isset($latestPrices['SeasonalWinterDay']))
-                            <div class="flex justify-between items-center py-3 border-b border-slate-100">
-                                <div>
-                                    <span class="text-slate-600">Talvi</span>
-                                    <span class="text-sm text-slate-400 ml-2">(marras-maaliskuu, päivä)</span>
-                                </div>
-                                <span class="text-xl font-semibold text-slate-900">{{ number_format($latestPrices['SeasonalWinterDay']['price'], 2, ',', ' ') }} c/kWh</span>
-                            </div>
-                        @endif
-                        @if (isset($latestPrices['SeasonalOther']))
-                            <div class="flex justify-between items-center py-3 border-b border-slate-100">
-                                <div>
-                                    <span class="text-slate-600">Muu aika</span>
-                                    <span class="text-sm text-slate-400 ml-2">(muut ajat)</span>
-                                </div>
-                                <span class="text-xl font-semibold text-slate-900">{{ number_format($latestPrices['SeasonalOther']['price'], 2, ',', ' ') }} c/kWh</span>
-                            </div>
-                        @endif
-                        @if (isset($latestPrices['Monthly']))
-                            <div class="flex justify-between items-center py-3 border-b border-slate-100">
-                                <span class="text-slate-600">Perusmaksu</span>
-                                <span class="text-xl font-semibold text-slate-900">{{ number_format($latestPrices['Monthly']['price'], 2, ',', ' ') }} EUR/kk</span>
-                            </div>
-                        @endif
+                    <div class="space-y-0">
+                        <x-contract-price-row
+                            label="Talvi"
+                            sublabel="(marras-maaliskuu, päivä)"
+                            type="SeasonalWinterDay"
+                            :discountedComponents="$discountedComponents"
+                        />
+                        <x-contract-price-row
+                            label="Muu aika"
+                            sublabel="(muut ajat)"
+                            type="SeasonalOther"
+                            :discountedComponents="$discountedComponents"
+                        />
+                        <x-contract-price-row
+                            label="Perusmaksu"
+                            type="Monthly"
+                            :discountedComponents="$discountedComponents"
+                        />
                     </div>
                 @endif
             </div>
