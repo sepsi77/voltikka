@@ -20,6 +20,10 @@ class ContractDetail extends Component
 
     protected ?array $priceHistoryCache = null;
 
+    protected ?array $contractHistoryCache = null;
+
+    protected ?\Illuminate\Support\Collection $historyContractsCache = null;
+
     /**
      * The contract ID.
      */
@@ -262,8 +266,7 @@ class ContractDetail extends Component
      */
     public function getPriceChangeInfoProperty(): array
     {
-        $contract = $this->contract;
-        if (! $contract) {
+        if (empty($this->priceHistory)) {
             return ['changes' => 0, 'since' => null, 'latest' => null];
         }
 
@@ -272,32 +275,37 @@ class ContractDetail extends Component
         $latestChange = null;
         $latestChangeTimestamp = null;
 
-        foreach ($contract->priceComponents->groupBy('price_component_type') as $type => $components) {
-            $sorted = $components->sortBy('price_date')->values();
+        foreach ($this->priceHistory as $type => $history) {
+            $sorted = collect($history)
+                ->sortBy(fn (array $record) => $record['date'])
+                ->values();
+
             $previous = null;
-            foreach ($sorted as $pc) {
-                $date = $pc->price_date instanceof \Carbon\Carbon
-                    ? $pc->price_date
-                    : \Carbon\Carbon::parse($pc->price_date);
+
+            foreach ($sorted as $record) {
+                $date = \Carbon\Carbon::parse($record['date']);
 
                 if ($earliest === null || $date->lt($earliest)) {
                     $earliest = $date->copy();
                 }
 
-                if ($previous !== null && (float) $pc->price !== (float) $previous->price) {
+                if ($previous !== null && (float) $record['price'] !== (float) $previous['price']) {
                     $changes++;
                     $ts = $date->timestamp;
+
                     if ($latestChangeTimestamp === null || $ts > $latestChangeTimestamp) {
                         $latestChangeTimestamp = $ts;
                         $latestChange = [
                             'type' => (string) $type,
-                            'from' => (float) $previous->price,
-                            'to' => (float) $pc->price,
+                            'from' => (float) $previous['price'],
+                            'to' => (float) $record['price'],
                             'date' => $date->copy(),
+                            'contract_name' => $record['contract_name'] ?? null,
                         ];
                     }
                 }
-                $previous = $pc;
+
+                $previous = $record;
             }
         }
 
@@ -492,14 +500,83 @@ class ContractDetail extends Component
 
         $history = [];
 
-        foreach ($contract->priceComponents->sortByDesc('price_date')->groupBy('price_component_type') as $type => $components) {
-            $history[$type] = $components->map(fn ($pc) => [
-                'date' => $pc->price_date->format('Y-m-d'),
-                'price' => $pc->price,
-            ])->values()->toArray();
+        foreach ($this->getHistoryContracts($contract) as $historyContract) {
+            foreach ($historyContract->priceComponents->sortByDesc('price_date')->groupBy('price_component_type') as $type => $components) {
+                foreach ($components as $pc) {
+                    $history[$type][] = [
+                        'date' => $pc->price_date->format('Y-m-d'),
+                        'price' => $pc->price,
+                        'contract_id' => $historyContract->id,
+                        'contract_name' => $historyContract->name,
+                    ];
+                }
+            }
+        }
+
+        foreach ($history as $type => $rows) {
+            $history[$type] = collect($rows)
+                ->sortByDesc(fn (array $row) => $row['date'])
+                ->values()
+                ->toArray();
         }
 
         return $this->priceHistoryCache = $history;
+    }
+
+    /**
+     * Get the contract version history using the replacement chain.
+     *
+     * @return array<int, array{
+     *     id: string,
+     *     name: string,
+     *     company: string|null,
+     *     is_current: bool,
+     *     is_active: bool,
+     *     latest_price_date: ?\Carbon\Carbon,
+     *     prices: array<int, array{label: string, price: float, unit: string}>,
+     *     promotion: ?string
+     * }>
+     */
+    public function getContractHistoryProperty(): array
+    {
+        if ($this->contractHistoryCache !== null) {
+            return $this->contractHistoryCache;
+        }
+
+        $contract = $this->contract;
+
+        if (! $contract) {
+            return [];
+        }
+
+        $history = $this->getHistoryContracts($contract)
+            ->map(function (ElectricityContract $historyContract): array {
+                $latestPriceComponents = $historyContract->priceComponents
+                    ->sortByDesc('price_date')
+                    ->groupBy('price_component_type')
+                    ->map(fn ($group) => $group->sortByDesc('price_date')->first(fn ($item) => $item->price > 0) ?? $group->sortByDesc('price_date')->first());
+
+                $latestPriceDate = $latestPriceComponents
+                    ->pluck('price_date')
+                    ->filter()
+                    ->sortByDesc(fn ($date) => $date instanceof \Carbon\Carbon ? $date->timestamp : \Carbon\Carbon::parse($date)->timestamp)
+                    ->first();
+
+                return [
+                    'id' => $historyContract->id,
+                    'name' => $historyContract->name,
+                    'company' => $historyContract->company?->name,
+                    'is_current' => $historyContract->id === $this->contractId,
+                    'is_active' => $historyContract->isActive(),
+                    'latest_price_date' => $latestPriceDate,
+                    'prices' => $this->formatContractHistoryPrices($historyContract, $latestPriceComponents->all()),
+                    'promotion' => $this->formatHistoricalPromotionText($historyContract, $latestPriceComponents->all()),
+                ];
+            })
+            ->values()
+            ->toArray();
+
+        return $this->contractHistoryCache = $history;
     }
 
     /**
@@ -542,6 +619,114 @@ class ContractDetail extends Component
                 'price' => $pc->price,
             ])
             ->toArray();
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, ElectricityContract>
+     */
+    protected function getHistoryContracts(ElectricityContract $contract): \Illuminate\Support\Collection
+    {
+        if ($this->historyContractsCache !== null) {
+            return $this->historyContractsCache;
+        }
+
+        $historyContractIds = $contract->getReplacementChainBackward()
+            ->push($contract)
+            ->pluck('id')
+            ->unique()
+            ->values();
+
+        $historyContracts = ElectricityContract::query()
+            ->with(['company', 'priceComponents'])
+            ->whereIn('id', $historyContractIds)
+            ->get()
+            ->sortByDesc(function (ElectricityContract $historyContract) {
+                $latestPriceDate = $historyContract->priceComponents
+                    ->pluck('price_date')
+                    ->filter()
+                    ->sortByDesc(fn ($date) => $date instanceof \Carbon\Carbon ? $date->timestamp : \Carbon\Carbon::parse($date)->timestamp)
+                    ->first();
+
+                return $latestPriceDate instanceof \Carbon\Carbon
+                    ? $latestPriceDate->timestamp
+                    : ($latestPriceDate ? \Carbon\Carbon::parse($latestPriceDate)->timestamp : 0);
+            })
+            ->values();
+
+        return $this->historyContractsCache = $historyContracts;
+    }
+
+    /**
+     * @param  array<string, \App\Models\PriceComponent>  $latestPriceComponents
+     * @return array<int, array{label: string, price: float, unit: string}>
+     */
+    protected function formatContractHistoryPrices(ElectricityContract $contract, array $latestPriceComponents): array
+    {
+        $priceTypeLabels = [
+            'General' => 'Energiahinta',
+            'Monthly' => 'Perusmaksu',
+            'DayTime' => 'Päiväsähkö',
+            'NightTime' => 'Yösähkö',
+            'SeasonalWinterDay' => 'Talvihinta',
+            'SeasonalOther' => 'Muu aika',
+        ];
+
+        $priceTypeOrder = ['General', 'DayTime', 'NightTime', 'SeasonalWinterDay', 'SeasonalOther', 'Monthly'];
+
+        return collect($priceTypeOrder)
+            ->map(function (string $type) use ($latestPriceComponents, $priceTypeLabels) {
+                $component = $latestPriceComponents[$type] ?? null;
+
+                if (! $component) {
+                    return null;
+                }
+
+                return [
+                    'label' => $priceTypeLabels[$type] ?? $type,
+                    'price' => (float) $component->price,
+                    'unit' => $type === 'Monthly' ? 'EUR/kk' : 'c/kWh',
+                ];
+            })
+            ->filter()
+            ->values()
+            ->toArray();
+    }
+
+    /**
+     * @param  array<string, \App\Models\PriceComponent>  $latestPriceComponents
+     */
+    protected function formatHistoricalPromotionText(ElectricityContract $contract, array $latestPriceComponents): ?string
+    {
+        $discountedComponent = collect($latestPriceComponents)
+            ->filter(fn ($component) => $component?->has_discount)
+            ->sortByDesc('price_date')
+            ->first();
+
+        if (! $discountedComponent) {
+            return $contract->pricing_has_discounts ? 'Tarjoussopimus' : null;
+        }
+
+        $parts = [];
+
+        if ($discountedComponent->discount_discount_n_first_months) {
+            $parts[] = $discountedComponent->discount_discount_n_first_months . ' ensimmäistä kuukautta';
+        }
+
+        if ($discountedComponent->discount_value) {
+            $parts[] = $discountedComponent->discount_is_percentage
+                ? '-' . number_format($discountedComponent->discount_value, 0, ',', ' ') . '% alennus'
+                : '-' . number_format($discountedComponent->discount_value, 2, ',', ' ') . ' c/kWh alennus';
+        }
+
+        if ($discountedComponent->discount_discount_until_date) {
+            $parts[] = 'voimassa ' . $discountedComponent->discount_discount_until_date->format('d.m.Y') . ' asti';
+        }
+
+        if (empty($parts)) {
+            return 'Tarjoussopimus';
+        }
+
+        return implode(' · ', $parts);
     }
 
     /**
@@ -894,6 +1079,7 @@ class ContractDetail extends Component
             'latestPrices' => $this->latestPrices,
             'calculatedCost' => $this->calculatedCost,
             'priceHistory' => $this->priceHistory,
+            'contractHistory' => $this->contractHistory,
             'presets' => $this->presets,
             'co2Emissions' => $this->co2Emissions,
             'emissionFactorSources' => $this->emissionFactorSources,

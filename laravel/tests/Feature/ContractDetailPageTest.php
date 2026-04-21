@@ -324,6 +324,72 @@ class ContractDetailPageTest extends TestCase
     }
 
     /**
+     * Test that contract history uses the replacement chain and shows versions newest first.
+     */
+    public function test_contract_history_shows_replacement_chain_versions_in_reverse_chronological_order(): void
+    {
+        $previousContract = ElectricityContract::create([
+            'id' => 'contract-detail-previous',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Perus Sähkö 12kk',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'replaced_by_contract_id' => 'contract-detail-test',
+            'pricing_has_discounts' => true,
+            'availability_is_national' => true,
+        ]);
+
+        $oldestContract = ElectricityContract::create([
+            'id' => 'contract-detail-oldest',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Vanha Perus Sähkö',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'replaced_by_contract_id' => 'contract-detail-previous',
+            'availability_is_national' => true,
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-general-previous',
+            'electricity_contract_id' => $previousContract->id,
+            'price_component_type' => 'General',
+            'price_date' => now()->subMonth()->format('Y-m-d'),
+            'price' => 6.2,
+            'payment_unit' => 'c/kWh',
+            'has_discount' => true,
+            'discount_value' => 15,
+            'discount_is_percentage' => true,
+            'discount_discount_n_first_months' => 3,
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-monthly-previous',
+            'electricity_contract_id' => $previousContract->id,
+            'price_component_type' => 'Monthly',
+            'price_date' => now()->subMonth()->format('Y-m-d'),
+            'price' => 3.25,
+            'payment_unit' => 'EUR/month',
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-general-oldest',
+            'electricity_contract_id' => $oldestContract->id,
+            'price_component_type' => 'General',
+            'price_date' => now()->subMonths(2)->format('Y-m-d'),
+            'price' => 6.9,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->assertSee('Sopimushistoria')
+            ->assertSeeInOrder(['Perus Sähkö 24kk', 'Perus Sähkö 12kk', 'Vanha Perus Sähkö'])
+            ->assertSee('6,20')
+            ->assertSee('6,90')
+            ->assertSee('3 ensimmäistä kuukautta')
+            ->assertSee('-15% alennus');
+    }
+
+    /**
      * Test that back to list link is present.
      */
     public function test_back_to_list_link_is_present(): void

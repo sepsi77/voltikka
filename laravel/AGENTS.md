@@ -12,9 +12,11 @@ Voltikka keeps inactive contracts in `electricity_contracts` for historical cont
 - If a contract is active, `ContractDetail` renders normally.
 - If a contract is inactive and has a trusted replacement chain ending in an active contract, `ContractDetail` returns a **301** redirect to the latest active replacement.
 - If a contract is inactive and no trusted replacement exists, `ContractDetail` returns **410 Gone** and sets `X-Robots-Tag: noindex, nofollow`.
+- On the current/live contract detail page, the visible contract history is built from the backward replacement chain so users can see older linked versions, newest first.
 
 Primary implementation:
 - `app/Livewire/ContractDetail.php`
+- `app/Livewire/AGENTS.md`
 - `app/Models/ElectricityContract.php`
 - `app/Services/ContractReplacementMatcher.php`
 - `app/Services/ContractReplacementLinker.php`

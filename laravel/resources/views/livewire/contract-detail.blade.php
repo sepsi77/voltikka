@@ -499,8 +499,8 @@
                 @endif
             </div>
 
-            <!-- Price History (collapsed teaser) -->
-            @if (count($priceHistory) > 0)
+            <!-- Contract history / price development -->
+            @if (count($priceHistory) > 0 || count($contractHistory) > 1)
                 @php
                     $priceTypeLabels = [
                         'General' => 'Energiahinta',
@@ -511,7 +511,7 @@
                         'SeasonalOther' => 'Muu aika',
                     ];
 
-                    // De-dupe history: only keep rows where price changed from previous day.
+                    // De-dupe merged chain history: keep only real price changes.
                     $dedupedHistory = [];
                     foreach ($priceHistory as $type => $history) {
                         $sorted = collect($history)->sortBy('date')->values();
@@ -524,8 +524,6 @@
                             $previous = $record;
                         }
                         if (count($rows) >= 1) {
-                            // Display latest first, and only include if there was an actual change
-                            // (dedup keeps the first occurrence; if it's only one row, it means price never changed).
                             $dedupedHistory[$type] = array_reverse($rows);
                         }
                     }
@@ -537,8 +535,9 @@
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                     <div class="flex items-start justify-between gap-4 flex-wrap">
                         <div class="min-w-0">
-                            <h2 class="text-lg font-semibold text-slate-900">Hintakehitys</h2>
+                            <h2 class="text-lg font-semibold text-slate-900">Sopimushistoria</h2>
                             <p class="text-sm text-slate-500 mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                                <span>Nykyinen sopimus ja aiemmat tunnetut versiot samasta replacement-ketjusta.</span>
                                 @if ($changes === 0)
                                     <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
                                     <span>Hinta ei ole muuttunut seurannan aikana.</span>
@@ -553,6 +552,9 @@
                                         <span class="text-slate-400">
                                             Viimeisin: {{ $priceTypeLabels[$latestChange['type']] ?? $latestChange['type'] }}
                                             {{ number_format($latestChange['from'], 2, ',', ' ') }} → {{ number_format($latestChange['to'], 2, ',', ' ') }}
+                                            @if (!empty($latestChange['contract_name']))
+                                                · {{ $latestChange['contract_name'] }}
+                                            @endif
                                             ({{ $latestChange['date']->format('d.m.Y') }})
                                         </span>
                                     @endif
@@ -564,8 +566,51 @@
                         </div>
                     </div>
 
+                    <div class="mt-6 space-y-4">
+                        @foreach ($contractHistory as $historyEntry)
+                            <article class="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+                                <div class="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <h3 class="text-base font-semibold text-slate-900">{{ $historyEntry['name'] }}</h3>
+                                            @if ($historyEntry['is_current'])
+                                                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">Nykyinen</span>
+                                            @else
+                                                <span class="inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">Aiempi versio</span>
+                                            @endif
+                                        </div>
+                                        <p class="mt-1 text-sm text-slate-500">
+                                            {{ $historyEntry['company'] }}
+                                            @if ($historyEntry['latest_price_date'])
+                                                · Hinta päivitetty {{ $historyEntry['latest_price_date']->format('d.m.Y') }}
+                                            @endif
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                    @forelse ($historyEntry['prices'] as $price)
+                                        <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                                            <div class="text-xs font-medium uppercase tracking-wide text-slate-500">{{ $price['label'] }}</div>
+                                            <div class="mt-1 text-sm font-semibold text-slate-900">{{ number_format($price['price'], 2, ',', ' ') }} {{ $price['unit'] }}</div>
+                                        </div>
+                                    @empty
+                                        <div class="rounded-lg border border-dashed border-slate-200 bg-white px-3 py-2 text-sm text-slate-500">Ei hintatietoja saatavilla.</div>
+                                    @endforelse
+                                </div>
+
+                                <div class="mt-4 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
+                                    <div class="text-xs font-medium uppercase tracking-wide text-amber-700">Tarjous</div>
+                                    <div class="mt-1 text-sm text-amber-900">
+                                        {{ $historyEntry['promotion'] ?: 'Ei tiedossa olevaa tarjousta.' }}
+                                    </div>
+                                </div>
+                            </article>
+                        @endforeach
+                    </div>
+
                     @if ($changes > 0)
-                        <details class="mt-4 group">
+                        <details class="mt-6 group">
                             <summary class="cursor-pointer inline-flex items-center gap-1.5 text-sm font-semibold text-coral-600 hover:text-coral-700 select-none">
                                 <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
@@ -581,6 +626,7 @@
                                                 <table class="min-w-full text-sm">
                                                     <thead>
                                                         <tr class="text-left text-slate-500">
+                                                            <th class="py-2 pr-4">Sopimus</th>
                                                             <th class="py-2 pr-4">Muutoksen päivä</th>
                                                             <th class="py-2">Hinta</th>
                                                         </tr>
@@ -588,6 +634,7 @@
                                                     <tbody>
                                                         @foreach ($rows as $record)
                                                             <tr class="border-t border-slate-100">
+                                                                <td class="py-2 pr-4 text-slate-600">{{ $record['contract_name'] ?? '—' }}</td>
                                                                 <td class="py-2 pr-4 text-slate-600">{{ \Carbon\Carbon::parse($record['date'])->format('d.m.Y') }}</td>
                                                                 <td class="py-2 font-medium text-slate-900">{{ number_format($record['price'], 2, ',', ' ') }} {{ $type === 'Monthly' ? 'EUR/kk' : 'c/kWh' }}</td>
                                                             </tr>
