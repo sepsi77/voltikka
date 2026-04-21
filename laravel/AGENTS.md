@@ -9,9 +9,10 @@ See root `../AGENTS.md` for project overview and architecture. Keep implementati
 Voltikka keeps inactive contracts in `electricity_contracts` for historical continuity, SEO cleanup, and long-term price-history stitching.
 
 ### Behavior summary
-- If a contract is active, `ContractDetail` renders normally.
+- If a contract is active, `ContractDetail` renders the full contract detail page normally.
 - If a contract is inactive and has a trusted replacement chain ending in an active contract, `ContractDetail` returns a **301** redirect to the latest active replacement.
-- If a contract is inactive and no trusted replacement exists, `ContractDetail` returns **410 Gone** and sets `X-Robots-Tag: noindex, nofollow`.
+- If a contract is inactive and no trusted replacement exists, `ContractDetail` returns **410 Gone**, sets `X-Robots-Tag: noindex, nofollow`, and renders a dedicated inactive-contract template instead of the normal live contract page.
+- The inactive 410 template should clearly explain the contract is no longer available and point users to the seller's company page and the main comparison page.
 - On the current/live contract detail page, the visible contract history is built from the backward replacement chain so users can see older linked versions, newest first.
 
 Primary implementation:

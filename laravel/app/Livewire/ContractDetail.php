@@ -1074,36 +1074,48 @@ class ContractDetail extends Component
             abort(404);
         }
 
-        return view('livewire.contract-detail', [
+        $isActive = $this->isActive;
+
+        $view = $isActive ? 'livewire.contract-detail' : 'livewire.contract-detail-inactive';
+
+        $viewData = [
             'contract' => $contract,
-            'latestPrices' => $this->latestPrices,
-            'calculatedCost' => $this->calculatedCost,
-            'priceHistory' => $this->priceHistory,
-            'contractHistory' => $this->contractHistory,
-            'presets' => $this->presets,
-            'co2Emissions' => $this->co2Emissions,
-            'emissionFactorSources' => $this->emissionFactorSources,
-            'cheaperContracts' => $this->cheaperContracts,
-            'liveRank' => $this->liveRank,
-            'liveTotalContracts' => $this->liveTotalContracts,
-            'priceChangeInfo' => $this->priceChangeInfo,
             'schemas' => array_values(array_filter([
                 $this->webPageSchema,
                 $this->productSchema,
                 $this->breadcrumbSchema,
             ])),
-        ])->layout('layouts.app', [
-            'title' => $this->pageTitle,
-            'ogTitle' => $this->ogTitle,
-            'metaDescription' => $this->metaDescription,
-            'canonical' => $this->canonicalUrl,
-        ])->response(function ($response) {
-            if (! $this->isActive) {
-                $response->setStatusCode(410);
-                $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
-            }
+        ];
 
-            app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
-        });
+        if ($isActive) {
+            $viewData = array_merge($viewData, [
+                'latestPrices' => $this->latestPrices,
+                'calculatedCost' => $this->calculatedCost,
+                'priceHistory' => $this->priceHistory,
+                'contractHistory' => $this->contractHistory,
+                'presets' => $this->presets,
+                'co2Emissions' => $this->co2Emissions,
+                'emissionFactorSources' => $this->emissionFactorSources,
+                'cheaperContracts' => $this->cheaperContracts,
+                'liveRank' => $this->liveRank,
+                'liveTotalContracts' => $this->liveTotalContracts,
+                'priceChangeInfo' => $this->priceChangeInfo,
+            ]);
+        }
+
+        return view($view, $viewData)
+            ->layout('layouts.app', [
+                'title' => $this->pageTitle,
+                'ogTitle' => $this->ogTitle,
+                'metaDescription' => $this->metaDescription,
+                'canonical' => $this->canonicalUrl,
+            ])->response(function ($response) use ($isActive) {
+                if (! $isActive) {
+                    $response->setStatusCode(410);
+                    $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
+                }
+
+                app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
+            });
     }
 }
