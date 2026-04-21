@@ -269,7 +269,9 @@ class SitemapService
         $baseUrl = config('app.url');
         $today = Carbon::today()->toDateString();
 
-        $contracts = ElectricityContract::select('id')
+        $contracts = ElectricityContract::query()
+            ->whereHas('activeContract')
+            ->select('id')
             ->pluck('id')
             ->toArray();
 

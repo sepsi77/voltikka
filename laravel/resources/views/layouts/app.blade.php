@@ -8,6 +8,9 @@
         @if (isset($metaDescription))
         <meta name="description" content="{{ $metaDescription }}">
         @endif
+        @if (!empty($robots))
+        <meta name="robots" content="{{ $robots }}">
+        @endif
 
         <!-- Favicon -->
         <link rel="icon" type="image/svg+xml" href="/favicon.svg">

@@ -239,7 +239,8 @@ Inactive contracts are kept in the database for history and SEO continuity. They
 ### Current behavior
 - Active contract detail pages render normally.
 - Inactive contracts with a high-confidence replacement chain redirect with **301** to the latest active replacement.
-- Inactive contracts without a trusted replacement return **410 Gone** with `X-Robots-Tag: noindex, nofollow`.
+- Inactive contracts without a trusted replacement still render their normal contract detail page for historical reference, but with a `noindex` robots meta tag.
+- Inactive contract detail pages without a trusted replacement are excluded from the sitemap.
 
 ### Replacement matching rules
 The matcher is intentionally conservative and only auto-links when confidence is high.

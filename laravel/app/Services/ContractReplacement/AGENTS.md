@@ -20,7 +20,7 @@ Primary files:
 
 Related files outside this directory:
 - `../Models/ElectricityContract.php` — replacement relations and chain traversal helpers
-- `../Livewire/ContractDetail.php` — 301 redirect to latest active replacement, otherwise 410
+- `../Livewire/ContractDetail.php` — 301 redirect to latest active replacement, otherwise render historical page with `noindex`
 - `../Console/Commands/DetectReplacementContracts.php` — reporting/debug command
 - `../Console/Commands/LinkReplacementContracts.php` — manual linking command
 - `../Console/Commands/FetchContracts.php` — import flow that auto-links high-confidence matches
@@ -61,7 +61,7 @@ Examples of real failure modes we want to avoid:
 - matching a 12-month product to a 24-month product
 - matching a general tariff contract to a time/season tariff contract
 
-If future sessions change these filters, they must also re-evaluate SEO redirect safety. A wrong 301 is worse than a 410.
+If future sessions change these filters, they must also re-evaluate SEO redirect safety. A wrong 301 is worse than leaving the historical page in place with `noindex`.
 
 ## Name matching strategy
 
@@ -100,7 +100,7 @@ Examples of risky drift that should usually **not** auto-link:
 
 Reason:
 - for SEO and UX, safe redirects matter more than redirect coverage
-- uncertain cases should remain `410 Gone` until manually reviewed or confidently linked later
+- uncertain cases should remain as historical pages with `noindex` until manually reviewed or confidently linked later
 
 ## Confidence policy
 
@@ -118,7 +118,7 @@ Current intended meaning:
 
 Reason:
 - redirect quality is more important than maximizing redirect count
-- `410` is the safe fallback when we do not know the successor with enough confidence
+- when we do not know the successor with enough confidence, the safe fallback is to keep the historical page live with `noindex` instead of redirecting
 
 ## Linking behavior and chain preservation
 

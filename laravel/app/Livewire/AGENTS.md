@@ -21,10 +21,9 @@ The contract detail page now builds its visible history from the replacement-lin
 
 Current intended behavior:
 - active contracts render the full `contract-detail.blade.php` page
-- inactive contracts without a trusted replacement render the dedicated `contract-detail-inactive.blade.php` 410 template
-- that inactive template should clearly state the contract is no longer available and link users to:
-  - the same seller's company page when available
-  - the main `/sahkosopimus` comparison page
+- inactive contracts without a trusted replacement also render the normal `contract-detail.blade.php` page for historical reference
+- those inactive historical pages should include a `noindex` robots meta tag
+- inactive historical pages should not appear in the sitemap
 - start from the currently rendered contract
 - walk backward with `ElectricityContract::getReplacementChainBackward()`
 - include the current contract itself as the newest history entry

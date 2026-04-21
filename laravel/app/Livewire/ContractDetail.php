@@ -1156,8 +1156,6 @@ class ContractDetail extends Component
 
         $isActive = $this->isActive;
 
-        $view = $isActive ? 'livewire.contract-detail' : 'livewire.contract-detail-inactive';
-
         $viewData = [
             'contract' => $contract,
             'schemas' => array_values(array_filter([
@@ -1165,37 +1163,28 @@ class ContractDetail extends Component
                 $this->productSchema,
                 $this->breadcrumbSchema,
             ])),
+            'latestPrices' => $this->latestPrices,
+            'discountedComponents' => $this->discountedComponents,
+            'calculatedCost' => $this->calculatedCost,
+            'priceHistory' => $this->priceHistory,
+            'contractHistory' => $this->contractHistory,
+            'presets' => $this->presets,
+            'co2Emissions' => $this->co2Emissions,
+            'emissionFactorSources' => $this->emissionFactorSources,
+            'cheaperContracts' => $this->cheaperContracts,
+            'liveRank' => $this->liveRank,
+            'liveTotalContracts' => $this->liveTotalContracts,
+            'priceChangeInfo' => $this->priceChangeInfo,
         ];
 
-        if ($isActive) {
-            $viewData = array_merge($viewData, [
-                'latestPrices' => $this->latestPrices,
-                'discountedComponents' => $this->discountedComponents,
-                'calculatedCost' => $this->calculatedCost,
-                'priceHistory' => $this->priceHistory,
-                'contractHistory' => $this->contractHistory,
-                'presets' => $this->presets,
-                'co2Emissions' => $this->co2Emissions,
-                'emissionFactorSources' => $this->emissionFactorSources,
-                'cheaperContracts' => $this->cheaperContracts,
-                'liveRank' => $this->liveRank,
-                'liveTotalContracts' => $this->liveTotalContracts,
-                'priceChangeInfo' => $this->priceChangeInfo,
-            ]);
-        }
-
-        return view($view, $viewData)
+        return view('livewire.contract-detail', $viewData)
             ->layout('layouts.app', [
                 'title' => $this->pageTitle,
                 'ogTitle' => $this->ogTitle,
                 'metaDescription' => $this->metaDescription,
                 'canonical' => $this->canonicalUrl,
-            ])->response(function ($response) use ($isActive) {
-                if (! $isActive) {
-                    $response->setStatusCode(410);
-                    $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
-                }
-
+                'robots' => $isActive ? null : 'noindex, follow',
+            ])->response(function ($response) {
                 app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
             });
     }
