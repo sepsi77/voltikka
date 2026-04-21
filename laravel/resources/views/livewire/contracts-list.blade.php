@@ -515,6 +515,7 @@
                 :featured="$overallRank === 1"
                 :consumption="$consumption"
                 :prices="$this->getLatestPrices($contract)"
+                :percentiles="$this->getPercentiles()"
                 :showRank="true"
                 :showEmissions="true"
                 :showEnergyBadges="true"

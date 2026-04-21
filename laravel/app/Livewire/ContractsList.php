@@ -1090,6 +1090,34 @@ class ContractsList extends Component
     }
 
     /**
+     * Precomputed percentile thresholds for pricing components.
+     * @var array<string, array{p15: float, p85: float}>|null
+     */
+    protected ?array $percentileCache = null;
+
+    /**
+     * Get precomputed percentile thresholds for pricing component callouts.
+     */
+    public function getPercentiles(): array
+    {
+        if ($this->percentileCache !== null) {
+            return $this->percentileCache;
+        }
+
+        $rows = \App\Models\ContractPercentile::all()->keyBy('component');
+
+        $this->percentileCache = [];
+        foreach ($rows as $component => $row) {
+            $this->percentileCache[$component] = [
+                'p15' => (float) $row->p15,
+                'p85' => (float) $row->p85,
+            ];
+        }
+
+        return $this->percentileCache;
+    }
+
+    /**
      * Apply precomputed contract metrics when the selected consumption matches a preset cache.
      */
     protected function applyCachedMetricsToContracts(Collection $contracts, int $consumption): ?Collection
