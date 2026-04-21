@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\ElectricityContract;
-use App\Services\ContractReplacementMatcher;
+use App\Services\ContractReplacement\ContractReplacementMatcher;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 

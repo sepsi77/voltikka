@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\ContractReplacement;
 
 use App\Models\ElectricityContract;
 use Illuminate\Support\Collection;

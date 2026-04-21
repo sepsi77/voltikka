@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\ContractReplacementLinker;
+use App\Services\ContractReplacement\ContractReplacementLinker;
 use Illuminate\Console\Command;
 
 class LinkReplacementContracts extends Command

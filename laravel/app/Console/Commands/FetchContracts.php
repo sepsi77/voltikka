@@ -14,7 +14,7 @@ use App\Services\AzureConsumerApiClient;
 use App\Services\CompanyListCacheService;
 use App\Services\CompanyLogoService;
 use App\Services\ContractListCacheService;
-use App\Services\ContractReplacementLinker;
+use App\Services\ContractReplacement\ContractReplacementLinker;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\RequestException;

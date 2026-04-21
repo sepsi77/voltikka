@@ -475,7 +475,35 @@ The header also displays the current spot price via `HeaderSpotPrice` component.
 
 ## Documentation Maintenance
 
-After any meaningful domain, data model, import, routing, or SEO behavior change:
-- update this root `CLAUDE.md` with the high-level behavior summary
-- update the closest context file with implementation detail (for Laravel app work, `laravel/CLAUDE.md`)
-- keep root docs short and architectural; keep detailed operational notes near the source
+`CLAUDE.md` files define documentation and context-file CRUD rules for this repository.
+
+### Principles for context files
+- Context files are **shortcuts and pointers** for coding agents.
+- They should help agents find the right code and concepts **without broad codebase searching first**.
+- They are **not substitutes for reading code**.
+- They may document important classes, files, and methods with short purpose descriptions to speed up navigation.
+- They should document **important decisions**, **constraints**, and **reasons** behind the implementation.
+- If there is logic that future sessions **must not change casually**, it **must** be documented in the nearest relevant context file together with the reason.
+
+### Where documentation should live
+- Document functionality and decisions **near the code that implements them**.
+- Keep root `CLAUDE.md` high-level, architectural, and cross-cutting.
+- Keep local `CLAUDE.md` files scoped to their subtree and rich in implementation detail.
+- Prefer several small, local context files over one oversized root-only document.
+
+### CRUD rules for `CLAUDE.md` files
+After any meaningful domain, data model, import, routing, SEO, matching, or behavioral change:
+- update this root `CLAUDE.md` if the change affects project-level behavior or architecture
+- update the closest existing `CLAUDE.md` with implementation details
+- if no nearby context file exists, create a new `CLAUDE.md` in the nearest sensible directory
+- add pointers from broader context files to the more specific one when useful
+- keep outdated context files synchronized; if a local file becomes misleading, fix it as part of the same change
+
+### Rule for adding new context files
+When working in an area that has non-trivial domain logic, import behavior, matching rules, SEO behavior, data model semantics, or other implementation-specific decisions:
+- create a local `CLAUDE.md` in the nearest sensible directory if one does not already exist
+- keep it scoped to that subtree
+- use parent/root context files for broader context and link downward to more specific files
+- document notable classes/files and what they are for, as navigation shortcuts
+- document important decisions and the reasons behind them
+- organize code and context files by **logical feature or domain grouping**, not necessarily one subfolder per service/class
