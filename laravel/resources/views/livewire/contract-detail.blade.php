@@ -118,8 +118,20 @@
                             {{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} €
                         </div>
                         <div class="text-base text-slate-200">
-                            vuodessa · ≈ {{ number_format(($calculatedCost['total_cost'] ?? 0) / 12, 0, ',', ' ') }} €/kk · {{ number_format($consumption, 0, ',', ' ') }} kWh vuosikulutuksella
+                            ensimmäisen 12 kk aikana · ≈ {{ number_format(($calculatedCost['total_cost'] ?? 0) / 12, 0, ',', ' ') }} €/kk · {{ number_format($consumption, 0, ',', ' ') }} kWh vuosikulutuksella
                         </div>
+                        @if (($calculatedCost['includes_discounts'] ?? false) && ($calculatedCost['discount_savings_total'] ?? 0) > 0)
+                            <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                                <span class="inline-flex items-center rounded-full bg-emerald-400/15 px-3 py-1 font-semibold text-emerald-100 border border-emerald-300/25">
+                                    Sisältää tarjouksen · säästö {{ number_format($calculatedCost['discount_savings_total'], 0, ',', ' ') }} €
+                                </span>
+                                @if (!empty($calculatedCost['base_total_cost']))
+                                    <span class="text-slate-300">
+                                        Ilman tarjousta {{ number_format($calculatedCost['base_total_cost'], 0, ',', ' ') }} € / 12 kk
+                                    </span>
+                                @endif
+                            </div>
+                        @endif
                     </div>
 
                     @if ($rank && $totalContracts)
@@ -153,9 +165,9 @@
                                 <div class="px-4 py-3.5 flex flex-col justify-center">
                                     <div class="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-300">Halvin sopimus</div>
                                     <div class="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 tabular-nums">
-                                        <span class="text-sm font-bold text-white">{{ number_format($cheapestAltCost, 0, ',', ' ') }} €/v</span>
+                                        <span class="text-sm font-bold text-white">{{ number_format($cheapestAltCost, 0, ',', ' ') }} € / 12 kk</span>
                                         <span class="text-xs font-bold text-emerald-300">
-                                            −{{ number_format($maxSavings, 0, ',', ' ') }} €/v
+                                            −{{ number_format($maxSavings, 0, ',', ' ') }} € / 12 kk
                                         </span>
                                     </div>
                                 </div>
@@ -356,7 +368,7 @@
                                 <span class="text-2xl font-extrabold text-slate-900">
                                     {{ number_format($alt['total_cost'], 0, ',', ' ') }} €
                                 </span>
-                                <span class="text-xs text-slate-500">/v</span>
+                                <span class="text-xs text-slate-500">/12 kk</span>
                             </div>
                             <div class="mt-1 inline-block text-xs font-semibold px-2 py-0.5 rounded {{ $alt['savings'] > 0 ? 'bg-emerald-50 text-emerald-700' : 'invisible' }}">
                                 Säästä {{ number_format(max($alt['savings'], 0), 0, ',', ' ') }} €
@@ -377,6 +389,28 @@
             <!-- Price Breakdown -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
                 <h2 class="text-lg font-semibold text-slate-900 mb-4">Hintatiedot</h2>
+
+                <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="rounded-xl bg-slate-50 border border-slate-200 p-4">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Ensimmäisen 12 kk arvio</div>
+                        <div class="mt-1 text-2xl font-extrabold text-slate-900">{{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} €</div>
+                    </div>
+                    @if (($calculatedCost['includes_discounts'] ?? false) && ($calculatedCost['discount_savings_total'] ?? 0) > 0)
+                        <div class="rounded-xl bg-emerald-50 border border-emerald-200 p-4">
+                            <div class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Tarjouksella säästät</div>
+                            <div class="mt-1 text-2xl font-extrabold text-emerald-700">{{ number_format($calculatedCost['discount_savings_total'], 0, ',', ' ') }} €</div>
+                        </div>
+                        <div class="rounded-xl bg-slate-50 border border-slate-200 p-4">
+                            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Ilman tarjousta</div>
+                            <div class="mt-1 text-2xl font-extrabold text-slate-900">{{ number_format($calculatedCost['base_total_cost'] ?? 0, 0, ',', ' ') }} €</div>
+                        </div>
+                    @else
+                        <div class="rounded-xl bg-slate-50 border border-slate-200 p-4 md:col-span-2">
+                            <div class="text-xs font-semibold uppercase tracking-wide text-slate-500">Mitä arvio tarkoittaa?</div>
+                            <div class="mt-1 text-sm text-slate-600">Arvio näyttää sopimuksen kustannuksen seuraavan 12 kuukauden aikana nykyisellä kulutuksellasi.</div>
+                        </div>
+                    @endif
+                </div>
 
                 {{-- Promotion/Discount Info Banner --}}
                 @if ($contract->hasActiveDiscounts())

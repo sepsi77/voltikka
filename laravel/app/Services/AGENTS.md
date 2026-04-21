@@ -34,6 +34,28 @@ The grouping unit should be a cohesive feature/domain, not an individual class u
 
 ## Current service subtrees
 
+### Contract pricing / discounts
+Files currently living directly under this directory:
+- `ContractPriceCalculator.php`
+
+Important pricing guardrails:
+- structured discounts are attached to individual price components, not to the whole contract price
+- calculation inputs should preserve component discount metadata (`has_discount`, value/type/months/kWh/until-date, `payment_unit`)
+- use `ElectricityContract::getLatestPriceComponentsForCalculation()` instead of rebuilding calculator arrays ad hoc
+- first-year promo-aware pricing should return both discounted totals and base totals/savings so UI can explain the effect of the offer
+- do not assume `monthly_costs` represent calendar Jan-Dec once promo timing matters; they are the calculator's 12-month estimate timeline
+
+### Weekly offers / promo output
+Files currently living directly under this directory:
+- `WeeklyOffersVideoService.php`
+- `WeeklyOffersPromptFormatter.php`
+
+Important discount guardrail:
+- imported `price_components.price` comes from API `OriginalPayment.Price`, i.e. the base/original component price
+- weekly-offer output must not assume absolute discounts are always `c/kWh`
+- use the discounted component's `payment_unit` / `price_component_type` when formatting promo text
+- prefer calculator-provided discounted/base totals and savings over separate duplicate promo math when possible
+
 ### Contract replacement
 Directory:
 - `ContractReplacement/`

@@ -624,4 +624,62 @@ class ContractPriceCalculatorTest extends TestCase
         // Annual: 5.70 * 12 = 68.40 EUR
         $this->assertEqualsWithDelta(68.40, $result->totalCost, 0.01);
     }
+
+    public function test_monthly_fee_discount_is_applied_to_first_year_total(): void
+    {
+        $priceComponents = [
+            [
+                'price_component_type' => 'Monthly',
+                'payment_unit' => 'EurPerMonth',
+                'price' => 5.95,
+                'has_discount' => true,
+                'discount_value' => 5.95,
+                'discount_is_percentage' => false,
+                'discount_type' => 'NFirstMonth',
+                'discount_discount_n_first_months' => 6,
+            ],
+            ['price_component_type' => 'General', 'price' => 8.75],
+        ];
+
+        $usage = new EnergyUsage(total: 5000, basicLiving: 5000);
+        $contract = ['contract_type' => 'Fixed', 'pricing_model' => 'FixedPrice', 'metering' => 'General'];
+
+        $result = $this->calculator->calculate($priceComponents, $contract, $usage);
+
+        $this->assertEqualsWithDelta(508.9, $result->baseTotalCost, 0.01);
+        $this->assertEqualsWithDelta(35.7, $result->discountSavingsTotal, 0.01);
+        $this->assertEqualsWithDelta(473.2, $result->totalCost, 0.01);
+        $this->assertTrue($result->includesDiscounts);
+        $this->assertEqualsWithDelta(5.95, $result->monthlyDiscountSavings[0], 0.01);
+        $this->assertEqualsWithDelta(5.95, $result->monthlyDiscountSavings[5], 0.01);
+        $this->assertEqualsWithDelta(0.0, $result->monthlyDiscountSavings[6], 0.01);
+    }
+
+    public function test_first_kwh_discount_is_applied_to_energy_component_only(): void
+    {
+        $priceComponents = [
+            [
+                'price_component_type' => 'General',
+                'payment_unit' => 'CentPerKiwattHour',
+                'price' => 10.0,
+                'has_discount' => true,
+                'discount_value' => 2.0,
+                'discount_is_percentage' => false,
+                'discount_type' => 'NFirstKwh',
+                'discount_discount_n_first_kwh' => 1000,
+            ],
+            ['price_component_type' => 'Monthly', 'price' => 0.0],
+        ];
+
+        $usage = new EnergyUsage(total: 5000, basicLiving: 5000);
+        $contract = ['contract_type' => 'Fixed', 'pricing_model' => 'FixedPrice', 'metering' => 'General'];
+
+        $result = $this->calculator->calculate($priceComponents, $contract, $usage);
+
+        $this->assertEqualsWithDelta(500.0, $result->baseTotalCost, 0.01);
+        $this->assertEqualsWithDelta(20.0, $result->discountSavingsTotal, 0.01);
+        $this->assertEqualsWithDelta(480.0, $result->totalCost, 0.01);
+        $this->assertEqualsWithDelta(33.33, $result->monthlyCosts[0], 0.01);
+        $this->assertEqualsWithDelta(38.33, $result->monthlyCosts[2], 0.01);
+    }
 }

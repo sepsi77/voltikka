@@ -363,6 +363,36 @@ class ElectricityContract extends Model
     }
 
     /**
+     * Get latest price components normalized for pricing calculations.
+     *
+     * Picks the newest component per type, preferring non-zero prices when duplicates exist.
+     * Includes discount metadata so pricing calculations can account for promotions.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getLatestPriceComponentsForCalculation(): array
+    {
+        return $this->priceComponents
+            ->sortByDesc('price_date')
+            ->groupBy('price_component_type')
+            ->map(fn ($group) => $group->sortByDesc('price_date')->first(fn ($item) => $item->price > 0) ?? $group->sortByDesc('price_date')->first())
+            ->values()
+            ->map(fn ($pc) => [
+                'price_component_type' => $pc->price_component_type,
+                'payment_unit' => $pc->payment_unit,
+                'price' => $pc->price,
+                'has_discount' => $pc->has_discount,
+                'discount_value' => $pc->discount_value,
+                'discount_is_percentage' => $pc->discount_is_percentage,
+                'discount_type' => $pc->discount_type,
+                'discount_discount_n_first_kwh' => $pc->discount_discount_n_first_kwh,
+                'discount_discount_n_first_months' => $pc->discount_discount_n_first_months,
+                'discount_discount_until_date' => $pc->discount_discount_until_date,
+            ])
+            ->toArray();
+    }
+
+    /**
      * Check if the contract has any active discounts.
      *
      * A discount is considered active if:

@@ -114,16 +114,7 @@ class CompanyDetail extends Component
         // Calculate cost and emissions for each contract
         $consumption = $this->consumption;
         $contracts = $contracts->map(function ($contract) use ($calculator, $emissionsCalculator, $spotPriceDay, $spotPriceNight, $consumption) {
-            $priceComponents = $contract->priceComponents
-                ->sortByDesc('price_date')
-                ->groupBy('price_component_type')
-                ->map(fn ($group) => $group->sortByDesc('price_date')->first(fn ($item) => $item->price > 0) ?? $group->sortByDesc('price_date')->first())
-                ->values()
-                ->map(fn ($pc) => [
-                    'price_component_type' => $pc->price_component_type,
-                    'price' => $pc->price,
-                ])
-                ->toArray();
+            $priceComponents = $contract->getLatestPriceComponentsForCalculation();
 
             $usage = new EnergyUsage(
                 total: $consumption,

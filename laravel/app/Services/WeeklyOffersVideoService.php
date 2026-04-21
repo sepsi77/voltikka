@@ -160,14 +160,8 @@ class WeeklyOffersVideoService
             return null;
         }
 
-        // Get price components
-        $priceComponents = $contract->priceComponents->map(fn($pc) => [
-            'price_component_type' => $pc->price_component_type,
-            'price' => $pc->price,
-            'has_discount' => $pc->has_discount,
-            'discount_value' => $pc->discount_value,
-            'discount_is_percentage' => $pc->discount_is_percentage,
-        ])->toArray();
+        // Get latest price components with discount metadata
+        $priceComponents = $contract->getLatestPriceComponentsForCalculation();
 
         // Extract pricing info
         $monthlyFee = 0;
@@ -187,26 +181,22 @@ class WeeklyOffersVideoService
             'metering' => $contract->metering,
         ];
 
-        // Calculate costs WITH discount
-        $costsWithDiscount = $this->calculateCostsForAllConsumptions(
+        $pricingResults = $this->calculateCostsForAllConsumptions(
             $priceComponents,
             $contractData,
             $spotPrices,
         );
 
-        // Calculate costs WITHOUT discount for savings comparison
-        $priceComponentsNoDiscount = $this->removePriceComponentDiscounts($priceComponents);
-        $costsWithoutDiscount = $this->calculateCostsForAllConsumptions(
-            $priceComponentsNoDiscount,
-            $contractData,
-            $spotPrices,
-        );
+        $costsWithDiscount = [
+            'apartment' => round($pricingResults['apartment']['total_cost']),
+            'townhouse' => round($pricingResults['townhouse']['total_cost']),
+            'house' => round($pricingResults['house']['total_cost']),
+        ];
 
-        // Calculate savings (difference between no-discount and with-discount)
         $savings = [
-            'apartment' => round($costsWithoutDiscount['apartment'] - $costsWithDiscount['apartment']),
-            'townhouse' => round($costsWithoutDiscount['townhouse'] - $costsWithDiscount['townhouse']),
-            'house' => round($costsWithoutDiscount['house'] - $costsWithDiscount['house']),
+            'apartment' => round($pricingResults['apartment']['discount_savings_total']),
+            'townhouse' => round($pricingResults['townhouse']['discount_savings_total']),
+            'house' => round($pricingResults['house']['discount_savings_total']),
         ];
 
         return [
@@ -223,6 +213,9 @@ class WeeklyOffersVideoService
                 'is_percentage' => $discountInfo['is_percentage'],
                 'n_first_months' => $discountInfo['n_first_months'],
                 'until_date' => $discountInfo['until_date']?->format('Y-m-d'),
+                'price_component_type' => $discountInfo['price_component_type'],
+                'payment_unit' => $discountInfo['payment_unit'],
+                'formatted' => $contract->formatActiveDiscountValue($discountInfo),
             ],
             'pricing' => [
                 'monthly_fee' => $monthlyFee,
@@ -263,43 +256,10 @@ class WeeklyOffersVideoService
                 spotPriceNight: $spotPrices['night'],
             );
 
-            $costs[$key] = $result->totalCost;
+            $costs[$key] = $result->toArray();
         }
 
         return $costs;
-    }
-
-    /**
-     * Remove discounts from price components for comparison.
-     *
-     * For percentage discounts, we need to calculate the original price.
-     * For absolute discounts, we add back the discount value.
-     */
-    private function removePriceComponentDiscounts(array $priceComponents): array
-    {
-        return array_map(function ($comp) {
-            if (!($comp['has_discount'] ?? false)) {
-                return $comp;
-            }
-
-            $discountValue = $comp['discount_value'] ?? 0;
-            $isPercentage = $comp['discount_is_percentage'] ?? false;
-            $currentPrice = $comp['price'] ?? 0;
-
-            if ($isPercentage && $discountValue > 0 && $discountValue < 100) {
-                // For percentage discounts: original = current / (1 - discount%)
-                // e.g., if current is 8.5 c/kWh with 15% off, original was 10 c/kWh
-                $comp['price'] = $currentPrice / (1 - ($discountValue / 100));
-            } else {
-                // For absolute discounts: original = current + discount
-                $comp['price'] = $currentPrice + abs($discountValue);
-            }
-
-            $comp['has_discount'] = false;
-            $comp['discount_value'] = null;
-
-            return $comp;
-        }, $priceComponents);
     }
 
     /**

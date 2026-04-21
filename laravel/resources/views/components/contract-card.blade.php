@@ -56,6 +56,9 @@
     // Get calculated cost data if available
     $calculatedCost = $contract->calculated_cost ?? [];
     $totalCost = $calculatedCost['total_cost'] ?? null;
+    $baseTotalCost = $calculatedCost['base_total_cost'] ?? null;
+    $discountSavingsTotal = $calculatedCost['discount_savings_total'] ?? 0;
+    $includesDiscounts = $calculatedCost['includes_discounts'] ?? false;
     $isSpotContract = $calculatedCost['is_spot_contract'] ?? false;
     $spotMargin = $calculatedCost['spot_price_margin'] ?? null;
     $spotPriceDayAvg = $calculatedCost['spot_price_day_avg'] ?? null;
@@ -215,7 +218,7 @@
             @if ($totalCost !== null)
                 <div class="order-first w-full pb-4 border-b border-slate-100 lg:order-none lg:w-auto lg:pb-0 lg:border-b-0 lg:border-l lg:border-slate-200 lg:pl-6">
                     <p class="lg:hidden text-[10px] font-bold uppercase tracking-[0.18em] text-coral-600 mb-1.5">
-                        Vuosikustannus
+                        12 kk arvio
                         @if ($isSpotContract)
                             <span class="font-medium normal-case text-slate-400">(arvio)</span>
                         @endif
@@ -224,14 +227,19 @@
                         <span class="text-[2.5rem] lg:text-2xl font-extrabold {{ $featured ? 'text-coral-600' : 'text-slate-900' }} tabular-nums leading-none">
                             {{ number_format($totalCost, 0, ',', ' ') }}
                         </span>
-                        <span class="text-base lg:text-sm font-medium text-slate-400">{{ "\u{20AC}" }}/v</span>
+                        <span class="text-base lg:text-sm font-medium text-slate-400">{{ "\u{20AC}" }}/12 kk</span>
                     </div>
                     <p class="hidden lg:block text-xs text-slate-500 uppercase tracking-wide mt-1">
-                        Vuosikustannus
+                        12 kk arvio
                         @if ($isSpotContract)
                             <span class="normal-case">(arvio)</span>
                         @endif
                     </p>
+                    @if ($includesDiscounts && $discountSavingsTotal > 0)
+                        <p class="text-xs text-emerald-600 font-semibold mt-1">
+                            Sisältää tarjouksen · säästö {{ number_format($discountSavingsTotal, 0, ',', ' ') }} €
+                        </p>
+                    @endif
                 </div>
             @endif
 

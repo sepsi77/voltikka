@@ -18,6 +18,12 @@ class ContractPricingResult
         public readonly ?float $spotPriceDayAvg = null,
         public readonly ?float $spotPriceNightAvg = null,
         public readonly bool $isSpotContract = false,
+        public readonly ?float $baseTotalCost = null,
+        public readonly ?float $baseAvgMonthlyCost = null,
+        public readonly ?array $baseMonthlyCosts = null,
+        public readonly float $discountSavingsTotal = 0.0,
+        public readonly array $monthlyDiscountSavings = [],
+        public readonly bool $includesDiscounts = false,
     ) {
     }
 
@@ -37,6 +43,12 @@ class ContractPricingResult
             'spot_price_day_avg' => $this->spotPriceDayAvg,
             'spot_price_night_avg' => $this->spotPriceNightAvg,
             'is_spot_contract' => $this->isSpotContract,
+            'base_total_cost' => $this->baseTotalCost,
+            'base_avg_monthly_cost' => $this->baseAvgMonthlyCost,
+            'base_monthly_costs' => $this->baseMonthlyCosts,
+            'discount_savings_total' => $this->discountSavingsTotal,
+            'monthly_discount_savings' => $this->monthlyDiscountSavings,
+            'includes_discounts' => $this->includesDiscounts,
         ];
     }
 }

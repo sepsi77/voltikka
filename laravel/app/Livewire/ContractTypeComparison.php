@@ -321,16 +321,7 @@ class ContractTypeComparison extends Component
         float $spotPriceDay,
         float $spotPriceNight
     ): float {
-        $priceComponents = $contract->priceComponents
-            ->sortByDesc('price_date')
-            ->groupBy('price_component_type')
-            ->map(fn ($group) => $group->sortByDesc('price_date')->first(fn ($item) => $item->price > 0) ?? $group->sortByDesc('price_date')->first())
-            ->values()
-            ->map(fn ($pc) => [
-                'price_component_type' => $pc->price_component_type,
-                'price' => $pc->price,
-            ])
-            ->toArray();
+        $priceComponents = $contract->getLatestPriceComponentsForCalculation();
 
         $usage = new EnergyUsage(
             total: $this->consumption,
@@ -385,16 +376,7 @@ class ContractTypeComparison extends Component
         $monthlySpotPrices = $this->getMonthlySpotPricesLastYear();
         $monthlyConsumptionDist = $this->getMonthlyConsumptionDistribution();
 
-        $priceComponents = $contract->priceComponents
-            ->sortByDesc('price_date')
-            ->groupBy('price_component_type')
-            ->map(fn ($group) => $group->sortByDesc('price_date')->first(fn ($item) => $item->price > 0) ?? $group->sortByDesc('price_date')->first())
-            ->values()
-            ->map(fn ($pc) => [
-                'price_component_type' => $pc->price_component_type,
-                'price' => $pc->price,
-            ])
-            ->toArray();
+        $priceComponents = $contract->getLatestPriceComponentsForCalculation();
 
         $contractData = [
             'contract_type' => $contract->contract_type,

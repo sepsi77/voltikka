@@ -202,6 +202,59 @@ class CalculationApiTest extends TestCase
     }
 
     /**
+     * Test calculate-price endpoint includes structured discount savings in price output.
+     */
+    public function test_calculate_price_applies_monthly_discount(): void
+    {
+        ElectricityContract::create([
+            'id' => 'discount-contract',
+            'company_name' => 'Test Company Oy',
+            'name' => 'Discount Contract',
+            'name_slug' => 'discount-contract',
+            'contract_type' => 'Fixed',
+            'pricing_model' => 'FixedPrice',
+            'metering' => 'General',
+            'availability_is_national' => true,
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-disc-monthly',
+            'electricity_contract_id' => 'discount-contract',
+            'price_component_type' => 'Monthly',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 5.95,
+            'payment_unit' => 'EurPerMonth',
+            'has_discount' => true,
+            'discount_value' => 5.95,
+            'discount_is_percentage' => false,
+            'discount_type' => 'NFirstMonth',
+            'discount_discount_n_first_months' => 6,
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-disc-general',
+            'electricity_contract_id' => 'discount-contract',
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 8.75,
+            'payment_unit' => 'CentPerKiwattHour',
+        ]);
+
+        $response = $this->postJson('/api/calculate-price', [
+            'contract_id' => 'discount-contract',
+            'consumption' => 5000,
+        ]);
+
+        $response->assertOk();
+        $data = $response->json('data');
+
+        $this->assertTrue($data['includes_discounts']);
+        $this->assertEqualsWithDelta(508.9, $data['base_total_cost'], 0.01);
+        $this->assertEqualsWithDelta(35.7, $data['discount_savings_total'], 0.01);
+        $this->assertEqualsWithDelta(473.2, $data['total_cost'], 0.01);
+    }
+
+    /**
      * Test calculate-price endpoint validates required fields.
      */
     public function test_calculate_price_validates_contract_id(): void

@@ -609,16 +609,7 @@ class ContractDetail extends Component
      */
     protected function getNormalizedPriceComponents(ElectricityContract $contract): array
     {
-        return $contract->priceComponents
-            ->sortByDesc('price_date')
-            ->groupBy('price_component_type')
-            ->map(fn ($group) => $group->sortByDesc('price_date')->first(fn ($item) => $item->price > 0) ?? $group->sortByDesc('price_date')->first())
-            ->values()
-            ->map(fn ($pc) => [
-                'price_component_type' => $pc->price_component_type,
-                'price' => $pc->price,
-            ])
-            ->toArray();
+        return $contract->getLatestPriceComponentsForCalculation();
     }
 
     /**

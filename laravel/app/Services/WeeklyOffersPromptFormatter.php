@@ -163,9 +163,12 @@ PROMPT;
             $nMonths = $discount['n_first_months'] ?? null;
             $untilDate = $discount['until_date'] ?? null;
 
-            $discountStr = $isPercentage
-                ? sprintf('%d%% alennus', (int) $discountValue)
-                : sprintf('%.2f c/kWh alennus', $discountValue);
+            $discountStr = $discount['formatted'] ?? null;
+            if (!$discountStr) {
+                $discountStr = $isPercentage
+                    ? sprintf('%d%% alennus', (int) $discountValue)
+                    : sprintf('%.2f alennus', $discountValue);
+            }
 
             $section .= "**Alennus:** {$discountStr}";
 

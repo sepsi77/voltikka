@@ -24,6 +24,8 @@
     // Get calculated cost data if available
     $calculatedCost = $contract->calculated_cost ?? [];
     $totalCost = $calculatedCost['total_cost'] ?? null;
+    $discountSavingsTotal = $calculatedCost['discount_savings_total'] ?? 0;
+    $includesDiscounts = $calculatedCost['includes_discounts'] ?? false;
     $isSpotContract = $calculatedCost['is_spot_contract'] ?? false;
     $spotMargin = $calculatedCost['spot_price_margin'] ?? null;
     $spotPriceDayAvg = $calculatedCost['spot_price_day_avg'] ?? null;
@@ -138,14 +140,19 @@
                 @if ($totalCost !== null)
                     <div class="text-left lg:border-l lg:border-white/20 lg:pl-6">
                         <div class="text-3xl font-black text-white tabular-nums">
-                            {{ number_format($totalCost, 0, ',', ' ') }} <span class="text-lg font-normal text-coral-100">{{ "\u{20AC}" }}/v</span>
+                            {{ number_format($totalCost, 0, ',', ' ') }} <span class="text-lg font-normal text-coral-100">{{ "\u{20AC}" }}/12 kk</span>
                         </div>
                         <p class="text-sm text-coral-100 uppercase tracking-wide">
-                            Vuosikustannus
+                            12 kk arvio
                             @if ($isSpotContract)
                                 <span class="normal-case">(arvio)</span>
                             @endif
                         </p>
+                        @if ($includesDiscounts && $discountSavingsTotal > 0)
+                            <p class="text-xs text-coral-50 font-semibold mt-1">
+                                Sisältää tarjouksen · säästö {{ number_format($discountSavingsTotal, 0, ',', ' ') }} €
+                            </p>
+                        @endif
                     </div>
                 @endif
             </div>

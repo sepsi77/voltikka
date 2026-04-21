@@ -311,6 +311,18 @@ $usage = new EnergyUsage(total: 5000, basicLiving: 5000);
 $result = $calculator->calculate($priceComponents, $contractData, $usage);
 ```
 
+### Discount-aware pricing behavior
+- `ContractPriceCalculator` now supports structured price-component discounts for first-year estimates
+- calculation inputs should include latest price components with discount metadata, not only raw `price`
+- discounted totals are component-scoped:
+  - monthly fee promos apply only to `Monthly`
+  - energy promos apply only to the matching energy component type
+- result payloads can include both:
+  - discounted totals (`total_cost`, `monthly_costs`)
+  - base totals before promotions (`base_total_cost`, `base_monthly_costs`)
+  - promo savings (`discount_savings_total`, `monthly_discount_savings`)
+- use `ElectricityContract::getLatestPriceComponentsForCalculation()` when preparing calculator input so promo metadata is preserved
+
 ### Spot Price Access
 ```php
 use App\Models\SpotPriceHour;

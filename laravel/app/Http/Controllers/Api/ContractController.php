@@ -134,16 +134,7 @@ class ContractController extends Controller
     private function calculateContractCost(ElectricityContract $contract, int $consumption): array
     {
         // Get the latest price components (prefer non-zero prices when duplicates exist)
-        $priceComponents = $contract->priceComponents
-            ->sortByDesc('price_date')
-            ->groupBy('price_component_type')
-            ->map(fn ($group) => $group->sortByDesc('price_date')->first(fn ($item) => $item->price > 0) ?? $group->sortByDesc('price_date')->first())
-            ->values()
-            ->map(fn ($pc) => [
-                'price_component_type' => $pc->price_component_type,
-                'price' => $pc->price,
-            ])
-            ->toArray();
+        $priceComponents = $contract->getLatestPriceComponentsForCalculation();
 
         // Create a simple energy usage object
         $usage = new EnergyUsage(
@@ -153,6 +144,7 @@ class ContractController extends Controller
 
         $contractData = [
             'contract_type' => $contract->contract_type,
+            'pricing_model' => $contract->pricing_model,
             'metering' => $contract->metering,
         ];
 
