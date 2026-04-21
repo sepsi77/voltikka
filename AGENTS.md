@@ -301,7 +301,7 @@ ElectricityContract::whereHas('electricitySource', fn($q) =>
 )->get();
 ```
 
-### Price Calculation
+### Price Calculation 
 ```php
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
