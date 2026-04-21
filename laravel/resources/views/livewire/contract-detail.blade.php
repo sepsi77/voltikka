@@ -505,9 +505,9 @@
                     $priceTypeLabels = [
                         'General' => 'Energiahinta',
                         'Monthly' => 'Perusmaksu',
-                        'DayTime' => 'Päiväsähkö (07:00-22:00)',
-                        'NightTime' => 'Yösähkö (22:00-07:00)',
-                        'SeasonalWinterDay' => 'Talvihinta (marras-maaliskuu, päivä)',
+                        'DayTime' => 'Päiväsähkö',
+                        'NightTime' => 'Yösähkö',
+                        'SeasonalWinterDay' => 'Talvihinta',
                         'SeasonalOther' => 'Muu aika',
                     ];
 
@@ -524,131 +524,263 @@
                             $previous = $record;
                         }
                         if (count($rows) >= 1) {
-                            $dedupedHistory[$type] = array_reverse($rows);
+                            $dedupedHistory[$type] = $rows; // oldest → newest
                         }
                     }
 
-                    $changes = $priceChangeInfo['changes'];
                     $since = $priceChangeInfo['since'];
-                    $latestChange = $priceChangeInfo['latest'];
+
+                    // Pick the primary series for the hero chart: prefer General, else DayTime, else first.
+                    $primaryType = null;
+                    foreach (['General', 'DayTime', 'NightTime', 'SeasonalWinterDay', 'SeasonalOther', 'Monthly'] as $candidate) {
+                        if (!empty($dedupedHistory[$candidate]) && count($dedupedHistory[$candidate]) >= 2) {
+                            $primaryType = $candidate;
+                            break;
+                        }
+                    }
+
+                    $chartSeries = $primaryType ? $dedupedHistory[$primaryType] : [];
+                    $hasChart = count($chartSeries) >= 2;
+
+                    $chartPoints = [];
+                    $firstPrice = $lastPrice = $priceDelta = $priceDeltaPct = null;
+                    $chartUnit = '';
+                    $chartDateFirst = $chartDateLast = null;
+
+                    if ($hasChart) {
+                        $prices = array_map(fn ($r) => (float) $r['price'], $chartSeries);
+                        $dates = array_map(fn ($r) => \Carbon\Carbon::parse($r['date'])->timestamp, $chartSeries);
+                        $minPrice = min($prices);
+                        $maxPrice = max($prices);
+                        $priceRange = max(0.01, $maxPrice - $minPrice);
+                        $minDate = min($dates);
+                        $maxDate = max($dates);
+                        $dateRange = max(1, $maxDate - $minDate);
+                        $w = 300; $h = 80; $padX = 8; $padY = 10;
+                        foreach ($chartSeries as $i => $row) {
+                            $x = $padX + (($dates[$i] - $minDate) / $dateRange) * ($w - 2 * $padX);
+                            $y = ($h - $padY) - (($prices[$i] - $minPrice) / $priceRange) * ($h - 2 * $padY);
+                            $chartPoints[] = ['x' => round($x, 2), 'y' => round($y, 2), 'price' => $prices[$i]];
+                        }
+                        $firstPrice = $prices[0];
+                        $lastPrice = end($prices);
+                        $priceDelta = $lastPrice - $firstPrice;
+                        $priceDeltaPct = $firstPrice > 0 ? (($lastPrice - $firstPrice) / $firstPrice) * 100 : 0;
+                        $chartUnit = $primaryType === 'Monthly' ? 'EUR/kk' : 'c/kWh';
+                        $chartDateFirst = \Carbon\Carbon::parse($chartSeries[0]['date']);
+                        $chartDateLast = \Carbon\Carbon::parse(end($chartSeries)['date']);
+                    }
+
+                    // Attach delta-from-previous (older) for each timeline entry (uses primary series).
+                    $timeline = [];
+                    $lookupPrice = function (array $entry) use ($primaryType, $priceTypeLabels): ?float {
+                        if (! $primaryType) return null;
+                        $label = $priceTypeLabels[$primaryType] ?? $primaryType;
+                        foreach ($entry['prices'] as $p) {
+                            if ($p['label'] === $label) return (float) $p['price'];
+                        }
+                        return null;
+                    };
+                    foreach ($contractHistory as $i => $entry) {
+                        $current = $lookupPrice($entry);
+                        $next = $contractHistory[$i + 1] ?? null; // older
+                        $previous = $next ? $lookupPrice($next) : null;
+                        $delta = null;
+                        if ($current !== null && $previous !== null && abs($current - $previous) > 0.0001) {
+                            $delta = $current - $previous;
+                        }
+                        $timeline[] = array_merge($entry, [
+                            'delta_to_previous' => $delta,
+                        ]);
+                    }
+
+                    $chartLinePath = '';
+                    $chartAreaPath = '';
+                    if ($hasChart) {
+                        foreach ($chartPoints as $i => $p) {
+                            $chartLinePath .= ($i === 0 ? 'M' : 'L') . "{$p['x']},{$p['y']} ";
+                        }
+                        $firstX = $chartPoints[0]['x'];
+                        $lastX = end($chartPoints)['x'];
+                        $chartAreaPath = "M{$firstX},70 " . substr($chartLinePath, 1) . "L{$lastX},70 Z";
+                    }
+
+                    $primaryLabel = $primaryType ? ($priceTypeLabels[$primaryType] ?? $primaryType) : '';
                 @endphp
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                    <div class="flex items-start justify-between gap-4 flex-wrap">
-                        <div class="min-w-0">
-                            <h2 class="text-lg font-semibold text-slate-900">Sopimushistoria</h2>
-                            <p class="text-sm text-slate-500 mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                                <span>Nykyinen sopimus ja aiemmat tunnetut versiot samasta replacement-ketjusta.</span>
-                                @if ($changes === 0)
-                                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-                                    <span>Hinta ei ole muuttunut seurannan aikana.</span>
-                                @else
-                                    <span class="inline-block w-2 h-2 rounded-full bg-amber-500"></span>
-                                    <span>
-                                        Hinta on muuttunut
-                                        <span class="font-semibold text-slate-700">{{ $changes }} {{ $changes === 1 ? 'kerran' : 'kertaa' }}</span>
-                                        seurannan aikana.
-                                    </span>
-                                    @if ($latestChange)
-                                        <span class="text-slate-400">
-                                            Viimeisin: {{ $priceTypeLabels[$latestChange['type']] ?? $latestChange['type'] }}
-                                            {{ number_format($latestChange['from'], 2, ',', ' ') }} → {{ number_format($latestChange['to'], 2, ',', ' ') }}
-                                            @if (!empty($latestChange['contract_name']))
-                                                · {{ $latestChange['contract_name'] }}
-                                            @endif
-                                            ({{ $latestChange['date']->format('d.m.Y') }})
-                                        </span>
-                                    @endif
-                                @endif
+
+                <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-7">
+                    {{-- Header --}}
+                    <header class="flex items-baseline justify-between gap-3 flex-wrap">
+                        <div>
+                            <h2 class="text-lg font-semibold text-slate-900 tracking-tight">Sopimushistoria</h2>
+                            <p class="mt-1 text-sm text-slate-500">
+                                <span class="tabular-nums font-medium text-slate-600">{{ count($contractHistory) }}</span>
+                                {{ count($contractHistory) === 1 ? 'versio' : 'versiota' }}
                                 @if ($since)
-                                    <span class="text-slate-400">· Seurattu {{ $since->format('d.m.Y') }} alkaen</span>
+                                    <span class="text-slate-300" aria-hidden="true">·</span>
+                                    seurattu {{ $since->translatedFormat('j.n.Y') }} alkaen
                                 @endif
                             </p>
                         </div>
-                    </div>
+                    </header>
 
-                    <div class="mt-6 space-y-4">
-                        @foreach ($contractHistory as $historyEntry)
-                            <article class="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-                                <div class="flex flex-wrap items-start justify-between gap-3">
-                                    <div>
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            <h3 class="text-base font-semibold text-slate-900">{{ $historyEntry['name'] }}</h3>
-                                            @if ($historyEntry['is_current'])
-                                                <span class="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">Nykyinen</span>
+                    {{-- Hero trajectory --}}
+                    @if ($hasChart)
+                        @php
+                            $priceUp = $priceDelta > 0;
+                            $deltaSign = $priceUp ? '+' : '';
+                            $deltaToneText = $priceUp ? 'text-amber-700' : 'text-emerald-700';
+                            $deltaToneBg = $priceUp ? 'bg-amber-50 ring-amber-200/70' : 'bg-emerald-50 ring-emerald-200/70';
+                            $lineStroke = $priceUp ? '#d97706' : '#059669'; // amber-600 / emerald-600
+                            $fillStart = $priceUp ? '#fbbf24' : '#34d399';
+                        @endphp
+                        <figure class="mt-5 rounded-xl border border-slate-200/80 bg-gradient-to-br from-slate-50 to-white p-5 sm:p-6">
+                            <div class="flex flex-col-reverse sm:flex-row sm:items-end gap-5 sm:gap-8">
+                                {{-- Headline --}}
+                                <div class="flex-1 min-w-0">
+                                    <div class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                                        {{ $primaryLabel }} · kehitys seurannan aikana
+                                    </div>
+                                    <div class="mt-3 flex items-baseline gap-2.5 tabular-nums">
+                                        <span class="text-xl font-medium text-slate-400">{{ number_format($firstPrice, 2, ',', '') }}</span>
+                                        <svg class="w-4 h-4 text-slate-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 12h15"/>
+                                        </svg>
+                                        <span class="text-3xl font-bold text-slate-900 tracking-tight">{{ number_format($lastPrice, 2, ',', '') }}</span>
+                                        <span class="text-sm text-slate-500 font-normal">{{ $chartUnit }}</span>
+                                    </div>
+                                    <div class="mt-3 flex items-center gap-2 flex-wrap text-sm">
+                                        <span class="inline-flex items-center gap-1 rounded-full {{ $deltaToneBg }} ring-1 ring-inset px-2.5 py-1 font-semibold {{ $deltaToneText }} tabular-nums">
+                                            @if ($priceUp)
+                                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3l5.5 7H2.5z"/></svg>
                                             @else
-                                                <span class="inline-flex items-center rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">Aiempi versio</span>
+                                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13L2.5 6h11z"/></svg>
                                             @endif
-                                        </div>
-                                        <p class="mt-1 text-sm text-slate-500">
-                                            {{ $historyEntry['company'] }}
-                                            @if ($historyEntry['latest_price_date'])
-                                                · Hinta päivitetty {{ $historyEntry['latest_price_date']->format('d.m.Y') }}
-                                            @endif
-                                        </p>
+                                            {{ $deltaSign }}{{ number_format($priceDelta, 2, ',', '') }} {{ $chartUnit }}
+                                        </span>
+                                        <span class="text-slate-500 tabular-nums">
+                                            {{ $deltaSign }}{{ number_format($priceDeltaPct, abs($priceDeltaPct) < 10 ? 1 : 0, ',', '') }} %
+                                        </span>
+                                        @if ($chartDateFirst && $chartDateLast)
+                                            <span class="text-slate-300" aria-hidden="true">·</span>
+                                            <span class="text-slate-500 tabular-nums">
+                                                {{ $chartDateFirst->translatedFormat('j.n.') }} – {{ $chartDateLast->translatedFormat('j.n.Y') }}
+                                            </span>
+                                        @endif
                                     </div>
                                 </div>
 
-                                <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                                    @forelse ($historyEntry['prices'] as $price)
-                                        <div class="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                                            <div class="text-xs font-medium uppercase tracking-wide text-slate-500">{{ $price['label'] }}</div>
-                                            <div class="mt-1 text-sm font-semibold text-slate-900">{{ number_format($price['price'], 2, ',', ' ') }} {{ $price['unit'] }}</div>
-                                        </div>
-                                    @empty
-                                        <div class="rounded-lg border border-dashed border-slate-200 bg-white px-3 py-2 text-sm text-slate-500">Ei hintatietoja saatavilla.</div>
-                                    @endforelse
+                                {{-- Chart --}}
+                                <div class="sm:w-56 shrink-0">
+                                    <svg viewBox="0 0 300 80" preserveAspectRatio="none" class="w-full h-16 sm:h-20" role="img" aria-label="{{ $primaryLabel }} kehitys">
+                                        <defs>
+                                            <linearGradient id="historyFill-{{ $primaryType }}" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stop-color="{{ $fillStart }}" stop-opacity="0.22"/>
+                                                <stop offset="100%" stop-color="{{ $fillStart }}" stop-opacity="0"/>
+                                            </linearGradient>
+                                        </defs>
+                                        <path d="{{ $chartAreaPath }}" fill="url(#historyFill-{{ $primaryType }})"/>
+                                        <path d="{{ $chartLinePath }}" fill="none" stroke="{{ $lineStroke }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+                                        @foreach ($chartPoints as $idx => $p)
+                                            @php
+                                                $isEdge = $idx === 0 || $idx === count($chartPoints) - 1;
+                                            @endphp
+                                            <circle cx="{{ $p['x'] }}" cy="{{ $p['y'] }}" r="{{ $isEdge ? 3.5 : 2.5 }}"
+                                                fill="{{ $isEdge ? $lineStroke : '#fff' }}"
+                                                stroke="{{ $lineStroke }}" stroke-width="{{ $isEdge ? 0 : 1.5 }}"
+                                                vector-effect="non-scaling-stroke"/>
+                                        @endforeach
+                                    </svg>
                                 </div>
-
-                                <div class="mt-4 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
-                                    <div class="text-xs font-medium uppercase tracking-wide text-amber-700">Tarjous</div>
-                                    <div class="mt-1 text-sm text-amber-900">
-                                        {{ $historyEntry['promotion'] ?: 'Ei tiedossa olevaa tarjousta.' }}
-                                    </div>
-                                </div>
-                            </article>
-                        @endforeach
-                    </div>
-
-                    @if ($changes > 0)
-                        <details class="mt-6 group">
-                            <summary class="cursor-pointer inline-flex items-center gap-1.5 text-sm font-semibold text-coral-600 hover:text-coral-700 select-none">
-                                <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                                </svg>
-                                Näytä hintamuutokset
-                            </summary>
-                            <div class="mt-4 space-y-4">
-                                @foreach ($dedupedHistory as $type => $rows)
-                                    @if (count($rows) > 1)
-                                        <div>
-                                            <h3 class="text-sm font-medium text-slate-700 mb-2">{{ $priceTypeLabels[$type] ?? $type }}</h3>
-                                            <div class="overflow-x-auto">
-                                                <table class="min-w-full text-sm">
-                                                    <thead>
-                                                        <tr class="text-left text-slate-500">
-                                                            <th class="py-2 pr-4">Sopimus</th>
-                                                            <th class="py-2 pr-4">Muutoksen päivä</th>
-                                                            <th class="py-2">Hinta</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        @foreach ($rows as $record)
-                                                            <tr class="border-t border-slate-100">
-                                                                <td class="py-2 pr-4 text-slate-600">{{ $record['contract_name'] ?? '—' }}</td>
-                                                                <td class="py-2 pr-4 text-slate-600">{{ \Carbon\Carbon::parse($record['date'])->format('d.m.Y') }}</td>
-                                                                <td class="py-2 font-medium text-slate-900">{{ number_format($record['price'], 2, ',', ' ') }} {{ $type === 'Monthly' ? 'EUR/kk' : 'c/kWh' }}</td>
-                                                            </tr>
-                                                        @endforeach
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    @endif
-                                @endforeach
                             </div>
-                        </details>
+                        </figure>
                     @endif
-                </div>
+
+                    {{-- Timeline --}}
+                    <ol class="mt-6 relative">
+                        @foreach ($timeline as $i => $entry)
+                            @php
+                                $isLast = $i === count($timeline) - 1;
+                                $hasDelta = $entry['delta_to_previous'] !== null;
+                                $deltaUp = $hasDelta && $entry['delta_to_previous'] > 0;
+                            @endphp
+                            <li class="relative pl-7 sm:pl-8 {{ $isLast ? 'pb-0' : 'pb-6' }}">
+                                {{-- Connector line --}}
+                                @if (!$isLast)
+                                    <span aria-hidden="true" class="absolute left-[7px] top-5 bottom-0 w-[2px] bg-slate-200 rounded-full"></span>
+                                @endif
+
+                                {{-- Node dot --}}
+                                <span aria-hidden="true" class="absolute left-0 top-1.5 flex items-center justify-center w-4 h-4">
+                                    @if ($entry['is_current'])
+                                        <span class="block w-3 h-3 rounded-full bg-coral-500 ring-4 ring-coral-100"></span>
+                                    @else
+                                        <span class="block w-2.5 h-2.5 rounded-full bg-slate-300 ring-[3px] ring-slate-100"></span>
+                                    @endif
+                                </span>
+
+                                {{-- Entry content --}}
+                                <div class="space-y-1.5">
+                                    <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                                        <time class="text-sm font-semibold text-slate-900 tabular-nums">
+                                            {{ $entry['latest_price_date']?->translatedFormat('j.n.Y') ?? '—' }}
+                                        </time>
+                                        @if ($entry['is_current'])
+                                            <span class="inline-flex items-center gap-1 rounded-full bg-coral-50 px-2 py-0.5 text-[11px] font-semibold text-coral-700 ring-1 ring-inset ring-coral-600/20">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-coral-500"></span>
+                                                Nykyinen
+                                            </span>
+                                        @endif
+                                    </div>
+
+                                    <div class="text-sm font-medium text-slate-800">
+                                        {{ $entry['name'] }}
+                                    </div>
+
+                                    @if (!empty($entry['prices']))
+                                        <dl class="flex flex-wrap gap-x-5 gap-y-1 pt-0.5 tabular-nums">
+                                            @foreach ($entry['prices'] as $price)
+                                                <div class="flex items-baseline gap-1.5">
+                                                    <dt class="text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">{{ $price['label'] }}</dt>
+                                                    <dd class="text-sm font-semibold text-slate-900">
+                                                        {{ number_format($price['price'], 2, ',', '') }}
+                                                        <span class="text-slate-400 font-normal text-[11px] ml-0.5">{{ $price['unit'] }}</span>
+                                                    </dd>
+                                                </div>
+                                            @endforeach
+                                        </dl>
+                                    @endif
+
+                                    @if (!empty($entry['promotion']))
+                                        <p class="mt-1.5 inline-flex items-center gap-1.5 text-xs text-amber-800 bg-amber-50 px-2.5 py-1 rounded-md ring-1 ring-inset ring-amber-200/70">
+                                            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                                            </svg>
+                                            {{ $entry['promotion'] }}
+                                        </p>
+                                    @endif
+                                </div>
+
+                                {{-- Delta chip on connector, between this version and the older one below --}}
+                                @if (!$isLast && $hasDelta)
+                                    <div class="mt-3 ml-0 -mb-1 inline-flex items-center gap-1.5 pl-0.5">
+                                        <span class="inline-flex items-center gap-1 text-[11px] font-semibold tabular-nums rounded-full px-2 py-0.5 ring-1 ring-inset
+                                            {{ $deltaUp ? 'bg-amber-50 text-amber-700 ring-amber-200/70' : 'bg-emerald-50 text-emerald-700 ring-emerald-200/70' }}">
+                                            @if ($deltaUp)
+                                                <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3l5.5 7H2.5z"/></svg>
+                                            @else
+                                                <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13L2.5 6h11z"/></svg>
+                                            @endif
+                                            {{ $deltaUp ? '+' : '' }}{{ number_format($entry['delta_to_previous'], 2, ',', '') }}
+                                            {{ $chartUnit ?: 'c/kWh' }}
+                                        </span>
+                                        <span class="text-[11px] text-slate-400">{{ $primaryLabel ?: 'hinta' }} muuttui</span>
+                                    </div>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ol>
+                </section>
             @endif
 
             <!-- Contract Description (moved from top of page) -->
