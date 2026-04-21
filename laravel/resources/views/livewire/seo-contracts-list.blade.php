@@ -622,17 +622,32 @@
         />
     @endif
 
-    {{-- Results Count --}}
-    <div class="mb-4 text-sm text-slate-600">
-        <span class="font-semibold">{{ $contracts->total() }}</span> {{ $isBusinessPage ? 'yrityksille suunnattua sopimusta löytyi' : 'sopimusta löytyi' }}
-        @if ($this->hasActiveFilters() || $hasSeoFilter)
-            suodattimilla
-        @endif
-        @if ($contracts->lastPage() > 1)
-            <span class="text-slate-400 ml-2">
-                (Sivu {{ $contracts->currentPage() }}/{{ $contracts->lastPage() }})
-            </span>
-        @endif
+    {{-- Results Credibility Bar --}}
+    <div class="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-6">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <svg class="w-5 h-5 text-coral-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <p class="text-sm text-slate-700">
+                    <span class="font-semibold">{{ $contracts->total() }} sopimusta</span> vertailussa — lasketut todelliset 12 kk kulut sisältäen tarjoukset
+                </p>
+            </div>
+            <div class="flex items-center gap-4 text-xs text-slate-600">
+                <span class="flex items-center gap-1.5">
+                    <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                    Päästötön
+                </span>
+                <span class="flex items-center gap-1.5">
+                    <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+                    Vähäpäästöinen
+                </span>
+                <span class="flex items-center gap-1.5">
+                    <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                    Fossiilinen
+                </span>
+            </div>
+        </div>
     </div>
 
     {{-- Contracts List --}}
@@ -642,17 +657,27 @@
                 // Calculate the overall rank based on current page
                 $overallRank = (($contracts->currentPage() - 1) * $contracts->perPage()) + $index + 1;
             @endphp
-            <x-contract-card
-                :contract="$contract"
-                :rank="$overallRank"
-                :consumption="$consumption"
-                :prices="$this->getLatestPrices($contract)"
-                :percentiles="$this->getPercentiles()"
-                :showRank="false"
-                :showEmissions="true"
-                :showEnergyBadges="true"
-                :showSpotBadge="true"
-            />
+
+            @if ($overallRank === 1)
+                <x-featured-contract-card
+                    :contract="$contract"
+                    :consumption="$consumption"
+                    :prices="$this->getLatestPrices($contract)"
+                />
+            @else
+                <x-contract-card
+                    :contract="$contract"
+                    :rank="$overallRank"
+                    :featured="$overallRank <= 3"
+                    :consumption="$consumption"
+                    :prices="$this->getLatestPrices($contract)"
+                    :percentiles="$this->getPercentiles()"
+                    :showRank="true"
+                    :showEmissions="true"
+                    :showEnergyBadges="true"
+                    :showSpotBadge="true"
+                />
+            @endif
         @empty
             <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
                 <p class="text-slate-500">Ei sopimuksia saatavilla.</p>

@@ -137,21 +137,20 @@
             }
         }
 
-        // Limit to max 2 callouts — energy/margin is more important than monthly fee
-        if (count($callouts) > 2) {
-            $callouts = array_slice($callouts, 0, 2);
+        // Limit callouts based on card tier — featured cards show more detail
+        $maxCallouts = $featured ? 2 : 1;
+        if (count($callouts) > $maxCallouts) {
+            $callouts = array_slice($callouts, 0, $maxCallouts);
         }
     }
 @endphp
 
 <div class="group relative w-full p-6 {{ $exceedsConsumptionLimit ? 'bg-slate-50 opacity-75' : 'bg-white' }} border border-slate-100 rounded-2xl {{ $borderWidth }} {{ $borderColorClass }} {{ $featured ? 'border-coral-200' : '' }} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover">
     <div class="flex flex-col lg:flex-row items-start lg:items-center gap-4">
-        {{-- Rank Number --}}
-        @if ($showRank && $rank !== null)
-            <div class="hidden lg:block flex-shrink-0 w-12">
-                <span class="text-4xl font-extrabold {{ $featured ? 'text-coral-500' : 'text-slate-200' }}">
-                    {{ str_pad($rank, 2, '0', STR_PAD_LEFT) }}
-                </span>
+        {{-- Rank Number (subtle, only for top 3) --}}
+        @if ($showRank && $rank !== null && $rank <= 3)
+            <div class="hidden lg:flex flex-shrink-0 w-8 h-8 items-center justify-center rounded-full {{ $rank === 1 ? 'bg-coral-100 text-coral-700' : 'bg-slate-100 text-slate-500' }}">
+                <span class="text-xs font-bold">{{ $rank }}</span>
             </div>
         @endif
 
@@ -163,7 +162,7 @@
                     alt="{{ $contract->company->name }}"
                     class="w-16 h-12 object-contain flex-shrink-0"
                     loading="lazy"
-                    onerror="this.onerror=null; this.src='https://placehold.co/64x48?text=logo'"
+                    onerror="this.onerror=null; this.src='https://placehold.co/64x48/e2e8f0/64748b?text={{ substr($contract->company?->name ?? 'N/A', 0, 2) }}'"
                 >
             @else
                 <div class="w-16 h-12 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -171,9 +170,16 @@
                 </div>
             @endif
             <div class="flex flex-col min-w-0 flex-1">
-                <h5 class="text-xl lg:text-lg font-bold text-slate-900 truncate tracking-tight">
-                    {{ $contract->name }}
-                </h5>
+                <div class="flex items-center gap-2">
+                    <h5 class="text-xl lg:text-lg font-bold text-slate-900 truncate tracking-tight">
+                        {{ $contract->name }}
+                    </h5>
+                    @if ($featured && $rank > 1)
+                        <span class="hidden lg:inline-flex items-center px-2 py-0.5 bg-coral-50 text-coral-700 text-[10px] font-bold uppercase tracking-wider rounded border border-coral-200 flex-shrink-0">
+                            Kärkisija
+                        </span>
+                    @endif
+                </div>
                 <div class="flex items-center gap-2 mt-0.5">
                     <p class="text-sm text-slate-500 truncate">
                         {{ $contract->company?->name }}
@@ -199,25 +205,25 @@
         </div>
 
         {{-- Total Cost + CTA --}}
-        <div class="flex flex-wrap items-center gap-x-6 gap-y-3 lg:flex-nowrap lg:gap-8 w-full lg:w-auto">
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-3 lg:flex-nowrap lg:gap-6 w-full lg:w-auto lg:ml-auto lg:justify-end">
             @if ($totalCost !== null)
-                <div class="order-first w-full pb-3 border-b border-slate-100 lg:order-none lg:w-auto lg:pb-0 lg:border-b-0">
+                <div class="order-first w-full pb-3 border-b border-slate-100 lg:order-none lg:w-[170px] lg:pb-0 lg:border-b-0 lg:text-right">
                     <p class="lg:hidden text-[10px] font-bold uppercase tracking-[0.18em] text-coral-600 mb-1">
-                        12 kk arvio
+                        12 kk hinta
                         @if ($isSpotContract)
-                            <span class="font-medium normal-case text-slate-400">(arvio)</span>
+                            <span class="font-medium normal-case text-slate-400">· arvio</span>
                         @endif
                     </p>
-                    <div class="flex items-baseline gap-2">
+                    <div class="inline-flex items-baseline gap-2">
                         <span class="text-4xl lg:text-5xl font-extrabold {{ $featured ? 'text-coral-600' : 'text-slate-900' }} tabular-nums leading-none">
                             {{ number_format($totalCost, 0, ',', ' ') }}
                         </span>
                         <span class="text-lg lg:text-base font-medium text-slate-400">€/12 kk</span>
                     </div>
-                    <p class="hidden lg:block text-xs text-slate-500 uppercase tracking-wide mt-1">
-                        12 kk arvio
+                    <p class="hidden lg:block text-xs text-slate-500 mt-1">
+                        12 kk hinta sis. tarjoukset
                         @if ($isSpotContract)
-                            <span class="normal-case">(arvio)</span>
+                            <span class="text-slate-400">· arvio</span>
                         @endif
                     </p>
                     @if ($includesDiscounts && $discountSavingsTotal > 0)
@@ -230,7 +236,7 @@
 
             <a
                 href="{{ route('contract.detail', $contract->id) }}"
-                class="hidden lg:inline-flex items-center gap-2 bg-gradient-to-r from-coral-500 to-coral-600 hover:from-coral-400 hover:to-coral-500 text-white font-bold px-6 py-3.5 rounded-xl transition-all shadow-lg shadow-coral-500/20"
+                class="hidden lg:inline-flex items-center justify-center gap-2 font-bold px-6 py-3 rounded-xl transition-all w-[130px] {{ $featured ? 'bg-gradient-to-r from-coral-500 to-coral-600 hover:from-coral-400 hover:to-coral-500 text-white shadow-lg shadow-coral-500/20' : 'border-2 border-slate-200 text-slate-600 hover:border-coral-400 hover:text-coral-600' }}"
             >
                 Katso
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -262,7 +268,7 @@
             @php
                 $discountInfo = $contract->getActiveDiscountInfo();
             @endphp
-            <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-800 border border-amber-200 text-xs font-bold rounded-lg uppercase">
+            <span class="inline-flex items-center gap-2 px-3 py-1.5 {{ $featured ? 'bg-gradient-to-r from-amber-100 to-yellow-100' : 'bg-amber-50' }} text-amber-800 border border-amber-200 text-xs font-bold rounded-lg uppercase">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
                 </svg>
@@ -283,8 +289,8 @@
             </span>
         @endif
 
-        <a href="{{ route('contract.detail', $contract->id) }}" class="lg:hidden w-full mt-2 flex items-center justify-center gap-2 bg-gradient-to-r from-coral-500 to-coral-600 hover:from-coral-400 hover:to-coral-500 text-white font-bold px-5 py-3 rounded-xl transition-all shadow-lg shadow-coral-500/20">
-            Katso sopimus
+        <a href="{{ route('contract.detail', $contract->id) }}" class="lg:hidden w-full mt-2 flex items-center justify-center gap-2 font-bold px-5 py-3 rounded-xl transition-all {{ $featured ? 'bg-gradient-to-r from-coral-500 to-coral-600 text-white shadow-lg shadow-coral-500/20' : 'border-2 border-slate-200 text-slate-600' }}">
+            Katso
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
             </svg>

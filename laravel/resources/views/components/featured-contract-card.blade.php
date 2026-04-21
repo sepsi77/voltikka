@@ -76,7 +76,7 @@
                             alt="{{ $contract->company->name }}"
                             class="w-full h-full object-contain"
                             loading="lazy"
-                            onerror="this.onerror=null; this.src='https://placehold.co/80x64?text=logo'"
+                            onerror="this.onerror=null; this.src='https://placehold.co/80x64/ffffff/coral?text={{ substr($contract->company?->name ?? 'N/A', 0, 2) }}'"
                         >
                     </div>
                 @else
@@ -142,10 +142,10 @@
                         <div class="text-3xl font-black text-white tabular-nums">
                             {{ number_format($totalCost, 0, ',', ' ') }} <span class="text-lg font-normal text-coral-100">{{ "\u{20AC}" }}/12 kk</span>
                         </div>
-                        <p class="text-sm text-coral-100 uppercase tracking-wide">
-                            12 kk arvio
+                        <p class="text-sm text-coral-100">
+                            12 kk hinta sis. tarjoukset
                             @if ($isSpotContract)
-                                <span class="normal-case">(arvio)</span>
+                                <span class="text-coral-200">· arvio</span>
                             @endif
                         </p>
                         @if ($includesDiscounts && $discountSavingsTotal > 0)
@@ -207,7 +207,7 @@
                 href="{{ route('contract.detail', $contract->id) }}"
                 class="inline-flex items-center gap-2 bg-white hover:bg-coral-50 text-coral-600 font-bold px-6 py-3 rounded-xl transition-all shadow-lg"
             >
-                Katso sopimus
+                Katso
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
                 </svg>
