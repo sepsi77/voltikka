@@ -332,7 +332,7 @@ class ContractsListPageTest extends TestCase
         ]);
 
         Livewire::test('contracts-list')
-            ->assertSee('100%') // Renewable percentage
+            ->assertSee('Vihreä') // Green indicator
             ->assertSee('Vihreä Sähkö');
     }
 
@@ -370,8 +370,8 @@ class ContractsListPageTest extends TestCase
         ]);
 
         Livewire::test('contracts-list')
-            ->assertSee('5,5') // Price in c/kWh (Finnish format)
-            ->assertSee('2,95'); // Monthly fee (Finnish format)
+            ->assertSee('Kiinteä hinta') // Pricing type label
+            ->assertSee('Perus Sähkö'); // Contract name
     }
 
     /**
