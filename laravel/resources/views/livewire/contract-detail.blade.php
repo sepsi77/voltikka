@@ -127,53 +127,54 @@
 
                     <!-- Unified evaluation card: verdict + details + action -->
                     @if ($rank && $totalContracts)
-                        <div class="mt-6 rounded-xl overflow-hidden ring-1 ring-inset ring-white/20 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.5)]">
+                        <div class="mt-6 rounded-xl overflow-hidden ring-[1.5px] ring-inset ring-white/25 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.6)]">
                             <!-- Verdict strip: full width, colored by tier -->
                             @if ($verdictTier === 'cheapest')
-                                <div class="px-4 py-3 bg-emerald-500/15 border-b border-emerald-400/20 flex items-center gap-3">
+                                <div class="px-5 py-3.5 bg-emerald-500/20 border-b border-emerald-400/25 flex items-center gap-3">
                                     <svg class="w-5 h-5 text-emerald-400 shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 15l-5.878 3.09 1.123-6.545L.49 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.755 4.635 1.123 6.545z"/></svg>
-                                    <span class="text-sm font-bold text-emerald-300">Halvin sopimus — {{ number_format($totalContracts, 0, ',', ' ') }} vertailussa</span>
+                                    <span class="text-base font-bold text-emerald-300">Halvin sopimus — {{ number_format($totalContracts, 0, ',', ' ') }} vertailussa</span>
                                 </div>
                             @elseif ($verdictTier === 'top10')
-                                <div class="px-4 py-3 bg-emerald-500/15 border-b border-emerald-400/20 flex items-center gap-3">
+                                <div class="px-5 py-3.5 bg-emerald-500/20 border-b border-emerald-400/25 flex items-center gap-3">
                                     <svg class="w-5 h-5 text-emerald-400 shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 15l-5.878 3.09 1.123-6.545L.49 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.755 4.635 1.123 6.545z"/></svg>
-                                    <span class="text-sm font-bold text-emerald-300">Yksi halvimmista — sijalla {{ $rank }} / {{ number_format($totalContracts, 0, ',', ' ') }}</span>
+                                    <span class="text-base font-bold text-emerald-300">Yksi halvimmista — sijalla {{ $rank }} / {{ number_format($totalContracts, 0, ',', ' ') }}</span>
                                 </div>
                             @elseif ($verdictTier === 'good')
-                                <div class="px-4 py-3 bg-white/[0.06] border-b border-white/10 flex items-center gap-3">
+                                <div class="px-5 py-3.5 bg-white/[0.08] border-b border-white/15 flex items-center gap-3">
                                     <svg class="w-5 h-5 text-slate-400 shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 15l-5.878 3.09 1.123-6.545L.49 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.755 4.635 1.123 6.545z"/></svg>
-                                    <span class="text-sm font-bold text-slate-200">Edullinen vaihtoehto — sijalla {{ $rank }} / {{ number_format($totalContracts, 0, ',', ' ') }}</span>
+                                    <span class="text-base font-bold text-slate-200">Edullinen vaihtoehto — sijalla {{ $rank }} / {{ number_format($totalContracts, 0, ',', ' ') }}</span>
                                 </div>
                             @elseif ($verdictTier === 'mid')
-                                <div class="px-4 py-3 bg-amber-500/10 border-b border-amber-400/15 flex items-center gap-3">
+                                <div class="px-5 py-3.5 bg-amber-500/15 border-b border-amber-400/20 flex items-center gap-3">
                                     <svg class="w-5 h-5 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 15l-5.878 3.09 1.123-6.545L.49 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.755 4.635 1.123 6.545z"/></svg>
-                                    <span class="text-sm font-bold text-amber-300">Keskihintainen — sijalla {{ $rank }} / {{ number_format($totalContracts, 0, ',', ' ') }}</span>
+                                    <span class="text-base font-bold text-amber-300">Keskihintainen — sijalla {{ $rank }} / {{ number_format($totalContracts, 0, ',', ' ') }}</span>
                                 </div>
                             @else
-                                <div class="px-4 py-3 bg-red-500/10 border-b border-red-400/15 flex items-center gap-3">
-                                    <span class="text-sm font-bold text-red-300">Kalliimpi vaihtoehto — sijalla {{ $rank }} / {{ number_format($totalContracts, 0, ',', ' ') }}</span>
+                                <div class="px-5 py-3.5 bg-red-500/15 border-b border-red-400/20 flex items-center gap-3">
+                                    <svg class="w-5 h-5 text-red-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                    <span class="text-base font-bold text-red-300">Kalliimpi vaihtoehto — sijalla {{ $rank }} / {{ number_format($totalContracts, 0, ',', ' ') }}</span>
                                 </div>
                             @endif
 
                             <!-- Detail columns -->
-                            <div class="bg-gradient-to-br from-white/[0.12] to-white/[0.05] divide-y divide-white/10 sm:divide-y-0 sm:divide-x sm:grid sm:grid-cols-[1fr_1fr_auto] sm:items-stretch">
-                                <div class="px-4 py-3.5 flex flex-col justify-center">
-                                    <div class="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">Hintaero halvimpaan</div>
-                                    <div class="mt-1 text-sm text-slate-200">
+                            <div class="bg-gradient-to-br from-white/[0.15] to-white/[0.06] divide-y divide-white/10 sm:divide-y-0 sm:divide-x sm:grid sm:grid-cols-[1fr_1fr_auto] sm:items-stretch">
+                                <div class="px-5 py-4 flex flex-col justify-center">
+                                    <div class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">Hintaero halvimpaan</div>
+                                    <div class="mt-1.5 text-base text-slate-200">
                                         @if ($rank === 1 && $cheapestAltCost && $maxSavings > 0)
                                             <span class="font-bold text-emerald-300">+{{ number_format($maxSavings, 0, ',', ' ') }} €</span>
-                                            <span class="text-slate-400">edullisempi kuin seuraava</span>
+                                            <span class="text-slate-400">edullisempi</span>
                                         @elseif ($cheapestAlt && $cheapestAltCost && $maxSavings > 0)
                                             <span class="font-bold text-white">{{ number_format($maxSavings, 0, ',', ' ') }} €</span>
-                                            <span class="text-slate-400">kalliimpi kuin halvin</span>
+                                            <span class="text-slate-400">kalliimpi</span>
                                         @else
                                             <span class="text-slate-400">Ei vertailutietoa</span>
                                         @endif
                                     </div>
                                 </div>
-                                <div class="px-4 py-3.5 flex flex-col justify-center">
-                                    <div class="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400">Halvin sopimus</div>
-                                    <div class="mt-1 text-sm text-slate-200 tabular-nums">
+                                <div class="px-5 py-4 flex flex-col justify-center">
+                                    <div class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">Halvin sopimus</div>
+                                    <div class="mt-1.5 text-base text-slate-200 tabular-nums">
                                         @if ($cheapestAltCost)
                                             <span class="font-bold text-white">{{ number_format($cheapestAltCost, 0, ',', ' ') }} €</span>
                                             <span class="text-slate-400">/ 12 kk</span>
@@ -182,7 +183,7 @@
                                         @endif
                                     </div>
                                 </div>
-                                <a href="/sahkosopimus" class="group px-4 py-3.5 flex items-center justify-between sm:justify-center gap-2 text-sm font-semibold text-coral-200 hover:text-white bg-coral-500/10 hover:bg-coral-500/20 transition-colors">
+                                <a href="/sahkosopimus" class="group px-5 py-4 flex items-center justify-between sm:justify-center gap-2 text-sm font-semibold text-coral-200 hover:text-white bg-coral-500/15 hover:bg-coral-500/25 transition-colors">
                                     Vertaa
                                     <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
