@@ -647,6 +647,7 @@
                 :rank="$overallRank"
                 :consumption="$consumption"
                 :prices="$this->getLatestPrices($contract)"
+                :percentiles="$this->getPercentiles()"
                 :showRank="false"
                 :showEmissions="true"
                 :showEnergyBadges="true"
