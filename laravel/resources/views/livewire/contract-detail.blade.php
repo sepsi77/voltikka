@@ -11,6 +11,21 @@
         $primaryCtaUrl = $contract->order_link ?: $contract->product_link;
         $secondaryCtaUrl = ($contract->order_link && $contract->product_link) ? $contract->product_link : null;
 
+        // Verdict framing: lead with evaluation outcome + savings vs. cheapest.
+        $cheapestAlt = ($cheaperContracts ?? collect())->isNotEmpty() ? $cheaperContracts->first() : null;
+        $maxSavings = $cheapestAlt ? (int) round(max(0, $cheapestAlt['savings'] ?? 0)) : 0;
+        $cheapestAltCost = $cheapestAlt ? (int) round($cheapestAlt['total_cost'] ?? 0) : null;
+        $cheaperCount = ($rank && $rank > 1) ? $rank - 1 : 0;
+        $rankPercentile = ($rank && $totalContracts) ? $rank / $totalContracts : null;
+        $verdictTier = 'unknown';
+        if ($rankPercentile !== null) {
+            if ($rank === 1) $verdictTier = 'cheapest';
+            elseif ($rankPercentile <= 0.1) $verdictTier = 'top10';
+            elseif ($rankPercentile <= 0.33) $verdictTier = 'good';
+            elseif ($rankPercentile <= 0.66) $verdictTier = 'mid';
+            else $verdictTier = 'expensive';
+        }
+
         $emissionFactor = $co2Emissions['emission_factor_g_per_kwh'] ?? null;
         $annualEmissionsKg = $co2Emissions['total_emissions_kg'] ?? null;
         // Average Finnish car fleet: ~140 gCO2/km (Traficom/Sitra)
@@ -66,7 +81,12 @@
                     <h1 class="text-2xl md:text-3xl font-bold text-white leading-tight">{{ $contract->name }}</h1>
                     <p class="text-slate-200 text-base mt-1">{{ $companyName }}</p>
                     <div class="flex flex-wrap gap-2 mt-3">
-                        @if ($contract->contract_type)
+                        {{-- fixed_time_range already implies FixedTerm; show contract_type only when there's no range --}}
+                        @if ($contract->fixed_time_range)
+                            <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-white/10 text-slate-100 border border-white/20">
+                                {{ ContractLabels::fixedTimeRange($contract->fixed_time_range) }}
+                            </span>
+                        @elseif ($contract->contract_type)
                             <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-white/10 text-slate-100 border border-white/20">
                                 {{ ContractLabels::contractType($contract->contract_type) }}
                             </span>
@@ -81,11 +101,6 @@
                                 {{ ContractLabels::pricingModel($contract->pricing_model) }}
                             </span>
                         @endif
-                        @if ($contract->fixed_time_range)
-                            <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-white/10 text-slate-100 border border-white/20">
-                                {{ ContractLabels::fixedTimeRange($contract->fixed_time_range) }}
-                            </span>
-                        @endif
                     </div>
                 </div>
             </div>
@@ -94,22 +109,6 @@
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-x-16 gap-y-10 lg:divide-x lg:divide-white/10">
                 <!-- Left two-thirds: rank + cost + CTA -->
                 <div class="lg:col-span-2 lg:pr-16">
-                    @if ($rank && $totalContracts)
-                        <div class="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3">
-                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-amber-500/20 text-amber-200 border border-amber-400/40 whitespace-nowrap">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M10 15l-5.878 3.09 1.123-6.545L.49 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.755 4.635 1.123 6.545z"/>
-                                </svg>
-                                #{{ $rank }} halvin · {{ number_format($totalContracts, 0, ',', ' ') }} sopimuksesta
-                            </span>
-                            @if ($rank > 1)
-                                <a href="/sahkosopimus" class="text-sm font-medium text-coral-300 hover:text-coral-200 underline underline-offset-2">
-                                    Katso {{ $rank - 1 }} halvempaa sopimusta →
-                                </a>
-                            @endif
-                        </div>
-                    @endif
-
                     <div
                         class="flex flex-wrap items-baseline gap-x-5 gap-y-2 transition-opacity duration-150"
                         wire:loading.class.delay="opacity-40"
@@ -123,8 +122,62 @@
                         </div>
                     </div>
 
+                    @if ($rank && $totalContracts)
+                        @if ($verdictTier === 'cheapest' || $verdictTier === 'top10')
+                            {{-- Well-ranked: keep it a single clean pill --}}
+                            <div class="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-emerald-500/20 text-emerald-200 border border-emerald-400/40 whitespace-nowrap">
+                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                        <path d="M10 15l-5.878 3.09 1.123-6.545L.49 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.755 4.635 1.123 6.545z"/>
+                                    </svg>
+                                    @if ($verdictTier === 'cheapest')
+                                        Halvin sopimus · {{ number_format($totalContracts, 0, ',', ' ') }} vertailussa
+                                    @else
+                                        Yksi halvimmista · #{{ $rank }} / {{ number_format($totalContracts, 0, ',', ' ') }}
+                                    @endif
+                                </span>
+                            </div>
+                        @elseif ($cheapestAlt && $cheapestAltCost && $maxSavings > 0)
+                            {{-- Mid/expensive: sober side-by-side comparison, not marketing copy --}}
+                            <div class="mt-6 rounded-xl bg-gradient-to-br from-white/[0.18] to-white/[0.09] ring-1 ring-inset ring-white/30 shadow-[0_1px_0_0_rgba(255,255,255,0.08)_inset,0_10px_30px_-15px_rgba(0,0,0,0.5)] divide-y divide-white/15 sm:divide-y-0 sm:divide-x sm:grid sm:grid-cols-[1fr_1fr_auto] sm:items-stretch overflow-hidden">
+                                <div class="px-4 py-3.5 flex flex-col justify-center">
+                                    <div class="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-300">Hintasijoitus</div>
+                                    <div class="mt-1 text-sm text-slate-100 leading-snug">
+                                        <span class="font-bold text-white tabular-nums">{{ number_format($cheaperCount, 0, ',', ' ') }}</span>
+                                        / {{ number_format($totalContracts, 0, ',', ' ') }} sopimusta on tätä edullisempia
+                                        @if ($consumption)
+                                            <span class="text-slate-400">({{ number_format($consumption, 0, ',', ' ') }} kWh/v)</span>
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="px-4 py-3.5 flex flex-col justify-center">
+                                    <div class="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-300">Halvin sopimus</div>
+                                    <div class="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 tabular-nums">
+                                        <span class="text-sm font-bold text-white">{{ number_format($cheapestAltCost, 0, ',', ' ') }} €/v</span>
+                                        <span class="text-xs font-bold text-emerald-300">
+                                            −{{ number_format($maxSavings, 0, ',', ' ') }} €/v
+                                        </span>
+                                    </div>
+                                </div>
+                                <a href="/sahkosopimus" class="group px-4 py-3.5 flex items-center justify-between sm:justify-center gap-2 text-sm font-semibold text-coral-200 hover:text-white bg-coral-500/10 hover:bg-coral-500/20 transition-colors">
+                                    Vertaa sopimuksia
+                                    <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                                    </svg>
+                                </a>
+                            </div>
+                        @else
+                            {{-- Fallback (no cheaper data): just show the rank cleanly --}}
+                            <div class="mt-6">
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-white/10 text-slate-200 border border-white/20 whitespace-nowrap">
+                                    Sijalla #{{ $rank }} / {{ number_format($totalContracts, 0, ',', ' ') }}
+                                </span>
+                            </div>
+                        @endif
+                    @endif
+
                     @if ($primaryCtaUrl)
-                        <div class="mt-10">
+                        <div class="mt-8">
                             <div class="flex flex-wrap items-center gap-x-8 gap-y-4">
                                 <a
                                     href="{{ $primaryCtaUrl }}"
@@ -172,25 +225,33 @@
                             @endif
                         </div>
 
-                        <div class="flex items-baseline gap-2">
-                            <div class="text-5xl font-extrabold text-white tracking-tight leading-none">
-                                {{ number_format($annualEmissionsKg ?? 0, 0, ',', ' ') }}
-                            </div>
-                            <div class="text-slate-200 text-base">kg CO₂/vuosi</div>
-                        </div>
-
                         @if ($heroDrivingKm > 0)
-                            <div class="mt-3 flex items-center gap-2 text-base text-slate-200">
-                                <svg class="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 17h8m-8 0a2 2 0 11-4 0 2 2 0 014 0zm12 0a2 2 0 11-4 0 2 2 0 014 0zM3 13l2-7h14l2 7M3 13v4h18v-4M3 13h18"/>
-                                </svg>
-                                <span>Vastaa <span class="font-semibold text-white">{{ number_format($heroDrivingKm, 0, ',', ' ') }} km</span> henkilöautolla</span>
+                            <div class="flex items-baseline gap-2">
+                                <div class="text-5xl font-extrabold text-white tracking-tight leading-none tabular-nums">
+                                    {{ number_format($heroDrivingKm, 0, ',', ' ') }}
+                                </div>
+                                <div class="text-slate-200 text-base">km autolla</div>
+                            </div>
+                            <div class="mt-3 text-sm text-slate-300">
+                                Sähkönkulutuksesi vastaa
+                                <span class="font-semibold text-white tabular-nums">{{ number_format($annualEmissionsKg, 0, ',', ' ') }} kg</span>
+                                CO₂-päästöjä vuodessa.
+                            </div>
+                        @else
+                            <div class="flex items-baseline gap-2">
+                                <div class="text-5xl font-extrabold text-white tracking-tight leading-none tabular-nums">0</div>
+                                <div class="text-slate-200 text-base">kg CO₂/vuosi</div>
+                            </div>
+                            <div class="mt-3 text-sm text-slate-300">
+                                Tämän sopimuksen sähköntuotannolla ei ole suoria CO₂-päästöjä.
                             </div>
                         @endif
 
-                        <a href="/sahkosopimus/fossiiliton" class="mt-5 inline-flex items-center text-sm font-medium text-coral-300 hover:text-coral-200">
-                            Katso päästöttömät sopimukset →
-                        </a>
+                        @if ($heroDrivingKm > 0)
+                            <a href="/sahkosopimus/fossiiliton" class="mt-5 inline-flex items-center text-sm font-medium text-coral-300 hover:text-coral-200">
+                                Katso päästöttömät sopimukset →
+                            </a>
+                        @endif
                     </aside>
                 @endif
             </div>
