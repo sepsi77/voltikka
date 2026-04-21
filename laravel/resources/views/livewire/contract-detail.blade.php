@@ -400,10 +400,8 @@
                                 </p>
                                 <p class="text-sm text-amber-700 mt-1">
                                     @if ($discountInfo)
-                                        @if ($discountInfo['value'] && $discountInfo['is_percentage'])
-                                            -{{ number_format($discountInfo['value'], 0) }}% alennus
-                                        @elseif ($discountInfo['value'])
-                                            -{{ number_format($discountInfo['value'], 2, ',', ' ') }} c/kWh alennus
+                                        @if ($contract->formatActiveDiscountValue($discountInfo))
+                                            {{ $contract->formatActiveDiscountValue($discountInfo) }}
                                         @endif
                                         @if ($discountInfo['until_date'])
                                             <span class="ml-2 text-amber-600">

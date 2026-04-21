@@ -34,6 +34,13 @@ Current intended behavior:
   - latest relevant prices per component type
   - promotion/discount summary when present
 
+### Discount display guardrail
+
+When showing a promotion/discount summary for a contract or a historical version:
+- read the discounted `price_component_type` / `payment_unit`
+- do **not** assume every absolute discount is `c/kWh`
+- monthly-component discounts must be shown as monthly-fee discounts (for example `€/kk`), not energy-price discounts
+
 ### Important decision: do not flatten the chain
 
 Even if an older contract could redirect straight to the newest active version, the UI should preserve intermediate versions.

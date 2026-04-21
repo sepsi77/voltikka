@@ -713,9 +713,12 @@ class ContractDetail extends Component
         }
 
         if ($discountedComponent->discount_value) {
-            $parts[] = $discountedComponent->discount_is_percentage
-                ? '-' . number_format($discountedComponent->discount_value, 0, ',', ' ') . '% alennus'
-                : '-' . number_format($discountedComponent->discount_value, 2, ',', ' ') . ' c/kWh alennus';
+            $parts[] = $contract->formatActiveDiscountValue([
+                'value' => $discountedComponent->discount_value,
+                'is_percentage' => $discountedComponent->discount_is_percentage,
+                'price_component_type' => $discountedComponent->price_component_type,
+                'payment_unit' => $discountedComponent->payment_unit,
+            ]);
         }
 
         if ($discountedComponent->discount_discount_until_date) {

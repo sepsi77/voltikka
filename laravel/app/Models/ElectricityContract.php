@@ -394,7 +394,7 @@ class ElectricityContract extends Model
      *
      * Returns an array with discount details or null if no active discount exists.
      *
-     * @return array{value: float|null, is_percentage: bool|null, n_first_months: int|null, until_date: \Carbon\Carbon|null}|null
+     * @return array{value: float|null, is_percentage: bool|null, n_first_months: int|null, until_date: \Carbon\Carbon|null, price_component_type: string|null, payment_unit: string|null}|null
      */
     public function getActiveDiscountInfo(): ?array
     {
@@ -417,6 +417,36 @@ class ElectricityContract extends Model
             'is_percentage' => $priceComponent->discount_is_percentage,
             'n_first_months' => $priceComponent->discount_discount_n_first_months,
             'until_date' => $priceComponent->discount_discount_until_date,
+            'price_component_type' => $priceComponent->price_component_type,
+            'payment_unit' => $priceComponent->payment_unit,
         ];
+    }
+
+    /**
+     * Format the active discount amount using the discounted component's unit.
+     */
+    public function formatActiveDiscountValue(?array $discountInfo = null): ?string
+    {
+        $discountInfo ??= $this->getActiveDiscountInfo();
+
+        if (!$discountInfo || !$discountInfo['value']) {
+            return null;
+        }
+
+        if ($discountInfo['is_percentage']) {
+            return '-' . number_format($discountInfo['value'], 0, ',', ' ') . '% alennus';
+        }
+
+        $unit = match ($discountInfo['payment_unit'] ?? null) {
+            'EurPerMonth' => '€/kk',
+            'CentPerKiwattHour' => 'c/kWh',
+            default => ($discountInfo['price_component_type'] ?? null) === 'Monthly' ? '€/kk' : null,
+        };
+
+        if (!$unit) {
+            return '-' . number_format($discountInfo['value'], 2, ',', ' ') . ' alennus';
+        }
+
+        return '-' . number_format($discountInfo['value'], 2, ',', ' ') . ' ' . $unit . ' alennus';
     }
 }

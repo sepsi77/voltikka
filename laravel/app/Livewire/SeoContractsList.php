@@ -783,12 +783,7 @@ class SeoContractsList extends ContractsList
             if ($contract->hasActiveDiscounts()) {
                 $discountInfo = $contract->getActiveDiscountInfo();
                 if ($discountInfo) {
-                    $discountDesc = '';
-                    if ($discountInfo['is_percentage'] && $discountInfo['value']) {
-                        $discountDesc = '-' . number_format($discountInfo['value'], 0) . '%';
-                    } elseif ($discountInfo['value']) {
-                        $discountDesc = '-' . number_format($discountInfo['value'], 2, ',', '') . ' c/kWh';
-                    }
+                    $discountDesc = $contract->formatActiveDiscountValue($discountInfo);
                     if ($discountInfo['n_first_months'] && $discountDesc) {
                         $discountDesc .= ' ensimmäiset ' . $discountInfo['n_first_months'] . ' kk';
                     }
