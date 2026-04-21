@@ -141,6 +141,10 @@ class FetchContracts extends Command
                 $this->info("Company list cache version bumped to {$companyVersion}. Warming company list cache...");
                 $companyListCache->warm();
                 $this->info('Company list cache warmed successfully.');
+
+                // Recalculate percentile thresholds for smart callout badges
+                $this->info('Recalculating pricing percentiles...');
+                $this->call('contracts:calculate-percentiles');
             } catch (\Throwable $cacheException) {
                 Log::warning('Failed to warm caches after contracts fetch', [
                     'exception' => $cacheException->getMessage(),
