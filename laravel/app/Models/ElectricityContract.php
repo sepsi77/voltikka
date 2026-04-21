@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 class ElectricityContract extends Model
@@ -47,6 +48,7 @@ class ElectricityContract extends Model
     protected $fillable = [
         'id',
         'api_id',
+        'replaced_by_contract_id',
         'company_name',
         'name',
         'name_slug',
@@ -227,6 +229,22 @@ class ElectricityContract extends Model
     }
 
     /**
+     * The contract that replaced this one.
+     */
+    public function replacedBy(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'replaced_by_contract_id', 'id');
+    }
+
+    /**
+     * Historical contracts that directly point to this contract as their replacement.
+     */
+    public function replacements(): HasMany
+    {
+        return $this->hasMany(self::class, 'replaced_by_contract_id', 'id');
+    }
+
+    /**
      * Scope a query to only include active contracts.
      *
      * Active contracts are those that have a corresponding record in the active_contracts table.
@@ -242,6 +260,71 @@ class ElectricityContract extends Model
     public function isActive(): bool
     {
         return $this->activeContract()->exists();
+    }
+
+    /**
+     * Get the forward replacement chain starting from this contract.
+     *
+     * @return Collection<int, self>
+     */
+    public function getReplacementChainForward(): Collection
+    {
+        $chain = collect();
+        $seen = [];
+        $current = $this->replacedBy;
+
+        while ($current && ! isset($seen[$current->id])) {
+            $chain->push($current);
+            $seen[$current->id] = true;
+            $current = $current->replacedBy;
+        }
+
+        return $chain;
+    }
+
+    /**
+     * Get all predecessor contracts that eventually lead to this contract.
+     *
+     * @return Collection<int, self>
+     */
+    public function getReplacementChainBackward(): Collection
+    {
+        $results = collect();
+        $queue = $this->replacements()->get();
+        $seen = [];
+
+        while ($queue->isNotEmpty()) {
+            /** @var self $current */
+            $current = $queue->shift();
+
+            if (isset($seen[$current->id])) {
+                continue;
+            }
+
+            $seen[$current->id] = true;
+            $results->push($current);
+            $queue = $queue->merge($current->replacements()->get());
+        }
+
+        return $results;
+    }
+
+    /**
+     * Resolve the latest reachable replacement in the forward chain.
+     */
+    public function resolveLatestReplacement(): ?self
+    {
+        $seen = [$this->id => true];
+        $current = $this;
+        $latest = null;
+
+        while ($current->replacedBy && ! isset($seen[$current->replacedBy->id])) {
+            $current = $current->replacedBy;
+            $seen[$current->id] = true;
+            $latest = $current;
+        }
+
+        return $latest;
     }
 
     /**

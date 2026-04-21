@@ -57,6 +57,8 @@ class ContractDetail extends Component
         // Adjust default consumption if it falls outside the contract's limits
         $contract = $this->contract;
         if ($contract) {
+            $this->redirectToLatestReplacementIfAvailable($contract);
+
             $this->consumption = $this->clampConsumption($this->consumption, $contract);
 
             // Track contract view
@@ -145,6 +147,27 @@ class ContractDetail extends Component
         }
 
         return false;
+    }
+
+    /**
+     * Redirect inactive contracts to the latest known replacement when available.
+     */
+    protected function redirectToLatestReplacementIfAvailable(ElectricityContract $contract): void
+    {
+        if ($contract->isActive()) {
+            return;
+        }
+
+        $latestReplacement = $contract->resolveLatestReplacement();
+
+        if (! $latestReplacement || ! $latestReplacement->isActive()) {
+            return;
+        }
+
+        $url = route('contract.detail', ['contractId' => $latestReplacement->id]);
+        $response = new \Illuminate\Http\RedirectResponse($url, 301);
+
+        throw new \Illuminate\Http\Exceptions\HttpResponseException($response);
     }
 
     /**
@@ -314,9 +337,14 @@ class ContractDetail extends Component
             return 'Sähkösopimus | Voltikka';
         }
 
+        $name = $this->truncateName($contract->name);
+
+        if (! $this->isActive) {
+            return "{$name} ei ole enää saatavilla | Voltikka";
+        }
+
         $rank = $this->priceRank;
         $total = $this->totalContracts;
-        $name = $this->truncateName($contract->name);
 
         if ($rank && $total) {
             return "{$name} | #{$rank} halvin — Vertaa {$total} sopimuksessa | Voltikka";
@@ -338,8 +366,13 @@ class ContractDetail extends Component
             return 'Sähkösopimus | Voltikka';
         }
 
-        $rank = $this->priceRank;
         $name = $this->truncateName($contract->name);
+
+        if (! $this->isActive) {
+            return "{$name} ei ole enää saatavilla | Voltikka";
+        }
+
+        $rank = $this->priceRank;
 
         if ($rank) {
             return "{$name} | #{$rank} halvin | Voltikka";
@@ -358,6 +391,10 @@ class ContractDetail extends Component
         $contract = $this->contract;
         if (! $contract) {
             return '';
+        }
+
+        if (! $this->isActive) {
+            return "{$contract->name} ei ole enää tarjolla. Katso ajantasaiset sähkösopimukset ja vaihtoehdot Voltikasta.";
         }
 
         $total = $this->totalContracts;
@@ -522,7 +559,7 @@ class ContractDetail extends Component
     {
         $contract = $this->contract;
 
-        if (! $contract) {
+        if (! $contract || ! $this->isActive) {
             return [];
         }
 
@@ -546,7 +583,7 @@ class ContractDetail extends Component
     {
         $contract = $this->contract;
 
-        if (! $contract) {
+        if (! $contract || ! $this->isActive) {
             return [];
         }
 
@@ -793,7 +830,7 @@ class ContractDetail extends Component
     {
         $contract = $this->contract;
 
-        if (! $contract) {
+        if (! $contract || ! $this->isActive) {
             return [];
         }
 
@@ -864,17 +901,22 @@ class ContractDetail extends Component
             'liveRank' => $this->liveRank,
             'liveTotalContracts' => $this->liveTotalContracts,
             'priceChangeInfo' => $this->priceChangeInfo,
-            'schemas' => [
+            'schemas' => array_values(array_filter([
                 $this->webPageSchema,
                 $this->productSchema,
                 $this->breadcrumbSchema,
-            ],
+            ])),
         ])->layout('layouts.app', [
             'title' => $this->pageTitle,
             'ogTitle' => $this->ogTitle,
             'metaDescription' => $this->metaDescription,
             'canonical' => $this->canonicalUrl,
         ])->response(function ($response) {
+            if (! $this->isActive) {
+                $response->setStatusCode(410);
+                $response->headers->set('X-Robots-Tag', 'noindex, nofollow');
+            }
+
             app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
         });
     }

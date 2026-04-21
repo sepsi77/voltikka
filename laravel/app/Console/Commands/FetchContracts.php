@@ -14,6 +14,7 @@ use App\Services\AzureConsumerApiClient;
 use App\Services\CompanyListCacheService;
 use App\Services\CompanyLogoService;
 use App\Services\ContractListCacheService;
+use App\Services\ContractReplacementLinker;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\RequestException;
@@ -114,6 +115,15 @@ class FetchContracts extends Command
 
             // Upload spot futures (from first contract)
             $this->processSpotFutures($allContracts, $today);
+
+            $replacementStats = app(ContractReplacementLinker::class)->linkHighConfidenceMatches();
+            $this->info(sprintf(
+                'Replacement links: linked %d, skipped existing %d, skipped no match %d, skipped not high confidence %d.',
+                $replacementStats['linked'],
+                $replacementStats['skipped_existing'],
+                $replacementStats['skipped_no_match'],
+                $replacementStats['skipped_not_high']
+            ));
 
             DB::commit();
 

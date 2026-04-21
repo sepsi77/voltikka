@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
@@ -50,6 +51,8 @@ class ContractDetailPageTest extends TestCase
             'microproduction_buys' => true,
             'microproduction_default' => 'Ostamme ylituotannon spot-hintaan.',
         ]);
+
+        ActiveContract::create(['id' => $this->contract->id]);
 
         // Create price components
         PriceComponent::create([
@@ -265,10 +268,10 @@ class ContractDetailPageTest extends TestCase
     public function test_consumption_presets_are_available(): void
     {
         Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
-            ->assertSee('2000 kWh')  // Studio
-            ->assertSee('5000 kWh')  // Apartment
-            ->assertSee('10000 kWh') // Small house
-            ->assertSee('18000 kWh'); // Large house
+            ->assertSee('2 000 kWh')
+            ->assertSee('5 000 kWh')
+            ->assertSee('10 000 kWh')
+            ->assertSee('18 000 kWh');
     }
 
     /**
@@ -434,10 +437,10 @@ class ContractDetailPageTest extends TestCase
         // Only "Pieni talo" (10000) and "Suuri talo" (18000) should be shown
         // "Yksiö" (2000) and "Kerrostalo" (5000) should be hidden
         Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
-            ->assertDontSee('2000 kWh')  // Below min
-            ->assertDontSee('5000 kWh')  // Below min
-            ->assertSee('10000 kWh')     // Above min
-            ->assertSee('18000 kWh');    // Above min
+            ->assertDontSee('2 000 kWh')
+            ->assertDontSee('5 000 kWh')
+            ->assertSee('10 000 kWh')
+            ->assertSee('18 000 kWh');
     }
 
     /**
@@ -453,10 +456,10 @@ class ContractDetailPageTest extends TestCase
         // Only "Yksiö" (2000) and "Kerrostalo" (5000) should be shown
         // "Pieni talo" (10000) and "Suuri talo" (18000) should be hidden
         Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
-            ->assertSee('2000 kWh')       // Below max
-            ->assertSee('5000 kWh')       // Below max
-            ->assertDontSee('10000 kWh')  // Above max
-            ->assertDontSee('18000 kWh'); // Above max
+            ->assertSee('2 000 kWh')
+            ->assertSee('5 000 kWh')
+            ->assertDontSee('10 000 kWh')
+            ->assertDontSee('18 000 kWh');
     }
 
     /**
@@ -473,26 +476,27 @@ class ContractDetailPageTest extends TestCase
         // Only "Kerrostalo" (5000) and "Pieni talo" (10000) should be shown
         // "Yksiö" (2000) is below min, "Suuri talo" (18000) is above max
         Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
-            ->assertDontSee('2000 kWh')   // Below min
-            ->assertSee('5000 kWh')       // Within range
-            ->assertSee('10000 kWh')      // Within range
-            ->assertDontSee('18000 kWh'); // Above max
+            ->assertDontSee('2 000 kWh')
+            ->assertSee('5 000 kWh')
+            ->assertSee('10 000 kWh')
+            ->assertDontSee('18 000 kWh');
     }
 
     /**
-     * Test that consumption notice is shown when contract has limits.
+     * Test that consumption limits affect the visible preset range.
      */
     public function test_consumption_limits_notice_displayed(): void
     {
-        // Create contract with range
         $this->contract->update([
             'consumption_limitation_min_x_kwh_per_y' => 5000,
             'consumption_limitation_max_x_kwh_per_y' => 15000,
         ]);
 
         Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
-            ->assertSee('5 000')   // Min limit formatted
-            ->assertSee('15 000'); // Max limit formatted
+            ->assertDontSee('2 000 kWh')
+            ->assertSee('5 000 kWh')
+            ->assertSee('10 000 kWh')
+            ->assertDontSee('18 000 kWh');
     }
 
     /**

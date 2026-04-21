@@ -50,7 +50,9 @@ php artisan serve              # Runs on http://127.0.0.1:8000
 ### Key Artisan Commands
 ```bash
 # Contract data
-php artisan contracts:fetch           # Fetch contracts from Azure API
+php artisan contracts:fetch                # Fetch contracts from Azure API and auto-link high-confidence replacements
+php artisan contracts:detect-replacements  # Report likely replacements for inactive contracts
+php artisan contracts:link-replacements    # Persist high-confidence replacement links
 
 # Spot prices
 php artisan spot:fetch               # Fetch current spot prices from ENTSO-E
@@ -158,6 +160,8 @@ php artisan test --filter="ContractsFilterTest"
 | `target_group` | Household, Company, Both | Consumer vs business |
 | `contract_type` | OpenEnded, FixedTerm | Contract duration type |
 | `metering` | General, Time, Season | Tariff structure |
+| `fixed_time_range` | Below6, Fixed6, Between711, Fixed12, Between1323, Fixed24, Over24, Other | Fixed-term duration bucket |
+| `replaced_by_contract_id` | contract id or null | Forward link to detected replacement contract |
 
 #### PriceComponent Types
 | Type | Description |
@@ -227,6 +231,43 @@ All SEO listing pages use `SeoContractsList` component. See "Creating SEO Contra
 - **Winter months**: January, February, March, November, December
 - **Spot contracts**: Identified by `pricing_model = 'Spot'`, NOT by name matching
 - **Company logos**: Stored in Google Cloud Storage, optimized to WebP format
+
+## Contract Replacement Handling
+
+Inactive contracts are kept in the database for history and SEO continuity. They are not deleted.
+
+### Current behavior
+- Active contract detail pages render normally.
+- Inactive contracts with a high-confidence replacement chain redirect with **301** to the latest active replacement.
+- Inactive contracts without a trusted replacement return **410 Gone** with `X-Robots-Tag: noindex, nofollow`.
+
+### Replacement matching rules
+The matcher is intentionally conservative and only auto-links when confidence is high.
+
+Hard requirements:
+- same provider
+- same `contract_type`
+- same `metering`
+- same `pricing_model`
+- same `target_group`
+- if fixed-term, same `fixed_time_range`
+
+Name matching then scores candidates by:
+- normalized base-name similarity
+- identity token overlap
+- profile/variant token overlap
+- full-string similarity
+- tolerance for promotion text changes like `0€ perusmaksu`, `ensimmäiset 3 kk`, etc.
+
+### Main implementation files
+- `app/Services/ContractReplacementMatcher.php`
+- `app/Services/ContractReplacementLinker.php`
+- `app/Console/Commands/DetectReplacementContracts.php`
+- `app/Console/Commands/LinkReplacementContracts.php`
+- `app/Livewire/ContractDetail.php`
+- `app/Models/ElectricityContract.php`
+
+See `laravel/CLAUDE.md` for detailed implementation and chain-querying guidance.
 
 ## Code Patterns
 
@@ -431,3 +472,10 @@ The main navigation uses dropdown menus (desktop) and collapsible sections (mobi
 - **Aurinkopaneelit**
 
 The header also displays the current spot price via `HeaderSpotPrice` component.
+
+## Documentation Maintenance
+
+After any meaningful domain, data model, import, routing, or SEO behavior change:
+- update this root `CLAUDE.md` with the high-level behavior summary
+- update the closest context file with implementation detail (for Laravel app work, `laravel/CLAUDE.md`)
+- keep root docs short and architectural; keep detailed operational notes near the source
