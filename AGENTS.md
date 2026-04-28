@@ -315,6 +315,7 @@ $result = $calculator->calculate($priceComponents, $contractData, $usage);
 ### Discount-aware pricing behavior
 - `ContractPriceCalculator` now supports structured price-component discounts for first-year estimates
 - calculation inputs should include latest price components with discount metadata, not only raw `price`
+- contract list/cache code must avoid eager-loading full `priceComponents` history for all active contracts; use `ElectricityContract::getLatestPriceComponentsForCalculation()` so list metric rebuilds stay under memory limits
 - discounted totals are component-scoped:
   - monthly fee promos apply only to `Monthly`
   - energy promos apply only to the matching energy component type

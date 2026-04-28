@@ -372,7 +372,13 @@ class ElectricityContract extends Model
      */
     public function getLatestPriceComponentsForCalculation(): array
     {
-        return $this->priceComponents
+        $priceComponents = $this->relationLoaded('priceComponents')
+            ? $this->priceComponents
+            : $this->priceComponents()
+                ->orderByDesc('price_date')
+                ->get();
+
+        return $priceComponents
             ->sortByDesc('price_date')
             ->groupBy('price_component_type')
             ->map(fn ($group) => $group->sortByDesc('price_date')->first(fn ($item) => $item->price > 0) ?? $group->sortByDesc('price_date')->first())

@@ -78,7 +78,7 @@ class ContractListCacheService
     {
         $contracts = ElectricityContract::query()
             ->active()
-            ->with(['priceComponents', 'electricitySource'])
+            ->with(['electricitySource'])
             ->get();
 
         $spotPriceAvg = SpotPriceAverage::latestRolling365Days();

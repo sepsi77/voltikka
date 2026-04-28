@@ -42,6 +42,7 @@ Important pricing guardrails:
 - structured discounts are attached to individual price components, not to the whole contract price
 - calculation inputs should preserve component discount metadata (`has_discount`, value/type/months/kWh/until-date, `payment_unit`)
 - use `ElectricityContract::getLatestPriceComponentsForCalculation()` instead of rebuilding calculator arrays ad hoc
+- do not eagerly load full `priceComponents` history for contract-list/cache calculations; the active dataset has tens of thousands of historical price rows and can exceed PHP's 128M request memory limit
 - first-year promo-aware pricing should return both discounted totals and base totals/savings so UI can explain the effect of the offer
 - do not assume `monthly_costs` represent calendar Jan-Dec once promo timing matters; they are the calculator's 12-month estimate timeline
 

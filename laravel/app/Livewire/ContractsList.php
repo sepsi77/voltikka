@@ -993,8 +993,9 @@ class ContractsList extends Component
             $calculator = app(ContractPriceCalculator::class);
             $emissionsCalculator = app(CO2EmissionsCalculator::class);
 
-            // Load price components only when cache is not available
-            $contracts->loadMissing('priceComponents');
+            // Do not eager load full price history here. getLatestPriceComponentsForCalculation()
+            // loads only this contract's components on demand, avoiding 50k+ active
+            // price-component models in memory when rebuilding list metrics.
 
             // Get spot price averages for calculations
             $spotPriceAvg = SpotPriceAverage::latestRolling365Days();
