@@ -207,18 +207,18 @@
         {{-- Total Cost + CTA --}}
         <div class="flex flex-wrap items-center gap-x-6 gap-y-3 lg:flex-nowrap lg:gap-6 w-full lg:w-auto lg:ml-auto lg:justify-end">
             @if ($totalCost !== null)
-                <div class="order-first w-full pb-3 border-b border-slate-100 lg:order-none lg:w-[170px] lg:pb-0 lg:border-b-0 lg:text-right">
+                <div class="order-first w-full pb-3 border-b border-slate-100 lg:order-none lg:min-w-[190px] lg:pb-0 lg:border-b-0 lg:text-right">
                     <p class="lg:hidden text-[10px] font-bold uppercase tracking-[0.18em] text-coral-600 mb-1">
                         12 kk hinta
                         @if ($isSpotContract)
                             <span class="font-medium normal-case text-slate-400">· arvio</span>
                         @endif
                     </p>
-                    <div class="inline-flex items-baseline gap-2">
-                        <span class="text-4xl lg:text-5xl font-extrabold {{ $featured ? 'text-coral-600' : 'text-slate-900' }} tabular-nums leading-none">
+                    <div class="inline-flex items-baseline gap-2 whitespace-nowrap">
+                        <span class="text-4xl lg:text-5xl font-extrabold {{ $featured ? 'text-coral-600' : 'text-slate-900' }} tabular-nums leading-none whitespace-nowrap">
                             {{ number_format($totalCost, 0, ',', ' ') }}
                         </span>
-                        <span class="text-lg lg:text-base font-medium text-slate-400">€/12 kk</span>
+                        <span class="text-lg lg:text-base font-medium text-slate-400 whitespace-nowrap">€/12 kk</span>
                     </div>
                     <p class="hidden lg:block text-xs text-slate-500 mt-1">
                         12 kk hinta sis. tarjoukset
