@@ -194,7 +194,7 @@ class ContractPriceStatisticsService
             ];
 
             foreach ($metrics as [$metricKey, $consumption, $values]) {
-                $values = $this->cleanValues($values);
+                $values = $this->cleanValues($values, $metricKey);
                 if ($values === []) {
                     continue;
                 }
@@ -220,15 +220,30 @@ class ContractPriceStatisticsService
     }
 
     /**
+     * Drop nulls and (for cost-bearing metrics) values that round to zero,
+     * which indicate missing/promo source data rather than a real price.
+     * `monthly_fee` is permissive about zero because some contracts legitimately
+     * have a 0 €/kk perusmaksu (free during promo, etc.).
+     *
      * @param array<int, mixed> $values
      * @return array<int, float>
      */
-    private function cleanValues(array $values): array
+    private function cleanValues(array $values, string $metricKey): array
     {
+        $treatZeroAsMissing = $metricKey !== 'monthly_fee';
+
         return array_values(array_filter(array_map(
             fn ($value) => $value === null ? null : (float) $value,
             $values
-        ), fn ($value) => $value !== null));
+        ), function ($value) use ($treatZeroAsMissing) {
+            if ($value === null) {
+                return false;
+            }
+            if ($treatZeroAsMissing && $value < 0.005) {
+                return false;
+            }
+            return true;
+        }));
     }
 
     /**
