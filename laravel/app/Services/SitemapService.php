@@ -127,6 +127,12 @@ class SitemapService
                 'priority' => 0.9,
             ],
             [
+                'loc' => $baseUrl . '/sahkosopimus/tilastot',
+                'lastmod' => $today,
+                'changefreq' => 'daily',
+                'priority' => 0.85,
+            ],
+            [
                 'loc' => $baseUrl . '/sahkosopimus/sahkoyhtiot',
                 'lastmod' => $today,
                 'changefreq' => 'weekly',

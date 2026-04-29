@@ -24,6 +24,33 @@ Primary implementation:
 
 ## Data model
 
+### Contract price statistics
+
+Voltikka stores daily contract-price trend data for `/sahkosopimus/tilastot`.
+
+Primary tables:
+- `contract_price_snapshots` — one daily row per included contract with normalized component prices and annual-cost estimates for 2000/5000/18000 kWh.
+- `contract_price_daily_statistics` — aggregate daily min/p20/average/p80/max rows by segment and metric.
+
+Primary implementation:
+- `app/Services/ContractStatistics/ContractPriceStatisticsService.php`
+- `app/Services/ContractStatistics/AGENTS.md`
+- `app/Console/Commands/CalculateContractPriceStatistics.php`
+- `app/Console/Commands/BackfillContractPriceStatistics.php`
+- `app/Livewire/ContractPriceStatistics.php`
+
+Commands:
+```bash
+php artisan contracts:calculate-price-statistics --date=2026-04-29 --overwrite
+php artisan contracts:backfill-price-statistics --from=2025-01-01 --to=2026-04-29 --overwrite
+```
+
+Important semantics:
+- future daily calculations are run after `contracts:fetch` and use `active_contracts`
+- historical backfills infer availability from `price_components.price_date`
+- missing contract rows for a date are excluded; prices are not carried forward
+- spot contracts store both supplier margin and total spot energy price (`stored spot average + margin`)
+
 ### `electricity_contracts.replaced_by_contract_id`
 - Nullable FK to `electricity_contracts.id`
 - Points forward from an old contract to the contract that replaced it

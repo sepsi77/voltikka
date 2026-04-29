@@ -107,6 +107,15 @@ php artisan test --filter="ContractsFilterTest"
 - **Route**: `/sahkosopimus/laskuri`
 - Estimates annual consumption based on housing type and heating
 
+### 5. Contract Price Statistics (SEO link-acquisition page)
+- **Location**: `app/Livewire/ContractPriceStatistics.php`
+- **Route**: `/sahkosopimus/tilastot` (page) + `/sahkosopimus/tilastot.csv` (CC BY 4.0 download)
+- **Audience**: journalists, Reddit/HS commenters, data-curious laypeople, search traffic on `sähkön hinta tilastot`. Not a buyer tool.
+- **Goal**: inbound links and quoted screenshots. The lead chart and a data-driven editorial caption are the load-bearing surface; segment table, consumption section, spot deep-dive, and methodology + citation block serve the long tail.
+- **Tech**: uPlot line charts (single JS chart library in the project), inline-SVG sparklines, Schema.org `Dataset` + `DataDownload` JSON-LD. Deep-linkable `?kulutus=` and `?jakso=` query params.
+- **Visual register**: light theme. The dark slate-950 hero from `DESIGN.md` is intentionally **not** used here, since the page must read as neutral citation material rather than marketing.
+- See `laravel/CLAUDE.md` "Contract price statistics page" for implementation conventions and guardrails.
+
 ## Laravel Architecture
 
 ### Key Models (`app/Models/`)

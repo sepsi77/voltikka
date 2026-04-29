@@ -1,0 +1,18 @@
+[
+  {"name":"Confirm open questions: VAT inclusion in stored snapshots, CSV license, lead-chart default segments","status":"done"},
+  {"name":"Add uPlot to laravel/package.json and Vite entry; verify bundle size budget","status":"done"},
+  {"name":"Extend ContractPriceStatistics Livewire component: query params (kulutus, jakso), period-over-period deltas, sparkline series, dynamic caption generator, CSV stream","status":"done"},
+  {"name":"Build editorial header strip: H1, dek, meta row (data window, last update, contract count, CSV link, citation link)","status":"done"},
+  {"name":"Build lead chart: uPlot line chart with 4 segments, coral lead line, direct end-labels, crosshair tooltip, accessible text fallback","status":"done"},
+  {"name":"Build editorial callouts row (3 plain-text leads, no card strokes, no big numbers)","status":"done"},
+  {"name":"Build period-over-period segment table with inline SVG sparkline column","status":"done"},
+  {"name":"Build consumption section: pill switcher with deep-link query param, single comparison table per selected level, Katso myös cross-links","status":"done"},
+  {"name":"Build spot deep-dive: two compact charts side by side (margin distribution, spot total trend)","status":"done"},
+  {"name":"Build methodology + citation block with copy-paste (plain, Markdown, HTML) and CSV download","status":"done"},
+  {"name":"Add Dataset + DataDownload JSON-LD; verify canonical and sitemap","status":"done"},
+  {"name":"Implement empty state (no php artisan leakage), sparse-data state, per-row missing-data state, loading skeleton","status":"done"},
+  {"name":"Mobile pass at 360px; chart keyboard navigation; visually-hidden data table for screen readers","status":"done"},
+  {"name":"Performance pass: verify <200KB gzipped JS, lazy-load uPlot if needed","status":"done"},
+  {"name":"Update tests in tests/Feature/ContractPriceStatisticsPageTest.php to cover new layout, query params, CSV endpoint, JSON-LD","status":"done"},
+  {"name":"Update laravel/CLAUDE.md and root CLAUDE.md with the redesign notes and any new conventions (chart library, citation block, Dataset JSON-LD)","status":"done"}
+]

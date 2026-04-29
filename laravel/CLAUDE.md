@@ -114,6 +114,30 @@ For long price history, start from the current/live contract and merge `priceCom
 - Do not overwrite existing `replaced_by_contract_id` links in bulk imports; allow forward chains to accumulate.
 - If you change matching rules, run `contracts:detect-replacements` and inspect medium/low results before enabling broader auto-linking.
 
+## Contract price statistics page
+
+`/sahkosopimus/tilastot` is an SEO link-acquisition page aimed at journalists, Reddit/HS commenters, and data-curious users. It is not a buyer tool. The page is treated as an editorial data artifact: the lead chart and one editorial sentence are the load-bearing surface; the rest serves the long tail.
+
+Primary files:
+- `app/Livewire/ContractPriceStatistics.php` — Livewire component. Computed properties produce chart payloads, segment rows, period-over-period deltas, dynamic captions, and citation strings.
+- `resources/views/livewire/contract-price-statistics.blade.php` — light-theme editorial layout. No dark hero, no card-grid, no coral gradients.
+- `resources/js/contract-price-statistics.js` — uPlot chart bootstrap. Single coral lead line, slate supporting lines, direct end-labels with de-overlap, unit badge in the corner. Skips end-labels under 560 px and falls back to the Blade-rendered legend.
+- `app/Http/Controllers/ContractPriceStatisticsCsvController.php` — streaming CSV download at `/sahkosopimus/tilastot.csv`. Includes attribution and license header lines.
+
+### Important conventions
+- **Aesthetic register.** Light theme, ≤ 5 % coral on the surface, slate substrate. The dark slate-950 hero from `DESIGN.md` is **not** used here. Anything that would make the page read as marketing or SaaS dashboard is wrong here on purpose.
+- **Honesty about the data window.** Real contract data starts 1.1.2026. The meta strip shows the current window, the dek says the aineisto grows over time, and we never zero-pad. As more data accrues, the same components scale automatically.
+- **Single chart library.** uPlot is intentionally the only chart lib in the project. New chart needs on this surface should reuse `data-line-chart` containers and the same payload shape (`{ x, series, unit, decimals }`). uPlot defaults are tuned to honor `DESIGN.md` (no gradients, no shadows, slate axes).
+- **CSV is first-class.** The CSV download is the SEO link play's actual weapon. Header includes CC BY 4.0 attribution requirement, VAT note, and source URL. Don't dilute these.
+- **Citation block.** The `Viittaa tähän` block is the second weapon. If you change the URL, brand name, or page title, update the `getCitationsProperty()` strings as well.
+- **Schema.org Dataset JSON-LD.** Search engines treat stats pages well when they self-describe as datasets. Keep the `Dataset` + `DataDownload` JSON-LD intact; broken schema means losing the entire SEO play.
+- **Query params.** `?kulutus=` (consumption) and `?jakso=` (period) are deep-linkable on purpose so journalists can link to a specific cut. Do not turn these into Livewire-internal-only state.
+
+### Empty / sparse / missing data
+- Empty state must stay public-safe. Never leak `php artisan` instructions to the empty state.
+- Per-row missing data shows `–`, never zero. Sparkline shows the gap.
+- The page must keep working when the latest snapshot has no rows yet (e.g. immediately after a fresh deployment).
+
 ## Documentation maintenance
 
 After changing replacement behavior, import flow, or chain semantics:

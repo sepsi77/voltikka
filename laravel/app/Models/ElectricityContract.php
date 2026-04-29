@@ -378,6 +378,35 @@ class ElectricityContract extends Model
                 ->orderByDesc('price_date')
                 ->get();
 
+        return $this->normalizePriceComponentsForCalculation($priceComponents);
+    }
+
+    /**
+     * Get price components for one exact historical calculation date.
+     *
+     * Statistics backfills use this instead of latest components so each daily
+     * snapshot reflects the prices imported for that day only.
+     *
+     * @param \DateTimeInterface|string $date
+     * @return array<int, array<string, mixed>>
+     */
+    public function getPriceComponentsForCalculationDate($date): array
+    {
+        $priceComponents = $this->priceComponents()
+            ->whereDate('price_date', $date)
+            ->get();
+
+        return $this->normalizePriceComponentsForCalculation($priceComponents);
+    }
+
+    /**
+     * Normalize a price-component collection for ContractPriceCalculator.
+     *
+     * @param \Illuminate\Support\Collection<int, PriceComponent> $priceComponents
+     * @return array<int, array<string, mixed>>
+     */
+    private function normalizePriceComponentsForCalculation(Collection $priceComponents): array
+    {
         return $priceComponents
             ->sortByDesc('price_date')
             ->groupBy('price_component_type')

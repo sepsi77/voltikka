@@ -8,6 +8,23 @@ See also:
 - `../AGENTS.md` for Laravel-level behavior
 - `../Services/ContractReplacement/AGENTS.md` for replacement matching/linking rules
 
+## `ContractPriceStatistics`
+
+Primary files:
+- `ContractPriceStatistics.php`
+- `../../resources/views/livewire/contract-price-statistics.blade.php`
+- `../Services/ContractStatistics/AGENTS.md`
+
+Purpose:
+- renders `/sahkosopimus/tilastot`
+- reads precomputed `contract_price_daily_statistics` rows
+- groups daily rows into daily/weekly/monthly UI views by averaging daily statistics
+
+Important semantics:
+- the page does not calculate contract prices directly during requests
+- run `contracts:backfill-price-statistics` before expecting historical data
+- spot metrics are split between `spot_margin` and `spot_total_energy_price`
+
 ## `ContractDetail`
 
 Primary files:

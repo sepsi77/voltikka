@@ -1,0 +1,8 @@
+[
+  {"name":"Clarify metric definitions and aggregation semantics","status":"done"},
+  {"name":"Design database schema for daily contract price observations/statistics","status":"done"},
+  {"name":"Implement calculation service and artisan command","status":"done"},
+  {"name":"Hook calculation into contracts:fetch","status":"done"},
+  {"name":"Build Livewire statistics page and route","status":"done"},
+  {"name":"Add tests and documentation updates","status":"done"}
+]

@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+[x-cloak] { display: none !important; }
+
 /**
  * Voltikka Design Tokens - Fresh Coral Design System
  *

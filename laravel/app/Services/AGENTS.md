@@ -68,6 +68,18 @@ Purpose:
 Read first:
 - `ContractReplacement/AGENTS.md`
 
+### Contract price statistics
+Directory:
+- `ContractStatistics/`
+
+Purpose:
+- calculate daily contract-price snapshots and aggregate statistics for the `/sahkosopimus/tilastot` trend page
+- enrich spot contracts with stored spot-price history so spot totals are comparable with fixed/hybrid/open-ended contracts
+- backfill historical statistics from `price_components.price_date`
+
+Read first:
+- `ContractStatistics/AGENTS.md`
+
 Related files outside services:
 - `../Models/ElectricityContract.php`
 - `../Livewire/ContractDetail.php`

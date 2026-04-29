@@ -15,6 +15,9 @@ Voltikka is a Finnish electricity contract comparison platform built with **Lara
 
 You can use agent browser skill to access a browser and do browser-based testing or access websites.
 
+## Task tracking
+
+Agents should use the task tracking system in `tasks/` when working on this code base. Read `tasks/AGENTS.md` before starting implementation work and keep the relevant task files updated as work progresses.
 
 ## Repository Structure
 
@@ -32,6 +35,7 @@ voltikka/
 ├── legacy/                  # Deprecated code (not in active use)
 │   ├── python/              # Old Python services
 │   └── voltikka/            # Old SvelteKit frontend
+└── tasks/                   # Long-running agent task state; see tasks/AGENTS.md
 ```
 
 ## Build and Run Commands
@@ -77,7 +81,15 @@ php artisan test --filter="ContractsFilterTest"
 - Calculates annual costs based on user consumption
 - SEO-optimized filter links with dual behavior (see SEO section)
 
-### 2. Spot Price Display
+### 2. Contract Price Statistics
+- **Location**: `app/Livewire/ContractPriceStatistics.php`, `app/Services/ContractStatistics/ContractPriceStatisticsService.php`
+- **Route**: `/sahkosopimus/tilastot`
+- Tracks daily contract-price trends from imported contract prices
+- Historical backfill infers availability from `price_components.price_date`
+- Spot contract totals use stored spot-price history plus supplier margin
+- Commands: `contracts:calculate-price-statistics`, `contracts:backfill-price-statistics`
+
+### 3. Spot Price Display
 - **Location**: `app/Livewire/SpotPrice.php`, `HeaderSpotPrice.php`
 - **Route**: `/spot-price`
 - **Data source**: ENTSO-E API via `EntsoeService`
@@ -89,7 +101,7 @@ php artisan test --filter="ContractsFilterTest"
   - Price charts with color-coded bars
   - CSV export
 
-### 3. Solar Panel Calculator
+### 4. Solar Panel Calculator
 - **Location**: `app/Livewire/SolarCalculator.php`
 - **Route**: `/aurinkopaneelit/laskuri`
 - **Services**:
@@ -102,7 +114,7 @@ php artisan test --filter="ContractsFilterTest"
   - Monthly production estimates
   - Savings calculation based on self-consumption
 
-### 4. Electricity Consumption Calculator
+### 5. Electricity Consumption Calculator
 - **Location**: `app/Livewire/ConsumptionCalculator.php`
 - **Route**: `/sahkosopimus/laskuri`
 - Estimates annual consumption based on housing type and heating
@@ -185,6 +197,7 @@ php artisan test --filter="ContractsFilterTest"
 | `/sahkosopimus/sahkoyhtiot/{slug}` | CompanyDetail | Company profile |
 | `/sahkosopimus/laskuri` | ConsumptionCalculator | Consumption calculator |
 | `/sahkosopimus/halvin-sahkosopimus` | CheapestContracts | Cheapest contracts |
+| `/sahkosopimus/tilastot` | ContractPriceStatistics | Contract price trend statistics |
 | `/sahkosopimus/yritykselle` | SeoContractsList | Business contracts |
 | `/spot-price` | SpotPrice | Spot price analytics |
 | `/aurinkopaneelit/laskuri` | SolarCalculator | Solar calculator |

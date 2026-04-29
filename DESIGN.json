@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-04-29T00:00:00Z",
+  "title": "Design System: Voltikka",
+  "extensions": {
+    "colorMeta": {
+      "coral-500": {
+        "role": "primary",
+        "displayName": "Voltikka Coral",
+        "canonical": "#f97316",
+        "tonalRamp": ["#431407", "#7c2d12", "#9a3412", "#c2410c", "#ea580c", "#f97316", "#fb923c", "#fdba74", "#fed7aa", "#ffedd5", "#fff7ed"]
+      },
+      "slate-900": {
+        "role": "neutral",
+        "displayName": "Page Ink",
+        "canonical": "#0f172a",
+        "tonalRamp": ["#0f1419", "#0f172a", "#1e293b", "#334155", "#475569", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f1f5f9", "#f8fafc"]
+      },
+      "slate-950": {
+        "role": "neutral",
+        "displayName": "Focus Surface",
+        "canonical": "#0f1419",
+        "tonalRamp": ["#0f1419", "#0f172a", "#1e293b", "#334155", "#475569", "#64748b", "#94a3b8", "#cbd5e1", "#e2e8f0", "#f1f5f9", "#f8fafc"]
+      },
+      "emissions-low": {
+        "role": "semantic",
+        "displayName": "Emissions Low / Clean Energy",
+        "canonical": "#22c55e"
+      },
+      "emissions-medium": {
+        "role": "semantic",
+        "displayName": "Emissions Medium",
+        "canonical": "#f59e0b"
+      },
+      "emissions-high": {
+        "role": "semantic",
+        "displayName": "Emissions High",
+        "canonical": "#ef4444"
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Hero headline only. Mid-headline solid colour change to coral-400 is the signature pattern." },
+      "headline": { "displayName": "Page Heading (H1)", "purpose": "Top of every routed page in slate-900." },
+      "title": { "displayName": "Section / Card Title / Button Label", "purpose": "Section heads, contract titles, button labels — 18px / weight 700." },
+      "price": { "displayName": "Price Display", "purpose": "Annual cost, contract price. Always tabular-nums; coral-600 only on featured contracts." },
+      "body": { "displayName": "Body Copy", "purpose": "Paragraph text, slate-600. Cap line length at 65–75ch." },
+      "label": { "displayName": "Micro Label", "purpose": "Filter labels, badges, micro-labels above values. UPPERCASE with 0.05em tracking." }
+    },
+    "shadows": [
+      { "name": "shadow-sm", "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)", "purpose": "Quarter-price card hover. Almost imperceptible." },
+      { "name": "shadow-md", "value": "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)", "purpose": "Dropdowns and popovers." },
+      { "name": "shadow-lg", "value": "0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)", "purpose": "Elevated modals and overlays." },
+      { "name": "shadow-coral", "value": "0 10px 30px -10px rgb(249 115 22 / 0.3)", "purpose": "Signature glow under primary CTAs and active consumption selectors." },
+      { "name": "shadow-coral-lg", "value": "0 20px 40px -15px rgb(249 115 22 / 0.4)", "purpose": "Largest hero CTAs only." },
+      { "name": "shadow-card-hover", "value": "0 12px 40px -12px rgb(0 0 0 / 0.15)", "purpose": "Contract card hover, paired with translateY(-2px)." }
+    ],
+    "motion": [
+      { "name": "transition-fast", "value": "150ms ease-out", "purpose": "Filter pills, hover micro-states." },
+      { "name": "transition-normal", "value": "200ms ease-out", "purpose": "Buttons, cards, default state changes." },
+      { "name": "transition-slow", "value": "300ms ease-out", "purpose": "Larger transforms (hero stat reveal, modal entry)." },
+      { "name": "spot-pulse", "value": "pulse 2s ease-in-out infinite", "purpose": "Live spot-price dot in header. The only ambient motion in the chrome." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" },
+      { "name": "2xl", "value": "1536px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single warmest object on any page. Coral gradient with coloured glow.",
+      "html": "<button class=\"ds-btn-primary\">Katso sopimus<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14M13 5l7 7-7 7\"/></svg></button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; gap: 8px; padding: 14px 24px; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #fff; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 16px; font-weight: 700; line-height: 1.25; border: none; border-radius: 12px; box-shadow: 0 10px 30px -10px rgb(249 115 22 / 0.3); cursor: pointer; transition: background 200ms ease-out, transform 200ms ease-out, box-shadow 200ms ease-out; } .ds-btn-primary svg { width: 18px; height: 18px; } .ds-btn-primary:hover { background: linear-gradient(135deg, #fb923c 0%, #f97316 100%); transform: translateY(-1px); box-shadow: 0 14px 36px -12px rgb(249 115 22 / 0.4); } .ds-btn-primary:focus-visible { outline: 2px solid #f97316; outline-offset: 3px; } .ds-btn-primary:active { transform: translateY(0); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Used when the page already has a primary, or where a calm action is wanted.",
+      "html": "<button class=\"ds-btn-secondary\">Näytä lisää</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; gap: 8px; padding: 14px 24px; background: #0f172a; color: #fff; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 16px; font-weight: 700; line-height: 1.25; border: none; border-radius: 12px; cursor: pointer; transition: background 200ms ease-out; } .ds-btn-secondary:hover { background: #1e293b; } .ds-btn-secondary:focus-visible { outline: 2px solid #f97316; outline-offset: 3px; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Tertiary action. Full pill, slate-900 stroke, inverts on hover.",
+      "html": "<button class=\"ds-btn-outline\">Vertaile sopimuksia</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; gap: 8px; padding: 12px 32px; background: transparent; color: #0f172a; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 16px; font-weight: 600; line-height: 1.25; border: 2px solid #0f172a; border-radius: 9999px; cursor: pointer; transition: background 200ms ease-out, color 200ms ease-out; } .ds-btn-outline:hover { background: #0f172a; color: #fff; } .ds-btn-outline:focus-visible { outline: 2px solid #f97316; outline-offset: 3px; }"
+    },
+    {
+      "name": "Filter Pill",
+      "kind": "chip",
+      "refersTo": "filter-pill",
+      "description": "Pair shown side-by-side: default and active. Active pill is the darkest object in its row.",
+      "html": "<div class=\"ds-filter-row\"><button class=\"ds-filter-pill\">Pörssisähkö</button><button class=\"ds-filter-pill ds-filter-pill--active\">Kiinteä hinta</button><button class=\"ds-filter-pill ds-filter-pill--energy\"><span class=\"ds-dot\"></span>Päästötön</button></div>",
+      "css": ".ds-filter-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } .ds-filter-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: #f8fafc; color: #475569; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12px; font-weight: 500; line-height: 1.5; letter-spacing: 0.05em; text-transform: uppercase; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: border-color 150ms ease-out, background 150ms ease-out; } .ds-filter-pill:hover { border-color: #cbd5e1; } .ds-filter-pill--active { background: #0f1419; color: #fff; border-color: #0f1419; } .ds-filter-pill--active:hover { border-color: #0f1419; } .ds-filter-pill:focus-visible { outline: 2px solid #f97316; outline-offset: 2px; } .ds-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 9999px; flex-shrink: 0; }"
+    },
+    {
+      "name": "Contract Card",
+      "kind": "card",
+      "refersTo": "contract-card",
+      "description": "Signature horizontal row. Coloured 4px left stripe encodes CO₂ tier (here: low).",
+      "html": "<article class=\"ds-contract-card ds-contract-card--low\"><div class=\"ds-rank\">01</div><div class=\"ds-card-body\"><div class=\"ds-card-head\"><div><h3 class=\"ds-contract-title\">Vihreä Pörssi</h3><p class=\"ds-contract-sub\">Energiayhtiö Oy</p></div><div class=\"ds-badges\"><span class=\"ds-badge ds-badge--green\">Tuuli</span><span class=\"ds-badge ds-badge--neutral\">Pörssi</span></div></div><div class=\"ds-metrics\"><div class=\"ds-metric\"><span class=\"ds-label\">Marginaali</span><span class=\"ds-metric-value\">0,39 c/kWh</span></div><div class=\"ds-metric\"><span class=\"ds-label\">Perusmaksu</span><span class=\"ds-metric-value\">3,99 €/kk</span></div><div class=\"ds-metric\"><span class=\"ds-label\">Vuosihinta</span><span class=\"ds-price\">847 €</span></div></div></div></article>",
+      "css": ".ds-contract-card { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: start; padding: 24px; padding-left: 28px; background: #fff; border: 1px solid #f1f5f9; border-left: 4px solid #22c55e; border-radius: 24px; transition: transform 200ms ease-out, box-shadow 200ms ease-out; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; } .ds-contract-card--low { border-left-color: #22c55e; } .ds-contract-card--medium { border-left-color: #f59e0b; } .ds-contract-card--high { border-left-color: #ef4444; } .ds-contract-card:hover { transform: translateY(-2px); box-shadow: 0 12px 40px -12px rgb(0 0 0 / 0.15); } .ds-rank { font-size: 40px; font-weight: 800; line-height: 1; color: #e2e8f0; font-variant-numeric: tabular-nums; } .ds-card-body { display: flex; flex-direction: column; gap: 16px; } .ds-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; } .ds-contract-title { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.25; color: #0f172a; } .ds-contract-sub { margin: 2px 0 0; font-size: 14px; font-weight: 400; color: #64748b; } .ds-badges { display: flex; gap: 6px; flex-wrap: wrap; } .ds-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; } .ds-metric { display: flex; flex-direction: column; gap: 4px; } .ds-label { font-size: 12px; font-weight: 500; line-height: 1.5; letter-spacing: 0.05em; text-transform: uppercase; color: #94a3b8; } .ds-metric-value { font-size: 16px; font-weight: 600; color: #0f172a; font-variant-numeric: tabular-nums; } .ds-price { font-size: 24px; font-weight: 800; line-height: 1; color: #0f172a; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Featured Contract Card",
+      "kind": "card",
+      "refersTo": "contract-card-featured",
+      "description": "Coral-edged hero card. Larger 6px gradient stripe and corner badge.",
+      "html": "<article class=\"ds-contract-card ds-contract-card--featured\"><div class=\"ds-featured-badge\">SUOSITUS</div><div class=\"ds-rank ds-rank--featured\">01</div><div class=\"ds-card-body\"><div class=\"ds-card-head\"><div><h3 class=\"ds-contract-title\">Voltikka Vihreä Plus</h3><p class=\"ds-contract-sub\">Energiayhtiö Oy</p></div><div class=\"ds-badges\"><span class=\"ds-badge ds-badge--green\">Tuuli</span><span class=\"ds-badge ds-badge--green\">Aurinko</span></div></div><div class=\"ds-metrics\"><div class=\"ds-metric\"><span class=\"ds-label\">Marginaali</span><span class=\"ds-metric-value\">0,29 c/kWh</span></div><div class=\"ds-metric\"><span class=\"ds-label\">Perusmaksu</span><span class=\"ds-metric-value\">2,99 €/kk</span></div><div class=\"ds-metric\"><span class=\"ds-label\">Vuosihinta</span><span class=\"ds-price ds-price--featured\">812 €</span></div></div></div></article>",
+      "css": ".ds-contract-card--featured { position: relative; background: #fff; border: 1px solid #fed7aa; border-left: 6px solid transparent; border-image: linear-gradient(180deg, #f97316 0%, #ea580c 100%) 1; border-image-slice: 1; padding-left: 30px; } .ds-featured-badge { position: absolute; top: 0; right: 0; padding: 6px 16px; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #fff; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; border-bottom-left-radius: 12px; } .ds-rank--featured { color: #f97316; } .ds-price--featured { color: #ea580c; }"
+    },
+    {
+      "name": "Consumption Selector Card",
+      "kind": "card",
+      "refersTo": "consumption-card",
+      "description": "Active state is the only large coral surface in the system. Pair shown.",
+      "html": "<div class=\"ds-consumption-row\"><button class=\"ds-consumption-card\"><span class=\"ds-consumption-icon\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 12l9-9 9 9M5 10v10h14V10\"/></svg></span><span class=\"ds-consumption-label\">Kerrostalo</span><span class=\"ds-consumption-kwh\">2 000 kWh</span></button><button class=\"ds-consumption-card ds-consumption-card--active\"><span class=\"ds-consumption-icon\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 12l9-9 9 9M5 10v10h14V10\"/></svg></span><span class=\"ds-consumption-label\">Omakotitalo</span><span class=\"ds-consumption-kwh\">18 000 kWh</span></button></div>",
+      "css": ".ds-consumption-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; } .ds-consumption-card { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 20px; background: #fff; border: 2px solid #e2e8f0; border-radius: 16px; cursor: pointer; transition: border-color 150ms ease-out, background 200ms ease-out, box-shadow 200ms ease-out, color 200ms ease-out; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; } .ds-consumption-card:hover { border-color: #fb923c; } .ds-consumption-card:focus-visible { outline: 2px solid #f97316; outline-offset: 3px; } .ds-consumption-icon { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: #f1f5f9; color: #475569; border-radius: 12px; transition: background 200ms ease-out, color 200ms ease-out; } .ds-consumption-icon svg { width: 24px; height: 24px; } .ds-consumption-label { font-size: 14px; font-weight: 600; color: #0f172a; } .ds-consumption-kwh { font-size: 12px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; color: #94a3b8; font-variant-numeric: tabular-nums; } .ds-consumption-card--active { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); border-color: #f97316; color: #fff; box-shadow: 0 10px 30px -10px rgb(249 115 22 / 0.3); } .ds-consumption-card--active .ds-consumption-icon { background: rgba(255,255,255,0.2); color: #fff; } .ds-consumption-card--active .ds-consumption-label { color: #fff; } .ds-consumption-card--active .ds-consumption-kwh { color: rgba(255,255,255,0.85); }"
+    },
+    {
+      "name": "Energy Source Badge",
+      "kind": "chip",
+      "refersTo": "badge-energy",
+      "description": "Clean-energy and neutral source badge variants.",
+      "html": "<div class=\"ds-badge-row\"><span class=\"ds-badge ds-badge--green\">Tuuli</span><span class=\"ds-badge ds-badge--green\">Vesivoima</span><span class=\"ds-badge ds-badge--neutral\">Seka</span></div>",
+      "css": ".ds-badge-row { display: flex; gap: 6px; flex-wrap: wrap; } .ds-badge { display: inline-flex; align-items: center; padding: 6px 12px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12px; font-weight: 700; line-height: 1; letter-spacing: 0.02em; text-transform: uppercase; border-radius: 8px; } .ds-badge--green { background: #dcfce7; color: #15803d; } .ds-badge--neutral { background: #f1f5f9; color: #475569; font-weight: 500; }"
+    },
+    {
+      "name": "Spot Price Indicator",
+      "kind": "custom",
+      "refersTo": "spot-indicator",
+      "description": "Live header indicator with pulsing coral dot. The only ambient motion in the chrome.",
+      "html": "<div class=\"ds-spot-indicator\"><span class=\"ds-spot-dot\"></span><span class=\"ds-spot-label\">Pörssisähkö nyt</span><span class=\"ds-spot-price\">8,42 c/kWh</span></div>",
+      "css": ".ds-spot-indicator { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; } .ds-spot-dot { width: 8px; height: 8px; background: #f97316; border-radius: 9999px; animation: ds-spot-pulse 2s ease-in-out infinite; } .ds-spot-label { font-size: 12px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; color: #94a3b8; } .ds-spot-price { font-size: 14px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; } @keyframes ds-spot-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.2); } }"
+    },
+    {
+      "name": "Input Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Quiet focus: border shifts to coral, no glow.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Postinumero</span><input class=\"ds-input\" type=\"text\" inputmode=\"numeric\" placeholder=\"00100\" /></label>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 6px; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; } .ds-field-label { font-size: 12px; font-weight: 500; letter-spacing: 0.05em; text-transform: uppercase; color: #94a3b8; } .ds-input { padding: 12px 16px; background: #fff; color: #0f172a; font-family: inherit; font-size: 16px; font-weight: 400; line-height: 1.5; border: 1px solid #e2e8f0; border-radius: 12px; transition: border-color 150ms ease-out; } .ds-input::placeholder { color: #94a3b8; } .ds-input:focus { outline: none; border-color: #f97316; } .ds-input:disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Calm Coral Brief",
+    "overview": "Voltikka is what a competent Finnish energy advisor would build if they cared more about the reader than the click. The system is calm and plain-spoken in voice, but never beige: a warm coral accent runs through it like a single highlighter mark across an otherwise quiet brief. Slate neutrals hold the data; the coral appears only where the user needs to act, decide, or be reassured. The dark slate-950 hero is a moment of focus, not a 'premium' texture — when the page goes quiet and dark, the user is being asked to commit to something (consumption, contract, comparison).\n\nThe product's whole reason for existing is that the comparison niche is full of fake-neutral ranking pages and commission-first lead funnels. The visual system has to actively reject that posture. That means: no exaggerated savings, no aggressive CTAs, no urgency theatre, no decorative colour competing with the price. Data is the protagonist. The chrome stays out of the way.\n\nThe system is also explicitly not bank-like, not utility-company corporate, not crypto/neon, and not generic SaaS. It can be modern and energetic, but never hype-driven. Coral is the emotional note that keeps the data warm; everything else is restrained.",
+    "keyCharacteristics": [
+      "Single accent (coral), used sparingly — never as background mass",
+      "Slate neutrals do almost all the work; pure black is forbidden",
+      "Data typography is tabular and prominent; chrome is muted",
+      "Dark slate hero used as a focused moment, not as default theme",
+      "Emissions-tier left-stripe on contract cards is informational, not decorative",
+      "Plus Jakarta Sans across the system, weights 400–800"
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "Coral appears on at most ~10% of any given screen. Its rarity is what makes it readable as an action signal. If you find yourself using coral as a section background or reaching for a secondary accent colour, the design is already wrong.", "section": "colors" },
+      { "name": "The No Pure Black Rule", "body": "Never #000. Use slate-950 (#0f1419) for the deepest dark and slate-900 (#0f172a) for ink. White is acceptable as text on dark slate; everywhere else, prefer slate-50 over white-on-white surfaces.", "section": "colors" },
+      { "name": "The Emissions-Are-Data Rule", "body": "Green/amber/red appear only where they communicate a measured CO₂ tier or a verified clean-energy source. They are never used to 'add colour' to a layout. If a designer reaches for green for visual interest, they should reach for coral instead — or for nothing.", "section": "colors" },
+      { "name": "The Tabular Numbers Rule", "body": "Every price, kWh value, percentage, and CO₂ figure uses font-variant-numeric: tabular-nums. Numbers stack vertically across rows so users can compare at a glance. Proportional figures in a comparison column are forbidden.", "section": "typography" },
+      { "name": "The No Gradient Text Rule", "body": "Coloured emphasis is solid. The hero pattern is one solid colour change mid-headline (e.g. white → coral-400), never background-clip: text over a gradient.", "section": "typography" },
+      { "name": "The Single Family Rule", "body": "One typeface (Plus Jakarta Sans). No serif display, no monospace alternates, no second family for 'personality.' Hierarchy is weight + scale + colour.", "section": "typography" },
+      { "name": "The Flat-By-Default Rule", "body": "Surfaces are flat at rest. Shadows appear only as response to state (hover, active, the coral CTA at rest). A page should not look 'lifted'; it should look composed.", "section": "elevation" },
+      { "name": "The Coral Glow Rule", "body": "Coloured shadow is reserved for coral elements. A blue glow, a green glow, or a slate-tinted glow is forbidden — it makes the system look like a generic SaaS product. Black/transparent ambient shadows are fine.", "section": "elevation" },
+      { "name": "The Glass Only In The Dark Rule", "body": "backdrop-filter: blur(...) appears exclusively on the dark slate-950 hero, on stat-cards over a dark gradient. Glassmorphism on light surfaces is forbidden.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do treat the price as the largest, boldest object in any contract row — 24px / weight 800 / tabular-nums / slate-900 (or coral-600 only when featured).",
+      "Do use coral on ≤10% of any screen. CTAs, active states, the spot-indicator dot, the featured-card stripe — and that is it.",
+      "Do state assumptions, sources, and ranking logic visibly near the data they affect; the visual system should make uncertainty look honest, not hidden.",
+      "Do lean on slate-50/100/200 borders and quiet surfaces — the chrome should feel finished but invisible.",
+      "Do use shadow-coral only under coral elements; black/transparent ambient shadows everywhere else.",
+      "Do use tabular-nums on every price, kWh value, percentage, and CO₂ figure.",
+      "Do keep the dark slate-950 hero as a focused moment, not a default theme — most pages live on light surfaces.",
+      "Do keep the emissions left-stripe on contract cards because it encodes a CO₂ tier; document any new use of coloured side-stripes in this file before shipping."
+    ],
+    "donts": [
+      "Don't make Voltikka feel like a scammy affiliate comparison site, a commission-first lead-generation funnel, or a fake-neutral ranking page.",
+      "Don't ship exaggerated savings claims, overly aggressive CTAs, vague ranking logic, or dark-pattern urgency. No countdown timers, no 'only N left,' no red-shouting price deltas.",
+      "Don't create promotional layouts where the highest-paying provider appears to be the best by default — ranking visuals must reflect ranking logic, not commercial weight.",
+      "Don't make it feel bank-like and cold, utility-company corporate, crypto/neon, or generic SaaS.",
+      "Don't make it visually loud in a way that competes with the data. Chrome stays out of the way; numbers carry the page.",
+      "Don't use #000 or #fff — slate-950 / slate-900 / white-on-dark instead.",
+      "Don't use coloured side-stripes (>1px) on cards or list items for any reason other than the emissions-tier encoding on contract cards.",
+      "Don't use gradient-clipped text (background-clip: text). Coloured emphasis is one solid colour.",
+      "Don't use glassmorphism on light surfaces. It is sanctioned only on the dark slate-950 hero.",
+      "Don't introduce a second accent colour. If the design feels like it needs one, it needs less coral, not more colours.",
+      "Don't use red/amber/green for decoration. Those colours mean a measured CO₂ tier or a verified clean-energy source — nothing else.",
+      "Don't add bouncy or elastic motion. Easing is exponential ease-out; durations 150–300ms; CSS layout properties are never animated.",
+      "Don't wrap everything in a card. Most layout doesn't need a container, and nested cards are forbidden.",
+      "Don't use em dashes in product copy. Use commas, colons, semicolons, periods, or parentheses."
+    ]
+  }
+}
