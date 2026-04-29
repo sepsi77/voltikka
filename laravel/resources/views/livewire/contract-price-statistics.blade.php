@@ -473,7 +473,7 @@
                                 </header>
 
                                 @if ($dive['description'])
-                                    <p class="text-sm text-slate-600 leading-relaxed max-w-[68ch] mb-7">
+                                    <p class="text-base text-slate-600 leading-relaxed max-w-[64ch] mb-8">
                                         {{ $dive['description'] }}
                                     </p>
                                 @endif
