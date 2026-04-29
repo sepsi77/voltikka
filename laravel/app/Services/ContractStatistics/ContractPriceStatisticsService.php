@@ -208,6 +208,7 @@ class ContractPriceStatisticsService
                     'min_value' => $stats['min'],
                     'p20_value' => $stats['p20'],
                     'avg_value' => $stats['avg'],
+                    'median_value' => $stats['median'],
                     'p80_value' => $stats['p80'],
                     'max_value' => $stats['max'],
                     'contract_count' => count($values),
@@ -220,10 +221,15 @@ class ContractPriceStatisticsService
     }
 
     /**
-     * Drop nulls and (for cost-bearing metrics) values that round to zero,
-     * which indicate missing/promo source data rather than a real price.
-     * `monthly_fee` is permissive about zero because some contracts legitimately
-     * have a 0 €/kk perusmaksu (free during promo, etc.).
+     * Drop nulls, values that round to zero (for cost-bearing metrics), and
+     * values above a per-metric sanity ceiling. Both indicate broken or
+     * mis-imported source data rather than a real Finnish retail price.
+     *
+     * Ceilings are deliberately generous: real Finnish retail energy never
+     * exceeds 50 c/kWh, daily-average spot-totals never exceed 100 c/kWh,
+     * supplier margins never exceed 5 c/kWh, monthly fees never exceed 30 €/kk,
+     * annual costs at the published consumption levels never exceed 50 000 €/v.
+     * Anything past these bounds has been a unit-import error in practice.
      *
      * @param array<int, mixed> $values
      * @return array<int, float>
@@ -231,15 +237,26 @@ class ContractPriceStatisticsService
     private function cleanValues(array $values, string $metricKey): array
     {
         $treatZeroAsMissing = $metricKey !== 'monthly_fee';
+        $upperBound = match ($metricKey) {
+            'energy_price' => 50.0,
+            'spot_margin' => 5.0,
+            'spot_total_energy_price' => 100.0,
+            'monthly_fee' => 30.0,
+            'annual_cost' => 50000.0,
+            default => INF,
+        };
 
         return array_values(array_filter(array_map(
             fn ($value) => $value === null ? null : (float) $value,
             $values
-        ), function ($value) use ($treatZeroAsMissing) {
+        ), function ($value) use ($treatZeroAsMissing, $upperBound) {
             if ($value === null) {
                 return false;
             }
             if ($treatZeroAsMissing && $value < 0.005) {
+                return false;
+            }
+            if ($value > $upperBound) {
                 return false;
             }
             return true;
@@ -248,7 +265,7 @@ class ContractPriceStatisticsService
 
     /**
      * @param array<int, float> $values
-     * @return array{min:float,p20:float,avg:float,p80:float,max:float}
+     * @return array{min:float,p20:float,median:float,avg:float,p80:float,max:float}
      */
     private function stats(array $values): array
     {
@@ -257,6 +274,7 @@ class ContractPriceStatisticsService
         return [
             'min' => $values[0],
             'p20' => $this->percentile($values, 20),
+            'median' => $this->percentile($values, 50),
             'avg' => array_sum($values) / count($values),
             'p80' => $this->percentile($values, 80),
             'max' => $values[array_key_last($values)],

@@ -154,7 +154,7 @@
                             Vuosikustannus {{ $consumptionLabel }}&nbsp;kWh kulutuksella
                         </h2>
                         <p class="mt-1 text-sm text-slate-500">
-                            Eri sopimustyyppien keskimääräinen vuosikustannus, jakso&nbsp;=
+                            Eri sopimustyyppien tyypillinen (mediaani) vuosikustannus, jakso&nbsp;=
                             <span class="font-semibold text-slate-900">{{ $periods[$period] ?? $period }}</span>.
                         </p>
                     </div>
@@ -361,7 +361,7 @@
                     Hintahaarukka {{ $consumptionLabel }}&nbsp;kWh kulutuksella
                 </h2>
                 <p class="text-sm text-slate-500 max-w-[68ch] mb-3">
-                    Kuinka paljon halvimmat ja kalleimmat sopimukset eroavat keskiarvosta. Halvin näyttää markkinoiden alimman vuosikustannuksen, halvempi&nbsp;20&nbsp;% rajan jonka alle viidennes sopimuksista jää, ja kalliimpi&nbsp;20&nbsp;% rajan jonka yli viidennes nousee.
+                    Kuinka paljon halvimmat ja kalleimmat sopimukset eroavat tyypillisestä. Halvin näyttää markkinoiden alimman vuosikustannuksen, halvempi&nbsp;20&nbsp;% rajan jonka alle viidennes sopimuksista jää, mediaani jakaa sopimukset puoliksi, ja kalliimpi&nbsp;20&nbsp;% on raja jonka yli viidennes nousee.
                 </p>
 
                 <p class="text-xs text-slate-500 mb-5">
@@ -385,7 +385,9 @@
                                 <th class="py-3 px-3 font-semibold text-right">
                                     <abbr title="20. persentiili: viidennes sopimuksista on tätä halvempia." class="no-underline cursor-help">Halvempi&nbsp;20&nbsp;%</abbr>
                                 </th>
-                                <th class="py-3 px-3 font-semibold text-right">Keskiarvo</th>
+                                <th class="py-3 px-3 font-semibold text-right">
+                                    <abbr title="Mediaani: tasan puolet sopimuksista on tätä halvempia ja puolet kalliimpia. Robustimpi kuin keskiarvo, koska yksittäiset poikkeavat sopimukset eivät vinouta sitä." class="no-underline cursor-help">Mediaani</abbr>
+                                </th>
                                 <th class="py-3 px-3 font-semibold text-right">
                                     <abbr title="80. persentiili: viidennes sopimuksista on tätä kalliimpia." class="no-underline cursor-help">Kalliimpi&nbsp;20&nbsp;%</abbr>
                                 </th>
@@ -400,7 +402,7 @@
                                     </td>
                                     <td class="py-3 px-3 text-right tabular-nums text-slate-700">{{ $fmtNum($row['min'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
                                     <td class="py-3 px-3 text-right tabular-nums text-slate-700">{{ $fmtNum($row['p20'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
-                                    <td class="py-3 px-3 text-right tabular-nums font-bold text-slate-900">{{ $fmtNum($row['avg'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
+                                    <td class="py-3 px-3 text-right tabular-nums font-bold text-slate-900">{{ $fmtNum($row['median'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
                                     <td class="py-3 px-3 text-right tabular-nums text-slate-700">{{ $fmtNum($row['p80'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
                                     <td class="py-3 pl-3 pr-4 sm:pr-0 text-right tabular-nums text-slate-500">{{ number_format($row['contract_count'], 0, ',', ' ') }}</td>
                                 </tr>
@@ -410,34 +412,110 @@
                 </div>
             </section>
 
-            {{-- Spot deep-dive --}}
-            @if (! empty($spotMarginPayload['x']) || ! empty($spotTotalPayload['x']))
-                <section class="mb-20" aria-labelledby="spot-deepdive-heading">
-                    <h2 id="spot-deepdive-heading" class="text-2xl font-bold text-slate-900 tracking-tight mb-1">
-                        Pörssisähkön marginaalit ja kokonaishinta
+            {{-- Per-segment deep-dive sections --}}
+            @if (! empty($deepDivePayloads))
+                <section class="mb-20" aria-labelledby="deepdive-heading">
+                    <h2 id="deepdive-heading" class="text-2xl font-bold text-slate-900 tracking-tight mb-2">
+                        Tarkemmin sopimustyypeittäin
                     </h2>
-                    <p class="text-sm text-slate-500 max-w-[60ch] mb-8">
-                        Marginaali on se osuus, jonka sopimustarjoaja lisää pörssin keskihinnan päälle.
-                        Kokonaishinta yhdistää näkyvälle aineistolle pörssin keskihinnan ja marginaalin.
+                    <p class="text-sm text-slate-500 max-w-[60ch] mb-6">
+                        Yksittäisten sopimustyyppien hintakehitys ja tämänhetkinen markkinahaarukka. Vaalea alue kuvaa hintojen keskimmäistä 60&nbsp;%, viiva on mediaani.
                     </p>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                        <figure>
-                            <figcaption class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500 mb-3">
-                                Marginaali ka.
-                            </figcaption>
-                            <div wire:key="spot-margin-{{ $period }}-{{ $dataWindow['to'] }}" wire:ignore data-line-chart class="relative w-full h-56" role="img" aria-label="Spot-marginaalin keskiarvo aikajaksoittain.">
-                                <script type="application/json">{!! json_encode($spotMarginPayload, JSON_UNESCAPED_UNICODE) !!}</script>
-                            </div>
-                        </figure>
-                        <figure>
-                            <figcaption class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500 mb-3">
-                                Kokonaishinta ka.
-                            </figcaption>
-                            <div wire:key="spot-total-{{ $period }}-{{ $dataWindow['to'] }}" wire:ignore data-line-chart class="relative w-full h-56" role="img" aria-label="Pörssisähkön kokonaishinnan keskiarvo aikajaksoittain.">
-                                <script type="application/json">{!! json_encode($spotTotalPayload, JSON_UNESCAPED_UNICODE) !!}</script>
-                            </div>
-                        </figure>
+                    {{-- In-page TOC --}}
+                    <nav aria-label="Sopimustyypit" class="mb-12 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                        @foreach ($deepDivePayloads as $dive)
+                            <a href="#{{ $dive['anchor'] }}"
+                               class="inline-flex items-center gap-1.5 text-slate-700 underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500">
+                                {{ $dive['segment_label'] }}
+                            </a>
+                        @endforeach
+                    </nav>
+
+                    <div class="space-y-16">
+                        @foreach ($deepDivePayloads as $dive)
+                            <article id="{{ $dive['anchor'] }}" class="scroll-mt-24">
+                                <header class="mb-3">
+                                    <h3 class="text-xl font-bold text-slate-900 tracking-tight">
+                                        {{ $dive['segment_label'] }}
+                                    </h3>
+                                    @if ($dive['description'])
+                                        <p class="mt-2 text-sm text-slate-600 leading-relaxed max-w-[68ch]">
+                                            {{ $dive['description'] }}
+                                        </p>
+                                    @endif
+                                </header>
+
+                                @if (! $dive['has_data'])
+                                    <p class="text-sm text-slate-500">Aineistoa ei vielä riitä tämän sopimustyypin trendin näyttämiseen.</p>
+                                @else
+                                    <p class="text-base text-slate-700 leading-relaxed mb-6 max-w-[68ch]">
+                                        <span>Nyt</span>
+                                        <span class="font-bold text-slate-900 tabular-nums">{{ $fmtNum($dive['current'], 2) }}&nbsp;{{ $dive['unit'] }}</span><span>.</span>
+                                        @if ($dive['delta_30d_pct'] !== null || $dive['delta_since_start_pct'] !== null)
+                                            <span>Hinta on</span>
+                                            @if ($dive['delta_30d_pct'] !== null)
+                                                <span class="tabular-nums {{ $deltaClass($dive['delta_30d_pct']) }}">{{ $fmtPct($dive['delta_30d_pct']) }}</span>
+                                                <span>30 päivässä</span>
+                                            @endif
+                                            @if ($dive['delta_30d_pct'] !== null && $dive['delta_since_start_pct'] !== null)
+                                                <span>ja</span>
+                                            @endif
+                                            @if ($dive['delta_since_start_pct'] !== null)
+                                                <span class="tabular-nums {{ $deltaClass($dive['delta_since_start_pct']) }}">{{ $fmtPct($dive['delta_since_start_pct']) }}</span>
+                                                <span>aineiston alusta</span>
+                                            @endif
+                                            <span>.</span>
+                                        @endif
+                                        @if ($dive['contract_count'] !== null)
+                                            <span class="text-slate-500">{{ number_format($dive['contract_count'], 0, ',', ' ') }} sopimusta tällä hetkellä.</span>
+                                        @endif
+                                    </p>
+
+                                    @if ($dive['is_spot'] && ! empty($spotMarginPayload['x']))
+                                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                                            <figure class="lg:col-span-2">
+                                                <figcaption class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500 mb-3">
+                                                    Kokonaishinta &amp; haarukka
+                                                </figcaption>
+                                                <div wire:key="dive-{{ $dive['anchor'] }}-{{ $period }}-{{ $dataWindow['to'] }}"
+                                                     wire:ignore
+                                                     data-line-chart="{{ $dive['segment_key'] }}"
+                                                     class="relative w-full h-64"
+                                                     role="img"
+                                                     aria-label="{{ $dive['segment_label'] }} hinnan kehitys ja markkinahaarukka aikajaksoittain.">
+                                                    <script type="application/json">{!! json_encode($dive['chart'], JSON_UNESCAPED_UNICODE) !!}</script>
+                                                </div>
+                                            </figure>
+                                            <figure>
+                                                <figcaption class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500 mb-3">
+                                                    Marginaali ka.
+                                                </figcaption>
+                                                <div wire:key="spot-margin-{{ $period }}-{{ $dataWindow['to'] }}"
+                                                     wire:ignore
+                                                     data-line-chart="spot-margin"
+                                                     class="relative w-full h-64"
+                                                     role="img"
+                                                     aria-label="Pörssisähkön supplier-marginaalin mediaani aikajaksoittain.">
+                                                    <script type="application/json">{!! json_encode($spotMarginPayload, JSON_UNESCAPED_UNICODE) !!}</script>
+                                                </div>
+                                            </figure>
+                                        </div>
+                                    @else
+                                        <figure>
+                                            <div wire:key="dive-{{ $dive['anchor'] }}-{{ $period }}-{{ $dataWindow['to'] }}"
+                                                 wire:ignore
+                                                 data-line-chart="{{ $dive['segment_key'] }}"
+                                                 class="relative w-full h-64"
+                                                 role="img"
+                                                 aria-label="{{ $dive['segment_label'] }} hinnan kehitys ja markkinahaarukka aikajaksoittain.">
+                                                <script type="application/json">{!! json_encode($dive['chart'], JSON_UNESCAPED_UNICODE) !!}</script>
+                                            </div>
+                                        </figure>
+                                    @endif
+                                @endif
+                            </article>
+                        @endforeach
                     </div>
                 </section>
             @endif
@@ -457,7 +535,7 @@
                             Pörssisopimusten kokonaishinta on laskettu lisäämällä sopimuksen marginaali pörssin saman päivän keskihintaan. Vuosikustannukset 2&nbsp;000, 5&nbsp;000 ja 18&nbsp;000&nbsp;kWh kulutuksilla sisältävät energiahinnan ja perusmaksut kuten Voltikan vertailussa.
                         </p>
                         <p>
-                            Hintahaarukan rajat ovat 20.&nbsp;ja 80.&nbsp;persentiilit. Halvempi&nbsp;20&nbsp;% on raja jonka alle viidennes saman tyypin sopimuksista jää, ja kalliimpi&nbsp;20&nbsp;% on raja jonka yli viidennes nousee. Keskiarvo on saman tyypin sopimusten aritmeettinen keskiarvo.
+                            Tämän sivun keskiluku on mediaani: kuvaa tyypillistä sopimusta paremmin kuin keskiarvo, koska yksittäiset poikkeavat tarjoukset tai virheellinen aineisto eivät vinouta sitä. Hintahaarukan rajat ovat 20.&nbsp;ja 80.&nbsp;persentiilit: halvempi&nbsp;20&nbsp;% on raja jonka alle viidennes saman tyypin sopimuksista jää, ja kalliimpi&nbsp;20&nbsp;% on raja jonka yli viidennes nousee.
                         </p>
                         <p>
                             Aineisto alkaa {{ $fiDate($dataWindow['from']) }}. Yksittäiset päivät voivat puuttua, jos hintatiedoissa on aukkoja, näitä ei täytetä keinotekoisesti.

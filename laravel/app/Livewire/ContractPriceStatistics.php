@@ -51,6 +51,36 @@ class ContractPriceStatistics extends Component
         'hybrid',
     ];
 
+    /** Segments shown as full deep-dive sections, in display order. */
+    public array $deepDiveSegments = [
+        'spot',
+        'fixed_term_6',
+        'fixed_term_12',
+        'fixed_term_24',
+        'hybrid',
+        'open_ended',
+    ];
+
+    /** URL-friendly anchor slugs for the deep-dive sections. */
+    public array $deepDiveAnchors = [
+        'spot' => 'porssisahko',
+        'fixed_term_6' => 'maaraaikainen-6-kk',
+        'fixed_term_12' => 'maaraaikainen-12-kk',
+        'fixed_term_24' => 'maaraaikainen-24-kk',
+        'hybrid' => 'joustosahko',
+        'open_ended' => 'toistaiseksi-voimassa-oleva',
+    ];
+
+    /** Plain-Finnish 1–2 sentence intro per segment for the deep-dive blocks. */
+    public array $deepDiveDescriptions = [
+        'spot' => 'Pörssisopimuksissa energian hinta seuraa pörssin tuntihintaa, johon sopimustarjoaja lisää oman marginaalinsa. Hinta vaihtelee päivästä toiseen markkinatilanteen mukaan.',
+        'fixed_term_6' => 'Lyhyen määräaikaisen sopimuksen energiahinta lukitaan kuudeksi kuukaudeksi. Suojaa lyhyellä aikavälillä, mutta jää alttiiksi pörssin liikkeille uusittaessa.',
+        'fixed_term_12' => 'Vuoden mittainen kiinteähintainen sopimus lukitsee energiahinnan koko sopimuskaudeksi. Hinnat heijastavat pitkän aikavälin näkymiä, eivät päivittäistä pörssiä.',
+        'fixed_term_24' => 'Kahden vuoden määräaikaisessa sopimuksessa hinta lukitaan pidemmäksi aikaa. Tarjoukset päivittyvät hitaammin, ja markkinoilla on usein vuoden sopimuksia harvempi valikoima.',
+        'hybrid' => 'Joustosähkö-sopimuksissa kuukausimaksu ja kiinteä energiahinta säilyvät koko sopimuskauden. Kulutuksen ajoittamisesta voi tulla noin ±0–3 c/kWh kulutusvaikutus, jota tämän tilaston aineisto ei kata.',
+        'open_ended' => 'Toistaiseksi voimassa olevat sopimukset jatkuvat kunnes asiakas tai myyjä irtisanoo ne. Tarjoaja voi muuttaa hintaa ennakkoilmoituksella, joten energiahinta päivittyy hitaammin kuin pörssi mutta nopeammin kuin määräaikaiset.',
+    ];
+
     public function setPeriod(string $period): void
     {
         if (array_key_exists($period, $this->periods)) {
@@ -138,25 +168,63 @@ class ContractPriceStatistics extends Component
             'unit' => 'cent',
             'decimals' => 2,
             'x' => $series['x'],
-            'series' => [['label' => 'Marginaali ka.', 'values' => $series['avg']]],
+            'series' => [['label' => 'Marginaali, mediaani', 'values' => $series['median']]],
         ];
     }
 
     /**
-     * Spot deep-dive: total spot energy price (spot avg + supplier margin).
+     * Per-segment deep-dive payloads. Each entry contains a callout summary,
+     * a description, and a range chart (avg line + p20–p80 band).
      *
-     * @return array<string,mixed>
+     * @return array<int,array<string,mixed>>
      */
-    public function getSpotTotalChartPayloadProperty(): array
+    public function getDeepDivePayloadsProperty(): array
     {
-        $series = $this->aggregatedSeries('spot', 'spot_total_energy_price', null);
+        $payloads = [];
 
-        return [
-            'unit' => 'cent',
-            'decimals' => 2,
-            'x' => $series['x'],
-            'series' => [['label' => 'Kokonaishinta ka.', 'values' => $series['avg']]],
-        ];
+        foreach ($this->deepDiveSegments as $segmentKey) {
+            $metric = $segmentKey === 'spot' ? 'spot_total_energy_price' : 'energy_price';
+            $bands = $this->aggregatedSeriesWithBands($segmentKey, $metric);
+
+            $current = $this->lastNonNull($bands['median']);
+            $first = $this->firstNonNull($bands['median']);
+            $thirtyDaysAgo = $current['index'] !== null
+                ? $this->valueClosestToOffset(
+                    ['x' => $bands['x'], 'values' => $bands['median']],
+                    $current['index'],
+                    -30,
+                )
+                : null;
+
+            $payloads[] = [
+                'segment_key' => $segmentKey,
+                'segment_label' => $this->segments[$segmentKey] ?? $segmentKey,
+                'anchor' => $this->deepDiveAnchors[$segmentKey] ?? $segmentKey,
+                'description' => $this->deepDiveDescriptions[$segmentKey] ?? '',
+                'is_spot' => $segmentKey === 'spot',
+                'current' => $current['value'] ?? null,
+                'unit' => 'c/kWh',
+                'delta_30d_pct' => $this->percentDelta($current['value'] ?? null, $thirtyDaysAgo),
+                'delta_since_start_pct' => $this->percentDelta($current['value'] ?? null, $first['value'] ?? null),
+                'contract_count' => $this->latestContractCount($segmentKey),
+                'has_data' => count($bands['x']) >= 2 && $current['value'] !== null,
+                'chart' => [
+                    'unit' => 'cent',
+                    'decimals' => 2,
+                    'x' => $bands['x'],
+                    'series' => [
+                        ['label' => $this->segments[$segmentKey] ?? $segmentKey, 'values' => $bands['median']],
+                    ],
+                    'band' => [
+                        'lower' => $bands['p20'],
+                        'upper' => $bands['p80'],
+                        'label' => 'Halvempi 20 % – kalliimpi 20 %',
+                    ],
+                ],
+            ];
+        }
+
+        return $payloads;
     }
 
     /**
@@ -176,13 +244,17 @@ class ContractPriceStatistics extends Component
                 continue;
             }
 
-            $values = $series['avg'];
+            $values = $series['median'];
             $current = $this->lastNonNull($values);
-            $thirtyDaysAgo = $this->valueClosestToOffset($series, $current['index'] ?? null, -30);
+            $thirtyDaysAgo = $this->valueClosestToOffset(
+                ['x' => $series['x'], 'values' => $values],
+                $current['index'] ?? null,
+                -30,
+            );
             $first = $this->firstNonNull($values);
 
             $monthlyFee = $this->aggregatedSeries($segmentKey, 'monthly_fee', null);
-            $monthlyFeeCurrent = $this->lastNonNull($monthlyFee['avg']);
+            $monthlyFeeCurrent = $this->lastNonNull($monthlyFee['median']);
 
             $contractCount = $this->latestContractCount($segmentKey);
 
@@ -235,7 +307,7 @@ class ContractPriceStatistics extends Component
                 'is_primary' => in_array($segmentKey, $this->primarySegments, true),
                 'min' => $latestRow->min_value,
                 'p20' => $latestRow->p20_value,
-                'avg' => $latestRow->avg_value,
+                'median' => $latestRow->median_value,
                 'p80' => $latestRow->p80_value,
                 'max' => $latestRow->max_value,
                 'contract_count' => $latestRow->contract_count,
@@ -257,7 +329,7 @@ class ContractPriceStatistics extends Component
         foreach (array_slice($this->primarySegments, 0, 3) as $segmentKey) {
             $metric = $segmentKey === 'spot' ? 'spot_total_energy_price' : 'energy_price';
             $series = $this->aggregatedSeries($segmentKey, $metric, null);
-            $values = $series['avg'];
+            $values = $series['median'];
 
             if ($values === []) {
                 continue;
@@ -275,7 +347,11 @@ class ContractPriceStatistics extends Component
                 'delta_since_start_pct' => $this->percentDelta($current['value'] ?? null, $first['value'] ?? null),
                 'delta_30d_pct' => $this->percentDelta(
                     $current['value'] ?? null,
-                    $this->valueClosestToOffset($series, $current['index'] ?? null, -30),
+                    $this->valueClosestToOffset(
+                        ['x' => $series['x'], 'values' => $values],
+                        $current['index'] ?? null,
+                        -30,
+                    ),
                 ),
             ];
         }
@@ -387,7 +463,7 @@ class ContractPriceStatistics extends Component
         return view('livewire.contract-price-statistics', [
             'leadChartPayload' => $this->leadChartPayload,
             'spotMarginPayload' => $this->spotMarginChartPayload,
-            'spotTotalPayload' => $this->spotTotalChartPayload,
+            'deepDivePayloads' => $this->deepDivePayloads,
             'segmentRows' => $this->segmentRows,
             'consumptionRows' => $this->consumptionRows,
             'callouts' => $this->callouts,
@@ -432,7 +508,7 @@ class ContractPriceStatistics extends Component
 
         $series = [];
         foreach ($segmentKeys as $key) {
-            $byTs = array_combine($aggregated[$key]['x'], $aggregated[$key]['avg']);
+            $byTs = array_combine($aggregated[$key]['x'], $aggregated[$key]['median']);
             $values = [];
             foreach ($allTimestamps as $ts) {
                 $values[] = $byTs[$ts] ?? null;
@@ -453,9 +529,69 @@ class ContractPriceStatistics extends Component
     }
 
     /**
-     * Aggregates daily statistics for a (segment, metric, consumption) slice into period-keyed series.
+     * Like {@see aggregatedSeries()} but also returns per-period p20/p80 bands
+     * around the median. Used by the per-segment deep-dive charts.
      *
-     * @return array{x:array<int,int>,avg:array<int,?float>}
+     * The `median` key is sourced from each day's stored median; period
+     * aggregation averages those daily medians, so the trend is market-day
+     * weighted rather than contract-row weighted.
+     *
+     * @return array{x:array<int,int>,median:array<int,?float>,p20:array<int,?float>,p80:array<int,?float>,min:array<int,?float>,max:array<int,?float>}
+     */
+    private function aggregatedSeriesWithBands(string $segmentKey, string $metricKey): array
+    {
+        $rows = $this->dailyStats
+            ->where('segment_key', $segmentKey)
+            ->where('metric_key', $metricKey)
+            ->filter(fn ($row) => $row->consumption_kwh === null);
+
+        if ($rows->isEmpty()) {
+            return ['x' => [], 'median' => [], 'p20' => [], 'p80' => [], 'min' => [], 'max' => []];
+        }
+
+        $grouped = $rows
+            ->groupBy(fn ($row) => $this->periodStart($row->stat_date)->toDateString())
+            ->sortKeys();
+
+        $x = $median = $p20 = $p80 = $min = $max = [];
+        foreach ($grouped as $periodStart => $periodRows) {
+            $x[] = Carbon::parse($periodStart)->getTimestamp();
+            $median[] = $this->averageOrNull($periodRows->pluck('median_value'));
+            $p20[] = $this->averageOrNull($periodRows->pluck('p20_value'));
+            $p80[] = $this->averageOrNull($periodRows->pluck('p80_value'));
+            $min[] = $this->minOrNull($periodRows->pluck('min_value'));
+            $max[] = $this->maxOrNull($periodRows->pluck('max_value'));
+        }
+
+        return ['x' => $x, 'median' => $median, 'p20' => $p20, 'p80' => $p80, 'min' => $min, 'max' => $max];
+    }
+
+    private function averageOrNull(Collection $values): ?float
+    {
+        $clean = $values->filter(fn ($v) => $v !== null);
+        return $clean->isEmpty() ? null : (float) $clean->avg();
+    }
+
+    private function minOrNull(Collection $values): ?float
+    {
+        $clean = $values->filter(fn ($v) => $v !== null);
+        return $clean->isEmpty() ? null : (float) $clean->min();
+    }
+
+    private function maxOrNull(Collection $values): ?float
+    {
+        $clean = $values->filter(fn ($v) => $v !== null);
+        return $clean->isEmpty() ? null : (float) $clean->max();
+    }
+
+    /**
+     * Aggregates daily statistics for a (segment, metric, consumption) slice
+     * into period-keyed series. The headline `median` series uses each day's
+     * stored median (robust to outliers and bad-import single rows). Weekly /
+     * monthly aggregation averages those daily medians so the trend stays
+     * market-day weighted.
+     *
+     * @return array{x:array<int,int>,median:array<int,?float>}
      */
     private function aggregatedSeries(string $segmentKey, string $metricKey, ?int $consumption): array
     {
@@ -465,22 +601,22 @@ class ContractPriceStatistics extends Component
             ->filter(fn ($row) => $row->consumption_kwh === $consumption);
 
         if ($rows->isEmpty()) {
-            return ['x' => [], 'avg' => []];
+            return ['x' => [], 'median' => []];
         }
 
         $grouped = $rows->groupBy(fn ($row) => $this->periodStart($row->stat_date)->toDateString())
             ->sortKeys();
 
         $x = [];
-        $avg = [];
+        $median = [];
 
         foreach ($grouped as $periodStart => $periodRows) {
-            $vals = $periodRows->pluck('avg_value')->filter(fn ($v) => $v !== null);
+            $vals = $periodRows->pluck('median_value')->filter(fn ($v) => $v !== null);
             $x[] = Carbon::parse($periodStart)->getTimestamp();
-            $avg[] = $vals->isEmpty() ? null : (float) $vals->avg();
+            $median[] = $vals->isEmpty() ? null : (float) $vals->avg();
         }
 
-        return ['x' => $x, 'avg' => $avg];
+        return ['x' => $x, 'median' => $median];
     }
 
     private function periodStart(CarbonInterface|string $date): CarbonInterface
@@ -528,7 +664,7 @@ class ContractPriceStatistics extends Component
      * Find the value closest to a given day-offset from a reference index.
      * Used for "30 days ago" deltas regardless of period aggregation.
      *
-     * @param array{x:array<int,int>,avg:array<int,?float>} $series
+     * @param array{x:array<int,int>,values:array<int,?float>} $series
      */
     private function valueClosestToOffset(array $series, ?int $referenceIndex, int $dayOffset): ?float
     {
@@ -541,7 +677,7 @@ class ContractPriceStatistics extends Component
         $bestDiff = PHP_INT_MAX;
 
         foreach ($series['x'] as $i => $ts) {
-            if ($series['avg'][$i] === null) {
+            if ($series['values'][$i] === null) {
                 continue;
             }
 
@@ -562,7 +698,7 @@ class ContractPriceStatistics extends Component
             return null;
         }
 
-        return (float) $series['avg'][$bestIdx];
+        return (float) $series['values'][$bestIdx];
     }
 
     private function percentDelta(?float $current, ?float $reference): ?float

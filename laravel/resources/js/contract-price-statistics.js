@@ -43,38 +43,51 @@ function formatNumber(value, decimals) {
 }
 
 function buildOptions(payload, root) {
-    const { unit, decimals, series } = payload;
+    const { unit, decimals, series, band } = payload;
     const unitLabel = unit === 'eur' ? '€/v' : 'c/kWh';
+    const isSpotPalette = root.dataset.lineChart === 'spot' || (series[0] && /pörssi/i.test(series[0].label));
+    const bandFill = isSpotPalette ? 'rgba(249, 115, 22, 0.12)' : 'rgba(100, 116, 139, 0.18)';
 
     const splinePath = uPlot.paths.spline();
-    const uplotSeries = [
-        {},
-        ...series.map((s, idx) => {
-            if (idx === 0) {
-                return {
-                    label: s.label,
-                    stroke: CORAL_500,
-                    width: 2.5,
-                    points: { show: false },
-                    paths: splinePath,
-                };
-            }
-            const style = NON_LEAD_STYLES[(idx - 1) % NON_LEAD_STYLES.length];
-            return {
+    const uplotSeries = [{}];
+    const bands = [];
+
+    if (band) {
+        // Two invisible boundary series, then a fill band between them.
+        uplotSeries.push(
+            { label: 'p20', stroke: 'transparent', points: { show: false }, paths: splinePath },
+            { label: 'p80', stroke: 'transparent', points: { show: false }, paths: splinePath },
+        );
+        bands.push({ series: [2, 1], fill: bandFill });
+    }
+
+    series.forEach((s, idx) => {
+        if (idx === 0) {
+            uplotSeries.push({
                 label: s.label,
-                stroke: style.stroke,
-                width: style.width,
-                dash: style.dash.length ? style.dash : undefined,
+                stroke: isSpotPalette ? CORAL_500 : SLATE_800,
+                width: 2.2,
                 points: { show: false },
                 paths: splinePath,
-            };
-        }),
-    ];
+            });
+            return;
+        }
+        const style = NON_LEAD_STYLES[(idx - 1) % NON_LEAD_STYLES.length];
+        uplotSeries.push({
+            label: s.label,
+            stroke: style.stroke,
+            width: style.width,
+            dash: style.dash.length ? style.dash : undefined,
+            points: { show: false },
+            paths: splinePath,
+        });
+    });
 
     return {
         width: root.clientWidth,
         height: root.clientHeight || 320,
         padding: [16, 16, 24, 8],
+        bands,
         cursor: {
             drag: { setScale: false },
             points: { size: 6, fill: (_u, sIdx) => uplotSeries[sIdx].stroke },
@@ -249,11 +262,25 @@ function updateTooltip(u, payload) {
 
     const lines = [`<div style="color:${SLATE_400};margin-bottom:4px;font-weight:500">${formatFinnishDateLong(ts)}</div>`];
 
+    const dataOffset = payload.band ? 3 : 1;
+
+    if (payload.band) {
+        const lo = u.data[1][idx];
+        const hi = u.data[2][idx];
+        if (lo !== null && lo !== undefined && hi !== null && hi !== undefined) {
+            lines.push(
+                `<div style="color:${SLATE_400};font-size:11px;margin-bottom:4px">Halvempi 20 % – kalliimpi 20 %: ${formatNumber(lo, payload.decimals)}–${formatNumber(hi, payload.decimals)} ${payload.unit === 'eur' ? '€' : 'c/kWh'}</div>`
+            );
+        }
+    }
+
+    const isSpotPalette = u.root.dataset.lineChart === 'spot' || (payload.series[0] && /pörssi/i.test(payload.series[0].label));
+
     payload.series.forEach((s, sIdx) => {
-        const y = u.data[sIdx + 1][idx];
+        const y = u.data[dataOffset + sIdx][idx];
         const display = y === null || y === undefined ? '–' : `${formatNumber(y, payload.decimals)} ${payload.unit === 'eur' ? '€' : 'c/kWh'}`;
         const dot = sIdx === 0
-            ? CORAL_500
+            ? (isSpotPalette ? CORAL_500 : (payload.band ? SLATE_800 : CORAL_500))
             : NON_LEAD_STYLES[(sIdx - 1) % NON_LEAD_STYLES.length].stroke;
         lines.push(
             `<div style="display:flex;align-items:center;gap:6px;justify-content:space-between;gap:16px">` +
@@ -292,7 +319,12 @@ function mount(root, payload) {
         return;
     }
 
-    const data = [xs, ...payload.series.map((s) => s.values)];
+    const data = [xs];
+    if (payload.band) {
+        data.push(payload.band.lower, payload.band.upper);
+    }
+    payload.series.forEach((s) => data.push(s.values));
+
     const opts = buildOptions(payload, root);
     const chart = new uPlot(opts, data, root);
 
