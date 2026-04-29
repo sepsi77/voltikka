@@ -215,11 +215,23 @@ class ContractPriceStatistics extends Component
                     'series' => [
                         ['label' => $this->segments[$segmentKey] ?? $segmentKey, 'values' => $bands['median']],
                     ],
-                    'band' => [
-                        'lower' => $bands['p20'],
-                        'upper' => $bands['p80'],
-                        'label' => 'Halvempi 20 % – kalliimpi 20 %',
-                    ],
+                    // Spot contracts all share the same daily spot price, so their
+                    // p20–p80 spread (driven only by margin differences) is too thin
+                    // to read on a chart whose y-axis is dominated by spot's huge
+                    // temporal swings. Use min–max for spot to make the provider
+                    // spread visible; keep p20–p80 for other segments where it is
+                    // the more interesting "typical range" story.
+                    'band' => $segmentKey === 'spot'
+                        ? [
+                            'lower' => $bands['min'],
+                            'upper' => $bands['max'],
+                            'label' => 'Halvin – kallein tarjous',
+                        ]
+                        : [
+                            'lower' => $bands['p20'],
+                            'upper' => $bands['p80'],
+                            'label' => 'Halvempi 20 % – kalliimpi 20 %',
+                        ],
                 ],
             ];
         }

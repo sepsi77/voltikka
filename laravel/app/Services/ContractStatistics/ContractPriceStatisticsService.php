@@ -131,9 +131,19 @@ class ContractPriceStatisticsService
             ? $spotPrices['avg'] + $spotMargin
             : null;
 
+        // For spot annual-cost projection use the trailing-365-day spot
+        // average as of the snapshot date, not that day's spot avg. A real
+        // spot customer's yearly bill is smoothed across the full year, not
+        // determined by a single peak day. The c/kWh spot_total field above
+        // remains today's price + margin so the deep-dive c/kWh chart still
+        // shows real-time market movement.
+        $annualSpotPrice = $isSpot
+            ? $this->spotRolling365ForDate($date->toDateString())
+            : ($spotPrices['avg'] ?? null);
+
         $annualCosts = [];
         foreach (self::CONSUMPTION_LEVELS as $consumption) {
-            if (! $contract->isConsumptionInRange($consumption) || ($isSpot && $spotPrices['avg'] === null)) {
+            if (! $contract->isConsumptionInRange($consumption) || ($isSpot && $annualSpotPrice === null)) {
                 $annualCosts[$consumption] = null;
                 continue;
             }
@@ -147,8 +157,8 @@ class ContractPriceStatisticsService
                     'metering' => $contract->metering,
                 ],
                 $usage,
-                $spotPrices['day'] ?? $spotPrices['avg'],
-                $spotPrices['night'] ?? $spotPrices['avg'],
+                $isSpot ? $annualSpotPrice : ($spotPrices['day'] ?? $spotPrices['avg']),
+                $isSpot ? $annualSpotPrice : ($spotPrices['night'] ?? $spotPrices['avg']),
                 $date,
             );
 
@@ -298,6 +308,49 @@ class ContractPriceStatisticsService
 
         return $sortedValues[$lower] * (1 - $weight) + $sortedValues[$upper] * $weight;
     }
+
+    /**
+     * Trailing-365-day spot price average as of the given snapshot date.
+     * Used to project a realistic annual cost for spot contracts (rather than
+     * extrapolating a single peak/trough day to a full year).
+     *
+     * Prefers a stored `rolling_365d` row whose `period_start <= $dateString`,
+     * falls back to averaging the last 365 days of `SpotPriceHour.price_with_tax`.
+     */
+    private function spotRolling365ForDate(string $dateString): ?float
+    {
+        if (isset($this->rolling365Cache[$dateString])) {
+            return $this->rolling365Cache[$dateString];
+        }
+
+        $stored = SpotPriceAverage::forRegion('FI')
+            ->ofType(SpotPriceAverage::PERIOD_ROLLING_365D)
+            ->where('period_start', '<=', $dateString)
+            ->orderByDesc('period_start')
+            ->first();
+
+        if ($stored && $stored->avg_price_with_tax !== null) {
+            return $this->rolling365Cache[$dateString] = (float) $stored->avg_price_with_tax;
+        }
+
+        $end = Carbon::parse($dateString)->endOfDay();
+        $start = $end->copy()->subDays(365)->startOfDay();
+
+        $rows = SpotPriceHour::forRegion('FI')
+            ->whereBetween('utc_datetime', [$start, $end])
+            ->get(['price_without_tax', 'vat_rate']);
+
+        if ($rows->isEmpty()) {
+            return $this->rolling365Cache[$dateString] = null;
+        }
+
+        $avg = (float) $rows->avg(fn ($hour) => $hour->price_with_tax);
+
+        return $this->rolling365Cache[$dateString] = $avg;
+    }
+
+    /** @var array<string, ?float> */
+    private array $rolling365Cache = [];
 
     /**
      * @return array{avg:?float,day:?float,night:?float}

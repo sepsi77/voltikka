@@ -153,9 +153,10 @@
                         <h2 id="lead-chart-heading" class="text-2xl font-bold text-slate-900 tracking-tight">
                             Vuosikustannus {{ $consumptionLabel }}&nbsp;kWh kulutuksella
                         </h2>
-                        <p class="mt-1 text-sm text-slate-500">
-                            Eri sopimustyyppien tyypillinen (mediaani) vuosikustannus, jakso&nbsp;=
-                            <span class="font-semibold text-slate-900">{{ $periods[$period] ?? $period }}</span>.
+                        <p class="mt-1 text-sm text-slate-500 max-w-[68ch]">
+                            Eri sopimustyyppien tyypillinen vuosikustannus, jos sopimus tehtäisiin tämän jakson aikana.
+                            Pörssipohjaisille sopimuksille luku perustuu edeltävän 12 kuukauden pörssin keskihintaan, ei yksittäisten päivien hintaan.
+                            Jakso&nbsp;= <span class="font-semibold text-slate-900">{{ $periods[$period] ?? $period }}</span>.
                         </p>
                     </div>
 
@@ -224,6 +225,9 @@
                         @foreach ($caption as $sentence)
                             <span class="block">{{ $sentence }}</span>
                         @endforeach
+                        <span class="block mt-3 text-sm text-slate-500">
+                            Spot-sopimusten vuosikustannus heijastaa edeltävän 12 kuukauden pörssin keskihintaa kustakin jaksosta taaksepäin laskettuna. Yksittäisten päivien hintapiikit eivät siten vääristä lukua.
+                        </span>
                         <span class="block mt-2 text-xs text-slate-400">
                             Lähde: Voltikka, päivittäin kerätyt sähkösopimukset. Sis. ALV 25,5 %.
                         </span>
@@ -532,7 +536,13 @@
                             Kunkin päivän tilastoihin otetaan mukaan ne sopimukset, joilla on kyseiselle päivälle hintatiedot tietokannassa. Hinnat sisältävät arvonlisäveron 25,5 %.
                         </p>
                         <p>
-                            Pörssisopimusten kokonaishinta on laskettu lisäämällä sopimuksen marginaali pörssin saman päivän keskihintaan. Vuosikustannukset 2&nbsp;000, 5&nbsp;000 ja 18&nbsp;000&nbsp;kWh kulutuksilla sisältävät energiahinnan ja perusmaksut kuten Voltikan vertailussa.
+                            Pörssipohjaisille sopimuksille käytetään kahta eri laskentatapaa. Sivun c/kWh-hinnat ja pörssisähkön kokonaishinta perustuvat sen päivän pörssin keskihintaan, johon lisätään sopimuksen marginaali, jolloin luku heijastaa sähkön todellista hetkellistä hintaa. Vuosikustannukset taas lasketaan edeltävän 12 kuukauden pörssin keskihinnasta plus marginaali, jolloin luku vastaa sitä, mitä spot-asiakas olisi käytännössä maksanut vuodessa, eivätkä yksittäisten päivien hintapiikit vääristä sitä.
+                        </p>
+                        <p>
+                            Kiinteähintaisille sopimuksille (määräaikaiset, joustosähkö ja toistaiseksi voimassa olevat) käytetään sopimuksen omaa energiahintaa. Vuosikustannus on energiahinta&nbsp;×&nbsp;kulutus + perusmaksut&nbsp;×&nbsp;12, eli sama kaava kuin Voltikan sopimusvertailussa.
+                        </p>
+                        <p>
+                            Vuosikustannukset 2&nbsp;000, 5&nbsp;000 ja 18&nbsp;000&nbsp;kWh kulutuksilla sisältävät energiahinnan ja perusmaksut.
                         </p>
                         <p>
                             Tämän sivun keskiluku on mediaani: kuvaa tyypillistä sopimusta paremmin kuin keskiarvo, koska yksittäiset poikkeavat tarjoukset tai virheellinen aineisto eivät vinouta sitä. Hintahaarukan rajat ovat 20.&nbsp;ja 80.&nbsp;persentiilit: halvempi&nbsp;20&nbsp;% on raja jonka alle viidennes saman tyypin sopimuksista jää, ja kalliimpi&nbsp;20&nbsp;% on raja jonka yli viidennes nousee.
