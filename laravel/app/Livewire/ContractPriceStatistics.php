@@ -279,6 +279,14 @@ class ContractPriceStatistics extends Component
 
             $contractCount = $this->latestContractCount($segmentKey);
 
+            // Sparkline must track the SAME metric as the lead chart (annual_cost
+            // at the page consumption), so that spot's smoothed rolling-12mo trend
+            // and the table's per-row trend show the same shape. Using daily
+            // energy_price here would make spot's sparkline drop ~70 % while the
+            // lead chart line stayed flat.
+            $costSeries = $this->aggregatedSeries($segmentKey, 'annual_cost', $this->consumption);
+            $sparklineValues = $costSeries['median'] !== [] ? $costSeries['median'] : $values;
+
             $rows[] = [
                 'segment_key' => $segmentKey,
                 'segment_label' => $segmentLabel,
@@ -293,7 +301,7 @@ class ContractPriceStatistics extends Component
                 'delta_since_start_pct' => $this->percentDelta($current['value'] ?? null, $first['value'] ?? null),
                 'monthly_fee' => $monthlyFeeCurrent['value'] ?? null,
                 'contract_count' => $contractCount,
-                'sparkline_path' => $this->sparklinePath($values, 80, 24),
+                'sparkline_path' => $this->sparklinePath($sparklineValues, 80, 24),
             ];
         }
 
