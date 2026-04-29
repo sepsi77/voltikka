@@ -182,6 +182,9 @@ class ContractPriceStatistics extends Component
     {
         $payloads = [];
 
+        $spotBands = $this->aggregatedSeriesWithBands('spot', 'spot_total_energy_price');
+        $spotCurrent = $this->lastNonNull($spotBands['median'])['value'] ?? null;
+
         foreach ($this->deepDiveSegments as $segmentKey) {
             $metric = $segmentKey === 'spot' ? 'spot_total_energy_price' : 'energy_price';
             $bands = $this->aggregatedSeriesWithBands($segmentKey, $metric);
@@ -208,6 +211,12 @@ class ContractPriceStatistics extends Component
                 'delta_since_start_pct' => $this->percentDelta($current['value'] ?? null, $first['value'] ?? null),
                 'contract_count' => $this->latestContractCount($segmentKey),
                 'has_data' => count($bands['x']) >= 2 && $current['value'] !== null,
+                'quotable' => $this->buildQuotableForSegment(
+                    $segmentKey,
+                    $current['value'] ?? null,
+                    $first['value'] ?? null,
+                    $segmentKey === 'spot' ? null : $spotCurrent,
+                ),
                 'chart' => [
                     'unit' => 'cent',
                     'decimals' => 2,
@@ -711,6 +720,105 @@ class ContractPriceStatistics extends Component
         }
 
         return (float) $series['values'][$bestIdx];
+    }
+
+    /**
+     * Build the AI-citable headline + sentence shown above each deep-dive chart.
+     *
+     * Spot is the reference, so its quotable describes change since the dataset
+     * began. Other segments are framed against the current spot price ("X % more
+     * than pörssisähkö"), which is what readers and citing journalists actually
+     * want.
+     *
+     * Returns null when there isn't enough data for a meaningful claim.
+     *
+     * @return array{headline:string,headline_label:string,tone:string,sentence_before:string,sentence_highlight:string,sentence_after:string,sentence_plain:string}|null
+     */
+    private function buildQuotableForSegment(string $segmentKey, ?float $current, ?float $first, ?float $spotCurrent): ?array
+    {
+        if ($current === null) {
+            return null;
+        }
+
+        $subjects = [
+            'spot' => 'Pörssisähkösopimusten energiahinta',
+            'fixed_term_6' => 'Lyhyet määräaikaiset (6 kk) sopimukset',
+            'fixed_term_12' => 'Vuoden määräaikaiset sopimukset',
+            'fixed_term_24' => 'Kahden vuoden määräaikaiset sopimukset',
+            'hybrid' => 'Joustosähkösopimukset',
+            'open_ended' => 'Toistaiseksi voimassa olevat sopimukset',
+        ];
+        $subject = $subjects[$segmentKey] ?? (($this->segments[$segmentKey] ?? $segmentKey) . '-sopimukset');
+
+        $fmtCents = fn (float $v) => number_format($v, 2, ',', ' ');
+
+        // Spot, or any segment when we lack a spot reference: frame as change since data start.
+        if ($segmentKey === 'spot' || $spotCurrent === null || $spotCurrent <= 0) {
+            if ($first === null) {
+                return [
+                    'headline' => $fmtCents($current) . "\u{00A0}c/kWh",
+                    'headline_label' => 'Energiahinta nyt',
+                    'tone' => 'neutral',
+                    'sentence_before' => "{$subject} on tällä hetkellä ",
+                    'sentence_highlight' => $fmtCents($current) . "\u{00A0}c/kWh",
+                    'sentence_after' => '.',
+                    'sentence_plain' => "{$subject} on tällä hetkellä " . $fmtCents($current) . " c/kWh.",
+                ];
+            }
+            $delta = $this->percentDelta($current, $first);
+            if ($delta === null) {
+                return null;
+            }
+            if (abs($delta) < 1.5) {
+                return [
+                    'headline' => "≈\u{00A0}ennallaan",
+                    'headline_label' => 'Aineiston alusta',
+                    'tone' => 'neutral',
+                    'sentence_before' => "{$subject} on pysynyt ",
+                    'sentence_highlight' => 'käytännössä ennallaan',
+                    'sentence_after' => " aineiston alusta (" . $fmtCents($current) . "\u{00A0}c/kWh).",
+                    'sentence_plain' => "{$subject} on pysynyt käytännössä ennallaan aineiston alusta (" . $fmtCents($current) . " c/kWh).",
+                ];
+            }
+            $absPct = number_format(abs($delta), 0, ',', ' ');
+            $sign = $delta < 0 ? "−" : "+";
+            $verb = $delta < 0 ? 'laskenut' : 'noussut';
+            return [
+                'headline' => "{$sign}{$absPct}\u{00A0}%",
+                'headline_label' => 'Aineiston alusta',
+                'tone' => $delta < 0 ? 'down' : 'up',
+                'sentence_before' => "{$subject} on {$verb} ",
+                'sentence_highlight' => "{$absPct}\u{00A0}%",
+                'sentence_after' => " aineiston alusta (" . $fmtCents($current) . "\u{00A0}c/kWh).",
+                'sentence_plain' => "{$subject} on {$verb} {$absPct} % aineiston alusta (" . $fmtCents($current) . " c/kWh).",
+            ];
+        }
+
+        // Other segments: comparison against the current spot price.
+        $vsSpot = (($current - $spotCurrent) / $spotCurrent) * 100.0;
+        if (abs($vsSpot) < 1.5) {
+            return [
+                'headline' => "≈\u{00A0}pörssi",
+                'headline_label' => 'Vs. pörssisähkö',
+                'tone' => 'neutral',
+                'sentence_before' => "{$subject} on hinnoiteltu ",
+                'sentence_highlight' => 'lähelle pörssisähkön tasoa',
+                'sentence_after' => ' (' . $fmtCents($current) . "\u{00A0}c/kWh vs.\u{00A0}" . $fmtCents($spotCurrent) . "\u{00A0}c/kWh).",
+                'sentence_plain' => "{$subject} on hinnoiteltu lähelle pörssisähkön tasoa (" . $fmtCents($current) . " c/kWh vs. " . $fmtCents($spotCurrent) . " c/kWh).",
+            ];
+        }
+        $absPct = number_format(abs($vsSpot), 0, ',', ' ');
+        $sign = $vsSpot < 0 ? "−" : "+";
+        $direction = $vsSpot > 0 ? 'enemmän' : 'vähemmän';
+        return [
+            'headline' => "{$sign}{$absPct}\u{00A0}%",
+            'headline_label' => 'Vs. pörssisähkö',
+            'tone' => $vsSpot > 0 ? 'up' : 'down',
+            'sentence_before' => "{$subject} maksavat keskimäärin ",
+            'sentence_highlight' => "{$absPct}\u{00A0}% {$direction}",
+            'sentence_after' => " kuin pörssisähkö (" . $fmtCents($current) . "\u{00A0}c/kWh vs.\u{00A0}" . $fmtCents($spotCurrent) . "\u{00A0}c/kWh).",
+            'sentence_plain' => "{$subject} maksavat keskimäärin {$absPct} % {$direction} kuin pörssisähkö (" . $fmtCents($current) . " c/kWh vs. " . $fmtCents($spotCurrent) . " c/kWh).",
+        ];
     }
 
     private function percentDelta(?float $current, ?float $reference): ?float

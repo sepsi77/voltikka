@@ -418,63 +418,133 @@
 
             {{-- Per-segment deep-dive sections --}}
             @if (! empty($deepDivePayloads))
+                @php
+                    // Tone classes for the quotable headline metric and the highlighted span in
+                    // the sentence. "down" reads as "cheaper / lower" which is good news for the
+                    // reader, hence emerald; "up" stays slate (no shouting reds — see DESIGN.md
+                    // bans on decorative red/amber/green).
+                    $toneHeadline = [
+                        'down' => 'text-emerald-700',
+                        'up' => 'text-slate-900',
+                        'neutral' => 'text-slate-900',
+                    ];
+                    $toneHighlight = [
+                        'down' => 'text-emerald-700',
+                        'up' => 'text-slate-900',
+                        'neutral' => 'text-slate-900',
+                    ];
+                @endphp
+
                 <section class="mb-20" aria-labelledby="deepdive-heading">
                     <h2 id="deepdive-heading" class="text-2xl font-bold text-slate-900 tracking-tight mb-2">
                         Tarkemmin sopimustyypeittäin
                     </h2>
-                    <p class="text-sm text-slate-500 max-w-[60ch] mb-6">
+                    <p class="text-sm text-slate-500 max-w-[60ch] mb-7">
                         Yksittäisten sopimustyyppien hintakehitys ja tämänhetkinen markkinahaarukka. Vaalea alue kuvaa hintojen keskimmäistä 60&nbsp;%, viiva on mediaani.
                     </p>
 
-                    {{-- In-page TOC --}}
-                    <nav aria-label="Sopimustyypit" class="mb-12 flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                    {{-- In-page TOC: chip-style anchors --}}
+                    <nav aria-label="Sopimustyypit" class="mb-14 flex flex-wrap gap-2">
                         @foreach ($deepDivePayloads as $dive)
                             <a href="#{{ $dive['anchor'] }}"
-                               class="inline-flex items-center gap-1.5 text-slate-700 underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500">
+                               class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs font-semibold tracking-wide text-slate-700 hover:bg-white hover:border-slate-400 hover:text-slate-900 transition-colors">
                                 {{ $dive['segment_label'] }}
+                                @if ($dive['quotable'] && in_array($dive['quotable']['tone'], ['up', 'down'], true))
+                                    <span class="tabular-nums text-[11px] font-bold {{ $dive['quotable']['tone'] === 'down' ? 'text-emerald-700' : 'text-slate-500' }}">
+                                        {{ $dive['quotable']['headline'] }}
+                                    </span>
+                                @endif
                             </a>
                         @endforeach
                     </nav>
 
-                    <div class="space-y-16">
+                    <div class="divide-y divide-slate-200">
                         @foreach ($deepDivePayloads as $dive)
-                            <article id="{{ $dive['anchor'] }}" class="scroll-mt-24">
-                                <header class="mb-3">
+                            <article id="{{ $dive['anchor'] }}" class="scroll-mt-24 pt-20 first:pt-0 pb-20 last:pb-0">
+                                <header class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 mb-3">
                                     <h3 class="text-xl font-bold text-slate-900 tracking-tight">
                                         {{ $dive['segment_label'] }}
                                     </h3>
-                                    @if ($dive['description'])
-                                        <p class="mt-2 text-sm text-slate-600 leading-relaxed max-w-[68ch]">
-                                            {{ $dive['description'] }}
-                                        </p>
+                                    @if ($dive['contract_count'] !== null)
+                                        <span class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-400">
+                                            {{ number_format($dive['contract_count'], 0, ',', ' ') }} sopimusta
+                                        </span>
                                     @endif
                                 </header>
+
+                                @if ($dive['description'])
+                                    <p class="text-sm text-slate-600 leading-relaxed max-w-[68ch] mb-7">
+                                        {{ $dive['description'] }}
+                                    </p>
+                                @endif
 
                                 @if (! $dive['has_data'])
                                     <p class="text-sm text-slate-500">Aineistoa ei vielä riitä tämän sopimustyypin trendin näyttämiseen.</p>
                                 @else
-                                    <p class="text-base text-slate-700 leading-relaxed mb-6 max-w-[68ch]">
-                                        <span>Nyt</span>
-                                        <span class="font-bold text-slate-900 tabular-nums">{{ $fmtNum($dive['current'], 2) }}&nbsp;{{ $dive['unit'] }}</span><span>.</span>
-                                        @if ($dive['delta_30d_pct'] !== null || $dive['delta_since_start_pct'] !== null)
-                                            <span>Hinta on</span>
-                                            @if ($dive['delta_30d_pct'] !== null)
-                                                <span class="tabular-nums {{ $deltaClass($dive['delta_30d_pct']) }}">{{ $fmtPct($dive['delta_30d_pct']) }}</span>
-                                                <span>30 päivässä</span>
-                                            @endif
-                                            @if ($dive['delta_30d_pct'] !== null && $dive['delta_since_start_pct'] !== null)
-                                                <span>ja</span>
-                                            @endif
-                                            @if ($dive['delta_since_start_pct'] !== null)
-                                                <span class="tabular-nums {{ $deltaClass($dive['delta_since_start_pct']) }}">{{ $fmtPct($dive['delta_since_start_pct']) }}</span>
-                                                <span>aineiston alusta</span>
-                                            @endif
-                                            <span>.</span>
-                                        @endif
-                                        @if ($dive['contract_count'] !== null)
-                                            <span class="text-slate-500">{{ number_format($dive['contract_count'], 0, ',', ' ') }} sopimusta tällä hetkellä.</span>
-                                        @endif
-                                    </p>
+
+                                    {{-- Quotable pull-quote: the AI-citable claim --}}
+                                    @if ($dive['quotable'])
+                                        <figure class="mb-8 grid grid-cols-1 md:grid-cols-[minmax(0,11rem)_1fr] gap-x-10 gap-y-4 items-baseline"
+                                                x-data="voltikkaQuote({ text: @js($dive['quotable']['sentence_plain']) })">
+                                            <div class="md:border-l-0 md:pl-0">
+                                                <p class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">
+                                                    {{ $dive['quotable']['headline_label'] }}
+                                                </p>
+                                                <p class="mt-1.5 text-3xl md:text-4xl font-extrabold tabular-nums leading-none {{ $toneHeadline[$dive['quotable']['tone']] }}">
+                                                    {{ $dive['quotable']['headline'] }}
+                                                </p>
+                                            </div>
+                                            <div>
+                                                <blockquote class="text-lg text-slate-700 leading-snug max-w-[58ch]">
+                                                    {{ $dive['quotable']['sentence_before'] }}<span class="font-bold tabular-nums {{ $toneHighlight[$dive['quotable']['tone']] }}">{{ $dive['quotable']['sentence_highlight'] }}</span>{{ $dive['quotable']['sentence_after'] }}
+                                                </blockquote>
+                                                <button type="button"
+                                                        @click="copy()"
+                                                        class="mt-3 inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-wide uppercase text-slate-500 hover:text-coral-600 transition-colors"
+                                                        :aria-label="copied ? 'Kopioitu' : 'Kopioi sitaatti'">
+                                                    <svg x-show="!copied" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                        <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                                    </svg>
+                                                    <svg x-show="copied" x-cloak class="w-3.5 h-3.5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                                        <path d="M20 6L9 17l-5-5"/>
+                                                    </svg>
+                                                    <span x-text="copied ? 'Kopioitu' : 'Kopioi sitaatti'"></span>
+                                                </button>
+                                            </div>
+                                        </figure>
+                                    @endif
+
+                                    {{-- Stats strip: scannable metric grid --}}
+                                    <dl class="mb-10 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-5 pt-4 border-t border-slate-200">
+                                        <div>
+                                            <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">Energiahinta</dt>
+                                            <dd class="mt-1 text-base font-bold text-slate-900 tabular-nums">
+                                                {{ $fmtNum($dive['current'], 2) }}<span class="text-slate-400 font-normal">&nbsp;{{ $dive['unit'] }}</span>
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">30 päivän muutos</dt>
+                                            <dd class="mt-1 text-base font-semibold tabular-nums {{ $deltaClass($dive['delta_30d_pct']) }}">
+                                                {{ $fmtPct($dive['delta_30d_pct']) }}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">Aineiston alusta</dt>
+                                            <dd class="mt-1 text-base font-semibold tabular-nums {{ $deltaClass($dive['delta_since_start_pct']) }}">
+                                                {{ $fmtPct($dive['delta_since_start_pct']) }}
+                                            </dd>
+                                        </div>
+                                        <div>
+                                            <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">Tarjolla nyt</dt>
+                                            <dd class="mt-1 text-base font-semibold tabular-nums text-slate-700">
+                                                @if ($dive['contract_count'] !== null)
+                                                    {{ number_format($dive['contract_count'], 0, ',', ' ') }}<span class="text-slate-400 font-normal">&nbsp;sopimusta</span>
+                                                @else
+                                                    <span class="text-slate-400">–</span>
+                                                @endif
+                                            </dd>
+                                        </div>
+                                    </dl>
 
                                     @if ($dive['is_spot'] && ! empty($spotMarginPayload['x']))
                                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
@@ -612,6 +682,25 @@
     @push('scripts')
         @vite('resources/js/contract-price-statistics.js')
         <script>
+            window.voltikkaQuote = function ({ text }) {
+                return {
+                    copied: false,
+                    async copy() {
+                        try {
+                            await navigator.clipboard.writeText(text);
+                        } catch (err) {
+                            const textarea = document.createElement('textarea');
+                            textarea.value = text;
+                            document.body.appendChild(textarea);
+                            textarea.select();
+                            try { document.execCommand('copy'); } catch {}
+                            textarea.remove();
+                        }
+                        this.copied = true;
+                        setTimeout(() => { this.copied = false; }, 1800);
+                    },
+                };
+            };
             window.voltikkaCite = function ({ plain, markdown, html }) {
                 return {
                     active: 'plain',
