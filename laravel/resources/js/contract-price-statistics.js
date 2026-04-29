@@ -98,7 +98,14 @@ function buildOptions(payload, root) {
             y: {
                 range: (_u, dataMin, dataMax) => {
                     if (dataMin === null || dataMax === null) return [0, 1];
-                    const pad = (dataMax - dataMin) * 0.12 || dataMax * 0.05 || 1;
+                    const span = dataMax - dataMin;
+                    const ratio = dataMax > 0 ? span / dataMax : 0;
+                    // If the data is essentially flat, anchor the axis at 0 so
+                    // tiny noise doesn't look like dramatic movement.
+                    if (ratio < 0.10) {
+                        return [0, dataMax * 1.15 || 1];
+                    }
+                    const pad = span * 0.12 || dataMax * 0.05 || 1;
                     return [Math.max(0, dataMin - pad), dataMax + pad];
                 },
             },
