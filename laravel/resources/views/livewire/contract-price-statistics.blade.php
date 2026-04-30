@@ -234,28 +234,32 @@
                     </figcaption>
                 @endif
 
-                {{-- Visually-hidden accessible table mirror of the chart --}}
-                <table class="sr-only">
-                    <caption>Vuosikustannus {{ $consumptionLabel }} kWh kulutuksella sopimustyypeittäin (€/v).</caption>
-                    <thead>
-                        <tr>
-                            <th>Jakso alkaa</th>
-                            @foreach ($leadChartPayload['series'] as $s)
-                                <th>{{ $s['label'] }}</th>
-                            @endforeach
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($leadChartPayload['x'] as $i => $ts)
+                {{-- Visually-hidden accessible table mirror of the chart.
+                     Wrapper carries `sr-only` (not the table itself) — `display: table`
+                     ignores the 1px width and would otherwise overflow the viewport. --}}
+                <div class="sr-only">
+                    <table>
+                        <caption>Vuosikustannus {{ $consumptionLabel }} kWh kulutuksella sopimustyypeittäin (€/v).</caption>
+                        <thead>
                             <tr>
-                                <td>{{ Cb::createFromTimestamp($ts)->translatedFormat('j.n.Y') }}</td>
+                                <th>Jakso alkaa</th>
                                 @foreach ($leadChartPayload['series'] as $s)
-                                    <td>{{ $fmtNum($s['values'][$i] ?? null, 0) }} €</td>
+                                    <th>{{ $s['label'] }}</th>
                                 @endforeach
                             </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            @foreach ($leadChartPayload['x'] as $i => $ts)
+                                <tr>
+                                    <td>{{ Cb::createFromTimestamp($ts)->translatedFormat('j.n.Y') }}</td>
+                                    @foreach ($leadChartPayload['series'] as $s)
+                                        <td>{{ $fmtNum($s['values'][$i] ?? null, 0) }} €</td>
+                                    @endforeach
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             </section>
 
             {{-- Editorial callouts --}}
@@ -485,7 +489,11 @@
                                     {{-- Quotable pull-quote: the AI-citable claim --}}
                                     @if ($dive['quotable'])
                                         <figure class="mb-8 grid grid-cols-1 md:grid-cols-[minmax(0,11rem)_1fr] gap-x-10 gap-y-4 items-baseline"
-                                                x-data="voltikkaQuote({ text: @js($dive['quotable']['sentence_plain']) })">
+                                                x-data="voltikkaQuote({
+                                                    sentence: @js($dive['quotable']['sentence_plain']),
+                                                    citation: @js($citations['plain']),
+                                                    segment: @js($dive['anchor']),
+                                                })">
                                             <div class="md:border-l-0 md:pl-0">
                                                 <p class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">
                                                     {{ $dive['quotable']['headline_label'] }}
@@ -515,7 +523,7 @@
                                     @endif
 
                                     {{-- Stats strip: scannable metric grid --}}
-                                    <dl class="mb-10 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-5 pt-4 border-t border-slate-200">
+                                    <dl class="mb-10 grid grid-cols-2 sm:grid-cols-4 gap-x-10 gap-y-8 sm:gap-x-6 sm:gap-y-5 pt-5 sm:pt-4 border-t border-slate-200">
                                         <div>
                                             <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">Energiahinta</dt>
                                             <dd class="mt-1 text-base font-bold text-slate-900 tabular-nums">
@@ -682,7 +690,8 @@
     @push('scripts')
         @vite('resources/js/contract-price-statistics.js')
         <script>
-            window.voltikkaQuote = function ({ text }) {
+            window.voltikkaQuote = function ({ sentence, citation, segment }) {
+                const text = citation ? `${sentence}\n\n${citation}` : sentence;
                 return {
                     copied: false,
                     async copy() {
@@ -695,6 +704,9 @@
                             textarea.select();
                             try { document.execCommand('copy'); } catch {}
                             textarea.remove();
+                        }
+                        if (typeof window.voltikkaTrack === 'function') {
+                            window.voltikkaTrack('Quote Copied', { props: { segment: segment || 'unknown' } });
                         }
                         this.copied = true;
                         setTimeout(() => { this.copied = false; }, 1800);
