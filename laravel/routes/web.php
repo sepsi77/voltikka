@@ -33,7 +33,7 @@ Route::get('/spot-price', SpotPrice::class)
 
 // Sitemap (cached for 7 days)
 Route::get('/sitemap.xml', function (SitemapService $sitemapService) {
-    $xml = Cache::remember('sitemap_xml', 604800, function () use ($sitemapService) {
+    $xml = Cache::remember(SitemapService::CACHE_KEY, 604800, function () use ($sitemapService) {
         return $sitemapService->generateXml();
     });
 

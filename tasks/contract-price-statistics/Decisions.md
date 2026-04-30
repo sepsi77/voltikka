@@ -49,3 +49,13 @@ php artisan contracts:calculate-price-statistics --date=2026-04-29 --overwrite
 Daily observations include one row per active household/both contract with price components for the date. Weekly/monthly UI values are derived by averaging daily statistics.
 
 For example, monthly p20 for 12-month fixed-term annual cost is the average of each observed day’s p20 in that month. This keeps the trend market-day weighted rather than contract-row weighted.
+
+## Sitemap inclusion
+
+The `/sahkosopimus/tilastot` page is a canonical indexable page and belongs in `SitemapService::getMainPageUrls()` with daily freshness. A regression assertion in `SitemapTest::test_sitemap_includes_main_pages` checks the XML sitemap contains it.
+
+The sitemap route uses `SitemapService::CACHE_KEY` rather than a hard-coded cache key. The key was bumped to `sitemap_xml_v2` to force production to rebuild any stale cached sitemap that predated the statistics page entry.
+
+## SEO positioning
+
+The statistics page is intended as a data-journalism / link-attraction page, not only a buyer-conversion page. Its meta description emphasizes real contract-type comparisons, price deltas, annual costs, and trend data rather than generic electricity-contract shopping copy.

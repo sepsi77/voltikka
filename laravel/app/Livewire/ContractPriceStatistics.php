@@ -504,7 +504,7 @@ class ContractPriceStatistics extends Component
             'jsonLd' => $this->jsonLd,
         ])->layout('layouts.app', [
             'title' => 'Sähkön hintatilastot, mitä suomalaiset oikeasti maksavat | Voltikka',
-            'metaDescription' => 'Sähkösopimusten todellinen hintakehitys Suomessa. Voltikan päivittäin kerätyt tilastot pörssi-, määräaikaisista, joustosähkö- ja toistaiseksi voimassa olevista sopimuksista, sis. ALV 25,5 %.',
+            'metaDescription' => 'Sähkösopimusten hintatilastot Suomessa. Vertaa eri sopimustyyppien hintaeroja, vuosikustannuksia ja hintakehitystä.',
             'canonical' => config('app.url') . '/sahkosopimus/tilastot',
         ]);
     }

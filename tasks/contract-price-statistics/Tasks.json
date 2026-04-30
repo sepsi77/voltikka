@@ -4,5 +4,6 @@
   {"name":"Implement calculation service and artisan command","status":"done"},
   {"name":"Hook calculation into contracts:fetch","status":"done"},
   {"name":"Build Livewire statistics page and route","status":"done"},
-  {"name":"Add tests and documentation updates","status":"done"}
+  {"name":"Add tests and documentation updates","status":"done"},
+  {"name":"Ensure statistics page is present in sitemap and refresh stale sitemap cache","status":"done"}
 ]

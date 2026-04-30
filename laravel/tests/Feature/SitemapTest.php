@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Postcode;
+use App\Services\SitemapService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
@@ -16,6 +17,7 @@ class SitemapTest extends TestCase
         parent::setUp();
 
         // Clear sitemap cache before each test
+        Cache::forget(SitemapService::CACHE_KEY);
         Cache::forget('sitemap_xml');
 
         // Create some test postcodes for different cities
@@ -108,6 +110,9 @@ class SitemapTest extends TestCase
 
         // Locations page
         $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/paikkakunnat</loc>", $content);
+
+        // Contract price statistics page
+        $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/tilastot</loc>", $content);
     }
 
     public function test_sitemap_includes_housing_type_pages(): void
@@ -442,7 +447,7 @@ class SitemapTest extends TestCase
         ]);
 
         // Clear sitemap cache to reflect database changes
-        Cache::forget('sitemap_xml');
+        Cache::forget(SitemapService::CACHE_KEY);
 
         // Get updated sitemap
         $response2 = $this->get('/sitemap.xml');

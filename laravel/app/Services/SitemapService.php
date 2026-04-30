@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Cache;
 
 class SitemapService
 {
+    public const CACHE_KEY = 'sitemap_xml_v2';
+
     /**
      * Housing types for SEO pages.
      */
