@@ -105,6 +105,12 @@ It should **not** blindly collapse materially different product variants when va
 - `/sahkosopimus/tilastot` is a canonical statistics page and must remain in `getMainPageUrls()`.
 - If production shows stale sitemap XML after adding/removing pages, clear or bump `SitemapService::CACHE_KEY`; `sitemap:generate` also forgets this cache key before writing `public/sitemap.xml`.
 
+## Frontend behavior
+
+### Global page navigation feedback
+
+`resources/views/layouts/app.blade.php` shows an immediate page-loading indicator for normal same-origin link navigation. Same-document hash links (for example `/sahkosopimus/tilastot?kulutus=5000#viittaa`) must not start or leave this indicator active, because no page or Livewire request is expected. Keep the hash-only `click`/`popstate`/`hashchange` guards in sync if changing navigation feedback.
+
 ## Commands
 
 ### Refresh data and auto-link replacements

@@ -164,6 +164,9 @@
             x-data="{ show: false, timeout: null }"
             x-on:livewire:request-started.window="clearTimeout(timeout); timeout = setTimeout(() => show = true, 150)"
             x-on:livewire:request-finished.window="clearTimeout(timeout); show = false"
+            x-on:page-navigation-end.window="clearTimeout(timeout); show = false"
+            x-on:hashchange.window="clearTimeout(timeout); show = false"
+            x-on:pageshow.window="clearTimeout(timeout); show = false"
             x-show="show"
             x-transition:enter="transition ease-out duration-150"
             x-transition:enter-start="opacity-0"
@@ -192,15 +195,7 @@
             aria-label="Ladataan sivua"
         >
             <div class="h-1 bg-gradient-to-r from-coral-500 via-coral-400 to-coral-500 animate-pulse"></div>
-            <div class="absolute top-4 right-4">
-                <div class="inline-flex items-center gap-2 rounded-full bg-slate-900/92 text-white text-sm font-medium px-4 py-2 shadow-lg shadow-slate-900/20 backdrop-blur-sm">
-                    <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <circle cx="12" cy="12" r="9" class="opacity-25" stroke="currentColor" stroke-width="3"></circle>
-                        <path d="M21 12a9 9 0 0 0-9-9" class="opacity-90" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path>
-                    </svg>
-                    <span>Ladataan sivua…</span>
-                </div>
-            </div>
+            <span style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Ladataan sivua…</span>
         </div>
 
         <header class="bg-white border-b border-slate-200" x-data="{ mobileMenuOpen: false }">
@@ -562,9 +557,32 @@
                     startNavigationFeedback();
                 }, { passive: true });
 
-                window.addEventListener('pageshow', stopNavigationFeedback);
+                let lastKnownNavigationUrl = new URL(window.location.href);
+
+                window.addEventListener('pageshow', () => {
+                    lastKnownNavigationUrl = new URL(window.location.href);
+                    stopNavigationFeedback();
+                });
                 window.addEventListener('pagehide', stopNavigationFeedback);
-                window.addEventListener('popstate', startNavigationFeedback);
+                window.addEventListener('hashchange', () => {
+                    lastKnownNavigationUrl = new URL(window.location.href);
+                    stopNavigationFeedback();
+                });
+                window.addEventListener('popstate', () => {
+                    const nextUrl = new URL(window.location.href);
+                    const onlyHashChanged = nextUrl.pathname === lastKnownNavigationUrl.pathname
+                        && nextUrl.search === lastKnownNavigationUrl.search
+                        && nextUrl.hash !== lastKnownNavigationUrl.hash;
+
+                    lastKnownNavigationUrl = nextUrl;
+
+                    if (onlyHashChanged) {
+                        stopNavigationFeedback();
+                        return;
+                    }
+
+                    startNavigationFeedback();
+                });
 
                 if ('requestIdleCallback' in window) {
                     window.requestIdleCallback(loadHeaderSpotPrice, { timeout: 1500 });
