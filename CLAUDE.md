@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to AI coding agents when working with code in this repository.
 
 ## Project Overview
 
@@ -15,6 +15,9 @@ Voltikka is a Finnish electricity contract comparison platform built with **Lara
 
 You can use agent browser skill to access a browser and do browser-based testing or access websites.
 
+## Task tracking
+
+Agents should use the task tracking system in `tasks/` when working on this code base. Read `tasks/AGENTS.md` before starting implementation work and keep the relevant task files updated as work progresses.
 
 ## Repository Structure
 
@@ -32,6 +35,7 @@ voltikka/
 ├── legacy/                  # Deprecated code (not in active use)
 │   ├── python/              # Old Python services
 │   └── voltikka/            # Old SvelteKit frontend
+└── tasks/                   # Long-running agent task state; see tasks/AGENTS.md
 ```
 
 ## Build and Run Commands
@@ -77,7 +81,15 @@ php artisan test --filter="ContractsFilterTest"
 - Calculates annual costs based on user consumption
 - SEO-optimized filter links with dual behavior (see SEO section)
 
-### 2. Spot Price Display
+### 2. Contract Price Statistics
+- **Location**: `app/Livewire/ContractPriceStatistics.php`, `app/Services/ContractStatistics/ContractPriceStatisticsService.php`
+- **Route**: `/sahkosopimus/tilastot`
+- Tracks daily contract-price trends from imported contract prices
+- Historical backfill infers availability from `price_components.price_date`
+- Spot contract totals use stored spot-price history plus supplier margin
+- Commands: `contracts:calculate-price-statistics`, `contracts:backfill-price-statistics`
+
+### 3. Spot Price Display
 - **Location**: `app/Livewire/SpotPrice.php`, `HeaderSpotPrice.php`
 - **Route**: `/spot-price`
 - **Data source**: ENTSO-E API via `EntsoeService`
@@ -89,7 +101,7 @@ php artisan test --filter="ContractsFilterTest"
   - Price charts with color-coded bars
   - CSV export
 
-### 3. Solar Panel Calculator
+### 4. Solar Panel Calculator
 - **Location**: `app/Livewire/SolarCalculator.php`
 - **Route**: `/aurinkopaneelit/laskuri`
 - **Services**:
@@ -102,19 +114,10 @@ php artisan test --filter="ContractsFilterTest"
   - Monthly production estimates
   - Savings calculation based on self-consumption
 
-### 4. Electricity Consumption Calculator
+### 5. Electricity Consumption Calculator
 - **Location**: `app/Livewire/ConsumptionCalculator.php`
 - **Route**: `/sahkosopimus/laskuri`
 - Estimates annual consumption based on housing type and heating
-
-### 5. Contract Price Statistics (SEO link-acquisition page)
-- **Location**: `app/Livewire/ContractPriceStatistics.php`
-- **Route**: `/sahkosopimus/tilastot` (page) + `/sahkosopimus/tilastot.csv` (CC BY 4.0 download)
-- **Audience**: journalists, Reddit/HS commenters, data-curious laypeople, search traffic on `sähkön hinta tilastot`. Not a buyer tool.
-- **Goal**: inbound links and quoted screenshots. The lead chart and a data-driven editorial caption are the load-bearing surface; segment table, consumption section, spot deep-dive, and methodology + citation block serve the long tail.
-- **Tech**: uPlot line charts (single JS chart library in the project), inline-SVG sparklines, Schema.org `Dataset` + `DataDownload` JSON-LD. Deep-linkable `?kulutus=` and `?jakso=` query params.
-- **Visual register**: light theme. The dark slate-950 hero from `DESIGN.md` is intentionally **not** used here, since the page must read as neutral citation material rather than marketing.
-- See `laravel/CLAUDE.md` "Contract price statistics page" for implementation conventions and guardrails.
 
 ## Laravel Architecture
 
@@ -194,6 +197,7 @@ php artisan test --filter="ContractsFilterTest"
 | `/sahkosopimus/sahkoyhtiot/{slug}` | CompanyDetail | Company profile |
 | `/sahkosopimus/laskuri` | ConsumptionCalculator | Consumption calculator |
 | `/sahkosopimus/halvin-sahkosopimus` | CheapestContracts | Cheapest contracts |
+| `/sahkosopimus/tilastot` | ContractPriceStatistics | Contract price trend statistics |
 | `/sahkosopimus/yritykselle` | SeoContractsList | Business contracts |
 | `/spot-price` | SpotPrice | Spot price analytics |
 | `/aurinkopaneelit/laskuri` | SolarCalculator | Solar calculator |
@@ -248,7 +252,8 @@ Inactive contracts are kept in the database for history and SEO continuity. They
 ### Current behavior
 - Active contract detail pages render normally.
 - Inactive contracts with a high-confidence replacement chain redirect with **301** to the latest active replacement.
-- Inactive contracts without a trusted replacement return **410 Gone** with `X-Robots-Tag: noindex, nofollow`.
+- Inactive contracts without a trusted replacement still render their normal contract detail page for historical reference, but with a `noindex` robots meta tag.
+- Inactive contract detail pages without a trusted replacement are excluded from the sitemap.
 
 ### Replacement matching rules
 The matcher is intentionally conservative and only auto-links when confidence is high.
@@ -276,7 +281,7 @@ Name matching then scores candidates by:
 - `app/Livewire/ContractDetail.php`
 - `app/Models/ElectricityContract.php`
 
-See `laravel/CLAUDE.md` for detailed implementation and chain-querying guidance.
+See `laravel/AGENTS.md` for detailed implementation and chain-querying guidance.
 
 ## Code Patterns
 
@@ -310,7 +315,7 @@ ElectricityContract::whereHas('electricitySource', fn($q) =>
 )->get();
 ```
 
-### Price Calculation
+### Price Calculation 
 ```php
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
@@ -319,6 +324,19 @@ $calculator = app(ContractPriceCalculator::class);
 $usage = new EnergyUsage(total: 5000, basicLiving: 5000);
 $result = $calculator->calculate($priceComponents, $contractData, $usage);
 ```
+
+### Discount-aware pricing behavior
+- `ContractPriceCalculator` now supports structured price-component discounts for first-year estimates
+- calculation inputs should include latest price components with discount metadata, not only raw `price`
+- contract list/cache code must avoid eager-loading full `priceComponents` history for all active contracts; use `ElectricityContract::getLatestPriceComponentsForCalculation()` so list metric rebuilds stay under memory limits
+- discounted totals are component-scoped:
+  - monthly fee promos apply only to `Monthly`
+  - energy promos apply only to the matching energy component type
+- result payloads can include both:
+  - discounted totals (`total_cost`, `monthly_costs`)
+  - base totals before promotions (`base_total_cost`, `base_monthly_costs`)
+  - promo savings (`discount_savings_total`, `monthly_discount_savings`)
+- use `ElectricityContract::getLatestPriceComponentsForCalculation()` when preparing calculator input so promo metadata is preserved
 
 ### Spot Price Access
 ```php
@@ -361,6 +379,11 @@ The `showSeoFilterLinks` property controls this behavior - enabled only on `/sah
 - `rel="canonical"`, `rel="prev"`, and `rel="next"` link tags are added
 - Changing filters or consumption resets pagination to page 1
 
+### Sitemap
+- Sitemap URLs are generated by `app/Services/SitemapService.php` and served at `/sitemap.xml` through a cached route.
+- Main indexable pages include `/sahkosopimus/tilastot`; keep `tests/Feature/SitemapTest.php` updated when adding canonical SEO pages.
+- The route cache key lives in `SitemapService::CACHE_KEY`; bump or clear it when stale production sitemap content must be forced to refresh.
+
 ### Creating SEO Contract Listing Pages (Step-by-Step)
 
 All SEO contract listing pages use the **`SeoContractsList`** Livewire component (`app/Livewire/SeoContractsList.php`) and the shared Blade template (`resources/views/livewire/seo-contracts-list.blade.php`). New pages are added by configuring the existing component, NOT by creating new components.
@@ -375,7 +398,7 @@ There are several types of SEO listing pages, each differentiated by a route par
 | Housing type | `housingType` | `omakotitalo` | `/sahkosopimus/omakotitalo` |
 | Energy source | `energySource` | `tuulisahko` | `/sahkosopimus/tuulisahko` |
 | City/Location | `location` | `helsinki` | `/sahkosopimus/paikkakunnat/helsinki` |
-| Target group | `targetGroup` | `Company` | `/sahkosopimus/yritykselle` |
+| Target group | `targetGroup` | `Company` | `/sahkosopimus/yrityksille` |
 | Offer type | `offerType` | `promotion` | `/sahkosopimus/sahkotarjous` |
 
 #### Checklist: Adding a New SEO Pricing Type Page
@@ -484,7 +507,7 @@ The header also displays the current spot price via `HeaderSpotPrice` component.
 
 ## Documentation Maintenance
 
-`CLAUDE.md` files define documentation and context-file CRUD rules for this repository.
+`AGENTS.md` files define documentation and context-file CRUD rules for this repository.
 
 ### Principles for context files
 - Context files are **shortcuts and pointers** for coding agents.
@@ -496,23 +519,23 @@ The header also displays the current spot price via `HeaderSpotPrice` component.
 
 ### Where documentation should live
 - Document functionality and decisions **near the code that implements them**.
-- Keep root `CLAUDE.md` high-level, architectural, and cross-cutting.
-- Keep local `CLAUDE.md` files scoped to their subtree and rich in implementation detail.
+- Keep root `AGENTS.md` high-level, architectural, and cross-cutting.
+- Keep local `AGENTS.md` files scoped to their subtree and rich in implementation detail.
 - Prefer several small, local context files over one oversized root-only document.
 
-### CRUD rules for `CLAUDE.md` files
+### CRUD rules for `AGENTS.md` files
 After any meaningful domain, data model, import, routing, SEO, matching, or behavioral change:
-- update this root `CLAUDE.md` if the change affects project-level behavior or architecture
-- update the closest existing `CLAUDE.md` with implementation details
-- if no nearby context file exists, create a new `CLAUDE.md` in the nearest sensible directory
+- update this root `AGENTS.md` if the change affects project-level behavior or architecture
+- update the closest existing `AGENTS.md` with implementation details
+- if no nearby context file exists, create a new `AGENTS.md` in the nearest sensible directory
 - add pointers from broader context files to the more specific one when useful
 - keep outdated context files synchronized; if a local file becomes misleading, fix it as part of the same change
 
-### Rule for adding new context files
+### Rule for adding new `AGENTS.md` files
 When working in an area that has non-trivial domain logic, import behavior, matching rules, SEO behavior, data model semantics, or other implementation-specific decisions:
-- create a local `CLAUDE.md` in the nearest sensible directory if one does not already exist
+- create an `AGENTS.md` in the nearest sensible directory if one does not already exist
 - keep it scoped to that subtree
-- use parent/root context files for broader context and link downward to more specific files
+- use parent/root `AGENTS.md` files for broader context and link downward to more specific files
 - document notable classes/files and what they are for, as navigation shortcuts
 - document important decisions and the reasons behind them
 - organize code and context files by **logical feature or domain grouping**, not necessarily one subfolder per service/class

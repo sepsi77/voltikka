@@ -247,6 +247,8 @@ These colours mean *one thing*: a CO₂ tier on a contract. They never appear as
 
 **The Single Family Rule.** One typeface (Plus Jakarta Sans). No serif display, no monospace alternates, no second family for "personality." Hierarchy is weight + scale + colour.
 
+**The Readable-By-Default Rule.** Voltikka skews toward larger type and higher-contrast ink than the typical "design-y" SaaS default. Body copy is 16px and never pushed below `slate-600`; secondary copy is 14px and never pushed below `slate-500`. Eyebrow/label micro-type sits at 14px (not 11–12px) in `slate-500`–`slate-600`, with weight 600 instead of 500 to keep it readable at distance. On the dark `slate-950` hero, secondary ink is `slate-200`/`slate-300`, never `slate-400` or below — dark backgrounds eat contrast and a slate-400 label that reads fine on white reads as decorative noise on slate-950. **A redesign pass that consistently shrinks type and pushes ink toward `slate-300`/`slate-400` (light surfaces) or `slate-500`/`slate-600` (dark surfaces) is failing the audience.** Voltikka readers include households making a real money decision; the page must read at a glance, not require leaning in.
+
 ## 4. Elevation
 
 The system is mostly flat. Surfaces sit on the page with 1px slate-200 borders rather than ambient shadows. Shadows appear only in two places: as a *colored glow* under coral CTAs (the warmth, made physical) and as a soft lift on contract-card hover. The dark hero uses subtle `bg-white/5 + backdrop-blur-sm` glass cards for stat callouts — the only sanctioned use of glassmorphism in the system, and only against the dark slate-950 background.
@@ -357,3 +359,4 @@ The dark slate-950 hero is the only place glassmorphism is sanctioned.
 - **Don't** add bouncy or elastic motion. Easing is exponential ease-out; durations 150–300ms; CSS layout properties are never animated.
 - **Don't** wrap everything in a card. Most layout doesn't need a container, and nested cards are forbidden.
 - **Don't** use em dashes (—) in product copy. Use commas, colons, semicolons, periods, or parentheses.
+- **Don't** drift toward smaller-and-paler. Body copy stays ≥16px in `slate-600`+; secondary copy ≥14px in `slate-500`+; on dark surfaces secondary ink is `slate-200`/`slate-300`. Eyebrow labels are 14px weight 600, not 11–12px weight 500. See "The Readable-By-Default Rule" above. If a refinement pass would push label sizes below 14px or ink below the floors above, stop and ask whether the redesign is actually serving the household reader.

@@ -871,6 +871,71 @@ class SpotPrice extends Component
     }
 
     /**
+     * Find the *next* (chronologically earliest) cheap hour from now on.
+     *
+     * "Cheap" = price with VAT at least 5 % below the rolling 30-day average,
+     * matching the same threshold getPriceBadge() uses to label an hour
+     * "Edullinen". Users acting on a "Seuraava halpa tunti" callout expect the
+     * *soonest* good window, not the absolute cheapest hour over the next 24+ h
+     * (which would often pick a slot in the middle of tomorrow night).
+     *
+     * Falls back to the chronologically earliest hour that is at least cheaper
+     * than *now* if no hour clears the -5 % threshold. Returns null only if
+     * there are no future hours at all.
+     *
+     * @return array|null Single hour record, or null if nothing useful exists
+     */
+    public function getNextCheapHour(): ?array
+    {
+        $helsinkiNow = Carbon::now(self::TIMEZONE);
+        $currentHour = (int) $helsinkiNow->format('H');
+        $todayDate = $helsinkiNow->format('Y-m-d');
+
+        // Sort all hours chronologically and keep only future ones
+        $futureHours = array_filter(
+            $this->hourlyPrices,
+            function ($price) use ($currentHour, $todayDate) {
+                if ($price['helsinki_date'] === $todayDate) {
+                    return $price['helsinki_hour'] > $currentHour;
+                }
+                return true;
+            }
+        );
+        usort($futureHours, function ($a, $b) {
+            $aKey = $a['helsinki_date'] . sprintf('%02d', $a['helsinki_hour']);
+            $bKey = $b['helsinki_date'] . sprintf('%02d', $b['helsinki_hour']);
+            return $aKey <=> $bKey;
+        });
+
+        if (empty($futureHours)) {
+            return null;
+        }
+
+        // Primary: first hour at least 5 % below the 30-day average
+        if ($this->rolling30DayAvgWithVat !== null && $this->rolling30DayAvgWithVat > 0) {
+            $threshold = $this->rolling30DayAvgWithVat * 0.95;
+            foreach ($futureHours as $hour) {
+                if (($hour['price_with_tax'] ?? PHP_FLOAT_MAX) <= $threshold) {
+                    return $hour;
+                }
+            }
+        }
+
+        // Fallback: first hour that's at least cheaper than the current price
+        $currentPrice = $this->getCurrentPrice();
+        if ($currentPrice !== null && isset($currentPrice['price_with_tax'])) {
+            foreach ($futureHours as $hour) {
+                if (($hour['price_with_tax'] ?? PHP_FLOAT_MAX) < $currentPrice['price_with_tax']) {
+                    return $hour;
+                }
+            }
+        }
+
+        // Last resort: the very next hour, even if not cheap
+        return $futureHours[0] ?? null;
+    }
+
+    /**
      * Calculate potential savings by using cheapest hours.
      *
      * @param int $hoursNeeded Number of hours needed for the task
@@ -1646,8 +1711,8 @@ class SpotPrice extends Component
                     [
                         'label' => 'Keskihinta (c/kWh)',
                         'data' => [],
-                        'borderColor' => 'rgb(59, 130, 246)',
-                        'backgroundColor' => 'rgba(59, 130, 246, 0.5)',
+                        'borderColor' => 'rgb(15, 23, 42)',
+                        'backgroundColor' => 'rgba(15, 23, 42, 0.05)',
                         'tension' => 0.3,
                     ],
                 ],
@@ -1672,21 +1737,31 @@ class SpotPrice extends Component
             'labels' => $labels,
             'datasets' => [
                 [
-                    'label' => 'Keskihinta (c/kWh)',
-                    'data' => $averages,
-                    'borderColor' => 'rgb(59, 130, 246)',
-                    'backgroundColor' => 'rgba(59, 130, 246, 0.5)',
+                    'label' => 'Päivän alin (c/kWh)',
+                    'data' => $mins,
+                    'borderColor' => 'rgba(148, 163, 184, 0.0)',
+                    'backgroundColor' => 'rgba(249, 115, 22, 0.08)',
                     'tension' => 0.3,
+                    'pointRadius' => 0,
+                    'fill' => '+1',
+                ],
+                [
+                    'label' => 'Päivän ylin (c/kWh)',
+                    'data' => $maxs,
+                    'borderColor' => 'rgba(148, 163, 184, 0.0)',
+                    'backgroundColor' => 'rgba(249, 115, 22, 0.08)',
+                    'tension' => 0.3,
+                    'pointRadius' => 0,
                     'fill' => false,
                 ],
                 [
-                    'label' => 'Vaihteluväli (min-max)',
-                    'data' => $maxs,
-                    'borderColor' => 'rgba(239, 68, 68, 0.5)',
-                    'backgroundColor' => 'rgba(239, 68, 68, 0.1)',
-                    'fill' => '+1',
+                    'label' => 'Päivän keskihinta (c/kWh)',
+                    'data' => $averages,
+                    'borderColor' => 'rgb(15, 23, 42)',
+                    'backgroundColor' => 'rgb(15, 23, 42)',
+                    'borderWidth' => 2,
                     'tension' => 0.3,
-                    'pointRadius' => 0,
+                    'fill' => false,
                 ],
             ],
         ];
@@ -1812,6 +1887,7 @@ class SpotPrice extends Component
             'priceVolatility' => $this->getPriceVolatility(),
             'historicalComparison' => $this->getHistoricalComparison(),
             'cheapestRemainingHours' => $this->getCheapestRemainingHours(5),
+            'nextCheapHour' => $this->getNextCheapHour(),
             'bestConsecutiveHours' => $this->getBestConsecutiveHours(3),
             'potentialSavings' => $this->calculatePotentialSavings(3, 3.7), // 3 hours at 3.7 kW (typical EV charging)
             // Household energy tips
