@@ -1,0 +1,9 @@
+[
+  {"name":"Update deep-dive quotable comparison to use annual_cost at selected consumption", "status":"done"},
+  {"name":"Update lead chart caption to use the same annual_cost series as the chart", "status":"done"},
+  {"name":"Add loading state for period switcher updates", "status":"done"},
+  {"name":"Add loading state for consumption switcher updates", "status":"done"},
+  {"name":"Improve chart tooltip line-to-value association", "status":"done"},
+  {"name":"Hide table rows for segments with fewer than 10 contracts", "status":"done"},
+  {"name":"Update copy/tests/documentation for annual-cost comparison basis", "status":"done"}
+]

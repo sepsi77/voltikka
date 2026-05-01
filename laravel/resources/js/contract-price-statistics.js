@@ -235,20 +235,33 @@ function ensureTooltip(root) {
     tip.style.pointerEvents = 'none';
     tip.style.zIndex = '20';
     tip.style.padding = '10px 12px';
-    tip.style.background = SLATE_900;
-    tip.style.color = '#f8fafc';
-    tip.style.borderRadius = '8px';
+    tip.style.background = 'rgba(255, 255, 255, 0.98)';
+    tip.style.color = SLATE_900;
+    tip.style.border = `1px solid ${SLATE_200}`;
+    tip.style.borderRadius = '10px';
     tip.style.fontSize = '12px';
     tip.style.lineHeight = '1.4';
     tip.style.fontFamily = '"Plus Jakarta Sans", system-ui, sans-serif';
     tip.style.fontVariantNumeric = 'tabular-nums';
-    tip.style.boxShadow = '0 6px 16px -4px rgba(15, 23, 42, 0.25)';
+    tip.style.boxShadow = '0 16px 36px -18px rgba(15, 23, 42, 0.35)';
     tip.style.whiteSpace = 'nowrap';
     tip.style.opacity = '0';
     tip.style.transform = 'translate(8px, -50%)';
     tip.style.transition = 'opacity 120ms ease-out';
     root.appendChild(tip);
     return tip;
+}
+
+function tooltipSeriesStyle(sIdx, isSpotPalette, hasBand) {
+    if (sIdx === 0) {
+        return {
+            stroke: isSpotPalette ? CORAL_500 : (hasBand ? SLATE_800 : CORAL_500),
+            width: 2.4,
+            dash: [],
+        };
+    }
+
+    return NON_LEAD_STYLES[(sIdx - 1) % NON_LEAD_STYLES.length];
 }
 
 function updateTooltip(u, payload) {
@@ -267,7 +280,7 @@ function updateTooltip(u, payload) {
         return;
     }
 
-    const lines = [`<div style="color:${SLATE_400};margin-bottom:4px;font-weight:500">${formatFinnishDateLong(ts)}</div>`];
+    const lines = [`<div style="color:${SLATE_500};margin-bottom:6px;font-weight:700">${formatFinnishDateLong(ts)}</div>`];
 
     const dataOffset = payload.band ? 3 : 1;
 
@@ -283,19 +296,27 @@ function updateTooltip(u, payload) {
 
     const isSpotPalette = u.root.dataset.lineChart === 'spot' || (payload.series[0] && /pörssi/i.test(payload.series[0].label));
 
-    payload.series.forEach((s, sIdx) => {
+    const rows = payload.series.map((s, sIdx) => {
         const y = u.data[dataOffset + sIdx][idx];
+        const style = tooltipSeriesStyle(sIdx, isSpotPalette, Boolean(payload.band));
         const display = y === null || y === undefined ? '–' : `${formatNumber(y, payload.decimals)} ${payload.unit === 'eur' ? '€' : 'c/kWh'}`;
-        const dot = sIdx === 0
-            ? (isSpotPalette ? CORAL_500 : (payload.band ? SLATE_800 : CORAL_500))
-            : NON_LEAD_STYLES[(sIdx - 1) % NON_LEAD_STYLES.length].stroke;
-        lines.push(
-            `<div style="display:flex;align-items:center;gap:6px;justify-content:space-between;gap:16px">` +
-            `<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:9999px;background:${dot};display:inline-block"></span>${s.label}</span>` +
-            `<span style="font-weight:700;color:#fff">${display}</span>` +
-            `</div>`
-        );
-    });
+        const dash = style.dash && style.dash.length ? `stroke-dasharray="${style.dash.join(' ')}"` : '';
+        const sortY = y === null || y === undefined ? Number.NEGATIVE_INFINITY : Number(y);
+
+        return {
+            sortY,
+            html:
+                `<div style="display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;column-gap:10px;min-width:270px;padding:2px 0">` +
+                `<svg width="52" height="14" viewBox="0 0 52 14" aria-hidden="true" style="display:block;overflow:visible">` +
+                `<line x1="2" y1="7" x2="50" y2="7" stroke="${style.stroke}" stroke-width="${Math.max(style.width, 2.4)}" stroke-linecap="round" ${dash}/>` +
+                `</svg>` +
+                `<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;color:${SLATE_700};font-weight:650">${s.label}</span>` +
+                `<span style="font-weight:850;color:${SLATE_900};padding-left:16px">${display}</span>` +
+                `</div>`,
+        };
+    }).sort((a, b) => b.sortY - a.sortY);
+
+    rows.forEach((row) => lines.push(row.html));
 
     tip.innerHTML = lines.join('');
     const x = u.valToPos(ts, 'x');

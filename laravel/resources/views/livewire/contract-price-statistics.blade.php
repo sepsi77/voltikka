@@ -120,17 +120,28 @@
                 <span class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">
                     Vuosikulutus
                 </span>
-                <div role="group" aria-label="Vuosikulutuksen valinta" class="inline-flex bg-slate-50 border border-slate-200 rounded-lg p-0.5 tabular-nums">
-                    @foreach ($consumptionLevels as $level)
-                        <button
-                            type="button"
-                            wire:click="setConsumption({{ $level }})"
-                            class="px-3.5 py-1.5 rounded-md text-xs font-semibold tracking-wide transition-colors {{ $consumption === $level ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900' }}"
-                            aria-pressed="{{ $consumption === $level ? 'true' : 'false' }}"
-                        >
-                            {{ number_format($level, 0, ',', ' ') }}&nbsp;kWh
-                        </button>
-                    @endforeach
+                <div class="flex flex-col items-start gap-2">
+                    <div role="group" aria-label="Vuosikulutuksen valinta" class="inline-flex bg-slate-50 border border-slate-200 rounded-lg p-0.5 tabular-nums">
+                        @foreach ($consumptionLevels as $level)
+                            <button
+                                type="button"
+                                wire:click="setConsumption({{ $level }})"
+                                wire:loading.attr="disabled"
+                                wire:target="setConsumption"
+                                class="px-3.5 py-1.5 rounded-md text-xs font-semibold tracking-wide transition-colors disabled:cursor-wait disabled:opacity-60 {{ $consumption === $level ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900' }}"
+                                aria-pressed="{{ $consumption === $level ? 'true' : 'false' }}"
+                            >
+                                {{ number_format($level, 0, ',', ' ') }}&nbsp;kWh
+                            </button>
+                        @endforeach
+                    </div>
+                    <div wire:loading.delay.flex wire:target="setConsumption" class="hidden items-center gap-2 text-xs font-semibold text-slate-500" role="status" aria-live="polite">
+                        <svg class="h-3.5 w-3.5 animate-spin text-slate-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                        </svg>
+                        Päivitetään kulutusta
+                    </div>
                 </div>
                 <span class="text-xs text-slate-500 max-w-[40ch]">
                     Tyypillinen kulutus: kerrostalokaksio noin 2&nbsp;000, omakotitalo ilman sähkölämmitystä noin 5&nbsp;000, sähkölämmitteinen omakotitalo noin 18&nbsp;000&nbsp;kWh vuodessa.
@@ -162,26 +173,48 @@
                     </div>
 
                     {{-- Period switcher --}}
-                    <div role="group" aria-label="Aikajakson valinta" class="inline-flex bg-slate-50 border border-slate-200 rounded-lg p-0.5 self-start">
-                        @foreach ($periods as $key => $label)
-                            <button
-                                type="button"
-                                wire:click="setPeriod('{{ $key }}')"
-                                class="px-3.5 py-1.5 rounded-md text-xs font-semibold tracking-wide transition-colors {{ $period === $key ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900' }}"
-                                aria-pressed="{{ $period === $key ? 'true' : 'false' }}"
-                            >
-                                {{ $label }}
-                            </button>
-                        @endforeach
+                    <div class="flex flex-col items-start gap-2 self-start">
+                        <div role="group" aria-label="Aikajakson valinta" class="inline-flex bg-slate-50 border border-slate-200 rounded-lg p-0.5">
+                            @foreach ($periods as $key => $label)
+                                <button
+                                    type="button"
+                                    wire:click="setPeriod('{{ $key }}')"
+                                    wire:loading.attr="disabled"
+                                    wire:target="setPeriod"
+                                    class="px-3.5 py-1.5 rounded-md text-xs font-semibold tracking-wide transition-colors disabled:cursor-wait disabled:opacity-60 {{ $period === $key ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900' }}"
+                                    aria-pressed="{{ $period === $key ? 'true' : 'false' }}"
+                                >
+                                    {{ $label }}
+                                </button>
+                            @endforeach
+                        </div>
+                        <div wire:loading.delay.flex wire:target="setPeriod" class="hidden items-center gap-2 text-xs font-semibold text-slate-500" role="status" aria-live="polite">
+                            <svg class="h-3.5 w-3.5 animate-spin text-slate-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                            </svg>
+                            Päivitetään jaksoa
+                        </div>
                     </div>
                 </div>
 
                 <div class="relative">
+                    <div wire:loading.delay.flex wire:target="setPeriod,setConsumption" class="absolute inset-0 z-10 hidden items-center justify-center rounded-xl bg-white/70 backdrop-blur-[1px]" aria-hidden="true">
+                        <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm">
+                            <svg class="h-3.5 w-3.5 animate-spin text-slate-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                            </svg>
+                            Päivitetään
+                        </div>
+                    </div>
                     <div
                         wire:key="lead-chart-{{ $period }}-{{ $dataWindow['to'] }}"
                         wire:ignore
+                        wire:loading.delay.class="opacity-40"
+                        wire:target="setPeriod,setConsumption"
                         data-line-chart
-                        class="relative w-full h-80 select-none"
+                        class="relative w-full h-80 select-none transition-opacity"
                         role="img"
                         aria-label="Vuosikustannus 5&nbsp;000 kWh kulutuksella sopimustyypeittäin, viivakaavio."
                     >
@@ -194,9 +227,9 @@
                     // Must match NON_LEAD_STYLES in resources/js/contract-price-statistics.js
                     $nonLeadStyles = [
                         ['stroke' => '#1e293b', 'dash' => null,        'width' => 1.8], // solid charcoal
-                        ['stroke' => '#64748b', 'dash' => '8,3',       'width' => 1.8], // long dashes
-                        ['stroke' => '#334155', 'dash' => '3,2',       'width' => 2.0], // dense small dashes
-                        ['stroke' => '#64748b', 'dash' => '5,2,2,2',   'width' => 1.8], // dash-dot
+                        ['stroke' => '#64748b', 'dash' => '10,4',      'width' => 1.8], // long dashes
+                        ['stroke' => '#334155', 'dash' => '4,3',       'width' => 2.0], // dense small dashes
+                        ['stroke' => '#64748b', 'dash' => '6,3,2,3',   'width' => 1.8], // dash-dot
                     ];
                 @endphp
                 <ul class="mt-1 flex flex-wrap justify-center gap-x-5 gap-y-2 text-xs text-slate-700" aria-hidden="true">
@@ -289,13 +322,27 @@
 
             {{-- Segment table --}}
             <section class="mb-20" aria-labelledby="segment-table-heading">
-                <div class="flex items-baseline justify-between gap-4 flex-wrap mb-5">
-                    <h2 id="segment-table-heading" class="text-2xl font-bold text-slate-900 tracking-tight">
-                        Hinnat sopimustyypeittäin
-                    </h2>
-                    <p class="text-sm text-slate-500 max-w-[40ch]">
-                        Energiahinta tarkoittaa pörssisopimuksilla pörssin keskihintaa lisättynä sopimuksen marginaalilla.
-                    </p>
+                <div class="mb-5 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)] gap-x-12 gap-y-4 items-start">
+                    <div>
+                        <h2 id="segment-table-heading" class="text-2xl font-bold text-slate-900 tracking-tight">
+                            Hinnat sopimustyypeittäin
+                        </h2>
+                        <p class="mt-2 text-sm text-slate-600 leading-relaxed max-w-[68ch]">
+                            Taulukko näyttää viimeisimmän keräyspäivän tyypillisen energiahinnan sopimustyypeittäin sekä miten hinta on muuttunut aineiston aikana. Luvut perustuvat päiväkohtaisiin mediaaneihin, eli yksittäiset poikkeavat tarjoukset eivät ohjaa tulosta. Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois.
+                        </p>
+                    </div>
+                    <div class="text-sm text-slate-500 leading-relaxed lg:border-l lg:border-slate-200 lg:pl-6">
+                        <p>
+                            Päivä: <span class="font-semibold text-slate-700 tabular-nums">{{ $latestSnapshotDate ?? $fiDate($dataWindow['to']) }}</span>.
+                            Aineisto: <span class="font-semibold text-slate-700 tabular-nums">{{ $fiDate($dataWindow['from']) }}–{{ $fiDate($dataWindow['to']) }}</span>.
+                        </p>
+                        <p class="mt-2">
+                            Pörssisähkön energiahinta on kyseisen päivän pörssin keskihinta + sopimuksen marginaali. Muiden sopimusten energiahinta on sopimuksen oma julkaistu hinta; aika- ja kausisähköissä se painotetaan tyypilliseksi yleishinnaksi.
+                        </p>
+                        <p class="mt-2">
+                            Trendi on vuosikustannuksen kehitys valitulla {{ $consumptionLabel }}&nbsp;kWh kulutuksella, ei pelkän c/kWh-hinnan muutos.
+                        </p>
+                    </div>
                 </div>
 
                 <div class="-mx-4 sm:mx-0 overflow-x-auto">
@@ -366,23 +413,38 @@
 
             {{-- Consumption section: hintahaarukka at the page-level kulutus --}}
             <section class="mb-20" aria-labelledby="consumption-heading">
-                <h2 id="consumption-heading" class="text-2xl font-bold text-slate-900 tracking-tight mb-1">
-                    Hintahaarukka {{ $consumptionLabel }}&nbsp;kWh kulutuksella
-                </h2>
-                <p class="text-sm text-slate-500 max-w-[68ch] mb-3">
-                    Kuinka paljon halvimmat ja kalleimmat sopimukset eroavat tyypillisestä. Halvin näyttää markkinoiden alimman vuosikustannuksen, halvempi&nbsp;20&nbsp;% rajan jonka alle viidennes sopimuksista jää, mediaani jakaa sopimukset puoliksi, ja kalliimpi&nbsp;20&nbsp;% on raja jonka yli viidennes nousee.
-                </p>
-
-                <p class="text-xs text-slate-500 mb-5">
-                    Katso myös:
-                    @foreach ($consumptionLevels as $level)
-                        @if ($level !== $consumption)
-                            <a href="?kulutus={{ $level }}" class="underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500">
-                                {{ number_format($level, 0, ',', ' ') }}&nbsp;kWh
-                            </a>{{ ! $loop->last ? ' · ' : '' }}
-                        @endif
-                    @endforeach
-                </p>
+                <div class="mb-5 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)] gap-x-12 gap-y-4 items-start">
+                    <div>
+                        <h2 id="consumption-heading" class="text-2xl font-bold text-slate-900 tracking-tight">
+                            Hintahaarukka {{ $consumptionLabel }}&nbsp;kWh kulutuksella
+                        </h2>
+                        <p class="mt-2 text-sm text-slate-600 leading-relaxed max-w-[68ch]">
+                            Taulukko näyttää viimeisimmän keräyspäivän vuosikustannusten jakauman sopimustyypeittäin. Laskenta käyttää valittua {{ $consumptionLabel }}&nbsp;kWh vuosikulutusta ja sisältää energiahinnan sekä perusmaksut 12 kuukaudelta. Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois.
+                        </p>
+                        <p class="mt-3 text-xs text-slate-500">
+                            Katso myös:
+                            @foreach ($consumptionLevels as $level)
+                                @if ($level !== $consumption)
+                                    <a href="?kulutus={{ $level }}" class="underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500">
+                                        {{ number_format($level, 0, ',', ' ') }}&nbsp;kWh
+                                    </a>{{ ! $loop->last ? ' · ' : '' }}
+                                @endif
+                            @endforeach
+                        </p>
+                    </div>
+                    <div class="text-sm text-slate-500 leading-relaxed lg:border-l lg:border-slate-200 lg:pl-6">
+                        <p>
+                            Päivä: <span class="font-semibold text-slate-700 tabular-nums">{{ $latestSnapshotDate ?? $fiDate($dataWindow['to']) }}</span>.
+                            Mukana ovat sopimukset, joille voidaan laskea vuosikustannus valitulla {{ $consumptionLabel }}&nbsp;kWh kulutuksella.
+                        </p>
+                        <p class="mt-2">
+                            Halvin on markkinoiden alin vuosikustannus. Halvempi&nbsp;20&nbsp;% on raja, jonka alle viidennes saman tyypin sopimuksista jää. Mediaani kuvaa tyypillistä sopimusta, ja kalliimpi&nbsp;20&nbsp;% on raja, jonka yli viidennes nousee.
+                        </p>
+                        <p class="mt-2">
+                            Pörssisähkössä vuosikustannus käyttää edeltävän 12 kuukauden pörssin keskihintaa + sopimuksen marginaalia. Kiinteissä ja muissa sopimuksissa käytetään sopimuksen julkaistua energiahintaa. Sopimusmäärä voi poiketa ylemmästä hintataulukosta, jos sopimus ei ole tarjolla valitulle kulutukselle tai vuosihintaa ei voi laskea.
+                        </p>
+                    </div>
+                </div>
 
                 <div class="-mx-4 sm:mx-0 overflow-x-auto">
                     <table class="w-full text-sm border-collapse">
@@ -463,7 +525,17 @@
                         @endforeach
                     </nav>
 
-                    <div class="divide-y divide-slate-200">
+                    <div class="relative">
+                        <div wire:loading.delay.flex wire:target="setPeriod,setConsumption" class="absolute inset-x-0 top-0 z-10 hidden justify-center pt-4" role="status" aria-live="polite">
+                            <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm backdrop-blur">
+                                <svg class="h-3.5 w-3.5 animate-spin text-slate-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                                </svg>
+                                Päivitetään sopimustyyppejä
+                            </div>
+                        </div>
+                        <div wire:loading.delay.class="opacity-50" wire:target="setPeriod,setConsumption" class="divide-y divide-slate-200 transition-opacity">
                         @foreach ($deepDivePayloads as $dive)
                             <article id="{{ $dive['anchor'] }}" class="scroll-mt-24 pt-20 first:pt-0 pb-20 last:pb-0">
                                 <header class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 mb-3">
@@ -599,6 +671,7 @@
                                 @endif
                             </article>
                         @endforeach
+                        </div>
                     </div>
                 </section>
             @endif

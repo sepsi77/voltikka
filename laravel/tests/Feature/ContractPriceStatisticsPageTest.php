@@ -30,11 +30,84 @@ class ContractPriceStatisticsPageTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Sähkön hintatilastot: mitä suomalaiset oikeasti maksavat');
         $response->assertSee('Hinnat sopimustyypeittäin');
+        $response->assertSee('Taulukko näyttää viimeisimmän keräyspäivän tyypillisen energiahinnan');
+        $response->assertSee('Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois');
+        $response->assertSee('Pörssisähkön energiahinta on kyseisen päivän pörssin keskihinta + sopimuksen marginaali');
+        $response->assertSee('Trendi on vuosikustannuksen kehitys');
         $response->assertSee('Hintahaarukka');
+        $response->assertSee('Taulukko näyttää viimeisimmän keräyspäivän vuosikustannusten jakauman');
+        $response->assertSee('sisältää energiahinnan sekä perusmaksut 12 kuukaudelta');
+        $response->assertSee('Pörssisähkössä vuosikustannus käyttää edeltävän 12 kuukauden pörssin keskihintaa');
+        $response->assertSee('Sopimusmäärä voi poiketa ylemmästä hintataulukosta');
         $response->assertSee('Mistä luvut tulevat');
         $response->assertSee('Viittaa tähän');
         $response->assertSee('CC&nbsp;BY&nbsp;4.0', false);
         $response->assertSee('ALV 25,5 %');
+    }
+
+    public function test_period_switcher_has_loading_state(): void
+    {
+        $this->seedSampleStatistics();
+
+        $response = $this->get('/sahkosopimus/tilastot');
+
+        $response->assertStatus(200);
+        $response->assertSee('wire:loading.delay.flex wire:target="setPeriod"', false);
+        $response->assertSee('Päivitetään jaksoa');
+        $response->assertSee('Päivitetään sopimustyyppejä');
+    }
+
+    public function test_consumption_switcher_has_loading_state(): void
+    {
+        $this->seedSampleStatistics();
+
+        $response = $this->get('/sahkosopimus/tilastot');
+
+        $response->assertStatus(200);
+        $response->assertSee('wire:loading.delay.flex wire:target="setConsumption"', false);
+        $response->assertSee('Päivitetään kulutusta');
+        $response->assertSee('wire:target="setPeriod,setConsumption"', false);
+    }
+
+    public function test_tables_hide_segments_with_fewer_than_ten_contracts(): void
+    {
+        $this->seedSampleStatistics();
+
+        foreach (['energy_price', 'monthly_fee'] as $metric) {
+            ContractPriceDailyStatistic::create([
+                'stat_date' => '2026-04-29',
+                'segment_key' => 'quarterly',
+                'metric_key' => $metric,
+                'consumption_kwh' => null,
+                'min_value' => 8.0,
+                'p20_value' => 8.0,
+                'avg_value' => 8.0,
+                'median_value' => 8.0,
+                'p80_value' => 8.0,
+                'max_value' => 8.0,
+                'contract_count' => 9,
+            ]);
+        }
+
+        ContractPriceDailyStatistic::create([
+            'stat_date' => '2026-04-29',
+            'segment_key' => 'quarterly',
+            'metric_key' => 'annual_cost',
+            'consumption_kwh' => 5000,
+            'min_value' => 450,
+            'p20_value' => 460,
+            'avg_value' => 470,
+            'median_value' => 470,
+            'p80_value' => 480,
+            'max_value' => 490,
+            'contract_count' => 9,
+        ]);
+
+        $response = $this->get('/sahkosopimus/tilastot');
+
+        $response->assertStatus(200);
+        $response->assertDontSee('>Kvartaalisähkö</span>', false);
+        $response->assertSee('Pörssisähkö');
     }
 
     public function test_jsonld_dataset_is_emitted_with_csv_distribution(): void
@@ -61,6 +134,29 @@ class ContractPriceStatisticsPageTest extends TestCase
         $response->assertSee('Vuosikustannus 18 000&nbsp;kWh kulutuksella', false);
     }
 
+    public function test_deep_dive_spot_comparisons_use_annual_cost_not_current_cents_per_kwh(): void
+    {
+        $this->seedSampleStatistics();
+
+        $response = $this->get('/sahkosopimus/tilastot');
+
+        $response->assertStatus(200);
+        $response->assertSee('Vs. pörssisähkö, 5 000 kWh/v');
+        $response->assertSee('€/v vs.', false);
+        $response->assertDontSee('c/kWh vs.', false);
+    }
+
+    public function test_lead_chart_caption_uses_annual_cost_trend_not_current_spot_cents(): void
+    {
+        $this->seedCaptionMismatchStatistics();
+
+        $response = $this->get('/sahkosopimus/tilastot');
+
+        $response->assertStatus(200);
+        $response->assertSee('Pörssisähkö-sopimusten vuosikustannus on noussut 14 % aineiston alusta.');
+        $response->assertDontSee('Pörssisähkö-sopimukset ovat halventuneet');
+    }
+
     public function test_csv_endpoint_streams_with_attribution_header_lines(): void
     {
         $this->seedSampleStatistics();
@@ -76,6 +172,70 @@ class ContractPriceStatisticsPageTest extends TestCase
         $this->assertStringContainsString('arvonlisäveron 25,5 %', $body);
         $this->assertStringContainsString('segment_key,metric_key', $body);
         $this->assertStringContainsString('spot,annual_cost,5000', $body);
+    }
+
+    private function seedCaptionMismatchStatistics(): void
+    {
+        foreach ([
+            ['date' => '2026-01-01', 'spot_cents' => 10.0, 'spot_cost' => 350.0, 'fixed_cost' => 500.0],
+            ['date' => '2026-04-29', 'spot_cents' => 2.0, 'spot_cost' => 400.0, 'fixed_cost' => 520.0],
+        ] as $row) {
+            ContractPriceDailyStatistic::create([
+                'stat_date' => $row['date'],
+                'segment_key' => 'spot',
+                'metric_key' => 'spot_total_energy_price',
+                'consumption_kwh' => null,
+                'min_value' => $row['spot_cents'],
+                'p20_value' => $row['spot_cents'],
+                'avg_value' => $row['spot_cents'],
+                'median_value' => $row['spot_cents'],
+                'p80_value' => $row['spot_cents'],
+                'max_value' => $row['spot_cents'],
+                'contract_count' => 10,
+            ]);
+
+            ContractPriceDailyStatistic::create([
+                'stat_date' => $row['date'],
+                'segment_key' => 'spot',
+                'metric_key' => 'annual_cost',
+                'consumption_kwh' => 5000,
+                'min_value' => $row['spot_cost'],
+                'p20_value' => $row['spot_cost'],
+                'avg_value' => $row['spot_cost'],
+                'median_value' => $row['spot_cost'],
+                'p80_value' => $row['spot_cost'],
+                'max_value' => $row['spot_cost'],
+                'contract_count' => 10,
+            ]);
+
+            ContractPriceDailyStatistic::create([
+                'stat_date' => $row['date'],
+                'segment_key' => 'fixed_term_12',
+                'metric_key' => 'energy_price',
+                'consumption_kwh' => null,
+                'min_value' => 7.0,
+                'p20_value' => 7.0,
+                'avg_value' => 7.0,
+                'median_value' => 7.0,
+                'p80_value' => 7.0,
+                'max_value' => 7.0,
+                'contract_count' => 10,
+            ]);
+
+            ContractPriceDailyStatistic::create([
+                'stat_date' => $row['date'],
+                'segment_key' => 'fixed_term_12',
+                'metric_key' => 'annual_cost',
+                'consumption_kwh' => 5000,
+                'min_value' => $row['fixed_cost'],
+                'p20_value' => $row['fixed_cost'],
+                'avg_value' => $row['fixed_cost'],
+                'median_value' => $row['fixed_cost'],
+                'p80_value' => $row['fixed_cost'],
+                'max_value' => $row['fixed_cost'],
+                'contract_count' => 10,
+            ]);
+        }
     }
 
     private function seedSampleStatistics(): void

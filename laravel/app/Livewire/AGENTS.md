@@ -24,6 +24,9 @@ Important semantics:
 - the page does not calculate contract prices directly during requests
 - run `contracts:backfill-price-statistics` before expecting historical data
 - spot metrics are split between `spot_margin` and `spot_total_energy_price`
+- deep-dive c/kWh charts may show current/day-period spot total price, but non-spot “vs pörssisähkö” quotable comparisons must use `annual_cost` at the selected consumption so unusually cheap/expensive spot days do not distort contract-type comparisons
+- the lead chart caption must be generated from `leadChartPayload` / `annual_cost`, not from c/kWh callouts, so the text always matches the plotted trend
+- segment and consumption tables hide rows with fewer than 10 contracts to avoid over-interpreting sparse segment statistics
 
 ## `ArticleContractPriceComparisonChart`
 

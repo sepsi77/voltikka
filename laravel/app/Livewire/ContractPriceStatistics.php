@@ -182,12 +182,14 @@ class ContractPriceStatistics extends Component
     {
         $payloads = [];
 
-        $spotBands = $this->aggregatedSeriesWithBands('spot', 'spot_total_energy_price');
-        $spotCurrent = $this->lastNonNull($spotBands['median'])['value'] ?? null;
+        $spotAnnualCostSeries = $this->aggregatedSeries('spot', 'annual_cost', $this->consumption);
+        $spotAnnualCostCurrent = $this->lastNonNull($spotAnnualCostSeries['median'])['value'] ?? null;
 
         foreach ($this->deepDiveSegments as $segmentKey) {
             $metric = $segmentKey === 'spot' ? 'spot_total_energy_price' : 'energy_price';
             $bands = $this->aggregatedSeriesWithBands($segmentKey, $metric);
+            $annualCostSeries = $this->aggregatedSeries($segmentKey, 'annual_cost', $this->consumption);
+            $annualCostCurrent = $this->lastNonNull($annualCostSeries['median'])['value'] ?? null;
 
             $current = $this->lastNonNull($bands['median']);
             $first = $this->firstNonNull($bands['median']);
@@ -215,7 +217,8 @@ class ContractPriceStatistics extends Component
                     $segmentKey,
                     $current['value'] ?? null,
                     $first['value'] ?? null,
-                    $segmentKey === 'spot' ? null : $spotCurrent,
+                    $segmentKey === 'spot' ? null : $annualCostCurrent,
+                    $segmentKey === 'spot' ? null : $spotAnnualCostCurrent,
                 ),
                 'chart' => [
                     'unit' => 'cent',
@@ -278,6 +281,9 @@ class ContractPriceStatistics extends Component
             $monthlyFeeCurrent = $this->lastNonNull($monthlyFee['median']);
 
             $contractCount = $this->latestContractCount($segmentKey);
+            if ($contractCount !== null && $contractCount < 10) {
+                continue;
+            }
 
             // Sparkline must track the SAME metric as the lead chart (annual_cost
             // at the page consumption), so that spot's smoothed rolling-12mo trend
@@ -325,7 +331,7 @@ class ContractPriceStatistics extends Component
                 ->orderByDesc('stat_date')
                 ->first();
 
-            if (! $latestRow) {
+            if (! $latestRow || (int) $latestRow->contract_count < 10) {
                 continue;
             }
 
@@ -396,33 +402,39 @@ class ContractPriceStatistics extends Component
     public function getCaptionProperty(): array
     {
         $sentences = [];
-        $callouts = $this->callouts;
+        $chart = $this->leadChartPayload;
 
-        if ($callouts === []) {
+        if (empty($chart['series'])) {
             return [];
         }
 
-        $lead = $callouts[0];
-        if ($lead['delta_since_start_pct'] !== null) {
-            $verb = $lead['delta_since_start_pct'] < 0 ? 'halventuneet' : 'kallistuneet';
-            $abs = number_format(abs($lead['delta_since_start_pct']), 0, ',', ' ');
-            $sentences[] = "{$lead['segment_label']}-sopimukset ovat {$verb} {$abs} % aineiston alusta.";
+        $lead = $chart['series'][0] ?? null;
+        if ($lead) {
+            $first = $this->firstNonNull($lead['values']);
+            $current = $this->lastNonNull($lead['values']);
+            $delta = $this->percentDelta($current['value'] ?? null, $first['value'] ?? null);
+
+            if ($delta !== null) {
+                $sentences[] = $this->annualCostCaptionSentence($lead['label'], $delta, false);
+            }
         }
 
-        $contrast = collect(array_slice($callouts, 1))
-            ->filter(fn ($c) => $c['delta_since_start_pct'] !== null)
-            ->sortByDesc(fn ($c) => abs($c['delta_since_start_pct']))
+        $contrast = collect(array_slice($chart['series'], 1))
+            ->map(function ($series) {
+                $first = $this->firstNonNull($series['values']);
+                $current = $this->lastNonNull($series['values']);
+
+                return [
+                    'label' => $series['label'],
+                    'delta' => $this->percentDelta($current['value'] ?? null, $first['value'] ?? null),
+                ];
+            })
+            ->filter(fn ($series) => $series['delta'] !== null)
+            ->sortByDesc(fn ($series) => abs($series['delta']))
             ->first();
 
         if ($contrast) {
-            $delta = $contrast['delta_since_start_pct'];
-            if (abs($delta) < 1.5) {
-                $sentences[] = "{$contrast['segment_label']}-sopimukset ovat pysyneet käytännössä paikoillaan.";
-            } else {
-                $verb = $delta < 0 ? 'halventuneet' : 'kallistuneet';
-                $abs = number_format(abs($delta), 0, ',', ' ');
-                $sentences[] = "{$contrast['segment_label']}-sopimukset ovat samalla aikavälillä {$verb} {$abs} %.";
-            }
+            $sentences[] = $this->annualCostCaptionSentence($contrast['label'], $contrast['delta'], true);
         }
 
         return $sentences;
@@ -734,15 +746,15 @@ class ContractPriceStatistics extends Component
      * Build the AI-citable headline + sentence shown above each deep-dive chart.
      *
      * Spot is the reference, so its quotable describes change since the dataset
-     * began. Other segments are framed against the current spot price ("X % more
-     * than pörssisähkö"), which is what readers and citing journalists actually
-     * want.
+     * began. Other segments are compared against spot using annual cost at the
+     * selected consumption level, not current c/kWh, so cheap/expensive spot
+     * days do not distort contract-type comparisons.
      *
      * Returns null when there isn't enough data for a meaningful claim.
      *
      * @return array{headline:string,headline_label:string,tone:string,sentence_before:string,sentence_highlight:string,sentence_after:string,sentence_plain:string}|null
      */
-    private function buildQuotableForSegment(string $segmentKey, ?float $current, ?float $first, ?float $spotCurrent): ?array
+    private function buildQuotableForSegment(string $segmentKey, ?float $current, ?float $first, ?float $annualCostCurrent, ?float $spotAnnualCostCurrent): ?array
     {
         if ($current === null) {
             return null;
@@ -760,8 +772,11 @@ class ContractPriceStatistics extends Component
 
         $fmtCents = fn (float $v) => number_format($v, 2, ',', ' ');
 
-        // Spot, or any segment when we lack a spot reference: frame as change since data start.
-        if ($segmentKey === 'spot' || $spotCurrent === null || $spotCurrent <= 0) {
+        // Spot, or any segment when we lack a reliable annual-cost comparison:
+        // frame as change since data start. Do not compare non-spot c/kWh
+        // against current spot c/kWh because that overstates differences on
+        // unusually cheap or expensive spot days.
+        if ($segmentKey === 'spot' || $annualCostCurrent === null || $spotAnnualCostCurrent === null || $spotAnnualCostCurrent <= 0) {
             if ($first === null) {
                 return [
                     'headline' => $fmtCents($current) . "\u{00A0}c/kWh",
@@ -802,17 +817,20 @@ class ContractPriceStatistics extends Component
             ];
         }
 
-        // Other segments: comparison against the current spot price.
-        $vsSpot = (($current - $spotCurrent) / $spotCurrent) * 100.0;
+        // Other segments: comparison against spot annual cost at the selected
+        // consumption level. Spot annual cost uses trailing-365-day spot prices.
+        $fmtEur = fn (float $v) => number_format($v, 0, ',', ' ');
+        $consumption = number_format($this->consumption, 0, ',', ' ');
+        $vsSpot = (($annualCostCurrent - $spotAnnualCostCurrent) / $spotAnnualCostCurrent) * 100.0;
         if (abs($vsSpot) < 1.5) {
             return [
                 'headline' => "≈\u{00A0}pörssi",
-                'headline_label' => 'Vs. pörssisähkö',
+                'headline_label' => "Vs. pörssisähkö, {$consumption} kWh/v",
                 'tone' => 'neutral',
-                'sentence_before' => "{$subject} on hinnoiteltu ",
-                'sentence_highlight' => 'lähelle pörssisähkön tasoa',
-                'sentence_after' => ' (' . $fmtCents($current) . "\u{00A0}c/kWh vs.\u{00A0}" . $fmtCents($spotCurrent) . "\u{00A0}c/kWh).",
-                'sentence_plain' => "{$subject} on hinnoiteltu lähelle pörssisähkön tasoa (" . $fmtCents($current) . " c/kWh vs. " . $fmtCents($spotCurrent) . " c/kWh).",
+                'sentence_before' => "{$subject} ovat ",
+                'sentence_highlight' => 'lähellä pörssisähkön tasoa',
+                'sentence_after' => " {$consumption}\u{00A0}kWh vuosikulutuksella (" . $fmtEur($annualCostCurrent) . "\u{00A0}€/v vs.\u{00A0}" . $fmtEur($spotAnnualCostCurrent) . "\u{00A0}€/v).",
+                'sentence_plain' => "{$subject} ovat lähellä pörssisähkön tasoa {$consumption} kWh vuosikulutuksella (" . $fmtEur($annualCostCurrent) . " €/v vs. " . $fmtEur($spotAnnualCostCurrent) . " €/v).",
             ];
         }
         $absPct = number_format(abs($vsSpot), 0, ',', ' ');
@@ -820,13 +838,29 @@ class ContractPriceStatistics extends Component
         $direction = $vsSpot > 0 ? 'enemmän' : 'vähemmän';
         return [
             'headline' => "{$sign}{$absPct}\u{00A0}%",
-            'headline_label' => 'Vs. pörssisähkö',
+            'headline_label' => "Vs. pörssisähkö, {$consumption} kWh/v",
             'tone' => $vsSpot > 0 ? 'up' : 'down',
-            'sentence_before' => "{$subject} maksavat keskimäärin ",
+            'sentence_before' => "{$subject} maksavat {$consumption}\u{00A0}kWh vuosikulutuksella ",
             'sentence_highlight' => "{$absPct}\u{00A0}% {$direction}",
-            'sentence_after' => " kuin pörssisähkö (" . $fmtCents($current) . "\u{00A0}c/kWh vs.\u{00A0}" . $fmtCents($spotCurrent) . "\u{00A0}c/kWh).",
-            'sentence_plain' => "{$subject} maksavat keskimäärin {$absPct} % {$direction} kuin pörssisähkö (" . $fmtCents($current) . " c/kWh vs. " . $fmtCents($spotCurrent) . " c/kWh).",
+            'sentence_after' => " kuin pörssisähkö (" . $fmtEur($annualCostCurrent) . "\u{00A0}€/v vs.\u{00A0}" . $fmtEur($spotAnnualCostCurrent) . "\u{00A0}€/v).",
+            'sentence_plain' => "{$subject} maksavat {$consumption} kWh vuosikulutuksella {$absPct} % {$direction} kuin pörssisähkö (" . $fmtEur($annualCostCurrent) . " €/v vs. " . $fmtEur($spotAnnualCostCurrent) . " €/v).",
         ];
+    }
+
+    private function annualCostCaptionSentence(string $label, float $delta, bool $samePeriod): string
+    {
+        $prefix = $samePeriod ? "{$label}-sopimusten vuosikustannus on samalla aikavälillä" : "{$label}-sopimusten vuosikustannus on";
+
+        if (abs($delta) < 1.5) {
+            return "{$prefix} pysynyt käytännössä paikoillaan.";
+        }
+
+        $verb = $delta < 0 ? 'laskenut' : 'noussut';
+        $abs = number_format(abs($delta), 0, ',', ' ');
+
+        return $samePeriod
+            ? "{$prefix} {$verb} {$abs} %."
+            : "{$prefix} {$verb} {$abs} % aineiston alusta.";
     }
 
     private function percentDelta(?float $current, ?float $reference): ?float

@@ -84,6 +84,21 @@ The methodology block must state whether the stored prices include the 25.5 % Fi
 2. CSV license: confirm CC-BY 4.0 with user before exposing the download.
 3. Default lead-chart segments: tentative is `Pörssi yhteensä`, `12 kk määräaikainen`, `Toistaiseksi voimassa oleva`, `Joustosähkö`. Re-evaluate once the new data is plotted, in case one of the four is too sparse to plot at the current data window.
 
+## Investigation: deep-dive quotables compare against daily spot c/kWh (2026-05-01)
+
+User reported that deep-dive sentences such as “Lyhyet määräaikaiset (6 kk) sopimukset maksavat keskimäärin 335 % enemmän kuin pörssisähkö (7,69 c/kWh vs. 1,77 c/kWh)” are misleading.
+
+Confirmed in `app/Livewire/ContractPriceStatistics.php`:
+- `getDeepDivePayloadsProperty()` builds `$spotCurrent` from `aggregatedSeriesWithBands('spot', 'spot_total_energy_price')`.
+- For non-spot deep-dive segments, the metric is `energy_price`.
+- `buildQuotableForSegment()` compares non-spot `energy_price` to the current `spot_total_energy_price` and formats “Vs. pörssisähkö”.
+
+Confirmed in `ContractPriceStatisticsService`:
+- `spot_total_energy_price` is today's/day-period spot average plus contract margin.
+- Spot `annual_cost` deliberately uses trailing-365-day spot average plus margin, so yearly comparisons are smoothed and more realistic.
+
+Implication: the quoted c/kWh deep-dive comparison compares a locked forward contract price against today's/period's spot price, which can be accurate mathematically but misleading as a contract-type comparison, especially on unusually cheap or expensive spot days.
+
 ## Resolutions taken at build time (2026-04-29)
 
 1. **VAT.** `SpotPriceHour` and `SpotPriceAverage` expose `price_with_tax` / `avg_price_with_tax` and the snapshot service feeds those into the `spot_total_energy_price` calculation. Contract price components are stored as the providers publish them, which on Voltikka's source is VAT-included. The page therefore states "Hinnat sisältävät arvonlisäveron 25,5 %" in the meta strip, methodology block, and CSV header.

@@ -20,6 +20,7 @@ Primary files:
 - Future daily calculation uses `active_contracts`, but still reads price components for the requested date so snapshots match that fetch day.
 - `contracts:fetch` must run daily statistics before optional percentile badge recalculation; otherwise a percentile memory failure can leave imported price rows without `/sahkosopimus/tilastot` aggregate rows.
 - Spot contracts track both margin and realistic total energy price (`stored spot average + margin`).
+- Spot `annual_cost` uses trailing-365-day spot average plus margin; use this annual-cost metric, not current/day-period `spot_total_energy_price`, when making contract-type cost comparisons against spot.
 - Weekly/monthly UI aggregates should average daily statistics, not recompute from all contract-day rows, so trend lines are market-day weighted.
 
 ## Segment classification
