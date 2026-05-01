@@ -88,8 +88,8 @@
         @endif
 
         {{-- Lead paragraph --}}
-        <article class="prose prose-slate max-w-prose">
-            <p class="lead text-xl text-slate-600">
+        <article class="prose prose-slate prose-lg max-w-prose">
+            <p class="lead">
                 Pörssisähkö on Suomen yleisin sopimustyyppi. Sen hinta seuraa pörssin tuntihintaa, joten lasku voi olla selvästi kiinteähintaista halvempi, mutta talvipakkasilla yksittäiset tunnit ovat välillä moninkertaisia. Tällä sivulla katsotaan, milloin riski kannattaa ottaa.
             </p>
         </article>
@@ -97,8 +97,8 @@
         {{-- Section: Mikä on pörssisähkö? --}}
         <section class="mt-14 pt-10 border-t border-slate-100">
             <article class="prose prose-slate max-w-prose">
-                <h2 id="mika-on" class="!text-2xl font-bold text-slate-900 !mt-0 !mb-3 scroll-mt-24">Mikä on pörssisähkö?</h2>
-                <p class="!mt-0">
+                <h2 id="mika-on" class="scroll-mt-24">Mikä on pörssisähkö?</h2>
+                <p>
                     Pörssisähkön hinta määräytyy tunneittain Nord Pool -sähköpörssissä ja muodostuu kolmesta osasta:
                 </p>
                 <ul>
@@ -115,8 +115,8 @@
         {{-- Section: Mediaanihinta-vertailu --}}
         <section class="mt-14 pt-10 border-t border-slate-100">
             <article class="prose prose-slate max-w-prose">
-                <h2 id="sopimushinnat" class="!text-2xl font-bold text-slate-900 !mt-0 !mb-3 scroll-mt-24">Mitä sopimushinnat kertovat juuri nyt?</h2>
-                <p class="!mt-0">
+                <h2 id="sopimushinnat" class="scroll-mt-24">Mitä sopimushinnat kertovat juuri nyt?</h2>
+                <p>
                     Alla oleva kuvaaja perustuu Voltikan keräämiin todellisiin sähkösopimusten hintoihin. Se näyttää viikkotasolla mediaanikustannuksen 5&nbsp;000 kWh vuosikulutuksella eri sopimustyypeissä. Mediaani tarkoittaa keskimmäistä sopimusta: puolet tarjolla olleista sopimuksista oli tätä halvempia ja puolet kalliimpia.
                 </p>
             </article>
@@ -126,7 +126,7 @@
             </div>
 
             <article class="prose prose-slate max-w-prose mt-8">
-                <p class="!mt-0">
+                <p>
                     Kuvaajaa ei kannata tulkita lupauksena tulevasta hinnasta tai halvimpana tarjouksena, vaan taustakuvana päätökselle: pörssisähkön kustannus elää markkinan mukana, kun taas kiinteähintaiset sopimukset tarjoavat ennustettavuutta usein eri hintatasolla.
                 </p>
                 <p>
@@ -171,8 +171,8 @@
         {{-- Section: Kenelle pörssisähkö sopii --}}
         <section class="mt-14 pt-10 border-t border-slate-100">
             <article class="prose prose-slate max-w-prose">
-                <h2 id="kenelle" class="!text-2xl font-bold text-slate-900 !mt-0 !mb-3 scroll-mt-24">Kenelle pörssisähkö sopii?</h2>
-                <p class="!mt-0">
+                <h2 id="kenelle" class="scroll-mt-24">Kenelle pörssisähkö sopii?</h2>
+                <p>
                     Pörssisähkö on parhaimmillaan kuluttajille, jotka voivat hyödyntää hinnan vaihtelua.
                     Erityisesti näille ryhmille se voi tuoda merkittäviä säästöjä:
                 </p>
@@ -188,8 +188,8 @@
         {{-- Section: Milloin kiinteä on parempi --}}
         <section class="mt-14 pt-10 border-t border-slate-100">
             <article class="prose prose-slate max-w-prose">
-                <h2 class="!text-2xl font-bold text-slate-900 !mt-0 !mb-3">Milloin kiinteä hinta on parempi?</h2>
-                <p class="!mt-0">
+                <h2>Milloin kiinteä hinta on parempi?</h2>
+                <p>
                     Kiinteähintainen sähkösopimus ei ole automaattisesti kalliimpi. Tietyissä tilanteissa se voi olla parempi valinta:
                 </p>
                 <ul>
@@ -203,8 +203,10 @@
 
         {{-- Section: Yhteenveto --}}
         <section id="yhteenveto" class="mt-14 pt-10 border-t border-slate-100 scroll-mt-24">
-            <h2 class="text-2xl font-bold text-slate-900 mb-5">Yhteenveto</h2>
-            <div class="rounded-xl border border-coral-200 bg-coral-50 p-6">
+            <article class="prose prose-slate max-w-prose">
+                <h2>Yhteenveto</h2>
+            </article>
+            <div class="mt-5 rounded-xl border border-coral-200 bg-coral-50 p-6">
                 <h3 class="font-bold text-coral-900 mb-4 text-lg">Pörssisähkö vs. kiinteä hinta tiivistettynä</h3>
                 <div class="space-y-3">
                     <div class="flex items-start gap-3">
