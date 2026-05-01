@@ -142,16 +142,19 @@ class FetchContracts extends Command
                 $companyListCache->warm();
                 $this->info('Company list cache warmed successfully.');
 
-                // Recalculate percentile thresholds for smart callout badges
-                $this->info('Recalculating pricing percentiles...');
-                $this->call('contracts:calculate-percentiles');
-
-                // Store daily contract-price statistics for trend pages.
+                // Store daily contract-price statistics for trend pages before
+                // optional cache/UX metrics. The public statistics page should
+                // continue to advance even if percentile badge recalculation
+                // later fails or exhausts memory.
                 $this->info('Calculating daily contract price statistics...');
                 $this->call('contracts:calculate-price-statistics', [
                     '--date' => $today,
                     '--overwrite' => true,
                 ]);
+
+                // Recalculate percentile thresholds for smart callout badges.
+                $this->info('Recalculating pricing percentiles...');
+                $this->call('contracts:calculate-percentiles');
             } catch (\Throwable $cacheException) {
                 Log::warning('Failed to warm caches after contracts fetch', [
                     'exception' => $cacheException->getMessage(),

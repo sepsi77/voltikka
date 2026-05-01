@@ -46,7 +46,8 @@ php artisan contracts:backfill-price-statistics --from=2025-01-01 --to=2026-04-2
 ```
 
 Important semantics:
-- future daily calculations are run after `contracts:fetch` and use `active_contracts`
+- future daily calculations are run during `contracts:fetch` and use `active_contracts`
+- `contracts:fetch` calculates daily contract-price statistics before optional percentile badge thresholds so `/sahkosopimus/tilastot` continues to advance even if percentile recalculation fails
 - historical backfills infer availability from `price_components.price_date`
 - missing contract rows for a date are excluded; prices are not carried forward
 - spot contracts store both supplier margin and total spot energy price (`stored spot average + margin`)

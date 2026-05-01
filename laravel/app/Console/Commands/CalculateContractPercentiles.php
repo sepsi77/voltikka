@@ -6,7 +6,6 @@ use App\Models\ActiveContract;
 use App\Models\ContractPercentile;
 use App\Models\ElectricityContract;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 
 class CalculateContractPercentiles extends Command
 {
@@ -18,17 +17,12 @@ class CalculateContractPercentiles extends Command
     {
         $this->info('Calculating contract pricing percentiles...');
 
-        $activeIds = ActiveContract::pluck('id');
+        $activeIds = ActiveContract::query()->pluck('id');
 
         if ($activeIds->isEmpty()) {
             $this->warn('No active contracts found.');
             return self::SUCCESS;
         }
-
-        // Load all active contracts with their latest price components
-        $contracts = ElectricityContract::whereIn('id', $activeIds)
-            ->with(['priceComponents'])
-            ->get();
 
         $metrics = [
             'spot_margin' => [],
@@ -40,47 +34,58 @@ class CalculateContractPercentiles extends Command
             'monthly_fee' => [],
         ];
 
-        foreach ($contracts as $contract) {
-            $latest = $contract->getLatestPriceComponentsForCalculation();
-            $byType = collect($latest)->keyBy('price_component_type');
+        // Do not eager-load full price-component history for all active
+        // contracts. Production has tens of thousands of historical rows, and
+        // this command runs in the same daily pipeline that publishes the
+        // statistics page. Process contracts in chunks and let
+        // getLatestPriceComponentsForCalculation() fetch only the rows needed
+        // for each contract.
+        ElectricityContract::query()
+            ->whereIn('id', $activeIds)
+            ->chunkById(100, function ($contracts) use (&$metrics) {
+                foreach ($contracts as $contract) {
+                    /** @var ElectricityContract $contract */
+                    $latest = $contract->getLatestPriceComponentsForCalculation();
+                    $byType = collect($latest)->keyBy('price_component_type');
 
-            // Monthly fee is collected for all contracts
-            if ($byType->has('Monthly')) {
-                $metrics['monthly_fee'][] = (float) $byType['Monthly']['price'];
-            }
+                    // Monthly fee is collected for all contracts
+                    if ($byType->has('Monthly')) {
+                        $metrics['monthly_fee'][] = (float) $byType['Monthly']['price'];
+                    }
 
-            switch ($contract->pricing_model) {
-                case 'Spot':
-                    if ($byType->has('General')) {
-                        $metrics['spot_margin'][] = (float) $byType['General']['price'];
-                    }
-                    break;
+                    switch ($contract->pricing_model) {
+                        case 'Spot':
+                            if ($byType->has('General')) {
+                                $metrics['spot_margin'][] = (float) $byType['General']['price'];
+                            }
+                            break;
 
-                case 'FixedPrice':
-                    if ($byType->has('General')) {
-                        $metrics['fixed_energy'][] = (float) $byType['General']['price'];
-                    }
-                    break;
+                        case 'FixedPrice':
+                            if ($byType->has('General')) {
+                                $metrics['fixed_energy'][] = (float) $byType['General']['price'];
+                            }
+                            break;
 
-                case 'Seasonal':
-                    if ($byType->has('SeasonalWinterDay')) {
-                        $metrics['seasonal_winter'][] = (float) $byType['SeasonalWinterDay']['price'];
-                    }
-                    if ($byType->has('SeasonalOther')) {
-                        $metrics['seasonal_other'][] = (float) $byType['SeasonalOther']['price'];
-                    }
-                    break;
+                        case 'Seasonal':
+                            if ($byType->has('SeasonalWinterDay')) {
+                                $metrics['seasonal_winter'][] = (float) $byType['SeasonalWinterDay']['price'];
+                            }
+                            if ($byType->has('SeasonalOther')) {
+                                $metrics['seasonal_other'][] = (float) $byType['SeasonalOther']['price'];
+                            }
+                            break;
 
-                case 'TimeOfUse':
-                    if ($byType->has('DayTime')) {
-                        $metrics['time_day'][] = (float) $byType['DayTime']['price'];
+                        case 'TimeOfUse':
+                            if ($byType->has('DayTime')) {
+                                $metrics['time_day'][] = (float) $byType['DayTime']['price'];
+                            }
+                            if ($byType->has('NightTime')) {
+                                $metrics['time_night'][] = (float) $byType['NightTime']['price'];
+                            }
+                            break;
                     }
-                    if ($byType->has('NightTime')) {
-                        $metrics['time_night'][] = (float) $byType['NightTime']['price'];
-                    }
-                    break;
-            }
-        }
+                }
+            });
 
         $now = now();
         ContractPercentile::query()->delete();

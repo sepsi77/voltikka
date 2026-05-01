@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Diagnose production statistics lag",
+    "status": "done"
+  },
+  {
+    "name": "Backfill missing production statistics",
+    "status": "done"
+  },
+  {
+    "name": "Move daily statistics before percentile recalculation",
+    "status": "done"
+  },
+  {
+    "name": "Optimize percentile command memory usage",
+    "status": "done"
+  },
+  {
+    "name": "Run syntax checks, statistics page tests, and percentile command smoke test",
+    "status": "done"
+  }
+]

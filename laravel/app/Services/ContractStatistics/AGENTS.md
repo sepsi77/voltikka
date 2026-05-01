@@ -18,6 +18,7 @@ Primary files:
 - Daily contract availability for historical backfills is inferred from `price_components.price_date`: if a contract has price rows for a date, include it for that date.
 - Do **not** carry prices forward for missing dates/contracts. Voltikka fetches all contracts daily; missing rows should simply be missing data.
 - Future daily calculation uses `active_contracts`, but still reads price components for the requested date so snapshots match that fetch day.
+- `contracts:fetch` must run daily statistics before optional percentile badge recalculation; otherwise a percentile memory failure can leave imported price rows without `/sahkosopimus/tilastot` aggregate rows.
 - Spot contracts track both margin and realistic total energy price (`stored spot average + margin`).
 - Weekly/monthly UI aggregates should average daily statistics, not recompute from all contract-day rows, so trend lines are market-day weighted.
 
