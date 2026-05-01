@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\SpotPriceAverage;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
 class ArticleSpotSeasonalityChart extends Component
@@ -16,40 +17,42 @@ class ArticleSpotSeasonalityChart extends Component
 
     public function getChartDataProperty(): array
     {
-        $monthly = SpotPriceAverage::query()
-            ->where('region', 'FI')
-            ->where('period_type', 'monthly')
-            ->where('period_start', '>=', now()->subMonths(13)->format('Y-m-d'))
-            ->orderBy('period_start')
-            ->get();
+        return Cache::remember('article:spot-seasonality-chart:' . now()->format('Y-m-d'), now()->addHours(6), function () {
+            $monthly = SpotPriceAverage::query()
+                ->where('region', 'FI')
+                ->where('period_type', 'monthly')
+                ->where('period_start', '>=', now()->subMonths(13)->format('Y-m-d'))
+                ->orderBy('period_start')
+                ->get();
 
-        if ($monthly->isEmpty()) {
-            return [];
-        }
+            if ($monthly->isEmpty()) {
+                return [];
+            }
 
-        $labels = [];
-        $dayPrices = [];
-        $nightPrices = [];
-        $entries = [];
+            $labels = [];
+            $dayPrices = [];
+            $nightPrices = [];
+            $entries = [];
 
-        foreach ($monthly as $m) {
-            $date = Carbon::parse($m->period_start);
-            $label = $this->finnishMonths[$date->month] . " '" . substr((string) $date->year, 2);
-            $labels[] = $label;
-            $dayPrices[] = round($m->day_avg_with_tax, 2);
-            $nightPrices[] = round($m->night_avg_with_tax, 2);
-            $entries[] = [
-                'label' => $label,
-                'avg' => (float) $m->avg_price_with_tax,
+            foreach ($monthly as $m) {
+                $date = Carbon::parse($m->period_start);
+                $label = $this->finnishMonths[$date->month] . " '" . substr((string) $date->year, 2);
+                $labels[] = $label;
+                $dayPrices[] = round($m->day_avg_with_tax, 2);
+                $nightPrices[] = round($m->night_avg_with_tax, 2);
+                $entries[] = [
+                    'label' => $label,
+                    'avg' => (float) $m->avg_price_with_tax,
+                ];
+            }
+
+            return [
+                'labels' => $labels,
+                'day' => $dayPrices,
+                'night' => $nightPrices,
+                'entries' => $entries,
             ];
-        }
-
-        return [
-            'labels' => $labels,
-            'day' => $dayPrices,
-            'night' => $nightPrices,
-            'entries' => $entries,
-        ];
+        });
     }
 
     /**
@@ -77,6 +80,16 @@ class ArticleSpotSeasonalityChart extends Component
             'avgDay' => $avgDay !== null ? round($avgDay, 2) : null,
             'avgNight' => $avgNight !== null ? round($avgNight, 2) : null,
         ];
+    }
+
+    public function placeholder(): string
+    {
+        return <<<'HTML'
+            <div class="rounded-2xl border border-slate-200 bg-white p-6 animate-pulse" aria-label="Ladataan hintakausivaihtelun kuvaajaa">
+                <div class="h-5 w-48 rounded bg-slate-200"></div>
+                <div class="mt-6 h-56 rounded-xl bg-slate-100"></div>
+            </div>
+        HTML;
     }
 
     public function render()

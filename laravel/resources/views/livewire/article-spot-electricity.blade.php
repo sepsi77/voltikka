@@ -153,18 +153,18 @@
         {{-- Section: Vertailulaskuri --}}
         <section id="vertailu" class="not-prose mt-14 pt-10 border-t border-slate-100 scroll-mt-24">
             <p class="text-xs font-semibold uppercase tracking-[0.16em] text-coral-700">Kokeile omalla kulutuksellasi</p>
-            <h2 class="mt-2 text-2xl font-bold tracking-tight text-slate-900">Vertaile pörssisähköä ja kiinteähintaisia sopimuksia</h2>
+            <h2 class="mt-2 text-2xl font-bold tracking-tight text-slate-900">Vertaile pörssisähköä määräaikaisiin ja kiinteähintaisiin sopimuksiin</h2>
             <div class="mt-3 space-y-3 max-w-prose text-base leading-7 text-slate-600">
                 <p>
-                    Laskuri vertailee pörssisähköä toiseen sopimustyyppiin valitsemallasi kulutuksella.
+                    Laskuri vertaa pörssisähköä joko kiinteähintaiseen sopimukseen tai määräaikaiseen sopimukseen valitsemallasi kulutuksella.
                     Pörssisähkön hinta-arvio perustuu viime vuoden saman kuukauden toteutuneisiin spot-hintoihin.
                 </p>
                 <p>
-                    Voit valita välilehdistä, vertaillaanko hinnoittelumallia (pörssisähkö vs. kiinteähintainen) vai sopimuksen pituutta (määräaikainen vs. toistaiseksi voimassa). Määräaikaiset sopimukset ovat Suomessa hyvin yleisiä, joten kannattaa kokeilla molempia näkökulmia.
+                    Valitse välilehdistä, haluatko tarkastella pörssisähköä suhteessa kiinteään hintaan vai määräaikaiseen sopimukseen. Määräaikaiset ja kiinteähintaiset sopimukset tarjoavat ennustettavuutta eri tavoin, joten molempia vertailuja kannattaa kokeilla.
                 </p>
             </div>
             <div class="mt-10">
-                <livewire:contract-type-comparison comparison-mode="pricing_model" :show-mode-tabs="true" />
+                <livewire:contract-type-comparison comparison-mode="pricing_model" comparison-context="spot_article" :show-mode-tabs="true" />
             </div>
         </section>
 

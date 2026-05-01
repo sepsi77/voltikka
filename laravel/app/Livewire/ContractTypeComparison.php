@@ -8,6 +8,7 @@ use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
 class ContractTypeComparison extends Component
@@ -21,6 +22,11 @@ class ContractTypeComparison extends Component
      * Whether to show the mode toggle tabs.
      */
     public bool $showModeTabs = true;
+
+    /**
+     * Comparison context. The spot article uses pörssisähkö as the anchor in both tabs.
+     */
+    public string $comparisonContext = 'default';
 
     /**
      * Annual consumption in kWh.
@@ -162,29 +168,71 @@ class ContractTypeComparison extends Component
      */
     public function getModeConfigProperty(): array
     {
+        if ($this->comparisonContext === 'spot_article') {
+            return match ($this->comparisonMode) {
+                'contract_term' => [
+                    'typeA' => 'Spot',
+                    'typeB' => 'FixedTerm',
+                    'labelA' => 'Pörssisähkö',
+                    'labelB' => 'Määräaikainen',
+                    'filterFieldA' => 'pricing_model',
+                    'filterFieldB' => 'contract_type',
+                ],
+                default => [
+                    'typeA' => 'Spot',
+                    'typeB' => 'FixedPrice',
+                    'labelA' => 'Pörssisähkö',
+                    'labelB' => 'Kiinteähintainen',
+                    'filterFieldA' => 'pricing_model',
+                    'filterFieldB' => 'pricing_model',
+                ],
+            };
+        }
+
         return match ($this->comparisonMode) {
             'pricing_model' => [
                 'typeA' => 'Spot',
                 'typeB' => 'FixedPrice',
                 'labelA' => 'Pörssisähkö',
                 'labelB' => 'Kiinteähintainen',
-                'filterField' => 'pricing_model',
+                'filterFieldA' => 'pricing_model',
+                'filterFieldB' => 'pricing_model',
             ],
             'contract_term' => [
                 'typeA' => 'FixedTerm',
                 'typeB' => 'OpenEnded',
                 'labelA' => 'Määräaikainen',
                 'labelB' => 'Toistaiseksi voimassa',
-                'filterField' => 'contract_type',
+                'filterFieldA' => 'contract_type',
+                'filterFieldB' => 'contract_type',
             ],
             default => [
                 'typeA' => 'Spot',
                 'typeB' => 'FixedPrice',
                 'labelA' => 'Pörssisähkö',
                 'labelB' => 'Kiinteähintainen',
-                'filterField' => 'pricing_model',
+                'filterFieldA' => 'pricing_model',
+                'filterFieldB' => 'pricing_model',
             ],
         };
+    }
+
+    /**
+     * Labels for the optional mode tabs.
+     */
+    public function getModeTabLabelsProperty(): array
+    {
+        if ($this->comparisonContext === 'spot_article') {
+            return [
+                'pricing_model' => 'Pörssisähkö vs Kiinteä',
+                'contract_term' => 'Pörssisähkö vs Määräaikainen',
+            ];
+        }
+
+        return [
+            'pricing_model' => 'Pörssisähkö vs Kiinteä',
+            'contract_term' => 'Määräaik. vs Toistaiseksi',
+        ];
     }
 
     /**
@@ -192,26 +240,28 @@ class ContractTypeComparison extends Component
      */
     public function getMonthlySpotPricesLastYear(): array
     {
-        $prices = [];
-        $now = Carbon::now();
+        return Cache::remember('contract-type-comparison:monthly-spot-prices:' . now()->format('Y-m'), now()->addDay(), function () {
+            $prices = [];
+            $now = Carbon::now();
 
-        for ($i = 0; $i < 12; $i++) {
-            $futureMonth = $now->copy()->addMonths($i);
-            $lastYearMonth = $futureMonth->copy()->subYear()->format('Y-m');
+            for ($i = 0; $i < 12; $i++) {
+                $futureMonth = $now->copy()->addMonths($i);
+                $lastYearMonth = $futureMonth->copy()->subYear()->format('Y-m');
 
-            $avg = SpotPriceAverage::forMonth($lastYearMonth, 'FI');
+                $avg = SpotPriceAverage::forMonth($lastYearMonth, 'FI');
 
-            $prices[$futureMonth->format('Y-m')] = [
-                'month_name' => $this->finnishMonths[$futureMonth->month],
-                'month_number' => $futureMonth->month,
-                'year' => $futureMonth->year,
-                'day_avg' => $avg?->day_avg_with_tax ?? 8.0,  // fallback if no data
-                'night_avg' => $avg?->night_avg_with_tax ?? 6.0,
-                'avg_price' => $avg?->avg_price_with_tax ?? 7.0,
-            ];
-        }
+                $prices[$futureMonth->format('Y-m')] = [
+                    'month_name' => $this->finnishMonths[$futureMonth->month],
+                    'month_number' => $futureMonth->month,
+                    'year' => $futureMonth->year,
+                    'day_avg' => $avg?->day_avg_with_tax ?? 8.0,  // fallback if no data
+                    'night_avg' => $avg?->night_avg_with_tax ?? 6.0,
+                    'avg_price' => $avg?->avg_price_with_tax ?? 7.0,
+                ];
+            }
 
-        return $prices;
+            return $prices;
+        });
     }
 
     /**
@@ -221,7 +271,7 @@ class ContractTypeComparison extends Component
     {
         $config = $this->modeConfig;
 
-        return $this->getContractsForType($config['filterField'], $config['typeA']);
+        return $this->getContractsForType($config['filterFieldA'], $config['typeA']);
     }
 
     /**
@@ -231,7 +281,7 @@ class ContractTypeComparison extends Component
     {
         $config = $this->modeConfig;
 
-        return $this->getContractsForType($config['filterField'], $config['typeB']);
+        return $this->getContractsForType($config['filterFieldB'], $config['typeB']);
     }
 
     /**
@@ -545,10 +595,25 @@ class ContractTypeComparison extends Component
         ];
     }
 
+    public function placeholder(): string
+    {
+        return <<<'HTML'
+            <div class="rounded-2xl border border-slate-200 bg-white p-6 animate-pulse" aria-label="Ladataan vertailulaskuria">
+                <div class="h-6 w-56 rounded bg-slate-200"></div>
+                <div class="mt-6 grid gap-4 sm:grid-cols-2">
+                    <div class="h-32 rounded-xl bg-slate-100"></div>
+                    <div class="h-32 rounded-xl bg-slate-100"></div>
+                </div>
+                <div class="mt-6 h-56 rounded-xl bg-slate-100"></div>
+            </div>
+        HTML;
+    }
+
     public function render()
     {
         return view('livewire.contract-type-comparison', [
             'modeConfig' => $this->modeConfig,
+            'modeTabLabels' => $this->modeTabLabels,
             'contractA' => $this->contractA,
             'contractB' => $this->contractB,
             'availableContractsA' => $this->availableContractsA,

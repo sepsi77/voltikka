@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\SpotPriceAverage;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
 class ArticleSpotElectricity extends Component
@@ -61,42 +62,44 @@ class ArticleSpotElectricity extends Component
      */
     public function getMarketSnapshotProperty(): array
     {
-        $latestDate = ContractPriceDailyStatistic::query()
-            ->where('metric_key', 'annual_cost')
-            ->where('consumption_kwh', 5000)
-            ->max('stat_date');
+        return Cache::remember('article:spot-electricity:market-snapshot', now()->addHours(6), function () {
+            $latestDate = ContractPriceDailyStatistic::query()
+                ->where('metric_key', 'annual_cost')
+                ->where('consumption_kwh', 5000)
+                ->max('stat_date');
 
-        if (!$latestDate) {
-            return [];
-        }
+            if (!$latestDate) {
+                return [];
+            }
 
-        $stats = ContractPriceDailyStatistic::query()
-            ->where('metric_key', 'annual_cost')
-            ->where('consumption_kwh', 5000)
-            ->whereIn('segment_key', ['spot', 'fixed_term_12', 'open_ended'])
-            ->whereDate('stat_date', $latestDate)
-            ->get()
-            ->keyBy('segment_key');
+            $stats = ContractPriceDailyStatistic::query()
+                ->where('metric_key', 'annual_cost')
+                ->where('consumption_kwh', 5000)
+                ->whereIn('segment_key', ['spot', 'fixed_term_12', 'open_ended'])
+                ->whereDate('stat_date', $latestDate)
+                ->get()
+                ->keyBy('segment_key');
 
-        $spot = $stats->get('spot');
-        $fixed = $stats->get('fixed_term_12');
-        $open = $stats->get('open_ended');
+            $spot = $stats->get('spot');
+            $fixed = $stats->get('fixed_term_12');
+            $open = $stats->get('open_ended');
 
-        $snapshot = [
-            'date' => Carbon::parse($latestDate)->translatedFormat('j.n.Y'),
-            'spot' => $spot ? round($spot->median_value, 0) : null,
-            'fixed' => $fixed ? round($fixed->median_value, 0) : null,
-            'openEnded' => $open ? round($open->median_value, 0) : null,
-        ];
+            $snapshot = [
+                'date' => Carbon::parse($latestDate)->translatedFormat('j.n.Y'),
+                'spot' => $spot ? round($spot->median_value, 0) : null,
+                'fixed' => $fixed ? round($fixed->median_value, 0) : null,
+                'openEnded' => $open ? round($open->median_value, 0) : null,
+            ];
 
-        if ($snapshot['spot'] && $snapshot['fixed']) {
-            $snapshot['diff'] = $snapshot['fixed'] - $snapshot['spot'];
-            $snapshot['diffPercent'] = $snapshot['fixed'] > 0
-                ? round(($snapshot['diff'] / $snapshot['fixed']) * 100, 1)
-                : 0;
-        }
+            if ($snapshot['spot'] && $snapshot['fixed']) {
+                $snapshot['diff'] = $snapshot['fixed'] - $snapshot['spot'];
+                $snapshot['diffPercent'] = $snapshot['fixed'] > 0
+                    ? round(($snapshot['diff'] / $snapshot['fixed']) * 100, 1)
+                    : 0;
+            }
 
-        return $snapshot;
+            return $snapshot;
+        });
     }
 
     /**
@@ -104,36 +107,38 @@ class ArticleSpotElectricity extends Component
      */
     public function getSeasonalityDataProperty(): array
     {
-        $monthly = SpotPriceAverage::query()
-            ->where('region', 'FI')
-            ->where('period_type', 'monthly')
-            ->where('period_start', '>=', now()->subMonths(13)->format('Y-m-d'))
-            ->orderBy('period_start')
-            ->get();
+        return Cache::remember('article:spot-electricity:seasonality:' . now()->format('Y-m-d'), now()->addHours(6), function () {
+            $monthly = SpotPriceAverage::query()
+                ->where('region', 'FI')
+                ->where('period_type', 'monthly')
+                ->where('period_start', '>=', now()->subMonths(13)->format('Y-m-d'))
+                ->orderBy('period_start')
+                ->get();
 
-        if ($monthly->isEmpty()) {
-            return [];
-        }
+            if ($monthly->isEmpty()) {
+                return [];
+            }
 
-        $labels = [];
-        $dayPrices = [];
-        $nightPrices = [];
-        $avgPrices = [];
+            $labels = [];
+            $dayPrices = [];
+            $nightPrices = [];
+            $avgPrices = [];
 
-        foreach ($monthly as $m) {
-            $date = Carbon::parse($m->period_start);
-            $labels[] = $this->finnishMonths[$date->month] . " '" . substr((string) $date->year, 2);
-            $dayPrices[] = round($m->day_avg_with_tax, 2);
-            $nightPrices[] = round($m->night_avg_with_tax, 2);
-            $avgPrices[] = round($m->avg_price_with_tax, 2);
-        }
+            foreach ($monthly as $m) {
+                $date = Carbon::parse($m->period_start);
+                $labels[] = $this->finnishMonths[$date->month] . " '" . substr((string) $date->year, 2);
+                $dayPrices[] = round($m->day_avg_with_tax, 2);
+                $nightPrices[] = round($m->night_avg_with_tax, 2);
+                $avgPrices[] = round($m->avg_price_with_tax, 2);
+            }
 
-        return [
-            'labels' => $labels,
-            'day' => $dayPrices,
-            'night' => $nightPrices,
-            'avg' => $avgPrices,
-        ];
+            return [
+                'labels' => $labels,
+                'day' => $dayPrices,
+                'night' => $nightPrices,
+                'avg' => $avgPrices,
+            ];
+        });
     }
 
     public function render()

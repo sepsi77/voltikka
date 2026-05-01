@@ -6,6 +6,7 @@ use App\Models\ContractPriceDailyStatistic;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
 class ArticleContractPriceComparisonChart extends Component
@@ -28,12 +29,14 @@ class ArticleContractPriceComparisonChart extends Component
 
     public function getDailyStatsProperty(): Collection
     {
-        return ContractPriceDailyStatistic::query()
-            ->where('metric_key', 'annual_cost')
-            ->where('consumption_kwh', self::CONSUMPTION)
-            ->whereIn('segment_key', $this->primarySegments)
-            ->orderBy('stat_date')
-            ->get();
+        return Cache::remember('article:contract-price-comparison-chart:daily-stats', now()->addHours(6), fn () =>
+            ContractPriceDailyStatistic::query()
+                ->where('metric_key', 'annual_cost')
+                ->where('consumption_kwh', self::CONSUMPTION)
+                ->whereIn('segment_key', $this->primarySegments)
+                ->orderBy('stat_date')
+                ->get()
+        );
     }
 
     public function getDataWindowProperty(): array
@@ -120,6 +123,16 @@ class ArticleContractPriceComparisonChart extends Component
         $date = $date instanceof CarbonInterface ? $date->copy() : Carbon::parse($date);
 
         return $date->startOfWeek();
+    }
+
+    public function placeholder(): string
+    {
+        return <<<'HTML'
+            <div class="rounded-2xl border border-slate-200 bg-white p-6 animate-pulse" aria-label="Ladataan sopimushintojen kuvaajaa">
+                <div class="h-5 w-56 rounded bg-slate-200"></div>
+                <div class="mt-6 h-64 rounded-xl bg-slate-100"></div>
+            </div>
+        HTML;
     }
 
     public function render()

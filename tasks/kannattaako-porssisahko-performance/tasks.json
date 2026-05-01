@@ -1,0 +1,8 @@
+[
+  {"name":"Inspect route/component/view for slow page","status":"completed"},
+  {"name":"Implement caching or perceived loading improvement","status":"completed"},
+  {"name":"Run targeted tests/checks","status":"completed"},
+  {"name":"Document decisions","status":"completed"},
+  {"name":"Adjust pörssisähkö article comparison modes and heading","status":"completed"},
+  {"name":"Fix article widgets not drawing after lazy loading","status":"completed"}
+]

@@ -25,7 +25,7 @@
                     wire:target="setComparisonMode"
                     class="px-4 py-2 text-sm font-medium rounded-full transition-colors disabled:cursor-wait disabled:opacity-70 {{ $comparisonMode === 'pricing_model' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-700' }}"
                 >
-                    Pörssisähkö vs Kiinteä
+                    {{ $modeTabLabels['pricing_model'] }}
                 </button>
                 <button
                     wire:click="setComparisonMode('contract_term')"
@@ -33,7 +33,7 @@
                     wire:target="setComparisonMode"
                     class="px-4 py-2 text-sm font-medium rounded-full transition-colors disabled:cursor-wait disabled:opacity-70 {{ $comparisonMode === 'contract_term' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-700' }}"
                 >
-                    Määräaik. vs Toistaiseksi
+                    {{ $modeTabLabels['contract_term'] }}
                 </button>
             </div>
         </div>

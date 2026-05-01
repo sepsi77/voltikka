@@ -43,6 +43,8 @@ Important semantics:
 - the article embed intentionally shows one static view: weekly aggregation at 5 000 kWh/year, with no period or consumption selectors
 - keep its aggregation aligned with `ContractPriceStatistics`: weekly views average daily median statistics so trends remain market-day weighted
 - do not calculate contract prices during the article request; the component only reads aggregate statistics rows
+- article chart data is cached with short TTLs (typically 6 hours) because it is derived from daily/hourly precomputed market tables and does not need per-request freshness
+- do not Livewire-lazy-load the article chart widgets unless their pushed scripts/chart initializers are moved to a non-lazy parent bundle; otherwise the widget markup can hydrate without the chart drawing
 
 ## `ContractTypeComparison`
 
@@ -55,6 +57,8 @@ Purpose:
 
 Important semantics:
 - widget actions can be slow because contract candidates are recalculated; keep visible `wire:loading` feedback on mode, consumption, and contract-selector updates
+- default `contract_term` mode compares määräaikainen vs toistaiseksi voimassa oleva for the määräaikainen article
+- `comparisonContext="spot_article"` keeps pörssisähkö as the left-side anchor in both tabs: pörssisähkö vs kiinteähintainen and pörssisähkö vs määräaikainen
 
 ## `ContractDetail`
 
