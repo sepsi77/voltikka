@@ -4,7 +4,6 @@ namespace App\Livewire;
 
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\SpotPriceAverage;
-use App\Models\SpotPriceHour;
 use Carbon\Carbon;
 use Livewire\Component;
 
@@ -137,54 +136,12 @@ class ArticleSpotElectricity extends Component
         ];
     }
 
-    /**
-     * Spot price volatility metrics for the last 12 months.
-     */
-    public function getVolatilityMetricsProperty(): array
-    {
-        $yearAgo = now()->subYear();
-
-        $agg = SpotPriceHour::query()
-            ->forRegion('FI')
-            ->where('utc_datetime', '>=', $yearAgo)
-            ->selectRaw('
-                MIN(price_without_tax * (1 + vat_rate)) as min_price,
-                MAX(price_without_tax * (1 + vat_rate)) as max_price,
-                AVG(price_without_tax * (1 + vat_rate)) as avg_price,
-                COUNT(*) as total_hours
-            ')
-            ->first();
-
-        $spikeDays = SpotPriceHour::query()
-            ->forRegion('FI')
-            ->where('utc_datetime', '>=', $yearAgo)
-            ->whereRaw('price_without_tax * (1 + vat_rate) > 20')
-            ->selectRaw('COUNT(DISTINCT DATE(utc_datetime)) as spike_days')
-            ->first();
-
-        $negativeDays = SpotPriceHour::query()
-            ->forRegion('FI')
-            ->where('utc_datetime', '>=', $yearAgo)
-            ->whereRaw('price_without_tax * (1 + vat_rate) < 0')
-            ->selectRaw('COUNT(DISTINCT DATE(utc_datetime)) as negative_days')
-            ->first();
-
-        return [
-            'min' => $agg ? round($agg->min_price, 2) : null,
-            'max' => $agg ? round($agg->max_price, 2) : null,
-            'avg' => $agg ? round($agg->avg_price, 2) : null,
-            'spikeDays' => $spikeDays ? (int) $spikeDays->spike_days : 0,
-            'negativeDays' => $negativeDays ? (int) $negativeDays->negative_days : 0,
-        ];
-    }
-
     public function render()
     {
         return view('livewire.article-spot-electricity', [
             'jsonLdSchema' => $this->jsonLdSchema,
             'marketSnapshot' => $this->marketSnapshot,
             'seasonalityData' => $this->seasonalityData,
-            'volatilityMetrics' => $this->volatilityMetrics,
         ])->layout('layouts.app', [
             'title' => 'Kannattaako pörssisähkö? Vertailu ja laskuri 2026 | Voltikka',
             'metaDescription' => 'Kannattaako pörssisähkö sinulle? Vertaile pörssisähköä ja kiinteähintaista sopimusta omalla kulutuksellasi. Näe todelliset säästöt ja riskit.',

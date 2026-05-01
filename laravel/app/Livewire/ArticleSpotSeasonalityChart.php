@@ -30,18 +30,52 @@ class ArticleSpotSeasonalityChart extends Component
         $labels = [];
         $dayPrices = [];
         $nightPrices = [];
+        $entries = [];
 
         foreach ($monthly as $m) {
             $date = Carbon::parse($m->period_start);
-            $labels[] = $this->finnishMonths[$date->month] . " '" . substr((string) $date->year, 2);
+            $label = $this->finnishMonths[$date->month] . " '" . substr((string) $date->year, 2);
+            $labels[] = $label;
             $dayPrices[] = round($m->day_avg_with_tax, 2);
             $nightPrices[] = round($m->night_avg_with_tax, 2);
+            $entries[] = [
+                'label' => $label,
+                'avg' => (float) $m->avg_price_with_tax,
+            ];
         }
 
         return [
             'labels' => $labels,
             'day' => $dayPrices,
             'night' => $nightPrices,
+            'entries' => $entries,
+        ];
+    }
+
+    /**
+     * Headline metrics: cheapest month, most expensive month, day/night gap.
+     */
+    public function getMetricsProperty(): array
+    {
+        $data = $this->chartData;
+        if (empty($data['entries'])) {
+            return [];
+        }
+
+        $sorted = collect($data['entries'])->sortBy('avg')->values();
+        $cheapest = $sorted->first();
+        $expensive = $sorted->last();
+
+        $avgDay = collect($data['day'])->avg();
+        $avgNight = collect($data['night'])->avg();
+
+        return [
+            'cheapestLabel' => $cheapest['label'],
+            'cheapestPrice' => round($cheapest['avg'], 2),
+            'expensiveLabel' => $expensive['label'],
+            'expensivePrice' => round($expensive['avg'], 2),
+            'avgDay' => $avgDay !== null ? round($avgDay, 2) : null,
+            'avgNight' => $avgNight !== null ? round($avgNight, 2) : null,
         ];
     }
 
@@ -49,6 +83,7 @@ class ArticleSpotSeasonalityChart extends Component
     {
         return view('livewire.article-spot-seasonality-chart', [
             'chartData' => $this->chartData,
+            'metrics' => $this->metrics,
         ]);
     }
 }

@@ -6,29 +6,27 @@
     $to = $dataWindow['to'] ? Carbon::parse($dataWindow['to'])->translatedFormat('j.n.Y') : null;
 @endphp
 
-<section class="not-prose my-12 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6" aria-labelledby="contract-price-comparison-heading">
-    <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-coral-700">Voltikka hintatilastot</p>
-        <h2 id="contract-price-comparison-heading" class="mt-2 text-2xl font-bold tracking-tight text-slate-900">
-            Sähkösopimusten mediaanihinta vertailussa
-        </h2>
-        <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Viikoittainen vertailu näyttää sopimustyyppien mediaanikustannuksen 5&nbsp;000 kWh vuosikulutuksella. Mediaani tarkoittaa keskimmäistä sopimusta: puolet tarjolla olleista sopimuksista oli tätä halvempia ja puolet kalliimpia.
-        </p>
-        <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Kaavio ei siis näytä halvinta tarjousta eikä kaikkien sopimusten keskiarvoa, vaan tyypillistä markkinahintaa Voltikan päivittäin keräämästä sopimusdatasta. Pörssisähkön lukema sisältää sopimusten marginaalit ja edeltävän 12 kuukauden pörssihinnan.
-        </p>
-        @if ($from && $to)
-            <p class="mt-2 text-xs text-slate-500">Aineisto: {{ $from }}–{{ $to }}. Sis. ALV 25,5 %.</p>
-        @endif
-    </div>
+<section class="not-prose" aria-labelledby="contract-price-comparison-heading">
+    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-coral-700">Voltikka hintatilastot</p>
+    <h2 id="contract-price-comparison-heading" class="mt-2 text-2xl font-bold tracking-tight text-slate-900">
+        Sähkösopimusten mediaanihinta vertailussa
+    </h2>
+    <p class="mt-2 max-w-prose text-base leading-7 text-slate-600">
+        Viikoittainen vertailu näyttää sopimustyyppien mediaanikustannuksen 5&nbsp;000 kWh vuosikulutuksella. Mediaani tarkoittaa keskimmäistä sopimusta: puolet tarjolla olleista sopimuksista oli tätä halvempia ja puolet kalliimpia.
+    </p>
+    <p class="mt-2 max-w-prose text-base leading-7 text-slate-600">
+        Kaavio ei siis näytä halvinta tarjousta eikä kaikkien sopimusten keskiarvoa, vaan tyypillistä markkinahintaa Voltikan päivittäin keräämästä sopimusdatasta. Pörssisähkön lukema sisältää sopimusten marginaalit ja edeltävän 12 kuukauden pörssihinnan.
+    </p>
+    @if ($from && $to)
+        <p class="mt-3 text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Aineisto: {{ $from }}–{{ $to }}. Sis. ALV 25,5 %.</p>
+    @endif
 
     @if (! $hasData)
         <div class="mt-6 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center text-sm text-slate-600">
             Hintatilastoa ei ole vielä saatavilla tälle vertailulle.
         </div>
     @else
-        <div class="relative mt-6">
+        <div class="relative mt-8">
             <div
                 wire:key="article-contract-price-chart-weekly-5000-{{ $dataWindow['to'] }}"
                 wire:ignore
@@ -71,7 +69,7 @@
             </ul>
         </div>
 
-        <p class="mt-4 text-sm leading-6 text-slate-600">
+        <p class="mt-5 max-w-prose text-base leading-7 text-slate-600">
             Tätä kuvaajaa kannattaa lukea markkinan yleisenä suuntana: oma valitsemasi sopimus voi olla mediaania halvempi tai kalliimpi,
             mutta käyrät näyttävät millä tasolla eri sopimustyyppejä on tyypillisesti ollut tarjolla.
             <a href="/sahkosopimus/tilastot" class="font-semibold text-coral-700 underline decoration-coral-200 underline-offset-4 hover:text-coral-800">Avaa koko hintatilasto</a>.
