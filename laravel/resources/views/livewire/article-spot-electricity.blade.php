@@ -5,16 +5,11 @@
     </script>
 
     {{-- Hero Section --}}
-    <section class="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8 relative overflow-hidden">
-        <div class="absolute inset-0 pointer-events-none">
-            <div class="absolute top-0 right-1/4 w-96 h-96 bg-coral-500 rounded-full blur-3xl opacity-20"></div>
-            <div class="absolute bottom-0 left-0 w-72 h-72 bg-coral-400 rounded-full blur-3xl opacity-10 -translate-x-1/2"></div>
-        </div>
-
+    <section class="relative -mx-4 overflow-hidden bg-slate-950 sm:-mx-6 lg:-mx-8 mb-8">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-            <div class="py-12 lg:py-20">
+            <div class="py-12 lg:py-16">
                 <div class="max-w-3xl mx-auto text-center">
-                    <div class="inline-flex items-center gap-2 bg-coral-500/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-coral-300 mb-6 border border-coral-500/20">
+                    <div class="inline-flex items-center gap-2 rounded-full border border-coral-500/20 bg-coral-500/10 px-4 py-2 text-sm font-medium text-coral-300 mb-6">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                         </svg>
@@ -24,7 +19,7 @@
                         Kannattaako pörssisähkö?
                     </h1>
                     <p class="text-slate-300 text-lg md:text-xl max-w-2xl mx-auto">
-                        Pörssisähkö on Suomen suosituin sähkösopimustyyppi. Mutta kannattaako se juuri sinulle? Selvitä asia oikeilla hinnoilla ja omalla kulutuksellasi.
+                        Pörssisähkö on Suomen suosituin sähkösopimustyyppi. Mutta kannattaako se juuri sinulle? Katso mitä markkinadata kertoo.
                     </p>
                 </div>
             </div>
@@ -36,256 +31,238 @@
         {{-- Breadcrumb --}}
         <nav class="mb-8" aria-label="Breadcrumb">
             <ol class="flex items-center space-x-2 text-sm text-slate-500">
-                <li><a href="/" class="hover:text-coral-600">Etusivu</a></li>
+                <li><a href="/" class="hover:text-coral-600 transition-colors">Etusivu</a></li>
                 <li><svg class="w-4 h-4 mx-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></li>
-                <li><a href="/sahkosopimus" class="hover:text-coral-600">Sähkösopimukset</a></li>
+                <li><a href="/sahkosopimus" class="hover:text-coral-600 transition-colors">Sähkösopimukset</a></li>
                 <li><svg class="w-4 h-4 mx-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></li>
                 <li class="font-medium text-slate-900" aria-current="page">Kannattaako pörssisähkö</li>
             </ol>
         </nav>
 
-        {{-- Article Content --}}
-        <article class="prose prose-slate prose-lg max-w-none">
+        {{-- Market Snapshot --}}
+        @if(!empty($marketSnapshot['spot']))
+        <div class="not-prose mb-10">
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-coral-700 mb-3">Markkinatilanne nyt</p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Pörssisähkö</p>
+                    <p class="mt-1 text-2xl font-extrabold text-slate-900 tabular-nums">{{ number_format($marketSnapshot['spot'], 0, ',', ' ') }} €<span class="text-sm font-medium text-slate-500">/v</span></p>
+                    <p class="mt-1 text-xs text-slate-500">Mediaani, 5 000 kWh</p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                    <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Kiinteä 12 kk</p>
+                    <p class="mt-1 text-2xl font-extrabold text-slate-900 tabular-nums">{{ number_format($marketSnapshot['fixed'], 0, ',', ' ') }} €<span class="text-sm font-medium text-slate-500">/v</span></p>
+                    <p class="mt-1 text-xs text-slate-500">Mediaani, 5 000 kWh</p>
+                </div>
+                <div class="rounded-xl border border-coral-200 bg-coral-50 p-4">
+                    <p class="text-xs font-medium text-coral-700 uppercase tracking-wide">Ero</p>
+                    <p class="mt-1 text-2xl font-extrabold text-coral-700 tabular-nums">−{{ number_format($marketSnapshot['diff'], 0, ',', ' ') }} €<span class="text-sm font-medium text-coral-700">/v</span></p>
+                    <p class="mt-1 text-xs text-coral-700">Pörssisähkö {{ $marketSnapshot['diffPercent'] }} % edullisempi</p>
+                </div>
+            </div>
+            <p class="mt-2 text-xs text-slate-500">Tilanne {{ $marketSnapshot['date'] }}. Hinnat sisältävät ALV 25,5 %.</p>
+        </div>
+        @endif
 
+        {{-- Article Content --}}
+        <article class="prose prose-slate max-w-prose">
             <p class="lead text-xl text-slate-600 mb-8">
-                Pörssisähkö on noussut Suomen suosituimmaksi sähkösopimustyypiksi. Hinta vaihtelee tunneittain Nord Pool -sähköpörssin mukaan, mikä tarkoittaa sekä säästömahdollisuuksia että riskejä. Tässä artikkelissa vertailemme pörssisähköä kiinteähintaiseen sopimukseen oikeiden hintojen perusteella.
+                Pörssisähkösopimuksessa energiahinta määräytyy tunneittain Nord Pool -sähköpörssissä. Se voi tuoda säästöjä, mutta myös riskejä. Alla näet, mitä todelliset markkinahinnat kertovat viime kuukausilta.
             </p>
 
             <h2 class="text-2xl font-bold text-slate-900 mt-12 mb-4">Mitä sopimushinnat kertovat juuri nyt?</h2>
 
             <p>
-                Ennen kuin katsotaan omaa kulutusta laskurilla, on hyvä nähdä missä eri sopimustyypit liikkuvat markkinassa. Alla oleva kuvaaja perustuu Voltikan keräämiin todellisiin sähkösopimusten hintoihin: se näyttää viikkotasolla mediaanikustannuksen 5&nbsp;000 kWh vuosikulutuksella pörssisähkössä, määräaikaisissa ja muissa sopimustyypeissä.
+                Alla oleva kuvaaja perustuu Voltikan keräämiin todellisiin sähkösopimusten hintoihin. Se näyttää viikkotasolla mediaanikustannuksen 5&nbsp;000 kWh vuosikulutuksella eri sopimustyypeissä. Mediaani tarkoittaa keskimmäistä sopimusta — puolet tarjolla olleista sopimuksista oli tätä halvempia ja puolet kalliimpia.
             </p>
-
         </article>
 
-        <livewire:article-contract-price-comparison-chart />
+        <div class="my-16">
+            <livewire:article-contract-price-comparison-chart />
+        </div>
 
-        <article class="prose prose-slate prose-lg max-w-none">
-
+        <article class="prose prose-slate max-w-prose">
             <p>
-                Kuvaajaa ei kannata tulkita lupauksena tulevasta hinnasta tai halvimpana tarjouksena, vaan taustakuvana päätökselle: pörssisähkö voi olla edullinen, mutta sen kustannus elää markkinan mukana. Kiinteähintaiset sopimukset taas tarjoavat enemmän ennustettavuutta, usein eri hintatasolla.
+                Kuvaajaa ei kannata tulkita lupauksena tulevasta hinnasta tai halvimpana tarjouksena, vaan taustakuvana päätökselle: pörssisähkön kustannus elää markkinan mukana, kun taas kiinteähintaiset sopimukset tarjoavat ennustettavuutta usein eri hintatasolla.
             </p>
+        </article>
+
+        {{-- Seasonality Chart --}}
+        <div class="my-16">
+            <livewire:article-spot-seasonality-chart />
+        </div>
+
+        {{-- Win Rate Chart --}}
+        <div class="my-16">
+            <livewire:article-spot-win-rate-chart />
+        </div>
+
+        <article class="prose prose-slate max-w-prose mt-10">
+            <h2 class="text-2xl font-bold text-slate-900 mt-12 mb-4">Hintavaihtelu ja riskit</h2>
+
+            @if($volatilityMetrics['max'])
+                <p>
+                    Viimeisen 12 kuukauden aikana spot-hinta on vaihdellut
+                    <strong>{{ number_format($volatilityMetrics['min'], 2, ',', ' ') }} c/kWh</strong>
+                    ja <strong>{{ number_format($volatilityMetrics['max'], 2, ',', ' ') }} c/kWh</strong> välillä.
+                    Keskimääräinen hinta oli {{ number_format($volatilityMetrics['avg'], 2, ',', ' ') }} c/kWh.
+                </p>
+                <p>
+                    Hintapiikkejä (yli 20 c/kWh) esiintyi <strong>{{ $volatilityMetrics['spikeDays'] }} päivänä</strong>.
+                    Toisaalta negatiivisia hintoja — jolloin sähkön myyjä maksaa sinulle — oli
+                    <strong>{{ $volatilityMetrics['negativeDays'] }} päivänä</strong>.
+                </p>
+                <p>
+                    Suuri vaihteluväli tarkoittaa, että pörssisähkö sopii parhaiten niille, jotka
+                    kestävät hintavaihtelua tai pystyvät hyödyntämään edullisia tunteja.
+                </p>
+            @else
+                <p class="text-slate-500">Volatiliteettitietoja ei ole vielä saatavilla.</p>
+            @endif
 
             <h2 class="text-2xl font-bold text-slate-900 mt-12 mb-4">Mikä on pörssisähkö?</h2>
 
             <p>
                 Pörssisähkösopimuksessa sähkön energiahinta määräytyy tunneittain Nord Pool -sähköpörssissä. Hinta muodostuu kolmesta osasta:
             </p>
-
-            <ul class="list-disc pl-6 space-y-2">
+            <ul>
                 <li><strong>Pörssihinta</strong> – vaihtelee kysynnän ja tarjonnan mukaan tunneittain</li>
                 <li><strong>Marginaali</strong> – sähköyhtiön kiinteä lisä (tyypillisesti 0,2–0,5 c/kWh)</li>
                 <li><strong>Kuukausimaksu</strong> – kiinteä perusmaksu (tyypillisesti 2–5 €/kk)</li>
             </ul>
-
             <p>
                 Pörssisähkön hinta voi vaihdella merkittävästi vuorokauden ja vuodenajan mukaan. Yöllä ja viikonloppuisin hinta on usein matalampi, kun taas kylminä talvipäivinä kysyntäpiikit nostavat hintaa.
             </p>
-
-            <h2 class="text-2xl font-bold text-slate-900 mt-12 mb-4">Vertaile pörssisähköä ja kiinteähintaista</h2>
-
-            <p>
-                Alla oleva laskuri vertailee pörssisähkön ja kiinteähintaisen sopimuksen hintaa omalla kulutuksellasi. Pörssisähkön hinta-arvio perustuu viime vuoden saman kuukauden toteutuneisiin spot-hintoihin.
-            </p>
-
         </article>
 
-        {{-- Contract Type Comparison Widget --}}
-        <div class="my-12">
-            <livewire:contract-type-comparison comparison-mode="pricing_model" />
+        {{-- Comparison Widget --}}
+        <div class="not-prose my-16">
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-coral-700 mb-3">Kokeile omalla kulutuksellasi</p>
+            <h2 class="text-2xl font-bold tracking-tight text-slate-900 mb-4">Vertaile pörssisähköä ja kiinteähintaista</h2>
+            <p class="text-slate-600 mb-6 max-w-prose">
+                Alla oleva laskuri vertailee pörssisähkön ja kiinteähintaisen sopimuksen hintaa valitsemallasi kulutuksella.
+                Pörssisähkön hinta-arvio perustuu viime vuoden saman kuukauden toteutuneisiin spot-hintoihin.
+            </p>
+            <livewire:contract-type-comparison comparison-mode="pricing_model" :show-mode-tabs="false" />
         </div>
 
         {{-- Continue Article --}}
-        <article class="prose prose-slate prose-lg max-w-none">
-
+        <article class="prose prose-slate max-w-prose">
             <h2 class="text-2xl font-bold text-slate-900 mt-12 mb-4">Kenelle pörssisähkö sopii?</h2>
 
             <p>
-                Pörssisähkö on parhaimmillaan kuluttajille, jotka voivat hyödyntää hinnan vaihtelua. Erityisesti näille ryhmille pörssisähkö voi tuoda merkittäviä säästöjä:
+                Pörssisähkö on parhaimmillaan kuluttajille, jotka voivat hyödyntää hinnan vaihtelua.
+                Erityisesti näille ryhmille se voi tuoda merkittäviä säästöjä:
             </p>
-
-            <div class="bg-green-50 border border-green-200 rounded-xl p-6 my-6 not-prose">
-                <h3 class="font-bold text-green-800 mb-4">Pörssisähkö sopii sinulle, jos:</h3>
-                <ul class="space-y-3">
-                    <li class="flex items-start gap-3">
-                        <svg class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                        <span class="text-slate-700"><strong>Voit ajoittaa kulutusta</strong> – esim. pyykinpesu, astianpesukone ja sähköauton lataus yöllä tai viikonloppuisin</span>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <svg class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                        <span class="text-slate-700"><strong>Sinulla on lämpöpumppu</strong> – voit lämmittää taloa edullisimpien tuntien aikana ja hyödyntää talon lämpövarastoa</span>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <svg class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                        <span class="text-slate-700"><strong>Lataat sähköautoa kotona</strong> – yölataus on usein merkittävästi edullisempaa</span>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <svg class="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                        <span class="text-slate-700"><strong>Kulutuksesi on suuri</strong> – omakotitalossa ja suuressa kulutuksessa euromääräiset säästöt ovat suuremmat</span>
-                    </li>
-                </ul>
-            </div>
+            <ul>
+                <li><strong>Voit ajoittaa kulutusta</strong> – esimerkiksi pyykinpesu, astianpesukone ja sähköauton lataus yöllä tai viikonloppuisin</li>
+                <li><strong>Sinulla on lämpöpumppu</strong> – voit lämmittää taloa edullisimpien tuntien aikana ja hyödyntää talon lämpövarastoa</li>
+                <li><strong>Lataat sähköautoa kotona</strong> – yölataus on usein merkittävästi edullisempaa</li>
+                <li><strong>Kulutuksesi on suuri</strong> – omakotitalossa ja suuressa kulutuksessa euromääräiset säästöt ovat suuremmat</li>
+            </ul>
 
             <h2 class="text-2xl font-bold text-slate-900 mt-12 mb-4">Milloin kiinteä hinta on parempi?</h2>
 
             <p>
                 Kiinteähintainen sähkösopimus ei ole automaattisesti kalliimpi. Tietyissä tilanteissa se voi olla parempi valinta:
             </p>
-
-            <div class="bg-blue-50 border border-blue-200 rounded-xl p-6 my-6 not-prose">
-                <h3 class="font-bold text-blue-800 mb-4">Kiinteä hinta sopii sinulle, jos:</h3>
-                <ul class="space-y-3">
-                    <li class="flex items-start gap-3">
-                        <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                        <span class="text-slate-700"><strong>Haluat ennustettavan sähkölaskun</strong> – tiedät tarkalleen, mitä maksat kuukausittain</span>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                        <span class="text-slate-700"><strong>Et voi siirtää kulutusta</strong> – jos sähköä kuluu tasaisesti ympäri vuorokauden</span>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                        <span class="text-slate-700"><strong>Kulutuksesi on pieni</strong> – kerrostaloasunnossa euromääräiset säästöt jäävät pieniksi</span>
-                    </li>
-                    <li class="flex items-start gap-3">
-                        <svg class="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
-                        <span class="text-slate-700"><strong>Haluat suojautua hintapiikeiltä</strong> – kiinteä hinta suojaa markkinaheilahteluilta</span>
-                    </li>
-                </ul>
-            </div>
+            <ul>
+                <li><strong>Haluat ennustettavan sähkölaskun</strong> – tiedät tarkalleen, mitä maksat kuukausittain</li>
+                <li><strong>Et voi siirtää kulutusta</strong> – jos sähköä kuluu tasaisesti ympäri vuorokauden</li>
+                <li><strong>Kulutuksesi on pieni</strong> – kerrostaloasunnossa euromääräiset säästöt jäävät pieniksi</li>
+                <li><strong>Haluat suojautua hintapiikeiltä</strong> – kiinteä hinta suojaa markkinaheilahteluilta</li>
+            </ul>
 
             <h2 class="text-2xl font-bold text-slate-900 mt-12 mb-4">Kulutuksen vaikutus säästöihin</h2>
 
             <p>
                 Sähkönkulutus vaikuttaa merkittävästi siihen, kumpi sopimustyyppi kannattaa. Suuremmalla kulutuksella euromääräiset erot kasvavat, mutta prosentuaalinen ero pysyy samana.
             </p>
+        </article>
 
-            <div class="bg-slate-50 rounded-xl p-6 my-6 not-prose">
-                <h3 class="font-bold text-slate-800 mb-4">Tyypilliset kulutustasot:</h3>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-white rounded-lg p-4 border border-slate-200">
-                        <div class="text-sm text-slate-500 mb-1">Kerrostalo</div>
-                        <div class="text-2xl font-bold text-slate-900">~5 000 kWh/v</div>
-                        <div class="text-sm text-slate-600 mt-2">Kodinkoneet, valaistus, viihde-elektroniikka</div>
-                    </div>
-                    <div class="bg-white rounded-lg p-4 border border-slate-200">
-                        <div class="text-sm text-slate-500 mb-1">Rivitalo</div>
-                        <div class="text-2xl font-bold text-slate-900">~10 000 kWh/v</div>
-                        <div class="text-sm text-slate-600 mt-2">Lisäksi osittainen sähkölämmitys</div>
-                    </div>
-                    <div class="bg-white rounded-lg p-4 border border-slate-200">
-                        <div class="text-sm text-slate-500 mb-1">Omakotitalo</div>
-                        <div class="text-2xl font-bold text-slate-900">~18 000 kWh/v</div>
-                        <div class="text-sm text-slate-600 mt-2">Sähkölämmitys tai lämpöpumppu</div>
-                    </div>
+        {{-- Consumption levels --}}
+        <div class="not-prose my-12">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="rounded-xl border border-slate-200 bg-white p-5">
+                    <p class="text-sm font-medium text-slate-500">Kerrostalo</p>
+                    <p class="mt-1 text-2xl font-extrabold text-slate-900 tabular-nums">~5 000 <span class="text-base font-medium text-slate-500">kWh/v</span></p>
+                    <p class="mt-2 text-sm text-slate-600">Kodinkoneet, valaistus, viihde-elektroniikka</p>
                 </div>
-                <p class="text-sm text-slate-600 mt-4">
-                    Kokeile yllä olevassa laskurissa eri kulutustasoja nähdäksesi, miten ero muuttuu.
-                </p>
+                <div class="rounded-xl border border-slate-200 bg-white p-5">
+                    <p class="text-sm font-medium text-slate-500">Rivitalo</p>
+                    <p class="mt-1 text-2xl font-extrabold text-slate-900 tabular-nums">~10 000 <span class="text-base font-medium text-slate-500">kWh/v</span></p>
+                    <p class="mt-2 text-sm text-slate-600">Lisäksi osittainen sähkölämmitys</p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-white p-5">
+                    <p class="text-sm font-medium text-slate-500">Omakotitalo</p>
+                    <p class="mt-1 text-2xl font-extrabold text-slate-900 tabular-nums">~18 000 <span class="text-base font-medium text-slate-500">kWh/v</span></p>
+                    <p class="mt-2 text-sm text-slate-600">Sähkölämmitys tai lämpöpumppu</p>
+                </div>
             </div>
+            <p class="mt-3 text-sm text-slate-500">Kokeile yllä olevassa laskurissa eri kulutustasoja nähdäksesi, miten ero muuttuu.</p>
+        </div>
 
+        <article class="prose prose-slate max-w-prose">
             <h2 class="text-2xl font-bold text-slate-900 mt-12 mb-4">Vuodenajan vaikutus pörssisähkön hintaan</h2>
 
             <p>
-                Pörssisähkön hinta vaihtelee voimakkaasti vuodenajan mukaan. Talvikuukausina (marras-maaliskuu) hinnat ovat tyypillisesti korkeammat kylmän sään aiheuttaman kysynnän vuoksi. Kesällä hinnat ovat usein matalat runsaan vesivoiman ja aurinkosähkön ansiosta.
+                Pörssisähkön hinta vaihtelee voimakkaasti vuodenajan mukaan. Talvikuukausina (marras–maaliskuu) hinnat ovat tyypillisesti korkeammat kylmän sään aiheuttaman kysynnän vuoksi. Kesällä hinnat ovat usein matalat runsaan vesivoiman ja aurinkosähkön ansiosta.
             </p>
-
-            <div class="bg-amber-50 border border-amber-200 rounded-xl p-6 my-6 not-prose">
-                <div class="flex items-start gap-3">
-                    <svg class="w-6 h-6 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-                    </svg>
-                    <div>
-                        <h3 class="font-bold text-amber-800 mb-2">Talvikuukaudet voivat olla kalliimpia</h3>
-                        <p class="text-slate-700">
-                            Kuukausivertailussa voit nähdä, että pörssisähkö on joissakin talvikuukausissa <strong>kalliimpaa</strong> kuin kiinteähintainen sopimus. Tämä johtuu sähkön korkeammasta pörssihinnasta ja suuremmasta kulutuksesta lämmityskaudella. Vuositasolla pörssisähkö on kuitenkin tyypillisesti kokonaisuutena edullisempi, koska kesän matalat hinnat kompensoivat talven hintapiikkejä.
-                        </p>
-                    </div>
-                </div>
-            </div>
-
             <p>
-                Yllä oleva laskuri huomioi nämä kausivaihtelut käyttämällä viime vuoden toteutuneita kuukausihintoja ennusteena tuleville kuukausille. Sähkölämmitteiselle talolle laskuri jakaa kulutuksen kausivaihtelun mukaan – enemmän talvella, vähemmän kesällä. Näin saat realistisen arvion vuosikustannuksista.
+                Yllä oleva kausikuvaaja näyttää tämän selvästi: tammikuussa ja helmikuussa 2026 spot-hinta oli keskimäärin yli 14 c/kWh, kun taas touko–kesäkuussa 2025 se painui alle 2,5 c/kWh. Ero on moninkertainen.
+            </p>
+            <p>
+                Tämä tarkoittaa, että pörssisähkön vuosikustannus riippuu paljon siitä, miten hyvin pystyt hyödyntämään edullisia kesä- ja yöhintoja kompensoimaan kalliimpia talvi- ja päivähintoja.
             </p>
 
             <h2 class="text-2xl font-bold text-slate-900 mt-12 mb-4">Yhteenveto</h2>
 
-            <div class="bg-coral-50 border border-coral-200 rounded-xl p-6 my-6 not-prose">
-                <h3 class="font-bold text-coral-800 mb-4">Pörssisähkö vs kiinteä hinta – tiivistettynä:</h3>
-                <div class="space-y-4">
+            <div class="rounded-xl border border-coral-200 bg-coral-50 p-6 my-6 not-prose">
+                <h3 class="font-bold text-coral-900 mb-4 text-lg">Pörssisähkö vs kiinteä hinta – tiivistettynä:</h3>
+                <div class="space-y-3">
                     <div class="flex items-start gap-3">
-                        <span class="text-coral-600 font-bold text-lg">1.</span>
+                        <span class="text-coral-700 font-bold text-lg leading-none mt-0.5">1.</span>
                         <span class="text-slate-700"><strong>Pörssisähkö kannattaa</strong>, jos voit ajoittaa kulutusta tai sinulla on suuri kulutus (omakotitalo, lämpöpumppu, sähköauto)</span>
                     </div>
                     <div class="flex items-start gap-3">
-                        <span class="text-coral-600 font-bold text-lg">2.</span>
+                        <span class="text-coral-700 font-bold text-lg leading-none mt-0.5">2.</span>
                         <span class="text-slate-700"><strong>Kiinteä hinta kannattaa</strong>, jos haluat ennustettavuutta tai kulutuksesi on pieni</span>
                     </div>
                     <div class="flex items-start gap-3">
-                        <span class="text-coral-600 font-bold text-lg">3.</span>
-                        <span class="text-slate-700"><strong>Kokeile laskuria</strong> omalla kulutuksellasi – todelliset säästöt riippuvat tilanteestasi</span>
+                        <span class="text-coral-700 font-bold text-lg leading-none mt-0.5">3.</span>
+                        <span class="text-slate-700"><strong>Kokeile laskuria</strong> omalla kulutuksellasi — todelliset säästöt riippuvat tilanteestasi</span>
                     </div>
                 </div>
             </div>
-
         </article>
 
         {{-- Internal Links Section --}}
         <section class="mt-16 pt-8 border-t border-slate-200">
             <h2 class="text-xl font-bold text-slate-900 mb-6">Lue lisää</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <a href="/sahkosopimus/porssisahko" class="group bg-white border border-slate-200 rounded-xl p-5 hover:border-coral-400 hover:shadow-md transition-all">
-                    <div class="flex items-center gap-4">
-                        <div class="p-3 bg-coral-50 rounded-lg group-hover:bg-coral-100 transition-colors">
-                            <svg class="w-6 h-6 text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="font-semibold text-slate-900 group-hover:text-coral-600 transition-colors">Pörssisähkösopimukset</h3>
-                            <p class="text-sm text-slate-500">Vertaile kaikkia pörssisähkösopimuksia</p>
-                        </div>
-                    </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+                <a href="/sahkosopimus/porssisahko" class="group flex items-center gap-3 py-2 text-slate-700 hover:text-coral-600 transition-colors">
+                    <svg class="w-5 h-5 text-coral-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <span class="font-medium">Pörssisähkösopimukset</span>
                 </a>
-                <a href="/sahkosopimus/yleissahko" class="group bg-white border border-slate-200 rounded-xl p-5 hover:border-coral-400 hover:shadow-md transition-all">
-                    <div class="flex items-center gap-4">
-                        <div class="p-3 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
-                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="font-semibold text-slate-900 group-hover:text-coral-600 transition-colors">Yleissähkösopimukset</h3>
-                            <p class="text-sm text-slate-500">Vertaile kiinteähintaisia yleissähkösopimuksia</p>
-                        </div>
-                    </div>
+                <a href="/sahkosopimus/yleissahko" class="group flex items-center gap-3 py-2 text-slate-700 hover:text-coral-600 transition-colors">
+                    <svg class="w-5 h-5 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span class="font-medium">Yleissähkösopimukset</span>
                 </a>
-                <a href="/sahkosopimus/kannattaako-maaraaikainen" class="group bg-white border border-slate-200 rounded-xl p-5 hover:border-coral-400 hover:shadow-md transition-all">
-                    <div class="flex items-center gap-4">
-                        <div class="p-3 bg-green-50 rounded-lg group-hover:bg-green-100 transition-colors">
-                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="font-semibold text-slate-900 group-hover:text-coral-600 transition-colors">Määräaikainen vs toistaiseksi</h3>
-                            <p class="text-sm text-slate-500">Kannattaako sitoutua määräajaksi?</p>
-                        </div>
-                    </div>
+                <a href="/sahkosopimus/kannattaako-maaraaikainen" class="group flex items-center gap-3 py-2 text-slate-700 hover:text-coral-600 transition-colors">
+                    <svg class="w-5 h-5 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <span class="font-medium">Määräaikainen vs toistaiseksi</span>
                 </a>
-                <a href="/spot-price" class="group bg-white border border-slate-200 rounded-xl p-5 hover:border-coral-400 hover:shadow-md transition-all">
-                    <div class="flex items-center gap-4">
-                        <div class="p-3 bg-amber-50 rounded-lg group-hover:bg-amber-100 transition-colors">
-                            <svg class="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="font-semibold text-slate-900 group-hover:text-coral-600 transition-colors">Spot-hinta nyt</h3>
-                            <p class="text-sm text-slate-500">Seuraa sähkön pörssihintaa reaaliajassa</p>
-                        </div>
-                    </div>
+                <a href="/spot-price" class="group flex items-center gap-3 py-2 text-slate-700 hover:text-coral-600 transition-colors">
+                    <svg class="w-5 h-5 text-slate-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+                    </svg>
+                    <span class="font-medium">Spot-hinta nyt</span>
                 </a>
             </div>
         </section>

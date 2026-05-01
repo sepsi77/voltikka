@@ -18,6 +18,11 @@ class ContractTypeComparison extends Component
     public string $comparisonMode = 'pricing_model';
 
     /**
+     * Whether to show the mode toggle tabs.
+     */
+    public bool $showModeTabs = true;
+
+    /**
      * Annual consumption in kWh.
      */
     public int $consumption = 5000;

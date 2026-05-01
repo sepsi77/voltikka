@@ -14,6 +14,7 @@
             Päivitetään vertailua…
         </div>
     </div>
+    @if($showModeTabs)
     {{-- Header with Tabs --}}
     <div class="border-b border-slate-100 p-4">
         <div class="flex justify-center">
@@ -37,6 +38,7 @@
             </div>
         </div>
     </div>
+    @endif
 
     {{-- Consumption Selector --}}
     <div class="p-4 bg-slate-50 border-b border-slate-100">
@@ -60,9 +62,9 @@
     <div class="p-4 md:p-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             {{-- Contract A --}}
-            <div class="rounded-xl border-2 {{ $comparisonResult['winner'] === 'A' ? 'border-green-500 bg-green-50/30' : 'border-slate-200 bg-white' }} p-4">
+            <div class="rounded-xl border-2 {{ $comparisonResult['winner'] === 'A' ? 'border-coral-500 bg-coral-50/40' : 'border-slate-200 bg-white' }} p-4">
                 @if ($comparisonResult['winner'] === 'A')
-                    <div class="inline-flex items-center gap-1 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full mb-3">
+                    <div class="inline-flex items-center gap-1 bg-coral-100 text-coral-800 text-xs font-bold px-2.5 py-1 rounded-full mb-3">
                         <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                         </svg>
@@ -145,9 +147,9 @@
             </div>
 
             {{-- Contract B --}}
-            <div class="rounded-xl border-2 {{ $comparisonResult['winner'] === 'B' ? 'border-green-500 bg-green-50/30' : 'border-slate-200 bg-white' }} p-4">
+            <div class="rounded-xl border-2 {{ $comparisonResult['winner'] === 'B' ? 'border-coral-500 bg-coral-50/40' : 'border-slate-200 bg-white' }} p-4">
                 @if ($comparisonResult['winner'] === 'B')
-                    <div class="inline-flex items-center gap-1 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full mb-3">
+                    <div class="inline-flex items-center gap-1 bg-coral-100 text-coral-800 text-xs font-bold px-2.5 py-1 rounded-full mb-3">
                         <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                         </svg>
@@ -238,14 +240,14 @@
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 {{-- Cost A --}}
-                <div class="bg-white rounded-xl p-4 text-center {{ $comparisonResult['winner'] === 'A' ? 'ring-2 ring-green-500' : '' }}">
+                <div class="bg-white rounded-xl p-4 text-center {{ $comparisonResult['winner'] === 'A' ? 'ring-2 ring-coral-500' : '' }}">
                     <p class="text-sm text-slate-500 mb-1">{{ $modeConfig['labelA'] }}</p>
                     <p class="text-2xl font-bold text-slate-900">{{ number_format($comparisonResult['costA'], 0, ',', ' ') }} €</p>
                 </div>
 
                 {{-- Comparison Arrow --}}
                 <div class="hidden md:flex items-center justify-center">
-                    <div class="text-slate-400">
+                    <div class="text-slate-500">
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
                         </svg>
@@ -253,7 +255,7 @@
                 </div>
 
                 {{-- Cost B --}}
-                <div class="bg-white rounded-xl p-4 text-center {{ $comparisonResult['winner'] === 'B' ? 'ring-2 ring-green-500' : '' }}">
+                <div class="bg-white rounded-xl p-4 text-center {{ $comparisonResult['winner'] === 'B' ? 'ring-2 ring-coral-500' : '' }}">
                     <p class="text-sm text-slate-500 mb-1">{{ $modeConfig['labelB'] }}</p>
                     <p class="text-2xl font-bold text-slate-900">{{ number_format($comparisonResult['costB'], 0, ',', ' ') }} €</p>
                 </div>
@@ -261,14 +263,14 @@
 
             {{-- Winner Summary --}}
             @if ($comparisonResult['winner'] !== 'tie')
-                <div class="bg-green-100 border border-green-200 rounded-xl p-4 text-center">
-                    <div class="flex items-center justify-center gap-2 text-green-800">
+                <div class="bg-coral-50 border border-coral-200 rounded-xl p-4 text-center">
+                    <div class="flex items-center justify-center gap-2 text-coral-800">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
                         </svg>
                         <span class="font-semibold">
                             {{ $comparisonResult['winnerLabel'] }} säästää
-                            <span class="text-green-900">{{ $comparisonResult['savings'] }} €/vuosi</span>
+                            <span class="text-coral-900">{{ $comparisonResult['savings'] }} €/vuosi</span>
                             ({{ $comparisonResult['savingsPercent'] }}%)
                         </span>
                     </div>

@@ -8,7 +8,7 @@
 
 <section class="not-prose my-12 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm md:p-6" aria-labelledby="contract-price-comparison-heading">
     <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-coral-600">Voltikka hintatilastot</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-coral-700">Voltikka hintatilastot</p>
         <h2 id="contract-price-comparison-heading" class="mt-2 text-2xl font-bold tracking-tight text-slate-900">
             Sähkösopimusten mediaanihinta vertailussa
         </h2>
