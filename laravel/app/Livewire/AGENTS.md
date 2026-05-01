@@ -25,6 +25,34 @@ Important semantics:
 - run `contracts:backfill-price-statistics` before expecting historical data
 - spot metrics are split between `spot_margin` and `spot_total_energy_price`
 
+## `ArticleContractPriceComparisonChart`
+
+Primary files:
+- `ArticleContractPriceComparisonChart.php`
+- `../../resources/views/livewire/article-contract-price-comparison-chart.blade.php`
+
+Purpose:
+- embeds the contract-price statistics lead chart on editorial pages such as `/sahkosopimus/kannattaako-porssisahko`
+- reuses precomputed `contract_price_daily_statistics` annual-cost rows for spot, 12-month fixed-term, open-ended, and hybrid segments
+- uses the shared `resources/js/contract-price-statistics.js` `data-line-chart` renderer
+
+Important semantics:
+- the article embed intentionally shows one static view: weekly aggregation at 5 000 kWh/year, with no period or consumption selectors
+- keep its aggregation aligned with `ContractPriceStatistics`: weekly views average daily median statistics so trends remain market-day weighted
+- do not calculate contract prices during the article request; the component only reads aggregate statistics rows
+
+## `ContractTypeComparison`
+
+Primary files:
+- `ContractTypeComparison.php`
+- `../../resources/views/livewire/contract-type-comparison.blade.php`
+
+Purpose:
+- interactive editorial comparison widget for pörssisähkö vs fixed price and fixed-term vs open-ended contracts
+
+Important semantics:
+- widget actions can be slow because contract candidates are recalculated; keep visible `wire:loading` feedback on mode, consumption, and contract-selector updates
+
 ## `ContractDetail`
 
 Primary files:

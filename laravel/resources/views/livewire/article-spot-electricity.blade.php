@@ -51,6 +51,22 @@
                 Pörssisähkö on noussut Suomen suosituimmaksi sähkösopimustyypiksi. Hinta vaihtelee tunneittain Nord Pool -sähköpörssin mukaan, mikä tarkoittaa sekä säästömahdollisuuksia että riskejä. Tässä artikkelissa vertailemme pörssisähköä kiinteähintaiseen sopimukseen oikeiden hintojen perusteella.
             </p>
 
+            <h2 class="text-2xl font-bold text-slate-900 mt-12 mb-4">Mitä sopimushinnat kertovat juuri nyt?</h2>
+
+            <p>
+                Ennen kuin katsotaan omaa kulutusta laskurilla, on hyvä nähdä missä eri sopimustyypit liikkuvat markkinassa. Alla oleva kuvaaja perustuu Voltikan keräämiin todellisiin sähkösopimusten hintoihin: se näyttää viikkotasolla mediaanikustannuksen 5&nbsp;000 kWh vuosikulutuksella pörssisähkössä, määräaikaisissa ja muissa sopimustyypeissä.
+            </p>
+
+        </article>
+
+        <livewire:article-contract-price-comparison-chart />
+
+        <article class="prose prose-slate prose-lg max-w-none">
+
+            <p>
+                Kuvaajaa ei kannata tulkita lupauksena tulevasta hinnasta tai halvimpana tarjouksena, vaan taustakuvana päätökselle: pörssisähkö voi olla edullinen, mutta sen kustannus elää markkinan mukana. Kiinteähintaiset sopimukset taas tarjoavat enemmän ennustettavuutta, usein eri hintatasolla.
+            </p>
+
             <h2 class="text-2xl font-bold text-slate-900 mt-12 mb-4">Mikä on pörssisähkö?</h2>
 
             <p>

@@ -1,17 +1,36 @@
-<div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+<div class="relative bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+    <div
+        wire:loading.flex
+        wire:target="setComparisonMode,setConsumption,selectedContractA,selectedContractB"
+        class="absolute inset-0 z-20 hidden items-center justify-center bg-white/75 backdrop-blur-sm"
+        role="status"
+        aria-live="polite"
+    >
+        <div class="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
+            <svg class="h-4 w-4 animate-spin text-coral-500" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+            Päivitetään vertailua…
+        </div>
+    </div>
     {{-- Header with Tabs --}}
     <div class="border-b border-slate-100 p-4">
         <div class="flex justify-center">
             <div class="inline-flex rounded-full bg-slate-100 p-1">
                 <button
                     wire:click="setComparisonMode('pricing_model')"
-                    class="px-4 py-2 text-sm font-medium rounded-full transition-colors {{ $comparisonMode === 'pricing_model' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-700' }}"
+                    wire:loading.attr="disabled"
+                    wire:target="setComparisonMode"
+                    class="px-4 py-2 text-sm font-medium rounded-full transition-colors disabled:cursor-wait disabled:opacity-70 {{ $comparisonMode === 'pricing_model' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-700' }}"
                 >
                     Pörssisähkö vs Kiinteä
                 </button>
                 <button
                     wire:click="setComparisonMode('contract_term')"
-                    class="px-4 py-2 text-sm font-medium rounded-full transition-colors {{ $comparisonMode === 'contract_term' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-700' }}"
+                    wire:loading.attr="disabled"
+                    wire:target="setComparisonMode"
+                    class="px-4 py-2 text-sm font-medium rounded-full transition-colors disabled:cursor-wait disabled:opacity-70 {{ $comparisonMode === 'contract_term' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-700' }}"
                 >
                     Määräaik. vs Toistaiseksi
                 </button>
@@ -26,7 +45,9 @@
             @foreach ($consumptionPresets as $preset)
                 <button
                     wire:click="setConsumption({{ $preset }})"
-                    class="px-3 py-1.5 text-sm font-medium rounded-full transition-colors {{ $consumption === $preset ? 'bg-coral-500 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:border-coral-400' }}"
+                    wire:loading.attr="disabled"
+                    wire:target="setConsumption"
+                    class="px-3 py-1.5 text-sm font-medium rounded-full transition-colors disabled:cursor-wait disabled:opacity-70 {{ $consumption === $preset ? 'bg-coral-500 text-white' : 'bg-white text-slate-700 border border-slate-200 hover:border-coral-400' }}"
                 >
                     {{ number_format($preset, 0, ',', ' ') }}
                 </button>
@@ -105,7 +126,9 @@
                         <div>
                             <select
                                 wire:model.live="selectedContractA"
-                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
+                                wire:loading.attr="disabled"
+                                wire:target="selectedContractA"
+                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-coral-500 focus:border-coral-500 disabled:cursor-wait disabled:opacity-70"
                             >
                                 <option value="">Valittu automaattisesti (edullisin)</option>
                                 @foreach ($availableContractsA as $c)
@@ -188,7 +211,9 @@
                         <div>
                             <select
                                 wire:model.live="selectedContractB"
-                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
+                                wire:loading.attr="disabled"
+                                wire:target="selectedContractB"
+                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-coral-500 focus:border-coral-500 disabled:cursor-wait disabled:opacity-70"
                             >
                                 <option value="">Valittu automaattisesti (edullisin)</option>
                                 @foreach ($availableContractsB as $c)

@@ -1,0 +1,9 @@
+[
+  {"name":"Locate page, related Livewire components, and statistics graph implementation","status":"completed"},
+  {"name":"Add relevant contract statistics graph(s) to kannattaako-porssisahko page","status":"completed"},
+  {"name":"Add loading state to interactive widget buttons","status":"completed"},
+  {"name":"Simplify article statistics graph to weekly 5000 kWh with editorial explanation near page opening","status":"completed"},
+  {"name":"Clarify chart uses median contract cost, not cheapest or average","status":"completed"},
+  {"name":"Add visible legend to article statistics graph","status":"completed"},
+  {"name":"Run targeted tests or checks","status":"completed"}
+]
