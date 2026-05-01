@@ -16,14 +16,14 @@
 @endphp
 
 <section class="not-prose" aria-labelledby="winrate-heading">
-    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-coral-700">Pörssisähkö vs. kiinteät, edullisin viidennes</p>
+    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-coral-700">Halvimpien sopimusten vertailu</p>
     <h2 id="winrate-heading" class="mt-2 text-2xl font-bold tracking-tight text-slate-900">
         Kuinka usein pörssisähkö on ollut edullisempi?
     </h2>
     <p class="mt-2 max-w-prose text-base leading-7 text-slate-600">
-        Vertailu suosii hintatietoista kuluttajaa: jokaiselta päivältä {{ $chartData['from'] ?? '' }}–{{ $chartData['to'] ?? '' }}
-        otetaan kunkin sopimustyypin <strong>edullisimman viidenneksen raja-arvo</strong> (p20). Kun oranssi viiva on muiden alapuolella,
-        myös tarjolla olevien edullisten kiinteähintaisten sopimusten joukosta paras pörssisopimus on ollut halvempi.
+        Tässä ei verrata kaikkien sopimusten keskiarvoa. Jokaiselta päivältä {{ $chartData['from'] ?? '' }}–{{ $chartData['to'] ?? '' }}
+        valitaan kunkin sopimustyypin edullinen taso: hinta, jonka alle 20&nbsp;% kyseisen päivän tarjouksista jäi.
+        Jos pörssisähkön viiva on alempana, halvimmat pörssisopimukset ovat olleet halvempia kuin halvimmat vertailuryhmän sopimukset samana päivänä.
     </p>
 
     @if (!$hasData)
@@ -35,7 +35,7 @@
         <dl class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-6 border-t border-slate-200 pt-6">
             @foreach ($segmentRates as $key => $rate)
                 <div>
-                    <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">vs. {{ $rate['label'] }}</dt>
+                    <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Halvempi kuin {{ $rate['label'] }}</dt>
                     <dd class="mt-1 text-2xl font-extrabold tabular-nums text-coral-600">
                         {{ $fmt($rate['spot_win_pct']) }}<span class="text-sm font-medium text-coral-600">&nbsp;%</span>
                     </dd>
@@ -81,10 +81,7 @@
         </div>
 
         <p class="mt-5 max-w-prose text-base leading-7 text-slate-600">
-            Vertailu perustuu kunkin sopimustyypin edullisimman viidenneksen raja-arvoon (p20),
-            eli siihen hintaan, jonka alle viidennes saman tyypin tarjouksista kyseisenä päivänä jäi.
-            Luvut eivät ota huomioon yksittäisen kuluttajan mahdollisuuksia ajoittaa kulutusta:
-            pörssisähkön todellinen etu korostuu, jos pystyt hyödyntämään edullisia yö- ja viikonloppuhintoja.
+            Luvut eivät ota huomioon omaa kulutuksen ajoitustasi. Pörssisähkön hyöty voi kasvaa, jos pystyt käyttämään sähköä enemmän edullisina yö- ja viikonlopputunteina.
         </p>
     @endif
 

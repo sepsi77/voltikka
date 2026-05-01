@@ -19,7 +19,7 @@
                         Kannattaako pörssisähkö?
                     </h1>
                     <p class="text-slate-300 text-lg md:text-xl max-w-2xl mx-auto">
-                        Pörssisähkö on Suomen suosituin sähkösopimustyyppi. Mutta kannattaako se juuri sinulle? Katso mitä markkinadata kertoo.
+                        Pörssisähkö voi olla halpa, jos kestät hinnan vaihtelua ja voit ajoittaa kulutusta. Katso, milloin se on ollut edullinen ja milloin kiinteä hinta voi olla turvallisempi valinta.
                     </p>
                 </div>
             </div>
@@ -44,7 +44,7 @@
             <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 mb-3">Tässä artikkelissa</p>
             <ol class="space-y-1.5 text-[15px] text-slate-700">
                 <li><a href="#mika-on" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Mikä on pörssisähkö?</a></li>
-                <li><a href="#sopimushinnat" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Mitä sopimushinnat kertovat juuri nyt</a></li>
+                <li><a href="#sopimushinnat" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Miten pörssisähkö vertautuu muihin sopimuksiin?</a></li>
                 <li><a href="#hintavaihtelu" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Tuntihintojen vaihtelu ja riskit</a></li>
                 <li><a href="#vertailu" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Vertaile omalla kulutuksella</a></li>
                 <li><a href="#kenelle" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Kenelle pörssisähkö sopii</a></li>
@@ -90,7 +90,7 @@
         {{-- Lead paragraph --}}
         <article class="prose prose-slate prose-lg max-w-prose">
             <p class="lead">
-                Pörssisähkö on Suomen yleisin sopimustyyppi. Sen hinta seuraa pörssin tuntihintaa, joten lasku voi olla selvästi kiinteähintaista halvempi, mutta talvipakkasilla yksittäiset tunnit ovat välillä moninkertaisia. Tällä sivulla katsotaan, milloin riski kannattaa ottaa.
+                <strong>Lyhyt vastaus:</strong> pörssisähkö voi olla edullinen, jos pystyt siirtämään kulutusta halvoille tunneille ja hyväksyt hintavaihtelun. Kiinteä hinta voi olla parempi, jos haluat ennustettavan laskun tai et halua seurata sähkön tuntihintoja.
             </p>
         </article>
 
@@ -115,9 +115,9 @@
         {{-- Section: Mediaanihinta-vertailu --}}
         <section class="mt-14 pt-10 border-t border-slate-100">
             <article class="prose prose-slate max-w-prose">
-                <h2 id="sopimushinnat" class="scroll-mt-24">Mitä sopimushinnat kertovat juuri nyt?</h2>
+                <h2 id="sopimushinnat" class="scroll-mt-24">Miten pörssisähkö vertautuu muihin sopimuksiin?</h2>
                 <p>
-                    Alla oleva kuvaaja perustuu Voltikan keräämiin todellisiin sähkösopimusten hintoihin. Se näyttää viikkotasolla mediaanikustannuksen 5&nbsp;000 kWh vuosikulutuksella eri sopimustyypeissä. Mediaani tarkoittaa keskimmäistä sopimusta: puolet tarjolla olleista sopimuksista oli tätä halvempia ja puolet kalliimpia.
+                    Alla oleva kuvaaja perustuu Voltikan keräämiin todellisiin sähkösopimusten hintoihin. Se näyttää, paljonko tyypillinen sopimus olisi maksanut 5&nbsp;000 kWh vuosikulutuksella. Tyypillinen tarkoittaa tässä mediaania: puolet sopimuksista oli halvempia ja puolet kalliimpia.
                 </p>
             </article>
 
@@ -127,7 +127,7 @@
 
             <article class="prose prose-slate max-w-prose mt-8">
                 <p>
-                    Kuvaajaa ei kannata tulkita lupauksena tulevasta hinnasta tai halvimpana tarjouksena, vaan taustakuvana päätökselle: pörssisähkön kustannus elää markkinan mukana, kun taas kiinteähintaiset sopimukset tarjoavat ennustettavuutta usein eri hintatasolla.
+                    Lue kuvaajaa markkinan suuntana, ei halvimpana tarjouksena tai lupauksena tulevasta hinnasta. Pörssisähkön kustannus elää markkinan mukana, kun taas kiinteähintainen sopimus antaa enemmän ennustettavuutta.
                 </p>
                 <p>
                     Vuotuiset luvut piilottavat kolme asiaa: vuodenaikojen vaikutuksen hintaan, kuinka usein pörssisähkö on käytännössä ollut edullisempi, ja kuinka rajusti tuntihinnat heittelevät pörssissä. Katsotaan ne järjestyksessä.
@@ -153,14 +153,13 @@
         {{-- Section: Vertailulaskuri --}}
         <section id="vertailu" class="not-prose mt-14 pt-10 border-t border-slate-100 scroll-mt-24">
             <p class="text-xs font-semibold uppercase tracking-[0.16em] text-coral-700">Kokeile omalla kulutuksellasi</p>
-            <h2 class="mt-2 text-2xl font-bold tracking-tight text-slate-900">Vertaile pörssisähköä määräaikaisiin ja kiinteähintaisiin sopimuksiin</h2>
+            <h2 class="mt-2 text-2xl font-bold tracking-tight text-slate-900">Vertaile pörssisähköä omalla kulutuksellasi</h2>
             <div class="mt-3 space-y-3 max-w-prose text-base leading-7 text-slate-600">
                 <p>
-                    Laskuri vertaa pörssisähköä joko kiinteähintaiseen sopimukseen tai määräaikaiseen sopimukseen valitsemallasi kulutuksella.
-                    Pörssisähkön hinta-arvio perustuu viime vuoden saman kuukauden toteutuneisiin spot-hintoihin.
+                    Laskuri vertaa valitsemaasi pörssisopimusta toiseen sopimukseen samalla vuosikulutuksella. Voit vaihtaa vertailusopimuksen ja kulutusmäärän.
                 </p>
                 <p>
-                    Valitse välilehdistä, haluatko tarkastella pörssisähköä suhteessa kiinteään hintaan vai määräaikaiseen sopimukseen. Määräaikaiset ja kiinteähintaiset sopimukset tarjoavat ennustettavuutta eri tavoin, joten molempia vertailuja kannattaa kokeilla.
+                    Pörssisähkön arvio perustuu viime vuoden saman kuukauden toteutuneisiin spot-hintoihin. Se ei ennusta tulevaa hintaa.
                 </p>
             </div>
             <div class="mt-10">
@@ -211,15 +210,15 @@
                 <div class="space-y-3">
                     <div class="flex items-start gap-3">
                         <span class="text-coral-700 font-bold text-lg leading-none mt-0.5">1.</span>
-                        <span class="text-slate-700"><strong>Pörssisähkö kannattaa</strong>, jos voit ajoittaa kulutusta tai sinulla on suuri kulutus. Aineisto näyttää, että edullisin viidennes pörssisopimuksia on toistuvasti voittanut vastaavan kiinteähintaisen.</span>
+                        <span class="text-slate-700"><strong>Pörssisähkö voi kannattaa</strong>, jos voit siirtää kulutusta halvoille tunneille tai kulutuksesi on suuri. Aineisto näyttää, että edullisimmat pörssisopimukset ovat usein olleet halvempia kuin edullisimmat kiinteähintaiset vaihtoehdot.</span>
                     </div>
                     <div class="flex items-start gap-3">
                         <span class="text-coral-700 font-bold text-lg leading-none mt-0.5">2.</span>
-                        <span class="text-slate-700"><strong>Kiinteä hinta kannattaa</strong>, jos haluat ennustettavuutta tai kulutuksesi on pieni</span>
+                        <span class="text-slate-700"><strong>Kiinteä hinta voi olla parempi</strong>, jos haluat ennustettavan laskun, et voi ajoittaa kulutusta tai kulutuksesi on pieni.</span>
                     </div>
                     <div class="flex items-start gap-3">
                         <span class="text-coral-700 font-bold text-lg leading-none mt-0.5">3.</span>
-                        <span class="text-slate-700"><strong>Kokeile laskuria</strong> omalla kulutuksellasi: todelliset säästöt riippuvat tilanteestasi</span>
+                        <span class="text-slate-700"><strong>Tarkista oma tilanteesi laskurilla.</strong> Pörssisähkön hyöty riippuu kulutuksen määrästä, ajoituksesta ja siitä, kuinka hyvin kestät hintapiikkejä.</span>
                     </div>
                 </div>
             </div>

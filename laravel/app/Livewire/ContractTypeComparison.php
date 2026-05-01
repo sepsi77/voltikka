@@ -224,14 +224,14 @@ class ContractTypeComparison extends Component
     {
         if ($this->comparisonContext === 'spot_article') {
             return [
-                'pricing_model' => 'Pörssisähkö vs Kiinteä',
-                'contract_term' => 'Pörssisähkö vs Määräaikainen',
+                'pricing_model' => 'Pörssisähkö vs kiinteähintainen',
+                'contract_term' => 'Pörssisähkö vs määräaikainen',
             ];
         }
 
         return [
-            'pricing_model' => 'Pörssisähkö vs Kiinteä',
-            'contract_term' => 'Määräaik. vs Toistaiseksi',
+            'pricing_model' => 'Pörssisähkö vs kiinteähintainen',
+            'contract_term' => 'Määräaikainen vs toistaiseksi',
         ];
     }
 

@@ -8,13 +8,11 @@
 <section class="not-prose my-10" aria-labelledby="volatility-heading">
     <p class="text-xs font-semibold uppercase tracking-[0.16em] text-coral-700">Pörssisähkön hintavaihtelu</p>
     <h2 id="volatility-heading" class="mt-2 text-2xl font-bold tracking-tight text-slate-900">
-        Kuinka leveä haarukka on?
+        Kuinka paljon tuntihinta voi vaihdella?
     </h2>
     <p class="mt-2 max-w-prose text-base leading-7 text-slate-600">
-        Edellä vertasimme sopimusten välistä hajontaa eri tarjoajien kesken. Nyt katsotaan toista hajontaa,
-        joka on pörssisähkön todellinen riski: kuinka paljon yksittäisten tuntien hinta vaihtelee saman vuorokauden sisällä.
-        Värillinen alue kattaa keskimmäiset 60 % tuntihinnoista, ohut viiva näyttää viikon mediaanin, ja pisteet
-        kertovat viikon halvimman ja kalleimman tunnin.
+        Edellä vertailtiin eri sopimusten hintoja. Tässä katsotaan pörssisähkön tärkeintä riskiä: saman vuorokauden tuntihinnat voivat poiketa paljon toisistaan.
+        Värillinen alue näyttää tavallisen vaihteluvälin, ohut viiva viikon mediaanin ja pisteet viikon halvimman sekä kalleimman tunnin.
     </p>
 
     @if (!$hasData)
@@ -23,7 +21,7 @@
         </div>
     @else
         {{-- Headline figures --}}
-        <dl class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-6 border-t border-slate-200 pt-6">
+        <dl class="mt-6 grid grid-cols-2 lg:grid-cols-5 gap-x-6 gap-y-6 border-t border-slate-200 pt-6">
             <div>
                 <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Halvin tunti</dt>
                 <dd class="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">
@@ -43,11 +41,18 @@
                 </dd>
             </div>
             <div>
-                <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Piikki- ja miinuspäiviä</dt>
+                <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Kalliita päiviä</dt>
                 <dd class="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">
-                    {{ $metrics['spikeDays'] }} <span class="text-sm font-medium text-slate-500">/ {{ $metrics['negativeDays'] }}</span>
+                    {{ $metrics['spikeDays'] }}<span class="text-sm font-medium text-slate-500"> päivää</span>
                 </dd>
-                <p class="mt-1 text-[11px] text-slate-500">Yli 20 c/kWh / alle 0 c/kWh</p>
+                <p class="mt-1 text-[11px] text-slate-500">Yli 20 c/kWh</p>
+            </div>
+            <div>
+                <dt class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500">Miinushintaisia päiviä</dt>
+                <dd class="mt-1 text-2xl font-extrabold tabular-nums text-slate-900">
+                    {{ $metrics['negativeDays'] }}<span class="text-sm font-medium text-slate-500"> päivää</span>
+                </dd>
+                <p class="mt-1 text-[11px] text-slate-500">Alle 0 c/kWh</p>
             </div>
         </dl>
 
@@ -55,7 +60,7 @@
             <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mb-4">
                 <span class="flex items-center gap-2 text-sm text-slate-600">
                     <span class="h-3 w-3 rounded-sm" style="background:rgba(249,115,22,0.18);border:1px solid rgba(249,115,22,0.4)"></span>
-                    Tyypillinen haarukka (p20–p80)
+                    Tavallinen vaihteluväli (p20–p80)
                 </span>
                 <span class="flex items-center gap-2 text-sm text-slate-600">
                     <span class="h-0.5 w-4 bg-coral-500"></span>
@@ -73,9 +78,7 @@
         </div>
 
         <p class="mt-5 max-w-prose text-base leading-7 text-slate-600">
-            Mitä leveämpi värillinen alue, sitä enemmän valveilla ollut kuluttaja voi säästää siirtämällä kulutusta.
-            Pisteviivan ulkopuoliset huiput näyttävät, kuinka rajuja yksittäisten tuntien hintapiikit voivat olla:
-            ne nostavat keskihintaa, mutta osuvat usein vain pieneen osaan vuorokaudesta.
+            Mitä leveämpi värillinen alue on, sitä enemmän ajoituksella voi olla merkitystä. Yksittäiset hintapiikit voivat olla rajuja, mutta ne osuvat usein vain pieneen osaan vuorokaudesta.
         </p>
     @endif
 
@@ -186,7 +189,7 @@
                                             const hi = chartData.p80[idx];
                                             if (lo === null || hi === null) return '';
                                             const fmt = (n) => n.toLocaleString('fi-FI', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                                            return 'Tyypillinen haarukka: ' + fmt(lo) + '–' + fmt(hi) + ' c/kWh';
+                                            return 'Tavallinen vaihteluväli: ' + fmt(lo) + '–' + fmt(hi) + ' c/kWh';
                                         },
                                     }
                                 }

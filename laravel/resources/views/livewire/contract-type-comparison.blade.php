@@ -11,7 +11,7 @@
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
             </svg>
-            Päivitetään vertailua…
+            Lasketaan kustannuksia valitulla kulutuksella…
         </div>
     </div>
     @if($showModeTabs)
@@ -132,7 +132,7 @@
                                 wire:target="selectedContractA"
                                 class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-coral-500 focus:border-coral-500 disabled:cursor-wait disabled:opacity-70"
                             >
-                                <option value="">Valittu automaattisesti (edullisin)</option>
+                                <option value="">Käytä automaattisesti edullisinta sopimusta</option>
                                 @foreach ($availableContractsA as $c)
                                     <option value="{{ $c->id }}">{{ $c->company?->name }} - {{ $c->name }}</option>
                                 @endforeach
@@ -217,7 +217,7 @@
                                 wire:target="selectedContractB"
                                 class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-coral-500 focus:border-coral-500 disabled:cursor-wait disabled:opacity-70"
                             >
-                                <option value="">Valittu automaattisesti (edullisin)</option>
+                                <option value="">Käytä automaattisesti edullisinta sopimusta</option>
                                 @foreach ($availableContractsB as $c)
                                     <option value="{{ $c->id }}">{{ $c->company?->name }} - {{ $c->name }}</option>
                                 @endforeach
@@ -428,11 +428,11 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             <p>
-                Spot-hinnat perustuvat viime vuoden saman kuukauden keskihintoihin.
+                Pörssisähkön arvio perustuu viime vuoden saman kuukauden keskihintoihin.
                 @if($consumption > 4000)
                 Suuremmalla kulutuksella laskuri huomioi sähkölämmityksen kausivaihtelun (talvella enemmän, kesällä vähemmän).
                 @endif
-                Todelliset kustannukset voivat poiketa ennusteesta.
+                Arvio ei ennusta tulevaa hintaa. Todelliset kustannukset voivat poiketa laskurin tuloksesta.
             </p>
         </div>
     </div>
