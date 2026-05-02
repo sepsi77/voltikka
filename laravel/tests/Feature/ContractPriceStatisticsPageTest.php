@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\ContractPriceDailyStatistic;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ContractPriceStatisticsPageTest extends TestCase
@@ -69,44 +71,51 @@ class ContractPriceStatisticsPageTest extends TestCase
         $response->assertSee('wire:target="setPeriod,setConsumption"', false);
     }
 
+    public function test_prepared_statistics_payload_is_cached_between_requests(): void
+    {
+        Cache::flush();
+        $this->seedSampleStatistics();
+
+        $this->get('/sahkosopimus/tilastot')->assertStatus(200);
+
+        DB::enableQueryLog();
+        $this->get('/sahkosopimus/tilastot')->assertStatus(200);
+        $queries = collect(DB::getQueryLog())->pluck('query');
+        DB::disableQueryLog();
+
+        $fullStatisticReads = $queries->filter(
+            fn (string $query) => preg_match('/select\s+\*\s+from\s+[`"]?contract_price_daily_statistics[`"]?/i', $query) === 1,
+        );
+
+        $this->assertCount(0, $fullStatisticReads, 'The second request should reuse cached view data instead of loading every daily statistic row.');
+    }
+
+    public function test_cached_statistics_payload_invalidates_when_daily_statistics_change(): void
+    {
+        Cache::flush();
+        $this->seedSampleStatistics();
+
+        $initialResponse = $this->get('/sahkosopimus/tilastot');
+        $initialResponse->assertStatus(200);
+        $this->assertDoesNotMatchRegularExpression('/<span[^>]*>\s*Kvartaalisähkö\s*<\/span>/u', $initialResponse->getContent());
+
+        $this->seedQuarterlyStatistics(contractCount: 10);
+
+        $updatedResponse = $this->get('/sahkosopimus/tilastot');
+        $updatedResponse->assertStatus(200);
+        $this->assertMatchesRegularExpression('/<span[^>]*>\s*Kvartaalisähkö\s*<\/span>/u', $updatedResponse->getContent());
+    }
+
     public function test_tables_hide_segments_with_fewer_than_ten_contracts(): void
     {
         $this->seedSampleStatistics();
 
-        foreach (['energy_price', 'monthly_fee'] as $metric) {
-            ContractPriceDailyStatistic::create([
-                'stat_date' => '2026-04-29',
-                'segment_key' => 'quarterly',
-                'metric_key' => $metric,
-                'consumption_kwh' => null,
-                'min_value' => 8.0,
-                'p20_value' => 8.0,
-                'avg_value' => 8.0,
-                'median_value' => 8.0,
-                'p80_value' => 8.0,
-                'max_value' => 8.0,
-                'contract_count' => 9,
-            ]);
-        }
-
-        ContractPriceDailyStatistic::create([
-            'stat_date' => '2026-04-29',
-            'segment_key' => 'quarterly',
-            'metric_key' => 'annual_cost',
-            'consumption_kwh' => 5000,
-            'min_value' => 450,
-            'p20_value' => 460,
-            'avg_value' => 470,
-            'median_value' => 470,
-            'p80_value' => 480,
-            'max_value' => 490,
-            'contract_count' => 9,
-        ]);
+        $this->seedQuarterlyStatistics(contractCount: 9);
 
         $response = $this->get('/sahkosopimus/tilastot');
 
         $response->assertStatus(200);
-        $response->assertDontSee('>Kvartaalisähkö</span>', false);
+        $this->assertDoesNotMatchRegularExpression('/<span[^>]*>\s*Kvartaalisähkö\s*<\/span>/u', $response->getContent());
         $response->assertSee('Pörssisähkö');
     }
 
@@ -236,6 +245,39 @@ class ContractPriceStatisticsPageTest extends TestCase
                 'contract_count' => 10,
             ]);
         }
+    }
+
+    private function seedQuarterlyStatistics(int $contractCount): void
+    {
+        foreach (['energy_price', 'monthly_fee'] as $metric) {
+            ContractPriceDailyStatistic::create([
+                'stat_date' => '2026-04-29',
+                'segment_key' => 'quarterly',
+                'metric_key' => $metric,
+                'consumption_kwh' => null,
+                'min_value' => 8.0,
+                'p20_value' => 8.0,
+                'avg_value' => 8.0,
+                'median_value' => 8.0,
+                'p80_value' => 8.0,
+                'max_value' => 8.0,
+                'contract_count' => $contractCount,
+            ]);
+        }
+
+        ContractPriceDailyStatistic::create([
+            'stat_date' => '2026-04-29',
+            'segment_key' => 'quarterly',
+            'metric_key' => 'annual_cost',
+            'consumption_kwh' => 5000,
+            'min_value' => 450,
+            'p20_value' => 460,
+            'avg_value' => 470,
+            'median_value' => 470,
+            'p80_value' => 480,
+            'max_value' => 490,
+            'contract_count' => $contractCount,
+        ]);
     }
 
     private function seedSampleStatistics(): void

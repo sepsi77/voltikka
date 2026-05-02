@@ -22,6 +22,8 @@ Purpose:
 
 Important semantics:
 - the page does not calculate contract prices directly during requests
+- the component caches its prepared view payload per period + consumption + source-data fingerprint until the next day; keep this cache in place unless a replacement avoids full-table aggregation on every page load
+- cache invalidation is automatic through cheap `contract_price_daily_statistics` / `contract_price_snapshots` max-date/update fingerprints, so daily imports/backfills should not need manual page-cache clearing
 - run `contracts:backfill-price-statistics` before expecting historical data
 - spot metrics are split between `spot_margin` and `spot_total_energy_price`
 - deep-dive c/kWh charts may show current/day-period spot total price, but non-spot “vs pörssisähkö” quotable comparisons must use `annual_cost` at the selected consumption so unusually cheap/expensive spot days do not distort contract-type comparisons

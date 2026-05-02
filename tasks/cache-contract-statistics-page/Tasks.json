@@ -1,0 +1,5 @@
+[
+  {"name":"Inspect current statistics page implementation and update cadence","status":"completed"},
+  {"name":"Implement daily cache for statistics page data/rendering","status":"completed"},
+  {"name":"Add or update tests and documentation","status":"completed"}
+]

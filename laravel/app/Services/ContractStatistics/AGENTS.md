@@ -22,6 +22,7 @@ Primary files:
 - Spot contracts track both margin and realistic total energy price (`stored spot average + margin`).
 - Spot `annual_cost` uses trailing-365-day spot average plus margin; use this annual-cost metric, not current/day-period `spot_total_energy_price`, when making contract-type cost comparisons against spot.
 - Weekly/monthly UI aggregates should average daily statistics, not recompute from all contract-day rows, so trend lines are market-day weighted.
+- `/sahkosopimus/tilastot` caches its prepared Livewire view data per period + consumption until the next day, with cache keys versioned by cheap source-table fingerprints. This prevents repeated request-time grouping of the full daily-statistics table while preserving Livewire controls.
 
 ## Segment classification
 

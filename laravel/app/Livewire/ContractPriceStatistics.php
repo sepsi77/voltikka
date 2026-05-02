@@ -7,6 +7,7 @@ use App\Models\ContractPriceSnapshot;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
@@ -498,10 +499,35 @@ class ContractPriceStatistics extends Component
 
     public function render()
     {
-        $window = $this->dataWindow;
-        $latestDate = $this->latestSnapshotDate;
+        return view('livewire.contract-price-statistics', $this->statisticsViewData())->layout('layouts.app', [
+            'title' => 'Sähkön hintatilastot, mitä suomalaiset oikeasti maksavat | Voltikka',
+            'metaDescription' => 'Sähkösopimusten hintatilastot Suomessa. Vertaa eri sopimustyyppien hintaeroja, vuosikustannuksia ja hintakehitystä.',
+            'canonical' => config('app.url') . '/sahkosopimus/tilastot',
+        ]);
+    }
 
-        return view('livewire.contract-price-statistics', [
+    /**
+     * Cache the fully prepared view payload. The source tables are refreshed at
+     * most daily, while the payload requires many repeated scans/groupings of
+     * the same statistics collection during each render.
+     *
+     * @return array<string,mixed>
+     */
+    private function statisticsViewData(): array
+    {
+        return Cache::remember(
+            $this->statisticsViewDataCacheKey(),
+            Carbon::tomorrow(),
+            fn () => $this->buildStatisticsViewData(),
+        );
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function buildStatisticsViewData(): array
+    {
+        return [
             'leadChartPayload' => $this->leadChartPayload,
             'spotMarginPayload' => $this->spotMarginChartPayload,
             'deepDivePayloads' => $this->deepDivePayloads,
@@ -510,15 +536,43 @@ class ContractPriceStatistics extends Component
             'callouts' => $this->callouts,
             'caption' => $this->caption,
             'citations' => $this->citations,
-            'dataWindow' => $window,
-            'latestSnapshotDate' => $latestDate,
+            'dataWindow' => $this->dataWindow,
+            'latestSnapshotDate' => $this->latestSnapshotDate,
             'latestSnapshotCount' => $this->latestSnapshotCount,
             'jsonLd' => $this->jsonLd,
-        ])->layout('layouts.app', [
-            'title' => 'Sähkön hintatilastot, mitä suomalaiset oikeasti maksavat | Voltikka',
-            'metaDescription' => 'Sähkösopimusten hintatilastot Suomessa. Vertaa eri sopimustyyppien hintaeroja, vuosikustannuksia ja hintakehitystä.',
-            'canonical' => config('app.url') . '/sahkosopimus/tilastot',
-        ]);
+        ];
+    }
+
+    private function statisticsViewDataCacheKey(): string
+    {
+        return 'contract-price-statistics:view-data:v1:' . md5(json_encode([
+            'period' => $this->period,
+            'consumption' => $this->consumption,
+            'version' => $this->statisticsDataVersion(),
+        ]));
+    }
+
+    /**
+     * Cheap cache-busting fingerprint. Avoid loading the full statistics table
+     * just to decide whether today's prepared payload can be reused.
+     */
+    private function statisticsDataVersion(): array
+    {
+        $statistics = ContractPriceDailyStatistic::query()
+            ->selectRaw('COUNT(*) as row_count, MAX(stat_date) as latest_date, MAX(updated_at) as latest_update')
+            ->first();
+
+        $snapshots = ContractPriceSnapshot::query()
+            ->selectRaw('MAX(snapshot_date) as latest_date, MAX(updated_at) as latest_update')
+            ->first();
+
+        return [
+            'statistics_row_count' => (int) ($statistics?->row_count ?? 0),
+            'statistics_latest_date' => $statistics?->latest_date,
+            'statistics_latest_update' => $statistics?->latest_update,
+            'snapshots_latest_date' => $snapshots?->latest_date,
+            'snapshots_latest_update' => $snapshots?->latest_update,
+        ];
     }
 
     // -----------------------------------------------------------------------

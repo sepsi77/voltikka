@@ -89,6 +89,7 @@ php artisan test --filter="ContractsFilterTest"
 - Spot contract totals use stored spot-price history plus supplier margin
 - Commands: `contracts:calculate-price-statistics`, `contracts:backfill-price-statistics`
 - Daily import calculates these statistics before optional percentile badge recalculation so this page keeps updating even if badge metrics fail
+- Page requests serve cached prepared view data per period + consumption; cache keys auto-bust when statistics/snapshot source-table fingerprints change
 
 ### 3. Spot Price Display
 - **Location**: `app/Livewire/SpotPrice.php`, `HeaderSpotPrice.php`
