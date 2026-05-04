@@ -8,13 +8,16 @@ use App\Models\ElectricitySource;
 use App\Models\Municipality;
 use App\Models\Postcode;
 use App\Models\SpotPriceAverage;
+use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\CitySolarService;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
 use App\Services\LocalContractsService;
+use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -235,6 +238,10 @@ class SeoContractsList extends ContractsList
      */
     public function getContractsProperty(): LengthAwarePaginator
     {
+        if ($this->contractsCache !== null) {
+            return $this->contractsCache;
+        }
+
         $query = ElectricityContract::query()
             ->active()
             ->with(['electricitySource'])
@@ -470,7 +477,7 @@ class SeoContractsList extends ContractsList
         $items = $this->loadVisibleContracts($sorted, $offset, $perPage);
 
         // Create and return a LengthAwarePaginator
-        return new \Illuminate\Pagination\LengthAwarePaginator(
+        return $this->contractsCache = new \Illuminate\Pagination\LengthAwarePaginator(
             $items,
             $total,
             $perPage,
@@ -1261,36 +1268,94 @@ class SeoContractsList extends ContractsList
     public function render()
     {
         $this->enableBackButtonCache();
+        $data = $this->seoContractsViewData();
 
-        return view('livewire.seo-contracts-list', [
-            'contracts' => $this->contracts,
-            'postcodeSuggestions' => $this->postcodeSuggestions,
-            'seoData' => $this->seoData,
-            'pageHeading' => $this->pageHeading,
-            'seoIntroText' => $this->seoIntroText,
-            'hasSeoFilter' => $this->hasSeoFilter,
-            'energySourceStats' => $this->energySourceStats,
-            'environmentalInfo' => $this->environmentalInfo,
-            'isEnergySourcePage' => $this->energySource !== null,
-            'isPricingTypePage' => $this->pricingType !== null,
-            'isContractDurationPage' => $this->contractDuration !== null,
-            'isCityPage' => $this->city !== null,
-            'cityInfo' => $this->cityInfo,
-            'citySlug' => $this->city,
-            'municipality' => $this->municipality,
-            'solarEstimate' => $this->solarEstimate,
-            'localContractsData' => $this->localContractsData,
-            'basePath' => $this->basePath,
-            'showCalculatorTab' => $this->showCalculatorTab,
-            'isBusinessPage' => $this->isBusinessPage,
-        ])->layout('layouts.app', [
-            'title' => $this->seoData['title'],
-            'metaDescription' => $this->seoData['description'],
-            'canonical' => $this->seoData['canonical'],
-            'prevUrl' => $this->prevUrl,
-            'nextUrl' => $this->nextUrl,
-        ])->response(function ($response) {
-            app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
-        });
+        return view('livewire.seo-contracts-list', $data['view'])
+            ->layout('layouts.app', $data['layout'])
+            ->response(function ($response) {
+                app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
+            });
+    }
+
+    /**
+     * @return array{view: array<string, mixed>, layout: array<string, mixed>}
+     */
+    protected function seoContractsViewData(): array
+    {
+        if (! $this->isDefaultSeoListingCacheable()) {
+            return $this->buildSeoContractsViewData();
+        }
+
+        return Cache::remember(
+            $this->seoContractsViewDataCacheKey(),
+            Carbon::tomorrow(),
+            fn () => $this->buildSeoContractsViewData(),
+        );
+    }
+
+    /**
+     * @return array{view: array<string, mixed>, layout: array<string, mixed>}
+     */
+    protected function buildSeoContractsViewData(): array
+    {
+        $contracts = $this->contracts;
+        $seoData = $this->seoData;
+
+        return [
+            'view' => [
+                'contracts' => $contracts,
+                'postcodeSuggestions' => $this->postcodeSuggestions,
+                'seoData' => $seoData,
+                'pageHeading' => $this->pageHeading,
+                'seoIntroText' => $this->seoIntroText,
+                'hasSeoFilter' => $this->hasSeoFilter,
+                'energySourceStats' => $this->energySourceStats,
+                'environmentalInfo' => $this->environmentalInfo,
+                'isEnergySourcePage' => $this->energySource !== null,
+                'isPricingTypePage' => $this->pricingType !== null,
+                'isContractDurationPage' => $this->contractDuration !== null,
+                'isCityPage' => $this->city !== null,
+                'cityInfo' => $this->cityInfo,
+                'citySlug' => $this->city,
+                'municipality' => $this->municipality,
+                'solarEstimate' => $this->solarEstimate,
+                'localContractsData' => $this->localContractsData,
+                'basePath' => $this->basePath,
+                'showCalculatorTab' => $this->showCalculatorTab,
+                'isBusinessPage' => $this->isBusinessPage,
+            ],
+            'layout' => [
+                'title' => $seoData['title'],
+                'metaDescription' => $seoData['description'],
+                'canonical' => $seoData['canonical'],
+                'prevUrl' => $this->prevUrl,
+                'nextUrl' => $this->nextUrl,
+            ],
+        ];
+    }
+
+    protected function isDefaultSeoListingCacheable(): bool
+    {
+        return $this->isDefaultListingCacheable()
+            && $this->postcodeSearch === '';
+    }
+
+    protected function seoContractsViewDataCacheKey(): string
+    {
+        return 'seo-contracts-list:view-data:v1:' . md5(json_encode([
+            'class' => static::class,
+            'base_path' => $this->basePath,
+            'housing_type' => $this->housingType,
+            'energy_source' => $this->energySource,
+            'city' => $this->city,
+            'pricing_type' => $this->pricingType,
+            'offer_type' => $this->offerType,
+            'target_group' => $this->targetGroup,
+            'contract_duration' => $this->contractDuration,
+            'consumption_level' => $this->consumptionLevel,
+            'page' => $this->page,
+            'consumption' => $this->consumption,
+            'version' => app(ContractPageCacheVersion::class)->hash(),
+        ]));
     }
 }

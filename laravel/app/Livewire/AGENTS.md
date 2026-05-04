@@ -64,12 +64,41 @@ Important semantics:
 - default `contract_term` mode compares määräaikainen vs toistaiseksi voimassa oleva for the määräaikainen article
 - `comparisonContext="spot_article"` keeps pörssisähkö as the left-side anchor in both tabs: pörssisähkö vs kiinteähintainen and pörssisähkö vs määräaikainen
 
+## Contract listing page caching
+
+Primary files:
+- `ContractsList.php`
+- `SeoContractsList.php`
+- `../Services/Caching/ContractPageCacheVersion.php`
+
+Purpose:
+- cache prepared view payloads for high-traffic canonical/default contract listing landings such as `/sahkosopimus` and SEO listing pages
+
+Important semantics:
+- only cache canonical default GET states: page 1, no query string, no interactive filters/search input
+- do not cache arbitrary filter/query combinations because they can explode cache cardinality and are less important for search-landing TTFB
+- cache keys include route/filter context plus `ContractPageCacheVersion::hash()` so contract imports and source-table changes bust stale payloads
+- this is prepared-data caching, not full HTML caching; Livewire actions still recompute/serve their interactive state normally
+- page-level caching is disabled when `app()->runningUnitTests()` to avoid cross-test cache pollution from Laravel's array cache driver
+
 ## `ContractDetail`
 
 Primary files:
 - `ContractDetail.php`
 - `../../resources/views/livewire/contract-detail.blade.php`
 - `../Models/ElectricityContract.php`
+- `../Services/Caching/ContractPageCacheVersion.php`
+
+### Prepared view-data caching
+
+Contract detail pages cache their contract lookup and prepared default GET payload until tomorrow with a `ContractPageCacheVersion` key.
+
+Important semantics:
+- only the canonical default consumption state is cached (`5000 kWh`, clamped into the contract's allowed range)
+- query-string/Livewire interaction states are not cached by this page-level cache
+- inactive redirect decisions still happen in `mount()` before view-data caching
+- inactive historical pages without replacements can be cached, but the cached layout data must keep `robots => noindex, follow`
+- page-level caching is disabled when `app()->runningUnitTests()` to avoid cross-test cache pollution from Laravel's array cache driver
 
 ### Contract history UI
 

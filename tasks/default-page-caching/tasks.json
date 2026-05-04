@@ -1,0 +1,8 @@
+[
+  {"name":"Inspect listing/detail components and existing cache patterns","status":"done"},
+  {"name":"Add shared contract-data cache fingerprint service","status":"done"},
+  {"name":"Cache default contract listing prepared data","status":"done"},
+  {"name":"Cache SEO listing prepared data","status":"done"},
+  {"name":"Cache contract detail prepared data safely","status":"done"},
+  {"name":"Run tests and update context docs","status":"done"}
+]

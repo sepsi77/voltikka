@@ -68,6 +68,14 @@ Purpose:
 Read first:
 - `ContractReplacement/AGENTS.md`
 
+### Public page caching
+Directory:
+- `Caching/`
+
+Purpose:
+- shared cache fingerprint helpers for public contract listing/detail pages
+- see `Caching/AGENTS.md` before changing cache invalidation behavior
+
 ### Contract price statistics
 Directory:
 - `ContractStatistics/`

@@ -5,11 +5,14 @@ namespace App\Livewire;
 use App\Http\Middleware\SetPublicCacheHeaders;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
+use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractListCacheService;
 use App\Services\ContractPriceCalculator;
 use App\Services\ContractRankingService;
 use App\Services\DTO\EnergyUsage;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
 class ContractDetail extends Component
@@ -183,9 +186,37 @@ class ContractDetail extends Component
             return $this->contractCache;
         }
 
-        return $this->contractCache = ElectricityContract::query()
+        if ($this->isDefaultContractLookupCacheable()) {
+            return $this->contractCache = Cache::remember(
+                $this->contractLookupCacheKey(),
+                Carbon::tomorrow(),
+                fn () => $this->loadContract(),
+            );
+        }
+
+        return $this->contractCache = $this->loadContract();
+    }
+
+    protected function loadContract(): ?ElectricityContract
+    {
+        return ElectricityContract::query()
             ->with(['company', 'priceComponents', 'electricitySource'])
             ->find($this->contractId);
+    }
+
+    protected function isDefaultContractLookupCacheable(): bool
+    {
+        return ! app()->runningUnitTests()
+            && request()->isMethod('GET')
+            && request()->query() === [];
+    }
+
+    protected function contractLookupCacheKey(): string
+    {
+        return 'contract-detail:contract:v1:' . md5(json_encode([
+            'contract_id' => $this->contractId,
+            'version' => app(ContractPageCacheVersion::class)->hash(),
+        ]));
     }
 
     /**
@@ -1144,6 +1175,81 @@ class ContractDetail extends Component
         ];
     }
 
+    /**
+     * @return array{view: array<string, mixed>, layout: array<string, mixed>}
+     */
+    protected function contractDetailViewData(): array
+    {
+        if (! $this->isDefaultContractDetailCacheable()) {
+            return $this->buildContractDetailViewData();
+        }
+
+        return Cache::remember(
+            $this->contractDetailViewDataCacheKey(),
+            Carbon::tomorrow(),
+            fn () => $this->buildContractDetailViewData(),
+        );
+    }
+
+    /**
+     * @return array{view: array<string, mixed>, layout: array<string, mixed>}
+     */
+    protected function buildContractDetailViewData(): array
+    {
+        $contract = $this->contract;
+        $isActive = $this->isActive;
+
+        return [
+            'view' => [
+                'contract' => $contract,
+                'schemas' => array_values(array_filter([
+                    $this->webPageSchema,
+                    $this->productSchema,
+                    $this->breadcrumbSchema,
+                ])),
+                'latestPrices' => $this->latestPrices,
+                'discountedComponents' => $this->discountedComponents,
+                'calculatedCost' => $this->calculatedCost,
+                'priceHistory' => $this->priceHistory,
+                'contractHistory' => $this->contractHistory,
+                'presets' => $this->presets,
+                'co2Emissions' => $this->co2Emissions,
+                'emissionFactorSources' => $this->emissionFactorSources,
+                'cheaperContracts' => $this->cheaperContracts,
+                'liveRank' => $this->liveRank,
+                'liveTotalContracts' => $this->liveTotalContracts,
+                'priceChangeInfo' => $this->priceChangeInfo,
+            ],
+            'layout' => [
+                'title' => $this->pageTitle,
+                'ogTitle' => $this->ogTitle,
+                'metaDescription' => $this->metaDescription,
+                'canonical' => $this->canonicalUrl,
+                'robots' => $isActive ? null : 'noindex, follow',
+            ],
+        ];
+    }
+
+    protected function isDefaultContractDetailCacheable(): bool
+    {
+        $contract = $this->contract;
+
+        return ! app()->runningUnitTests()
+            && request()->isMethod('GET')
+            && request()->query() === []
+            && $contract !== null
+            && $this->consumption === $this->clampConsumption(5000, $contract);
+    }
+
+    protected function contractDetailViewDataCacheKey(): string
+    {
+        return 'contract-detail:view-data:v1:' . md5(json_encode([
+            'contract_id' => $this->contractId,
+            'consumption' => $this->consumption,
+            'version' => app(ContractPageCacheVersion::class)->hash(),
+        ]));
+    }
+
     public function render()
     {
         $this->enableBackButtonCache();
@@ -1154,37 +1260,11 @@ class ContractDetail extends Component
             abort(404);
         }
 
-        $isActive = $this->isActive;
+        $data = $this->contractDetailViewData();
 
-        $viewData = [
-            'contract' => $contract,
-            'schemas' => array_values(array_filter([
-                $this->webPageSchema,
-                $this->productSchema,
-                $this->breadcrumbSchema,
-            ])),
-            'latestPrices' => $this->latestPrices,
-            'discountedComponents' => $this->discountedComponents,
-            'calculatedCost' => $this->calculatedCost,
-            'priceHistory' => $this->priceHistory,
-            'contractHistory' => $this->contractHistory,
-            'presets' => $this->presets,
-            'co2Emissions' => $this->co2Emissions,
-            'emissionFactorSources' => $this->emissionFactorSources,
-            'cheaperContracts' => $this->cheaperContracts,
-            'liveRank' => $this->liveRank,
-            'liveTotalContracts' => $this->liveTotalContracts,
-            'priceChangeInfo' => $this->priceChangeInfo,
-        ];
-
-        return view('livewire.contract-detail', $viewData)
-            ->layout('layouts.app', [
-                'title' => $this->pageTitle,
-                'ogTitle' => $this->ogTitle,
-                'metaDescription' => $this->metaDescription,
-                'canonical' => $this->canonicalUrl,
-                'robots' => $isActive ? null : 'noindex, follow',
-            ])->response(function ($response) {
+        return view('livewire.contract-detail', $data['view'])
+            ->layout('layouts.app', $data['layout'])
+            ->response(function ($response) {
                 app(SetPublicCacheHeaders::class)->applyCacheHeaders($response);
             });
     }

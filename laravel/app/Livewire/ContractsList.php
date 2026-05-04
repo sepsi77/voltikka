@@ -10,14 +10,17 @@ use App\Enums\SupplementaryHeatingMethod;
 use App\Models\ElectricityContract;
 use App\Models\Postcode;
 use App\Models\SpotPriceAverage;
+use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractListCacheService;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyCalculatorRequest;
 use App\Services\DTO\EnergyUsage;
 use App\Services\EnergyCalculator;
+use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -48,6 +51,11 @@ class ContractsList extends Component
      * Used for metrics that need to count all contracts, not just current page.
      */
     protected ?\Illuminate\Support\Collection $allFilteredContractsCache = null;
+
+    /**
+     * Per-request memoized paginator so render helpers do not rebuild the same list repeatedly.
+     */
+    protected ?LengthAwarePaginator $contractsCache = null;
 
     /**
      * Active tab for consumption selection ('presets' or 'calculator').
@@ -889,6 +897,10 @@ class ContractsList extends Component
      */
     public function getContractsProperty(): LengthAwarePaginator
     {
+        if ($this->contractsCache !== null) {
+            return $this->contractsCache;
+        }
+
         $query = ElectricityContract::query()
             ->active()
             ->with(['electricitySource'])
@@ -1058,7 +1070,7 @@ class ContractsList extends Component
         $items = $this->loadVisibleContracts($sorted, $offset, $perPage);
 
         // Create and return a LengthAwarePaginator
-        return new \Illuminate\Pagination\LengthAwarePaginator(
+        return $this->contractsCache = new \Illuminate\Pagination\LengthAwarePaginator(
             $items,
             $total,
             $perPage,
@@ -1436,6 +1448,38 @@ class ContractsList extends Component
 
     public function render()
     {
+        $data = $this->contractsListViewData();
+
+        return view('livewire.contracts-list', $data['view'])
+            ->layout('layouts.app', $data['layout']);
+    }
+
+    /**
+     * Cache the prepared first-page/default listing payload for canonical public landings.
+     * Interactive query/filter states remain uncached so their combinations do not explode.
+     *
+     * @return array{view: array<string, mixed>, layout: array<string, mixed>}
+     */
+    protected function contractsListViewData(): array
+    {
+        if (! $this->isDefaultListingCacheable()) {
+            return $this->buildContractsListViewData();
+        }
+
+        return Cache::remember(
+            $this->contractsListViewDataCacheKey(),
+            Carbon::tomorrow(),
+            fn () => $this->buildContractsListViewData(),
+        );
+    }
+
+    /**
+     * @return array{view: array<string, mixed>, layout: array<string, mixed>}
+     */
+    protected function buildContractsListViewData(): array
+    {
+        $contracts = $this->contracts;
+
         $schemas = [
             $this->webPageSchema,
             $this->comparisonServiceSchema,
@@ -1449,19 +1493,43 @@ class ContractsList extends Component
             $schemas[] = $webSiteSchema;
         }
 
-        return view('livewire.contracts-list', [
-            'contracts' => $this->contracts,
-            'postcodeSuggestions' => $this->postcodeSuggestions,
-            'pageTitle' => $this->pageTitle,
-            'metaDescription' => $this->metaDescription,
-            'basePath' => $this->basePath,
-            'schemas' => $schemas,
-        ])->layout('layouts.app', [
-            'title' => $this->pageTitle . ' | Voltikka',
-            'metaDescription' => $this->metaDescription,
-            'canonical' => $this->canonicalUrl,
-            'prevUrl' => $this->prevUrl,
-            'nextUrl' => $this->nextUrl,
-        ]);
+        return [
+            'view' => [
+                'contracts' => $contracts,
+                'postcodeSuggestions' => $this->postcodeSuggestions,
+                'pageTitle' => $this->pageTitle,
+                'metaDescription' => $this->metaDescription,
+                'basePath' => $this->basePath,
+                'schemas' => $schemas,
+            ],
+            'layout' => [
+                'title' => $this->pageTitle . ' | Voltikka',
+                'metaDescription' => $this->metaDescription,
+                'canonical' => $this->canonicalUrl,
+                'prevUrl' => $this->prevUrl,
+                'nextUrl' => $this->nextUrl,
+            ],
+        ];
+    }
+
+    protected function isDefaultListingCacheable(): bool
+    {
+        return ! app()->runningUnitTests()
+            && request()->isMethod('GET')
+            && request()->query() === []
+            && $this->page === 1
+            && ! $this->hasActiveFilters()
+            && $this->postcodeSearch === '';
+    }
+
+    protected function contractsListViewDataCacheKey(): string
+    {
+        return 'contracts-list:view-data:v1:' . md5(json_encode([
+            'class' => static::class,
+            'base_path' => $this->basePath,
+            'page' => $this->page,
+            'consumption' => $this->consumption,
+            'version' => app(ContractPageCacheVersion::class)->hash(),
+        ]));
     }
 }

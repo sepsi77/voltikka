@@ -54,6 +54,7 @@ class SetPublicCacheHeaders
         return $request->routeIs(
             'sahkosopimus.index',
             'seo.*',
+            'contract.detail',
             'cheapest.contracts',
             'companies.list',
             'locations'
