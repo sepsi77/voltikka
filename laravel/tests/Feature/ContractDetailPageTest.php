@@ -16,6 +16,7 @@ class ContractDetailPageTest extends TestCase
     use RefreshDatabase;
 
     protected Company $company;
+
     protected ElectricityContract $contract;
 
     protected function setUp(): void
@@ -122,6 +123,77 @@ class ContractDetailPageTest extends TestCase
     {
         Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Test Energia Oy');
+    }
+
+    public function test_company_name_links_to_company_detail_page(): void
+    {
+        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->assertSeeHtml('href="/sahkosopimus/sahkoyhtiot/test-energia-oy"');
+    }
+
+    public function test_duration_and_metering_badges_link_to_comparison_pages(): void
+    {
+        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->assertSeeHtml('href="/sahkosopimus/maaraaikainen"')
+            ->assertSeeHtml('href="/sahkosopimus/yleissahko"');
+    }
+
+    public function test_spot_pricing_badge_links_to_spot_comparison_page(): void
+    {
+        $contract = ElectricityContract::create([
+            'id' => 'spot-contract-detail-test',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Spot Sähkö',
+            'name_slug' => 'spot-sahko',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'pricing_model' => 'Spot',
+            'availability_is_national' => true,
+        ]);
+
+        ActiveContract::create(['id' => $contract->id]);
+
+        PriceComponent::create([
+            'id' => 'pc-spot-margin-detail',
+            'electricity_contract_id' => $contract->id,
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 0.45,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        Livewire::test('contract-detail', ['contractId' => $contract->id])
+            ->assertSeeHtml('href="/sahkosopimus/porssisahko"')
+            ->assertDontSeeHtml('href="/sahkosopimus/yleissahko"');
+    }
+
+    public function test_hybrid_pricing_badge_links_to_hybrid_comparison_page(): void
+    {
+        $contract = ElectricityContract::create([
+            'id' => 'hybrid-contract-detail-test',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Jousto Sähkö',
+            'name_slug' => 'jousto-sahko',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'pricing_model' => 'Hybrid',
+            'availability_is_national' => true,
+        ]);
+
+        ActiveContract::create(['id' => $contract->id]);
+
+        PriceComponent::create([
+            'id' => 'pc-hybrid-general-detail',
+            'electricity_contract_id' => $contract->id,
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 6.1,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        Livewire::test('contract-detail', ['contractId' => $contract->id])
+            ->assertSeeHtml('href="/sahkosopimus/joustosahko"')
+            ->assertDontSeeHtml('href="/sahkosopimus/yleissahko"');
     }
 
     /**

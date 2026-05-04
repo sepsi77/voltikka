@@ -1,0 +1,8 @@
+[
+  {"name":"Inspect current contract detail hero and routing helpers","status":"done"},
+  {"name":"Add reusable contract detail internal link mapping","status":"done"},
+  {"name":"Render company and badge links in hero","status":"done"},
+  {"name":"Add/adjust feature tests","status":"done"},
+  {"name":"Update Livewire AGENTS documentation","status":"done"},
+  {"name":"Run targeted tests","status":"done"}
+]

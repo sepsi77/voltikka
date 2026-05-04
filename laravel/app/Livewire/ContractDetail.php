@@ -11,6 +11,7 @@ use App\Services\ContractListCacheService;
 use App\Services\ContractPriceCalculator;
 use App\Services\ContractRankingService;
 use App\Services\DTO\EnergyUsage;
+use App\Support\ContractInternalLinks;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
@@ -1219,6 +1220,8 @@ class ContractDetail extends Component
                 'liveRank' => $this->liveRank,
                 'liveTotalContracts' => $this->liveTotalContracts,
                 'priceChangeInfo' => $this->priceChangeInfo,
+                'companyInternalUrl' => ContractInternalLinks::companyUrl($contract?->company),
+                'heroBadgeLinks' => $contract ? ContractInternalLinks::heroBadgeLinks($contract) : [],
             ],
             'layout' => [
                 'title' => $this->pageTitle,
@@ -1243,7 +1246,7 @@ class ContractDetail extends Component
 
     protected function contractDetailViewDataCacheKey(): string
     {
-        return 'contract-detail:view-data:v1:' . md5(json_encode([
+        return 'contract-detail:view-data:v2:' . md5(json_encode([
             'contract_id' => $this->contractId,
             'consumption' => $this->consumption,
             'version' => app(ContractPageCacheVersion::class)->hash(),

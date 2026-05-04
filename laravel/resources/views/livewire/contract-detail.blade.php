@@ -3,8 +3,6 @@
     <x-schema-markup :schemas="$schemas" />
 
     @php
-        use App\Support\ContractLabels;
-
         $rank = $liveRank ?? $this->priceRank;
         $totalContracts = $liveTotalContracts ?? $this->totalContracts;
         $companyName = $contract->company?->name ?? '';
@@ -79,19 +77,29 @@
                 @endif
                 <div class="min-w-0 flex-1">
                     <h1 class="text-2xl md:text-3xl font-bold text-white leading-tight">{{ $contract->name }}</h1>
-                    <p class="text-slate-200 text-base mt-1">{{ $companyName }}</p>
+                    @if ($companyInternalUrl)
+                        <a
+                            href="{{ $companyInternalUrl }}"
+                            class="inline-flex text-slate-200 hover:text-white text-base mt-1 underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded-sm"
+                        >
+                            {{ $companyName }}
+                        </a>
+                    @else
+                        <p class="text-slate-200 text-base mt-1">{{ $companyName }}</p>
+                    @endif
                     <div class="flex flex-wrap gap-2 mt-3">
-                        @if ($contract->fixed_time_range)
-                            <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-white/10 text-slate-100 border border-white/20">{{ ContractLabels::fixedTimeRange($contract->fixed_time_range) }}</span>
-                        @elseif ($contract->contract_type)
-                            <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-white/10 text-slate-100 border border-white/20">{{ ContractLabels::contractType($contract->contract_type) }}</span>
-                        @endif
-                        @if ($contract->metering)
-                            <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-white/10 text-slate-100 border border-white/20">{{ ContractLabels::metering($contract->metering) }}</span>
-                        @endif
-                        @if ($contract->pricing_model && $contract->pricing_model !== 'FixedPrice')
-                            <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-white/10 text-slate-100 border border-white/20">{{ ContractLabels::pricingModel($contract->pricing_model) }}</span>
-                        @endif
+                        @foreach ($heroBadgeLinks as $badge)
+                            @if ($badge['url'])
+                                <a
+                                    href="{{ $badge['url'] }}"
+                                    class="px-2.5 py-1 rounded-md text-xs font-medium bg-white/10 text-slate-100 border border-white/20 hover:bg-white/15 hover:border-white/35 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 transition-colors"
+                                >
+                                    {{ $badge['label'] }}
+                                </a>
+                            @else
+                                <span class="px-2.5 py-1 rounded-md text-xs font-medium bg-white/10 text-slate-100 border border-white/20">{{ $badge['label'] }}</span>
+                            @endif
+                        @endforeach
                     </div>
                 </div>
             </div>

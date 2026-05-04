@@ -100,6 +100,18 @@ Important semantics:
 - inactive historical pages without replacements can be cached, but the cached layout data must keep `robots => noindex, follow`
 - page-level caching is disabled when `app()->runningUnitTests()` to avoid cross-test cache pollution from Laravel's array cache driver
 
+### Internal links
+
+The contract detail hero intentionally links key entities/attributes to indexable internal pages:
+- company name -> `/sahkosopimus/sahkoyhtiot/{companySlug}` when a slug exists
+- duration badges -> `/sahkosopimus/maaraaikainen` or `/sahkosopimus/toistaiseksi`
+- pricing/metering badges -> existing SEO listing pages such as `/sahkosopimus/porssisahko`, `/sahkosopimus/joustosahko`, `/sahkosopimus/yleissahko`, `/sahkosopimus/aikasahko`, and `/sahkosopimus/kausisahko`
+
+Primary mapping file:
+- `../Support/ContractInternalLinks.php`
+
+Use broad existing SEO pages for duration badges instead of creating exact-duration pages unless product explicitly wants those pages and they will have substantial unique content.
+
 ### Contract history UI
 
 The contract detail page now builds its visible history from the replacement-link chain instead of only the current contract row.
