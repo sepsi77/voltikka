@@ -8,6 +8,7 @@ use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\PriceComponent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -22,6 +23,7 @@ class ContractDetailPageTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Cache::flush();
 
         // Create test company
         $this->company = Company::create([
@@ -233,12 +235,12 @@ class ContractDetailPageTest extends TestCase
     }
 
     /**
-     * Test that the short description is displayed.
+     * Provider short descriptions should not leak into SEO schema snippets.
      */
-    public function test_short_description_is_displayed(): void
+    public function test_short_description_is_not_used_as_seo_schema_description(): void
     {
         Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
-            ->assertSee('Edullinen kiinteähintainen sähkösopimus.');
+            ->assertDontSee('Edullinen kiinteähintainen sähkösopimus.');
     }
 
     /**
@@ -248,6 +250,197 @@ class ContractDetailPageTest extends TestCase
     {
         Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSee('Tämä on pidempi kuvaus sopimuksesta.');
+    }
+
+    public function test_meta_description_uses_generated_comparison_copy_for_spot_contract(): void
+    {
+        $contract = ElectricityContract::create([
+            'id' => 'spot-meta-contract',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Spot+',
+            'name_slug' => 'spot-plus',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'pricing_model' => 'Spot',
+            'short_description' => 'Palveluntarjoajan markkinointikuvaus, jota ei pidä käyttää metassa.',
+            'availability_is_national' => true,
+        ]);
+
+        ActiveContract::create(['id' => $contract->id]);
+
+        PriceComponent::create([
+            'id' => 'pc-spot-meta-margin',
+            'electricity_contract_id' => $contract->id,
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 0.45,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        $description = Livewire::test('contract-detail', ['contractId' => $contract->id])
+            ->instance()
+            ->metaDescription;
+
+        $this->assertStringContainsString('Spot+ on pörssisähkösopimus yhtiöltä Test Energia Oy', $description);
+        $this->assertStringContainsString('Voltikan vertailussa se on sijalla', $description);
+        $this->assertStringContainsString('5 000 kWh', $description);
+        $this->assertStringNotContainsString('Palveluntarjoajan markkinointikuvaus', $description);
+    }
+
+    public function test_title_uses_compact_price_rank_and_contract_name(): void
+    {
+        $title = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->instance()
+            ->pageTitle;
+
+        $this->assertSame('5,50 c/kWh — sija 1/1 | Perus Sähkö 24kk | Voltikka', $title);
+    }
+
+    public function test_meta_description_prefers_meaningful_price_history(): void
+    {
+        PriceComponent::create([
+            'id' => 'pc-general-detail-old',
+            'electricity_contract_id' => 'contract-detail-test',
+            'price_component_type' => 'General',
+            'price_date' => now()->subMonth()->format('Y-m-d'),
+            'price' => 7.0,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])->instance();
+        $description = $component->metaDescription;
+
+        $this->assertStringContainsString('Perus Sähkö 24kk maksaa nyt 5,50 c/kWh + 2,95 €/kk', $description);
+        $this->assertStringContainsString('Energiahinta on laskenut 21 % Voltikan seurannassa', $description);
+        $this->assertStringContainsString('sijalla 1 / 1', $description);
+        $this->assertSame('5,50 c/kWh — laskenut 21 %, sija 1/1 | Perus Sähkö 24kk | Voltikka', $component->pageTitle);
+    }
+
+    public function test_meta_description_can_include_annual_cost_and_cheapest_difference(): void
+    {
+        $this->contract->update([
+            'pricing_model' => 'Hybrid',
+            'contract_type' => 'FixedTerm',
+            'fixed_time_range' => 'Fixed24',
+        ]);
+
+        $cheap = ElectricityContract::create([
+            'id' => 'cheap-meta-contract',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Halpa Sähkö',
+            'name_slug' => 'halpa-sahko',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'pricing_model' => 'FixedPrice',
+            'availability_is_national' => true,
+        ]);
+
+        ActiveContract::create(['id' => $cheap->id]);
+
+        PriceComponent::create([
+            'id' => 'pc-cheap-meta-general',
+            'electricity_contract_id' => $cheap->id,
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 1.0,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        $description = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->instance()
+            ->metaDescription;
+
+        $this->assertStringContainsString('Perus Sähkö 24kk on 24 kuukauden hybridisähkösopimus yhtiöltä Test Energia Oy', $description);
+        $this->assertStringContainsString('arvioitu hinta on 310 €', $description);
+        $this->assertStringContainsString('kalliimpi kuin halvin vaihtoehto', $description);
+    }
+
+    public function test_product_schema_uses_generated_meta_description(): void
+    {
+        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])->instance();
+
+        $this->assertSame($component->metaDescription, $component->productSchema['description']);
+        $this->assertNotSame($this->contract->short_description, $component->productSchema['description']);
+    }
+
+    public function test_spot_title_uses_short_margin_price_phrase(): void
+    {
+        $contract = ElectricityContract::create([
+            'id' => 'spot-title-contract',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Spot+',
+            'name_slug' => 'spot-plus-title',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'pricing_model' => 'Spot',
+            'availability_is_national' => true,
+        ]);
+        ActiveContract::create(['id' => $contract->id]);
+        PriceComponent::create([
+            'id' => 'pc-spot-title-margin',
+            'electricity_contract_id' => $contract->id,
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 0.49,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        $title = Livewire::test('contract-detail', ['contractId' => $contract->id])
+            ->instance()
+            ->pageTitle;
+
+        $this->assertSame('Marg. 0,49 c/kWh — sija 1/2 | Spot+ | Voltikka', $title);
+    }
+
+    public function test_one_of_cheapest_verdict_requires_top_25_rank(): void
+    {
+        for ($i = 1; $i <= 25; $i++) {
+            $contract = ElectricityContract::create([
+                'id' => "cheaper-verdict-{$i}",
+                'company_name' => 'Test Energia Oy',
+                'name' => "Halvempi {$i}",
+                'name_slug' => "halvempi-{$i}",
+                'contract_type' => 'OpenEnded',
+                'metering' => 'General',
+                'pricing_model' => 'FixedPrice',
+                'availability_is_national' => true,
+            ]);
+            ActiveContract::create(['id' => $contract->id]);
+            PriceComponent::create([
+                'id' => "pc-cheaper-verdict-{$i}",
+                'electricity_contract_id' => $contract->id,
+                'price_component_type' => 'General',
+                'price_date' => now()->format('Y-m-d'),
+                'price' => 1.0,
+                'payment_unit' => 'c/kWh',
+            ]);
+        }
+
+        for ($i = 1; $i <= 274; $i++) {
+            $contract = ElectricityContract::create([
+                'id' => "expensive-verdict-{$i}",
+                'company_name' => 'Test Energia Oy',
+                'name' => "Kalliimpi {$i}",
+                'name_slug' => "kalliimpi-{$i}",
+                'contract_type' => 'OpenEnded',
+                'metering' => 'General',
+                'pricing_model' => 'FixedPrice',
+                'availability_is_national' => true,
+            ]);
+            ActiveContract::create(['id' => $contract->id]);
+            PriceComponent::create([
+                'id' => "pc-expensive-verdict-{$i}",
+                'electricity_contract_id' => $contract->id,
+                'price_component_type' => 'General',
+                'price_date' => now()->format('Y-m-d'),
+                'price' => 10.0,
+                'payment_unit' => 'c/kWh',
+            ]);
+        }
+
+        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->assertDontSee('Yksi halvimmista')
+            ->assertSee('Edullinen vaihtoehto — sijalla 26 / 300');
     }
 
     /**

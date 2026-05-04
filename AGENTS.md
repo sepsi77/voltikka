@@ -80,6 +80,7 @@ php artisan test --filter="ContractsFilterTest"
 - Filters by pricing model, contract type, energy source, housing type
 - Calculates annual costs based on user consumption
 - SEO-optimized filter links with dual behavior (see SEO section)
+- Individual contract detail meta descriptions are generated from Voltikka ranking/pricing data instead of provider marketing descriptions
 
 ### 2. Contract Price Statistics
 - **Location**: `app/Livewire/ContractPriceStatistics.php`, `app/Services/ContractStatistics/ContractPriceStatisticsService.php`

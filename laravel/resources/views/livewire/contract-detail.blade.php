@@ -18,7 +18,7 @@
         $verdictTier = 'unknown';
         if ($rankPercentile !== null) {
             if ($rank === 1) $verdictTier = 'cheapest';
-            elseif ($rankPercentile <= 0.1) $verdictTier = 'top10';
+            elseif ($rank <= 25) $verdictTier = 'top10';
             elseif ($rankPercentile <= 0.33) $verdictTier = 'good';
             elseif ($rankPercentile <= 0.66) $verdictTier = 'mid';
             else $verdictTier = 'expensive';

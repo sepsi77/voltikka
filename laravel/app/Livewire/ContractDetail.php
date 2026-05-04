@@ -386,14 +386,93 @@ class ContractDetail extends Component
         $rank = $this->priceRank;
         $total = $this->totalContracts;
 
-        if ($rank && $total) {
-            return "{$name} | #{$rank} halvin — Vertaa {$total} sopimuksessa | Voltikka";
+        $comparisonTitle = $this->comparisonPageTitle($contract, $name, $rank, $total);
+        if ($comparisonTitle !== null) {
+            return $comparisonTitle;
         }
 
         // Fallback for company-only contracts without ranking
         $companyName = $contract->company?->name ?? '';
 
         return "{$name} — {$companyName} | Voltikka";
+    }
+
+    protected function comparisonPageTitle(ElectricityContract $contract, string $fallbackName, ?int $rank, int $total): ?string
+    {
+        if (! $rank || ! $total) {
+            return null;
+        }
+
+        $pricePhrase = $this->titlePricePhrase($contract);
+        if ($pricePhrase === null) {
+            return null;
+        }
+
+        $change = $this->generalPriceHistoryChange();
+        $direction = null;
+        $percent = null;
+        if ($change !== null && abs($change['percent']) >= 3) {
+            $direction = $change['percent'] < 0 ? 'laskenut' : 'noussut';
+            $percent = number_format(abs($change['percent']), 0, ',', ' ') . ' %';
+        }
+
+        $prefixes = [];
+        if ($direction && $percent) {
+            $prefixes[] = "{$pricePhrase} — {$direction} {$percent}, sija {$rank}/{$total}";
+            $shortDirection = $direction === 'laskenut' ? 'lask.' : 'nous.';
+            $prefixes[] = "{$pricePhrase} — {$shortDirection} {$percent}, sija {$rank}/{$total}";
+        }
+        $prefixes[] = "{$pricePhrase} — sija {$rank}/{$total}";
+        $prefixes[] = $pricePhrase;
+
+        foreach ($prefixes as $prefix) {
+            $title = $this->buildBudgetedTitle($prefix, $contract->name);
+            if (mb_strlen($title) <= 75 || $prefix === $pricePhrase) {
+                return $title;
+            }
+        }
+
+        return $this->buildBudgetedTitle($pricePhrase, $contract->name);
+    }
+
+    protected function titlePricePhrase(ElectricityContract $contract): ?string
+    {
+        $latest = $this->latestPrices;
+
+        if ($contract->pricing_model === 'Spot' && isset($latest['General']['price'])) {
+            return 'Marg. ' . $this->formatCents((float) $latest['General']['price']) . ' c/kWh';
+        }
+
+        if (isset($latest['General']['price'])) {
+            return $this->formatCents((float) $latest['General']['price']) . ' c/kWh';
+        }
+
+        if (isset($latest['DayTime']['price'])) {
+            return 'Päivä ' . $this->formatCents((float) $latest['DayTime']['price']) . ' c/kWh';
+        }
+
+        if (isset($latest['SeasonalWinter']['price'])) {
+            return 'Talvi ' . $this->formatCents((float) $latest['SeasonalWinter']['price']) . ' c/kWh';
+        }
+
+        if (isset($latest['SeasonalWinterDay']['price'])) {
+            return 'Talvi ' . $this->formatCents((float) $latest['SeasonalWinterDay']['price']) . ' c/kWh';
+        }
+
+        return null;
+    }
+
+    protected function buildBudgetedTitle(string $prefix, string $name): string
+    {
+        $suffix = ' | Voltikka';
+        $separator = ' | ';
+        $targetLength = 75;
+        $minimumNameBudget = 24;
+        $availableNameLength = $targetLength - mb_strlen($prefix) - mb_strlen($separator) - mb_strlen($suffix);
+        $nameBudget = max($minimumNameBudget, $availableNameLength);
+        $titleName = $this->truncateName($name, $nameBudget);
+
+        return "{$prefix}{$separator}{$titleName}{$suffix}";
     }
 
     /**
@@ -437,9 +516,219 @@ class ContractDetail extends Component
             return "{$contract->name} ei ole enää tarjolla. Katso ajantasaiset sähkösopimukset ja vaihtoehdot Voltikasta.";
         }
 
+        $intro = $this->contractMetaIntro($contract);
+        $rank = $this->priceRank;
         $total = $this->totalContracts;
+        $consumption = $this->formatKwh($this->consumption);
 
-        return "Vertaa {$contract->name} hinta ja CO₂-tiedot {$total} muuhun sopimukseen. Katso hintahistoria, sijoitus ja löydä omaan kulutukseesi paras vaihtoehto.";
+        $historyDescription = $this->priceHistoryMetaDescription($contract, $rank, $total, $consumption);
+        if ($historyDescription !== null) {
+            return $historyDescription;
+        }
+
+        $totalCost = $this->metaAnnualCost();
+        $cheapestSavings = $this->metaCheapestSavings();
+
+        if ($contract->pricing_model !== 'Spot' && $totalCost !== null && $cheapestSavings !== null && $cheapestSavings > 0) {
+            return $this->limitMetaDescription(
+                "{$intro}. Voltikan vertailussa sen arvioitu hinta on {$this->formatEuro($totalCost)} ensimmäisen 12 kk aikana {$consumption} kulutuksella, ja se on {$this->formatEuro($cheapestSavings)} kalliimpi kuin halvin vaihtoehto."
+            );
+        }
+
+        if ($rank && $total) {
+            return $this->limitMetaDescription(
+                "{$intro}. Voltikan vertailussa se on sijalla {$rank} / {$total}, kun vuosikulutus on {$consumption}. Katso hinta, sijoitus ja halvemmat vaihtoehdot."
+            );
+        }
+
+        if ($totalCost !== null) {
+            return $this->limitMetaDescription(
+                "{$intro}. Arvioitu hinta on {$this->formatEuro($totalCost)} ensimmäisen 12 kk aikana {$consumption} kulutuksella. Katso hinta, ehdot ja vaihtoehdot Voltikassa."
+            );
+        }
+
+        return $this->limitMetaDescription(
+            "{$intro}. Katso hinta, ehdot, sijoitus ja halvemmat vaihtoehdot Voltikassa."
+        );
+    }
+
+    protected function contractMetaIntro(ElectricityContract $contract): string
+    {
+        $phrase = $this->contractTypePhrase($contract);
+        $company = trim((string) ($contract->company?->name ?? $contract->company_name ?? ''));
+
+        if ($company !== '') {
+            return "{$contract->name} on {$phrase} yhtiöltä {$company}";
+        }
+
+        return "{$contract->name} on {$phrase}";
+    }
+
+    protected function contractTypePhrase(ElectricityContract $contract): string
+    {
+        $duration = $this->durationMonthsPhrase($contract);
+        $prefix = $duration ? $duration . ' ' : '';
+
+        return match ($contract->pricing_model) {
+            'Spot' => 'pörssisähkösopimus',
+            'Hybrid' => $prefix . 'hybridisähkösopimus',
+            'FixedPrice' => $prefix . 'kiinteähintainen sähkösopimus',
+            default => match ($contract->metering) {
+                'Time' => $prefix . 'aikasähkösopimus',
+                'Season' => $prefix . 'kausisähkösopimus',
+                default => $prefix . 'sähkösopimus',
+            },
+        };
+    }
+
+    protected function durationMonthsPhrase(ElectricityContract $contract): ?string
+    {
+        if (! in_array($contract->contract_type, ['FixedTerm', 'Fixed'], true)) {
+            return null;
+        }
+
+        $value = (string) ($contract->fixed_time_range ?? '');
+        $months = match ($value) {
+            'Fixed6' => 6,
+            'Fixed12' => 12,
+            'Fixed24' => 24,
+            default => null,
+        };
+
+        if ($months === null && preg_match('/(?<!\d)(6|12|24)(?!\d)/', $value, $matches)) {
+            $months = (int) $matches[1];
+        }
+
+        return $months ? "{$months} kuukauden" : null;
+    }
+
+    protected function priceHistoryMetaDescription(ElectricityContract $contract, ?int $rank, int $total, string $consumption): ?string
+    {
+        if (! $rank || ! $total) {
+            return null;
+        }
+
+        $change = $this->generalPriceHistoryChange();
+        if ($change === null || abs($change['percent']) < 3) {
+            return null;
+        }
+
+        $currentPrice = $this->formatCents($change['latest']);
+        $monthlyFee = $this->metaMonthlyFeePhrase();
+        $priceNow = $monthlyFee
+            ? "{$contract->name} maksaa nyt {$currentPrice} c/kWh + {$monthlyFee}"
+            : "{$contract->name} maksaa nyt {$currentPrice} c/kWh";
+
+        $subject = $contract->pricing_model === 'Spot' ? 'Marginaali' : 'Energiahinta';
+        $direction = $change['percent'] < 0 ? 'laskenut' : 'noussut';
+        $percent = number_format(abs($change['percent']), 0, ',', ' ');
+        $rankConnector = $rank > 25 ? 'mutta sopimus on silti' : 'ja sopimus on';
+
+        return $this->limitMetaDescription(
+            "{$priceNow}. {$subject} on {$direction} {$percent} % Voltikan seurannassa, {$rankConnector} sijalla {$rank} / {$total} vertailussa {$consumption} vuosikulutuksella."
+        );
+    }
+
+    /**
+     * @return array{latest: float, earliest: float, percent: float}|null
+     */
+    protected function generalPriceHistoryChange(): ?array
+    {
+        $rows = collect($this->priceHistory['General'] ?? [])
+            ->filter(fn (array $row) => is_numeric($row['price'] ?? null) && (float) $row['price'] > 0 && ! empty($row['date']))
+            ->sortBy(fn (array $row) => $row['date'])
+            ->values();
+
+        if ($rows->count() < 2) {
+            return null;
+        }
+
+        $earliest = $rows->first();
+        $latest = $rows->last();
+
+        if (($earliest['date'] ?? null) === ($latest['date'] ?? null)) {
+            return null;
+        }
+
+        $earliestPrice = (float) $earliest['price'];
+        $latestPrice = (float) $latest['price'];
+
+        if ($earliestPrice <= 0 || $latestPrice <= 0 || abs($latestPrice - $earliestPrice) < 0.0001) {
+            return null;
+        }
+
+        return [
+            'latest' => $latestPrice,
+            'earliest' => $earliestPrice,
+            'percent' => (($latestPrice - $earliestPrice) / $earliestPrice) * 100,
+        ];
+    }
+
+    protected function metaMonthlyFeePhrase(): ?string
+    {
+        $monthly = $this->latestPrices['Monthly']['price'] ?? null;
+
+        if (! is_numeric($monthly) || (float) $monthly < 0) {
+            return null;
+        }
+
+        return $this->formatEurosPerMonth((float) $monthly);
+    }
+
+    protected function metaAnnualCost(): ?float
+    {
+        $cost = $this->calculatedCost['total_cost'] ?? null;
+
+        return is_numeric($cost) && is_finite((float) $cost) ? (float) $cost : null;
+    }
+
+    protected function metaCheapestSavings(): ?float
+    {
+        $cheaperContracts = $this->cheaperContracts;
+        if ($cheaperContracts->isEmpty()) {
+            return null;
+        }
+
+        $savings = $cheaperContracts->first()['savings'] ?? null;
+
+        return is_numeric($savings) ? (float) $savings : null;
+    }
+
+    protected function formatEuro(float $value): string
+    {
+        return number_format((int) round($value), 0, ',', ' ') . ' €';
+    }
+
+    protected function formatCents(float $value): string
+    {
+        return number_format($value, 2, ',', ' ');
+    }
+
+    protected function formatEurosPerMonth(float $value): string
+    {
+        return number_format($value, 2, ',', ' ') . ' €/kk';
+    }
+
+    protected function formatKwh(int $value): string
+    {
+        return number_format($value, 0, ',', ' ') . ' kWh';
+    }
+
+    protected function limitMetaDescription(string $description, int $maxLength = 260): string
+    {
+        $description = trim(preg_replace('/\s+/', ' ', $description) ?? $description);
+
+        if (mb_strlen($description) <= $maxLength) {
+            return $description;
+        }
+
+        $cut = mb_substr($description, 0, $maxLength - 1);
+        $lastSpace = mb_strrpos($cut, ' ');
+        if ($lastSpace !== false && $lastSpace > 80) {
+            $cut = mb_substr($cut, 0, $lastSpace);
+        }
+
+        return rtrim($cut, ' .,;:-') . '…';
     }
 
     /**
@@ -892,7 +1181,7 @@ class ContractDetail extends Component
             '@type' => 'Product',
             '@id' => $this->canonicalUrl . '#product',
             'name' => $contract->name,
-            'description' => $contract->short_description ?? $contract->long_description ?? "Sähkösopimus: {$contract->name}",
+            'description' => $this->metaDescription,
             'url' => $this->canonicalUrl,
             'category' => 'Electricity Contract',
         ];
@@ -1246,7 +1535,7 @@ class ContractDetail extends Component
 
     protected function contractDetailViewDataCacheKey(): string
     {
-        return 'contract-detail:view-data:v2:' . md5(json_encode([
+        return 'contract-detail:view-data:v5:' . md5(json_encode([
             'contract_id' => $this->contractId,
             'consumption' => $this->consumption,
             'version' => app(ContractPageCacheVersion::class)->hash(),

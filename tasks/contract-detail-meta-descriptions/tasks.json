@@ -1,0 +1,10 @@
+[
+  {"name": "Inspect existing contract detail SEO code", "status": "done"},
+  {"name": "Implement generated meta description templates", "status": "done"},
+  {"name": "Align Product JSON-LD description", "status": "done"},
+  {"name": "Add/update tests", "status": "done"},
+  {"name": "Update context documentation", "status": "done"},
+  {"name": "Add price-history-aware meta description template", "status": "done"},
+  {"name": "Tighten one-of-cheapest hero classification to top 25", "status": "done"},
+  {"name": "Add compact price/rank/history title templates", "status": "done"}
+]

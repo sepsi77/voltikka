@@ -89,6 +89,18 @@ Primary files:
 - `../Models/ElectricityContract.php`
 - `../Services/Caching/ContractPageCacheVersion.php`
 
+### SEO metadata
+
+Contract detail meta descriptions are generated from Voltikka-owned comparison data, not provider marketing descriptions. The templates intentionally avoid Finnish inflection for arbitrary company names and use neutral wording like `yhtiöltä {company}`. Product JSON-LD `description` must stay aligned with `metaDescription` so provider `short_description` / `long_description` does not become Google's preferred snippet source.
+
+When a contract has meaningful `General` price history (at least two dates and >= 3% change), the meta description prefers a price-history template with current c/kWh + monthly fee, change direction/percentage, and rank. Spot contracts describe the `General` component as margin; other contracts describe it as energy price.
+
+Active ranked contract title tags lead with Voltikka-specific facts when a compact price phrase is available: current energy price/margin, optional price-history change, rank, then contract name. Keep title price phrases short (for example `6,29 c/kWh` or `Marg. 0,49 c/kWh`) and use the prefix-shortening ladder before truncating contract names too aggressively.
+
+### Hero verdict thresholds
+
+The `Yksi halvimmista` hero verdict is intentionally limited to contracts ranked in the absolute top 25, not a percentile. For example, rank 26 / 300 should fall through to the broader `Edullinen vaihtoehto` tier even though it is within the cheapest 10%.
+
 ### Prepared view-data caching
 
 Contract detail pages cache their contract lookup and prepared default GET payload until tomorrow with a `ContractPageCacheVersion` key.
