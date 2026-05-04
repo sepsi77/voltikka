@@ -6,5 +6,6 @@
   {"name": "Update context documentation", "status": "done"},
   {"name": "Add price-history-aware meta description template", "status": "done"},
   {"name": "Tighten one-of-cheapest hero classification to top 25", "status": "done"},
-  {"name": "Add compact price/rank/history title templates", "status": "done"}
+  {"name": "Add compact price/rank/history title templates", "status": "done"},
+  {"name": "Refine title hierarchy to rank-first and savings-led templates", "status": "done"}
 ]

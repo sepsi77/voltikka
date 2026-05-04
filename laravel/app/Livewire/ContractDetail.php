@@ -404,35 +404,26 @@ class ContractDetail extends Component
         }
 
         $pricePhrase = $this->titlePricePhrase($contract);
+        $savings = $this->metaCheapestSavings();
+
+        if ($rank > 25 && $savings !== null && $savings > 0) {
+            return $this->buildBudgetedTitle($this->formatEuro($savings) . ' kalliimpi kuin halvin', $contract->name);
+        }
+
         if ($pricePhrase === null) {
             return null;
         }
 
         $change = $this->generalPriceHistoryChange();
-        $direction = null;
-        $percent = null;
-        if ($change !== null && abs($change['percent']) >= 3) {
+        if ($change !== null && abs($change['percent']) >= 25 && $rank > 25) {
+            $subject = $contract->pricing_model === 'Spot' ? 'Marginaali' : 'Hinta';
             $direction = $change['percent'] < 0 ? 'laskenut' : 'noussut';
             $percent = number_format(abs($change['percent']), 0, ',', ' ') . ' %';
+
+            return $this->buildBudgetedTitle("{$subject} {$direction} {$percent}", $contract->name);
         }
 
-        $prefixes = [];
-        if ($direction && $percent) {
-            $prefixes[] = "{$pricePhrase} — {$direction} {$percent}, sija {$rank}/{$total}";
-            $shortDirection = $direction === 'laskenut' ? 'lask.' : 'nous.';
-            $prefixes[] = "{$pricePhrase} — {$shortDirection} {$percent}, sija {$rank}/{$total}";
-        }
-        $prefixes[] = "{$pricePhrase} — sija {$rank}/{$total}";
-        $prefixes[] = $pricePhrase;
-
-        foreach ($prefixes as $prefix) {
-            $title = $this->buildBudgetedTitle($prefix, $contract->name);
-            if (mb_strlen($title) <= 75 || $prefix === $pricePhrase) {
-                return $title;
-            }
-        }
-
-        return $this->buildBudgetedTitle($pricePhrase, $contract->name);
+        return $this->buildBudgetedTitle("Sija {$rank}/{$total} · {$pricePhrase}", $contract->name);
     }
 
     protected function titlePricePhrase(ElectricityContract $contract): ?string
@@ -1535,7 +1526,7 @@ class ContractDetail extends Component
 
     protected function contractDetailViewDataCacheKey(): string
     {
-        return 'contract-detail:view-data:v5:' . md5(json_encode([
+        return 'contract-detail:view-data:v6:' . md5(json_encode([
             'contract_id' => $this->contractId,
             'consumption' => $this->consumption,
             'version' => app(ContractPageCacheVersion::class)->hash(),

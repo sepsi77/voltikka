@@ -293,7 +293,7 @@ class ContractDetailPageTest extends TestCase
             ->instance()
             ->pageTitle;
 
-        $this->assertSame('5,50 c/kWh — sija 1/1 | Perus Sähkö 24kk | Voltikka', $title);
+        $this->assertSame('Sija 1/1 · 5,50 c/kWh | Perus Sähkö 24kk | Voltikka', $title);
     }
 
     public function test_meta_description_prefers_meaningful_price_history(): void
@@ -313,7 +313,7 @@ class ContractDetailPageTest extends TestCase
         $this->assertStringContainsString('Perus Sähkö 24kk maksaa nyt 5,50 c/kWh + 2,95 €/kk', $description);
         $this->assertStringContainsString('Energiahinta on laskenut 21 % Voltikan seurannassa', $description);
         $this->assertStringContainsString('sijalla 1 / 1', $description);
-        $this->assertSame('5,50 c/kWh — laskenut 21 %, sija 1/1 | Perus Sähkö 24kk | Voltikka', $component->pageTitle);
+        $this->assertSame('Sija 1/1 · 5,50 c/kWh | Perus Sähkö 24kk | Voltikka', $component->pageTitle);
     }
 
     public function test_meta_description_can_include_annual_cost_and_cheapest_difference(): void
@@ -389,7 +389,7 @@ class ContractDetailPageTest extends TestCase
             ->instance()
             ->pageTitle;
 
-        $this->assertSame('Marg. 0,49 c/kWh — sija 1/2 | Spot+ | Voltikka', $title);
+        $this->assertSame('Sija 1/2 · Marg. 0,49 c/kWh | Spot+ | Voltikka', $title);
     }
 
     public function test_one_of_cheapest_verdict_requires_top_25_rank(): void
@@ -438,9 +438,12 @@ class ContractDetailPageTest extends TestCase
             ]);
         }
 
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertDontSee('Yksi halvimmista')
-            ->assertSee('Edullinen vaihtoehto — sijalla 26 / 300');
+            ->assertSee('Edullinen vaihtoehto — sijalla 26 / 300')
+            ->instance();
+
+        $this->assertSame('260 € kalliimpi kuin halvin | Perus Sähkö 24kk | Voltikka', $component->pageTitle);
     }
 
     /**

@@ -95,7 +95,7 @@ Contract detail meta descriptions are generated from Voltikka-owned comparison d
 
 When a contract has meaningful `General` price history (at least two dates and >= 3% change), the meta description prefers a price-history template with current c/kWh + monthly fee, change direction/percentage, and rank. Spot contracts describe the `General` component as margin; other contracts describe it as energy price.
 
-Active ranked contract title tags lead with Voltikka-specific facts when a compact price phrase is available: current energy price/margin, optional price-history change, rank, then contract name. Keep title price phrases short (for example `6,29 c/kWh` or `Marg. 0,49 c/kWh`) and use the prefix-shortening ladder before truncating contract names too aggressively.
+Active ranked contract title tags lead with Voltikka-specific facts when available, but avoid receipt-like titles. Preferred hierarchy: for top-25 contracts use rank-first titles such as `Sija 5/336 · 6,50 c/kWh | {name} | Voltikka`; for rank > 25 with cheaper alternatives use money-difference titles such as `122 € kalliimpi kuin halvin | {name} | Voltikka`; otherwise fall back to rank + compact price. Keep title price phrases short (for example `6,29 c/kWh` or `Marg. 0,49 c/kWh`) and do not include the base fee in title tags.
 
 ### Hero verdict thresholds
 
