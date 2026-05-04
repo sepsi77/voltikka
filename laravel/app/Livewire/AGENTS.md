@@ -59,6 +59,8 @@ Purpose:
 
 Important semantics:
 - widget actions can be slow because contract candidates are recalculated; keep visible `wire:loading` feedback on mode, consumption, and contract-selector updates
+- do not server-render every available contract as `<option>` elements; the editorial article embed must avoid dumping all contract names into the initial DOM for crawler quality and UX
+- contract selection is interaction-gated: the default view shows only auto-selected/explicit contracts, and searchable async results render only after the user opens a selector and types at least 2 characters
 - default `contract_term` mode compares määräaikainen vs toistaiseksi voimassa oleva for the määräaikainen article
 - `comparisonContext="spot_article"` keeps pörssisähkö as the left-side anchor in both tabs: pörssisähkö vs kiinteähintainen and pörssisähkö vs määräaikainen
 

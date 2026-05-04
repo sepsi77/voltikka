@@ -1,7 +1,7 @@
 <div class="relative bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
     <div
         wire:loading.flex
-        wire:target="setComparisonMode,setConsumption,selectedContractA,selectedContractB"
+        wire:target="setComparisonMode,setConsumption,selectContractA,selectContractB"
         class="absolute inset-0 z-20 hidden items-center justify-center bg-white/75 backdrop-blur-sm"
         role="status"
         aria-live="polite"
@@ -124,19 +124,85 @@
                             @endif
                         </div>
 
-                        {{-- Contract Selector --}}
-                        <div>
-                            <select
-                                wire:model.live="selectedContractA"
-                                wire:loading.attr="disabled"
-                                wire:target="selectedContractA"
-                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-coral-500 focus:border-coral-500 disabled:cursor-wait disabled:opacity-70"
-                            >
-                                <option value="">Käytä automaattisesti edullisinta sopimusta</option>
-                                @foreach ($availableContractsA as $c)
-                                    <option value="{{ $c->id }}">{{ $c->company?->name }} - {{ $c->name }}</option>
-                                @endforeach
-                            </select>
+                        {{-- Async Contract Selector --}}
+                        <div class="rounded-lg border border-slate-200 bg-white p-3">
+                            @if (! $selectorOpenA)
+                                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <p class="text-xs text-slate-500">
+                                        {{ $selectedContractA ? 'Valittu sopimus' : 'Automaattisesti edullisin sopimus' }}
+                                    </p>
+                                    <button
+                                        type="button"
+                                        wire:click="openSelectorA"
+                                        wire:loading.attr="disabled"
+                                        wire:target="openSelectorA,setComparisonMode,setConsumption,selectContractA"
+                                        class="inline-flex items-center justify-center rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-coral-400 hover:text-coral-700 disabled:cursor-wait disabled:opacity-70"
+                                    >
+                                        Vaihda sopimus
+                                    </button>
+                                </div>
+                            @else
+                                <div class="space-y-2">
+                                    <div class="flex gap-2">
+                                        <label class="sr-only" for="contract-search-a">Hae {{ strtolower($modeConfig['labelA']) }}sopimusta</label>
+                                        <input
+                                            id="contract-search-a"
+                                            type="search"
+                                            wire:model.live.debounce.300ms="contractSearchA"
+                                            wire:loading.attr="disabled"
+                                            wire:target="selectContractA,setComparisonMode,setConsumption"
+                                            placeholder="Hae yhtiön tai sopimuksen nimellä"
+                                            class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-coral-500 focus:ring-2 focus:ring-coral-500 disabled:cursor-wait disabled:opacity-70"
+                                        >
+                                        <button
+                                            type="button"
+                                            wire:click="closeSelectorA"
+                                            class="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-800"
+                                        >
+                                            Sulje
+                                        </button>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        wire:click="selectContractA(null)"
+                                        wire:loading.attr="disabled"
+                                        wire:target="selectContractA"
+                                        class="w-full rounded-lg bg-slate-50 px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-wait disabled:opacity-70"
+                                    >
+                                        Käytä automaattisesti edullisinta sopimusta
+                                    </button>
+
+                                    <div wire:loading.flex wire:target="contractSearchA" class="items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                                        <svg class="h-4 w-4 animate-spin text-coral-500" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                        </svg>
+                                        Haetaan sopimuksia…
+                                    </div>
+
+                                    <div wire:loading.remove wire:target="contractSearchA" class="space-y-1">
+                                        @if (mb_strlen(trim($contractSearchA)) < 2)
+                                            <p class="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">Kirjoita vähintään 2 merkkiä hakeaksesi sopimuksia.</p>
+                                        @elseif ($contractSearchResultsA->isEmpty())
+                                            <p class="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">Ei hakutuloksia valitulla kulutuksella.</p>
+                                        @else
+                                            @foreach ($contractSearchResultsA as $c)
+                                                <button
+                                                    type="button"
+                                                    wire:click="selectContractA('{{ $c->id }}')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="selectContractA"
+                                                    class="w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-coral-50 disabled:cursor-wait disabled:opacity-70 {{ $selectedContractA === $c->id ? 'bg-coral-50 text-coral-800' : 'text-slate-700' }}"
+                                                >
+                                                    <span class="block font-medium">{{ $c->name }}</span>
+                                                    <span class="block text-xs text-slate-500">{{ $c->company?->name ?? $c->company_name }}</span>
+                                                </button>
+                                            @endforeach
+                                        @endif
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @else
@@ -209,19 +275,85 @@
                             @endif
                         </div>
 
-                        {{-- Contract Selector --}}
-                        <div>
-                            <select
-                                wire:model.live="selectedContractB"
-                                wire:loading.attr="disabled"
-                                wire:target="selectedContractB"
-                                class="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-coral-500 focus:border-coral-500 disabled:cursor-wait disabled:opacity-70"
-                            >
-                                <option value="">Käytä automaattisesti edullisinta sopimusta</option>
-                                @foreach ($availableContractsB as $c)
-                                    <option value="{{ $c->id }}">{{ $c->company?->name }} - {{ $c->name }}</option>
-                                @endforeach
-                            </select>
+                        {{-- Async Contract Selector --}}
+                        <div class="rounded-lg border border-slate-200 bg-white p-3">
+                            @if (! $selectorOpenB)
+                                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    <p class="text-xs text-slate-500">
+                                        {{ $selectedContractB ? 'Valittu sopimus' : 'Automaattisesti edullisin sopimus' }}
+                                    </p>
+                                    <button
+                                        type="button"
+                                        wire:click="openSelectorB"
+                                        wire:loading.attr="disabled"
+                                        wire:target="openSelectorB,setComparisonMode,setConsumption,selectContractB"
+                                        class="inline-flex items-center justify-center rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-coral-400 hover:text-coral-700 disabled:cursor-wait disabled:opacity-70"
+                                    >
+                                        Vaihda sopimus
+                                    </button>
+                                </div>
+                            @else
+                                <div class="space-y-2">
+                                    <div class="flex gap-2">
+                                        <label class="sr-only" for="contract-search-b">Hae {{ strtolower($modeConfig['labelB']) }}sopimusta</label>
+                                        <input
+                                            id="contract-search-b"
+                                            type="search"
+                                            wire:model.live.debounce.300ms="contractSearchB"
+                                            wire:loading.attr="disabled"
+                                            wire:target="selectContractB,setComparisonMode,setConsumption"
+                                            placeholder="Hae yhtiön tai sopimuksen nimellä"
+                                            class="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-coral-500 focus:ring-2 focus:ring-coral-500 disabled:cursor-wait disabled:opacity-70"
+                                        >
+                                        <button
+                                            type="button"
+                                            wire:click="closeSelectorB"
+                                            class="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-800"
+                                        >
+                                            Sulje
+                                        </button>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        wire:click="selectContractB(null)"
+                                        wire:loading.attr="disabled"
+                                        wire:target="selectContractB"
+                                        class="w-full rounded-lg bg-slate-50 px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-wait disabled:opacity-70"
+                                    >
+                                        Käytä automaattisesti edullisinta sopimusta
+                                    </button>
+
+                                    <div wire:loading.flex wire:target="contractSearchB" class="items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                                        <svg class="h-4 w-4 animate-spin text-coral-500" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                                        </svg>
+                                        Haetaan sopimuksia…
+                                    </div>
+
+                                    <div wire:loading.remove wire:target="contractSearchB" class="space-y-1">
+                                        @if (mb_strlen(trim($contractSearchB)) < 2)
+                                            <p class="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">Kirjoita vähintään 2 merkkiä hakeaksesi sopimuksia.</p>
+                                        @elseif ($contractSearchResultsB->isEmpty())
+                                            <p class="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-500">Ei hakutuloksia valitulla kulutuksella.</p>
+                                        @else
+                                            @foreach ($contractSearchResultsB as $c)
+                                                <button
+                                                    type="button"
+                                                    wire:click="selectContractB('{{ $c->id }}')"
+                                                    wire:loading.attr="disabled"
+                                                    wire:target="selectContractB"
+                                                    class="w-full rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-coral-50 disabled:cursor-wait disabled:opacity-70 {{ $selectedContractB === $c->id ? 'bg-coral-50 text-coral-800' : 'text-slate-700' }}"
+                                                >
+                                                    <span class="block font-medium">{{ $c->name }}</span>
+                                                    <span class="block text-xs text-slate-500">{{ $c->company?->name ?? $c->company_name }}</span>
+                                                </button>
+                                            @endforeach
+                                        @endif
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @else

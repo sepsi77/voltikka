@@ -1,0 +1,7 @@
+[
+  {"name":"Inspect current ContractTypeComparison selector behavior","status":"done"},
+  {"name":"Implement async searchable selector state and search methods","status":"done"},
+  {"name":"Update Blade UI to avoid full option lists","status":"done"},
+  {"name":"Run focused tests or syntax checks","status":"done"},
+  {"name":"Update relevant AGENTS.md context","status":"done"}
+]

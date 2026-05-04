@@ -44,6 +44,18 @@ class ContractTypeComparison extends Component
     public ?string $selectedContractB = null;
 
     /**
+     * Whether the async contract picker is open for each side.
+     */
+    public bool $selectorOpenA = false;
+    public bool $selectorOpenB = false;
+
+    /**
+     * Search terms for async contract picker results.
+     */
+    public string $contractSearchA = '';
+    public string $contractSearchB = '';
+
+    /**
      * Consumption presets for quick selection.
      */
     public array $consumptionPresets = [2000, 5000, 10000, 15000, 20000];
@@ -136,6 +148,7 @@ class ContractTypeComparison extends Component
             // Reset selections when mode changes
             $this->selectedContractA = null;
             $this->selectedContractB = null;
+            $this->resetContractPickerState();
         }
     }
 
@@ -153,6 +166,8 @@ class ContractTypeComparison extends Component
     public function selectContractA(?string $contractId): void
     {
         $this->selectedContractA = $contractId ?: null;
+        $this->selectorOpenA = false;
+        $this->contractSearchA = '';
     }
 
     /**
@@ -161,6 +176,40 @@ class ContractTypeComparison extends Component
     public function selectContractB(?string $contractId): void
     {
         $this->selectedContractB = $contractId ?: null;
+        $this->selectorOpenB = false;
+        $this->contractSearchB = '';
+    }
+
+    public function openSelectorA(): void
+    {
+        $this->selectorOpenA = true;
+        $this->contractSearchA = '';
+    }
+
+    public function openSelectorB(): void
+    {
+        $this->selectorOpenB = true;
+        $this->contractSearchB = '';
+    }
+
+    public function closeSelectorA(): void
+    {
+        $this->selectorOpenA = false;
+        $this->contractSearchA = '';
+    }
+
+    public function closeSelectorB(): void
+    {
+        $this->selectorOpenB = false;
+        $this->contractSearchB = '';
+    }
+
+    protected function resetContractPickerState(): void
+    {
+        $this->selectorOpenA = false;
+        $this->selectorOpenB = false;
+        $this->contractSearchA = '';
+        $this->contractSearchB = '';
     }
 
     /**
@@ -289,16 +338,75 @@ class ContractTypeComparison extends Component
      */
     protected function getContractsForType(string $field, string $value): Collection
     {
+        return $this->baseContractsForTypeQuery($field, $value)
+            ->with(['company', 'priceComponents'])
+            ->get()
+            ->filter(fn ($contract) => $contract->isConsumptionInRange($this->consumption));
+    }
+
+    protected function baseContractsForTypeQuery(string $field, string $value)
+    {
         return ElectricityContract::query()
             ->active()
-            ->with(['company', 'priceComponents'])
             ->where($field, $value)
             ->where(function ($q) {
                 $q->whereIn('target_group', ['Household', 'Both'])
                     ->orWhereNull('target_group');
             })
+            ->where(function ($q) {
+                $q->whereNull('consumption_limitation_min_x_kwh_per_y')
+                    ->orWhere('consumption_limitation_min_x_kwh_per_y', '<=', $this->consumption);
+            })
+            ->where(function ($q) {
+                $q->whereNull('consumption_limitation_max_x_kwh_per_y')
+                    ->orWhere('consumption_limitation_max_x_kwh_per_y', '>=', $this->consumption);
+            });
+    }
+
+    protected function searchContractsForType(string $field, string $value, string $term): Collection
+    {
+        $term = trim($term);
+
+        if (mb_strlen($term) < 2) {
+            return collect();
+        }
+
+        $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $term) . '%';
+
+        return $this->baseContractsForTypeQuery($field, $value)
+            ->with('company')
+            ->where(function ($q) use ($like) {
+                $q->where('name', 'like', $like)
+                    ->orWhere('company_name', 'like', $like);
+            })
+            ->orderBy('company_name')
+            ->orderBy('name')
+            ->limit(8)
             ->get()
-            ->filter(fn ($contract) => $contract->isConsumptionInRange($this->consumption));
+            ->filter(fn ($contract) => $contract->isConsumptionInRange($this->consumption))
+            ->values();
+    }
+
+    public function getContractSearchResultsAProperty(): Collection
+    {
+        if (! $this->selectorOpenA) {
+            return collect();
+        }
+
+        $config = $this->modeConfig;
+
+        return $this->searchContractsForType($config['filterFieldA'], $config['typeA'], $this->contractSearchA);
+    }
+
+    public function getContractSearchResultsBProperty(): Collection
+    {
+        if (! $this->selectorOpenB) {
+            return collect();
+        }
+
+        $config = $this->modeConfig;
+
+        return $this->searchContractsForType($config['filterFieldB'], $config['typeB'], $this->contractSearchB);
     }
 
     /**
@@ -616,8 +724,8 @@ class ContractTypeComparison extends Component
             'modeTabLabels' => $this->modeTabLabels,
             'contractA' => $this->contractA,
             'contractB' => $this->contractB,
-            'availableContractsA' => $this->availableContractsA,
-            'availableContractsB' => $this->availableContractsB,
+            'contractSearchResultsA' => $this->contractSearchResultsA,
+            'contractSearchResultsB' => $this->contractSearchResultsB,
             'projectedCostsA' => $this->projectedCostsA,
             'projectedCostsB' => $this->projectedCostsB,
             'comparisonResult' => $this->comparisonResult,
