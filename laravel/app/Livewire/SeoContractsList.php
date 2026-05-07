@@ -785,9 +785,14 @@ class SeoContractsList extends ContractsList
         $canonicalUrl = $this->generateCanonicalUrl();
 
         foreach ($contracts as $index => $contract) {
-            $description = $contract->short_description ?? "Sähkösopimus yritykseltä {$contract->company?->name}";
+            $company = $contract->relationLoaded('company') ? $contract->company : null;
+            $description = $contract->short_description ?? "Sähkösopimus yritykseltä " . ($company?->name ?? $contract->company_name);
 
-            if ($contract->hasActiveDiscounts()) {
+            // Avoid lazy-loading price_components while building JSON-LD. The
+            // visible listing query loads them in bulk; if another caller passes
+            // slim models, omit detailed discount text rather than issuing one
+            // query per contract.
+            if ($contract->relationLoaded('priceComponents') && $contract->hasActiveDiscounts()) {
                 $discountInfo = $contract->getActiveDiscountInfo();
                 if ($discountInfo) {
                     $discountDesc = $contract->formatActiveDiscountValue($discountInfo);
@@ -809,10 +814,10 @@ class SeoContractsList extends ContractsList
                 'category' => 'Electricity Contract',
             ];
 
-            if ($contract->company) {
+            if ($company) {
                 $product['brand'] = [
                     '@type' => 'Organization',
-                    'name' => $contract->company->name,
+                    'name' => $company->name,
                 ];
             }
 

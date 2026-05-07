@@ -82,6 +82,7 @@ Important semantics:
 - this is prepared-data caching, not full HTML caching; Livewire actions still recompute/serve their interactive state normally
 - page-level caching is disabled when `app()->runningUnitTests()` to avoid cross-test cache pollution from Laravel's array cache driver
 - listing metric rebuilds should use `ElectricityContract::getLatestPriceComponentsForCalculationByContractIds()` so crawler hits do not produce one `price_components` query per contract while still avoiding eager-loading full price history
+- contract card Blade partials (`resources/views/components/contract-card.blade.php`, `featured-contract-card.blade.php`) must not lazy-load `company`, `electricitySource`, or `priceComponents`; listing components should batch-load what cards need, and cards should fall back to scalar fields if relations are missing
 - city-page solar potential must stay in the lazy `CitySolarEstimate` child component; `SeoContractsList` must not call `CitySolarService`/PVGIS while building initial page HTML because a cache miss can add ~1s blocking time
 
 ## `ContractDetail`
@@ -141,7 +142,8 @@ Current intended behavior:
 - those inactive historical pages should include a `noindex` robots meta tag
 - inactive historical pages should not appear in the sitemap
 - start from the currently rendered contract
-- walk backward with `ElectricityContract::getReplacementChainBackward()`; this helper batches by predecessor depth instead of querying each direct predecessor one-by-one
+- walk backward with `ContractDetail::getBackwardReplacementChainIds()` using a recursive CTE, then eager-load all history contracts with `company`, `priceComponents`, and `activeContract`; do not replace this with per-version relation walking
+- inactive replacement redirects use `ContractDetail::getForwardReplacementChainIds()` plus a bulk `activeContract` load so old bot-hit URLs do not lazy-load `replacedBy` / `activeContract` one link at a time
 - include the current contract itself as the newest history entry
 - sort versions in reverse chronological order using each version's latest known `price_date`
 - show, for each version:

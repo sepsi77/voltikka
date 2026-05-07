@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Livewire\Component;
 
@@ -59,13 +60,31 @@ class LocalContractsSection extends Component
 
     public function render()
     {
+        $localCompanyContracts = $this->prepareContractsForCards($this->localCompanyContracts);
+        $regionalContracts = $this->prepareContractsForCards($this->regionalContracts);
+
         return view('livewire.local-contracts-section', [
-            'localCompanyContracts' => $this->localCompanyContracts,
-            'regionalContracts' => $this->regionalContracts,
-            'hasContent' => $this->hasContent,
+            'localCompanyContracts' => $localCompanyContracts,
+            'regionalContracts' => $regionalContracts,
+            'hasContent' => $localCompanyContracts->isNotEmpty() || $regionalContracts->isNotEmpty(),
             'cityName' => $this->cityName,
             'cityLocative' => $this->cityLocative,
             'consumption' => $this->consumption,
         ]);
+    }
+
+    /**
+     * Ensure card relations are available in bulk if this child component is
+     * rendered with slim/rehydrated contract models. The card partials avoid
+     * lazy relation access, so this preserves logos and energy badges without
+     * one company/electricity_sources query per contract.
+     */
+    private function prepareContractsForCards(Collection $contracts): Collection
+    {
+        if ($contracts instanceof EloquentCollection) {
+            $contracts->loadMissing(['company', 'electricitySource']);
+        }
+
+        return $contracts;
     }
 }

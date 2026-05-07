@@ -1,0 +1,6 @@
+[
+  {"name":"Inspect ContractDetail relation usage","status":"completed"},
+  {"name":"Implement N+1 fix","status":"completed"},
+  {"name":"Run focused tests/static checks","status":"completed"},
+  {"name":"Update task decisions","status":"completed"}
+]

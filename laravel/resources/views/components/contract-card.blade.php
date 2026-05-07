@@ -62,8 +62,12 @@
     $spotPriceDayAvg = $calculatedCost['spot_price_day_avg'] ?? null;
     $spotPriceNightAvg = $calculatedCost['spot_price_night_avg'] ?? null;
 
-    // Get electricity source
-    $source = $contract->electricitySource;
+    // Use only already-loaded relations in cards. Listing pages batch-load these
+    // relations; falling back to lazy loads here turns every card into a
+    // price_components/electricity_sources/company N+1 risk when another caller
+    // passes a slim contract model.
+    $company = $contract->relationLoaded('company') ? $contract->company : null;
+    $source = $contract->relationLoaded('electricitySource') ? $contract->electricitySource : null;
 
     // Determine emissions color for left border
     $emissionFactor = $contract->emission_factor ?? 0;
@@ -156,17 +160,17 @@
 
         {{-- Company Logo and Contract Name --}}
         <div class="flex items-center gap-4 w-full lg:w-auto lg:flex-1 min-w-0">
-            @if ($contract->company?->getLogoUrl())
+            @if ($company?->getLogoUrl())
                 <img
-                    src="{{ $contract->company->getLogoUrl() }}"
-                    alt="{{ $contract->company->name }}"
+                    src="{{ $company->getLogoUrl() }}"
+                    alt="{{ $company->name }}"
                     class="w-16 h-12 object-contain flex-shrink-0"
                     loading="lazy"
-                    onerror="this.onerror=null; this.src='https://placehold.co/64x48/e2e8f0/64748b?text={{ substr($contract->company?->name ?? 'N/A', 0, 2) }}'"
+                    onerror="this.onerror=null; this.src='https://placehold.co/64x48/e2e8f0/64748b?text={{ substr($company?->name ?? 'N/A', 0, 2) }}'"
                 >
             @else
                 <div class="w-16 h-12 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <span class="text-slate-500 text-xs font-bold">{{ substr($contract->company?->name ?? 'N/A', 0, 3) }}</span>
+                    <span class="text-slate-500 text-xs font-bold">{{ substr($company?->name ?? 'N/A', 0, 3) }}</span>
                 </div>
             @endif
             <div class="flex flex-col min-w-0 flex-1">
@@ -182,7 +186,7 @@
                 </div>
                 <div class="flex items-center gap-2 mt-0.5">
                     <p class="text-sm text-slate-500 truncate">
-                        {{ $contract->company?->name }}
+                        {{ $company?->name ?? $contract->company_name }}
                     </p>
                     {{-- Pricing type icons for Spot and FixedPrice only --}}
                     @if ($contract->pricing_model === 'Spot')
@@ -264,10 +268,12 @@
             </span>
         @endif
 
-        @if ($contract->hasActiveDiscounts())
-            @php
-                $discountInfo = $contract->getActiveDiscountInfo();
-            @endphp
+        @php
+            $hasCardDiscount = $contract->pricing_has_discounts
+                || ($contract->relationLoaded('priceComponents') && $contract->hasActiveDiscounts());
+            $discountInfo = $contract->relationLoaded('priceComponents') ? $contract->getActiveDiscountInfo() : null;
+        @endphp
+        @if ($hasCardDiscount)
             <span class="inline-flex items-center gap-2 px-3 py-1.5 {{ $featured ? 'bg-gradient-to-r from-amber-100 to-yellow-100' : 'bg-amber-50' }} text-amber-800 border border-amber-200 text-xs font-bold rounded-lg uppercase">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>

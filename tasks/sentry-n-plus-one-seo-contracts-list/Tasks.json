@@ -1,0 +1,6 @@
+[
+  {"name":"Inspect SeoContractsList relation usage and related context","status":"completed"},
+  {"name":"Implement N+1 fix","status":"completed"},
+  {"name":"Run focused tests or static checks","status":"completed"},
+  {"name":"Update task decisions","status":"completed"}
+]

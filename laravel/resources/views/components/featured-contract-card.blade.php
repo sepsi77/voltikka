@@ -41,8 +41,11 @@
         $spotTotalEnergyPrice = ($totalDayPrice * 0.85) + ($totalNightPrice * 0.15);
     }
 
-    // Get electricity source
-    $source = $contract->electricitySource;
+    // Use only already-loaded relations in cards. Listing pages batch-load these
+    // relations; falling back to lazy loads here turns every featured card into
+    // an electricity_sources/company N+1 risk when passed a slim contract model.
+    $company = $contract->relationLoaded('company') ? $contract->company : null;
+    $source = $contract->relationLoaded('electricitySource') ? $contract->electricitySource : null;
 
     // Calculate emissions if consumption is provided
     $emissionFactor = $contract->emission_factor ?? 0;
@@ -69,19 +72,19 @@
         <div class="flex flex-col lg:flex-row lg:items-center gap-6">
             {{-- Company Logo and Contract Info --}}
             <div class="flex items-center gap-5 flex-1">
-                @if ($contract->company?->getLogoUrl())
+                @if ($company?->getLogoUrl())
                     <div class="w-20 h-16 bg-white rounded-xl p-2 shadow-lg flex-shrink-0">
                         <img
-                            src="{{ $contract->company->getLogoUrl() }}"
-                            alt="{{ $contract->company->name }}"
+                            src="{{ $company->getLogoUrl() }}"
+                            alt="{{ $company->name }}"
                             class="w-full h-full object-contain"
                             loading="lazy"
-                            onerror="this.onerror=null; this.src='https://placehold.co/80x64/ffffff/coral?text={{ substr($contract->company?->name ?? 'N/A', 0, 2) }}'"
+                            onerror="this.onerror=null; this.src='https://placehold.co/80x64/ffffff/coral?text={{ substr($company?->name ?? 'N/A', 0, 2) }}'"
                         >
                     </div>
                 @else
                     <div class="w-20 h-16 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <span class="text-white text-sm font-bold">{{ substr($contract->company?->name ?? 'N/A', 0, 3) }}</span>
+                        <span class="text-white text-sm font-bold">{{ substr($company?->name ?? 'N/A', 0, 3) }}</span>
                     </div>
                 @endif
                 <div>
@@ -89,7 +92,7 @@
                         {{ $contract->name }}
                     </h3>
                     <p class="text-coral-100 text-lg">
-                        {{ $contract->company?->name }}
+                        {{ $company?->name ?? $contract->company_name }}
                     </p>
                 </div>
             </div>

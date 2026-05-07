@@ -9,6 +9,7 @@ use App\Models\ElectricitySource;
 use App\Models\PriceComponent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -594,6 +595,104 @@ class ContractDetailPageTest extends TestCase
     /**
      * Test that contract history uses the replacement chain and shows versions newest first.
      */
+    public function test_contract_detail_history_chain_uses_bounded_bulk_relation_queries(): void
+    {
+        $previousContract = ElectricityContract::create([
+            'id' => 'contract-detail-query-previous',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Query Previous',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'replaced_by_contract_id' => 'contract-detail-test',
+            'availability_is_national' => true,
+        ]);
+
+        $oldestContract = ElectricityContract::create([
+            'id' => 'contract-detail-query-oldest',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Query Oldest',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'replaced_by_contract_id' => $previousContract->id,
+            'availability_is_national' => true,
+        ]);
+
+        foreach ([$previousContract, $oldestContract] as $index => $historyContract) {
+            PriceComponent::create([
+                'id' => 'pc-query-history-' . $historyContract->id,
+                'electricity_contract_id' => $historyContract->id,
+                'price_component_type' => 'General',
+                'price_date' => now()->subMonths($index + 1)->format('Y-m-d'),
+                'price' => 6.0 + $index,
+                'payment_unit' => 'c/kWh',
+            ]);
+        }
+
+        DB::enableQueryLog();
+
+        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->assertSee('Query Previous')
+            ->assertSee('Query Oldest');
+
+        $queries = collect(DB::getQueryLog())->pluck('query');
+
+        $priceComponentQueries = $queries
+            ->filter(fn (string $query) => str_contains($query, 'from "price_components"'))
+            ->count();
+        $activeContractQueries = $queries
+            ->filter(fn (string $query) => str_contains($query, 'from "active_contracts"'))
+            ->count();
+
+        $this->assertLessThanOrEqual(4, $priceComponentQueries);
+        $this->assertLessThanOrEqual(4, $activeContractQueries);
+    }
+
+    public function test_inactive_contract_redirect_chain_uses_bounded_bulk_queries(): void
+    {
+        $replacement = ElectricityContract::create([
+            'id' => 'contract-detail-active-replacement',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Active Replacement',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'availability_is_national' => true,
+        ]);
+        ActiveContract::create(['id' => $replacement->id]);
+
+        $middle = ElectricityContract::create([
+            'id' => 'contract-detail-middle-replacement',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Middle Replacement',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'replaced_by_contract_id' => $replacement->id,
+            'availability_is_national' => true,
+        ]);
+
+        $old = ElectricityContract::create([
+            'id' => 'contract-detail-old-replacement',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Old Replacement',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'replaced_by_contract_id' => $middle->id,
+            'availability_is_national' => true,
+        ]);
+
+        DB::enableQueryLog();
+
+        $this->get('/sahkosopimus/sopimus/' . $old->id)
+            ->assertRedirect(route('contract.detail', ['contractId' => $replacement->id]));
+
+        $queries = collect(DB::getQueryLog())->pluck('query');
+
+        $activeContractQueries = $queries
+            ->filter(fn (string $query) => str_contains($query, 'from "active_contracts"'))
+            ->count();
+
+        $this->assertLessThanOrEqual(2, $activeContractQueries);
+    }
+
     public function test_contract_history_shows_replacement_chain_versions_in_reverse_chronological_order(): void
     {
         $previousContract = ElectricityContract::create([

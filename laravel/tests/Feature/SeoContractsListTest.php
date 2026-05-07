@@ -9,6 +9,7 @@ use App\Models\ElectricitySource;
 use App\Models\Municipality;
 use App\Models\PriceComponent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -106,6 +107,38 @@ class SeoContractsListTest extends TestCase
     }
 
     // ==================== Component Initialization Tests ====================
+
+    public function test_render_does_not_lazy_load_card_relations_per_contract(): void
+    {
+        for ($i = 1; $i <= 3; $i++) {
+            $this->createContract("query-card-{$i}", 'Test Energia Oy', "Query Card {$i}", 5.0 + $i, 3.0, [
+                'renewable_total' => 100.0,
+                'renewable_wind' => 100.0,
+                'fossil_total' => 0.0,
+                'nuclear_total' => 0.0,
+            ]);
+        }
+
+        DB::enableQueryLog();
+
+        Livewire::test('seo-contracts-list')
+            ->assertStatus(200);
+
+        $queries = collect(DB::getQueryLog())->pluck('query');
+
+        $priceComponentQueries = $queries
+            ->filter(fn (string $query) => str_contains($query, 'from "price_components"'))
+            ->count();
+        $electricitySourceQueries = $queries
+            ->filter(fn (string $query) => str_contains($query, 'from "electricity_sources"'))
+            ->count();
+
+        // One bulk latest-price query for calculations and one eager-load query
+        // for visible cards. Electricity sources are loaded through fixed bulk
+        // queries during list building/rendering, never once per contract.
+        $this->assertLessThanOrEqual(2, $priceComponentQueries);
+        $this->assertLessThanOrEqual(3, $electricitySourceQueries);
+    }
 
     /**
      * Test that the SEO component exists and can be instantiated.

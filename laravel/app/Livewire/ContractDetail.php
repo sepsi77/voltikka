@@ -14,6 +14,7 @@ use App\Services\DTO\EnergyUsage;
 use App\Support\ContractInternalLinks;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class ContractDetail extends Component
@@ -166,7 +167,7 @@ class ContractDetail extends Component
             return;
         }
 
-        $latestReplacement = $contract->resolveLatestReplacement();
+        $latestReplacement = $this->resolveLatestReplacementForRedirect($contract);
 
         if (! $latestReplacement || ! $latestReplacement->isActive()) {
             return;
@@ -176,6 +177,29 @@ class ContractDetail extends Component
         $response = new \Illuminate\Http\RedirectResponse($url, 301);
 
         throw new \Illuminate\Http\Exceptions\HttpResponseException($response);
+    }
+
+    /**
+     * Resolve the latest forward replacement for redirects without lazy-loading
+     * `replacedBy` / `activeContract` one link at a time. Bots commonly hit old
+     * contract URLs, so keep this path bounded to fixed bulk queries.
+     */
+    protected function resolveLatestReplacementForRedirect(ElectricityContract $contract): ?ElectricityContract
+    {
+        $replacementIds = $this->getForwardReplacementChainIds($contract->id);
+
+        if ($replacementIds->isEmpty()) {
+            return null;
+        }
+
+        $depthById = $replacementIds->pluck('depth', 'id');
+
+        return ElectricityContract::query()
+            ->with('activeContract')
+            ->whereIn('id', $replacementIds->pluck('id'))
+            ->get()
+            ->sortByDesc(fn (ElectricityContract $replacement) => $depthById[$replacement->id] ?? 0)
+            ->first();
     }
 
     /**
@@ -1019,9 +1043,9 @@ class ContractDetail extends Component
             return $this->historyContractsCache;
         }
 
-        $historyContractIds = $contract->getReplacementChainBackward()
-            ->push($contract)
+        $historyContractIds = $this->getBackwardReplacementChainIds($contract->id)
             ->pluck('id')
+            ->push($contract->id)
             ->unique()
             ->values();
 
@@ -1043,6 +1067,58 @@ class ContractDetail extends Component
             ->values();
 
         return $this->historyContractsCache = $historyContracts;
+    }
+
+    /**
+     * Return predecessor contract IDs for the replacement history in one
+     * recursive query instead of querying each replacement depth and then
+     * re-querying all versions. Depth is capped defensively in case bad data
+     * creates a cycle.
+     *
+     * @return \Illuminate\Support\Collection<int, object{id: string, depth: int}>
+     */
+    protected function getBackwardReplacementChainIds(string $contractId): \Illuminate\Support\Collection
+    {
+        return collect(DB::select(<<<'SQL'
+            WITH RECURSIVE replacement_chain(id, replaced_by_contract_id, depth) AS (
+                SELECT id, replaced_by_contract_id, 1
+                FROM electricity_contracts
+                WHERE replaced_by_contract_id = ?
+
+                UNION ALL
+
+                SELECT ec.id, ec.replaced_by_contract_id, replacement_chain.depth + 1
+                FROM electricity_contracts ec
+                INNER JOIN replacement_chain ON ec.replaced_by_contract_id = replacement_chain.id
+                WHERE replacement_chain.depth < 25
+            )
+            SELECT id, depth FROM replacement_chain
+        SQL, [$contractId]));
+    }
+
+    /**
+     * Return forward replacement IDs in chain order using one recursive query.
+     *
+     * @return \Illuminate\Support\Collection<int, object{id: string, depth: int}>
+     */
+    protected function getForwardReplacementChainIds(string $contractId): \Illuminate\Support\Collection
+    {
+        return collect(DB::select(<<<'SQL'
+            WITH RECURSIVE replacement_chain(id, replaced_by_contract_id, depth) AS (
+                SELECT replacement.id, replacement.replaced_by_contract_id, 1
+                FROM electricity_contracts current_contract
+                INNER JOIN electricity_contracts replacement ON replacement.id = current_contract.replaced_by_contract_id
+                WHERE current_contract.id = ?
+
+                UNION ALL
+
+                SELECT replacement.id, replacement.replaced_by_contract_id, replacement_chain.depth + 1
+                FROM replacement_chain
+                INNER JOIN electricity_contracts replacement ON replacement.id = replacement_chain.replaced_by_contract_id
+                WHERE replacement_chain.depth < 25
+            )
+            SELECT id, depth FROM replacement_chain
+        SQL, [$contractId]));
     }
 
     /**
