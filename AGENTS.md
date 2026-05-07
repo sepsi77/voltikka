@@ -59,8 +59,8 @@ php artisan contracts:detect-replacements  # Report likely replacements for inac
 php artisan contracts:link-replacements    # Persist high-confidence replacement links
 
 # Spot prices
-php artisan spot:fetch               # Fetch current spot prices from ENTSO-E
-php artisan spot:backfill            # Backfill historical spot prices
+php artisan spot:fetch               # Fetch current spot prices from ENTSO-E; retries transient server/connection timeouts
+php artisan spot:backfill            # Backfill historical spot prices; retries transient server/connection timeouts per chunk
 php artisan spot:averages            # Calculate spot price averages
 
 # Utilities

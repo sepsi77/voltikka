@@ -162,6 +162,18 @@ php artisan sentry:test
 php artisan tinker --execute="\\Illuminate\\Support\\Facades\\Log::channel('sentry_logs')->info('Sentry log test'); \\Sentry\\logger()->flush();"
 ```
 
+## Spot price imports
+
+Primary files:
+- `app/Services/EntsoeService.php`
+- `app/Console/Commands/FetchSpot.php`
+- `app/Console/Commands/BackfillSpot.php`
+
+Important semantics:
+- ENTSO-E fetches retry transient server errors and connection failures/timeouts (`ConnectionException`, including cURL 28) before failing.
+- Spot fetch/backfill commands catch exhausted HTTP request/connection failures so scheduled jobs fail or continue gracefully instead of leaking raw exception stack traces.
+- Do not log raw ENTSO-E exception messages without redacting `securityToken`, because Guzzle/Laravel exception text can include the full query string.
+
 ## Commands
 
 ### Refresh data and auto-link replacements

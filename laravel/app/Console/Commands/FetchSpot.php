@@ -8,6 +8,7 @@ use App\Services\EntsoeService;
 use App\Services\SpotPriceAverageService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
@@ -56,9 +57,12 @@ class FetchSpot extends Command
             $endDate = Carbon::tomorrow('Europe/Helsinki')->addDay()->setTimezone('UTC');
 
             $spotPrices = $this->entsoeService->fetchDayAheadPrices($startDate, $endDate);
-        } catch (RequestException $e) {
-            $this->error('Failed to fetch spot prices: ' . $e->getMessage());
-            Log::error('FetchSpot command failed', ['exception' => $e->getMessage()]);
+        } catch (RequestException|ConnectionException $e) {
+            $this->error('Failed to fetch spot prices from ENTSO-E API after retries.');
+            Log::error('FetchSpot command failed while fetching prices', [
+                'exception_class' => $e::class,
+                'exception' => $this->sanitizeHttpExceptionMessage($e->getMessage()),
+            ]);
             return Command::FAILURE;
         }
 
@@ -97,6 +101,14 @@ class FetchSpot extends Command
             ]);
             return Command::FAILURE;
         }
+    }
+
+    /**
+     * Remove sensitive ENTSO-E query parameters before writing HTTP exception messages to logs.
+     */
+    private function sanitizeHttpExceptionMessage(string $message): string
+    {
+        return preg_replace('/securityToken=[^&\s]+/', 'securityToken=[redacted]', $message) ?? $message;
     }
 
     /**

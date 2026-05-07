@@ -466,6 +466,26 @@ XML;
     }
 
     /**
+     * Test service retries on connection timeouts.
+     */
+    public function test_retries_on_connection_timeout(): void
+    {
+        Http::fake([
+            'web-api.tp.entsoe.eu/api*' => Http::sequence()
+                ->pushFailedConnection('cURL error 28: Operation timed out after 30004 milliseconds with 0 bytes received')
+                ->push($this->getSampleXmlResponse([50.0]), 200),
+        ]);
+
+        $result = $this->service->fetchDayAheadPrices(
+            Carbon::parse('2024-01-20'),
+            Carbon::parse('2024-01-21')
+        );
+
+        $this->assertCount(1, $result);
+        Http::assertSentCount(2);
+    }
+
+    /**
      * Test service includes region in result.
      */
     public function test_includes_region_in_result(): void

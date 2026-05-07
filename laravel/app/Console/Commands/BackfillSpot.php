@@ -8,6 +8,7 @@ use App\Services\EntsoeService;
 use App\Services\SpotPriceAverageService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Log;
 
@@ -97,14 +98,15 @@ class BackfillSpot extends Command
                     $this->saveSpotPrices($spotPrices);
                     $totalRecords += count($spotPrices);
                 }
-            } catch (RequestException $e) {
+            } catch (RequestException|ConnectionException $e) {
                 $errorCount++;
                 $this->newLine();
-                $this->error("Error fetching {$chunkStart->format('Y-m-d')} to {$chunkEnd->format('Y-m-d')}: " . $e->getMessage());
+                $this->error("Error fetching {$chunkStart->format('Y-m-d')} to {$chunkEnd->format('Y-m-d')} from ENTSO-E API after retries.");
                 Log::error('BackfillSpot command failed for chunk', [
                     'start' => $chunkStart->toDateString(),
                     'end' => $chunkEnd->toDateString(),
-                    'exception' => $e->getMessage(),
+                    'exception_class' => $e::class,
+                    'exception' => $this->sanitizeHttpExceptionMessage($e->getMessage()),
                 ]);
             }
 
@@ -131,6 +133,14 @@ class BackfillSpot extends Command
         }
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Remove sensitive ENTSO-E query parameters before writing HTTP exception messages to logs.
+     */
+    private function sanitizeHttpExceptionMessage(string $message): string
+    {
+        return preg_replace('/securityToken=[^&\s]+/', 'securityToken=[redacted]', $message) ?? $message;
     }
 
     /**

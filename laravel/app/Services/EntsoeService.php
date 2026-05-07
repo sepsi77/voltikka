@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Carbon\Carbon;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -23,7 +24,7 @@ class EntsoeService
      *               - timestamp: int (Unix timestamp)
      *               - utc_datetime: Carbon
      *               - price_without_tax: float (c/kWh)
-     * @throws RequestException
+     * @throws RequestException|ConnectionException
      */
     public function fetchDayAheadPrices(Carbon $startDate, Carbon $endDate): array
     {
@@ -43,8 +44,9 @@ class EntsoeService
         $url = $baseUrl . '?' . http_build_query($params);
 
         $response = Http::retry(self::MAX_RETRIES, self::RETRY_DELAY_MS, function ($exception, $request) {
-            return $exception instanceof RequestException
-                && ($exception->response?->serverError() || $exception->response === null);
+            return $exception instanceof ConnectionException
+                || ($exception instanceof RequestException
+                    && ($exception->response?->serverError() || $exception->response === null));
         })->get($url);
 
         if ($response->failed()) {

@@ -7,6 +7,7 @@ use App\Services\EntsoeService;
 use App\Services\SpotPriceAverageService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Mockery;
 use Tests\TestCase;
@@ -232,6 +233,25 @@ class FetchSpotCommandTest extends TestCase
         $this->app->instance(EntsoeService::class, $mockService);
 
         $this->artisan('spot:fetch')
+            ->assertExitCode(1);
+    }
+
+    /**
+     * Test command handles API connection timeouts gracefully after service retries are exhausted.
+     */
+    public function test_command_handles_connection_timeouts(): void
+    {
+        $mockService = Mockery::mock(EntsoeService::class);
+        $mockService->shouldReceive('fetchDayAheadPrices')
+            ->once()
+            ->andThrow(new ConnectionException(
+                'cURL error 28: Operation timed out after 30004 milliseconds with 0 bytes received for https://web-api.tp.entsoe.eu/api?securityToken=secret-token'
+            ));
+
+        $this->app->instance(EntsoeService::class, $mockService);
+
+        $this->artisan('spot:fetch')
+            ->expectsOutput('Failed to fetch spot prices from ENTSO-E API after retries.')
             ->assertExitCode(1);
     }
 
