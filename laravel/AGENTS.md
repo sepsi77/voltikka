@@ -132,6 +132,36 @@ It should **not** blindly collapse materially different product variants when va
 
 `resources/views/layouts/app.blade.php` shows an immediate page-loading indicator for normal same-origin link navigation. Same-document hash links (for example `/sahkosopimus/tilastot?kulutus=5000#viittaa`) must not start or leave this indicator active, because no page or Livewire request is expected. Keep the hash-only `click`/`popstate`/`hashchange` guards in sync if changing navigation feedback.
 
+## Observability
+
+### Sentry
+
+Sentry is configured for Laravel exception capture and optional log forwarding.
+
+Primary files:
+- `bootstrap/app.php` — registers `Sentry\Laravel\Integration::handles($exceptions)`.
+- `config/sentry.php` — SDK configuration published by `sentry/sentry-laravel`; reads `SENTRY_LARAVEL_DSN`, trace/profiling sample rates, and log settings from env.
+- `config/logging.php` — defines the `sentry_logs` channel using the Sentry log driver.
+
+Production env guidance:
+```bash
+SENTRY_LARAVEL_DSN=...
+SENTRY_TRACES_SAMPLE_RATE=1.0
+SENTRY_PROFILES_SAMPLE_RATE=1.0
+SENTRY_ENABLE_LOGS=true
+LOG_CHANNEL=stack
+LOG_STACK=single,sentry_logs
+```
+
+The production Docker image installs and enables the Excimer PHP extension for profiling. Use lower sample rates later if event volume/cost gets too high.
+
+Verification:
+```bash
+cd laravel
+php artisan sentry:test
+php artisan tinker --execute="\\Illuminate\\Support\\Facades\\Log::channel('sentry_logs')->info('Sentry log test'); \\Sentry\\logger()->flush();"
+```
+
 ## Commands
 
 ### Refresh data and auto-link replacements

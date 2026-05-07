@@ -1,0 +1,7 @@
+[
+  {"name":"Inspect current Laravel bootstrap/logging/env setup","status":"completed"},
+  {"name":"Install Sentry Laravel package","status":"completed"},
+  {"name":"Configure exception handling and logging channel","status":"completed"},
+  {"name":"Publish/configure Sentry and environment examples","status":"completed"},
+  {"name":"Run verification commands","status":"completed"}
+]

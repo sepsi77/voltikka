@@ -19,8 +19,11 @@ RUN apt-get update && apt-get install -y \
     nodejs \
     npm \
     chromium \
+    $PHPIZE_DEPS \
     && docker-php-ext-configure gd --with-jpeg --with-webp \
     && docker-php-ext-install pdo pdo_pgsql pdo_mysql mbstring exif pcntl bcmath gd \
+    && pecl install excimer \
+    && docker-php-ext-enable excimer \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set Chromium path for Remotion/Puppeteer

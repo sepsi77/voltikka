@@ -489,9 +489,10 @@ For pricing type pages, the `getContractsProperty()` method determines which con
 - **Async fonts**: Google Fonts loaded asynchronously to avoid render-blocking
 - **Resource preloading**: Critical CSS/JS preloaded in `<head>`
 
-## Analytics
+## Analytics and Observability
 
 - **Plausible Analytics**: Privacy-friendly analytics script in `layouts/app.blade.php`
+- **Sentry**: Laravel exception capture, tracing/profiling configuration, and optional Sentry log forwarding are configured in `laravel/bootstrap/app.php`, `laravel/config/sentry.php`, and `laravel/config/logging.php`. See `laravel/AGENTS.md` for env variables and verification commands.
 
 ## Navigation Structure
 
