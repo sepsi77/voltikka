@@ -124,6 +124,11 @@ class SeoContractsList extends ContractsList
     protected ?Municipality $municipality = null;
 
     /**
+     * Cached city-local contract data for the current request/render.
+     */
+    protected ?array $localContractsDataCache = null;
+
+    /**
      * Business consumption presets.
      */
     protected array $businessPresets = [
@@ -403,18 +408,22 @@ class SeoContractsList extends ContractsList
             $calculator = app(ContractPriceCalculator::class);
             $emissionsCalculator = app(CO2EmissionsCalculator::class);
 
-            // Do not eager load full price history here. getLatestPriceComponentsForCalculation()
-            // loads only this contract's components on demand, avoiding 50k+ active
-            // price-component models in memory when rebuilding list metrics.
+            // Do not eager load full price history here. Load only the latest
+            // calculation components in bulk, avoiding both N+1 queries and
+            // 50k+ historical price-component models in memory.
 
             // Get spot price averages for calculations
             $spotPriceAvg = SpotPriceAverage::latestRolling365Days();
             $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
             $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
 
+            $priceComponentsByContractId = ElectricityContract::getLatestPriceComponentsForCalculationByContractIds(
+                $contracts->pluck('id')
+            );
+
             // Calculate cost and emissions for each contract and sort by cost
-            $contracts = $contracts->map(function ($contract) use ($calculator, $emissionsCalculator, $spotPriceDay, $spotPriceNight, $consumption) {
-                $priceComponents = $contract->getLatestPriceComponentsForCalculation();
+            $contracts = $contracts->map(function ($contract) use ($calculator, $emissionsCalculator, $spotPriceDay, $spotPriceNight, $consumption, $priceComponentsByContractId) {
+                $priceComponents = $priceComponentsByContractId[$contract->id] ?? [];
 
                 $usage = new EnergyUsage(
                     total: $consumption,
@@ -1103,9 +1112,13 @@ class SeoContractsList extends ContractsList
      */
     public function getLocalContractsDataProperty(): array
     {
+        if ($this->localContractsDataCache !== null) {
+            return $this->localContractsDataCache;
+        }
+
         $municipality = $this->municipality;
         if (!$municipality) {
-            return [
+            return $this->localContractsDataCache = [
                 'local_companies' => collect(),
                 'regional_contracts' => collect(),
                 'has_content' => false,
@@ -1122,7 +1135,7 @@ class SeoContractsList extends ContractsList
             ->unique()
             ->toArray();
 
-        return [
+        return $this->localContractsDataCache = [
             'local_companies' => $data['local_companies'],
             'regional_contracts' => $data['regional_contracts'],
             'has_content' => $data['has_content'],

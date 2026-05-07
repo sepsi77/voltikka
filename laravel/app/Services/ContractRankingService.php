@@ -236,7 +236,6 @@ class ContractRankingService
     {
         $contracts = ElectricityContract::query()
             ->active()
-            ->with(['priceComponents'])
             ->where(function ($q) {
                 $q->whereIn('target_group', ['Household', 'Both'])
                   ->orWhereNull('target_group');
@@ -250,6 +249,10 @@ class ContractRankingService
         $consumption = self::DEFAULT_CONSUMPTION;
         $usage = new EnergyUsage(total: $consumption, basicLiving: $consumption);
 
+        $priceComponentsByContractId = ElectricityContract::getLatestPriceComponentsForCalculationByContractIds(
+            $contracts->pluck('id')
+        );
+
         // Calculate cost for each contract
         $contractCosts = [];
         foreach ($contracts as $contract) {
@@ -257,7 +260,7 @@ class ContractRankingService
                 continue;
             }
 
-            $priceComponents = $contract->getLatestPriceComponentsForCalculation();
+            $priceComponents = $priceComponentsByContractId[$contract->id] ?? [];
 
             $contractData = [
                 'contract_type' => $contract->contract_type,

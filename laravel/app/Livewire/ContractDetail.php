@@ -201,7 +201,7 @@ class ContractDetail extends Component
     protected function loadContract(): ?ElectricityContract
     {
         return ElectricityContract::query()
-            ->with(['company', 'priceComponents', 'electricitySource'])
+            ->with(['company', 'priceComponents', 'electricitySource', 'activeContract'])
             ->find($this->contractId);
     }
 
@@ -1026,7 +1026,7 @@ class ContractDetail extends Component
             ->values();
 
         $historyContracts = ElectricityContract::query()
-            ->with(['company', 'priceComponents'])
+            ->with(['company', 'priceComponents', 'activeContract'])
             ->whereIn('id', $historyContractIds)
             ->get()
             ->sortByDesc(function (ElectricityContract $historyContract) {

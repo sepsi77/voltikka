@@ -112,14 +112,18 @@ class LocalContractsService
         $targetLat = $municipality->center_latitude;
         $targetLon = $municipality->center_longitude;
 
-        // Get all companies with their postal code coordinates
+        // Get all companies with their postal code coordinates. Load postcodes in one
+        // query instead of calling Postcode::find() per company; city SEO pages are
+        // crawled heavily and Sentry flags the per-company lookups as an N+1 query.
         $companies = Company::whereNotNull('postal_code')->get();
+        $postcodes = Postcode::whereIn('postcode', $companies->pluck('postal_code')->filter()->unique()->values())
+            ->get()
+            ->keyBy('postcode');
 
         $nearbyCompanies = collect();
 
         foreach ($companies as $company) {
-            // Look up the postcode to get coordinates
-            $postcode = Postcode::find($company->postal_code);
+            $postcode = $postcodes->get($company->postal_code);
 
             if (!$postcode || !$postcode->latitude || !$postcode->longitude) {
                 // If no coordinates for postcode, check if it's in the same municipality
@@ -214,9 +218,13 @@ class LocalContractsService
         // Filter by consumption range
         $contracts = $contracts->filter(fn ($contract) => $contract->isConsumptionInRange($consumption));
 
+        $priceComponentsByContractId = ElectricityContract::getLatestPriceComponentsForCalculationByContractIds(
+            $contracts->pluck('id')
+        );
+
         // Calculate cost for each contract
-        return $contracts->map(function ($contract) use ($consumption, $spotPriceDay, $spotPriceNight) {
-            $priceComponents = $contract->getLatestPriceComponentsForCalculation();
+        return $contracts->map(function ($contract) use ($consumption, $spotPriceDay, $spotPriceNight, $priceComponentsByContractId) {
+            $priceComponents = $priceComponentsByContractId[$contract->id] ?? [];
             $contract->setRelation('priceComponents', new \Illuminate\Database\Eloquent\Collection(
                 array_map(fn (array $component) => new PriceComponent($component), $priceComponents)
             ));

@@ -90,10 +90,14 @@ class ContractListCacheService
             basicLiving: $consumption,
         );
 
+        $priceComponentsByContractId = ElectricityContract::getLatestPriceComponentsForCalculationByContractIds(
+            $contracts->pluck('id')
+        );
+
         $metrics = [];
 
         foreach ($contracts as $contract) {
-            $priceComponents = $contract->getLatestPriceComponentsForCalculation();
+            $priceComponents = $priceComponentsByContractId[$contract->id] ?? [];
 
             $contractData = [
                 'contract_type' => $contract->contract_type,

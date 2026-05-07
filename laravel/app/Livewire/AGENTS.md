@@ -80,6 +80,7 @@ Important semantics:
 - cache keys include route/filter context plus `ContractPageCacheVersion::hash()` so contract imports and source-table changes bust stale payloads
 - this is prepared-data caching, not full HTML caching; Livewire actions still recompute/serve their interactive state normally
 - page-level caching is disabled when `app()->runningUnitTests()` to avoid cross-test cache pollution from Laravel's array cache driver
+- listing metric rebuilds should use `ElectricityContract::getLatestPriceComponentsForCalculationByContractIds()` so crawler hits do not produce one `price_components` query per contract while still avoiding eager-loading full price history
 
 ## `ContractDetail`
 
@@ -124,6 +125,10 @@ Primary mapping file:
 
 Use broad existing SEO pages for duration badges instead of creating exact-duration pages unless product explicitly wants those pages and they will have substantial unique content.
 
+### Query optimization guardrails
+
+`ContractDetail` loads `activeContract` beside `company`, `priceComponents`, and `electricitySource`. Keep `ElectricityContract::isActive()` relation-aware so detail history rows do not issue one `active_contracts` query per version. Discount helpers on `ElectricityContract` are also relation-aware; when `priceComponents` is already eager-loaded for cards or JSON-LD, do not re-query `price_components` just to check active discounts.
+
 ### Contract history UI
 
 The contract detail page now builds its visible history from the replacement-link chain instead of only the current contract row.
@@ -134,7 +139,7 @@ Current intended behavior:
 - those inactive historical pages should include a `noindex` robots meta tag
 - inactive historical pages should not appear in the sitemap
 - start from the currently rendered contract
-- walk backward with `ElectricityContract::getReplacementChainBackward()`
+- walk backward with `ElectricityContract::getReplacementChainBackward()`; this helper batches by predecessor depth instead of querying each direct predecessor one-by-one
 - include the current contract itself as the newest history entry
 - sort versions in reverse chronological order using each version's latest known `price_date`
 - show, for each version:

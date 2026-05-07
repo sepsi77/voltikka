@@ -259,6 +259,10 @@ class ElectricityContract extends Model
      */
     public function isActive(): bool
     {
+        if ($this->relationLoaded('activeContract')) {
+            return $this->activeContract !== null;
+        }
+
         return $this->activeContract()->exists();
     }
 
@@ -290,20 +294,25 @@ class ElectricityContract extends Model
     public function getReplacementChainBackward(): Collection
     {
         $results = collect();
-        $queue = $this->replacements()->get();
+        $frontier = collect([$this->id]);
         $seen = [];
 
-        while ($queue->isNotEmpty()) {
-            /** @var self $current */
-            $current = $queue->shift();
+        while ($frontier->isNotEmpty()) {
+            $predecessors = self::query()
+                ->whereIn('replaced_by_contract_id', $frontier->all())
+                ->get();
 
-            if (isset($seen[$current->id])) {
-                continue;
+            $frontier = collect();
+
+            foreach ($predecessors as $current) {
+                if (isset($seen[$current->id])) {
+                    continue;
+                }
+
+                $seen[$current->id] = true;
+                $results->push($current);
+                $frontier->push($current->id);
             }
-
-            $seen[$current->id] = true;
-            $results->push($current);
-            $queue = $queue->merge($current->replacements()->get());
         }
 
         return $results;
@@ -378,7 +387,68 @@ class ElectricityContract extends Model
                 ->orderByDesc('price_date')
                 ->get();
 
-        return $this->normalizePriceComponentsForCalculation($priceComponents);
+        return self::normalizePriceComponentsForCalculation($priceComponents);
+    }
+
+    /**
+     * Get latest normalized price components for many contracts in one query.
+     *
+     * This avoids per-contract `price_components` queries on listing pages while
+     * still loading only the component rows needed for calculations, not the full
+     * historical component relationship for every active contract.
+     *
+     * @param iterable<string> $contractIds
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    public static function getLatestPriceComponentsForCalculationByContractIds(iterable $contractIds): array
+    {
+        $ids = collect($contractIds)->filter()->unique()->values();
+
+        if ($ids->isEmpty()) {
+            return [];
+        }
+
+        $ranked = PriceComponent::query()
+            ->select([
+                'electricity_contract_id',
+                'price_component_type',
+                'payment_unit',
+                'price',
+                'has_discount',
+                'discount_value',
+                'discount_is_percentage',
+                'discount_type',
+                'discount_discount_n_first_kwh',
+                'discount_discount_n_first_months',
+                'discount_discount_until_date',
+                'price_date',
+            ])
+            ->selectRaw('ROW_NUMBER() OVER (PARTITION BY electricity_contract_id, price_component_type ORDER BY CASE WHEN price > 0 THEN 1 ELSE 0 END DESC, price_date DESC) as component_rank')
+            ->whereIn('electricity_contract_id', $ids);
+
+        $rows = \Illuminate\Support\Facades\DB::query()
+            ->fromSub($ranked, 'ranked_price_components')
+            ->where('component_rank', 1)
+            ->get();
+
+        return $rows
+            ->groupBy('electricity_contract_id')
+            ->map(fn ($components) => $components
+                ->map(fn ($pc) => [
+                    'price_component_type' => $pc->price_component_type,
+                    'payment_unit' => $pc->payment_unit,
+                    'price' => $pc->price,
+                    'has_discount' => (bool) $pc->has_discount,
+                    'discount_value' => $pc->discount_value,
+                    'discount_is_percentage' => $pc->discount_is_percentage === null ? null : (bool) $pc->discount_is_percentage,
+                    'discount_type' => $pc->discount_type,
+                    'discount_discount_n_first_kwh' => $pc->discount_discount_n_first_kwh,
+                    'discount_discount_n_first_months' => $pc->discount_discount_n_first_months,
+                    'discount_discount_until_date' => $pc->discount_discount_until_date,
+                ])
+                ->values()
+                ->toArray())
+            ->toArray();
     }
 
     /**
@@ -396,7 +466,7 @@ class ElectricityContract extends Model
             ->whereDate('price_date', $date)
             ->get();
 
-        return $this->normalizePriceComponentsForCalculation($priceComponents);
+        return self::normalizePriceComponentsForCalculation($priceComponents);
     }
 
     /**
@@ -405,7 +475,7 @@ class ElectricityContract extends Model
      * @param \Illuminate\Support\Collection<int, PriceComponent> $priceComponents
      * @return array<int, array<string, mixed>>
      */
-    private function normalizePriceComponentsForCalculation(Collection $priceComponents): array
+    private static function normalizePriceComponentsForCalculation(Collection $priceComponents): array
     {
         return $priceComponents
             ->sortByDesc('price_date')
@@ -445,6 +515,13 @@ class ElectricityContract extends Model
 
         $now = Carbon::now();
 
+        if ($this->relationLoaded('priceComponents')) {
+            return $this->priceComponents->contains(fn (PriceComponent $component) =>
+                $component->has_discount
+                && ($component->discount_discount_until_date === null || $component->discount_discount_until_date->gt($now))
+            );
+        }
+
         return $this->priceComponents()
             ->where('has_discount', true)
             ->where(function ($query) use ($now) {
@@ -465,13 +542,20 @@ class ElectricityContract extends Model
     {
         $now = Carbon::now();
 
-        $priceComponent = $this->priceComponents()
-            ->where('has_discount', true)
-            ->where(function ($query) use ($now) {
-                $query->whereNull('discount_discount_until_date')
-                    ->orWhere('discount_discount_until_date', '>', $now);
-            })
-            ->first();
+        if ($this->relationLoaded('priceComponents')) {
+            $priceComponent = $this->priceComponents->first(fn (PriceComponent $component) =>
+                $component->has_discount
+                && ($component->discount_discount_until_date === null || $component->discount_discount_until_date->gt($now))
+            );
+        } else {
+            $priceComponent = $this->priceComponents()
+                ->where('has_discount', true)
+                ->where(function ($query) use ($now) {
+                    $query->whereNull('discount_discount_until_date')
+                        ->orWhere('discount_discount_until_date', '>', $now);
+                })
+                ->first();
+        }
 
         if (!$priceComponent) {
             return null;
