@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\Municipality;
 use App\Models\Postcode;
+use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
 use App\Services\DTO\EnergyUsage;
 use Illuminate\Support\Collection;
@@ -73,7 +74,7 @@ class LocalContractsService
 
         $contracts = ElectricityContract::query()
             ->active()
-            ->with(['company', 'priceComponents', 'electricitySource'])
+            ->with(['company', 'electricitySource'])
             ->whereIn('company_name', $nearbyCompanies->pluck('name')->toArray())
             ->where(function ($q) {
                 $q->whereIn('target_group', ['Household', 'Both'])
@@ -180,7 +181,7 @@ class LocalContractsService
 
         $contracts = ElectricityContract::query()
             ->active()
-            ->with(['company', 'priceComponents', 'electricitySource'])
+            ->with(['company', 'electricitySource'])
             ->where('availability_is_national', false)
             ->whereNotIn('company_name', $excludeCompanyNames)
             ->where(function ($q) {
@@ -216,6 +217,9 @@ class LocalContractsService
         // Calculate cost for each contract
         return $contracts->map(function ($contract) use ($consumption, $spotPriceDay, $spotPriceNight) {
             $priceComponents = $contract->getLatestPriceComponentsForCalculation();
+            $contract->setRelation('priceComponents', new \Illuminate\Database\Eloquent\Collection(
+                array_map(fn (array $component) => new PriceComponent($component), $priceComponents)
+            ));
 
             $usage = new EnergyUsage(
                 total: $consumption,
