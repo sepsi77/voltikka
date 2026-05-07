@@ -8,6 +8,7 @@ use App\Models\ElectricityContract;
 use App\Models\Municipality;
 use App\Models\Postcode;
 use App\Models\PriceComponent;
+use App\Services\CitySolarService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -199,6 +200,21 @@ class SeoCityRoutesTest extends TestCase
     {
         $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         $response->assertStatus(200);
+    }
+
+    public function test_city_page_does_not_fetch_solar_estimate_during_initial_page_load(): void
+    {
+        $this->app->instance(CitySolarService::class, new class {
+            public function getSolarEstimate(Municipality $municipality, float $systemKwp = 5.0): ?array
+            {
+                throw new \RuntimeException('Solar estimate should be lazy loaded.');
+            }
+        });
+
+        $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
+
+        $response->assertStatus(200);
+        $response->assertSee('Aurinkosähkön tuottopotentiaali latautuu');
     }
 
     /**

@@ -1,0 +1,5 @@
+[
+  {"name":"Identify component causing EU PV requests on paikkakunnat page load","status":"completed"},
+  {"name":"Apply Livewire lazy loading to affected component","status":"completed"},
+  {"name":"Run targeted checks","status":"completed"}
+]

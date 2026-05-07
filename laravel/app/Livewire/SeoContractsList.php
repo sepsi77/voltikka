@@ -9,7 +9,6 @@ use App\Models\Municipality;
 use App\Models\Postcode;
 use App\Models\SpotPriceAverage;
 use App\Services\Caching\ContractPageCacheVersion;
-use App\Services\CitySolarService;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
@@ -1093,20 +1092,6 @@ class SeoContractsList extends ContractsList
     }
 
     /**
-     * Get solar estimate for the current city.
-     */
-    public function getSolarEstimateProperty(): ?array
-    {
-        $municipality = $this->municipality;
-        if (!$municipality) {
-            return null;
-        }
-
-        $service = app(CitySolarService::class);
-        return $service->getSolarEstimate($municipality);
-    }
-
-    /**
      * Get local contracts for the current city.
      * Returns array with local_companies, regional_contracts, and has_content keys.
      */
@@ -1331,7 +1316,6 @@ class SeoContractsList extends ContractsList
                 'cityInfo' => $this->cityInfo,
                 'citySlug' => $this->city,
                 'municipality' => $this->municipality,
-                'solarEstimate' => $this->solarEstimate,
                 'localContractsData' => $this->localContractsData,
                 'basePath' => $this->basePath,
                 'showCalculatorTab' => $this->showCalculatorTab,

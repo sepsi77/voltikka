@@ -69,6 +69,7 @@ Important semantics:
 Primary files:
 - `ContractsList.php`
 - `SeoContractsList.php`
+- `CitySolarEstimate.php`
 - `../Services/Caching/ContractPageCacheVersion.php`
 
 Purpose:
@@ -81,6 +82,7 @@ Important semantics:
 - this is prepared-data caching, not full HTML caching; Livewire actions still recompute/serve their interactive state normally
 - page-level caching is disabled when `app()->runningUnitTests()` to avoid cross-test cache pollution from Laravel's array cache driver
 - listing metric rebuilds should use `ElectricityContract::getLatestPriceComponentsForCalculationByContractIds()` so crawler hits do not produce one `price_components` query per contract while still avoiding eager-loading full price history
+- city-page solar potential must stay in the lazy `CitySolarEstimate` child component; `SeoContractsList` must not call `CitySolarService`/PVGIS while building initial page HTML because a cache miss can add ~1s blocking time
 
 ## `ContractDetail`
 
