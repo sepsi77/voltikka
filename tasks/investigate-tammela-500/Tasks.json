@@ -1,4 +1,5 @@
 [
   {"name":"Investigate Tammela location page 500","status":"done"},
-  {"name":"Reduce city SEO cached payload without Redis","status":"done"}
+  {"name":"Reduce city SEO cached payload without Redis","status":"done"},
+  {"name":"Clear stale caches after daily contract import before warming","status":"done"}
 ]

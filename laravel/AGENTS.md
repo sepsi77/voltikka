@@ -35,6 +35,7 @@ Primary implementation:
 Important semantics:
 - contract listing and detail pages cache only canonical/default GET payloads, not arbitrary query/filter/Livewire states
 - cache entries expire at tomorrow and also bust through `ContractPageCacheVersion`, which includes the import-bumped `ContractListCacheService` version plus cheap source-table aggregates
+- after a successful data import, `contracts:fetch` clears stale application caches before bumping/warming fresh caches; for database cache this uses `TRUNCATE TABLE cache` so expired large page-data rows also release InnoDB disk space
 - `contracts:fetch` bumps and warms `ContractListCacheService`; this is the main invalidation signal for contract-page prepared payloads
 - full response/HTML caching is intentionally not the first layer because Livewire snapshots/tokens should not be cached blindly
 - page-level prepared-data caching is disabled under `app()->runningUnitTests()` to avoid cross-test cache pollution

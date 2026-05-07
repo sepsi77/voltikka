@@ -128,6 +128,10 @@ class FetchContracts extends Command
             DB::commit();
 
             try {
+                $this->info('Clearing stale application caches before warming fresh contract data...');
+                $this->clearApplicationCacheAfterContractUpdate();
+                $this->info('Stale application caches cleared.');
+
                 /** @var ContractListCacheService $contractListCache */
                 $contractListCache = app(ContractListCacheService::class);
                 $version = $contractListCache->bumpVersion();
@@ -173,6 +177,32 @@ class FetchContracts extends Command
             ]);
             return Command::FAILURE;
         }
+    }
+
+    /**
+     * Clear stale public/application caches after contract data changes.
+     *
+     * Database cache needs TRUNCATE instead of Cache::flush() because Laravel's
+     * database store uses DELETE, which leaves large InnoDB cache.ibd files
+     * allocated after oversized page-data cache rows expire.
+     */
+    private function clearApplicationCacheAfterContractUpdate(): void
+    {
+        $defaultStore = config('cache.default');
+        $storeConfig = config("cache.stores.{$defaultStore}", []);
+
+        if (($storeConfig['driver'] ?? null) === 'database') {
+            $connectionName = $storeConfig['connection'] ?? config('database.default');
+            $table = $storeConfig['table'] ?? 'cache';
+            $connection = DB::connection($connectionName);
+            $wrappedTable = $connection->getQueryGrammar()->wrapTable($table);
+
+            $connection->statement("TRUNCATE TABLE {$wrappedTable}");
+
+            return;
+        }
+
+        $this->callSilent('cache:clear');
     }
 
     /**
