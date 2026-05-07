@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\PriceComponent;
+use App\Services\Caching\ContractPageCacheVersion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -595,6 +596,23 @@ class ContractDetailPageTest extends TestCase
     /**
      * Test that contract history uses the replacement chain and shows versions newest first.
      */
+    public function test_contract_detail_cache_version_hash_is_memoized_per_component(): void
+    {
+        $this->mock(ContractPageCacheVersion::class, function ($mock) {
+            $mock->shouldReceive('hash')->once()->andReturn('stable-version');
+        });
+
+        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])->instance();
+
+        $lookupKey = new \ReflectionMethod($component, 'contractLookupCacheKey');
+        $lookupKey->setAccessible(true);
+        $viewKey = new \ReflectionMethod($component, 'contractDetailViewDataCacheKey');
+        $viewKey->setAccessible(true);
+
+        $lookupKey->invoke($component);
+        $viewKey->invoke($component);
+    }
+
     public function test_contract_detail_reuses_ranking_service_queries_during_render(): void
     {
         for ($i = 1; $i <= 3; $i++) {

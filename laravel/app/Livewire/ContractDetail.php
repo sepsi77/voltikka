@@ -31,6 +31,8 @@ class ContractDetail extends Component
 
     protected ?ContractRankingService $rankingServiceCache = null;
 
+    protected ?string $contractPageCacheVersionHashCache = null;
+
     /**
      * Request-scoped computed value cache. Livewire computed properties can be
      * read several times while preparing layout SEO data and the Blade view;
@@ -251,8 +253,13 @@ class ContractDetail extends Component
     {
         return 'contract-detail:contract:v1:' . md5(json_encode([
             'contract_id' => $this->contractId,
-            'version' => app(ContractPageCacheVersion::class)->hash(),
+            'version' => $this->contractPageCacheVersionHash(),
         ]));
+    }
+
+    protected function contractPageCacheVersionHash(): string
+    {
+        return $this->contractPageCacheVersionHashCache ??= app(ContractPageCacheVersion::class)->hash();
     }
 
     /**
@@ -1644,7 +1651,7 @@ class ContractDetail extends Component
         return 'contract-detail:view-data:v6:' . md5(json_encode([
             'contract_id' => $this->contractId,
             'consumption' => $this->consumption,
-            'version' => app(ContractPageCacheVersion::class)->hash(),
+            'version' => $this->contractPageCacheVersionHash(),
         ]));
     }
 

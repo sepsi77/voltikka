@@ -13,3 +13,9 @@
 - A second production occurrence for the same Sentry issue came from an active detail page, so the likely remaining source was not only replacement-chain history.
 - `ContractDetail` now memoizes rank-related computed values and reuses one request-scoped `ContractRankingService` instance. `liveRank`, `liveTotalContracts`, and `cheaperContracts` all share `ContractRankingService::getEligibleSortedIds()` instead of resolving a fresh service and repeating the large `target_group` lookup during one render.
 - Added a regression test asserting the eligible target-group query is executed at most once during a detail render.
+
+## 2026-05-07 second follow-up
+
+- Repeated Sentry reports may be from database-cache/source-fingerprint queries rather than lazy Eloquent relations. `ContractDetail` computed both the contract lookup cache key and the prepared view-data cache key, each resolving `ContractPageCacheVersion::hash()`.
+- `ContractDetail` now memoizes the page cache-version hash per component instance so source-table fingerprint and cache-version queries run once per render.
+- Added a regression test that invokes both cache-key builders and asserts `ContractPageCacheVersion::hash()` is called once.

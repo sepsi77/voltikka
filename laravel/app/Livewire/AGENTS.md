@@ -145,6 +145,8 @@ Use broad existing SEO pages for duration badges instead of creating exact-durat
 
 `ContractDetail` also memoizes rank-related computed values and keeps one request-scoped `ContractRankingService` instance. Do not replace `rankingService()` with repeated `app(ContractRankingService::class)` calls in `liveRank`, `liveTotalContracts`, or `cheaperContracts`; those methods share the same eligible target-group lookup and otherwise repeat large `electricity_contracts` queries during one render.
 
+`ContractDetail` memoizes `ContractPageCacheVersion::hash()` per component instance because both the contract lookup cache key and prepared view-data cache key need it. On the database cache driver, recomputing the version hash can create repeated cache/source-table queries before the page data is even built.
+
 ### Contract history UI
 
 The contract detail page now builds its visible history from the replacement-link chain instead of only the current contract row.
