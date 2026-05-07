@@ -48,6 +48,17 @@ Important semantics:
 - article chart data is cached with short TTLs (typically 6 hours) because it is derived from daily/hourly precomputed market tables and does not need per-request freshness
 - do not Livewire-lazy-load the article chart widgets unless their pushed scripts/chart initializers are moved to a non-lazy parent bundle; otherwise the widget markup can hydrate without the chart drawing
 
+## `CompanyDetail`
+
+Primary files:
+- `CompanyDetail.php`
+- `../../resources/views/livewire/company-detail.blade.php`
+
+Query guardrails:
+- `contracts` and `companyStats` are memoized per render because layout title/meta, JSON-LD, H1/hero text, and the visible list all read the same company contract set.
+- Keep company contract queries eager-loading `company`, `priceComponents`, and `electricitySource`; company detail cards need the loaded company relation for logos, and stats/calculations use source and price relations.
+- Clear the memoized contract/stat caches whenever the selected consumption changes.
+
 ## `ContractTypeComparison`
 
 Primary files:
@@ -131,6 +142,8 @@ Use broad existing SEO pages for duration badges instead of creating exact-durat
 ### Query optimization guardrails
 
 `ContractDetail` loads `activeContract` beside `company`, `priceComponents`, and `electricitySource`. Keep `ElectricityContract::isActive()` relation-aware so detail history rows do not issue one `active_contracts` query per version. Discount helpers on `ElectricityContract` are also relation-aware; when `priceComponents` is already eager-loaded for cards or JSON-LD, do not re-query `price_components` just to check active discounts.
+
+`ContractDetail` also memoizes rank-related computed values and keeps one request-scoped `ContractRankingService` instance. Do not replace `rankingService()` with repeated `app(ContractRankingService::class)` calls in `liveRank`, `liveTotalContracts`, or `cheaperContracts`; those methods share the same eligible target-group lookup and otherwise repeat large `electricity_contracts` queries during one render.
 
 ### Contract history UI
 

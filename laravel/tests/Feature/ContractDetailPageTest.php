@@ -595,6 +595,46 @@ class ContractDetailPageTest extends TestCase
     /**
      * Test that contract history uses the replacement chain and shows versions newest first.
      */
+    public function test_contract_detail_reuses_ranking_service_queries_during_render(): void
+    {
+        for ($i = 1; $i <= 3; $i++) {
+            $contract = ElectricityContract::create([
+                'id' => "ranking-query-alt-{$i}",
+                'company_name' => 'Test Energia Oy',
+                'name' => "Ranking Query Alt {$i}",
+                'contract_type' => 'OpenEnded',
+                'metering' => 'General',
+                'pricing_model' => 'FixedPrice',
+                'target_group' => 'Household',
+                'availability_is_national' => true,
+            ]);
+            ActiveContract::create(['id' => $contract->id]);
+            PriceComponent::create([
+                'id' => "pc-ranking-query-alt-{$i}",
+                'electricity_contract_id' => $contract->id,
+                'price_component_type' => 'General',
+                'price_date' => now()->format('Y-m-d'),
+                'price' => 1.0 + $i,
+                'payment_unit' => 'c/kWh',
+            ]);
+        }
+
+        DB::enableQueryLog();
+
+        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->assertStatus(200);
+
+        $targetGroupQueries = collect(DB::getQueryLog())
+            ->pluck('query')
+            ->filter(fn (string $query) => str_contains($query, 'select "target_group", "id"')
+                && str_contains($query, 'from "electricity_contracts"'))
+            ->count();
+
+        // liveRank, liveTotalContracts and cheaperContracts all need the same
+        // eligible target-group list; keep it one query per render.
+        $this->assertLessThanOrEqual(1, $targetGroupQueries);
+    }
+
     public function test_contract_detail_history_chain_uses_bounded_bulk_relation_queries(): void
     {
         $previousContract = ElectricityContract::create([

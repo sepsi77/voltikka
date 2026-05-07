@@ -8,6 +8,7 @@ use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\PriceComponent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -110,6 +111,25 @@ class CompanyDetailPageTest extends TestCase
 
         // Cheap contract should be first after sorting
         $this->assertEquals('Cheap Sähkö', $contracts->first()->name);
+    }
+
+    public function test_company_detail_reuses_contracts_for_stats_schema_and_view(): void
+    {
+        $this->createContract('query-company-contract-1', 'Query Sähkö 1', 4.0, 2.0);
+        $this->createContract('query-company-contract-2', 'Query Sähkö 2', 5.0, 2.5);
+
+        DB::enableQueryLog();
+
+        Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
+            ->assertStatus(200);
+
+        $electricityContractQueries = collect(DB::getQueryLog())
+            ->pluck('query')
+            ->filter(fn (string $query) => str_contains($query, 'from "electricity_contracts"')
+                && str_contains($query, '"company_name" = ?'))
+            ->count();
+
+        $this->assertSame(1, $electricityContractQueries);
     }
 
     /**

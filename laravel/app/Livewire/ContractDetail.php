@@ -29,6 +29,17 @@ class ContractDetail extends Component
 
     protected ?\Illuminate\Support\Collection $historyContractsCache = null;
 
+    protected ?ContractRankingService $rankingServiceCache = null;
+
+    /**
+     * Request-scoped computed value cache. Livewire computed properties can be
+     * read several times while preparing layout SEO data and the Blade view;
+     * keep ranking lookups from repeating the same large target-group queries.
+     *
+     * @var array<string, mixed>
+     */
+    protected array $computedValueCache = [];
+
     /**
      * The contract ID.
      */
@@ -262,7 +273,11 @@ class ContractDetail extends Component
             return null;
         }
 
-        return app(ContractRankingService::class)->getContractRank($contract->id);
+        if (array_key_exists('priceRank', $this->computedValueCache)) {
+            return $this->computedValueCache['priceRank'];
+        }
+
+        return $this->computedValueCache['priceRank'] = $this->rankingService()->getContractRank($contract->id);
     }
 
     /**
@@ -270,7 +285,11 @@ class ContractDetail extends Component
      */
     public function getTotalContractsProperty(): int
     {
-        return app(ContractRankingService::class)->getTotalActiveContracts();
+        if (array_key_exists('totalContracts', $this->computedValueCache)) {
+            return $this->computedValueCache['totalContracts'];
+        }
+
+        return $this->computedValueCache['totalContracts'] = $this->rankingService()->getTotalActiveContracts();
     }
 
     /**
@@ -284,7 +303,12 @@ class ContractDetail extends Component
         if (! $contract) {
             return null;
         }
-        return app(ContractRankingService::class)
+        $cacheKey = 'liveRank:' . $contract->id . ':' . $this->consumption;
+        if (array_key_exists($cacheKey, $this->computedValueCache)) {
+            return $this->computedValueCache[$cacheKey];
+        }
+
+        return $this->computedValueCache[$cacheKey] = $this->rankingService()
             ->getRankForConsumption($contract->id, $this->consumption);
     }
 
@@ -294,7 +318,12 @@ class ContractDetail extends Component
         if (! $contract) {
             return null;
         }
-        return app(ContractRankingService::class)
+        $cacheKey = 'liveTotalContracts:' . $contract->id . ':' . $this->consumption;
+        if (array_key_exists($cacheKey, $this->computedValueCache)) {
+            return $this->computedValueCache[$cacheKey];
+        }
+
+        return $this->computedValueCache[$cacheKey] = $this->rankingService()
             ->getTotalContractsForConsumption($contract->id, $this->consumption);
     }
 
@@ -308,8 +337,18 @@ class ContractDetail extends Component
         if (! $contract) {
             return collect();
         }
-        return app(ContractRankingService::class)
+        $cacheKey = 'cheaperContracts:' . $contract->id . ':' . $this->consumption;
+        if (array_key_exists($cacheKey, $this->computedValueCache)) {
+            return $this->computedValueCache[$cacheKey];
+        }
+
+        return $this->computedValueCache[$cacheKey] = $this->rankingService()
             ->getCheaperContracts($contract->id, $this->consumption, 4);
+    }
+
+    protected function rankingService(): ContractRankingService
+    {
+        return $this->rankingServiceCache ??= app(ContractRankingService::class);
     }
 
     /**

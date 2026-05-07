@@ -18,6 +18,10 @@ class CompanyDetail extends Component
     public ?Company $company = null;
     public string $companySlug;
 
+    protected ?Collection $contractsCache = null;
+
+    protected ?array $companyStatsCache = null;
+
     /**
      * Currently selected preset key.
      */
@@ -76,6 +80,7 @@ class CompanyDetail extends Component
 
         if (isset($this->presets[$preset])) {
             $this->consumption = $this->presets[$preset]['consumption'];
+            $this->clearComputedCaches();
         }
     }
 
@@ -86,6 +91,13 @@ class CompanyDetail extends Component
     {
         $this->consumption = $value;
         $this->selectedPreset = null;
+        $this->clearComputedCaches();
+    }
+
+    protected function clearComputedCaches(): void
+    {
+        $this->contractsCache = null;
+        $this->companyStatsCache = null;
     }
 
     /**
@@ -93,8 +105,12 @@ class CompanyDetail extends Component
      */
     public function getContractsProperty(): Collection
     {
+        if ($this->contractsCache !== null) {
+            return $this->contractsCache;
+        }
+
         if (!$this->company) {
-            return collect();
+            return $this->contractsCache = collect();
         }
 
         $calculator = app(ContractPriceCalculator::class);
@@ -107,7 +123,7 @@ class CompanyDetail extends Component
 
         $contracts = ElectricityContract::query()
             ->active()
-            ->with(['priceComponents', 'electricitySource'])
+            ->with(['company', 'priceComponents', 'electricitySource'])
             ->where('company_name', $this->company->name)
             ->get();
 
@@ -144,7 +160,7 @@ class CompanyDetail extends Component
         });
 
         // Sort by total cost (ascending), but put contracts that exceed consumption limit at the end
-        return $contracts->sort(function ($a, $b) {
+        return $this->contractsCache = $contracts->sort(function ($a, $b) {
             // First sort by exceeds_consumption_limit (false first, true last)
             $aExceeds = $a->exceeds_consumption_limit ? 1 : 0;
             $bExceeds = $b->exceeds_consumption_limit ? 1 : 0;
@@ -163,10 +179,14 @@ class CompanyDetail extends Component
      */
     public function getCompanyStatsProperty(): array
     {
+        if ($this->companyStatsCache !== null) {
+            return $this->companyStatsCache;
+        }
+
         $contracts = $this->contracts;
 
         if ($contracts->isEmpty()) {
-            return [
+            return $this->companyStatsCache = [
                 'avg_price' => null,
                 'min_price' => null,
                 'max_price' => null,
@@ -187,7 +207,7 @@ class CompanyDetail extends Component
         // Contracts without source data are treated as 0% renewable (unverified source)
         $renewablePercents = $contracts->map(fn ($c) => $c->electricitySource?->renewable_total ?? 0);
 
-        return [
+        return $this->companyStatsCache = [
             'avg_price' => $prices->isNotEmpty() ? $prices->avg() : null,
             'min_price' => $prices->isNotEmpty() ? $prices->min() : null,
             'max_price' => $prices->isNotEmpty() ? $prices->max() : null,

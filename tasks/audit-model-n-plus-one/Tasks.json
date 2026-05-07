@@ -1,0 +1,6 @@
+[
+  {"name":"Scan codebase for likely relation lazy-loading patterns","status":"completed"},
+  {"name":"Inspect high-risk findings","status":"completed"},
+  {"name":"Apply safe fixes/tests if needed","status":"completed"},
+  {"name":"Summarize audit","status":"completed"}
+]
