@@ -119,8 +119,23 @@ class SeoContractsList extends ContractsList
 
     /**
      * Cached municipality instance for city pages.
+     *
+     * Keep a separate loaded flag/slug so missing municipalities are also
+     * memoized. Otherwise unknown slugs repeatedly query municipalities every
+     * time SEO title/meta/heading/city widgets ask for city data in one render.
      */
     protected ?Municipality $municipality = null;
+
+    protected bool $municipalityLoaded = false;
+
+    protected ?string $municipalityLoadedSlug = null;
+
+    /**
+     * Cached city data arrays by slug for the current request/render.
+     *
+     * @var array<string, array{name: string, locative: string, genitive: string, municipality: ?Municipality}>
+     */
+    protected array $cityDataCache = [];
 
     /**
      * Cached city-local contract data for the current request/render.
@@ -1052,11 +1067,15 @@ class SeoContractsList extends ContractsList
      */
     protected function getCityData(string $slug): array
     {
+        if (array_key_exists($slug, $this->cityDataCache)) {
+            return $this->cityDataCache[$slug];
+        }
+
         // Look up municipality from database
         $municipality = $this->getMunicipality($slug);
 
         if ($municipality) {
-            return [
+            return $this->cityDataCache[$slug] = [
                 'name' => $municipality->name,
                 'locative' => $municipality->name_locative,
                 'genitive' => $municipality->name_genitive,
@@ -1066,7 +1085,7 @@ class SeoContractsList extends ContractsList
 
         // Fallback: capitalize first letter and add generic locative
         $name = Str::title(str_replace('-', ' ', $slug));
-        return [
+        return $this->cityDataCache[$slug] = [
             'name' => $name,
             'locative' => "{$name}ssa", // Generic -ssa ending
             'genitive' => "{$name}n",
@@ -1079,9 +1098,12 @@ class SeoContractsList extends ContractsList
      */
     protected function getMunicipality(string $slug): ?Municipality
     {
-        if ($this->municipality === null || $this->municipality->slug !== $slug) {
+        if (!$this->municipalityLoaded || $this->municipalityLoadedSlug !== $slug) {
             $this->municipality = Municipality::where('slug', $slug)->first();
+            $this->municipalityLoaded = true;
+            $this->municipalityLoadedSlug = $slug;
         }
+
         return $this->municipality;
     }
 
@@ -1106,7 +1128,7 @@ class SeoContractsList extends ContractsList
             return $this->localContractsDataCache;
         }
 
-        $municipality = $this->municipality;
+        $municipality = $this->city ? $this->getMunicipality($this->city) : null;
         if (!$municipality) {
             return $this->localContractsDataCache = [
                 'local_companies' => collect(),
@@ -1320,7 +1342,7 @@ class SeoContractsList extends ContractsList
                 'isCityPage' => $this->city !== null,
                 'cityInfo' => $this->cityInfo,
                 'citySlug' => $this->city,
-                'municipality' => $this->municipality,
+                'municipality' => $this->city ? $this->getMunicipality($this->city) : null,
                 'localContractsData' => $this->localContractsData,
                 'basePath' => $this->basePath,
                 'showCalculatorTab' => $this->showCalculatorTab,

@@ -10,6 +10,7 @@ use App\Models\Postcode;
 use App\Models\PriceComponent;
 use App\Services\CitySolarService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class SeoCityRoutesTest extends TestCase
@@ -200,6 +201,24 @@ class SeoCityRoutesTest extends TestCase
     {
         $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         $response->assertStatus(200);
+    }
+
+    public function test_city_page_memoizes_missing_municipality_lookup(): void
+    {
+        $municipalitySlugQueries = 0;
+
+        DB::listen(function ($query) use (&$municipalitySlugQueries) {
+            $sql = strtolower($query->sql);
+
+            if (str_contains($sql, 'municipalities') && str_contains($sql, 'slug')) {
+                $municipalitySlugQueries++;
+            }
+        });
+
+        $response = $this->get('/sahkosopimus/paikkakunnat/tuntematon-paikkakunta');
+
+        $response->assertStatus(200);
+        $this->assertSame(1, $municipalitySlugQueries);
     }
 
     public function test_city_page_does_not_fetch_solar_estimate_during_initial_page_load(): void
