@@ -162,6 +162,8 @@ php artisan sentry:test
 php artisan tinker --execute="\\Illuminate\\Support\\Facades\\Log::channel('sentry_logs')->info('Sentry log test'); \\Sentry\\logger()->flush();"
 ```
 
+When using `tinker --execute` from a single-quoted shell string, PHP namespace separators should be written with a single backslash (for example `use Livewire\Livewire;`). Double-escaping them (`use Livewire\\Livewire;`) sends two literal backslashes to PsySH and causes `unexpected T_NAME_FULLY_QUALIFIED` parse errors before any application code runs.
+
 ## Spot price imports
 
 Primary files:
