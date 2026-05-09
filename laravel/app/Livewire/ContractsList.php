@@ -380,31 +380,89 @@ class ContractsList extends Component
     {
         $calculator = app(EnergyCalculator::class);
 
+        $includeHeating = $this->calculatorBoolValue('calcIncludeHeating', false);
+        $underfloorHeatingEnabled = $this->calculatorBoolValue('calcUnderfloorHeatingEnabled', false);
+        $saunaEnabled = $this->calculatorBoolValue('calcSaunaEnabled', false);
+        $electricVehicleEnabled = $this->calculatorBoolValue('calcElectricVehicleEnabled', false);
+
+        $buildingType = BuildingType::tryFrom($this->calculatorStringValue('calcBuildingType', BuildingType::Apartment->value))
+            ?? BuildingType::Apartment;
+        $heatingMethod = HeatingMethod::tryFrom($this->calculatorStringValue('calcHeatingMethod', HeatingMethod::Electricity->value))
+            ?? HeatingMethod::Electricity;
+        $supplementaryHeating = SupplementaryHeatingMethod::tryFrom($this->calculatorStringValue('calcSupplementaryHeating', ''));
+        $buildingEnergyEfficiency = BuildingEnergyRating::tryFrom($this->calculatorStringValue('calcBuildingEnergyEfficiency', BuildingEnergyRating::Year2000->value))
+            ?? BuildingEnergyRating::Year2000;
+        $buildingRegion = BuildingRegion::tryFrom($this->calculatorStringValue('calcBuildingRegion', BuildingRegion::South->value))
+            ?? BuildingRegion::South;
+
         // Convert weekly EV kms to monthly (roughly 4.33 weeks per month)
-        $evKmsPerMonth = (int) round($this->calcElectricVehicleKmsPerWeek * 4.33);
+        $evKmsPerMonth = (int) round($this->calculatorIntValue('calcElectricVehicleKmsPerWeek', 0) * 4.33);
 
         $request = new EnergyCalculatorRequest(
-            livingArea: max(10, $this->calcLivingArea),
-            numPeople: max(1, $this->calcNumPeople),
-            buildingType: BuildingType::from($this->calcBuildingType),
-            heatingMethod: $this->calcIncludeHeating ? HeatingMethod::from($this->calcHeatingMethod) : null,
-            supplementaryHeating: $this->calcIncludeHeating && $this->calcSupplementaryHeating
-                ? SupplementaryHeatingMethod::from($this->calcSupplementaryHeating)
-                : null,
-            buildingEnergyEfficiency: $this->calcIncludeHeating ? BuildingEnergyRating::from($this->calcBuildingEnergyEfficiency) : null,
-            buildingRegion: $this->calcIncludeHeating ? BuildingRegion::from($this->calcBuildingRegion) : null,
-            electricVehicleKmsPerMonth: $this->calcElectricVehicleEnabled ? $evKmsPerMonth : 0,
-            bathroomHeatingArea: $this->calcUnderfloorHeatingEnabled ? $this->calcBathroomHeatingArea : 0,
-            saunaUsagePerWeek: $this->calcSaunaEnabled ? $this->calcSaunaUsagePerWeek : 0,
-            externalHeating: !$this->calcIncludeHeating,
-            externalHeatingWater: !$this->calcIncludeHeating,
-            cooling: $this->calcCooling,
+            livingArea: max(10, $this->calculatorIntValue('calcLivingArea', 80)),
+            numPeople: max(1, $this->calculatorIntValue('calcNumPeople', 2)),
+            buildingType: $buildingType,
+            heatingMethod: $includeHeating ? $heatingMethod : null,
+            supplementaryHeating: $includeHeating ? $supplementaryHeating : null,
+            buildingEnergyEfficiency: $includeHeating ? $buildingEnergyEfficiency : null,
+            buildingRegion: $includeHeating ? $buildingRegion : null,
+            electricVehicleKmsPerMonth: $electricVehicleEnabled ? $evKmsPerMonth : 0,
+            bathroomHeatingArea: $underfloorHeatingEnabled ? $this->calculatorIntValue('calcBathroomHeatingArea', 0) : 0,
+            saunaUsagePerWeek: $saunaEnabled ? $this->calculatorIntValue('calcSaunaUsagePerWeek', 0) : 0,
+            externalHeating: !$includeHeating,
+            externalHeatingWater: !$includeHeating,
+            cooling: $this->calculatorBoolValue('calcCooling', false),
         );
 
         $result = $calculator->estimate($request);
         $this->consumption = $result->total;
         $this->selectedPreset = null;
         $this->resetPage();
+    }
+
+    /**
+     * Safely read calculator values from Livewire state.
+     *
+     * This keeps stale or partially hydrated Livewire updates from crashing SEO
+     * listing pages when a browser sends calculator fields while a component
+     * class/release no longer exposes exactly the same public property set.
+     */
+    protected function calculatorRawValue(string $property, mixed $default): mixed
+    {
+        if (! property_exists($this, $property)) {
+            return $default;
+        }
+
+        return $this->{$property} ?? $default;
+    }
+
+    protected function calculatorIntValue(string $property, int $default): int
+    {
+        $value = $this->calculatorRawValue($property, $default);
+
+        if ($value === '' || $value === null || $value === false) {
+            return $default;
+        }
+
+        return (int) $value;
+    }
+
+    protected function calculatorBoolValue(string $property, bool $default): bool
+    {
+        $value = $this->calculatorRawValue($property, $default);
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? $default;
+    }
+
+    protected function calculatorStringValue(string $property, string $default): string
+    {
+        $value = $this->calculatorRawValue($property, $default);
+
+        if ($value === '' || $value === null) {
+            return $default;
+        }
+
+        return (string) $value;
     }
 
     /**

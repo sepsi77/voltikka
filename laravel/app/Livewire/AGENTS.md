@@ -96,6 +96,7 @@ Important semantics:
 - contract card Blade partials (`resources/views/components/contract-card.blade.php`, `featured-contract-card.blade.php`) must not lazy-load `company`, `electricitySource`, or `priceComponents`; listing components should batch-load what cards need, and cards should fall back to scalar fields if relations are missing
 - city-page solar potential must stay in the lazy `CitySolarEstimate` child component; `SeoContractsList` must not call `CitySolarService`/PVGIS while building initial page HTML because a cache miss can add ~1s blocking time
 - `SeoContractsList` memoizes city municipality lookups, including not-found slugs, because city metadata is read by contracts filtering, title/meta generation, headings, JSON-LD, and local-contract sections during one render; do not revert to direct `Municipality::where('slug', ...)` calls from those accessors
+- `ContractsList::calculateFromInlineCalculator()` reads calculator fields through safe typed helper methods. Keep this tolerant of blank mobile number inputs and stale/partially hydrated Livewire snapshots from SEO pages so user edits do not turn into `PropertyNotFoundException` / enum errors.
 
 ## `ContractDetail`
 

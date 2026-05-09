@@ -151,6 +151,32 @@ class SeoContractsListTest extends TestCase
             ->assertStatus(200);
     }
 
+    public function test_inline_calculator_updates_on_seo_pages(): void
+    {
+        $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
+
+        Livewire::test('seo-contracts-list', ['pricingType' => 'TimeOfUse'])
+            ->set('activeTab', 'calculator')
+            ->set('calcLivingArea', 100)
+            ->set('calcNumPeople', 3)
+            ->assertSet('calcLivingArea', 100)
+            ->assertSet('calcNumPeople', 3)
+            ->assertSet('selectedPreset', null)
+            ->assertStatus(200);
+    }
+
+    public function test_inline_calculator_tolerates_blank_seo_page_inputs(): void
+    {
+        $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
+
+        Livewire::test('seo-contracts-list', ['pricingType' => 'TimeOfUse'])
+            ->set('activeTab', 'calculator')
+            ->set('calcLivingArea', '')
+            ->set('calcNumPeople', '')
+            ->set('calcBathroomHeatingArea', '')
+            ->assertStatus(200);
+    }
+
     /**
      * Test that the component accepts filter parameters via mount.
      */
@@ -451,7 +477,12 @@ class SeoContractsListTest extends TestCase
 
         $this->assertArrayHasKey('@context', $seoData['jsonLd']);
         $this->assertEquals('https://schema.org', $seoData['jsonLd']['@context']);
-        $this->assertArrayHasKey('@type', $seoData['jsonLd']);
+        $this->assertArrayHasKey('@graph', $seoData['jsonLd']);
+
+        $types = collect($seoData['jsonLd']['@graph'])->pluck('@type')->all();
+        $this->assertContains('WebPage', $types);
+        $this->assertContains('Service', $types);
+        $this->assertContains('ItemList', $types);
     }
 
     /**
@@ -465,10 +496,12 @@ class SeoContractsListTest extends TestCase
         $component = Livewire::test('seo-contracts-list');
         $seoData = $component->viewData('seoData');
 
-        // Should have ItemList type with itemListElement
-        $this->assertEquals('ItemList', $seoData['jsonLd']['@type']);
-        $this->assertArrayHasKey('itemListElement', $seoData['jsonLd']);
-        $this->assertCount(2, $seoData['jsonLd']['itemListElement']);
+        $itemList = collect($seoData['jsonLd']['@graph'])
+            ->firstWhere('@type', 'ItemList');
+
+        $this->assertNotNull($itemList);
+        $this->assertArrayHasKey('itemListElement', $itemList);
+        $this->assertCount(2, $itemList['itemListElement']);
     }
 
     /**
@@ -481,14 +514,16 @@ class SeoContractsListTest extends TestCase
         $component = Livewire::test('seo-contracts-list');
         $seoData = $component->viewData('seoData');
 
-        $listItem = $seoData['jsonLd']['itemListElement'][0];
+        $itemList = collect($seoData['jsonLd']['@graph'])
+            ->firstWhere('@type', 'ItemList');
+        $listItem = $itemList['itemListElement'][0];
 
         $this->assertEquals('ListItem', $listItem['@type']);
         $this->assertArrayHasKey('position', $listItem);
         $this->assertArrayHasKey('item', $listItem);
-        $this->assertEquals('Service', $listItem['item']['@type']);
+        $this->assertEquals('Product', $listItem['item']['@type']);
         $this->assertArrayHasKey('name', $listItem['item']);
-        $this->assertEquals('Electricity Contract', $listItem['item']['serviceType']);
+        $this->assertEquals('Electricity Contract', $listItem['item']['category']);
     }
 
     // ==================== Reuses Parent Filter Logic Tests ====================

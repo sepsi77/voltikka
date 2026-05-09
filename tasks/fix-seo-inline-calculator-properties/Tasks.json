@@ -1,0 +1,7 @@
+[
+  {"name":"Inspect ContractsList and SeoContractsList calculator property definitions and shared hooks","status":"completed"},
+  {"name":"Implement fix for missing calculator properties or hooks on SeoContractsList","status":"completed"},
+  {"name":"Add/update tests if feasible and run targeted checks","status":"completed"},
+  {"name":"Document decisions","status":"completed"},
+  {"name":"Update stale SeoContractsList JSON-LD tests for @graph schema","status":"completed"}
+]
