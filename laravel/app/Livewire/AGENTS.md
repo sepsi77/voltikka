@@ -59,6 +59,17 @@ Query guardrails:
 - Keep company contract queries eager-loading `company`, `priceComponents`, and `electricitySource`; company detail cards need the loaded company relation for logos, and stats/calculations use source and price relations.
 - Clear the memoized contract/stat caches whenever the selected consumption changes.
 
+## `ConsumptionCalculator`
+
+Primary files:
+- `ConsumptionCalculator.php`
+- `../../resources/views/livewire/consumption-calculator.blade.php`
+
+Important semantics:
+- calculator inputs are deliberately nullable/string-tolerant because Livewire can send blank strings/nulls when users clear number/select fields before tabbing away.
+- `calculate()` must read public inputs through safe helper methods and use enum `tryFrom()` fallbacks so blank/stale browser state does not become `PropertyNotFoundException` or enum `ValueError`.
+- defaults used for blank values are 80 m², 2 people, apartment, electric heating, central region, and 2000-era energy rating.
+
 ## `ContractTypeComparison`
 
 Primary files:

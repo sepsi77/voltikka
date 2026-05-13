@@ -20,22 +20,22 @@ class ConsumptionCalculator extends Component
     public string $activeTab = 'presets';
 
     // Basic form fields
-    public int $livingArea = 80;
-    public int $numPeople = 2;
-    public string $buildingType = 'apartment';
+    public int|string|null $livingArea = 80;
+    public int|string|null $numPeople = 2;
+    public ?string $buildingType = 'apartment';
 
     // Heating settings
     public bool $includeHeating = false;
-    public string $heatingMethod = 'electricity';
-    public string $buildingRegion = 'central';
-    public string $buildingEnergyEfficiency = '2000';
+    public ?string $heatingMethod = 'electricity';
+    public ?string $buildingRegion = 'central';
+    public ?string $buildingEnergyEfficiency = '2000';
     public ?string $supplementaryHeating = null;
 
     // Extras
-    public int $bathroomHeatingArea = 0;
-    public int $saunaUsagePerWeek = 0;
+    public int|string|null $bathroomHeatingArea = 0;
+    public int|string|null $saunaUsagePerWeek = 0;
     public bool $saunaIsAlwaysOnType = false;
-    public int $electricVehicleKmsPerMonth = 0;
+    public int|string|null $electricVehicleKmsPerMonth = 0;
     public bool $cooling = false;
 
     // Results (stored as array for Livewire serialization)
@@ -269,23 +269,27 @@ class ConsumptionCalculator extends Component
     {
         $calculator = app(EnergyCalculator::class);
 
+        $buildingType = BuildingType::tryFrom($this->safeStringValue('buildingType', BuildingType::Apartment->value))
+            ?? BuildingType::Apartment;
+        $heatingMethod = HeatingMethod::tryFrom($this->safeStringValue('heatingMethod', HeatingMethod::Electricity->value))
+            ?? HeatingMethod::Electricity;
+        $supplementaryHeating = SupplementaryHeatingMethod::tryFrom($this->safeStringValue('supplementaryHeating', ''));
+        $buildingEnergyEfficiency = BuildingEnergyRating::tryFrom($this->safeStringValue('buildingEnergyEfficiency', BuildingEnergyRating::Year2000->value))
+            ?? BuildingEnergyRating::Year2000;
+        $buildingRegion = BuildingRegion::tryFrom($this->safeStringValue('buildingRegion', BuildingRegion::Central->value))
+            ?? BuildingRegion::Central;
+
         $request = new EnergyCalculatorRequest(
-            livingArea: max(10, $this->livingArea),
-            numPeople: max(1, $this->numPeople),
-            buildingType: BuildingType::from($this->buildingType),
-            heatingMethod: $this->includeHeating ? HeatingMethod::from($this->heatingMethod) : null,
-            supplementaryHeating: $this->includeHeating && $this->supplementaryHeating
-                ? SupplementaryHeatingMethod::from($this->supplementaryHeating)
-                : null,
-            buildingEnergyEfficiency: $this->includeHeating
-                ? BuildingEnergyRating::from($this->buildingEnergyEfficiency)
-                : null,
-            buildingRegion: $this->includeHeating
-                ? BuildingRegion::from($this->buildingRegion)
-                : null,
-            electricVehicleKmsPerMonth: $this->electricVehicleKmsPerMonth,
-            bathroomHeatingArea: $this->bathroomHeatingArea,
-            saunaUsagePerWeek: $this->saunaUsagePerWeek,
+            livingArea: max(10, $this->safeIntValue('livingArea', 80)),
+            numPeople: max(1, $this->safeIntValue('numPeople', 2)),
+            buildingType: $buildingType,
+            heatingMethod: $this->includeHeating ? $heatingMethod : null,
+            supplementaryHeating: $this->includeHeating ? $supplementaryHeating : null,
+            buildingEnergyEfficiency: $this->includeHeating ? $buildingEnergyEfficiency : null,
+            buildingRegion: $this->includeHeating ? $buildingRegion : null,
+            electricVehicleKmsPerMonth: $this->safeIntValue('electricVehicleKmsPerMonth', 0),
+            bathroomHeatingArea: $this->safeIntValue('bathroomHeatingArea', 0),
+            saunaUsagePerWeek: $this->safeIntValue('saunaUsagePerWeek', 0),
             saunaIsAlwaysOnType: $this->saunaIsAlwaysOnType,
             externalHeating: !$this->includeHeating,
             externalHeatingWater: !$this->includeHeating,
@@ -294,6 +298,39 @@ class ConsumptionCalculator extends Component
 
         $result = $calculator->estimate($request);
         $this->calculationResult = $result->toArray();
+    }
+
+    protected function safeRawValue(string $property, mixed $default): mixed
+    {
+        $publicProperties = get_object_vars($this);
+
+        if (! array_key_exists($property, $publicProperties)) {
+            return $default;
+        }
+
+        return $publicProperties[$property] ?? $default;
+    }
+
+    protected function safeIntValue(string $property, int $default): int
+    {
+        $value = $this->safeRawValue($property, $default);
+
+        if ($value === '' || $value === null || $value === false) {
+            return $default;
+        }
+
+        return (int) $value;
+    }
+
+    protected function safeStringValue(string $property, string $default): string
+    {
+        $value = $this->safeRawValue($property, $default);
+
+        if ($value === '' || $value === null) {
+            return $default;
+        }
+
+        return (string) $value;
     }
 
     #[Computed]

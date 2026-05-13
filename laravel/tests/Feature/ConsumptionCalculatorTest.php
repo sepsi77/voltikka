@@ -178,6 +178,39 @@ class ConsumptionCalculatorTest extends TestCase
         $this->assertEquals(700, $result['basic_living']);
     }
 
+    public function test_blank_numeric_values_fall_back_to_safe_defaults(): void
+    {
+        $component = Livewire::test('consumption-calculator')
+            ->set('livingArea', '')
+            ->set('numPeople', null)
+            ->set('bathroomHeatingArea', '')
+            ->set('saunaUsagePerWeek', null)
+            ->set('electricVehicleKmsPerMonth', '');
+
+        $result = $component->get('calculationResult');
+
+        // Defaults: 2 * 400 + 80 * 30 = 3200
+        $this->assertEquals(3200, $result['basic_living']);
+        $this->assertSame(3200, $result['total']);
+    }
+
+    public function test_blank_or_invalid_select_values_fall_back_to_safe_defaults(): void
+    {
+        $component = Livewire::test('consumption-calculator')
+            ->call('toggleIncludeHeating')
+            ->set('buildingType', '')
+            ->set('heatingMethod', '')
+            ->set('buildingRegion', 'not-a-region')
+            ->set('buildingEnergyEfficiency', null)
+            ->set('supplementaryHeating', 'not-a-method');
+
+        $result = $component->get('calculationResult');
+
+        $this->assertArrayHasKey('basic_living', $result);
+        $this->assertArrayHasKey('total', $result);
+        $this->assertGreaterThan(0, $result['total']);
+    }
+
     public function test_results_section_displays_breakdown(): void
     {
         Livewire::test('consumption-calculator')
