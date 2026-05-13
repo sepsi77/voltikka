@@ -68,7 +68,8 @@ Primary files:
 Important semantics:
 - calculator inputs are deliberately nullable/string-tolerant because Livewire can send blank strings/nulls when users clear number/select fields before tabbing away.
 - `calculate()` must read public inputs through safe helper methods and use enum `tryFrom()` fallbacks so blank/stale browser state does not become `PropertyNotFoundException` or enum `ValueError`.
-- defaults used for blank values are 80 m², 2 people, apartment, electric heating, central region, and 2000-era energy rating.
+- blank/too-small numeric inputs are normalized back onto the component so the UI displays minimum allowed values: 20 m² living area, 1 resident, and 0 for optional numeric extras.
+- fallback select defaults are apartment, electric heating, central region, and 2000-era energy rating.
 
 ## `ContractTypeComparison`
 

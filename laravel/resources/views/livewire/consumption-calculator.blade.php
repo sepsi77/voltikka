@@ -62,7 +62,7 @@
                         type="number"
                         id="living-area"
                         wire:model.live.debounce.300ms="livingArea"
-                        min="10"
+                        min="20"
                         max="500"
                         class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                     >

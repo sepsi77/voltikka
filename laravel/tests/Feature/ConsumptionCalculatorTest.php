@@ -172,13 +172,15 @@ class ConsumptionCalculatorTest extends TestCase
                         ->set('livingArea', 5)  // Below minimum of 10
             ->set('numPeople', 0);  // Below minimum of 1
 
-        // The calculate method should enforce minimums
+        // The calculate method should enforce and display minimums
         $result = $component->get('calculationResult');
-        // Basic living with minimums: 1 * 400 + 10 * 30 = 700
-        $this->assertEquals(700, $result['basic_living']);
+        // Basic living with minimums: 1 * 400 + 20 * 30 = 1000
+        $this->assertEquals(1000, $result['basic_living']);
+        $component->assertSet('livingArea', 20)
+            ->assertSet('numPeople', 1);
     }
 
-    public function test_blank_numeric_values_fall_back_to_safe_defaults(): void
+    public function test_blank_numeric_values_fall_back_to_displayed_minimums(): void
     {
         $component = Livewire::test('consumption-calculator')
             ->set('livingArea', '')
@@ -189,9 +191,25 @@ class ConsumptionCalculatorTest extends TestCase
 
         $result = $component->get('calculationResult');
 
-        // Defaults: 2 * 400 + 80 * 30 = 3200
-        $this->assertEquals(3200, $result['basic_living']);
-        $this->assertSame(3200, $result['total']);
+        // Minimums: 1 * 400 + 20 * 30 = 1000
+        $this->assertEquals(1000, $result['basic_living']);
+        $this->assertSame(1000, $result['total']);
+        $component->assertSet('livingArea', 20)
+            ->assertSet('numPeople', 1)
+            ->assertSet('bathroomHeatingArea', 0)
+            ->assertSet('saunaUsagePerWeek', 0)
+            ->assertSet('electricVehicleKmsPerMonth', 0);
+    }
+
+    public function test_negative_optional_numeric_values_are_displayed_as_zero(): void
+    {
+        Livewire::test('consumption-calculator')
+            ->set('bathroomHeatingArea', -5)
+            ->set('saunaUsagePerWeek', -2)
+            ->set('electricVehicleKmsPerMonth', -100)
+            ->assertSet('bathroomHeatingArea', 0)
+            ->assertSet('saunaUsagePerWeek', 0)
+            ->assertSet('electricVehicleKmsPerMonth', 0);
     }
 
     public function test_blank_or_invalid_select_values_fall_back_to_safe_defaults(): void

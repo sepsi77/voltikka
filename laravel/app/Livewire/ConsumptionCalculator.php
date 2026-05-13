@@ -279,17 +279,23 @@ class ConsumptionCalculator extends Component
         $buildingRegion = BuildingRegion::tryFrom($this->safeStringValue('buildingRegion', BuildingRegion::Central->value))
             ?? BuildingRegion::Central;
 
+        $livingArea = $this->normalizeIntProperty('livingArea', 20);
+        $numPeople = $this->normalizeIntProperty('numPeople', 1);
+        $electricVehicleKmsPerMonth = $this->normalizeIntProperty('electricVehicleKmsPerMonth', 0);
+        $bathroomHeatingArea = $this->normalizeIntProperty('bathroomHeatingArea', 0);
+        $saunaUsagePerWeek = $this->normalizeIntProperty('saunaUsagePerWeek', 0);
+
         $request = new EnergyCalculatorRequest(
-            livingArea: max(10, $this->safeIntValue('livingArea', 80)),
-            numPeople: max(1, $this->safeIntValue('numPeople', 2)),
+            livingArea: $livingArea,
+            numPeople: $numPeople,
             buildingType: $buildingType,
             heatingMethod: $this->includeHeating ? $heatingMethod : null,
             supplementaryHeating: $this->includeHeating ? $supplementaryHeating : null,
             buildingEnergyEfficiency: $this->includeHeating ? $buildingEnergyEfficiency : null,
             buildingRegion: $this->includeHeating ? $buildingRegion : null,
-            electricVehicleKmsPerMonth: $this->safeIntValue('electricVehicleKmsPerMonth', 0),
-            bathroomHeatingArea: $this->safeIntValue('bathroomHeatingArea', 0),
-            saunaUsagePerWeek: $this->safeIntValue('saunaUsagePerWeek', 0),
+            electricVehicleKmsPerMonth: $electricVehicleKmsPerMonth,
+            bathroomHeatingArea: $bathroomHeatingArea,
+            saunaUsagePerWeek: $saunaUsagePerWeek,
             saunaIsAlwaysOnType: $this->saunaIsAlwaysOnType,
             externalHeating: !$this->includeHeating,
             externalHeatingWater: !$this->includeHeating,
@@ -331,6 +337,14 @@ class ConsumptionCalculator extends Component
         }
 
         return (string) $value;
+    }
+
+    protected function normalizeIntProperty(string $property, int $minimum): int
+    {
+        $value = max($minimum, $this->safeIntValue($property, $minimum));
+        $this->{$property} = $value;
+
+        return $value;
     }
 
     #[Computed]
