@@ -26,7 +26,10 @@ Important semantics:
 - cache invalidation is automatic through cheap `contract_price_daily_statistics` / `contract_price_snapshots` max-date/update fingerprints, so daily imports/backfills should not need manual page-cache clearing
 - run `contracts:backfill-price-statistics` before expecting historical data
 - spot metrics are split between `spot_margin` and `spot_total_energy_price`
-- deep-dive c/kWh charts may show current/day-period spot total price, but non-spot “vs pörssisähkö” quotable comparisons must use `annual_cost` at the selected consumption so unusually cheap/expensive spot days do not distort contract-type comparisons
+- the “Hinnat sopimustyypeittäin” spot row must display a trailing-12-month realized spot daily average + latest typical margin, not the latest daily spot price; show p20–p80 daily-price variation under the value without adding a column
+- the “Hinnat sopimustyypeittäin” sparkline must track the displayed median energy-price basis; the annual-cost sparkline belongs in the “Hintahaarukka” table below
+- deep-dive spot c/kWh charts must use the same trailing-12-month spot average + typical margin as the upper spot row, with p20–p80 daily-price variation as the shaded band; do not show latest-day spot there unless explicitly adding a separate volatility view
+- non-spot “vs pörssisähkö” quotable comparisons must use `annual_cost` at the selected consumption so unusually cheap/expensive spot days do not distort contract-type comparisons
 - the lead chart caption must be generated from `leadChartPayload` / `annual_cost`, not from c/kWh callouts, so the text always matches the plotted trend
 - segment and consumption tables hide rows with fewer than 10 contracts to avoid over-interpreting sparse segment statistics
 

@@ -88,6 +88,7 @@ php artisan test --filter="ContractsFilterTest"
 - Tracks daily contract-price trends from imported contract prices
 - Historical backfill infers availability from `price_components.price_date`
 - Spot contract totals use stored spot-price history plus supplier margin
+- Contract-type energy-price table displays spot as trailing-12-month realized daily average + typical margin, with p20–p80 daily variation under the value, so it is comparable with longer-term contract prices
 - Commands: `contracts:calculate-price-statistics`, `contracts:backfill-price-statistics`
 - Daily import calculates these statistics before optional percentile badge recalculation so this page keeps updating even if badge metrics fail
 - Page requests serve cached prepared view data per period + consumption; cache keys auto-bust when statistics/snapshot source-table fingerprints change

@@ -4,6 +4,8 @@ namespace App\Livewire;
 
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\ContractPriceSnapshot;
+use App\Models\SpotPriceAverage;
+use App\Models\SpotPriceHour;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -188,7 +190,9 @@ class ContractPriceStatistics extends Component
 
         foreach ($this->deepDiveSegments as $segmentKey) {
             $metric = $segmentKey === 'spot' ? 'spot_total_energy_price' : 'energy_price';
-            $bands = $this->aggregatedSeriesWithBands($segmentKey, $metric);
+            $bands = $segmentKey === 'spot'
+                ? $this->spotEnergyPriceAggregatedSeriesWithBands()
+                : $this->aggregatedSeriesWithBands($segmentKey, $metric);
             $annualCostSeries = $this->aggregatedSeries($segmentKey, 'annual_cost', $this->consumption);
             $annualCostCurrent = $this->lastNonNull($annualCostSeries['median'])['value'] ?? null;
 
@@ -228,23 +232,13 @@ class ContractPriceStatistics extends Component
                     'series' => [
                         ['label' => $this->segments[$segmentKey] ?? $segmentKey, 'values' => $bands['median']],
                     ],
-                    // Spot contracts all share the same daily spot price, so their
-                    // p20–p80 spread (driven only by margin differences) is too thin
-                    // to read on a chart whose y-axis is dominated by spot's huge
-                    // temporal swings. Use min–max for spot to make the provider
-                    // spread visible; keep p20–p80 for other segments where it is
-                    // the more interesting "typical range" story.
-                    'band' => $segmentKey === 'spot'
-                        ? [
-                            'lower' => $bands['min'],
-                            'upper' => $bands['max'],
-                            'label' => 'Halvin – kallein tarjous',
-                        ]
-                        : [
-                            'lower' => $bands['p20'],
-                            'upper' => $bands['p80'],
-                            'label' => 'Halvempi 20 % – kalliimpi 20 %',
-                        ],
+                    'band' => [
+                        'lower' => $bands['p20'],
+                        'upper' => $bands['p80'],
+                        'label' => $segmentKey === 'spot'
+                            ? 'Tavanomainen päivähinnan vaihteluväli'
+                            : 'Halvempi 20 % – kalliimpi 20 %',
+                    ],
                 ],
             ];
         }
@@ -269,10 +263,15 @@ class ContractPriceStatistics extends Component
                 continue;
             }
 
-            $values = $series['median'];
+            $displaySeries = $segmentKey === 'spot' ? $this->spotEnergyPriceAggregatedSeries() : $series;
+            if ($displaySeries['x'] === []) {
+                $displaySeries = $series;
+            }
+
+            $values = $displaySeries['median'];
             $current = $this->lastNonNull($values);
             $thirtyDaysAgo = $this->valueClosestToOffset(
-                ['x' => $series['x'], 'values' => $values],
+                ['x' => $displaySeries['x'], 'values' => $values],
                 $current['index'] ?? null,
                 -30,
             );
@@ -286,13 +285,12 @@ class ContractPriceStatistics extends Component
                 continue;
             }
 
-            // Sparkline must track the SAME metric as the lead chart (annual_cost
-            // at the page consumption), so that spot's smoothed rolling-12mo trend
-            // and the table's per-row trend show the same shape. Using daily
-            // energy_price here would make spot's sparkline drop ~70 % while the
-            // lead chart line stayed flat.
-            $costSeries = $this->aggregatedSeries($segmentKey, 'annual_cost', $this->consumption);
-            $sparklineValues = $costSeries['median'] !== [] ? $costSeries['median'] : $values;
+            $spotEnergySummary = $segmentKey === 'spot'
+                ? $this->spotEnergyPriceSummaryForLatestDate()
+                : null;
+            $displayCurrentPrice = $spotEnergySummary['avg'] ?? ($current['value'] ?? null);
+            $displayThirtyDaysAgo = $spotEnergySummary['avg_30d_ago'] ?? $thirtyDaysAgo;
+            $displayFirstPrice = $spotEnergySummary['avg_at_start'] ?? ($first['value'] ?? null);
 
             $rows[] = [
                 'segment_key' => $segmentKey,
@@ -301,14 +299,17 @@ class ContractPriceStatistics extends Component
                 'is_primary' => in_array($segmentKey, $this->primarySegments, true),
                 'is_spot' => $segmentKey === 'spot',
                 'unit' => 'c/kWh',
-                'current_price' => $current['value'] ?? null,
-                'first_price' => $first['value'] ?? null,
-                'price_30d_ago' => $thirtyDaysAgo,
-                'delta_30d_pct' => $this->percentDelta($current['value'] ?? null, $thirtyDaysAgo),
-                'delta_since_start_pct' => $this->percentDelta($current['value'] ?? null, $first['value'] ?? null),
+                'current_price' => $displayCurrentPrice,
+                'first_price' => $displayFirstPrice,
+                'price_30d_ago' => $displayThirtyDaysAgo,
+                'delta_30d_pct' => $this->percentDelta($displayCurrentPrice, $displayThirtyDaysAgo),
+                'delta_since_start_pct' => $this->percentDelta($displayCurrentPrice, $displayFirstPrice),
                 'monthly_fee' => $monthlyFeeCurrent['value'] ?? null,
                 'contract_count' => $contractCount,
-                'sparkline_path' => $this->sparklinePath($sparklineValues, 80, 24),
+                'spot_range_p20' => $spotEnergySummary['p20'] ?? null,
+                'spot_range_p80' => $spotEnergySummary['p80'] ?? null,
+                'spot_range_days' => $spotEnergySummary['days'] ?? null,
+                'sparkline_path' => $this->sparklinePath($values, 80, 24),
             ];
         }
 
@@ -336,6 +337,8 @@ class ContractPriceStatistics extends Component
                 continue;
             }
 
+            $annualCostSeries = $this->aggregatedSeries($segmentKey, 'annual_cost', $this->consumption);
+
             $rows[] = [
                 'segment_key' => $segmentKey,
                 'segment_label' => $segmentLabel,
@@ -347,6 +350,7 @@ class ContractPriceStatistics extends Component
                 'p80' => $latestRow->p80_value,
                 'max' => $latestRow->max_value,
                 'contract_count' => $latestRow->contract_count,
+                'sparkline_path' => $this->sparklinePath($annualCostSeries['median'], 80, 24),
             ];
         }
 
@@ -545,7 +549,7 @@ class ContractPriceStatistics extends Component
 
     private function statisticsViewDataCacheKey(): string
     {
-        return 'contract-price-statistics:view-data:v1:' . md5(json_encode([
+        return 'contract-price-statistics:view-data:v4:' . md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
             'version' => $this->statisticsDataVersion(),
@@ -566,12 +570,28 @@ class ContractPriceStatistics extends Component
             ->selectRaw('MAX(snapshot_date) as latest_date, MAX(updated_at) as latest_update')
             ->first();
 
+        $spotAverages = SpotPriceAverage::query()
+            ->forRegion('FI')
+            ->ofType(SpotPriceAverage::PERIOD_DAILY)
+            ->selectRaw('COUNT(*) as row_count, MAX(period_start) as latest_date, MAX(updated_at) as latest_update')
+            ->first();
+
+        $spotHours = SpotPriceHour::query()
+            ->forRegion('FI')
+            ->selectRaw('COUNT(*) as row_count, MAX(utc_datetime) as latest_date')
+            ->first();
+
         return [
             'statistics_row_count' => (int) ($statistics?->row_count ?? 0),
             'statistics_latest_date' => $statistics?->latest_date,
             'statistics_latest_update' => $statistics?->latest_update,
             'snapshots_latest_date' => $snapshots?->latest_date,
             'snapshots_latest_update' => $snapshots?->latest_update,
+            'spot_averages_row_count' => (int) ($spotAverages?->row_count ?? 0),
+            'spot_averages_latest_date' => $spotAverages?->latest_date,
+            'spot_averages_latest_update' => $spotAverages?->latest_update,
+            'spot_hours_row_count' => (int) ($spotHours?->row_count ?? 0),
+            'spot_hours_latest_date' => $spotHours?->latest_date,
         ];
     }
 
@@ -712,6 +732,230 @@ class ContractPriceStatistics extends Component
         }
 
         return ['x' => $x, 'median' => $median];
+    }
+
+    /**
+     * Period-aggregated series for the spot energy-price cell/sparkline in the
+     * contract-type table. This intentionally tracks the displayed c/kWh basis
+     * (trailing-12-month daily spot average + typical margin), while the annual
+     * cost sparkline lives in the annual-price table below.
+     *
+     * @return array{x:array<int,int>,median:array<int,?float>}
+     */
+    private function spotEnergyPriceAggregatedSeries(): array
+    {
+        $bands = $this->spotEnergyPriceAggregatedSeriesWithBands();
+
+        return ['x' => $bands['x'], 'median' => $bands['median']];
+    }
+
+    /**
+     * @return array{x:array<int,int>,median:array<int,?float>,p20:array<int,?float>,p80:array<int,?float>,min:array<int,?float>,max:array<int,?float>}
+     */
+    private function spotEnergyPriceAggregatedSeriesWithBands(): array
+    {
+        $rows = $this->dailyStats
+            ->where('segment_key', 'spot')
+            ->where('metric_key', 'spot_total_energy_price')
+            ->where('consumption_kwh', null);
+
+        if ($rows->isEmpty()) {
+            return ['x' => [], 'median' => [], 'p20' => [], 'p80' => [], 'min' => [], 'max' => []];
+        }
+
+        $daily = $rows
+            ->map(function ($row) {
+                $summary = $this->spotEnergyPriceSummaryForDate(Carbon::parse($row->stat_date)->toDateString());
+
+                return [
+                    'date' => $row->stat_date,
+                    'median' => $summary['avg'],
+                    'p20' => $summary['p20'],
+                    'p80' => $summary['p80'],
+                ];
+            })
+            ->filter(fn ($row) => $row['median'] !== null);
+
+        if ($daily->isEmpty()) {
+            return ['x' => [], 'median' => [], 'p20' => [], 'p80' => [], 'min' => [], 'max' => []];
+        }
+
+        $grouped = $daily
+            ->groupBy(fn ($row) => $this->periodStart($row['date'])->toDateString())
+            ->sortKeys();
+
+        $x = $median = $p20 = $p80 = $min = $max = [];
+        foreach ($grouped as $periodStart => $periodRows) {
+            $x[] = Carbon::parse($periodStart)->getTimestamp();
+            $median[] = $this->averageOrNull($periodRows->pluck('median'));
+            $p20[] = $this->averageOrNull($periodRows->pluck('p20'));
+            $p80[] = $this->averageOrNull($periodRows->pluck('p80'));
+            $min[] = $this->averageOrNull($periodRows->pluck('p20'));
+            $max[] = $this->averageOrNull($periodRows->pluck('p80'));
+        }
+
+        return ['x' => $x, 'median' => $median, 'p20' => $p20, 'p80' => $p80, 'min' => $min, 'max' => $max];
+    }
+
+    /**
+     * Spot's table c/kWh should represent a full seasonal cycle rather than a
+     * single cheap/expensive day. Use daily spot averages for the latest trailing
+     * 12 months and add the latest typical supplier margin.
+     *
+     * @return array{avg:?float,p20:?float,p80:?float,days:int,avg_30d_ago:?float,avg_at_start:?float}
+     */
+    private function spotEnergyPriceSummaryForLatestDate(): array
+    {
+        $spotRows = $this->dailyStats
+            ->where('segment_key', 'spot')
+            ->where('metric_key', 'spot_total_energy_price')
+            ->where('consumption_kwh', null)
+            ->sortBy('stat_date')
+            ->values();
+
+        if ($spotRows->isEmpty()) {
+            return ['avg' => null, 'p20' => null, 'p80' => null, 'days' => 0, 'avg_30d_ago' => null, 'avg_at_start' => null];
+        }
+
+        $latestDate = Carbon::parse($spotRows->last()->stat_date)->toDateString();
+        $firstDate = Carbon::parse($spotRows->first()->stat_date)->toDateString();
+        $thirtyDaysAgo = Carbon::parse($latestDate)->subDays(30)->toDateString();
+        $latest = $this->spotEnergyPriceSummaryForDate($latestDate);
+
+        return [
+            ...$latest,
+            'avg_30d_ago' => $this->spotEnergyPriceSummaryForDate($thirtyDaysAgo)['avg'],
+            'avg_at_start' => $this->spotEnergyPriceSummaryForDate($firstDate)['avg'],
+        ];
+    }
+
+    /**
+     * @return array{avg:?float,p20:?float,p80:?float,days:int}
+     */
+    private function spotEnergyPriceSummaryForDate(string $dateString): array
+    {
+        $endDate = Carbon::parse($dateString)->toDateString();
+        if (array_key_exists($endDate, $this->spotEnergySummaryCache)) {
+            return $this->spotEnergySummaryCache[$endDate];
+        }
+
+        $startDate = Carbon::parse($endDate)->subDays(364)->toDateString();
+        $margin = $this->latestSpotMargin($endDate) ?? 0.0;
+
+        $dailyMarketPrices = $this->dailySpotMarketPricesForWindow($startDate, $endDate);
+
+        if ($dailyMarketPrices !== []) {
+            $dailyTotals = array_map(fn (float $price) => $price + $margin, $dailyMarketPrices);
+
+            return $this->spotEnergySummaryCache[$endDate] = [
+                'avg' => array_sum($dailyTotals) / count($dailyTotals),
+                'p20' => $this->percentileFromValues($dailyTotals, 20),
+                'p80' => $this->percentileFromValues($dailyTotals, 80),
+                'days' => count($dailyTotals),
+            ];
+        }
+
+        // Test/development fallback: if stored spot averages are unavailable,
+        // use the page's own daily spot-total medians over the same window.
+        $dailyTotals = $this->dailyStats
+            ->where('segment_key', 'spot')
+            ->where('metric_key', 'spot_total_energy_price')
+            ->where('consumption_kwh', null)
+            ->filter(fn ($row) => Carbon::parse($row->stat_date)->betweenIncluded($startDate, $endDate))
+            ->pluck('median_value')
+            ->filter(fn ($value) => $value !== null)
+            ->map(fn ($value) => (float) $value)
+            ->values()
+            ->all();
+
+        if ($dailyTotals === []) {
+            return $this->spotEnergySummaryCache[$endDate] = ['avg' => null, 'p20' => null, 'p80' => null, 'days' => 0];
+        }
+
+        return $this->spotEnergySummaryCache[$endDate] = [
+            'avg' => array_sum($dailyTotals) / count($dailyTotals),
+            'p20' => $this->percentileFromValues($dailyTotals, 20),
+            'p80' => $this->percentileFromValues($dailyTotals, 80),
+            'days' => count($dailyTotals),
+        ];
+    }
+
+    /** @var array<string, array{avg:?float,p20:?float,p80:?float,days:int}> */
+    private array $spotEnergySummaryCache = [];
+
+    /**
+     * @return array<int, float>
+     */
+    private function dailySpotMarketPricesForWindow(string $startDate, string $endDate): array
+    {
+        $expectedDays = Carbon::parse($startDate)->diffInDays(Carbon::parse($endDate)) + 1;
+        $minimumCompleteDays = min(300, (int) floor($expectedDays * 0.8));
+
+        $averagePrices = SpotPriceAverage::forRegion('FI')
+            ->ofType(SpotPriceAverage::PERIOD_DAILY)
+            ->whereBetween('period_start', [$startDate, $endDate])
+            ->whereNotNull('avg_price_with_tax')
+            ->orderBy('period_start')
+            ->pluck('avg_price_with_tax')
+            ->map(fn ($value) => (float) $value)
+            ->values()
+            ->all();
+
+        if (count($averagePrices) >= $minimumCompleteDays) {
+            return $averagePrices;
+        }
+
+        $hourlyDailyPrices = SpotPriceHour::forRegion('FI')
+            ->whereBetween('utc_datetime', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()])
+            ->selectRaw('DATE(utc_datetime) as price_date, AVG(price_without_tax * (1 + vat_rate)) as avg_price_with_tax')
+            ->groupBy('price_date')
+            ->orderBy('price_date')
+            ->pluck('avg_price_with_tax')
+            ->map(fn ($value) => (float) $value)
+            ->values()
+            ->all();
+
+        if (count($hourlyDailyPrices) >= $minimumCompleteDays || count($hourlyDailyPrices) > count($averagePrices)) {
+            return $hourlyDailyPrices;
+        }
+
+        return $averagePrices;
+    }
+
+    private function latestSpotMargin(string $latestDate): ?float
+    {
+        $row = $this->dailyStats
+            ->where('segment_key', 'spot')
+            ->where('metric_key', 'spot_margin')
+            ->where('consumption_kwh', null)
+            ->filter(fn ($stat) => Carbon::parse($stat->stat_date)->lte($latestDate))
+            ->sortByDesc('stat_date')
+            ->first();
+
+        return $row?->median_value !== null ? (float) $row->median_value : null;
+    }
+
+    /**
+     * @param array<int, float> $values
+     */
+    private function percentileFromValues(array $values, float $percentile): ?float
+    {
+        if ($values === []) {
+            return null;
+        }
+
+        sort($values);
+        $n = count($values);
+        if ($n === 1) {
+            return $values[0];
+        }
+
+        $index = ($percentile / 100) * ($n - 1);
+        $lower = (int) floor($index);
+        $upper = (int) ceil($index);
+        $weight = $index - $lower;
+
+        return $values[$lower] * (1 - $weight) + $values[$upper] * $weight;
     }
 
     private function periodStart(CarbonInterface|string $date): CarbonInterface

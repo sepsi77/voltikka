@@ -289,7 +289,7 @@ function updateTooltip(u, payload) {
         const hi = u.data[2][idx];
         if (lo !== null && lo !== undefined && hi !== null && hi !== undefined) {
             lines.push(
-                `<div style="color:${SLATE_400};font-size:11px;margin-bottom:4px">Halvempi 20 % – kalliimpi 20 %: ${formatNumber(lo, payload.decimals)}–${formatNumber(hi, payload.decimals)} ${payload.unit === 'eur' ? '€' : 'c/kWh'}</div>`
+                `<div style="color:${SLATE_400};font-size:11px;margin-bottom:4px">${formatNumber(lo, payload.decimals)}–${formatNumber(hi, payload.decimals)} ${payload.unit === 'eur' ? '€' : 'c/kWh'}</div>`
             );
         }
     }

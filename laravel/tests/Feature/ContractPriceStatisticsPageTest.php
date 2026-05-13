@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\ContractPriceDailyStatistic;
+use App\Models\SpotPriceAverage;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -34,13 +35,17 @@ class ContractPriceStatisticsPageTest extends TestCase
         $response->assertSee('Hinnat sopimustyypeittäin');
         $response->assertSee('Taulukko näyttää viimeisimmän keräyspäivän tyypillisen energiahinnan');
         $response->assertSee('Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois');
-        $response->assertSee('Pörssisähkön energiahinta on kyseisen päivän pörssin keskihinta + sopimuksen marginaali');
-        $response->assertSee('Trendi on vuosikustannuksen kehitys');
+        $response->assertSee('Pörssisähkön energiahinta on viimeisen 12 kuukauden toteutunut päiväkeskiarvo + tyypillinen marginaali');
+        $response->assertSee('Vaihteluväli näyttää saman 12 kuukauden päivähintojen tavanomaisen vaihtelun');
+        $response->assertSee('Trendi näyttää energiahinnan mediaanin kehityksen');
+        $response->assertSee('Energiahinnan trendi');
         $response->assertSee('Hintahaarukka');
         $response->assertSee('Taulukko näyttää viimeisimmän keräyspäivän vuosikustannusten jakauman');
         $response->assertSee('sisältää energiahinnan sekä perusmaksut 12 kuukaudelta');
         $response->assertSee('Pörssisähkössä vuosikustannus käyttää edeltävän 12 kuukauden pörssin keskihintaa');
+        $response->assertSee('Vuosihinnan trendi');
         $response->assertSee('Sopimusmäärä voi poiketa ylemmästä hintataulukosta');
+        $response->assertSee('Sopimustyyppien c/kWh-taulukossa pörssisähkö näytetään viimeisen 12 kuukauden toteutuneena päiväkeskiarvona');
         $response->assertSee('Mistä luvut tulevat');
         $response->assertSee('Viittaa tähän');
         $response->assertSee('CC&nbsp;BY&nbsp;4.0', false);
@@ -153,6 +158,33 @@ class ContractPriceStatisticsPageTest extends TestCase
         $response->assertSee('Vs. pörssisähkö, 5 000 kWh/v');
         $response->assertSee('€/v vs.', false);
         $response->assertDontSee('c/kWh vs.', false);
+    }
+
+    public function test_segment_table_shows_spot_as_12_month_average_with_daily_p20_p80_range(): void
+    {
+        $this->seedSampleStatistics();
+
+        foreach ([
+            ['date' => '2026-04-21', 'price' => 4.0],
+            ['date' => '2026-04-22', 'price' => 8.0],
+            ['date' => '2026-04-23', 'price' => 12.0],
+        ] as $row) {
+            SpotPriceAverage::create([
+                'region' => 'FI',
+                'period_type' => SpotPriceAverage::PERIOD_DAILY,
+                'period_start' => $row['date'],
+                'period_end' => $row['date'],
+                'avg_price_without_tax' => $row['price'],
+                'avg_price_with_tax' => $row['price'],
+                'hours_count' => 24,
+            ]);
+        }
+
+        $response = $this->get('/sahkosopimus/tilastot');
+
+        $response->assertStatus(200);
+        $response->assertSee('12 kk keskihinta + marginaali');
+        $response->assertDontSee('P20–P80:');
     }
 
     public function test_lead_chart_caption_uses_annual_cost_trend_not_current_spot_cents(): void

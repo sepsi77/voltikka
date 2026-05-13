@@ -21,6 +21,7 @@ Primary files:
 - `contracts:fetch` must run daily statistics before optional percentile badge recalculation; otherwise a percentile memory failure can leave imported price rows without `/sahkosopimus/tilastot` aggregate rows.
 - Spot contracts track both margin and realistic total energy price (`stored spot average + margin`).
 - Spot `annual_cost` uses trailing-365-day spot average plus margin; use this annual-cost metric, not current/day-period `spot_total_energy_price`, when making contract-type cost comparisons against spot.
+- On `/sahkosopimus/tilastot`, the contract-type energy-price table also shows spot as trailing-12-month realized daily spot average + latest typical margin, with p20–p80 calculated from daily spot prices over the same window. Do not switch that row back to latest-day spot, because it is compared against longer-term contract prices.
 - Weekly/monthly UI aggregates should average daily statistics, not recompute from all contract-day rows, so trend lines are market-day weighted.
 - `/sahkosopimus/tilastot` caches its prepared Livewire view data per period + consumption until the next day, with cache keys versioned by cheap source-table fingerprints. This prevents repeated request-time grouping of the full daily-statistics table while preserving Livewire controls.
 

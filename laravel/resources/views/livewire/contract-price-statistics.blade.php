@@ -337,10 +337,10 @@
                             Aineisto: <span class="font-semibold text-slate-700 tabular-nums">{{ $fiDate($dataWindow['from']) }}–{{ $fiDate($dataWindow['to']) }}</span>.
                         </p>
                         <p class="mt-2">
-                            Pörssisähkön energiahinta on kyseisen päivän pörssin keskihinta + sopimuksen marginaali. Muiden sopimusten energiahinta on sopimuksen oma julkaistu hinta; aika- ja kausisähköissä se painotetaan tyypilliseksi yleishinnaksi.
+                            Pörssisähkön energiahinta on viimeisen 12 kuukauden toteutunut päiväkeskiarvo + tyypillinen marginaali. Vaihteluväli näyttää saman 12 kuukauden päivähintojen tavanomaisen vaihtelun. Muiden sopimusten energiahinta on sopimuksen oma julkaistu hinta; aika- ja kausisähköissä se painotetaan tyypilliseksi yleishinnaksi.
                         </p>
                         <p class="mt-2">
-                            Trendi on vuosikustannuksen kehitys valitulla {{ $consumptionLabel }}&nbsp;kWh kulutuksella, ei pelkän c/kWh-hinnan muutos.
+                            Trendi näyttää energiahinnan mediaanin kehityksen. Pörssisähkössä trendi seuraa 12 kuukauden liukuvaa päiväkeskiarvoa + tyypillistä marginaalia.
                         </p>
                     </div>
                 </div>
@@ -355,7 +355,7 @@
                                 <th class="py-3 px-3 font-semibold text-right">Δ&nbsp;30&nbsp;pv</th>
                                 <th class="py-3 px-3 font-semibold text-right">Δ&nbsp;alusta</th>
                                 <th class="py-3 px-3 font-semibold text-right">Perusmaksu</th>
-                                <th class="py-3 pl-3 pr-4 sm:pr-0 font-semibold">Trendi</th>
+                                <th class="py-3 pl-3 pr-4 sm:pr-0 font-semibold">Energiahinnan trendi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -366,7 +366,7 @@
                                             {{ $row['segment_label'] }}
                                         </span>
                                         @if ($row['is_spot'])
-                                            <span class="block text-[11px] text-slate-400 mt-0.5">pörssin keskihinta + marginaali</span>
+                                            <span class="block text-[11px] text-slate-400 mt-0.5">12 kk keskihinta + marginaali</span>
                                         @endif
                                     </td>
                                     <td class="py-3 px-3 text-right tabular-nums text-slate-500">
@@ -374,6 +374,11 @@
                                     </td>
                                     <td class="py-3 px-3 text-right tabular-nums font-semibold text-slate-900">
                                         {{ $fmtNum($row['current_price'], 2) }}<span class="text-slate-400 font-normal">&nbsp;{{ $row['unit'] }}</span>
+                                        @if ($row['is_spot'] && $row['spot_range_p20'] !== null && $row['spot_range_p80'] !== null)
+                                            <span class="mt-0.5 block text-[11px] font-medium text-slate-400">
+                                                {{ $fmtNum($row['spot_range_p20'], 2) }}–{{ $fmtNum($row['spot_range_p80'], 2) }}&nbsp;{{ $row['unit'] }}
+                                            </span>
+                                        @endif
                                     </td>
                                     <td class="py-3 px-3 text-right tabular-nums {{ $deltaClass($row['delta_30d_pct']) }}">
                                         {{ $fmtPct($row['delta_30d_pct']) }}
@@ -389,7 +394,7 @@
                                         @endif
                                     </td>
                                     <td class="py-3 pl-3 pr-4 sm:pr-0">
-                                        @if ($row['sparkline_path'])
+                                        @if ($row['sparkline_path'] ?? null)
                                             <svg viewBox="0 0 80 24" width="80" height="24" class="block"
                                                  aria-label="{{ $row['segment_label'] }}, hintatrendi"
                                                  preserveAspectRatio="none">
@@ -441,7 +446,7 @@
                             Halvin on markkinoiden alin vuosikustannus. Halvempi&nbsp;20&nbsp;% on raja, jonka alle viidennes saman tyypin sopimuksista jää. Mediaani kuvaa tyypillistä sopimusta, ja kalliimpi&nbsp;20&nbsp;% on raja, jonka yli viidennes nousee.
                         </p>
                         <p class="mt-2">
-                            Pörssisähkössä vuosikustannus käyttää edeltävän 12 kuukauden pörssin keskihintaa + sopimuksen marginaalia. Kiinteissä ja muissa sopimuksissa käytetään sopimuksen julkaistua energiahintaa. Sopimusmäärä voi poiketa ylemmästä hintataulukosta, jos sopimus ei ole tarjolla valitulle kulutukselle tai vuosihintaa ei voi laskea.
+                            Pörssisähkössä vuosikustannus käyttää edeltävän 12 kuukauden pörssin keskihintaa + sopimuksen marginaalia. Kiinteissä ja muissa sopimuksissa käytetään sopimuksen julkaistua energiahintaa. Trendi näyttää vuosikustannuksen mediaanin kehityksen valitulla kulutuksella. Sopimusmäärä voi poiketa ylemmästä hintataulukosta, jos sopimus ei ole tarjolla valitulle kulutukselle tai vuosihintaa ei voi laskea.
                         </p>
                     </div>
                 </div>
@@ -462,7 +467,8 @@
                                 <th class="py-3 px-3 font-semibold text-right">
                                     <abbr title="80. persentiili: viidennes sopimuksista on tätä kalliimpia." class="no-underline cursor-help">Kalliimpi&nbsp;20&nbsp;%</abbr>
                                 </th>
-                                <th class="py-3 pl-3 pr-4 sm:pr-0 font-semibold text-right">Sopimuksia</th>
+                                <th class="py-3 px-3 font-semibold text-right">Sopimuksia</th>
+                                <th class="py-3 pl-3 pr-4 sm:pr-0 font-semibold">Vuosihinnan trendi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -475,7 +481,23 @@
                                     <td class="py-3 px-3 text-right tabular-nums text-slate-700">{{ $fmtNum($row['p20'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
                                     <td class="py-3 px-3 text-right tabular-nums font-bold text-slate-900">{{ $fmtNum($row['median'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
                                     <td class="py-3 px-3 text-right tabular-nums text-slate-700">{{ $fmtNum($row['p80'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
-                                    <td class="py-3 pl-3 pr-4 sm:pr-0 text-right tabular-nums text-slate-500">{{ number_format($row['contract_count'], 0, ',', ' ') }}</td>
+                                    <td class="py-3 px-3 text-right tabular-nums text-slate-500">{{ number_format($row['contract_count'], 0, ',', ' ') }}</td>
+                                    <td class="py-3 pl-3 pr-4 sm:pr-0">
+                                        @if ($row['sparkline_path'] ?? null)
+                                            <svg viewBox="0 0 80 24" width="80" height="24" class="block"
+                                                 aria-label="{{ $row['segment_label'] }}, vuosihinnan trendi"
+                                                 preserveAspectRatio="none">
+                                                <path d="{{ $row['sparkline_path'] }}"
+                                                      fill="none"
+                                                      stroke="{{ $row['is_lead'] ? '#f97316' : '#94a3b8' }}"
+                                                      stroke-width="1.5"
+                                                      stroke-linecap="round"
+                                                      stroke-linejoin="round" />
+                                            </svg>
+                                        @else
+                                            <span class="text-slate-300">–</span>
+                                        @endif
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -507,7 +529,7 @@
                         Tarkemmin sopimustyypeittäin
                     </h2>
                     <p class="text-sm text-slate-500 max-w-[60ch] mb-7">
-                        Yksittäisten sopimustyyppien hintakehitys ja tämänhetkinen markkinahaarukka. Vaalea alue kuvaa hintojen keskimmäistä 60&nbsp;%, viiva on mediaani.
+                        Kaavioissa viiva näyttää energiahinnan mediaanin ja vaalea alue tavanomaisen vaihteluvälin. Pörssisähkössä viiva on 12 kuukauden liukuva keskiarvo toteutuneista päivähinnoista + tyypillinen marginaali; vaalea alue näyttää saman liukuvan 12 kuukauden jakson päivähintojen vaihteluvälin. Muissa sopimustyypeissä viiva ja alue perustuvat sopimusten julkaistuihin energiahintoihin.
                     </p>
 
                     {{-- In-page TOC: chip-style anchors --}}
@@ -631,7 +653,7 @@
                                         <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
                                             <figure class="lg:col-span-2">
                                                 <figcaption class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500 mb-3">
-                                                    Kokonaishinta &amp; haarukka
+                                                    Energiahinta (12 ka.) &amp; vaihteluväli
                                                 </figcaption>
                                                 <div wire:key="dive-{{ $dive['anchor'] }}-{{ $period }}-{{ $dataWindow['to'] }}"
                                                      wire:ignore
@@ -688,7 +710,7 @@
                             Kunkin päivän tilastoihin otetaan mukaan ne sopimukset, joilla on kyseiselle päivälle hintatiedot tietokannassa. Hinnat sisältävät arvonlisäveron 25,5 %.
                         </p>
                         <p>
-                            Pörssipohjaisille sopimuksille käytetään kahta eri laskentatapaa. Sivun c/kWh-hinnat ja pörssisähkön kokonaishinta perustuvat sen päivän pörssin keskihintaan, johon lisätään sopimuksen marginaali, jolloin luku heijastaa sähkön todellista hetkellistä hintaa. Vuosikustannukset taas lasketaan edeltävän 12 kuukauden pörssin keskihinnasta plus marginaali, jolloin luku vastaa sitä, mitä spot-asiakas olisi käytännössä maksanut vuodessa, eivätkä yksittäisten päivien hintapiikit vääristä sitä.
+                            Pörssipohjaisille sopimuksille käytetään kahta eri laskentatapaa. Sopimustyyppien c/kWh-taulukossa pörssisähkö näytetään viimeisen 12 kuukauden toteutuneena päiväkeskiarvona + tyypillisenä marginaalina, jotta sitä voi verrata pitkäkestoisempiin sopimushintoihin. P20–P80-väli lasketaan saman 12 kuukauden päivähinnoista ja kertoo, missä haarukassa tavanomaiset spot-päivät liikkuivat. Vuosikustannukset lasketaan samalla edeltävän 12 kuukauden pörssitasolla plus marginaali, jolloin yksittäiset hintapiikit eivät vääristä vertailua.
                         </p>
                         <p>
                             Kiinteähintaisille sopimuksille (määräaikaiset, joustosähkö ja toistaiseksi voimassa olevat) käytetään sopimuksen omaa energiahintaa. Vuosikustannus on energiahinta&nbsp;×&nbsp;kulutus + perusmaksut&nbsp;×&nbsp;12, eli sama kaava kuin Voltikan sopimusvertailussa.

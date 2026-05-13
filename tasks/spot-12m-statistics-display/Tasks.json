@@ -1,0 +1,8 @@
+[
+  {"name":"Inspect current statistics data preparation and table rendering","status":"done"},
+  {"name":"Implement 12-month spot average and p20-p80 display","status":"done"},
+  {"name":"Update explanatory copy and documentation","status":"done"},
+  {"name":"Move annual-cost sparkline to annual-price table and make energy table sparkline match energy component","status":"done"},
+  {"name":"Align spot deep-dive chart with 12-month average and p20-p80 shading","status":"done"},
+  {"name":"Run focused tests/checks","status":"done"}
+]
