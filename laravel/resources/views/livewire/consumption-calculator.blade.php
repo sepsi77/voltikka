@@ -1,13 +1,24 @@
 <div>
+    <script type="application/ld+json">{!! json_encode($this->generateJsonLd(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+
     <!-- Hero Section - Dark slate background -->
     <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav class="pt-6 text-sm text-slate-400" aria-label="Murupolku">
+                <ol class="flex flex-wrap items-center gap-2">
+                    <li><a href="/" class="hover:text-coral-400">Etusivu</a></li>
+                    <li aria-hidden="true">›</li>
+                    <li><a href="/sahkosopimus" class="hover:text-coral-400">Sähkösopimus</a></li>
+                    <li aria-hidden="true">›</li>
+                    <li class="text-slate-200">{{ $this->pageHeading }}</li>
+                </ol>
+            </nav>
             <div class="py-12 lg:py-16 text-center">
                 <h1 class="text-3xl md:text-4xl xl:text-5xl font-extrabold text-white tracking-tight leading-none mb-4">
-                    Sähkönkulutus<span class="text-coral-400">laskuri</span>
+                    {{ $this->pageHeading }}
                 </h1>
                 <p class="max-w-2xl mx-auto text-slate-300 md:text-lg">
-                    Laske kotitaloutesi arvioitu sähkönkulutus ja vertaile sähkösopimuksia.
+                    {{ $this->pageTagline }}
                 </p>
             </div>
         </div>
@@ -16,12 +27,9 @@
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
     <!-- Introduction -->
-    <div class="mb-8 text-center max-w-2xl mx-auto">
-        <p class="text-slate-600 mb-4">
-            Sähkönkulutuslaskuri auttaa sinua arvioimaan kotitaloutesi vuotuisen sähkönkulutuksen. Syötä asuntosi tiedot ja laskuri laskee kulutuksen automaattisesti huomioiden asunnon koon, asukkaiden määrän sekä mahdolliset lisäkuluttajat kuten saunan tai sähköauton.
-        </p>
-        <p class="text-slate-500 text-sm">
-            Kun olet saanut kulutusarvion, voit siirtyä vertailemaan sähkösopimuksia juuri sinun kulutuksellesi lasketuilla hinnoilla. Näet heti, mikä sopimus on edullisin ja paljonko vuodessa maksaisit.
+    <div class="mb-8 max-w-3xl mx-auto">
+        <p class="text-slate-600 leading-relaxed">
+            {{ $this->seoIntroText }}
         </p>
     </div>
 
@@ -329,16 +337,204 @@
         </button>
     </section>
 
-    <!-- Info Section -->
-    <section class="bg-slate-50 rounded-xl p-6 text-sm text-slate-600">
-        <h4 class="font-semibold text-slate-900 mb-2">Tietoa laskurista</h4>
-        <ul class="list-disc list-inside space-y-1">
-            <li>Perussähkönkulutus: 400 kWh/hlö + 30 kWh/m² vuodessa</li>
-            <li>Lämmityksen tarve vaihtelee sijainnin ja rakennuksen iän mukaan</li>
-            <li>Lämpöpumppu vähentää sähkönkulutusta: ilma-vesi 2.2x, maalämpö 2.9x</li>
-            <li>Sauna: ~7.5 kWh/lämmityskerta, jatkuvalämmitteinen ~2750 kWh/v</li>
-            <li>Sähköauto: ~0.2 kWh/km</li>
+    <!-- SEO Content Section -->
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8 mb-8 text-slate-700 leading-relaxed">
+        <h2 class="text-2xl font-bold text-slate-900 mb-3">Miten sähkönkulutuslaskuri toimii?</h2>
+        <p class="mb-4">
+            Voltikan sähkönkulutuslaskuri laskee arvion vuosikulutuksestasi neljästä osasta: perussähköstä,
+            mahdollisesta sähkölämmityksestä, käyttöveden lämmityksestä sekä erillisistä lisäkuluttajista.
+            Pohjana on tilastollinen kaava, jota tarkennetaan syöttämiesi tietojen mukaan.
+        </p>
+        <ul class="list-disc pl-5 space-y-2 mb-6">
+            <li><strong>Perussähkö:</strong> 400 kWh asukasta kohti vuodessa + 30 kWh asuinneliötä kohti.
+                Tämä kattaa valaistuksen, kodinkoneet, viihde-elektroniikan ja muun jokapäiväisen kulutuksen.</li>
+            <li><strong>Lämmityksen sähkönkulutus:</strong> riippuu asunnon koosta, sijainnista
+                (etelä, keski- vai pohjois-Suomi), rakennusvuodesta ja lämmitystavasta. Suora sähkölämmitys
+                käyttää sähköä 1:1, ilma-vesilämpöpumppu noin 2,2× tehokkaammin ja maalämpö noin 2,9× tehokkaammin.</li>
+            <li><strong>Käyttöveden lämmitys:</strong> noin 120 litraa vettä asukasta kohden päivässä, josta
+                40 % on lämmintä. Sähkölämmitteisessä talossa tämä on osa kokonaiskulutusta.</li>
+            <li><strong>Lisäkuluttajat:</strong> sauna noin 7,5 kWh/lämmityskerta, sähköauto noin 0,2 kWh/km,
+                kylpyhuoneen lattialämmitys noin 200 kWh/m²/vuosi ja ilmastointi noin 240 kWh/vuosi.</li>
         </ul>
+
+        <h2 class="text-2xl font-bold text-slate-900 mb-3">Sähkön kulutuksen laskeminen itse</h2>
+        <p class="mb-4">
+            Voit toistaa saman laskelman myös käsin – sähkönkulutuslaskuri käyttää tilastollista kaavaa,
+            joka jakautuu neljään osaan: <strong>perussähkö</strong>, <strong>lämmitys</strong>,
+            <strong>käyttöveden lämmitys</strong> ja <strong>lisäkuluttajat</strong>. Käytämme
+            esimerkkinä 120 m² omakotitaloa Keski-Suomessa: 4 asukasta, rakennettu 2000-luvulla,
+            suora sähkölämmitys.
+        </p>
+
+        <h3 class="text-lg font-semibold text-slate-900 mb-2">1. Perussähkö (valaistus, kodinkoneet, elektroniikka)</h3>
+        <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-3 font-mono text-sm text-slate-800">
+            Perussähkö = asukkaat × 400 kWh + asuinpinta-ala × 30 kWh
+        </div>
+        <p class="mb-6">
+            Esimerkkitaloutemme: 4 × 400 + 120 × 30 = 1 600 + 3 600 = <strong>5 200 kWh/v</strong>.
+        </p>
+
+        <h3 class="text-lg font-semibold text-slate-900 mb-2">2. Lämmityksen sähkönkulutus</h3>
+        <p class="mb-3">
+            Lämmityksen energiantarve riippuu lämmitettävästä tilavuudesta sekä sijainnin ja
+            rakennusvuoden mukaan määräytyvästä lämmityskertoimesta. Kaava:
+        </p>
+        <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-3 font-mono text-sm text-slate-800">
+            Lämmitysenergia = asuinpinta-ala × 2,6 m × lämmityskerroin (kWh/m³)
+        </div>
+        <p class="mb-3">Käytä alla olevaa taulukkoa lämmityskertoimen valintaan (kWh/m³/vuosi):</p>
+        <div class="mb-4 overflow-x-auto">
+            <table class="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                <thead class="bg-slate-50 text-slate-700">
+                    <tr>
+                        <th class="text-left px-3 py-2 font-semibold">Rakennuskausi</th>
+                        <th class="text-right px-3 py-2 font-semibold">Etelä-Suomi</th>
+                        <th class="text-right px-3 py-2 font-semibold">Keski-Suomi</th>
+                        <th class="text-right px-3 py-2 font-semibold">Pohjois-Suomi</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    <tr><td class="px-3 py-2">Passiivitalo</td><td class="px-3 py-2 text-right">8</td><td class="px-3 py-2 text-right">10</td><td class="px-3 py-2 text-right">12</td></tr>
+                    <tr><td class="px-3 py-2">Matalaenergiatalo</td><td class="px-3 py-2 text-right">19</td><td class="px-3 py-2 text-right">24</td><td class="px-3 py-2 text-right">31</td></tr>
+                    <tr><td class="px-3 py-2">2010-luku</td><td class="px-3 py-2 text-right">32</td><td class="px-3 py-2 text-right">39</td><td class="px-3 py-2 text-right">49</td></tr>
+                    <tr><td class="px-3 py-2">2000-luku</td><td class="px-3 py-2 text-right">42</td><td class="px-3 py-2 text-right">51</td><td class="px-3 py-2 text-right">65</td></tr>
+                    <tr><td class="px-3 py-2">1990-luku</td><td class="px-3 py-2 text-right">47</td><td class="px-3 py-2 text-right">57</td><td class="px-3 py-2 text-right">73</td></tr>
+                    <tr><td class="px-3 py-2">1980-luku</td><td class="px-3 py-2 text-right">55</td><td class="px-3 py-2 text-right">66</td><td class="px-3 py-2 text-right">84</td></tr>
+                    <tr><td class="px-3 py-2">1970-luku</td><td class="px-3 py-2 text-right">56</td><td class="px-3 py-2 text-right">68</td><td class="px-3 py-2 text-right">86</td></tr>
+                    <tr><td class="px-3 py-2">1960-luku</td><td class="px-3 py-2 text-right">61</td><td class="px-3 py-2 text-right">74</td><td class="px-3 py-2 text-right">93</td></tr>
+                    <tr><td class="px-3 py-2">Vanhempi</td><td class="px-3 py-2 text-right">65</td><td class="px-3 py-2 text-right">78</td><td class="px-3 py-2 text-right">99</td></tr>
+                </tbody>
+            </table>
+            <p class="text-xs text-slate-500 mt-2">Lähde: lammitysvertailu.eneuvonta.fi</p>
+        </div>
+        <p class="mb-3">
+            Esimerkki: lämmitystilavuus 120 × 2,6 = 312 m³. Keski-Suomi + 2000-luku → kerroin
+            51 kWh/m³. Lämmitysenergian tarve = 312 × 51 ≈ <strong>15 900 kWh</strong>.
+        </p>
+        <p class="mb-3">
+            Lopullinen sähkönkulutus riippuu lämmitystavan hyötysuhteesta: jaa lämmitysenergia
+            hyötysuhteella.
+        </p>
+        <ul class="list-disc pl-5 space-y-1 mb-6">
+            <li>Suora sähkölämmitys (η = 1,0): 15 900 / 1,0 = <strong>15 900 kWh</strong></li>
+            <li>Ilma-vesilämpöpumppu (η = 2,2): 15 900 / 2,2 ≈ <strong>7 230 kWh</strong></li>
+            <li>Maalämpö (η = 2,9): 15 900 / 2,9 ≈ <strong>5 480 kWh</strong></li>
+        </ul>
+
+        <h3 class="text-lg font-semibold text-slate-900 mb-2">3. Käyttöveden lämmitys</h3>
+        <p class="mb-3">
+            Sähkölämmitteisessä talossa myös käyttöveden lämmitys kuluttaa sähköä. Oletuksena
+            henkilö käyttää 120 litraa vettä päivässä, josta 40 % on lämmintä, ja 1 °C → 58 °C
+            lämmitykseen tarvitaan 58 °C × 1 kWh/(°C·m³).
+        </p>
+        <div class="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-3 font-mono text-sm text-slate-800">
+            Käyttövesi = asukkaat × 120 l × 0,4 × 365 × 58 / 1000
+        </div>
+        <p class="mb-6">
+            Esimerkki: 4 × 120 × 0,4 × 365 × 58 / 1000 ≈ <strong>4 070 kWh/v</strong>
+            (lisäksi varaajan energiahäviö noin 600–1 000 kWh vuodessa).
+        </p>
+
+        <h3 class="text-lg font-semibold text-slate-900 mb-2">4. Lisäkuluttajat</h3>
+        <p class="mb-3">Lisää summa erikseen kullekin lisäkuluttajalle:</p>
+        <ul class="list-disc pl-5 space-y-2 mb-6">
+            <li><strong>Sauna:</strong> käyttökerrat/viikko × 7,5 kWh × 52 viikkoa.
+                Esim. 2 kertaa viikossa: 2 × 7,5 × 52 = <strong>780 kWh/v</strong>.
+                Jatkuvalämmitteinen kiuas n. 2 750 kWh/v.</li>
+            <li><strong>Sähköauto:</strong> km/kuukausi × 0,199 kWh × 12 kuukautta.
+                Esim. 1 500 km/kk: 1 500 × 0,199 × 12 ≈ <strong>3 580 kWh/v</strong>.</li>
+            <li><strong>Kylpyhuoneen lattialämmitys:</strong> lämmitetyt neliöt × 200 kWh.
+                Esim. 5 m²: 5 × 200 = <strong>1 000 kWh/v</strong>.</li>
+            <li><strong>Ilmastointi:</strong> kiinteä noin <strong>240 kWh/v</strong>.</li>
+        </ul>
+
+        <h3 class="text-lg font-semibold text-slate-900 mb-2">Esimerkin yhteenlasku</h3>
+        <div class="mb-3 overflow-x-auto">
+            <table class="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                <thead class="bg-slate-50 text-slate-700">
+                    <tr>
+                        <th class="text-left px-3 py-2 font-semibold">Erä</th>
+                        <th class="text-right px-3 py-2 font-semibold">Sähkönkulutus</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    <tr><td class="px-3 py-2">Perussähkö (4 hlö, 120 m²)</td><td class="px-3 py-2 text-right">5 200 kWh</td></tr>
+                    <tr><td class="px-3 py-2">Lämmitys (suora sähkö, 2000-luku, Keski-Suomi)</td><td class="px-3 py-2 text-right">15 900 kWh</td></tr>
+                    <tr><td class="px-3 py-2">Käyttövesi (4 hlö)</td><td class="px-3 py-2 text-right">4 700 kWh</td></tr>
+                    <tr><td class="px-3 py-2">Sauna (2 × viikossa)</td><td class="px-3 py-2 text-right">780 kWh</td></tr>
+                    <tr class="bg-slate-50 font-semibold text-slate-900"><td class="px-3 py-2">Yhteensä</td><td class="px-3 py-2 text-right">≈ 26 600 kWh/v</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="mb-6">
+            Jos sama talo lämmitettäisiin ilma-vesilämpöpumpulla, lämmityserä putoaisi noin
+            7 230 kWh:iin ja kokonaiskulutus noin 18 000 kWh:iin vuodessa. Maalämmöllä
+            kokonaiskulutus jäisi noin 16 200 kWh:iin.
+        </p>
+
+        <h3 class="text-lg font-semibold text-slate-900 mb-2">Vertaa tulosta tilastollisiin keskiarvoihin</h3>
+        <p class="mb-3">
+            Kun olet saanut oman lukusi, vertaa sitä saman kokoluokan kotitalouksien tyypilliseen
+            kulutukseen. Jos arviosi poikkeaa selvästi alla olevasta haarukasta, suurin selittäjä
+            on yleensä lämmitystapa tai rakennuksen eristystaso – tarkista ne ensimmäisenä.
+        </p>
+        <div class="mb-6 overflow-x-auto">
+            <table class="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+                <thead class="bg-slate-50 text-slate-700">
+                    <tr>
+                        <th class="text-left px-3 py-2 font-semibold">Asuntotyyppi</th>
+                        <th class="text-left px-3 py-2 font-semibold">Tyypillinen vuosikulutus</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    <tr><td class="px-3 py-2">Kerrostaloasunto</td><td class="px-3 py-2">2 000–5 000 kWh</td></tr>
+                    <tr><td class="px-3 py-2">Rivitaloasunto</td><td class="px-3 py-2">5 000–9 000 kWh</td></tr>
+                    <tr><td class="px-3 py-2">Omakotitalo ilman sähkölämmitystä</td><td class="px-3 py-2">5 000–10 000 kWh</td></tr>
+                    <tr><td class="px-3 py-2">Sähkölämmitteinen omakotitalo</td><td class="px-3 py-2">15 000–25 000 kWh</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2 class="text-2xl font-bold text-slate-900 mb-3">Mikä vaikuttaa sähkönkulutukseen?</h2>
+        <p class="mb-3">
+            Sähkönkulutus vaihtelee kotitalouksien välillä merkittävästi. Suurimmat tekijät ovat:
+        </p>
+        <ul class="list-disc pl-5 space-y-1 mb-6">
+            <li>asunnon koko ja huoneiden määrä</li>
+            <li>asukkaiden lukumäärä</li>
+            <li>lämmitysmuoto (suora sähkö, lämpöpumppu, kaukolämpö, öljy, puu)</li>
+            <li>rakennusvuosi ja eristyksen taso</li>
+            <li>maantieteellinen sijainti (etelä-, keski- vai pohjois-Suomi)</li>
+            <li>elämäntavat: kotona vietetty aika, saunominen, sähköauton lataus</li>
+            <li>kodinkoneiden energiatehokkuus ja käyttöaste</li>
+        </ul>
+
+        <h2 class="text-2xl font-bold text-slate-900 mb-3">Sähkön hinta ja vuosikustannus</h2>
+        <p class="mb-3">
+            Kun tiedät vuotuisen kulutuksesi, voit laskea sähkölaskun suuruuden yksinkertaisella kaavalla:
+            <strong>kulutus (kWh) × sähkön hinta (snt/kWh) + perusmaksu (€/kk) × 12</strong>.
+            Sähkön hinta vaihtelee sopimustyypin mukaan – pörssisähkössä hinta seuraa tuntikohtaista markkinahintaa,
+            kun taas kiinteähintaisessa sopimuksessa hinta pysyy samana koko sopimuskauden.
+        </p>
+        <p class="mb-6">
+            Voltikan
+            <a href="/sahkosopimus" class="text-coral-600 hover:underline">sähkösopimusten vertailussa</a>
+            näet eri sopimusten arvioidut vuosikustannukset suoraan sinun kulutuksellesi laskettuna.
+            Voit myös katsoa erikseen
+            <a href="/sahkosopimus/halvin-sahkosopimus" class="text-coral-600 hover:underline">halvimmat sähkösopimukset</a>
+            tai vertailla
+            <a href="/sahkosopimus/porssisahko" class="text-coral-600 hover:underline">pörssisähkösopimuksia</a>.
+        </p>
+
+        <h2 class="text-2xl font-bold text-slate-900 mb-3">Usein kysyttyä sähkönkulutuksesta</h2>
+        <div class="space-y-4">
+            @foreach ($this->faqItems as $faq)
+                <div class="border border-slate-200 rounded-lg p-4">
+                    <h3 class="font-semibold text-slate-900 mb-2">{{ $faq['question'] }}</h3>
+                    <p class="text-slate-700">{{ $faq['answer'] }}</p>
+                </div>
+            @endforeach
+        </div>
     </section>
     </div>
 </div>

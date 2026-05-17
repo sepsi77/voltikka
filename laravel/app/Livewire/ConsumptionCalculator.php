@@ -373,9 +373,142 @@ class ConsumptionCalculator extends Component
         $this->redirect('/sahkosopimus?consumption=' . $this->totalConsumption);
     }
 
+    public function getPageHeadingProperty(): string
+    {
+        return 'Sähkönkulutuslaskuri';
+    }
+
+    public function getPageTaglineProperty(): string
+    {
+        return 'Arvioi kotitaloutesi vuotuinen sähkönkulutus ja sähkölaskun suuruus muutamassa sekunnissa.';
+    }
+
+    public function getSeoIntroTextProperty(): string
+    {
+        return 'Sähkönkulutuslaskurilla arvioit nopeasti, paljonko kotitaloutesi käyttää sähköä vuodessa. '
+            . 'Syötä asunnon koko, asukasmäärä ja lämmitystapa – laskuri laskee perussähkön, lämmityksen ja lisäkuluttajat (sauna, sähköauto, lattialämmitys) erikseen. '
+            . 'Kun tiedät vuosikulutuksesi kilowattitunteina, voit vertailla sähkösopimuksia juuri sinun kulutuksellesi lasketuilla hinnoilla ja löytää edullisimman sopimuksen.';
+    }
+
+    public function getFaqItemsProperty(): array
+    {
+        return [
+            [
+                'question' => 'Kuinka paljon kerrostaloasunto kuluttaa sähköä vuodessa?',
+                'answer' => 'Tyypillinen kerrostaloasunto kuluttaa ilman sähkölämmitystä noin 2 000–5 000 kWh vuodessa asukasmäärästä ja asunnon koosta riippuen. Yksin asuvan pienen yksiön kulutus jää usein alle 2 000 kWh, kun taas neljän hengen perheen kerrostalokodissa kulutus voi nousta 4 000–5 000 kilowattituntiin vuodessa.',
+            ],
+            [
+                'question' => 'Kuinka paljon omakotitalo kuluttaa sähköä?',
+                'answer' => 'Omakotitalon vuotuinen sähkönkulutus on tyypillisesti 5 000–10 000 kWh ilman sähkölämmitystä ja 15 000–25 000 kWh, jos talo lämmitetään suoralla sähkölämmityksellä. Ilma-vesilämpöpumppu tai maalämpö pienentää lämmityksen sähkönkulutuksen noin kolmas- tai puoliosaan.',
+            ],
+            [
+                'question' => 'Onko Voltikan sähkönkulutuslaskuri ilmainen?',
+                'answer' => 'Kyllä, sähkönkulutuslaskuri on täysin ilmainen ja sen käyttö ei vaadi rekisteröitymistä. Saat arvion vuosikulutuksesta heti ja voit jatkaa sähkösopimusten vertailuun yhdellä klikkauksella.',
+            ],
+            [
+                'question' => 'Miten arvioin sähköauton vaikutuksen kulutukseen?',
+                'answer' => 'Sähköauto kuluttaa keskimäärin noin 0,2 kWh kilometriä kohden. 1 500 kilometrin kuukausiajot kasvattavat vuosikulutusta noin 3 600 kWh:lla. Voltikan laskurissa voit syöttää kuukausittaiset ajokilometrit, jolloin sähköauton osuus erotellaan tuloksessa omaksi eräkseen.',
+            ],
+            [
+                'question' => 'Miten saunan käyttö vaikuttaa sähkönkulutukseen?',
+                'answer' => 'Tavallinen sähkökiuas kuluttaa noin 7,5 kWh yhtä lämmityskertaa kohti. Kerran viikossa lämmitettävä sauna lisää vuosikulutusta noin 390 kWh, ja jatkuvalämmitteinen kiuas voi nostaa kulutusta jopa 2 500–3 000 kWh vuodessa.',
+            ],
+        ];
+    }
+
+    protected function generateSeoTitle(): string
+    {
+        return 'Sähkönkulutuslaskuri – arvioi kotitalouden kulutus ja kustannukset | Voltikka';
+    }
+
+    protected function generateMetaDescription(): string
+    {
+        return 'Sähkönkulutuslaskuri arvioi kotitaloutesi vuotuisen sähkönkulutuksen asunnon koon, lämmitystavan ja asukasmäärän perusteella. Ilmainen ja helppokäyttöinen.';
+    }
+
+    protected function generateCanonicalUrl(): string
+    {
+        return rtrim((string) config('app.url'), '/') . '/sahkosopimus/laskuri';
+    }
+
+    public function generateJsonLd(): array
+    {
+        $canonical = $this->generateCanonicalUrl();
+        $heading = $this->pageHeading;
+
+        $faqEntities = array_map(fn (array $faq): array => [
+            '@type' => 'Question',
+            'name' => $faq['question'],
+            'acceptedAnswer' => [
+                '@type' => 'Answer',
+                'text' => $faq['answer'],
+            ],
+        ], $this->faqItems);
+
+        return [
+            '@context' => 'https://schema.org',
+            '@graph' => [
+                [
+                    '@type' => 'WebApplication',
+                    '@id' => $canonical . '#webapp',
+                    'name' => $heading,
+                    'url' => $canonical,
+                    'description' => $this->generateMetaDescription(),
+                    'applicationCategory' => 'UtilitiesApplication',
+                    'operatingSystem' => 'Any',
+                    'inLanguage' => 'fi-FI',
+                    'isAccessibleForFree' => true,
+                    'offers' => [
+                        '@type' => 'Offer',
+                        'price' => '0',
+                        'priceCurrency' => 'EUR',
+                    ],
+                    'provider' => [
+                        '@type' => 'Organization',
+                        'name' => 'Voltikka',
+                        'url' => rtrim((string) config('app.url'), '/'),
+                    ],
+                ],
+                [
+                    '@type' => 'BreadcrumbList',
+                    '@id' => $canonical . '#breadcrumbs',
+                    'itemListElement' => [
+                        [
+                            '@type' => 'ListItem',
+                            'position' => 1,
+                            'name' => 'Etusivu',
+                            'item' => rtrim((string) config('app.url'), '/') . '/',
+                        ],
+                        [
+                            '@type' => 'ListItem',
+                            'position' => 2,
+                            'name' => 'Sähkösopimus',
+                            'item' => rtrim((string) config('app.url'), '/') . '/sahkosopimus',
+                        ],
+                        [
+                            '@type' => 'ListItem',
+                            'position' => 3,
+                            'name' => $heading,
+                            'item' => $canonical,
+                        ],
+                    ],
+                ],
+                [
+                    '@type' => 'FAQPage',
+                    '@id' => $canonical . '#faq',
+                    'mainEntity' => $faqEntities,
+                ],
+            ],
+        ];
+    }
+
     public function render()
     {
         return view('livewire.consumption-calculator')
-            ->layout('layouts.app', ['title' => 'Sähkönkulutuslaskuri - Voltikka']);
+            ->layout('layouts.app', [
+                'title' => $this->generateSeoTitle(),
+                'metaDescription' => $this->generateMetaDescription(),
+                'canonical' => $this->generateCanonicalUrl(),
+            ]);
     }
 }

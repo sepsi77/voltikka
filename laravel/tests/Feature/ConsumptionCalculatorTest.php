@@ -246,4 +246,38 @@ class ConsumptionCalculatorTest extends TestCase
         $response->assertSee('Laskuri');
         $response->assertSee('/laskuri');
     }
+
+    public function test_page_has_seo_meta_description_and_canonical(): void
+    {
+        $response = $this->get('/sahkosopimus/laskuri');
+
+        $response->assertStatus(200);
+        $response->assertSee('<meta name="description"', false);
+        $response->assertSee('Sähkönkulutuslaskuri arvioi kotitaloutesi vuotuisen sähkönkulutuksen', false);
+        $response->assertSee('<link rel="canonical"', false);
+        $response->assertSee('/sahkosopimus/laskuri', false);
+    }
+
+    public function test_page_emits_jsonld_with_webapplication_and_faq(): void
+    {
+        $response = $this->get('/sahkosopimus/laskuri');
+
+        $response->assertStatus(200);
+        $response->assertSee('application/ld+json', false);
+        $response->assertSee('"WebApplication"', false);
+        $response->assertSee('"FAQPage"', false);
+        $response->assertSee('"BreadcrumbList"', false);
+    }
+
+    public function test_page_renders_seo_content_sections(): void
+    {
+        $response = $this->get('/sahkosopimus/laskuri');
+
+        $response->assertStatus(200);
+        $response->assertSee('Miten sähkönkulutuslaskuri toimii?');
+        $response->assertSee('Sähkön kulutuksen laskeminen itse');
+        $response->assertSee('Sähkön hinta ja vuosikustannus');
+        $response->assertSee('Usein kysyttyä sähkönkulutuksesta');
+        $response->assertSee('Kuinka paljon omakotitalo kuluttaa sähköä?');
+    }
 }
