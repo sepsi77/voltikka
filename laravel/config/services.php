@@ -46,6 +46,11 @@ return [
         'base_url' => 'https://api.digitransit.fi/geocoding/v1',
     ],
 
+    'pvgis' => [
+        'connect_timeout' => env('PVGIS_CONNECT_TIMEOUT', 3),
+        'timeout' => env('PVGIS_TIMEOUT', 12),
+    ],
+
     'anthropic' => [
         'api_key' => env('ANTHROPIC_API_KEY'),
     ],

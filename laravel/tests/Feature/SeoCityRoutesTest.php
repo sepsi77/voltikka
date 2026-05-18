@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\CitySolarEstimate;
 use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
@@ -10,6 +11,7 @@ use App\Models\Postcode;
 use App\Models\PriceComponent;
 use App\Services\CitySolarService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -234,6 +236,44 @@ class SeoCityRoutesTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('Aurinkosähkön tuottopotentiaali latautuu');
+    }
+
+    public function test_city_solar_estimate_googlebot_request_only_reads_cached_estimate(): void
+    {
+        $municipality = Municipality::where('slug', 'helsinki')->firstOrFail();
+        $municipality->update([
+            'center_latitude' => 60.1699,
+            'center_longitude' => 24.9384,
+        ]);
+
+        $this->app->instance(CitySolarService::class, new class {
+            public function getCachedSolarEstimate(Municipality $municipality, float $systemKwp = 5.0): ?array
+            {
+                return null;
+            }
+
+            public function getSolarEstimate(Municipality $municipality, float $systemKwp = 5.0): ?array
+            {
+                throw new \RuntimeException('Crawler requests must not fetch PVGIS.');
+            }
+        });
+
+        $this->app->instance('request', Request::create(
+            '/livewire/update',
+            'POST',
+            [],
+            [],
+            [],
+            ['HTTP_USER_AGENT' => 'Mozilla/5.0 (Linux; Android 6.0.1) AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html)']
+        ));
+
+        $component = new CitySolarEstimate();
+        $component->mount($municipality->id, 'Helsingissä', 'helsinki');
+
+        $view = $component->render();
+
+        $this->assertSame('livewire.city-solar-estimate', $view->name());
+        $this->assertNull($view->getData()['solarEstimate']);
     }
 
     /**

@@ -1,0 +1,6 @@
+[
+  {"name":"Investigate city-solar-estimate component and PVGIS calls","status":"completed"},
+  {"name":"Implement timeout-safe/crawler-safe behavior","status":"completed"},
+  {"name":"Adjust PVGIS timeout defaults/configuration","status":"completed"},
+  {"name":"Run focused tests or static checks","status":"completed"}
+]

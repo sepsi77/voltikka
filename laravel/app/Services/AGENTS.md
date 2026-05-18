@@ -49,6 +49,15 @@ Important pricing guardrails:
 - first-year promo-aware pricing should return both discounted totals and base totals/savings so UI can explain the effect of the offer
 - do not assume `monthly_costs` represent calendar Jan-Dec once promo timing matters; they are the calculator's 12-month estimate timeline
 
+### Solar estimates
+Files currently living directly under this directory:
+- `PvgisService.php`
+- `CitySolarService.php`
+
+Important guardrails:
+- `PvgisService` must use explicit HTTP connect/request timeouts (`services.pvgis.connect_timeout`, `services.pvgis.timeout`) so slow PVGIS responses cannot consume the full PHP request timeout inside `curl_exec()`.
+- City SEO page solar snippets are lazy Livewire widgets. Crawler-triggered hydration must use cached city solar estimates only; do not make uncached PVGIS requests for bot user agents.
+
 ### Weekly offers / promo output
 Files currently living directly under this directory:
 - `WeeklyOffersVideoService.php`

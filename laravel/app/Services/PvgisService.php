@@ -58,7 +58,9 @@ class PvgisService
             }
         }
 
-        $response = Http::get(self::BASE_URL, $params);
+        $response = Http::connectTimeout((int) config('services.pvgis.connect_timeout', 3))
+            ->timeout((int) config('services.pvgis.timeout', 12))
+            ->get(self::BASE_URL, $params);
 
         if (! $response->successful()) {
             throw new \RuntimeException('PVGIS API request failed: '.$response->body());

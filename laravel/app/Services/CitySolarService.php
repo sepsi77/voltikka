@@ -37,6 +37,20 @@ class CitySolarService
     }
 
     /**
+     * Get a cached solar estimate without making an external PVGIS request.
+     *
+     * @return array{annual_kwh: int, system_kwp: float}|null
+     */
+    public function getCachedSolarEstimate(Municipality $municipality, float $systemKwp = self::DEFAULT_SYSTEM_KWP): ?array
+    {
+        if (!$municipality->hasCoordinates()) {
+            return null;
+        }
+
+        return Cache::get($this->getCacheKey($municipality, $systemKwp));
+    }
+
+    /**
      * Fetch solar estimate from PVGIS API.
      */
     private function fetchEstimate(Municipality $municipality, float $systemKwp): ?array

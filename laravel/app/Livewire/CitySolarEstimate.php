@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\Municipality;
 use App\Services\CitySolarService;
+use Illuminate\Support\Str;
 use Livewire\Component;
 
 class CitySolarEstimate extends Component
@@ -44,12 +45,33 @@ HTML;
     public function render()
     {
         $municipality = Municipality::find($this->municipalityId);
-        $solarEstimate = $municipality
-            ? app(CitySolarService::class)->getSolarEstimate($municipality)
-            : null;
+        $solarEstimate = null;
+
+        if ($municipality) {
+            $citySolarService = app(CitySolarService::class);
+            $solarEstimate = $this->isCrawlerRequest()
+                ? $citySolarService->getCachedSolarEstimate($municipality)
+                : $citySolarService->getSolarEstimate($municipality);
+        }
 
         return view('livewire.city-solar-estimate', [
             'solarEstimate' => $solarEstimate,
+        ]);
+    }
+
+    private function isCrawlerRequest(): bool
+    {
+        $userAgent = Str::lower((string) request()->userAgent());
+
+        return Str::contains($userAgent, [
+            'bot',
+            'crawler',
+            'spider',
+            'slurp',
+            'duckduckbot',
+            'baiduspider',
+            'yandex',
+            'bingpreview',
         ]);
     }
 }
