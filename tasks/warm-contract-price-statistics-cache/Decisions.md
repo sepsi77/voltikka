@@ -7,3 +7,4 @@
 - Wired warming after `contracts:calculate-price-statistics` rather than only inside `contracts:fetch`, so manual recalculation also warms the page. `contracts:fetch` still benefits because it calls the calculate command.
 - Wired warming after `spot:fetch` spot average recalculation, because spot source fingerprints can invalidate the statistics page cache.
 - The job is unique per period + consumption for one hour to avoid duplicate expensive rebuilds if contract and spot imports enqueue nearby warm requests.
+- Production starts the queue worker with Supervisor (`php artisan queue:work --timeout=300 --tries=3`) alongside FrankenPHP and the scheduler. `docker-entrypoint.sh` still starts Supervisor; process definitions live in `supervisord.conf`.
