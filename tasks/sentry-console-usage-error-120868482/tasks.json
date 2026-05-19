@@ -1,0 +1,5 @@
+[
+  {"name":"Inspect trace and relate to local verification commands","status":"completed"},
+  {"name":"Update Sentry filtering/docs if appropriate","status":"completed"},
+  {"name":"Validate config","status":"completed"}
+]

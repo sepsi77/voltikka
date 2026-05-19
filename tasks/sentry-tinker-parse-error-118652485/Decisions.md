@@ -5,3 +5,4 @@
 - Confirmed the correct form succeeds: `php artisan tinker --execute='use Livewire\\Livewire; echo Livewire::class;'`.
 - Targeted Livewire calculator tests for the underlying SEO component behavior pass, so no component code change is needed.
 - Added a Sentry verification note to `laravel/AGENTS.md` to avoid double-escaping namespace separators in single-quoted `tinker --execute` commands.
+- Reopened after the same malformed-command pattern appeared for `App\\Livewire\\CheapestContracts`; configured Sentry to ignore `Psy\\Exception\\ParseErrorException` so local PsySH parse failures do not create application-error noise.

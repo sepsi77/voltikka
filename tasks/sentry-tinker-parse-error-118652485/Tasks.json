@@ -1,5 +1,6 @@
 [
   {"name":"Inspect trace and related test/component context","status":"completed"},
   {"name":"Reproduce or validate the suspected tinker escaping failure","status":"completed"},
-  {"name":"Apply fix or document no-code resolution","status":"completed"}
+  {"name":"Apply fix or document no-code resolution","status":"completed"},
+  {"name":"Suppress malformed Tinker parse errors from Sentry noise","status":"completed"}
 ]

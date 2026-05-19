@@ -51,7 +51,15 @@ return [
     'send_default_pii' => env('SENTRY_SEND_DEFAULT_PII', false),
 
     // @see: https://docs.sentry.io/platforms/php/guides/laravel/configuration/options/#ignore_exceptions
-    // 'ignore_exceptions' => [],
+    'ignore_exceptions' => [
+        // Malformed `php artisan tinker --execute` smoke commands can fail inside PsySH before
+        // application code runs. Keep those local verification mistakes out of Sentry noise.
+        Psy\Exception\ParseErrorException::class,
+
+        // Invalid local Artisan invocations (for example unsupported command options) are CLI
+        // usage errors raised by Symfony Console before any application command code runs.
+        Symfony\Component\Console\Exception\RuntimeException::class,
+    ],
 
     // @see: https://docs.sentry.io/platforms/php/guides/laravel/configuration/options/#ignore_transactions
     'ignore_transactions' => [

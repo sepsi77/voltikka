@@ -142,7 +142,7 @@ Sentry is configured for Laravel exception capture and optional log forwarding.
 
 Primary files:
 - `bootstrap/app.php` — registers `Sentry\Laravel\Integration::handles($exceptions)`.
-- `config/sentry.php` — SDK configuration published by `sentry/sentry-laravel`; reads `SENTRY_LARAVEL_DSN`, trace/profiling sample rates, and log settings from env.
+- `config/sentry.php` — SDK configuration published by `sentry/sentry-laravel`; reads `SENTRY_LARAVEL_DSN`, trace/profiling sample rates, and log settings from env. It ignores `Psy\Exception\ParseErrorException` and `Symfony\Component\Console\Exception\RuntimeException` because malformed local `tinker --execute` smoke commands and invalid Artisan options fail before application code runs and otherwise create Sentry noise.
 - `config/logging.php` — defines the `sentry_logs` channel using the Sentry log driver.
 
 Production env guidance:
