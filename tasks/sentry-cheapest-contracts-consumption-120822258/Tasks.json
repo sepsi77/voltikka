@@ -1,0 +1,5 @@
+[
+  {"name":"Inspect component inheritance and reproduce root cause","status":"completed"},
+  {"name":"Implement fix","status":"completed"},
+  {"name":"Run targeted tests/static checks","status":"completed"}
+]

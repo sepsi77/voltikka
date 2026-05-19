@@ -411,7 +411,7 @@ class SeoContractsList extends ContractsList
         }
 
         // Filter by consumption range
-        $consumption = $this->consumption;
+        $consumption = $this->selectedConsumptionValue();
         $contracts = $contracts->filter(function ($contract) use ($consumption) {
             return $contract->isConsumptionInRange($consumption);
         });
@@ -1378,7 +1378,7 @@ class SeoContractsList extends ContractsList
             'contract_duration' => $this->contractDuration,
             'consumption_level' => $this->consumptionLevel,
             'page' => $this->page,
-            'consumption' => $this->consumption,
+            'consumption' => $this->selectedConsumptionValue(),
             'version' => app(ContractPageCacheVersion::class)->hash(),
         ]));
     }

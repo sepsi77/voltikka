@@ -114,7 +114,7 @@ class CheapestContracts extends SeoContractsList
     {
         $featured = $this->featuredContract;
         $companyName = $featured?->company?->name;
-        $formattedConsumption = number_format($this->consumption, 0, ',', ' ');
+        $formattedConsumption = number_format($this->selectedConsumptionValue(), 0, ',', ' ');
 
         if ($companyName) {
             return "Halvin sähkösopimus {$formattedConsumption} kWh vuosikulutuksella on tällä hetkellä {$companyName}. Alta löydät edullisimmat sähkösopimukset järjestyksessä. Voit muuttaa kulutustasoa nähdäksesi parhaat vaihtoehdot juuri sinun tarpeisiisi.";
@@ -146,6 +146,7 @@ class CheapestContracts extends SeoContractsList
             'pageHeading' => $this->pageHeading,
             'seoIntroText' => $this->seoIntroText,
             'hasSeoFilter' => $this->hasSeoFilter,
+            'consumption' => $this->selectedConsumptionValue(),
         ])->layout('layouts.app', [
             'title' => $this->seoData['title'],
             'metaDescription' => $this->seoData['description'],

@@ -113,6 +113,7 @@ Important semantics:
 - `CitySolarEstimate` must not make uncached PVGIS requests for crawler user agents (Googlebot, generic bots/spiders); bot-triggered Livewire lazy updates should render cached data only or nothing, because PVGIS can hang long enough to hit PHP's request timeout
 - `SeoContractsList` memoizes city municipality lookups, including not-found slugs, because city metadata is read by contracts filtering, title/meta generation, headings, JSON-LD, and local-contract sections during one render; do not revert to direct `Municipality::where('slug', ...)` calls from those accessors
 - `ContractsList::calculateFromInlineCalculator()` reads calculator fields through safe typed helper methods. Keep this tolerant of blank mobile number inputs and stale/partially hydrated Livewire snapshots from SEO pages so user edits do not turn into `PropertyNotFoundException` / enum errors.
+- `CheapestContracts` calls `SeoContractsList::getContractsProperty()` through inheritance. Read consumption with `ContractsList::selectedConsumptionValue()` in inherited listing paths and cheapest-page render data so stale Livewire snapshots that miss the URL-bound `consumption` property fall back to 5 000 kWh instead of throwing `PropertyNotFoundException`.
 
 ## `ContractDetail`
 

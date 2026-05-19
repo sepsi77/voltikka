@@ -374,6 +374,23 @@ class ContractsList extends Component
     }
 
     /**
+     * Read the selected consumption defensively.
+     *
+     * Some stale Livewire snapshots can reach inherited listing components
+     * without the URL-bound consumption property hydrated. Using isset avoids
+     * triggering Livewire's __get PropertyNotFoundException and restores the
+     * default before price calculations continue.
+     */
+    protected function selectedConsumptionValue(): int
+    {
+        if (! isset($this->consumption) || ! is_numeric($this->consumption)) {
+            $this->consumption = 5000;
+        }
+
+        return max(0, (int) $this->consumption);
+    }
+
+    /**
      * Calculate consumption from inline calculator and update.
      */
     public function calculateFromInlineCalculator(): void
@@ -1590,7 +1607,7 @@ class ContractsList extends Component
             'class' => static::class,
             'base_path' => $this->basePath,
             'page' => $this->page,
-            'consumption' => $this->consumption,
+            'consumption' => $this->selectedConsumptionValue(),
             'version' => app(ContractPageCacheVersion::class)->hash(),
         ]));
     }
