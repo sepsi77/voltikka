@@ -23,6 +23,7 @@ Purpose:
 Important semantics:
 - the page does not calculate contract prices directly during requests
 - the component caches its prepared view payload per period + consumption + source-data fingerprint until the next day; keep this cache in place unless a replacement avoids full-table aggregation on every page load
+- `getDailyStatsProperty()` keeps an explicit request/job-scoped collection cache and selects only the columns used by the view-data builder; queued warmers instantiate the component directly, so do not rely only on Livewire computed-property memoization for this full-table read
 - `warmPreparedViewDataCache()` is public so queued/background warmers can fill the same prepared-data cache without rendering a public request; keep its key semantics aligned with `statisticsViewData()`
 - cache invalidation is automatic through cheap `contract_price_daily_statistics` / `contract_price_snapshots` / spot-price max-date/update fingerprints, so daily imports/backfills should not need manual page-cache clearing
 - run `contracts:backfill-price-statistics` before expecting historical data

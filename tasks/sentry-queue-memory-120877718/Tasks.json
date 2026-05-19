@@ -1,0 +1,6 @@
+[
+  {"name":"Inspect queue jobs and Sentry profiling configuration for likely memory source","status":"completed"},
+  {"name":"Implement focused fix","status":"completed"},
+  {"name":"Run targeted tests/static checks","status":"completed"},
+  {"name":"Document decisions","status":"completed"}
+]

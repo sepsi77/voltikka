@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\ContractPriceStatistics;
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\SpotPriceAverage;
 use Carbon\Carbon;
@@ -93,6 +94,27 @@ class ContractPriceStatisticsPageTest extends TestCase
         );
 
         $this->assertCount(0, $fullStatisticReads, 'The second request should reuse cached view data instead of loading every daily statistic row.');
+    }
+
+    public function test_queued_warm_reuses_one_daily_statistics_collection(): void
+    {
+        Cache::flush();
+        $this->seedSampleStatistics();
+
+        DB::enableQueryLog();
+
+        /** @var ContractPriceStatistics $component */
+        $component = app(ContractPriceStatistics::class);
+        $component->warmPreparedViewDataCache();
+
+        $queries = collect(DB::getQueryLog())->pluck('query');
+        DB::disableQueryLog();
+
+        $dailyStatisticReads = $queries->filter(
+            fn (string $query) => preg_match('/select\s+[`"]?stat_date[`"]?.*from\s+[`"]?contract_price_daily_statistics[`"]?/is', $query) === 1,
+        );
+
+        $this->assertCount(1, $dailyStatisticReads, 'A direct queued warm should hydrate the daily statistics collection only once.');
     }
 
     public function test_cached_statistics_payload_invalidates_when_daily_statistics_change(): void

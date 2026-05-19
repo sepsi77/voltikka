@@ -35,6 +35,11 @@ return [
     // @see: https://docs.sentry.io/platforms/php/guides/laravel/configuration/options/#profiles_sample_rate
     'profiles_sample_rate' => env('SENTRY_PROFILES_SAMPLE_RATE') === null ? null : (float) env('SENTRY_PROFILES_SAMPLE_RATE'),
 
+    // Long-running Artisan/queue transactions can accumulate large Excimer profiling logs and
+    // exhaust the 128 MB production worker before the SDK serializes the profile. Keep profiling
+    // for web transactions, but opt CLI profiling in explicitly if a short diagnostic run needs it.
+    'profiles_sampler' => [App\Support\SentryProfilesSampler::class, 'sample'],
+
     // Only continue incoming traces when the organization IDs are compatible with this SDK instance.
     'strict_trace_continuation' => env('SENTRY_STRICT_TRACE_CONTINUATION', false),
 

@@ -64,6 +64,18 @@ class ContractPriceStatistics extends Component
         'open_ended',
     ];
 
+    /**
+     * Request/job-scoped cache for the daily statistic rows.
+     *
+     * The prepared payload builder scans this collection many times. In normal
+     * Livewire requests computed properties are memoized, but queued cache
+     * warmers instantiate the component directly; keeping an explicit cache
+     * prevents repeated full-table hydration inside one warm job.
+     *
+     * @var Collection<int, ContractPriceDailyStatistic>|null
+     */
+    private ?Collection $dailyStatsCache = null;
+
     /** URL-friendly anchor slugs for the deep-dive sections. */
     public array $deepDiveAnchors = [
         'spot' => 'porssisahko',
@@ -103,7 +115,20 @@ class ContractPriceStatistics extends Component
      */
     public function getDailyStatsProperty(): Collection
     {
-        return ContractPriceDailyStatistic::query()
+        return $this->dailyStatsCache ??= ContractPriceDailyStatistic::query()
+            ->select([
+                'stat_date',
+                'segment_key',
+                'metric_key',
+                'consumption_kwh',
+                'min_value',
+                'p20_value',
+                'avg_value',
+                'median_value',
+                'p80_value',
+                'max_value',
+                'contract_count',
+            ])
             ->orderBy('stat_date')
             ->get();
     }

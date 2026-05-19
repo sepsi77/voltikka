@@ -142,20 +142,22 @@ Sentry is configured for Laravel exception capture and optional log forwarding.
 
 Primary files:
 - `bootstrap/app.php` — registers `Sentry\Laravel\Integration::handles($exceptions)`.
-- `config/sentry.php` — SDK configuration published by `sentry/sentry-laravel`; reads `SENTRY_LARAVEL_DSN`, trace/profiling sample rates, and log settings from env. It ignores `Psy\Exception\ParseErrorException` and `Symfony\Component\Console\Exception\RuntimeException` because malformed local `tinker --execute` smoke commands and invalid Artisan options fail before application code runs and otherwise create Sentry noise.
+- `config/sentry.php` — SDK configuration published by `sentry/sentry-laravel`; reads `SENTRY_LARAVEL_DSN`, trace/profiling sample rates, and log settings from env. It uses `App\Support\SentryProfilesSampler` to keep console/queue profiling disabled by default under the 128 MB worker limit. It ignores `Psy\Exception\ParseErrorException` and `Symfony\Component\Console\Exception\RuntimeException` because malformed local `tinker --execute` smoke commands and invalid Artisan options fail before application code runs and otherwise create Sentry noise.
 - `config/logging.php` — defines the `sentry_logs` channel using the Sentry log driver.
 
 Production env guidance:
 ```bash
 SENTRY_LARAVEL_DSN=...
 SENTRY_TRACES_SAMPLE_RATE=1.0
-SENTRY_PROFILES_SAMPLE_RATE=1.0
+SENTRY_PROFILES_SAMPLE_RATE=0.1
+SENTRY_PROFILE_CONSOLE_ENABLED=false
+SENTRY_PROFILE_QUEUE_ENABLED=false
 SENTRY_ENABLE_LOGS=true
 LOG_CHANNEL=stack
 LOG_STACK=single,sentry_logs
 ```
 
-The production Docker image installs and enables the Excimer PHP extension for profiling. Use lower sample rates later if event volume/cost gets too high.
+The production Docker image installs and enables the Excimer PHP extension for profiling. Console/queue profiling is disabled by default because long-running `queue:work` transactions can accumulate large profiling logs and exhaust the 128 MB worker while Sentry serializes the profile; temporarily enable `SENTRY_PROFILE_CONSOLE_ENABLED` / `SENTRY_PROFILE_QUEUE_ENABLED` only for short diagnostic runs.
 
 Verification:
 ```bash
