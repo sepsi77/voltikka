@@ -66,8 +66,9 @@ php artisan contracts:backfill-price-statistics --from=2025-01-01 --to=2026-04-2
 
 Important semantics:
 - future daily calculations are run during `contracts:fetch` and use `active_contracts`
-- `/sahkosopimus/tilastot` serves cached prepared view data per period + consumption and automatically busts that cache when statistics/snapshot source-table fingerprints change
+- `/sahkosopimus/tilastot` serves cached prepared view data per period + consumption and automatically busts that cache when statistics/snapshot/source spot-price fingerprints change
 - `contracts:fetch` calculates daily contract-price statistics before optional percentile badge thresholds so `/sahkosopimus/tilastot` continues to advance even if percentile recalculation fails
+- `contracts:warm-price-statistics-cache` queues `App\Jobs\WarmContractPriceStatisticsCache` by default; use `--sync` only for manual immediate warming/tests. `contracts:calculate-price-statistics` (including when called by `contracts:fetch`) and `spot:fetch` queue warming for the default weekly/5 000 kWh page state after their source data updates.
 - historical backfills infer availability from `price_components.price_date`
 - missing contract rows for a date are excluded; prices are not carried forward
 - spot contracts store both supplier margin and total spot energy price (`stored spot average + margin`)

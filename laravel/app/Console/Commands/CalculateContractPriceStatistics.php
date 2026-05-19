@@ -42,6 +42,12 @@ class CalculateContractPriceStatistics extends Command
             $result['statistics'],
         ));
 
+        $this->info('Queueing contract price statistics page cache warm...');
+        $this->call('contracts:warm-price-statistics-cache', [
+            '--period' => ['weekly'],
+            '--consumption' => [5000],
+        ]);
+
         return self::SUCCESS;
     }
 }

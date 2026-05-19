@@ -86,6 +86,12 @@ class FetchSpot extends Command
             $this->averageService->calculateAllAverages();
             $this->info('Averages calculated successfully.');
 
+            $this->info('Queueing contract price statistics page cache warm...');
+            $this->call('contracts:warm-price-statistics-cache', [
+                '--period' => ['weekly'],
+                '--consumption' => [5000],
+            ]);
+
             // Trigger social media pipeline if we got newer data than before
             if ($latestFromApi && (!$latestBeforeFetch || $latestFromApi->gt($latestBeforeFetch))) {
                 $this->info("New spot price data available up to: {$latestFromApi->format('Y-m-d H:i')} UTC");

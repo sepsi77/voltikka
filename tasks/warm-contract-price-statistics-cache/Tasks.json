@@ -1,0 +1,7 @@
+[
+  {"name":"Inspect current statistics cache/build flow and command patterns","status":"completed"},
+  {"name":"Implement background cache warming for statistics page","status":"completed"},
+  {"name":"Wire warmer after relevant price update jobs","status":"completed"},
+  {"name":"Run targeted validation","status":"completed"},
+  {"name":"Update context documentation","status":"completed"}
+]

@@ -519,6 +519,17 @@ class ContractPriceStatistics extends Component
      */
     private function statisticsViewData(): array
     {
+        return $this->warmPreparedViewDataCache();
+    }
+
+    /**
+     * Build the prepared view-data cache for the component's current period and
+     * consumption state. Used by queued cache warmers after source data updates.
+     *
+     * @return array<string,mixed>
+     */
+    public function warmPreparedViewDataCache(): array
+    {
         return Cache::remember(
             $this->statisticsViewDataCacheKey(),
             Carbon::tomorrow(),

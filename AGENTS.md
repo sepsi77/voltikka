@@ -89,9 +89,10 @@ php artisan test --filter="ContractsFilterTest"
 - Historical backfill infers availability from `price_components.price_date`
 - Spot contract totals use stored spot-price history plus supplier margin
 - Contract-type energy-price table displays spot as trailing-12-month realized daily average + typical margin, with p20–p80 daily variation under the value, so it is comparable with longer-term contract prices
-- Commands: `contracts:calculate-price-statistics`, `contracts:backfill-price-statistics`
+- Commands: `contracts:calculate-price-statistics`, `contracts:backfill-price-statistics`, `contracts:warm-price-statistics-cache`
 - Daily import calculates these statistics before optional percentile badge recalculation so this page keeps updating even if badge metrics fail
-- Page requests serve cached prepared view data per period + consumption; cache keys auto-bust when statistics/snapshot source-table fingerprints change
+- Page requests serve cached prepared view data per period + consumption; cache keys auto-bust when statistics/snapshot/source spot-price fingerprints change
+- Contract and spot-price update commands queue background warming for the default `/sahkosopimus/tilastot?kulutus=5000` page state so low-traffic first visitors do not pay the expensive cache-miss rebuild
 
 ### 3. Spot Price Display
 - **Location**: `app/Livewire/SpotPrice.php`, `HeaderSpotPrice.php`
