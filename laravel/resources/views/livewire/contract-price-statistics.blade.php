@@ -59,10 +59,10 @@
                 Voltikka tilastot
             </p>
             <h1 class="text-3xl md:text-5xl font-extrabold text-slate-900 leading-[1.05] tracking-tight max-w-[28ch]">
-                Sähkön hintatilastot: mitä suomalaiset oikeasti maksavat
+                Sähkösopimusten hintakehitys: mitä suomalaiset oikeasti maksavat sähköstä
             </h1>
             <p class="mt-5 max-w-[62ch] text-lg text-slate-600 leading-relaxed">
-                Voltikka seuraa sähkösopimusten todellista hintakehitystä päivittäin: pörssi-, määräaikaisia, joustosähkö- ja toistaiseksi voimassa olevia sopimuksia. Aineisto kasvaa kuukausittain, näytämme sen mitä on kerätty.
+                Voltikka seuraa sähkösopimusten hintakehitystä päivittäin: pörssi-, määräaikaisia, joustosähkö- ja toistaiseksi voimassa olevia sopimuksia. Tilastot näyttävät, miten energiahinnat, perusmaksut ja vuosikustannukset ovat muuttuneet eri sopimustyypeissä.
             </p>
 
             {{-- Meta strip --}}
@@ -166,7 +166,7 @@
                             Vuosikustannus {{ $consumptionLabel }}&nbsp;kWh kulutuksella
                         </h2>
                         <p class="mt-1 text-sm text-slate-500 max-w-[68ch]">
-                            Eri sopimustyyppien tyypillinen vuosikustannus, jos sopimus tehtäisiin tämän jakson aikana.
+                            Sähkösopimusten hintakehitys eri sopimustyypeissä — eri sopimustyyppien tyypillinen vuosikustannus, jos sopimus tehtäisiin tämän jakson aikana.
                             Pörssipohjaisille sopimuksille luku perustuu edeltävän 12 kuukauden pörssin keskihintaan, ei yksittäisten päivien hintaan.
                             Jakso&nbsp;= <span class="font-semibold text-slate-900">{{ $periods[$period] ?? $period }}</span>.
                         </p>

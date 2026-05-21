@@ -1,0 +1,8 @@
+{
+  "tasks": [
+    { "name": "Update component title and meta description", "status": "completed" },
+    { "name": "Update JSON-LD Dataset description and keywords", "status": "completed" },
+    { "name": "Update Blade H1, intro paragraph, and lead chart caption", "status": "completed" },
+    { "name": "Update feature test assertions for new H1", "status": "completed" }
+  ]
+}

@@ -500,11 +500,11 @@ class ContractPriceStatistics extends Component
             '@context' => 'https://schema.org',
             '@type' => 'Dataset',
             'name' => 'Voltikka — Sähkön hintatilastot sopimustyypeittäin',
-            'description' => 'Päivittäin kerättyihin sähkösopimuksiin perustuvat hintatilastot Suomessa. Energiahinnat, perusmaksut, pörssimarginaalit ja vuosikustannukset 2 000 / 5 000 / 18 000 kWh kulutuksella sopimustyypeittäin.',
+            'description' => 'Sähkösopimusten hintakehitys ja päivittäin kerätyt hintatilastot Suomessa. Energiahinnat, perusmaksut, pörssimarginaalit ja vuosikustannukset 2 000 / 5 000 / 18 000 kWh kulutuksella sopimustyypeittäin.',
             'url' => $url,
             'license' => 'https://creativecommons.org/licenses/by/4.0/',
             'isAccessibleForFree' => true,
-            'keywords' => ['sähkön hinta', 'sähkösopimus', 'tilastot', 'pörssisähkö', 'määräaikainen', 'Suomi'],
+            'keywords' => ['sähkösopimusten hintakehitys', 'sähkön hintakehitys', 'sähkön hinta', 'sähkösopimus', 'tilastot', 'pörssisähkö', 'määräaikainen', 'Suomi'],
             'inLanguage' => 'fi',
             'creator' => [
                 '@type' => 'Organization',
@@ -529,8 +529,8 @@ class ContractPriceStatistics extends Component
     public function render()
     {
         return view('livewire.contract-price-statistics', $this->statisticsViewData())->layout('layouts.app', [
-            'title' => 'Sähkön hintatilastot, mitä suomalaiset oikeasti maksavat | Voltikka',
-            'metaDescription' => 'Sähkösopimusten hintatilastot Suomessa. Vertaa eri sopimustyyppien hintaeroja, vuosikustannuksia ja hintakehitystä.',
+            'title' => 'Sähkösopimusten hintakehitys ja hintatilastot Suomessa | Voltikka',
+            'metaDescription' => 'Sähkösopimusten hintakehitys ja hintatilastot Suomessa. Seuraa pörssi-, määräaikais- ja toistaiseksi voimassa olevien sopimusten hintojen kehitystä, hintaeroja ja vuosikustannuksia eri kulutustasoilla.',
             'canonical' => config('app.url') . '/sahkosopimus/tilastot',
         ]);
     }

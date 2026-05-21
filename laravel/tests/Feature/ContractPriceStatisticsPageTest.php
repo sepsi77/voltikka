@@ -20,7 +20,7 @@ class ContractPriceStatisticsPageTest extends TestCase
         $response = $this->get('/sahkosopimus/tilastot');
 
         $response->assertStatus(200);
-        $response->assertSee('Sähkön hintatilastot: mitä suomalaiset oikeasti maksavat');
+        $response->assertSee('Sähkösopimusten hintakehitys: mitä suomalaiset oikeasti maksavat sähköstä');
         $response->assertSee('Aineiston keruu on käynnissä');
         $response->assertDontSee('php artisan');
     }
@@ -32,7 +32,7 @@ class ContractPriceStatisticsPageTest extends TestCase
         $response = $this->get('/sahkosopimus/tilastot');
 
         $response->assertStatus(200);
-        $response->assertSee('Sähkön hintatilastot: mitä suomalaiset oikeasti maksavat');
+        $response->assertSee('Sähkösopimusten hintakehitys: mitä suomalaiset oikeasti maksavat sähköstä');
         $response->assertSee('Hinnat sopimustyypeittäin');
         $response->assertSee('Taulukko näyttää viimeisimmän keräyspäivän tyypillisen energiahinnan');
         $response->assertSee('Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois');
