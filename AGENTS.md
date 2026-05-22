@@ -242,7 +242,7 @@ All SEO listing pages use `SeoContractsList` component. See "Creating SEO Contra
 - Command: `php artisan futures:fetch-eex`
 - Config: `config/eex_futures.php`
 - Requires `Referer: https://www.eex.com/`; public chart history is limited to roughly 45 days
-- Maturity/delivery selection uses EEX `YYYYMM` maturity parameters, matching the web UI delivery dropdown values; the collector dynamically probes `price-ticker` because out-of-bounds maturities return empty HTTP 200 payloads
+- Maturity/delivery selection uses EEX `YYYYMM` maturity parameters, matching the web UI delivery dropdown values; the collector dynamically probes `price-ticker` once per tenor because out-of-bounds maturities return empty HTTP 200 payloads, then reuses the discovered maturity values across markets
 - EEX requests are throttled by default with roughly 15 seconds between public API calls (`EEX_FUTURES_REQUEST_DELAY_SECONDS`, jitter configurable)
 - Default instruments are EEX Nordic System Price and Nordic zonal Base Month, Quarter, and Year futures; Baltic instruments must be added only after verified EEX short codes exist
 

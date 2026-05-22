@@ -193,30 +193,61 @@ class FetchEexFutures extends Command
     private function buildInstrumentMaturityRequests(array $instruments, Carbon $referenceDate, int &$failures): array
     {
         $requests = [];
+        $explicitMaturities = array_values(array_filter((array) $this->option('maturity')));
+
+        if (!empty($explicitMaturities)) {
+            $maturities = array_values(array_unique(array_map('strval', $explicitMaturities)));
+
+            foreach ($instruments as $instrument) {
+                foreach ($maturities as $maturity) {
+                    $requests[] = ['instrument' => $instrument, 'maturity' => $maturity];
+                }
+            }
+
+            return $requests;
+        }
+
+        $maturitiesByTenor = [];
+        $representativeByTenor = [];
 
         foreach ($instruments as $instrument) {
+            $tenor = strtolower((string) ($instrument['maturity_type'] ?? 'year'));
+            $representativeByTenor[$tenor] ??= $instrument;
+        }
+
+        foreach ($representativeByTenor as $tenor => $representativeInstrument) {
             try {
-                $maturities = $this->selectedMaturitiesForInstrument($instrument, $referenceDate);
+                $maturitiesByTenor[$tenor] = $this->discoverMaturitiesForInstrument($representativeInstrument, $referenceDate);
+                $this->line(sprintf(
+                    'Discovered %d %s maturities using %s %s as representative.',
+                    count($maturitiesByTenor[$tenor]),
+                    $tenor,
+                    $representativeInstrument['area'] ?? 'unknown-area',
+                    $representativeInstrument['short_code'] ?? 'unknown-code'
+                ));
             } catch (RequestException|ConnectionException $e) {
                 $failures++;
                 $this->warn(sprintf(
-                    'Failed to discover maturities for %s %s %s: %s',
-                    $instrument['area'] ?? 'unknown-area',
-                    $instrument['maturity_type'] ?? 'unknown-tenor',
-                    $instrument['short_code'] ?? 'unknown-code',
+                    'Failed to discover %s maturities using %s %s: %s',
+                    $tenor,
+                    $representativeInstrument['area'] ?? 'unknown-area',
+                    $representativeInstrument['short_code'] ?? 'unknown-code',
                     $e->getMessage()
                 ));
                 Log::warning('EEX futures maturity discovery failed', [
-                    'area' => $instrument['area'] ?? null,
-                    'maturity_type' => $instrument['maturity_type'] ?? null,
-                    'short_code' => $instrument['short_code'] ?? null,
+                    'area' => $representativeInstrument['area'] ?? null,
+                    'maturity_type' => $tenor,
+                    'short_code' => $representativeInstrument['short_code'] ?? null,
                     'exception_class' => $e::class,
                     'exception' => $e->getMessage(),
                 ]);
-                continue;
             }
+        }
 
-            foreach ($maturities as $maturity) {
+        foreach ($instruments as $instrument) {
+            $tenor = strtolower((string) ($instrument['maturity_type'] ?? 'year'));
+
+            foreach (($maturitiesByTenor[$tenor] ?? []) as $maturity) {
                 $requests[] = ['instrument' => $instrument, 'maturity' => $maturity];
             }
         }
@@ -229,14 +260,8 @@ class FetchEexFutures extends Command
      * @return array<int, string>
      * @throws RequestException|ConnectionException
      */
-    private function selectedMaturitiesForInstrument(array $instrument, Carbon $referenceDate): array
+    private function discoverMaturitiesForInstrument(array $instrument, Carbon $referenceDate): array
     {
-        $explicitMaturities = array_values(array_filter((array) $this->option('maturity')));
-
-        if (!empty($explicitMaturities)) {
-            return array_values(array_unique(array_map('strval', $explicitMaturities)));
-        }
-
         $candidates = match ($instrument['maturity_type'] ?? 'year') {
             'month' => $this->monthMaturities($referenceDate),
             'quarter' => $this->quarterMaturities($referenceDate),

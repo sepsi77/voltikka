@@ -192,7 +192,7 @@ Primary files:
 Important semantics:
 - `futures:fetch-eex` collects EEX electricity futures end-of-day settlement prices into `electricity_futures_eod_prices`.
 - The command defaults to EEX Nordic System Price and Nordic zonal Base Month, Quarter, and Year futures (DK1, DK2, FI, NO1-NO5, SE1-SE4).
-- EEX maturity strings are `YYYYMM`: month delivery month, quarter start month, and year January (`YYYY01`). The command probes the `price-ticker` endpoint first because out-of-bounds delivery dates return HTTP 200 with empty data; it then fetches EOD data only for dynamically discovered valid maturities.
+- EEX maturity strings are `YYYYMM`: month delivery month, quarter start month, and year January (`YYYY01`). The command probes the `price-ticker` endpoint first because out-of-bounds delivery dates return HTTP 200 with empty data; it discovers maturities once per tenor using a representative market, then fetches EOD data for those same maturity values across all configured markets.
 - The public EEX chart endpoint requires `Referer: https://www.eex.com/` and only returns about 45 days of history; `futures:backfill-eex` fetches all history available from that public endpoint, and normal fetches cap requested ranges and safely upsert reruns.
 - EEX API calls are deliberately slow-throttled by `EexFuturesService` with about 15 seconds plus/minus jitter between calls by default. Keep this polite throttle unless there is a strong reason to change it.
 - Baltic power futures are not configured until verified EEX `area` + `shortCode` combinations exist in the EEX product-code file/API.

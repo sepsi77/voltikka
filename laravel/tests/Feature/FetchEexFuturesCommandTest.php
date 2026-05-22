@@ -196,6 +196,48 @@ class FetchEexFuturesCommandTest extends TestCase
         Http::assertSent(fn (Request $request) => str_contains($request->url(), 'price-ticker') && $request['shortCode'] === 'FNBY' && $request['maturity'] === '203301');
     }
 
+    public function test_maturity_discovery_is_shared_by_tenor_across_areas(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 5, 22, 12, 0, 0, 'Europe/Helsinki'));
+
+        config()->set('eex_futures.instruments', [
+            [
+                'market_region' => 'Nordics',
+                'area' => 'FI',
+                'area_name' => 'Finland',
+                'maturity_type' => 'year',
+                'short_code' => 'FNBY',
+            ],
+            [
+                'market_region' => 'Nordics',
+                'area' => 'SE3',
+                'area_name' => 'Sweden SE3',
+                'maturity_type' => 'year',
+                'short_code' => '3SBY',
+            ],
+        ]);
+        config()->set('eex_futures.years_ahead', 2);
+        config()->set('eex_futures.retry_times', 0);
+
+        Http::fake(function (Request $request) {
+            if (str_contains($request->url(), 'price-ticker')) {
+                return Http::response(['data' => $request['maturity'] === '202701' ? [['2026-05-21T19:00:00.000Z', 1]] : []]);
+            }
+
+            return Http::response(['series' => []]);
+        });
+
+        $this->artisan('futures:fetch-eex --tenor=year')
+            ->assertExitCode(0);
+
+        Http::assertSentCount(4);
+        Http::assertSent(fn (Request $request) => str_contains($request->url(), 'price-ticker') && $request['shortCode'] === 'FNBY' && $request['maturity'] === '202701');
+        Http::assertSent(fn (Request $request) => str_contains($request->url(), 'price-ticker') && $request['shortCode'] === 'FNBY' && $request['maturity'] === '202801');
+        Http::assertNotSent(fn (Request $request) => str_contains($request->url(), 'price-ticker') && $request['shortCode'] === '3SBY');
+        Http::assertSent(fn (Request $request) => str_contains($request->url(), 'chart/eod') && $request['shortCode'] === 'FNBY' && $request['maturity'] === '202701');
+        Http::assertSent(fn (Request $request) => str_contains($request->url(), 'chart/eod') && $request['shortCode'] === '3SBY' && $request['maturity'] === '202701');
+    }
+
     public function test_backfill_command_fetches_all_publicly_available_history_window(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 5, 22, 12, 0, 0, 'Europe/Helsinki'));
