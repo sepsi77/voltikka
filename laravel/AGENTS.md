@@ -180,6 +180,23 @@ Important semantics:
 - Spot fetch/backfill commands catch exhausted HTTP request/connection failures so scheduled jobs fail or continue gracefully instead of leaking raw exception stack traces.
 - Do not log raw ENTSO-E exception messages without redacting `securityToken`, because Guzzle/Laravel exception text can include the full query string.
 
+## Electricity futures imports
+
+Primary files:
+- `app/Services/ElectricityFutures/EexFuturesService.php`
+- `app/Services/ElectricityFutures/AGENTS.md`
+- `app/Console/Commands/FetchEexFutures.php`
+- `app/Console/Commands/BackfillEexFutures.php`
+- `config/eex_futures.php`
+
+Important semantics:
+- `futures:fetch-eex` collects EEX electricity futures end-of-day settlement prices into `electricity_futures_eod_prices`.
+- The command defaults to EEX Nordic System Price and Nordic zonal Base Month, Quarter, and Year futures (DK1, DK2, FI, NO1-NO5, SE1-SE4).
+- EEX maturity strings are `YYYYMM`: month delivery month, quarter start month, and year January (`YYYY01`). The command probes the `price-ticker` endpoint first because out-of-bounds delivery dates return HTTP 200 with empty data; it then fetches EOD data only for dynamically discovered valid maturities.
+- The public EEX chart endpoint requires `Referer: https://www.eex.com/` and only returns about 45 days of history; `futures:backfill-eex` fetches all history available from that public endpoint, and normal fetches cap requested ranges and safely upsert reruns.
+- EEX API calls are deliberately slow-throttled by `EexFuturesService` with about 15 seconds plus/minus jitter between calls by default. Keep this polite throttle unless there is a strong reason to change it.
+- Baltic power futures are not configured until verified EEX `area` + `shortCode` combinations exist in the EEX product-code file/API.
+
 ## Commands
 
 ### Refresh data and auto-link replacements

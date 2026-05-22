@@ -24,6 +24,14 @@ Schedule::command('spot:fetch')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/spot-fetch.log'));
 
+// Schedule EEX electricity futures settlement price collection after the EEX settlement window.
+Schedule::command('futures:fetch-eex')
+    ->dailyAt('20:30')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/eex-futures-fetch.log'));
+
 // Note: social:daily-video is triggered automatically by spot:fetch
 // when tomorrow's prices become available (typically around 13:00-14:00 Finnish time)
 

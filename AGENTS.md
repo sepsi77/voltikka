@@ -63,6 +63,10 @@ php artisan spot:fetch               # Fetch current spot prices from ENTSO-E; r
 php artisan spot:backfill            # Backfill historical spot prices; retries transient server/connection timeouts per chunk
 php artisan spot:averages            # Calculate spot price averages
 
+# Electricity futures
+php artisan futures:fetch-eex        # Fetch EEX futures EOD settlement prices for configured Nordic month/quarter/year instruments
+php artisan futures:backfill-eex     # Fetch all EEX futures history available from the public API (~45 days)
+
 # Utilities
 php artisan logos:optimize           # Optimize company logos to WebP
 php artisan sitemap:generate         # Generate sitemap.xml
@@ -231,6 +235,16 @@ All SEO listing pages use `SeoContractsList` component. See "Creating SEO Contra
 - Service: `EntsoeService`
 - Config: `services.entsoe.api_key`, `services.entsoe.finland_eic`
 - Supports both hourly and 15-minute resolution
+
+### EEX API (Electricity Futures)
+- Fetches electricity futures end-of-day settlement prices from `https://api.eex-group.com/pub/market-data/chart/eod`
+- Service: `App\Services\ElectricityFutures\EexFuturesService`
+- Command: `php artisan futures:fetch-eex`
+- Config: `config/eex_futures.php`
+- Requires `Referer: https://www.eex.com/`; public chart history is limited to roughly 45 days
+- Maturity/delivery selection uses EEX `YYYYMM` maturity parameters, matching the web UI delivery dropdown values; the collector dynamically probes `price-ticker` because out-of-bounds maturities return empty HTTP 200 payloads
+- EEX requests are throttled by default with roughly 15 seconds between public API calls (`EEX_FUTURES_REQUEST_DELAY_SECONDS`, jitter configurable)
+- Default instruments are EEX Nordic System Price and Nordic zonal Base Month, Quarter, and Year futures; Baltic instruments must be added only after verified EEX short codes exist
 
 ### EU PVGIS API (Solar Production)
 - Endpoint: `https://re.jrc.ec.europa.eu/api/v5_2/PVcalc`

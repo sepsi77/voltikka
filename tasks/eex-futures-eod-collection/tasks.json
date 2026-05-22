@@ -1,0 +1,11 @@
+[
+  {"name":"Inspect existing Laravel service/command patterns and database conventions","status":"completed"},
+  {"name":"Design and add database schema/model for futures EOD prices","status":"completed"},
+  {"name":"Implement EEX API service and daily fetch Artisan command","status":"completed"},
+  {"name":"Schedule daily collection and document behavior","status":"completed"},
+  {"name":"Run relevant tests or validation commands","status":"completed"},
+  {"name":"Extend collection to monthly, quarterly, and yearly maturities for all configured areas","status":"completed"},
+  {"name":"Align default maturity windows with EEX delivery dropdown values","status":"completed"},
+  {"name":"Discover dynamic EEX maturity bounds instead of relying on fixed max windows","status":"completed"},
+  {"name":"Add all-available-history backfill command and polite API throttling","status":"completed"}
+]

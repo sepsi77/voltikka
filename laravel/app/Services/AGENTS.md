@@ -107,6 +107,17 @@ Related files outside services:
 - `../Console/Commands/LinkReplacementContracts.php`
 - `../Console/Commands/FetchContracts.php`
 
+### Electricity futures
+Directory:
+- `ElectricityFutures/`
+
+Purpose:
+- fetch and normalize EEX electricity futures end-of-day settlement data for Voltikka's own futures history dataset
+- currently configured for EEX Nordic System Price and Nordic zonal Base Year futures
+
+Read first:
+- `ElectricityFutures/AGENTS.md`
+
 ## Documentation rule for this subtree
 
 If you touch files directly under `app/Services/` and they are becoming decision-heavy:
