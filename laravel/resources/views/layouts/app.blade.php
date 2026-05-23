@@ -234,6 +234,8 @@
                                 <a href="/sahkosopimus/halvin-sahkosopimus" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/halvin-sahkosopimus') ? 'bg-slate-100 font-semibold' : '' }}">Halvimmat sopimukset</a>
                                 <a href="/sahkosopimus/sahkotarjous" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/sahkotarjous') ? 'bg-slate-100 font-semibold' : '' }}">Tarjoukset</a>
                                 <a href="/sahkosopimus/porssisahko" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/porssisahko') ? 'bg-slate-100 font-semibold' : '' }}">Pörssisähkö</a>
+                                <a href="/sahkosopimus/maaraaikainen" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/maaraaikainen') ? 'bg-slate-100 font-semibold' : '' }}">Määräaikainen</a>
+                                <a href="/sahkosopimus/toistaiseksi" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/toistaiseksi') ? 'bg-slate-100 font-semibold' : '' }}">Toistaiseksi voimassa</a>
                                 <a href="/sahkosopimus/kvartaalisahko" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/kvartaalisahko') ? 'bg-slate-100 font-semibold' : '' }}">Kvartaalisähkö</a>
                                 <a href="/sahkosopimus/joustosahko" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/joustosahko') ? 'bg-slate-100 font-semibold' : '' }}">Joustosähkö</a>
                                 <a href="/sahkosopimus/yleissahko" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/yleissahko') ? 'bg-slate-100 font-semibold' : '' }}">Yleissähkö</a>
@@ -316,6 +318,12 @@
                             </a>
                             <a href="/sahkosopimus/porssisahko" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/porssisahko') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                                 Pörssisähkö
+                            </a>
+                            <a href="/sahkosopimus/maaraaikainen" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/maaraaikainen') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                                Määräaikainen
+                            </a>
+                            <a href="/sahkosopimus/toistaiseksi" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/toistaiseksi') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                                Toistaiseksi voimassa
                             </a>
                             <a href="/sahkosopimus/kvartaalisahko" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/kvartaalisahko') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                                 Kvartaalisähkö

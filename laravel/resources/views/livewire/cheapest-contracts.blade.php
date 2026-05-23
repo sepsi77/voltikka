@@ -26,9 +26,10 @@
                     <h1 class="max-w-2xl mb-4 text-4xl font-extrabold text-white tracking-tight leading-tight md:text-5xl xl:text-6xl">
                         {{ $pageHeading }}
                     </h1>
-                    <p class="max-w-2xl mb-6 text-slate-300 lg:mb-8 md:text-lg lg:text-xl">
+                    <p class="max-w-2xl mb-5 text-slate-300 md:text-lg lg:text-xl">
                         {{ $seoIntroText }}
                     </p>
+                    <x-contract-market-insight-pills :insight="$marketInsight ?? null" class="mb-1" />
                 </div>
                 <div class="lg:mt-0 col-12 lg:col-span-5 lg:flex mx-auto mt-8 lg:mt-0">
                     {{-- Decorative element placeholder --}}

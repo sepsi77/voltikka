@@ -10,6 +10,7 @@ use App\Models\Postcode;
 use App\Models\SpotPriceAverage;
 use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\CO2EmissionsCalculator;
+use App\Services\ContractMarketInsights\ContractMarketInsightService;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
 use App\Services\LocalContractsService;
@@ -1187,6 +1188,54 @@ class SeoContractsList extends ContractsList
     }
 
     /**
+     * @return array{trend:?array<string,mixed>,forecast:?array<string,mixed>,has_items:bool}
+     */
+    public function getMarketInsightProperty(): array
+    {
+        if ($this->targetGroup === 'Company' || $this->housingType !== null || $this->energySource !== null || $this->consumptionLevel !== null) {
+            return ['trend' => null, 'forecast' => null, 'has_items' => false];
+        }
+
+        return parent::getMarketInsightProperty();
+    }
+
+    protected function marketInsightSegmentKey(): ?string
+    {
+        if ($this->targetGroup === 'Company' || $this->housingType !== null || $this->energySource !== null) {
+            return null;
+        }
+
+        if ($this instanceof CheapestContracts) {
+            return 'aggregate';
+        }
+
+        if ($this->contractDuration === 'FixedTerm') {
+            return 'fixed_term_12';
+        }
+
+        if ($this->contractDuration === 'OpenEnded') {
+            return 'open_ended';
+        }
+
+        return match ($this->pricingType) {
+            'Spot' => 'spot',
+            'Quarterly' => 'quarterly',
+            'Hybrid' => 'hybrid',
+            'FixedPrice' => 'fixed_term_12',
+            null => $this->consumptionLevel !== null ? null : 'aggregate',
+            default => 'aggregate',
+        };
+    }
+
+    protected function marketInsightIncludesForecast(): bool
+    {
+        return $this->targetGroup !== 'Company'
+            && $this->housingType === null
+            && $this->energySource === null
+            && ($this->contractDuration === 'FixedTerm' || $this->pricingType === 'FixedPrice');
+    }
+
+    /**
      * Get aggregated energy source statistics for the current contracts.
      */
     public function getEnergySourceStatsProperty(): array
@@ -1347,6 +1396,7 @@ class SeoContractsList extends ContractsList
                 'basePath' => $this->basePath,
                 'showCalculatorTab' => $this->showCalculatorTab,
                 'isBusinessPage' => $this->isBusinessPage,
+                'marketInsight' => $this->marketInsight,
             ],
             'layout' => [
                 'title' => $seoData['title'],
@@ -1362,6 +1412,15 @@ class SeoContractsList extends ContractsList
     {
         return $this->isDefaultListingCacheable()
             && $this->postcodeSearch === '';
+    }
+
+    protected function marketInsightCacheVersion(): ?string
+    {
+        if ($this->targetGroup === 'Company' || $this->housingType !== null || $this->energySource !== null || $this->consumptionLevel !== null) {
+            return null;
+        }
+
+        return app(ContractMarketInsightService::class)->fingerprint();
     }
 
     protected function seoContractsViewDataCacheKey(): string
@@ -1380,6 +1439,7 @@ class SeoContractsList extends ContractsList
             'page' => $this->page,
             'consumption' => $this->selectedConsumptionValue(),
             'version' => app(ContractPageCacheVersion::class)->hash(),
+            'market_insight_version' => $this->marketInsightCacheVersion(),
         ]));
     }
 }

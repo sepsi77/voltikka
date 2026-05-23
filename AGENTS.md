@@ -88,6 +88,7 @@ php artisan test --filter="ContractsFilterTest"
 - Filters by pricing model, contract type, energy source, housing type
 - Calculates annual costs based on user consumption
 - SEO-optimized filter links with dual behavior (see SEO section)
+- Low-prominence market-insight pills on comparison heroes reuse cached precomputed price statistics/forecasts; they are informational only and do not affect ranking
 - Individual contract detail meta descriptions are generated from Voltikka ranking/pricing data instead of provider marketing descriptions
 
 ### 2. Contract Price Statistics
@@ -534,6 +535,8 @@ The main navigation uses dropdown menus (desktop) and collapsible sections (mobi
   - Vertaa sopimuksia
   - Halvimmat sopimukset
   - Pörssisähkö
+  - Määräaikainen
+  - Toistaiseksi voimassa
   - Yrityksille
   - Sähköyhtiöt
 - **Sähkölaskuri**

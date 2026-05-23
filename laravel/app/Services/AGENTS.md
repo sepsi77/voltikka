@@ -88,6 +88,16 @@ Purpose:
 - shared cache fingerprint helpers for public contract listing/detail pages
 - see `Caching/AGENTS.md` before changing cache invalidation behavior
 
+### Contract market insights
+Directory:
+- `ContractMarketInsights/`
+
+Purpose:
+- build cached, low-prominence market trend/forecast teaser payloads for contract comparison page heroes from precomputed statistics and forecast tables
+
+Read first:
+- `ContractMarketInsights/AGENTS.md`
+
 ### Contract price statistics
 Directory:
 - `ContractStatistics/`

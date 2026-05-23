@@ -13,6 +13,7 @@ use App\Models\SpotPriceAverage;
 use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractListCacheService;
+use App\Services\ContractMarketInsights\ContractMarketInsightService;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyCalculatorRequest;
 use App\Services\DTO\EnergyUsage;
@@ -1580,6 +1581,7 @@ class ContractsList extends Component
                 'metaDescription' => $this->metaDescription,
                 'basePath' => $this->basePath,
                 'schemas' => $schemas,
+                'marketInsight' => $this->marketInsight,
             ],
             'layout' => [
                 'title' => $this->pageTitle . ' | Voltikka',
@@ -1589,6 +1591,28 @@ class ContractsList extends Component
                 'nextUrl' => $this->nextUrl,
             ],
         ];
+    }
+
+    /**
+     * @return array{trend:?array<string,mixed>,forecast:?array<string,mixed>,has_items:bool}
+     */
+    public function getMarketInsightProperty(): array
+    {
+        return app(ContractMarketInsightService::class)->insight(
+            $this->marketInsightSegmentKey(),
+            $this->selectedConsumptionValue(),
+            $this->marketInsightIncludesForecast(),
+        );
+    }
+
+    protected function marketInsightSegmentKey(): ?string
+    {
+        return 'aggregate';
+    }
+
+    protected function marketInsightIncludesForecast(): bool
+    {
+        return false;
     }
 
     protected function isDefaultListingCacheable(): bool
@@ -1609,6 +1633,7 @@ class ContractsList extends Component
             'page' => $this->page,
             'consumption' => $this->selectedConsumptionValue(),
             'version' => app(ContractPageCacheVersion::class)->hash(),
+            'market_insight_version' => app(ContractMarketInsightService::class)->fingerprint(),
         ]));
     }
 }

@@ -99,6 +99,7 @@ Primary files:
 - `SeoContractsList.php`
 - `CitySolarEstimate.php`
 - `../Services/Caching/ContractPageCacheVersion.php`
+- `../Services/ContractMarketInsights/ContractMarketInsightService.php`
 
 Purpose:
 - cache prepared view payloads for high-traffic canonical/default contract listing landings such as `/sahkosopimus` and SEO listing pages
@@ -116,6 +117,8 @@ Important semantics:
 - `SeoContractsList` memoizes city municipality lookups, including not-found slugs, because city metadata is read by contracts filtering, title/meta generation, headings, JSON-LD, and local-contract sections during one render; do not revert to direct `Municipality::where('slug', ...)` calls from those accessors
 - `ContractsList::calculateFromInlineCalculator()` reads calculator fields through safe typed helper methods. Keep this tolerant of blank mobile number inputs and stale/partially hydrated Livewire snapshots from SEO pages so user edits do not turn into `PropertyNotFoundException` / enum errors.
 - `CheapestContracts` calls `SeoContractsList::getContractsProperty()` through inheritance. Read consumption with `ContractsList::selectedConsumptionValue()` in inherited listing paths and cheapest-page render data so stale Livewire snapshots that miss the URL-bound `consumption` property fall back to 5 000 kWh instead of throwing `PropertyNotFoundException`.
+- Contract comparison hero market-insight pills are intentionally small and must not push results down. They use cached precomputed statistics/forecast payloads from `ContractMarketInsightService`; do not calculate contract prices or scan raw `price_components` for these pills during page requests.
+- Market insights show on `/sahkosopimus`, SEO pricing/duration pages, and cheapest contracts. They are hidden on business, housing-type, energy-source, and consumption-level SEO pages. The cheapest page uses the same aggregate trend as the main page.
 
 ## `ContractDetail`
 

@@ -27,9 +27,10 @@
                             <span class="text-coral-400">sähkösopimus</span>
                         @endif
                     </h1>
-                    <p class="max-w-2xl mb-6 text-slate-300 lg:mb-8 md:text-lg lg:text-xl">
+                    <p class="max-w-2xl mb-5 text-slate-300 md:text-lg lg:text-xl">
                         Vertaile hintoja ja päästöjä läpinäkyvästi. Näe mitä todella maksat — ilman piilokustannuksia.
                     </p>
+                    <x-contract-market-insight-pills :insight="$marketInsight ?? null" class="mb-1" />
                 </div>
                 <div class="hidden lg:flex lg:col-span-5 items-center justify-end">
                     <!-- Stats cards -->

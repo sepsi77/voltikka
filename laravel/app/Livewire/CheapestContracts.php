@@ -147,6 +147,7 @@ class CheapestContracts extends SeoContractsList
             'seoIntroText' => $this->seoIntroText,
             'hasSeoFilter' => $this->hasSeoFilter,
             'consumption' => $this->selectedConsumptionValue(),
+            'marketInsight' => $this->marketInsight,
         ])->layout('layouts.app', [
             'title' => $this->seoData['title'],
             'metaDescription' => $this->seoData['description'],
