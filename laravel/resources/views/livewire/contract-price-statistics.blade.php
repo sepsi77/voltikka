@@ -62,7 +62,7 @@
                 Sähkösopimusten hintakehitys: mitä suomalaiset oikeasti maksavat sähköstä
             </h1>
             <p class="mt-5 max-w-[62ch] text-lg text-slate-600 leading-relaxed">
-                Voltikka seuraa sähkösopimusten hintakehitystä päivittäin: pörssi-, määräaikaisia, joustosähkö- ja toistaiseksi voimassa olevia sopimuksia. Tilastot näyttävät, miten energiahinnat, perusmaksut ja vuosikustannukset ovat muuttuneet eri sopimustyypeissä.
+                Voltikka seuraa sähkösopimusten hintakehitystä päivittäin: pörssi-, kvartaali-, määräaikaisia, joustosähkö- ja toistaiseksi voimassa olevia sopimuksia. Tilastot näyttävät, miten energiahinnat, perusmaksut ja vuosikustannukset ovat muuttuneet eri sopimustyypeissä.
             </p>
 
             {{-- Meta strip --}}

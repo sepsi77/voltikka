@@ -62,6 +62,7 @@ class ContractPriceStatistics extends Component
         'fixed_term_24',
         'hybrid',
         'open_ended',
+        'quarterly',
     ];
 
     /**
@@ -79,6 +80,7 @@ class ContractPriceStatistics extends Component
     /** URL-friendly anchor slugs for the deep-dive sections. */
     public array $deepDiveAnchors = [
         'spot' => 'porssisahko',
+        'quarterly' => 'kvartaalisahko',
         'fixed_term_6' => 'maaraaikainen-6-kk',
         'fixed_term_12' => 'maaraaikainen-12-kk',
         'fixed_term_24' => 'maaraaikainen-24-kk',
@@ -89,6 +91,7 @@ class ContractPriceStatistics extends Component
     /** Plain-Finnish 1–2 sentence intro per segment for the deep-dive blocks. */
     public array $deepDiveDescriptions = [
         'spot' => 'Pörssisopimuksissa energian hinta seuraa pörssin tuntihintaa, johon sopimustarjoaja lisää oman marginaalinsa. Hinta vaihtelee päivästä toiseen markkinatilanteen mukaan.',
+        'quarterly' => 'Kvartaalisähkössä energiahinta lukitaan kolmeksi kuukaudeksi kerrallaan ja päivittyy kalenterivuosineljänneksittäin markkinanäkymien mukaan. Hinta on tasaisempi kuin pörssissä, mutta seuraa markkinaa nopeammin kuin vuoden tai kahden vuoden määräaikaiset sopimukset.',
         'fixed_term_6' => 'Lyhyen määräaikaisen sopimuksen energiahinta lukitaan kuudeksi kuukaudeksi. Suojaa lyhyellä aikavälillä, mutta jää alttiiksi pörssin liikkeille uusittaessa.',
         'fixed_term_12' => 'Vuoden mittainen kiinteähintainen sopimus lukitsee energiahinnan koko sopimuskaudeksi. Hinnat heijastavat pitkän aikavälin näkymiä, eivät päivittäistä pörssiä.',
         'fixed_term_24' => 'Kahden vuoden määräaikaisessa sopimuksessa hinta lukitaan pidemmäksi aikaa. Tarjoukset päivittyvät hitaammin, ja markkinoilla on usein vuoden sopimuksia harvempi valikoima.',
@@ -1096,6 +1099,7 @@ class ContractPriceStatistics extends Component
 
         $subjects = [
             'spot' => 'Pörssisähkösopimusten energiahinta',
+            'quarterly' => 'Kvartaalisähkösopimukset',
             'fixed_term_6' => 'Lyhyet määräaikaiset (6 kk) sopimukset',
             'fixed_term_12' => 'Vuoden määräaikaiset sopimukset',
             'fixed_term_24' => 'Kahden vuoden määräaikaiset sopimukset',
