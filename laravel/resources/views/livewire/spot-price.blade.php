@@ -239,16 +239,15 @@
         </div>
     @else
         <!-- Kodin energiavinkit - Home Energy Tips Section -->
-        <section class="mb-10">
-            <div class="flex items-baseline justify-between mb-6 gap-4 flex-wrap">
+        <section class="mb-8">
+            <div class="flex items-baseline justify-between mb-4 gap-4 flex-wrap">
                 <div>
-                    <h2 class="text-2xl font-bold text-slate-900">Kodin energiavinkit</h2>
-                    <p class="text-base text-slate-600 mt-1">Paras aika tänään yleisimmille energiaa kuluttaville tehtäville.</p>
+                    <h2 class="text-xl md:text-2xl font-bold text-slate-900">Kodin energiavinkit</h2>
+                    <p class="text-sm text-slate-600 mt-0.5">Paras aika tänään yleisimmille energiaa kuluttaville tehtäville.</p>
                 </div>
-                <p class="text-sm font-medium text-slate-500">Vertailu: 30 pv keskiarvo</p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                 <!-- EV Charging — full-day window, 3 h consecutive -->
                 @if ($bestConsecutiveHours)
                     @include('partials.appliance-tip-card', [
@@ -329,49 +328,33 @@
 
         <!-- Column-bar timeline: each day = one horizontal strip of 24 columns -->
         @if (!empty($dayStrips))
-            @php
-                $stripPrices = collect($dayStrips)
-                    ->flatMap(fn ($strip) => array_column($strip['prices'], 'price_with_vat'))
-                    ->all();
-                $barScaleMax = !empty($stripPrices) ? max(max($stripPrices), 20) : 20;
-            @endphp
             <div
                 x-data="{
                     expandedHour: null,
                     expandedStripKey: null,
+                    expandedScaleMax: null,
                     selectedMeta: null,
                     quarterPricesByHour: {{ Js::from($quarterPricesByHour) }},
                     avg30d: {{ $rolling30DayAvgWithVat ?? 'null' }},
-                    scaleMax: {{ $barScaleMax }},
-                    selectHour(timestamp, stripKey, meta) {
+                    selectHour(timestamp, stripKey, stripScaleMax, meta) {
                         if (this.expandedHour === timestamp && this.expandedStripKey === stripKey) {
-                            this.expandedHour = null;
-                            this.expandedStripKey = null;
-                            this.selectedMeta = null;
+                            this.closeDetail();
                         } else {
                             this.expandedHour = timestamp;
                             this.expandedStripKey = stripKey;
+                            this.expandedScaleMax = stripScaleMax;
                             this.selectedMeta = meta;
                         }
                     },
                     closeDetail() {
                         this.expandedHour = null;
                         this.expandedStripKey = null;
+                        this.expandedScaleMax = null;
                         this.selectedMeta = null;
                     },
-                    getColorFromAvg(price) {
-                        if (!this.avg30d || this.avg30d <= 0) return 'bg-yellow-400';
-                        const percentDiff = ((price - this.avg30d) / this.avg30d) * 100;
-                        if (percentDiff <= -30) return 'bg-green-700';
-                        if (percentDiff <= -15) return 'bg-green-500';
-                        if (percentDiff <= -5) return 'bg-green-300';
-                        if (percentDiff <= 5) return 'bg-yellow-400';
-                        if (percentDiff <= 15) return 'bg-orange-400';
-                        if (percentDiff <= 30) return 'bg-red-500';
-                        return 'bg-red-700';
-                    },
-                    getBarHeight(price) {
-                        return Math.max(4, Math.min(100, Math.round((price / this.scaleMax) * 100)));
+                    quarterBarHeight(price) {
+                        const scale = this.expandedScaleMax || 20;
+                        return Math.max(4, Math.min(100, Math.round((price / scale) * 100)));
                     }
                 }"
                 id="tunnit"
@@ -380,8 +363,17 @@
                 <header class="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between mb-5">
                     <div>
                         <h2 class="text-xl font-bold text-slate-900">Tuntihinnat</h2>
-                        <p class="text-sm text-slate-500 mt-0.5">
-                            Värit: ero 30 pv keskiarvoon ({{ number_format($rolling30DayAvgWithVat ?? 0, 2, ',', ' ') }} c/kWh) · Pylvään korkeus = absoluuttinen hinta
+                        <p class="text-sm text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <span class="inline-flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm bg-slate-500"></span> Toteutunut</span>
+                            <span class="inline-flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm bg-slate-300"></span> Ennuste</span>
+                            <span class="inline-flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm bg-coral-500"></span> Nyt</span>
+                            <span class="inline-flex items-center gap-1.5">
+                                <svg class="w-3 h-3 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.368 2.447a1 1 0 00-.364 1.118l1.287 3.957c.3.921-.755 1.688-1.54 1.118L10.588 14.7a1 1 0 00-1.176 0l-3.368 2.447c-.784.57-1.838-.197-1.539-1.118l1.287-3.957a1 1 0 00-.364-1.118L2.06 8.507c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.289-3.957z"/></svg>
+                                Päivän halvin
+                            </span>
+                            @if ($rolling30DayAvgWithVat)
+                                <span class="inline-flex items-center gap-1.5"><span class="inline-block w-3 border-t border-dashed border-slate-400"></span> 30 pv ka {{ number_format($rolling30DayAvgWithVat, 2, ',', ' ') }} c</span>
+                            @endif
                         </p>
                     </div>
                     <button
@@ -407,14 +399,23 @@
                             $scaleMaxLabel = number_format($scaleMax, $scaleMax >= 10 ? 0 : 1, ',', ' ');
                             $scaleMidLabel = number_format($scaleMax / 2, $scaleMax >= 10 ? 0 : 1, ',', ' ');
                         @endphp
+                        @php
+                            $baselinePercent = $strip['avgBaselinePercent'] ?? null;
+                            $forecastStartHour = $strip['forecastStartHour'] ?? null;
+                            $forecastStartLabel = $forecastStartHour !== null
+                                ? str_pad((string) $forecastStartHour, 2, '0', STR_PAD_LEFT) . ':00'
+                                : null;
+                        @endphp
                         <div>
-                            <div class="flex items-baseline justify-between gap-3 mb-2">
-                                <div class="flex items-baseline gap-2 min-w-0">
+                            <div class="flex items-baseline justify-between gap-3 mb-2 flex-wrap">
+                                <div class="flex items-baseline gap-2 min-w-0 flex-wrap">
                                     <h3 class="text-base font-bold text-slate-900">{{ $strip['label'] }}</h3>
                                     @if ($strip['provenance'] === 'uudet')
-                                        <span class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">Uudet</span>
+                                        <span class="text-[10px] font-semibold uppercase tracking-[0.06em] text-white bg-slate-900 px-2 py-0.5 rounded">Uudet</span>
                                     @elseif ($strip['provenance'] === 'ennuste')
-                                        <span class="text-[10px] font-semibold uppercase tracking-[0.06em] text-coral-700 bg-coral-50 border border-coral-100 px-1.5 py-0.5 rounded">Ennuste</span>
+                                        <span class="text-[10px] font-semibold uppercase tracking-[0.06em] text-coral-700 bg-coral-50 border border-coral-100 px-2 py-0.5 rounded">Ennuste</span>
+                                    @elseif ($strip['provenance'] === 'hybrid' && $forecastStartLabel)
+                                        <span class="text-[10px] font-medium text-coral-700 bg-coral-50 border border-coral-100 px-2 py-0.5 rounded">Ennuste klo {{ $forecastStartLabel }} alkaen</span>
                                     @endif
                                 </div>
                                 @if ($stripStats['min'] !== null)
@@ -433,9 +434,20 @@
                                     <span class="absolute right-1.5 top-1/2 -translate-y-1/2 leading-none">{{ $scaleMidLabel }}</span>
                                     <span class="absolute right-1.5 bottom-1 leading-none">0</span>
                                 </div>
-                                <!-- Bar area with horizontal midline gridline -->
+                                <!-- Bar area with 30-day-average baseline -->
                                 <div class="relative flex-1 min-w-0 flex items-stretch gap-1 sm:gap-1.5 py-2 pr-2 pl-1">
-                                    <span class="pointer-events-none absolute left-0 right-2 top-1/2 border-t border-dashed border-slate-200" aria-hidden="true"></span>
+                                    @if ($baselinePercent !== null)
+                                        <span
+                                            class="pointer-events-none absolute left-0 right-2 border-t border-dashed border-slate-400/70"
+                                            style="bottom: {{ $baselinePercent }}%;"
+                                            aria-hidden="true"
+                                        ></span>
+                                        <span
+                                            class="pointer-events-none absolute right-1 text-[9px] font-medium text-slate-500 bg-slate-50 px-1 leading-none tabular-nums"
+                                            style="bottom: calc({{ $baselinePercent }}% + 2px);"
+                                            aria-hidden="true"
+                                        >30 pv ka</span>
+                                    @endif
                                 @foreach ($strip['prices'] as $price)
                                     @php
                                         $isPlaceholder = !empty($price['isPlaceholder']);
@@ -453,7 +465,7 @@
                                             'timestamp' => $timestamp,
                                             'label' => $stripPriceLabel,
                                             'price' => $priceWithVat,
-                                            'isForecast' => $strip['isForecast'],
+                                            'isForecast' => $price['isForecast'] ?? $strip['isForecast'],
                                             'badge' => $price['badge']['label'] ?? null,
                                             'badgeType' => $price['badge']['type'] ?? null,
                                             'isCurrent' => $isCurrent,
@@ -464,7 +476,7 @@
                                     @else
                                         <button
                                             type="button"
-                                            @click="selectHour({{ $timestamp }}, '{{ $strip['key'] }}', {{ $metaJson }})"
+                                            @click="selectHour({{ $timestamp }}, '{{ $strip['key'] }}', {{ $scaleMax }}, {{ $metaJson }})"
                                             class="group relative flex-1 min-w-0 h-full rounded-sm hover:bg-white/60 focus:bg-white/80 focus:outline-none focus:ring-2 focus:ring-coral-400 transition-colors"
                                             :class="expandedHour === {{ $timestamp }} && expandedStripKey === '{{ $strip['key'] }}' ? 'bg-white ring-2 ring-coral-400' : ''"
                                             aria-label="{{ $stripPriceLabel }} · {{ number_format($priceWithVat, 2, ',', ' ') }} c/kWh"
@@ -475,7 +487,11 @@
                                                 style="height: {{ $widthPercent }}%"
                                             ></span>
                                             @if ($isRank1)
-                                                <span class="pointer-events-none absolute top-0.5 left-1/2 -translate-x-1/2 text-amber-500" title="Päivän halvin">
+                                                <span
+                                                    class="pointer-events-none absolute left-1/2 -translate-x-1/2 text-amber-500"
+                                                    style="bottom: calc({{ $widthPercent }}% + 2px);"
+                                                    title="Päivän halvin"
+                                                >
                                                     <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.368 2.447a1 1 0 00-.364 1.118l1.287 3.957c.3.921-.755 1.688-1.54 1.118L10.588 14.7a1 1 0 00-1.176 0l-3.368 2.447c-.784.57-1.838-.197-1.539-1.118l1.287-3.957a1 1 0 00-.364-1.118L2.06 8.507c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.289-3.957z"/></svg>
                                                 </span>
                                             @endif
@@ -533,8 +549,8 @@
                                                         <div class="flex-1 h-4 bg-white rounded relative overflow-hidden ring-1 ring-slate-200">
                                                             <div
                                                                 class="h-full rounded transition-all duration-200"
-                                                                :class="quarter.is_current_slot ? 'bg-coral-500' : getColorFromAvg(quarter.price_with_tax)"
-                                                                :style="'width: ' + getBarHeight(quarter.price_with_tax) + '%'"
+                                                                :class="quarter.is_current_slot ? 'bg-coral-500' : 'bg-slate-500'"
+                                                                :style="'width: ' + quarterBarHeight(quarter.price_with_tax) + '%'"
                                                             ></div>
                                                         </div>
                                                         <span
@@ -571,24 +587,24 @@
             </div>
         @endif
 
-        <!-- Historical Data Section: weekly trend + monthly + YoY in one row on desktop -->
+        <!-- Historical Data Section: 30-day trend + monthly + multi-year May comparison -->
         <section class="mb-8 grid grid-cols-1 lg:grid-cols-3 gap-5">
-                <!-- Weekly Price Chart: 2/3 width on desktop -->
+                <!-- 30-day Price Trend Chart: 2/3 width on desktop -->
                 @if (!empty($weeklyChartData['labels']))
                     <div class="bg-white rounded-2xl border border-slate-200 p-4 md:p-5 lg:col-span-2">
-                        <div class="flex items-baseline justify-between mb-3">
-                            <h3 class="text-base font-bold text-slate-900">Viikon hintakehitys</h3>
-                            <p class="text-xs text-slate-500">Päivittäiset keskihinnat, 7 pv</p>
+                        <div class="flex items-baseline justify-between mb-3 flex-wrap gap-2">
+                            <h3 class="text-base font-bold text-slate-900">30 päivän hintakehitys</h3>
+                            <p class="text-xs text-slate-500">Päivittäiset keskihinnat ja vaihteluväli (ALV 0 %)</p>
                         </div>
-                        <div class="h-40 md:h-44">
+                        <div class="h-56 md:h-80">
                             <canvas id="weeklyPriceChart" data-chart="{{ json_encode($weeklyChartData) }}"></canvas>
                         </div>
                     </div>
                 @endif
 
-                <!-- Monthly + YoY stacked in col 3 on desktop -->
+                <!-- Monthly + Multi-year stacked in col 3 on desktop -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-5">
-                    <!-- Monthly Comparison -->
+                    <!-- Monthly Comparison: this month vs last month -->
                     @if (!empty($monthlyComparison))
                         @php
                             $change = $monthlyComparison['change_percent'] ?? null;
@@ -630,44 +646,46 @@
                         </div>
                     @endif
 
-                    <!-- Year-over-Year Comparison -->
-                    @if (!empty($yearOverYearComparison) && $yearOverYearComparison['has_last_year_data'])
-                        @php
-                            $yoyChange = $yearOverYearComparison['change_percent'] ?? null;
-                            $yoyIsPositive = $yoyChange !== null && $yoyChange > 0;
-                        @endphp
+                    <!-- Multi-year monthly comparison: this calendar month across past years -->
+                    @php
+                        $multiYear = collect($multiYearMonthly ?? [])->filter(fn ($row) => $row['has_data']);
+                        $multiYearMax = $multiYear->max('average_with_vat') ?: 0;
+                    @endphp
+                    @if ($multiYear->count() >= 2)
+                        @php $monthName = $monthlyComparison['current_month_name'] ?? ''; @endphp
                         <div class="bg-white rounded-2xl border border-slate-200 p-4 md:p-5">
-                            <div class="flex items-baseline justify-between mb-3">
-                                <h3 class="text-base font-bold text-slate-900">Vuosivertailu</h3>
-                                @if ($yoyChange !== null)
-                                    <span class="text-xs font-semibold tabular-nums {{ $yoyIsPositive ? 'text-rose-700' : 'text-emerald-700' }}">
-                                        {{ $yoyIsPositive ? '+' : '' }}{{ number_format($yoyChange, 1, ',', ' ') }} %
-                                    </span>
-                                @endif
+                            <div class="flex items-baseline justify-between mb-3 flex-wrap gap-2">
+                                <h3 class="text-base font-bold text-slate-900">{{ $monthName }} vuosittain</h3>
+                                <span class="text-[11px] text-slate-500">sis. ALV</span>
                             </div>
-                            <p class="text-xs text-slate-500 mb-2">{{ $yearOverYearComparison['month_name'] }}</p>
-                            <dl class="grid grid-cols-2 gap-3 tabular-nums">
-                                <div>
-                                    <dt class="text-xs text-slate-500">{{ $yearOverYearComparison['current_year'] }}</dt>
-                                    <dd class="text-xl font-extrabold text-slate-900 mt-0.5">
-                                        @if ($yearOverYearComparison['current_year_average'] !== null)
-                                            {{ number_format($yearOverYearComparison['current_year_average'], 2, ',', ' ') }}<span class="text-xs font-semibold text-slate-500 ml-0.5">c</span>
-                                        @else
-                                            <span class="text-slate-300">–</span>
-                                        @endif
-                                    </dd>
-                                </div>
-                                <div>
-                                    <dt class="text-xs text-slate-500">{{ $yearOverYearComparison['last_year'] }}</dt>
-                                    <dd class="text-xl font-extrabold text-slate-500 mt-0.5">
-                                        @if ($yearOverYearComparison['last_year_average'] !== null)
-                                            {{ number_format($yearOverYearComparison['last_year_average'], 2, ',', ' ') }}<span class="text-xs font-semibold text-slate-400 ml-0.5">c</span>
-                                        @else
-                                            <span class="text-slate-300">–</span>
-                                        @endif
-                                    </dd>
-                                </div>
-                            </dl>
+                            <div class="space-y-1.5">
+                                @foreach ($multiYearMonthly as $row)
+                                    @php
+                                        $value = $row['average_with_vat'];
+                                        $widthPct = $value !== null && $multiYearMax > 0
+                                            ? max(4, round(($value / $multiYearMax) * 100))
+                                            : 0;
+                                        $isCurrent = !empty($row['is_current']);
+                                        $barColor = $isCurrent ? 'bg-coral-500' : 'bg-slate-400';
+                                        $valueColor = $isCurrent ? 'text-slate-900' : 'text-slate-600';
+                                    @endphp
+                                    <div class="flex items-center gap-2 tabular-nums">
+                                        <span class="w-10 text-xs font-medium text-slate-500 shrink-0">{{ $row['label'] }}</span>
+                                        <div class="flex-1 h-4 bg-slate-50 rounded ring-1 ring-slate-100 relative overflow-hidden">
+                                            @if ($value !== null)
+                                                <div class="absolute inset-y-0 left-0 rounded {{ $barColor }}" style="width: {{ $widthPct }}%"></div>
+                                            @endif
+                                        </div>
+                                        <span class="w-16 text-right text-sm font-bold {{ $valueColor }} shrink-0">
+                                            @if ($value !== null)
+                                                {{ number_format($value, 2, ',', ' ') }}<span class="text-[10px] font-semibold text-slate-400 ml-0.5">c</span>
+                                            @else
+                                                <span class="text-slate-300 text-xs">ei dataa</span>
+                                            @endif
+                                        </span>
+                                    </div>
+                                @endforeach
+                            </div>
                         </div>
                     @endif
                 </div>
@@ -675,34 +693,34 @@
     @endif
 
     <!-- Information Section -->
-    <section class="max-w-3xl border-t border-slate-200 pt-10 mt-4">
-        <h3 class="text-2xl font-bold text-slate-900 mb-4">
-            Mikä on pörssisähkö ja miten hinta muodostuu?
-        </h3>
-        <p class="text-base text-slate-700 mb-4 leading-relaxed">
-            Tällä sivulla esitetyt hintatiedot ovat Pohjoismaiden ja Baltian maiden sähköpörssi Nord Poolin määrittämiä sähkön spot-hintoja.
-            Kaupankäynnissä jokaisella päivän tunnilla on aina oma hintansa.
-        </p>
-        <p class="text-base text-slate-700 mb-6 leading-relaxed">
-            Hinnan määräytyminen Pohjoismaissa perustuu energialähteiden (vesivoima, tuulivoima, ydinvoima ja voimapolttoaineet: hiili, öljy, maakaasu)
-            tuotantoon neljällä markkina-alueella (Suomi, Norja, Ruotsi, Tanska) sekä niihin liittyvien päästöoikeuksien (päästökauppa) sääntelyyn,
-            sähkönkulutukseen ja markkinapsykologiaan.
-        </p>
-
-        <h3 class="text-xl font-bold text-slate-900 mt-8 mb-3">
-            Milloin seuraavan päivän hinnat julkaistaan?
-        </h3>
-        <p class="text-base text-slate-700 leading-relaxed">
-            Seuraavan päivän hinnat julkaistaan noin klo 13.45 Suomen aikaa. Uudet hinnat päivitetään tälle sivulle pian julkaisun jälkeen.
-        </p>
-
-        <h3 class="text-xl font-bold text-slate-900 mt-8 mb-3">
-            ALV-muutokset
-        </h3>
-        <p class="text-base text-slate-700 leading-relaxed">
-            1.9.2024 alkaen sähkön arvonlisävero on 25,5 %. Hinnat ajalta 1.12.2022–30.4.2023 sisältävät ALV:n 10 % (väliaikainen alennus).
-            Hinnat ajalta 1.5.2023–31.8.2024 sisältävät ALV:n 24 %.
-        </p>
+    <section class="max-w-3xl border-t border-slate-200 pt-8 mt-4">
+        <h2 class="text-lg font-bold text-slate-900 mb-3">Usein kysyttyä</h2>
+        <div class="divide-y divide-slate-200 border-y border-slate-200">
+            <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer list-none gap-3">
+                    <span class="text-base font-semibold text-slate-900">Mikä on pörssisähkö ja miten hinta muodostuu?</span>
+                    <svg class="w-4 h-4 text-slate-500 shrink-0 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="mt-3 space-y-3 text-sm text-slate-700 leading-relaxed">
+                    <p>Tällä sivulla esitetyt hintatiedot ovat Pohjoismaiden ja Baltian maiden sähköpörssi Nord Poolin määrittämiä sähkön spot-hintoja. Kaupankäynnissä jokaisella päivän tunnilla on aina oma hintansa.</p>
+                    <p>Hinnan määräytyminen Pohjoismaissa perustuu energialähteiden (vesivoima, tuulivoima, ydinvoima ja voimapolttoaineet: hiili, öljy, maakaasu) tuotantoon neljällä markkina-alueella (Suomi, Norja, Ruotsi, Tanska) sekä niihin liittyvien päästöoikeuksien (päästökauppa) sääntelyyn, sähkönkulutukseen ja markkinapsykologiaan.</p>
+                </div>
+            </details>
+            <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer list-none gap-3">
+                    <span class="text-base font-semibold text-slate-900">Milloin seuraavan päivän hinnat julkaistaan?</span>
+                    <svg class="w-4 h-4 text-slate-500 shrink-0 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <p class="mt-3 text-sm text-slate-700 leading-relaxed">Seuraavan päivän hinnat julkaistaan noin klo 13.45 Suomen aikaa. Uudet hinnat päivitetään tälle sivulle pian julkaisun jälkeen.</p>
+            </details>
+            <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer list-none gap-3">
+                    <span class="text-base font-semibold text-slate-900">ALV-muutokset</span>
+                    <svg class="w-4 h-4 text-slate-500 shrink-0 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <p class="mt-3 text-sm text-slate-700 leading-relaxed">1.9.2024 alkaen sähkön arvonlisävero on 25,5 %. Hinnat ajalta 1.12.2022–30.4.2023 sisältävät ALV:n 10 % (väliaikainen alennus). Hinnat ajalta 1.5.2023–31.8.2024 sisältävät ALV:n 24 %.</p>
+            </details>
+        </div>
     </section>
     </div>
 </div>

@@ -26,6 +26,7 @@ class SpotPrice extends Component
     public array $weeklyChartData = [];
     public array $monthlyComparison = [];
     public array $yearOverYearComparison = [];
+    public array $multiYearMonthly = [];
 
     private const REGION = 'FI';
     private const TIMEZONE = 'Europe/Helsinki';
@@ -61,8 +62,8 @@ class SpotPrice extends Component
     {
         $this->fetchPrices();
         $this->loadForecastPrices();
-        $this->loadHistoricalData();
         $this->loadRolling30DayAverage();
+        $this->loadHistoricalData();
     }
 
     /**
@@ -341,25 +342,30 @@ class SpotPrice extends Component
     /**
      * Build a unified list of day-strips for the column-bar timeline chart.
      *
-     * Each strip is one calendar day rendered as 24 vertical column bars.
-     * Strips are ordered chronologically: today, tomorrow, then any forecast days.
+     * Tomorrow's actual hours and tomorrow's third-party forecast hours are merged
+     * into a single strip so the user doesn't see two charts for the same calendar
+     * day. Later forecast-only days are kept only when they have at least 6 hours
+     * of data so the page doesn't show sparse "looks broken" strips.
      *
-     * @return array<int, array{
-     *     key: string,
-     *     label: string,
-     *     date: string,
-     *     provenance: ?string,
-     *     isForecast: bool,
-     *     prices: array<int, array<string, mixed>>,
-     *     stats: array{min: float|null, avg: float|null, max: float|null}
-     * }>
+     * Each strip is self-scaled — its bar heights are computed against its own max
+     * price, not a globally unified max, so a 7-day-out forecast spike can't squash
+     * today's bars. The 30-day average is exposed per strip as a percent height so
+     * the view can draw a labeled baseline.
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getDayStripsForChart(): array
     {
-        $strips = [];
         $helsinkiNow = Carbon::now(self::TIMEZONE);
         $todayDate = $helsinkiNow->format('Y-m-d');
         $tomorrowDate = $helsinkiNow->copy()->addDay()->format('Y-m-d');
+
+        $forecastByDate = [];
+        foreach ($this->getForecastPricesGroupedByDate() as $group) {
+            $forecastByDate[$group['date']] = $group['prices'];
+        }
+
+        $strips = [];
 
         $today = $this->getTodayPricesWithMeta();
         if (!empty($today)) {
@@ -369,46 +375,66 @@ class SpotPrice extends Component
                 'date' => $todayDate,
                 'provenance' => null,
                 'isForecast' => false,
-                'prices' => $today,
-                'stats' => $this->calculateStripStats($today),
+                'forecastStartHour' => null,
+                'prices' => array_map(fn(array $p) => $p + ['isForecast' => false], $today),
             ];
         }
 
-        $tomorrow = $this->getTomorrowPricesWithMeta();
-        if (!empty($tomorrow)) {
+        $tomorrowActual = $this->getTomorrowPricesWithMeta();
+        $tomorrowForecast = $forecastByDate[$tomorrowDate] ?? [];
+        unset($forecastByDate[$tomorrowDate]);
+
+        if (!empty($tomorrowActual) || !empty($tomorrowForecast)) {
+            $merged = array_map(fn(array $p) => $p + ['isForecast' => false], $tomorrowActual);
+            foreach ($tomorrowForecast as $p) {
+                $merged[] = $p + ['isForecast' => true];
+            }
+
+            $hasActual = !empty($tomorrowActual);
+            $hasForecast = !empty($tomorrowForecast);
+            $forecastStartHour = $hasForecast
+                ? min(array_map(fn($p) => (int) ($p['helsinki_hour'] ?? $p['hour'] ?? 0), $tomorrowForecast))
+                : null;
+
+            $provenance = match (true) {
+                $hasActual && $hasForecast => 'hybrid',
+                $hasActual && !$hasForecast => 'uudet',
+                default => 'ennuste',
+            };
+
             $strips[] = [
                 'key' => 'tomorrow',
                 'label' => 'Huomenna',
                 'date' => $tomorrowDate,
-                'provenance' => 'uudet',
-                'isForecast' => false,
-                'prices' => $tomorrow,
-                'stats' => $this->calculateStripStats($tomorrow),
+                'provenance' => $provenance,
+                'isForecast' => !$hasActual,
+                'forecastStartHour' => $forecastStartHour,
+                'prices' => $merged,
             ];
         }
 
-        $existingDates = array_column($strips, 'date');
-
-        foreach ($this->getForecastPricesGroupedByDate() as $day) {
-            $isSameDateAsActual = in_array($day['date'], $existingDates, true);
-            $label = $day['label'];
-
-            if ($isSameDateAsActual) {
-                $label .= ' · loput tunnit';
+        foreach ($forecastByDate as $date => $prices) {
+            if (count($prices) < 6) {
+                continue;
             }
 
             $strips[] = [
-                'key' => 'forecast_' . $day['date'],
-                'label' => $label,
-                'date' => $day['date'],
+                'key' => 'forecast_' . $date,
+                'label' => $this->formatForecastDateLabel($date),
+                'date' => $date,
                 'provenance' => 'ennuste',
                 'isForecast' => true,
-                'prices' => $day['prices'],
-                'stats' => $this->calculateStripStats($day['prices']),
+                'forecastStartHour' => null,
+                'prices' => array_map(fn(array $p) => $p + ['isForecast' => true], $prices),
             ];
         }
 
-        // Unified scale across all strips so heights are visually comparable day-to-day.
+        $avg30d = $this->rolling30DayAvgWithVat;
+
+        // Shared scale across every strip so days are visually comparable. The scale
+        // also reserves enough headroom for the 30-day average baseline so it sits
+        // inside the chart area on every strip, including days whose own max is
+        // below the average.
         $allValues = [];
         foreach ($strips as $strip) {
             foreach ($strip['prices'] as $price) {
@@ -418,21 +444,42 @@ class SpotPrice extends Component
                 }
             }
         }
-        $maxValue = !empty($allValues) ? max($allValues) : 0;
-        $scaleMax = max($maxValue * 1.1, 3.0);
+        $globalMax = !empty($allValues) ? max($allValues) : 0;
+        $avgFloor = ($avg30d !== null && $avg30d > 0) ? $avg30d * 1.15 : 0;
+        $scaleMax = max($globalMax * 1.1, $avgFloor, 3.0);
 
-        $strips = array_map(function (array $strip) use ($scaleMax) {
+        return array_map(function (array $strip) use ($avg30d, $scaleMax) {
+            $strip['stats'] = $this->calculateStripStats($strip['prices']);
+            $strip['scaleMax'] = $scaleMax;
+            $strip['avgBaselinePercent'] = ($avg30d !== null && $avg30d > 0 && $avg30d <= $scaleMax)
+                ? round(($avg30d / $scaleMax) * 100, 1)
+                : null;
+            $strip['avgBaselineValue'] = $avg30d;
+
             $strip['prices'] = array_map(function (array $price) use ($scaleMax) {
-                $value = (float) ($price['price_with_vat'] ?? 0);
-                $price['widthPercent'] = (int) max(4, min(100, round(($value / $scaleMax) * 100)));
+                $value = $price['price_with_vat'] ?? null;
+                $isForecast = !empty($price['isForecast']);
+                $isCurrent = !empty($price['isCurrentHour']);
+
+                $price['widthPercent'] = $value !== null
+                    ? (int) max(4, min(100, round(((float) $value / $scaleMax) * 100)))
+                    : 0;
+
+                if ($isCurrent) {
+                    $price['colorClass'] = 'bg-coral-500';
+                } elseif ($isForecast) {
+                    $price['colorClass'] = 'bg-slate-300';
+                } else {
+                    $price['colorClass'] = 'bg-slate-500';
+                }
+
                 return $price;
             }, $strip['prices']);
+
             $strip['prices'] = $this->padPricesTo24Slots($strip['prices']);
-            $strip['scaleMax'] = $scaleMax;
+
             return $strip;
         }, $strips);
-
-        return $strips;
     }
 
     /**
@@ -1849,14 +1896,15 @@ class SpotPrice extends Component
      */
     public function loadHistoricalData(): void
     {
-        $historicalData = Cache::remember('spot_price:historical:v1', 3600, function () {
-            $weeklyDailyAverages = $this->getWeeklyDailyAverages();
+        $historicalData = Cache::remember('spot_price:historical:v2', 3600, function () {
+            $monthlyDailyAverages = $this->getMonthlyDailyAverages(30);
 
             return [
-                'weeklyDailyAverages' => $weeklyDailyAverages,
-                'weeklyChartData' => $this->buildWeeklyChartData($weeklyDailyAverages),
+                'weeklyDailyAverages' => $monthlyDailyAverages,
+                'weeklyChartData' => $this->buildTrendChartData($monthlyDailyAverages),
                 'monthlyComparison' => $this->getMonthlyComparison(),
                 'yearOverYearComparison' => $this->getYearOverYearComparison(),
+                'multiYearMonthly' => $this->getMultiYearMonthlyComparison(5),
             ];
         });
 
@@ -1864,7 +1912,98 @@ class SpotPrice extends Component
         $this->weeklyChartData = $historicalData['weeklyChartData'];
         $this->monthlyComparison = $historicalData['monthlyComparison'];
         $this->yearOverYearComparison = $historicalData['yearOverYearComparison'];
+        $this->multiYearMonthly = $historicalData['multiYearMonthly'];
         $this->historicalDataLoaded = true;
+    }
+
+    /**
+     * Daily averages (min/avg/max) for the past N days, excluding today.
+     *
+     * @return array<int, array{date: string, average: float, min: float, max: float}>
+     */
+    public function getMonthlyDailyAverages(int $days = 30): array
+    {
+        $helsinkiNow = Carbon::now(self::TIMEZONE);
+        $start = $helsinkiNow->copy()->subDays($days)->startOfDay()->setTimezone('UTC');
+        $end = $helsinkiNow->copy()->subDay()->endOfDay()->setTimezone('UTC');
+
+        $prices = SpotPriceHour::forRegion(self::REGION)
+            ->whereBetween('utc_datetime', [$start, $end])
+            ->orderBy('utc_datetime')
+            ->get();
+
+        if ($prices->isEmpty()) {
+            return [];
+        }
+
+        $byDate = [];
+        foreach ($prices as $price) {
+            $date = Carbon::parse($price->utc_datetime)
+                ->shiftTimezone('UTC')
+                ->setTimezone(self::TIMEZONE)
+                ->format('Y-m-d');
+
+            $byDate[$date] ??= ['prices' => [], 'min' => PHP_FLOAT_MAX, 'max' => -PHP_FLOAT_MAX];
+            $byDate[$date]['prices'][] = $price->price_without_tax;
+            $byDate[$date]['min'] = min($byDate[$date]['min'], $price->price_without_tax);
+            $byDate[$date]['max'] = max($byDate[$date]['max'], $price->price_without_tax);
+        }
+
+        ksort($byDate);
+
+        $result = [];
+        foreach ($byDate as $date => $data) {
+            $result[] = [
+                'date' => $date,
+                'average' => array_sum($data['prices']) / count($data['prices']),
+                'min' => $data['min'],
+                'max' => $data['max'],
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Average price for the current calendar month across the last N years.
+     *
+     * Reads pre-computed monthly aggregates from `spot_price_averages` when
+     * present; falls back silently when older years aren't backfilled so the
+     * chart degrades gracefully to whatever years we actually have data for.
+     *
+     * Prices are returned with the current 25.5 % VAT applied so they're
+     * directly comparable to the c/kWh values rendered elsewhere on the page.
+     *
+     * @return array<int, array{year: int, label: string, average_with_vat: ?float, has_data: bool, is_current: bool}>
+     */
+    public function getMultiYearMonthlyComparison(int $years = 5): array
+    {
+        $helsinkiNow = Carbon::now(self::TIMEZONE);
+        $currentMonth = $helsinkiNow->month;
+        $currentYear = $helsinkiNow->year;
+
+        $result = [];
+        for ($i = $years - 1; $i >= 0; $i--) {
+            $year = $currentYear - $i;
+
+            $row = SpotPriceAverage::forRegion(self::REGION)
+                ->where('period_type', 'monthly')
+                ->whereYear('period_end', $year)
+                ->whereMonth('period_end', $currentMonth)
+                ->first();
+
+            $avgWithVat = $row?->avg_price_with_tax !== null ? round($row->avg_price_with_tax, 2) : null;
+
+            $result[] = [
+                'year' => $year,
+                'label' => (string) $year,
+                'average_with_vat' => $avgWithVat,
+                'has_data' => $avgWithVat !== null,
+                'is_current' => $year === $currentYear,
+            ];
+        }
+
+        return $result;
     }
 
     /**
@@ -2043,12 +2182,19 @@ class SpotPrice extends Component
      */
     public function getWeeklyChartData(): array
     {
-        return $this->buildWeeklyChartData($this->weeklyDailyAverages ?: $this->getWeeklyDailyAverages());
+        return $this->buildTrendChartData($this->weeklyDailyAverages ?: $this->getMonthlyDailyAverages(30));
     }
 
-    private function buildWeeklyChartData(array $weeklyData): array
+    /**
+     * Build line-chart data for the recent daily-average trend.
+     *
+     * The dataset is in c/kWh ex VAT. A 30-day rolling average baseline (with VAT
+     * stripped to stay comparable) is included so the line chart visually answers
+     * "where does today sit vs. the recent norm" without a second axis.
+     */
+    private function buildTrendChartData(array $trendData): array
     {
-        if (empty($weeklyData)) {
+        if (empty($trendData)) {
             return [
                 'labels' => [],
                 'datasets' => [
@@ -2068,46 +2214,62 @@ class SpotPrice extends Component
         $mins = [];
         $maxs = [];
 
-        foreach ($weeklyData as $day) {
+        foreach ($trendData as $day) {
             $date = Carbon::parse($day['date']);
-            // Finnish format: d.m. (e.g., "13.1.")
             $labels[] = $date->format('d.m.');
             $averages[] = round($day['average'], 2);
             $mins[] = round($day['min'], 2);
             $maxs[] = round($day['max'], 2);
         }
 
+        $datasets = [
+            [
+                'label' => 'Päivän alin (c/kWh)',
+                'data' => $mins,
+                'borderColor' => 'rgba(148, 163, 184, 0.0)',
+                'backgroundColor' => 'rgba(249, 115, 22, 0.08)',
+                'tension' => 0.3,
+                'pointRadius' => 0,
+                'fill' => '+1',
+            ],
+            [
+                'label' => 'Päivän ylin (c/kWh)',
+                'data' => $maxs,
+                'borderColor' => 'rgba(148, 163, 184, 0.0)',
+                'backgroundColor' => 'rgba(249, 115, 22, 0.08)',
+                'tension' => 0.3,
+                'pointRadius' => 0,
+                'fill' => false,
+            ],
+            [
+                'label' => 'Päivän keskihinta (c/kWh)',
+                'data' => $averages,
+                'borderColor' => 'rgb(15, 23, 42)',
+                'backgroundColor' => 'rgb(15, 23, 42)',
+                'borderWidth' => 2,
+                'tension' => 0.3,
+                'fill' => false,
+            ],
+        ];
+
+        if ($this->rolling30DayAvgWithVat !== null) {
+            $avgExVat = round($this->rolling30DayAvgWithVat / 1.255, 2);
+            $datasets[] = [
+                'label' => '30 pv keskiarvo (c/kWh)',
+                'data' => array_fill(0, count($labels), $avgExVat),
+                'borderColor' => 'rgba(100, 116, 139, 0.7)',
+                'backgroundColor' => 'rgba(100, 116, 139, 0.0)',
+                'borderDash' => [4, 4],
+                'borderWidth' => 1.5,
+                'pointRadius' => 0,
+                'tension' => 0,
+                'fill' => false,
+            ];
+        }
+
         return [
             'labels' => $labels,
-            'datasets' => [
-                [
-                    'label' => 'Päivän alin (c/kWh)',
-                    'data' => $mins,
-                    'borderColor' => 'rgba(148, 163, 184, 0.0)',
-                    'backgroundColor' => 'rgba(249, 115, 22, 0.08)',
-                    'tension' => 0.3,
-                    'pointRadius' => 0,
-                    'fill' => '+1',
-                ],
-                [
-                    'label' => 'Päivän ylin (c/kWh)',
-                    'data' => $maxs,
-                    'borderColor' => 'rgba(148, 163, 184, 0.0)',
-                    'backgroundColor' => 'rgba(249, 115, 22, 0.08)',
-                    'tension' => 0.3,
-                    'pointRadius' => 0,
-                    'fill' => false,
-                ],
-                [
-                    'label' => 'Päivän keskihinta (c/kWh)',
-                    'data' => $averages,
-                    'borderColor' => 'rgb(15, 23, 42)',
-                    'backgroundColor' => 'rgb(15, 23, 42)',
-                    'borderWidth' => 2,
-                    'tension' => 0.3,
-                    'fill' => false,
-                ],
-            ],
+            'datasets' => $datasets,
         ];
     }
 
@@ -2257,6 +2419,7 @@ class SpotPrice extends Component
             $viewData['weeklyChartData'] = $this->weeklyChartData;
             $viewData['monthlyComparison'] = $this->monthlyComparison;
             $viewData['yearOverYearComparison'] = $this->yearOverYearComparison;
+            $viewData['multiYearMonthly'] = $this->multiYearMonthly;
         }
 
         return view('livewire.spot-price', $viewData)
