@@ -150,11 +150,11 @@ class HomePage extends Component
      * Cached until tomorrow because the underlying statistics table refreshes
      * once per day after `contracts:calculate-price-statistics`.
      *
-     * @return array{x: array<int,int>, series: array<int, array{label:string, values:array<int,?float>}>}
+     * @return array{x: array<int,int>, series: array<int, array{label:string, values:array<int,?float>}>, caption: ?string}
      */
     private function getContractPriceTrend(): array
     {
-        return Cache::remember('home-page:contract-price-trend:v3', Carbon::tomorrow(), function () {
+        return Cache::remember('home-page:contract-price-trend:v4', Carbon::tomorrow(), function () {
             $segments = [
                 'spot' => 'Pörssisähkö',
                 'fixed_term_12' => 'Määräaikainen 12 kk',
@@ -215,7 +215,61 @@ class HomePage extends Component
             return [
                 'x' => array_map(static fn ($w) => Carbon::parse($w)->getTimestamp(), $allWeeks),
                 'series' => $series,
+                'caption' => $this->buildTrendCaption($series),
             ];
         });
+    }
+
+    /**
+     * Build a one-paragraph plain-Finnish caption describing the chart's
+     * current state from the actual series values: spot's weekly range,
+     * fixed-term 12 kk range, and which segment is currently most/least
+     * expensive. Returns null if data is too sparse to characterize.
+     *
+     * @param array<int, array{label:string, values:array<int,?float>}> $series
+     */
+    private function buildTrendCaption(array $series): ?string
+    {
+        if (count($series) < 4) {
+            return null;
+        }
+
+        $spotValues = array_values(array_filter($series[0]['values'], static fn ($v) => $v !== null));
+        $fixedValues = array_values(array_filter($series[1]['values'], static fn ($v) => $v !== null));
+
+        if (count($spotValues) < 2 || count($fixedValues) < 2) {
+            return null;
+        }
+
+        $latestBySegment = [];
+        foreach ($series as $segment) {
+            for ($i = count($segment['values']) - 1; $i >= 0; $i--) {
+                if ($segment['values'][$i] !== null) {
+                    $latestBySegment[$segment['label']] = $segment['values'][$i];
+                    break;
+                }
+            }
+        }
+
+        if (count($latestBySegment) < 2) {
+            return null;
+        }
+
+        arsort($latestBySegment);
+        $highestLabel = array_key_first($latestBySegment);
+        $lowestLabel = array_key_last($latestBySegment);
+
+        $fmt = static fn (float $v): string => number_format($v, 1, ',', ' ');
+        $lcfirst = static fn (string $s): string => mb_strtolower(mb_substr($s, 0, 1)) . mb_substr($s, 1);
+
+        return sprintf(
+            'Pörssin viikkohinta on vaihdellut %s–%s c/kWh, kun määräaikaisten 12 kk hinta on pysynyt %s–%s c/kWh välillä. Kallein vaihtoehto tällä hetkellä on %s, edullisin %s. Tarkemmat luvut, vuosikustannukset ja kulutustasot löytyvät tilastosivulta.',
+            $fmt(min($spotValues)),
+            $fmt(max($spotValues)),
+            $fmt(min($fixedValues)),
+            $fmt(max($fixedValues)),
+            $lcfirst($highestLabel),
+            $lcfirst($lowestLabel),
+        );
     }
 }

@@ -183,7 +183,7 @@
                         Sähkösopimusten energiahinta sopimustyypeittäin
                     </h3>
                     <p class="text-slate-600 mb-8 max-w-xl leading-relaxed">
-                        Pörssi heiluu, määräaikaiset pysyvät paikallaan, toistaiseksi voimassa olevat hinnoittelevat ylimpänä. Tarkemmat luvut, vuosikustannukset ja kulutustasot löytyvät tilastosivulta.
+                        {{ $contractPriceTrend['caption'] ?? 'Vertaa pörssin, määräaikaisten ja toistaiseksi voimassa olevien sopimusten energiahintaa viimeisten kuuden kuukauden ajalta. Tarkemmat luvut, vuosikustannukset ja kulutustasot löytyvät tilastosivulta.' }}
                     </p>
 
                     @if(!empty($contractPriceTrend['x']) && count($contractPriceTrend['x']) >= 2)
