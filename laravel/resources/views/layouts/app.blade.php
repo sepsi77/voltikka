@@ -215,9 +215,17 @@
 
                     <!-- Desktop Navigation -->
                     <nav class="hidden lg:flex items-center space-x-1" id="site-desktop-nav">
+                        @php
+                            $isDataNavActive = request()->is('sahkosopimus/tilastot')
+                                || request()->is('sahkosopimus/sahkon-hintaennuste')
+                                || request()->is('sahkosopimus/kannattaako-porssisahko')
+                                || request()->is('sahkosopimus/kannattaako-maaraaikainen')
+                                || request()->is('spot-price');
+                            $isContractsNavActive = request()->is('sahkosopimus*') && ! $isDataNavActive;
+                        @endphp
                         {{-- Sähkösopimukset dropdown --}}
                         <div class="relative" x-data="{ open: false }" @mouseenter="open = true" @mouseleave="open = false">
-                            <a href="/sahkosopimus" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors inline-flex items-center gap-1 {{ request()->is('sahkosopimus*') || request()->is('spot-price') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                            <a href="/sahkosopimus" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors inline-flex items-center gap-1 {{ $isContractsNavActive ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                                 Sähkösopimukset
                                 <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                             </a>
@@ -225,7 +233,7 @@
                                 <a href="/sahkosopimus" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus') && !request()->is('sahkosopimus/*') ? 'bg-slate-100 font-semibold' : '' }}">Vertaa sopimuksia</a>
                                 <a href="/sahkosopimus/halvin-sahkosopimus" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/halvin-sahkosopimus') ? 'bg-slate-100 font-semibold' : '' }}">Halvimmat sopimukset</a>
                                 <a href="/sahkosopimus/sahkotarjous" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/sahkotarjous') ? 'bg-slate-100 font-semibold' : '' }}">Tarjoukset</a>
-                                <a href="/spot-price" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('spot-price') ? 'bg-slate-100 font-semibold' : '' }}">Pörssisähkö</a>
+                                <a href="/sahkosopimus/porssisahko" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/porssisahko') ? 'bg-slate-100 font-semibold' : '' }}">Pörssisähkö</a>
                                 <a href="/sahkosopimus/kvartaalisahko" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/kvartaalisahko') ? 'bg-slate-100 font-semibold' : '' }}">Kvartaalisähkö</a>
                                 <a href="/sahkosopimus/joustosahko" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/joustosahko') ? 'bg-slate-100 font-semibold' : '' }}">Joustosähkö</a>
                                 <a href="/sahkosopimus/yleissahko" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/yleissahko') ? 'bg-slate-100 font-semibold' : '' }}">Yleissähkö</a>
@@ -233,11 +241,22 @@
                                 <a href="/sahkosopimus/sahkoyhtiot" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/sahkoyhtiot*') ? 'bg-slate-100 font-semibold' : '' }}">Sähköyhtiöt</a>
                             </div>
                         </div>
-                        <a href="/sahkosopimus/tilastot" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('sahkosopimus/tilastot') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
-                            Hintatilastot
-                        </a>
+                        {{-- Data ja selvitykset dropdown --}}
+                        <div class="relative" x-data="{ open: false }" @mouseenter="open = true" @mouseleave="open = false">
+                            <a href="/sahkosopimus/tilastot" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors inline-flex items-center gap-1 {{ $isDataNavActive ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                                Sähködata
+                                <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </a>
+                            <div x-show="open" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="transform opacity-0 scale-95" x-transition:enter-end="transform opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="transform opacity-100 scale-100" x-transition:leave-end="transform opacity-0 scale-95" class="absolute left-0 mt-1 w-64 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50" style="display: none;">
+                                <a href="/sahkosopimus/tilastot" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/tilastot') ? 'bg-slate-100 font-semibold' : '' }}">Sähkösopimusten hintakehitys</a>
+                                <a href="/sahkosopimus/sahkon-hintaennuste" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/sahkon-hintaennuste') ? 'bg-slate-100 font-semibold' : '' }}">Sähkön hintaennuste</a>
+                                <a href="/sahkosopimus/kannattaako-porssisahko" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/kannattaako-porssisahko') ? 'bg-slate-100 font-semibold' : '' }}">Kannattaako pörssisähkö?</a>
+                                <a href="/sahkosopimus/kannattaako-maaraaikainen" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/kannattaako-maaraaikainen') ? 'bg-slate-100 font-semibold' : '' }}">Kannattaako määräaikainen?</a>
+                                <a href="/spot-price" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('spot-price') ? 'bg-slate-100 font-semibold' : '' }}">Pörssisähkön hinta</a>
+                            </div>
+                        </div>
                         <a href="{{ route('calculator') }}" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('sahkosopimus/laskuri') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
-                            Sähkölaskuri
+                            Arvioi sähkönkulutus
                         </a>
                         <a href="/aurinkopaneelit" class="px-4 py-2 rounded-lg text-slate-500 hover:text-slate-900 font-medium transition-colors {{ request()->is('aurinkopaneelit*') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                             Aurinkopaneelit
@@ -280,8 +299,8 @@
             <div x-show="mobileMenuOpen" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="transform opacity-0 scale-95" x-transition:enter-end="transform opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="transform opacity-100 scale-100" x-transition:leave-end="transform opacity-0 scale-95" class="lg:hidden" id="mobile-menu" style="display: none;">
                 <div class="px-2 pt-2 pb-3 space-y-1 bg-white border-t border-slate-200" id="site-mobile-nav">
                     {{-- Sähkösopimukset collapsible section --}}
-                    <div x-data="{ expanded: {{ request()->is('sahkosopimus*') || request()->is('spot-price') ? 'true' : 'false' }} }">
-                        <button @click="expanded = !expanded" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus*') || request()->is('spot-price') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                    <div x-data="{ expanded: {{ $isContractsNavActive ? 'true' : 'false' }} }">
+                        <button @click="expanded = !expanded" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ $isContractsNavActive ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                             <span>Sähkösopimukset</span>
                             <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': expanded }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                         </button>
@@ -295,7 +314,7 @@
                             <a href="/sahkosopimus/sahkotarjous" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/sahkotarjous') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                                 Tarjoukset
                             </a>
-                            <a href="/spot-price" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('spot-price') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                            <a href="/sahkosopimus/porssisahko" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/porssisahko') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                                 Pörssisähkö
                             </a>
                             <a href="/sahkosopimus/kvartaalisahko" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/kvartaalisahko') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
@@ -315,11 +334,31 @@
                             </a>
                         </div>
                     </div>
-                    <a href="/sahkosopimus/tilastot" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/tilastot') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
-                        Hintatilastot
-                    </a>
+                    <div x-data="{ expanded: {{ $isDataNavActive ? 'true' : 'false' }} }">
+                        <button @click="expanded = !expanded" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ $isDataNavActive ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                            <span>Sähködata</span>
+                            <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': expanded }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div x-show="expanded" x-transition class="pl-4 space-y-1 mt-1">
+                            <a href="/sahkosopimus/tilastot" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/tilastot') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                                Sähkösopimusten hintakehitys
+                            </a>
+                            <a href="/sahkosopimus/sahkon-hintaennuste" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/sahkon-hintaennuste') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                                Sähkön hintaennuste
+                            </a>
+                            <a href="/sahkosopimus/kannattaako-porssisahko" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/kannattaako-porssisahko') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                                Kannattaako pörssisähkö?
+                            </a>
+                            <a href="/sahkosopimus/kannattaako-maaraaikainen" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/kannattaako-maaraaikainen') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                                Kannattaako määräaikainen?
+                            </a>
+                            <a href="/spot-price" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('spot-price') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                                Pörssisähkön hinta
+                            </a>
+                        </div>
+                    </div>
                     <a href="{{ route('calculator') }}" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/laskuri') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
-                        Sähkölaskuri
+                        Arvioi sähkönkulutus
                     </a>
                     <a href="/aurinkopaneelit" class="block px-3 py-2 rounded-lg text-base font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('aurinkopaneelit*') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                         Aurinkopaneelit
@@ -346,21 +385,9 @@
                             <li><a href="/" class="text-slate-400 hover:text-white text-sm transition-colors">Kaikki sopimukset</a></li>
                             <li><a href="/sahkosopimus" class="text-slate-400 hover:text-white text-sm transition-colors">Vertaa sopimuksia</a></li>
                             <li><a href="/sahkosopimus/halvin-sahkosopimus" class="text-slate-400 hover:text-white text-sm transition-colors">Halvimmat sopimukset</a></li>
-                            <li><a href="/sahkosopimus/tilastot" class="text-slate-400 hover:text-white text-sm transition-colors">Hintatilastot</a></li>
                             <li><a href="/sahkosopimus/sahkotarjous" class="text-slate-400 hover:text-white text-sm transition-colors">Tarjoukset</a></li>
-                            <li><a href="/sahkosopimus/porssisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Pörssisähkö</a></li>
-                            <li><a href="/sahkosopimus/kvartaalisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Kvartaalisähkö</a></li>
-                            <li><a href="/sahkosopimus/aikasahko" class="text-slate-400 hover:text-white text-sm transition-colors">Aikasähkö</a></li>
-                            <li><a href="/sahkosopimus/kausisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Kausisähkö</a></li>
-                            <li><a href="/sahkosopimus/joustosahko" class="text-slate-400 hover:text-white text-sm transition-colors">Joustosähkö</a></li>
-                            <li><a href="/sahkosopimus/yleissahko" class="text-slate-400 hover:text-white text-sm transition-colors">Yleissähkö</a></li>
-                            <li><a href="/sahkosopimus/maaraaikainen" class="text-slate-400 hover:text-white text-sm transition-colors">Määräaikainen</a></li>
-                            <li><a href="/sahkosopimus/toistaiseksi" class="text-slate-400 hover:text-white text-sm transition-colors">Toistaiseksi voimassa oleva</a></li>
-                            <li><a href="/sahkosopimus/kannattaako-porssisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Kannattaako pörssisähkö?</a></li>
-                            <li><a href="/sahkosopimus/kannattaako-maaraaikainen" class="text-slate-400 hover:text-white text-sm transition-colors">Kannattaako määräaikainen?</a></li>
                             <li><a href="/sahkosopimus/yritykselle" class="text-slate-400 hover:text-white text-sm transition-colors">Yrityksille</a></li>
                             <li><a href="/sahkosopimus/sahkoyhtiot" class="text-slate-400 hover:text-white text-sm transition-colors">Sähköyhtiöt</a></li>
-                            <li><a href="{{ route('calculator') }}" class="text-slate-400 hover:text-white text-sm transition-colors">Sähkölaskuri</a></li>
                         </ul>
                     </div>
 
@@ -368,29 +395,22 @@
                     <div>
                         <h3 class="text-white font-semibold mb-4">Laskurit</h3>
                         <ul class="space-y-2">
-                            <li><a href="{{ route('calculator') }}" class="text-slate-400 hover:text-white text-sm transition-colors">Sähkölaskuri</a></li>
+                            <li><a href="{{ route('calculator') }}" class="text-slate-400 hover:text-white text-sm transition-colors">Arvioi sähkönkulutus</a></li>
                             <li><a href="/aurinkopaneelit/laskuri" class="text-slate-400 hover:text-white text-sm transition-colors">Aurinkopaneelilaskuri</a></li>
                             <li><a href="/lampopumput/laskuri" class="text-slate-400 hover:text-white text-sm transition-colors">Lämpöpumppulaskuri</a></li>
                         </ul>
 
-                        <h3 class="text-white font-semibold mb-4 mt-6">Asuntotyyppi</h3>
-                        <ul class="space-y-2">
-                            <li><a href="/sahkosopimus/omakotitalo" class="text-slate-400 hover:text-white text-sm transition-colors">Omakotitalo</a></li>
-                            <li><a href="/sahkosopimus/rivitalo" class="text-slate-400 hover:text-white text-sm transition-colors">Rivitalo</a></li>
-                            <li><a href="/sahkosopimus/kerrostalo" class="text-slate-400 hover:text-white text-sm transition-colors">Kerrostalo</a></li>
-                        </ul>
                     </div>
 
-                    <!-- Energialähde -->
+                    <!-- Data ja selvitykset -->
                     <div>
-                        <h3 class="text-white font-semibold mb-4">Energialähde</h3>
+                        <h3 class="text-white font-semibold mb-4">Data ja selvitykset</h3>
                         <ul class="space-y-2">
-                            <li><a href="/sahkosopimus/vihrea-sahko" class="text-slate-400 hover:text-white text-sm transition-colors">Vihreä sähkö</a></li>
-                            <li><a href="/sahkosopimus/tuulisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Tuulisähkö</a></li>
-                            <li><a href="/sahkosopimus/aurinkosahko" class="text-slate-400 hover:text-white text-sm transition-colors">Aurinkosähkö</a></li>
-                            <li><a href="/sahkosopimus/fossiiliton" class="text-slate-400 hover:text-white text-sm transition-colors">Fossiiliton sähkö</a></li>
-                            <li><a href="/sahkosopimus/uusiutuva-sahko" class="text-slate-400 hover:text-white text-sm transition-colors">Uusiutuva sähkö</a></li>
-                            <li><a href="/sahkosopimus/ydinvoima" class="text-slate-400 hover:text-white text-sm transition-colors">Ydinvoimasähkö</a></li>
+                            <li><a href="/sahkosopimus/tilastot" class="text-slate-400 hover:text-white text-sm transition-colors">Sähkösopimusten hintakehitys</a></li>
+                            <li><a href="/sahkosopimus/sahkon-hintaennuste" class="text-slate-400 hover:text-white text-sm transition-colors">Sähkön hintaennuste</a></li>
+                            <li><a href="/sahkosopimus/kannattaako-porssisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Kannattaako pörssisähkö?</a></li>
+                            <li><a href="/sahkosopimus/kannattaako-maaraaikainen" class="text-slate-400 hover:text-white text-sm transition-colors">Kannattaako määräaikainen?</a></li>
+                            <li><a href="/spot-price" class="text-slate-400 hover:text-white text-sm transition-colors">Pörssisähkön hinta</a></li>
                         </ul>
                     </div>
 
@@ -399,15 +419,9 @@
                         <h3 class="text-white font-semibold mb-4">Paikkakunnat</h3>
                         <ul class="space-y-2">
                             <li><a href="/sahkosopimus/paikkakunnat/helsinki" class="text-slate-400 hover:text-white text-sm transition-colors">Helsinki</a></li>
-                            <li><a href="/sahkosopimus/paikkakunnat/espoo" class="text-slate-400 hover:text-white text-sm transition-colors">Espoo</a></li>
                             <li><a href="/sahkosopimus/paikkakunnat/tampere" class="text-slate-400 hover:text-white text-sm transition-colors">Tampere</a></li>
-                            <li><a href="/sahkosopimus/paikkakunnat/vantaa" class="text-slate-400 hover:text-white text-sm transition-colors">Vantaa</a></li>
                             <li><a href="/sahkosopimus/paikkakunnat/oulu" class="text-slate-400 hover:text-white text-sm transition-colors">Oulu</a></li>
                             <li><a href="/sahkosopimus/paikkakunnat/turku" class="text-slate-400 hover:text-white text-sm transition-colors">Turku</a></li>
-                            <li><a href="/sahkosopimus/paikkakunnat/jyvaskyla" class="text-slate-400 hover:text-white text-sm transition-colors">Jyväskylä</a></li>
-                            <li><a href="/sahkosopimus/paikkakunnat/lahti" class="text-slate-400 hover:text-white text-sm transition-colors">Lahti</a></li>
-                            <li><a href="/sahkosopimus/paikkakunnat/kuopio" class="text-slate-400 hover:text-white text-sm transition-colors">Kuopio</a></li>
-                            <li><a href="/sahkosopimus/paikkakunnat/pori" class="text-slate-400 hover:text-white text-sm transition-colors">Pori</a></li>
                             <li><a href="{{ route('locations') }}" class="text-coral-400 hover:text-coral-300 text-sm font-medium transition-colors">Kaikki paikkakunnat →</a></li>
                         </ul>
                     </div>

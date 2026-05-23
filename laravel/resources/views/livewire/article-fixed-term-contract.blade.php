@@ -283,8 +283,8 @@
                             </svg>
                         </div>
                         <div>
-                            <h3 class="font-semibold text-slate-900 group-hover:text-coral-600 transition-colors">Sähkölaskuri</h3>
-                            <p class="text-sm text-slate-500">Laske oma sähkönkulutuksesi</p>
+                            <h3 class="font-semibold text-slate-900 group-hover:text-coral-600 transition-colors">Arvioi sähkönkulutus</h3>
+                            <p class="text-sm text-slate-500">Arvioi kotisi vuosikulutus</p>
                         </div>
                     </div>
                 </a>

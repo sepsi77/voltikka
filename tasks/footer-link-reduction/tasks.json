@@ -1,0 +1,10 @@
+[
+  {"name":"Inspect footer implementation and relevant routes","status":"completed"},
+  {"name":"Update footer link groups per screenshot/request","status":"completed"},
+  {"name":"Run focused validation","status":"completed"},
+  {"name":"Rename electricity consumption calculator labels for clarity","status":"completed"},
+  {"name":"Convert main menu data link into data/investigation dropdown","status":"completed"},
+  {"name":"Ensure header Pörssisähkö contract-menu link targets comparison page","status":"completed"},
+  {"name":"Rename main-menu data parent label","status":"completed"},
+  {"name":"Rename hintakehitys link labels","status":"completed"}
+]
