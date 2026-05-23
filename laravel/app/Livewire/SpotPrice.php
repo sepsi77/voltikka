@@ -339,6 +339,156 @@ class SpotPrice extends Component
     }
 
     /**
+     * Build a unified list of day-strips for the column-bar timeline chart.
+     *
+     * Each strip is one calendar day rendered as 24 vertical column bars.
+     * Strips are ordered chronologically: today, tomorrow, then any forecast days.
+     *
+     * @return array<int, array{
+     *     key: string,
+     *     label: string,
+     *     date: string,
+     *     provenance: ?string,
+     *     isForecast: bool,
+     *     prices: array<int, array<string, mixed>>,
+     *     stats: array{min: float|null, avg: float|null, max: float|null}
+     * }>
+     */
+    public function getDayStripsForChart(): array
+    {
+        $strips = [];
+        $helsinkiNow = Carbon::now(self::TIMEZONE);
+        $todayDate = $helsinkiNow->format('Y-m-d');
+        $tomorrowDate = $helsinkiNow->copy()->addDay()->format('Y-m-d');
+
+        $today = $this->getTodayPricesWithMeta();
+        if (!empty($today)) {
+            $strips[] = [
+                'key' => 'today',
+                'label' => 'Tänään',
+                'date' => $todayDate,
+                'provenance' => null,
+                'isForecast' => false,
+                'prices' => $today,
+                'stats' => $this->calculateStripStats($today),
+            ];
+        }
+
+        $tomorrow = $this->getTomorrowPricesWithMeta();
+        if (!empty($tomorrow)) {
+            $strips[] = [
+                'key' => 'tomorrow',
+                'label' => 'Huomenna',
+                'date' => $tomorrowDate,
+                'provenance' => 'uudet',
+                'isForecast' => false,
+                'prices' => $tomorrow,
+                'stats' => $this->calculateStripStats($tomorrow),
+            ];
+        }
+
+        $existingDates = array_column($strips, 'date');
+
+        foreach ($this->getForecastPricesGroupedByDate() as $day) {
+            $isSameDateAsActual = in_array($day['date'], $existingDates, true);
+            $label = $day['label'];
+
+            if ($isSameDateAsActual) {
+                $label .= ' · loput tunnit';
+            }
+
+            $strips[] = [
+                'key' => 'forecast_' . $day['date'],
+                'label' => $label,
+                'date' => $day['date'],
+                'provenance' => 'ennuste',
+                'isForecast' => true,
+                'prices' => $day['prices'],
+                'stats' => $this->calculateStripStats($day['prices']),
+            ];
+        }
+
+        // Unified scale across all strips so heights are visually comparable day-to-day.
+        $allValues = [];
+        foreach ($strips as $strip) {
+            foreach ($strip['prices'] as $price) {
+                $value = $price['price_with_vat'] ?? null;
+                if ($value !== null) {
+                    $allValues[] = (float) $value;
+                }
+            }
+        }
+        $maxValue = !empty($allValues) ? max($allValues) : 0;
+        $scaleMax = max($maxValue * 1.1, 3.0);
+
+        $strips = array_map(function (array $strip) use ($scaleMax) {
+            $strip['prices'] = array_map(function (array $price) use ($scaleMax) {
+                $value = (float) ($price['price_with_vat'] ?? 0);
+                $price['widthPercent'] = (int) max(4, min(100, round(($value / $scaleMax) * 100)));
+                return $price;
+            }, $strip['prices']);
+            $strip['prices'] = $this->padPricesTo24Slots($strip['prices']);
+            $strip['scaleMax'] = $scaleMax;
+            return $strip;
+        }, $strips);
+
+        return $strips;
+    }
+
+    /**
+     * Pad a price array to 24 hour slots so visual axes line up across strips.
+     * Missing hours are filled with placeholder rows that render as empty columns.
+     *
+     * @param array<int, array<string, mixed>> $prices
+     * @return array<int, array<string, mixed>>
+     */
+    private function padPricesTo24Slots(array $prices): array
+    {
+        $byHour = [];
+        foreach ($prices as $price) {
+            $hour = $price['hour'] ?? $price['helsinki_hour'] ?? null;
+            if ($hour !== null) {
+                $byHour[(int) $hour] = $price;
+            }
+        }
+
+        $padded = [];
+        for ($hour = 0; $hour < 24; $hour++) {
+            $padded[] = $byHour[$hour] ?? [
+                'hour' => $hour,
+                'price_with_vat' => null,
+                'colorClass' => 'bg-transparent',
+                'widthPercent' => 0,
+                'isCurrentHour' => false,
+                'badge' => ['label' => '', 'type' => 'normal'],
+                'timestamp' => 0,
+                'isPlaceholder' => true,
+            ];
+        }
+
+        return $padded;
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $prices
+     * @return array{min: float|null, avg: float|null, max: float|null}
+     */
+    private function calculateStripStats(array $prices): array
+    {
+        $values = array_column($prices, 'price_with_vat');
+
+        if (empty($values)) {
+            return ['min' => null, 'avg' => null, 'max' => null];
+        }
+
+        return [
+            'min' => min($values),
+            'avg' => array_sum($values) / count($values),
+            'max' => max($values),
+        ];
+    }
+
+    /**
      * Group forecast prices by Helsinki date for compact display.
      *
      * @return array<int, array{date: string, label: string, prices: array<int, array<string, mixed>>}>
@@ -2097,6 +2247,8 @@ class SpotPrice extends Component
             'hasTomorrowPrices' => $this->hasTomorrowPrices(),
             'forecastPricesGroupedByDate' => $this->getForecastPricesGroupedByDate(),
             'forecastSource' => $this->forecastSource,
+            // Column-bar timeline (today + tomorrow + forecast days, unified)
+            'dayStrips' => $this->getDayStripsForChart(),
         ];
 
         // Add historical data if loaded

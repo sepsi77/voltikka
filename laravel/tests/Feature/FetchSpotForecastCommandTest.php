@@ -72,15 +72,19 @@ class FetchSpotForecastCommandTest extends TestCase
         $this->createForecastPrice(Carbon::parse('2026-05-24 01:00:00', self::TIMEZONE), 7.10);
 
         $component = Livewire::test(SpotPrice::class)
-            ->assertSee('Kolmannen osapuolen ennuste')
+            ->assertSee('Ennuste')
             ->assertSee('nordpool-predict-fi')
-            ->assertSee('Arvio');
+            ->assertSee('Ennusteen lähde');
 
         $forecastDays = $component->viewData('forecastPricesGroupedByDate');
 
         $this->assertNotEmpty($forecastDays);
         $this->assertSame('Huomenna', $forecastDays[0]['label']);
         $this->assertSame(8.75, $forecastDays[0]['prices'][0]['price_with_vat']);
+
+        $dayStrips = $component->viewData('dayStrips');
+        $this->assertNotEmpty($dayStrips);
+        $this->assertContains('Huomenna', array_column($dayStrips, 'label'));
     }
 
     private function createFullDayActualPrices(int $year, int $month, int $day): void

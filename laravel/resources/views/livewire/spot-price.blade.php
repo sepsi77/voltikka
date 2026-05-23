@@ -326,53 +326,39 @@
             </div>
         </section>
 
-        <!-- Seuraavat halvat tunnit - inline strip, no card chrome -->
-        @if (!empty($cheapestRemainingHours))
-            <section class="mb-10">
-                <div class="flex items-baseline justify-between mb-4">
-                    <h3 class="text-xl font-bold text-slate-900">Seuraavat halvat tunnit</h3>
-                    <p class="text-sm font-semibold text-slate-500 uppercase tracking-[0.05em]">Tänään ja huomenna</p>
-                </div>
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-px bg-slate-200 border border-slate-200 rounded-xl overflow-hidden">
-                    @foreach ($cheapestRemainingHours as $index => $hour)
-                        @php
-                            $hourNum = $hour['helsinki_hour'];
-                            $nextHourNum = ($hourNum + 1) % 24;
-                            $isTomorrow = $hour['helsinki_date'] !== now('Europe/Helsinki')->format('Y-m-d');
-                        @endphp
-                        <div class="bg-white p-4">
-                            <p class="text-sm font-semibold uppercase tracking-[0.05em] text-slate-500 mb-1.5">
-                                {{ $isTomorrow ? 'Huomenna' : 'Tänään' }}
-                            </p>
-                            <p class="text-lg font-bold text-slate-900 tabular-nums">
-                                {{ str_pad($hourNum, 2, '0', STR_PAD_LEFT) }}:00–{{ str_pad($nextHourNum, 2, '0', STR_PAD_LEFT) }}:00
-                            </p>
-                            <p class="mt-1 text-base font-semibold tabular-nums {{ $index === 0 ? 'text-emerald-700' : 'text-slate-700' }}">
-                                {{ number_format($hour['price_with_tax'], 2, ',', ' ') }} c/kWh
-                            </p>
-                        </div>
-                    @endforeach
-                </div>
-            </section>
-        @endif
 
-        <!-- Horizontal Bar Chart with Accordion Quarters -->
-        @if (!empty($todayPricesWithMeta) || !empty($forecastPricesGroupedByDate))
+        <!-- Column-bar timeline: each day = one horizontal strip of 24 columns -->
+        @if (!empty($dayStrips))
             @php
-                // Calculate scale max for absolute bar widths
-                $allPrices = array_column($hourlyPrices, 'price_with_tax');
-                $barScaleMax = !empty($allPrices) ? max(max($allPrices), 20) : 20;
+                $stripPrices = collect($dayStrips)
+                    ->flatMap(fn ($strip) => array_column($strip['prices'], 'price_with_vat'))
+                    ->all();
+                $barScaleMax = !empty($stripPrices) ? max(max($stripPrices), 20) : 20;
             @endphp
             <div
                 x-data="{
                     expandedHour: null,
+                    expandedStripKey: null,
+                    selectedMeta: null,
                     quarterPricesByHour: {{ Js::from($quarterPricesByHour) }},
                     avg30d: {{ $rolling30DayAvgWithVat ?? 'null' }},
                     scaleMax: {{ $barScaleMax }},
-                    toggleHour(timestamp) {
-                        this.expandedHour = this.expandedHour === timestamp ? null : timestamp;
+                    selectHour(timestamp, stripKey, meta) {
+                        if (this.expandedHour === timestamp && this.expandedStripKey === stripKey) {
+                            this.expandedHour = null;
+                            this.expandedStripKey = null;
+                            this.selectedMeta = null;
+                        } else {
+                            this.expandedHour = timestamp;
+                            this.expandedStripKey = stripKey;
+                            this.selectedMeta = meta;
+                        }
                     },
-                    // Get color class based on % difference from 30d average (7-tier scale)
+                    closeDetail() {
+                        this.expandedHour = null;
+                        this.expandedStripKey = null;
+                        this.selectedMeta = null;
+                    },
                     getColorFromAvg(price) {
                         if (!this.avg30d || this.avg30d <= 0) return 'bg-yellow-400';
                         const percentDiff = ((price - this.avg30d) / this.avg30d) * 100;
@@ -384,469 +370,304 @@
                         if (percentDiff <= 30) return 'bg-red-500';
                         return 'bg-red-700';
                     },
-                    // Get bar width as absolute percentage (price / scaleMax)
-                    getBarWidth(price) {
-                        return Math.max(3, Math.min(100, Math.round((price / this.scaleMax) * 100)));
+                    getBarHeight(price) {
+                        return Math.max(4, Math.min(100, Math.round((price / this.scaleMax) * 100)));
                     }
                 }"
                 id="tunnit"
                 class="bg-white rounded-2xl border border-slate-200 p-4 md:p-6 mb-10 scroll-mt-24"
             >
-                <!-- Today's prices -->
-                @if (!empty($todayPricesWithMeta))
-                    <div class="mb-6">
-                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
-                            <h3 class="text-lg font-semibold text-slate-900">Tänään</h3>
-                            <p class="text-sm text-slate-500 mt-1 sm:mt-0">
-                                Väri suhteessa 30 pv keskiarvoon ({{ number_format($rolling30DayAvgWithVat ?? 0, 2, ',', ' ') }} c/kWh)
-                            </p>
-                        </div>
-                        <div class="space-y-2">
-                            @foreach ($todayPricesWithMeta as $price)
-                            @php
-                                $hourStart = str_pad($price['hour'], 2, '0', STR_PAD_LEFT);
-                                $hourEnd = str_pad(($price['hour'] + 1) % 24, 2, '0', STR_PAD_LEFT);
-                            @endphp
-                            <div class="price-bar-row">
-                                <!-- Clickable bar row -->
-                                <button
-                                    type="button"
-                                    class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors group"
-                                    @click="toggleHour({{ $price['timestamp'] }})"
-                                >
-                                    <!-- Hour label -->
-                                    <span class="w-20 text-sm font-medium text-slate-700 {{ $price['isCurrentHour'] ? 'text-orange-600' : '' }}">
-                                        {{ $hourStart }}:00
-                                        @if ($price['isCurrentHour'])
-                                            <span class="ml-1 text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded">Nyt</span>
-                                        @endif
-                                    </span>
+                <header class="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between mb-5">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Tuntihinnat</h2>
+                        <p class="text-sm text-slate-500 mt-0.5">
+                            Värit: ero 30 pv keskiarvoon ({{ number_format($rolling30DayAvgWithVat ?? 0, 2, ',', ' ') }} c/kWh) · Pylvään korkeus = absoluuttinen hinta
+                        </p>
+                    </div>
+                    <button
+                        wire:click="downloadCsv"
+                        wire:loading.attr="disabled"
+                        type="button"
+                        class="inline-flex items-center gap-1.5 self-start sm:self-auto text-sm font-semibold text-slate-700 hover:text-coral-600 transition-colors disabled:opacity-50"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        <span wire:loading.remove wire:target="downloadCsv">Lataa CSV</span>
+                        <span wire:loading wire:target="downloadCsv">Ladataan…</span>
+                    </button>
+                </header>
 
-                                    <!-- Bar container -->
-                                    <div class="flex-1 h-8 bg-slate-100 rounded-lg relative {{ $price['isCurrentHour'] ? 'ring-2 ring-orange-500' : '' }}">
-                                        <div
-                                            class="h-full {{ $price['colorClass'] }} rounded-lg transition-all duration-300 flex items-center justify-end pr-2"
-                                            style="width: {{ $price['widthPercent'] }}%"
+                <div class="space-y-5 md:space-y-6">
+                    @foreach ($dayStrips as $strip)
+                        @php
+                            $stripStats = $strip['stats'];
+                            $isToday = $strip['key'] === 'today';
+                            $scaleMax = $strip['scaleMax'] ?? 20;
+                            $scaleMaxLabel = number_format($scaleMax, $scaleMax >= 10 ? 0 : 1, ',', ' ');
+                            $scaleMidLabel = number_format($scaleMax / 2, $scaleMax >= 10 ? 0 : 1, ',', ' ');
+                        @endphp
+                        <div>
+                            <div class="flex items-baseline justify-between gap-3 mb-2">
+                                <div class="flex items-baseline gap-2 min-w-0">
+                                    <h3 class="text-base font-bold text-slate-900">{{ $strip['label'] }}</h3>
+                                    @if ($strip['provenance'] === 'uudet')
+                                        <span class="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">Uudet</span>
+                                    @elseif ($strip['provenance'] === 'ennuste')
+                                        <span class="text-[10px] font-semibold uppercase tracking-[0.06em] text-coral-700 bg-coral-50 border border-coral-100 px-1.5 py-0.5 rounded">Ennuste</span>
+                                    @endif
+                                </div>
+                                @if ($stripStats['min'] !== null)
+                                    <p class="text-xs text-slate-500 font-medium tabular-nums whitespace-nowrap shrink-0">
+                                        min <span class="text-slate-700 font-semibold">{{ number_format($stripStats['min'], 1, ',', ' ') }}</span>
+                                        · ka <span class="text-slate-700 font-semibold">{{ number_format($stripStats['avg'], 1, ',', ' ') }}</span>
+                                        · max <span class="text-slate-700 font-semibold">{{ number_format($stripStats['max'], 1, ',', ' ') }}</span> c
+                                    </p>
+                                @endif
+                            </div>
+
+                            <div class="flex items-stretch h-32 md:h-40 bg-slate-50 rounded-lg ring-1 ring-slate-100 overflow-hidden">
+                                <!-- Y-axis: 3 price ticks aligned to bar area -->
+                                <div class="relative w-10 sm:w-12 shrink-0 text-[10px] font-medium text-slate-400 tabular-nums select-none" aria-hidden="true">
+                                    <span class="absolute right-1.5 top-1 leading-none">{{ $scaleMaxLabel }} c</span>
+                                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 leading-none">{{ $scaleMidLabel }}</span>
+                                    <span class="absolute right-1.5 bottom-1 leading-none">0</span>
+                                </div>
+                                <!-- Bar area with horizontal midline gridline -->
+                                <div class="relative flex-1 min-w-0 flex items-stretch gap-1 sm:gap-1.5 py-2 pr-2 pl-1">
+                                    <span class="pointer-events-none absolute left-0 right-2 top-1/2 border-t border-dashed border-slate-200" aria-hidden="true"></span>
+                                @foreach ($strip['prices'] as $price)
+                                    @php
+                                        $isPlaceholder = !empty($price['isPlaceholder']);
+                                        $hourNum = $price['hour'] ?? $price['helsinki_hour'] ?? 0;
+                                        $priceWithVat = $price['price_with_vat'] ?? $price['price_with_tax'] ?? 0;
+                                        $colorClass = $price['colorClass'] ?? 'bg-yellow-400';
+                                        $widthPercent = $price['widthPercent'] ?? 50;
+                                        $isCurrent = !empty($price['isCurrentHour']);
+                                        $timestamp = $price['timestamp'] ?? 0;
+                                        $hourStart = str_pad($hourNum, 2, '0', STR_PAD_LEFT);
+                                        $hourEnd = str_pad(($hourNum + 1) % 24, 2, '0', STR_PAD_LEFT);
+                                        $isRank1 = ($price['todayRank'] ?? null) === 1;
+                                        $stripPriceLabel = "{$strip['label']} · {$hourStart}:00–{$hourEnd}:00";
+                                        $metaJson = json_encode([
+                                            'timestamp' => $timestamp,
+                                            'label' => $stripPriceLabel,
+                                            'price' => $priceWithVat,
+                                            'isForecast' => $strip['isForecast'],
+                                            'badge' => $price['badge']['label'] ?? null,
+                                            'badgeType' => $price['badge']['type'] ?? null,
+                                            'isCurrent' => $isCurrent,
+                                        ]);
+                                    @endphp
+                                    @if ($isPlaceholder)
+                                        <div class="flex-1 min-w-0" aria-hidden="true"></div>
+                                    @else
+                                        <button
+                                            type="button"
+                                            @click="selectHour({{ $timestamp }}, '{{ $strip['key'] }}', {{ $metaJson }})"
+                                            class="group relative flex-1 min-w-0 h-full rounded-sm hover:bg-white/60 focus:bg-white/80 focus:outline-none focus:ring-2 focus:ring-coral-400 transition-colors"
+                                            :class="expandedHour === {{ $timestamp }} && expandedStripKey === '{{ $strip['key'] }}' ? 'bg-white ring-2 ring-coral-400' : ''"
+                                            aria-label="{{ $stripPriceLabel }} · {{ number_format($priceWithVat, 2, ',', ' ') }} c/kWh"
+                                            title="{{ $hourStart }}:00 · {{ number_format($priceWithVat, 2, ',', ' ') }} c/kWh"
                                         >
-                                            <span class="text-xs font-semibold text-white drop-shadow-sm">
-                                                {{ number_format($price['price_with_vat'], 1, ',', '') }}
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Price value -->
-                                    <span class="w-24 text-sm text-right {{ $price['isCurrentHour'] ? 'font-bold text-orange-600' : 'text-slate-600' }}">
-                                        {{ number_format($price['price_with_vat'], 2, ',', ' ') }} c
-                                    </span>
-
-                                    <!-- Price badges - fixed width container to keep bars consistent -->
-                                    <div class="hidden sm:flex items-center justify-end gap-1 w-32 shrink-0">
-                                        {{-- Today's rank badge (relative to today) --}}
-                                        @if (($price['todayRank'] ?? 0) === 1)
-                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-300" title="Päivän halvin">
-                                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401z" clip-rule="evenodd"/></svg>
-                                                <span>1.</span>
-                                            </span>
-                                        @elseif (($price['todayRank'] ?? 0) <= 3)
-                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600 border border-emerald-200" title="Top 3 halvin">
-                                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.236 4.457L7.73 10.09a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>
-                                                <span>{{ $price['todayRank'] }}.</span>
-                                            </span>
-                                        @elseif (($price['todayRank'] ?? 0) >= 22)
-                                            <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-600 border border-rose-200" title="Päivän kallein">
-                                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 17a.75.75 0 01-.75-.75V5.612L5.29 9.77a.75.75 0 01-1.08-1.04l5.25-5.5a.75.75 0 011.08 0l5.25 5.5a.75.75 0 11-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0110 17z" clip-rule="evenodd"/></svg>
-                                                <span>{{ $price['todayRank'] }}.</span>
-                                            </span>
-                                        @endif
-
-                                        {{-- 30d average badge --}}
-                                        <span class="inline-flex w-14 justify-center items-center px-1.5 py-0.5 rounded-full text-xs font-medium
-                                            {{ $price['badge']['type'] === 'cheap' ? 'bg-green-100 text-green-800' : '' }}
-                                            {{ $price['badge']['type'] === 'normal' ? 'bg-yellow-100 text-yellow-800' : '' }}
-                                            {{ $price['badge']['type'] === 'expensive' ? 'bg-red-100 text-red-800' : '' }}
-                                        ">
-                                            {{ $price['badge']['label'] }}
-                                        </span>
-                                    </div>
-
-                                    <!-- Expand icon -->
-                                    <svg
-                                        class="w-4 h-4 text-slate-400 transition-transform duration-200"
-                                        :class="{ 'rotate-180': expandedHour === {{ $price['timestamp'] }} }"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                    >
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                    </svg>
-                                </button>
-
-                                <!-- Quarter prices accordion - Mini bar charts -->
-                                <div
-                                    x-show="expandedHour === {{ $price['timestamp'] }}"
-                                    x-collapse
-                                    class="mt-2 ml-4 sm:ml-20 mr-2 sm:mr-8"
-                                >
-                                    <template x-if="quarterPricesByHour[{{ $price['timestamp'] }}] && quarterPricesByHour[{{ $price['timestamp'] }}].length > 0">
-                                        <div class="space-y-1.5 py-2">
-                                            <template x-for="(quarter, idx) in quarterPricesByHour[{{ $price['timestamp'] }}]" :key="idx">
-                                                <div class="flex items-center gap-2">
-                                                    <!-- Time label -->
-                                                    <span
-                                                        class="w-24 sm:w-28 text-xs font-medium flex items-center gap-1"
-                                                        :class="quarter.is_current_slot ? 'text-orange-600' : 'text-slate-600'"
-                                                    >
-                                                        <span x-text="quarter.time_label"></span>
-                                                        <template x-if="quarter.is_current_slot">
-                                                            <span class="bg-orange-200 text-orange-700 px-1 py-0.5 rounded text-xs">Nyt</span>
-                                                        </template>
-                                                    </span>
-
-                                                    <!-- Mini bar -->
-                                                    <div class="flex-1 h-5 bg-slate-100 rounded relative overflow-hidden">
-                                                        <div
-                                                            class="h-full rounded transition-all duration-200"
-                                                            :class="quarter.is_current_slot ? 'bg-orange-500' : getColorFromAvg(quarter.price_with_tax)"
-                                                            :style="'width: ' + getBarWidth(quarter.price_with_tax) + '%'"
-                                                        ></div>
-                                                    </div>
-
-                                                    <!-- Price value -->
-                                                    <span
-                                                        class="w-16 sm:w-20 text-xs text-right font-medium"
-                                                        :class="quarter.is_current_slot ? 'text-orange-600' : 'text-slate-700'"
-                                                        x-text="quarter.price_with_tax.toFixed(2).replace('.', ',') + ' c'"
-                                                    ></span>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </template>
-                                    <template x-if="!quarterPricesByHour[{{ $price['timestamp'] }}] || quarterPricesByHour[{{ $price['timestamp'] }}].length === 0">
-                                        <p class="text-sm text-slate-500 py-2">15 min hinnat eivät saatavilla</p>
-                                    </template>
+                                            <span
+                                                class="absolute bottom-0 left-0 right-0 rounded-sm {{ $colorClass }} {{ $strip['isForecast'] ? 'opacity-80' : '' }} {{ $isCurrent ? 'ring-2 ring-coral-500 ring-offset-1 ring-offset-slate-50' : '' }}"
+                                                style="height: {{ $widthPercent }}%"
+                                            ></span>
+                                            @if ($isRank1)
+                                                <span class="pointer-events-none absolute top-0.5 left-1/2 -translate-x-1/2 text-amber-500" title="Päivän halvin">
+                                                    <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.368 2.447a1 1 0 00-.364 1.118l1.287 3.957c.3.921-.755 1.688-1.54 1.118L10.588 14.7a1 1 0 00-1.176 0l-3.368 2.447c-.784.57-1.838-.197-1.539-1.118l1.287-3.957a1 1 0 00-.364-1.118L2.06 8.507c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.289-3.957z"/></svg>
+                                                </span>
+                                            @endif
+                                        </button>
+                                    @endif
+                                @endforeach
                                 </div>
                             </div>
-                        @endforeach
-                        </div>
-                    </div>
-                @endif
 
-                <!-- Tomorrow's prices (if available) -->
-                @if ($hasTomorrowPrices)
-                    <div class="border-t border-slate-200 pt-6">
-                        <h3 class="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                            Huomenna
-                            <span class="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium uppercase tracking-[0.05em]">Uudet hinnat</span>
-                        </h3>
-                        <div class="space-y-2">
-                            @foreach ($tomorrowPricesWithMeta as $price)
-                                @php
-                                    $hourStart = str_pad($price['hour'], 2, '0', STR_PAD_LEFT);
-                                    $hourEnd = str_pad(($price['hour'] + 1) % 24, 2, '0', STR_PAD_LEFT);
-                                @endphp
-                                <div class="price-bar-row">
-                                    <!-- Clickable bar row -->
-                                    <button
-                                        type="button"
-                                        class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors group"
-                                        @click="toggleHour({{ $price['timestamp'] }})"
-                                    >
-                                        <!-- Hour label -->
-                                        <span class="w-20 text-sm font-medium text-slate-700">
-                                            {{ $hourStart }}:00
-                                        </span>
+                            <div class="flex justify-between mt-1 pl-10 sm:pl-12 pr-2 text-[10px] font-medium text-slate-400 tabular-nums">
+                                <span>00</span><span>06</span><span>12</span><span>18</span><span>23</span>
+                            </div>
 
-                                        <!-- Bar container -->
-                                        <div class="flex-1 h-8 bg-slate-100 rounded-lg relative overflow-hidden">
-                                            <div
-                                                class="h-full {{ $price['colorClass'] }} rounded-lg transition-all duration-300 flex items-center justify-end pr-2"
-                                                style="width: {{ $price['widthPercent'] }}%"
-                                            >
-                                                <span class="text-xs font-semibold text-white drop-shadow-sm">
-                                                    {{ number_format($price['price_with_vat'], 1, ',', '') }}
-                                                </span>
-                                            </div>
+                            @if ($isToday && $strip['provenance'] === null)
+                                @php $hasTomorrow = collect($dayStrips)->contains(fn($s) => $s['key'] === 'tomorrow'); @endphp
+                                @if (!$hasTomorrow)
+                                    <p class="mt-2 text-xs text-slate-500">Huomisen viralliset hinnat julkaistaan noin klo 13.45.</p>
+                                @endif
+                            @endif
+
+                            <!-- Per-strip detail panel: opens directly below this day's bars -->
+                            <div x-show="expandedStripKey === '{{ $strip['key'] }}'" x-collapse class="mt-3">
+                                <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                    <div class="flex items-start justify-between gap-3 mb-3">
+                                        <div>
+                                            <p class="text-xs font-semibold uppercase tracking-[0.06em] text-slate-500" x-text="selectedMeta?.label"></p>
+                                            <p class="mt-1 text-2xl font-extrabold text-slate-900 tabular-nums" x-text="(selectedMeta?.price ?? 0).toFixed(2).replace('.', ',') + ' c/kWh'"></p>
+                                            <p class="mt-1 text-xs text-slate-500" x-show="selectedMeta?.isForecast">Kolmannen osapuolen ennuste, ei virallinen spot-hinta.</p>
                                         </div>
-
-                                        <!-- Price value -->
-                                        <span class="w-24 text-sm text-right text-slate-600">
-                                            {{ number_format($price['price_with_vat'], 2, ',', ' ') }} c
-                                        </span>
-
-                                        <!-- Price badge (Edullinen/Normaali/Kallis) -->
-                                        <span class="hidden sm:inline-flex w-20 justify-center items-center px-2 py-0.5 rounded-full text-xs font-medium
-                                            {{ $price['badge']['type'] === 'cheap' ? 'bg-green-100 text-green-800' : '' }}
-                                            {{ $price['badge']['type'] === 'normal' ? 'bg-yellow-100 text-yellow-800' : '' }}
-                                            {{ $price['badge']['type'] === 'expensive' ? 'bg-red-100 text-red-800' : '' }}
-                                        ">
-                                            {{ $price['badge']['label'] }}
-                                        </span>
-
-                                        <!-- Expand icon -->
-                                        <svg
-                                            class="w-4 h-4 text-slate-400 transition-transform duration-200"
-                                            :class="{ 'rotate-180': expandedHour === {{ $price['timestamp'] }} }"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
+                                        <button
+                                            type="button"
+                                            @click="closeDetail()"
+                                            class="text-slate-400 hover:text-slate-700 transition-colors"
+                                            aria-label="Sulje"
                                         >
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                        </svg>
-                                    </button>
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                                        </button>
+                                    </div>
 
-                                    <!-- Quarter prices accordion - Mini bar charts -->
-                                    <div
-                                        x-show="expandedHour === {{ $price['timestamp'] }}"
-                                        x-collapse
-                                        class="mt-2 ml-4 sm:ml-20 mr-2 sm:mr-8"
-                                    >
-                                        <template x-if="quarterPricesByHour[{{ $price['timestamp'] }}] && quarterPricesByHour[{{ $price['timestamp'] }}].length > 0">
-                                            <div class="space-y-1.5 py-2">
-                                                <template x-for="(quarter, idx) in quarterPricesByHour[{{ $price['timestamp'] }}]" :key="idx">
+                                    <template x-if="quarterPricesByHour[expandedHour] && quarterPricesByHour[expandedHour].length > 0">
+                                        <div>
+                                            <p class="text-xs font-semibold uppercase tracking-[0.06em] text-slate-500 mb-2">15 minuutin hinnat</p>
+                                            <div class="space-y-1.5">
+                                                <template x-for="(quarter, idx) in quarterPricesByHour[expandedHour]" :key="idx">
                                                     <div class="flex items-center gap-2">
-                                                        <!-- Time label -->
-                                                        <span class="w-24 sm:w-28 text-xs font-medium text-slate-600">
+                                                        <span
+                                                            class="w-24 sm:w-28 text-xs font-medium flex items-center gap-1 tabular-nums"
+                                                            :class="quarter.is_current_slot ? 'text-coral-600' : 'text-slate-600'"
+                                                        >
                                                             <span x-text="quarter.time_label"></span>
+                                                            <template x-if="quarter.is_current_slot">
+                                                                <span class="bg-coral-100 text-coral-700 px-1 py-0.5 rounded text-[10px]">Nyt</span>
+                                                            </template>
                                                         </span>
-
-                                                        <!-- Mini bar -->
-                                                        <div class="flex-1 h-5 bg-slate-100 rounded relative overflow-hidden">
+                                                        <div class="flex-1 h-4 bg-white rounded relative overflow-hidden ring-1 ring-slate-200">
                                                             <div
                                                                 class="h-full rounded transition-all duration-200"
-                                                                :class="getColorFromAvg(quarter.price_with_tax)"
-                                                                :style="'width: ' + getBarWidth(quarter.price_with_tax) + '%'"
+                                                                :class="quarter.is_current_slot ? 'bg-coral-500' : getColorFromAvg(quarter.price_with_tax)"
+                                                                :style="'width: ' + getBarHeight(quarter.price_with_tax) + '%'"
                                                             ></div>
                                                         </div>
-
-                                                        <!-- Price value -->
                                                         <span
-                                                            class="w-16 sm:w-20 text-xs text-right font-medium text-slate-700"
+                                                            class="w-16 text-xs text-right font-semibold tabular-nums"
+                                                            :class="quarter.is_current_slot ? 'text-coral-600' : 'text-slate-700'"
                                                             x-text="quarter.price_with_tax.toFixed(2).replace('.', ',') + ' c'"
                                                         ></span>
                                                     </div>
                                                 </template>
                                             </div>
-                                        </template>
-                                        <template x-if="!quarterPricesByHour[{{ $price['timestamp'] }}] || quarterPricesByHour[{{ $price['timestamp'] }}].length === 0">
-                                            <p class="text-sm text-slate-500 py-2">15 min hinnat eivät saatavilla</p>
-                                        </template>
-                                    </div>
+                                        </div>
+                                    </template>
+                                    <template x-if="!quarterPricesByHour[expandedHour] || quarterPricesByHour[expandedHour].length === 0">
+                                        <p class="text-sm text-slate-500">15 minuutin hintoja ei ole saatavilla tälle tunnille.</p>
+                                    </template>
                                 </div>
-                            @endforeach
-                        </div>
-                    </div>
-                @endif
-
-                <!-- Third-party forecast prices after official prices end -->
-                @if (!empty($forecastPricesGroupedByDate))
-                    <div class="border-t border-slate-200 pt-6 mt-6">
-                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
-                            <div class="max-w-3xl">
-                                <h3 class="text-lg font-semibold text-slate-900 flex flex-wrap items-center gap-2">
-                                    Ennuste virallisten hintojen jälkeen
-                                    <span class="text-[11px] bg-coral-50 text-coral-700 border border-coral-200 px-2 py-0.5 rounded-full font-semibold uppercase tracking-[0.05em]">Kolmannen osapuolen ennuste</span>
-                                </h3>
-                                <p class="text-sm text-slate-600 mt-1.5">
-                                    Nämä tunnit ovat arvioita, eivät virallisia Nord Pool -spot-hintoja. Näytämme ennusteen erillään, jotta toteutuneet hinnat ja arviot eivät sekoitu.
-                                </p>
                             </div>
-                            @if (!empty($forecastSource['url']))
-                                <a
-                                    href="{{ $forecastSource['url'] }}"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="text-sm font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 hover:text-coral-600"
-                                >
-                                    Lähde: {{ $forecastSource['name'] ?? 'nordpool-predict-fi' }}
-                                </a>
-                            @endif
                         </div>
+                    @endforeach
+                </div>
 
-                        <div class="rounded-xl border border-coral-100 bg-coral-50/50 p-3 mb-5 text-sm text-slate-700">
-                            Ennusteen lähde on
-                            <a
-                                href="{{ $forecastSource['url'] ?? 'https://github.com/vividfog/nordpool-predict-fi' }}"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                class="font-semibold text-slate-900 underline decoration-slate-300 underline-offset-4 hover:text-coral-600"
-                            >nordpool-predict-fi</a>
-                            ({{ $forecastSource['author'] ?? 'vividfog' }}, {{ $forecastSource['license'] ?? 'MIT' }}). Hinnat ovat c/kWh sis. ALV.
-                            @if (!empty($forecastSource['fetched_at']))
-                                Päivitetty Voltikkaan {{ $forecastSource['fetched_at'] }}.
-                            @endif
-                        </div>
-
-                        <div class="space-y-5">
-                            @foreach ($forecastPricesGroupedByDate as $day)
-                                <div>
-                                    <div class="flex items-center justify-between mb-2">
-                                        <h4 class="text-sm font-bold uppercase tracking-[0.05em] text-slate-600">{{ $day['label'] }}</h4>
-                                        <span class="text-xs font-semibold text-slate-500">Ennustetunnit</span>
-                                    </div>
-                                    <div class="space-y-2">
-                                        @foreach ($day['prices'] as $price)
-                                            @php
-                                                $hourStart = str_pad($price['hour'], 2, '0', STR_PAD_LEFT);
-                                                $hourEnd = str_pad(($price['hour'] + 1) % 24, 2, '0', STR_PAD_LEFT);
-                                            @endphp
-                                            <div class="w-full flex items-center gap-3 p-2 rounded-lg bg-slate-50/80 border border-slate-100">
-                                                <span class="w-24 text-sm font-medium text-slate-700 tabular-nums">
-                                                    {{ $hourStart }}–{{ $hourEnd }}
-                                                </span>
-
-                                                <div class="flex-1 h-8 bg-white rounded-lg relative overflow-hidden border border-slate-100">
-                                                    <div
-                                                        class="h-full {{ $price['colorClass'] }} rounded-lg transition-all duration-300 flex items-center justify-end pr-2"
-                                                        style="width: {{ $price['widthPercent'] }}%"
-                                                    >
-                                                        <span class="text-xs font-semibold text-white drop-shadow-sm">
-                                                            {{ number_format($price['price_with_vat'], 1, ',', '') }}
-                                                        </span>
-                                                    </div>
-                                                </div>
-
-                                                <span class="w-24 text-sm text-right font-semibold text-slate-700 tabular-nums">
-                                                    {{ number_format($price['price_with_vat'], 2, ',', ' ') }} c
-                                                </span>
-
-                                                <span class="hidden sm:inline-flex w-20 justify-center items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
-                                                    Arvio
-                                                </span>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
+                @if (!empty($forecastSource))
+                    <p class="mt-5 pt-4 border-t border-slate-100 text-xs text-slate-500">
+                        Ennusteen lähde:
+                        <a
+                            href="{{ $forecastSource['url'] ?? '#' }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="font-semibold text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-coral-600"
+                        >nordpool-predict-fi</a>
+                        ({{ $forecastSource['author'] ?? 'vividfog' }}, {{ $forecastSource['license'] ?? 'MIT' }})@if (!empty($forecastSource['fetched_at'])) · päivitetty {{ $forecastSource['fetched_at'] }}@endif. Hinnat sis. ALV.
+                    </p>
                 @endif
             </div>
         @endif
 
-    <!-- CSV Download Button -->
-        <div class="flex justify-end mb-8">
-            <button
-                wire:click="downloadCsv"
-                wire:loading.attr="disabled"
-                class="inline-flex items-center px-4 py-2 border border-slate-300 rounded-lg shadow-sm text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-coral-500 disabled:opacity-50"
-            >
-                <svg class="w-5 h-5 mr-2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                </svg>
-                <span wire:loading.remove wire:target="downloadCsv">Lataa CSV</span>
-                <span wire:loading wire:target="downloadCsv">Ladataan...</span>
-            </button>
-        </div>
-
-        <!-- Historical Data Section -->
-        <section class="mb-8">
-                <!-- Weekly Price Chart -->
+        <!-- Historical Data Section: weekly trend + monthly + YoY in one row on desktop -->
+        <section class="mb-8 grid grid-cols-1 lg:grid-cols-3 gap-5">
+                <!-- Weekly Price Chart: 2/3 width on desktop -->
                 @if (!empty($weeklyChartData['labels']))
-                    <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 md:p-6 mb-6">
-                        <h3 class="text-lg font-semibold text-slate-900 mb-4">Viikon hintakehitys</h3>
-                        <p class="text-sm text-slate-500 mb-4">Päivittäiset keskihinnat viimeiseltä 7 päivältä</p>
-                        <div class="h-64 md:h-80">
+                    <div class="bg-white rounded-2xl border border-slate-200 p-4 md:p-5 lg:col-span-2">
+                        <div class="flex items-baseline justify-between mb-3">
+                            <h3 class="text-base font-bold text-slate-900">Viikon hintakehitys</h3>
+                            <p class="text-xs text-slate-500">Päivittäiset keskihinnat, 7 pv</p>
+                        </div>
+                        <div class="h-40 md:h-44">
                             <canvas id="weeklyPriceChart" data-chart="{{ json_encode($weeklyChartData) }}"></canvas>
                         </div>
                     </div>
                 @endif
 
-                <!-- Monthly and Year Comparison -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Monthly + YoY stacked in col 3 on desktop -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-5">
                     <!-- Monthly Comparison -->
                     @if (!empty($monthlyComparison))
-                        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-                            <h3 class="text-lg font-semibold text-slate-900 mb-4">Kuukausivertailu</h3>
-                            <div class="grid grid-cols-2 gap-4">
-                                <!-- Current Month -->
-                                <div class="bg-coral-50 border border-coral-100 p-4 rounded-lg">
-                                    <p class="text-sm text-slate-500">{{ $monthlyComparison['current_month_name'] }}</p>
-                                    <p class="text-2xl font-bold text-slate-900 tabular-nums">
-                                        @if ($monthlyComparison['current_month_average'] !== null)
-                                            {{ number_format($monthlyComparison['current_month_average'], 2, ',', ' ') }}
-                                        @else
-                                            -
-                                        @endif
-                                        <span class="text-sm font-normal">c/kWh</span>
-                                    </p>
-                                    <p class="text-xs text-slate-400">{{ $monthlyComparison['current_month_days'] }} päivää</p>
-                                </div>
-
-                                <!-- Last Month -->
-                                <div class="bg-slate-50 p-4 rounded-lg">
-                                    <p class="text-sm text-slate-500">{{ $monthlyComparison['last_month_name'] }}</p>
-                                    <p class="text-2xl font-bold text-slate-700">
-                                        @if ($monthlyComparison['last_month_average'] !== null)
-                                            {{ number_format($monthlyComparison['last_month_average'], 2, ',', ' ') }}
-                                        @else
-                                            -
-                                        @endif
-                                        <span class="text-sm font-normal">c/kWh</span>
-                                    </p>
-                                    <p class="text-xs text-slate-400">{{ $monthlyComparison['last_month_days'] }} päivää</p>
-                                </div>
+                        @php
+                            $change = $monthlyComparison['change_percent'] ?? null;
+                            $monthIsPositive = $change !== null && $change > 0;
+                        @endphp
+                        <div class="bg-white rounded-2xl border border-slate-200 p-4 md:p-5">
+                            <div class="flex items-baseline justify-between mb-3">
+                                <h3 class="text-base font-bold text-slate-900">Kuukausivertailu</h3>
+                                @if ($change !== null)
+                                    <span class="text-xs font-semibold tabular-nums {{ $monthIsPositive ? 'text-rose-700' : 'text-emerald-700' }}">
+                                        {{ $monthIsPositive ? '+' : '' }}{{ number_format($change, 1, ',', ' ') }} %
+                                    </span>
+                                @endif
                             </div>
-
-                            @if ($monthlyComparison['change_percent'] !== null)
-                                @php
-                                    $change = $monthlyComparison['change_percent'];
-                                    $isPositive = $change > 0;
-                                @endphp
-                                <div class="mt-4 p-3 rounded-lg {{ $isPositive ? 'bg-red-50' : 'bg-green-50' }}">
-                                    <p class="text-sm {{ $isPositive ? 'text-red-700' : 'text-green-700' }}">
-                                        <span class="font-medium">{{ $isPositive ? '+' : '' }}{{ number_format($change, 1, ',', ' ') }}%</span>
-                                        verrattuna edelliseen kuukauteen
-                                    </p>
+                            <dl class="grid grid-cols-2 gap-3 tabular-nums">
+                                <div>
+                                    <dt class="text-xs text-slate-500">{{ $monthlyComparison['current_month_name'] }}</dt>
+                                    <dd class="text-xl font-extrabold text-slate-900 mt-0.5">
+                                        @if ($monthlyComparison['current_month_average'] !== null)
+                                            {{ number_format($monthlyComparison['current_month_average'], 2, ',', ' ') }}<span class="text-xs font-semibold text-slate-500 ml-0.5">c</span>
+                                        @else
+                                            <span class="text-slate-300">–</span>
+                                        @endif
+                                    </dd>
+                                    <p class="text-[11px] text-slate-400 mt-0.5">{{ $monthlyComparison['current_month_days'] }} päivää</p>
                                 </div>
-                            @endif
+                                <div>
+                                    <dt class="text-xs text-slate-500">{{ $monthlyComparison['last_month_name'] }}</dt>
+                                    <dd class="text-xl font-extrabold text-slate-500 mt-0.5">
+                                        @if ($monthlyComparison['last_month_average'] !== null)
+                                            {{ number_format($monthlyComparison['last_month_average'], 2, ',', ' ') }}<span class="text-xs font-semibold text-slate-400 ml-0.5">c</span>
+                                        @else
+                                            <span class="text-slate-300">–</span>
+                                        @endif
+                                    </dd>
+                                    <p class="text-[11px] text-slate-400 mt-0.5">{{ $monthlyComparison['last_month_days'] }} päivää</p>
+                                </div>
+                            </dl>
                         </div>
                     @endif
 
                     <!-- Year-over-Year Comparison -->
                     @if (!empty($yearOverYearComparison) && $yearOverYearComparison['has_last_year_data'])
-                        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-                            <h3 class="text-lg font-semibold text-slate-900 mb-4">Vuosivertailu</h3>
-                            <p class="text-sm text-slate-500 mb-4">{{ $yearOverYearComparison['month_name'] }}</p>
-                            <div class="grid grid-cols-2 gap-4">
-                                <!-- Current Year -->
-                                <div class="bg-coral-50 border border-coral-100 p-4 rounded-lg">
-                                    <p class="text-sm text-slate-500">{{ $yearOverYearComparison['current_year'] }}</p>
-                                    <p class="text-2xl font-bold text-slate-900 tabular-nums">
-                                        @if ($yearOverYearComparison['current_year_average'] !== null)
-                                            {{ number_format($yearOverYearComparison['current_year_average'], 2, ',', ' ') }}
-                                        @else
-                                            -
-                                        @endif
-                                        <span class="text-sm font-normal">c/kWh</span>
-                                    </p>
-                                </div>
-
-                                <!-- Last Year -->
-                                <div class="bg-slate-50 p-4 rounded-lg">
-                                    <p class="text-sm text-slate-500">{{ $yearOverYearComparison['last_year'] }}</p>
-                                    <p class="text-2xl font-bold text-slate-700">
-                                        @if ($yearOverYearComparison['last_year_average'] !== null)
-                                            {{ number_format($yearOverYearComparison['last_year_average'], 2, ',', ' ') }}
-                                        @else
-                                            -
-                                        @endif
-                                        <span class="text-sm font-normal">c/kWh</span>
-                                    </p>
-                                </div>
+                        @php
+                            $yoyChange = $yearOverYearComparison['change_percent'] ?? null;
+                            $yoyIsPositive = $yoyChange !== null && $yoyChange > 0;
+                        @endphp
+                        <div class="bg-white rounded-2xl border border-slate-200 p-4 md:p-5">
+                            <div class="flex items-baseline justify-between mb-3">
+                                <h3 class="text-base font-bold text-slate-900">Vuosivertailu</h3>
+                                @if ($yoyChange !== null)
+                                    <span class="text-xs font-semibold tabular-nums {{ $yoyIsPositive ? 'text-rose-700' : 'text-emerald-700' }}">
+                                        {{ $yoyIsPositive ? '+' : '' }}{{ number_format($yoyChange, 1, ',', ' ') }} %
+                                    </span>
+                                @endif
                             </div>
-
-                            @if ($yearOverYearComparison['change_percent'] !== null)
-                                @php
-                                    $yoyChange = $yearOverYearComparison['change_percent'];
-                                    $isYoyPositive = $yoyChange > 0;
-                                @endphp
-                                <div class="mt-4 p-3 rounded-lg {{ $isYoyPositive ? 'bg-red-50' : 'bg-green-50' }}">
-                                    <p class="text-sm {{ $isYoyPositive ? 'text-red-700' : 'text-green-700' }}">
-                                        <span class="font-medium">{{ $isYoyPositive ? '+' : '' }}{{ number_format($yoyChange, 1, ',', ' ') }}%</span>
-                                        verrattuna samaan kuukauteen vuonna {{ $yearOverYearComparison['last_year'] }}
-                                    </p>
+                            <p class="text-xs text-slate-500 mb-2">{{ $yearOverYearComparison['month_name'] }}</p>
+                            <dl class="grid grid-cols-2 gap-3 tabular-nums">
+                                <div>
+                                    <dt class="text-xs text-slate-500">{{ $yearOverYearComparison['current_year'] }}</dt>
+                                    <dd class="text-xl font-extrabold text-slate-900 mt-0.5">
+                                        @if ($yearOverYearComparison['current_year_average'] !== null)
+                                            {{ number_format($yearOverYearComparison['current_year_average'], 2, ',', ' ') }}<span class="text-xs font-semibold text-slate-500 ml-0.5">c</span>
+                                        @else
+                                            <span class="text-slate-300">–</span>
+                                        @endif
+                                    </dd>
                                 </div>
-                            @endif
+                                <div>
+                                    <dt class="text-xs text-slate-500">{{ $yearOverYearComparison['last_year'] }}</dt>
+                                    <dd class="text-xl font-extrabold text-slate-500 mt-0.5">
+                                        @if ($yearOverYearComparison['last_year_average'] !== null)
+                                            {{ number_format($yearOverYearComparison['last_year_average'], 2, ',', ' ') }}<span class="text-xs font-semibold text-slate-400 ml-0.5">c</span>
+                                        @else
+                                            <span class="text-slate-300">–</span>
+                                        @endif
+                                    </dd>
+                                </div>
+                            </dl>
                         </div>
                     @endif
                 </div>
