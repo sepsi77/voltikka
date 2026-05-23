@@ -53,7 +53,7 @@ class ContractMarketInsightService
         $segmentKey = $segmentKey ?: 'aggregate';
 
         return Cache::remember(
-            'contract-market-insight:v2:' . md5(json_encode([$segmentKey, $consumption, $includeForecast, $this->fingerprint()])),
+            'contract-market-insight:v3:' . md5(json_encode([$segmentKey, $consumption, $includeForecast, $this->fingerprint()])),
             Carbon::tomorrow(),
             function () use ($segmentKey, $consumption, $includeForecast) {
                 $trend = $segmentKey === 'aggregate'
@@ -244,6 +244,10 @@ class ContractMarketInsightService
             $tone = 'down';
         }
 
+        $changeLabel = $direction === 'steady'
+            ? '±0 %'
+            : sprintf('%s%s %%', $changePct > 0 ? '+' : '−', number_format($absPct, 1, ',', ' '));
+
         return [
             'type' => 'trend',
             'tone' => $tone,
@@ -252,6 +256,10 @@ class ContractMarketInsightService
             'detail' => $direction === 'steady'
                 ? '30 pv muutos alle 1 %'
                 : sprintf('%s%.1f %% 30 päivässä', $changePct > 0 ? '+' : '−', $absPct),
+            'eyebrow' => '30 päivän trendi',
+            'change_label' => $changeLabel,
+            'period_label' => '30 päivää',
+            'supporting' => $headline,
             'latest_value' => $latest,
             'previous_value' => $previous,
             'change_percent' => $changePct,
@@ -278,9 +286,24 @@ class ContractMarketInsightService
         }
 
         $signal = match ($row->consumer_signal) {
-            'lock_sooner' => ['tone' => 'up', 'headline' => 'Ennuste: hinnat nousussa', 'detail' => 'Määräaikaiset voivat kallistua'],
-            'wait_if_flexible' => ['tone' => 'down', 'headline' => 'Ennuste: hinnat laskussa', 'detail' => 'Määräaikaiset voivat halventua'],
-            default => ['tone' => 'neutral', 'headline' => 'Ennuste: vakaata', 'detail' => 'Ei selvää nousu- tai laskupainetta'],
+            'lock_sooner' => [
+                'tone' => 'up',
+                'headline' => 'Ennuste: hinnat nousussa',
+                'detail' => 'Määräaikaiset voivat kallistua',
+                'direction_label' => 'Nousussa',
+            ],
+            'wait_if_flexible' => [
+                'tone' => 'down',
+                'headline' => 'Ennuste: hinnat laskussa',
+                'detail' => 'Määräaikaiset voivat halventua',
+                'direction_label' => 'Laskussa',
+            ],
+            default => [
+                'tone' => 'neutral',
+                'headline' => 'Ennuste: vakaata',
+                'detail' => 'Ei selvää nousu- tai laskupainetta',
+                'direction_label' => 'Vakaata',
+            ],
         };
 
         return [
@@ -288,6 +311,10 @@ class ContractMarketInsightService
             'tone' => $signal['tone'],
             'headline' => $signal['headline'],
             'detail' => $signal['detail'],
+            'eyebrow' => '12 kk ennuste',
+            'direction_label' => $signal['direction_label'],
+            'period_label' => '12 kk',
+            'supporting' => $signal['detail'],
             'duration_months' => 12,
             'forecast_date' => Carbon::parse($row->forecast_date)->toDateString(),
             'url' => '/sahkosopimus/sahkon-hintaennuste',
