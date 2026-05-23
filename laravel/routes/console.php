@@ -32,6 +32,22 @@ Schedule::command('futures:fetch-eex')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/eex-futures-fetch.log'));
 
+// Run fixed-term price forecasts after the morning contract import/statistics update.
+Schedule::command('forecasting:run-fixed-contracts')
+    ->dailyAt('07:30')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/fixed-contract-forecasts.log'));
+
+// Evaluate matured fixed-term forecasts once fresh contract statistics should be available.
+Schedule::command('forecasting:evaluate-fixed-contracts')
+    ->dailyAt('07:45')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/fixed-contract-forecast-evaluation.log'));
+
 // Note: social:daily-video is triggered automatically by spot:fetch
 // when tomorrow's prices become available (typically around 13:00-14:00 Finnish time)
 

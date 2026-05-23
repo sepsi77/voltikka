@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Find AGENTS.md files missing CLAUDE.md siblings",
+    "status": "done"
+  },
+  {
+    "name": "Create CLAUDE.md symlinks to AGENTS.md for missing siblings",
+    "status": "done"
+  },
+  {
+    "name": "Verify all AGENTS.md files have CLAUDE.md siblings",
+    "status": "done"
+  }
+]

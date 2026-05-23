@@ -4,6 +4,10 @@ Laravel-specific guidance for Voltikka agents.
 
 See root `../AGENTS.md` for project overview and architecture. Keep implementation details here, close to the code.
 
+## Data investigation docs
+
+Research/planning documents live in `data-investigation/`; read `data-investigation/AGENTS.md` first. The fixed-term contract price forecasting plan is `data-investigation/price-forecasting-plan.md`; local-only Python model exploration lives under `data-investigation/price-forecasting/`. The first production backend implementation lives under `app/Services/PriceForecasting/` and persists forecasts, but no public frontend exists yet.
+
 ## Contract replacement system
 
 Voltikka keeps inactive contracts in `electricity_contracts` for historical continuity, SEO cleanup, and long-term price-history stitching.
@@ -73,6 +77,30 @@ Important semantics:
 - historical backfills infer availability from `price_components.price_date`
 - missing contract rows for a date are excluded; prices are not carried forward
 - spot contracts store both supplier margin and total spot energy price (`stored spot average + margin`)
+
+### Fixed-term price forecasts
+
+Voltikka stores backend-only fixed-term price forecasts so forecast accuracy can be evaluated later. No public UI is implemented yet.
+
+Primary files:
+- `app/Services/PriceForecasting/AGENTS.md`
+- `app/Models/FixedContractPriceForecast.php`
+- `app/Console/Commands/RunFixedContractPriceForecasts.php`
+- `app/Console/Commands/EvaluateFixedContractPriceForecasts.php`
+
+Commands:
+```bash
+php artisan forecasting:run-fixed-contracts --as-of=today --horizon=30
+php artisan forecasting:evaluate-fixed-contracts --as-of=today
+```
+Scheduled in `routes/console.php`: forecast run daily at 07:30 Europe/Helsinki, evaluation daily at 07:45.
+
+Important semantics:
+- v1 forecasts fixed-term 6/12/24 month market p20/median/p80 `energy_price` indices from `contract_price_daily_statistics`
+- futures hedge costs use FI EEX Base futures with no same-day leakage (`trade_date < forecast_date`)
+- forecasts are skipped when required delivery months are missing rather than silently using stale futures
+- reruns skip existing same date/horizon/duration/quantile/model-version rows unless `--overwrite` is passed, preserving historical forecast records
+- evaluation fills actual target-date retail price, forecast error, absolute error, and direction correctness when the target-date daily statistic exists
 
 ### `electricity_contracts.replaced_by_contract_id`
 - Nullable FK to `electricity_contracts.id`

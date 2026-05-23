@@ -67,6 +67,10 @@ php artisan spot:averages            # Calculate spot price averages
 php artisan futures:fetch-eex        # Fetch EEX futures EOD settlement prices for configured Nordic month/quarter/year instruments
 php artisan futures:backfill-eex     # Fetch all EEX futures history available from the public API (~45 days)
 
+# Fixed-term price forecasts
+php artisan forecasting:run-fixed-contracts       # Calculate and persist fixed-term contract price forecasts
+php artisan forecasting:evaluate-fixed-contracts  # Compare matured stored forecasts with realized retail prices
+
 # Utilities
 php artisan logos:optimize           # Optimize company logos to WebP
 php artisan sitemap:generate         # Generate sitemap.xml
@@ -98,7 +102,17 @@ php artisan test --filter="ContractsFilterTest"
 - Page requests serve cached prepared view data per period + consumption; cache keys auto-bust when statistics/snapshot/source spot-price fingerprints change
 - Contract and spot-price update commands queue background warming for the default `/sahkosopimus/tilastot?kulutus=5000` page state so low-traffic first visitors do not pay the expensive cache-miss rebuild
 
-### 3. Spot Price Display
+### 3. Fixed-term Price Forecasting Backend
+- **Location**: `app/Services/PriceForecasting/`, `app/Models/FixedContractPriceForecast.php`
+- **Commands**: `forecasting:run-fixed-contracts`, `forecasting:evaluate-fixed-contracts`
+- **Schedule**: daily forecast run at 07:30 and evaluation at 07:45 Europe/Helsinki
+- Backend-only v1 model; no public UI yet
+- Forecasts fixed-term 6/12/24 month market p20/median/p80 energy-price indices
+- Uses FI EEX futures-implied hedge costs plus EWMA retail premium / gap closure
+- Persists forecasts and later fills actual prices/errors so forecast quality can be tracked over time
+- See `laravel/app/Services/PriceForecasting/AGENTS.md` before changing model semantics
+
+### 4. Spot Price Display
 - **Location**: `app/Livewire/SpotPrice.php`, `HeaderSpotPrice.php`
 - **Route**: `/spot-price`
 - **Data source**: ENTSO-E API via `EntsoeService`
@@ -110,7 +124,7 @@ php artisan test --filter="ContractsFilterTest"
   - Price charts with color-coded bars
   - CSV export
 
-### 4. Solar Panel Calculator
+### 5. Solar Panel Calculator
 - **Location**: `app/Livewire/SolarCalculator.php`
 - **Route**: `/aurinkopaneelit/laskuri`
 - **Services**:
@@ -123,7 +137,7 @@ php artisan test --filter="ContractsFilterTest"
   - Monthly production estimates
   - Savings calculation based on self-consumption
 
-### 5. Electricity Consumption Calculator
+### 6. Electricity Consumption Calculator
 - **Location**: `app/Livewire/ConsumptionCalculator.php`
 - **Route**: `/sahkosopimus/laskuri`
 - Estimates annual consumption based on housing type and heating
@@ -141,6 +155,7 @@ php artisan test --filter="ContractsFilterTest"
 | `SpotPriceHour` | Hourly spot prices |
 | `SpotPriceQuarter` | 15-minute spot prices |
 | `SpotPriceAverage` | Calculated averages (daily, monthly, yearly, rolling) |
+| `FixedContractPriceForecast` | Stored fixed-term price forecasts plus realized actual/error metrics |
 | `Postcode` | Finnish postcodes with municipality data |
 
 ### Key Livewire Components (`app/Livewire/`)
@@ -171,6 +186,7 @@ php artisan test --filter="ContractsFilterTest"
 | `SolarCalculatorService` | Solar calculator orchestration |
 | `CompanyLogoService` | Handles company logo URLs with WebP optimization |
 | `AzureConsumerApiClient` | Fetches contracts from Azure API |
+| `PriceForecasting/FixedTermPriceForecastService` | Builds fixed-term price forecasts from retail stats and futures hedge costs |
 
 ### Important Fields
 

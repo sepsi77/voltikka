@@ -118,6 +118,17 @@ Purpose:
 Read first:
 - `ElectricityFutures/AGENTS.md`
 
+### Price forecasting
+Directory:
+- `PriceForecasting/`
+
+Purpose:
+- calculate and persist fixed-term contract price forecasts from retail statistics, FI EEX futures hedge costs, and simple EWMA retail-premium gap closure
+- evaluate matured forecasts against realized contract-price statistics so model performance can be tracked over time
+
+Read first:
+- `PriceForecasting/AGENTS.md`
+
 ## Documentation rule for this subtree
 
 If you touch files directly under `app/Services/` and they are becoming decision-heavy:

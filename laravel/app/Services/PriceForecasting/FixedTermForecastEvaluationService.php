@@ -1,0 +1,79 @@
+<?php
+
+namespace App\Services\PriceForecasting;
+
+use App\Models\FixedContractPriceForecast;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
+
+class FixedTermForecastEvaluationService
+{
+    public function __construct(private readonly FixedTermPriceForecastService $forecastService) {}
+
+    public function evaluateMatured(
+        CarbonInterface $asOfDate,
+        ?int $horizonDays = null,
+        ?string $modelVersion = null,
+    ): array {
+        $asOf = CarbonImmutable::instance($asOfDate)->endOfDay();
+        $query = FixedContractPriceForecast::query()
+            ->whereDate('target_date', '<=', $asOf->toDateString())
+            ->whereNull('actual_price_cents_per_kwh')
+            ->orderBy('target_date')
+            ->orderBy('duration_months')
+            ->orderBy('target_quantile');
+
+        if ($horizonDays !== null) {
+            $query->where('horizon_days', $horizonDays);
+        }
+
+        if ($modelVersion !== null) {
+            $query->where('model_version', $modelVersion);
+        }
+
+        $evaluated = 0;
+        $missingActual = 0;
+        $updated = collect();
+
+        $query->chunkById(100, function (Collection $forecasts) use (&$evaluated, &$missingActual, $updated): void {
+            foreach ($forecasts as $forecast) {
+                /** @var FixedContractPriceForecast $forecast */
+                $actual = $this->forecastService->retailStatistic(
+                    $forecast->target_date,
+                    $forecast->duration_months,
+                    $forecast->target_quantile,
+                );
+
+                if ($actual === null || $actual['price'] === null) {
+                    $missingActual++;
+
+                    continue;
+                }
+
+                $actualChange = $actual['price'] - $forecast->current_price_cents_per_kwh;
+                $forecastError = $forecast->forecast_price_cents_per_kwh - $actual['price'];
+                $actualDirection = $this->forecastService->directionLabel($actualChange);
+
+                $forecast->fill([
+                    'actual_price_cents_per_kwh' => round($actual['price'], 4),
+                    'actual_change_cents_per_kwh' => round($actualChange, 4),
+                    'forecast_error_cents_per_kwh' => round($forecastError, 4),
+                    'absolute_error_cents_per_kwh' => round(abs($forecastError), 4),
+                    'actual_direction' => $actualDirection,
+                    'direction_correct' => $this->forecastService->directionCategory($forecast->direction) === $this->forecastService->directionCategory($actualDirection),
+                    'evaluated_at' => now(),
+                ])->save();
+
+                $evaluated++;
+                $updated->push($forecast->fresh());
+            }
+        });
+
+        return [
+            'evaluated' => $evaluated,
+            'missing_actual' => $missingActual,
+            'forecasts' => $updated,
+        ];
+    }
+}

@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Design forecast persistence table and model",
+    "status": "done"
+  },
+  {
+    "name": "Implement PHP forecasting services",
+    "status": "done"
+  },
+  {
+    "name": "Add run and evaluation Artisan commands",
+    "status": "done"
+  },
+  {
+    "name": "Add tests for hedge costs, forecasts, and evaluation",
+    "status": "done"
+  },
+  {
+    "name": "Update context documentation",
+    "status": "done"
+  },
+  {
+    "name": "Wire scheduled production forecast/evaluation runs after validating cadence",
+    "status": "done"
+  }
+]

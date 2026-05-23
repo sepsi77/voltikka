@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Create planning document for fixed-term contract price forecasting",
+    "status": "done"
+  },
+  {
+    "name": "Run read-only production data availability audit for forecasting source tables",
+    "status": "done"
+  },
+  {
+    "name": "One-off sync forecasting source data from production into local SQLite database",
+    "status": "done"
+  },
+  {
+    "name": "Create local-only forecasting exploration scripts outside production code",
+    "status": "done"
+  },
+  {
+    "name": "Build joined retail/futures/spot research dataset and simple EWMA model backtest",
+    "status": "done"
+  },
+  {
+    "name": "Add latest consumer-facing direction outlook to local exploration report",
+    "status": "done"
+  },
+  {
+    "name": "Evaluate next research variants after more futures history accumulates",
+    "status": "pending"
+  }
+]
