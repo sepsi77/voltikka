@@ -1115,6 +1115,8 @@ class SpotPrice extends Component
         return [
             'start_hour' => $bestWindow[0]['helsinki_hour'],
             'end_hour' => $bestWindow[count($bestWindow) - 1]['helsinki_hour'],
+            'start_date' => $bestWindow[0]['helsinki_date'],
+            'end_date' => $bestWindow[count($bestWindow) - 1]['helsinki_date'],
             'average_price' => $bestAverage,
             'prices' => $bestWindow,
             'diff_from_30d_percent' => $diffFrom30dPercent,
@@ -1408,6 +1410,8 @@ class SpotPrice extends Component
 
         return [
             'cheapest_hour' => $cheapestHour['helsinki_hour'],
+            'start_date' => $cheapestHour['helsinki_date'],
+            'end_date' => $cheapestHour['helsinki_date'],
             'cheapest_price' => $cheapestHour['price_without_tax'],
             'expensive_hour' => $mostExpensiveHour['helsinki_hour'],
             'expensive_price' => $mostExpensiveHour['price_without_tax'],
@@ -1458,6 +1462,8 @@ class SpotPrice extends Component
         return [
             'start_hour' => $cheapestResult['start_hour'],
             'end_hour' => ($cheapestResult['end_hour'] + 1) % 24,
+            'start_date' => $cheapestResult['start_date'] ?? null,
+            'end_date' => $cheapestResult['end_date'] ?? null,
             'average_price' => $cheapestResult['average_price'],
             'cheapest_cost' => $cheapestCost,
             'expensive_cost' => $expensiveCost,
@@ -1509,6 +1515,8 @@ class SpotPrice extends Component
         return [
             'start_hour' => $cheapestResult['start_hour'],
             'end_hour' => ($cheapestResult['end_hour'] + 1) % 24,
+            'start_date' => $cheapestResult['start_date'] ?? null,
+            'end_date' => $cheapestResult['end_date'] ?? null,
             'average_price' => $cheapestResult['average_price'],
             'cheapest_cost' => $cheapestCost,
             'expensive_cost' => $expensiveCost,
@@ -1560,6 +1568,8 @@ class SpotPrice extends Component
         return [
             'start_hour' => $cheapestResult['start_hour'],
             'end_hour' => ($cheapestResult['end_hour'] + 1) % 24,
+            'start_date' => $cheapestResult['start_date'] ?? null,
+            'end_date' => $cheapestResult['end_date'] ?? null,
             'average_price' => $cheapestResult['average_price'],
             'cheapest_cost' => $cheapestCost,
             'expensive_cost' => $expensiveCost,
@@ -1682,6 +1692,8 @@ class SpotPrice extends Component
             return $cheapest ? [
                 'start_hour' => $cheapest['helsinki_hour'],
                 'end_hour' => $cheapest['helsinki_hour'],
+                'start_date' => $cheapest['helsinki_date'],
+                'end_date' => $cheapest['helsinki_date'],
                 'average_price' => $cheapest['price_without_tax'],
                 'prices' => [$cheapest],
             ] : null;
@@ -1731,6 +1743,8 @@ class SpotPrice extends Component
         return [
             'start_hour' => $bestWindow[0]['helsinki_hour'],
             'end_hour' => $bestWindow[count($bestWindow) - 1]['helsinki_hour'],
+            'start_date' => $bestWindow[0]['helsinki_date'],
+            'end_date' => $bestWindow[count($bestWindow) - 1]['helsinki_date'],
             'average_price' => $bestAverage,
             'prices' => $bestWindow,
         ];
@@ -1765,7 +1779,7 @@ class SpotPrice extends Component
      * Get future prices filtered to a specific time range.
      *
      * Handles time ranges that cross midnight (e.g., 22:00-06:00 includes hours 22, 23, 0, 1, 2, 3, 4, 5).
-     * Only includes future hours (excludes past hours from today).
+     * Only includes fully future hours (excludes the current and past hours from today).
      * Includes tomorrow's prices if available.
      *
      * @param int $startHour Start of the time window (0-23)
@@ -1789,8 +1803,9 @@ class SpotPrice extends Component
             $hour = $price['helsinki_hour'];
             $priceDate = $price['helsinki_date'];
 
-            // Skip past hours from today
-            if ($priceDate === $todayDate && $hour < $currentHour) {
+            // Skip the current and past hours from today. Appliance cards should only
+            // recommend fully upcoming slots; at 17:45, 17:00 is no longer actionable.
+            if ($priceDate === $todayDate && $hour <= $currentHour) {
                 return false;
             }
 

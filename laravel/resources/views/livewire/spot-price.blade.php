@@ -243,7 +243,7 @@
             <div class="flex items-baseline justify-between mb-4 gap-4 flex-wrap">
                 <div>
                     <h2 class="text-xl md:text-2xl font-bold text-slate-900">Kodin energiavinkit</h2>
-                    <p class="text-sm text-slate-600 mt-0.5">Paras aika tänään yleisimmille energiaa kuluttaville tehtäville.</p>
+                    <p class="text-sm text-slate-600 mt-0.5">Seuraavat edullisimmat ajat yleisimmille energiaa kuluttaville tehtäville.</p>
                 </div>
             </div>
 
@@ -255,6 +255,8 @@
                         'assumption'       => '3 h putkeen, 3,7 kW',
                         'startHour'        => $bestConsecutiveHours['start_hour'],
                         'endHour'          => $bestConsecutiveHours['end_hour'],
+                        'startDate'        => $bestConsecutiveHours['start_date'] ?? null,
+                        'endDate'          => $bestConsecutiveHours['end_date'] ?? null,
                         'cost'             => ['type' => 'rate', 'value' => $bestConsecutiveHours['average_price']],
                         'diffPercent'      => $bestConsecutiveHours['diff_from_30d_percent'] ?? null,
                         'savingsEuros'     => $potentialSavings['savings_euros'] ?? null,
@@ -270,6 +272,8 @@
                         'assumption'       => 'Illalla 17–22, 8 kW kiuas, 1 h',
                         'startHour'        => $saunaCost['cheapest_hour'],
                         'endHour'          => $saunaCost['cheapest_hour'],
+                        'startDate'        => $saunaCost['start_date'] ?? null,
+                        'endDate'          => $saunaCost['end_date'] ?? null,
                         'cost'             => ['type' => 'cents', 'value' => $saunaCost['cheapest_cost']],
                         'diffPercent'      => $saunaCost['diff_from_30d_percent'] ?? null,
                         'savingsEuros'     => $saunaCost['cost_difference_euros'] ?? null,
@@ -285,6 +289,8 @@
                         'assumption'       => 'Päivällä 07–22, 2 h, 2 kW',
                         'startHour'        => $laundryCost['start_hour'],
                         'endHour'          => $laundryCost['end_hour'] - 1,
+                        'startDate'        => $laundryCost['start_date'] ?? null,
+                        'endDate'          => $laundryCost['end_date'] ?? null,
                         'cost'             => ['type' => 'cents', 'value' => $laundryCost['cheapest_cost']],
                         'diffPercent'      => $laundryCost['diff_from_30d_percent'] ?? null,
                         'savingsEuros'     => $laundryCost['cost_difference_euros'] ?? null,
@@ -300,6 +306,8 @@
                         'assumption'       => 'Yöllä 18–08, 2 h, 1,5 kW',
                         'startHour'        => $dishwasherCost['start_hour'],
                         'endHour'          => $dishwasherCost['end_hour'] - 1,
+                        'startDate'        => $dishwasherCost['start_date'] ?? null,
+                        'endDate'          => $dishwasherCost['end_date'] ?? null,
                         'cost'             => ['type' => 'cents', 'value' => $dishwasherCost['cheapest_cost']],
                         'diffPercent'      => $dishwasherCost['diff_from_30d_percent'] ?? null,
                         'savingsEuros'     => $dishwasherCost['cost_difference_euros'] ?? null,
@@ -315,6 +323,8 @@
                         'assumption'       => 'Mikä tahansa tunti, 2,5 kW',
                         'startHour'        => $waterHeaterCost['start_hour'],
                         'endHour'          => $waterHeaterCost['start_hour'],
+                        'startDate'        => $waterHeaterCost['start_date'] ?? null,
+                        'endDate'          => $waterHeaterCost['end_date'] ?? null,
                         'cost'             => ['type' => 'cents', 'value' => $waterHeaterCost['cheapest_cost']],
                         'diffPercent'      => $waterHeaterCost['diff_from_30d_percent'] ?? null,
                         'savingsEuros'     => $waterHeaterCost['cost_difference_euros'] ?? null,

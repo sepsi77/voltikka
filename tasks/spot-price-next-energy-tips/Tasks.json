@@ -1,0 +1,5 @@
+[
+  {"name":"Update appliance recommendation filtering and labels","status":"done"},
+  {"name":"Add regression test for excluding current hour","status":"done"},
+  {"name":"Run targeted tests","status":"done"}
+]

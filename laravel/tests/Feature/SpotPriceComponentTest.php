@@ -530,6 +530,23 @@ class SpotPriceComponentTest extends TestCase
         $this->assertEquals(3.0, $best['prices'][1]['price_without_tax']);
     }
 
+    public function test_appliance_recommendations_exclude_current_hour(): void
+    {
+        // Time is frozen to 2026-01-20 14:30, so hour 14 has already started.
+        $this->createSpotPrice(2026, 1, 20, 14, 1.0);
+        $this->createSpotPrice(2026, 1, 20, 15, 5.0);
+        $this->createSpotPrice(2026, 1, 20, 16, 10.0);
+
+        $component = Livewire::test(SpotPrice::class);
+        $instance = $component->instance();
+
+        $best = $instance->findCheapestHoursInRange(0, 24, 1);
+
+        $this->assertNotNull($best);
+        $this->assertEquals(15, $best['start_hour']);
+        $this->assertEquals('2026-01-20', $best['start_date']);
+    }
+
     // ==========================================
     // Price Volatility Tests
     // ==========================================
@@ -949,10 +966,10 @@ class SpotPriceComponentTest extends TestCase
         $prices[21] = 25.0;
         $this->createFullDayPrices(2026, 1, 20, $prices);
 
-        // The view shows "Säästät X € vs kallein aika" when savings are available
+        // The view shows the savings amount and the comparison basis when savings are available.
         Livewire::test(SpotPrice::class)
             ->assertSee('Säästät')
-            ->assertSee('vs kallein aika');
+            ->assertSee('vs päivän kalleimmat 3 h');
     }
 
     public function test_view_handles_empty_data_gracefully(): void

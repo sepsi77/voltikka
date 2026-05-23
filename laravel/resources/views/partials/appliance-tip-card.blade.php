@@ -5,6 +5,8 @@
       - $assumption:   one-line assumption + permitted window (e.g. "Illalla 17–22, 8 kW kiuas")
       - $startHour:    int 0–23
       - $endHour:      int 0–23 (inclusive end of the cheap window)
+      - $startDate:    ?string Y-m-d for the first recommended hour
+      - $endDate:      ?string Y-m-d for the last recommended hour
       - $cost:         array with keys (one of):
                          ['type' => 'cents', 'value' => float]   for total cents
                          ['type' => 'rate',  'value' => float]   for c/kWh
@@ -16,6 +18,30 @@
 @php
     $hStart = str_pad($startHour, 2, '0', STR_PAD_LEFT);
     $hEnd   = str_pad(($endHour + 1) % 24, 2, '0', STR_PAD_LEFT);
+
+    $startDateValue = $startDate ?? null;
+    $endDateValue = $endDate ?? null;
+    $today = now('Europe/Helsinki')->toDateString();
+    $tomorrow = now('Europe/Helsinki')->addDay()->toDateString();
+
+    $formatTipDate = function (?string $date) use ($today, $tomorrow): ?string {
+        if (!$date) {
+            return null;
+        }
+
+        return match ($date) {
+            $today => 'tänään',
+            $tomorrow => 'huomenna',
+            default => \Carbon\Carbon::parse($date, 'Europe/Helsinki')->isoFormat('dd D.M.'),
+        };
+    };
+
+    $startDateLabel = $formatTipDate($startDateValue);
+    $endDateLabel = $formatTipDate($endDateValue);
+    $dateLabel = $startDateLabel;
+    if ($startDateLabel && $endDateLabel && $startDateValue !== $endDateValue) {
+        $dateLabel = $startDateLabel . '–' . $endDateLabel;
+    }
 @endphp
 <article class="flex flex-col bg-white rounded-xl border border-slate-200 p-3 lg:p-4 transition-all duration-200 hover:border-slate-300 hover:shadow-sm">
     <div class="flex items-center gap-2 mb-2">
@@ -30,6 +56,9 @@
     <p class="text-xl lg:text-2xl font-extrabold text-slate-900 leading-none tabular-nums">
         {{ $hStart }}<span class="text-slate-400 mx-0.5">–</span>{{ $hEnd }}
     </p>
+    @if ($dateLabel)
+        <p class="mt-1 text-[11px] font-semibold uppercase tracking-wide text-coral-600">{{ $dateLabel }}</p>
+    @endif
     <p class="mt-1 text-[11px] text-slate-500 leading-tight">{{ $assumption }}</p>
 
     <div class="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -52,6 +81,7 @@
     @if ($savingsEuros !== null && $savingsEuros > 0)
         <p class="mt-2 text-[11px] text-slate-500 tabular-nums leading-snug">
             Säästät <span class="font-semibold text-slate-700">{{ number_format($savingsEuros, 2, ',', ' ') }} €</span>
+            <span class="block">{{ $comparisonLabel }}</span>
         </p>
     @endif
 </article>

@@ -53,6 +53,7 @@ Important semantics:
 - forecast display starts after the latest future official actual price so users do not see third-party predictions where official prices exist
 - forecast rows must stay labelled as estimates and cite `nordpool-predict-fi` by vividfog with the GitHub URL
 - forecast rows must not affect current price, today/tomorrow actual sections, CSV export, spot averages, or appliance helper calculations unless explicitly redesigned
+- appliance helper cards intentionally exclude the current hour as well as past hours, because a displayed hour must be a fully upcoming actionable slot; tomorrow's official prices may be used when available and cards should label tomorrow/date context
 
 ## `ArticleContractPriceComparisonChart`
 
