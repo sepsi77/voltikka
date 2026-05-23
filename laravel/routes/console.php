@@ -24,6 +24,14 @@ Schedule::command('spot:fetch')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/spot-fetch.log'));
 
+// Poll the lightweight third-party forecast feed a few times per day.
+Schedule::command('spot:fetch-forecast')
+    ->everySixHours()
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/spot-forecast-fetch.log'));
+
 // Schedule EEX electricity futures settlement price collection after the EEX settlement window.
 Schedule::command('futures:fetch-eex')
     ->dailyAt('20:30')

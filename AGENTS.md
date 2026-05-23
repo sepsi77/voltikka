@@ -60,6 +60,7 @@ php artisan contracts:link-replacements    # Persist high-confidence replacement
 
 # Spot prices
 php artisan spot:fetch               # Fetch current spot prices from ENTSO-E; retries transient server/connection timeouts
+php artisan spot:fetch-forecast      # Fetch third-party spot-price forecasts from nordpool-predict-fi
 php artisan spot:backfill            # Backfill historical spot prices; retries transient server/connection timeouts per chunk
 php artisan spot:averages            # Calculate spot price averages
 
@@ -116,9 +117,10 @@ php artisan test --filter="ContractsFilterTest"
 ### 4. Spot Price Display
 - **Location**: `app/Livewire/SpotPrice.php`, `HeaderSpotPrice.php`
 - **Route**: `/spot-price`
-- **Data source**: ENTSO-E API via `EntsoeService`
+- **Data source**: ENTSO-E API via `EntsoeService` for official actual prices; optional third-party forecast feed from `vividfog/nordpool-predict-fi` for hours after official prices end
 - Features:
   - Hourly and 15-minute price granularity
+  - Third-party forecast section clearly separated from official prices with source citation
   - Real-time current price in header
   - Household appliance cost calculators (sauna, laundry, dishwasher, water heater)
   - Historical comparisons (daily, weekly, monthly, year-over-year)
@@ -156,6 +158,7 @@ php artisan test --filter="ContractsFilterTest"
 | `SpotPriceHour` | Hourly spot prices |
 | `SpotPriceQuarter` | 15-minute spot prices |
 | `SpotPriceAverage` | Calculated averages (daily, monthly, yearly, rolling) |
+| `SpotPriceForecast` | Third-party hourly spot-price forecasts, stored separately from official actual prices |
 | `FixedContractPriceForecast` | Stored fixed-term price forecasts plus realized actual/error metrics |
 | `Postcode` | Finnish postcodes with municipality data |
 
@@ -180,7 +183,8 @@ php artisan test --filter="ContractsFilterTest"
 | Service | Description |
 |---------|-------------|
 | `ContractPriceCalculator` | Calculates annual contract costs |
-| `EntsoeService` | Fetches spot prices from ENTSO-E API |
+| `EntsoeService` | Fetches official spot prices from ENTSO-E API |
+| `SpotForecasts/NordpoolPredictFiService` | Fetches the public nordpool-predict-fi forecast feed for display as an attributed third-party forecast |
 | `SpotPriceAverageService` | Calculates spot price statistics |
 | `PvgisService` | Fetches solar production data from EU PVGIS |
 | `DigitransitGeocodingService` | Finnish address geocoding |

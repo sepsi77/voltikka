@@ -128,6 +128,17 @@ Purpose:
 Read first:
 - `ElectricityFutures/AGENTS.md`
 
+### Spot forecasts
+Directory:
+- `SpotForecasts/`
+
+Purpose:
+- fetch and normalize third-party Finnish spot-price forecasts for display on `/spot-price`
+- current MVP source is the public `vividfog/nordpool-predict-fi` `prediction.json` feed
+
+Read first:
+- `SpotForecasts/AGENTS.md`
+
 ### Price forecasting
 Directory:
 - `PriceForecasting/`

@@ -3,6 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\SpotPriceAverage;
+use App\Models\SpotPriceForecast;
 use App\Models\SpotPriceHour;
 use App\Models\SpotPriceQuarter;
 use Carbon\Carbon;
@@ -13,6 +14,8 @@ class SpotPrice extends Component
 {
     public array $hourlyPrices = [];
     public array $quarterPricesByHour = [];  // Pre-loaded quarter prices keyed by hour timestamp
+    public array $forecastPrices = [];
+    public array $forecastSource = [];
     public bool $loading = true;
     public ?string $error = null;
     public bool $historicalDataLoaded = false;
@@ -26,6 +29,18 @@ class SpotPrice extends Component
 
     private const REGION = 'FI';
     private const TIMEZONE = 'Europe/Helsinki';
+    private const FORECAST_DISPLAY_HOURS = 72;
+    private const FORECAST_CACHE_KEY = 'spot_price:forecast:nordpool_predict_fi:v1';
+
+    private const FINNISH_WEEKDAYS_SHORT = [
+        1 => 'ma',
+        2 => 'ti',
+        3 => 'ke',
+        4 => 'to',
+        5 => 'pe',
+        6 => 'la',
+        7 => 'su',
+    ];
 
     private const FINNISH_MONTHS = [
         1 => 'Tammikuu',
@@ -45,6 +60,7 @@ class SpotPrice extends Component
     public function mount(): void
     {
         $this->fetchPrices();
+        $this->loadForecastPrices();
         $this->loadHistoricalData();
         $this->loadRolling30DayAverage();
     }
@@ -282,6 +298,77 @@ class SpotPrice extends Component
         return !empty($this->getTomorrowPricesWithMeta());
     }
 
+    /**
+     * Get third-party forecast prices with metadata for the forecast bar chart.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getForecastPricesWithMeta(): array
+    {
+        if (empty($this->forecastPrices)) {
+            return [];
+        }
+
+        $allPrices = array_merge(
+            array_column($this->hourlyPrices, 'price_with_tax'),
+            array_column($this->forecastPrices, 'price_with_tax')
+        );
+        $maxPrice = !empty($allPrices) ? max($allPrices) : 20;
+        $scaleMax = max($maxPrice, 20);
+        $avg30dWithVat = $this->rolling30DayAvgWithVat;
+
+        return array_map(function ($price) use ($scaleMax, $avg30dWithVat) {
+            $priceWithVat = $price['price_with_tax'];
+            $colorClass = $this->getColorClassFromAvgDiff($priceWithVat, $avg30dWithVat);
+            $widthPercent = min(100, max(3, round(($priceWithVat / $scaleMax) * 100)));
+            $badge = $this->getPriceBadge($priceWithVat, $avg30dWithVat);
+
+            return [
+                'timestamp' => $price['timestamp'],
+                'hour' => $price['helsinki_hour'],
+                'helsinki_date' => $price['helsinki_date'],
+                'price_with_vat' => $priceWithVat,
+                'price_without_vat' => $price['price_without_tax'],
+                'colorClass' => $colorClass,
+                'widthPercent' => $widthPercent,
+                'badge' => $badge,
+                'source' => $price['source'],
+                'isForecast' => true,
+            ];
+        }, $this->forecastPrices);
+    }
+
+    /**
+     * Group forecast prices by Helsinki date for compact display.
+     *
+     * @return array<int, array{date: string, label: string, prices: array<int, array<string, mixed>>}>
+     */
+    public function getForecastPricesGroupedByDate(): array
+    {
+        $prices = $this->getForecastPricesWithMeta();
+
+        if (empty($prices)) {
+            return [];
+        }
+
+        $groups = [];
+        foreach ($prices as $price) {
+            $date = $price['helsinki_date'];
+
+            if (!isset($groups[$date])) {
+                $groups[$date] = [
+                    'date' => $date,
+                    'label' => $this->formatForecastDateLabel($date),
+                    'prices' => [],
+                ];
+            }
+
+            $groups[$date]['prices'][] = $price;
+        }
+
+        return array_values($groups);
+    }
+
     public function fetchPrices(): void
     {
         $this->loading = true;
@@ -332,6 +419,113 @@ class SpotPrice extends Component
             })->toArray(),
             'quarterPricesByHour' => $this->loadQuarterPricesForRange($todayStart, $tomorrowEnd),
         ];
+    }
+
+    /**
+     * Load third-party forecast prices from the database.
+     */
+    private function loadForecastPrices(): void
+    {
+        try {
+            $forecastData = app()->runningUnitTests()
+                ? $this->buildForecastPriceData()
+                : Cache::remember(self::FORECAST_CACHE_KEY, 300, fn () => $this->buildForecastPriceData());
+
+            $this->forecastPrices = $forecastData['forecastPrices'];
+            $this->forecastSource = $forecastData['source'];
+        } catch (\Exception) {
+            $this->forecastPrices = [];
+            $this->forecastSource = [];
+        }
+    }
+
+    /**
+     * Build display-ready third-party forecast data after the latest official actual price.
+     *
+     * @return array{forecastPrices: array<int, array<string, mixed>>, source: array<string, mixed>}
+     */
+    private function buildForecastPriceData(): array
+    {
+        $helsinkiNow = Carbon::now(self::TIMEZONE);
+        $nowUtc = $helsinkiNow->copy()->startOfHour()->setTimezone('UTC');
+        $latestActualUtc = SpotPriceHour::forRegion(self::REGION)
+            ->where('utc_datetime', '>=', $nowUtc)
+            ->where('utc_datetime', '<=', $helsinkiNow->copy()->addDays(2)->endOfDay()->setTimezone('UTC'))
+            ->orderByDesc('utc_datetime')
+            ->value('utc_datetime');
+
+        $startUtc = $latestActualUtc
+            ? Carbon::parse($latestActualUtc, 'UTC')->addHour()
+            : $nowUtc->copy();
+
+        if ($startUtc->lt($nowUtc)) {
+            $startUtc = $nowUtc->copy();
+        }
+
+        $endUtc = $helsinkiNow->copy()->addDays(7)->endOfDay()->setTimezone('UTC');
+
+        $forecasts = SpotPriceForecast::forRegion(self::REGION)
+            ->forSource(SpotPriceForecast::SOURCE_NORDPOOL_PREDICT_FI)
+            ->where('utc_datetime', '>=', $startUtc)
+            ->where('utc_datetime', '<=', $endUtc)
+            ->orderBy('utc_datetime')
+            ->limit(self::FORECAST_DISPLAY_HOURS)
+            ->get();
+
+        $latestSourceRecord = SpotPriceForecast::forRegion(self::REGION)
+            ->forSource(SpotPriceForecast::SOURCE_NORDPOOL_PREDICT_FI)
+            ->orderByDesc('fetched_at')
+            ->first();
+
+        return [
+            'forecastPrices' => $forecasts->map(function (SpotPriceForecast $forecast) {
+                $utcTime = Carbon::parse($forecast->utc_datetime)->shiftTimezone('UTC');
+                $helsinkiTime = $utcTime->copy()->setTimezone(self::TIMEZONE);
+
+                return [
+                    'region' => $forecast->region,
+                    'source' => $forecast->source,
+                    'timestamp' => $forecast->timestamp,
+                    'utc_datetime' => $utcTime->toIso8601String(),
+                    'price_without_tax' => round($forecast->price_without_tax, 2),
+                    'vat_rate' => $forecast->vat_rate,
+                    'price_with_tax' => round($forecast->price_with_tax, 2),
+                    'helsinki_hour' => (int) $helsinkiTime->format('H'),
+                    'helsinki_date' => $helsinkiTime->format('Y-m-d'),
+                ];
+            })->toArray(),
+            'source' => [
+                'name' => 'nordpool-predict-fi',
+                'author' => 'vividfog',
+                'url' => (string) config('services.spot_forecasts.nordpool_predict_fi.source_url', 'https://github.com/vividfog/nordpool-predict-fi'),
+                'license' => 'MIT',
+                'display_hours' => self::FORECAST_DISPLAY_HOURS,
+                'fetched_at' => $latestSourceRecord?->fetched_at
+                    ? $latestSourceRecord->fetched_at->copy()->setTimezone(self::TIMEZONE)->format('j.n.Y H:i')
+                    : null,
+            ],
+        ];
+    }
+
+    /**
+     * Format a Helsinki date for forecast day headings.
+     */
+    private function formatForecastDateLabel(string $date): string
+    {
+        $forecastDate = Carbon::parse($date, self::TIMEZONE)->startOfDay();
+        $today = Carbon::now(self::TIMEZONE)->startOfDay();
+
+        if ($forecastDate->equalTo($today)) {
+            return 'Tänään';
+        }
+
+        if ($forecastDate->equalTo($today->copy()->addDay())) {
+            return 'Huomenna';
+        }
+
+        $weekday = self::FINNISH_WEEKDAYS_SHORT[$forecastDate->isoWeekday()] ?? '';
+
+        return trim($weekday . ' ' . $forecastDate->format('j.n.'));
     }
 
     /**
@@ -1901,6 +2095,8 @@ class SpotPrice extends Component
             'todayPricesWithMeta' => $this->getTodayPricesWithMeta(),
             'tomorrowPricesWithMeta' => $this->getTomorrowPricesWithMeta(),
             'hasTomorrowPrices' => $this->hasTomorrowPrices(),
+            'forecastPricesGroupedByDate' => $this->getForecastPricesGroupedByDate(),
+            'forecastSource' => $this->forecastSource,
         ];
 
         // Add historical data if loaded

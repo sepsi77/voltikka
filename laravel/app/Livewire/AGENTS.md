@@ -35,6 +35,25 @@ Important semantics:
 - the lead chart caption must be generated from `leadChartPayload` / `annual_cost`, not from c/kWh callouts, so the text always matches the plotted trend
 - segment and consumption tables hide rows with fewer than 10 contracts to avoid over-interpreting sparse segment statistics
 
+## `SpotPrice`
+
+Primary files:
+- `SpotPrice.php`
+- `../../resources/views/livewire/spot-price.blade.php`
+- `../Models/SpotPriceForecast.php`
+- `../Services/SpotForecasts/AGENTS.md`
+
+Purpose:
+- renders `/spot-price`
+- shows official ENTSO-E/Nord Pool actual spot prices for today/tomorrow, historical summaries, appliance timing helpers, and a separate third-party forecast section when imported forecast rows exist
+
+Important semantics:
+- official actual prices live in `$hourlyPrices` / `spot_prices_hour` and quarter-hour actuals live in `spot_prices_quarter`
+- imported forecasts live in `$forecastPrices` / `spot_price_forecasts` and must not be merged into `$hourlyPrices`
+- forecast display starts after the latest future official actual price so users do not see third-party predictions where official prices exist
+- forecast rows must stay labelled as estimates and cite `nordpool-predict-fi` by vividfog with the GitHub URL
+- forecast rows must not affect current price, today/tomorrow actual sections, CSV export, spot averages, or appliance helper calculations unless explicitly redesigned
+
 ## `ArticleContractPriceComparisonChart`
 
 Primary files:

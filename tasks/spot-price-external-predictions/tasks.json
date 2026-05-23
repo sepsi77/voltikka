@@ -1,0 +1,8 @@
+[
+  {"name":"Inspect current spot price page/import architecture and external feed format","status":"done"},
+  {"name":"Add persistence model/migration for spot price forecasts","status":"done"},
+  {"name":"Add service and Artisan command to import external predictions","status":"done"},
+  {"name":"Expose forecasts on the spot price page with attribution and clear labelling","status":"done"},
+  {"name":"Add tests or smoke checks for import/parsing/display data","status":"done"},
+  {"name":"Update relevant AGENTS context files and task decisions","status":"done"}
+]

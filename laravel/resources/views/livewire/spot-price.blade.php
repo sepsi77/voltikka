@@ -357,7 +357,7 @@
         @endif
 
         <!-- Horizontal Bar Chart with Accordion Quarters -->
-        @if (!empty($todayPricesWithMeta))
+        @if (!empty($todayPricesWithMeta) || !empty($forecastPricesGroupedByDate))
             @php
                 // Calculate scale max for absolute bar widths
                 $allPrices = array_column($hourlyPrices, 'price_with_tax');
@@ -393,15 +393,16 @@
                 class="bg-white rounded-2xl border border-slate-200 p-4 md:p-6 mb-10 scroll-mt-24"
             >
                 <!-- Today's prices -->
-                <div class="mb-6">
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
-                        <h3 class="text-lg font-semibold text-slate-900">Tänään</h3>
-                        <p class="text-sm text-slate-500 mt-1 sm:mt-0">
-                            Väri suhteessa 30 pv keskiarvoon ({{ number_format($rolling30DayAvgWithVat ?? 0, 2, ',', ' ') }} c/kWh)
-                        </p>
-                    </div>
-                    <div class="space-y-2">
-                        @foreach ($todayPricesWithMeta as $price)
+                @if (!empty($todayPricesWithMeta))
+                    <div class="mb-6">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-slate-900">Tänään</h3>
+                            <p class="text-sm text-slate-500 mt-1 sm:mt-0">
+                                Väri suhteessa 30 pv keskiarvoon ({{ number_format($rolling30DayAvgWithVat ?? 0, 2, ',', ' ') }} c/kWh)
+                            </p>
+                        </div>
+                        <div class="space-y-2">
+                            @foreach ($todayPricesWithMeta as $price)
                             @php
                                 $hourStart = str_pad($price['hour'], 2, '0', STR_PAD_LEFT);
                                 $hourEnd = str_pad(($price['hour'] + 1) % 24, 2, '0', STR_PAD_LEFT);
@@ -526,8 +527,9 @@
                                 </div>
                             </div>
                         @endforeach
+                        </div>
                     </div>
-                </div>
+                @endif
 
                 <!-- Tomorrow's prices (if available) -->
                 @if ($hasTomorrowPrices)
@@ -628,6 +630,90 @@
                                         <template x-if="!quarterPricesByHour[{{ $price['timestamp'] }}] || quarterPricesByHour[{{ $price['timestamp'] }}].length === 0">
                                             <p class="text-sm text-slate-500 py-2">15 min hinnat eivät saatavilla</p>
                                         </template>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+                <!-- Third-party forecast prices after official prices end -->
+                @if (!empty($forecastPricesGroupedByDate))
+                    <div class="border-t border-slate-200 pt-6 mt-6">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
+                            <div class="max-w-3xl">
+                                <h3 class="text-lg font-semibold text-slate-900 flex flex-wrap items-center gap-2">
+                                    Ennuste virallisten hintojen jälkeen
+                                    <span class="text-[11px] bg-coral-50 text-coral-700 border border-coral-200 px-2 py-0.5 rounded-full font-semibold uppercase tracking-[0.05em]">Kolmannen osapuolen ennuste</span>
+                                </h3>
+                                <p class="text-sm text-slate-600 mt-1.5">
+                                    Nämä tunnit ovat arvioita, eivät virallisia Nord Pool -spot-hintoja. Näytämme ennusteen erillään, jotta toteutuneet hinnat ja arviot eivät sekoitu.
+                                </p>
+                            </div>
+                            @if (!empty($forecastSource['url']))
+                                <a
+                                    href="{{ $forecastSource['url'] }}"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="text-sm font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 hover:text-coral-600"
+                                >
+                                    Lähde: {{ $forecastSource['name'] ?? 'nordpool-predict-fi' }}
+                                </a>
+                            @endif
+                        </div>
+
+                        <div class="rounded-xl border border-coral-100 bg-coral-50/50 p-3 mb-5 text-sm text-slate-700">
+                            Ennusteen lähde on
+                            <a
+                                href="{{ $forecastSource['url'] ?? 'https://github.com/vividfog/nordpool-predict-fi' }}"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="font-semibold text-slate-900 underline decoration-slate-300 underline-offset-4 hover:text-coral-600"
+                            >nordpool-predict-fi</a>
+                            ({{ $forecastSource['author'] ?? 'vividfog' }}, {{ $forecastSource['license'] ?? 'MIT' }}). Hinnat ovat c/kWh sis. ALV.
+                            @if (!empty($forecastSource['fetched_at']))
+                                Päivitetty Voltikkaan {{ $forecastSource['fetched_at'] }}.
+                            @endif
+                        </div>
+
+                        <div class="space-y-5">
+                            @foreach ($forecastPricesGroupedByDate as $day)
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <h4 class="text-sm font-bold uppercase tracking-[0.05em] text-slate-600">{{ $day['label'] }}</h4>
+                                        <span class="text-xs font-semibold text-slate-500">Ennustetunnit</span>
+                                    </div>
+                                    <div class="space-y-2">
+                                        @foreach ($day['prices'] as $price)
+                                            @php
+                                                $hourStart = str_pad($price['hour'], 2, '0', STR_PAD_LEFT);
+                                                $hourEnd = str_pad(($price['hour'] + 1) % 24, 2, '0', STR_PAD_LEFT);
+                                            @endphp
+                                            <div class="w-full flex items-center gap-3 p-2 rounded-lg bg-slate-50/80 border border-slate-100">
+                                                <span class="w-24 text-sm font-medium text-slate-700 tabular-nums">
+                                                    {{ $hourStart }}–{{ $hourEnd }}
+                                                </span>
+
+                                                <div class="flex-1 h-8 bg-white rounded-lg relative overflow-hidden border border-slate-100">
+                                                    <div
+                                                        class="h-full {{ $price['colorClass'] }} rounded-lg transition-all duration-300 flex items-center justify-end pr-2"
+                                                        style="width: {{ $price['widthPercent'] }}%"
+                                                    >
+                                                        <span class="text-xs font-semibold text-white drop-shadow-sm">
+                                                            {{ number_format($price['price_with_vat'], 1, ',', '') }}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <span class="w-24 text-sm text-right font-semibold text-slate-700 tabular-nums">
+                                                    {{ number_format($price['price_with_vat'], 2, ',', ' ') }} c
+                                                </span>
+
+                                                <span class="hidden sm:inline-flex w-20 justify-center items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                                    Arvio
+                                                </span>
+                                            </div>
+                                        @endforeach
                                     </div>
                                 </div>
                             @endforeach

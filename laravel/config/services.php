@@ -41,6 +41,19 @@ return [
         'finland_eic' => '10YFI-1--------U',
     ],
 
+    'spot_forecasts' => [
+        'nordpool_predict_fi' => [
+            'url' => env('NORDPOOL_PREDICT_FI_URL', 'https://raw.githubusercontent.com/vividfog/nordpool-predict-fi/main/deploy/prediction.json'),
+            'source_url' => 'https://github.com/vividfog/nordpool-predict-fi',
+            'region' => 'FI',
+            'vat_rate' => env('NORDPOOL_PREDICT_FI_VAT_RATE', 0.255),
+            'connect_timeout' => env('NORDPOOL_PREDICT_FI_CONNECT_TIMEOUT', 5),
+            'timeout' => env('NORDPOOL_PREDICT_FI_TIMEOUT', 15),
+            'retry_attempts' => env('NORDPOOL_PREDICT_FI_RETRY_ATTEMPTS', 3),
+            'retry_delay_ms' => env('NORDPOOL_PREDICT_FI_RETRY_DELAY_MS', 1000),
+        ],
+    ],
+
     'digitransit' => [
         'api_key' => env('DIGITRANSIT_API_KEY'),
         'base_url' => 'https://api.digitransit.fi/geocoding/v1',

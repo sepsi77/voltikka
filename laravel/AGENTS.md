@@ -202,11 +202,17 @@ Primary files:
 - `app/Services/EntsoeService.php`
 - `app/Console/Commands/FetchSpot.php`
 - `app/Console/Commands/BackfillSpot.php`
+- `app/Models/SpotPriceForecast.php`
+- `app/Services/SpotForecasts/AGENTS.md`
+- `app/Console/Commands/FetchSpotForecast.php`
 
 Important semantics:
 - ENTSO-E fetches retry transient server errors and connection failures/timeouts (`ConnectionException`, including cURL 28) before failing.
 - Spot fetch/backfill commands catch exhausted HTTP request/connection failures so scheduled jobs fail or continue gracefully instead of leaking raw exception stack traces.
 - Do not log raw ENTSO-E exception messages without redacting `securityToken`, because Guzzle/Laravel exception text can include the full query string.
+- Third-party spot forecasts are stored in `spot_price_forecasts`, never in `spot_prices_hour` or `spot_prices_quarter`, so forecasts cannot block later official ENTSO-E rows that use `insertOrIgnore()`.
+- `spot:fetch-forecast` imports the public `vividfog/nordpool-predict-fi` feed. Its values are c/kWh including VAT; Voltikka derives VAT0 values only for internal comparisons/display metadata.
+- The `/spot-price` forecast section must remain visually and textually separate from official prices and must cite `nordpool-predict-fi` by vividfog with the GitHub URL.
 
 ## Electricity futures imports
 
