@@ -220,6 +220,19 @@ class ContractPriceStatisticsPageTest extends TestCase
         $response->assertDontSee('Pörssisähkö-sopimukset ovat halventuneet');
     }
 
+    public function test_spot_callout_uses_same_12_month_average_basis_as_spot_deep_dive(): void
+    {
+        $this->seedCaptionMismatchStatistics();
+        $this->seedRisingSpotYearlyAverages();
+
+        $response = $this->get('/sahkosopimus/tilastot');
+
+        $response->assertStatus(200);
+        $response->assertDontSee('Nyt 2,00&nbsp;c/kWh', false);
+        $response->assertDontSee('−80 % aineiston alusta');
+        $this->assertMatchesRegularExpression('/energiahinta on noussut.*24(?: |\x{00A0})%.*aineiston alusta/su', $response->getContent());
+    }
+
     public function test_csv_endpoint_streams_with_attribution_header_lines(): void
     {
         $this->seedSampleStatistics();
@@ -235,6 +248,23 @@ class ContractPriceStatisticsPageTest extends TestCase
         $this->assertStringContainsString('arvonlisäveron 25,5 %', $body);
         $this->assertStringContainsString('segment_key,metric_key', $body);
         $this->assertStringContainsString('spot,annual_cost,5000', $body);
+    }
+
+    private function seedRisingSpotYearlyAverages(): void
+    {
+        for ($date = Carbon::create(2025, 1, 2); $date->lte(Carbon::create(2026, 4, 29)); $date->addDay()) {
+            $price = $date->gte(Carbon::create(2026, 1, 1)) ? 8.7 : 5.0;
+
+            SpotPriceAverage::create([
+                'region' => 'FI',
+                'period_type' => SpotPriceAverage::PERIOD_DAILY,
+                'period_start' => $date->toDateString(),
+                'period_end' => $date->toDateString(),
+                'avg_price_without_tax' => $price,
+                'avg_price_with_tax' => $price,
+                'hours_count' => 24,
+            ]);
+        }
     }
 
     private function seedCaptionMismatchStatistics(): void

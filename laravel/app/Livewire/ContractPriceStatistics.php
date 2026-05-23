@@ -416,7 +416,11 @@ class ContractPriceStatistics extends Component
         foreach (array_slice($this->primarySegments, 0, 3) as $segmentKey) {
             $metric = $segmentKey === 'spot' ? 'spot_total_energy_price' : 'energy_price';
             $series = $this->aggregatedSeries($segmentKey, $metric, null);
-            $values = $series['median'];
+            $displaySeries = $segmentKey === 'spot' ? $this->spotEnergyPriceAggregatedSeries() : $series;
+            if ($displaySeries['x'] === []) {
+                $displaySeries = $series;
+            }
+            $values = $displaySeries['median'];
 
             if ($values === []) {
                 continue;
@@ -435,7 +439,7 @@ class ContractPriceStatistics extends Component
                 'delta_30d_pct' => $this->percentDelta(
                     $current['value'] ?? null,
                     $this->valueClosestToOffset(
-                        ['x' => $series['x'], 'values' => $values],
+                        ['x' => $displaySeries['x'], 'values' => $values],
                         $current['index'] ?? null,
                         -30,
                     ),
@@ -607,7 +611,7 @@ class ContractPriceStatistics extends Component
 
     private function statisticsViewDataCacheKey(): string
     {
-        return 'contract-price-statistics:view-data:v6:' . md5(json_encode([
+        return 'contract-price-statistics:view-data:v7:' . md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
             'version' => $this->statisticsDataVersion(),
