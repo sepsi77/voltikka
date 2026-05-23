@@ -59,9 +59,17 @@ php artisan contracts:detect-replacements  # Report likely replacements for inac
 php artisan contracts:link-replacements    # Persist high-confidence replacement links
 
 # Spot prices
-php artisan spot:fetch               # Fetch current spot prices from ENTSO-E
-php artisan spot:backfill            # Backfill historical spot prices
+php artisan spot:fetch               # Fetch current spot prices from ENTSO-E; retries transient server/connection timeouts
+php artisan spot:backfill            # Backfill historical spot prices; retries transient server/connection timeouts per chunk
 php artisan spot:averages            # Calculate spot price averages
+
+# Electricity futures
+php artisan futures:fetch-eex        # Fetch EEX futures EOD settlement prices for configured Nordic month/quarter/year instruments
+php artisan futures:backfill-eex     # Fetch all EEX futures history available from the public API (~45 days)
+
+# Fixed-term price forecasts
+php artisan forecasting:run-fixed-contracts       # Calculate and persist fixed-term contract price forecasts
+php artisan forecasting:evaluate-fixed-contracts  # Compare matured stored forecasts with realized retail prices
 
 # Utilities
 php artisan logos:optimize           # Optimize company logos to WebP
@@ -80,6 +88,8 @@ php artisan test --filter="ContractsFilterTest"
 - Filters by pricing model, contract type, energy source, housing type
 - Calculates annual costs based on user consumption
 - SEO-optimized filter links with dual behavior (see SEO section)
+- Low-prominence market-insight pills on comparison heroes reuse cached precomputed price statistics/forecasts; they are informational only and do not affect ranking
+- Individual contract detail meta descriptions are generated from Voltikka ranking/pricing data instead of provider marketing descriptions
 
 ### 2. Contract Price Statistics
 - **Location**: `app/Livewire/ContractPriceStatistics.php`, `app/Services/ContractStatistics/ContractPriceStatisticsService.php`
@@ -87,9 +97,23 @@ php artisan test --filter="ContractsFilterTest"
 - Tracks daily contract-price trends from imported contract prices
 - Historical backfill infers availability from `price_components.price_date`
 - Spot contract totals use stored spot-price history plus supplier margin
-- Commands: `contracts:calculate-price-statistics`, `contracts:backfill-price-statistics`
+- Contract-type energy-price table displays spot as trailing-12-month realized daily average + typical margin, with p20–p80 daily variation under the value, so it is comparable with longer-term contract prices
+- Commands: `contracts:calculate-price-statistics`, `contracts:backfill-price-statistics`, `contracts:warm-price-statistics-cache`
+- Daily import calculates these statistics before optional percentile badge recalculation so this page keeps updating even if badge metrics fail
+- Page requests serve cached prepared view data per period + consumption; cache keys auto-bust when statistics/snapshot/source spot-price fingerprints change
+- Contract and spot-price update commands queue background warming for the default `/sahkosopimus/tilastot?kulutus=5000` page state so low-traffic first visitors do not pay the expensive cache-miss rebuild
 
-### 3. Spot Price Display
+### 3. Fixed-term Price Forecasting Backend
+- **Location**: `app/Services/PriceForecasting/`, `app/Models/FixedContractPriceForecast.php`
+- **Commands**: `forecasting:run-fixed-contracts`, `forecasting:evaluate-fixed-contracts`
+- **Schedule**: daily forecast run at 07:30 and evaluation at 07:45 Europe/Helsinki
+- Backend-only v1 model; no public UI yet
+- Forecasts fixed-term 6/12/24 month market p20/median/p80 energy-price indices
+- Uses FI EEX futures-implied hedge costs plus EWMA retail premium / gap closure
+- Persists forecasts and later fills actual prices/errors so forecast quality can be tracked over time
+- See `laravel/app/Services/PriceForecasting/AGENTS.md` before changing model semantics
+
+### 4. Spot Price Display
 - **Location**: `app/Livewire/SpotPrice.php`, `HeaderSpotPrice.php`
 - **Route**: `/spot-price`
 - **Data source**: ENTSO-E API via `EntsoeService`
@@ -101,7 +125,7 @@ php artisan test --filter="ContractsFilterTest"
   - Price charts with color-coded bars
   - CSV export
 
-### 4. Solar Panel Calculator
+### 5. Solar Panel Calculator
 - **Location**: `app/Livewire/SolarCalculator.php`
 - **Route**: `/aurinkopaneelit/laskuri`
 - **Services**:
@@ -114,7 +138,7 @@ php artisan test --filter="ContractsFilterTest"
   - Monthly production estimates
   - Savings calculation based on self-consumption
 
-### 5. Electricity Consumption Calculator
+### 6. Electricity Consumption Calculator
 - **Location**: `app/Livewire/ConsumptionCalculator.php`
 - **Route**: `/sahkosopimus/laskuri`
 - Estimates annual consumption based on housing type and heating
@@ -132,6 +156,7 @@ php artisan test --filter="ContractsFilterTest"
 | `SpotPriceHour` | Hourly spot prices |
 | `SpotPriceQuarter` | 15-minute spot prices |
 | `SpotPriceAverage` | Calculated averages (daily, monthly, yearly, rolling) |
+| `FixedContractPriceForecast` | Stored fixed-term price forecasts plus realized actual/error metrics |
 | `Postcode` | Finnish postcodes with municipality data |
 
 ### Key Livewire Components (`app/Livewire/`)
@@ -162,6 +187,7 @@ php artisan test --filter="ContractsFilterTest"
 | `SolarCalculatorService` | Solar calculator orchestration |
 | `CompanyLogoService` | Handles company logo URLs with WebP optimization |
 | `AzureConsumerApiClient` | Fetches contracts from Azure API |
+| `PriceForecasting/FixedTermPriceForecastService` | Builds fixed-term price forecasts from retail stats and futures hedge costs |
 
 ### Important Fields
 
@@ -226,6 +252,16 @@ All SEO listing pages use `SeoContractsList` component. See "Creating SEO Contra
 - Service: `EntsoeService`
 - Config: `services.entsoe.api_key`, `services.entsoe.finland_eic`
 - Supports both hourly and 15-minute resolution
+
+### EEX API (Electricity Futures)
+- Fetches electricity futures end-of-day settlement prices from `https://api.eex-group.com/pub/market-data/chart/eod`
+- Service: `App\Services\ElectricityFutures\EexFuturesService`
+- Command: `php artisan futures:fetch-eex`
+- Config: `config/eex_futures.php`
+- Requires `Referer: https://www.eex.com/`; public chart history is limited to roughly 45 days
+- Maturity/delivery selection uses EEX `YYYYMM` maturity parameters, matching the web UI delivery dropdown values; the collector dynamically probes `price-ticker` once per tenor because out-of-bounds maturities return empty HTTP 200 payloads, then reuses the discovered maturity values across markets
+- EEX requests are throttled by default with roughly 15 seconds between public API calls (`EEX_FUTURES_REQUEST_DELAY_SECONDS`, jitter configurable)
+- Default instruments are EEX Nordic System Price and Nordic zonal Base Month, Quarter, and Year futures; Baltic instruments must be added only after verified EEX short codes exist
 
 ### EU PVGIS API (Solar Production)
 - Endpoint: `https://re.jrc.ec.europa.eu/api/v5_2/PVcalc`
@@ -398,7 +434,7 @@ There are several types of SEO listing pages, each differentiated by a route par
 | Housing type | `housingType` | `omakotitalo` | `/sahkosopimus/omakotitalo` |
 | Energy source | `energySource` | `tuulisahko` | `/sahkosopimus/tuulisahko` |
 | City/Location | `location` | `helsinki` | `/sahkosopimus/paikkakunnat/helsinki` |
-| Target group | `targetGroup` | `Company` | `/sahkosopimus/yrityksille` |
+| Target group | `targetGroup` | `Company` | `/sahkosopimus/yritykselle` |
 | Offer type | `offerType` | `promotion` | `/sahkosopimus/sahkotarjous` |
 
 #### Checklist: Adding a New SEO Pricing Type Page
@@ -486,9 +522,10 @@ For pricing type pages, the `getContractsProperty()` method determines which con
 - **Async fonts**: Google Fonts loaded asynchronously to avoid render-blocking
 - **Resource preloading**: Critical CSS/JS preloaded in `<head>`
 
-## Analytics
+## Analytics and Observability
 
 - **Plausible Analytics**: Privacy-friendly analytics script in `layouts/app.blade.php`
+- **Sentry**: Laravel exception capture, tracing/profiling configuration, optional Sentry log forwarding, and ignored local CLI verification noise are configured in `laravel/bootstrap/app.php`, `laravel/config/sentry.php`, and `laravel/config/logging.php`. See `laravel/AGENTS.md` for env variables and verification commands.
 
 ## Navigation Structure
 
@@ -498,6 +535,8 @@ The main navigation uses dropdown menus (desktop) and collapsible sections (mobi
   - Vertaa sopimuksia
   - Halvimmat sopimukset
   - Pörssisähkö
+  - Määräaikainen
+  - Toistaiseksi voimassa
   - Yrityksille
   - Sähköyhtiöt
 - **Sähkölaskuri**
