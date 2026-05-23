@@ -96,6 +96,13 @@
             </dl>
 
             <div class="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                <a href="/sahkosopimus/sahkon-hintaennuste"
+                   class="inline-flex items-center gap-2 font-semibold text-slate-900 underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M3 17l6-6 4 4 8-8M14 7h7v7"/>
+                    </svg>
+                    Sähkön hintaennuste
+                </a>
                 <a href="{{ $csvHref }}"
                    class="inline-flex items-center gap-2 font-semibold text-slate-900 underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500"
                    download>

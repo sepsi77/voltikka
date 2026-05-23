@@ -7,6 +7,7 @@ use App\Livewire\ConsumptionCalculator;
 use App\Livewire\ContractDetail;
 use App\Http\Controllers\ContractPriceStatisticsCsvController;
 use App\Livewire\ContractPriceStatistics;
+use App\Livewire\FixedContractPriceForecast;
 use App\Livewire\ContractsList;
 use App\Livewire\HomePage;
 use App\Livewire\LocationsList;
@@ -136,6 +137,10 @@ Route::withoutMiddleware($publicListingWithoutMiddleware)
         // CSV download for the statistics page (CC BY 4.0)
         Route::get('/sahkosopimus/tilastot.csv', ContractPriceStatisticsCsvController::class)
             ->name('contract.price-statistics.csv');
+
+        // Fixed-term contract price forecast page (must come BEFORE city catch-all)
+        Route::get('/sahkosopimus/sahkon-hintaennuste', FixedContractPriceForecast::class)
+            ->name('contract.price-forecast');
 
         // Cheapest contracts page (must come BEFORE city catch-all)
         Route::get('/sahkosopimus/halvin-sahkosopimus', CheapestContracts::class)
