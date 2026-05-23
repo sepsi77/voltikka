@@ -77,6 +77,24 @@ class ContractPriceStatistics extends Component
      */
     private ?Collection $dailyStatsCache = null;
 
+    /**
+     * SEO-optimized H3 headings for the deep-dive sections.
+     *
+     * Must contain "hintakehitys" and an inflection of "sähkösopimus" so the
+     * page ranks for "<segment-type> sähkösopimusten hintakehitys" queries.
+     * Kept separate from {@see $segments} because the short label is reused
+     * in the contract-type/consumption tables and TOC chips.
+     */
+    public array $deepDiveHeadings = [
+        'spot' => 'Pörssisähkösopimusten hintakehitys',
+        'quarterly' => 'Kvartaalisähkösopimusten hintakehitys',
+        'fixed_term_6' => 'Määräaikaisten sähkösopimusten hintakehitys (6 kk)',
+        'fixed_term_12' => 'Määräaikaisten sähkösopimusten hintakehitys (12 kk)',
+        'fixed_term_24' => 'Määräaikaisten sähkösopimusten hintakehitys (24 kk)',
+        'hybrid' => 'Joustosähkösopimusten hintakehitys',
+        'open_ended' => 'Toistaiseksi voimassa olevien sähkösopimusten hintakehitys',
+    ];
+
     /** URL-friendly anchor slugs for the deep-dive sections. */
     public array $deepDiveAnchors = [
         'spot' => 'porssisahko',
@@ -237,6 +255,7 @@ class ContractPriceStatistics extends Component
             $payloads[] = [
                 'segment_key' => $segmentKey,
                 'segment_label' => $this->segments[$segmentKey] ?? $segmentKey,
+                'heading' => $this->deepDiveHeadings[$segmentKey] ?? ($this->segments[$segmentKey] ?? $segmentKey),
                 'anchor' => $this->deepDiveAnchors[$segmentKey] ?? $segmentKey,
                 'description' => $this->deepDiveDescriptions[$segmentKey] ?? '',
                 'is_spot' => $segmentKey === 'spot',
@@ -588,7 +607,7 @@ class ContractPriceStatistics extends Component
 
     private function statisticsViewDataCacheKey(): string
     {
-        return 'contract-price-statistics:view-data:v4:' . md5(json_encode([
+        return 'contract-price-statistics:view-data:v5:' . md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
             'version' => $this->statisticsDataVersion(),

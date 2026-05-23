@@ -562,7 +562,7 @@
                             <article id="{{ $dive['anchor'] }}" class="scroll-mt-24 pt-20 first:pt-0 pb-20 last:pb-0">
                                 <header class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 mb-3">
                                     <h3 class="text-xl font-bold text-slate-900 tracking-tight">
-                                        {{ $dive['segment_label'] }}
+                                        {{ $dive['heading'] }}
                                     </h3>
                                     @if ($dive['contract_count'] !== null)
                                         <span class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-400">
