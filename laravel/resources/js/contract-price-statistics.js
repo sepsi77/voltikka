@@ -86,7 +86,7 @@ function buildOptions(payload, root) {
     return {
         width: root.clientWidth,
         height: root.clientHeight || 320,
-        padding: [16, 16, 24, 8],
+        padding: [16, 16, 8, 8],
         bands,
         cursor: {
             drag: { setScale: false },
@@ -116,6 +116,7 @@ function buildOptions(payload, root) {
                 grid: { stroke: SLATE_200, width: 1 },
                 ticks: { stroke: SLATE_300, width: 1, size: 4 },
                 font: '12px "Plus Jakarta Sans", system-ui, sans-serif',
+                size: 30,
                 values: (_u, splits) => splits.map((ts) => formatFinnishDate(ts)),
             },
             {
@@ -154,12 +155,12 @@ function attachUnitBadge(u, unitLabel) {
         badge = document.createElement('div');
         badge.setAttribute('data-unit-badge', '');
         badge.style.position = 'absolute';
-        badge.style.top = '2px';
-        badge.style.left = '4px';
-        badge.style.fontSize = '11px';
+        badge.style.top = '0';
+        badge.style.right = '4px';
+        badge.style.fontSize = '12px';
         badge.style.fontWeight = '600';
-        badge.style.letterSpacing = '0.04em';
-        badge.style.color = SLATE_400;
+        badge.style.letterSpacing = '0.02em';
+        badge.style.color = SLATE_500;
         badge.style.fontFamily = '"Plus Jakarta Sans", system-ui, sans-serif';
         badge.style.pointerEvents = 'none';
         u.root.appendChild(badge);
@@ -332,6 +333,15 @@ function updateTooltip(u, payload) {
 function mount(root, payload) {
     if (!root || !payload || !Array.isArray(payload.series) || payload.series.length === 0) return;
 
+    // If the container hasn't been measured yet (e.g., script runs before CSS
+    // is fully applied, or container is briefly hidden), defer until the next
+    // frame. Without this the chart can fall back to a 320px default and
+    // overflow a shorter container.
+    if (root.clientHeight === 0 || root.clientWidth === 0) {
+        requestAnimationFrame(() => mount(root, payload));
+        return;
+    }
+
     const xs = payload.x || [];
     if (xs.length < 2) {
         const empty = document.createElement('div');
@@ -358,7 +368,8 @@ function mount(root, payload) {
 
     const ro = new ResizeObserver((entries) => {
         for (const entry of entries) {
-            chart.setSize({ width: entry.contentRect.width, height: 320 });
+            const h = entry.contentRect.height || root.clientHeight || 320;
+            chart.setSize({ width: entry.contentRect.width, height: h });
         }
     });
     ro.observe(root);
