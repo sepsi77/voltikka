@@ -88,9 +88,9 @@ class ContractPriceStatistics extends Component
     public array $deepDiveHeadings = [
         'spot' => 'Pörssisähkösopimusten hintakehitys',
         'quarterly' => 'Kvartaalisähkösopimusten hintakehitys',
-        'fixed_term_6' => 'Määräaikaisten sähkösopimusten hintakehitys (6 kk)',
-        'fixed_term_12' => 'Määräaikaisten sähkösopimusten hintakehitys (12 kk)',
-        'fixed_term_24' => 'Määräaikaisten sähkösopimusten hintakehitys (24 kk)',
+        'fixed_term_6' => '6 kk määräaikaisten sähkösopimusten hintakehitys',
+        'fixed_term_12' => '12 kk määräaikaisten sähkösopimusten hintakehitys',
+        'fixed_term_24' => '24 kk määräaikaisten sähkösopimusten hintakehitys',
         'hybrid' => 'Joustosähkösopimusten hintakehitys',
         'open_ended' => 'Toistaiseksi voimassa olevien sähkösopimusten hintakehitys',
     ];
@@ -607,7 +607,7 @@ class ContractPriceStatistics extends Component
 
     private function statisticsViewDataCacheKey(): string
     {
-        return 'contract-price-statistics:view-data:v5:' . md5(json_encode([
+        return 'contract-price-statistics:view-data:v6:' . md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
             'version' => $this->statisticsDataVersion(),
