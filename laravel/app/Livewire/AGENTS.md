@@ -25,6 +25,7 @@ Important semantics:
 - the component caches its prepared view payload per period + consumption + source-data fingerprint until the next day; keep this cache in place unless a replacement avoids full-table aggregation on every page load
 - `getDailyStatsProperty()` keeps an explicit request/job-scoped collection cache and selects only the columns used by the view-data builder; queued warmers instantiate the component directly, so do not rely only on Livewire computed-property memoization for this full-table read
 - `warmPreparedViewDataCache()` is public so queued/background warmers can fill the same prepared-data cache without rendering a public request; keep its key semantics aligned with `statisticsViewData()`
+- the warmer must batch source reads used across many segment/date loops: daily spot-market averages are loaded once and sliced in memory for rolling 12-month spot summaries, and latest per-segment statistic rows come from the already-loaded `dailyStats` collection rather than one query per segment
 - cache invalidation is automatic through cheap `contract_price_daily_statistics` / `contract_price_snapshots` / spot-price max-date/update fingerprints, so daily imports/backfills should not need manual page-cache clearing
 - run `contracts:backfill-price-statistics` before expecting historical data
 - spot metrics are split between `spot_margin` and `spot_total_energy_price`
@@ -188,6 +189,8 @@ Use broad existing SEO pages for duration badges instead of creating exact-durat
 `ContractDetail` loads `activeContract` beside `company`, `priceComponents`, and `electricitySource`. Keep `ElectricityContract::isActive()` relation-aware so detail history rows do not issue one `active_contracts` query per version. Discount helpers on `ElectricityContract` are also relation-aware; when `priceComponents` is already eager-loaded for cards or JSON-LD, do not re-query `price_components` just to check active discounts.
 
 `ContractDetail` also memoizes rank-related computed values and keeps one request-scoped `ContractRankingService` instance. Do not replace `rankingService()` with repeated `app(ContractRankingService::class)` calls in `liveRank`, `liveTotalContracts`, or `cheaperContracts`; those methods share the same eligible target-group lookup and otherwise repeat large `electricity_contracts` queries during one render.
+
+`ContractRankingService` and `ContractListCacheService` intentionally memoize cache payloads per service instance. Production uses the database cache driver, so repeated `Cache::remember()` calls for `contract_rankings_5000kwh`, `contract_list_cache_version`, or `contract_list_metrics:*` become repeated `select * from cache where key in (?)` spans that Sentry can classify as N+1 even when application data is already cached.
 
 `ContractDetail` memoizes `ContractPageCacheVersion::hash()` per component instance because both the contract lookup cache key and prepared view-data cache key need it. On the database cache driver, recomputing the version hash can create repeated cache/source-table queries before the page data is even built.
 

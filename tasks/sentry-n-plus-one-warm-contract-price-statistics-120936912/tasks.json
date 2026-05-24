@@ -1,0 +1,6 @@
+[
+  {"name":"Inspect warmer statistics query sources","status":"completed"},
+  {"name":"Implement batching/memoization fix","status":"completed"},
+  {"name":"Run focused tests","status":"completed"},
+  {"name":"Update task decisions and context docs","status":"completed"}
+]

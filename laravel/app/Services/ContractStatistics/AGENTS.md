@@ -25,6 +25,7 @@ Primary files:
 - Weekly/monthly UI aggregates should average daily statistics, not recompute from all contract-day rows, so trend lines are market-day weighted.
 - `/sahkosopimus/tilastot` caches its prepared Livewire view data per period + consumption until the next day, with cache keys versioned by cheap source-table fingerprints. This prevents repeated request-time grouping of the full daily-statistics table while preserving Livewire controls.
 - After `contracts:calculate-price-statistics` recalculates daily statistics (including when called by `contracts:fetch`), it queues `contracts:warm-price-statistics-cache` for the default weekly/5 000 kWh page state so the next low-traffic visitor does not pay the cold-cache aggregation cost. `spot:fetch` queues the same warmer after spot averages update because spot fingerprints also bust this page cache.
+- The warmer builds many segment/date summaries in one job. Keep `ContractPriceStatistics` request/job-scoped batching intact: one `dailyStats` collection, one daily spot-average load sliced in memory for rolling windows, and no per-segment latest-row SQL lookups.
 
 ## Segment classification
 

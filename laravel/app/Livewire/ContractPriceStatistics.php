@@ -77,6 +77,19 @@ class ContractPriceStatistics extends Component
      */
     private ?Collection $dailyStatsCache = null;
 
+    /** @var array<string, float>|null */
+    private ?array $dailySpotAveragePricesByDateCache = null;
+
+    /** @var array<string, float>|null */
+    private ?array $hourlySpotAveragePricesByDateCache = null;
+
+    /** @var array{start:string,end:string}|null */
+    private ?array $spotMarketPriceBoundsCache = null;
+
+    private bool $latestSnapshotDateLoaded = false;
+
+    private ?string $latestSnapshotDateCache = null;
+
     /**
      * SEO-optimized H3 headings for the deep-dive sections.
      *
@@ -179,7 +192,7 @@ class ContractPriceStatistics extends Component
 
     public function getLatestSnapshotCountProperty(): int
     {
-        $latestDate = ContractPriceSnapshot::max('snapshot_date');
+        $latestDate = $this->latestSnapshotDateRaw();
 
         return $latestDate
             ? ContractPriceSnapshot::whereDate('snapshot_date', $latestDate)->count()
@@ -188,7 +201,7 @@ class ContractPriceStatistics extends Component
 
     public function getLatestSnapshotDateProperty(): ?string
     {
-        $latestDate = ContractPriceSnapshot::max('snapshot_date');
+        $latestDate = $this->latestSnapshotDateRaw();
 
         return $latestDate ? Carbon::parse($latestDate)->format('j.n.Y') : null;
     }
@@ -373,12 +386,7 @@ class ContractPriceStatistics extends Component
         $rows = [];
 
         foreach ($this->segments as $segmentKey => $segmentLabel) {
-            $latestRow = ContractPriceDailyStatistic::query()
-                ->where('segment_key', $segmentKey)
-                ->where('metric_key', 'annual_cost')
-                ->where('consumption_kwh', $this->consumption)
-                ->orderByDesc('stat_date')
-                ->first();
+            $latestRow = $this->latestStatisticRow($segmentKey, 'annual_cost', $this->consumption);
 
             if (! $latestRow || (int) $latestRow->contract_count < 10) {
                 continue;
@@ -631,6 +639,8 @@ class ContractPriceStatistics extends Component
         $snapshots = ContractPriceSnapshot::query()
             ->selectRaw('MAX(snapshot_date) as latest_date, MAX(updated_at) as latest_update')
             ->first();
+        $this->latestSnapshotDateLoaded = true;
+        $this->latestSnapshotDateCache = $snapshots?->latest_date;
 
         $spotAverages = SpotPriceAverage::query()
             ->forRegion('FI')
@@ -953,29 +963,13 @@ class ContractPriceStatistics extends Component
         $expectedDays = Carbon::parse($startDate)->diffInDays(Carbon::parse($endDate)) + 1;
         $minimumCompleteDays = min(300, (int) floor($expectedDays * 0.8));
 
-        $averagePrices = SpotPriceAverage::forRegion('FI')
-            ->ofType(SpotPriceAverage::PERIOD_DAILY)
-            ->whereBetween('period_start', [$startDate, $endDate])
-            ->whereNotNull('avg_price_with_tax')
-            ->orderBy('period_start')
-            ->pluck('avg_price_with_tax')
-            ->map(fn ($value) => (float) $value)
-            ->values()
-            ->all();
+        $averagePrices = $this->spotMarketPricesForWindow($this->dailySpotAveragePricesByDate(), $startDate, $endDate);
 
         if (count($averagePrices) >= $minimumCompleteDays) {
             return $averagePrices;
         }
 
-        $hourlyDailyPrices = SpotPriceHour::forRegion('FI')
-            ->whereBetween('utc_datetime', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()])
-            ->selectRaw('DATE(utc_datetime) as price_date, AVG(price_without_tax * (1 + vat_rate)) as avg_price_with_tax')
-            ->groupBy('price_date')
-            ->orderBy('price_date')
-            ->pluck('avg_price_with_tax')
-            ->map(fn ($value) => (float) $value)
-            ->values()
-            ->all();
+        $hourlyDailyPrices = $this->spotMarketPricesForWindow($this->hourlySpotAveragePricesByDate(), $startDate, $endDate);
 
         if (count($hourlyDailyPrices) >= $minimumCompleteDays || count($hourlyDailyPrices) > count($averagePrices)) {
             return $hourlyDailyPrices;
@@ -1235,14 +1229,118 @@ class ContractPriceStatistics extends Component
 
     private function latestContractCount(string $segmentKey): ?int
     {
-        $row = ContractPriceDailyStatistic::query()
-            ->where('segment_key', $segmentKey)
-            ->where('metric_key', 'energy_price')
-            ->whereNull('consumption_kwh')
-            ->orderByDesc('stat_date')
-            ->first();
+        $row = $this->latestStatisticRow($segmentKey, 'energy_price', null);
 
         return $row ? (int) $row->contract_count : null;
+    }
+
+    private function latestStatisticRow(string $segmentKey, string $metricKey, ?int $consumption): ?ContractPriceDailyStatistic
+    {
+        return $this->dailyStats
+            ->where('segment_key', $segmentKey)
+            ->where('metric_key', $metricKey)
+            ->filter(fn ($row) => $row->consumption_kwh === $consumption)
+            ->sortByDesc('stat_date')
+            ->first();
+    }
+
+    private function latestSnapshotDateRaw(): ?string
+    {
+        if (! $this->latestSnapshotDateLoaded) {
+            $this->latestSnapshotDateCache = ContractPriceSnapshot::max('snapshot_date');
+            $this->latestSnapshotDateLoaded = true;
+        }
+
+        return $this->latestSnapshotDateCache;
+    }
+
+    /**
+     * @return array<string, float>
+     */
+    private function dailySpotAveragePricesByDate(): array
+    {
+        if ($this->dailySpotAveragePricesByDateCache !== null) {
+            return $this->dailySpotAveragePricesByDateCache;
+        }
+
+        $bounds = $this->spotMarketPriceBounds();
+
+        return $this->dailySpotAveragePricesByDateCache = SpotPriceAverage::forRegion('FI')
+            ->ofType(SpotPriceAverage::PERIOD_DAILY)
+            ->whereBetween('period_start', [$bounds['start'], $bounds['end']])
+            ->whereNotNull('avg_price_with_tax')
+            ->orderBy('period_start')
+            ->get(['period_start', 'avg_price_with_tax'])
+            ->mapWithKeys(fn (SpotPriceAverage $average) => [
+                Carbon::parse($average->period_start)->toDateString() => (float) $average->avg_price_with_tax,
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array<string, float>
+     */
+    private function hourlySpotAveragePricesByDate(): array
+    {
+        if ($this->hourlySpotAveragePricesByDateCache !== null) {
+            return $this->hourlySpotAveragePricesByDateCache;
+        }
+
+        $bounds = $this->spotMarketPriceBounds();
+
+        return $this->hourlySpotAveragePricesByDateCache = SpotPriceHour::forRegion('FI')
+            ->whereBetween('utc_datetime', [Carbon::parse($bounds['start'])->startOfDay(), Carbon::parse($bounds['end'])->endOfDay()])
+            ->selectRaw('DATE(utc_datetime) as price_date, AVG(price_without_tax * (1 + vat_rate)) as avg_price_with_tax')
+            ->groupBy('price_date')
+            ->orderBy('price_date')
+            ->get()
+            ->mapWithKeys(fn ($row) => [(string) $row->price_date => (float) $row->avg_price_with_tax])
+            ->all();
+    }
+
+    /**
+     * @return array{start:string,end:string}
+     */
+    private function spotMarketPriceBounds(): array
+    {
+        if ($this->spotMarketPriceBoundsCache !== null) {
+            return $this->spotMarketPriceBoundsCache;
+        }
+
+        $spotRows = $this->dailyStats
+            ->where('segment_key', 'spot')
+            ->where('metric_key', 'spot_total_energy_price')
+            ->where('consumption_kwh', null);
+
+        if ($spotRows->isEmpty()) {
+            $today = Carbon::today();
+
+            return $this->spotMarketPriceBoundsCache = [
+                'start' => $today->copy()->subDays(364)->toDateString(),
+                'end' => $today->toDateString(),
+            ];
+        }
+
+        $dates = $spotRows->pluck('stat_date')->map(fn ($date) => Carbon::parse($date));
+        $first = $dates->min();
+        $last = $dates->max();
+
+        return $this->spotMarketPriceBoundsCache = [
+            'start' => $first->copy()->subDays(364)->toDateString(),
+            'end' => $last->toDateString(),
+        ];
+    }
+
+    /**
+     * @param array<string, float> $pricesByDate
+     * @return array<int, float>
+     */
+    private function spotMarketPricesForWindow(array $pricesByDate, string $startDate, string $endDate): array
+    {
+        return collect($pricesByDate)
+            ->filter(fn (float $price, string $date) => $date >= $startDate && $date <= $endDate)
+            ->values()
+            ->all();
     }
 
     /**

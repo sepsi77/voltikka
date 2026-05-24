@@ -25,6 +25,18 @@ class ContractListCacheService
         private readonly CO2EmissionsCalculator $emissionsCalculator,
     ) {}
 
+    /**
+     * Request-scoped memoization for database-cache reads. Production uses the
+     * database cache driver, so repeated calls to getCachedMetrics() during a
+     * single detail render otherwise show up as repeated identical cache SQL
+     * spans in Sentry.
+     *
+     * @var array<int, array{contracts: array<string, array{calculated_cost: array<string, mixed>, emission_factor: float|null, exceeds_consumption_limit: bool, total_cost: float}>, sorted_ids: list<string>, consumption: int}>
+     */
+    private array $cachedMetricsMemo = [];
+
+    private ?int $versionMemo = null;
+
     public function supportsConsumption(int $consumption): bool
     {
         return in_array($consumption, self::PRESET_CONSUMPTIONS, true);
@@ -39,7 +51,11 @@ class ContractListCacheService
             return null;
         }
 
-        return Cache::remember(
+        if (array_key_exists($consumption, $this->cachedMetricsMemo)) {
+            return $this->cachedMetricsMemo[$consumption];
+        }
+
+        return $this->cachedMetricsMemo[$consumption] = Cache::remember(
             $this->getCacheKey($consumption),
             self::CACHE_TTL_SECONDS,
             fn () => $this->buildCachedMetrics($consumption)
@@ -50,6 +66,7 @@ class ContractListCacheService
     {
         foreach (self::PRESET_CONSUMPTIONS as $consumption) {
             $this->getCachedMetrics($consumption);
+            unset($this->cachedMetricsMemo[$consumption]);
         }
     }
 
@@ -57,13 +74,15 @@ class ContractListCacheService
     {
         $version = $this->getVersion() + 1;
         Cache::forever(self::CACHE_VERSION_KEY, $version);
+        $this->versionMemo = $version;
+        $this->cachedMetricsMemo = [];
 
         return $version;
     }
 
     public function getVersion(): int
     {
-        return (int) Cache::get(self::CACHE_VERSION_KEY, 1);
+        return $this->versionMemo ??= (int) Cache::get(self::CACHE_VERSION_KEY, 1);
     }
 
     private function getCacheKey(int $consumption): string

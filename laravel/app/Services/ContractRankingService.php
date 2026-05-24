@@ -29,6 +29,16 @@ class ContractRankingService
     private array $eligibleSortedIdsMemo = [];
 
     /**
+     * Request-scoped memo for the default 5 000 kWh rankings cache payload.
+     * Contract detail reads rank and total separately for SEO/layout data; with
+     * the database cache driver, without this both reads become identical cache
+     * SQL spans in Sentry.
+     *
+     * @var array{contract_ranks: array<string, int>, company_ranks: array<string, int>, total_contracts: int, total_companies: int}|null
+     */
+    private ?array $rankingsMemo = null;
+
+    /**
      * Contracts cheaper than the given one at the given consumption.
      *
      * Returns at most $limit contracts, ranked 1..N within the
@@ -224,7 +234,11 @@ class ContractRankingService
      */
     private function getRankings(): array
     {
-        return Cache::remember(self::CACHE_KEY_RANKINGS, self::CACHE_TTL_SECONDS, function () {
+        if ($this->rankingsMemo !== null) {
+            return $this->rankingsMemo;
+        }
+
+        return $this->rankingsMemo = Cache::remember(self::CACHE_KEY_RANKINGS, self::CACHE_TTL_SECONDS, function () {
             return $this->calculateRankings();
         });
     }

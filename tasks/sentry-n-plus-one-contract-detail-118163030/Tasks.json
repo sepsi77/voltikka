@@ -2,5 +2,9 @@
   {"name":"Inspect ContractDetail relation usage","status":"completed"},
   {"name":"Implement N+1 fix","status":"completed"},
   {"name":"Run focused tests/static checks","status":"completed"},
-  {"name":"Update task decisions","status":"completed"}
+  {"name":"Update task decisions","status":"completed"},
+  {"name":"Investigate May 2026 repeated Sentry cache spans","status":"completed"},
+  {"name":"Add request-scoped cache memoization follow-up","status":"completed"},
+  {"name":"Run focused regression tests","status":"completed"},
+  {"name":"Document follow-up decision","status":"completed"}
 ]

@@ -19,3 +19,10 @@
 - Repeated Sentry reports may be from database-cache/source-fingerprint queries rather than lazy Eloquent relations. `ContractDetail` computed both the contract lookup cache key and the prepared view-data cache key, each resolving `ContractPageCacheVersion::hash()`.
 - `ContractDetail` now memoizes the page cache-version hash per component instance so source-table fingerprint and cache-version queries run once per render.
 - Added a regression test that invokes both cache-key builders and asserts `ContractPageCacheVersion::hash()` is called once.
+
+## 2026-05-24 follow-up
+
+- The May 2026 Sentry occurrence is from repeated database-cache spans on an active contract detail page, not from Eloquent lazy relation loading. The trace repeats `select * from cache where key in (?)` for `contract_rankings_5000kwh`, `contract_list_cache_version`, and `contract_list_metrics:v2:5000` while preparing layout SEO data and visible ranking/cost sections.
+- `ContractRankingService` now memoizes the default 5 000 kWh rankings payload per service instance, so separate `priceRank` and `totalContracts` reads do not perform two identical DB-cache lookups in one render.
+- `ContractListCacheService` now memoizes the cache version and per-consumption metrics payload per service instance, so `calculatedCost`, `liveRank` / `liveTotalContracts`, and `cheaperContracts` can share one metrics cache read. `warmPresetCaches()` unsets each preset after warming to avoid retaining all large metric payloads in a long-running warmer.
+- Added unit coverage for both request-scoped memo layers and reran the contract detail feature suite.

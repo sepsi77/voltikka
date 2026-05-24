@@ -44,6 +44,7 @@ Important pricing guardrails:
 - calculation inputs should preserve component discount metadata (`has_discount`, value/type/months/kWh/until-date, `payment_unit`)
 - use `ElectricityContract::getLatestPriceComponentsForCalculation()` for single-contract calculations and `ElectricityContract::getLatestPriceComponentsForCalculationByContractIds()` for listing/cache batches instead of rebuilding calculator arrays ad hoc
 - do not eagerly load full `priceComponents` history for contract-list/cache calculations; the active dataset has tens of thousands of historical price rows and can exceed PHP's 128M request memory limit
+- `ContractListCacheService` memoizes its version and per-consumption metrics per service instance to avoid repeated database-cache reads during one request; clear per-consumption memo entries inside cache-warming loops so workers do not retain every preset payload at once
 - city/local contract sections must also avoid caching full `priceComponents` history; attach only latest normalized components needed by contract cards
 - city/local company-distance logic must bulk-load company postcodes; do not call `Postcode::find()` per company because crawler hits to city SEO pages otherwise trigger Sentry N+1 reports
 - first-year promo-aware pricing should return both discounted totals and base totals/savings so UI can explain the effect of the offer

@@ -117,6 +117,33 @@ class ContractPriceStatisticsPageTest extends TestCase
         $this->assertCount(1, $dailyStatisticReads, 'A direct queued warm should hydrate the daily statistics collection only once.');
     }
 
+    public function test_queued_warm_batches_spot_market_and_latest_statistic_lookups(): void
+    {
+        Cache::flush();
+        $this->seedSampleStatistics();
+        $this->seedRisingSpotYearlyAverages();
+
+        DB::enableQueryLog();
+
+        /** @var ContractPriceStatistics $component */
+        $component = app(ContractPriceStatistics::class);
+        $component->warmPreparedViewDataCache();
+
+        $queries = collect(DB::getQueryLog())->pluck('query');
+        DB::disableQueryLog();
+
+        $spotAverageReads = $queries->filter(
+            fn (string $query) => str_contains($query, 'from "spot_price_averages"')
+                && str_contains($query, '"avg_price_with_tax"'),
+        );
+        $latestStatisticLookups = $queries->filter(
+            fn (string $query) => preg_match('/from\s+[`"]?contract_price_daily_statistics[`"]?\s+where\s+[`"]?segment_key[`"]?\s+=/i', $query) === 1,
+        );
+
+        $this->assertLessThanOrEqual(1, $spotAverageReads->count(), 'Spot daily averages should be loaded once and sliced in memory for rolling 12-month windows.');
+        $this->assertCount(0, $latestStatisticLookups, 'Latest per-segment rows should come from the already-loaded daily statistics collection.');
+    }
+
     public function test_cached_statistics_payload_invalidates_when_daily_statistics_change(): void
     {
         Cache::flush();
