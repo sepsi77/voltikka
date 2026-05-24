@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\SpotPrice;
+use App\Models\SpotPriceForecast;
 use App\Models\SpotPriceHour;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -1247,56 +1248,67 @@ class SpotPriceComponentTest extends TestCase
 
     public function test_generates_csv_data_for_export(): void
     {
-        // Create today's prices
         $prices = [];
         for ($h = 0; $h < 24; $h++) {
             $prices[$h] = $h + 1.0;
         }
         $this->createFullDayPrices(2026, 1, 20, $prices);
 
-        $component = Livewire::test(SpotPrice::class);
-        $instance = $component->instance();
-        $csvData = $instance->generateCsvData();
+        $csvData = $this->fetchSpotPriceCsv();
 
-        // Should be a string with CSV content
-        $this->assertIsString($csvData);
-
-        // Should have header line
         $this->assertStringContainsString('Päivämäärä', $csvData);
         $this->assertStringContainsString('Tunti', $csvData);
         $this->assertStringContainsString('Hinta (c/kWh)', $csvData);
 
-        // Should have data lines
-        $lines = explode("\n", trim($csvData));
-        $this->assertGreaterThanOrEqual(25, count($lines)); // Header + 24 hours
+        $dataLines = $this->csvDataLines($csvData);
+        $this->assertGreaterThanOrEqual(24, count($dataLines));
     }
 
     public function test_csv_data_includes_both_price_formats(): void
     {
         $this->createFullDayPrices(2026, 1, 20);
 
-        $component = Livewire::test(SpotPrice::class);
-        $instance = $component->instance();
-        $csvData = $instance->generateCsvData();
+        $csvData = $this->fetchSpotPriceCsv();
 
-        // Should include both VAT 0% and with VAT columns
         $this->assertStringContainsString('ALV 0%', $csvData);
         $this->assertStringContainsString('sis. ALV', $csvData);
     }
 
     public function test_csv_data_includes_historical_data_when_available(): void
     {
-        // Create yesterday and today's prices
-        $this->createFullDayPrices(2026, 1, 19);
-        $this->createFullDayPrices(2026, 1, 20);
+        for ($day = 14; $day <= 20; $day++) {
+            $this->createFullDayPrices(2026, 1, $day);
+        }
 
-        $component = Livewire::test(SpotPrice::class);
-        $instance = $component->instance();
-        $csvData = $instance->generateCsvData(days: 2);
+        $csvData = $this->fetchSpotPriceCsv();
 
-        // Should have 48 data rows (2 days * 24 hours)
-        $lines = explode("\n", trim($csvData));
-        $this->assertEquals(49, count($lines)); // Header + 48 hours
+        $dataLines = $this->csvDataLines($csvData);
+        $this->assertEquals(7 * 24, count($dataLines));
+    }
+
+    private function fetchSpotPriceCsv(): string
+    {
+        $response = $this->get('/spot-price.csv');
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+
+        return $response->streamedContent();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function csvDataLines(string $csv): array
+    {
+        $csv = ltrim($csv, "\xEF\xBB\xBF");
+        $lines = explode("\n", trim($csv));
+
+        return array_values(array_filter(
+            $lines,
+            fn (string $line): bool => $line !== ''
+                && ! str_starts_with($line, '#')
+                && ! str_starts_with($line, 'Päivämäärä'),
+        ));
     }
 
     public function test_historical_data_is_loaded_on_mount(): void
@@ -1419,11 +1431,57 @@ class SpotPriceComponentTest extends TestCase
     {
         $this->createFullDayPrices(2026, 1, 20);
 
-        $component = Livewire::test(SpotPrice::class)
-            ->call('downloadCsv');
+        $response = $this->get('/spot-price.csv');
 
-        // Should trigger a file download (Livewire's download feature)
-        $component->assertFileDownloaded('spot-hinnat.csv');
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+        $this->assertStringContainsString('attachment', (string) $response->headers->get('Content-Disposition'));
+        $this->assertStringContainsString('voltikka-porssisahkon-hinta', (string) $response->headers->get('Content-Disposition'));
+    }
+
+    public function test_csv_uses_comma_separator_and_dot_decimals(): void
+    {
+        $this->createSpotPrice(2026, 1, 20, 12, 5.0);
+
+        $csvData = $this->fetchSpotPriceCsv();
+
+        $this->assertStringContainsString('Päivämäärä,Tunti,', $csvData);
+
+        $dataLines = $this->csvDataLines($csvData);
+        $this->assertNotEmpty($dataLines);
+        $sample = $dataLines[0];
+        $this->assertStringContainsString(',5.00,', $sample);
+        $this->assertStringContainsString(',6.27,', $sample);
+        $this->assertStringContainsString(',25.5,', $sample);
+        $this->assertStringEndsWith(',Toteutunut', $sample);
+    }
+
+    public function test_csv_includes_forecast_rows_after_realized_prices(): void
+    {
+        $this->createFullDayPrices(2026, 1, 20);
+
+        for ($hour = 0; $hour < 6; $hour++) {
+            SpotPriceForecast::create([
+                'source' => SpotPriceForecast::SOURCE_NORDPOOL_PREDICT_FI,
+                'region' => self::REGION,
+                'timestamp' => Carbon::create(2026, 1, 21, $hour, 0, 0, self::TIMEZONE)->setTimezone('UTC')->timestamp,
+                'utc_datetime' => Carbon::create(2026, 1, 21, $hour, 0, 0, self::TIMEZONE)->setTimezone('UTC'),
+                'price_with_tax' => 7.50,
+                'vat_rate' => 0.255,
+                'source_url' => 'https://github.com/vividfog/nordpool-predict-fi',
+                'fetched_at' => Carbon::now('UTC'),
+                'metadata' => null,
+            ]);
+        }
+
+        $csvData = $this->fetchSpotPriceCsv();
+        $dataLines = $this->csvDataLines($csvData);
+
+        $realizedLines = array_filter($dataLines, fn (string $l): bool => str_ends_with($l, ',Toteutunut'));
+        $forecastLines = array_filter($dataLines, fn (string $l): bool => str_ends_with($l, ',Ennuste'));
+
+        $this->assertCount(24, $realizedLines);
+        $this->assertCount(6, $forecastLines);
     }
 
     public function test_weekly_chart_uses_finnish_day_names(): void

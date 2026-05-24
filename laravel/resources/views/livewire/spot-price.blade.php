@@ -1,4 +1,5 @@
 <div>
+    <x-schema-markup :schemas="[$jsonLd, $faqJsonLd]" />
     @php
         // Earliest chronologically cheap hour, NOT the absolute cheapest 24+ h away.
         $heroNextCheap = $nextCheapHour ?? null;
@@ -32,10 +33,10 @@
         <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style="font-variant-numeric: tabular-nums;">
             <div class="pt-10 lg:pt-14 pb-10 lg:pb-12">
                 <h1 class="text-4xl md:text-5xl xl:text-6xl font-extrabold text-white tracking-tight leading-[1.05]">
-                    <span class="text-coral-400">Pörssisähkön</span> hinta tänään
+                    <span class="text-coral-400">Pörssisähkön</span> hinta tänään ja huomenna
                 </h1>
                 <p class="mt-4 text-slate-200 text-base md:text-lg max-w-2xl leading-relaxed">
-                    Katso, kannattaako sauna, pyykinpesu tai auton lataus käynnistää nyt vai odottaa halvempaa tuntia.
+                    Tuntihinnat tänään ja huomenna sekä pörssisähkön hintaennuste seuraaville päiville. Katso, kannattaako sauna, pyykinpesu tai auton lataus käynnistää nyt vai odottaa halvempaa tuntia.
                 </p>
 
                 @if ($currentPrice)
@@ -372,7 +373,7 @@
             >
                 <header class="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between mb-5">
                     <div>
-                        <h2 class="text-xl font-bold text-slate-900">Tuntihinnat</h2>
+                        <h2 class="text-xl font-bold text-slate-900">Pörssisähkön hintaennuste ja toteutuneet tuntihinnat</h2>
                         <p class="text-sm text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                             <span class="inline-flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm bg-slate-500"></span> Toteutunut</span>
                             <span class="inline-flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-sm bg-slate-300"></span> Ennuste</span>
@@ -386,18 +387,16 @@
                             @endif
                         </p>
                     </div>
-                    <button
-                        wire:click="downloadCsv"
-                        wire:loading.attr="disabled"
-                        type="button"
-                        class="inline-flex items-center gap-1.5 self-start sm:self-auto text-sm font-semibold text-slate-700 hover:text-coral-600 transition-colors disabled:opacity-50"
+                    <a
+                        href="{{ route('spot-price.csv') }}"
+                        download
+                        class="inline-flex items-center gap-1.5 self-start sm:self-auto text-sm font-semibold text-slate-700 hover:text-coral-600 transition-colors"
                     >
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
                         </svg>
-                        <span wire:loading.remove wire:target="downloadCsv">Lataa CSV</span>
-                        <span wire:loading wire:target="downloadCsv">Ladataan…</span>
-                    </button>
+                        <span>Lataa CSV</span>
+                    </a>
                 </header>
 
                 <div class="space-y-5 md:space-y-6">
@@ -706,30 +705,19 @@
     <section class="max-w-3xl border-t border-slate-200 pt-8 mt-4">
         <h2 class="text-lg font-bold text-slate-900 mb-3">Usein kysyttyä</h2>
         <div class="divide-y divide-slate-200 border-y border-slate-200">
-            <details class="group py-3">
-                <summary class="flex items-center justify-between cursor-pointer list-none gap-3">
-                    <span class="text-base font-semibold text-slate-900">Mikä on pörssisähkö ja miten hinta muodostuu?</span>
-                    <svg class="w-4 h-4 text-slate-500 shrink-0 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-                </summary>
-                <div class="mt-3 space-y-3 text-sm text-slate-700 leading-relaxed">
-                    <p>Tällä sivulla esitetyt hintatiedot ovat Pohjoismaiden ja Baltian maiden sähköpörssi Nord Poolin määrittämiä sähkön spot-hintoja. Kaupankäynnissä jokaisella päivän tunnilla on aina oma hintansa.</p>
-                    <p>Hinnan määräytyminen Pohjoismaissa perustuu energialähteiden (vesivoima, tuulivoima, ydinvoima ja voimapolttoaineet: hiili, öljy, maakaasu) tuotantoon neljällä markkina-alueella (Suomi, Norja, Ruotsi, Tanska) sekä niihin liittyvien päästöoikeuksien (päästökauppa) sääntelyyn, sähkönkulutukseen ja markkinapsykologiaan.</p>
-                </div>
-            </details>
-            <details class="group py-3">
-                <summary class="flex items-center justify-between cursor-pointer list-none gap-3">
-                    <span class="text-base font-semibold text-slate-900">Milloin seuraavan päivän hinnat julkaistaan?</span>
-                    <svg class="w-4 h-4 text-slate-500 shrink-0 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-                </summary>
-                <p class="mt-3 text-sm text-slate-700 leading-relaxed">Seuraavan päivän hinnat julkaistaan noin klo 13.45 Suomen aikaa. Uudet hinnat päivitetään tälle sivulle pian julkaisun jälkeen.</p>
-            </details>
-            <details class="group py-3">
-                <summary class="flex items-center justify-between cursor-pointer list-none gap-3">
-                    <span class="text-base font-semibold text-slate-900">ALV-muutokset</span>
-                    <svg class="w-4 h-4 text-slate-500 shrink-0 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
-                </summary>
-                <p class="mt-3 text-sm text-slate-700 leading-relaxed">1.9.2024 alkaen sähkön arvonlisävero on 25,5 %. Hinnat ajalta 1.12.2022–30.4.2023 sisältävät ALV:n 10 % (väliaikainen alennus). Hinnat ajalta 1.5.2023–31.8.2024 sisältävät ALV:n 24 %.</p>
-            </details>
+            @foreach ($this->faqItems as $faq)
+                <details class="group py-3">
+                    <summary class="flex items-center justify-between cursor-pointer list-none gap-3">
+                        <span class="text-base font-semibold text-slate-900">{{ $faq['question'] }}</span>
+                        <svg class="w-4 h-4 text-slate-500 shrink-0 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    </summary>
+                    <div class="mt-3 space-y-3 text-sm text-slate-700 leading-relaxed">
+                        @foreach (preg_split("/\n\n+/", $faq['answer']) as $paragraph)
+                            <p>{{ $paragraph }}</p>
+                        @endforeach
+                    </div>
+                </details>
+            @endforeach
         </div>
     </section>
     </div>

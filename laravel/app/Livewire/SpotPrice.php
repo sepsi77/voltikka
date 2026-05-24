@@ -2289,57 +2289,6 @@ class SpotPrice extends Component
     }
 
     /**
-     * Generate CSV data for price export.
-     *
-     * @param int $days Number of days to include (default 1 = today only)
-     * @return string CSV formatted string
-     */
-    public function generateCsvData(int $days = 1): string
-    {
-        $helsinkiNow = Carbon::now(self::TIMEZONE);
-        $startDate = $helsinkiNow->copy()->subDays($days - 1)->startOfDay()->setTimezone('UTC');
-        $endDate = $helsinkiNow->copy()->endOfDay()->setTimezone('UTC');
-
-        $prices = SpotPriceHour::forRegion(self::REGION)
-            ->whereBetween('utc_datetime', [$startDate, $endDate])
-            ->orderBy('utc_datetime')
-            ->get();
-
-        // CSV header
-        $csv = "Päivämäärä;Tunti;Hinta (c/kWh) ALV 0%;Hinta (c/kWh) sis. ALV;ALV %\n";
-
-        foreach ($prices as $price) {
-            $helsinkiTime = Carbon::parse($price->utc_datetime)->shiftTimezone('UTC')->setTimezone(self::TIMEZONE);
-            $date = $helsinkiTime->format('d.m.Y');
-            $hour = $helsinkiTime->format('H') . ':00-' . $helsinkiTime->copy()->addHour()->format('H') . ':00';
-            $priceWithoutTax = number_format($price->price_without_tax, 2, ',', '');
-            $priceWithTax = number_format($price->price_with_tax, 2, ',', '');
-            $vatPercent = number_format($price->vat_rate * 100, 1, ',', '');
-
-            $csv .= "{$date};{$hour};{$priceWithoutTax};{$priceWithTax};{$vatPercent}\n";
-        }
-
-        return $csv;
-    }
-
-    /**
-     * Download CSV file with spot prices.
-     *
-     * @return \Symfony\Component\HttpFoundation\StreamedResponse
-     */
-    public function downloadCsv()
-    {
-        $csvData = $this->generateCsvData(days: 7); // Last 7 days
-
-        return response()->streamDownload(function () use ($csvData) {
-            echo "\xEF\xBB\xBF"; // UTF-8 BOM for Excel compatibility
-            echo $csvData;
-        }, 'spot-hinnat.csv', [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
-    }
-
-    /**
      * Count unique days in a collection of prices.
      */
     private function countUniqueDays($prices): int
@@ -2393,6 +2342,145 @@ class SpotPrice extends Component
         })->toArray();
     }
 
+    /**
+     * Dataset JSON-LD schema. Mirrors the pattern used on the contract
+     * price statistics and fixed-term forecast pages so search engines see
+     * /spot-price as a labelled, machine-readable price + forecast dataset.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildJsonLd(): array
+    {
+        $today = Carbon::today(self::TIMEZONE);
+
+        $earliestStored = Cache::remember(
+            'spot_price:earliest_hour:v1',
+            86400,
+            fn () => SpotPriceHour::forRegion(self::REGION)->min('utc_datetime'),
+        );
+        $earliestDate = $earliestStored
+            ? Carbon::parse($earliestStored)->setTimezone(self::TIMEZONE)->toDateString()
+            : null;
+
+        $latestForecastTimestamp = collect($this->forecastPrices)->pluck('utc_datetime')->max();
+        $latestDate = $latestForecastTimestamp
+            ? Carbon::parse($latestForecastTimestamp)->setTimezone(self::TIMEZONE)->toDateString()
+            : $today->copy()->addDay()->toDateString();
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'Dataset',
+            'name' => 'Voltikka — Pörssisähkön hinta ja hintaennuste',
+            'description' => 'Pörssisähkön tuntihinnat tänään ja huomenna sekä mallipohjainen hintaennuste seuraaville päiville Suomen hinta-alueella. Päivittyy useita kertoja päivässä.',
+            'url' => config('app.url') . '/spot-price',
+            'license' => 'https://creativecommons.org/licenses/by/4.0/',
+            'isAccessibleForFree' => true,
+            'keywords' => [
+                'pörssisähkön hinta',
+                'pörssisähkön hinta tänään',
+                'pörssisähkön hinta huomenna',
+                'pörssisähkön hintaennuste',
+                'pörssisähkö ennuste',
+                'spot-hinta',
+                'Nord Pool',
+                'Suomi',
+            ],
+            'inLanguage' => 'fi',
+            'creator' => [
+                '@type' => 'Organization',
+                'name' => 'Voltikka',
+                'url' => config('app.url'),
+            ],
+            'temporalCoverage' => $earliestDate ? "{$earliestDate}/{$latestDate}" : null,
+            'dateModified' => $today->toDateString(),
+            'variableMeasured' => [
+                'Pörssisähkön tuntihinta c/kWh (ALV 0 %)',
+                'Pörssisähkön tuntihinta c/kWh (sis. ALV 25,5 %)',
+                'Pörssisähkön ennustettu tuntihinta c/kWh',
+            ],
+            'distribution' => [
+                [
+                    '@type' => 'DataDownload',
+                    'encodingFormat' => 'text/csv',
+                    'contentUrl' => config('app.url') . '/spot-price.csv',
+                    'name' => 'Pörssisähkön tuntihinnat (CSV)',
+                ],
+            ],
+            'isBasedOn' => [
+                [
+                    '@type' => 'CreativeWork',
+                    'name' => 'Nord Pool day-ahead prices (via ENTSO-E)',
+                    'url' => 'https://transparency.entsoe.eu/',
+                ],
+                [
+                    '@type' => 'CreativeWork',
+                    'name' => 'nordpool-predict-fi',
+                    'url' => 'https://github.com/vividfog/nordpool-predict-fi',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * FAQPage JSON-LD built from the visible FAQ block so the structured data
+     * mirrors what users see.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildFaqJsonLd(): array
+    {
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'FAQPage',
+            'mainEntity' => array_map(fn (array $faq): array => [
+                '@type' => 'Question',
+                'name' => $faq['question'],
+                'acceptedAnswer' => [
+                    '@type' => 'Answer',
+                    'text' => $faq['answer'],
+                ],
+            ], $this->faqItems),
+        ];
+    }
+
+    /**
+     * FAQ items shown at the bottom of the page and emitted as FAQPage JSON-LD.
+     * Each answer is sourced from data that is also visible on the page (today's
+     * stats, tomorrow's availability, ENTSO-E publishing schedule, the third-party
+     * forecast methodology) so the structured data stays in sync with the UI.
+     *
+     * @return array<int, array{question: string, answer: string}>
+     */
+    public function getFaqItemsProperty(): array
+    {
+        return [
+            [
+                'question' => 'Mikä on pörssisähkö ja miten hinta muodostuu?',
+                'answer' => "Tällä sivulla esitetyt hintatiedot ovat Pohjoismaiden ja Baltian maiden sähköpörssi Nord Poolin määrittämiä sähkön spot-hintoja. Kaupankäynnissä jokaisella päivän tunnilla on aina oma hintansa.\n\nHinnan määräytyminen Pohjoismaissa perustuu energialähteiden (vesivoima, tuulivoima, ydinvoima ja voimapolttoaineet: hiili, öljy, maakaasu) tuotantoon neljällä markkina-alueella (Suomi, Norja, Ruotsi, Tanska) sekä niihin liittyvien päästöoikeuksien (päästökauppa) sääntelyyn, sähkönkulutukseen ja markkinapsykologiaan.",
+            ],
+            [
+                'question' => 'Mistä pörssisähkön hinta koostuu sähkölaskullasi?',
+                'answer' => 'Tällä sivulla näkyvä hinta on Nord Poolin Suomen aluehinta (spot-hinta) lisättynä arvonlisäverolla (25,5 %). Sähkölaskuusi tulee tämän lisäksi sähkönsiirto (~3–5 c/kWh), sähkövero ja sähkösopimuksesi marginaali (~0,3–0,5 c/kWh pörssisähkösopimuksissa). Voltikan sopimusvertailu näyttää eri sopimusten kokonaiskustannuksen sinun kulutuksellesi laskettuna.',
+            ],
+            [
+                'question' => 'Milloin huomisen pörssisähkön hinta julkaistaan?',
+                'answer' => 'Huomisen viralliset päivähinnat julkaistaan Nord Poolissa päivittäin noin klo 14:15 Suomen aikaa. Ennen julkaisua tällä sivulla näkyvä huomisen tuntihinta on mallipohjainen ennuste, joka korvautuu toteutuneella spot-hinnalla heti kun viralliset hinnat ovat saatavilla.',
+            ],
+            [
+                'question' => 'Miten pörssisähkön hintaennuste lasketaan?',
+                'answer' => "Pörssisähkön hintaennuste tuotetaan koneoppimismallilla (XGBoost), joka on opetettu Nord Poolin Suomen aluehinnan historialla. Malli arvioi jokaisen tunnin hinnan erikseen useiden samanaikaisten muuttujien perusteella sen sijaan, että se ennustaisi pelkästään aiempien hintojen jatkumona.\n\nTärkeimmät syötteet: tuuli- ja sääennusteet (Ilmatieteen laitos), ydinvoiman käytettävyys ja huoltoseisokit, siirtoyhteyksien kapasiteetti Ruotsiin ja Viroon, aurinkosäteily, hydrologia (sade ja lumen vesiarvo) sekä kalenterimuuttujat (viikonpäivä ja tunti).\n\nEnnuste ulottuu noin 3–7 vuorokautta eteenpäin ja päivittyy useita kertoja päivässä. Lähde: nordpool-predict-fi (MIT-lisenssi).",
+            ],
+            [
+                'question' => 'Onko ennuste sama kuin virallinen pörssisähkön hinta?',
+                'answer' => 'Ei. Ennuste on suuntaa-antava mallin tuottama arvio, joka voi poiketa toteutuneesta spot-hinnasta. Käytä ennustetta apuna sähkönkäytön ajoituksessa (esim. saunan tai auton lataus), mutta laskutus perustuu aina Nord Poolin viralliseen aluehintaan.',
+            ],
+            [
+                'question' => 'Mitä ALV-muutokset tarkoittavat hintahistoriassa?',
+                'answer' => '1.9.2024 alkaen sähkön arvonlisävero on 25,5 %. Hinnat ajalta 1.12.2022–30.4.2023 sisältävät ALV:n 10 % (väliaikainen alennus). Hinnat ajalta 1.5.2023–31.8.2024 sisältävät ALV:n 24 %.',
+            ],
+        ];
+    }
+
     public function render()
     {
         $this->enableBackButtonCache();
@@ -2437,10 +2525,13 @@ class SpotPrice extends Component
             $viewData['multiYearMonthly'] = $this->multiYearMonthly;
         }
 
+        $viewData['jsonLd'] = $this->buildJsonLd();
+        $viewData['faqJsonLd'] = $this->buildFaqJsonLd();
+
         return view('livewire.spot-price', $viewData)
             ->layout('layouts.app', [
-                'title' => 'Pörssisähkön hinta tänään - Voltikka',
-                'metaDescription' => 'Katso pörssisähkön tuntihinnat tänään ja huomenna. Vertaile sähkön hintoja ja löydä edullisin aika sähkönkäytölle.',
+                'title' => 'Pörssisähkön hinta tänään ja huomenna – hintaennuste | Voltikka',
+                'metaDescription' => 'Pörssisähkön hinta tänään ja huomenna sekä hintaennuste seuraaville päiville. Näe tuntikohtaiset hinnat ja milloin sähkö on halvinta.',
             ])->response(function ($response) {
                 $response->setPublic();
                 $response->setMaxAge(60);

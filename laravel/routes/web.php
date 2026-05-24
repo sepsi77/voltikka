@@ -6,6 +6,7 @@ use App\Livewire\CompanyList;
 use App\Livewire\ConsumptionCalculator;
 use App\Livewire\ContractDetail;
 use App\Http\Controllers\ContractPriceStatisticsCsvController;
+use App\Http\Controllers\SpotPriceCsvController;
 use App\Livewire\ContractPriceStatistics;
 use App\Livewire\FixedContractPriceForecast;
 use App\Livewire\ContractsList;
@@ -31,6 +32,13 @@ Route::get('/spot-price', SpotPrice::class)
         ValidateCsrfToken::class,
     ])
     ->name('spot-price');
+Route::get('/spot-price.csv', SpotPriceCsvController::class)
+    ->withoutMiddleware([
+        StartSession::class,
+        ShareErrorsFromSession::class,
+        ValidateCsrfToken::class,
+    ])
+    ->name('spot-price.csv');
 
 // Sitemap (cached for 7 days)
 Route::get('/sitemap.xml', function (SitemapService $sitemapService) {
