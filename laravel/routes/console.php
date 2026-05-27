@@ -32,9 +32,9 @@ Schedule::command('spot:fetch-forecast')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/spot-forecast-fetch.log'));
 
-// Schedule EEX electricity futures settlement price collection after the EEX settlement window.
+// Schedule EEX electricity futures settlement price collection overnight, after EEX FI data is reliably available.
 Schedule::command('futures:fetch-eex')
-    ->dailyAt('20:30')
+    ->dailyAt('04:00')
     ->timezone('Europe/Helsinki')
     ->withoutOverlapping()
     ->onOneServer()

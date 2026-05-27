@@ -93,7 +93,7 @@ Commands:
 php artisan forecasting:run-fixed-contracts --as-of=today --horizon=30
 php artisan forecasting:evaluate-fixed-contracts --as-of=today
 ```
-Scheduled in `routes/console.php`: forecast run daily at 07:30 Europe/Helsinki, evaluation daily at 07:45.
+Scheduled in `routes/console.php`: EEX futures fetch runs overnight at 04:00 Europe/Helsinki so previous trading-day FI settlements are available before the forecast run; forecast run daily at 07:30 Europe/Helsinki, evaluation daily at 07:45.
 
 Important semantics:
 - v1 forecasts fixed-term 6/12/24 month market p20/median/p80 `energy_price` indices from `contract_price_daily_statistics`
@@ -229,6 +229,7 @@ Important semantics:
 - EEX maturity strings are `YYYYMM`: month delivery month, quarter start month, and year January (`YYYY01`). The command probes the `price-ticker` endpoint first because out-of-bounds delivery dates return HTTP 200 with empty data; it discovers maturities once per tenor using a representative market, then fetches EOD data for those same maturity values across all configured markets.
 - The public EEX chart endpoint requires `Referer: https://www.eex.com/` and only returns about 45 days of history; `futures:backfill-eex` fetches all history available from that public endpoint, and normal fetches cap requested ranges and safely upsert reruns.
 - EEX API calls are deliberately slow-throttled by `EexFuturesService` with about 15 seconds plus/minus jitter between calls by default. Keep this polite throttle unless there is a strong reason to change it.
+- The scheduled fetch runs overnight at 04:00 Europe/Helsinki instead of shortly after evening settlement because FI rows have been observed to lag the evening run; this gives the long polite-throttled import time to finish before the 07:30 fixed-contract forecast.
 - Baltic power futures are not configured until verified EEX `area` + `shortCode` combinations exist in the EEX product-code file/API.
 
 ## Commands

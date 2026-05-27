@@ -29,6 +29,7 @@ php artisan forecasting:evaluate-fixed-contracts --as-of=today
 ```
 
 Schedule:
+- `routes/console.php` runs `futures:fetch-eex` at 04:00 Europe/Helsinki so previous trading-day FI settlements are available before forecasts; the full polite-throttled EEX import can take around 90-110 minutes.
 - `routes/console.php` runs `forecasting:run-fixed-contracts` daily at 07:30 Europe/Helsinki, after the 06:00 contract import/statistics job.
 - `routes/console.php` runs `forecasting:evaluate-fixed-contracts` daily at 07:45 Europe/Helsinki.
 
