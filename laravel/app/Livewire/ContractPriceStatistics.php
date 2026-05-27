@@ -155,12 +155,10 @@ class ContractPriceStatistics extends Component
                 'segment_key',
                 'metric_key',
                 'consumption_kwh',
-                'min_value',
                 'p20_value',
                 'avg_value',
                 'median_value',
                 'p80_value',
-                'max_value',
                 'contract_count',
             ])
             ->orderBy('stat_date')
@@ -399,11 +397,9 @@ class ContractPriceStatistics extends Component
                 'segment_label' => $segmentLabel,
                 'is_lead' => $segmentKey === ($this->primarySegments[0] ?? null),
                 'is_primary' => in_array($segmentKey, $this->primarySegments, true),
-                'min' => $latestRow->min_value,
                 'p20' => $latestRow->p20_value,
                 'median' => $latestRow->median_value,
                 'p80' => $latestRow->p80_value,
-                'max' => $latestRow->max_value,
                 'contract_count' => $latestRow->contract_count,
                 'sparkline_path' => $this->sparklinePath($annualCostSeries['median'], 80, 24),
             ];
@@ -619,7 +615,7 @@ class ContractPriceStatistics extends Component
 
     private function statisticsViewDataCacheKey(): string
     {
-        return 'contract-price-statistics:view-data:v7:' . md5(json_encode([
+        return 'contract-price-statistics:view-data:v8:' . md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
             'version' => $this->statisticsDataVersion(),
@@ -723,7 +719,7 @@ class ContractPriceStatistics extends Component
      * aggregation averages those daily medians, so the trend is market-day
      * weighted rather than contract-row weighted.
      *
-     * @return array{x:array<int,int>,median:array<int,?float>,p20:array<int,?float>,p80:array<int,?float>,min:array<int,?float>,max:array<int,?float>}
+     * @return array{x:array<int,int>,median:array<int,?float>,p20:array<int,?float>,p80:array<int,?float>}
      */
     private function aggregatedSeriesWithBands(string $segmentKey, string $metricKey): array
     {
@@ -733,42 +729,28 @@ class ContractPriceStatistics extends Component
             ->filter(fn ($row) => $row->consumption_kwh === null);
 
         if ($rows->isEmpty()) {
-            return ['x' => [], 'median' => [], 'p20' => [], 'p80' => [], 'min' => [], 'max' => []];
+            return ['x' => [], 'median' => [], 'p20' => [], 'p80' => []];
         }
 
         $grouped = $rows
             ->groupBy(fn ($row) => $this->periodStart($row->stat_date)->toDateString())
             ->sortKeys();
 
-        $x = $median = $p20 = $p80 = $min = $max = [];
+        $x = $median = $p20 = $p80 = [];
         foreach ($grouped as $periodStart => $periodRows) {
             $x[] = Carbon::parse($periodStart)->getTimestamp();
             $median[] = $this->averageOrNull($periodRows->pluck('median_value'));
             $p20[] = $this->averageOrNull($periodRows->pluck('p20_value'));
             $p80[] = $this->averageOrNull($periodRows->pluck('p80_value'));
-            $min[] = $this->minOrNull($periodRows->pluck('min_value'));
-            $max[] = $this->maxOrNull($periodRows->pluck('max_value'));
         }
 
-        return ['x' => $x, 'median' => $median, 'p20' => $p20, 'p80' => $p80, 'min' => $min, 'max' => $max];
+        return ['x' => $x, 'median' => $median, 'p20' => $p20, 'p80' => $p80];
     }
 
     private function averageOrNull(Collection $values): ?float
     {
         $clean = $values->filter(fn ($v) => $v !== null);
         return $clean->isEmpty() ? null : (float) $clean->avg();
-    }
-
-    private function minOrNull(Collection $values): ?float
-    {
-        $clean = $values->filter(fn ($v) => $v !== null);
-        return $clean->isEmpty() ? null : (float) $clean->min();
-    }
-
-    private function maxOrNull(Collection $values): ?float
-    {
-        $clean = $values->filter(fn ($v) => $v !== null);
-        return $clean->isEmpty() ? null : (float) $clean->max();
     }
 
     /**
@@ -822,7 +804,7 @@ class ContractPriceStatistics extends Component
     }
 
     /**
-     * @return array{x:array<int,int>,median:array<int,?float>,p20:array<int,?float>,p80:array<int,?float>,min:array<int,?float>,max:array<int,?float>}
+     * @return array{x:array<int,int>,median:array<int,?float>,p20:array<int,?float>,p80:array<int,?float>}
      */
     private function spotEnergyPriceAggregatedSeriesWithBands(): array
     {
@@ -832,7 +814,7 @@ class ContractPriceStatistics extends Component
             ->where('consumption_kwh', null);
 
         if ($rows->isEmpty()) {
-            return ['x' => [], 'median' => [], 'p20' => [], 'p80' => [], 'min' => [], 'max' => []];
+            return ['x' => [], 'median' => [], 'p20' => [], 'p80' => []];
         }
 
         $daily = $rows
@@ -849,24 +831,22 @@ class ContractPriceStatistics extends Component
             ->filter(fn ($row) => $row['median'] !== null);
 
         if ($daily->isEmpty()) {
-            return ['x' => [], 'median' => [], 'p20' => [], 'p80' => [], 'min' => [], 'max' => []];
+            return ['x' => [], 'median' => [], 'p20' => [], 'p80' => []];
         }
 
         $grouped = $daily
             ->groupBy(fn ($row) => $this->periodStart($row['date'])->toDateString())
             ->sortKeys();
 
-        $x = $median = $p20 = $p80 = $min = $max = [];
+        $x = $median = $p20 = $p80 = [];
         foreach ($grouped as $periodStart => $periodRows) {
             $x[] = Carbon::parse($periodStart)->getTimestamp();
             $median[] = $this->averageOrNull($periodRows->pluck('median'));
             $p20[] = $this->averageOrNull($periodRows->pluck('p20'));
             $p80[] = $this->averageOrNull($periodRows->pluck('p80'));
-            $min[] = $this->averageOrNull($periodRows->pluck('p20'));
-            $max[] = $this->averageOrNull($periodRows->pluck('p80'));
         }
 
-        return ['x' => $x, 'median' => $median, 'p20' => $p20, 'p80' => $p80, 'min' => $min, 'max' => $max];
+        return ['x' => $x, 'median' => $median, 'p20' => $p20, 'p80' => $p80];
     }
 
     /**

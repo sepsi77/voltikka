@@ -35,6 +35,7 @@ Important semantics:
 - non-spot “vs pörssisähkö” quotable comparisons must use `annual_cost` at the selected consumption so unusually cheap/expensive spot days do not distort contract-type comparisons
 - the lead chart caption must be generated from `leadChartPayload` / `annual_cost`, not from c/kWh callouts, so the text always matches the plotted trend
 - segment and consumption tables hide rows with fewer than 10 contracts to avoid over-interpreting sparse segment statistics
+- the consumption “Hintahaarukka” table intentionally omits absolute cheapest/minimum annual cost values because single-row/import anomalies can make the minimum misleading; use p20/median/p80 for the displayed range
 
 ## `SpotPrice`
 

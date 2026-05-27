@@ -42,6 +42,7 @@ class ContractPriceStatisticsPageTest extends TestCase
         $response->assertSee('Energiahinnan trendi');
         $response->assertSee('Hintahaarukka');
         $response->assertSee('Taulukko näyttää viimeisimmän keräyspäivän vuosikustannusten jakauman');
+        $response->assertDontSee('Halvin');
         $response->assertSee('sisältää energiahinnan sekä perusmaksut 12 kuukaudelta');
         $response->assertSee('Pörssisähkössä vuosikustannus käyttää edeltävän 12 kuukauden pörssin keskihintaa');
         $response->assertSee('Vuosihinnan trendi');

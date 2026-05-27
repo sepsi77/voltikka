@@ -450,7 +450,7 @@
                             Mukana ovat sopimukset, joille voidaan laskea vuosikustannus valitulla {{ $consumptionLabel }}&nbsp;kWh kulutuksella.
                         </p>
                         <p class="mt-2">
-                            Halvin on markkinoiden alin vuosikustannus. Halvempi&nbsp;20&nbsp;% on raja, jonka alle viidennes saman tyypin sopimuksista jää. Mediaani kuvaa tyypillistä sopimusta, ja kalliimpi&nbsp;20&nbsp;% on raja, jonka yli viidennes nousee.
+                            Halvempi&nbsp;20&nbsp;% on raja, jonka alle viidennes saman tyypin sopimuksista jää. Mediaani kuvaa tyypillistä sopimusta, ja kalliimpi&nbsp;20&nbsp;% on raja, jonka yli viidennes nousee.
                         </p>
                         <p class="mt-2">
                             Pörssisähkössä vuosikustannus käyttää edeltävän 12 kuukauden pörssin keskihintaa + sopimuksen marginaalia. Kiinteissä ja muissa sopimuksissa käytetään sopimuksen julkaistua energiahintaa. Trendi näyttää vuosikustannuksen mediaanin kehityksen valitulla kulutuksella. Sopimusmäärä voi poiketa ylemmästä hintataulukosta, jos sopimus ei ole tarjolla valitulle kulutukselle tai vuosihintaa ei voi laskea.
@@ -464,7 +464,6 @@
                         <thead>
                             <tr class="text-left text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-500 border-b border-slate-300">
                                 <th class="py-3 pr-3 pl-4 sm:pl-0 font-semibold">Sopimustyyppi</th>
-                                <th class="py-3 px-3 font-semibold text-right">Halvin</th>
                                 <th class="py-3 px-3 font-semibold text-right">
                                     <abbr title="20. persentiili: viidennes sopimuksista on tätä halvempia." class="no-underline cursor-help">Halvempi&nbsp;20&nbsp;%</abbr>
                                 </th>
@@ -484,7 +483,6 @@
                                     <td class="py-3 pr-3 pl-4 sm:pl-0 font-semibold text-slate-900 {{ $row['is_lead'] ? 'text-coral-700' : '' }}">
                                         {{ $row['segment_label'] }}
                                     </td>
-                                    <td class="py-3 px-3 text-right tabular-nums text-slate-700">{{ $fmtNum($row['min'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
                                     <td class="py-3 px-3 text-right tabular-nums text-slate-700">{{ $fmtNum($row['p20'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
                                     <td class="py-3 px-3 text-right tabular-nums font-bold text-slate-900">{{ $fmtNum($row['median'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
                                     <td class="py-3 px-3 text-right tabular-nums text-slate-700">{{ $fmtNum($row['p80'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
