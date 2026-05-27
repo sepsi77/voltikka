@@ -57,7 +57,7 @@
                     Aurinkopaneeli<span class="text-coral-400">laskuri</span>
                 </h1>
                 <p class="max-w-2xl mx-auto text-slate-300 md:text-lg">
-                    Laske aurinkopaneelien arvioitu vuosituotto osoitteesi perusteella.
+                    Laske, paljonko aurinkopaneelit tuottaisivat ja säästäisivät kotonasi. Tarvitset vain osoitteesi.
                 </p>
             </div>
         </div>
@@ -66,21 +66,18 @@
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         <!-- Introduction -->
-        <div class="mb-8 text-center max-w-2xl mx-auto">
-            <p class="text-slate-600 mb-4">
-                Aurinkopaneelilaskuri auttaa sinua arvioimaan, paljonko aurinkopaneelit tuottaisivat sähköä kotonasi. Syötä osoitteesi, valitse järjestelmän koko ja mahdollinen varjostus - laskuri laskee arvion automaattisesti.
-            </p>
-            <p class="text-slate-500 text-sm">
-                Laskuri käyttää Euroopan komission PVGIS-tietokantaa, joka sisältää tarkat auringonsäteilytiedot kaikille Suomen sijainnille.
-            </p>
-        </div>
+        <p class="mb-8 text-center max-w-2xl mx-auto text-slate-600">
+            Arvio perustuu Euroopan komission PVGIS-aurinkosäteilytietoihin. Syötä osoitteesi, niin laskemme tuoton ja säästön juuri sinun sijainnillesi.
+        </p>
 
         <!-- Calculator Section -->
         <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8">
 
-            <!-- Address Input -->
+            <!-- Step 1 (primary): Address. The only input needed for an estimate. -->
             <div class="mb-8">
-                <h4 class="font-semibold text-slate-900 mb-4">Osoite</h4>
+                <p class="text-xs font-semibold uppercase tracking-wide text-coral-600 mb-1">Aloita tästä</p>
+                <h2 class="text-xl font-bold text-slate-900 mb-1">Mikä on osoitteesi?</h2>
+                <p class="text-sm text-slate-500 mb-4">Pelkkä osoite riittää arvioon. Olemme valinneet muut asetukset valmiiksi.</p>
                 <div class="relative">
                     <div class="flex items-center">
                         <div class="relative flex-1">
@@ -89,7 +86,8 @@
                                 wire:model.live.debounce.300ms="addressQuery"
                                 wire:keydown.escape="hideSuggestions"
                                 placeholder="Kirjoita osoite..."
-                                class="w-full px-4 py-3 pr-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
+                                aria-label="Osoitteesi"
+                                class="w-full px-4 py-4 pr-10 text-lg border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                                 autocomplete="off"
                             >
                             {{-- Loading spinner for address search --}}
@@ -150,7 +148,18 @@
                         Sijainti valittu: {{ number_format($selectedLat, 4, ',', ' ') }}°N, {{ number_format($selectedLon, 4, ',', ' ') }}°E
                     </div>
                 @endif
+
+                @if ($addressNotice && !$selectedLabel)
+                    <p wire:loading.remove wire:target="addressQuery" class="mt-3 text-sm text-coral-600">{{ $addressNotice }}</p>
+                @endif
             </div>
+
+            <!-- Step 2 (optional): pre-filled details the visitor can fine-tune. -->
+            <div class="border-t border-slate-200 pt-8">
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold text-slate-900">Säädä asetuksia <span class="text-slate-400 font-normal text-base">(valinnaista)</span></h3>
+                    <p class="text-sm text-slate-500 mt-1">Oletukset sopivat useimmille kotitalouksille. Voit muuttaa järjestelmän kokoa, varjostusta ja säästöoletuksia.</p>
+                </div>
 
             <!-- System Size Selection -->
             <div class="mb-8">
@@ -180,8 +189,9 @@
                             type="number"
                             wire:model.live.debounce.500ms="systemKwp"
                             min="0.5"
-                            max="50"
+                            max="20"
                             step="0.5"
+                            aria-label="Muu järjestelmän koko (kWp)"
                             class="w-16 px-2 py-2 border-0 focus:ring-0 text-sm text-center"
                             placeholder="Muu"
                         >
@@ -189,8 +199,11 @@
                     </div>
                 </div>
                 <p class="text-sm text-slate-500 mt-3">
-                    Tyypillinen kotitalousjärjestelmä on 5–10 kWp. 1 kWp ≈ 5 m² kattopinta-alaa.
+                    kWp on järjestelmän huipputeho. Tyypillinen kotitalous on 5–10 kWp, eli noin 25–50 m² paneeleita.
                 </p>
+                @if ($systemKwpNotice)
+                    <p class="text-sm text-coral-600 mt-1">{{ $systemKwpNotice }}</p>
+                @endif
             </div>
 
             <!-- Shading Selection -->
@@ -227,24 +240,25 @@
                 </div>
             </div>
 
-            <!-- Savings Calculation Section -->
-            <div class="border-t border-slate-200 pt-8 mt-8">
-                <h3 class="text-lg font-semibold text-slate-900 mb-6">Säästölaskuri</h3>
+                <!-- Savings inputs (still optional; lighter subgroup within the adjustments) -->
+                <div class="mt-2">
+                    <h4 class="font-semibold text-slate-900 mb-6">Säästölaskelma</h4>
 
                 <!-- Price Input -->
                 <div class="mb-6">
                     <div class="flex items-center justify-between mb-2">
-                        <label class="block font-semibold text-slate-900">Sähkön hinta (c/kWh)</label>
+                        <label for="solar-price" class="block font-semibold text-slate-900">Sähkön hinta (c/kWh)</label>
                         <svg wire:loading wire:target="manualPrice" class="animate-spin h-4 w-4 text-coral-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
                     </div>
                     <input
+                        id="solar-price"
                         type="number"
                         wire:model.live.debounce.300ms="manualPrice"
                         min="0"
-                        max="100"
+                        max="50"
                         step="0.1"
                         class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                     >
@@ -262,6 +276,9 @@
                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
                     </div>
+                    <p class="text-sm text-slate-500 mb-4">
+                        Kuinka suuren osan tuottamastasi sähköstä käytät itse. Loppu myydään verkkoon selvästi halvemmalla, joten mitä suurempi oma käyttö, sitä suurempi säästö.
+                    </p>
                     <div class="grid grid-cols-3 gap-4">
                         @foreach ($selfConsumptionScenarios as $scenario => $data)
                             @php
@@ -290,6 +307,7 @@
                         {{ $selfConsumptionScenarios[$selfConsumptionScenario]['description'] }}
                     </p>
                 </div>
+                </div>
             </div>
 
             <!-- Error Message -->
@@ -303,159 +321,20 @@
 
         <!-- Results Section -->
         @if ($this->hasResults)
-            <section class="bg-gradient-to-br from-coral-500 to-coral-600 rounded-2xl shadow-lg p-6 text-white mb-8 relative">
-                {{-- Loading overlay for results --}}
-                <div
-                    wire:loading
-                    wire:target="systemKwp, shadingLevel, selectAddress"
-                    class="absolute inset-0 bg-coral-600/80 rounded-2xl flex items-center justify-center z-10"
-                >
-                    <div class="flex items-center gap-3">
-                        <svg class="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span class="text-white font-medium">Lasketaan...</span>
-                    </div>
-                </div>
-                <div class="text-center mb-6">
-                    <p class="text-coral-100 text-sm mb-1">Arvioitu vuosituotto</p>
-                    <p class="text-5xl font-bold">
-                        {{ number_format($this->annualKwh, 0, ',', ' ') }}
-                        <span class="text-2xl font-normal">kWh</span>
-                    </p>
-                </div>
-
-                <!-- Monthly Breakdown Chart -->
-                @if (count($this->monthlyKwh) === 12)
-                    <div class="mb-6">
-                        <p class="text-coral-100 text-sm mb-3 text-center">Kuukausituotto</p>
-                        {{-- Inline bar chart with fixed pixel heights and Alpine.js tooltips --}}
-                        <div
-                            x-data="{ activeBar: null }"
-                            x-on:click.outside="activeBar = null"
-                            class="relative"
-                            style="display: flex; align-items: flex-end; gap: 4px; height: 80px;"
-                        >
-                            @foreach ($this->monthlyKwh as $index => $kwh)
-                                @php
-                                    $barHeight = $this->maxMonthlyKwh > 0
-                                        ? max(4, round(($kwh / $this->maxMonthlyKwh) * 76))
-                                        : 4;
-                                @endphp
-                                <div
-                                    class="relative"
-                                    style="flex: 1; height: {{ $barHeight }}px; background-color: rgba(255,255,255,0.5); border-radius: 2px 2px 0 0; cursor: pointer;"
-                                    x-on:mouseenter="activeBar = {{ $index }}"
-                                    x-on:mouseleave="activeBar = null"
-                                    x-on:click="activeBar = activeBar === {{ $index }} ? null : {{ $index }}"
-                                >
-                                    {{-- Tooltip - positioned above the chart --}}
-                                    <div
-                                        x-show="activeBar === {{ $index }}"
-                                        x-transition:enter="transition ease-out duration-100"
-                                        x-transition:enter-start="opacity-0"
-                                        x-transition:enter-end="opacity-100"
-                                        class="absolute left-1/2 -translate-x-1/2 px-3 py-2 text-sm font-medium rounded-lg shadow-lg whitespace-nowrap pointer-events-none z-10"
-                                        style="background-color: #1e293b; color: white; bottom: 90px;"
-                                    >
-                                        {{ $monthNamesFull[$index] }}: {{ number_format($kwh, 0, ',', ' ') }} kWh
-                                    </div>
-                                </div>
-                            @endforeach
-                        </div>
-                        {{-- Month labels with kWh values --}}
-                        <div style="display: flex; gap: 4px; margin-top: 4px;">
-                            @foreach ($this->monthlyKwh as $index => $kwh)
-                                <div style="flex: 1; text-align: center;">
-                                    <span class="text-[10px] text-coral-100 font-medium">{{ $index + 1 }}</span>
-                                    <span class="block text-[8px] text-coral-100/70">{{ number_format($kwh, 0) }}</span>
-                                </div>
-                            @endforeach
-                        </div>
-                        <p class="text-coral-100/70 text-[10px] text-center mt-1">Kuukausi / kWh</p>
-                    </div>
-                @endif
-
-                <!-- Summary Stats -->
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-                    <div class="bg-white/10 rounded-lg p-3">
-                        <p class="text-coral-100 text-xs">Järjestelmän koko</p>
-                        <p class="text-lg font-semibold">{{ number_format($systemKwp, 1, ',', ' ') }} kWp</p>
-                    </div>
-
-                    <div class="bg-white/10 rounded-lg p-3">
-                        <p class="text-coral-100 text-xs">Keskituotto/kk</p>
-                        <p class="text-lg font-semibold">{{ number_format($this->annualKwh / 12, 0, ',', ' ') }} kWh</p>
-                    </div>
-
-                    <div class="bg-white/10 rounded-lg p-3">
-                        <p class="text-coral-100 text-xs">Tuotto/kWp</p>
-                        <p class="text-lg font-semibold">{{ number_format($this->annualKwh / max(0.1, $systemKwp), 0, ',', ' ') }} kWh</p>
-                    </div>
-                </div>
-
-                <!-- Assumptions -->
-                @if (!empty($calculationResult['assumptions']))
-                    <div class="bg-white/10 rounded-lg p-3 text-sm">
-                        <p class="text-coral-100 text-xs mb-2">Laskenta-arvot</p>
-                        <ul class="text-coral-50 space-y-1">
-                            @if (isset($calculationResult['assumptions']['tilt']))
-                                <li>Kaltevuus: {{ $calculationResult['assumptions']['tilt'] }}°</li>
-                            @endif
-                            @if (isset($calculationResult['assumptions']['azimuth']))
-                                <li>Suuntaus: {{ $calculationResult['assumptions']['azimuth'] }}° (0° = etelä)</li>
-                            @endif
-                            @if (isset($calculationResult['assumptions']['loss_percent']))
-                                <li>Häviöt: {{ $calculationResult['assumptions']['loss_percent'] }}%</li>
-                            @endif
-                        </ul>
-                    </div>
-                @endif
-            </section>
-
-            <!-- Savings Section -->
-            @if ($this->hasSavings)
-                <section class="rounded-2xl shadow-lg p-6 mb-8 relative" style="background-color: #16a34a; color: white;">
-                    {{-- Loading overlay for savings --}}
-                    <div
-                        wire:loading
-                        wire:target="systemKwp, shadingLevel, selectAddress, manualPrice, selfConsumptionScenario"
-                        class="absolute inset-0 rounded-2xl flex items-center justify-center z-10"
-                        style="background-color: rgba(22, 163, 74, 0.9);"
-                    >
-                        <div class="flex items-center gap-3">
-                            <svg class="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <span class="text-white font-medium">Lasketaan...</span>
-                        </div>
-                    </div>
-                    <div class="text-center mb-4">
-                        <p class="text-sm mb-1" style="color: rgba(255,255,255,0.8);">Arvioitu säästö</p>
-                        <p class="text-4xl font-bold" style="color: white;">
-                            {{ number_format($this->annualSavings, 0, ',', ' ') }}
-                            <span class="text-xl font-normal">€/vuosi</span>
-                        </p>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-4 mb-4">
-                        <div class="rounded-lg p-3" style="background-color: #15803d;">
-                            <p class="text-xs" style="color: rgba(255,255,255,0.7);">Oma käyttö ({{ $this->selfConsumptionLabel }})</p>
-                            <p class="text-lg font-semibold" style="color: white;">{{ $this->selfConsumptionPercent }}%</p>
-                        </div>
-                        <div class="rounded-lg p-3" style="background-color: #15803d;">
-                            <p class="text-xs" style="color: rgba(255,255,255,0.7);">Sähkön hinta</p>
-                            <p class="text-lg font-semibold" style="color: white;">{{ number_format($this->effectivePrice, 2, ',', ' ') }} c/kWh</p>
-                        </div>
-                    </div>
-
-                    <p class="text-xs text-center" style="color: rgba(255,255,255,0.7);">
-                        Säästö = {{ number_format($this->annualKwh, 0, ',', ' ') }} kWh × {{ $this->selfConsumptionPercent }}% × {{ number_format($this->effectivePrice, 2, ',', ' ') }} c/kWh
-                    </p>
-                </section>
-            @endif
+            @include('livewire.partials.solar-result', [
+                'annualKwh' => $this->annualKwh,
+                'monthlyKwh' => $this->monthlyKwh,
+                'systemKwp' => $systemKwp,
+                'monthNamesFull' => $monthNamesFull,
+                'assumptions' => $calculationResult['assumptions'] ?? [],
+                'showSavings' => $this->hasSavings,
+                'selfConsumptionPercent' => $this->selfConsumptionPercent,
+                'selfConsumptionLabel' => $this->selfConsumptionLabel,
+                'effectivePrice' => $this->effectivePrice,
+                'annualSavings' => $this->annualSavings,
+                'live' => true,
+                'isExample' => false,
+            ])
         @elseif ($isCalculating)
             <section class="bg-slate-100 rounded-2xl p-6 mb-8 text-center">
                 <div class="animate-pulse">
@@ -463,14 +342,23 @@
                     <div class="h-4 w-32 bg-slate-200 rounded mx-auto"></div>
                 </div>
             </section>
-        @elseif (!$selectedLabel)
-            <section class="bg-slate-100 rounded-2xl p-6 mb-8 text-center text-slate-600">
-                <svg class="w-12 h-12 mx-auto mb-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                </svg>
-                <p>Syötä osoite aloittaaksesi laskennan</p>
-            </section>
+        @elseif ($this->hasExample && !$selectedLabel)
+            {{-- Default-location worked example so first-time visitors see the payoff
+                 before committing their own address. --}}
+            @include('livewire.partials.solar-result', [
+                'annualKwh' => $this->exampleAnnualKwh,
+                'monthlyKwh' => $this->exampleMonthlyKwh,
+                'systemKwp' => $systemKwp,
+                'monthNamesFull' => $monthNamesFull,
+                'assumptions' => $exampleResult['assumptions'] ?? [],
+                'showSavings' => $this->effectivePrice !== null && $this->effectivePrice > 0,
+                'selfConsumptionPercent' => $this->selfConsumptionPercent,
+                'selfConsumptionLabel' => $this->selfConsumptionLabel,
+                'effectivePrice' => $this->effectivePrice,
+                'annualSavings' => $this->exampleAnnualSavings,
+                'live' => false,
+                'isExample' => true,
+            ])
         @endif
 
         <!-- Info Section -->
@@ -478,9 +366,9 @@
             <h3 class="font-semibold text-slate-900 mb-2">Tietoa laskurista</h3>
             <ul class="list-disc list-inside space-y-1">
                 <li>Tuottoarvio perustuu PVGIS-tietokantaan (EU Joint Research Centre)</li>
-                <li>Tyypillinen suomalainen aurinkopaneelijärjestelmä tuottaa 800-1000 kWh/kWp vuodessa</li>
-                <li>Tuotanto vaihtelee huomattavasti vuodenajan mukaan: kesällä jopa 10x enemmän kuin talvella</li>
-                <li>Optimi kaltevuus Suomessa on noin 40-45° ja suuntaus etelään</li>
+                <li>Tyypillinen suomalainen aurinkopaneelijärjestelmä tuottaa 800–1000 kWh/kWp vuodessa</li>
+                <li>Tuotanto vaihtelee huomattavasti vuodenajan mukaan: kesällä jopa 10× enemmän kuin talvella</li>
+                <li>Optimi kaltevuus Suomessa on noin 40–45° ja suuntaus etelään</li>
                 <li>Varjostus, lumi ja pöly vähentävät todellista tuottoa arviosta</li>
             </ul>
         </section>

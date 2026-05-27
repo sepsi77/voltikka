@@ -73,9 +73,10 @@ class SolarCalculatorLivewireTest extends TestCase
             assumptions: ['tilt' => 35, 'azimuth' => 0, 'loss_percent' => 14],
         );
 
+        // mount() computes the default-location (Helsinki) example, then selectAddress recalculates.
         $this->mock(SolarCalculatorService::class)
             ->shouldReceive('calculate')
-            ->once()
+            ->twice()
             ->andReturn($mockResult);
 
         Livewire::test(SolarCalculator::class)
@@ -94,9 +95,10 @@ class SolarCalculatorLivewireTest extends TestCase
             assumptions: ['tilt' => 35, 'azimuth' => 0, 'loss_percent' => 14],
         );
 
+        // mount() example + selectAddress + size change.
         $this->mock(SolarCalculatorService::class)
             ->shouldReceive('calculate')
-            ->twice()
+            ->times(3)
             ->andReturn($mockResult);
 
         Livewire::test(SolarCalculator::class)
@@ -113,9 +115,10 @@ class SolarCalculatorLivewireTest extends TestCase
             assumptions: ['tilt' => 35, 'azimuth' => 0, 'loss_percent' => 19],
         );
 
+        // mount() example + selectAddress + shading change.
         $this->mock(SolarCalculatorService::class)
             ->shouldReceive('calculate')
-            ->twice()
+            ->times(3)
             ->andReturn($mockResult);
 
         Livewire::test(SolarCalculator::class)
@@ -132,9 +135,10 @@ class SolarCalculatorLivewireTest extends TestCase
             assumptions: [],
         );
 
+        // mount() example + selectAddress.
         $this->mock(SolarCalculatorService::class)
             ->shouldReceive('calculate')
-            ->once()
+            ->twice()
             ->andReturn($mockResult);
 
         Livewire::test(SolarCalculator::class)
@@ -166,9 +170,10 @@ class SolarCalculatorLivewireTest extends TestCase
             assumptions: [],
         );
 
+        // mount() example + selectAddress.
         $this->mock(SolarCalculatorService::class)
             ->shouldReceive('calculate')
-            ->once()
+            ->twice()
             ->andReturn($mockResult);
 
         $component = Livewire::test(SolarCalculator::class)
@@ -178,6 +183,36 @@ class SolarCalculatorLivewireTest extends TestCase
         $this->assertEquals(4800.0, $component->get('annualKwh'));
         $this->assertCount(12, $component->get('monthlyKwh'));
         $this->assertEquals(600, $component->get('maxMonthlyKwh'));
+    }
+
+    public function test_system_size_is_clamped_to_max(): void
+    {
+        // mount() example + the rebuild after the size change; both hit the mocked service.
+        $this->mock(SolarCalculatorService::class)
+            ->shouldReceive('calculate')
+            ->andReturn(new SolarEstimateResult(4500.0, array_fill(0, 12, 375), []));
+
+        Livewire::test(SolarCalculator::class)
+            ->set('systemKwp', 30.0)
+            ->assertSet('systemKwp', 20.0)
+            ->assertNotSet('systemKwpNotice', null);
+    }
+
+    public function test_unknown_address_shows_notice_instead_of_silent_empty(): void
+    {
+        $this->mock(SolarCalculatorService::class)
+            ->shouldReceive('calculate')
+            ->andReturn(new SolarEstimateResult(4500.0, array_fill(0, 12, 375), []));
+
+        $this->mock(DigitransitGeocodingService::class)
+            ->shouldReceive('search')
+            ->andReturn([]);
+
+        Livewire::test(SolarCalculator::class)
+            ->set('addressQuery', 'qwertyxyz')
+            ->assertSet('showSuggestions', false)
+            ->assertNotSet('addressNotice', null)
+            ->assertSee('Osoitetta ei löytynyt');
     }
 
     public function test_route_is_named_correctly(): void
