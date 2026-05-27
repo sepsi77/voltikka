@@ -225,11 +225,13 @@ class HeatPumpCalculatorTest extends TestCase
     public function test_page_contains_results_section_with_alternatives(): void
     {
         // Default values should produce results
+        // Results show full-replacement primary systems only (supplementary
+        // options like a pure air-to-air pump are intentionally excluded).
         $this->get('/lampopumput/laskuri')
             ->assertStatus(200)
             ->assertSee('Maalämpöpumppu')
             ->assertSee('Ilma-vesilämpöpumppu')
-            ->assertSee('Ilmalämpöpumppu');
+            ->assertSee('Pellettikattila');
     }
 
     public function test_computed_properties_work_correctly(): void

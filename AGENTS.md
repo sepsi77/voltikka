@@ -552,6 +552,16 @@ The header also displays the current spot price via `HeaderSpotPrice` component.
 
 `AGENTS.md` files define documentation and context-file CRUD rules for this repository.
 
+### `CLAUDE.md` must mirror `AGENTS.md` (non-negotiable)
+
+`AGENTS.md` is the canonical context file in every directory. `CLAUDE.md` exists only so Claude Code loads the same content.
+
+- **`CLAUDE.md` should normally be a symlink to the sibling `AGENTS.md`** in the same directory (`ln -s AGENTS.md CLAUDE.md`). When it is a symlink, editing either name edits the one underlying file, so they can never drift.
+- **When you create a new context file, create `AGENTS.md` and symlink `CLAUDE.md` to it.** Do not author two real files.
+- **If a directory has `CLAUDE.md` and `AGENTS.md` as two real files (the symlink is missing), they MUST be kept byte-identical.** Whenever you edit one, apply the exact same edit to the other in the same change. Never commit a change that touches only one of the pair.
+- **Treat `AGENTS.md` as the source of truth.** If the two real files have already drifted, reconcile onto `AGENTS.md` (it is canonical), then restore the symlink or re-sync `CLAUDE.md` from it.
+- This applies to every `CLAUDE.md`/`AGENTS.md` pair in the repo (root and every subtree), not just this one.
+
 ### Principles for context files
 - Context files are **shortcuts and pointers** for coding agents.
 - They should help agents find the right code and concepts **without broad codebase searching first**.

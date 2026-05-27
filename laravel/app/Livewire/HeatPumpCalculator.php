@@ -13,6 +13,13 @@ use Livewire\Component;
 
 class HeatPumpCalculator extends Component
 {
+    /**
+     * Systems that can replace the current heating entirely or almost entirely.
+     * The lead recommendation is only ever drawn from these; supplementary
+     * options (e.g. a pure air-source pump) are never recommended as the answer.
+     */
+    public const PRIMARY_SYSTEMS = ['ground_source_hp', 'air_to_water_hp', 'pellets'];
+
     // Building info
     public int $livingArea = 150;
     public float $roomHeight = 2.5;
@@ -273,10 +280,50 @@ class HeatPumpCalculator extends Component
         return $this->calculationResult['currentSystem'] ?? [];
     }
 
+    /**
+     * Only full-replacement primary systems are surfaced. Supplementary options
+     * (air-to-air, exhaust-air, "+ tulisija") are intentionally excluded: the
+     * comparison service costs their uncovered load as cheap direct electricity
+     * regardless of the household's actual heating, which understates their real
+     * cost. Until that is modelled against the current primary heating, they are
+     * not shown.
+     */
     #[Computed]
     public function alternatives(): array
     {
-        return $this->calculationResult['alternatives'] ?? [];
+        $all = $this->calculationResult['alternatives'] ?? [];
+
+        return array_values(array_filter(
+            $all,
+            fn ($alt) => in_array($alt['key'] ?? null, self::PRIMARY_SYSTEMS, true)
+        ));
+    }
+
+    /**
+     * The single option we lead with: the money-saving PRIMARY system with the
+     * lowest annualized total cost. Supplementary options are excluded so the
+     * answer is always a full-replacement solution. Returns null when nothing
+     * pays off, so the page never invents a recommendation the numbers do not support.
+     */
+    #[Computed]
+    public function recommendedAlternative(): ?array
+    {
+        $saving = array_values(array_filter(
+            $this->alternatives,
+            fn ($alt) => in_array($alt['key'] ?? null, self::PRIMARY_SYSTEMS, true)
+                && ($alt['annualSavings'] ?? 0) > 0
+        ));
+
+        if (empty($saving)) {
+            return null;
+        }
+
+        usort(
+            $saving,
+            fn ($a, $b) => ($a['annualizedTotalCost'] ?? PHP_INT_MAX) <=> ($b['annualizedTotalCost'] ?? PHP_INT_MAX)
+        );
+
+        return $saving[0];
     }
 
     #[Computed]
@@ -295,6 +342,70 @@ class HeatPumpCalculator extends Component
     public function hotWaterEnergyNeed(): float
     {
         return $this->calculationResult['hotWaterEnergyNeed'] ?? 0;
+    }
+
+    /**
+     * Single source of truth for the FAQ: drives both the visible <details>
+     * block and the FAQPage JSON-LD, so the two can never drift. Ordered to
+     * lead with the "kannattaako" target queries.
+     *
+     * @return array<int, array{question: string, answer: string}>
+     */
+    public function getFaqItemsProperty(): array
+    {
+        return [
+            [
+                'question' => 'Kannattaako lämpöpumppu?',
+                'answer' => 'Useimmiten kyllä, jos korvaat suoran sähkölämmityksen tai öljylämmityksen. Lämpöpumppu tuottaa yhdellä sähkökilowattitunnilla kaksi tai kolme kilowattituntia lämpöä, joten lämmityksen energiakustannus laskee selvästi. Kannattavuus riippuu kuitenkin talosi koosta, nykyisestä lämmitystavasta, investoinnin hinnasta ja energian hinnoista. Tämän sivun laskuri arvioi säästön ja takaisinmaksuajan juuri sinun tiedoillasi.',
+            ],
+            [
+                'question' => 'Kannattaako maalämpö?',
+                'answer' => 'Maalämpö on energiatehokkain vaihtoehto: vuotuinen hyötysuhde (SPF) on Suomen olosuhteissa tyypillisesti noin 2,9, eli se tuottaa lähes kolme kilowattituntia lämpöä jokaista käytettyä sähkökilowattituntia kohden. Investointi on suurin, usein noin 20 000 euroa, joten maalämpö kannattaa parhaiten suuremmissa taloissa ja silloin kun lämmitystarve on iso. Pienemmässä talossa edullisempi ilma-vesilämpöpumppu voi tulla kokonaiskustannukseltaan halvemmaksi.',
+            ],
+            [
+                'question' => 'Kannattaako ilma-vesilämpöpumppu?',
+                'answer' => 'Ilma-vesilämpöpumppu sopii vesikiertoiseen lämmitykseen ja maksaa selvästi vähemmän kuin maalämpö, tyypillisesti noin 12 000 euroa. Sen vuotuinen hyötysuhde (SPF) on noin 2,3, ja se kattaa lämmöntarpeesta noin 80 prosenttia. Loput noin 20 prosenttia, etenkin kovilla pakkasilla, tuotetaan yleensä suoralla sähkövastuksella. Pienemmässä tai kohtalaisesti lämmitettävässä talossa se on usein kokonaiskustannukseltaan kannattavin ratkaisu.',
+            ],
+            [
+                'question' => 'Milloin lämpöpumppu ei kannata?',
+                'answer' => 'Kaukolämmön korvaaminen lämpöpumpulla on harvoin taloudellisesti kannattavaa, koska kaukolämpö on jo valmiiksi edullista energiaa. Myös hyvin pienen lämmitystarpeen taloissa, kuten matalaenergia- ja passiivitaloissa, suuri investointi voi maksaa itsensä takaisin hyvin hitaasti. Laskuri kertoo suoraan, jos täysi lämmitysvaihto ei tuota säästöä sinun tiedoillasi, eikä keksi suositusta, jota luvut eivät tue.',
+            ],
+            [
+                'question' => 'Mikä on paras lämpöpumppu omakotitaloon?',
+                'answer' => 'Paras lämpöpumppu riippuu talon koosta, nykyisestä lämmitystavasta ja budjetista. Maalämpö on tehokkain (SPF noin 2,9) ja sopii suuriin taloihin, ilma-vesilämpöpumppu on edullisempi investointi ja sopii vesikiertoiseen lämmitykseen, ja ilmalämpöpumppu täydentää olemassa olevaa lämmitystä. Tällä sivulla laskuri vertailee täysimittaiset vaihtoehdot ja suosittelee kokonaiskustannukseltaan edullisinta.',
+            ],
+            [
+                'question' => 'Mikä on lämpöpumpun takaisinmaksuaika?',
+                'answer' => 'Takaisinmaksuaika riippuu investoinnin hinnasta, nykyisestä lämmitystavasta ja energian hinnoista. Öljylämmityksen korvaamisessa takaisinmaksuaika on tyypillisesti 5–10 vuotta ja suoran sähkölämmityksen korvaamisessa 8–15 vuotta. Kaukolämmön korvaaminen on harvoin kannattavaa. Laskuri näyttää arvion juuri sinun talollesi.',
+            ],
+            [
+                'question' => 'Paljonko maalämpöpumppu säästää vuodessa?',
+                'answer' => 'Maalämpö voi pienentää lämmityksen energiakustannusta noin 50–70 prosenttia verrattuna suoraan sähkölämmitykseen. 150 neliön talossa, joka kuluttaa noin 20 000 kWh lämmitysenergiaa vuodessa, säästö voi olla joitakin tuhansia euroja vuodessa sähkön hinnasta riippuen. Todellinen säästö riippuu käyttötottumuksista ja energian hintojen kehityksestä.',
+            ],
+            [
+                'question' => 'Toimiiko ilmalämpöpumppu kovilla pakkasilla?',
+                'answer' => 'Nykyaikaiset ilmalämpöpumput toimivat jopa noin -25 asteen pakkasilla, mutta hyötysuhde heikkenee lämpötilan laskiessa. Kovimmilla pakkasilla pumppu tarvitsee usein tuekseen muuta lämmitystä. Maalämpö toimii tehokkaasti ympäri vuoden, koska maaperän lämpötila pysyy tasaisena.',
+            ],
+        ];
+    }
+
+    /**
+     * FAQPage structured data built from the single FAQ source above.
+     */
+    public function buildFaqJsonLd(): array
+    {
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'FAQPage',
+            'mainEntity' => array_map(fn (array $faq): array => [
+                '@type' => 'Question',
+                'name' => $faq['question'],
+                'acceptedAnswer' => [
+                    '@type' => 'Answer',
+                    'text' => $faq['answer'],
+                ],
+            ], $this->faqItems),
+        ];
     }
 
     public function getJsonLdSchema(): array
@@ -319,12 +430,15 @@ class HeatPumpCalculator extends Component
     {
         $year = date('Y');
 
-        return view('livewire.heat-pump-calculator')
-            ->layout('layouts.app', [
-                'title' => "Lämpöpumppulaskuri {$year} – Vertaile lämpöpumppuja ja laske säästöt | Voltikka",
-                'metaDescription' => "Ilmainen lämpöpumppulaskuri {$year}. Vertaile maalämpöä, ilmalämpöpumppua ja ilma-vesilämpöpumppua. Laske säästöt ja takaisinmaksuaika sähkö-, öljy- tai kaukolämmön vaihtamisesta lämpöpumppuun.",
-                'canonical' => route('heatpump.calculator'),
+        return view('livewire.heat-pump-calculator', [
+                // Rendered in the view via <x-schema-markup>; the shared layout does not output $jsonLd.
                 'jsonLd' => $this->getJsonLdSchema(),
+                'faqJsonLd' => $this->buildFaqJsonLd(),
+            ])
+            ->layout('layouts.app', [
+                'title' => "Kannattaako lämpöpumppu? Vertailu ja laskuri {$year} | Voltikka",
+                'metaDescription' => "Kannattaako lämpöpumppu juuri sinun talossasi? Ilmainen laskuri vertailee, kannattaako maalämpö vai ilma-vesilämpöpumppu, ja arvioi säästöt ja takaisinmaksuajan {$year}.",
+                'canonical' => route('heatpump.calculator'),
             ]);
     }
 }

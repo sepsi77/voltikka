@@ -8,6 +8,28 @@ See also:
 - `../AGENTS.md` for Laravel-level behavior
 - `../Services/ContractReplacement/AGENTS.md` for replacement matching/linking rules
 
+## `HeatPumpCalculator`
+
+Primary files:
+- `HeatPumpCalculator.php`
+- `../../resources/views/livewire/heat-pump-calculator.blade.php`
+- `../../resources/views/livewire/partials/heat-pump-alternative-card.blade.php` (one result card)
+- `../../resources/views/livewire/partials/heat-pump-payback-chart.blade.php` (collapsible cumulative-cost chart)
+- `../Services/HeatPumpComparisonService.php`
+
+Important semantics:
+- `HeatPumpCalculator::PRIMARY_SYSTEMS` (`ground_source_hp`, `air_to_water_hp`, `pellets`) is the single source of truth for which options replace the current heating fully/almost fully.
+- `alternatives()` filters the service output down to `PRIMARY_SYSTEMS`. Supplementary options (air-to-air, exhaust-air, the "+ tulisija" combos) are **not shown** because `HeatPumpComparisonService` costs their uncovered load as cheap direct electricity (`directElectricity = totalEnergyNeed * (1 - coverage)`) regardless of the household's actual heating fuel, which understates their real cost and produced unrealistic paybacks. Do not re-add them to the page until the service models the remaining load against the current primary heating.
+- `recommendedAlternative()` leads the page with the cheapest-annualized-total primary system that actually saves money. Returns `null` when no primary pays off; the view then shows an honest "täysi lämmitysvaihto ei tuota säästöä" panel instead of inventing an answer.
+- The recommended option gets the page's single dark `slate-950` focus moment with the savings as the one coral number; the current system is a quiet light baseline. Mirrors the `SolarCalculator` result treatment. Do not turn the energy-need summary back into a three-up hero-metric grid, and keep coral to the recommendation/CTA only.
+- The answer card states the selection rule in plain Finnish (cheapest total cost = running costs + investment annuity, among saving full-replacement options) so the recommendation logic is transparent to the user.
+- Savings/“lisäkustannus” deltas are neutral tabular slate, not green/red. Green/red is reserved for the CO₂ delta only (measured-emissions semantic, see `../../DESIGN.md`). Payback chart draws the baseline in slate-400 and the evaluated option in coral; do not use green for the alternative line.
+- Recalculation feedback is a non-blocking bottom-right status pill plus a dim of the results region (`wire:loading.delay`). Do not reintroduce a `fixed inset-0` full-screen overlay; it flashed on every debounced keystroke.
+- All seven investment costs (including `ilp_fireplace`, `exhaust_air_hp_fireplace`) are editable in advanced settings so the editable set matches what the service actually computes.
+- The page is SEO-targeted at the query "kannattaako lämpöpumppu" (sub-queries "kannattaako maalämpö", "kannattaako ilma-vesilämpöpumppu"): question-first title + H1, and an H2/H3 content section using those exact questions. Keep the calculator intent; do not turn it into hype.
+- `getFaqItemsProperty()` is the single source of truth for the FAQ; it drives both the visible `<details>` loop and `buildFaqJsonLd()` (FAQPage). Do not hand-write a separate FAQ `<script>` again, that previously drifted from the visible list.
+- Both schemas render in the **view** via `<x-schema-markup :schemas="[$jsonLd, $faqJsonLd]" />` (WebApplication + FAQPage). The shared `layouts.app` does NOT output a passed `$jsonLd`, so schemas must be passed to `view(...)` and rendered by the component, not via the layout array.
+
 ## `ContractPriceStatistics`
 
 Primary files:

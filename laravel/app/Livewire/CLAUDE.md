@@ -8,6 +8,45 @@ See also:
 - `../AGENTS.md` for Laravel-level behavior
 - `../Services/ContractReplacement/AGENTS.md` for replacement matching/linking rules
 
+## `SolarCalculator`
+
+Primary files:
+- `SolarCalculator.php`
+- `../../resources/views/livewire/solar-calculator.blade.php`
+- `../../resources/views/livewire/partials/solar-result.blade.php` (shared result + savings cards)
+- `../Services/SolarCalculatorService.php`, `../Services/PvgisService.php`
+
+Important semantics:
+- `mount()` precomputes a default-location worked example (Helsinki, `EXAMPLE_LAT`/`EXAMPLE_LON`) via `buildExampleEstimate()` and renders it in the no-address state, so first-time visitors see the payoff before committing an address. This was a deliberate fix for a high bounce rate; do not revert to the empty "enter address" placeholder.
+- `buildExampleEstimate()` is bot-safe: crawlers (`isCrawlerRequest()`) never trigger an uncached PVGIS request, and `staticExampleEstimate()` is the fallback on any PVGIS failure/timeout. The example tracks the selected `systemKwp`/`shadingLevel` (rebuilt in `updatedSystemKwp`/`updatedShadingLevel` while no address is selected). PVGIS results are cached 30 days per location/size in `PvgisService`, so the live example is effectively warm in production.
+- The live result and the example render through the **same** `partials/solar-result.blade.php`; `live` toggles the wire:loading overlay, `isExample` adds the "Esimerkki" label. Keep result markup in the partial, not duplicated.
+- The result card is intentionally the page's dark `slate-950` focus moment (mirrors the hero) with coral as the single accent and the sanctioned `bg-white/5 + backdrop-blur` glass stat cards; savings is the one coral-highlighted stat. Do not reintroduce the previous coral gradient hero-metric or the off-brand green savings card (green is reserved for CO₂/clean-energy semantics, see `../../DESIGN.md`).
+- System size is clamped to `[MIN_KWP, MAX_KWP]` (0.5–20) in `updatedSystemKwp` with a user-facing notice, and price to `MAX_PRICE_CENTS` in `updatedManualPrice`, so displayed inputs match what is actually estimated instead of being silently clamped inside `calculateEstimate()`.
+- Address search sets `addressNotice` to distinguish "not found" from "search unavailable" instead of showing a silently empty dropdown.
+- The result "Laskenta-arvot" block reads the real keys produced by `PvgisService::fetchFromApi` (`optimal_angles`, `losses_percent`, `roof_tilt_deg`, `roof_aspect_deg`); do not reintroduce the never-populated `tilt`/`azimuth`/`loss_percent` keys.
+
+## `HeatPumpCalculator`
+
+Primary files:
+- `HeatPumpCalculator.php`
+- `../../resources/views/livewire/heat-pump-calculator.blade.php`
+- `../../resources/views/livewire/partials/heat-pump-alternative-card.blade.php` (one result card)
+- `../../resources/views/livewire/partials/heat-pump-payback-chart.blade.php` (collapsible cumulative-cost chart)
+- `../Services/HeatPumpComparisonService.php`
+
+Important semantics:
+- `HeatPumpCalculator::PRIMARY_SYSTEMS` (`ground_source_hp`, `air_to_water_hp`, `pellets`) is the single source of truth for which options replace the current heating fully/almost fully.
+- `alternatives()` filters the service output down to `PRIMARY_SYSTEMS`. Supplementary options (air-to-air, exhaust-air, the "+ tulisija" combos) are **not shown** because `HeatPumpComparisonService` costs their uncovered load as cheap direct electricity (`directElectricity = totalEnergyNeed * (1 - coverage)`) regardless of the household's actual heating fuel, which understates their real cost and produced unrealistic paybacks. Do not re-add them to the page until the service models the remaining load against the current primary heating.
+- `recommendedAlternative()` leads the page with the cheapest-annualized-total primary system that actually saves money. Returns `null` when no primary pays off; the view then shows an honest "täysi lämmitysvaihto ei tuota säästöä" panel instead of inventing an answer.
+- The recommended option gets the page's single dark `slate-950` focus moment with the savings as the one coral number; the current system is a quiet light baseline. Mirrors the `SolarCalculator` result treatment. Do not turn the energy-need summary back into a three-up hero-metric grid, and keep coral to the recommendation/CTA only.
+- The answer card states the selection rule in plain Finnish (cheapest total cost = running costs + investment annuity, among saving full-replacement options) so the recommendation logic is transparent to the user.
+- Savings/“lisäkustannus” deltas are neutral tabular slate, not green/red. Green/red is reserved for the CO₂ delta only (measured-emissions semantic, see `../../DESIGN.md`). Payback chart draws the baseline in slate-400 and the evaluated option in coral; do not use green for the alternative line.
+- Recalculation feedback is a non-blocking bottom-right status pill plus a dim of the results region (`wire:loading.delay`). Do not reintroduce a `fixed inset-0` full-screen overlay; it flashed on every debounced keystroke.
+- All seven investment costs (including `ilp_fireplace`, `exhaust_air_hp_fireplace`) are editable in advanced settings so the editable set matches what the service actually computes.
+- The page is SEO-targeted at the query "kannattaako lämpöpumppu" (sub-queries "kannattaako maalämpö", "kannattaako ilma-vesilämpöpumppu"): question-first title + H1, and an H2/H3 content section using those exact questions. Keep the calculator intent; do not turn it into hype.
+- `getFaqItemsProperty()` is the single source of truth for the FAQ; it drives both the visible `<details>` loop and `buildFaqJsonLd()` (FAQPage). Do not hand-write a separate FAQ `<script>` again, that previously drifted from the visible list.
+- Both schemas render in the **view** via `<x-schema-markup :schemas="[$jsonLd, $faqJsonLd]" />` (WebApplication + FAQPage). The shared `layouts.app` does NOT output a passed `$jsonLd`, so schemas must be passed to `view(...)` and rendered by the component, not via the layout array.
+
 ## `ContractPriceStatistics`
 
 Primary files:
