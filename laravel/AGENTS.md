@@ -162,6 +162,8 @@ It should **not** blindly collapse materially different product variants when va
 
 `resources/views/layouts/app.blade.php` shows an immediate page-loading indicator for normal same-origin link navigation. Same-document hash links (for example `/sahkosopimus/tilastot?kulutus=5000#viittaa`) must not start or leave this indicator active, because no page or Livewire request is expected. Keep the hash-only `click`/`popstate`/`hashchange` guards in sync if changing navigation feedback.
 
+Desktop dropdown menus in the same layout are hover-opened Alpine children. Keep their absolute dropdown panels physically touching the trigger (no top margin gap), otherwise moving the pointer from the trigger to secondary menu items can close the panel before click and make navigation feel like the first/top item was clicked.
+
 ## Observability
 
 ### Sentry

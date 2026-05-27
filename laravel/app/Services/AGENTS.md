@@ -129,6 +129,13 @@ Purpose:
 Read first:
 - `ElectricityFutures/AGENTS.md`
 
+### Header spot price
+File:
+- `HeaderSpotPriceService.php`
+
+Important semantics:
+- the header badge should prefer current 15-minute `spot_prices_quarter` data, but must fall back to the current hourly `spot_prices_hour` row when quarter data is absent; otherwise the menu indicator can stay in its inactive placeholder state even though hourly spot data exists.
+
 ### Spot forecasts
 Directory:
 - `SpotForecasts/`
