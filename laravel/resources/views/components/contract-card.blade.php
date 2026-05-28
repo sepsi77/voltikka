@@ -62,12 +62,58 @@
     $spotPriceDayAvg = $calculatedCost['spot_price_day_avg'] ?? null;
     $spotPriceNightAvg = $calculatedCost['spot_price_night_avg'] ?? null;
 
+    // Monthly average from annual estimate (Finnish comparison sites lead with €/kk)
+    $monthlyCost = $totalCost !== null ? $totalCost / 12 : null;
+
     // Use only already-loaded relations in cards. Listing pages batch-load these
     // relations; falling back to lazy loads here turns every card into a
     // price_components/electricity_sources/company N+1 risk when another caller
     // passes a slim contract model.
     $company = $contract->relationLoaded('company') ? $contract->company : null;
     $source = $contract->relationLoaded('electricitySource') ? $contract->electricitySource : null;
+
+    // Pricing-type display label: combines pricing_model + metering into the
+    // single Finnish word users search for (Pörssisähkö, Aikasähkö, ...).
+    $pricingTypeLabel = match (true) {
+        $contract->pricing_model === 'Spot' => 'Pörssisähkö',
+        $contract->pricing_model === 'Hybrid' => 'Hybridisähkö',
+        $contract->metering === 'Time' => 'Aikasähkö',
+        $contract->metering === 'Season' => 'Kausisähkö',
+        $contract->pricing_model === 'FixedPrice' => 'Kiinteähintainen sähkö',
+        default => null,
+    };
+
+    // Duration label: "Toistaiseksi voimassa" or "Määräaikainen N kk".
+    $durationLabel = match (true) {
+        $contract->contract_type === 'OpenEnded' => 'Toistaiseksi voimassa',
+        $contract->contract_type === 'FixedTerm' => match ($contract->fixed_time_range) {
+            'Below6' => 'Määräaikainen alle 6 kk',
+            'Fixed6' => 'Määräaikainen 6 kk',
+            'Between711' => 'Määräaikainen 7–11 kk',
+            'Fixed12' => 'Määräaikainen 12 kk',
+            'Between1323' => 'Määräaikainen 13–23 kk',
+            'Fixed24' => 'Määräaikainen 24 kk',
+            'Over24' => 'Määräaikainen yli 24 kk',
+            default => 'Määräaikainen',
+        },
+        default => null,
+    };
+
+    // Headline energy unit price (one c/kWh figure per card, chosen by type).
+    $headlineEnergyPrice = null;
+    $headlineEnergyLabel = 'Energia';
+    if ($isSpotContract && $spotMargin !== null) {
+        $headlineEnergyPrice = $spotMargin;
+        $headlineEnergyLabel = 'Marginaali';
+    } elseif ($contract->metering === 'Time' && $dayTimePrice !== null && $dayTimePrice > 0) {
+        $headlineEnergyPrice = $dayTimePrice;
+        $headlineEnergyLabel = 'Päivähinta';
+    } elseif ($contract->metering === 'Season' && $seasonalWinterPrice !== null && $seasonalWinterPrice > 0) {
+        $headlineEnergyPrice = $seasonalWinterPrice;
+        $headlineEnergyLabel = 'Talvihinta';
+    } elseif ($generalPrice !== null && $generalPrice > 0) {
+        $headlineEnergyPrice = $generalPrice;
+    }
 
     // Determine emissions color for left border
     $emissionFactor = $contract->emission_factor ?? 0;
@@ -94,9 +140,9 @@
             case 'Spot':
                 if ($spotMargin !== null && isset($percentiles['spot_margin'])) {
                     if ($spotMargin <= $percentiles['spot_margin']['p15']) {
-                        $callouts[] = ['text' => 'Edullinen marginaali', 'style' => 'bg-emerald-50 text-emerald-700 border-emerald-200'];
+                        $callouts[] = ['text' => 'Edullinen marginaali', 'style' => 'text-emerald-700'];
                     } elseif ($spotMargin >= $percentiles['spot_margin']['p85']) {
-                        $callouts[] = ['text' => 'Kallis marginaali', 'style' => 'bg-amber-50 text-amber-700 border-amber-200'];
+                        $callouts[] = ['text' => 'Kallis marginaali', 'style' => 'text-amber-700'];
                     }
                 }
                 break;
@@ -104,9 +150,9 @@
             case 'FixedPrice':
                 if ($generalPrice !== null && isset($percentiles['fixed_energy'])) {
                     if ($generalPrice <= $percentiles['fixed_energy']['p15']) {
-                        $callouts[] = ['text' => 'Edullinen energianhinta', 'style' => 'bg-emerald-50 text-emerald-700 border-emerald-200'];
+                        $callouts[] = ['text' => 'Edullinen energianhinta', 'style' => 'text-emerald-700'];
                     } elseif ($generalPrice >= $percentiles['fixed_energy']['p85']) {
-                        $callouts[] = ['text' => 'Kallis energianhinta', 'style' => 'bg-amber-50 text-amber-700 border-amber-200'];
+                        $callouts[] = ['text' => 'Kallis energianhinta', 'style' => 'text-amber-700'];
                     }
                 }
                 break;
@@ -114,9 +160,9 @@
             case 'Seasonal':
                 if ($seasonalWinterPrice !== null && isset($percentiles['seasonal_winter'])) {
                     if ($seasonalWinterPrice <= $percentiles['seasonal_winter']['p15']) {
-                        $callouts[] = ['text' => 'Edullinen talvihinta', 'style' => 'bg-emerald-50 text-emerald-700 border-emerald-200'];
+                        $callouts[] = ['text' => 'Edullinen talvihinta', 'style' => 'text-emerald-700'];
                     } elseif ($seasonalWinterPrice >= $percentiles['seasonal_winter']['p85']) {
-                        $callouts[] = ['text' => 'Kallis talvihinta', 'style' => 'bg-amber-50 text-amber-700 border-amber-200'];
+                        $callouts[] = ['text' => 'Kallis talvihinta', 'style' => 'text-amber-700'];
                     }
                 }
                 break;
@@ -124,9 +170,9 @@
             case 'TimeOfUse':
                 if ($dayTimePrice !== null && isset($percentiles['time_day'])) {
                     if ($dayTimePrice <= $percentiles['time_day']['p15']) {
-                        $callouts[] = ['text' => 'Edullinen päivähinta', 'style' => 'bg-emerald-50 text-emerald-700 border-emerald-200'];
+                        $callouts[] = ['text' => 'Edullinen päivähinta', 'style' => 'text-emerald-700'];
                     } elseif ($dayTimePrice >= $percentiles['time_day']['p85']) {
-                        $callouts[] = ['text' => 'Kallis päivähinta', 'style' => 'bg-amber-50 text-amber-700 border-amber-200'];
+                        $callouts[] = ['text' => 'Kallis päivähinta', 'style' => 'text-amber-700'];
                     }
                 }
                 break;
@@ -135,9 +181,9 @@
         // Monthly fee is evaluated for all contract types
         if ($monthlyFee > 0 && isset($percentiles['monthly_fee'])) {
             if ($monthlyFee <= $percentiles['monthly_fee']['p15']) {
-                $callouts[] = ['text' => 'Edullinen perusmaksu', 'style' => 'bg-emerald-50 text-emerald-700 border-emerald-200'];
+                $callouts[] = ['text' => 'Edullinen perusmaksu', 'style' => 'text-emerald-700'];
             } elseif ($monthlyFee >= $percentiles['monthly_fee']['p85']) {
-                $callouts[] = ['text' => 'Kallis perusmaksu', 'style' => 'bg-amber-50 text-amber-700 border-amber-200'];
+                $callouts[] = ['text' => 'Kallis perusmaksu', 'style' => 'text-amber-700'];
             }
         }
 
@@ -150,7 +196,7 @@
 @endphp
 
 <div class="group relative w-full p-6 {{ $exceedsConsumptionLimit ? 'bg-slate-50 opacity-75' : 'bg-white' }} border border-slate-100 rounded-2xl {{ $borderWidth }} {{ $borderColorClass }} {{ $featured ? 'border-coral-200' : '' }} transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover">
-    <div class="flex flex-col lg:flex-row items-start lg:items-center gap-4">
+    <div class="flex flex-col lg:flex-row lg:items-center gap-5 lg:gap-6">
         {{-- Rank Number (subtle, only for top 3) --}}
         @if ($showRank && $rank !== null && $rank <= 3)
             <div class="hidden lg:flex flex-shrink-0 w-8 h-8 items-center justify-center rounded-full {{ $rank === 1 ? 'bg-coral-100 text-coral-700' : 'bg-slate-100 text-slate-500' }}">
@@ -158,7 +204,7 @@
             </div>
         @endif
 
-        {{-- Company Logo and Contract Name --}}
+        {{-- Identity: logo + contract name + meta line --}}
         <div class="flex items-center gap-4 w-full lg:w-auto lg:flex-1 min-w-0">
             @if ($company?->getLogoUrl())
                 <img
@@ -174,65 +220,76 @@
                 </div>
             @endif
             <div class="flex flex-col min-w-0 flex-1">
-                <div class="flex items-center gap-2">
-                    <h5 class="text-xl lg:text-lg font-bold text-slate-900 truncate tracking-tight">
-                        {{ $contract->name }}
-                    </h5>
-                    @if ($featured && $rank > 1)
-                        <span class="hidden lg:inline-flex items-center px-2 py-0.5 bg-coral-50 text-coral-700 text-[10px] font-bold uppercase tracking-wider rounded border border-coral-200 flex-shrink-0">
-                            Kärkisija
-                        </span>
+                <h5 class="text-lg lg:text-lg font-bold text-slate-900 truncate tracking-tight">
+                    {{ $contract->name }}
+                </h5>
+                <p class="mt-0.5 text-sm text-slate-600 leading-snug">
+                    <span>{{ $company?->name ?? $contract->company_name }}</span>
+                    @if ($pricingTypeLabel)
+                        <span class="text-slate-300 px-1">·</span>
+                        <span>{{ $pricingTypeLabel }}</span>
                     @endif
-                </div>
-                <div class="flex items-center gap-2 mt-0.5">
-                    <p class="text-sm text-slate-500 truncate">
-                        {{ $company?->name ?? $contract->company_name }}
-                    </p>
-                    {{-- Pricing type icons for Spot and FixedPrice only --}}
-                    @if ($contract->pricing_model === 'Spot')
-                        <span class="inline-flex items-center gap-1 text-coral-600" title="Pörssisähkö">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/>
-                            </svg>
-                            <span class="text-xs font-semibold">Pörssi</span>
-                        </span>
-                    @elseif ($contract->pricing_model === 'FixedPrice')
-                        <span class="inline-flex items-center gap-1 text-blue-600" title="Kiinteä hinta">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/>
-                            </svg>
-                            <span class="text-xs font-semibold">Kiinteä</span>
-                        </span>
+                    @if ($durationLabel)
+                        <span class="text-slate-300 px-1">·</span>
+                        <span>{{ $durationLabel }}</span>
                     @endif
-                </div>
+                </p>
             </div>
         </div>
 
-        {{-- Total Cost + CTA --}}
-        <div class="flex flex-wrap items-center gap-x-6 gap-y-3 lg:flex-nowrap lg:gap-6 w-full lg:w-auto lg:ml-auto lg:justify-end">
-            @if ($totalCost !== null)
-                <div class="order-first w-full pb-3 border-b border-slate-100 lg:order-none lg:min-w-[190px] lg:pb-0 lg:border-b-0 lg:text-right">
-                    <p class="lg:hidden text-[10px] font-bold uppercase tracking-[0.18em] text-coral-600 mb-1">
-                        12 kk hinta
+        {{-- Metrics + total cost + CTA --}}
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-4 lg:flex-nowrap lg:gap-7 w-full lg:w-auto lg:ml-auto lg:justify-end">
+            {{-- Inline supporting metrics: Energia (c/kWh) and Perusmaksu (€). --}}
+            {{-- Fixed-width columns on lg+ so labels/values line up vertically down the list. --}}
+            {{-- Kept visually quiet so the big €/kk total stays the headline. --}}
+            <div class="flex items-center gap-x-6 gap-y-3 lg:gap-7 order-2 lg:order-none">
+                <div class="flex flex-col lg:w-[7rem]">
+                    @if ($headlineEnergyPrice !== null)
+                        <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                            {{ $headlineEnergyLabel }}
+                        </span>
+                        <span class="text-sm lg:text-base font-semibold text-slate-700 tabular-nums whitespace-nowrap leading-tight mt-0.5">
+                            {{ number_format($headlineEnergyPrice, 2, ',', ' ') }}<span class="ml-1 text-xs font-medium text-slate-500">c/kWh</span>
+                        </span>
+                    @endif
+                </div>
+
+                <div class="flex flex-col lg:w-[6rem]">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                        Perusmaksu
+                    </span>
+                    <span class="text-sm lg:text-base font-semibold text-slate-700 tabular-nums whitespace-nowrap leading-tight mt-0.5">
+                        {{ number_format($monthlyFee, 2, ',', ' ') }}<span class="ml-1 text-xs font-medium text-slate-500">€</span>
+                    </span>
+                </div>
+            </div>
+
+            {{-- Total cost: €/kk primary, €/v secondary. --}}
+            {{-- Fixed lg width so spot rows (extra "· arvio" tail) line up with non-spot rows. --}}
+            @if ($monthlyCost !== null)
+                <div class="order-1 lg:order-none w-full lg:w-[220px] pb-4 lg:pb-0 border-b lg:border-b-0 border-slate-100 lg:text-right">
+                    <p class="lg:hidden text-[11px] font-bold uppercase tracking-[0.18em] text-coral-600 mb-1">
+                        Kuukausihinta
                         @if ($isSpotContract)
                             <span class="font-medium normal-case text-slate-400">· arvio</span>
                         @endif
                     </p>
-                    <div class="inline-flex items-baseline gap-2 whitespace-nowrap">
-                        <span class="text-4xl lg:text-5xl font-extrabold {{ $featured ? 'text-coral-600' : 'text-slate-900' }} tabular-nums leading-none whitespace-nowrap">
-                            {{ number_format($totalCost, 0, ',', ' ') }}
+                    <div class="inline-flex items-baseline gap-1.5 whitespace-nowrap">
+                        <span class="text-4xl lg:text-[2.6rem] font-extrabold {{ $featured ? 'text-coral-600' : 'text-slate-900' }} tabular-nums leading-none">
+                            {{ number_format($monthlyCost, 1, ',', ' ') }}
                         </span>
-                        <span class="text-lg lg:text-base font-medium text-slate-400 whitespace-nowrap">€/12 kk</span>
+                        <span class="text-lg lg:text-base font-medium text-slate-400">€/kk</span>
                     </div>
-                    <p class="hidden lg:block text-xs text-slate-500 mt-1">
-                        12 kk hinta sis. tarjoukset
+                    <p class="text-xs text-slate-500 tabular-nums mt-1 lg:mt-1.5">
+                        {{ number_format($totalCost, 0, ',', ' ') }} €/v
+                        <span class="text-slate-400">· sis. tarjoukset</span>
                         @if ($isSpotContract)
                             <span class="text-slate-400">· arvio</span>
                         @endif
                     </p>
                     @if ($includesDiscounts && $discountSavingsTotal > 0)
                         <p class="text-xs text-emerald-600 font-semibold mt-1">
-                            Sis. tarjouksen · säästö {{ number_format($discountSavingsTotal, 0, ',', ' ') }} €
+                            Säästö {{ number_format($discountSavingsTotal, 0, ',', ' ') }} €/v
                         </p>
                     @endif
                 </div>
@@ -240,7 +297,7 @@
 
             <a
                 href="{{ route('contract.detail', $contract->id) }}"
-                class="hidden lg:inline-flex items-center justify-center gap-2 font-bold px-6 py-3 rounded-xl transition-all w-[130px] {{ $featured ? 'bg-gradient-to-r from-coral-500 to-coral-600 hover:from-coral-400 hover:to-coral-500 text-white shadow-lg shadow-coral-500/20' : 'border-2 border-slate-200 text-slate-600 hover:border-coral-400 hover:text-coral-600' }}"
+                class="hidden lg:inline-flex items-center justify-center gap-2 font-bold px-6 py-3 rounded-xl transition-all w-[130px] order-3 lg:order-none {{ $featured ? 'bg-gradient-to-r from-coral-500 to-coral-600 hover:from-coral-400 hover:to-coral-500 text-white shadow-lg shadow-coral-500/20' : 'border-2 border-slate-200 text-slate-600 hover:border-coral-400 hover:text-coral-600' }}"
             >
                 Katso
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -250,57 +307,67 @@
         </div>
     </div>
 
-    {{-- Footer: callouts + promotion + green indicator + consumption limit --}}
-    <div class="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-slate-100">
-        {{-- Smart callout badges (percentile-based) --}}
-        @foreach ($callouts as $callout)
-            <span class="inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-lg border {{ $callout['style'] }}">
-                {{ $callout['text'] }}
-            </span>
-        @endforeach
+    @php
+        $hasCardDiscount = $contract->pricing_has_discounts
+            || ($contract->relationLoaded('priceComponents') && $contract->hasActiveDiscounts());
+        $discountInfo = $contract->relationLoaded('priceComponents') ? $contract->getActiveDiscountInfo() : null;
+        $showGreenIndicator = $isZeroEmission || ($source && $source->renewable_total >= 50);
+        $hasFooterContent = count($callouts) > 0 || $exceedsConsumptionLimit || $hasCardDiscount || $showGreenIndicator;
+    @endphp
 
-        @if ($exceedsConsumptionLimit)
-            <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold rounded-lg">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
-                </svg>
-                Max {{ number_format($contract->consumption_limitation_max_x_kwh_per_y, 0, ',', ' ') }} kWh/v
-            </span>
-        @endif
+    {{-- Footer: quiet inline tags. Visual weight here must stay below the price/metrics row. --}}
+    @if ($hasFooterContent)
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 mt-4 pt-4 border-t border-slate-100 text-xs">
+            {{-- Percentile callouts --}}
+            @foreach ($callouts as $callout)
+                <span class="inline-flex items-center font-medium {{ $callout['style'] }}">
+                    {{ $callout['text'] }}
+                </span>
+            @endforeach
 
-        @php
-            $hasCardDiscount = $contract->pricing_has_discounts
-                || ($contract->relationLoaded('priceComponents') && $contract->hasActiveDiscounts());
-            $discountInfo = $contract->relationLoaded('priceComponents') ? $contract->getActiveDiscountInfo() : null;
-        @endphp
-        @if ($hasCardDiscount)
-            <span class="inline-flex items-center gap-2 px-3 py-1.5 {{ $featured ? 'bg-gradient-to-r from-amber-100 to-yellow-100' : 'bg-amber-50' }} text-amber-800 border border-amber-200 text-xs font-bold rounded-lg uppercase">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
-                </svg>
-                @if ($discountInfo && $discountInfo['n_first_months'])
-                    {{ $discountInfo['n_first_months'] }} kk tarjous
-                @else
-                    Tarjous
-                @endif
-            </span>
-        @endif
+            {{-- Discount / promo --}}
+            @if ($hasCardDiscount)
+                <span class="inline-flex items-center gap-1.5 font-medium text-amber-700">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                    </svg>
+                    @if ($discountInfo && $discountInfo['n_first_months'])
+                        {{ $discountInfo['n_first_months'] }} kk tarjous
+                    @else
+                        Tarjous
+                    @endif
+                </span>
+            @endif
 
-        @if ($isZeroEmission || ($source && $source->renewable_total >= 50))
-            <span class="inline-flex items-center gap-1.5 text-green-600" title="{{ $isZeroEmission ? 'Päästötön sähkö' : 'Uusiutuvaa energiaa ' . number_format($source->renewable_total, 0) . '%' }}">
-                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/>
-                </svg>
-                <span class="text-xs font-bold">{{ $isZeroEmission ? 'Päästötön' : 'Vihreä' }}</span>
-            </span>
-        @endif
+            {{-- Clean-energy indicator --}}
+            @if ($showGreenIndicator)
+                <span class="inline-flex items-center gap-1.5 font-medium text-emerald-700"
+                      title="{{ $isZeroEmission ? 'Päästötön sähkö' : 'Uusiutuvaa energiaa ' . number_format($source->renewable_total, 0) . '%' }}">
+                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/>
+                    </svg>
+                    {{ $isZeroEmission ? 'Päästötön' : 'Vihreä' }}
+                </span>
+            @endif
 
-        <a href="{{ route('contract.detail', $contract->id) }}" class="lg:hidden w-full mt-2 flex items-center justify-center gap-2 font-bold px-5 py-3 rounded-xl transition-all {{ $featured ? 'bg-gradient-to-r from-coral-500 to-coral-600 text-white shadow-lg shadow-coral-500/20' : 'border-2 border-slate-200 text-slate-600' }}">
-            Katso
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
-            </svg>
-        </a>
-    </div>
+            {{-- Consumption-limit warning stays a touch firmer because it's an honest caveat --}}
+            @if ($exceedsConsumptionLimit)
+                <span class="inline-flex items-center gap-1.5 font-semibold text-amber-800">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                    Max {{ number_format($contract->consumption_limitation_max_x_kwh_per_y, 0, ',', ' ') }} kWh/v
+                </span>
+            @endif
+        </div>
+    @endif
+
+    {{-- Mobile CTA stays full-width; rendered outside the footer-content guard so it is always reachable. --}}
+    <a href="{{ route('contract.detail', $contract->id) }}" class="lg:hidden w-full mt-4 flex items-center justify-center gap-2 font-bold px-5 py-3 rounded-xl transition-all {{ $featured ? 'bg-gradient-to-r from-coral-500 to-coral-600 text-white shadow-lg shadow-coral-500/20' : 'border-2 border-slate-200 text-slate-600' }}">
+        Katso
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+        </svg>
+    </a>
 
 </div>

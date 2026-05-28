@@ -16,9 +16,19 @@
             ->where('price_component_type', 'Monthly')
             ->sortByDesc('price_date')
             ->first()?->price ?? 0;
+        $dayTimePrice = $contract->priceComponents
+            ->where('price_component_type', 'DayTime')
+            ->sortByDesc('price_date')
+            ->first()?->price;
+        $seasonalWinterPrice = $contract->priceComponents
+            ->where('price_component_type', 'SeasonalWinterDay')
+            ->sortByDesc('price_date')
+            ->first()?->price;
     } else {
         $generalPrice = $priceData['General']['price'] ?? null;
         $monthlyFee = $priceData['Monthly']['price'] ?? 0;
+        $dayTimePrice = $priceData['DayTime']['price'] ?? null;
+        $seasonalWinterPrice = $priceData['SeasonalWinterDay']['price'] ?? null;
     }
 
     // Get calculated cost data if available
@@ -31,21 +41,56 @@
     $spotPriceDayAvg = $calculatedCost['spot_price_day_avg'] ?? null;
     $spotPriceNightAvg = $calculatedCost['spot_price_night_avg'] ?? null;
 
-    // Calculate total energy price for spot contracts (spot + margin)
-    $spotTotalEnergyPrice = null;
-    if ($isSpotContract && $spotPriceDayAvg !== null && $spotPriceNightAvg !== null) {
-        $margin = $spotMargin ?? 0;
-        $totalDayPrice = $spotPriceDayAvg + $margin;
-        $totalNightPrice = $spotPriceNightAvg + $margin;
-        // Weighted average: 85% day, 15% night (typical household)
-        $spotTotalEnergyPrice = ($totalDayPrice * 0.85) + ($totalNightPrice * 0.15);
-    }
+    // Monthly cost = annual / 12 (€/kk lead, €/v secondary)
+    $monthlyCost = $totalCost !== null ? $totalCost / 12 : null;
 
     // Use only already-loaded relations in cards. Listing pages batch-load these
     // relations; falling back to lazy loads here turns every featured card into
     // an electricity_sources/company N+1 risk when passed a slim contract model.
     $company = $contract->relationLoaded('company') ? $contract->company : null;
     $source = $contract->relationLoaded('electricitySource') ? $contract->electricitySource : null;
+
+    // Pricing-type display label (Pörssisähkö, Aikasähkö, ...).
+    $pricingTypeLabel = match (true) {
+        $contract->pricing_model === 'Spot' => 'Pörssisähkö',
+        $contract->pricing_model === 'Hybrid' => 'Hybridisähkö',
+        $contract->metering === 'Time' => 'Aikasähkö',
+        $contract->metering === 'Season' => 'Kausisähkö',
+        $contract->pricing_model === 'FixedPrice' => 'Kiinteähintainen sähkö',
+        default => null,
+    };
+
+    // Duration label.
+    $durationLabel = match (true) {
+        $contract->contract_type === 'OpenEnded' => 'Toistaiseksi voimassa',
+        $contract->contract_type === 'FixedTerm' => match ($contract->fixed_time_range) {
+            'Below6' => 'Määräaikainen alle 6 kk',
+            'Fixed6' => 'Määräaikainen 6 kk',
+            'Between711' => 'Määräaikainen 7–11 kk',
+            'Fixed12' => 'Määräaikainen 12 kk',
+            'Between1323' => 'Määräaikainen 13–23 kk',
+            'Fixed24' => 'Määräaikainen 24 kk',
+            'Over24' => 'Määräaikainen yli 24 kk',
+            default => 'Määräaikainen',
+        },
+        default => null,
+    };
+
+    // Headline energy unit price.
+    $headlineEnergyPrice = null;
+    $headlineEnergyLabel = 'Energia';
+    if ($isSpotContract && $spotMargin !== null) {
+        $headlineEnergyPrice = $spotMargin;
+        $headlineEnergyLabel = 'Marginaali';
+    } elseif ($contract->metering === 'Time' && $dayTimePrice !== null && $dayTimePrice > 0) {
+        $headlineEnergyPrice = $dayTimePrice;
+        $headlineEnergyLabel = 'Päivähinta';
+    } elseif ($contract->metering === 'Season' && $seasonalWinterPrice !== null && $seasonalWinterPrice > 0) {
+        $headlineEnergyPrice = $seasonalWinterPrice;
+        $headlineEnergyLabel = 'Talvihinta';
+    } elseif ($generalPrice !== null && $generalPrice > 0) {
+        $headlineEnergyPrice = $generalPrice;
+    }
 
     // Calculate emissions if consumption is provided
     $emissionFactor = $contract->emission_factor ?? 0;
@@ -71,7 +116,7 @@
 
         <div class="flex flex-col lg:flex-row lg:items-center gap-6">
             {{-- Company Logo and Contract Info --}}
-            <div class="flex items-center gap-5 flex-1">
+            <div class="flex items-center gap-5 flex-1 min-w-0">
                 @if ($company?->getLogoUrl())
                     <div class="w-20 h-16 bg-white rounded-xl p-2 shadow-lg flex-shrink-0">
                         <img
@@ -87,73 +132,64 @@
                         <span class="text-white text-sm font-bold">{{ substr($company?->name ?? 'N/A', 0, 3) }}</span>
                     </div>
                 @endif
-                <div>
-                    <h3 class="text-2xl font-extrabold text-white mb-1">
+                <div class="min-w-0">
+                    <h3 class="text-2xl font-extrabold text-white mb-1 truncate">
                         {{ $contract->name }}
                     </h3>
-                    <p class="text-coral-100 text-lg">
-                        {{ $company?->name ?? $contract->company_name }}
+                    <p class="text-white/90 text-sm lg:text-base leading-snug">
+                        <span>{{ $company?->name ?? $contract->company_name }}</span>
+                        @if ($pricingTypeLabel)
+                            <span class="text-white/40 px-1">·</span>
+                            <span>{{ $pricingTypeLabel }}</span>
+                        @endif
+                        @if ($durationLabel)
+                            <span class="text-white/40 px-1">·</span>
+                            <span>{{ $durationLabel }}</span>
+                        @endif
                     </p>
                 </div>
             </div>
 
-            {{-- Pricing Section --}}
-            <div class="flex flex-wrap lg:flex-nowrap items-center gap-6">
-                @if ($isSpotContract)
-                    <div class="text-left">
-                        <div class="text-2xl font-extrabold text-white tabular-nums">
-                            {{ number_format($spotMargin ?? 0, 2, ',', ' ') }} <span class="text-lg font-normal text-coral-100">c/kWh</span>
-                        </div>
-                        <p class="text-sm text-coral-100 uppercase tracking-wide">Marginaali</p>
+            {{-- Pricing Section: c/kWh + perusmaksu + total --}}
+            <div class="flex flex-wrap lg:flex-nowrap items-end gap-x-6 gap-y-4 lg:gap-7">
+                @if ($headlineEnergyPrice !== null)
+                    <div class="flex flex-col">
+                        <span class="text-[11px] font-semibold uppercase tracking-wider text-coral-100/80">
+                            {{ $headlineEnergyLabel }}
+                        </span>
+                        <span class="text-base lg:text-lg font-semibold text-white/95 tabular-nums whitespace-nowrap leading-tight mt-1">
+                            {{ number_format($headlineEnergyPrice, 2, ',', ' ') }}<span class="ml-1 text-xs lg:text-sm font-medium text-coral-100">c/kWh</span>
+                        </span>
                     </div>
-                    @if ($spotTotalEnergyPrice !== null)
-                        <div class="text-left">
-                            <div class="text-2xl font-extrabold text-white tabular-nums">
-                                {{ number_format($spotTotalEnergyPrice, 2, ',', ' ') }} <span class="text-lg font-normal text-coral-100">c/kWh</span>
-                            </div>
-                            <p class="text-sm text-coral-100 uppercase tracking-wide">Energia <span class="normal-case">(arvio)</span></p>
-                        </div>
-                    @endif
-                @elseif ($generalPrice !== null)
-                    @if ($generalPrice == 0 && $contract->consumption_limitation_max_x_kwh_per_y > 0)
-                        {{-- Bundled consumption contract (fixed fee includes energy up to a limit) --}}
-                        <div class="text-left">
-                            <div class="text-2xl font-extrabold text-white tabular-nums">
-                                Sis. maksuun
-                            </div>
-                            <p class="text-sm text-coral-100 uppercase tracking-wide">max {{ number_format($contract->consumption_limitation_max_x_kwh_per_y, 0, ',', ' ') }} kWh/v</p>
-                        </div>
-                    @elseif ($generalPrice > 0)
-                        <div class="text-left">
-                            <div class="text-2xl font-extrabold text-white tabular-nums">
-                                {{ number_format($generalPrice, 2, ',', ' ') }} <span class="text-lg font-normal text-coral-100">c/kWh</span>
-                            </div>
-                            <p class="text-sm text-coral-100 uppercase tracking-wide">Energia</p>
-                        </div>
-                    @endif
                 @endif
 
-                <div class="text-left">
-                    <div class="text-2xl font-extrabold text-white tabular-nums">
-                        {{ number_format($monthlyFee, 2, ',', ' ') }} <span class="text-lg font-normal text-coral-100">{{ "\u{20AC}" }}/kk</span>
-                    </div>
-                    <p class="text-sm text-coral-100 uppercase tracking-wide">Perusmaksu</p>
+                <div class="flex flex-col">
+                    <span class="text-[11px] font-semibold uppercase tracking-wider text-coral-100/80">Perusmaksu</span>
+                    <span class="text-base lg:text-lg font-semibold text-white/95 tabular-nums whitespace-nowrap leading-tight mt-1">
+                        {{ number_format($monthlyFee, 2, ',', ' ') }}<span class="ml-1 text-xs lg:text-sm font-medium text-coral-100">€</span>
+                    </span>
                 </div>
 
-                @if ($totalCost !== null)
-                    <div class="text-left lg:border-l lg:border-white/20 lg:pl-6">
-                        <div class="text-3xl font-black text-white tabular-nums">
-                            {{ number_format($totalCost, 0, ',', ' ') }} <span class="text-lg font-normal text-coral-100">{{ "\u{20AC}" }}/12 kk</span>
-                        </div>
-                        <p class="text-sm text-coral-100">
-                            12 kk hinta sis. tarjoukset
+                @if ($monthlyCost !== null)
+                    <div class="flex flex-col lg:border-l lg:border-white/25 lg:pl-7">
+                        <span class="text-[11px] font-bold uppercase tracking-[0.16em] text-coral-100">
+                            Kuukausihinta
                             @if ($isSpotContract)
-                                <span class="text-coral-200">· arvio</span>
+                                <span class="font-medium normal-case tracking-normal text-coral-200">· arvio</span>
                             @endif
+                        </span>
+                        <div class="inline-flex items-baseline gap-1.5 whitespace-nowrap mt-1">
+                            <span class="text-4xl lg:text-[2.75rem] font-black text-white tabular-nums leading-none">
+                                {{ number_format($monthlyCost, 1, ',', ' ') }}
+                            </span>
+                            <span class="text-lg lg:text-base font-medium text-coral-100">€/kk</span>
+                        </div>
+                        <p class="text-xs lg:text-sm text-coral-50 tabular-nums mt-1.5">
+                            {{ number_format($totalCost, 0, ',', ' ') }} €/v · sis. tarjoukset
                         </p>
                         @if ($includesDiscounts && $discountSavingsTotal > 0)
-                            <p class="text-xs text-coral-50 font-semibold mt-1">
-                                Sisältää tarjouksen · säästö {{ number_format($discountSavingsTotal, 0, ',', ' ') }} €
+                            <p class="text-xs text-white/90 font-semibold mt-1">
+                                Säästö {{ number_format($discountSavingsTotal, 0, ',', ' ') }} €/v
                             </p>
                         @endif
                     </div>
@@ -161,47 +197,40 @@
             </div>
         </div>
 
-        {{-- Bottom Section: Badges and CTA --}}
-        <div class="flex flex-wrap items-center justify-between gap-4 mt-6 pt-6 border-t border-white/20">
-            <div class="flex flex-wrap items-center gap-2">
-                {{-- CO2 Emissions Badge --}}
+        {{-- Bottom Section: quiet inline tags + CTA --}}
+        <div class="flex flex-wrap items-center justify-between gap-4 mt-6 pt-6 border-t border-white/20 text-xs">
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-coral-50">
+                {{-- CO2 emissions --}}
                 @if ($consumption !== null)
                     @if ($isZeroEmission)
-                        <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white text-xs font-bold rounded-lg">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <span class="inline-flex items-center gap-1.5 font-medium">
+                            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/>
                             </svg>
-                            <span>0 kg CO2/v</span>
+                            0 kg CO2/v
                         </span>
                     @else
-                        <span class="inline-flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white text-xs font-bold rounded-lg">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
+                        <span class="inline-flex items-center gap-1.5 font-medium">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
                             </svg>
-                            <span>{{ number_format($annualEmissionsKg, 0, ',', ' ') }} kg CO2/v</span>
+                            {{ number_format($annualEmissionsKg, 0, ',', ' ') }} kg CO2/v
                         </span>
                     @endif
                 @endif
 
-                {{-- Energy Source Badges --}}
+                {{-- Energy source --}}
                 @if ($source)
                     @if ($source->renewable_total && $source->renewable_total > 0)
-                        <span class="inline-block px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white text-xs font-bold rounded-lg uppercase">
+                        <span class="inline-flex items-center font-medium">
                             Uusiutuva {{ number_format($source->renewable_total, 0) }}%
                         </span>
                     @endif
                     @if ($source->nuclear_total && $source->nuclear_total > 0)
-                        <span class="inline-block px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white text-xs font-bold rounded-lg uppercase">
+                        <span class="inline-flex items-center font-medium">
                             Ydinvoima {{ number_format($source->nuclear_total, 0) }}%
                         </span>
                     @endif
-                @endif
-
-                {{-- Spot Contract Badge --}}
-                @if ($isSpotContract)
-                    <span class="inline-block px-3 py-1.5 bg-white/20 backdrop-blur-sm text-white text-xs font-bold rounded-lg uppercase">
-                        Pörssi
-                    </span>
                 @endif
             </div>
 
