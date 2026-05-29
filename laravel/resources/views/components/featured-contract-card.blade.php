@@ -178,9 +178,13 @@
                                 <span class="font-medium normal-case tracking-normal text-coral-200">· arvio</span>
                             @endif
                         </span>
-                        <div class="inline-flex items-baseline gap-1.5 whitespace-nowrap mt-1">
-                            <span class="text-4xl lg:text-[2.75rem] font-black text-white tabular-nums leading-none">
-                                {{ number_format($monthlyCost, 1, ',', ' ') }}
+                        @php
+                            $monthlyDisplay = number_format($monthlyCost, 1, ',', ' ');
+                            [$monthlyInt, $monthlyDec] = explode(',', $monthlyDisplay, 2);
+                        @endphp
+                        <div class="inline-flex items-baseline gap-1.5 whitespace-nowrap mt-1 font-black text-white tabular-nums leading-none">
+                            <span>
+                                <span class="text-4xl lg:text-[2.75rem]">{{ $monthlyInt }}</span><span class="text-2xl lg:text-[1.75rem] text-coral-100">,{{ $monthlyDec }}</span>
                             </span>
                             <span class="text-lg lg:text-base font-medium text-coral-100">€/kk</span>
                         </div>

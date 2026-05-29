@@ -113,20 +113,25 @@
                         wire:loading.class.delay="opacity-40"
                         wire:target="setConsumption"
                     >
-                        <div class="text-5xl sm:text-6xl md:text-7xl font-extrabold text-white tracking-tight leading-none">
-                            {{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} €
+                        @php
+                            $heroMonthly = number_format(($calculatedCost['total_cost'] ?? 0) / 12, 1, ',', ' ');
+                            [$heroInt, $heroDec] = explode(',', $heroMonthly, 2);
+                        @endphp
+                        <div class="font-extrabold text-white tracking-tight leading-none tabular-nums">
+                            <span class="text-5xl sm:text-6xl md:text-7xl">{{ $heroInt }}</span><span class="text-3xl sm:text-4xl md:text-5xl text-slate-300">,{{ $heroDec }}</span>
+                            <span class="text-3xl sm:text-4xl md:text-5xl text-slate-300 font-extrabold">€/kk</span>
                         </div>
                         <div class="text-base text-slate-200">
-                            ensimmäisen 12 kk aikana · ≈ {{ number_format(($calculatedCost['total_cost'] ?? 0) / 12, 0, ',', ' ') }} €/kk · {{ number_format($consumption, 0, ',', ' ') }} kWh vuosikulutuksella
+                            12 kk keskihinta · yhteensä {{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} € · {{ number_format($consumption, 0, ',', ' ') }} kWh vuosikulutuksella
                         </div>
                         @if (($calculatedCost['includes_discounts'] ?? false) && ($calculatedCost['discount_savings_total'] ?? 0) > 0)
                             <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
                                 <span class="inline-flex items-center rounded-full bg-emerald-400/15 px-3 py-1 font-semibold text-emerald-100 border border-emerald-300/25">
-                                    Sisältää tarjouksen · säästö {{ number_format($calculatedCost['discount_savings_total'], 0, ',', ' ') }} €
+                                    Sisältää tarjouksen · säästö {{ number_format($calculatedCost['discount_savings_total'], 0, ',', ' ') }} €/v
                                 </span>
                                 @if (!empty($calculatedCost['base_total_cost']))
                                     <span class="text-slate-300">
-                                        Ilman tarjousta {{ number_format($calculatedCost['base_total_cost'], 0, ',', ' ') }} € / 12 kk
+                                        Ilman tarjousta {{ number_format(($calculatedCost['base_total_cost']) / 12, 1, ',', ' ') }} €/kk
                                     </span>
                                 @endif
                             </div>
@@ -184,8 +189,8 @@
                                     <div class="text-xs font-semibold uppercase tracking-[0.1em] text-slate-400">Halvin sopimus</div>
                                     <div class="mt-1.5 text-base text-slate-200 tabular-nums">
                                         @if ($cheapestAltCost)
-                                            <span class="font-bold text-white">{{ number_format($cheapestAltCost, 0, ',', ' ') }} €</span>
-                                            <span class="text-slate-400">/ 12 kk</span>
+                                            <span class="font-bold text-white">{{ number_format($cheapestAltCost / 12, 1, ',', ' ') }} €/kk</span>
+                                            <span class="text-slate-400">· {{ number_format($cheapestAltCost, 0, ',', ' ') }} €/v</span>
                                         @else
                                             <span class="text-slate-400">Ei tietoa</span>
                                         @endif
@@ -376,15 +381,22 @@
                         <div class="font-semibold text-slate-900 text-sm leading-snug overflow-hidden" style="display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;">
                             {{ $altContract->name }}
                         </div>
+                        @php
+                            $altMonthly = number_format($alt['total_cost'] / 12, 1, ',', ' ');
+                            [$altInt, $altDec] = explode(',', $altMonthly, 2);
+                        @endphp
                         <div class="mt-auto pt-4">
-                            <div class="flex items-baseline gap-1">
-                                <span class="text-2xl font-extrabold text-slate-900">
-                                    {{ number_format($alt['total_cost'], 0, ',', ' ') }} €
+                            <div class="flex items-baseline gap-1 tabular-nums font-extrabold text-slate-900">
+                                <span>
+                                    <span class="text-2xl">{{ $altInt }}</span><span class="text-base text-slate-400">,{{ $altDec }}</span>
                                 </span>
-                                <span class="text-xs text-slate-500">/12 kk</span>
+                                <span class="text-xs font-medium text-slate-500">€/kk</span>
+                            </div>
+                            <div class="mt-0.5 text-xs text-slate-500 tabular-nums">
+                                {{ number_format($alt['total_cost'], 0, ',', ' ') }} €/v
                             </div>
                             <div class="mt-1 inline-block text-xs font-semibold px-2 py-0.5 rounded {{ $alt['savings'] > 0 ? 'bg-emerald-50 text-emerald-700' : 'invisible' }}">
-                                Säästä {{ number_format(max($alt['savings'], 0), 0, ',', ' ') }} €
+                                Säästä {{ number_format(max($alt['savings'], 0), 0, ',', ' ') }} €/v
                             </div>
                         </div>
                     </a>
@@ -435,18 +447,26 @@
                                 {{-- Hero: discounted price --}}
                                 <div class="flex-1 min-w-0">
                                     <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                                        Hinta (12 kk)
+                                        Kuukausihinta (12 kk keskihinta)
                                     </div>
+                                    @php
+                                        $discountMonthly = number_format(($calculatedCost['total_cost'] ?? 0) / 12, 1, ',', ' ');
+                                        [$discountInt, $discountDec] = explode(',', $discountMonthly, 2);
+                                    @endphp
                                     <div class="mt-2 flex items-center gap-4 flex-wrap">
-                                        <span class="text-5xl sm:text-6xl font-extrabold text-slate-900 tracking-tight tabular-nums leading-tight">
-                                            {{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} €
+                                        <span class="font-extrabold text-slate-900 tracking-tight tabular-nums leading-tight">
+                                            <span class="text-5xl sm:text-6xl">{{ $discountInt }}</span><span class="text-3xl sm:text-4xl text-slate-400">,{{ $discountDec }}</span>
+                                            <span class="text-2xl sm:text-3xl text-slate-400 font-extrabold">€/kk</span>
                                         </span>
                                         <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 ring-1 ring-inset ring-emerald-300/60 px-3 py-1.5 text-base font-bold text-emerald-700 tabular-nums">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                             </svg>
-                                            Säästät {{ number_format($calculatedCost['discount_savings_total'], 0, ',', ' ') }} €
+                                            Säästät {{ number_format($calculatedCost['discount_savings_total'], 0, ',', ' ') }} €/v
                                         </span>
+                                    </div>
+                                    <div class="mt-2 text-sm text-slate-500 tabular-nums">
+                                        Yhteensä {{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} € / 12 kk
                                     </div>
                                 </div>
 
@@ -455,11 +475,15 @@
                                     <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
                                         Normaalihinta
                                     </div>
+                                    @php
+                                        $baseMonthly = number_format(($calculatedCost['base_total_cost'] ?? 0) / 12, 1, ',', ' ');
+                                        [$baseInt, $baseDec] = explode(',', $baseMonthly, 2);
+                                    @endphp
                                     <div class="mt-1.5">
-                                        <span class="text-2xl font-bold text-slate-300 line-through decoration-slate-300 tabular-nums tracking-tight">
-                                            {{ number_format($calculatedCost['base_total_cost'] ?? 0, 0, ',', ' ') }} €
+                                        <span class="font-bold text-slate-300 line-through decoration-slate-300 tabular-nums tracking-tight">
+                                            <span class="text-2xl">{{ $baseInt }}</span><span class="text-lg text-slate-300">,{{ $baseDec }}</span>
+                                            <span class="text-base text-slate-400 font-bold">€/kk</span>
                                         </span>
-                                        <span class="ml-1.5 text-sm text-slate-400">/ 12 kk</span>
                                     </div>
                                 </div>
                             </div>
@@ -505,12 +529,20 @@
                         <div class="w-1.5 bg-slate-300 shrink-0"></div>
                         <div class="flex-1 min-w-0 p-5 sm:p-6">
                             <div class="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
-                                Ensimmäisen 12 kk arvio
+                                Kuukausihinta (12 kk keskihinta)
                             </div>
+                            @php
+                                $plainMonthly = number_format(($calculatedCost['total_cost'] ?? 0) / 12, 1, ',', ' ');
+                                [$plainInt, $plainDec] = explode(',', $plainMonthly, 2);
+                            @endphp
                             <div class="mt-2">
-                                <span class="text-4xl sm:text-5xl font-extrabold text-slate-900 tracking-tight tabular-nums leading-tight">
-                                    {{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} €
+                                <span class="font-extrabold text-slate-900 tracking-tight tabular-nums leading-tight">
+                                    <span class="text-4xl sm:text-5xl">{{ $plainInt }}</span><span class="text-2xl sm:text-3xl text-slate-400">,{{ $plainDec }}</span>
+                                    <span class="text-xl sm:text-2xl text-slate-400 font-extrabold">€/kk</span>
                                 </span>
+                            </div>
+                            <div class="mt-2 text-sm text-slate-500 tabular-nums">
+                                Yhteensä {{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} € / 12 kk
                             </div>
                             <p class="mt-3 text-sm text-slate-500">Arvio näyttää sopimuksen kustannuksen seuraavan 12 kuukauden aikana nykyisellä kulutuksellasi.</p>
                         </div>
