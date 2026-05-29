@@ -282,5 +282,9 @@
         <p class="text-xl lg:text-2xl text-slate-700 leading-relaxed text-center">
             Voltikka ei ota provisiota sähköyhtiöiltä eikä mainosta yksittäisiä sopimuksia. Vertailut perustuvat samaan, julkisesti saatavilla olevaan sopimusdataan kaikille yhtiöille tasapuolisesti.
         </p>
+        <p class="text-base text-slate-500 leading-relaxed text-center mt-5">
+            Voltikka on yksityishenkilön ylläpitämä riippumaton harrasteprojekti, jota ei rahoiteta mainoksilla.
+            <a href="/tietoa" class="text-coral-600 font-medium hover:text-coral-700 underline underline-offset-2">Tietoa Voltikasta ja laskentatavasta</a>.
+        </p>
     </section>
 </div>

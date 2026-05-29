@@ -18,15 +18,18 @@ class HomePage extends Component
 
     public function render()
     {
+        $contractCount = ElectricityContract::active()->count();
+        $companyCount = Company::count();
+
         return view('livewire.home-page', [
-            'contractCount' => ElectricityContract::active()->count(),
-            'companyCount' => Company::count(),
+            'contractCount' => $contractCount,
+            'companyCount' => $companyCount,
             'currentSpotPrice' => $this->getCurrentSpotPrice(),
             'todaysSpotPrices' => $this->getTodaysSpotPrices(),
             'contractPriceTrend' => $this->getContractPriceTrend(),
         ])->layout('layouts.app', [
-            'title' => 'Voltikka – Suomen kattavin energiapalvelu',
-            'metaDescription' => 'Vertaile sähkösopimuksia, seuraa pörssihintoja, laske aurinkopaneelien tuotto ja löydä paras lämpöpumppu. Kaikki energiapäätökset yhdessä paikassa.',
+            'title' => 'Voltikka – yksi Suomen kattavimmista energiavertailuista',
+            'metaDescription' => "Vertaile {$contractCount} sähkösopimusta {$companyCount} yhtiöltä puolueettomasti, seuraa pörssihintoja ja laske aurinkopaneelien tuotto ja lämpöpumpun säästöt. Riippumaton palvelu ilman mainosrahaa.",
         ]);
     }
 

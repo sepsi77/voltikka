@@ -498,7 +498,8 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
                 <p class="text-sm text-slate-700">
-                    <span class="font-semibold">{{ $contracts->total() }} sopimusta</span> vertailussa — lasketut todelliset 12 kk kulut sisältäen tarjoukset
+                    <span class="font-semibold">{{ $contracts->total() }} sopimusta</span> vertailussa — lasketut 12 kk kulut sisältäen tarjoukset, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
+                    <a href="/tietoa#menetelma" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Näin laskemme &rarr;</a>
                 </p>
             </div>
             <div class="flex items-center gap-4 text-xs text-slate-600">

@@ -113,6 +113,9 @@ class SitemapTest extends TestCase
 
         // Contract price statistics page
         $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/tilastot</loc>", $content);
+
+        // About / methodology page
+        $this->assertStringContainsString("<loc>{$baseUrl}/tietoa</loc>", $content);
     }
 
     public function test_sitemap_includes_housing_type_pages(): void

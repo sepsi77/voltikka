@@ -269,9 +269,9 @@
             @if ($monthlyCost !== null)
                 <div class="order-1 lg:order-none w-full lg:w-[220px] pb-4 lg:pb-0 border-b lg:border-b-0 border-slate-100 lg:text-right">
                     <p class="lg:hidden text-[11px] font-bold uppercase tracking-[0.18em] text-coral-600 mb-1">
-                        Kuukausihinta
+                        <x-info-tip text="Kuukausihinta = arvioitu 12 kk keskikustannus jaettuna 12:lla, sisältää tarjoukset. Hinnat sis. alv 25,5 %, siirtomaksu ei sisälly.">Kuukausihinta</x-info-tip>
                         @if ($isSpotContract)
-                            <span class="font-medium normal-case text-slate-400">· arvio</span>
+                            <x-info-tip text="Pörssisähkön vuosiarvio perustuu viimeisen 12 kk toteutuneeseen pörssikeskihintaan (sis. alv) ja sopimuksen marginaaliin. Toteutunut hinta voi vaihdella." trigger-class="font-medium normal-case text-slate-400">· arvio</x-info-tip>
                         @endif
                     </p>
                     @php
@@ -288,12 +288,12 @@
                         {{ number_format($totalCost, 0, ',', ' ') }} €/v
                         <span class="text-slate-400">· sis. tarjoukset</span>
                         @if ($isSpotContract)
-                            <span class="text-slate-400">· arvio</span>
+                            <x-info-tip text="Pörssisähkön vuosiarvio perustuu viimeisen 12 kk toteutuneeseen pörssikeskihintaan (sis. alv) ja sopimuksen marginaaliin. Toteutunut hinta voi vaihdella." trigger-class="text-slate-400">· arvio</x-info-tip>
                         @endif
                     </p>
                     @if ($includesDiscounts && $discountSavingsTotal > 0)
                         <p class="text-xs text-emerald-600 font-semibold mt-1">
-                            Säästö {{ number_format($discountSavingsTotal, 0, ',', ' ') }} €/v
+                            <x-info-tip text="Säästö = tarjouksen tuoma alennus verrattuna saman sopimuksen normaalihintaan ensimmäisen vuoden aikana.">Säästö</x-info-tip> {{ number_format($discountSavingsTotal, 0, ',', ' ') }} €/v
                         </p>
                     @endif
                 </div>

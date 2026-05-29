@@ -444,13 +444,31 @@
                             </div>
                             <span class="text-xl font-extrabold text-white">Voltikka</span>
                         </a>
-                        <p class="text-slate-400 text-sm">Suomen kattavin sähkösopimusten vertailupalvelu.</p>
+                        @php($footerContractCount = \App\Livewire\AboutPage::cachedContractCount())
+                        <p class="text-slate-400 text-sm mb-4">Vertailussa {{ number_format($footerContractCount, 0, ',', ' ') }} sähkösopimusta — yksi Suomen kattavimmista vertailuista.</p>
+                        <ul class="space-y-2">
+                            <li><a href="/tietoa" class="text-slate-400 hover:text-white text-sm transition-colors">Tietoa Voltikasta</a></li>
+                            <li><a href="/tietoa#menetelma" class="text-slate-400 hover:text-white text-sm transition-colors">Näin laskemme kustannukset</a></li>
+                        </ul>
                     </div>
                 </div>
 
-                <!-- Copyright -->
+                <!-- Publisher identity & copyright -->
                 <div class="border-t border-slate-800 pt-8 text-center text-sm text-slate-500">
-                    &copy; {{ date('Y') }} Voltikka
+                    <p class="max-w-2xl mx-auto mb-3">
+                        Voltikka on yksityishenkilön ylläpitämä riippumaton energiavertailupalvelu — harrasteprojekti,
+                        joka ei ota provisiota sähköyhtiöiltä eikä rahoita toimintaansa mainoksilla.
+                        <a href="/tietoa" class="text-slate-400 hover:text-white underline underline-offset-2 transition-colors">Lue lisää</a>.
+                    </p>
+                    <p>
+                        Yhteys:
+                        <x-obfuscated-email
+                            email="voltikka7@gmail.com"
+                            label="Näytä sähköposti"
+                            link-class="text-slate-400 hover:text-white underline underline-offset-2 transition-colors"
+                        />
+                        · &copy; {{ date('Y') }} Voltikka
+                    </p>
                 </div>
             </div>
         </footer>
