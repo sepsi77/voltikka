@@ -1,0 +1,12 @@
+[
+  { "name": "Create AboutPage Livewire component (/tietoa) with Organization JSON-LD + live counts + spot avg", "status": "done" },
+  { "name": "Create about-page.blade.php view (about, maintainer, funding, methodology#menetelma, contact)", "status": "done" },
+  { "name": "Register /tietoa route", "status": "done" },
+  { "name": "Add /tietoa to SitemapService::getMainPageUrls() and SitemapTest", "status": "done" },
+  { "name": "Footer: publisher identity block + /tietoa links + count-tied tagline", "status": "done" },
+  { "name": "seo-contracts-list + contracts-list credibility bar: methodology link + VAT note", "status": "done" },
+  { "name": "contract-card + featured-card: abbr tooltips for arvio, savings, monthly price", "status": "done" },
+  { "name": "Tie superlative to counts in HomePage title/meta + ContractsList WebSite schema", "status": "done" },
+  { "name": "Homepage independence statement: add funding disclosure + /tietoa link", "status": "done" },
+  { "name": "Run php artisan test (SitemapTest pass); manual smoke of /tietoa, /sahkosopimus, homepage", "status": "done" }
+]

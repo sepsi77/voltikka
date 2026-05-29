@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\AboutPage;
 use App\Livewire\CheapestContracts;
 use App\Livewire\CompanyDetail;
 use App\Livewire\CompanyList;
@@ -25,6 +26,7 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 // Main pages (keep at root level)
 Route::get('/', HomePage::class);
+Route::get('/tietoa', AboutPage::class)->name('about');
 Route::get('/spot-price', SpotPrice::class)
     ->withoutMiddleware([
         StartSession::class,

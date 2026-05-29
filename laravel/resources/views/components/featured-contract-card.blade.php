@@ -173,9 +173,9 @@
                 @if ($monthlyCost !== null)
                     <div class="flex flex-col lg:border-l lg:border-white/25 lg:pl-7">
                         <span class="text-[11px] font-bold uppercase tracking-[0.16em] text-coral-100">
-                            Kuukausihinta
+                            <x-info-tip text="Kuukausihinta = arvioitu 12 kk keskikustannus jaettuna 12:lla, sisältää tarjoukset. Hinnat sis. alv 25,5 %, siirtomaksu ei sisälly.">Kuukausihinta</x-info-tip>
                             @if ($isSpotContract)
-                                <span class="font-medium normal-case tracking-normal text-coral-200">· arvio</span>
+                                <x-info-tip text="Pörssisähkön vuosiarvio perustuu viimeisen 12 kk toteutuneeseen pörssikeskihintaan (sis. alv) ja sopimuksen marginaaliin. Toteutunut hinta voi vaihdella." trigger-class="font-medium normal-case tracking-normal text-coral-200">· arvio</x-info-tip>
                             @endif
                         </span>
                         @php
@@ -193,7 +193,7 @@
                         </p>
                         @if ($includesDiscounts && $discountSavingsTotal > 0)
                             <p class="text-xs text-white/90 font-semibold mt-1">
-                                Säästö {{ number_format($discountSavingsTotal, 0, ',', ' ') }} €/v
+                                <x-info-tip text="Säästö = tarjouksen tuoma alennus verrattuna saman sopimuksen normaalihintaan ensimmäisen vuoden aikana.">Säästö</x-info-tip> {{ number_format($discountSavingsTotal, 0, ',', ' ') }} €/v
                             </p>
                         @endif
                     </div>

@@ -1514,7 +1514,7 @@ class ContractsList extends Component
             '@type' => 'WebSite',
             'name' => 'Voltikka',
             'url' => config('app.url'),
-            'description' => 'Suomen kattavin sähkösopimusten vertailupalvelu. Vertaile hintoja ja löydä edullisin sähkösopimus.',
+            'description' => 'Vertailussa ' . \App\Livewire\AboutPage::cachedContractCount() . ' sähkösopimusta — yksi Suomen kattavimmista riippumattomista vertailuista. Vertaile hintoja ja löydä edullisin sähkösopimus.',
             'potentialAction' => [
                 '@type' => 'SearchAction',
                 'target' => [

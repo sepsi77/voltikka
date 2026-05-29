@@ -158,6 +158,12 @@ class SitemapService
                 'changefreq' => 'monthly',
                 'priority' => 0.7,
             ],
+            [
+                'loc' => $baseUrl . '/tietoa',
+                'lastmod' => $today,
+                'changefreq' => 'monthly',
+                'priority' => 0.5,
+            ],
         ];
     }
 
