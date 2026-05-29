@@ -119,6 +119,13 @@
                     </svg>
                     Viittaa tähän
                 </a>
+                <a href="/tietoa#menetelma"
+                   class="inline-flex items-center gap-2 font-semibold text-slate-900 underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Näin laskemme
+                </a>
                 <span class="text-slate-400">CC&nbsp;BY&nbsp;4.0</span>
             </div>
 

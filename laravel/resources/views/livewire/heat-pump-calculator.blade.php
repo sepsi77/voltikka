@@ -375,6 +375,9 @@
                     <p class="mt-5 text-sm text-slate-300">
                         Valitsimme tämän, koska sillä on edullisin kokonaiskustannus (energiakustannukset + investoinnin annuiteetti {{ $calculationPeriod }} vuodelle) niistä täysimittaisista lämmitysratkaisuista, jotka tuottavat säästöä nykyiseen verrattuna ({{ $this->currentSystem['label'] }}, {{ number_format($this->currentSystem['annualCost'], 0, ',', ' ') }} €/v).
                     </p>
+                    <p class="mt-4 text-xs text-slate-400 leading-relaxed">
+                        Luvut ovat suuntaa-antavia arvioita, eivät tae toteutuvista säästöistä eivätkä sijoitusneuvontaa. Säästö ja takaisinmaksuaika riippuvat energian hintojen kehityksestä, käyttötottumuksista ja asennuksesta — tarkan arvion saat pyytämällä tarjouksen lämpöpumppuasentajalta. Käytetyt hyötysuhteet (SPF), investointihinnat ja korko näkyvät lisäasetuksissa ja ovat muokattavissa.
+                    </p>
                 </section>
             @else
                 <section class="rounded-2xl border border-slate-200 bg-slate-50 p-6 mb-8">

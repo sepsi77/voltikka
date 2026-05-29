@@ -158,6 +158,10 @@
                 <span class="text-coral-700 font-medium">Vertailu kulutuksella:</span>
                 <span class="text-coral-900 font-bold ml-2">{{ number_format($consumption, 0, ',', ' ') }} kWh/v</span>
             </div>
+            <p class="mt-4 text-sm text-slate-500 max-w-2xl mx-auto">
+                Edullisuus perustuu Voltikan riippumattomaan vertailuun: arvioidut 12 kk kulut valitulla kulutuksella, sisältäen tarjoukset, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
+                <a href="/tietoa#menetelma" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Näin laskemme &rarr;</a>
+            </p>
         </div>
     </section>
 

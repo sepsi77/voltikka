@@ -31,7 +31,11 @@
 
         <!-- Ranking Categories Section -->
         <section class="mb-12">
-            <h2 class="text-2xl font-bold text-slate-900 mb-6">Parhaat sähköyhtiöt</h2>
+            <h2 class="text-2xl font-bold text-slate-900 mb-2">Parhaat sähköyhtiöt</h2>
+            <p class="text-sm text-slate-500 mb-6 max-w-3xl leading-relaxed">
+                Sijoitukset perustuvat Voltikan riippumattomaan vertailuun: hinta-arviot lasketaan 5&nbsp;000 kWh vuosikulutuksella samalla logiikalla kaikille yhtiöille, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
+                <a href="/tietoa#menetelma" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Näin laskemme &rarr;</a>
+            </p>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Cheapest Companies -->

@@ -136,6 +136,10 @@
                                 @endif
                             </div>
                         @endif
+                        <div class="mt-3 text-xs text-slate-400 leading-relaxed">
+                            Arvioidut 12 kk kulut Voltikan vertailussa · hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
+                            <a href="/tietoa#menetelma" class="text-coral-300 hover:text-coral-200 underline underline-offset-2">Näin laskemme</a>
+                        </div>
                     </div>
 
                     <!-- Unified evaluation card: verdict + details + action -->

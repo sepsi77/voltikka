@@ -110,7 +110,7 @@
                 Sähkön hintaennuste: kannattaako sähkösopimus lukita nyt?
             </h1>
             <p class="mt-5 max-w-[62ch] text-lg text-slate-600 leading-relaxed">
-                Voltikan sähkön hintaennuste seuraa päivittäin määräaikaisten sähkösopimusten hintakehitystä. Malli yhdistää pörssifutuurien hinnat ja tarjottujen sopimusten tämänhetkisen tason, ja arvioi onko hinta nyt poikkeuksellisen korkea, matala vai tavanomainen seuraavaa kuukautta varten.
+                Voltikan sähkön hintaennuste seuraa päivittäin määräaikaisten sähkösopimusten hintakehitystä. Malli yhdistää suomalaisten EEX-pörssifutuurien hinnat ja tarjottujen sopimusten tämänhetkisen tason, ja arvioi onko hinta nyt poikkeuksellisen korkea, matala vai tavanomainen seuraavaa kuukautta varten.
             </p>
 
             {{-- Meta strip --}}

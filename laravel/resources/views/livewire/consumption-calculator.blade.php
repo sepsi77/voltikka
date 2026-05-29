@@ -326,6 +326,10 @@
             </div>
         @endif
 
+        <p class="text-coral-100/80 text-xs leading-relaxed mb-5">
+            Arvio perustuu tilastollisiin keskiarvoihin (mm. 400 kWh/asukas + 30 kWh/m² vuodessa sekä lämmitystavan ja rakennusvuoden mukainen kerroin), eikä se ole toteutunut sähkölasku. Todellinen kulutus vaihtelee asumistottumusten, kodinkoneiden ja sään mukaan.
+        </p>
+
         <button
             wire:click="compareContracts"
             class="w-full flex items-center justify-center bg-white hover:bg-slate-50 text-coral-600 font-semibold py-4 px-6 rounded-xl transition-colors shadow-sm"

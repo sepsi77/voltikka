@@ -255,5 +255,7 @@
             </div>
         </section>
 
+        <x-methodology-byline updated="29.5.2026" class="mt-12 pt-6 border-t border-slate-200" />
+
     </div>
 </div>

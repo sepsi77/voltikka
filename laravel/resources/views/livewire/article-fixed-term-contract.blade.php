@@ -107,7 +107,7 @@
             <h2 class="text-2xl font-bold text-slate-900 mt-12 mb-4">Vertaile sopimustyyppejä</h2>
 
             <p>
-                Alla oleva laskuri vertailee määräaikaisten ja toistaiseksi voimassa olevien sopimusten hintoja. Laskuri näyttää halvimman sopimuksen molemmista kategorioista omalla kulutuksellasi.
+                Alla oleva laskuri vertailee määräaikaisten ja toistaiseksi voimassa olevien sopimusten hintoja Voltikan päivittäin päivittyvästä sopimusaineistosta. Laskuri näyttää halvimman sopimuksen molemmista kategorioista omalla kulutuksellasi.
             </p>
 
         </article>
@@ -290,6 +290,8 @@
                 </a>
             </div>
         </section>
+
+        <x-methodology-byline updated="29.5.2026" class="mt-12 pt-6 border-t border-slate-200" />
 
     </div>
 </div>

@@ -241,6 +241,10 @@
                         </div>
                     </div>
                 </div>
+                <p class="mt-5 pt-4 border-t border-slate-100 text-xs text-slate-500 leading-relaxed">
+                    Luvut perustuvat Voltikan riippumattomaan vertailuun: arvioidut 12 kk kulut {{ number_format($consumption, 0, ',', ' ') }} kWh vuosikulutuksella, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
+                    <a href="/tietoa#menetelma" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Näin laskemme &rarr;</a>
+                </p>
             </div>
         </section>
     @endif

@@ -168,4 +168,8 @@
             </ul>
         </div>
     @endif
+
+    <p class="text-slate-400 text-xs mt-3 leading-relaxed">
+        Luvut ovat suuntaa-antavia arvioita, eivät tae toteutuvasta tuotosta tai säästöstä eivätkä sijoitusneuvontaa. Todellinen tuotto vaihtelee sään, varjostuksen, lumen, paneelien suuntauksen ja oman kulutuksen mukaan. Tuottoarvio perustuu EU:n PVGIS-aineistoon.
+    </p>
 </section>
