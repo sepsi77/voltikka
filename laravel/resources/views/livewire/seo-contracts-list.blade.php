@@ -602,6 +602,19 @@
         />
     @endif
 
+    @if ($offerType === 'promotion')
+        {{-- Independence note: the offers page is where affiliate suspicion is highest --}}
+        <div class="flex items-start gap-2.5 mb-4 text-sm text-slate-600">
+            <svg class="w-5 h-5 text-coral-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m7.5 2a9.5 9.5 0 11-19 0 9.5 9.5 0 0119 0z"/>
+            </svg>
+            <p>
+                Voltikka ei saa palkkiota sähköyhtiöiltä tarjousten näyttämisestä eikä rahoita toimintaansa mainoksilla. Tarjoukset järjestetään arvioidun 12 kk kokonaiskustannuksen mukaan — kaikille yhtiöille samalla logiikalla.
+                <a href="/tietoa" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Tietoa Voltikasta</a>
+            </p>
+        </div>
+    @endif
+
     {{-- Results Credibility Bar --}}
     <div class="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-6">
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">

@@ -957,7 +957,7 @@ class SeoContractsList extends ContractsList
         }
 
         if ($this->offerType === 'promotion') {
-            return 'Löydä parhaat sähkötarjoukset ja kampanjat. Monet sähköyhtiöt tarjoavat alennuksia uusille asiakkaille, kuten alennettuja hintoja ensimmäisille kuukausille tai prosenttialennuksia energiahinnasta. Vertaile tarjouksia ja säästä sähkölaskussa.';
+            return 'Tällä sivulla näkyvät sähkösopimukset, joissa on voimassa oleva tarjous — esimerkiksi alennettu perusmaksu ensimmäisille kuukausille tai alennettu energiahinta. Tarjoukset on järjestetty arvioidun 12 kuukauden kokonaiskustannuksen mukaan, sama laskentatapa kaikille yhtiöille, ja vuosihinta sisältää tarjouksen vaikutuksen. Sopimustiedot päivittyvät päivittäin.';
         }
 
         if ($this->housingType && isset($this->housingTypeNames[$this->housingType])) {

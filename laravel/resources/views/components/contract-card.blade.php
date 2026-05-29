@@ -62,6 +62,17 @@
     $spotPriceDayAvg = $calculatedCost['spot_price_day_avg'] ?? null;
     $spotPriceNightAvg = $calculatedCost['spot_price_night_avg'] ?? null;
 
+    // Spot "· arvio" tooltip: show the actual assumed spot baseline + margin so the
+    // estimate is not an opaque number (different spot products can share a baseline).
+    $spotArvioTip = 'Pörssisähkön vuosiarvio perustuu liukuvaan 12 kk toteutuneeseen pörssikeskihintaan';
+    if ($spotPriceDayAvg !== null && $spotPriceNightAvg !== null) {
+        $spotArvioTip .= ' (päivä ' . number_format($spotPriceDayAvg, 1, ',', ' ') . ' c, yö ' . number_format($spotPriceNightAvg, 1, ',', ' ') . ' c, sis. alv)';
+    }
+    if ($spotMargin !== null && $spotMargin > 0) {
+        $spotArvioTip .= ' lisättynä sopimuksen marginaalilla ' . number_format($spotMargin, 2, ',', ' ') . ' c/kWh';
+    }
+    $spotArvioTip .= '. Toteutunut hinta vaihtelee.';
+
     // Monthly average from annual estimate (Finnish comparison sites lead with €/kk)
     $monthlyCost = $totalCost !== null ? $totalCost / 12 : null;
 
@@ -271,7 +282,7 @@
                     <p class="lg:hidden text-[11px] font-bold uppercase tracking-[0.18em] text-coral-600 mb-1">
                         <x-info-tip text="Kuukausihinta = arvioitu 12 kk keskikustannus jaettuna 12:lla, sisältää tarjoukset. Hinnat sis. alv 25,5 %, siirtomaksu ei sisälly.">Kuukausihinta</x-info-tip>
                         @if ($isSpotContract)
-                            <x-info-tip text="Pörssisähkön vuosiarvio perustuu viimeisen 12 kk toteutuneeseen pörssikeskihintaan (sis. alv) ja sopimuksen marginaaliin. Toteutunut hinta voi vaihdella." trigger-class="font-medium normal-case text-slate-400">· arvio</x-info-tip>
+                            <x-info-tip :text="$spotArvioTip" trigger-class="font-medium normal-case text-slate-400">· arvio</x-info-tip>
                         @endif
                     </p>
                     @php
@@ -288,13 +299,16 @@
                         {{ number_format($totalCost, 0, ',', ' ') }} €/v
                         <span class="text-slate-400">· sis. tarjoukset</span>
                         @if ($isSpotContract)
-                            <x-info-tip text="Pörssisähkön vuosiarvio perustuu viimeisen 12 kk toteutuneeseen pörssikeskihintaan (sis. alv) ja sopimuksen marginaaliin. Toteutunut hinta voi vaihdella." trigger-class="text-slate-400">· arvio</x-info-tip>
+                            <x-info-tip :text="$spotArvioTip" trigger-class="text-slate-400">· arvio</x-info-tip>
                         @endif
                     </p>
                     @if ($includesDiscounts && $discountSavingsTotal > 0)
                         <p class="text-xs text-emerald-600 font-semibold mt-1">
                             <x-info-tip text="Säästö = tarjouksen tuoma alennus verrattuna saman sopimuksen normaalihintaan ensimmäisen vuoden aikana.">Säästö</x-info-tip> {{ number_format($discountSavingsTotal, 0, ',', ' ') }} €/v
                         </p>
+                        @if ($baseTotalCost !== null)
+                            <p class="text-[11px] text-slate-400 tabular-nums mt-0.5">ilman tarjousta {{ number_format($baseTotalCost, 0, ',', ' ') }} €/v</p>
+                        @endif
                     @endif
                 </div>
             @endif
