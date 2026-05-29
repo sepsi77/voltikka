@@ -206,7 +206,7 @@
                             @endif
                         </div>
                         <div class="py-3 sm:py-0 sm:pl-4 lg:pl-8 flex flex-row items-baseline justify-between gap-3 sm:block">
-                            <p class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500 shrink-0 sm:mb-2">30 pv keskiarvo</p>
+                            <p class="text-sm font-semibold uppercase tracking-[0.08em] text-slate-500 shrink-0 sm:mb-2"><x-info-tip text="Liukuva 30 vuorokauden keskihinta (sis. ALV 25,5 %). Toimii vertailutasona 'edullinen/kallis päivä' -arviossa ja energiavinkkien prosenttierossa.">30 pv keskiarvo</x-info-tip></p>
                             <div class="text-right sm:text-left">
                                 <p class="text-2xl lg:text-3xl font-bold text-slate-900">
                                     {{ number_format($todayVerdict['avg_30d_with_vat'] ?? 0, 2, ',', ' ') }}<span class="text-base text-slate-500 font-semibold ml-1.5">c/kWh</span>
@@ -334,6 +334,9 @@
                     ])
                 @endif
             </div>
+            <p class="mt-3 text-xs text-slate-500 leading-relaxed max-w-3xl">
+                Laitteiden tehot ja kestot (esim. 3,7 kW · 3 h auton lataus, 8 kW kiuas) ovat kiinteitä esimerkkioletuksia havainnollistamiseen — oma laitteesi voi poiketa. Hinnat ovat spot-hintaa sis. ALV 25,5 % (ei siirtoa eikä marginaalia). Prosenttiero (↓ %) verrataan liukuvaan 30 vrk keskihintaan ja euromääräinen säästö saman päivän kalleimpaan vastaavaan jaksoon.
+            </p>
         </section>
 
 
@@ -719,6 +722,11 @@
                 </details>
             @endforeach
         </div>
+        <p class="mt-4 text-xs text-slate-500 leading-relaxed">
+            Menetelmäkuvauksen ja vastausten ylläpidosta vastaa Voltikka, riippumaton harrasteprojekti.
+            Päivitetty {{ $methodologyReviewedAt }}.
+            <a href="/tietoa#menetelma" class="font-medium text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-coral-600">Tietoa Voltikasta ja menetelmästä</a>.
+        </p>
     </section>
     </div>
 </div>

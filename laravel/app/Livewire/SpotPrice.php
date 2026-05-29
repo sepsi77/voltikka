@@ -31,6 +31,12 @@ class SpotPrice extends Component
     private const REGION = 'FI';
     private const TIMEZONE = 'Europe/Helsinki';
     private const FORECAST_DISPLAY_HOURS = 72;
+
+    /**
+     * Last manual review date of the methodology/FAQ copy on this page. Shown as an
+     * editorial "Päivitetty" byline; bump this when the price/forecast explanations change.
+     */
+    private const METHODOLOGY_REVIEWED_AT = '2026-05-29';
     private const FORECAST_CACHE_KEY = 'spot_price:forecast:nordpool_predict_fi:v1';
 
     private const FINNISH_WEEKDAYS_SHORT = [
@@ -2527,6 +2533,7 @@ class SpotPrice extends Component
 
         $viewData['jsonLd'] = $this->buildJsonLd();
         $viewData['faqJsonLd'] = $this->buildFaqJsonLd();
+        $viewData['methodologyReviewedAt'] = \Carbon\Carbon::parse(self::METHODOLOGY_REVIEWED_AT)->format('j.n.Y');
 
         return view('livewire.spot-price', $viewData)
             ->layout('layouts.app', [
