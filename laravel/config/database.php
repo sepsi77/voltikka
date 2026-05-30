@@ -63,6 +63,7 @@ return [
             ]) : [],
             'dump' => [
                 'useSingleTransaction' => true,
+                'skip_ssl' => true,
             ],
         ],
 

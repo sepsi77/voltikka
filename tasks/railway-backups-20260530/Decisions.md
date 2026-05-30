@@ -10,3 +10,5 @@
 - Full `php artisan test` was run before commit; unrelated pre-existing feature test failures remain in CompanyDetail, ConsumptionCalculator, SEO city count, and SpotPrice UI assertions. Backup-specific config/schedule validation passed.
 - First Railway build failed because `spatie/laravel-backup` requires PHP `ext-zip`; fixed Dockerfile by installing `libzip-dev` and enabling `zip`.
 - Added `scripts/railway-poll-deployment.sh` so future Railway deployment polling exits on terminal status instead of polling forever.
+- Root AGENTS.md now points agents to `scripts/railway-poll-deployment.sh` for bounded deployment polling.
+- Manual production `backup:run --only-db` over Railway SSH reached the container but failed because `mysqldump` rejected Railway MySQL TLS chain; configured Spatie dump `skip_ssl`.

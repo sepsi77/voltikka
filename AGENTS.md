@@ -35,6 +35,7 @@ Safe-operation rules for agents:
 - Prefer bounded log reads and targeted diagnostics over streaming or broad dumps.
 - Use the `use-railway` skill when available. Prefix Railway CLI calls with `RAILWAY_CALLER=skill:use-railway@1.2.2` and reuse a stable `RAILWAY_AGENT_SESSION` for related calls in the same user request.
 - For production Laravel commands via Railway, prefer explicit context flags such as `--project 6d8cae01-1006-409f-8108-1d51f1abc676 --environment 9245cef8-41d0-486e-862f-193726511dba --service 700d0624-fa96-4266-876c-e37640d220ea` where supported.
+- Use `scripts/railway-poll-deployment.sh` to poll Railway deployments; it exits on success/failure instead of polling indefinitely.
 
 ### Production backups and disaster recovery
 
