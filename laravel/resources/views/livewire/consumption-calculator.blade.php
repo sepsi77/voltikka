@@ -468,7 +468,7 @@
         <h2 class="text-2xl font-bold text-slate-900 mb-3">Miten sähkönkulutuslaskuri toimii?</h2>
         <p class="mb-4">
             Voltikan sähkönkulutuslaskuri laskee arvion vuosikulutuksestasi neljästä osasta: perussähköstä,
-            mahdollisesta sähkölämmityksestä, käyttöveden lämmityksestä sekä erillisistä lisäkuluttajista.
+            mahdollisesta sähkölämmityksestä, käyttöveden lämmityksestä sekä muista kulutuskohteista.
             Pohjana on tilastollinen kaava, jota tarkennetaan syöttämiesi tietojen mukaan.
         </p>
         <ul class="list-disc pl-5 space-y-2 mb-6">
@@ -479,7 +479,7 @@
                 käyttää sähköä 1:1, ilma-vesilämpöpumppu noin 2,2× tehokkaammin ja maalämpö noin 2,9× tehokkaammin.</li>
             <li><strong>Käyttöveden lämmitys:</strong> noin 120 litraa vettä asukasta kohden päivässä, josta
                 40 % on lämmintä. Sähkölämmitteisessä talossa tämä on osa kokonaiskulutusta.</li>
-            <li><strong>Lisäkuluttajat:</strong> sauna noin 7,5 kWh/lämmityskerta, sähköauto noin 0,2 kWh/km,
+            <li><strong>Muut kulutuskohteet:</strong> sauna noin 7,5 kWh/lämmityskerta, sähköauto noin 0,2 kWh/km,
                 kylpyhuoneen lattialämmitys noin 200 kWh/m²/vuosi ja ilmastointi noin 240 kWh/vuosi.</li>
         </ul>
 
@@ -487,7 +487,7 @@
         <p class="mb-4">
             Voit toistaa saman laskelman myös käsin – sähkönkulutuslaskuri käyttää tilastollista kaavaa,
             joka jakautuu neljään osaan: <strong>perussähkö</strong>, <strong>lämmitys</strong>,
-            <strong>käyttöveden lämmitys</strong> ja <strong>lisäkuluttajat</strong>. Käytämme
+            <strong>käyttöveden lämmitys</strong> ja <strong>muut kulutuskohteet</strong>. Käytämme
             esimerkkinä 120 m² omakotitaloa Keski-Suomessa: 4 asukasta, rakennettu 2000-luvulla,
             suora sähkölämmitys.
         </p>
@@ -561,8 +561,8 @@
             (lisäksi varaajan energiahäviö noin 600–1 000 kWh vuodessa).
         </p>
 
-        <h3 class="text-lg font-semibold text-slate-900 mb-2">4. Lisäkuluttajat</h3>
-        <p class="mb-3">Lisää summa erikseen kullekin lisäkuluttajalle:</p>
+        <h3 class="text-lg font-semibold text-slate-900 mb-2">4. Muut kulutuskohteet</h3>
+        <p class="mb-3">Laske mukaan jokainen lisäkulutus erikseen:</p>
         <ul class="list-disc pl-5 space-y-2 mb-6">
             <li><strong>Sauna:</strong> käyttökerrat/viikko × 7,5 kWh × 52 viikkoa.
                 Esim. 2 kertaa viikossa: 2 × 7,5 × 52 = <strong>780 kWh/v</strong>.

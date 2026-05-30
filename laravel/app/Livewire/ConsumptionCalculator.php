@@ -555,7 +555,7 @@ class ConsumptionCalculator extends Component
     public function getSeoIntroTextProperty(): string
     {
         return 'Sähkönkulutuslaskurilla arvioit nopeasti, paljonko kotitaloutesi käyttää sähköä vuodessa ja mitä sähkö maksaisi eri sopimustyypeillä. '
-            . 'Syötä asunnon koko, asukasmäärä ja lämmitystapa – laskuri laskee perussähkön, lämmityksen ja lisäkuluttajat (sauna, sähköauto, lattialämmitys) erikseen. '
+            . 'Syötä asunnon koko, asukasmäärä ja lämmitystapa – laskuri laskee perussähkön, lämmityksen ja muut kulutuskohteet (sauna, sähköauto, lattialämmitys) erikseen. '
             . 'Kun tiedät vuosikulutuksesi kilowattitunteina, sähkön hinta laskuri arvioi vuosikustannuksen pörssisähköllä, määräaikaisilla ja toistaiseksi voimassa olevilla sopimuksilla Voltikan hintatilastojen perusteella.';
     }
 
