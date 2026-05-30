@@ -12,3 +12,4 @@
 - Added `scripts/railway-poll-deployment.sh` so future Railway deployment polling exits on terminal status instead of polling forever.
 - Root AGENTS.md now points agents to `scripts/railway-poll-deployment.sh` for bounded deployment polling.
 - Manual production `backup:run --only-db` over Railway SSH reached the container but failed because `mysqldump` rejected Railway MySQL TLS chain; configured Spatie dump `skip_ssl`.
+- Railway image uses a mysqldump variant that rejected `ssl-mode=DISABLED`; pinned Spatie `ssl_flag` to legacy `skip-ssl`.

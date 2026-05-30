@@ -64,6 +64,7 @@ return [
             'dump' => [
                 'useSingleTransaction' => true,
                 'skip_ssl' => true,
+                'ssl_flag' => 'skip-ssl',
             ],
         ],
 

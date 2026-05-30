@@ -172,7 +172,7 @@ Current semantics:
 - scheduled production backup is database-only: `backup:run --only-db` daily at 03:00 Europe/Helsinki
 - cleanup runs daily at 03:30 and monitor runs daily at 03:45
 - backups are written to `BACKUP_DISK` (production: `s3`) and encrypted with `BACKUP_ARCHIVE_PASSWORD`
-- MySQL dumps use `useSingleTransaction` in `config/database.php` to avoid table locking for InnoDB tables and `skip_ssl` so `mysqldump` does not fail on Railway's self-signed internal MySQL certificate
+- MySQL dumps use `useSingleTransaction` in `config/database.php` to avoid table locking for InnoDB tables and explicitly use `skip-ssl` so `mysqldump` does not fail on Railway's self-signed internal MySQL certificate
 - the Docker image must include `default-mysql-client` because Spatie shells out to `mysqldump`
 - backup success notifications are disabled; failure/unhealthy/cleanup-failure notifications go to `BACKUP_NOTIFICATION_EMAIL` or mail defaults
 
