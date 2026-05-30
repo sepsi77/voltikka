@@ -5,6 +5,6 @@
   {"name":"Set Railway production variables","status":"done"},
   {"name":"Document DR guidelines","status":"done"},
   {"name":"Run local validation","status":"done"},
-  {"name":"Deploy backup code to Railway","status":"in_progress"},
-  {"name":"Run first production backup and verify archive","status":"pending"}
+  {"name":"Deploy backup code to Railway","status":"done"},
+  {"name":"Run first production backup and verify archive","status":"done"}
 ]
