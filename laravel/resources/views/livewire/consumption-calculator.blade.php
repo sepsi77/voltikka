@@ -35,6 +35,37 @@
 
     <!-- Calculator Section -->
     <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8">
+            <!-- Preset Quick Select -->
+            <div class="mb-8">
+                <h4 class="font-semibold text-slate-900 mb-3">Valitse valmis profiili</h4>
+                <div class="flex flex-wrap gap-2">
+                    <button
+                        wire:click="selectPreset('small_apartment')"
+                        class="px-4 py-2 text-sm font-medium rounded-lg border transition-colors {{ $selectedPreset === 'small_apartment' ? 'bg-coral-500 text-white border-coral-500' : 'bg-white text-slate-700 border-slate-200 hover:border-coral-400' }}"
+                    >
+                        Pieni yksiö
+                    </button>
+                    <button
+                        wire:click="selectPreset('medium_apartment')"
+                        class="px-4 py-2 text-sm font-medium rounded-lg border transition-colors {{ $selectedPreset === 'medium_apartment' ? 'bg-coral-500 text-white border-coral-500' : 'bg-white text-slate-700 border-slate-200 hover:border-coral-400' }}"
+                    >
+                        Kerrostalo 2 hlö
+                    </button>
+                    <button
+                        wire:click="selectPreset('medium_house_heat_pump')"
+                        class="px-4 py-2 text-sm font-medium rounded-lg border transition-colors {{ $selectedPreset === 'medium_house_heat_pump' ? 'bg-coral-500 text-white border-coral-500' : 'bg-white text-slate-700 border-slate-200 hover:border-coral-400' }}"
+                    >
+                        Omakotitalo + ILP
+                    </button>
+                    <button
+                        wire:click="selectPreset('large_house_electric')"
+                        class="px-4 py-2 text-sm font-medium rounded-lg border transition-colors {{ $selectedPreset === 'large_house_electric' ? 'bg-coral-500 text-white border-coral-500' : 'bg-white text-slate-700 border-slate-200 hover:border-coral-400' }}"
+                    >
+                        Suuri talo + sähkö
+                    </button>
+                </div>
+            </div>
+
             <!-- Building Type Selection -->
             <div class="mb-8">
                 <h4 class="font-semibold text-slate-900 mb-4">Asuntotyyppi</h4>
@@ -82,7 +113,7 @@
                     <input
                         type="number"
                         id="num-people"
-                        wire:model.live.debounce.300ms="numPeople"
+                        wire:model.blur="numPeople"
                         min="1"
                         max="10"
                         class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
@@ -91,8 +122,8 @@
             </div>
 
             <!-- Heating Toggle -->
-            <div class="mb-8">
-                <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+            <div class="mb-6 pb-6 border-b border-slate-100">
+                <div class="flex items-center justify-between">
                     <div>
                         <h4 class="font-semibold text-slate-900">Sisällytä lämmitys</h4>
                         <p class="text-sm text-slate-500">Laske myös sähkölämmityksen kulutus</p>
@@ -111,7 +142,7 @@
 
             <!-- Heating Options (shown when includeHeating is true) -->
             @if ($includeHeating)
-                <div class="mb-8 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                <div class="mb-8">
                     <h4 class="font-semibold text-slate-900 mb-4">Lämmitysasetukset</h4>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -121,7 +152,7 @@
                             </label>
                             <select
                                 id="heating-method"
-                                wire:model.live="heatingMethod"
+                                wire:model.blur="heatingMethod"
                                 class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500 bg-white"
                             >
                                 @foreach ($heatingMethodLabels as $method => $label)
@@ -135,7 +166,7 @@
                             </label>
                             <select
                                 id="building-region"
-                                wire:model.live="buildingRegion"
+                                wire:model.blur="buildingRegion"
                                 class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500 bg-white"
                             >
                                 @foreach ($buildingRegionLabels as $region => $label)
@@ -152,7 +183,7 @@
                             </label>
                             <select
                                 id="energy-efficiency"
-                                wire:model.live="buildingEnergyEfficiency"
+                                wire:model.blur="buildingEnergyEfficiency"
                                 class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500 bg-white"
                             >
                                 @foreach ($buildingEnergyEfficiencyLabels as $rating => $label)
@@ -166,7 +197,7 @@
                             </label>
                             <select
                                 id="supplementary-heating"
-                                wire:model.live="supplementaryHeating"
+                                wire:model.blur="supplementaryHeating"
                                 class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500 bg-white"
                             >
                                 <option value="">Ei lisälämmitystä</option>
@@ -183,99 +214,103 @@
             <div class="mb-8">
                 <h4 class="font-semibold text-slate-900 mb-4">Lisävarusteet</h4>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
                     <!-- Bathroom Floor Heating -->
-                    <div class="p-4 border rounded-xl {{ $bathroomHeatingArea > 0 ? 'border-coral-300 bg-coral-50' : 'border-slate-100' }}">
-                        <div class="flex items-center mb-3">
-                            <svg class="w-5 h-5 mr-2 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
-                            </svg>
-                            <span class="font-medium text-slate-900">Lattialämmitys</span>
-                        </div>
-                        <div class="flex items-center">
-                            <input
-                                type="number"
-                                wire:model.live.debounce.300ms="bathroomHeatingArea"
-                                min="0"
-                                max="50"
-                                placeholder="0"
-                                class="w-20 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500"
-                            >
-                            <span class="ml-2 text-sm text-slate-500">m²</span>
+                    <div class="flex items-start gap-3">
+                        <svg class="w-5 h-5 mt-0.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+                        </svg>
+                        <div class="flex-1 min-w-0">
+                            <label for="bathroom-area" class="block text-sm font-medium text-slate-700 mb-1">Lattialämmitys</label>
+                            <div class="flex items-center">
+                                <input
+                                    type="number"
+                                    id="bathroom-area"
+                                    wire:model.blur="bathroomHeatingArea"
+                                    min="0"
+                                    max="50"
+                                    placeholder="0"
+                                    class="w-20 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500"
+                                >
+                                <span class="ml-2 text-sm text-slate-500">m²</span>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Sauna -->
-                    <div class="p-4 border rounded-xl {{ $saunaUsagePerWeek > 0 ? 'border-coral-300 bg-coral-50' : 'border-slate-100' }}">
-                        <div class="flex items-center mb-3">
-                            <svg class="w-5 h-5 mr-2 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"></path>
-                            </svg>
-                            <span class="font-medium text-slate-900">Sauna</span>
-                        </div>
-                        <div class="flex items-center">
-                            <input
-                                type="number"
-                                wire:model.live.debounce.300ms="saunaUsagePerWeek"
-                                min="0"
-                                max="14"
-                                placeholder="0"
-                                class="w-20 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500"
-                            >
-                            <span class="ml-2 text-sm text-slate-500">krt/viikko</span>
+                    <div class="flex items-start gap-3">
+                        <svg class="w-5 h-5 mt-0.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"></path>
+                        </svg>
+                        <div class="flex-1 min-w-0">
+                            <label for="sauna-usage" class="block text-sm font-medium text-slate-700 mb-1">Sauna</label>
+                            <div class="flex items-center">
+                                <input
+                                    type="number"
+                                    id="sauna-usage"
+                                    wire:model.blur="saunaUsagePerWeek"
+                                    min="0"
+                                    max="14"
+                                    placeholder="0"
+                                    class="w-20 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500"
+                                >
+                                <span class="ml-2 text-sm text-slate-500">krt/viikko</span>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Electric Vehicle -->
-                    <div class="p-4 border rounded-xl {{ $electricVehicleKmsPerMonth > 0 ? 'border-coral-300 bg-coral-50' : 'border-slate-100' }}">
-                        <div class="flex items-center mb-3">
-                            <svg class="w-5 h-5 mr-2 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                            </svg>
-                            <span class="font-medium text-slate-900">Sähköauto</span>
-                        </div>
-                        <div class="flex items-center">
-                            <input
-                                type="number"
-                                wire:model.live.debounce.300ms="electricVehicleKmsPerMonth"
-                                min="0"
-                                max="5000"
-                                placeholder="0"
-                                class="w-24 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500"
-                            >
-                            <span class="ml-2 text-sm text-slate-500">km/kk</span>
+                    <div class="flex items-start gap-3">
+                        <svg class="w-5 h-5 mt-0.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                        <div class="flex-1 min-w-0">
+                            <label for="ev-kms" class="block text-sm font-medium text-slate-700 mb-1">Sähköauto</label>
+                            <div class="flex items-center">
+                                <input
+                                    type="number"
+                                    id="ev-kms"
+                                    wire:model.blur="electricVehicleKmsPerMonth"
+                                    min="0"
+                                    max="5000"
+                                    placeholder="0"
+                                    class="w-24 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500"
+                                >
+                                <span class="ml-2 text-sm text-slate-500">km/kk</span>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Cooling -->
-                    <div class="p-4 border rounded-xl {{ $cooling ? 'border-coral-300 bg-coral-50' : 'border-slate-100' }}">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center">
-                                <svg class="w-5 h-5 mr-2 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                                </svg>
-                                <span class="font-medium text-slate-900">Ilmastointi</span>
+                    <div class="flex items-start gap-3">
+                        <svg class="w-5 h-5 mt-0.5 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                        </svg>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between">
+                                <label for="cooling-toggle" class="block text-sm font-medium text-slate-700">Ilmastointi</label>
+                                <button
+                                    id="cooling-toggle"
+                                    wire:click="toggleCooling"
+                                    class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-coral-500 focus:ring-offset-2 {{ $cooling ? 'bg-coral-500' : 'bg-slate-200' }}"
+                                >
+                                    <span class="sr-only">Ilmastointi</span>
+                                    <span
+                                        class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {{ $cooling ? 'translate-x-5' : 'translate-x-0' }}"
+                                    ></span>
+                                </button>
                             </div>
-                            <button
-                                wire:click="toggleCooling"
-                                class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-coral-500 focus:ring-offset-2 {{ $cooling ? 'bg-coral-500' : 'bg-slate-200' }}"
-                            >
-                                <span class="sr-only">Ilmastointi</span>
-                                <span
-                                    class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out {{ $cooling ? 'translate-x-5' : 'translate-x-0' }}"
-                                ></span>
-                            </button>
+                            <p class="text-xs text-slate-500 mt-1">+240 kWh/vuosi</p>
                         </div>
-                        <p class="mt-2 text-xs text-slate-500">+240 kWh/vuosi</p>
                     </div>
                 </div>
             </div>
         </section>
 
     <!-- Results Section -->
-    <section class="bg-gradient-to-br from-coral-500 to-coral-600 rounded-2xl shadow-lg p-6 text-white mb-8">
+    <section class="bg-slate-950 rounded-2xl p-6 sm:p-8 text-white mb-8">
         <div class="text-center mb-6">
-            <p class="text-coral-100 text-sm mb-1">Arvioitu vuosikulutus</p>
+            <p class="text-slate-300 text-sm mb-1">Arvioitu vuosikulutus</p>
             <p class="text-5xl font-bold">
                 {{ number_format($this->totalConsumption, 0, ',', ' ') }}
                 <span class="text-2xl font-normal">kWh</span>
@@ -284,55 +319,55 @@
 
         @if (!empty($calculationResult))
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-                <div class="bg-white/10 rounded-lg p-3">
-                    <p class="text-coral-100 text-xs">Perussähkö</p>
+                <div class="bg-white/5 border border-white/10 rounded-lg p-3">
+                    <p class="text-slate-300 text-xs">Perussähkö</p>
                     <p class="text-lg font-semibold">{{ number_format($calculationResult['basic_living'] ?? 0, 0, ',', ' ') }} kWh</p>
                 </div>
 
                 @if (!empty($calculationResult['heating_total']))
-                    <div class="bg-white/10 rounded-lg p-3">
-                        <p class="text-coral-100 text-xs">Lämmitys</p>
+                    <div class="bg-white/5 border border-white/10 rounded-lg p-3">
+                        <p class="text-slate-300 text-xs">Lämmitys</p>
                         <p class="text-lg font-semibold">{{ number_format($calculationResult['heating_total'], 0, ',', ' ') }} kWh</p>
                     </div>
                 @endif
 
                 @if (!empty($calculationResult['sauna']))
-                    <div class="bg-white/10 rounded-lg p-3">
-                        <p class="text-coral-100 text-xs">Sauna</p>
+                    <div class="bg-white/5 border border-white/10 rounded-lg p-3">
+                        <p class="text-slate-300 text-xs">Sauna</p>
                         <p class="text-lg font-semibold">{{ number_format($calculationResult['sauna'], 0, ',', ' ') }} kWh</p>
                     </div>
                 @endif
 
                 @if (!empty($calculationResult['electricity_vehicle']))
-                    <div class="bg-white/10 rounded-lg p-3">
-                        <p class="text-coral-100 text-xs">Sähköauto</p>
+                    <div class="bg-white/5 border border-white/10 rounded-lg p-3">
+                        <p class="text-slate-300 text-xs">Sähköauto</p>
                         <p class="text-lg font-semibold">{{ number_format($calculationResult['electricity_vehicle'], 0, ',', ' ') }} kWh</p>
                     </div>
                 @endif
 
                 @if (!empty($calculationResult['bathroom_underfloor_heating']))
-                    <div class="bg-white/10 rounded-lg p-3">
-                        <p class="text-coral-100 text-xs">Lattialämmitys</p>
+                    <div class="bg-white/5 border border-white/10 rounded-lg p-3">
+                        <p class="text-slate-300 text-xs">Lattialämmitys</p>
                         <p class="text-lg font-semibold">{{ number_format($calculationResult['bathroom_underfloor_heating'], 0, ',', ' ') }} kWh</p>
                     </div>
                 @endif
 
                 @if (!empty($calculationResult['cooling']))
-                    <div class="bg-white/10 rounded-lg p-3">
-                        <p class="text-coral-100 text-xs">Ilmastointi</p>
+                    <div class="bg-white/5 border border-white/10 rounded-lg p-3">
+                        <p class="text-slate-300 text-xs">Ilmastointi</p>
                         <p class="text-lg font-semibold">{{ number_format($calculationResult['cooling'], 0, ',', ' ') }} kWh</p>
                     </div>
                 @endif
             </div>
         @endif
 
-        <p class="text-coral-100/80 text-xs leading-relaxed mb-5">
+        <p class="text-slate-400 text-xs leading-relaxed mb-5">
             Arvio perustuu tilastollisiin keskiarvoihin (mm. 400 kWh/asukas + 30 kWh/m² vuodessa sekä lämmitystavan ja rakennusvuoden mukainen kerroin), eikä se ole toteutunut sähkölasku. Todellinen kulutus vaihtelee asumistottumusten, kodinkoneiden ja sään mukaan.
         </p>
 
         <button
             wire:click="compareContracts"
-            class="w-full flex items-center justify-center bg-white hover:bg-slate-50 text-coral-600 font-semibold py-4 px-6 rounded-xl transition-colors shadow-sm"
+            class="w-full flex items-center justify-center bg-coral-500 hover:bg-coral-400 text-white font-semibold py-4 px-6 rounded-xl transition-colors"
         >
             Vertaile sähkösopimuksia
             <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -364,7 +399,6 @@
                             <th class="text-right px-4 py-3 font-semibold">Edullinen p20</th>
                             <th class="text-right px-4 py-3 font-semibold">Mediaani</th>
                             <th class="text-right px-4 py-3 font-semibold">Kalliimpi p80</th>
-                            <th class="text-right px-4 py-3 font-semibold">Mediaanihinta</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200">
@@ -388,18 +422,14 @@
                                         @endif
                                     </td>
                                 @endforeach
-                                <td class="px-4 py-4 text-right align-top whitespace-nowrap text-xs text-slate-500">
-                                    <div>{{ number_format($row['energy']['median'], 2, ',', ' ') }} snt/kWh</div>
-                                    <div>+ {{ number_format($row['monthly_fee']['median'], 2, ',', ' ') }} €/kk</div>
-                                </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
 
-            <div class="mt-5 grid gap-4 sm:grid-cols-2">
-                <div class="rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600 leading-relaxed">
+            <div class="mt-6 grid gap-5 sm:grid-cols-2 text-sm text-slate-600 leading-relaxed">
+                <div>
                     <p class="font-semibold text-slate-900 mb-1">Miten hinta lasketaan?</p>
                     <p>
                         Perusarvio on kulutus kWh × energian hinta snt/kWh / 100 + perusmaksu × 12.
@@ -407,7 +437,7 @@
                         12 kuukauden pörssihinta on vertailukelpoinen kiinteiden sopimusten kanssa.
                     </p>
                 </div>
-                <div class="rounded-xl bg-coral-50 border border-coral-100 p-4 text-sm text-slate-700 leading-relaxed">
+                <div>
                     <p class="font-semibold text-slate-900 mb-1">Tiedä sähkön hinta omalla kulutuksella</p>
                     <p>
                         Arviot perustuvat Voltikan keräämiin sähkösopimusten hintatilastoihin

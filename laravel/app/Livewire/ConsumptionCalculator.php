@@ -18,9 +18,6 @@ use Livewire\Component;
 
 class ConsumptionCalculator extends Component
 {
-    // Tab state
-    public string $activeTab = 'presets';
-
     // Basic form fields
     public int|string|null $livingArea = 80;
     public int|string|null $numPeople = 2;
@@ -191,11 +188,6 @@ class ConsumptionCalculator extends Component
         $this->calculate();
     }
 
-    public function setActiveTab(string $tab): void
-    {
-        $this->activeTab = $tab;
-    }
-
     public function selectPreset(string $preset): void
     {
         $this->selectedPreset = $preset;
@@ -260,7 +252,7 @@ class ConsumptionCalculator extends Component
     public function updated($property): void
     {
         // Clear preset when user modifies any form value
-        if (!in_array($property, ['activeTab', 'selectedPreset'])) {
+        if ($property !== 'selectedPreset') {
             $this->selectedPreset = null;
         }
 
