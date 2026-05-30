@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Livewire\PrivacyPolicy;
+use App\Livewire\TermsOfService;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\Postcode;
@@ -163,6 +165,20 @@ class SitemapService
                 'lastmod' => $today,
                 'changefreq' => 'monthly',
                 'priority' => 0.5,
+            ],
+            [
+                // Static legal page: lastmod must reflect the real content date, not the
+                // daily sitemap regeneration, so it stays accurate between policy edits.
+                'loc' => $baseUrl . '/tietosuoja',
+                'lastmod' => PrivacyPolicy::LAST_UPDATED,
+                'changefreq' => 'yearly',
+                'priority' => 0.3,
+            ],
+            [
+                'loc' => $baseUrl . '/kayttoehdot',
+                'lastmod' => TermsOfService::LAST_UPDATED,
+                'changefreq' => 'yearly',
+                'priority' => 0.3,
             ],
         ];
     }

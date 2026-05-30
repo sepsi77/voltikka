@@ -116,6 +116,12 @@ class SitemapTest extends TestCase
 
         // About / methodology page
         $this->assertStringContainsString("<loc>{$baseUrl}/tietoa</loc>", $content);
+
+        // Privacy & cookie page
+        $this->assertStringContainsString("<loc>{$baseUrl}/tietosuoja</loc>", $content);
+
+        // Terms of service page
+        $this->assertStringContainsString("<loc>{$baseUrl}/kayttoehdot</loc>", $content);
     }
 
     public function test_sitemap_includes_housing_type_pages(): void

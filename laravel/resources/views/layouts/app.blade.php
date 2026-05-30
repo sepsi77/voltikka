@@ -449,6 +449,8 @@
                         <ul class="space-y-2">
                             <li><a href="/tietoa" class="text-slate-400 hover:text-white text-sm transition-colors">Tietoa Voltikasta</a></li>
                             <li><a href="/tietoa#menetelma" class="text-slate-400 hover:text-white text-sm transition-colors">Näin laskemme kustannukset</a></li>
+                            <li><a href="/tietosuoja" class="text-slate-400 hover:text-white text-sm transition-colors">Tietosuoja ja evästeet</a></li>
+                            <li><a href="/kayttoehdot" class="text-slate-400 hover:text-white text-sm transition-colors">Käyttöehdot</a></li>
                         </ul>
                     </div>
                 </div>
@@ -467,6 +469,10 @@
                             label="Näytä sähköposti"
                             link-class="text-slate-400 hover:text-white underline underline-offset-2 transition-colors"
                         />
+                        ·
+                        <a href="/tietosuoja" class="text-slate-400 hover:text-white underline underline-offset-2 transition-colors">Tietosuoja ja evästeet</a>
+                        ·
+                        <a href="/kayttoehdot" class="text-slate-400 hover:text-white underline underline-offset-2 transition-colors">Käyttöehdot</a>
                         · &copy; {{ date('Y') }} Voltikka
                     </p>
                 </div>

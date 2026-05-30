@@ -13,10 +13,12 @@ use App\Livewire\FixedContractPriceForecast;
 use App\Livewire\ContractsList;
 use App\Livewire\HomePage;
 use App\Livewire\LocationsList;
+use App\Livewire\PrivacyPolicy;
 use App\Livewire\SahkosopimusIndex;
 use App\Livewire\SeoContractsList;
 use App\Livewire\SolarCalculator;
 use App\Livewire\SpotPrice;
+use App\Livewire\TermsOfService;
 use App\Services\SitemapService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Session\Middleware\StartSession;
@@ -27,6 +29,8 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 // Main pages (keep at root level)
 Route::get('/', HomePage::class);
 Route::get('/tietoa', AboutPage::class)->name('about');
+Route::get('/tietosuoja', PrivacyPolicy::class)->name('privacy');
+Route::get('/kayttoehdot', TermsOfService::class)->name('terms');
 Route::get('/spot-price', SpotPrice::class)
     ->withoutMiddleware([
         StartSession::class,
