@@ -40,6 +40,14 @@ Schedule::command('backup:run --only-db')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/backup-run.log'));
 
+// Back up public app storage weekly. This currently covers company logos and similar generated public files.
+Schedule::command('backup:run --only-files')
+    ->weeklyOn(0, '02:30')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/backup-files-run.log'));
+
 // Prune old backup archives according to config/backup.php retention settings.
 Schedule::command('backup:clean')
     ->dailyAt('03:30')

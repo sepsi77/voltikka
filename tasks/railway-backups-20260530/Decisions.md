@@ -14,3 +14,4 @@
 - Manual production `backup:run --only-db` over Railway SSH reached the container but failed because `mysqldump` rejected Railway MySQL TLS chain; configured Spatie dump `skip_ssl`.
 - Railway image uses a mysqldump variant that rejected `ssl-mode=DISABLED`; pinned Spatie `ssl_flag` to legacy `skip-ssl`.
 - Manual production backup succeeded over Railway SSH after `skip-ssl` pin: archive copied to s3, 1 healthy backup, 9.24 MB.
+- Added weekly public storage backup (`backup:run --only-files`) for `storage/app/public`, primarily company logos/generated public assets.

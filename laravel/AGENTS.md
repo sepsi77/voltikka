@@ -169,7 +169,8 @@ Desktop dropdown menus in the same layout are hover-opened Alpine children. Keep
 Voltikka uses `spatie/laravel-backup` for first-pass production database backups. Configuration lives in `config/backup.php`; scheduling lives in `routes/console.php`.
 
 Current semantics:
-- scheduled production backup is database-only: `backup:run --only-db` daily at 03:00 Europe/Helsinki
+- scheduled production database backup: `backup:run --only-db` daily at 03:00 Europe/Helsinki
+- scheduled production public-storage backup: `backup:run --only-files` weekly on Sunday at 02:30 Europe/Helsinki; this backs up `storage/app/public` only
 - cleanup runs daily at 03:30 and monitor runs daily at 03:45
 - backups are written to `BACKUP_DISK` (production: `s3`) and encrypted with `BACKUP_ARCHIVE_PASSWORD`
 - MySQL dumps use `useSingleTransaction` in `config/database.php` to avoid table locking for InnoDB tables and explicitly use `skip-ssl` so `mysqldump` does not fail on Railway's self-signed internal MySQL certificate
