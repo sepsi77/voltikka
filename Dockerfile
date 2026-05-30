@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     libpq-dev \
     libwebp-dev \
+    libzip-dev \
     zip \
     unzip \
     supervisor \
@@ -22,7 +23,7 @@ RUN apt-get update && apt-get install -y \
     default-mysql-client \
     $PHPIZE_DEPS \
     && docker-php-ext-configure gd --with-jpeg --with-webp \
-    && docker-php-ext-install pdo pdo_pgsql pdo_mysql mbstring exif pcntl bcmath gd \
+    && docker-php-ext-install pdo pdo_pgsql pdo_mysql mbstring exif pcntl bcmath gd zip \
     && pecl install excimer \
     && docker-php-ext-enable excimer \
     && apt-get clean && rm -rf /var/lib/apt/lists/*

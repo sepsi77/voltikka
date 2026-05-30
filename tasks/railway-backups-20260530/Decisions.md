@@ -8,3 +8,4 @@
 - Added `default-mysql-client` to the production Docker image because Spatie requires `mysqldump` for MySQL backups.
 - Local S3 reachability check succeeded via `php artisan backup:list` with Railway bucket credentials; it reports unhealthy only because no backups exist yet.
 - Full `php artisan test` was run before commit; unrelated pre-existing feature test failures remain in CompanyDetail, ConsumptionCalculator, SEO city count, and SpotPrice UI assertions. Backup-specific config/schedule validation passed.
+- First Railway build failed because `spatie/laravel-backup` requires PHP `ext-zip`; fixed Dockerfile by installing `libzip-dev` and enabling `zip`.
