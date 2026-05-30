@@ -69,7 +69,7 @@
                     <input
                         type="number"
                         id="living-area"
-                        wire:model.live.debounce.300ms="livingArea"
+                        wire:model.blur="livingArea"
                         min="20"
                         max="500"
                         class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
@@ -340,6 +340,98 @@
             </svg>
         </button>
     </section>
+
+    @php($priceEstimates = $this->contractTypePriceEstimates)
+    @if (!empty($priceEstimates['rows']))
+        <!-- Contract type price estimate section -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8 mb-8">
+            <div class="mb-6">
+                <p class="text-sm font-semibold text-coral-600 mb-2">Sähkön hinta laskuri</p>
+                <h2 class="text-2xl font-bold text-slate-900 mb-3">Sähkön hinta eri sopimustyypeillä</h2>
+                <p class="text-slate-600 leading-relaxed">
+                    Kun tiedät vuosikulutuksesi, voit arvioida sähkön hinnan eri sopimustyypeillä.
+                    Alla oleva laskuri käyttää Voltikan hintatilastoja ja näyttää, mitä
+                    {{ number_format($this->totalConsumption, 0, ',', ' ') }} kWh vuosikulutus maksaisi
+                    tyypillisellä edullisella, mediaanihintaisella ja kalliimmalla sopimuksella.
+                </p>
+            </div>
+
+            <div class="overflow-x-auto -mx-2 sm:mx-0">
+                <table class="min-w-full text-sm border border-slate-200 rounded-xl overflow-hidden">
+                    <thead class="bg-slate-50 text-slate-700">
+                        <tr>
+                            <th class="text-left px-4 py-3 font-semibold">Sopimustyyppi</th>
+                            <th class="text-right px-4 py-3 font-semibold">Edullinen p20</th>
+                            <th class="text-right px-4 py-3 font-semibold">Mediaani</th>
+                            <th class="text-right px-4 py-3 font-semibold">Kalliimpi p80</th>
+                            <th class="text-right px-4 py-3 font-semibold">Mediaanihinta</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200">
+                        @foreach ($priceEstimates['rows'] as $row)
+                            <tr class="hover:bg-slate-50/70">
+                                <td class="px-4 py-4 align-top">
+                                    <div class="font-semibold text-slate-900">{{ $row['label'] }}</div>
+                                    <div class="text-xs text-slate-500 mt-1 max-w-xs">{{ $row['description'] }}</div>
+                                </td>
+                                @foreach (['p20', 'median', 'p80'] as $quantile)
+                                    <td class="px-4 py-4 text-right align-top whitespace-nowrap">
+                                        @if (!empty($row['costs'][$quantile]))
+                                            <div class="font-semibold text-slate-900">
+                                                {{ number_format($row['costs'][$quantile]['annual'], 0, ',', ' ') }} €/v
+                                            </div>
+                                            <div class="text-xs text-slate-500">
+                                                {{ number_format($row['costs'][$quantile]['monthly'], 0, ',', ' ') }} €/kk
+                                            </div>
+                                        @else
+                                            <span class="text-slate-400">–</span>
+                                        @endif
+                                    </td>
+                                @endforeach
+                                <td class="px-4 py-4 text-right align-top whitespace-nowrap text-xs text-slate-500">
+                                    <div>{{ number_format($row['energy']['median'], 2, ',', ' ') }} snt/kWh</div>
+                                    <div>+ {{ number_format($row['monthly_fee']['median'], 2, ',', ' ') }} €/kk</div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-5 grid gap-4 sm:grid-cols-2">
+                <div class="rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600 leading-relaxed">
+                    <p class="font-semibold text-slate-900 mb-1">Miten hinta lasketaan?</p>
+                    <p>
+                        Perusarvio on kulutus kWh × energian hinta snt/kWh / 100 + perusmaksu × 12.
+                        Pörssisähkön vertailussa käytetään tilastojen vuosikustannusarviota, jotta toteutunut
+                        12 kuukauden pörssihinta on vertailukelpoinen kiinteiden sopimusten kanssa.
+                    </p>
+                </div>
+                <div class="rounded-xl bg-coral-50 border border-coral-100 p-4 text-sm text-slate-700 leading-relaxed">
+                    <p class="font-semibold text-slate-900 mb-1">Tiedä sähkön hinta omalla kulutuksella</p>
+                    <p>
+                        Arviot perustuvat Voltikan keräämiin sähkösopimusten hintatilastoihin
+                        @if (!empty($priceEstimates['date']))
+                            (päivitetty {{ \Carbon\Carbon::parse($priceEstimates['date'])->format('d.m.Y') }})
+                        @endif
+                        . Todellinen hinta riippuu valitusta sopimuksesta, kampanjoista ja pörssisähkön toteutuneesta hinnasta.
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-6 flex flex-col sm:flex-row gap-3">
+                <button
+                    wire:click="compareContracts"
+                    class="inline-flex items-center justify-center bg-coral-500 hover:bg-coral-600 text-white font-semibold py-3 px-5 rounded-xl transition-colors"
+                >
+                    Vertaa sopimukset omalla kulutuksella
+                </button>
+                <a href="/sahkosopimus/tilastot" class="inline-flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 px-5 rounded-xl transition-colors">
+                    Katso sähkön hintatilastot
+                </a>
+            </div>
+        </section>
+    @endif
 
     <!-- SEO Content Section -->
     <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 sm:p-8 mb-8 text-slate-700 leading-relaxed">

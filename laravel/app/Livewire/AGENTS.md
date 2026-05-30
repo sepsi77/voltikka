@@ -119,6 +119,7 @@ Important semantics:
 - `calculate()` must read public inputs through safe helper methods and use enum `tryFrom()` fallbacks so blank/stale browser state does not become `PropertyNotFoundException` or enum `ValueError`.
 - blank/too-small numeric inputs are normalized back onto the component so the UI displays minimum allowed values: 20 m² living area, 1 resident, and 0 for optional numeric extras.
 - fallback select defaults are apartment, electric heating, central region, and 2000-era energy rating.
+- the page also renders a `sähkön hinta laskuri` section when `contract_price_daily_statistics` data exists. It estimates p20/median/p80 annual costs from the calculated kWh, energy-price statistics, and monthly-fee statistics; spot comparisons prefer interpolated `annual_cost` rows so trailing-365-day spot costs stay comparable with fixed contracts.
 
 ## `ContractTypeComparison`
 

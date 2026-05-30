@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ContractPriceDailyStatistic;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -253,7 +254,7 @@ class ConsumptionCalculatorTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('<meta name="description"', false);
-        $response->assertSee('Sähkönkulutuslaskuri arvioi kotitaloutesi vuotuisen sähkönkulutuksen', false);
+        $response->assertSee('Laske kotisi sähkönkulutus ja arvioi sähkön hinta vuodessa eri sopimustyypeillä', false);
         $response->assertSee('<link rel="canonical"', false);
         $response->assertSee('/sahkosopimus/laskuri', false);
     }
@@ -267,6 +268,30 @@ class ConsumptionCalculatorTest extends TestCase
         $response->assertSee('"WebApplication"', false);
         $response->assertSee('"FAQPage"', false);
         $response->assertSee('"BreadcrumbList"', false);
+    }
+
+    public function test_page_renders_price_estimates_when_statistics_exist(): void
+    {
+        foreach ([
+            ['metric_key' => 'energy_price', 'consumption_kwh' => null, 'p20_value' => 7.0, 'avg_value' => 8.0, 'median_value' => 8.5, 'p80_value' => 10.0],
+            ['metric_key' => 'monthly_fee', 'consumption_kwh' => null, 'p20_value' => 2.0, 'avg_value' => 3.0, 'median_value' => 4.0, 'p80_value' => 5.0],
+        ] as $row) {
+            ContractPriceDailyStatistic::create(array_merge([
+                'stat_date' => '2026-05-30',
+                'segment_key' => 'fixed_term_12',
+                'min_value' => 1.0,
+                'max_value' => 20.0,
+                'contract_count' => 12,
+            ], $row));
+        }
+
+        $response = $this->get('/sahkosopimus/laskuri');
+
+        $response->assertStatus(200);
+        $response->assertSee('Sähkön hinta laskuri');
+        $response->assertSee('Määräaikainen 12 kk');
+        $response->assertSee('8,50 snt/kWh');
+        $response->assertSee('4,00 €/kk');
     }
 
     public function test_page_renders_seo_content_sections(): void

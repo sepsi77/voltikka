@@ -7,9 +7,11 @@ use App\Enums\BuildingRegion;
 use App\Enums\BuildingType;
 use App\Enums\HeatingMethod;
 use App\Enums\SupplementaryHeatingMethod;
+use App\Models\ContractPriceDailyStatistic;
 use App\Services\DTO\EnergyCalculatorRequest;
 use App\Services\DTO\EnergyCalculatorResult;
 use App\Services\EnergyCalculator;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -359,6 +361,181 @@ class ConsumptionCalculator extends Component
         return $this->calculationResult['basic_living'] ?? 0;
     }
 
+    #[Computed]
+    public function contractTypePriceEstimates(): array
+    {
+        $latestDate = ContractPriceDailyStatistic::query()->max('stat_date');
+
+        if (! $latestDate || $this->totalConsumption <= 0) {
+            return [
+                'date' => null,
+                'rows' => [],
+            ];
+        }
+
+        $segments = [
+            'spot' => [
+                'label' => 'Pörssisähkö',
+                'description' => 'Toteutuneeseen pörssihintaan ja tyypilliseen marginaaliin perustuva arvio.',
+                'energy_metric' => 'spot_total_energy_price',
+                'use_annual_cost' => true,
+            ],
+            'fixed_term_12' => [
+                'label' => 'Määräaikainen 12 kk',
+                'description' => 'Vuodeksi lukittu kiinteä energiahinta.',
+                'energy_metric' => 'energy_price',
+                'use_annual_cost' => false,
+            ],
+            'fixed_term_24' => [
+                'label' => 'Määräaikainen 24 kk',
+                'description' => 'Kahdeksi vuodeksi lukittu kiinteä energiahinta.',
+                'energy_metric' => 'energy_price',
+                'use_annual_cost' => false,
+            ],
+            'open_ended' => [
+                'label' => 'Toistaiseksi voimassa oleva',
+                'description' => 'Jatkuva sopimus, jonka hintaa voidaan muuttaa ennakkoilmoituksella.',
+                'energy_metric' => 'energy_price',
+                'use_annual_cost' => false,
+            ],
+            'hybrid' => [
+                'label' => 'Joustosähkö',
+                'description' => 'Kiinteä energiahinta, johon voi tulla kulutusvaikutus.',
+                'energy_metric' => 'energy_price',
+                'use_annual_cost' => false,
+            ],
+        ];
+
+        $segmentKeys = array_keys($segments);
+        $statDate = substr((string) $latestDate, 0, 10);
+
+        $stats = ContractPriceDailyStatistic::query()
+            ->whereDate('stat_date', $statDate)
+            ->whereIn('segment_key', $segmentKeys)
+            ->whereIn('metric_key', ['energy_price', 'spot_total_energy_price', 'monthly_fee', 'annual_cost'])
+            ->get()
+            ->groupBy(fn (ContractPriceDailyStatistic $row): string => $row->segment_key . ':' . $row->metric_key . ':' . ($row->consumption_kwh ?? ''));
+
+        $rows = [];
+        foreach ($segments as $segmentKey => $config) {
+            $energy = $this->statValues($stats->get($segmentKey . ':' . $config['energy_metric'] . ':')?->first());
+            $monthlyFee = $this->statValues($stats->get($segmentKey . ':monthly_fee:')?->first());
+
+            if ($energy === null || $monthlyFee === null) {
+                continue;
+            }
+
+            $costs = [];
+            foreach (['p20', 'median', 'p80'] as $quantile) {
+                $annual = null;
+
+                if ($config['use_annual_cost']) {
+                    $annual = $this->interpolatedAnnualCost($stats, $segmentKey, $quantile, $this->totalConsumption);
+                } else {
+                    $annual = $this->annualCostFromEnergyAndMonthlyFee(
+                        $this->totalConsumption,
+                        $energy[$quantile] ?? null,
+                        $monthlyFee[$quantile] ?? null,
+                    );
+                }
+
+                $costs[$quantile] = $annual !== null ? [
+                    'annual' => $annual,
+                    'monthly' => $annual / 12,
+                ] : null;
+            }
+
+            if ($costs['median'] === null) {
+                continue;
+            }
+
+            $rows[] = [
+                'key' => $segmentKey,
+                'label' => $config['label'],
+                'description' => $config['description'],
+                'energy' => $energy,
+                'monthly_fee' => $monthlyFee,
+                'costs' => $costs,
+                'contract_count' => $stats->get($segmentKey . ':' . $config['energy_metric'] . ':')?->first()?->contract_count,
+            ];
+        }
+
+        usort($rows, fn (array $a, array $b): int => ($a['costs']['median']['annual'] ?? PHP_FLOAT_MAX) <=> ($b['costs']['median']['annual'] ?? PHP_FLOAT_MAX));
+
+        return [
+            'date' => $statDate,
+            'rows' => $rows,
+        ];
+    }
+
+    protected function statValues(?ContractPriceDailyStatistic $row): ?array
+    {
+        if (! $row || $row->median_value === null) {
+            return null;
+        }
+
+        return [
+            'p20' => $row->p20_value !== null ? (float) $row->p20_value : null,
+            'median' => (float) $row->median_value,
+            'p80' => $row->p80_value !== null ? (float) $row->p80_value : null,
+        ];
+    }
+
+    protected function annualCostFromEnergyAndMonthlyFee(int $consumption, ?float $energyCentsPerKwh, ?float $monthlyFee): ?float
+    {
+        if ($energyCentsPerKwh === null || $monthlyFee === null) {
+            return null;
+        }
+
+        return ($consumption * $energyCentsPerKwh / 100) + ($monthlyFee * 12);
+    }
+
+    protected function interpolatedAnnualCost(Collection $stats, string $segmentKey, string $quantile, int $consumption): ?float
+    {
+        $points = [];
+        foreach ([2000, 5000, 18000] as $level) {
+            $row = $stats->get($segmentKey . ':annual_cost:' . $level)?->first();
+            $values = $this->statValues($row);
+
+            if (($values[$quantile] ?? null) !== null) {
+                $points[$level] = (float) $values[$quantile];
+            }
+        }
+
+        if ($points === []) {
+            return null;
+        }
+
+        ksort($points);
+
+        if (array_key_exists($consumption, $points)) {
+            return $points[$consumption];
+        }
+
+        $levels = array_keys($points);
+        $lower = $levels[0];
+        $upper = $levels[count($levels) - 1];
+
+        foreach ($levels as $level) {
+            if ($level <= $consumption) {
+                $lower = $level;
+            }
+
+            if ($level >= $consumption) {
+                $upper = $level;
+                break;
+            }
+        }
+
+        if ($lower === $upper) {
+            return $points[$lower];
+        }
+
+        $ratio = ($consumption - $lower) / ($upper - $lower);
+
+        return $points[$lower] + (($points[$upper] - $points[$lower]) * $ratio);
+    }
+
     public function compareContracts(): void
     {
         // Track compare button click
@@ -380,14 +557,14 @@ class ConsumptionCalculator extends Component
 
     public function getPageTaglineProperty(): string
     {
-        return 'Arvioi kotitaloutesi vuotuinen sähkönkulutus ja sähkölaskun suuruus muutamassa sekunnissa.';
+        return 'Arvioi kotitaloutesi vuotuinen sähkönkulutus ja sähkön hinta eri sopimustyypeillä muutamassa sekunnissa.';
     }
 
     public function getSeoIntroTextProperty(): string
     {
-        return 'Sähkönkulutuslaskurilla arvioit nopeasti, paljonko kotitaloutesi käyttää sähköä vuodessa. '
+        return 'Sähkönkulutuslaskurilla arvioit nopeasti, paljonko kotitaloutesi käyttää sähköä vuodessa ja mitä sähkö maksaisi eri sopimustyypeillä. '
             . 'Syötä asunnon koko, asukasmäärä ja lämmitystapa – laskuri laskee perussähkön, lämmityksen ja lisäkuluttajat (sauna, sähköauto, lattialämmitys) erikseen. '
-            . 'Kun tiedät vuosikulutuksesi kilowattitunteina, voit vertailla sähkösopimuksia juuri sinun kulutuksellesi lasketuilla hinnoilla ja löytää edullisimman sopimuksen.';
+            . 'Kun tiedät vuosikulutuksesi kilowattitunteina, sähkön hinta laskuri arvioi vuosikustannuksen pörssisähköllä, määräaikaisilla ja toistaiseksi voimassa olevilla sopimuksilla Voltikan hintatilastojen perusteella.';
     }
 
     public function getFaqItemsProperty(): array
@@ -413,17 +590,25 @@ class ConsumptionCalculator extends Component
                 'question' => 'Miten saunan käyttö vaikuttaa sähkönkulutukseen?',
                 'answer' => 'Tavallinen sähkökiuas kuluttaa noin 7,5 kWh yhtä lämmityskertaa kohti. Kerran viikossa lämmitettävä sauna lisää vuosikulutusta noin 390 kWh, ja jatkuvalämmitteinen kiuas voi nostaa kulutusta jopa 2 500–3 000 kWh vuodessa.',
             ],
+            [
+                'question' => 'Miten sähkön hinta lasketaan vuosikulutuksesta?',
+                'answer' => 'Sähkön vuosikustannus lasketaan kertomalla vuosikulutus kilowattitunteina energian hinnalla ja lisäämällä sopimuksen perusmaksut: kulutus kWh × snt/kWh / 100 + kuukausimaksu × 12. Voltikan laskuri käyttää tähän hintatilastojen p20-, mediaani- ja p80-tasoja eri sopimustyypeille.',
+            ],
+            [
+                'question' => 'Mikä sopimustyyppi on halvin omalla kulutuksella?',
+                'answer' => 'Halvin sopimustyyppi riippuu kulutuksesta, kuukausimaksusta ja energian hinnasta. Pienellä kulutuksella perusmaksu korostuu, kun taas suurella kulutuksella pienikin ero senttiä per kilowattitunti -hinnassa vaikuttaa paljon vuosikustannukseen.',
+            ],
         ];
     }
 
     protected function generateSeoTitle(): string
     {
-        return 'Sähkönkulutuslaskuri – arvioi kotitalouden kulutus ja kustannukset | Voltikka';
+        return 'Sähkönkulutuslaskuri – laske kulutus ja sähkön hinta | Voltikka';
     }
 
     protected function generateMetaDescription(): string
     {
-        return 'Sähkönkulutuslaskuri arvioi kotitaloutesi vuotuisen sähkönkulutuksen asunnon koon, lämmitystavan ja asukasmäärän perusteella. Ilmainen ja helppokäyttöinen.';
+        return 'Laske kotisi sähkönkulutus ja arvioi sähkön hinta vuodessa eri sopimustyypeillä. Sähkönkulutuslaskuri näyttää kulutuksen, vuosikustannuksen ja hintaerot.';
     }
 
     protected function generateCanonicalUrl(): string
