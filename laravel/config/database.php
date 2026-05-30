@@ -61,6 +61,9 @@ return [
                 // PHP 8.4+ deprecated PDO::MYSQL_ATTR_SSL_CA (value 1009), use Pdo\Mysql::ATTR_SSL_CA instead
                 (defined('Pdo\Mysql::ATTR_SSL_CA') ? constant('Pdo\Mysql::ATTR_SSL_CA') : 1009) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+            'dump' => [
+                'useSingleTransaction' => true,
+            ],
         ],
 
         'mariadb' => [

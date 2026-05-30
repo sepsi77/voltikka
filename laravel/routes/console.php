@@ -32,6 +32,30 @@ Schedule::command('spot:fetch-forecast')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/spot-forecast-fetch.log'));
 
+// Take a database-only disaster-recovery backup before overnight imports mutate source data.
+Schedule::command('backup:run --only-db')
+    ->dailyAt('03:00')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/backup-run.log'));
+
+// Prune old backup archives according to config/backup.php retention settings.
+Schedule::command('backup:clean')
+    ->dailyAt('03:30')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/backup-clean.log'));
+
+// Check that a recent backup exists and stays within configured size bounds.
+Schedule::command('backup:monitor')
+    ->dailyAt('03:45')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/backup-monitor.log'));
+
 // Schedule EEX electricity futures settlement price collection overnight, after EEX FI data is reliably available.
 Schedule::command('futures:fetch-eex')
     ->dailyAt('04:00')

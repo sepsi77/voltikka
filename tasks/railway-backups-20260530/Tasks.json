@@ -1,0 +1,10 @@
+[
+  {"name":"Create Railway backup bucket","status":"done"},
+  {"name":"Install Laravel backup dependencies","status":"done"},
+  {"name":"Configure backup disk and schedule","status":"done"},
+  {"name":"Set Railway production variables","status":"done"},
+  {"name":"Document DR guidelines","status":"done"},
+  {"name":"Run local validation","status":"done"},
+  {"name":"Deploy backup code to Railway","status":"in_progress"},
+  {"name":"Run first production backup and verify archive","status":"pending"}
+]

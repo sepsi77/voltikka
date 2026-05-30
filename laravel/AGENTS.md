@@ -164,6 +164,26 @@ It should **not** blindly collapse materially different product variants when va
 
 Desktop dropdown menus in the same layout are hover-opened Alpine children. Keep their absolute dropdown panels physically touching the trigger (no top margin gap), otherwise moving the pointer from the trigger to secondary menu items can close the panel before click and make navigation feel like the first/top item was clicked.
 
+## Backups and disaster recovery
+
+Voltikka uses `spatie/laravel-backup` for first-pass production database backups. Configuration lives in `config/backup.php`; scheduling lives in `routes/console.php`.
+
+Current semantics:
+- scheduled production backup is database-only: `backup:run --only-db` daily at 03:00 Europe/Helsinki
+- cleanup runs daily at 03:30 and monitor runs daily at 03:45
+- backups are written to `BACKUP_DISK` (production: `s3`) and encrypted with `BACKUP_ARCHIVE_PASSWORD`
+- MySQL dumps use `useSingleTransaction` in `config/database.php` to avoid table locking for InnoDB tables
+- the Docker image must include `default-mysql-client` because Spatie shells out to `mysqldump`
+- backup success notifications are disabled; failure/unhealthy/cleanup-failure notifications go to `BACKUP_NOTIFICATION_EMAIL` or mail defaults
+
+Do not expose backup S3 credentials or `BACKUP_ARCHIVE_PASSWORD` in chat/logs. Do not run restores, delete backup archives, reset bucket credentials, or trigger manual production backups without explicit user confirmation.
+
+Restore drill outline:
+1. Download the selected encrypted backup archive from the Railway bucket without printing credentials.
+2. Decrypt/unzip using `BACKUP_ARCHIVE_PASSWORD` from Railway variables.
+3. Restore into a temporary MySQL service/database, not production.
+4. Run sanity checks before considering any production restore.
+
 ## Observability
 
 ### Sentry

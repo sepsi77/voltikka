@@ -11,6 +11,42 @@ Voltikka is a Finnish electricity contract comparison platform built with **Lara
 - Production site URL https://voltikka.fi/
 - Hosting: Railway with MySQL database
 
+## Railway production operations
+
+Voltikka runs on Railway in the **Breezily** workspace.
+
+| Resource | Name | ID |
+|----------|------|----|
+| Workspace | Breezily | `3382ff24-215b-4936-9726-abb79ace7744` |
+| Project | Voltikka | `6d8cae01-1006-409f-8108-1d51f1abc676` |
+| Environment | production | `9245cef8-41d0-486e-862f-193726511dba` |
+| App service | voltikka | `700d0624-fa96-4266-876c-e37640d220ea` |
+| Database service | MySQL | `beb2ba12-4a7b-416b-b4b1-596434dc3215` |
+| Backup bucket | voltikka-backups | `460e1b25-73fc-45e3-a43a-0473d2d2b86d` |
+
+Use explicit Railway IDs instead of relying on whichever project is currently linked in the local shell. Prefer Railway MCP for read-only platform inspection when available, and use the Railway CLI for workflows that need local repository state such as deploys, `railway run`, SSH, or database shells.
+
+Safe-operation rules for agents:
+
+- **Never run destructive or production-mutating Railway commands without explicit user confirmation.** This includes deploys, restarts, redeploys, rollbacks, service/domain changes, variable writes/deletes, database writes, migrations, queue restarts, SSH commands that mutate state, and any command that could affect production traffic or data.
+- Before any production mutation, state the exact project, environment, service, command, and expected effect, then wait for an affirmative confirmation from the user.
+- Read-only commands are allowed for investigation: listing projects/services, checking status, reading bounded logs, viewing variables metadata, checking domains, and inspecting deployment status.
+- Do not paste or expose secrets from Railway variables or database connection strings in chat. If a secret must be changed, describe the variable name and action without revealing values.
+- Prefer bounded log reads and targeted diagnostics over streaming or broad dumps.
+- Use the `use-railway` skill when available. Prefix Railway CLI calls with `RAILWAY_CALLER=skill:use-railway@1.2.2` and reuse a stable `RAILWAY_AGENT_SESSION` for related calls in the same user request.
+- For production Laravel commands via Railway, prefer explicit context flags such as `--project 6d8cae01-1006-409f-8108-1d51f1abc676 --environment 9245cef8-41d0-486e-862f-193726511dba --service 700d0624-fa96-4266-876c-e37640d220ea` where supported.
+
+### Production backups and disaster recovery
+
+Voltikka uses `spatie/laravel-backup` for database-only scheduled backups to a Railway S3-compatible bucket as a first DR layer. This is same-provider redundancy and does **not** replace Railway-native MySQL backups or a future off-provider backup copy.
+
+- Bucket display name: `voltikka-backups`; bucket ID: `460e1b25-73fc-45e3-a43a-0473d2d2b86d`; region: `ams`.
+- App service variables include `BACKUP_DISK=s3`, Railway object-storage S3 credentials, and `BACKUP_ARCHIVE_PASSWORD`; never print these values.
+- Scheduled commands in `laravel/routes/console.php`: `backup:run --only-db` at 03:00, `backup:clean` at 03:30, and `backup:monitor` at 03:45 Europe/Helsinki.
+- Backup archives are encrypted; a restore requires both the object-storage credentials and `BACKUP_ARCHIVE_PASSWORD` from Railway variables.
+- Any restore, backup deletion, credential reset, or manual production backup run is production-mutating and requires explicit user confirmation.
+- Future improvement: replicate backup archives to an off-Railway provider such as Cloudflare R2, AWS S3, or Backblaze B2 and schedule periodic restore drills.
+
 ## Browser based testing
 
 You can use agent browser skill to access a browser and do browser-based testing or access websites.

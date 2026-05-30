@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y \
     nodejs \
     npm \
     chromium \
+    default-mysql-client \
     $PHPIZE_DEPS \
     && docker-php-ext-configure gd --with-jpeg --with-webp \
     && docker-php-ext-install pdo pdo_pgsql pdo_mysql mbstring exif pcntl bcmath gd \
