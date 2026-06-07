@@ -37,7 +37,7 @@ class SolarCalculator extends Component
     public ?float $selectedLon = null;
 
     // System settings
-    public float $systemKwp = 5.0;
+    public float|string|null $systemKwp = 5.0;
     public string $shadingLevel = 'none';
 
     // Results (stored as array for Livewire serialization)
@@ -125,7 +125,7 @@ class SolarCalculator extends Component
             $request = new SolarEstimateRequest(
                 lat: self::EXAMPLE_LAT,
                 lon: self::EXAMPLE_LON,
-                system_kwp: max(0.5, min(20.0, $this->systemKwp)),
+                system_kwp: $this->normalizedSystemKwp(),
                 shading_level: $this->shadingLevel,
             );
 
@@ -142,7 +142,7 @@ class SolarCalculator extends Component
     private function staticExampleEstimate(): array
     {
         $baseMonthly = [40, 170, 390, 560, 680, 660, 650, 540, 370, 210, 80, 40];
-        $scale = max(0.5, min(20.0, $this->systemKwp)) / 5.0;
+        $scale = $this->normalizedSystemKwp() / 5.0;
 
         $monthly = array_map(fn ($kwh) => round($kwh * $scale), $baseMonthly);
 
@@ -235,19 +235,23 @@ class SolarCalculator extends Component
         $this->showSuggestions = false;
     }
 
-    public function updatedSystemKwp(): void
+    public function updatedSystemKwp($value = null): void
     {
-        // Clamp to the meaningful range so the displayed size matches what is actually
-        // estimated, instead of silently clamping later inside the calculation.
-        $clamped = max(self::MIN_KWP, min(self::MAX_KWP, (float) $this->systemKwp));
+        // Mobile browsers/Livewire can send an empty string (hydrated as null) while the
+        // user clears the number input. Keep the public property string/null tolerant and
+        // normalize it here so typed-property hydration cannot unset it and later trigger
+        // PropertyNotFoundException.
+        $numericValue = is_numeric($value) ? (float) $value : self::MIN_KWP;
+        $clamped = max(self::MIN_KWP, min(self::MAX_KWP, $numericValue));
 
-        if (abs($clamped - (float) $this->systemKwp) > 0.0001) {
+        if (! is_numeric($value) || abs($clamped - $numericValue) > 0.0001) {
             $this->systemKwpNotice = 'Laskemme kokoarvion välillä '
                 .rtrim(rtrim(number_format(self::MIN_KWP, 1, ',', ' '), '0'), ',')
                 .'–'.(int) self::MAX_KWP.' kWp.';
             $this->systemKwp = $clamped;
         } else {
             $this->systemKwpNotice = null;
+            $this->systemKwp = $numericValue;
         }
 
         if ($this->selectedLat !== null && $this->selectedLon !== null) {
@@ -256,6 +260,13 @@ class SolarCalculator extends Component
             // Keep the default-location example in step with the selected size.
             $this->exampleResult = $this->buildExampleEstimate();
         }
+    }
+
+    private function normalizedSystemKwp(): float
+    {
+        $value = is_numeric($this->systemKwp) ? (float) $this->systemKwp : self::MIN_KWP;
+
+        return max(self::MIN_KWP, min(self::MAX_KWP, $value));
     }
 
     public function updatedManualPrice(): void
@@ -290,7 +301,7 @@ class SolarCalculator extends Component
             $request = new SolarEstimateRequest(
                 lat: $this->selectedLat,
                 lon: $this->selectedLon,
-                system_kwp: max(0.5, min(20.0, $this->systemKwp)),
+                system_kwp: $this->normalizedSystemKwp(),
                 shading_level: $this->shadingLevel,
             );
 
@@ -301,7 +312,7 @@ class SolarCalculator extends Component
             $this->dispatch('track',
                 eventName: 'Solar Calculation Completed',
                 props: [
-                    'system_kwp' => $this->systemKwp,
+                    'system_kwp' => $this->normalizedSystemKwp(),
                     'annual_kwh' => round($result->annual_kwh),
                     'shading_level' => $this->shadingLevel,
                 ]

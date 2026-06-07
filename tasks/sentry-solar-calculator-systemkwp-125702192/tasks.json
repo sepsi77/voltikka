@@ -1,0 +1,5 @@
+[
+  {"name":"Investigate SolarCalculator public properties and bindings","status":"completed"},
+  {"name":"Implement robust fix for systemKwp update hook","status":"completed"},
+  {"name":"Run focused tests or static checks","status":"completed"}
+]

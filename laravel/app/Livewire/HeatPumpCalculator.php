@@ -20,32 +20,7 @@ class HeatPumpCalculator extends Component
      */
     public const PRIMARY_SYSTEMS = ['ground_source_hp', 'air_to_water_hp', 'pellets'];
 
-    // Building info
-    public int $livingArea = 150;
-    public float $roomHeight = 2.5;
-    public string $buildingRegion = 'central';
-    public string $buildingEnergyEfficiency = '2000';
-    public int $numPeople = 4;
-
-    // Input mode: 'model_based' or 'bill_based'
-    public string $inputMode = 'model_based';
-
-    // Current heating method
-    public string $currentHeatingMethod = 'electricity';
-
-    // Bill-based inputs (used when inputMode = 'bill_based')
-    public ?float $oilLitersPerYear = null;
-    public ?float $electricityKwhPerYear = null;
-    public ?float $districtHeatingEurosPerYear = null;
-
-    // Prices
-    public float $electricityPrice = 15.0; // c/kWh including VAT and transfer
-    public float $oilPrice = 1.40; // €/liter
-    public float $districtHeatingPrice = 10.8; // c/kWh
-    public float $pelletPrice = 480.0; // €/ton
-
-    // Investment costs (user-adjustable)
-    public array $investments = [
+    private const DEFAULT_INVESTMENTS = [
         'ground_source_hp' => 20000,
         'air_to_water_hp' => 12000,
         'air_to_air_hp' => 2800,
@@ -55,9 +30,37 @@ class HeatPumpCalculator extends Component
         'pellets' => 15000,
     ];
 
+    // Building info. Numeric inputs accept temporary string/null states because
+    // Livewire/mobile browsers can send an empty string while a number field is cleared.
+    public int|string|null $livingArea = 150;
+    public float|string|null $roomHeight = 2.5;
+    public string $buildingRegion = 'central';
+    public string $buildingEnergyEfficiency = '2000';
+    public int|string|null $numPeople = 4;
+
+    // Input mode: 'model_based' or 'bill_based'
+    public string $inputMode = 'model_based';
+
+    // Current heating method
+    public string $currentHeatingMethod = 'electricity';
+
+    // Bill-based inputs (used when inputMode = 'bill_based')
+    public float|string|null $oilLitersPerYear = null;
+    public float|string|null $electricityKwhPerYear = null;
+    public float|string|null $districtHeatingEurosPerYear = null;
+
+    // Prices
+    public float|string|null $electricityPrice = 15.0; // c/kWh including VAT and transfer
+    public float|string|null $oilPrice = 1.40; // €/liter
+    public float|string|null $districtHeatingPrice = 10.8; // c/kWh
+    public float|string|null $pelletPrice = 480.0; // €/ton
+
+    // Investment costs (user-adjustable)
+    public array $investments = self::DEFAULT_INVESTMENTS;
+
     // Financial parameters
-    public float $interestRate = 2.0; // percent
-    public int $calculationPeriod = 15; // years
+    public float|string|null $interestRate = 2.0; // percent
+    public int|string|null $calculationPeriod = 15; // years
 
     // Results (stored as array for Livewire serialization)
     public array $calculationResult = [];
@@ -190,9 +193,17 @@ class HeatPumpCalculator extends Component
         $this->calculate();
     }
 
+    public function updatedInvestments(): void
+    {
+        $this->calculate();
+    }
+
     public function updateInvestment(string $key, $value): void
     {
-        $this->investments[$key] = (float) $value;
+        $this->investments[$key] = $this->floatOrDefault(
+            $value,
+            (float) (self::DEFAULT_INVESTMENTS[$key] ?? 0)
+        );
         $this->calculate();
     }
 
@@ -201,9 +212,50 @@ class HeatPumpCalculator extends Component
         $this->showAdvancedSettings = !$this->showAdvancedSettings;
     }
 
+    private function normalizeNumericInputs(): void
+    {
+        // Blank number inputs are normalized to safe defaults. Numeric out-of-range
+        // values are left intact where the UI already shows an explicit validation
+        // error (for example living area), preserving existing behaviour.
+        $this->livingArea = $this->intOrDefault($this->livingArea, 20);
+        $this->roomHeight = $this->floatOrDefault($this->roomHeight, 2.0);
+        $this->numPeople = $this->intOrDefault($this->numPeople, 1);
+
+        $this->oilLitersPerYear = $this->nullableFloat($this->oilLitersPerYear);
+        $this->electricityKwhPerYear = $this->nullableFloat($this->electricityKwhPerYear);
+        $this->districtHeatingEurosPerYear = $this->nullableFloat($this->districtHeatingEurosPerYear);
+
+        $this->electricityPrice = $this->floatOrDefault($this->electricityPrice, 1.0);
+        $this->oilPrice = $this->floatOrDefault($this->oilPrice, 0.5);
+        $this->districtHeatingPrice = $this->floatOrDefault($this->districtHeatingPrice, 1.0);
+        $this->pelletPrice = $this->floatOrDefault($this->pelletPrice, 100.0);
+        $this->interestRate = $this->floatOrDefault($this->interestRate, 0.0);
+        $this->calculationPeriod = $this->intOrDefault($this->calculationPeriod, 5);
+
+        foreach (self::DEFAULT_INVESTMENTS as $key => $default) {
+            $this->investments[$key] = $this->floatOrDefault($this->investments[$key] ?? null, (float) $default);
+        }
+    }
+
+    private function intOrDefault(mixed $value, int $default): int
+    {
+        return is_numeric($value) ? (int) $value : $default;
+    }
+
+    private function floatOrDefault(mixed $value, float $default): float
+    {
+        return is_numeric($value) ? (float) $value : $default;
+    }
+
+    private function nullableFloat(mixed $value): ?float
+    {
+        return is_numeric($value) ? (float) $value : null;
+    }
+
     public function calculate(): void
     {
         $this->errorMessage = null;
+        $this->normalizeNumericInputs();
 
         try {
             // Validate inputs
@@ -232,11 +284,11 @@ class HeatPumpCalculator extends Component
             $request = new HeatPumpComparisonRequest(
                 livingArea: $this->livingArea,
                 roomHeight: $this->roomHeight,
-                region: BuildingRegion::from($this->buildingRegion),
-                energyRating: BuildingEnergyRating::from($this->buildingEnergyEfficiency),
+                region: BuildingRegion::tryFrom($this->buildingRegion) ?? BuildingRegion::Central,
+                energyRating: BuildingEnergyRating::tryFrom($this->buildingEnergyEfficiency) ?? BuildingEnergyRating::Year2000,
                 numPeople: $this->numPeople,
                 inputMode: $this->inputMode,
-                currentHeatingMethod: CurrentHeatingMethod::from($this->currentHeatingMethod),
+                currentHeatingMethod: CurrentHeatingMethod::tryFrom($this->currentHeatingMethod) ?? CurrentHeatingMethod::Electricity,
                 oilLitersPerYear: $this->oilLitersPerYear,
                 electricityKwhPerYear: $this->electricityKwhPerYear,
                 districtHeatingEurosPerYear: $this->districtHeatingEurosPerYear,

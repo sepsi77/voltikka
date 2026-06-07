@@ -201,6 +201,41 @@ class HeatPumpCalculatorTest extends TestCase
             ->assertSet('errorMessage', 'Pinta-ala pitää olla välillä 20-500 m².');
     }
 
+    public function test_blank_numeric_inputs_are_normalized_instead_of_throwing(): void
+    {
+        Livewire::test(HeatPumpCalculator::class)
+            ->set('livingArea', '')
+            ->assertSet('livingArea', 20)
+            ->set('roomHeight', '')
+            ->assertSet('roomHeight', 2.0)
+            ->set('numPeople', '')
+            ->assertSet('numPeople', 1)
+            ->set('electricityPrice', '')
+            ->assertSet('electricityPrice', 1.0)
+            ->set('oilPrice', '')
+            ->assertSet('oilPrice', 0.5)
+            ->set('districtHeatingPrice', '')
+            ->assertSet('districtHeatingPrice', 1.0)
+            ->set('pelletPrice', '')
+            ->assertSet('pelletPrice', 100.0)
+            ->set('interestRate', '')
+            ->assertSet('interestRate', 0.0)
+            ->set('calculationPeriod', '')
+            ->assertSet('calculationPeriod', 5)
+            ->set('investments.ground_source_hp', '')
+            ->assertSet('investments.ground_source_hp', 20000.0);
+    }
+
+    public function test_blank_bill_based_consumption_inputs_remain_validation_errors_not_exceptions(): void
+    {
+        Livewire::test(HeatPumpCalculator::class)
+            ->set('inputMode', 'bill_based')
+            ->set('currentHeatingMethod', 'electricity')
+            ->set('electricityKwhPerYear', '')
+            ->assertSet('electricityKwhPerYear', null)
+            ->assertSet('errorMessage', 'Syötä sähkönkulutus kWh.');
+    }
+
     public function test_bill_based_mode_requires_consumption_input(): void
     {
         Livewire::test(HeatPumpCalculator::class)

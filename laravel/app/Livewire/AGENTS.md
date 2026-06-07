@@ -26,6 +26,7 @@ Important semantics:
 - Savings/“lisäkustannus” deltas are neutral tabular slate, not green/red. Green/red is reserved for the CO₂ delta only (measured-emissions semantic, see `../../DESIGN.md`). Payback chart draws the baseline in slate-400 and the evaluated option in coral; do not use green for the alternative line.
 - Recalculation feedback is a non-blocking bottom-right status pill plus a dim of the results region (`wire:loading.delay`). Do not reintroduce a `fixed inset-0` full-screen overlay; it flashed on every debounced keystroke.
 - All seven investment costs (including `ilp_fireplace`, `exhaust_air_hp_fireplace`) are editable in advanced settings so the editable set matches what the service actually computes.
+- Numeric inputs are intentionally `int|float|string|null` tolerant because Livewire/mobile browsers can send empty strings while fields are cleared. Keep `normalizeNumericInputs()` as the gate before validation/DTO construction so blank numeric fields normalize to safe defaults or nullable bill-input validation errors instead of typed-property hydration exceptions.
 - The page is SEO-targeted at the query "kannattaako lämpöpumppu" (sub-queries "kannattaako maalämpö", "kannattaako ilma-vesilämpöpumppu"): question-first title + H1, and an H2/H3 content section using those exact questions. Keep the calculator intent; do not turn it into hype.
 - `getFaqItemsProperty()` is the single source of truth for the FAQ; it drives both the visible `<details>` loop and `buildFaqJsonLd()` (FAQPage). Do not hand-write a separate FAQ `<script>` again, that previously drifted from the visible list.
 - Both schemas render in the **view** via `<x-schema-markup :schemas="[$jsonLd, $faqJsonLd]" />` (WebApplication + FAQPage). The shared `layouts.app` does NOT output a passed `$jsonLd`, so schemas must be passed to `view(...)` and rendered by the component, not via the layout array.
@@ -58,6 +59,16 @@ Important semantics:
 - the lead chart caption must be generated from `leadChartPayload` / `annual_cost`, not from c/kWh callouts, so the text always matches the plotted trend
 - segment and consumption tables hide rows with fewer than 10 contracts to avoid over-interpreting sparse segment statistics
 - the consumption “Hintahaarukka” table intentionally omits absolute cheapest/minimum annual cost values because single-row/import anomalies can make the minimum misleading; use p20/median/p80 for the displayed range
+
+## `SolarCalculator`
+
+Primary files:
+- `SolarCalculator.php`
+- `../../resources/views/livewire/solar-calculator.blade.php`
+
+Important semantics:
+- `systemKwp` is intentionally `float|string|null` tolerant because Livewire/mobile browsers can send an empty string while the visitor clears the number input. `updatedSystemKwp($value)` must normalize from the hook argument instead of reading the public property before normalization; otherwise Livewire can unset a non-nullable typed property and trigger `PropertyNotFoundException`.
+- Use `normalizedSystemKwp()` for PVGIS requests, static example scaling, and analytics payloads so stale or blank snapshots are clamped to the supported 0.5–20 kWp range before calculation.
 
 ## `SpotPrice`
 

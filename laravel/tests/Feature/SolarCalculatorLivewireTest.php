@@ -198,6 +198,18 @@ class SolarCalculatorLivewireTest extends TestCase
             ->assertNotSet('systemKwpNotice', null);
     }
 
+    public function test_blank_system_size_is_normalized_instead_of_throwing(): void
+    {
+        $this->mock(SolarCalculatorService::class)
+            ->shouldReceive('calculate')
+            ->andReturn(new SolarEstimateResult(4500.0, array_fill(0, 12, 375), []));
+
+        Livewire::test(SolarCalculator::class)
+            ->set('systemKwp', '')
+            ->assertSet('systemKwp', 0.5)
+            ->assertNotSet('systemKwpNotice', null);
+    }
+
     public function test_unknown_address_shows_notice_instead_of_silent_empty(): void
     {
         $this->mock(SolarCalculatorService::class)
