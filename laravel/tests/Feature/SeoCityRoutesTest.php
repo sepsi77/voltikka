@@ -599,13 +599,14 @@ class SeoCityRoutesTest extends TestCase
     // ==================== City-Specific Info Tests ====================
 
     /**
-     * Test that city page shows contracts count.
+     * Test that city page shows the current results count wording.
      */
     public function test_city_page_shows_contracts_count(): void
     {
         $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
-        // Should show count of contracts found
-        $response->assertSee('löytyi');
+
+        $response->assertSee('sopimusta');
+        $response->assertSee('vertailussa');
     }
 
     // ==================== Top Cities List Tests ====================

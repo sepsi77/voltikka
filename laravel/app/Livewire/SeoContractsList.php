@@ -246,6 +246,8 @@ class SeoContractsList extends ContractsList
                 $this->selectedPreset = $this->consumptionLevelPresets[$consumptionLevel];
             }
         }
+
+        $this->normalizePageProperty();
     }
 
     /**
@@ -1356,6 +1358,8 @@ class SeoContractsList extends ContractsList
      */
     protected function seoContractsViewData(): array
     {
+        $this->normalizePageProperty();
+
         if (! $this->isDefaultSeoListingCacheable()) {
             return $this->buildSeoContractsViewData();
         }

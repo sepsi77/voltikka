@@ -509,6 +509,36 @@ class ContractsListPaginationTest extends TestCase
         $response2->assertStatus(200);
     }
 
+    public function test_empty_page_query_parameter_defaults_to_page_one(): void
+    {
+        $this->createContracts(25);
+
+        $response = $this->get('/sahkosopimus?page=');
+
+        $response->assertStatus(200);
+        $response->assertDontSee('?page=');
+    }
+
+    public function test_empty_page_query_parameter_on_city_seo_page_defaults_to_page_one(): void
+    {
+        $this->createContracts(25);
+
+        $response = $this->get('/sahkosopimus/paikkakunnat/pudasjarvi?page=');
+
+        $response->assertStatus(200);
+        $response->assertDontSee('?page=');
+    }
+
+    public function test_malformed_page_query_parameter_defaults_to_page_one(): void
+    {
+        $this->createContracts(25);
+
+        $response = $this->get('/sahkosopimus?page=not-a-number');
+
+        $response->assertStatus(200);
+        $response->assertDontSee('page=not-a-number');
+    }
+
     // ========================================
     // Performance Tests
     // ========================================

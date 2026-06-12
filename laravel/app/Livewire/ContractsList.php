@@ -40,7 +40,7 @@ class ContractsList extends Component
      * Current page number (URL-bound for SEO).
      */
     #[Url]
-    public int $page = 1;
+    public int|string $page = 1;
 
     /**
      * Base path for filter links (used for SEO crawlable links).
@@ -779,6 +779,39 @@ class ContractsList extends Component
     public function resetPage(): void
     {
         $this->page = 1;
+    }
+
+    /**
+     * Keep URL-bound pagination tolerant of empty/malformed query values.
+     *
+     * Livewire assigns query-string values before component mount. A request like
+     * `?page=` therefore arrives as an empty string; normalize it before any SEO
+     * pagination calculations and after interactive updates.
+     */
+    public function updatedPage(mixed $value): void
+    {
+        $this->normalizePageProperty();
+        $this->contractsCache = null;
+    }
+
+    protected function normalizePageProperty(): void
+    {
+        $this->page = $this->currentPageNumber();
+    }
+
+    protected function currentPageNumber(): int
+    {
+        if (is_int($this->page)) {
+            return max(1, $this->page);
+        }
+
+        $page = trim((string) $this->page);
+
+        if ($page === '' || ! ctype_digit($page)) {
+            return 1;
+        }
+
+        return max(1, (int) $page);
     }
 
     /**
@@ -1542,6 +1575,8 @@ class ContractsList extends Component
      */
     protected function contractsListViewData(): array
     {
+        $this->normalizePageProperty();
+
         if (! $this->isDefaultListingCacheable()) {
             return $this->buildContractsListViewData();
         }

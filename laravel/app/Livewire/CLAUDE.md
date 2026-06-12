@@ -8,23 +8,6 @@ See also:
 - `../AGENTS.md` for Laravel-level behavior
 - `../Services/ContractReplacement/AGENTS.md` for replacement matching/linking rules
 
-## `SolarCalculator`
-
-Primary files:
-- `SolarCalculator.php`
-- `../../resources/views/livewire/solar-calculator.blade.php`
-- `../../resources/views/livewire/partials/solar-result.blade.php` (shared result + savings cards)
-- `../Services/SolarCalculatorService.php`, `../Services/PvgisService.php`
-
-Important semantics:
-- `mount()` precomputes a default-location worked example (Helsinki, `EXAMPLE_LAT`/`EXAMPLE_LON`) via `buildExampleEstimate()` and renders it in the no-address state, so first-time visitors see the payoff before committing an address. This was a deliberate fix for a high bounce rate; do not revert to the empty "enter address" placeholder.
-- `buildExampleEstimate()` is bot-safe: crawlers (`isCrawlerRequest()`) never trigger an uncached PVGIS request, and `staticExampleEstimate()` is the fallback on any PVGIS failure/timeout. The example tracks the selected `systemKwp`/`shadingLevel` (rebuilt in `updatedSystemKwp`/`updatedShadingLevel` while no address is selected). PVGIS results are cached 30 days per location/size in `PvgisService`, so the live example is effectively warm in production.
-- The live result and the example render through the **same** `partials/solar-result.blade.php`; `live` toggles the wire:loading overlay, `isExample` adds the "Esimerkki" label. Keep result markup in the partial, not duplicated.
-- The result card is intentionally the page's dark `slate-950` focus moment (mirrors the hero) with coral as the single accent and the sanctioned `bg-white/5 + backdrop-blur` glass stat cards; savings is the one coral-highlighted stat. Do not reintroduce the previous coral gradient hero-metric or the off-brand green savings card (green is reserved for CO₂/clean-energy semantics, see `../../DESIGN.md`).
-- System size is clamped to `[MIN_KWP, MAX_KWP]` (0.5–20) in `updatedSystemKwp` with a user-facing notice, and price to `MAX_PRICE_CENTS` in `updatedManualPrice`, so displayed inputs match what is actually estimated instead of being silently clamped inside `calculateEstimate()`.
-- Address search sets `addressNotice` to distinguish "not found" from "search unavailable" instead of showing a silently empty dropdown.
-- The result "Laskenta-arvot" block reads the real keys produced by `PvgisService::fetchFromApi` (`optimal_angles`, `losses_percent`, `roof_tilt_deg`, `roof_aspect_deg`); do not reintroduce the never-populated `tilt`/`azimuth`/`loss_percent` keys.
-
 ## `HeatPumpCalculator`
 
 Primary files:
@@ -43,6 +26,7 @@ Important semantics:
 - Savings/“lisäkustannus” deltas are neutral tabular slate, not green/red. Green/red is reserved for the CO₂ delta only (measured-emissions semantic, see `../../DESIGN.md`). Payback chart draws the baseline in slate-400 and the evaluated option in coral; do not use green for the alternative line.
 - Recalculation feedback is a non-blocking bottom-right status pill plus a dim of the results region (`wire:loading.delay`). Do not reintroduce a `fixed inset-0` full-screen overlay; it flashed on every debounced keystroke.
 - All seven investment costs (including `ilp_fireplace`, `exhaust_air_hp_fireplace`) are editable in advanced settings so the editable set matches what the service actually computes.
+- Numeric inputs are intentionally `int|float|string|null` tolerant because Livewire/mobile browsers can send empty strings while fields are cleared. Keep `normalizeNumericInputs()` as the gate before validation/DTO construction so blank numeric fields normalize to safe defaults or nullable bill-input validation errors instead of typed-property hydration exceptions.
 - The page is SEO-targeted at the query "kannattaako lämpöpumppu" (sub-queries "kannattaako maalämpö", "kannattaako ilma-vesilämpöpumppu"): question-first title + H1, and an H2/H3 content section using those exact questions. Keep the calculator intent; do not turn it into hype.
 - `getFaqItemsProperty()` is the single source of truth for the FAQ; it drives both the visible `<details>` loop and `buildFaqJsonLd()` (FAQPage). Do not hand-write a separate FAQ `<script>` again, that previously drifted from the visible list.
 - Both schemas render in the **view** via `<x-schema-markup :schemas="[$jsonLd, $faqJsonLd]" />` (WebApplication + FAQPage). The shared `layouts.app` does NOT output a passed `$jsonLd`, so schemas must be passed to `view(...)` and rendered by the component, not via the layout array.
@@ -64,15 +48,47 @@ Important semantics:
 - the component caches its prepared view payload per period + consumption + source-data fingerprint until the next day; keep this cache in place unless a replacement avoids full-table aggregation on every page load
 - `getDailyStatsProperty()` keeps an explicit request/job-scoped collection cache and selects only the columns used by the view-data builder; queued warmers instantiate the component directly, so do not rely only on Livewire computed-property memoization for this full-table read
 - `warmPreparedViewDataCache()` is public so queued/background warmers can fill the same prepared-data cache without rendering a public request; keep its key semantics aligned with `statisticsViewData()`
+- the warmer must batch source reads used across many segment/date loops: daily spot-market averages are loaded once and sliced in memory for rolling 12-month spot summaries, and latest per-segment statistic rows come from the already-loaded `dailyStats` collection rather than one query per segment
 - cache invalidation is automatic through cheap `contract_price_daily_statistics` / `contract_price_snapshots` / spot-price max-date/update fingerprints, so daily imports/backfills should not need manual page-cache clearing
 - run `contracts:backfill-price-statistics` before expecting historical data
 - spot metrics are split between `spot_margin` and `spot_total_energy_price`
 - the “Hinnat sopimustyypeittäin” spot row must display a trailing-12-month realized spot daily average + latest typical margin, not the latest daily spot price; show p20–p80 daily-price variation under the value without adding a column
 - the “Hinnat sopimustyypeittäin” sparkline must track the displayed median energy-price basis; the annual-cost sparkline belongs in the “Hintahaarukka” table below
-- deep-dive spot c/kWh charts must use the same trailing-12-month spot average + typical margin as the upper spot row, with p20–p80 daily-price variation as the shaded band; do not show latest-day spot there unless explicitly adding a separate volatility view
+- deep-dive spot c/kWh charts and top editorial spot callouts must use the same trailing-12-month spot average + typical margin as the upper spot row, with p20–p80 daily-price variation as the shaded band; do not show latest-day spot there unless explicitly adding a separate volatility view
 - non-spot “vs pörssisähkö” quotable comparisons must use `annual_cost` at the selected consumption so unusually cheap/expensive spot days do not distort contract-type comparisons
 - the lead chart caption must be generated from `leadChartPayload` / `annual_cost`, not from c/kWh callouts, so the text always matches the plotted trend
 - segment and consumption tables hide rows with fewer than 10 contracts to avoid over-interpreting sparse segment statistics
+- the consumption “Hintahaarukka” table intentionally omits absolute cheapest/minimum annual cost values because single-row/import anomalies can make the minimum misleading; use p20/median/p80 for the displayed range
+
+## `SolarCalculator`
+
+Primary files:
+- `SolarCalculator.php`
+- `../../resources/views/livewire/solar-calculator.blade.php`
+
+Important semantics:
+- `systemKwp` is intentionally `float|string|null` tolerant because Livewire/mobile browsers can send an empty string while the visitor clears the number input. `updatedSystemKwp($value)` must normalize from the hook argument instead of reading the public property before normalization; otherwise Livewire can unset a non-nullable typed property and trigger `PropertyNotFoundException`.
+- Use `normalizedSystemKwp()` for PVGIS requests, static example scaling, and analytics payloads so stale or blank snapshots are clamped to the supported 0.5–20 kWp range before calculation.
+
+## `SpotPrice`
+
+Primary files:
+- `SpotPrice.php`
+- `../../resources/views/livewire/spot-price.blade.php`
+- `../Models/SpotPriceForecast.php`
+- `../Services/SpotForecasts/AGENTS.md`
+
+Purpose:
+- renders `/spot-price`
+- shows official ENTSO-E/Nord Pool actual spot prices for today/tomorrow, historical summaries, appliance timing helpers, and a separate third-party forecast section when imported forecast rows exist
+
+Important semantics:
+- official actual prices live in `$hourlyPrices` / `spot_prices_hour` and quarter-hour actuals live in `spot_prices_quarter`
+- imported forecasts live in `$forecastPrices` / `spot_price_forecasts` and must not be merged into `$hourlyPrices`
+- forecast display starts after the latest future official actual price so users do not see third-party predictions where official prices exist
+- forecast rows must stay labelled as estimates and cite `nordpool-predict-fi` by vividfog with the GitHub URL
+- forecast rows must not affect current price, today/tomorrow actual sections, CSV export, spot averages, or appliance helper calculations unless explicitly redesigned
+- appliance helper cards intentionally exclude the current hour as well as past hours, because a displayed hour must be a fully upcoming actionable slot; tomorrow's official prices may be used when available and cards should label tomorrow/date context
 
 ## `ArticleContractPriceComparisonChart`
 
@@ -155,6 +171,7 @@ Important semantics:
 - city-page solar potential must stay in the lazy `CitySolarEstimate` child component; `SeoContractsList` must not call `CitySolarService`/PVGIS while building initial page HTML because a cache miss can add blocking time
 - `CitySolarEstimate` must not make uncached PVGIS requests for crawler user agents (Googlebot, generic bots/spiders); bot-triggered Livewire lazy updates should render cached data only or nothing, because PVGIS can hang long enough to hit PHP's request timeout
 - `SeoContractsList` memoizes city municipality lookups, including not-found slugs, because city metadata is read by contracts filtering, title/meta generation, headings, JSON-LD, and local-contract sections during one render; do not revert to direct `Municipality::where('slug', ...)` calls from those accessors
+- `ContractsList::$page` is URL-bound and intentionally typed `int|string`; `normalizePageProperty()` coerces empty, malformed, or negative query values to page 1 before render/SEO pagination. Keep this tolerant because bots and browsers can request `?page=` before Livewire mount, and a strict `int` property causes typed-property hydration errors.
 - `ContractsList::calculateFromInlineCalculator()` reads calculator fields through safe typed helper methods. Keep this tolerant of blank mobile number inputs and stale/partially hydrated Livewire snapshots from SEO pages so user edits do not turn into `PropertyNotFoundException` / enum errors.
 - `CheapestContracts` calls `SeoContractsList::getContractsProperty()` through inheritance. Read consumption with `ContractsList::selectedConsumptionValue()` in inherited listing paths and cheapest-page render data so stale Livewire snapshots that miss the URL-bound `consumption` property fall back to 5 000 kWh instead of throwing `PropertyNotFoundException`.
 - Contract comparison hero market-insight pills are intentionally small and must not push results down. They use cached precomputed statistics/forecast payloads from `ContractMarketInsightService`; do not calculate contract prices or scan raw `price_components` for these pills during page requests.
@@ -208,6 +225,8 @@ Use broad existing SEO pages for duration badges instead of creating exact-durat
 `ContractDetail` loads `activeContract` beside `company`, `priceComponents`, and `electricitySource`. Keep `ElectricityContract::isActive()` relation-aware so detail history rows do not issue one `active_contracts` query per version. Discount helpers on `ElectricityContract` are also relation-aware; when `priceComponents` is already eager-loaded for cards or JSON-LD, do not re-query `price_components` just to check active discounts.
 
 `ContractDetail` also memoizes rank-related computed values and keeps one request-scoped `ContractRankingService` instance. Do not replace `rankingService()` with repeated `app(ContractRankingService::class)` calls in `liveRank`, `liveTotalContracts`, or `cheaperContracts`; those methods share the same eligible target-group lookup and otherwise repeat large `electricity_contracts` queries during one render.
+
+`ContractRankingService` and `ContractListCacheService` intentionally memoize cache payloads per service instance. Production uses the database cache driver, so repeated `Cache::remember()` calls for `contract_rankings_5000kwh`, `contract_list_cache_version`, or `contract_list_metrics:*` become repeated `select * from cache where key in (?)` spans that Sentry can classify as N+1 even when application data is already cached.
 
 `ContractDetail` memoizes `ContractPageCacheVersion::hash()` per component instance because both the contract lookup cache key and prepared view-data cache key need it. On the database cache driver, recomputing the version hash can create repeated cache/source-table queries before the page data is even built.
 
