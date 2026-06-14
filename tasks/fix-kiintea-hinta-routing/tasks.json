@@ -1,0 +1,7 @@
+[
+  {"name":"Inspect current routes and SEO listing behavior","status":"done"},
+  {"name":"Restore kiintea-hinta pricing route and metadata","status":"done"},
+  {"name":"Make unknown location slugs 404","status":"done"},
+  {"name":"Add regression tests","status":"done"},
+  {"name":"Run targeted tests","status":"done"}
+]

@@ -148,6 +148,16 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/vihrea-sahko</loc>", $content);
     }
 
+    public function test_sitemap_includes_fixed_price_page(): void
+    {
+        $response = $this->get('/sitemap.xml');
+
+        $content = $response->getContent();
+        $baseUrl = config('app.url');
+
+        $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/kiintea-hinta</loc>", $content);
+    }
+
     public function test_sitemap_includes_city_pages(): void
     {
         $response = $this->get('/sitemap.xml');
@@ -330,8 +340,8 @@ class SitemapTest extends TestCase
         $locs = array_column($urls, 'loc');
 
         $this->assertContains(config('app.url'), $locs);
-        $this->assertContains(config('app.url') . '/spot-price', $locs);
-        $this->assertContains(config('app.url') . '/sahkosopimus/paikkakunnat', $locs);
+        $this->assertContains(config('app.url').'/spot-price', $locs);
+        $this->assertContains(config('app.url').'/sahkosopimus/paikkakunnat', $locs);
     }
 
     public function test_sitemap_service_returns_housing_type_urls(): void
@@ -343,9 +353,9 @@ class SitemapTest extends TestCase
         $locs = array_column($urls, 'loc');
         $baseUrl = config('app.url');
 
-        $this->assertContains($baseUrl . '/sahkosopimus/omakotitalo', $locs);
-        $this->assertContains($baseUrl . '/sahkosopimus/kerrostalo', $locs);
-        $this->assertContains($baseUrl . '/sahkosopimus/rivitalo', $locs);
+        $this->assertContains($baseUrl.'/sahkosopimus/omakotitalo', $locs);
+        $this->assertContains($baseUrl.'/sahkosopimus/kerrostalo', $locs);
+        $this->assertContains($baseUrl.'/sahkosopimus/rivitalo', $locs);
     }
 
     public function test_sitemap_service_returns_energy_source_urls(): void
@@ -357,9 +367,9 @@ class SitemapTest extends TestCase
         $locs = array_column($urls, 'loc');
         $baseUrl = config('app.url');
 
-        $this->assertContains($baseUrl . '/sahkosopimus/tuulisahko', $locs);
-        $this->assertContains($baseUrl . '/sahkosopimus/aurinkosahko', $locs);
-        $this->assertContains($baseUrl . '/sahkosopimus/vihrea-sahko', $locs);
+        $this->assertContains($baseUrl.'/sahkosopimus/tuulisahko', $locs);
+        $this->assertContains($baseUrl.'/sahkosopimus/aurinkosahko', $locs);
+        $this->assertContains($baseUrl.'/sahkosopimus/vihrea-sahko', $locs);
     }
 
     public function test_sitemap_service_returns_city_urls(): void
@@ -372,8 +382,8 @@ class SitemapTest extends TestCase
         $baseUrl = config('app.url');
 
         // Should include cities from database (using /sahkosopimus/paikkakunnat/{slug} URL pattern)
-        $this->assertContains($baseUrl . '/sahkosopimus/paikkakunnat/helsinki', $locs);
-        $this->assertContains($baseUrl . '/sahkosopimus/paikkakunnat/tampere', $locs);
+        $this->assertContains($baseUrl.'/sahkosopimus/paikkakunnat/helsinki', $locs);
+        $this->assertContains($baseUrl.'/sahkosopimus/paikkakunnat/tampere', $locs);
     }
 
     public function test_sitemap_service_generates_valid_xml(): void

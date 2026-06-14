@@ -700,6 +700,9 @@
                         <a href="/sahkosopimus/porssisahko" class="hover:text-coral-600">Pörssisähkösopimukset</a>
                     </li>
                     <li>
+                        <a href="/sahkosopimus/kiintea-hinta" class="hover:text-coral-600">Kiinteähintaiset sähkösopimukset</a>
+                    </li>
+                    <li>
                         <a href="/sahkosopimus/kvartaalisahko" class="hover:text-coral-600">Kvartaalisähkösopimukset</a>
                     </li>
                     <li>

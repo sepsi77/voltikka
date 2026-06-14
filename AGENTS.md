@@ -279,7 +279,7 @@ php artisan test --filter="ContractsFilterTest"
 | `/sahkosopimus/sahkotarjous` | Promotions/offers |
 | `/sahkosopimus/yritykselle` | Business contracts |
 
-All SEO listing pages use `SeoContractsList` component. See "Creating SEO Contract Listing Pages" section for how to add new ones.
+All SEO listing pages use `SeoContractsList` component. Location pages must match a real `municipalities.slug`; unknown `/sahkosopimus/paikkakunnat/{location}` slugs return 404 instead of rendering fabricated city pages. See "Creating SEO Contract Listing Pages" section for how to add new ones.
 
 ## External APIs
 

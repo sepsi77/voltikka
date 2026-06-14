@@ -182,7 +182,7 @@ class SeoCityRoutesTest extends TestCase
         ]);
 
         // Attach postcodes if not national
-        if (!$isNational && !empty($postcodes)) {
+        if (! $isNational && ! empty($postcodes)) {
             foreach ($postcodes as $postcode) {
                 $contract->availabilityPostcodes()->attach($postcode);
             }
@@ -205,7 +205,7 @@ class SeoCityRoutesTest extends TestCase
         $response->assertStatus(200);
     }
 
-    public function test_city_page_memoizes_missing_municipality_lookup(): void
+    public function test_city_page_rejects_missing_municipality_slug(): void
     {
         $municipalitySlugQueries = 0;
 
@@ -219,13 +219,14 @@ class SeoCityRoutesTest extends TestCase
 
         $response = $this->get('/sahkosopimus/paikkakunnat/tuntematon-paikkakunta');
 
-        $response->assertStatus(200);
+        $response->assertStatus(404);
         $this->assertSame(1, $municipalitySlugQueries);
     }
 
     public function test_city_page_does_not_fetch_solar_estimate_during_initial_page_load(): void
     {
-        $this->app->instance(CitySolarService::class, new class {
+        $this->app->instance(CitySolarService::class, new class
+        {
             public function getSolarEstimate(Municipality $municipality, float $systemKwp = 5.0): ?array
             {
                 throw new \RuntimeException('Solar estimate should be lazy loaded.');
@@ -246,7 +247,8 @@ class SeoCityRoutesTest extends TestCase
             'center_longitude' => 24.9384,
         ]);
 
-        $this->app->instance(CitySolarService::class, new class {
+        $this->app->instance(CitySolarService::class, new class
+        {
             public function getCachedSolarEstimate(Municipality $municipality, float $systemKwp = 5.0): ?array
             {
                 return null;
@@ -267,7 +269,7 @@ class SeoCityRoutesTest extends TestCase
             ['HTTP_USER_AGENT' => 'Mozilla/5.0 (Linux; Android 6.0.1) AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html)']
         ));
 
-        $component = new CitySolarEstimate();
+        $component = new CitySolarEstimate;
         $component->mount($municipality->id, 'Helsingissä', 'helsinki');
 
         $view = $component->render();
@@ -317,13 +319,18 @@ class SeoCityRoutesTest extends TestCase
     }
 
     /**
-     * Test that old city URL pattern redirects for any city.
+     * Test that old city URL pattern redirects for real municipalities.
      */
     public function test_old_city_url_pattern_redirects(): void
     {
         $response = $this->get('/sahkosopimus/oulu');
         $response->assertStatus(301);
         $response->assertRedirect('/sahkosopimus/paikkakunnat/oulu');
+    }
+
+    public function test_old_city_url_pattern_rejects_unknown_slugs(): void
+    {
+        $this->get('/sahkosopimus/tuntematon-paikkakunta')->assertStatus(404);
     }
 
     // ==================== H1 Content Tests ====================
@@ -525,14 +532,12 @@ class SeoCityRoutesTest extends TestCase
     // ==================== Unknown City Fallback Tests ====================
 
     /**
-     * Test that unknown city uses generic locative form.
+     * Test that unknown city slugs do not create fake location pages.
      */
-    public function test_unknown_city_uses_generic_locative(): void
+    public function test_unknown_city_returns_404(): void
     {
         $response = $this->get('/sahkosopimus/paikkakunnat/testcity');
-        $response->assertStatus(200);
-        // Should use generic -ssa ending
-        $response->assertSee('Testcityssa');
+        $response->assertStatus(404);
     }
 
     // ==================== JSON-LD Tests ====================
@@ -576,6 +581,20 @@ class SeoCityRoutesTest extends TestCase
         $response = $this->get('/sahkosopimus/porssisahko');
         $response->assertStatus(200);
         $response->assertSee('Pörssisähkösopimukset');
+    }
+
+    public function test_kiintea_hinta_route_is_pricing_page_not_city_redirect(): void
+    {
+        $response = $this->get('/sahkosopimus/kiintea-hinta');
+
+        $response->assertStatus(200);
+        $response->assertSee('Kiinteähintaiset sähkösopimukset');
+        $response->assertDontSee('Kiintea Hintassa');
+    }
+
+    public function test_kiintea_hinta_is_not_valid_location_page(): void
+    {
+        $this->get('/sahkosopimus/paikkakunnat/kiintea-hinta')->assertStatus(404);
     }
 
     /**

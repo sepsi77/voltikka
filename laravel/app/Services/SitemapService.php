@@ -8,7 +8,6 @@ use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\Postcode;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Cache;
 
 class SitemapService
 {
@@ -59,6 +58,7 @@ class SitemapService
      */
     protected array $pricingTypes = [
         'porssisahko',
+        'kiintea-hinta',
         'kvartaalisahko',
         'aikasahko',
         'kausisahko',
@@ -101,67 +101,67 @@ class SitemapService
                 'priority' => 1.0,
             ],
             [
-                'loc' => $baseUrl . '/spot-price',
+                'loc' => $baseUrl.'/spot-price',
                 'lastmod' => $today,
                 'changefreq' => 'hourly',
                 'priority' => 0.9,
             ],
             [
-                'loc' => $baseUrl . '/sahkosopimus/paikkakunnat',
+                'loc' => $baseUrl.'/sahkosopimus/paikkakunnat',
                 'lastmod' => $today,
                 'changefreq' => 'weekly',
                 'priority' => 0.7,
             ],
             [
-                'loc' => $baseUrl . '/sahkosopimus/laskuri',
+                'loc' => $baseUrl.'/sahkosopimus/laskuri',
                 'lastmod' => $today,
                 'changefreq' => 'monthly',
                 'priority' => 0.6,
             ],
             [
-                'loc' => $baseUrl . '/sahkosopimus',
+                'loc' => $baseUrl.'/sahkosopimus',
                 'lastmod' => $today,
                 'changefreq' => 'daily',
                 'priority' => 0.95,
             ],
             [
-                'loc' => $baseUrl . '/sahkosopimus/halvin-sahkosopimus',
+                'loc' => $baseUrl.'/sahkosopimus/halvin-sahkosopimus',
                 'lastmod' => $today,
                 'changefreq' => 'daily',
                 'priority' => 0.9,
             ],
             [
-                'loc' => $baseUrl . '/sahkosopimus/tilastot',
+                'loc' => $baseUrl.'/sahkosopimus/tilastot',
                 'lastmod' => $today,
                 'changefreq' => 'daily',
                 'priority' => 0.85,
             ],
             [
-                'loc' => $baseUrl . '/sahkosopimus/sahkoyhtiot',
+                'loc' => $baseUrl.'/sahkosopimus/sahkoyhtiot',
                 'lastmod' => $today,
                 'changefreq' => 'weekly',
                 'priority' => 0.85,
             ],
             [
-                'loc' => $baseUrl . '/sahkosopimus/yritykselle',
+                'loc' => $baseUrl.'/sahkosopimus/yritykselle',
                 'lastmod' => $today,
                 'changefreq' => 'weekly',
                 'priority' => 0.8,
             ],
             [
-                'loc' => $baseUrl . '/aurinkopaneelit/laskuri',
+                'loc' => $baseUrl.'/aurinkopaneelit/laskuri',
                 'lastmod' => $today,
                 'changefreq' => 'monthly',
                 'priority' => 0.7,
             ],
             [
-                'loc' => $baseUrl . '/lampopumput/laskuri',
+                'loc' => $baseUrl.'/lampopumput/laskuri',
                 'lastmod' => $today,
                 'changefreq' => 'monthly',
                 'priority' => 0.7,
             ],
             [
-                'loc' => $baseUrl . '/tietoa',
+                'loc' => $baseUrl.'/tietoa',
                 'lastmod' => $today,
                 'changefreq' => 'monthly',
                 'priority' => 0.5,
@@ -169,13 +169,13 @@ class SitemapService
             [
                 // Static legal page: lastmod must reflect the real content date, not the
                 // daily sitemap regeneration, so it stays accurate between policy edits.
-                'loc' => $baseUrl . '/tietosuoja',
+                'loc' => $baseUrl.'/tietosuoja',
                 'lastmod' => PrivacyPolicy::LAST_UPDATED,
                 'changefreq' => 'yearly',
                 'priority' => 0.3,
             ],
             [
-                'loc' => $baseUrl . '/kayttoehdot',
+                'loc' => $baseUrl.'/kayttoehdot',
                 'lastmod' => TermsOfService::LAST_UPDATED,
                 'changefreq' => 'yearly',
                 'priority' => 0.3,
@@ -193,7 +193,7 @@ class SitemapService
 
         return array_map(function ($type) use ($baseUrl, $today) {
             return [
-                'loc' => $baseUrl . '/sahkosopimus/' . $type,
+                'loc' => $baseUrl.'/sahkosopimus/'.$type,
                 'lastmod' => $today,
                 'changefreq' => 'daily',
                 'priority' => 0.9,
@@ -211,7 +211,7 @@ class SitemapService
 
         return array_map(function ($type) use ($baseUrl, $today) {
             return [
-                'loc' => $baseUrl . '/sahkosopimus/' . $type,
+                'loc' => $baseUrl.'/sahkosopimus/'.$type,
                 'lastmod' => $today,
                 'changefreq' => 'weekly',
                 'priority' => 0.8,
@@ -229,7 +229,7 @@ class SitemapService
 
         return array_map(function ($source) use ($baseUrl, $today) {
             return [
-                'loc' => $baseUrl . '/sahkosopimus/' . $source,
+                'loc' => $baseUrl.'/sahkosopimus/'.$source,
                 'lastmod' => $today,
                 'changefreq' => 'weekly',
                 'priority' => 0.8,
@@ -247,7 +247,7 @@ class SitemapService
 
         return array_map(function ($duration) use ($baseUrl, $today) {
             return [
-                'loc' => $baseUrl . '/sahkosopimus/' . $duration,
+                'loc' => $baseUrl.'/sahkosopimus/'.$duration,
                 'lastmod' => $today,
                 'changefreq' => 'daily',
                 'priority' => 0.85,
@@ -265,7 +265,7 @@ class SitemapService
 
         return array_map(function ($level) use ($baseUrl, $today) {
             return [
-                'loc' => $baseUrl . '/sahkosopimus/kulutus/' . $level,
+                'loc' => $baseUrl.'/sahkosopimus/kulutus/'.$level,
                 'lastmod' => $today,
                 'changefreq' => 'weekly',
                 'priority' => 0.8,
@@ -283,7 +283,7 @@ class SitemapService
 
         return [
             [
-                'loc' => $baseUrl . '/sahkosopimus/sahkotarjous',
+                'loc' => $baseUrl.'/sahkosopimus/sahkotarjous',
                 'lastmod' => $today,
                 'changefreq' => 'daily',
                 'priority' => 0.85,
@@ -307,7 +307,7 @@ class SitemapService
 
         return array_map(function ($contractId) use ($baseUrl, $today) {
             return [
-                'loc' => $baseUrl . '/sahkosopimus/sopimus/' . $contractId,
+                'loc' => $baseUrl.'/sahkosopimus/sopimus/'.$contractId,
                 'lastmod' => $today,
                 'changefreq' => 'weekly',
                 'priority' => 0.7,
@@ -332,7 +332,7 @@ class SitemapService
 
         return array_map(function ($slug) use ($baseUrl, $today) {
             return [
-                'loc' => $baseUrl . '/sahkosopimus/sahkoyhtiot/' . $slug,
+                'loc' => $baseUrl.'/sahkosopimus/sahkoyhtiot/'.$slug,
                 'lastmod' => $today,
                 'changefreq' => 'weekly',
                 'priority' => 0.7,
@@ -360,7 +360,7 @@ class SitemapService
 
         return array_map(function ($citySlug) use ($baseUrl, $today) {
             return [
-                'loc' => $baseUrl . '/sahkosopimus/paikkakunnat/' . $citySlug,
+                'loc' => $baseUrl.'/sahkosopimus/paikkakunnat/'.$citySlug,
                 'lastmod' => $today,
                 'changefreq' => 'weekly',
                 'priority' => 0.6,
@@ -375,16 +375,16 @@ class SitemapService
     {
         $urls = $this->getAllUrls();
 
-        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-        $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'."\n";
+        $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'."\n";
 
         foreach ($urls as $url) {
-            $xml .= '  <url>' . "\n";
-            $xml .= '    <loc>' . htmlspecialchars($url['loc'], ENT_XML1, 'UTF-8') . '</loc>' . "\n";
-            $xml .= '    <lastmod>' . $url['lastmod'] . '</lastmod>' . "\n";
-            $xml .= '    <changefreq>' . $url['changefreq'] . '</changefreq>' . "\n";
-            $xml .= '    <priority>' . number_format($url['priority'], 1, '.', '') . '</priority>' . "\n";
-            $xml .= '  </url>' . "\n";
+            $xml .= '  <url>'."\n";
+            $xml .= '    <loc>'.htmlspecialchars($url['loc'], ENT_XML1, 'UTF-8').'</loc>'."\n";
+            $xml .= '    <lastmod>'.$url['lastmod'].'</lastmod>'."\n";
+            $xml .= '    <changefreq>'.$url['changefreq'].'</changefreq>'."\n";
+            $xml .= '    <priority>'.number_format($url['priority'], 1, '.', '').'</priority>'."\n";
+            $xml .= '  </url>'."\n";
         }
 
         $xml .= '</urlset>';
@@ -395,7 +395,7 @@ class SitemapService
     /**
      * Save sitemap to public directory.
      */
-    public function saveToFile(string $path = null): string
+    public function saveToFile(?string $path = null): string
     {
         $path = $path ?? public_path('sitemap.xml');
         $xml = $this->generateXml();

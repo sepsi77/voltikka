@@ -4,7 +4,6 @@ namespace App\Livewire;
 
 use App\Http\Middleware\SetPublicCacheHeaders;
 use App\Models\ElectricityContract;
-use App\Models\ElectricitySource;
 use App\Models\Municipality;
 use App\Models\Postcode;
 use App\Models\SpotPriceAverage;
@@ -19,7 +18,6 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class SeoContractsList extends ContractsList
 {
@@ -106,6 +104,7 @@ class SeoContractsList extends ContractsList
      */
     protected array $pricingTypeNames = [
         'Spot' => 'Pörssisähkö',
+        'FixedPrice' => 'Kiinteä hinta',
         'Quarterly' => 'Kvartaalisähkö',
         'TimeOfUse' => 'Aikasähkö',
         'Seasonal' => 'Kausisähkö',
@@ -147,13 +146,13 @@ class SeoContractsList extends ContractsList
      * Business consumption presets.
      */
     protected array $businessPresets = [
-        'small_office'     => ['label' => 'Pieni toimisto',           'description' => '5-10 hlö, 150 m²',      'icon' => 'office',     'consumption' => 20000],
-        'medium_office'    => ['label' => 'Keskikokoinen toimisto',   'description' => '20-50 hlö, 500 m²',     'icon' => 'office',     'consumption' => 50000],
-        'large_office'     => ['label' => 'Suuri toimisto',           'description' => '100+ hlö, 1500 m²',     'icon' => 'office',     'consumption' => 150000],
-        'small_retail'     => ['label' => 'Pieni myymälä',            'description' => '100-200 m²',             'icon' => 'retail',     'consumption' => 30000],
-        'medium_retail'    => ['label' => 'Keskisuuri myymälä',       'description' => '500-1000 m²',            'icon' => 'retail',     'consumption' => 100000],
-        'restaurant'       => ['label' => 'Ravintola',                'description' => '50-100 asiakaspaikkaa',  'icon' => 'restaurant', 'consumption' => 80000],
-        'small_warehouse'  => ['label' => 'Pieni varasto',            'description' => '500 m²',                 'icon' => 'warehouse',  'consumption' => 40000],
+        'small_office' => ['label' => 'Pieni toimisto',           'description' => '5-10 hlö, 150 m²',      'icon' => 'office',     'consumption' => 20000],
+        'medium_office' => ['label' => 'Keskikokoinen toimisto',   'description' => '20-50 hlö, 500 m²',     'icon' => 'office',     'consumption' => 50000],
+        'large_office' => ['label' => 'Suuri toimisto',           'description' => '100+ hlö, 1500 m²',     'icon' => 'office',     'consumption' => 150000],
+        'small_retail' => ['label' => 'Pieni myymälä',            'description' => '100-200 m²',             'icon' => 'retail',     'consumption' => 30000],
+        'medium_retail' => ['label' => 'Keskisuuri myymälä',       'description' => '500-1000 m²',            'icon' => 'retail',     'consumption' => 100000],
+        'restaurant' => ['label' => 'Ravintola',                'description' => '50-100 asiakaspaikkaa',  'icon' => 'restaurant', 'consumption' => 80000],
+        'small_warehouse' => ['label' => 'Pieni varasto',            'description' => '500 m²',                 'icon' => 'warehouse',  'consumption' => 40000],
         'small_production' => ['label' => 'Pieni tuotantolaitos',     'description' => 'Kevyt teollisuus',       'icon' => 'factory',    'consumption' => 200000],
     ];
 
@@ -206,6 +205,11 @@ class SeoContractsList extends ContractsList
         $this->energySource = $energySource;
         // Support both 'city' (legacy) and 'location' (new route param)
         $this->city = $location ?? $city;
+
+        if ($this->city !== null && $this->getMunicipality($this->city) === null) {
+            abort(404);
+        }
+
         $this->pricingType = $pricingType;
         $this->offerType = $offerType;
         $this->targetGroup = $targetGroup;
@@ -213,7 +217,7 @@ class SeoContractsList extends ContractsList
         $this->consumptionLevel = $consumptionLevel;
 
         // Set basePath from the current request so pagination stays on this page
-        $this->basePath = '/' . ltrim(request()->path(), '/');
+        $this->basePath = '/'.ltrim(request()->path(), '/');
 
         // Business page: override presets, consumption, and pricing models
         if ($targetGroup === 'Company') {
@@ -273,7 +277,7 @@ class SeoContractsList extends ContractsList
                     $q->whereIn('target_group', ['Company', 'Both']);
                 } else {
                     $q->whereIn('target_group', ['Household', 'Both'])
-                      ->orWhereNull('target_group');
+                        ->orWhereNull('target_group');
                 }
             });
 
@@ -296,33 +300,33 @@ class SeoContractsList extends ContractsList
                 // Quarterly contracts are identified by name or description patterns
                 $query->where(function ($q) {
                     $q->where('name', 'LIKE', '%kvartaali%')
-                      ->orWhere('extra_information_fi', 'LIKE', '%kvartaali%')
-                      ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden jaksoissa%')
-                      ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden jaksolle%')
-                      ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden välein%')
-                      ->orWhere('extra_information_fi', 'LIKE', '%neljästi vuodessa%')
-                      ->orWhere('extra_information_fi', 'LIKE', '%neljä kertaa vuodessa%');
+                        ->orWhere('extra_information_fi', 'LIKE', '%kvartaali%')
+                        ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden jaksoissa%')
+                        ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden jaksolle%')
+                        ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden välein%')
+                        ->orWhere('extra_information_fi', 'LIKE', '%neljästi vuodessa%')
+                        ->orWhere('extra_information_fi', 'LIKE', '%neljä kertaa vuodessa%');
                 });
             } elseif ($effectivePricingFilter === 'TimeOfUse') {
                 // Time-of-use (aikasähkö) contracts have day/night pricing
                 $query->where(function ($q) {
                     $q->where('metering', 'Time')
-                      ->orWhere('name', 'LIKE', '%aikasähkö%')
-                      ->orWhere('name', 'LIKE', '%Aikasähkö%')
-                      ->orWhere('extra_information_fi', 'LIKE', '%aikasähkö%');
+                        ->orWhere('name', 'LIKE', '%aikasähkö%')
+                        ->orWhere('name', 'LIKE', '%Aikasähkö%')
+                        ->orWhere('extra_information_fi', 'LIKE', '%aikasähkö%');
                 });
             } elseif ($effectivePricingFilter === 'Seasonal') {
                 // Seasonal (kausisähkö) contracts have seasonal pricing
                 $query->where(function ($q) {
                     $q->where('metering', 'Season')
-                      ->orWhere('name', 'LIKE', '%kausisähkö%')
-                      ->orWhere('name', 'LIKE', '%Kausisähkö%')
-                      ->orWhere('extra_information_fi', 'LIKE', '%kausisähkö%');
+                        ->orWhere('name', 'LIKE', '%kausisähkö%')
+                        ->orWhere('name', 'LIKE', '%Kausisähkö%')
+                        ->orWhere('extra_information_fi', 'LIKE', '%kausisähkö%');
                 });
             } elseif ($effectivePricingFilter === 'GeneralElectricity') {
                 // Yleissähkö: fixed-price contracts with general (single-tariff) metering
                 $query->where('pricing_model', 'FixedPrice')
-                      ->where('metering', 'General');
+                    ->where('metering', 'General');
             } else {
                 // Standard pricing models (Spot, FixedPrice, Hybrid)
                 $query->where('pricing_model', $effectivePricingFilter);
@@ -339,12 +343,12 @@ class SeoContractsList extends ContractsList
             $postcode = $this->postcodeFilter;
             $query->where(function ($q) use ($postcode) {
                 $q->where('availability_is_national', true)
-                  ->orWhereExists(function ($subquery) use ($postcode) {
-                      $subquery->select(DB::raw(1))
-                               ->from('contract_postcode')
-                               ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
-                               ->where('contract_postcode.postcode', $postcode);
-                  });
+                    ->orWhereExists(function ($subquery) use ($postcode) {
+                        $subquery->select(DB::raw(1))
+                            ->from('contract_postcode')
+                            ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
+                            ->where('contract_postcode.postcode', $postcode);
+                    });
             });
         }
 
@@ -356,13 +360,13 @@ class SeoContractsList extends ContractsList
 
             $query->where(function ($q) use ($cityName) {
                 $q->where('availability_is_national', true)
-                  ->orWhereExists(function ($subquery) use ($cityName) {
-                      $subquery->select(DB::raw(1))
-                               ->from('contract_postcode')
-                               ->join('postcodes', 'contract_postcode.postcode', '=', 'postcodes.postcode')
-                               ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
-                               ->where('postcodes.municipal_name_fi', $cityName);
-                  });
+                    ->orWhereExists(function ($subquery) use ($cityName) {
+                        $subquery->select(DB::raw(1))
+                            ->from('contract_postcode')
+                            ->join('postcodes', 'contract_postcode.postcode', '=', 'postcodes.postcode')
+                            ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
+                            ->where('postcodes.municipal_name_fi', $cityName);
+                    });
             });
         }
 
@@ -371,16 +375,16 @@ class SeoContractsList extends ContractsList
             $now = now();
             $query->where(function ($q) use ($now) {
                 $q->where('pricing_has_discounts', true)
-                  ->orWhereExists(function ($subquery) use ($now) {
-                      $subquery->select(DB::raw(1))
-                               ->from('price_components')
-                               ->whereColumn('price_components.electricity_contract_id', 'electricity_contracts.id')
-                               ->where('price_components.has_discount', true)
-                               ->where(function ($dateQuery) use ($now) {
-                                   $dateQuery->whereNull('price_components.discount_discount_until_date')
-                                             ->orWhere('price_components.discount_discount_until_date', '>', $now);
-                               });
-                  });
+                    ->orWhereExists(function ($subquery) use ($now) {
+                        $subquery->select(DB::raw(1))
+                            ->from('price_components')
+                            ->whereColumn('price_components.electricity_contract_id', 'electricity_contracts.id')
+                            ->where('price_components.has_discount', true)
+                            ->where(function ($dateQuery) use ($now) {
+                                $dateQuery->whereNull('price_components.discount_discount_until_date')
+                                    ->orWhere('price_components.discount_discount_until_date', '>', $now);
+                            });
+                    });
             });
         }
 
@@ -390,6 +394,7 @@ class SeoContractsList extends ContractsList
         if ($this->renewableFilter) {
             $contracts = $contracts->filter(function ($contract) {
                 $source = $contract->electricitySource;
+
                 return $source && $source->renewable_total >= 50;
             });
         }
@@ -397,6 +402,7 @@ class SeoContractsList extends ContractsList
         if ($this->nuclearFilter) {
             $contracts = $contracts->filter(function ($contract) {
                 $source = $contract->electricitySource;
+
                 return $source && $source->hasNuclear();
             });
         }
@@ -404,6 +410,7 @@ class SeoContractsList extends ContractsList
         if ($this->fossilFreeFilter) {
             $contracts = $contracts->filter(function ($contract) {
                 $source = $contract->electricitySource;
+
                 return $source && $source->isFossilFree();
             });
         }
@@ -477,6 +484,7 @@ class SeoContractsList extends ContractsList
                 // Then sort by total cost (ascending)
                 $aCost = $a->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
                 $bCost = $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
+
                 return $aCost <=> $bCost;
             })->values();
         }
@@ -488,8 +496,8 @@ class SeoContractsList extends ContractsList
         if ($this->city) {
             $localData = $this->localContractsData;
             $excludedIds = $localData['excluded_ids'] ?? [];
-            if (!empty($excludedIds)) {
-                $sorted = $sorted->filter(fn ($c) => !in_array($c->id, $excludedIds))->values();
+            if (! empty($excludedIds)) {
+                $sorted = $sorted->filter(fn ($c) => ! in_array($c->id, $excludedIds))->values();
             }
         }
 
@@ -523,28 +531,34 @@ class SeoContractsList extends ContractsList
         return match ($this->energySource) {
             'tuulisahko' => $contracts->filter(function ($contract) {
                 $source = $contract->electricitySource;
+
                 return $source && $source->renewable_wind > 0;
             }),
             'aurinkosahko' => $contracts->filter(function ($contract) {
                 $source = $contract->electricitySource;
+
                 return $source && $source->renewable_solar > 0;
             }),
             'vihrea-sahko' => $contracts->filter(function ($contract) {
                 $source = $contract->electricitySource;
+
                 return $source
                     && $source->renewable_total >= 50
                     && ($source->fossil_peat === null || $source->fossil_peat === 0.0);
             }),
             'fossiiliton' => $contracts->filter(function ($contract) {
                 $source = $contract->electricitySource;
+
                 return $source && $source->isFossilFree();
             }),
             'uusiutuva-sahko' => $contracts->filter(function ($contract) {
                 $source = $contract->electricitySource;
+
                 return $source && $source->renewable_total >= 50;
             }),
             'ydinvoima' => $contracts->filter(function ($contract) {
                 $source = $contract->electricitySource;
+
                 return $source && $source->hasNuclear();
             }),
             default => $contracts,
@@ -600,6 +614,7 @@ class SeoContractsList extends ContractsList
                 'ydinvoima' => 'Vertaa ydinvoimasähkösopimuksia',
                 default => "{$this->energySourceNames[$this->energySource]}sopimukset",
             };
+
             return "{$baseTitle}{$countSuffix}{$pageSuffix} | Voltikka";
         }
 
@@ -607,8 +622,9 @@ class SeoContractsList extends ContractsList
             $baseTitle = match ($this->contractDuration) {
                 'FixedTerm' => 'Vertaa määräaikaisia sähkösopimuksia',
                 'OpenEnded' => 'Vertaa toistaiseksi voimassa olevia sähkösopimuksia',
-                default => "Vertaa sähkösopimuksia",
+                default => 'Vertaa sähkösopimuksia',
             };
+
             return "{$baseTitle}{$countSuffix}{$pageSuffix} | Voltikka";
         }
 
@@ -616,6 +632,7 @@ class SeoContractsList extends ContractsList
             // SEO-optimized titles for each pricing type (focus on comparison)
             $baseTitle = match ($this->pricingType) {
                 'Spot' => 'Vertaa pörssisähkösopimuksia',
+                'FixedPrice' => 'Vertaa kiinteähintaisia sähkösopimuksia',
                 'Quarterly' => 'Vertaa kvartaalisähkösopimuksia',
                 'TimeOfUse' => 'Vertaa aikasähkösopimuksia',
                 'Seasonal' => 'Vertaa kausisähkösopimuksia',
@@ -623,6 +640,7 @@ class SeoContractsList extends ContractsList
                 'GeneralElectricity' => 'Vertaa yleissähkösopimuksia – kiinteähintaiset sähkösopimukset',
                 default => "Vertaa {$this->pricingTypeNames[$this->pricingType]}sopimuksia",
             };
+
             return "{$baseTitle}{$countSuffix}{$pageSuffix} | Voltikka";
         }
 
@@ -634,6 +652,7 @@ class SeoContractsList extends ContractsList
                 $price = number_format($this->cheapestTotalCost, 0, ',', ' ');
                 $pricePart = " – alk. {$price} €/v";
             }
+
             return "{$level} sähkön hinta {$year}{$pricePart}{$pageSuffix} | Voltikka";
         }
 
@@ -647,6 +666,7 @@ class SeoContractsList extends ContractsList
             $localCount = $this->localContractsData['local_companies']->count();
             $localPart = $localCount > 0 ? ", {$localCount} paikallista" : '';
             $countSuffix = $count > 0 ? " ({$count} sopimusta{$localPart})" : '';
+
             return "Sähkösopimukset {$cityData['locative']}{$pricePart}{$countSuffix}{$pageSuffix} | Voltikka";
         }
 
@@ -669,6 +689,7 @@ class SeoContractsList extends ContractsList
         if ($this->housingType && isset($this->housingTypeNames[$this->housingType])) {
             $housingName = mb_strtolower($this->housingTypeNames[$this->housingType]);
             $consumption = $this->housingTypeConsumption[$this->housingType] ?? 5000;
+
             return "Vertaile sähkösopimuksia {$housingName}on. Keskimääräinen kulutus {$consumption} kWh/vuosi. Löydä edullisin sähkösopimus helposti.";
         }
 
@@ -691,7 +712,10 @@ class SeoContractsList extends ContractsList
 
         if ($this->pricingType && isset($this->pricingTypeNames[$this->pricingType])) {
             if ($this->pricingType === 'Spot') {
-                return "Vertaile pörssisähkösopimuksia. Pörssisähkö seuraa tuntikohtaista sähkön pörssihintaa. Löydä paras pörssisähkösopimus.";
+                return 'Vertaile pörssisähkösopimuksia. Pörssisähkö seuraa tuntikohtaista sähkön pörssihintaa. Löydä paras pörssisähkösopimus.';
+            }
+            if ($this->pricingType === 'FixedPrice') {
+                return 'Vertaile kiinteähintaisia sähkösopimuksia. Kiinteähintainen sopimus antaa ennustettavan kWh-hinnan ja suojaa pörssisähkön tuntivaihteluilta.';
             }
             if ($this->pricingType === 'Quarterly') {
                 return 'Vertaile kvartaalisähkösopimuksia. Kvartaalisähkössä hinta päivittyy neljä kertaa vuodessa. Löydä paras kvartaalisähkösopimus kotitalouksille.';
@@ -708,7 +732,8 @@ class SeoContractsList extends ContractsList
             if ($this->pricingType === 'GeneralElectricity') {
                 return 'Vertaile yleissähkösopimuksia eli kiinteähintaisia sähkösopimuksia. Yleissähkössä maksat saman hinnan kellon ympäri. Löydä edullisin yleissähkösopimus.';
             }
-            return "Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto. Vertaa hintoja, sopimusehtoja ja energialähteitä yhdestä paikasta.";
+
+            return 'Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto. Vertaa hintoja, sopimusehtoja ja energialähteitä yhdestä paikasta.';
         }
 
         if ($this->consumptionLevel && isset($this->consumptionLevelNames[$this->consumptionLevel])) {
@@ -716,8 +741,10 @@ class SeoContractsList extends ContractsList
             $year = date('Y');
             if ($this->cheapestTotalCost !== null) {
                 $price = number_format($this->cheapestTotalCost, 0, ',', ' ');
+
                 return "{$level} sähkön hinta vuonna {$year} alkaen {$price} €/vuosi. Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto kulutuksellesi.";
             }
+
             return "Vertaile sähkösopimuksia {$level} vuosikulutukselle. Katso hinnat ja löydä edullisin sähkösopimus.";
         }
 
@@ -730,6 +757,7 @@ class SeoContractsList extends ContractsList
             }
             $localCount = $this->localContractsData['local_companies']->count();
             $localPart = $localCount > 0 ? " {$localCount} paikallista sähköyhtiötä." : '';
+
             return "Sähkösopimukset {$cityData['locative']}{$pricePart}.{$localPart} Vertaile hintoja ja löydä paras sähkösopimus {$cityData['name']}n alueelle.";
         }
 
@@ -742,7 +770,7 @@ class SeoContractsList extends ContractsList
     protected function generateCanonicalUrl(): string
     {
         $baseUrl = config('app.url');
-        $pageSuffix = $this->page > 1 ? '?page=' . $this->page : '';
+        $pageSuffix = $this->page > 1 ? '?page='.$this->page : '';
 
         if ($this->targetGroup === 'Company') {
             return "{$baseUrl}/sahkosopimus/yritykselle{$pageSuffix}";
@@ -766,12 +794,14 @@ class SeoContractsList extends ContractsList
                 'OpenEnded' => 'toistaiseksi',
             ];
             $slug = $slugMap[$this->contractDuration] ?? 'maaraaikainen';
+
             return "{$baseUrl}/sahkosopimus/{$slug}{$pageSuffix}";
         }
 
         if ($this->pricingType) {
             $slugMap = [
                 'Spot' => 'porssisahko',
+                'FixedPrice' => 'kiintea-hinta',
                 'Quarterly' => 'kvartaalisahko',
                 'TimeOfUse' => 'aikasahko',
                 'Seasonal' => 'kausisahko',
@@ -779,6 +809,7 @@ class SeoContractsList extends ContractsList
                 'GeneralElectricity' => 'yleissahko',
             ];
             $slug = $slugMap[$this->pricingType] ?? 'porssisahko';
+
             return "{$baseUrl}/sahkosopimus/{$slug}{$pageSuffix}";
         }
 
@@ -804,7 +835,7 @@ class SeoContractsList extends ContractsList
 
         foreach ($contracts as $index => $contract) {
             $company = $contract->relationLoaded('company') ? $contract->company : null;
-            $description = $contract->short_description ?? "Sähkösopimus yritykseltä " . ($company?->name ?? $contract->company_name);
+            $description = $contract->short_description ?? 'Sähkösopimus yritykseltä '.($company?->name ?? $contract->company_name);
 
             // Avoid lazy-loading price_components while building JSON-LD. The
             // visible listing query loads them in bulk; if another caller passes
@@ -815,17 +846,17 @@ class SeoContractsList extends ContractsList
                 if ($discountInfo) {
                     $discountDesc = $contract->formatActiveDiscountValue($discountInfo);
                     if ($discountInfo['n_first_months'] && $discountDesc) {
-                        $discountDesc .= ' ensimmäiset ' . $discountInfo['n_first_months'] . ' kk';
+                        $discountDesc .= ' ensimmäiset '.$discountInfo['n_first_months'].' kk';
                     }
                     if ($discountDesc) {
-                        $description .= ' (' . $discountDesc . ')';
+                        $description .= ' ('.$discountDesc.')';
                     }
                 }
             }
 
             $product = [
                 '@type' => 'Product',
-                '@id' => route('contract.detail', ['contractId' => $contract->id]) . '#product',
+                '@id' => route('contract.detail', ['contractId' => $contract->id]).'#product',
                 'name' => $contract->name,
                 'url' => route('contract.detail', ['contractId' => $contract->id]),
                 'description' => $description,
@@ -851,17 +882,17 @@ class SeoContractsList extends ContractsList
             '@graph' => [
                 [
                     '@type' => 'WebPage',
-                    '@id' => $canonicalUrl . '#webpage',
+                    '@id' => $canonicalUrl.'#webpage',
                     'url' => $canonicalUrl,
                     'name' => $this->generateSeoTitle(),
                     'description' => $this->generateMetaDescription(),
                     'mainEntity' => [
-                        '@id' => $canonicalUrl . '#comparison-service',
+                        '@id' => $canonicalUrl.'#comparison-service',
                     ],
                 ],
                 [
                     '@type' => 'Service',
-                    '@id' => $canonicalUrl . '#comparison-service',
+                    '@id' => $canonicalUrl.'#comparison-service',
                     'name' => $this->getPageHeadingProperty(),
                     'description' => 'Voltikka vertailee sähkösopimuksia, hintoja ja sopimustyyppejä Suomessa.',
                     'url' => $canonicalUrl,
@@ -874,7 +905,7 @@ class SeoContractsList extends ContractsList
                 ],
                 [
                     '@type' => 'ItemList',
-                    '@id' => $canonicalUrl . '#itemlist',
+                    '@id' => $canonicalUrl.'#itemlist',
                     'name' => $this->generateSeoTitle(),
                     'itemListElement' => $items,
                 ],
@@ -916,6 +947,10 @@ class SeoContractsList extends ContractsList
             };
         }
 
+        if ($this->pricingType === 'FixedPrice') {
+            return 'Kiinteähintaiset sähkösopimukset';
+        }
+
         if ($this->pricingType === 'GeneralElectricity') {
             return 'Yleissähkö – kiinteähintaiset sähkösopimukset';
         }
@@ -926,11 +961,13 @@ class SeoContractsList extends ContractsList
 
         if ($this->consumptionLevel && isset($this->consumptionLevelNames[$this->consumptionLevel])) {
             $level = $this->consumptionLevelNames[$this->consumptionLevel];
+
             return "Sähkösopimukset {$level} vuosikulutukselle";
         }
 
         if ($this->city) {
             $cityData = $this->getCityData($this->city);
+
             return "Sähkösopimukset {$cityData['locative']}";
         }
 
@@ -984,6 +1021,7 @@ class SeoContractsList extends ContractsList
 
         if ($this->city) {
             $cityData = $this->getCityData($this->city);
+
             return "Vertaile sähkösopimuksia {$cityData['locative']}. Löydä paras sähkösopimus {$cityData['name']}n alueelle.";
         }
 
@@ -1041,6 +1079,7 @@ class SeoContractsList extends ContractsList
     {
         return match ($pricingType) {
             'Spot' => 'Pörssisähkösopimuksessa sähkön hinta vaihtelee tunneittain Nord Pool -sähköpörssin hinnan mukaan. Pörssisähkö voi olla edullinen vaihtoehto, jos pystyt ajoittamaan kulutustasi edullisempiin tunteihin. Vertaile pörssisähkösopimuksia ja löydä sopimus, jossa marginaali ja kuukausimaksu sopivat sinulle.',
+            'FixedPrice' => 'Kiinteähintaisessa sähkösopimuksessa energian hinta on ennalta sovittu eikä muutu tunneittain pörssisähkön mukana. Kiinteä hinta sopii kotitalouksille, jotka arvostavat ennustettavaa sähkölaskua ja haluavat vertailla sopimuksia suoraan kWh-hinnan ja kuukausimaksun perusteella.',
             'Quarterly' => 'Kvartaalisähkösopimuksessa sähkön hinta päivittyy neljännesvuosittain eli neljä kertaa vuodessa. Kvartaalisähkö tarjoaa kompromissin kiinteän hinnan ennustettavuuden ja pörssisähkön markkinahinnan välillä. Hinta seuraa markkinoiden kehitystä maltillisesti ilman tuntikohtaista vaihtelua.',
             'TimeOfUse' => 'Aikasähkösopimuksessa sähkön hinta vaihtelee vuorokaudenajan mukaan. Yöllä (22-07) sähkö on edullisempaa kuin päivällä. Aikasähkö sopii erityisesti niille, jotka voivat ajoittaa suurimmat kulutuspiikkinsä yöaikaan, esimerkiksi lämminvesivaraajan tai sähköauton latauksen.',
             'Seasonal' => 'Kausisähkösopimuksessa sähkön hinta vaihtelee vuodenajan mukaan. Talvikuukausina (marras-maaliskuu) hinta on korkeampi, muulloin edullisempi. Kausisähkö heijastaa sähkön tuotantokustannusten kausivaihtelua ja sopii niille, jotka haluavat ennustettavuutta ilman tuntikohtaista vaihtelua.',
@@ -1086,14 +1125,7 @@ class SeoContractsList extends ContractsList
             ];
         }
 
-        // Fallback: capitalize first letter and add generic locative
-        $name = Str::title(str_replace('-', ' ', $slug));
-        return $this->cityDataCache[$slug] = [
-            'name' => $name,
-            'locative' => "{$name}ssa", // Generic -ssa ending
-            'genitive' => "{$name}n",
-            'municipality' => null,
-        ];
+        abort(404);
     }
 
     /**
@@ -1101,7 +1133,7 @@ class SeoContractsList extends ContractsList
      */
     protected function getMunicipality(string $slug): ?Municipality
     {
-        if (!$this->municipalityLoaded || $this->municipalityLoadedSlug !== $slug) {
+        if (! $this->municipalityLoaded || $this->municipalityLoadedSlug !== $slug) {
             $this->municipality = Municipality::where('slug', $slug)->first();
             $this->municipalityLoaded = true;
             $this->municipalityLoadedSlug = $slug;
@@ -1115,9 +1147,10 @@ class SeoContractsList extends ContractsList
      */
     public function getMunicipalityProperty(): ?Municipality
     {
-        if (!$this->city) {
+        if (! $this->city) {
             return null;
         }
+
         return $this->getMunicipality($this->city);
     }
 
@@ -1132,7 +1165,7 @@ class SeoContractsList extends ContractsList
         }
 
         $municipality = $this->city ? $this->getMunicipality($this->city) : null;
-        if (!$municipality) {
+        if (! $municipality) {
             return $this->localContractsDataCache = [
                 'local_companies' => collect(),
                 'regional_contracts' => collect(),
@@ -1242,7 +1275,7 @@ class SeoContractsList extends ContractsList
      */
     public function getEnergySourceStatsProperty(): array
     {
-        if (!$this->energySource) {
+        if (! $this->energySource) {
             return [];
         }
 
@@ -1302,7 +1335,7 @@ class SeoContractsList extends ContractsList
      */
     public function getEnvironmentalInfoProperty(): ?string
     {
-        if (!$this->energySource) {
+        if (! $this->energySource) {
             return null;
         }
 
@@ -1322,7 +1355,7 @@ class SeoContractsList extends ContractsList
      */
     public function getCityInfoProperty(): ?array
     {
-        if (!$this->city) {
+        if (! $this->city) {
             return null;
         }
 
@@ -1429,7 +1462,7 @@ class SeoContractsList extends ContractsList
 
     protected function seoContractsViewDataCacheKey(): string
     {
-        return 'seo-contracts-list:view-data:v1:' . md5(json_encode([
+        return 'seo-contracts-list:view-data:v1:'.md5(json_encode([
             'class' => static::class,
             'base_path' => $this->basePath,
             'housing_type' => $this->housingType,

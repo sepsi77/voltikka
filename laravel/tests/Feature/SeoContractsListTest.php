@@ -682,6 +682,39 @@ class SeoContractsListTest extends TestCase
         $this->assertNotEmpty($seoData['description']);
     }
 
+    // ==================== Fixed Price Pricing Type Tests ====================
+
+    public function test_fixed_price_pricing_type_filters_fixed_price_contracts(): void
+    {
+        $this->createContract('fixed-1', 'Test Energia Oy', 'Kiinteä Sopimus', 5.0, 3.0, null, 'FixedPrice');
+        $this->createContract('spot-1', 'Vihreä Voima Ab', 'Pörssisähkö Sopimus', 0.5, 2.0, null, 'Spot');
+        $this->createContract('hybrid-1', 'Test Energia Oy', 'Joustosähkö Sopimus', 4.5, 3.0, null, 'Hybrid');
+
+        $component = Livewire::test('seo-contracts-list', ['pricingType' => 'FixedPrice']);
+        $contracts = $component->viewData('contracts');
+
+        $this->assertCount(1, $contracts);
+        $this->assertEquals('fixed-1', $contracts->first()->id);
+    }
+
+    public function test_fixed_price_canonical_url_is_kiintea_hinta(): void
+    {
+        $this->createContract('fixed-1', 'Test Energia Oy', 'Kiinteä Sopimus', 5.0, 3.0, null, 'FixedPrice');
+
+        $component = Livewire::test('seo-contracts-list', ['pricingType' => 'FixedPrice']);
+        $seoData = $component->viewData('seoData');
+
+        $this->assertStringEndsWith('/sahkosopimus/kiintea-hinta', $seoData['canonical']);
+    }
+
+    public function test_fixed_price_page_h1_is_kiinteahintaiset_sahkosopimukset(): void
+    {
+        $this->createContract('fixed-1', 'Test Energia Oy', 'Kiinteä Sopimus', 5.0, 3.0, null, 'FixedPrice');
+
+        Livewire::test('seo-contracts-list', ['pricingType' => 'FixedPrice'])
+            ->assertSee('Kiinteähintaiset sähkösopimukset');
+    }
+
     // ==================== Hybrid (Joustosähkö) Pricing Type Tests ====================
 
     /**

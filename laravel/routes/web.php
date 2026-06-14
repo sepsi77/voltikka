@@ -1,16 +1,15 @@
 <?php
 
+use App\Http\Controllers\ContractPriceStatisticsCsvController;
+use App\Http\Controllers\SpotPriceCsvController;
 use App\Livewire\AboutPage;
 use App\Livewire\CheapestContracts;
 use App\Livewire\CompanyDetail;
 use App\Livewire\CompanyList;
 use App\Livewire\ConsumptionCalculator;
 use App\Livewire\ContractDetail;
-use App\Http\Controllers\ContractPriceStatisticsCsvController;
-use App\Http\Controllers\SpotPriceCsvController;
 use App\Livewire\ContractPriceStatistics;
 use App\Livewire\FixedContractPriceForecast;
-use App\Livewire\ContractsList;
 use App\Livewire\HomePage;
 use App\Livewire\LocationsList;
 use App\Livewire\PrivacyPolicy;
@@ -19,6 +18,7 @@ use App\Livewire\SeoContractsList;
 use App\Livewire\SolarCalculator;
 use App\Livewire\SpotPrice;
 use App\Livewire\TermsOfService;
+use App\Models\Municipality;
 use App\Services\SitemapService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Session\Middleware\StartSession;
@@ -128,6 +128,9 @@ Route::withoutMiddleware($publicListingWithoutMiddleware)
         Route::get('/sahkosopimus/porssisahko', SeoContractsList::class)
             ->name('seo.pricing.porssisahko')
             ->defaults('pricingType', 'Spot');
+        Route::get('/sahkosopimus/kiintea-hinta', SeoContractsList::class)
+            ->name('seo.pricing.kiintea-hinta')
+            ->defaults('pricingType', 'FixedPrice');
         Route::get('/sahkosopimus/kvartaalisahko', SeoContractsList::class)
             ->name('seo.pricing.kvartaalisahko')
             ->defaults('pricingType', 'Quarterly');
@@ -231,15 +234,14 @@ Route::get('/sahkosopimus', SahkosopimusIndex::class)
 // SEO City Routes - 301 redirect from old URLs to new /paikkakunnat/ pattern
 // (must come AFTER specific routes to avoid overriding them)
 Route::get('/sahkosopimus/{city}', function ($city) {
+    abort_unless(Municipality::where('slug', $city)->exists(), 404);
+
     return redirect("/sahkosopimus/paikkakunnat/{$city}", 301);
 })->where('city', '[a-z0-9-]+');
 
 // =============================================================================
 // 301 Redirects from old URLs to new URLs (for SEO preservation)
 // =============================================================================
-
-// Redirect removed kiintea-hinta page to main comparison page
-Route::redirect('/sahkosopimus/kiintea-hinta', '/sahkosopimus', 301);
 
 // Redirect old /laskuri to new location
 Route::redirect('/laskuri', '/sahkosopimus/laskuri', 301);
@@ -264,6 +266,7 @@ Route::get('/paikkakunnat/{location?}', function ($location = null) {
     if ($location) {
         return redirect("/sahkosopimus/paikkakunnat/{$location}", 301);
     }
+
     return redirect()->route('locations', [], 301);
 });
 
