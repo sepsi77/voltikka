@@ -199,8 +199,10 @@ Primary files:
 Production env guidance:
 ```bash
 SENTRY_LARAVEL_DSN=...
-SENTRY_TRACES_SAMPLE_RATE=1.0
-SENTRY_PROFILES_SAMPLE_RATE=0.1
+# Keep performance spans/profiles off by default to preserve Sentry span quota.
+# Exception capture and sentry_logs forwarding still work with trace/profile sample rates at 0.0.
+SENTRY_TRACES_SAMPLE_RATE=0.0
+SENTRY_PROFILES_SAMPLE_RATE=0.0
 SENTRY_PROFILE_CONSOLE_ENABLED=false
 SENTRY_PROFILE_QUEUE_ENABLED=false
 SENTRY_ENABLE_LOGS=true

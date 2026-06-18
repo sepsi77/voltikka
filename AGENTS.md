@@ -566,7 +566,7 @@ For pricing type pages, the `getContractsProperty()` method determines which con
 ## Analytics and Observability
 
 - **Plausible Analytics**: Privacy-friendly analytics script in `layouts/app.blade.php`
-- **Sentry**: Laravel exception capture, tracing/profiling configuration, optional Sentry log forwarding, and ignored local CLI verification noise are configured in `laravel/bootstrap/app.php`, `laravel/config/sentry.php`, and `laravel/config/logging.php`. See `laravel/AGENTS.md` for env variables and verification commands.
+- **Sentry**: Laravel exception capture, optional Sentry log forwarding, and tracing/profiling configuration are configured in `laravel/bootstrap/app.php`, `laravel/config/sentry.php`, and `laravel/config/logging.php`. Performance spans/profiles are disabled by default to preserve span quota; see `laravel/AGENTS.md` for env variables and verification commands.
 
 ## Navigation Structure
 

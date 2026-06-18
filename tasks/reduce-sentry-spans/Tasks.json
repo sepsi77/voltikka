@@ -1,0 +1,5 @@
+[
+  {"name":"Inspect Sentry tracing configuration","status":"done"},
+  {"name":"Adjust defaults/docs to reduce span volume while preserving errors/logs","status":"done"},
+  {"name":"Run targeted verification","status":"done"}
+]
