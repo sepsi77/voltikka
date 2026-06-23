@@ -13,10 +13,8 @@ use App\Services\ContractMarketInsights\ContractMarketInsightService;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
 use App\Services\LocalContractsService;
-use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class SeoContractsList extends ContractsList
@@ -1397,9 +1395,8 @@ class SeoContractsList extends ContractsList
             return $this->buildSeoContractsViewData();
         }
 
-        return Cache::remember(
+        return $this->rememberDefaultListingViewData(
             $this->seoContractsViewDataCacheKey(),
-            Carbon::tomorrow(),
             fn () => $this->buildSeoContractsViewData(),
         );
     }
@@ -1448,7 +1445,12 @@ class SeoContractsList extends ContractsList
     protected function isDefaultSeoListingCacheable(): bool
     {
         return $this->isDefaultListingCacheable()
-            && $this->postcodeSearch === '';
+            && $this->postcodeSearch === ''
+            // City pages are numerous long-tail URLs and include local/regional
+            // sections. Avoid writing large serialized page payloads to the DB
+            // cache on crawler-triggered cold renders; shared metric caches still
+            // keep the expensive contract-cost work off the request path.
+            && $this->city === null;
     }
 
     protected function marketInsightCacheVersion(): ?string

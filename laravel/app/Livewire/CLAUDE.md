@@ -176,6 +176,8 @@ Important semantics:
 - `CheapestContracts` calls `SeoContractsList::getContractsProperty()` through inheritance. Read consumption with `ContractsList::selectedConsumptionValue()` in inherited listing paths and cheapest-page render data so stale Livewire snapshots that miss the URL-bound `consumption` property fall back to 5 000 kWh instead of throwing `PropertyNotFoundException`.
 - Contract comparison hero market-insight pills are intentionally small and must not push results down. They use cached precomputed statistics/forecast payloads from `ContractMarketInsightService`; do not calculate contract prices or scan raw `price_components` for these pills during page requests.
 - Market insights show on `/sahkosopimus`, SEO pricing/duration pages, and cheapest contracts. They are hidden on business, housing-type, energy-source, and consumption-level SEO pages. The cheapest page uses the same aggregate trend as the main page.
+- Default listing prepared-data cache writes are protected by a short cache lock to prevent crawler/user stampedes after daily import invalidation. If lock acquisition times out, render uncached instead of waiting toward PHP's 30-second request limit.
+- City SEO listing pages (`/sahkosopimus/paikkakunnat/{location}`) intentionally skip prepared view-data caching because there are many long-tail city URLs and their local/regional sections make serialized database-cache payloads large. They still use shared contract metric caches and should keep visible contract `priceComponents` limited to latest calculation components, not full history.
 
 ## `ContractDetail`
 

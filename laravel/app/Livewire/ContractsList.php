@@ -9,6 +9,7 @@ use App\Enums\HeatingMethod;
 use App\Enums\SupplementaryHeatingMethod;
 use App\Models\ElectricityContract;
 use App\Models\Postcode;
+use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
 use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\CO2EmissionsCalculator;
@@ -1304,12 +1305,14 @@ class ContractsList extends Component
         }
 
         $contractsById = ElectricityContract::query()
-            ->with(['company', 'priceComponents', 'electricitySource'])
+            ->with(['company', 'electricitySource'])
             ->whereIn('id', $visibleIds)
             ->get()
             ->keyBy('id');
 
-        return $visibleSummaries->map(function (ElectricityContract $summary) use ($contractsById) {
+        $priceComponentsByContractId = ElectricityContract::getLatestPriceComponentsForCalculationByContractIds($visibleIds);
+
+        return $visibleSummaries->map(function (ElectricityContract $summary) use ($contractsById, $priceComponentsByContractId) {
             /** @var ElectricityContract|null $contract */
             $contract = $contractsById->get($summary->id);
 
@@ -1317,6 +1320,9 @@ class ContractsList extends Component
                 return null;
             }
 
+            $contract->setRelation('priceComponents', new Collection(
+                array_map(fn (array $component) => new PriceComponent($component), $priceComponentsByContractId[$contract->id] ?? [])
+            ));
             $contract->calculated_cost = $summary->calculated_cost;
             $contract->emission_factor = $summary->emission_factor;
             $contract->exceeds_consumption_limit = $summary->exceeds_consumption_limit;
@@ -1581,11 +1587,35 @@ class ContractsList extends Component
             return $this->buildContractsListViewData();
         }
 
-        return Cache::remember(
+        return $this->rememberDefaultListingViewData(
             $this->contractsListViewDataCacheKey(),
-            Carbon::tomorrow(),
             fn () => $this->buildContractsListViewData(),
         );
+    }
+
+    /**
+     * Cache default listing data behind a short lock so crawlers/users do not
+     * stampede the expensive cold path after the daily import invalidates caches.
+     * If the lock is already held, serve an uncached response rather than making
+     * the request wait long enough to hit PHP's 30 second request timeout.
+     *
+     * @param callable(): array{view: array<string, mixed>, layout: array<string, mixed>} $callback
+     * @return array{view: array<string, mixed>, layout: array<string, mixed>}
+     */
+    protected function rememberDefaultListingViewData(string $key, callable $callback): array
+    {
+        $cached = Cache::get($key);
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        try {
+            return Cache::lock($key.':lock', 30)->block(2, function () use ($key, $callback) {
+                return Cache::remember($key, Carbon::tomorrow(), $callback);
+            });
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException) {
+            return $callback();
+        }
     }
 
     /**
