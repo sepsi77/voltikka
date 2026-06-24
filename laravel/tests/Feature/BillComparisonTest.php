@@ -136,6 +136,26 @@ class BillComparisonTest extends TestCase
         $component->assertSee('kilpailukykyinen');
     }
 
+    public function test_user_implied_cents_per_kwh_is_not_shown_as_an_energy_price(): void
+    {
+        $this->createFixedContract('cheap-contract', 'Halpa Kiinteä', 'Halpa Energia Oy', 5.0, 3.00);
+        $this->createFixedContract('expensive-contract', 'Kallis Kiinteä', 'Kallis Energia Oy', 10.0, 3.00);
+
+        $lastMonth = Carbon::today('Europe/Helsinki')->subMonthNoOverflow()->startOfMonth();
+        $end = $lastMonth->copy()->endOfMonth();
+
+        // 40 € / 300 kWh = 13,33 c/kWh as a blended bill average, not a known
+        // energy price. It should not be rendered for the user's own row.
+        Livewire::test('bill-comparison')
+            ->set('periodPreset', 'custom')
+            ->set('startDate', $lastMonth->toDateString())
+            ->set('endDate', $end->toDateString())
+            ->set('kwh', 300)
+            ->set('totalEur', 40.00)
+            ->assertSee('Sinun sopimuksesi')
+            ->assertDontSee('13,33');
+    }
+
     public function test_pre_vat_total_is_normalized_to_with_vat_basis(): void
     {
         $this->createFixedContract('cheap-contract', 'Halpa Kiinteä', 'Halpa Energia Oy', 5.0, 3.00);

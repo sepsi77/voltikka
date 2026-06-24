@@ -63,14 +63,18 @@ receives a with-VAT-comparable total.
   stays consistent with the rest of Voltikka's listings (trailing-365-day spot
   averages, seasonal model, promo-aware first-year estimate).
 
-The ranking table sorts by **period cost** (most honest). The verdict hero leads
-with the annualized **"€/vuosi"** saving as the primary number, explicitly marked
-`arvio`, with **"€/kk"** as a sub-line; the **period** saving is shown separately
-as the actual/`toteutunut` figure. This is deliberate: the headline number is a
-seasonally-annualized estimate (driven by `includesHeating` + `annualKwh`), so it
-must read as an estimate, not a hard fact. The hero caption names the seasonal /
-heating basis so the heating toggle's effect on the number is legible. The table
-savings column header is `Säästö €/kk (arvio)` for the same reason.
+The ranking table sorts by **period cost** (most honest). The user's row does
+not display a c/kWh value: the service has an implied bill average
+(`userTotalEur / kWh`), but that is not a known energy price and can include
+base-fee effects, so showing it as if it were the user's contract energy price
+is misleading. The verdict hero leads with the annualized **"€/vuosi"** saving
+as the primary number, explicitly marked `arvio`, with **"€/kk"** as a sub-line;
+the **period** saving is shown separately as the actual/`toteutunut` figure. This
+is deliberate: the headline number is a seasonally-annualized estimate (driven
+by `includesHeating` + `annualKwh`), so it must read as an estimate, not a hard
+fact. The hero caption names the seasonal / heating basis so the heating toggle's
+effect on the number is legible. The table savings column header is `Säästö €/kk
+(arvio)` for the same reason.
 
 ## Annualization (seasonal)
 

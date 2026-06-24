@@ -7,7 +7,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="py-12 lg:py-16 text-center">
                 <h1 class="text-3xl md:text-4xl xl:text-5xl font-extrabold text-white tracking-tight leading-none mb-4">
-                    Maksatko sähköstä <span class="text-coral-400">liikaa?</span>
+                    Maksatko sähköstä<span class="text-coral-400"> liikaa?</span>
                 </h1>
                 <p class="max-w-2xl mx-auto text-slate-300 md:text-lg">
                     Syötä sähkölaskusi tiedot, niin laskuri näyttää heti, mitä olisit maksanut muilla sopimuksilla ja kuinka paljon säästäisit vaihtamalla.
@@ -31,7 +31,7 @@
 
         {{-- Intro --}}
         <p class="mb-8 max-w-3xl text-slate-600">
-            Vertaa sähkölaskuasi markkinoiden sopimuksiin. Laskuri käyttää samaa jaksoa ja kulutusta jokaiselle sopimukselle, joten näet tarkalleen, mitä olisit maksanut kilpailijalla. Säästöarvio huomioi kausivaihtelun, kun kerrot, onko sähkölämmitys mukana.
+            Vertaa sähkölaskuasi markkinoiden sopimuksiin. Laskuri käyttää samaa jaksoa ja kulutusta jokaiselle sopimukselle, joten näet tarkalleen, mitä olisit maksanut toisella sopimuksella. Säästöarvio huomioi kausivaihtelun, kun kerrot, onko sähkölämmitys mukana.
         </p>
 
         {{-- Form --}}
@@ -86,10 +86,10 @@
                         placeholder="esim. 400"
                         class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                     >
-                    <p class="text-xs text-slate-500 mt-1">Laskun kulutus jakson ajalta.</p>
+                    <p class="text-xs text-slate-500 mt-1">Kulutus laskun ajalta.</p>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Maksettu yhteensä (€)</label>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Sähkösopimuksen hinta (€)</label>
                     <input
                         type="number"
                         wire:model.blur="totalEur"
@@ -98,7 +98,7 @@
                         placeholder="esim. 35,00"
                         class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                     >
-                    <p class="text-xs text-slate-500 mt-1">Vain sähkösopimus, ei sähkön siirtoa.</p>
+                    <p class="text-xs text-slate-500 mt-1">Syötä sähköenergian osuus ilman sähkön siirtoa.</p>
                 </div>
             </div>
 
@@ -108,7 +108,7 @@
                 <label class="flex items-start justify-between gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
                     <span class="min-w-0">
                         <span class="block text-sm font-medium text-slate-700">Hinta sisältää ALV:n</span>
-                        <span class="block text-xs text-slate-500">Useimmat syöttävät verollisen hinnan. Kytke pois, jos laskussa on veroton hinta.</span>
+                        <span class="block text-xs text-slate-500">Useimmat syöttävät hinnan verollisena. Poista valinta, jos laskussa näkyy veroton hinta.</span>
                     </span>
                     <span class="relative inline-flex shrink-0 mt-0.5">
                         <input type="checkbox" role="switch" wire:model.live="includesVat" class="peer sr-only">
@@ -119,7 +119,7 @@
                 <label class="flex items-start justify-between gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
                     <span class="min-w-0">
                         <span class="block text-sm font-medium text-slate-700">Lämmitän kotini sähköllä</span>
-                        <span class="block text-xs text-slate-500">Mikä tahansa sähköllä toimiva lämmitys: suora sähkölämmitys, ilma- tai maalämpöpumppu. Tarkentaa vuosisäästön arviota, ei vaikuta vertailuun.</span>
+                        <span class="block text-xs text-slate-500">Valitse, jos kotisi pää- tai tukilämmitys toimii sähköllä, esimerkiksi suoralla sähköllä, ilma- tai maalämpöpumpulla. Tarkentaa vuosisäästön arviota, ei vaikuta jakson vertailuun.</span>
                     </span>
                     <span class="relative inline-flex shrink-0 mt-0.5">
                         <input type="checkbox" role="switch" wire:model.live="includesHeating" class="peer sr-only">
@@ -132,7 +132,7 @@
             {{-- Helper / siirto clarification --}}
             <div class="rounded-lg bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600 mb-6">
                 <p class="font-medium text-slate-700 mb-1">Mikä hinta syötetään?</p>
-                <p>Syötä <strong>vain sähkösopimuksen hinta</strong>, ei sähkön siirtoa. Siirto laskutetaan verkkoyhtiöltä erikseen, eikä sitä voi säästää vaihtamalla sopimusta. Yhdistelmälaskulla etsi "sähkö"- tai "energia"-rivi. Hinnan voi syöttää verollisena; valitse alta, sisältyykö ALV.</p>
+                <p>Syötä <strong>vain sähkösopimuksen hinta</strong>, ei sähkön siirtoa. Siirto laskutetaan verkkoyhtiöltä erikseen, eikä sitä voi säästää vaihtamalla sopimusta. Jos saat yhdistelmälaskun, etsi "sähkö"- tai "energia"-rivi. Hinnan voi syöttää verollisena; merkitse valinnalla, sisältyykö hintaan ALV.</p>
             </div>
 
             {{-- Optional input that sharpens the annual estimate (the page's
@@ -156,7 +156,7 @@
                         placeholder="esim. 18000"
                         class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                     >
-                    <p class="text-xs text-slate-500 mt-1">Jos tiedät vuosikulutuksesi, vuosisäästön arvio lasketaan suoraan sillä kausivaihtelun arvion sijaan.</p>
+                    <p class="text-xs text-slate-500 mt-1">Jos tiedät vuosikulutuksesi, vuosisäästö arvioidaan sen perusteella kausivaihtelun sijaan.</p>
                 </div>
             </details>
         </section>
@@ -208,7 +208,7 @@
                         <p class="text-slate-400 text-xs font-semibold uppercase tracking-wide mt-2 tabular-nums">Arvio · noin {{ number_format(abs($res['monthly_saving_eur']), 0, ',', ' ') }} €/kk</p>
                     </div>
                     <p class="text-slate-300">Sopimuksesi on jo edullisempi kuin <strong class="text-white tabular-nums">{{ $betterThanPct }} %</strong> markkinoista, mutta halvimpaan vaihtamalla säästäisit silti tämän verran.</p>
-                    <p class="text-sm text-slate-400 mt-3 tabular-nums">Tällä laskutusjaksolla säästö olisi {{ number_format(abs($res['period_saving_eur']), 0, ',', ' ') }} € (toteutunut). Vuosiarvio huomioi kausivaihtelun{{ $includesHeating ? ' ja sähkölämmityksen' : '' }}.</p>
+                    <p class="text-sm text-slate-400 mt-3 tabular-nums">Tällä laskutusjaksolla säästö olisi ollut {{ number_format(abs($res['period_saving_eur']), 0, ',', ' ') }} €. Vuosiarvio huomioi kausivaihtelun{{ $includesHeating ? ' ja sähkölämmityksen' : '' }}.</p>
                 @else
                     <p class="text-sm font-semibold uppercase tracking-wide text-emerald-700 mb-2">Sopimuksesi on kilpailukykyinen</p>
                     <p class="text-emerald-900">Sopimuksesi on edullisempi kuin <strong class="tabular-nums">{{ $betterThanPct }} %</strong> markkinoista. Vaihtaminen ei tällä kulutuksella tuota merkittävää säästöä.</p>
@@ -218,15 +218,15 @@
             {{-- Spot caveat --}}
             @if ($res['has_spot_in_top'] && $res['spot_avg_cents_per_kwh'] !== null)
                 <div class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-900 mb-6">
-                    <p class="font-medium mb-1">Pörssisähkö on top 3:ssa, huomio</p>
-                    <p class="tabular-nums">Tämän jakson pörssihinta oli keskimäärin {{ number_format($res['spot_avg_cents_per_kwh'], 2, ',', ' ') }} c/kWh (sis. alv). Jakson säästö on toteutunut, mutta pörssisähkön vuosisäästö on <em>arvio</em>, sillä hinta vaihtelee jatkuvasti.</p>
+                    <p class="font-medium mb-1">Huomio pörssisähköstä</p>
+                    <p class="tabular-nums">Pörssisähkö on kolmen halvimman joukossa. Tämän jakson pörssihinta oli keskimäärin {{ number_format($res['spot_avg_cents_per_kwh'], 2, ',', ' ') }} c/kWh (sis. ALV). Jakson säästö perustuu toteutuneisiin hintoihin, mutta pörssisähkön vuosisäästö on <em>arvio</em>, sillä hinta vaihtelee jatkuvasti.</p>
                 </div>
             @endif
 
             {{-- Implied price sanity warning --}}
             @if (in_array('implied_out_of_range', $res['warnings'] ?? []))
                 <div class="rounded-lg bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600 mb-6 tabular-nums">
-                    Syöttämäsi hinta ja kulutus antavat epätavallisen €/kWh-luvun ({{ number_format($res['user_implied_cents_per_kwh'], 2, ',', ' ') }} c/kWh). Tarkista, että syötit sähkösopimuksen hinnan ilman siirtoa.
+                    Syöttämäsi hinta ja kulutus antavat epätavallisen keskihinnan ({{ number_format($res['user_implied_cents_per_kwh'], 2, ',', ' ') }} c/kWh). Tarkista, että syötit sähkösopimuksen hinnan ilman siirtoa.
                 </div>
             @endif
 
@@ -260,7 +260,7 @@
                                     <td class="py-3 pr-3">
                                         @if ($isUser)
                                             <span class="font-bold text-slate-900">Sinun sopimuksesi</span>
-                                            <span class="block text-xs text-slate-500">omasta laskustasi</span>
+                                            <span class="block text-xs text-slate-500">laskusi perusteella</span>
                                         @elseif ($row['detail_url'])
                                             <a href="{{ $row['detail_url'] }}" class="font-medium text-slate-900 hover:text-coral-700">
                                                 {{ $row['name'] }}
@@ -280,7 +280,11 @@
                                         {{ number_format($row['period_cost_eur'], 2, ',', ' ') }} €
                                     </td>
                                     <td class="py-3 pr-3 text-right text-slate-600 whitespace-nowrap hidden sm:table-cell">
-                                        {{ number_format($row['implied_cents_per_kwh'], 2, ',', ' ') }}
+                                        @if ($isUser)
+                                            –
+                                        @else
+                                            {{ number_format($row['implied_cents_per_kwh'], 2, ',', ' ') }}
+                                        @endif
                                     </td>
                                     <td class="py-3 pl-3 text-right whitespace-nowrap {{ $isUser ? 'text-slate-500' : 'text-coral-700 font-semibold' }}">
                                         @if ($row['saving_per_month_eur'] !== null && $row['saving_per_month_eur'] > 0)
@@ -299,10 +303,10 @@
                                     <td class="py-3 pr-3 font-semibold text-slate-500">{{ $userRank }}</td>
                                     <td class="py-3 pr-3">
                                         <span class="font-bold text-slate-900">Sinun sopimuksesi</span>
-                                        <span class="block text-xs text-slate-500">omasta laskustasi</span>
+                                        <span class="block text-xs text-slate-500">laskusi perusteella</span>
                                     </td>
                                     <td class="py-3 pr-3 text-right font-semibold text-slate-900 whitespace-nowrap">{{ number_format($userRow['period_cost_eur'], 2, ',', ' ') }} €</td>
-                                    <td class="py-3 pr-3 text-right text-slate-600 whitespace-nowrap hidden sm:table-cell">{{ number_format($userRow['implied_cents_per_kwh'], 2, ',', ' ') }}</td>
+                                    <td class="py-3 pr-3 text-right text-slate-600 whitespace-nowrap hidden sm:table-cell">–</td>
                                     <td class="py-3 pl-3 text-right text-slate-500">–</td>
                                 </tr>
                             @endif
@@ -310,7 +314,7 @@
                     </table>
                 </div>
                 <p class="text-xs text-slate-500 mt-4 tabular-nums">
-                    Hinnat sisältävät alv 25,5 %, eivät sisällä sähkön siirtoa. Jakson hinta perustuu samaan laskutusjaksoon ja kulutukseen kuin laskusi. c/kWh on jaosta laskettu keskiarvo (sis. perusmaksun). Säästö €/kk on vuosikohtainen arvio jaettuna 12:lla.
+                    Hinnat sisältävät ALV:n 25,5 %, eivätkä sisällä sähkön siirtoa. Jakson hinta perustuu samaan laskutusjaksoon ja kulutukseen kuin laskusi. Markkinasopimusten c/kWh on jakson hinnasta ja kulutuksesta laskettu keskiarvo (sis. perusmaksun). Säästö €/kk on vuosikohtainen arvio jaettuna 12:lla.
                 </p>
             </section>
 
@@ -322,7 +326,7 @@
             <h2 class="text-2xl font-bold text-slate-900 mb-4">Maksatko sähköstä liikaa?</h2>
             <div class="prose prose-slate max-w-none text-slate-600">
                 <p>Sähkösopimuksen hinta vaihtelee merkittävästi eri yhtiöiden välillä, ja sama kulutus voi maksaa satoja euroja vuodessa enemmän kalliimmalla sopimuksella. Voltikan laskuri vertaa sähkölaskuasi suoraan markkinoiden voimassa oleviin sopimuksiin: tarvitset vain yhden laskun tiedot.</p>
-                <p>Laskuri käyttää samaa laskutusjaksoa ja kulutusta jokaiselle markkinoiden sopimukselle, joten vertailu on reilu: näet mitä olisit maksanut kilpailijalla juuri samalla jaksolla. Vuosisäästö arvioidaan kausivaihtelun huomioiden, kun kerrot onko sähkölämmitys mukana kulutuksessa.</p>
+                <p>Laskuri käyttää samaa laskutusjaksoa ja kulutusta jokaiselle markkinoiden sopimukselle, joten vertailu on reilu: näet, mitä olisit maksanut toisella sopimuksella juuri samalla jaksolla. Vuosisäästö arvioidaan kausivaihtelun huomioiden, kun kerrot, onko sähkölämmitys mukana kulutuksessa.</p>
             </div>
         </section>
 
@@ -343,7 +347,7 @@
 
         <div class="rounded-xl bg-slate-50 p-6 text-sm text-slate-600 mb-8">
             <p class="font-medium text-slate-700 mb-1">Huomio</p>
-            <p>Laskuri antaa suuntaa-antavan arvion markkinoiden hinnoista annetun jakson ja kulutuksen perusteella. Pörssisähkön toteutunut hinta vaihtelee, ja tarjoukset voivat päättyä. Todellinen säästö riippuu kulutustottumuksista ja sopimusehdoista.</p>
+            <p>Laskuri antaa suuntaa-antavan arvion markkinoiden hinnoista antamasi jakson ja kulutuksen perusteella. Pörssisähkön hinta vaihtelee, ja tarjoukset voivat päättyä. Todellinen säästö riippuu kulutustottumuksista ja sopimusehdoista.</p>
         </div>
     </div>
 </div>

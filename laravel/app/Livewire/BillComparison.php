@@ -253,20 +253,20 @@ class BillComparison extends Component
                 'answer' => 'Syötä sähkölaskusi tiedot Voltikan laskuriin: laskutusjakso, kulutus kilowattitunteina ja sähkösopimuksen hinta (ilman sähkön siirtoa). Laskuri näyttää heti, kuinka paljon säästäisit tällä kulutuksella muilla markkinoiden sopimuksilla ja millä sijalla oma sopimuksesi on.',
             ],
             [
-                'question' => 'Mikä hinta laskuriin syötetään, sisältääkö se alvin ja siirron?',
-                'answer' => 'Syötä vain sähkösopimuksen hinta, eli se mitä maksat sähköstä itsestään. Sähkön siirto (verkkomaksu) kuuluu erilliseen laskuun tai eriin riviin, eikä sitä voi säästää vaihtamalla sopimusta. Useimmat syöttävät verollisen hinnan; voit merkitä "Sisältää ALV" -valinnan, jolloin vertailu menee oikein.',
+                'question' => 'Mikä hinta laskuriin syötetään, sisältääkö se ALV:n tai siirron?',
+                'answer' => 'Syötä vain sähkösopimuksen hinta, eli sähköenergian osuus. Älä lisää sähkön siirtoa: verkkoyhtiön siirtomaksu näkyy erillisellä laskulla tai omalla rivillään, eikä sitä voi säästää vaihtamalla sopimusta. Useimmat syöttävät hinnan verollisena; pidä tällöin "Hinta sisältää ALV:n" -valinta päällä, jolloin vertailu menee oikein.',
             ],
             [
                 'question' => 'Miksi vuosikulutusta ei tarvitse tietää?',
-                'answer' => 'Laskuri perustuu yhden laskutusjakson todelliseen kulutukseen ja laskuun. Sama jakso ja kWh syötetään jokaiselle markkinoiden sopimukselle, jolloin näet tismalleen, mitä olisit maksanut muulla sopimuksella. Vuosisäästö arvioidaan kausivaihtelun huomioiden sen perusteella, onko sähkölämmitys mukana kulutuksessa.',
+                'answer' => 'Laskuri perustuu yhden laskutusjakson todelliseen kulutukseen ja laskuun. Se vertaa samaa jaksoa ja kulutusta jokaiseen markkinoiden sopimukseen, jolloin näet tismalleen, mitä olisit maksanut toisella sopimuksella. Vuosisäästö arvioidaan kausivaihtelun perusteella ja tarkentuu, jos sähkölämmitys on mukana kulutuksessa.',
             ],
             [
                 'question' => 'Onko pörssisähkön säästöarvio luotettava?',
-                'answer' => 'Laskutusjakson osalta laskuri käyttää todellisia toteutuneita pörssihintoja, joten se on tarkka sille jaksolle. Vuosisäästöarvio on kuitenkin suuntaa-antava, koska pörssisähkön hinta vaihtelee jatkuvasti. Laskuri näyttää jakson keskimääräisen pörssihinnan, johon arvio perustuu.',
+                'answer' => 'Laskutusjakson osalta laskuri käyttää todellisia toteutuneita pörssihintoja, joten tulos on tarkka kyseiselle jaksolle. Vuosisäästöarvio on kuitenkin suuntaa-antava, koska pörssisähkön hinta vaihtelee jatkuvasti. Laskuri näyttää jakson keskimääräisen pörssihinnan, johon arvio perustuu.',
             ],
             [
                 'question' => 'Kuinka paljon sähkön vaihtaminen kannattaa?',
-                'answer' => 'Jo pelkkä kalliimman sopimuksen vaihtaminen markkinoiden halvimpaan voi säästää satoja euroja vuodessa. Laskuri näyttää sekä kuukausittaisen että vuotuisen arvion säästöstä ja linkittää suoraan edullisimpiin sopimuksiin, joita voit hakea.',
+                'answer' => 'Jo pelkkä kalliimman sopimuksen vaihtaminen markkinoiden halvimpaan voi säästää satoja euroja vuodessa. Laskuri näyttää sekä kuukausittaisen että vuotuisen arvion säästöstä ja linkittää edullisimpiin sopimuksiin, joihin voit tutustua.',
             ],
         ];
     }
