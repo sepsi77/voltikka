@@ -24,8 +24,6 @@ class BillComparisonRequest
         public readonly float $kwh,
         public readonly float $userTotalEur,
         public readonly bool $includesHeating = false,
-        public readonly ?float $energyPriceCents = null,
-        public readonly ?float $baseFeeEur = null,
         public readonly ?float $annualKwhOverride = null,
     ) {
     }

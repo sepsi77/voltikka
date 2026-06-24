@@ -34,8 +34,13 @@ Optional inputs:
 - `annualKwh` — if the visitor knows their annual consumption, it is used
   **directly** for the annualized savings estimate instead of the seasonal
   profile (`BillComparisonRequest::annualKwhOverride`). Improves accuracy.
-- energy price c/kWh, base fee €/kk — **explanatory only**, never feed the
-  counterfactual, only the "miksi sopimuksesi on täällä" box.
+
+Removed in the 2026-06 simplification: the standalone energy-price (c/kWh) and
+base-fee (€/kk) "explanatory" inputs and the "Miksi sopimuksesi on täällä?" box
+they fed. They never touched the counterfactual and had a low
+payoff-to-prominence ratio, so `BillComparisonRequest` no longer carries
+`energyPriceCents` / `baseFeeEur`. Do not reintroduce them without a real product
+reason; the bill total stays the only anchor.
 
 ## VAT normalization
 
@@ -58,8 +63,14 @@ receives a with-VAT-comparable total.
   stays consistent with the rest of Voltikka's listings (trailing-365-day spot
   averages, seasonal model, promo-aware first-year estimate).
 
-The ranking table sorts by **period cost** (most honest). The hero "€/kk" and
-"€/vuosi" savings are annualized estimates and labelled as such.
+The ranking table sorts by **period cost** (most honest). The verdict hero leads
+with the annualized **"€/vuosi"** saving as the primary number, explicitly marked
+`arvio`, with **"€/kk"** as a sub-line; the **period** saving is shown separately
+as the actual/`toteutunut` figure. This is deliberate: the headline number is a
+seasonally-annualized estimate (driven by `includesHeating` + `annualKwh`), so it
+must read as an estimate, not a hard fact. The hero caption names the seasonal /
+heating basis so the heating toggle's effect on the number is legible. The table
+savings column header is `Säästö €/kk (arvio)` for the same reason.
 
 ## Annualization (seasonal)
 

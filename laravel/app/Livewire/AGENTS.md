@@ -21,7 +21,8 @@ Purpose:
 - visitor enters one bill's date range, kWh and total (energy only, excl. siirto); component compares against all active household contracts for the same period+consumption
 
 Important semantics:
-- the bill total is the anchor — the user's pricing model / day-night split / margin are never modelled. Optional energy-price/base-fee inputs are explanatory only (drive the "miksi kallis" box) and never feed the counterfactual.
+- the bill total is the anchor — the user's pricing model / day-night split / margin are never modelled. The standalone energy-price/base-fee "explanatory" inputs and the "miksi kallis" box they fed were removed in the 2026-06 simplification (low payoff, never touched the counterfactual); `BillComparisonRequest` no longer carries `energyPriceCents`/`baseFeeEur`. Do not reintroduce without a real product reason.
+- the verdict hero leads with the annualized **€/vuosi** saving as the primary number, explicitly labelled `arvio` (with €/kk as a sub-line and the **period** saving shown as the actual/`toteutunut` figure). The headline is a seasonally-annualized estimate driven by `includesHeating` + `annualKwh`, so it must stay labelled as an estimate; the hero caption names the heating/seasonal basis so the toggle's effect on the number is visible. Keep `includesHeating` + `annualKwh` — they drive the hero, they are not decorative.
 - `includesVat` (default true) normalizes a pre-VAT total to Voltikka's with-VAT basis via `VAT_MULTIPLIER` (1.255) before comparison. Market contract costs are energy-only incl. ALV 25.5 %, excl. siirto.
 - period presets are the last 3 **completed** calendar months (the current
   unbilled month is intentionally excluded) plus a custom date range; spot/

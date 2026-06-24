@@ -47,10 +47,6 @@ class BillComparison extends Component
     // instead of the seasonal-profile annualization for the savings estimate.
     public float|string|null $annualKwh = null;
 
-    // Optional explanatory inputs (never used for the counterfactual).
-    public float|string|null $energyPriceCents = null;
-    public float|string|null $baseFeeEur = null;
-
     public array $presetLabels = [];
 
     /**
@@ -152,16 +148,6 @@ class BillComparison extends Component
         $this->calculate();
     }
 
-    public function updatedEnergyPriceCents(): void
-    {
-        $this->calculate();
-    }
-
-    public function updatedBaseFeeEur(): void
-    {
-        $this->calculate();
-    }
-
     public function calculate(): void
     {
         $this->errorMessage = null;
@@ -203,8 +189,6 @@ class BillComparison extends Component
                 kwh: $kwh,
                 userTotalEur: $comparableTotal,
                 includesHeating: $this->includesHeating,
-                energyPriceCents: $this->nullableFloat($this->energyPriceCents),
-                baseFeeEur: $this->nullableFloat($this->baseFeeEur),
                 annualKwhOverride: $this->nullableFloat($this->annualKwh),
             );
 

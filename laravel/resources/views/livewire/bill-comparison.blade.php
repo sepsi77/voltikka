@@ -10,7 +10,7 @@
                     Maksatko sähköstä <span class="text-coral-400">liikaa?</span>
                 </h1>
                 <p class="max-w-2xl mx-auto text-slate-300 md:text-lg">
-                    Syötä sähkölaskusi tiedot, niin laskuri näyttää heti, mitä olisit maksanut muilla sopimuksilla ja kuinka paljon säästäisit vaihtamalla. Ei vuosikulutusta tarvita.
+                    Syötä sähkölaskusi tiedot, niin laskuri näyttää heti, mitä olisit maksanut muilla sopimuksilla ja kuinka paljon säästäisit vaihtamalla.
                 </p>
             </div>
         </div>
@@ -59,7 +59,7 @@
                         <label class="block text-xs text-slate-500 mb-1">Alkaa</label>
                         <input
                             type="date"
-                            wire:model.live.debounce.300ms="startDate"
+                            wire:model.blur="startDate"
                             class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                         >
                     </div>
@@ -67,7 +67,7 @@
                         <label class="block text-xs text-slate-500 mb-1">Päättyy</label>
                         <input
                             type="date"
-                            wire:model.live.debounce.300ms="endDate"
+                            wire:model.blur="endDate"
                             class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                         >
                     </div>
@@ -80,7 +80,7 @@
                     <label class="block text-sm font-medium text-slate-700 mb-1">Kulutus (kWh)</label>
                     <input
                         type="number"
-                        wire:model.live.debounce.500ms="kwh"
+                        wire:model.blur="kwh"
                         min="1"
                         step="1"
                         placeholder="esim. 400"
@@ -92,7 +92,7 @@
                     <label class="block text-sm font-medium text-slate-700 mb-1">Maksettu yhteensä (€)</label>
                     <input
                         type="number"
-                        wire:model.live.debounce.500ms="totalEur"
+                        wire:model.blur="totalEur"
                         min="0"
                         step="0.01"
                         placeholder="esim. 35,00"
@@ -135,54 +135,29 @@
                 <p>Syötä <strong>vain sähkösopimuksen hinta</strong>, ei sähkön siirtoa. Siirto laskutetaan verkkoyhtiöltä erikseen, eikä sitä voi säästää vaihtamalla sopimusta. Yhdistelmälaskulla etsi "sähkö"- tai "energia"-rivi. Hinnan voi syöttää verollisena; valitse alta, sisältyykö ALV.</p>
             </div>
 
-            {{-- Optional explanation inputs.
-                 A native <details> keeps its open state only in the DOM, which a
-                 Livewire morph (fired by the live inputs inside it) resets to
-                 closed on every keystroke. Hold the open state in Alpine so it
-                 survives morphs: x-on:toggle syncs the state on user toggle and
-                 x-bind:open reasserts it after each re-render. --}}
+            {{-- Optional input that sharpens the annual estimate (the page's
+                 hero number). A native <details> keeps its open state only in the
+                 DOM, which a Livewire morph (fired by the live input inside it)
+                 resets to closed on every keystroke. Hold the open state in Alpine
+                 so it survives morphs: x-on:toggle syncs the state on user toggle
+                 and x-bind:open reasserts it after each re-render. --}}
             <details x-data="{ open: false }" x-bind:open="open" x-on:toggle="open = $event.target.open" class="group">
                 <summary class="cursor-pointer text-sm font-medium text-slate-700 hover:text-slate-900 flex items-center gap-2">
                     <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-                    Tiedän vuosikulutukseni tai haluan selityksen (valinnainen)
+                    Tiedän vuosikulutukseni (tarkentaa vuosiarviota)
                 </summary>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 pl-6">
-                    <div class="md:col-span-1">
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Vuosikulutus (kWh)</label>
-                        <input
-                            type="number"
-                            wire:model.live.debounce.500ms="annualKwh"
-                            min="0"
-                            step="1"
-                            placeholder="esim. 18000"
-                            class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                        >
-                        <p class="text-xs text-slate-500 mt-1">Parantaa säästöarviota, käytetään vuosilaskennassa suoraan.</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Energiahinta (c/kWh)</label>
-                        <input
-                            type="number"
-                            wire:model.live.debounce.500ms="energyPriceCents"
-                            min="0"
-                            step="0.01"
-                            placeholder="esim. 12,40"
-                            class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                        >
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-700 mb-1">Perusmaksu (€/kk)</label>
-                        <input
-                            type="number"
-                            wire:model.live.debounce.500ms="baseFeeEur"
-                            min="0"
-                            step="0.01"
-                            placeholder="esim. 9,90"
-                            class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
-                        >
-                    </div>
+                <div class="mt-4 pl-6 max-w-xs">
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Vuosikulutus (kWh)</label>
+                    <input
+                        type="number"
+                        wire:model.blur="annualKwh"
+                        min="0"
+                        step="1"
+                        placeholder="esim. 18000"
+                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
+                    >
+                    <p class="text-xs text-slate-500 mt-1">Jos tiedät vuosikulutuksesi, vuosisäästön arvio lasketaan suoraan sillä kausivaihtelun arvion sijaan.</p>
                 </div>
-                <p class="text-xs text-slate-500 mt-2 pl-6">Vuosikulutus parantaa säästöarviota; energiahinta ja perusmaksu käytetään vain selitykseen.</p>
             </details>
         </section>
 
@@ -227,13 +202,13 @@
             {{-- Verdict hero --}}
             <section class="rounded-2xl {{ $res['is_overpaying'] ? 'bg-slate-950' : 'bg-emerald-50 border border-emerald-200' }} p-8 mb-8 text-center">
                 @if ($res['is_overpaying'])
-                    <p class="text-sm font-semibold uppercase tracking-wide text-coral-400 mb-2">Voisit säästää</p>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-coral-400 mb-2">Voisit säästää vaihtamalla</p>
                     <div class="my-6">
-                        <p class="text-4xl md:text-5xl font-extrabold text-coral-400 tabular-nums">{{ number_format(abs($res['monthly_saving_eur']), 0, ',', ' ') }} €/kk</p>
-                        <p class="text-slate-300 text-sm mt-1 tabular-nums">≈ {{ number_format(abs($res['annual_saving_eur']), 0, ',', ' ') }} €/vuosi (arvio)</p>
+                        <p class="text-4xl md:text-5xl font-extrabold text-coral-400 tabular-nums">≈ {{ number_format(abs($res['annual_saving_eur']), 0, ',', ' ') }} €/vuosi</p>
+                        <p class="text-slate-400 text-xs font-semibold uppercase tracking-wide mt-2 tabular-nums">Arvio · noin {{ number_format(abs($res['monthly_saving_eur']), 0, ',', ' ') }} €/kk</p>
                     </div>
                     <p class="text-slate-300">Sopimuksesi on jo edullisempi kuin <strong class="text-white tabular-nums">{{ $betterThanPct }} %</strong> markkinoista, mutta halvimpaan vaihtamalla säästäisit silti tämän verran.</p>
-                    <p class="text-sm text-slate-300 mt-2 tabular-nums">Tällä jaksolla säästö olisi noin {{ number_format(abs($res['period_saving_eur']), 0, ',', ' ') }} € halvimpaan vaihtamalla.</p>
+                    <p class="text-sm text-slate-400 mt-3 tabular-nums">Tällä laskutusjaksolla säästö olisi {{ number_format(abs($res['period_saving_eur']), 0, ',', ' ') }} € (toteutunut). Vuosiarvio huomioi kausivaihtelun{{ $includesHeating ? ' ja sähkölämmityksen' : '' }}.</p>
                 @else
                     <p class="text-sm font-semibold uppercase tracking-wide text-emerald-700 mb-2">Sopimuksesi on kilpailukykyinen</p>
                     <p class="text-emerald-900">Sopimuksesi on edullisempi kuin <strong class="tabular-nums">{{ $betterThanPct }} %</strong> markkinoista. Vaihtaminen ei tällä kulutuksella tuota merkittävää säästöä.</p>
@@ -270,7 +245,7 @@
                                 <th class="py-2 pr-3 font-medium">Sopimus</th>
                                 <th class="py-2 pr-3 font-medium text-right">Jakson hinta</th>
                                 <th class="py-2 pr-3 font-medium text-right hidden sm:table-cell">c/kWh</th>
-                                <th class="py-2 pl-3 font-medium text-right">Säästö €/kk</th>
+                                <th class="py-2 pl-3 font-medium text-right">Säästö €/kk (arvio)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -339,39 +314,6 @@
                 </p>
             </section>
 
-            {{-- Explanation box (optional inputs) --}}
-            @if ($this->nullableFloat($energyPriceCents) !== null)
-                @php
-                    $marketMedianCents = null;
-                    $cents = [];
-                    foreach ($res['rows'] as $r) {
-                        if (!$r['is_user'] && $r['implied_cents_per_kwh'] > 0) { $cents[] = $r['implied_cents_per_kwh']; }
-                    }
-                    sort($cents);
-                    $count = count($cents);
-                    if ($count > 0) {
-                        $marketMedianCents = $count % 2 ? $cents[intdiv($count, 2)] : ($cents[$count/2 - 1] + $cents[$count/2]) / 2;
-                    }
-                    $userCents = (float) $this->nullableFloat($energyPriceCents);
-                @endphp
-                <section class="rounded-2xl border border-slate-200 bg-slate-50 p-6 mb-8">
-                    <h2 class="text-lg font-bold text-slate-900 mb-2">Miksi sopimuksesi on täällä?</h2>
-                    @if ($marketMedianCents !== null)
-                        <p class="text-sm text-slate-700 tabular-nums">
-                            Maksat energiaa {{ number_format($userCents, 2, ',', ' ') }} c/kWh, kun markkinoiden mediaani on noin {{ number_format($marketMedianCents, 2, ',', ' ') }} c/kWh
-                            @if ($this->nullableFloat($baseFeeEur) !== null)
-                                ja perusmaksusi on {{ number_format((float) $this->nullableFloat($baseFeeEur), 2, ',', ' ') }} €/kk
-                            @endif
-                            . @if ($userCents > $marketMedianCents)
-                                Hinta on energiassa kalliimpi kuin markkinoiden mediaani.
-                            @else
-                                Energiahinta on markkinoiden mediaania edullisempi.
-                            @endif
-                        </p>
-                    @endif
-                    <p class="text-xs text-slate-500 mt-3">Arvio perustuu syöttämääsi energiahintaan ja perusmaksuun; itse vertailu käyttää laskun kokonaishintaa.</p>
-                </section>
-            @endif
         @endif
         </div>
 
