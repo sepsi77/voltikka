@@ -158,6 +158,22 @@ Purpose:
 Read first:
 - `PriceForecasting/AGENTS.md`
 
+### Bill comparison ("Maksatko liikaa")
+Directory:
+- `BillComparison/`
+
+Purpose:
+- compare a visitor's electricity bill against active market contracts for the same billing period and consumption
+- rank the user's bill alongside market contracts by period cost and annualize savings with a seasonal consumption profile
+
+Read first:
+- `BillComparison/AGENTS.md`
+
+Related files outside services:
+- `../Livewire/BillComparison.php`
+- `../../resources/views/livewire/bill-comparison.blade.php`
+- `../DTO/BillComparisonRequest.php`, `BillComparisonResult.php`, `BillComparisonRow.php`
+
 ## Documentation rule for this subtree
 
 If you touch files directly under `app/Services/` and they are becoming decision-heavy:

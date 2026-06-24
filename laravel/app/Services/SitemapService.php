@@ -119,6 +119,12 @@ class SitemapService
                 'priority' => 0.6,
             ],
             [
+                'loc' => $baseUrl.'/maksatko-liikaa',
+                'lastmod' => $today,
+                'changefreq' => 'monthly',
+                'priority' => 0.7,
+            ],
+            [
                 'loc' => $baseUrl.'/sahkosopimus',
                 'lastmod' => $today,
                 'changefreq' => 'daily',

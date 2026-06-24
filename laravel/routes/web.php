@@ -65,6 +65,9 @@ Route::get('/sitemap.xml', function (SitemapService $sitemapService) {
 // Calculator
 Route::get('/sahkosopimus/laskuri', ConsumptionCalculator::class)->name('calculator');
 
+// "Am I paying too much?" — bill-anchored contract comparison
+Route::get('/maksatko-liikaa', \App\Livewire\BillComparison::class)->name('bill.comparison');
+
 // Solar panel section
 Route::get('/aurinkopaneelit/laskuri', SolarCalculator::class)->name('solar.calculator');
 Route::redirect('/aurinkopaneelit', '/aurinkopaneelit/laskuri', 302);

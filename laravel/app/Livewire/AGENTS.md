@@ -8,6 +8,34 @@ See also:
 - `../AGENTS.md` for Laravel-level behavior
 - `../Services/ContractReplacement/AGENTS.md` for replacement matching/linking rules
 
+## `BillComparison`
+
+Primary files:
+- `BillComparison.php`
+- `../../resources/views/livewire/bill-comparison.blade.php`
+- `../Services/BillComparison/AGENTS.md`
+- `../Services/DTO/BillComparisonRequest.php`
+
+Purpose:
+- renders `/maksatko-liikaa` — the "Maksatko sähköstä liikaa?" bill comparison tool
+- visitor enters one bill's date range, kWh and total (energy only, excl. siirto); component compares against all active household contracts for the same period+consumption
+
+Important semantics:
+- the bill total is the anchor — the user's pricing model / day-night split / margin are never modelled. Optional energy-price/base-fee inputs are explanatory only (drive the "miksi kallis" box) and never feed the counterfactual.
+- `includesVat` (default true) normalizes a pre-VAT total to Voltikka's with-VAT basis via `VAT_MULTIPLIER` (1.255) before comparison. Market contract costs are energy-only incl. ALV 25.5 %, excl. siirto.
+- period presets are the last 3 **completed** calendar months (the current
+  unbilled month is intentionally excluded) plus a custom date range; spot/
+  seasonal math uses exact dates so the comparison stays honest for
+  non-calendar-month bills.
+- `annualKwh` is an optional override: when provided (>0) it replaces the
+  seasonal-profile annualization for the savings estimate. `includesHeating`
+  selects the seasonal annualization profile (see `ConsumptionProfile`);
+  annualized savings are labelled "arvio".
+- numeric inputs are `float|string|null` tolerant (mobile blank states); `nullableFloat()` is public so the view can guard optional-input logic.
+- this is a per-user calculator: no public prepared-data caching and it is intentionally not in `SetPublicCacheHeaders` (matches the heat-pump / solar calculators).
+- loading feedback uses the shared `<x-spinner>` Blade component (`resources/views/components/spinner.blade.php`) inside a `wire:loading.delay` fixed bottom-right pill plus a `wire:loading.delay.class="opacity-50"` dim on the results region. Reuse `<x-spinner>` for any new loading indicator rather than re-inlining the SVG, so the coral spinner stays visually consistent across calculators.
+- both WebApplication + FAQPage schemas render in the view via `<x-schema-markup :schemas="[$jsonLd, $faqJsonLd]" />`; `getFaqItemsProperty()` is the single source of truth for the FAQ.
+
 ## `HeatPumpCalculator`
 
 Primary files:
