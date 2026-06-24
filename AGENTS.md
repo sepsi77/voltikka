@@ -182,6 +182,14 @@ php artisan test --filter="ContractsFilterTest"
 - **Route**: `/sahkosopimus/laskuri`
 - Estimates annual consumption based on housing type and heating
 
+### 7. Bill Comparison ("Maksatko liikaa?")
+- **Location**: `app/Livewire/BillComparison.php`, `app/Services/BillComparison/BillComparisonService.php`
+- **Route**: `/maksatko-liikaa`
+- Visitor enters one electricity bill's date range, consumption (kWh) and total paid (energy-contract portion, excl. siirto); the tool computes what each active market contract would have cost for the same period+consumption and ranks the user's bill alongside them
+- The bill total is the anchor — the user's pricing model / day-night split / margin are never modelled. Optional energy-price/base-fee inputs are explanatory only
+- Leads with monthly + annualized savings (seasonal-adjusted via a heating toggle); spot contracts use actual historical hourly spot prices for the period
+- No new models / DB writes; pure compute, ephemeral. See `laravel/app/Services/BillComparison/AGENTS.md`
+
 ## Laravel Architecture
 
 ### Key Models (`app/Models/`)
@@ -263,6 +271,7 @@ php artisan test --filter="ContractsFilterTest"
 | `/sahkosopimus/sahkoyhtiot` | CompanyList | All companies |
 | `/sahkosopimus/sahkoyhtiot/{slug}` | CompanyDetail | Company profile |
 | `/sahkosopimus/laskuri` | ConsumptionCalculator | Consumption calculator |
+| `/maksatko-liikaa` | BillComparison | "Am I paying too much?" bill comparison |
 | `/sahkosopimus/halvin-sahkosopimus` | CheapestContracts | Cheapest contracts |
 | `/sahkosopimus/tilastot` | ContractPriceStatistics | Contract price trend statistics |
 | `/sahkosopimus/yritykselle` | SeoContractsList | Business contracts |

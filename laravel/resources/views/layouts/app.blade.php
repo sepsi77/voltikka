@@ -220,6 +220,7 @@
                                 || request()->is('sahkosopimus/sahkon-hintaennuste')
                                 || request()->is('sahkosopimus/kannattaako-porssisahko')
                                 || request()->is('sahkosopimus/kannattaako-maaraaikainen')
+                                || request()->is('maksatko-liikaa')
                                 || request()->is('spot-price');
                             $isContractsNavActive = request()->is('sahkosopimus*') && ! $isDataNavActive;
                         @endphp
@@ -250,6 +251,7 @@
                                 <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                             </a>
                             <div x-show="open" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="transform opacity-0 scale-95" x-transition:enter-end="transform opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="transform opacity-100 scale-100" x-transition:leave-end="transform opacity-0 scale-95" class="absolute left-0 w-64 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50" style="display: none;">
+                                <a href="/maksatko-liikaa" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('maksatko-liikaa') ? 'bg-slate-100 font-semibold' : '' }}">Maksatko liikaa?</a>
                                 <a href="/sahkosopimus/tilastot" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/tilastot') ? 'bg-slate-100 font-semibold' : '' }}">Sähkösopimusten hintakehitys</a>
                                 <a href="/sahkosopimus/sahkon-hintaennuste" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/sahkon-hintaennuste') ? 'bg-slate-100 font-semibold' : '' }}">Sähkön hintaennuste</a>
                                 <a href="/sahkosopimus/kannattaako-porssisahko" class="block px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 {{ request()->is('sahkosopimus/kannattaako-porssisahko') ? 'bg-slate-100 font-semibold' : '' }}">Kannattaako pörssisähkö?</a>
@@ -348,6 +350,9 @@
                             <svg class="w-4 h-4 transition-transform" :class="{ 'rotate-180': expanded }" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                         </button>
                         <div x-show="expanded" x-transition class="pl-4 space-y-1 mt-1">
+                            <a href="/maksatko-liikaa" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('maksatko-liikaa') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
+                                Maksatko liikaa?
+                            </a>
                             <a href="/sahkosopimus/tilastot" class="block px-3 py-2 rounded-lg text-sm text-slate-500 hover:text-slate-900 hover:bg-slate-50 {{ request()->is('sahkosopimus/tilastot') ? 'bg-slate-100 text-slate-900 font-semibold' : '' }}">
                                 Sähkösopimusten hintakehitys
                             </a>
@@ -414,6 +419,7 @@
                     <div>
                         <h3 class="text-white font-semibold mb-4">Data ja selvitykset</h3>
                         <ul class="space-y-2">
+                            <li><a href="/maksatko-liikaa" class="text-slate-400 hover:text-white text-sm transition-colors">Maksatko liikaa?</a></li>
                             <li><a href="/sahkosopimus/tilastot" class="text-slate-400 hover:text-white text-sm transition-colors">Sähkösopimusten hintakehitys</a></li>
                             <li><a href="/sahkosopimus/sahkon-hintaennuste" class="text-slate-400 hover:text-white text-sm transition-colors">Sähkön hintaennuste</a></li>
                             <li><a href="/sahkosopimus/kannattaako-porssisahko" class="text-slate-400 hover:text-white text-sm transition-colors">Kannattaako pörssisähkö?</a></li>

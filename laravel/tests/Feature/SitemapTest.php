@@ -114,6 +114,9 @@ class SitemapTest extends TestCase
         // Contract price statistics page
         $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/tilastot</loc>", $content);
 
+        // Bill comparison calculator
+        $this->assertStringContainsString("<loc>{$baseUrl}/maksatko-liikaa</loc>", $content);
+
         // About / methodology page
         $this->assertStringContainsString("<loc>{$baseUrl}/tietoa</loc>", $content);
 
