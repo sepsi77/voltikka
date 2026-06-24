@@ -94,7 +94,7 @@ class BillComparisonTest extends TestCase
             ->set('totalEur', 200.00)
             ->set('includesHeating', false);
 
-        $result = $component->resultArray;
+        $result = $component->viewData('resultArray');
 
         $this->assertNotNull($result, 'Expected a computed comparison result.');
         $this->assertTrue($result['is_overpaying'], 'User paying 200 € for 1500 kWh should be overpaying vs a 5 c/kWh contract.');
@@ -107,7 +107,7 @@ class BillComparisonTest extends TestCase
         $this->assertSame('cheap-contract', $result['rows'][0]['contract_id']);
         $this->assertSame('Halpa Kiinteä', $result['rows'][0]['name']);
 
-        $component->assertSee('Maksat liikaa');
+        $component->assertSee('Voisit säästää');
         $component->assertSee('Halpa Kiinteä');
     }
 
@@ -127,7 +127,7 @@ class BillComparisonTest extends TestCase
             ->set('kwh', 1500)
             ->set('totalEur', 50.00);
 
-        $result = $component->resultArray;
+        $result = $component->viewData('resultArray');
 
         $this->assertNotNull($result);
         $this->assertFalse($result['is_overpaying']);
@@ -151,7 +151,7 @@ class BillComparisonTest extends TestCase
             ->set('kwh', 1500)
             ->set('totalEur', 125.50)
             ->set('includesVat', true)
-            ->resultArray;
+            ->viewData('resultArray');
 
         $preVat = Livewire::test('bill-comparison')
             ->set('periodPreset', 'custom')
@@ -160,7 +160,7 @@ class BillComparisonTest extends TestCase
             ->set('kwh', 1500)
             ->set('totalEur', 100.00)
             ->set('includesVat', false)
-            ->resultArray;
+            ->viewData('resultArray');
 
         $this->assertSame($withVat['user_annual_cost'], $preVat['user_annual_cost']);
         $this->assertSame($withVat['user_rank'], $preVat['user_rank']);
@@ -187,6 +187,82 @@ class BillComparisonTest extends TestCase
         $this->assertSame($lastMonthStart->copy()->endOfMonth()->toDateString(), $component->endDate);
     }
 
+    public function test_result_is_not_synced_into_the_livewire_snapshot(): void
+    {
+        // Regression guard: the large DB-derived result must never become a
+        // public/synced property again. Livewire's deep-array dehydration
+        // produced a self-inconsistent checksum that raised
+        // CorruptComponentPayloadException on every update (the page froze on
+        // stale numbers). Keeping it out of the snapshot keeps updates working
+        // and keeps the payload tiny.
+        $this->createFixedContract('cheap-contract', 'Halpa Kiinteä', 'Halpa Energia Oy', 5.0, 3.00);
+        $this->createFixedContract('expensive-contract', 'Kallis Kiinteä', 'Kallis Energia Oy', 12.0, 9.00);
+
+        $component = Livewire::test('bill-comparison')
+            ->set('kwh', 1500)
+            ->set('totalEur', 200.00);
+
+        $snapshot = $component->snapshot;
+
+        $this->assertArrayNotHasKey(
+            'resultArray',
+            $snapshot['data'],
+            'resultArray must stay out of the synced snapshot (see CorruptComponentPayloadException regression).'
+        );
+        $this->assertLessThan(
+            5000,
+            strlen(json_encode($snapshot)),
+            'Bill-comparison snapshot should stay tiny; a large snapshot means derived data leaked back into sync.'
+        );
+
+        // A follow-up update must still hydrate cleanly and re-render results.
+        $component->set('includesHeating', true)
+            ->assertSee('Markkinoiden halvimmat');
+    }
+
+    public function test_consumption_capped_contracts_respect_their_annual_kwh_limit(): void
+    {
+        // A flat-fee tier (no per-kWh energy, monthly fee) capped at 1200 kWh/y,
+        // like Helen Helpposähkö. It must drop out above the cap (otherwise its
+        // consumption-immune flat fee sorts to the top and freezes the ranking)
+        // and remain eligible within it.
+        $capped = $this->createFixedContract('capped-flat', 'Litteä Tariffi', 'Halpa Energia Oy', 0.0, 13.90);
+        $capped->consumption_limitation_max_x_kwh_per_y = 1200;
+        $capped->save();
+
+        $this->createFixedContract('normal', 'Tavallinen', 'Kallis Energia Oy', 6.0, 3.00);
+
+        $lastMonth = Carbon::today('Europe/Helsinki')->subMonthNoOverflow()->startOfMonth();
+        $end = $lastMonth->copy()->endOfMonth();
+
+        // Annual consumption above the cap (override is deterministic) -> excluded.
+        $high = Livewire::test('bill-comparison')
+            ->set('periodPreset', 'custom')
+            ->set('startDate', $lastMonth->toDateString())
+            ->set('endDate', $end->toDateString())
+            ->set('kwh', 1500)
+            ->set('totalEur', 200.00)
+            ->set('annualKwh', 8000)
+            ->viewData('resultArray');
+
+        $highNames = array_column($high['rows'], 'name');
+        $this->assertNotContains('Litteä Tariffi', $highNames, 'Capped flat-fee tier must drop out above its annual cap.');
+        $this->assertContains('Tavallinen', $highNames);
+
+        // Annual consumption within the cap -> eligible and shown.
+        $low = Livewire::test('bill-comparison')
+            ->set('periodPreset', 'custom')
+            ->set('startDate', $lastMonth->toDateString())
+            ->set('endDate', $end->toDateString())
+            ->set('kwh', 90)
+            ->set('totalEur', 20.00)
+            ->set('annualKwh', 1000)
+            ->viewData('resultArray');
+
+        $lowNames = array_column($low['rows'], 'name');
+        $this->assertContains('Litteä Tariffi', $lowNames, 'Capped flat-fee tier must be eligible within its annual cap.');
+    }
+
     public function test_annual_kwh_override_replaces_seasonal_annualization(): void
     {
         $this->createFixedContract('cheap-contract', 'Halpa Kiinteä', 'Halpa Energia Oy', 5.0, 3.00);
@@ -201,7 +277,7 @@ class BillComparisonTest extends TestCase
             ->set('kwh', 1500)
             ->set('totalEur', 200.00)
             ->set('annualKwh', null)
-            ->resultArray;
+            ->viewData('resultArray');
 
         $overridden = Livewire::test('bill-comparison')
             ->set('periodPreset', 'custom')
@@ -210,7 +286,7 @@ class BillComparisonTest extends TestCase
             ->set('kwh', 1500)
             ->set('totalEur', 200.00)
             ->set('annualKwh', 50000) // much larger than the seasonal estimate
-            ->resultArray;
+            ->viewData('resultArray');
 
         $this->assertNotSame($estimated['annual_kwh'], $overridden['annual_kwh']);
         $this->assertEquals(50000, $overridden['annual_kwh']);

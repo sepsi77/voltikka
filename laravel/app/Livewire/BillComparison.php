@@ -51,11 +51,24 @@ class BillComparison extends Component
     public float|string|null $energyPriceCents = null;
     public float|string|null $baseFeeEur = null;
 
-    public bool $calculated = false;
-    public ?array $resultArray = null;
-    public ?string $errorMessage = null;
-
     public array $presetLabels = [];
+
+    /**
+     * Derived state that is intentionally NOT public, so Livewire never syncs
+     * it into the component snapshot.
+     *
+     * `$resultArray` is a large (300+ row) DB-derived nested array. Livewire's
+     * deep-array dehydration produces a snapshot whose checksum its own verify
+     * step cannot reproduce, which raised `CorruptComponentPayloadException` on
+     * every update (the page silently froze on stale numbers). It is also
+     * recomputed from the inputs on every request via `calculate()`, so syncing
+     * it across the wire bought nothing while shipping ~168 KB per keystroke.
+     * Keeping these protected drops the snapshot to a few hundred bytes and the
+     * result is rebuilt each request and handed to the view from `render()`.
+     */
+    protected bool $calculated = false;
+    protected ?array $resultArray = null;
+    protected ?string $errorMessage = null;
 
     public function mount(): void
     {
@@ -100,6 +113,10 @@ class BillComparison extends Component
         if ($this->periodPreset !== 'custom') {
             $this->periodPreset = 'custom';
         }
+        // The comparison period drives the whole counterfactual, so a manual
+        // date edit must recompute (otherwise results would go stale now that
+        // the result is no longer persisted in the snapshot).
+        $this->calculate();
     }
 
     public function updatedEndDate(): void
@@ -107,6 +124,7 @@ class BillComparison extends Component
         if ($this->periodPreset !== 'custom') {
             $this->periodPreset = 'custom';
         }
+        $this->calculate();
     }
 
     public function updatedKwh(): void
@@ -207,6 +225,7 @@ class BillComparison extends Component
                 ]
             );
         } catch (\Throwable $e) {
+            report($e);
             $this->errorMessage = 'Laskennassa tapahtui virhe. Tarkista syöttämäsi tiedot ja yritä uudelleen.';
             $this->calculated = false;
             $this->resultArray = null;
@@ -225,7 +244,7 @@ class BillComparison extends Component
             '@context' => 'https://schema.org',
             '@type' => 'WebApplication',
             'name' => 'Maksatko sähköstä liikaa?',
-            'description' => 'Vertaa sähkölaskuasi markkinoiden sähkösopimuksiin ja näe, säästäisitko vaihtamalla. Syötä laskun tiedot — ei vuosikulutusta tarvita.',
+            'description' => 'Vertaa sähkölaskuasi markkinoiden sähkösopimuksiin ja näe, säästäisitko vaihtamalla. Syötä laskun tiedot, et tarvitse vuosikulutusta.',
             'url' => route('bill.comparison'),
             'applicationCategory' => 'UtilitiesApplication',
             'operatingSystem' => 'Any',
@@ -250,8 +269,8 @@ class BillComparison extends Component
                 'answer' => 'Syötä sähkölaskusi tiedot Voltikan laskuriin: laskutusjakso, kulutus kilowattitunteina ja sähkösopimuksen hinta (ilman sähkön siirtoa). Laskuri näyttää heti, kuinka paljon säästäisit tällä kulutuksella muilla markkinoiden sopimuksilla ja millä sijalla oma sopimuksesi on.',
             ],
             [
-                'question' => 'Mikä hinta laskuriin syötetään — sisältääkö se alvin ja siirron?',
-                'answer' => 'Syötä vain sähkösopimuksen hinta, eli se mitä maksat sähköstä itsestään. Sähkön siirto (verkkomaksu) kuuluu erilliseen laskuun tai eriin riviin, eikä sitä voi säästää vaihtamalla sopimusta. useimmat syöttävät verollisen hinnan — voit merkitä "Sisältää ALV" -valinnan, jolloin vertailu menee oikein.',
+                'question' => 'Mikä hinta laskuriin syötetään, sisältääkö se alvin ja siirron?',
+                'answer' => 'Syötä vain sähkösopimuksen hinta, eli se mitä maksat sähköstä itsestään. Sähkön siirto (verkkomaksu) kuuluu erilliseen laskuun tai eriin riviin, eikä sitä voi säästää vaihtamalla sopimusta. Useimmat syöttävät verollisen hinnan; voit merkitä "Sisältää ALV" -valinnan, jolloin vertailu menee oikein.',
             ],
             [
                 'question' => 'Miksi vuosikulutusta ei tarvitse tietää?',
@@ -286,14 +305,25 @@ class BillComparison extends Component
 
     public function render()
     {
+        // The result is no longer persisted in the snapshot, so it must exist
+        // for every render path. All interactive hooks call calculate(), but
+        // this guard keeps any other re-render safe; it early-returns cheaply
+        // when inputs are incomplete and never re-dispatches analytics once a
+        // calculation has succeeded.
+        if (! $this->calculated && $this->errorMessage === null) {
+            $this->calculate();
+        }
+
         $year = date('Y');
 
         return view('livewire.bill-comparison', [
             'jsonLd' => $this->getJsonLdSchema(),
             'faqJsonLd' => $this->buildFaqJsonLd(),
+            'resultArray' => $this->resultArray,
+            'errorMessage' => $this->errorMessage,
         ])->layout('layouts.app', [
             'title' => "Maksatko sähköstä liikaa? Vertaa laskuasi markkinoihin {$year} | Voltikka",
-            'metaDescription' => "Syötä sähkölaskusi tiedot ja näe heti, säästäisitko vaihtamalla. Voltikka vertaa laskuasi markkinoiden sähkösopimuksiin — ei vuosikulutusta tarvita. Ilmainen laskuri.",
+            'metaDescription' => "Syötä sähkölaskusi tiedot ja näe heti, säästäisitko vaihtamalla. Voltikka vertaa laskuasi markkinoiden sähkösopimuksiin, et tarvitse vuosikulutusta. Ilmainen laskuri.",
             'canonical' => route('bill.comparison'),
         ]);
     }

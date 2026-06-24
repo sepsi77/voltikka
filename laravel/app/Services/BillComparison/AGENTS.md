@@ -91,6 +91,28 @@ is too seasonal, especially with electric heating.
   labelled "arvio" because future spot ≠ past spot.
 - `monthsInPeriod = totalDays / 30` (fractional) for base-fee scaling.
 
+## Consumption-cap eligibility (do not remove)
+
+Some products are flat-fee tiers with an **annual kWh cap** rather than a
+per-kWh energy price. The clearest example is Helen's `Helpposähkö XS/S/M/L`
+(`pricing_model = FixedPrice`, `General` price `0`, a `Monthly` fee, and
+`consumption_limitation_max_x_kwh_per_y` = 1200/2400/3600). Their energy is
+included up to the cap, so `ContractPriceCalculator` (and this service's
+fixed-fee-only branch) price them as a flat monthly fee that does **not** scale
+with kWh.
+
+`BillComparisonService::fitsConsumptionLimits()` excludes a contract whose
+`consumption_limitation_max_x_kwh_per_y` / `_min_` does not contain the
+visitor's annualized consumption (`$annualKwh`). Without this, capped flat-fee
+tiers sort to the top as the "cheapest" option at every consumption level and
+stay immune to kWh changes, which made the ranking table look frozen when the
+user changed consumption. Regression test:
+`test_consumption_capped_contracts_respect_their_annual_kwh_limit`.
+
+Note: the main site (`ContractsList` / `ContractPriceCalculator`) does **not**
+apply this cap filtering, so those capped tiers can still appear as implausibly
+cheap for heavy users in the main listings. That is a separate, broader fix.
+
 ## Query guardrails
 
 - Active household contracts only: `ElectricityContract::active()->whereIn('target_group', ['Household','Both'])`.

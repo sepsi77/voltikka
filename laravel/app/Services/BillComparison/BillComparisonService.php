@@ -236,6 +236,17 @@ class BillComparisonService
         ?float $spotPriceDay,
         ?float $spotPriceNight,
     ): ?BillComparisonRow {
+        // Consumption-cap eligibility. Products with an annual kWh floor/cap
+        // (e.g. flat-fee Helpposähkö tiers capped at 1200/2400/3600 kWh/y) are
+        // only a real option when the visitor's annualized consumption fits.
+        // Offering an out-of-band contract as the cheapest choice is wrong and,
+        // for the capped flat-fee tiers, produces a consumption-immune row that
+        // freezes the top of the ranking. `$annualKwh` already reflects the
+        // visitor's known annual use or the seasonal annualization.
+        if (! $this->fitsConsumptionLimits($contract, $annualKwh)) {
+            return null;
+        }
+
         $rates = $this->extractRates($components);
         $isSpot = $this->isSpotContract($contract, $rates);
 
@@ -268,10 +279,15 @@ class BillComparisonService
                 $endLocal
             );
         } elseif ($rates['monthlyFee'] > 0) {
-            // Fixed-fee-only contract (no per-kWh component).
+            // Flat monthly-fee product with no per-kWh energy rate (e.g. Helen
+            // Helpposähkö tiers, where energy is included up to an annual cap).
+            // The flat fee is the real cost, but only within the contract's
+            // consumption cap, which is enforced by the eligibility check at the
+            // top of this method. Without that cap this would sort to the top as
+            // a misleading "cheapest" option that ignores consumption.
             $periodCost = $rates['monthlyFee'] * $monthsInPeriod;
         } else {
-            // No usable pricing — skip rather than show a misleading €0.
+            // No usable pricing at all — skip rather than show a misleading €0.
             return null;
         }
 
@@ -310,6 +326,26 @@ class BillComparisonService
             detailUrl: route('contract.detail', $contract->id),
             available: true,
         );
+    }
+
+    /**
+     * Whether the visitor's annualized consumption fits the contract's annual
+     * kWh limits. Contracts without limits (null/0) are always eligible.
+     */
+    private function fitsConsumptionLimits(ElectricityContract $contract, int $annualKwh): bool
+    {
+        $max = $contract->consumption_limitation_max_x_kwh_per_y;
+        $min = $contract->consumption_limitation_min_x_kwh_per_y;
+
+        if ($max !== null && $max > 0 && $annualKwh > $max) {
+            return false;
+        }
+
+        if ($min !== null && $min > 0 && $annualKwh < $min) {
+            return false;
+        }
+
+        return true;
     }
 
     /**

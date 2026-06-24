@@ -10,7 +10,7 @@
                     Maksatko sähköstä <span class="text-coral-400">liikaa?</span>
                 </h1>
                 <p class="max-w-2xl mx-auto text-slate-300 md:text-lg">
-                    Syötä sähkölaskusi tiedot — laskuri näyttää heti, mitä olisit maksanut muilla sopimuksilla ja kuinka paljon säästäisit vaihtamalla. Ei vuosikulutusta tarvita.
+                    Syötä sähkölaskusi tiedot, niin laskuri näyttää heti, mitä olisit maksanut muilla sopimuksilla ja kuinka paljon säästäisit vaihtamalla. Ei vuosikulutusta tarvita.
                 </p>
             </div>
         </div>
@@ -37,9 +37,9 @@
         {{-- Form --}}
         <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8">
             <div class="mb-6">
-                <p class="text-xs font-semibold uppercase tracking-wide text-coral-600 mb-1">Laskun tiedot</p>
+                <p class="text-sm font-semibold uppercase tracking-wide text-coral-700 mb-1">Laskun tiedot</p>
                 <h2 class="text-xl font-bold text-slate-900">Syötä sähkölaskusi tiedot</h2>
-                <p class="text-sm text-slate-500 mt-1">Kaikki löytyy sähkölaskulta — ei vuosikulutusta tarvita.</p>
+                <p class="text-sm text-slate-500 mt-1">Kaikki löytyy sähkölaskulta, et tarvitse vuosikulutusta.</p>
             </div>
 
             {{-- Period --}}
@@ -54,7 +54,7 @@
                         >{{ $label }}</button>
                     @endforeach
                 </div>
-                <div class="grid grid-cols-2 gap-3 max-w-md">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-md">
                     <div>
                         <label class="block text-xs text-slate-500 mb-1">Alkaa</label>
                         <input
@@ -86,7 +86,7 @@
                         placeholder="esim. 400"
                         class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                     >
-                    <p class="text-xs text-slate-400 mt-1">Laskun kulutus jakson ajalta.</p>
+                    <p class="text-xs text-slate-500 mt-1">Laskun kulutus jakson ajalta.</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">Maksettu yhteensä (€)</label>
@@ -98,24 +98,33 @@
                         placeholder="esim. 35,00"
                         class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                     >
-                    <p class="text-xs text-slate-400 mt-1">Vain sähkösopimus — ei sähkön siirtoa.</p>
+                    <p class="text-xs text-slate-500 mt-1">Vain sähkösopimus, ei sähkön siirtoa.</p>
                 </div>
             </div>
 
-            {{-- Toggles --}}
+            {{-- Toggles. Real checkbox inputs styled as switches: keyboard and
+                 screen-reader accessible (role="switch"), coral when on. --}}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <label class="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                    <input type="checkbox" wire:model.live="includesVat" class="mt-1 w-4 h-4 rounded border-slate-300 text-coral-500 focus:ring-coral-500">
-                    <span>
+                <label class="flex items-start justify-between gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <span class="min-w-0">
                         <span class="block text-sm font-medium text-slate-700">Hinta sisältää ALV:n</span>
-                        <span class="block text-xs text-slate-400">useimmat syöttävät verollisen hinnan. Poista rasti, jos laskussa on veroton hinta.</span>
+                        <span class="block text-xs text-slate-500">Useimmat syöttävät verollisen hinnan. Kytke pois, jos laskussa on veroton hinta.</span>
+                    </span>
+                    <span class="relative inline-flex shrink-0 mt-0.5">
+                        <input type="checkbox" role="switch" wire:model.live="includesVat" class="peer sr-only">
+                        <span aria-hidden="true" class="block h-6 w-11 rounded-full bg-slate-300 transition-colors peer-checked:bg-coral-500 peer-focus-visible:ring-2 peer-focus-visible:ring-coral-500 peer-focus-visible:ring-offset-2"></span>
+                        <span aria-hidden="true" class="pointer-events-none absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
                     </span>
                 </label>
-                <label class="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                    <input type="checkbox" wire:model.live="includesHeating" class="mt-1 w-4 h-4 rounded border-slate-300 text-coral-500 focus:ring-coral-500">
-                    <span>
-                        <span class="block text-sm font-medium text-slate-700">Sähkölämmitys mukana</span>
-                        <span class="block text-xs text-slate-400">Suora sähkölämmitys, ilmalämpöpumppu tai maalämpö. Vaikuttaa vuosisäästön arvioon.</span>
+                <label class="flex items-start justify-between gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <span class="min-w-0">
+                        <span class="block text-sm font-medium text-slate-700">Lämmitän kotini sähköllä</span>
+                        <span class="block text-xs text-slate-500">Mikä tahansa sähköllä toimiva lämmitys: suora sähkölämmitys, ilma- tai maalämpöpumppu. Tarkentaa vuosisäästön arviota, ei vaikuta vertailuun.</span>
+                    </span>
+                    <span class="relative inline-flex shrink-0 mt-0.5">
+                        <input type="checkbox" role="switch" wire:model.live="includesHeating" class="peer sr-only">
+                        <span aria-hidden="true" class="block h-6 w-11 rounded-full bg-slate-300 transition-colors peer-checked:bg-coral-500 peer-focus-visible:ring-2 peer-focus-visible:ring-coral-500 peer-focus-visible:ring-offset-2"></span>
+                        <span aria-hidden="true" class="pointer-events-none absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
                     </span>
                 </label>
             </div>
@@ -123,11 +132,16 @@
             {{-- Helper / siirto clarification --}}
             <div class="rounded-lg bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600 mb-6">
                 <p class="font-medium text-slate-700 mb-1">Mikä hinta syötetään?</p>
-                <p>Syötä <strong>vain sähkösopimuksen hinta</strong> — ei sähkön siirtoa eikä veroja, jotka tulevat erillisellä laskulla. Yhdistelmälaskulla etsi "sähkö" tai "energia" -rivi. Siirto on verkkoyhtiön laskuttamaa eikä sitä voi säästää vaihtamalla sopimusta.</p>
+                <p>Syötä <strong>vain sähkösopimuksen hinta</strong>, ei sähkön siirtoa. Siirto laskutetaan verkkoyhtiöltä erikseen, eikä sitä voi säästää vaihtamalla sopimusta. Yhdistelmälaskulla etsi "sähkö"- tai "energia"-rivi. Hinnan voi syöttää verollisena; valitse alta, sisältyykö ALV.</p>
             </div>
 
-            {{-- Optional explanation inputs --}}
-            <details class="group">
+            {{-- Optional explanation inputs.
+                 A native <details> keeps its open state only in the DOM, which a
+                 Livewire morph (fired by the live inputs inside it) resets to
+                 closed on every keystroke. Hold the open state in Alpine so it
+                 survives morphs: x-on:toggle syncs the state on user toggle and
+                 x-bind:open reasserts it after each re-render. --}}
+            <details x-data="{ open: false }" x-bind:open="open" x-on:toggle="open = $event.target.open" class="group">
                 <summary class="cursor-pointer text-sm font-medium text-slate-700 hover:text-slate-900 flex items-center gap-2">
                     <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                     Tiedän vuosikulutukseni tai haluan selityksen (valinnainen)
@@ -143,7 +157,7 @@
                             placeholder="esim. 18000"
                             class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                         >
-                        <p class="text-xs text-slate-400 mt-1">Parantaa säästöarviota — käytetään vuosilaskennassa suoraan.</p>
+                        <p class="text-xs text-slate-500 mt-1">Parantaa säästöarviota, käytetään vuosilaskennassa suoraan.</p>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-slate-700 mb-1">Energiahinta (c/kWh)</label>
@@ -168,7 +182,7 @@
                         >
                     </div>
                 </div>
-                <p class="text-xs text-slate-400 mt-2 pl-6">Vuosikulutus parantaa säästöarviota; energiahinta ja perusmaksu käytetään vain selitykseen.</p>
+                <p class="text-xs text-slate-500 mt-2 pl-6">Vuosikulutus parantaa säästöarviota; energiahinta ja perusmaksu käytetään vain selitykseen.</p>
             </details>
         </section>
 
@@ -203,37 +217,40 @@
                 $showUserTail = $userRow !== null && $userRowIndex >= 10;
                 $userRank = $res['user_rank'];
                 $total = $res['total_contracts'];
-                $cheaperPct = $total > 1 ? round(($userRank - 1) / max(1, $total - 1) * 100) : 0;
+                // Share of the market the user already beats on price. Phrased
+                // positively ("edullisempi kuin X %") so the verdict reads as
+                // empowerment, not blame: rank 38/326 means cheaper than ~89 %,
+                // which the old "kalliimpi kuin 11 %" wording contradicted.
+                $betterThanPct = $total > 1 ? round(($total - $userRank) / max(1, $total - 1) * 100) : 0;
             @endphp
 
             {{-- Verdict hero --}}
             <section class="rounded-2xl {{ $res['is_overpaying'] ? 'bg-slate-950' : 'bg-emerald-50 border border-emerald-200' }} p-8 mb-8 text-center">
                 @if ($res['is_overpaying'])
-                    <p class="text-sm font-semibold uppercase tracking-wide text-coral-400 mb-2">Maksat liikaa</p>
-                    <p class="text-slate-300 mb-1">Sopimuksesi on kalliimpi kuin <strong class="text-white">{{ $cheaperPct }} %</strong> markkinoiden sopimuksista.</p>
+                    <p class="text-sm font-semibold uppercase tracking-wide text-coral-400 mb-2">Voisit säästää</p>
                     <div class="my-6">
-                        <p class="text-slate-400 text-sm">Säästäisit arviolta</p>
-                        <p class="text-4xl md:text-5xl font-extrabold text-coral-400">{{ number_format(abs($res['monthly_saving_eur']), 0, ',', ' ') }} €/kk</p>
-                        <p class="text-slate-400 text-sm mt-1">≈ {{ number_format(abs($res['annual_saving_eur']), 0, ',', ' ') }} €/vuosi (arvio)</p>
+                        <p class="text-4xl md:text-5xl font-extrabold text-coral-400 tabular-nums">{{ number_format(abs($res['monthly_saving_eur']), 0, ',', ' ') }} €/kk</p>
+                        <p class="text-slate-300 text-sm mt-1 tabular-nums">≈ {{ number_format(abs($res['annual_saving_eur']), 0, ',', ' ') }} €/vuosi (arvio)</p>
                     </div>
-                    <p class="text-xs text-slate-500">Tällä jaksolla säästäisit tarkalleen noin {{ number_format(abs($res['period_saving_eur']), 0, ',', ' ') }} € vaihtamalla halvimpaan.</p>
+                    <p class="text-slate-300">Sopimuksesi on jo edullisempi kuin <strong class="text-white tabular-nums">{{ $betterThanPct }} %</strong> markkinoista, mutta halvimpaan vaihtamalla säästäisit silti tämän verran.</p>
+                    <p class="text-sm text-slate-300 mt-2 tabular-nums">Tällä jaksolla säästö olisi noin {{ number_format(abs($res['period_saving_eur']), 0, ',', ' ') }} € halvimpaan vaihtamalla.</p>
                 @else
                     <p class="text-sm font-semibold uppercase tracking-wide text-emerald-700 mb-2">Sopimuksesi on kilpailukykyinen</p>
-                    <p class="text-emerald-900">Sopimuksesi on markkinoiden halvimmasta {{ $cheaperPct }} %:sta. Vaihtaminen ei tällä kulutuksella tuota merkittävää säästöä.</p>
+                    <p class="text-emerald-900">Sopimuksesi on edullisempi kuin <strong class="tabular-nums">{{ $betterThanPct }} %</strong> markkinoista. Vaihtaminen ei tällä kulutuksella tuota merkittävää säästöä.</p>
                 @endif
             </section>
 
             {{-- Spot caveat --}}
             @if ($res['has_spot_in_top'] && $res['spot_avg_cents_per_kwh'] !== null)
                 <div class="rounded-lg bg-amber-50 border border-amber-200 p-4 text-sm text-amber-900 mb-6">
-                    <p class="font-medium mb-1">Pörssisähkö on top 3:ssa — huomio</p>
-                    <p>Tämän jakson pörssihinta oli keskimäärin {{ number_format($res['spot_avg_cents_per_kwh'], 2, ',', ' ') }} c/kWh (sis. alv). Jakson säästö on toteutunut, mutta pörssisähkön vuosisäästö on <em>arvio</em>, sillä hinta vaihtelee jatkuvasti.</p>
+                    <p class="font-medium mb-1">Pörssisähkö on top 3:ssa, huomio</p>
+                    <p class="tabular-nums">Tämän jakson pörssihinta oli keskimäärin {{ number_format($res['spot_avg_cents_per_kwh'], 2, ',', ' ') }} c/kWh (sis. alv). Jakson säästö on toteutunut, mutta pörssisähkön vuosisäästö on <em>arvio</em>, sillä hinta vaihtelee jatkuvasti.</p>
                 </div>
             @endif
 
             {{-- Implied price sanity warning --}}
             @if (in_array('implied_out_of_range', $res['warnings'] ?? []))
-                <div class="rounded-lg bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600 mb-6">
+                <div class="rounded-lg bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600 mb-6 tabular-nums">
                     Syöttämäsi hinta ja kulutus antavat epätavallisen €/kWh-luvun ({{ number_format($res['user_implied_cents_per_kwh'], 2, ',', ' ') }} c/kWh). Tarkista, että syötit sähkösopimuksen hinnan ilman siirtoa.
                 </div>
             @endif
@@ -242,18 +259,18 @@
             <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8">
                 <div class="flex items-baseline justify-between mb-4 flex-wrap gap-2">
                     <h2 class="text-xl font-bold text-slate-900">Markkinoiden halvimmat tällä kulutuksella</h2>
-                    <span class="text-sm text-slate-500">Sinun sijallesi {{ $userRank }} / {{ $total }}</span>
+                    <span class="text-sm text-slate-500 tabular-nums">Sijasi {{ $userRank }} / {{ $total }}</span>
                 </div>
 
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
+                    <table class="w-full text-sm tabular-nums">
                         <thead>
-                            <tr class="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-200">
+                            <tr class="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-200">
                                 <th class="py-2 pr-3 font-medium">#</th>
                                 <th class="py-2 pr-3 font-medium">Sopimus</th>
                                 <th class="py-2 pr-3 font-medium text-right">Jakson hinta</th>
-                                <th class="py-2 pr-3 font-medium text-right">c/kWh</th>
-                                <th class="py-2 pl-3 font-medium text-right">Säästä €/kk</th>
+                                <th class="py-2 pr-3 font-medium text-right hidden sm:table-cell">c/kWh</th>
+                                <th class="py-2 pl-3 font-medium text-right">Säästö €/kk</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -263,62 +280,62 @@
                                     $rank = $entry['rank'];
                                     $isUser = $row['is_user'];
                                 @endphp
-                                <tr class="border-b border-slate-100 {{ $isUser ? 'bg-coral-50' : 'hover:bg-slate-50' }}">
-                                    <td class="py-3 pr-3 font-semibold text-slate-400">{{ $rank }}</td>
+                                <tr wire:key="rank-row-{{ $isUser ? 'user' : $row['contract_id'] }}" class="border-b border-slate-100 {{ $isUser ? 'bg-coral-50' : 'hover:bg-slate-50' }}">
+                                    <td class="py-3 pr-3 font-semibold text-slate-500">{{ $rank }}</td>
                                     <td class="py-3 pr-3">
                                         @if ($isUser)
                                             <span class="font-bold text-slate-900">Sinun sopimuksesi</span>
-                                            <span class="block text-xs text-slate-400">omasta laskustasi</span>
+                                            <span class="block text-xs text-slate-500">omasta laskustasi</span>
                                         @elseif ($row['detail_url'])
-                                            <a href="{{ $row['detail_url'] }}" class="font-medium text-slate-900 hover:text-coral-600">
+                                            <a href="{{ $row['detail_url'] }}" class="font-medium text-slate-900 hover:text-coral-700">
                                                 {{ $row['name'] }}
                                             </a>
-                                            <span class="block text-xs text-slate-400">{{ $row['company_name'] }}</span>
+                                            <span class="block text-xs text-slate-500">{{ $row['company_name'] }}</span>
                                         @else
                                             <span class="font-medium text-slate-900">{{ $row['name'] }}</span>
                                         @endif
                                         @if ($row['is_spot'])
-                                            <span class="ml-1 inline-block text-[10px] px-1.5 py-0.5 rounded bg-sky-100 text-sky-700 align-middle">pörssi</span>
+                                            <span class="ml-1 inline-block text-xs px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 align-middle">pörssi</span>
                                         @endif
                                         @if ($row['has_promo'])
-                                            <span class="ml-1 inline-block text-[10px] px-1.5 py-0.5 rounded bg-coral-100 text-coral-700 align-middle">tarjous</span>
+                                            <span class="ml-1 inline-block text-xs px-1.5 py-0.5 rounded bg-coral-100 text-coral-800 align-middle">tarjous</span>
                                         @endif
                                     </td>
                                     <td class="py-3 pr-3 text-right font-semibold text-slate-900 whitespace-nowrap">
                                         {{ number_format($row['period_cost_eur'], 2, ',', ' ') }} €
                                     </td>
-                                    <td class="py-3 pr-3 text-right text-slate-600 whitespace-nowrap">
+                                    <td class="py-3 pr-3 text-right text-slate-600 whitespace-nowrap hidden sm:table-cell">
                                         {{ number_format($row['implied_cents_per_kwh'], 2, ',', ' ') }}
                                     </td>
-                                    <td class="py-3 pl-3 text-right whitespace-nowrap {{ $isUser ? 'text-slate-400' : 'text-coral-600 font-semibold' }}">
+                                    <td class="py-3 pl-3 text-right whitespace-nowrap {{ $isUser ? 'text-slate-500' : 'text-coral-700 font-semibold' }}">
                                         @if ($row['saving_per_month_eur'] !== null && $row['saving_per_month_eur'] > 0)
-                                            −{{ number_format($row['saving_per_month_eur'], 0, ',', ' ') }} €
+                                            −{{ number_format($row['saving_per_month_eur'], 1, ',', ' ') }} €
                                         @else
-                                            —
+                                            –
                                         @endif
                                     </td>
                                 </tr>
                             @endforeach
                             @if ($showUserTail)
                                 <tr>
-                                    <td colspan="5" class="py-1 text-center text-slate-300 text-xs">…</td>
+                                    <td colspan="5" class="py-1 text-center text-slate-400 text-xs">…</td>
                                 </tr>
                                 <tr class="border-b border-slate-100 bg-coral-50">
-                                    <td class="py-3 pr-3 font-semibold text-slate-400">{{ $userRank }}</td>
+                                    <td class="py-3 pr-3 font-semibold text-slate-500">{{ $userRank }}</td>
                                     <td class="py-3 pr-3">
                                         <span class="font-bold text-slate-900">Sinun sopimuksesi</span>
-                                        <span class="block text-xs text-slate-400">omasta laskustasi</span>
+                                        <span class="block text-xs text-slate-500">omasta laskustasi</span>
                                     </td>
                                     <td class="py-3 pr-3 text-right font-semibold text-slate-900 whitespace-nowrap">{{ number_format($userRow['period_cost_eur'], 2, ',', ' ') }} €</td>
-                                    <td class="py-3 pr-3 text-right text-slate-600 whitespace-nowrap">{{ number_format($userRow['implied_cents_per_kwh'], 2, ',', ' ') }}</td>
-                                    <td class="py-3 pl-3 text-right text-slate-400">—</td>
+                                    <td class="py-3 pr-3 text-right text-slate-600 whitespace-nowrap hidden sm:table-cell">{{ number_format($userRow['implied_cents_per_kwh'], 2, ',', ' ') }}</td>
+                                    <td class="py-3 pl-3 text-right text-slate-500">–</td>
                                 </tr>
                             @endif
                         </tbody>
                     </table>
                 </div>
-                <p class="text-xs text-slate-400 mt-4">
-                    Hinnat sisältävät alv 25,5 %, eivät sisällä sähkön siirtoa. Jakson hinta perustuu samaan laskutusjaksoon ja kulutukseen kuin laskusi. c/kWh on jaosta laskettu keskiarvo (sis. perusmaksun). Säästä €/kk on vuosikohtainen arvio jaettuna 12:lla.
+                <p class="text-xs text-slate-500 mt-4 tabular-nums">
+                    Hinnat sisältävät alv 25,5 %, eivät sisällä sähkön siirtoa. Jakson hinta perustuu samaan laskutusjaksoon ja kulutukseen kuin laskusi. c/kWh on jaosta laskettu keskiarvo (sis. perusmaksun). Säästö €/kk on vuosikohtainen arvio jaettuna 12:lla.
                 </p>
             </section>
 
@@ -340,7 +357,7 @@
                 <section class="rounded-2xl border border-slate-200 bg-slate-50 p-6 mb-8">
                     <h2 class="text-lg font-bold text-slate-900 mb-2">Miksi sopimuksesi on täällä?</h2>
                     @if ($marketMedianCents !== null)
-                        <p class="text-sm text-slate-700">
+                        <p class="text-sm text-slate-700 tabular-nums">
                             Maksat energiaa {{ number_format($userCents, 2, ',', ' ') }} c/kWh, kun markkinoiden mediaani on noin {{ number_format($marketMedianCents, 2, ',', ' ') }} c/kWh
                             @if ($this->nullableFloat($baseFeeEur) !== null)
                                 ja perusmaksusi on {{ number_format((float) $this->nullableFloat($baseFeeEur), 2, ',', ' ') }} €/kk
@@ -352,7 +369,7 @@
                             @endif
                         </p>
                     @endif
-                    <p class="text-xs text-slate-400 mt-3">Arvio perustuu syöttämääsi energiahintaan ja perusmaksuun; itse vertailu käyttää laskun kokonaishintaa.</p>
+                    <p class="text-xs text-slate-500 mt-3">Arvio perustuu syöttämääsi energiahintaan ja perusmaksuun; itse vertailu käyttää laskun kokonaishintaa.</p>
                 </section>
             @endif
         @endif
@@ -362,7 +379,7 @@
         <section class="mb-8">
             <h2 class="text-2xl font-bold text-slate-900 mb-4">Maksatko sähköstä liikaa?</h2>
             <div class="prose prose-slate max-w-none text-slate-600">
-                <p>Sähkösopimuksen hinta vaihtelee merkittävästi eri yhtiöiden välillä, ja sama kulutus voi maksaa satoja euroja vuodessa enemmän kalliimmalla sopimuksella. Voltikan laskuri vertaa sähkölaskuasi suoraan markkinoiden voimassa oleviin sopimuksiin — tarvitset vain yhden laskun tiedot.</p>
+                <p>Sähkösopimuksen hinta vaihtelee merkittävästi eri yhtiöiden välillä, ja sama kulutus voi maksaa satoja euroja vuodessa enemmän kalliimmalla sopimuksella. Voltikan laskuri vertaa sähkölaskuasi suoraan markkinoiden voimassa oleviin sopimuksiin: tarvitset vain yhden laskun tiedot.</p>
                 <p>Laskuri käyttää samaa laskutusjaksoa ja kulutusta jokaiselle markkinoiden sopimukselle, joten vertailu on reilu: näet mitä olisit maksanut kilpailijalla juuri samalla jaksolla. Vuosisäästö arvioidaan kausivaihtelun huomioiden, kun kerrot onko sähkölämmitys mukana kulutuksessa.</p>
             </div>
         </section>
