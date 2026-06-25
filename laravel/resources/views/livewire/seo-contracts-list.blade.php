@@ -214,7 +214,7 @@
                             min="0"
                             step="100"
                             inputmode="numeric"
-                            wire:model.live.debounce.700ms="directConsumption"
+                            wire:model.blur="directConsumption"
                             placeholder="esim. 7000"
                             class="w-full min-w-0 bg-transparent text-sm font-bold text-slate-900 placeholder:font-normal placeholder:text-slate-500 focus:outline-none tabular-nums"
                         >
@@ -243,7 +243,7 @@
                             <input
                                 type="number"
                                 id="calc-living-area"
-                                wire:model.live.debounce.300ms="calcLivingArea"
+                                wire:model.blur="calcLivingArea"
                                 min="10"
                                 max="500"
                                 class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
@@ -263,7 +263,7 @@
                             <input
                                 type="number"
                                 id="calc-num-people"
-                                wire:model.live.debounce.300ms="calcNumPeople"
+                                wire:model.blur="calcNumPeople"
                                 min="1"
                                 max="10"
                                 class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
@@ -483,7 +483,7 @@
                                     <input
                                         type="number"
                                         id="calc-bathroom-heating"
-                                        wire:model.live.debounce.300ms="calcBathroomHeatingArea"
+                                        wire:model.blur="calcBathroomHeatingArea"
                                         min="0"
                                         max="100"
                                         placeholder="esim. 10"
@@ -500,7 +500,7 @@
                                     <input
                                         type="number"
                                         id="calc-sauna-usage"
-                                        wire:model.live.debounce.300ms="calcSaunaUsagePerWeek"
+                                        wire:model.blur="calcSaunaUsagePerWeek"
                                         min="0"
                                         max="14"
                                         placeholder="esim. 2"
@@ -517,7 +517,7 @@
                                     <input
                                         type="number"
                                         id="calc-ev-kms"
-                                        wire:model.live.debounce.300ms="calcElectricVehicleKmsPerWeek"
+                                        wire:model.blur="calcElectricVehicleKmsPerWeek"
                                         min="0"
                                         max="2000"
                                         placeholder="esim. 200"
