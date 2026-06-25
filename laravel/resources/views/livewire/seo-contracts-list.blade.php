@@ -195,19 +195,19 @@
                         type="button"
                         wire:click="selectPreset('{{ $key }}')"
                         aria-pressed="{{ $isSel ? 'true' : 'false' }}"
-                        class="flex flex-col items-start text-left px-3 py-2 rounded-xl border transition-colors {{ $isSel ? 'bg-coral-600 border-coral-600' : 'bg-white border-slate-200 hover:border-coral-400' }}"
+                        class="flex flex-col items-start text-left px-3 py-2.5 rounded-xl border transition-all {{ $isSel ? 'bg-gradient-to-br from-coral-500 to-coral-600 border-coral-600 shadow-coral' : 'bg-white border-slate-200 hover:border-coral-400' }}"
                     >
                         <span class="text-sm font-semibold leading-tight {{ $isSel ? 'text-white' : 'text-slate-900' }}">{{ $preset['label'] }}</span>
-                        <span class="text-[11px] leading-tight {{ $isSel ? 'text-white/70' : 'text-slate-400' }}">{{ $preset['description'] }}</span>
-                        <span class="mt-0.5 text-xs font-bold tabular-nums {{ $isSel ? 'text-white' : 'text-slate-700' }}">{{ number_format($preset['consumption'], 0, ',', ' ') }} kWh/v</span>
+                        <span class="text-xs leading-snug mt-0.5 {{ $isSel ? 'text-white/80' : 'text-slate-500' }}">{{ $preset['description'] }}</span>
+                        <span class="mt-1 text-sm font-bold tabular-nums {{ $isSel ? 'text-white' : 'text-slate-900' }}">{{ number_format($preset['consumption'], 0, ',', ' ') }} kWh/v</span>
                     </button>
                 @endforeach
 
                 {{-- Direct entry tile (highlighted when consumption is custom) --}}
                 @php $isDirect = $selectedPreset === null; @endphp
-                <div class="flex flex-col justify-center px-3 py-2 rounded-xl border bg-white {{ $isDirect ? 'border-coral-500 ring-1 ring-coral-500' : 'border-slate-200' }}">
-                    <label for="direct-consumption" class="text-[11px] leading-tight {{ $isDirect ? 'text-coral-600 font-semibold' : 'text-slate-400' }}">Tiedän kulutukseni</label>
-                    <div class="flex items-baseline gap-1 mt-0.5">
+                <div class="flex flex-col justify-center px-3 py-2.5 rounded-xl border bg-white {{ $isDirect ? 'border-coral-500 ring-1 ring-coral-500' : 'border-slate-200' }}">
+                    <label for="direct-consumption" class="text-xs leading-snug {{ $isDirect ? 'text-coral-600 font-semibold' : 'text-slate-500 font-medium' }}">Tiedän kulutukseni</label>
+                    <div class="flex items-baseline gap-1 mt-1">
                         <input
                             id="direct-consumption"
                             type="number"
@@ -216,9 +216,9 @@
                             inputmode="numeric"
                             wire:model.live.debounce.700ms="directConsumption"
                             placeholder="esim. 7000"
-                            class="w-full min-w-0 bg-transparent text-sm font-bold text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:outline-none tabular-nums"
+                            class="w-full min-w-0 bg-transparent text-sm font-bold text-slate-900 placeholder:font-normal placeholder:text-slate-500 focus:outline-none tabular-nums"
                         >
-                        <span class="text-xs text-slate-400 shrink-0">kWh/v</span>
+                        <span class="text-xs text-slate-500 shrink-0">kWh/v</span>
                     </div>
                 </div>
             </div>
@@ -699,7 +699,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m7.5 2a9.5 9.5 0 11-19 0 9.5 9.5 0 0119 0z"/>
             </svg>
             <p>
-                Voltikka ei saa palkkiota sähköyhtiöiltä tarjousten näyttämisestä eikä rahoita toimintaansa mainoksilla. Tarjoukset järjestetään arvioidun 12 kk kokonaiskustannuksen mukaan — kaikille yhtiöille samalla logiikalla.
+                Voltikka ei saa palkkiota sähköyhtiöiltä tarjousten näyttämisestä eikä rahoita toimintaansa mainoksilla. Tarjoukset järjestetään arvioidun 12 kk kokonaiskustannuksen mukaan, kaikille yhtiöille samalla logiikalla.
                 <a href="/tietoa" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Tietoa Voltikasta</a>
             </p>
         </div>
@@ -742,7 +742,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <p class="text-sm text-slate-700">
-                        <span class="font-semibold">{{ $contracts->total() }} sopimusta</span> vertailussa — lasketut 12 kk kulut sisältäen tarjoukset, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
+                        <span class="font-semibold">{{ $contracts->total() }} sopimusta</span> vertailussa. Lasketut 12 kk kulut sisältäen tarjoukset, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
                         <a href="/tietoa#menetelma" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Näin laskemme &rarr;</a>
                     </p>
                 </div>

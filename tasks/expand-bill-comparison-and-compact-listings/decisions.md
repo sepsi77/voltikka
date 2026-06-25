@@ -50,3 +50,24 @@ and consumption only supported presets/calculator (no direct entry).
   Verified the `x-show`/`x-collapse` reveal works (display:flex, height:auto).
 - Verified desktop + mobile: first contract now sits at the fold; direct input
   reranks (313→307 at 12 000 kWh); calculator + filters open on demand.
+
+## 2026-06-25 — Polish pass (impeccable) on the compacted selector
+
+The first compaction over-shrank the consumption selector and tripped DESIGN.md.
+Fixes, all grounded in DESIGN.md (not preference):
+
+- **Readable-By-Default Rule (DESIGN.md ~L250).** Preset/direct tiles used
+  `text-[11px]` in `text-slate-400`. Bumped descriptions/labels to `text-xs`
+  `slate-500` (min ink), the kWh value to `text-sm font-bold slate-900` (it is
+  the meaningful number), and the direct-input placeholder/suffix to `slate-500`
+  (≥4.5:1). Type no longer reads cheap/cramped.
+- **Active selector = sanctioned coral gradient + glow** (`from-coral-500
+  to-coral-600` + `shadow-coral`), replacing the flat `bg-coral-600` block.
+- **Contradictory direct-input value fixed.** The "Tiedän kulutukseni" tile
+  showed a number (e.g. 2000) while a different preset card was highlighted.
+  `selectPreset()` now clears `directConsumption` to null and `booted()` only
+  seeds it when `selectedPreset === null`, so the field shows its placeholder
+  under a preset and only carries a value when it IS the active (custom) choice.
+- **Em dashes removed** from two product-copy strings (results bar, independence
+  note) per the no-em-dash-in-product-copy rule.
+- Verified both states + mobile in browser; 80 listing/bill tests pass.

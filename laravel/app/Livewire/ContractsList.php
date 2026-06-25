@@ -413,7 +413,9 @@ class ContractsList extends Component
 
         if (isset($this->presets[$preset])) {
             $this->consumption = $this->presets[$preset]['consumption'];
-            $this->directConsumption = $this->consumption;
+            // Clear the free-text field so it shows only its placeholder while a
+            // preset is the active choice (no contradictory second value).
+            $this->directConsumption = null;
             $this->resetPage();
 
             // Track preset change
@@ -484,9 +486,11 @@ class ContractsList extends Component
      */
     public function booted(): void
     {
-        // Seed the free-text consumption input with the active consumption so
-        // the field always reflects the current value (kept once set).
-        if ($this->directConsumption === null || $this->directConsumption === '') {
+        // Seed the free-text consumption input only when consumption is custom
+        // (no preset selected), so the field reflects a typed value but stays
+        // empty (placeholder) whenever a preset card is the active choice.
+        if ($this->selectedPreset === null
+            && ($this->directConsumption === null || $this->directConsumption === '')) {
             $this->directConsumption = $this->selectedConsumptionValue();
         }
 
