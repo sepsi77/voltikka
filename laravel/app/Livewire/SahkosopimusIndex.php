@@ -40,7 +40,7 @@ class SahkosopimusIndex extends SeoContractsList
             return $this->pageTitle . ' | Voltikka';
         }
 
-        $title = 'Sähkösopimusten vertailu ' . date('Y');
+        $title = 'Sähkösopimusten vertailu ja kilpailutus ' . date('Y');
 
         if ($this->page > 1) {
             $lastPage = $this->contracts->lastPage();
@@ -88,7 +88,7 @@ class SahkosopimusIndex extends SeoContractsList
             return $this->pageTitle;
         }
 
-        return 'Sähkösopimusten vertailu';
+        return 'Sähkösopimusten vertailu ja kilpailutus';
     }
 
     /**

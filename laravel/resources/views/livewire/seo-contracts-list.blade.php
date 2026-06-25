@@ -17,12 +17,14 @@
         <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 relative">
             <div class="grid max-w-screen-xl py-8 mx-auto lg:gap-8 xl:gap-0 lg:py-12 lg:grid-cols-12">
                 <div class="mx-auto place-self-center col-12 lg:col-span-8">
-                    <div class="inline-flex items-center gap-2 bg-coral-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-medium text-coral-300 mb-3 border border-coral-500/20">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                        </svg>
-                        {{ $isBusinessPage ? 'Yrityksille' : 'Vertaile älykkäästi' }}
-                    </div>
+                    @if ($isBusinessPage)
+                        <div class="inline-flex items-center gap-2 bg-coral-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-medium text-coral-300 mb-3 border border-coral-500/20">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                            Yrityksille
+                        </div>
+                    @endif
                     <h1 class="max-w-2xl mb-3 text-3xl font-extrabold text-white tracking-tight leading-tight md:text-4xl xl:text-5xl">
                         {{ $pageHeading }}
                     </h1>
