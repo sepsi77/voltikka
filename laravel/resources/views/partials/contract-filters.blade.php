@@ -11,7 +11,7 @@
         $nuclearFilter ?? false,
     ])->filter()->count();
 @endphp
-<div class="bg-white rounded-2xl py-2 border border-slate-200 mb-6" x-data="{ filtersOpen: @js($this->hasActiveFilters()) }">
+<div class="rounded-xl border border-slate-200 mb-6 overflow-hidden transition-colors" :class="filtersOpen ? 'border-slate-300' : ''" x-data="{ filtersOpen: @js($this->hasActiveFilters()) }">
     {{-- Accordion trigger (all sizes): filters are collapsed by default so the
          contract list stays high on the page. --}}
     <button

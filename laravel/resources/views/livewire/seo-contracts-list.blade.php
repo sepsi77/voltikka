@@ -190,14 +190,17 @@
              who know their own consumption. Full calculator is one click away
              via the header toggle. --}}
         @if ($activeTab === 'presets')
-            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            {{-- Segmented control: one bordered group with divided segments, so the
+                 consumption picker reads as a single control instead of a row of
+                 separate cards. Each segment keeps its profile label + kWh. --}}
+            <div class="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white divide-y divide-slate-200 sm:flex-row sm:divide-y-0 sm:divide-x">
                 @foreach ($presets as $key => $preset)
                     @php $isSel = $selectedPreset === $key; @endphp
                     <button
                         type="button"
                         wire:click="selectPreset('{{ $key }}')"
                         aria-pressed="{{ $isSel ? 'true' : 'false' }}"
-                        class="flex flex-col items-start text-left px-3 py-2.5 rounded-xl border transition-all {{ $isSel ? 'bg-gradient-to-br from-coral-500 to-coral-600 border-coral-600 shadow-coral' : 'bg-white border-slate-200 hover:border-coral-400' }}"
+                        class="flex flex-1 flex-col items-start px-3 py-2.5 text-left transition-colors {{ $isSel ? 'bg-gradient-to-br from-coral-500 to-coral-600' : 'hover:bg-coral-50/60' }}"
                     >
                         <span class="text-sm font-semibold leading-tight {{ $isSel ? 'text-white' : 'text-slate-900' }}">{{ $preset['label'] }}</span>
                         <span class="text-xs leading-snug mt-0.5 {{ $isSel ? 'text-white/80' : 'text-slate-500' }}">{{ $preset['description'] }}</span>
@@ -205,9 +208,9 @@
                     </button>
                 @endforeach
 
-                {{-- Direct entry tile (highlighted when consumption is custom) --}}
+                {{-- Direct entry segment (highlighted when consumption is custom) --}}
                 @php $isDirect = $selectedPreset === null; @endphp
-                <div class="flex flex-col justify-center px-3 py-2.5 rounded-xl border bg-white {{ $isDirect ? 'border-coral-500 ring-1 ring-coral-500' : 'border-slate-200' }}">
+                <div class="flex flex-1 flex-col justify-center px-3 py-2.5 transition-colors {{ $isDirect ? 'bg-coral-50' : '' }}">
                     <label for="direct-consumption" class="text-xs leading-snug {{ $isDirect ? 'text-coral-600 font-semibold' : 'text-slate-500 font-medium' }}">Tiedän kulutukseni</label>
                     <div class="flex items-baseline gap-1 mt-1">
                         <input
@@ -590,22 +593,23 @@
         {{-- Bill comparison is a collapsed disclosure so it does not push the
              contract list down for everyone; opens automatically once a bill is
              entered (bill mode active). --}}
-        <section class="mb-6" x-data="{ billOpen: @js($this->isBillModeActive()) }">
-            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <section class="mb-3" x-data="{ billOpen: @js($this->isBillModeActive()) }">
+            <div class="rounded-xl border overflow-hidden transition-colors" :class="billOpen ? 'border-coral-300' : 'border-slate-200'">
                 <button
                     type="button"
                     @click="billOpen = !billOpen"
                     :aria-expanded="billOpen ? 'true' : 'false'"
-                    class="w-full flex items-center gap-3 p-4 sm:p-5 text-left hover:bg-slate-50 transition-colors"
+                    class="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
+                    :class="billOpen ? 'bg-coral-50/60' : 'hover:bg-slate-50'"
                 >
-                    <span class="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-coral-50">
+                    <span class="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-lg bg-coral-50">
                         <svg class="w-5 h-5 text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                     </span>
                     <span class="min-w-0 flex-1">
-                        <span class="block text-base font-bold text-slate-900">Maksatko nykyisestä sopimuksestasi liikaa?</span>
-                        <span class="block text-sm text-slate-600 mt-0.5">Syötä yhden sähkölaskusi tiedot, niin näet mitä säästäisit vaihtamalla.</span>
+                        <span class="block text-sm font-semibold text-slate-900">Maksatko nykyisestä sopimuksestasi liikaa?</span>
+                        <span class="block text-xs text-slate-500 mt-0.5">Syötä yhden laskusi tiedot, niin näet säästösi.</span>
                     </span>
                     <svg class="w-5 h-5 flex-shrink-0 text-slate-400 transition-transform" :class="billOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
@@ -736,32 +740,26 @@
             </p>
         </div>
     @else
-        {{-- Results Credibility Bar --}}
-        <div class="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-6">
-            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <svg class="w-5 h-5 text-coral-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    <p class="text-sm text-slate-700">
-                        <span class="font-semibold">{{ $contracts->total() }} sopimusta</span> vertailussa. Lasketut 12 kk kulut sisältäen tarjoukset, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
-                        <a href="/tietoa#menetelma" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Näin laskemme &rarr;</a>
-                    </p>
-                </div>
-                <div class="flex items-center gap-4 text-xs text-slate-600">
-                    <span class="flex items-center gap-1.5">
-                        <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
-                        Päästötön
-                    </span>
-                    <span class="flex items-center gap-1.5">
-                        <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
-                        Vähäpäästöinen
-                    </span>
-                    <span class="flex items-center gap-1.5">
-                        <span class="w-3 h-3 rounded-full bg-red-500"></span>
-                        Fossiilinen
-                    </span>
-                </div>
+        {{-- Results caption: plain text + a hairline divider so it reads as the
+             list header, not another stacked card. Lets the contracts lead. --}}
+        <div class="mb-5 flex flex-col gap-2 border-b border-slate-200 pb-4 lg:flex-row lg:items-baseline lg:justify-between">
+            <p class="text-sm text-slate-600">
+                <span class="font-bold text-slate-900">{{ $contracts->total() }} sopimusta</span> vertailussa. Lasketut 12 kk kulut sisältäen tarjoukset, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
+                <a href="/tietoa#menetelma" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Näin laskemme &rarr;</a>
+            </p>
+            <div class="flex items-center gap-4 text-xs text-slate-500 shrink-0">
+                <span class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    Päästötön
+                </span>
+                <span class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>
+                    Vähäpäästöinen
+                </span>
+                <span class="flex items-center gap-1.5">
+                    <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                    Fossiilinen
+                </span>
             </div>
         </div>
     @endif
