@@ -608,8 +608,8 @@
                         </svg>
                     </span>
                     <span class="min-w-0 flex-1">
-                        <span class="block text-sm font-semibold text-slate-900">Maksatko nykyisestä sopimuksestasi liikaa?</span>
-                        <span class="block text-xs text-slate-500 mt-0.5">Syötä yhden laskusi tiedot, niin näet säästösi.</span>
+                        <span class="block text-base font-bold text-slate-900">Maksatko nykyisestä sopimuksestasi liikaa?</span>
+                        <span class="block text-sm text-slate-600 mt-0.5">Syötä yhden laskusi tiedot, niin näet säästösi.</span>
                     </span>
                     <svg class="w-5 h-5 flex-shrink-0 text-slate-400 transition-transform" :class="billOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>

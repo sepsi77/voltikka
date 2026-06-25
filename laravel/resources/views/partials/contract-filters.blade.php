@@ -35,7 +35,7 @@
     </button>
 
     {{-- Filter Content (collapses on all sizes) --}}
-    <div x-show="filtersOpen" x-collapse x-cloak class="lg:flex flex-wrap gap-y-4 pt-3 border-t border-slate-100">
+    <div x-show="filtersOpen" x-collapse x-cloak class="lg:flex flex-wrap gap-y-4 pt-3 pb-5 border-t border-slate-100">
         {{-- Pricing Model Filters --}}
         <div class="flex flex-col px-4 lg:w-full lg:shrink-0 lg:mb-4">
             <h4 class="font-semibold text-slate-900 mb-2">Hinnoittelumalli</h4>
@@ -129,7 +129,7 @@
 
     {{-- Clear Filters --}}
     @if ($this->hasActiveFilters())
-        <div class="px-4 mt-4">
+        <div class="px-4 mt-4 pb-5">
             <button
                 wire:click="resetFilters"
                 class="text-sm text-coral-600 hover:text-coral-700 font-medium"
