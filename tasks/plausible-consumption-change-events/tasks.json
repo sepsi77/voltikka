@@ -1,0 +1,5 @@
+[
+  {"name":"Audit consumption change paths and existing tracking","status":"completed"},
+  {"name":"Implement consistent consumption-change Plausible event","status":"completed"},
+  {"name":"Run targeted tests","status":"completed"}
+]

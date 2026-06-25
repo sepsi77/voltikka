@@ -409,6 +409,7 @@ class ContractsList extends Component
      */
     public function selectPreset(string $preset): void
     {
+        $previousConsumption = $this->selectedConsumptionValue();
         $this->selectedPreset = $preset;
 
         if (isset($this->presets[$preset])) {
@@ -426,6 +427,10 @@ class ContractsList extends Component
                     'consumption' => $this->presets[$preset]['consumption'],
                 ]
             );
+
+            if ($previousConsumption !== $this->consumption) {
+                $this->trackConsumptionChanged('preset', $this->consumption, $preset);
+            }
         }
     }
 
@@ -434,10 +439,16 @@ class ContractsList extends Component
      */
     public function setConsumption(int $value): void
     {
+        $previousConsumption = $this->selectedConsumptionValue();
+
         $this->consumption = $value;
         $this->directConsumption = $value;
         $this->selectedPreset = null;
         $this->resetPage();
+
+        if ($previousConsumption !== $this->consumption) {
+            $this->trackConsumptionChanged('direct', $this->consumption);
+        }
     }
 
     /**
@@ -456,9 +467,34 @@ class ContractsList extends Component
             return;
         }
 
+        $previousConsumption = $this->selectedConsumptionValue();
+
         $this->consumption = $clean;
         $this->selectedPreset = null;
         $this->resetPage();
+
+        if ($previousConsumption !== $this->consumption) {
+            $this->trackConsumptionChanged('direct', $this->consumption);
+        }
+    }
+
+    protected function trackConsumptionChanged(string $method, int $consumption, ?string $preset = null): void
+    {
+        $props = [
+            'source' => 'contract_listing',
+            'method' => $method,
+            'consumption' => $consumption,
+            'base_path' => $this->basePath,
+        ];
+
+        if ($preset !== null) {
+            $props['preset'] = $preset;
+        }
+
+        $this->dispatch('track',
+            eventName: 'Contracts Consumption Changed',
+            props: $props,
+        );
     }
 
     /**
@@ -848,10 +884,16 @@ class ContractsList extends Component
         );
 
         $result = $calculator->estimate($request);
+        $previousConsumption = $this->selectedConsumptionValue();
+
         $this->consumption = $result->total;
         $this->directConsumption = $result->total;
         $this->selectedPreset = null;
         $this->resetPage();
+
+        if ($previousConsumption !== $this->consumption) {
+            $this->trackConsumptionChanged('calculator', $this->consumption);
+        }
     }
 
     /**

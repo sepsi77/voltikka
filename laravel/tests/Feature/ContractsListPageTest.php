@@ -163,9 +163,29 @@ class ContractsListPageTest extends TestCase
             ->call('selectPreset', 'small_apartment')
             ->assertSet('consumption', 2000)
             ->assertSet('selectedPreset', 'small_apartment')
+            ->assertDispatched('track',
+                eventName: 'Contracts Consumption Changed',
+                props: [
+                    'source' => 'contract_listing',
+                    'method' => 'preset',
+                    'consumption' => 2000,
+                    'base_path' => '/',
+                    'preset' => 'small_apartment',
+                ],
+            )
             ->call('selectPreset', 'large_house_electric')
             ->assertSet('consumption', 18000)
-            ->assertSet('selectedPreset', 'large_house_electric');
+            ->assertSet('selectedPreset', 'large_house_electric')
+            ->assertDispatched('track',
+                eventName: 'Contracts Consumption Changed',
+                props: [
+                    'source' => 'contract_listing',
+                    'method' => 'preset',
+                    'consumption' => 18000,
+                    'base_path' => '/',
+                    'preset' => 'large_house_electric',
+                ],
+            );
     }
 
     /**
@@ -179,6 +199,15 @@ class ContractsListPageTest extends TestCase
             ->set('directConsumption', 7000)
             ->assertSet('consumption', 7000)
             ->assertSet('selectedPreset', null)
+            ->assertDispatched('track',
+                eventName: 'Contracts Consumption Changed',
+                props: [
+                    'source' => 'contract_listing',
+                    'method' => 'direct',
+                    'consumption' => 7000,
+                    'base_path' => '/',
+                ],
+            )
             // blank input is ignored, consumption is retained
             ->set('directConsumption', '')
             ->assertSet('consumption', 7000)

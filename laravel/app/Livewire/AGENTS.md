@@ -127,7 +127,11 @@ Important semantics:
   applies only a positive value to `$consumption` and clears `$selectedPreset`
   (blank/zero is ignored so a cleared field never zeroes consumption). It mirrors
   `$consumption` for display: seeded in `booted()` and kept in sync by
-  `selectPreset()` / `calculateFromInlineCalculator()`. Test:
+  `selectPreset()` / `calculateFromInlineCalculator()`. User-initiated
+  consumption changes dispatch the Plausible `Contracts Consumption Changed`
+  event through `trackConsumptionChanged()` with the raw `consumption` prop and a
+  `method` (`preset`, `direct`, or `calculator`); only fire it when the numeric
+  consumption value actually changes. Test:
   `ContractsListPageTest::test_direct_consumption_input_updates_consumption`.
 - Tests: `tests/Feature/SahkosopimusBillModeTest.php`.
 
