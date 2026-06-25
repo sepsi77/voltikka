@@ -81,6 +81,10 @@ Important semantics:
 - `$billActive` + the bill inputs are **interactive state only, never `#[Url]`**,
   so a fresh GET always starts in normal mode and the cached default-listing
   payload is unaffected. `isDefaultListingCacheable()` also guards `! $billActive`.
+  When bill mode first becomes active, `ContractsList::recomputeBill()` dispatches
+  the existing Plausible `Bill Comparison Completed` tracking event with
+  `source=contract_listing`; keep it on the inactive→active transition so valid
+  follow-up edits do not spam duplicate events.
 - `getContractsProperty()` (in both `ContractsList` and `SeoContractsList`)
   branches to `buildBillModePaginator()` after applying the page's filters, so
   filters still apply in bill mode (period costs are computed for the filtered set).

@@ -568,7 +568,22 @@ class ContractsList extends Component
      */
     protected function recomputeBill(): void
     {
+        $wasActive = $this->billActive;
+
         $this->billActive = $this->isBillInputValid();
+
+        if (! $wasActive && $this->billActive) {
+            $this->dispatch('track',
+                eventName: 'Bill Comparison Completed',
+                props: [
+                    'source' => 'contract_listing',
+                    'period_preset' => $this->billPeriodPreset,
+                    'includes_vat' => $this->billIncludesVat,
+                    'includes_heating' => $this->billIncludesHeating,
+                ]
+            );
+        }
+
         $this->contractsCache = null;
         $this->allFilteredContractsCache = null;
         $this->billSummaryCache = null;

@@ -135,6 +135,12 @@ class SahkosopimusBillModeTest extends TestCase
         $component = $this->billComponent();
 
         $this->assertTrue($component->instance()->isBillModeActive());
+        $component->assertDispatched('track', function (string $name, array $params): bool {
+            return $name === 'track'
+                && $params['eventName'] === 'Bill Comparison Completed'
+                && ($params['props']['source'] ?? null) === 'contract_listing'
+                && ($params['props']['period_preset'] ?? null) === 'custom';
+        });
 
         $summary = $component->instance()->billSummary;
         $this->assertNotNull($summary);
