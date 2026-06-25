@@ -7,7 +7,7 @@
     @endif
 
     {{-- SEO Hero Section - Dark slate background with gradient --}}
-    <section class="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8 relative overflow-hidden">
+    <section class="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-6 relative overflow-hidden">
         {{-- Decorative gradient blobs --}}
         <div class="absolute inset-0 pointer-events-none">
             <div class="absolute top-0 right-1/4 w-96 h-96 bg-coral-500 rounded-full blur-3xl opacity-20"></div>
@@ -15,30 +15,30 @@
         </div>
 
         <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 relative">
-            <div class="grid max-w-screen-xl py-12 mx-auto lg:gap-8 xl:gap-0 lg:py-20 lg:grid-cols-12">
-                <div class="mx-auto place-self-center col-12 lg:col-span-7">
-                    <div class="inline-flex items-center gap-2 bg-coral-500/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-coral-300 mb-6 border border-coral-500/20">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="grid max-w-screen-xl py-8 mx-auto lg:gap-8 xl:gap-0 lg:py-12 lg:grid-cols-12">
+                <div class="mx-auto place-self-center col-12 lg:col-span-8">
+                    <div class="inline-flex items-center gap-2 bg-coral-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-medium text-coral-300 mb-3 border border-coral-500/20">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                         </svg>
                         {{ $isBusinessPage ? 'Yrityksille' : 'Vertaile älykkäästi' }}
                     </div>
-                    <h1 class="max-w-2xl mb-4 text-4xl font-extrabold text-white tracking-tight leading-tight md:text-5xl xl:text-6xl">
+                    <h1 class="max-w-2xl mb-3 text-3xl font-extrabold text-white tracking-tight leading-tight md:text-4xl xl:text-5xl">
                         {{ $pageHeading }}
                     </h1>
-                    <p class="max-w-2xl mb-5 text-slate-300 md:text-lg lg:text-xl">
+                    <p class="max-w-2xl mb-4 text-slate-300 md:text-base lg:text-lg">
                         {{ $seoIntroText }}
                     </p>
                     <x-contract-market-insight-pills :insight="$marketInsight ?? null" class="mb-1" />
                 </div>
-                <div class="lg:mt-0 col-12 lg:col-span-5 lg:flex mx-auto mt-8 lg:mt-0">
+                <div class="hidden lg:flex col-12 lg:col-span-4 mx-auto">
                     {{-- Decorative element placeholder --}}
                 </div>
             </div>
         </div>
     </section>
 
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
     {{-- Breadcrumb Navigation --}}
     @if($hasSeoFilter)
@@ -134,9 +134,9 @@
     @endif
 
     {{-- Consumption Preset Selector --}}
-    <section x-data="{ panelOpen: false }" class="bg-transparent text-center mb-8">
-        <h3 class="max-w-2xl mb-4 mx-auto text-2xl lg:text-3xl font-extrabold tracking-tight leading-none">
-            {{ $isBusinessPage ? 'Valitse yrityksen kulutustaso' : 'Valitse kulutustaso' }}
+    <section x-data="{ panelOpen: false }" class="bg-transparent text-center mb-6">
+        <h3 class="mb-3 text-base font-bold text-slate-700 tracking-tight">
+            {{ $isBusinessPage ? 'Valitse yrityksen kulutustaso' : 'Valitse vuosikulutus' }}
         </h3>
 
         {{-- Mobile-only toggle --}}
@@ -175,58 +175,19 @@
         </div>
         @endif
 
-        {{-- Presets Tab --}}
+        {{-- Presets Tab: compact chip row so contracts stay high on the page.
+             The full calculator is one tab/click away. --}}
         @if ($activeTab === 'presets')
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-w-6xl mx-auto">
+            <div class="flex flex-wrap justify-center gap-2 max-w-3xl mx-auto">
                 @foreach ($presets as $key => $preset)
                     <button
                         wire:click="selectPreset('{{ $key }}')"
-                        class="p-5 border-2 rounded-2xl transition-all text-left {{ $selectedPreset === $key ? 'bg-gradient-to-r from-coral-500 to-coral-600 border-coral-500 shadow-coral' : 'bg-white border-slate-200 hover:border-coral-400' }}"
+                        aria-pressed="{{ $selectedPreset === $key ? 'true' : 'false' }}"
+                        title="{{ $preset['label'] }} · {{ $preset['description'] }}"
+                        class="inline-flex items-baseline gap-1.5 px-4 py-2 rounded-full border text-sm font-semibold transition-colors {{ $selectedPreset === $key ? 'bg-coral-600 border-coral-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-700 hover:border-coral-400' }}"
                     >
-                        <div class="flex items-start">
-                            <span class="{{ $selectedPreset === $key ? 'bg-white/20' : 'bg-slate-100' }} p-2 rounded-xl mr-3 flex-shrink-0">
-                                @if ($preset['icon'] === 'apartment')
-                                    <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                    </svg>
-                                @elseif ($preset['icon'] === 'office')
-                                    <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                    </svg>
-                                @elseif ($preset['icon'] === 'retail')
-                                    <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
-                                    </svg>
-                                @elseif ($preset['icon'] === 'restaurant')
-                                    <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                                    </svg>
-                                @elseif ($preset['icon'] === 'warehouse')
-                                    <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"></path>
-                                    </svg>
-                                @elseif ($preset['icon'] === 'factory')
-                                    <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
-                                    </svg>
-                                @else
-                                    <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                                    </svg>
-                                @endif
-                            </span>
-                            <div class="flex-1 min-w-0">
-                                <h5 class="font-semibold {{ $selectedPreset === $key ? 'text-white' : 'text-slate-900' }} truncate">{{ $preset['label'] }}</h5>
-                                <p class="text-sm {{ $selectedPreset === $key ? 'text-white/80' : 'text-slate-500' }}">{{ $preset['description'] }}</p>
-                            </div>
-                            <svg class="w-6 h-6 flex-shrink-0 ml-2 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-300' }}" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                            </svg>
-                        </div>
-                        <div class="mt-3 text-right">
-                            <span class="text-xl font-bold {{ $selectedPreset === $key ? 'text-white' : 'text-slate-900' }}">{{ number_format($preset['consumption'], 0, ',', ' ') }}</span>
-                            <span class="{{ $selectedPreset === $key ? 'text-white/80' : 'text-slate-500' }} text-sm ml-1">kWh/v</span>
-                        </div>
+                        <span>{{ $preset['label'] }}</span>
+                        <span class="text-xs {{ $selectedPreset === $key ? 'text-white/80' : 'text-slate-400' }}">{{ number_format($preset['consumption'], 0, ',', ' ') }} kWh</span>
                     </button>
                 @endforeach
             </div>
@@ -575,9 +536,13 @@
 
         </div> {{-- /collapsible panel --}}
 
-        {{-- Current Selection Display --}}
-        <div class="mt-6">
-            <div class="inline-flex items-center bg-coral-50 border border-coral-200 rounded-full px-6 py-3">
+        {{-- Current Selection Display. In presets mode on desktop the highlighted
+             chip already confirms the consumption, so this is hidden there to save
+             vertical space (lg:hidden). It still shows on mobile (where the chips
+             collapse behind "Vaihda kulutusta") and in calculator mode on all
+             sizes (where there is no chip to confirm the value). --}}
+        <div class="mt-5 {{ (($showCalculatorTab ?? true) && $activeTab === 'calculator') ? '' : 'lg:hidden' }}">
+            <div class="inline-flex items-center bg-coral-50 border border-coral-200 rounded-full px-5 py-2.5">
                 <svg class="w-5 h-5 text-coral-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                 </svg>
@@ -589,20 +554,32 @@
 
     {{-- Bill comparison ("Maksatko liikaa") entry — proven on /sahkosopimus first. --}}
     @if ($showBillComparison)
-        <section class="mb-8">
-            <div class="bg-white rounded-2xl border border-slate-200 p-6">
-                <div class="flex items-start gap-3 mb-5">
+        {{-- Bill comparison is a collapsed disclosure so it does not push the
+             contract list down for everyone; opens automatically once a bill is
+             entered (bill mode active). --}}
+        <section class="mb-6" x-data="{ billOpen: @js($this->isBillModeActive()) }">
+            <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <button
+                    type="button"
+                    @click="billOpen = !billOpen"
+                    :aria-expanded="billOpen ? 'true' : 'false'"
+                    class="w-full flex items-center gap-3 p-4 sm:p-5 text-left hover:bg-slate-50 transition-colors"
+                >
                     <span class="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-coral-50">
                         <svg class="w-5 h-5 text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                         </svg>
                     </span>
-                    <div class="min-w-0">
-                        <h3 class="text-lg font-bold text-slate-900">Maksatko nykyisestä sopimuksestasi liikaa?</h3>
-                        <p class="text-sm text-slate-600 mt-0.5">Syötä yhden sähkölaskusi tiedot, niin näet mitä jokainen sopimus olisi maksanut samalla laskutusjaksolla ja paljonko säästäisit vaihtamalla.</p>
-                    </div>
-                </div>
+                    <span class="min-w-0 flex-1">
+                        <span class="block text-base font-bold text-slate-900">Maksatko nykyisestä sopimuksestasi liikaa?</span>
+                        <span class="block text-sm text-slate-600 mt-0.5">Syötä yhden sähkölaskusi tiedot, niin näet mitä säästäisit vaihtamalla.</span>
+                    </span>
+                    <svg class="w-5 h-5 flex-shrink-0 text-slate-400 transition-transform" :class="billOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
 
+                <div x-show="billOpen" x-collapse x-cloak class="border-t border-slate-100 p-4 sm:p-6">
                 {{-- Billing period preset chips --}}
                 <div class="flex flex-wrap gap-2 mb-4">
                     @foreach ($billPresetLabels as $key => $label)
@@ -664,6 +641,7 @@
                         </button>
                     </div>
                 @endif
+                </div>
             </div>
         </section>
     @endif
@@ -779,6 +757,7 @@
                     :percentiles="$this->getPercentiles()"
                     :billMode="true"
                     :periodComparison="$contract->period_comparison ?? null"
+                    :detailConsumption="$this->billSummary['annual_kwh'] ?? null"
                     :showRank="true"
                     :showEmissions="true"
                     :showEnergyBadges="true"

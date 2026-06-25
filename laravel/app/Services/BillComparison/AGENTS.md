@@ -152,6 +152,12 @@ is the entry point for the **in-listing** bill comparison on `/sahkosopimus`
   `user bill total − contract period cost`. Annualized savings are intentionally
   not computed there (annualizing one month's implied unit rate is biased for
   spot/seasonal/time contracts). See `tasks/promote-bill-comparison-in-listings`.
+- **Consumption-cap eligibility is the service's job in bill mode.** The listing
+  no longer pre-filters its set by the annual consumption slider when a bill is
+  active (that slider is set before the bill and is the wrong basis). It relies on
+  `fitsConsumptionLimits($contract, $annualKwh)` inside `buildMarketRow()` to
+  exclude capped flat-fee tiers on the bill-*annualized* kWh. Keep that check in
+  the row builder. See `tasks/expand-bill-comparison-and-compact-listings`.
 
 ## Query guardrails
 

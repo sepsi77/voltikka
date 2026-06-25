@@ -81,6 +81,15 @@ class ContractDetail extends Component
         if ($contract) {
             $this->redirectToLatestReplacementIfAvailable($contract);
 
+            // Honor an optional ?kulutus= deep link so the price shown matches
+            // the consumption the visitor was using on the listing they came
+            // from. The canonical URL stays param-free (getCanonicalUrlProperty),
+            // so these query-string variants are not indexed.
+            $requestedConsumption = (int) request()->query('kulutus', 0);
+            if ($requestedConsumption > 0) {
+                $this->consumption = $requestedConsumption;
+            }
+
             $this->consumption = $this->clampConsumption($this->consumption, $contract);
 
             // Track contract view

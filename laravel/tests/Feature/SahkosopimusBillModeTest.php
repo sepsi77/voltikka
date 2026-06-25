@@ -67,6 +67,47 @@ class SahkosopimusBillModeTest extends TestCase
         return $contract;
     }
 
+    /**
+     * A flat-fee capped tier: included energy up to an annual kWh cap, priced
+     * as a monthly fee (General price 0). Mirrors Helen Helpposähkö.
+     */
+    private function createCappedContract(string $id, string $name, string $company, float $monthlyEur, int $maxKwhPerYear): ElectricityContract
+    {
+        $contract = ElectricityContract::create([
+            'id' => $id,
+            'company_name' => $company,
+            'name' => $name,
+            'contract_type' => 'OpenEnded',
+            'pricing_model' => 'FixedPrice',
+            'metering' => 'General',
+            'target_group' => 'Household',
+            'availability_is_national' => true,
+            'consumption_limitation_max_x_kwh_per_y' => $maxKwhPerYear,
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-gen-'.$id,
+            'electricity_contract_id' => $id,
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 0,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-mon-'.$id,
+            'electricity_contract_id' => $id,
+            'price_component_type' => 'Monthly',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => $monthlyEur,
+            'payment_unit' => 'EUR/month',
+        ]);
+
+        ActiveContract::create(['id' => $id]);
+
+        return $contract;
+    }
+
     private function billComponent()
     {
         // 30-day period so months-in-period is exactly 1 and €/kk equals the
@@ -161,5 +202,55 @@ class SahkosopimusBillModeTest extends TestCase
         $ids = $component->viewData('contracts')->pluck('id')->all();
         $this->assertContains('cheap-contract', $ids);
         $this->assertNotContains('spot-contract', $ids, 'Spot contract without period history must be omitted from bill-mode ranking.');
+    }
+
+    /**
+     * In bill mode the relevant consumption is the bill's annualized kWh, not
+     * the annual slider (default 5000) set before the bill. A capped tier that
+     * fits the bill-annualized consumption must appear even though the stale
+     * 5000 slider would exclude it; caps are enforced by the service on the
+     * bill-derived basis instead.
+     */
+    public function test_bill_mode_ignores_stale_annual_slider_for_consumption_caps(): void
+    {
+        $this->createFixedContract('normal-contract', 'Normaali Kiinteä', 'Halpa Energia Oy', 6.0, 3.00);
+        $this->createCappedContract('capped-tier', 'Capped Tier', 'Halpa Energia Oy', 8.0, 4500);
+
+        // Small May bill that annualizes well below the 4500 cap.
+        $component = Livewire::test(SahkosopimusIndex::class)
+            ->set('billPeriodPreset', 'custom')
+            ->set('billStartDate', '2026-05-01')
+            ->set('billEndDate', '2026-05-30')
+            ->set('billKwh', 200)
+            ->set('billTotalEur', 30.00);
+
+        $this->assertTrue($component->instance()->isBillModeActive());
+        $this->assertLessThan(4500, $component->instance()->billSummary['annual_kwh'], 'Test premise: bill annualizes below the cap.');
+
+        $ids = $component->viewData('contracts')->pluck('id')->all();
+        $this->assertContains('capped-tier', $ids, 'Capped tier fitting the bill-annualized consumption must appear in bill mode.');
+
+        // Sanity: in normal mode at the default 5000 kWh slider it stays filtered out.
+        $normal = Livewire::test(SahkosopimusIndex::class);
+        $this->assertFalse($normal->instance()->isBillModeActive());
+        $this->assertNotContains('capped-tier', $normal->viewData('contracts')->pluck('id')->all());
+    }
+
+    /**
+     * Rollout: bill comparison is enabled on household SEO listing pages but
+     * not on the business page (a household bill vs business contracts is not
+     * meaningful).
+     */
+    public function test_bill_form_shown_on_household_seo_page_and_hidden_on_business(): void
+    {
+        $this->createFixedContract('cheap-contract', 'Halpa Kiinteä', 'Halpa Energia Oy', 5.0, 3.00);
+
+        $this->get('/sahkosopimus/porssisahko')
+            ->assertStatus(200)
+            ->assertSee('Maksatko nykyisestä sopimuksestasi liikaa?');
+
+        $this->get('/sahkosopimus/yritykselle')
+            ->assertStatus(200)
+            ->assertDontSee('Maksatko nykyisestä sopimuksestasi liikaa?');
     }
 }

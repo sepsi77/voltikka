@@ -50,6 +50,15 @@ class SeoContractsList extends ContractsList
     public ?string $targetGroup = null;
 
     /**
+     * In-listing "Maksatko liikaa" bill comparison is enabled on all
+     * household-oriented SEO listing pages (and CheapestContracts, which
+     * inherits this). It is disabled for business pages in mount() because a
+     * household energy bill does not compare meaningfully against business
+     * contracts.
+     */
+    public bool $showBillComparison = true;
+
+    /**
      * Contract duration filter (FixedTerm, OpenEnded).
      */
     public ?string $contractDuration = null;
@@ -219,6 +228,8 @@ class SeoContractsList extends ContractsList
 
         // Business page: override presets, consumption, and pricing models
         if ($targetGroup === 'Company') {
+            // A household energy bill is not comparable to business contracts.
+            $this->showBillComparison = false;
             $this->presets = $this->businessPresets;
             $this->consumption = 20000;
             $this->selectedPreset = 'small_office';
@@ -418,11 +429,16 @@ class SeoContractsList extends ContractsList
             $contracts = $this->filterByEnergySource($contracts);
         }
 
-        // Filter by consumption range
-        $consumption = $this->selectedConsumptionValue();
-        $contracts = $contracts->filter(function ($contract) use ($consumption) {
-            return $contract->isConsumptionInRange($consumption);
-        });
+        // Filter by consumption range. Skipped in bill mode: the bill's
+        // annualized kWh (not this annual slider) is the relevant consumption,
+        // and BillComparisonService::fitsConsumptionLimits() already excludes
+        // capped flat-fee tiers on that bill-derived basis. See ContractsList.
+        if (! $this->isBillModeActive()) {
+            $consumption = $this->selectedConsumptionValue();
+            $contracts = $contracts->filter(function ($contract) use ($consumption) {
+                return $contract->isConsumptionInRange($consumption);
+            });
+        }
 
         // Bill ("Maksatko liikaa") mode: price the filtered set for the user's
         // actual billing period and rank by period cost instead of annual cost.

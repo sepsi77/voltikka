@@ -62,9 +62,22 @@ Important semantics:
   Savings on a card = `user bill total − contract period cost`. Annualized
   savings are intentionally **not** shown here (annualizing one month's implied
   unit rate is biased for spot/seasonal/time). See `tasks/promote-bill-comparison-in-listings`.
-- `$showBillComparison` is the single rollout switch: `false` by default
-  (`ContractsList`/`SeoContractsList`), `true` on `SahkosopimusIndex`. Flip it on
-  other SeoContractsList pages to roll out.
+- `$showBillComparison` is the rollout switch. Rolled out to **all
+  household-oriented listing pages**: `true` on `SeoContractsList` (so every SEO
+  pricing/housing/energy/city/duration/consumption-level page + `CheapestContracts`,
+  which inherits it) and on `SahkosopimusIndex`; `false` on the base
+  `ContractsList` (homepage). It is forced **off for business pages**
+  (`SeoContractsList::mount()` sets it false when `targetGroup === 'Company'`)
+  because a household energy bill is not comparable to business contracts.
+- **Bill mode skips the annual-slider consumption-range pre-filter.** In
+  `getContractsProperty()` (both `ContractsList` and `SeoContractsList`) the
+  `isConsumptionInRange($this->consumption)` filter is wrapped in
+  `! isBillModeActive()`. In bill mode the relevant consumption is the bill's
+  *annualized* kWh, not the slider set before the bill; capped flat-fee tiers are
+  still excluded correctly by `BillComparisonService::fitsConsumptionLimits()` on
+  the bill-derived `$annualKwh` inside `buildMarketRow()`. Pre-filtering with the
+  stale slider would wrongly drop/keep capped tiers on a mismatched basis.
+  Regression: `test_bill_mode_ignores_stale_annual_slider_for_consumption_caps`.
 - `$billActive` + the bill inputs are **interactive state only, never `#[Url]`**,
   so a fresh GET always starts in normal mode and the cached default-listing
   payload is unaffected. `isDefaultListingCacheable()` also guards `! $billActive`.
@@ -83,6 +96,23 @@ Important semantics:
   typical going-forward monthly cost.
 - Period preset / annualization helpers mirror the standalone tool (last 3
   completed months); `booted()` seeds default dates + preset labels each request.
+- **Listing cards deep-link the visitor's consumption to the detail page** so the
+  detail price matches the listing. `contract-card`/`featured-contract-card` build
+  `?kulutus=N` from `detailConsumption ?? consumption`, only when it differs from
+  the 5000 default. In bill mode the view passes `billSummary['annual_kwh']` as
+  `detailConsumption` (the bill-annualized kWh). `ContractDetail::mount()` reads
+  + clamps `request()->query('kulutus')`. SEO-safe because
+  `ContractDetail::getCanonicalUrlProperty()` is always the clean param-free URL
+  and prepared-cache bypasses on any query string, so `?kulutus=` variants are
+  non-indexable. Tests: `ContractDetailPageTest::test_kulutus_*`.
+- **Compact layout (vertical space).** The comparison hero is slimmed; the
+  consumption selector uses a compact chip row (the big preset cards were removed)
+  with the full calculator behind the existing "Laskuri" tab; the bill entry is a
+  collapsed Alpine disclosure (`x-collapse` + `x-cloak`, auto-open when bill mode
+  is active) so it does not push contracts down for everyone. The "Vertailu
+  kulutuksella" coral pill is `lg:hidden` in presets mode (the selected chip
+  already confirms it on desktop) but shows on mobile (chips collapse there) and
+  in calculator mode. Goal: contracts sit near the top on every comparison page.
 - Tests: `tests/Feature/SahkosopimusBillModeTest.php`.
 
 ## `HeatPumpCalculator`

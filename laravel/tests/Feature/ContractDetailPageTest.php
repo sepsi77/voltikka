@@ -1030,4 +1030,34 @@ class ContractDetailPageTest extends TestCase
             ->call('setConsumption', 20000)
             ->assertSet('consumption', 10000);
     }
+
+    /**
+     * Listing cards deep-link the visitor's consumption as ?kulutus= so the
+     * detail price matches the listing they came from.
+     */
+    public function test_kulutus_query_param_sets_consumption(): void
+    {
+        // No param: stays at the 5000 kWh default.
+        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->assertSet('consumption', 5000);
+
+        // ?kulutus=10000 is honored on mount.
+        Livewire::withQueryParams(['kulutus' => 10000])
+            ->test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->assertSet('consumption', 10000);
+    }
+
+    /**
+     * The ?kulutus= deep links must stay non-indexable: the canonical URL is
+     * always the clean, param-free contract URL.
+     */
+    public function test_kulutus_query_url_keeps_clean_canonical(): void
+    {
+        $cleanUrl = route('contract.detail', ['contractId' => 'contract-detail-test']);
+
+        $this->get($cleanUrl.'?kulutus=10000')
+            ->assertStatus(200)
+            ->assertSee('<link rel="canonical" href="'.$cleanUrl.'">', false)
+            ->assertDontSee('canonical" href="'.$cleanUrl.'?kulutus', false);
+    }
 }

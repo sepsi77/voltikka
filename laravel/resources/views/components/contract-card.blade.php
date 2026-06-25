@@ -11,9 +11,20 @@
     'percentiles' => [],
     'billMode' => false,
     'periodComparison' => null,
+    'detailConsumption' => null,
 ])
 
 @php
+    // Deep-link the visitor's consumption so the detail page price reflects the
+    // same consumption they were using on the listing. Only append ?kulutus=
+    // when it differs from the detail page's 5000 kWh default, to keep the
+    // common URL clean. The detail page canonical is param-free regardless, so
+    // these variants stay non-indexable.
+    $detailLinkConsumption = (int) ($detailConsumption ?? $consumption ?? 0);
+    $detailUrl = ($detailLinkConsumption > 0 && $detailLinkConsumption !== 5000)
+        ? route('contract.detail', ['contractId' => $contract->id, 'kulutus' => $detailLinkConsumption])
+        : route('contract.detail', $contract->id);
+
     // Check if contract exceeds consumption limit
     $exceedsConsumptionLimit = $contract->exceeds_consumption_limit ?? false;
 
@@ -368,7 +379,7 @@
             @endif
 
             <a
-                href="{{ route('contract.detail', $contract->id) }}"
+                href="{{ $detailUrl }}"
                 class="hidden lg:inline-flex items-center justify-center gap-2 font-bold px-6 py-3 rounded-xl transition-all w-[130px] order-3 lg:order-none {{ $featured ? 'bg-gradient-to-r from-coral-500 to-coral-600 hover:from-coral-400 hover:to-coral-500 text-white shadow-lg shadow-coral-500/20' : 'border-2 border-slate-200 text-slate-600 hover:border-coral-400 hover:text-coral-600' }}"
             >
                 Katso
@@ -435,7 +446,7 @@
     @endif
 
     {{-- Mobile CTA stays full-width; rendered outside the footer-content guard so it is always reachable. --}}
-    <a href="{{ route('contract.detail', $contract->id) }}" class="lg:hidden w-full mt-4 flex items-center justify-center gap-2 font-bold px-5 py-3 rounded-xl transition-all {{ $featured ? 'bg-gradient-to-r from-coral-500 to-coral-600 text-white shadow-lg shadow-coral-500/20' : 'border-2 border-slate-200 text-slate-600' }}">
+    <a href="{{ $detailUrl }}" class="lg:hidden w-full mt-4 flex items-center justify-center gap-2 font-bold px-5 py-3 rounded-xl transition-all {{ $featured ? 'bg-gradient-to-r from-coral-500 to-coral-600 text-white shadow-lg shadow-coral-500/20' : 'border-2 border-slate-200 text-slate-600' }}">
         Katso
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>

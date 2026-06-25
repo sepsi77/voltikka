@@ -1460,11 +1460,20 @@ class ContractsList extends Component
         }
 
         // Filter by consumption range - only show contracts where the selected
-        // consumption falls within the contract's allowed range
-        $consumption = $this->consumption;
-        $contracts = $contracts->filter(function ($contract) use ($consumption) {
-            return $contract->isConsumptionInRange($consumption);
-        });
+        // consumption falls within the contract's allowed range.
+        //
+        // Skipped in bill mode: there the relevant consumption is the bill's
+        // annualized kWh, not this annual slider (set before the bill). Capped
+        // flat-fee tiers are still excluded correctly by
+        // BillComparisonService::fitsConsumptionLimits() on the bill-derived
+        // annual consumption, so pre-filtering with the stale slider would only
+        // wrongly drop/keep capped contracts on a mismatched basis.
+        if (! $this->isBillModeActive()) {
+            $consumption = $this->consumption;
+            $contracts = $contracts->filter(function ($contract) use ($consumption) {
+                return $contract->isConsumptionInRange($consumption);
+            });
+        }
 
         // Bill ("Maksatko liikaa") mode: price the filtered set for the user's
         // actual billing period and rank by period cost instead of annual cost.

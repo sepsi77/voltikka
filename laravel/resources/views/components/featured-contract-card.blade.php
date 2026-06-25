@@ -2,9 +2,18 @@
     'contract',
     'consumption' => null,
     'prices' => null,
+    'detailConsumption' => null,
 ])
 
 @php
+    // Deep-link the visitor's consumption so the detail page price matches the
+    // listing. Only when it differs from the 5000 kWh default; canonical stays
+    // param-free so these variants are non-indexable. See contract-card.blade.php.
+    $detailLinkConsumption = (int) ($detailConsumption ?? $consumption ?? 0);
+    $detailUrl = ($detailLinkConsumption > 0 && $detailLinkConsumption !== 5000)
+        ? route('contract.detail', ['contractId' => $contract->id, 'kulutus' => $detailLinkConsumption])
+        : route('contract.detail', $contract->id);
+
     // Get prices from props or extract from contract's priceComponents
     $priceData = $prices ?? [];
     if (empty($priceData) && $contract->relationLoaded('priceComponents')) {
@@ -255,7 +264,7 @@
 
             {{-- CTA Button --}}
             <a
-                href="{{ route('contract.detail', $contract->id) }}"
+                href="{{ $detailUrl }}"
                 class="inline-flex items-center gap-2 bg-white hover:bg-coral-50 text-coral-600 font-bold px-6 py-3 rounded-xl transition-all shadow-lg"
             >
                 Katso

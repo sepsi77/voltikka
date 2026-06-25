@@ -1,0 +1,14 @@
+{
+  "tasks": [
+    { "name": "1a. Skip stale consumption-range pre-filter in bill mode (ContractsList + SeoContractsList)", "status": "completed" },
+    { "name": "1a-test. Regression test: capped tier fitting bill-annualized kWh appears in bill mode, excluded in normal 5000 mode", "status": "completed" },
+    { "name": "1b. Carry consumption to detail page: card links append ?kulutus=N (non-default / bill-annualized); ContractDetail reads+clamps on mount; canonical stays clean", "status": "completed" },
+    { "name": "1b-test. Detail page reads kulutus query param + canonical stays param-free", "status": "completed" },
+    { "name": "2. Enable showBillComparison on all household SeoContractsList pages; keep OFF for business (targetGroup Company)", "status": "completed" },
+    { "name": "2-test. Bill form shown on a non-business SEO page; hidden on /sahkosopimus/yritykselle", "status": "completed" },
+    { "name": "3. Compact layout: slim hero, compact consumption chip row + calculator tab, bill entry disclosure (collapsed), pill lg:hidden in presets", "status": "completed" },
+    { "name": "3-verify. Browser check desktop + mobile: contracts higher, disclosures work, deep-link kulutus on cards, no regressions", "status": "completed" },
+    { "name": "Docs: updated Livewire AGENTS + BillComparison AGENTS + root AGENTS for rollout/layout/consumption-carry", "status": "completed" },
+    { "name": "Build (npm run build), full affected test run, commit + push", "status": "in_progress" }
+  ]
+}
