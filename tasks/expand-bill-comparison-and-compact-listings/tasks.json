@@ -9,6 +9,6 @@
     { "name": "3. Compact layout: slim hero, compact consumption chip row + calculator tab, bill entry disclosure (collapsed), pill lg:hidden in presets", "status": "completed" },
     { "name": "3-verify. Browser check desktop + mobile: contracts higher, disclosures work, deep-link kulutus on cards, no regressions", "status": "completed" },
     { "name": "Docs: updated Livewire AGENTS + BillComparison AGENTS + root AGENTS for rollout/layout/consumption-carry", "status": "completed" },
-    { "name": "Build (npm run build), full affected test run, commit + push", "status": "in_progress" }
+    { "name": "Build (npm run build), full affected test run, commit + push", "status": "completed" }
   ]
 }

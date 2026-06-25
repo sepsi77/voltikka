@@ -134,62 +134,93 @@
     @endif
 
     {{-- Consumption Preset Selector --}}
-    <section x-data="{ panelOpen: false }" class="bg-transparent text-center mb-6">
-        <h3 class="mb-3 text-base font-bold text-slate-700 tracking-tight">
-            {{ $isBusinessPage ? 'Valitse yrityksen kulutustaso' : 'Valitse vuosikulutus' }}
-        </h3>
-
-        {{-- Mobile-only toggle --}}
-        <button
-            type="button"
-            @click="panelOpen = !panelOpen"
-            class="lg:hidden inline-flex items-center gap-2 mx-auto mb-5 bg-white border border-slate-200 rounded-full px-5 py-2.5 text-sm font-semibold text-slate-700 hover:border-coral-400 transition-colors"
-            :aria-expanded="panelOpen ? 'true' : 'false'"
-        >
-            <span x-text="panelOpen ? 'Piilota vaihtoehdot' : 'Vaihda kulutusta'"></span>
-            <svg class="w-4 h-4 transition-transform" :class="panelOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
-        </button>
-
-        {{-- Collapsible panel: hidden on mobile by default, always visible on desktop --}}
-        <div :class="panelOpen ? 'block' : 'hidden lg:block'">
-
-        {{-- Tab Toggle --}}
-        @if($showCalculatorTab ?? true)
-        <div class="flex justify-center mb-6">
-            <div class="inline-flex rounded-full bg-slate-100 p-1">
+    <section x-data="{ panelOpen: false }" class="bg-transparent mb-6">
+        {{-- Compact header: label + calculator toggle (desktop) + collapse (mobile) --}}
+        <div class="flex items-center justify-between gap-3 mb-3">
+            <h3 class="text-sm font-bold text-slate-700 tracking-tight">
+                {{ $isBusinessPage ? 'Yrityksen vuosikulutus' : 'Vuosikulutus' }}
+            </h3>
+            <div class="flex items-center gap-3">
+                @if($showCalculatorTab ?? true)
+                    <button
+                        type="button"
+                        wire:click="setActiveTab('{{ $activeTab === 'calculator' ? 'presets' : 'calculator' }}')"
+                        class="hidden lg:inline-flex items-center gap-1.5 text-sm font-semibold transition-colors {{ $activeTab === 'calculator' ? 'text-coral-600' : 'text-slate-500 hover:text-slate-700' }}"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m-6 4h6m-6 4h4M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"></path>
+                        </svg>
+                        {{ $activeTab === 'calculator' ? 'Sulje laskuri' : 'En tiedä – arvioi laskurilla' }}
+                    </button>
+                @endif
+                {{-- Mobile collapse toggle --}}
                 <button
-                    wire:click="setActiveTab('presets')"
-                    class="px-6 py-2 text-sm font-medium rounded-full transition-colors {{ $activeTab === 'presets' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-700' }}"
+                    type="button"
+                    @click="panelOpen = !panelOpen"
+                    class="lg:hidden inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600"
+                    :aria-expanded="panelOpen ? 'true' : 'false'"
                 >
-                    Valmiit profiilit
-                </button>
-                <button
-                    wire:click="setActiveTab('calculator')"
-                    class="px-6 py-2 text-sm font-medium rounded-full transition-colors {{ $activeTab === 'calculator' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-700' }}"
-                >
-                    Laskuri
+                    <span x-text="panelOpen ? 'Piilota' : 'Vaihda'"></span>
+                    <svg class="w-4 h-4 transition-transform" :class="panelOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
                 </button>
             </div>
         </div>
+
+        {{-- Collapsible on mobile; always shown on desktop --}}
+        <div :class="panelOpen ? 'block' : 'hidden lg:block'">
+
+        {{-- Mobile calculator toggle (desktop uses the header toggle above) --}}
+        @if($showCalculatorTab ?? true)
+            <button
+                type="button"
+                wire:click="setActiveTab('{{ $activeTab === 'calculator' ? 'presets' : 'calculator' }}')"
+                class="lg:hidden w-full mb-3 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold {{ $activeTab === 'calculator' ? 'text-coral-600 border-coral-300' : 'text-slate-600' }}"
+            >
+                {{ $activeTab === 'calculator' ? 'Sulje laskuri ja valitse profiili' : 'En tiedä – arvioi laskurilla' }}
+            </button>
         @endif
 
-        {{-- Presets Tab: compact chip row so contracts stay high on the page.
-             The full calculator is one tab/click away. --}}
+        {{-- Presets + direct input: compact info cards in a single row so the
+             contract list stays high on the page. Each preset keeps its label,
+             description and kWh; the last tile is a free-text input for visitors
+             who know their own consumption. Full calculator is one click away
+             via the header toggle. --}}
         @if ($activeTab === 'presets')
-            <div class="flex flex-wrap justify-center gap-2 max-w-3xl mx-auto">
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                 @foreach ($presets as $key => $preset)
+                    @php $isSel = $selectedPreset === $key; @endphp
                     <button
+                        type="button"
                         wire:click="selectPreset('{{ $key }}')"
-                        aria-pressed="{{ $selectedPreset === $key ? 'true' : 'false' }}"
-                        title="{{ $preset['label'] }} · {{ $preset['description'] }}"
-                        class="inline-flex items-baseline gap-1.5 px-4 py-2 rounded-full border text-sm font-semibold transition-colors {{ $selectedPreset === $key ? 'bg-coral-600 border-coral-600 text-white shadow-sm' : 'bg-white border-slate-200 text-slate-700 hover:border-coral-400' }}"
+                        aria-pressed="{{ $isSel ? 'true' : 'false' }}"
+                        class="flex flex-col items-start text-left px-3 py-2 rounded-xl border transition-colors {{ $isSel ? 'bg-coral-600 border-coral-600' : 'bg-white border-slate-200 hover:border-coral-400' }}"
                     >
-                        <span>{{ $preset['label'] }}</span>
-                        <span class="text-xs {{ $selectedPreset === $key ? 'text-white/80' : 'text-slate-400' }}">{{ number_format($preset['consumption'], 0, ',', ' ') }} kWh</span>
+                        <span class="text-sm font-semibold leading-tight {{ $isSel ? 'text-white' : 'text-slate-900' }}">{{ $preset['label'] }}</span>
+                        <span class="text-[11px] leading-tight {{ $isSel ? 'text-white/70' : 'text-slate-400' }}">{{ $preset['description'] }}</span>
+                        <span class="mt-0.5 text-xs font-bold tabular-nums {{ $isSel ? 'text-white' : 'text-slate-700' }}">{{ number_format($preset['consumption'], 0, ',', ' ') }} kWh/v</span>
                     </button>
                 @endforeach
+
+                {{-- Direct entry tile (highlighted when consumption is custom) --}}
+                @php $isDirect = $selectedPreset === null; @endphp
+                <div class="flex flex-col justify-center px-3 py-2 rounded-xl border bg-white {{ $isDirect ? 'border-coral-500 ring-1 ring-coral-500' : 'border-slate-200' }}">
+                    <label for="direct-consumption" class="text-[11px] leading-tight {{ $isDirect ? 'text-coral-600 font-semibold' : 'text-slate-400' }}">Tiedän kulutukseni</label>
+                    <div class="flex items-baseline gap-1 mt-0.5">
+                        <input
+                            id="direct-consumption"
+                            type="number"
+                            min="0"
+                            step="100"
+                            inputmode="numeric"
+                            wire:model.live.debounce.700ms="directConsumption"
+                            placeholder="esim. 7000"
+                            class="w-full min-w-0 bg-transparent text-sm font-bold text-slate-900 placeholder:font-normal placeholder:text-slate-400 focus:outline-none tabular-nums"
+                        >
+                        <span class="text-xs text-slate-400 shrink-0">kWh/v</span>
+                    </div>
+                </div>
             </div>
         @endif
 

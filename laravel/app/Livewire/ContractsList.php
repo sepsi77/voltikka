@@ -78,6 +78,14 @@ class ContractsList extends Component
     public int $consumption = 5000;
 
     /**
+     * Free-text annual consumption input (kWh/v) for visitors who know their
+     * own consumption. String/null tolerant for mobile blank states. Mirrors
+     * $consumption for display; editing it sets $consumption and clears the
+     * active preset (see updatedDirectConsumption()). Seeded in booted().
+     */
+    public int|string|null $directConsumption = null;
+
+    /**
      * Available consumption presets matching ConsumptionCalculator.
      *
      * @var array<string, array{label: string, description: string, icon: string, consumption: int}>
@@ -405,6 +413,7 @@ class ContractsList extends Component
 
         if (isset($this->presets[$preset])) {
             $this->consumption = $this->presets[$preset]['consumption'];
+            $this->directConsumption = $this->consumption;
             $this->resetPage();
 
             // Track preset change
@@ -424,6 +433,28 @@ class ContractsList extends Component
     public function setConsumption(int $value): void
     {
         $this->consumption = $value;
+        $this->directConsumption = $value;
+        $this->selectedPreset = null;
+        $this->resetPage();
+    }
+
+    /**
+     * Apply the free-text consumption input. Tolerant of blank/partial values
+     * while typing (mobile sends empty strings); only a positive number is
+     * applied, and it clears the active preset so the direct value wins.
+     */
+    public function updatedDirectConsumption($value): void
+    {
+        if (! is_numeric($value)) {
+            return;
+        }
+
+        $clean = max(0, (int) $value);
+        if ($clean <= 0) {
+            return;
+        }
+
+        $this->consumption = $clean;
         $this->selectedPreset = null;
         $this->resetPage();
     }
@@ -453,6 +484,12 @@ class ContractsList extends Component
      */
     public function booted(): void
     {
+        // Seed the free-text consumption input with the active consumption so
+        // the field always reflects the current value (kept once set).
+        if ($this->directConsumption === null || $this->directConsumption === '') {
+            $this->directConsumption = $this->selectedConsumptionValue();
+        }
+
         if (! $this->showBillComparison) {
             return;
         }
@@ -793,6 +830,7 @@ class ContractsList extends Component
 
         $result = $calculator->estimate($request);
         $this->consumption = $result->total;
+        $this->directConsumption = $result->total;
         $this->selectedPreset = null;
         $this->resetPage();
     }

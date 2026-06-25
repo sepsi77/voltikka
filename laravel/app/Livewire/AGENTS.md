@@ -105,14 +105,26 @@ Important semantics:
   `ContractDetail::getCanonicalUrlProperty()` is always the clean param-free URL
   and prepared-cache bypasses on any query string, so `?kulutus=` variants are
   non-indexable. Tests: `ContractDetailPageTest::test_kulutus_*`.
-- **Compact layout (vertical space).** The comparison hero is slimmed; the
-  consumption selector uses a compact chip row (the big preset cards were removed)
-  with the full calculator behind the existing "Laskuri" tab; the bill entry is a
-  collapsed Alpine disclosure (`x-collapse` + `x-cloak`, auto-open when bill mode
-  is active) so it does not push contracts down for everyone. The "Vertailu
-  kulutuksella" coral pill is `lg:hidden` in presets mode (the selected chip
-  already confirms it on desktop) but shows on mobile (chips collapse there) and
-  in calculator mode. Goal: contracts sit near the top on every comparison page.
+- **Compact layout (vertical space).** Goal: contracts sit near the top on every
+  comparison page. The hero is slimmed; the consumption selector is a compact
+  single-row grid of preset info-cards (label + description + kWh, so they keep
+  their meaning) plus a free-text "Tiedän kulutukseni" input tile; the full
+  calculator is behind a header toggle ("En tiedä – arvioi laskurilla", desktop)
+  / an in-panel toggle (mobile) rather than an always-visible tab. The bill entry
+  and the **filters** (`partials/contract-filters.blade.php`) are collapsed Alpine
+  disclosures (`x-collapse` + `x-cloak`). Filters now collapse on **all** sizes
+  (previously desktop-always-open); the "Rajaa hakua" trigger shows an active-filter
+  count badge and defaults open only when `hasActiveFilters()`. The "Vertailu
+  kulutuksella" pill is `lg:hidden` in presets mode (the cards confirm the value
+  on desktop) but shows on mobile (cards collapse behind "Vaihda") and in
+  calculator mode.
+- **Direct consumption input.** `directConsumption` (int|string|null, tolerant of
+  mobile blank states) is the free-text kWh field. `updatedDirectConsumption()`
+  applies only a positive value to `$consumption` and clears `$selectedPreset`
+  (blank/zero is ignored so a cleared field never zeroes consumption). It mirrors
+  `$consumption` for display: seeded in `booted()` and kept in sync by
+  `selectPreset()` / `calculateFromInlineCalculator()`. Test:
+  `ContractsListPageTest::test_direct_consumption_input_updates_consumption`.
 - Tests: `tests/Feature/SahkosopimusBillModeTest.php`.
 
 ## `HeatPumpCalculator`

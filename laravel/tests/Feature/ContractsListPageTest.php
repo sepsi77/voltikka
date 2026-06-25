@@ -169,6 +169,25 @@ class ContractsListPageTest extends TestCase
     }
 
     /**
+     * The free-text consumption input applies a positive value to consumption
+     * and clears the active preset; blank/zero input is ignored (mobile blank
+     * states must not zero out consumption).
+     */
+    public function test_direct_consumption_input_updates_consumption(): void
+    {
+        Livewire::test('contracts-list')
+            ->set('directConsumption', 7000)
+            ->assertSet('consumption', 7000)
+            ->assertSet('selectedPreset', null)
+            // blank input is ignored, consumption is retained
+            ->set('directConsumption', '')
+            ->assertSet('consumption', 7000)
+            // zero is ignored too
+            ->set('directConsumption', 0)
+            ->assertSet('consumption', 7000);
+    }
+
+    /**
      * Test switching between tabs works.
      */
     public function test_tab_switching_works(): void

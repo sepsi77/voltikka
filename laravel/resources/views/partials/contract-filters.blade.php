@@ -1,20 +1,41 @@
 {{-- Shared Contract Filters Partial --}}
 {{-- Used by both contracts-list.blade.php and seo-contracts-list.blade.php --}}
 
-<div class="bg-white rounded-2xl py-5 border border-slate-200 mb-8" x-data="{ filtersOpen: false }">
-    {{-- Mobile Accordion Trigger --}}
+@php
+    // Count user-applied filters so the collapsed trigger can show a badge.
+    $activeFilterCount = collect([
+        ! empty($pricingModelFilter),
+        ! empty($contractTypeFilter),
+        $fossilFreeFilter ?? false,
+        $renewableFilter ?? false,
+        $nuclearFilter ?? false,
+    ])->filter()->count();
+@endphp
+<div class="bg-white rounded-2xl py-2 border border-slate-200 mb-6" x-data="{ filtersOpen: @js($this->hasActiveFilters()) }">
+    {{-- Accordion trigger (all sizes): filters are collapsed by default so the
+         contract list stays high on the page. --}}
     <button
+        type="button"
         @click="filtersOpen = !filtersOpen"
-        class="lg:hidden w-full px-4 py-2 flex items-center justify-between text-left font-semibold text-slate-900"
+        :aria-expanded="filtersOpen ? 'true' : 'false'"
+        class="w-full px-4 py-2.5 flex items-center justify-between text-left font-semibold text-slate-900"
     >
-        <span>Suodattimet</span>
+        <span class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L14 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 018 21v-7.586L3.293 6.707A1 1 0 013 6V4z"></path>
+            </svg>
+            Rajaa hakua
+            @if ($activeFilterCount > 0)
+                <span class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-coral-600 text-white text-xs font-bold tabular-nums">{{ $activeFilterCount }}</span>
+            @endif
+        </span>
         <svg class="w-5 h-5 transform transition-transform" :class="{ 'rotate-180': filtersOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
         </svg>
     </button>
 
-    {{-- Filter Content --}}
-    <div class="lg:flex flex-wrap gap-y-4" :class="{ 'hidden': !filtersOpen }" x-bind:class="{ 'hidden lg:flex': !filtersOpen }">
+    {{-- Filter Content (collapses on all sizes) --}}
+    <div x-show="filtersOpen" x-collapse x-cloak class="lg:flex flex-wrap gap-y-4 pt-3 border-t border-slate-100">
         {{-- Pricing Model Filters --}}
         <div class="flex flex-col px-4 lg:w-full lg:shrink-0 lg:mb-4">
             <h4 class="font-semibold text-slate-900 mb-2">Hinnoittelumalli</h4>
