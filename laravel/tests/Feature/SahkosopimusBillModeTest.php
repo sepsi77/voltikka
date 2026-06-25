@@ -1,0 +1,165 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Livewire\SahkosopimusIndex;
+use App\Models\ActiveContract;
+use App\Models\Company;
+use App\Models\ElectricityContract;
+use App\Models\PriceComponent;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+use Tests\TestCase;
+
+/**
+ * In-listing "Maksatko liikaa" bill comparison on /sahkosopimus.
+ *
+ * Period-basis mode: every contract is priced for the user's exact billing
+ * period + kWh (facts), the user's bill is anchored into the ranking, and each
+ * card shows the period €/kk + savings vs the bill. See
+ * tasks/promote-bill-comparison-in-listings.
+ */
+class SahkosopimusBillModeTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Company::create(['name' => 'Halpa Energia Oy', 'name_slug' => 'halpa-energia-oy', 'company_url' => 'https://halpa.fi']);
+        Company::create(['name' => 'Kallis Energia Oy', 'name_slug' => 'kallis-energia-oy', 'company_url' => 'https://kallis.fi']);
+    }
+
+    private function createFixedContract(string $id, string $name, string $company, float $generalCents, float $monthlyEur): ElectricityContract
+    {
+        $contract = ElectricityContract::create([
+            'id' => $id,
+            'company_name' => $company,
+            'name' => $name,
+            'contract_type' => 'OpenEnded',
+            'pricing_model' => 'FixedPrice',
+            'metering' => 'General',
+            'target_group' => 'Household',
+            'availability_is_national' => true,
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-gen-'.$id,
+            'electricity_contract_id' => $id,
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => $generalCents,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-mon-'.$id,
+            'electricity_contract_id' => $id,
+            'price_component_type' => 'Monthly',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => $monthlyEur,
+            'payment_unit' => 'EUR/month',
+        ]);
+
+        ActiveContract::create(['id' => $id]);
+
+        return $contract;
+    }
+
+    private function billComponent()
+    {
+        // 30-day period so months-in-period is exactly 1 and €/kk equals the
+        // period cost, keeping the period-cost assertions deterministic.
+        return Livewire::test(SahkosopimusIndex::class)
+            ->set('billPeriodPreset', 'custom')
+            ->set('billStartDate', '2026-05-01')
+            ->set('billEndDate', '2026-05-30')
+            ->set('billKwh', 300)
+            ->set('billTotalEur', 40.00);
+    }
+
+    public function test_bill_entry_form_is_shown_on_sahkosopimus(): void
+    {
+        $this->get('/sahkosopimus')
+            ->assertStatus(200)
+            ->assertSee('Maksatko nykyisestä sopimuksestasi liikaa?');
+    }
+
+    public function test_entering_a_bill_activates_period_mode_and_ranks_the_user(): void
+    {
+        $this->createFixedContract('cheap-contract', 'Halpa Kiinteä', 'Halpa Energia Oy', 5.0, 3.00);
+        $this->createFixedContract('expensive-contract', 'Kallis Kiinteä', 'Kallis Energia Oy', 12.0, 9.00);
+
+        $component = $this->billComponent();
+
+        $this->assertTrue($component->instance()->isBillModeActive());
+
+        $summary = $component->instance()->billSummary;
+        $this->assertNotNull($summary);
+
+        // cheap period cost = 5 c * 300 kWh + 3 € = 18 €; expensive = 45 €; user = 40 €.
+        // Only the cheap contract beats the user, so user ranks 2nd of 3 (incl. self).
+        $this->assertSame(2, $summary['user_rank']);
+        $this->assertSame(3, $summary['total_ranked']);
+        $this->assertEqualsWithDelta(22.0, $summary['cheapest_saving'], 0.01);
+        $this->assertTrue($summary['is_overpaying']);
+
+        // The cheapest contract carries a period_comparison payload on its card.
+        $contracts = $component->viewData('contracts');
+        $first = $contracts->first();
+        $this->assertSame('cheap-contract', $first->id);
+        $this->assertEqualsWithDelta(18.0, $first->period_comparison['period_cost'], 0.01);
+        $this->assertEqualsWithDelta(22.0, $first->period_comparison['period_saving'], 0.01);
+
+        $component->assertSee('Sinun sopimuksesi')
+            ->assertSee('Säästö');
+    }
+
+    public function test_clearing_the_bill_returns_to_normal_listing(): void
+    {
+        $this->createFixedContract('cheap-contract', 'Halpa Kiinteä', 'Halpa Energia Oy', 5.0, 3.00);
+
+        $component = $this->billComponent();
+        $this->assertTrue($component->instance()->isBillModeActive());
+
+        $component->call('clearBill');
+
+        $this->assertFalse($component->instance()->isBillModeActive());
+        // Normal annual credibility bar is back.
+        $component->assertSee('Näin laskemme');
+    }
+
+    public function test_spot_contract_without_period_history_is_omitted(): void
+    {
+        $this->createFixedContract('cheap-contract', 'Halpa Kiinteä', 'Halpa Energia Oy', 5.0, 3.00);
+
+        // Spot contract: margin-only General component, no SpotPriceHour rows for
+        // the period, so it cannot be priced and must drop out (not show €0).
+        $spot = ElectricityContract::create([
+            'id' => 'spot-contract',
+            'company_name' => 'Kallis Energia Oy',
+            'name' => 'Pörssi Sopimus',
+            'contract_type' => 'OpenEnded',
+            'pricing_model' => 'Spot',
+            'metering' => 'General',
+            'target_group' => 'Household',
+            'availability_is_national' => true,
+        ]);
+        PriceComponent::create([
+            'id' => 'pc-gen-spot-contract',
+            'electricity_contract_id' => 'spot-contract',
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 0.40,
+            'payment_unit' => 'c/kWh',
+        ]);
+        ActiveContract::create(['id' => 'spot-contract']);
+
+        $component = $this->billComponent();
+
+        $ids = $component->viewData('contracts')->pluck('id')->all();
+        $this->assertContains('cheap-contract', $ids);
+        $this->assertNotContains('spot-contract', $ids, 'Spot contract without period history must be omitted from bill-mode ranking.');
+    }
+}

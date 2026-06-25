@@ -63,18 +63,21 @@ receives a with-VAT-comparable total.
   stays consistent with the rest of Voltikka's listings (trailing-365-day spot
   averages, seasonal model, promo-aware first-year estimate).
 
-The ranking table sorts by **period cost** (most honest). The user's row does
-not display a c/kWh value: the service has an implied bill average
-(`userTotalEur / kWh`), but that is not a known energy price and can include
-base-fee effects, so showing it as if it were the user's contract energy price
-is misleading. The verdict hero leads with the annualized **"€/vuosi"** saving
-as the primary number, explicitly marked `arvio`, with **"€/kk"** as a sub-line;
-the **period** saving is shown separately as the actual/`toteutunut` figure. This
-is deliberate: the headline number is a seasonally-annualized estimate (driven
-by `includesHeating` + `annualKwh`), so it must read as an estimate, not a hard
-fact. The hero caption names the seasonal / heating basis so the heating toggle's
-effect on the number is legible. The table savings column header is `Säästö €/kk
-(arvio)` for the same reason.
+The ranking table sorts by **period cost** (most honest), and its row-level
+savings column must use the same period basis (`user period cost - row period
+cost`). Do not mix the table's period prices with annualized €/kk row savings:
+that made rows look contradictory when a contract was clearly cheaper for the
+bill period but had a much smaller annualized estimate. The user's row does not
+display a c/kWh value: the service has an implied bill average (`userTotalEur /
+kWh`), but that is not a known energy price and can include base-fee effects, so
+showing it as if it were the user's contract energy price is misleading. The
+verdict hero leads with the annualized **"€/vuosi"** saving as the primary
+number, explicitly marked `arvio`, with **"€/kk"** as a sub-line; the **period**
+saving is shown separately as the actual/`toteutunut` figure. This is deliberate:
+the headline number is a seasonally-annualized estimate (driven by
+`includesHeating` + `annualKwh`), so it must read as an estimate, not a hard fact.
+The hero caption names the seasonal / heating basis so the heating toggle's
+effect on the number is legible.
 
 ## Annualization (seasonal)
 
@@ -127,6 +130,28 @@ user changed consumption. Regression test:
 Note: the main site (`ContractsList` / `ContractPriceCalculator`) does **not**
 apply this cap filtering, so those capped tiers can still appear as implausibly
 cheap for heavy users in the main listings. That is a separate, broader fix.
+
+## In-listing usage (`periodRowsForContracts`)
+
+`BillComparisonService::periodRowsForContracts(iterable $contracts, BillComparisonRequest $request)`
+is the entry point for the **in-listing** bill comparison on `/sahkosopimus`
+(`ContractsList::buildBillModePaginator()`), as opposed to the standalone
+`/maksatko-liikaa` page which uses `compare()`.
+
+- The caller (the listing component) owns filtering, sorting and pagination and
+  passes its already-filtered contract set; the service returns each contract's
+  exact-period counterfactual cost, keyed by contract id.
+- Rows are **available-only**: spot contracts with no spot history for the
+  period and contracts with no usable pricing are omitted (never shown at €0),
+  exactly like `compare()`.
+- Per-request setup (dates, annualized kWh, spot history, trailing-365-day spot
+  averages) is shared with `compare()` via the private `periodContext()` so the
+  two paths stay numerically identical. Change period/annualization math in
+  `periodContext()` only.
+- The listing's period mode is **period basis only** (facts): savings shown are
+  `user bill total − contract period cost`. Annualized savings are intentionally
+  not computed there (annualizing one month's implied unit rate is biased for
+  spot/seasonal/time contracts). See `tasks/promote-bill-comparison-in-listings`.
 
 ## Query guardrails
 

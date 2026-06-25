@@ -1,0 +1,44 @@
+{
+  "tasks": [
+    {
+      "name": "Home-page promo: add a calm on-brand link/band promoting /maksatko-liikaa on the home page (HomePage / home-page.blade.php Palvelut grid, full-width closing tile)",
+      "status": "completed"
+    },
+    {
+      "name": "Verify home-page promo renders (npm run build for lg:col-span-3 + visual check)",
+      "status": "completed"
+    },
+    {
+      "name": "Service: BillComparisonService::periodRowsForContracts() + periodContext() refactor (reuse periodCostEur for filtered listing set)",
+      "status": "completed"
+    },
+    {
+      "name": "Component: bill-mode props/actions + buildBillModePaginator() in base ContractsList; getContractsProperty branch in both overrides; SahkosopimusIndex flips showBillComparison",
+      "status": "completed"
+    },
+    {
+      "name": "Card: billMode/periodComparison props -> period €/kk + neutral säästö €/kk + period-scoped secondary line",
+      "status": "completed"
+    },
+    {
+      "name": "View: bill-entry UI (gated) + dark current-contract anchor + period-mode card loop",
+      "status": "completed"
+    },
+    {
+      "name": "Cache bypass: billActive guard in isDefaultListingCacheable (+ interactive-only state)",
+      "status": "completed"
+    },
+    {
+      "name": "Tests: SahkosopimusBillModeTest (activation, ranking, clear, spot-skip); BillComparison refactor regression green",
+      "status": "completed"
+    },
+    {
+      "name": "Docs: root AGENTS, Livewire AGENTS, BillComparison service AGENTS",
+      "status": "completed"
+    },
+    {
+      "name": "impeccable critique pass + fixes (dark-anchor contrast slate-400->300, loading indicator, spot label in bill mode, aria-pressed chips)",
+      "status": "completed"
+    }
+  ]
+}

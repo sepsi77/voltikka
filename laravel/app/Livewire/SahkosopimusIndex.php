@@ -23,6 +23,13 @@ class SahkosopimusIndex extends SeoContractsList
     public string $basePath = '/sahkosopimus';
 
     /**
+     * The in-listing bill comparison ("Maksatko liikaa") is proven on the main
+     * /sahkosopimus page first. Flip this on other SeoContractsList pages to roll
+     * the feature out further.
+     */
+    public bool $showBillComparison = true;
+
+    /**
      * Generate SEO-optimized title for the comparison index page.
      * When filters are active, use filter-aware title from parent.
      * Page suffix is added for pages > 1.

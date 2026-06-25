@@ -424,6 +424,12 @@ class SeoContractsList extends ContractsList
             return $contract->isConsumptionInRange($consumption);
         });
 
+        // Bill ("Maksatko liikaa") mode: price the filtered set for the user's
+        // actual billing period and rank by period cost instead of annual cost.
+        if ($this->isBillModeActive()) {
+            return $this->contractsCache = $this->buildBillModePaginator($contracts);
+        }
+
         $sorted = $this->applyCachedMetricsToContracts($contracts, $consumption);
 
         if ($sorted === null) {

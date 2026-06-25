@@ -587,6 +587,87 @@
         </div>
     </section>
 
+    {{-- Bill comparison ("Maksatko liikaa") entry — proven on /sahkosopimus first. --}}
+    @if ($showBillComparison)
+        <section class="mb-8">
+            <div class="bg-white rounded-2xl border border-slate-200 p-6">
+                <div class="flex items-start gap-3 mb-5">
+                    <span class="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-coral-50">
+                        <svg class="w-5 h-5 text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </span>
+                    <div class="min-w-0">
+                        <h3 class="text-lg font-bold text-slate-900">Maksatko nykyisestä sopimuksestasi liikaa?</h3>
+                        <p class="text-sm text-slate-600 mt-0.5">Syötä yhden sähkölaskusi tiedot, niin näet mitä jokainen sopimus olisi maksanut samalla laskutusjaksolla ja paljonko säästäisit vaihtamalla.</p>
+                    </div>
+                </div>
+
+                {{-- Billing period preset chips --}}
+                <div class="flex flex-wrap gap-2 mb-4">
+                    @foreach ($billPresetLabels as $key => $label)
+                        <button
+                            type="button"
+                            wire:click="setBillPeriodPreset('{{ $key }}')"
+                            aria-pressed="{{ $billPeriodPreset === $key ? 'true' : 'false' }}"
+                            class="px-4 py-2 rounded-full text-sm font-medium border transition-colors {{ $billPeriodPreset === $key ? 'bg-slate-950 text-white border-slate-950' : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300' }}"
+                        >
+                            {{ $label }}
+                        </button>
+                    @endforeach
+                </div>
+
+                {{-- Custom date range --}}
+                @if ($billPeriodPreset === 'custom')
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label for="bill-start" class="block text-sm font-medium text-slate-700 mb-1.5">Laskutusjakson alku</label>
+                            <input type="date" id="bill-start" wire:model.live="billStartDate" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500">
+                        </div>
+                        <div>
+                            <label for="bill-end" class="block text-sm font-medium text-slate-700 mb-1.5">Laskutusjakson loppu</label>
+                            <input type="date" id="bill-end" wire:model.live="billEndDate" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500">
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Required inputs: kWh + total paid --}}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="bill-kwh" class="block text-sm font-medium text-slate-700 mb-1.5">Kulutus jaksolla (kWh)</label>
+                        <input type="number" id="bill-kwh" min="0" step="any" inputmode="decimal" wire:model.live.debounce.500ms="billKwh" placeholder="esim. 400" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500 tabular-nums">
+                    </div>
+                    <div>
+                        <label for="bill-total" class="block text-sm font-medium text-slate-700 mb-1.5">Maksoit sähköstä (€)</label>
+                        <input type="number" id="bill-total" min="0" step="any" inputmode="decimal" wire:model.live.debounce.500ms="billTotalEur" placeholder="esim. 35" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500 tabular-nums">
+                        <p class="text-xs text-slate-500 mt-1">Vain sähkösopimuksen osuus, ei sähkön siirtoa.</p>
+                    </div>
+                </div>
+
+                {{-- VAT basis toggle --}}
+                <label class="flex items-start justify-between gap-3 mt-4 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 sm:max-w-md">
+                    <span class="min-w-0">
+                        <span class="block text-sm font-medium text-slate-700">Hinta sisältää arvonlisäveron</span>
+                        <span class="block text-xs text-slate-500">Useimmissa laskuissa kyllä (alv 25,5 %).</span>
+                    </span>
+                    <span class="relative inline-flex shrink-0 mt-0.5">
+                        <input type="checkbox" role="switch" wire:model.live="billIncludesVat" class="peer sr-only">
+                        <span aria-hidden="true" class="block h-6 w-11 rounded-full bg-slate-300 transition-colors peer-checked:bg-coral-500"></span>
+                        <span aria-hidden="true" class="pointer-events-none absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5"></span>
+                    </span>
+                </label>
+
+                @if ($this->isBillModeActive())
+                    <div class="mt-4">
+                        <button type="button" wire:click="clearBill" class="text-sm font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2">
+                            Tyhjennä ja palaa normaaliin vertailuun
+                        </button>
+                    </div>
+                @endif
+            </div>
+        </section>
+    @endif
+
     {{-- Filter Section (shared partial) --}}
     @include('partials.contract-filters')
 
@@ -615,44 +696,95 @@
         </div>
     @endif
 
-    {{-- Results Credibility Bar --}}
-    <div class="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-6">
-        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <svg class="w-5 h-5 text-coral-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <p class="text-sm text-slate-700">
-                    <span class="font-semibold">{{ $contracts->total() }} sopimusta</span> vertailussa — lasketut 12 kk kulut sisältäen tarjoukset, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
-                    <a href="/tietoa#menetelma" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Näin laskemme &rarr;</a>
-                </p>
+    @if ($this->isBillModeActive() && $this->billSummary)
+        {{-- Current-contract anchor: the dark "focused moment" while the user --}}
+        {{-- decides. Coral reserved for the one savings number. --}}
+        @php $bs = $this->billSummary; @endphp
+        <div class="bg-slate-950 rounded-2xl p-6 mb-6 text-white">
+            <p class="text-sm font-semibold uppercase tracking-wide text-coral-400 mb-3">Sinun sopimuksesi</p>
+            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-5">
+                <div>
+                    <p class="text-slate-300 text-sm mb-1">Maksoit laskutusjaksollasi noin</p>
+                    <p class="text-3xl font-extrabold tabular-nums">{{ number_format($bs['user_monthly_cost'], 1, ',', ' ') }}<span class="text-lg font-medium text-slate-300 ml-1">€/kk</span></p>
+                    <p class="text-sm text-slate-300 mt-1">Sijalla {{ $bs['user_rank'] }} / {{ $bs['total_ranked'] }} vertailluista sopimuksista</p>
+                </div>
+                @if ($bs['cheapest_monthly_saving'] > 0.5)
+                    <div class="sm:text-right">
+                        <p class="text-slate-300 text-sm mb-1">Halvimmalla sopimuksella säästäisit</p>
+                        <p class="text-3xl font-extrabold text-coral-400 tabular-nums">{{ number_format($bs['cheapest_monthly_saving'], 0, ',', ' ') }}<span class="text-lg font-medium text-coral-300 ml-1">€/kk</span></p>
+                    </div>
+                @else
+                    <div class="sm:text-right">
+                        <p class="text-base font-semibold text-white">Sopimuksesi on jo kilpailukykyinen.</p>
+                        <p class="text-sm text-slate-300 mt-1">Halvempaa ei juuri löydy tällä jaksolla.</p>
+                    </div>
+                @endif
             </div>
-            <div class="flex items-center gap-4 text-xs text-slate-600">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
-                    Päästötön
-                </span>
-                <span class="flex items-center gap-1.5">
-                    <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
-                    Vähäpäästöinen
-                </span>
-                <span class="flex items-center gap-1.5">
-                    <span class="w-3 h-3 rounded-full bg-red-500"></span>
-                    Fossiilinen
-                </span>
+            <p class="text-xs text-slate-300 mt-4">
+                Vertailu perustuu laskutusjaksosi ({{ $billStartDate }} – {{ $billEndDate }}) toteutuneisiin hintoihin samalla kulutuksella. Pörssisopimuksilla käytetään jakson todellisia tuntihintoja. Hinnat sis. alv 25,5 %, siirtomaksu ei sisälly.
+            </p>
+        </div>
+    @else
+        {{-- Results Credibility Bar --}}
+        <div class="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-6">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <svg class="w-5 h-5 text-coral-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <p class="text-sm text-slate-700">
+                        <span class="font-semibold">{{ $contracts->total() }} sopimusta</span> vertailussa — lasketut 12 kk kulut sisältäen tarjoukset, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
+                        <a href="/tietoa#menetelma" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Näin laskemme &rarr;</a>
+                    </p>
+                </div>
+                <div class="flex items-center gap-4 text-xs text-slate-600">
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+                        Päästötön
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
+                        Vähäpäästöinen
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                        <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                        Fossiilinen
+                    </span>
+                </div>
             </div>
         </div>
+    @endif
+
+    {{-- Non-blocking recompute feedback (filters, consumption, bill entry). --}}
+    <div wire:loading.delay class="fixed bottom-4 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-slate-900 text-white text-sm font-medium px-4 py-2 shadow-lg">
+        <x-spinner size="h-4 w-4" color="text-coral-400" label="Päivitetään vertailua" />
+        <span>Päivitetään…</span>
     </div>
 
     {{-- Contracts List --}}
-    <div class="space-y-4">
+    <div class="space-y-4 transition-opacity duration-200 motion-reduce:transition-none" wire:loading.delay.class="opacity-50">
         @forelse ($contracts as $index => $contract)
             @php
                 // Calculate the overall rank based on current page
                 $overallRank = (($contracts->currentPage() - 1) * $contracts->perPage()) + $index + 1;
             @endphp
 
-            @if ($overallRank === 1)
+            @if ($this->isBillModeActive())
+                <x-contract-card
+                    :contract="$contract"
+                    :rank="$overallRank"
+                    :featured="false"
+                    :consumption="$consumption"
+                    :prices="$this->getLatestPrices($contract)"
+                    :percentiles="$this->getPercentiles()"
+                    :billMode="true"
+                    :periodComparison="$contract->period_comparison ?? null"
+                    :showRank="true"
+                    :showEmissions="true"
+                    :showEnergyBadges="true"
+                    :showSpotBadge="true"
+                />
+            @elseif ($overallRank === 1)
                 <x-featured-contract-card
                     :contract="$contract"
                     :consumption="$consumption"

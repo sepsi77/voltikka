@@ -23,6 +23,7 @@ Purpose:
 Important semantics:
 - the bill total is the anchor — the user's pricing model / day-night split / margin are never modelled. The standalone energy-price/base-fee "explanatory" inputs and the "miksi kallis" box they fed were removed in the 2026-06 simplification (low payoff, never touched the counterfactual); `BillComparisonRequest` no longer carries `energyPriceCents`/`baseFeeEur`. Do not reintroduce without a real product reason.
 - the verdict hero leads with the annualized **€/vuosi** saving as the primary number, explicitly labelled `arvio` (with €/kk as a sub-line and the **period** saving shown as the actual/`toteutunut` figure). The headline is a seasonally-annualized estimate driven by `includesHeating` + `annualKwh`, so it must stay labelled as an estimate; the hero caption names the heating/seasonal basis so the toggle's effect on the number is visible. Keep `includesHeating` + `annualKwh` — they drive the hero, they are not decorative.
+- the ranking table must keep row-level values on the same period basis: `Jakson hinta` and `Säästö jaksolta` both compare the visitor's entered bill period and kWh. Do not show annualized €/kk row savings in that table; annualized savings belong in the verdict hero.
 - the ranking table must not show the user's implied c/kWh value in the `c/kWh` column. That value is only `bill total / kWh` (a blended bill average, possibly affected by base fees), not the user's known energy price.
 - `includesVat` (default true) normalizes a pre-VAT total to Voltikka's with-VAT basis via `VAT_MULTIPLIER` (1.255) before comparison. Market contract costs are energy-only incl. ALV 25.5 %, excl. siirto.
 - period presets are the last 3 **completed** calendar months (the current
@@ -39,6 +40,50 @@ Important semantics:
 - this is a per-user calculator: no public prepared-data caching and it is intentionally not in `SetPublicCacheHeaders` (matches the heat-pump / solar calculators).
 - loading feedback uses the shared `<x-spinner>` Blade component (`resources/views/components/spinner.blade.php`) inside a `wire:loading.delay` fixed bottom-right pill plus a `wire:loading.delay.class="opacity-50"` dim on the results region. Reuse `<x-spinner>` for any new loading indicator rather than re-inlining the SVG, so the coral spinner stays visually consistent across calculators.
 - both WebApplication + FAQPage schemas render in the view via `<x-schema-markup :schemas="[$jsonLd, $faqJsonLd]" />`; `getFaqItemsProperty()` is the single source of truth for the FAQ.
+
+## In-listing bill comparison (`ContractsList` bill mode)
+
+Separate from the standalone `/maksatko-liikaa` page: the contract listings can
+optionally take the visitor's bill and rank it against the listed contracts
+in-place, showing **EUR savings vs their current contract** on the cards. Proven
+on `/sahkosopimus` first.
+
+Primary files:
+- `ContractsList.php` (bill-mode properties, actions, `buildBillModePaginator()`)
+- `SeoContractsList.php` / `SahkosopimusIndex.php` (the latter sets `$showBillComparison = true`)
+- `../../resources/views/livewire/seo-contracts-list.blade.php` (entry form + anchor + period-mode card loop)
+- `../../resources/views/components/contract-card.blade.php` (`billMode` / `periodComparison` props)
+- `../Services/BillComparison/AGENTS.md` (`periodRowsForContracts`)
+
+Important semantics:
+- **Period basis only (facts).** When a valid bill is entered, the listing
+  reranks by each contract's *exact billing-period* cost (`periodCostEur`) via
+  `BillComparisonService::periodRowsForContracts()`, not the annual estimate.
+  Savings on a card = `user bill total − contract period cost`. Annualized
+  savings are intentionally **not** shown here (annualizing one month's implied
+  unit rate is biased for spot/seasonal/time). See `tasks/promote-bill-comparison-in-listings`.
+- `$showBillComparison` is the single rollout switch: `false` by default
+  (`ContractsList`/`SeoContractsList`), `true` on `SahkosopimusIndex`. Flip it on
+  other SeoContractsList pages to roll out.
+- `$billActive` + the bill inputs are **interactive state only, never `#[Url]`**,
+  so a fresh GET always starts in normal mode and the cached default-listing
+  payload is unaffected. `isDefaultListingCacheable()` also guards `! $billActive`.
+- `getContractsProperty()` (in both `ContractsList` and `SeoContractsList`)
+  branches to `buildBillModePaginator()` after applying the page's filters, so
+  filters still apply in bill mode (period costs are computed for the filtered set).
+- `buildBillModePaginator()` reuses `loadVisibleContracts()` then attaches a
+  `period_comparison` array per visible contract and recomputes `emission_factor`
+  (the visible reload has no annual metrics in bill mode, so the CO2 stripe would
+  otherwise default wrong). `$billSummary` (rank, monthly cost, cheapest saving)
+  is filled here for the dark "Sinun sopimuksesi" anchor.
+- Card period block: €/kk from `period cost ÷ months`, a period-scoped secondary
+  line (`X € / laskutusjakso`, never an annual `€/v`), and a neutral-slate
+  "Säästö €/kk" delta (green/red reserved for CO2 per `../../../DESIGN.md`).
+  Framed "laskutusjaksollasi" so a winter bill's higher €/kk is not read as a
+  typical going-forward monthly cost.
+- Period preset / annualization helpers mirror the standalone tool (last 3
+  completed months); `booted()` seeds default dates + preset labels each request.
+- Tests: `tests/Feature/SahkosopimusBillModeTest.php`.
 
 ## `HeatPumpCalculator`
 

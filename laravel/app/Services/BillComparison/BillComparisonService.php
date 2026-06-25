@@ -52,38 +52,21 @@ class BillComparisonService
 
     public function compare(BillComparisonRequest $request): BillComparisonResult
     {
-        $warnings = [];
+        $ctx = $this->periodContext($request);
 
-        $startLocal = Carbon::parse($request->startDate, 'Europe/Helsinki')->startOfDay();
-        $endLocal = Carbon::parse($request->endDate, 'Europe/Helsinki')->endOfDay();
-        $totalDays = $startLocal->startOfDay()->diffInDays($endLocal->copy()->startOfDay()) + 1;
-        $monthsInPeriod = max(0.0, $totalDays / 30.0);
-
-        $kwh = $request->kwh;
-        $userTotalEur = $request->userTotalEur;
-        $userImpliedCentsPerKwh = $kwh > 0 ? ($userTotalEur / $kwh) * 100 : 0.0;
-
-        if ($userImpliedCentsPerKwh > 0 && ($userImpliedCentsPerKwh < 1 || $userImpliedCentsPerKwh > 50)) {
-            $warnings[] = 'implied_out_of_range';
-        }
-
-        // Annualized consumption: use the visitor's known annual consumption
-        // if provided, otherwise scale the period kWh up with the seasonal
-        // profile.
-        $periodShare = $this->profile->periodShare($startLocal, $endLocal, $request->includesHeating);
-        $annualKwh = ($request->annualKwhOverride !== null && $request->annualKwhOverride > 0)
-            ? (int) round($request->annualKwhOverride)
-            : ($periodShare > 0 ? (int) round($kwh / $periodShare) : (int) round($kwh * 12));
-
-        // Spot history for the billing period (lazily loaded, shared by all spot contracts).
-        $spotHours = $this->loadSpotHours($startLocal, $endLocal);
-        $spotAvgCentsPerKwh = $this->spotAverageCentsPerKwh($spotHours);
-
-        // Trailing 365-day spot averages for the annualized estimate path,
-        // matching how ContractsList computes spot contract annual costs.
-        $rollingSpot = SpotPriceAverage::latestRolling365Days();
-        $spotPriceDay = $rollingSpot?->day_avg_with_tax;
-        $spotPriceNight = $rollingSpot?->night_avg_with_tax;
+        $warnings = $ctx['warnings'];
+        $startLocal = $ctx['startLocal'];
+        $endLocal = $ctx['endLocal'];
+        $totalDays = $ctx['totalDays'];
+        $monthsInPeriod = $ctx['monthsInPeriod'];
+        $kwh = $ctx['kwh'];
+        $userTotalEur = $ctx['userTotalEur'];
+        $userImpliedCentsPerKwh = $ctx['userImpliedCentsPerKwh'];
+        $annualKwh = $ctx['annualKwh'];
+        $spotHours = $ctx['spotHours'];
+        $spotAvgCentsPerKwh = $ctx['spotAvgCentsPerKwh'];
+        $spotPriceDay = $ctx['spotPriceDay'];
+        $spotPriceNight = $ctx['spotPriceNight'];
 
         $contracts = $this->loadActiveHouseholdContracts();
         $componentsByContractId = ElectricityContract::getLatestPriceComponentsForCalculationByContractIds(
@@ -173,6 +156,118 @@ class BillComparisonService
             annualKwh: $annualKwh,
             warnings: $warnings,
         );
+    }
+
+    /**
+     * Compute period-cost comparison rows for a specific set of contracts
+     * (e.g. the current filtered listing) instead of the full active-household
+     * universe. Rows are keyed by contract id; only available rows are returned
+     * (spot contracts with no spot history for the period, or contracts with no
+     * usable pricing, are omitted, matching compare()). Consumption-cap
+     * eligibility is still applied against the annualized kWh.
+     *
+     * This is the in-listing ("Maksatko liikaa" on /sahkosopimus) entry point:
+     * the caller owns filtering/sorting/pagination and only needs each
+     * contract's exact-period counterfactual cost.
+     *
+     * @param  iterable<int, ElectricityContract>  $contracts
+     * @return array{rows: array<int, BillComparisonRow>, annual_kwh: int, period_months: float, user_period_cost: float, spot_avg_cents_per_kwh: ?float}
+     */
+    public function periodRowsForContracts(iterable $contracts, BillComparisonRequest $request): array
+    {
+        $ctx = $this->periodContext($request);
+
+        $contracts = $contracts instanceof Collection ? $contracts : collect($contracts);
+
+        $componentsByContractId = ElectricityContract::getLatestPriceComponentsForCalculationByContractIds(
+            $contracts->pluck('id')
+        );
+
+        $rows = [];
+        foreach ($contracts as $contract) {
+            $row = $this->buildMarketRow(
+                $contract,
+                $componentsByContractId[$contract->id] ?? [],
+                $ctx['kwh'],
+                $ctx['annualKwh'],
+                $ctx['totalDays'],
+                $ctx['monthsInPeriod'],
+                $ctx['startLocal'],
+                $ctx['endLocal'],
+                $ctx['spotHours'],
+                $ctx['spotPriceDay'],
+                $ctx['spotPriceNight'],
+            );
+
+            if ($row !== null) {
+                $rows[$contract->id] = $row;
+            }
+        }
+
+        return [
+            'rows' => $rows,
+            'annual_kwh' => $ctx['annualKwh'],
+            'period_months' => $ctx['monthsInPeriod'],
+            'user_period_cost' => $ctx['userTotalEur'],
+            'spot_avg_cents_per_kwh' => $ctx['spotAvgCentsPerKwh'],
+        ];
+    }
+
+    /**
+     * Shared per-request period setup (dates, annualized kWh, spot history and
+     * trailing-365-day spot averages) used by both compare() and
+     * periodRowsForContracts() so the two paths stay numerically identical.
+     *
+     * @return array<string, mixed>
+     */
+    private function periodContext(BillComparisonRequest $request): array
+    {
+        $warnings = [];
+
+        $startLocal = Carbon::parse($request->startDate, 'Europe/Helsinki')->startOfDay();
+        $endLocal = Carbon::parse($request->endDate, 'Europe/Helsinki')->endOfDay();
+        $totalDays = $startLocal->startOfDay()->diffInDays($endLocal->copy()->startOfDay()) + 1;
+        $monthsInPeriod = max(0.0, $totalDays / 30.0);
+
+        $kwh = $request->kwh;
+        $userTotalEur = $request->userTotalEur;
+        $userImpliedCentsPerKwh = $kwh > 0 ? ($userTotalEur / $kwh) * 100 : 0.0;
+
+        if ($userImpliedCentsPerKwh > 0 && ($userImpliedCentsPerKwh < 1 || $userImpliedCentsPerKwh > 50)) {
+            $warnings[] = 'implied_out_of_range';
+        }
+
+        // Annualized consumption: use the visitor's known annual consumption
+        // if provided, otherwise scale the period kWh up with the seasonal
+        // profile.
+        $periodShare = $this->profile->periodShare($startLocal, $endLocal, $request->includesHeating);
+        $annualKwh = ($request->annualKwhOverride !== null && $request->annualKwhOverride > 0)
+            ? (int) round($request->annualKwhOverride)
+            : ($periodShare > 0 ? (int) round($kwh / $periodShare) : (int) round($kwh * 12));
+
+        // Spot history for the billing period (lazily loaded, shared by all spot contracts).
+        $spotHours = $this->loadSpotHours($startLocal, $endLocal);
+        $spotAvgCentsPerKwh = $this->spotAverageCentsPerKwh($spotHours);
+
+        // Trailing 365-day spot averages for the annualized estimate path,
+        // matching how ContractsList computes spot contract annual costs.
+        $rollingSpot = SpotPriceAverage::latestRolling365Days();
+
+        return [
+            'warnings' => $warnings,
+            'startLocal' => $startLocal,
+            'endLocal' => $endLocal,
+            'totalDays' => $totalDays,
+            'monthsInPeriod' => $monthsInPeriod,
+            'kwh' => $kwh,
+            'userTotalEur' => $userTotalEur,
+            'userImpliedCentsPerKwh' => $userImpliedCentsPerKwh,
+            'annualKwh' => $annualKwh,
+            'spotHours' => $spotHours,
+            'spotAvgCentsPerKwh' => $spotAvgCentsPerKwh,
+            'spotPriceDay' => $rollingSpot?->day_avg_with_tax,
+            'spotPriceNight' => $rollingSpot?->night_avg_with_tax,
+        ];
     }
 
     /**

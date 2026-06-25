@@ -11,11 +11,13 @@ use App\Models\ElectricityContract;
 use App\Models\Postcode;
 use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
+use App\Services\BillComparison\BillComparisonService;
 use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractListCacheService;
 use App\Services\ContractMarketInsights\ContractMarketInsightService;
 use App\Services\ContractPriceCalculator;
+use App\Services\DTO\BillComparisonRequest;
 use App\Services\DTO\EnergyCalculatorRequest;
 use App\Services\DTO\EnergyUsage;
 use App\Services\EnergyCalculator;
@@ -106,6 +108,57 @@ class ContractsList extends Component
             'consumption' => 18000,
         ],
     ];
+
+    // ===== Bill comparison ("Maksatko liikaa") in-listing mode =====
+
+    /**
+     * Whether the optional bill-comparison entry is shown on this listing.
+     * Off by default; SahkosopimusIndex turns it on so /sahkosopimus proves the
+     * feature first. This is the single rollout switch for other listing pages.
+     */
+    public bool $showBillComparison = false;
+
+    /**
+     * Whether a valid bill has been entered and the listing is in period mode
+     * (cards show the bill-period cost + savings vs the user's bill instead of
+     * the annual estimate). Interactive state only; never URL-bound, so a fresh
+     * GET always starts with this off and the cached default listing is unaffected.
+     */
+    public bool $billActive = false;
+
+    /**
+     * Bill period preset: last 3 completed calendar months plus 'custom'.
+     */
+    public string $billPeriodPreset = 'last_month';
+
+    public string $billStartDate = '';
+
+    public string $billEndDate = '';
+
+    /**
+     * Bill inputs are string|null tolerant because mobile browsers can send
+     * blank values while a number field is being cleared.
+     */
+    public float|string|null $billKwh = null;
+
+    public float|string|null $billTotalEur = null;
+
+    public bool $billIncludesVat = true;
+
+    public bool $billIncludesHeating = false;
+
+    /**
+     * Finnish month labels for the period preset chips, recomputed each request.
+     *
+     * @var array<string, string>
+     */
+    public array $billPresetLabels = [];
+
+    /**
+     * Per-request summary for the current-contract anchor (rank, monthly cost,
+     * cheapest saving). Populated by buildBillModePaginator() during render.
+     */
+    protected ?array $billSummaryCache = null;
 
     // ===== Inline Calculator Fields =====
 
@@ -390,6 +443,311 @@ class ContractsList extends Component
         }
 
         return max(0, (int) $this->consumption);
+    }
+
+    // ===== Bill comparison ("Maksatko liikaa") in-listing mode =====
+
+    /**
+     * Lifecycle hook (runs every request after mount/hydrate). Keeps the period
+     * preset labels current and seeds default dates for the bill entry form.
+     */
+    public function booted(): void
+    {
+        if (! $this->showBillComparison) {
+            return;
+        }
+
+        $this->billPresetLabels = $this->computeBillPresetLabels();
+
+        if ($this->billStartDate === '' || $this->billEndDate === '') {
+            $this->applyBillPreset();
+        }
+    }
+
+    public function setBillPeriodPreset(string $key): void
+    {
+        $this->billPeriodPreset = $key;
+
+        if ($key !== 'custom') {
+            $this->applyBillPreset();
+        }
+
+        $this->recomputeBill();
+    }
+
+    public function updatedBillStartDate(): void
+    {
+        $this->billPeriodPreset = 'custom';
+        $this->recomputeBill();
+    }
+
+    public function updatedBillEndDate(): void
+    {
+        $this->billPeriodPreset = 'custom';
+        $this->recomputeBill();
+    }
+
+    public function updatedBillKwh(): void
+    {
+        $this->recomputeBill();
+    }
+
+    public function updatedBillTotalEur(): void
+    {
+        $this->recomputeBill();
+    }
+
+    public function updatedBillIncludesVat(): void
+    {
+        $this->recomputeBill();
+    }
+
+    public function updatedBillIncludesHeating(): void
+    {
+        $this->recomputeBill();
+    }
+
+    /**
+     * Clear the bill and return the listing to its normal annual-cost view.
+     */
+    public function clearBill(): void
+    {
+        $this->billActive = false;
+        $this->billKwh = null;
+        $this->billTotalEur = null;
+        $this->billSummaryCache = null;
+        $this->contractsCache = null;
+        $this->allFilteredContractsCache = null;
+        $this->resetPage();
+    }
+
+    /**
+     * Recompute bill-mode state after any bill input change and drop the cached
+     * paginator/metrics so the next render rebuilds in the correct mode.
+     */
+    protected function recomputeBill(): void
+    {
+        $this->billActive = $this->isBillInputValid();
+        $this->contractsCache = null;
+        $this->allFilteredContractsCache = null;
+        $this->billSummaryCache = null;
+        $this->resetPage();
+    }
+
+    protected function isBillInputValid(): bool
+    {
+        return $this->showBillComparison
+            && $this->billKwhValue() > 0
+            && $this->billTotalValue() > 0
+            && $this->billDatesValid();
+    }
+
+    /**
+     * Whether the listing should render in bill (period) mode this request.
+     */
+    public function isBillModeActive(): bool
+    {
+        return $this->billActive && $this->isBillInputValid();
+    }
+
+    public function getBillSummaryProperty(): ?array
+    {
+        return $this->billSummaryCache;
+    }
+
+    protected function billFloat(mixed $value): ?float
+    {
+        return is_numeric($value) ? (float) $value : null;
+    }
+
+    protected function billKwhValue(): float
+    {
+        $value = $this->billFloat($this->billKwh);
+
+        return ($value !== null && $value > 0) ? $value : 0.0;
+    }
+
+    protected function billTotalValue(): float
+    {
+        $value = $this->billFloat($this->billTotalEur);
+
+        return ($value !== null && $value > 0) ? $value : 0.0;
+    }
+
+    protected function billParseDate(string $value): ?Carbon
+    {
+        if ($value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value, 'Europe/Helsinki');
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    protected function billDatesValid(): bool
+    {
+        $start = $this->billParseDate($this->billStartDate);
+        $end = $this->billParseDate($this->billEndDate);
+
+        return $start !== null && $end !== null && $end >= $start;
+    }
+
+    protected function buildBillRequest(): BillComparisonRequest
+    {
+        $total = $this->billTotalValue();
+
+        // Normalize to Voltikka's comparable basis: energy only, incl. ALV 25.5 %.
+        $comparable = $this->billIncludesVat ? $total : ($total * BillComparison::VAT_MULTIPLIER);
+
+        return new BillComparisonRequest(
+            startDate: Carbon::parse($this->billStartDate, 'Europe/Helsinki'),
+            endDate: Carbon::parse($this->billEndDate, 'Europe/Helsinki'),
+            kwh: $this->billKwhValue(),
+            userTotalEur: $comparable,
+            includesHeating: $this->billIncludesHeating,
+            annualKwhOverride: null,
+        );
+    }
+
+    /**
+     * Period presets cover only fully completed billing months (the current
+     * unbilled month is excluded), matching the standalone /maksatko-liikaa tool.
+     */
+    protected function applyBillPreset(): void
+    {
+        $today = Carbon::today('Europe/Helsinki');
+
+        $start = match ($this->billPeriodPreset) {
+            'last_month' => $today->copy()->subMonthNoOverflow()->startOfMonth(),
+            'month_before' => $today->copy()->subMonthsNoOverflow(2)->startOfMonth(),
+            'two_months_before' => $today->copy()->subMonthsNoOverflow(3)->startOfMonth(),
+            default => null,
+        };
+
+        if ($start === null) {
+            return; // custom — keep user-entered dates
+        }
+
+        $this->billStartDate = $start->toDateString();
+        $this->billEndDate = $start->copy()->endOfMonth()->toDateString();
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function computeBillPresetLabels(): array
+    {
+        $today = Carbon::today('Europe/Helsinki');
+
+        return [
+            'last_month' => $this->billMonthLabel($today->copy()->subMonthNoOverflow()->startOfMonth()),
+            'month_before' => $this->billMonthLabel($today->copy()->subMonthsNoOverflow(2)->startOfMonth()),
+            'two_months_before' => $this->billMonthLabel($today->copy()->subMonthsNoOverflow(3)->startOfMonth()),
+            'custom' => 'Muu jakso',
+        ];
+    }
+
+    protected function billMonthLabel(Carbon $date): string
+    {
+        $fiMonths = [
+            1 => 'tammikuu', 2 => 'helmikuu', 3 => 'maaliskuu', 4 => 'huhtikuu',
+            5 => 'toukokuu', 6 => 'kesäkuu', 7 => 'heinäkuu', 8 => 'elokuu',
+            9 => 'syyskuu', 10 => 'lokakuu', 11 => 'marraskuu', 12 => 'joulukuu',
+        ];
+
+        return ucfirst($fiMonths[(int) $date->format('n')]).' '.$date->format('Y');
+    }
+
+    /**
+     * Build the period-mode paginator: every contract priced for the user's
+     * exact billing period + kWh (reusing BillComparisonService), sorted by
+     * period cost, with the user's bill anchored into the ranking. Attaches a
+     * `period_comparison` payload to each visible contract for the card.
+     */
+    protected function buildBillModePaginator(Collection $contracts): LengthAwarePaginator
+    {
+        $request = $this->buildBillRequest();
+        $data = app(BillComparisonService::class)->periodRowsForContracts($contracts, $request);
+
+        /** @var array<int, \App\Services\DTO\BillComparisonRow> $rows */
+        $rows = $data['rows'];
+
+        // Only contracts with an available period row participate (spot without
+        // history for the period, or no usable pricing, are omitted).
+        $available = $contracts->filter(fn ($contract) => isset($rows[$contract->id]))->values();
+        $sorted = $available->sortBy(fn ($contract) => $rows[$contract->id]->periodCostEur)->values();
+
+        $userTotal = (float) $data['user_period_cost'];
+        $periodMonths = max(0.0001, (float) $data['period_months']);
+
+        $cheaperThanUser = $sorted->filter(fn ($contract) => $rows[$contract->id]->periodCostEur < $userTotal)->count();
+        $cheapest = $sorted->first();
+        $cheapestPeriodCost = $cheapest ? $rows[$cheapest->id]->periodCostEur : null;
+        $cheapestSaving = $cheapestPeriodCost !== null ? ($userTotal - $cheapestPeriodCost) : 0.0;
+
+        $this->billSummaryCache = [
+            'user_period_cost' => $userTotal,
+            'user_monthly_cost' => $userTotal / $periodMonths,
+            'user_rank' => $cheaperThanUser + 1,
+            'total_ranked' => $sorted->count() + 1,
+            'cheapest_saving' => $cheapestSaving,
+            'cheapest_monthly_saving' => $cheapestSaving / $periodMonths,
+            'period_months' => $periodMonths,
+            'annual_kwh' => $data['annual_kwh'],
+            'spot_avg_cents_per_kwh' => $data['spot_avg_cents_per_kwh'],
+            'has_spot_in_top' => $sorted->take(3)->contains(fn ($contract) => $rows[$contract->id]->isSpot),
+            'is_overpaying' => $cheaperThanUser > 0 && $cheapestSaving > 0,
+        ];
+
+        $this->allFilteredContractsCache = $sorted;
+
+        $total = $sorted->count();
+        $page = max(1, $this->page);
+        $perPage = $this->perPage;
+        $offset = ($page - 1) * $perPage;
+
+        $items = $this->loadVisibleContracts($sorted, $offset, $perPage);
+
+        $emissionsCalculator = app(CO2EmissionsCalculator::class);
+
+        $items = $items->map(function (ElectricityContract $contract) use ($rows, $userTotal, $periodMonths, $emissionsCalculator) {
+            $row = $rows[$contract->id] ?? null;
+
+            if ($row !== null) {
+                $periodCost = $row->periodCostEur;
+                $saving = $userTotal - $periodCost;
+                $contract->period_comparison = [
+                    'period_cost' => $periodCost,
+                    'period_monthly_cost' => $periodCost / $periodMonths,
+                    'period_saving' => $saving,
+                    'period_monthly_saving' => $saving / $periodMonths,
+                    'period_months' => $periodMonths,
+                    'is_spot' => $row->isSpot,
+                ];
+            }
+
+            // loadVisibleContracts copies annual metrics from summaries that
+            // never received them in bill mode; recompute the emission factor so
+            // the card's CO2 stripe stays correct.
+            $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
+            $contract->exceeds_consumption_limit = false;
+
+            return $contract;
+        })->values();
+
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            $items,
+            $total,
+            $perPage,
+            $page,
+            [
+                'path' => url($this->basePath),
+                'pageName' => 'page',
+            ]
+        );
     }
 
     /**
@@ -1108,6 +1466,12 @@ class ContractsList extends Component
             return $contract->isConsumptionInRange($consumption);
         });
 
+        // Bill ("Maksatko liikaa") mode: price the filtered set for the user's
+        // actual billing period and rank by period cost instead of annual cost.
+        if ($this->isBillModeActive()) {
+            return $this->contractsCache = $this->buildBillModePaginator($contracts);
+        }
+
         $consumption = $this->consumption;
         $sorted = $this->applyCachedMetricsToContracts($contracts, $consumption);
 
@@ -1687,6 +2051,7 @@ class ContractsList extends Component
             && request()->query() === []
             && $this->page === 1
             && ! $this->hasActiveFilters()
+            && ! $this->billActive
             && $this->postcodeSearch === '';
     }
 

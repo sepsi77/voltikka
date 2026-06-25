@@ -9,6 +9,8 @@
     'showSpotBadge' => true,
     'prices' => null,
     'percentiles' => [],
+    'billMode' => false,
+    'periodComparison' => null,
 ])
 
 @php
@@ -124,6 +126,13 @@
         $headlineEnergyLabel = 'Talvihinta';
     } elseif ($generalPrice !== null && $generalPrice > 0) {
         $headlineEnergyPrice = $generalPrice;
+    }
+
+    // In bill (period) mode the annual `calculated_cost` (and its is-spot flag)
+    // is absent, so a spot contract's low General rate would mislabel as
+    // "Energia". Use the period row's spot flag to restore the "Marginaali" label.
+    if ($billMode && ($periodComparison['is_spot'] ?? false) && $headlineEnergyPrice !== null) {
+        $headlineEnergyLabel = 'Marginaali';
     }
 
     // Determine emissions color for left border
@@ -275,9 +284,54 @@
                 </div>
             </div>
 
+            {{-- Bill ("Maksatko liikaa") mode: same-period €/kk + savings vs the user's bill. --}}
+            {{-- Period figures are facts for the billing period (spot uses the period's --}}
+            {{-- realized hourly prices); framed "laskutusjaksollasi" so a winter bill's --}}
+            {{-- higher €/kk is not read as a typical going-forward monthly cost. --}}
+            @if ($billMode && $periodComparison)
+                @php
+                    $bcMonthly = $periodComparison['period_monthly_cost'];
+                    $bcSaving = $periodComparison['period_monthly_saving'];
+                    $bcIsSpot = $periodComparison['is_spot'] ?? false;
+                    $bcMonthlyDisplay = number_format($bcMonthly, 1, ',', ' ');
+                    [$bcInt, $bcDec] = explode(',', $bcMonthlyDisplay, 2);
+                    // €/kk is the only euro figure on the card (matches the "Sinun
+                    // sopimuksesi" anchor + savings). It is the billing-period cost
+                    // normalized to 30 days; the tooltip explains that basis without
+                    // a second, slightly-different euro number.
+                    $bcPeriodTip = 'Arvioitu kuukausihinta laskutusjaksosi kulutuksella ja toteutuneilla hinnoilla, suhteutettuna 30 vuorokauteen.'
+                        .($bcIsSpot ? ' Pörssisopimuksen hinta perustuu jakson toteutuneisiin tuntihintoihin (oletuksena tasainen tuntikulutus).' : '');
+                    $bcCaption = $bcIsSpot ? 'laskutusjaksollasi · arvio' : 'laskutusjaksollasi';
+                @endphp
+                <div class="order-1 lg:order-none w-full lg:w-[220px] pb-4 lg:pb-0 border-b lg:border-b-0 border-slate-100 lg:text-right">
+                    <p class="lg:hidden text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 mb-1">
+                        Laskutusjaksollasi {{ $bcIsSpot ? '· arvio' : '' }}
+                    </p>
+                    <div class="inline-flex items-baseline gap-1.5 whitespace-nowrap font-extrabold tabular-nums leading-none text-slate-900">
+                        <span>
+                            <span class="text-4xl lg:text-[2.6rem]">{{ $bcInt }}</span><span class="text-2xl lg:text-[1.65rem] text-slate-400">,{{ $bcDec }}</span>
+                        </span>
+                        <span class="text-lg lg:text-base font-medium text-slate-400">€/kk</span>
+                    </div>
+                    <p class="hidden lg:block text-xs text-slate-500 mt-1.5">
+                        <x-info-tip :text="$bcPeriodTip" trigger-class="text-slate-400">{{ $bcCaption }}</x-info-tip>
+                    </p>
+                    @if ($bcSaving > 0.005)
+                        <p class="text-sm font-semibold text-slate-700 tabular-nums mt-1">
+                            Säästö {{ number_format($bcSaving, 1, ',', ' ') }} €/kk
+                        </p>
+                    @elseif ($bcSaving < -0.005)
+                        <p class="text-sm text-slate-500 tabular-nums mt-1">
+                            {{ number_format(abs($bcSaving), 1, ',', ' ') }} €/kk kalliimpi
+                        </p>
+                    @else
+                        <p class="text-sm text-slate-500 tabular-nums mt-1">Sama hinta</p>
+                    @endif
+                </div>
+
             {{-- Total cost: €/kk primary, €/v secondary. --}}
             {{-- Fixed lg width so spot rows (extra "· arvio" tail) line up with non-spot rows. --}}
-            @if ($monthlyCost !== null)
+            @elseif ($monthlyCost !== null)
                 <div class="order-1 lg:order-none w-full lg:w-[220px] pb-4 lg:pb-0 border-b lg:border-b-0 border-slate-100 lg:text-right">
                     <p class="lg:hidden text-[11px] font-bold uppercase tracking-[0.18em] text-coral-600 mb-1">
                         <x-info-tip text="Kuukausihinta = arvioitu 12 kk keskikustannus jaettuna 12:lla, sisältää tarjoukset. Hinnat sis. alv 25,5 %, siirtomaksu ei sisälly.">Kuukausihinta</x-info-tip>

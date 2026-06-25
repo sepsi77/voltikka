@@ -392,7 +392,11 @@ class BillComparison extends Component
      */
     private function resultToArray(BillComparisonResult $result): array
     {
-        $rows = array_map(function ($row) use ($result) {
+        $userPeriodCost = $result->userRow()?->periodCostEur ?? 0.0;
+
+        $rows = array_map(function ($row) use ($result, $userPeriodCost) {
+            $periodSaving = $row->isUser ? null : ($userPeriodCost - $row->periodCostEur);
+
             return [
                 'contract_id' => $row->contractId,
                 'name' => $row->name,
@@ -406,9 +410,7 @@ class BillComparison extends Component
                 'period_cost_eur' => round($row->periodCostEur, 2),
                 'annual_cost_eur' => $row->annualCostEur !== null ? round($row->annualCostEur, 2) : null,
                 'implied_cents_per_kwh' => round($row->impliedCentsPerKwh, 2),
-                'saving_per_month_eur' => $row->savingPerMonthEur($result->userAnnualCost) !== null
-                    ? round($row->savingPerMonthEur($result->userAnnualCost), 2)
-                    : null,
+                'period_saving_eur' => $periodSaving !== null ? round($periodSaving, 2) : null,
                 'detail_url' => $row->detailUrl,
             ];
         }, $result->rows);

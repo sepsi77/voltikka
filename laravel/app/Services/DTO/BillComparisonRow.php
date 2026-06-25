@@ -28,16 +28,4 @@ class BillComparisonRow
         public readonly bool $available = true,
     ) {
     }
-
-    /**
-     * Monthly saving vs the user's annualized cost (€/kk), annualized estimate.
-     */
-    public function savingPerMonthEur(float $userAnnualCost): ?float
-    {
-        if ($this->annualCostEur === null) {
-            return null;
-        }
-
-        return ($userAnnualCost - $this->annualCostEur) / 12;
-    }
 }

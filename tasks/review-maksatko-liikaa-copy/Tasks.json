@@ -2,5 +2,6 @@
   {"name":"Audit live page and source copy","status":"completed"},
   {"name":"Apply Finnish copy fixes","status":"completed"},
   {"name":"Hide user's implied c/kWh from ranking table","status":"completed"},
+  {"name":"Make ranking-table savings use the same billing period basis","status":"completed"},
   {"name":"Run targeted checks","status":"completed"}
 ]

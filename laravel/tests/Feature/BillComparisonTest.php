@@ -156,6 +156,30 @@ class BillComparisonTest extends TestCase
             ->assertDontSee('13,33');
     }
 
+    public function test_ranking_table_savings_use_same_period_basis_as_period_price(): void
+    {
+        $this->createFixedContract('cheap-contract', 'Halpa Kiinteä', 'Halpa Energia Oy', 5.0, 3.00);
+        $this->createFixedContract('expensive-contract', 'Kallis Kiinteä', 'Kallis Energia Oy', 10.0, 3.00);
+
+        // Exactly 30 days means one monthly fee in the period-cost path.
+        $component = Livewire::test('bill-comparison')
+            ->set('periodPreset', 'custom')
+            ->set('startDate', '2026-05-01')
+            ->set('endDate', '2026-05-30')
+            ->set('kwh', 300)
+            ->set('totalEur', 40.00)
+            ->assertSee('Säästö jaksolta')
+            ->assertDontSee('Säästö €/kk');
+
+        $result = $component->viewData('resultArray');
+        $cheap = collect($result['rows'])->firstWhere('contract_id', 'cheap-contract');
+
+        // Cheap period cost is 5 c/kWh * 300 kWh + 3 €/month = 18 €, so the
+        // table saving must be 40 € - 18 € = 22 € for the same bill period.
+        $this->assertSame(18.00, $cheap['period_cost_eur']);
+        $this->assertSame(22.00, $cheap['period_saving_eur']);
+    }
+
     public function test_pre_vat_total_is_normalized_to_with_vat_basis(): void
     {
         $this->createFixedContract('cheap-contract', 'Halpa Kiinteä', 'Halpa Energia Oy', 5.0, 3.00);

@@ -245,7 +245,7 @@
                                 <th class="py-2 pr-3 font-medium">Sopimus</th>
                                 <th class="py-2 pr-3 font-medium text-right">Jakson hinta</th>
                                 <th class="py-2 pr-3 font-medium text-right hidden sm:table-cell">c/kWh</th>
-                                <th class="py-2 pl-3 font-medium text-right">Säästö €/kk (arvio)</th>
+                                <th class="py-2 pl-3 font-medium text-right">Säästö jaksolta</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -287,8 +287,8 @@
                                         @endif
                                     </td>
                                     <td class="py-3 pl-3 text-right whitespace-nowrap {{ $isUser ? 'text-slate-500' : 'text-coral-700 font-semibold' }}">
-                                        @if ($row['saving_per_month_eur'] !== null && $row['saving_per_month_eur'] > 0)
-                                            −{{ number_format($row['saving_per_month_eur'], 1, ',', ' ') }} €
+                                        @if ($row['period_saving_eur'] !== null && $row['period_saving_eur'] > 0)
+                                            {{ number_format($row['period_saving_eur'], 2, ',', ' ') }} €
                                         @else
                                             –
                                         @endif
@@ -314,7 +314,7 @@
                     </table>
                 </div>
                 <p class="text-xs text-slate-500 mt-4 tabular-nums">
-                    Hinnat sisältävät ALV:n 25,5 %, eivätkä sisällä sähkön siirtoa. Jakson hinta perustuu samaan laskutusjaksoon ja kulutukseen kuin laskusi. Markkinasopimusten c/kWh on jakson hinnasta ja kulutuksesta laskettu keskiarvo (sis. perusmaksun). Säästö €/kk on vuosikohtainen arvio jaettuna 12:lla.
+                    Hinnat sisältävät ALV:n 25,5 %, eivätkä sisällä sähkön siirtoa. Jakson hinta ja säästö perustuvat samaan laskutusjaksoon ja kulutukseen kuin laskusi. Markkinasopimusten c/kWh on jakson hinnasta ja kulutuksesta laskettu keskiarvo (sis. perusmaksun).
                 </p>
             </section>
 

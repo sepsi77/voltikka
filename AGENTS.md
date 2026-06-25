@@ -189,6 +189,7 @@ php artisan test --filter="ContractsFilterTest"
 - The bill total is the anchor — the user's pricing model / day-night split / margin are never modelled. Optional energy-price/base-fee inputs are explanatory only
 - Leads with monthly + annualized savings (seasonal-adjusted via a heating toggle); spot contracts use actual historical hourly spot prices for the period
 - No new models / DB writes; pure compute, ephemeral. See `laravel/app/Services/BillComparison/AGENTS.md`
+- The same comparison is also available **in-listing** on `/sahkosopimus` (`SahkosopimusIndex`): an optional bill entry reranks the listed contracts by their exact billing-period cost and shows EUR savings vs the user's current contract directly on the cards, without leaving the listing. Period basis only (facts); gated behind `ContractsList::$showBillComparison` (on for `SahkosopimusIndex`, the rollout switch for other listing pages). See `laravel/app/Livewire/AGENTS.md`
 
 ## Laravel Architecture
 
