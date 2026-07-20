@@ -1,0 +1,20 @@
+{
+  "tasks": [
+    {
+      "name": "Trace header widget price lookup and loading behavior",
+      "status": "completed"
+    },
+    {
+      "name": "Trace hourly and quarter-hour chart scaling for signed values",
+      "status": "completed"
+    },
+    {
+      "name": "Review existing regression coverage",
+      "status": "completed"
+    },
+    {
+      "name": "Attempt bounded read-only production confirmation for 2026-07-19",
+      "status": "blocked"
+    }
+  ]
+}

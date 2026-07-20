@@ -490,37 +490,119 @@
             document.addEventListener('DOMContentLoaded', () => {
                 const navRoots = ['site-desktop-nav', 'site-mobile-nav'];
 
-                const loadHeaderSpotPrice = () => {
-                    document.querySelectorAll('[data-header-spot-price]').forEach((container) => {
-                        if (container.dataset.loaded === 'true' || container.dataset.loading === 'true') {
-                            return;
+                const headerSpotPriceLoader = (() => {
+                    const refreshDelay = 60_000;
+                    const retryDelays = [5_000, 15_000, 30_000, 60_000];
+                    let timer = null;
+                    let inFlight = null;
+                    let failures = 0;
+                    let lastMarkup = null;
+                    let lastState = null;
+
+                    const containers = () => Array.from(document.querySelectorAll('[data-header-spot-price]'));
+
+                    const render = (markup, state) => {
+                        containers().forEach((container) => {
+                            container.innerHTML = markup;
+                            container.dataset.state = state;
+                        });
+                    };
+
+                    const schedule = (delay) => {
+                        if (timer !== null) {
+                            window.clearTimeout(timer);
                         }
 
-                        container.dataset.loading = 'true';
+                        timer = window.setTimeout(() => {
+                            timer = null;
+                            refresh();
+                        }, delay);
+                    };
 
-                        fetch(container.dataset.url, {
+                    const unavailableMarkup = () => {
+                        const template = containers()
+                            .map((container) => container.querySelector('[data-header-spot-price-unavailable]'))
+                            .find(Boolean);
+
+                        return template?.innerHTML.trim() || lastMarkup;
+                    };
+
+                    const responseState = (html) => {
+                        const template = document.createElement('template');
+                        template.innerHTML = html.trim();
+
+                        return template.content.firstElementChild?.dataset.headerSpotPriceState === 'available'
+                            ? 'available'
+                            : 'unavailable';
+                    };
+
+                    const refresh = () => {
+                        if (inFlight) {
+                            return inFlight;
+                        }
+
+                        const container = containers()[0];
+                        if (!container) {
+                            return Promise.resolve();
+                        }
+
+                        inFlight = fetch(container.dataset.url, {
                             headers: {
                                 'X-Requested-With': 'XMLHttpRequest',
                             },
                             credentials: 'same-origin',
                         })
-                            .then((response) => response.ok ? response.text() : null)
-                            .then((html) => {
-                                if (!html) {
-                                    return;
+                            .then((response) => {
+                                if (!response.ok) {
+                                    throw new Error(`Header spot price request failed: ${response.status}`);
                                 }
 
-                                container.innerHTML = html;
-                                container.dataset.loaded = 'true';
+                                return response.text();
+                            })
+                            .then((html) => {
+                                if (!html.trim()) {
+                                    throw new Error('Header spot price response was empty');
+                                }
+
+                                lastMarkup = html;
+                                lastState = responseState(html);
+                                failures = 0;
+                                render(lastMarkup, lastState);
+                                schedule(refreshDelay);
                             })
                             .catch(() => {
-                                // Keep the lightweight placeholder on failure.
+                                failures += 1;
+
+                                if (!lastMarkup) {
+                                    lastMarkup = unavailableMarkup();
+                                    lastState = 'unavailable';
+                                }
+
+                                if (lastMarkup) {
+                                    render(lastMarkup, lastState);
+                                }
+
+                                schedule(retryDelays[Math.min(failures - 1, retryDelays.length - 1)]);
                             })
                             .finally(() => {
-                                container.dataset.loading = 'false';
+                                inFlight = null;
                             });
-                    });
-                };
+
+                        return inFlight;
+                    };
+
+                    const start = () => {
+                        if (lastMarkup) {
+                            render(lastMarkup, lastState);
+                        }
+
+                        if (timer === null && !inFlight) {
+                            refresh();
+                        }
+                    };
+
+                    return { start };
+                })();
 
                 const clearPendingNavState = () => {
                     document.querySelectorAll('[data-nav-pending="true"]').forEach((link) => {
@@ -636,10 +718,12 @@
                     startNavigationFeedback();
                 });
 
+                document.addEventListener('livewire:navigated', headerSpotPriceLoader.start);
+
                 if ('requestIdleCallback' in window) {
-                    window.requestIdleCallback(loadHeaderSpotPrice, { timeout: 1500 });
+                    window.requestIdleCallback(headerSpotPriceLoader.start, { timeout: 1500 });
                 } else {
-                    window.addEventListener('load', () => setTimeout(loadHeaderSpotPrice, 150), { once: true });
+                    window.addEventListener('load', () => setTimeout(headerSpotPriceLoader.start, 150), { once: true });
                 }
             });
         </script>

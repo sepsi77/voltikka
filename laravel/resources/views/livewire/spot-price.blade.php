@@ -346,29 +346,22 @@
                 x-data="{
                     expandedHour: null,
                     expandedStripKey: null,
-                    expandedScaleMax: null,
                     selectedMeta: null,
                     quarterPricesByHour: {{ Js::from($quarterPricesByHour) }},
                     avg30d: {{ $rolling30DayAvgWithVat ?? 'null' }},
-                    selectHour(timestamp, stripKey, stripScaleMax, meta) {
+                    selectHour(timestamp, stripKey, meta) {
                         if (this.expandedHour === timestamp && this.expandedStripKey === stripKey) {
                             this.closeDetail();
                         } else {
                             this.expandedHour = timestamp;
                             this.expandedStripKey = stripKey;
-                            this.expandedScaleMax = stripScaleMax;
                             this.selectedMeta = meta;
                         }
                     },
                     closeDetail() {
                         this.expandedHour = null;
                         this.expandedStripKey = null;
-                        this.expandedScaleMax = null;
                         this.selectedMeta = null;
-                    },
-                    quarterBarHeight(price) {
-                        const scale = this.expandedScaleMax || 20;
-                        return Math.max(4, Math.min(100, Math.round((price / scale) * 100)));
                     }
                 }"
                 id="tunnit"
@@ -385,7 +378,7 @@
                                 <svg class="w-3 h-3 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.368 2.447a1 1 0 00-.364 1.118l1.287 3.957c.3.921-.755 1.688-1.54 1.118L10.588 14.7a1 1 0 00-1.176 0l-3.368 2.447c-.784.57-1.838-.197-1.539-1.118l1.287-3.957a1 1 0 00-.364-1.118L2.06 8.507c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.289-3.957z"/></svg>
                                 Päivän halvin
                             </span>
-                            @if ($rolling30DayAvgWithVat)
+                            @if ($rolling30DayAvgWithVat !== null)
                                 <span class="inline-flex items-center gap-1.5"><span class="inline-block w-3 border-t border-dashed border-slate-400"></span> 30 pv ka {{ number_format($rolling30DayAvgWithVat, 2, ',', ' ') }} c</span>
                             @endif
                         </p>
@@ -407,9 +400,13 @@
                         @php
                             $stripStats = $strip['stats'];
                             $isToday = $strip['key'] === 'today';
+                            $scaleMin = $strip['scaleMin'] ?? 0;
                             $scaleMax = $strip['scaleMax'] ?? 20;
-                            $scaleMaxLabel = number_format($scaleMax, $scaleMax >= 10 ? 0 : 1, ',', ' ');
-                            $scaleMidLabel = number_format($scaleMax / 2, $scaleMax >= 10 ? 0 : 1, ',', ' ');
+                            $zeroPercent = $strip['zeroPercent'] ?? 0;
+                            $axisMagnitude = max(abs($scaleMin), abs($scaleMax));
+                            $axisDecimals = $axisMagnitude >= 10 ? 0 : 1;
+                            $scaleMinLabel = number_format($scaleMin, $axisDecimals, ',', ' ');
+                            $scaleMaxLabel = number_format($scaleMax, $axisDecimals, ',', ' ');
                         @endphp
                         @php
                             $baselinePercent = $strip['avgBaselinePercent'] ?? null;
@@ -440,15 +437,23 @@
                             </div>
 
                             <div class="flex items-stretch h-32 md:h-40 bg-slate-50 rounded-lg ring-1 ring-slate-100 overflow-hidden">
-                                <!-- Y-axis: 3 price ticks aligned to bar area -->
+                                <!-- Signed Y-axis aligned to the shared chart domain -->
                                 <div class="relative w-10 sm:w-12 shrink-0 text-[10px] font-medium text-slate-400 tabular-nums select-none" aria-hidden="true">
                                     <span class="absolute right-1.5 top-1 leading-none">{{ $scaleMaxLabel }} c</span>
-                                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 leading-none">{{ $scaleMidLabel }}</span>
-                                    <span class="absolute right-1.5 bottom-1 leading-none">0</span>
+                                    @if ($zeroPercent > 7 && $zeroPercent < 93)
+                                        <span class="absolute right-1.5 -translate-y-1/2 leading-none" style="bottom: {{ $zeroPercent }}%">0</span>
+                                    @endif
+                                    <span class="absolute right-1.5 bottom-1 leading-none">{{ $scaleMinLabel }}{{ $scaleMin != 0 ? ' c' : '' }}</span>
                                 </div>
-                                <!-- Bar area with 30-day-average baseline -->
+                                <!-- Bar area with signed zero and 30-day-average baselines -->
                                 <div class="relative flex-1 min-w-0 flex items-stretch gap-1 sm:gap-1.5 py-2 pr-2 pl-1">
-                                    @if ($baselinePercent !== null)
+                                    <span
+                                        class="pointer-events-none absolute left-0 right-2 border-t border-slate-300"
+                                        style="bottom: {{ $zeroPercent }}%;"
+                                        aria-hidden="true"
+                                        data-chart-zero-baseline
+                                    ></span>
+                                    @if ($baselinePercent !== null && abs($baselinePercent - $zeroPercent) > 0.5)
                                         <span
                                             class="pointer-events-none absolute left-0 right-2 border-t border-dashed border-slate-400/70"
                                             style="bottom: {{ $baselinePercent }}%;"
@@ -466,7 +471,10 @@
                                         $hourNum = $price['hour'] ?? $price['helsinki_hour'] ?? 0;
                                         $priceWithVat = $price['price_with_vat'] ?? $price['price_with_tax'] ?? 0;
                                         $colorClass = $price['colorClass'] ?? 'bg-yellow-400';
-                                        $widthPercent = $price['widthPercent'] ?? 50;
+                                        $barBottomPercent = $price['barBottomPercent'] ?? $zeroPercent;
+                                        $barHeightPercent = $price['barHeightPercent'] ?? 0;
+                                        $barEndPercent = $price['barEndPercent'] ?? $zeroPercent;
+                                        $direction = $price['direction'] ?? 'zero';
                                         $isCurrent = !empty($price['isCurrentHour']);
                                         $timestamp = $price['timestamp'] ?? 0;
                                         $hourStart = str_pad($hourNum, 2, '0', STR_PAD_LEFT);
@@ -488,20 +496,21 @@
                                     @else
                                         <button
                                             type="button"
-                                            @click="selectHour({{ $timestamp }}, '{{ $strip['key'] }}', {{ $scaleMax }}, {{ $metaJson }})"
+                                            @click="selectHour({{ $timestamp }}, '{{ $strip['key'] }}', {{ $metaJson }})"
                                             class="group relative flex-1 min-w-0 h-full rounded-sm hover:bg-white/60 focus:bg-white/80 focus:outline-none focus:ring-2 focus:ring-coral-400 transition-colors"
                                             :class="expandedHour === {{ $timestamp }} && expandedStripKey === '{{ $strip['key'] }}' ? 'bg-white ring-2 ring-coral-400' : ''"
                                             aria-label="{{ $stripPriceLabel }} · {{ number_format($priceWithVat, 2, ',', ' ') }} c/kWh"
                                             title="{{ $hourStart }}:00 · {{ number_format($priceWithVat, 2, ',', ' ') }} c/kWh"
                                         >
                                             <span
-                                                class="absolute bottom-0 left-0 right-0 rounded-sm {{ $colorClass }} {{ $strip['isForecast'] ? 'opacity-80' : '' }} {{ $isCurrent ? 'ring-2 ring-coral-500 ring-offset-1 ring-offset-slate-50' : '' }}"
-                                                style="height: {{ $widthPercent }}%"
+                                                class="absolute left-0 right-0 rounded-sm {{ $colorClass }} {{ $strip['isForecast'] ? 'opacity-80' : '' }} {{ $isCurrent ? 'ring-2 ring-coral-500 ring-offset-1 ring-offset-slate-50' : '' }}"
+                                                style="bottom: {{ $barBottomPercent }}%; height: {{ $barHeightPercent }}%"
+                                                data-price-direction="{{ $direction }}"
                                             ></span>
                                             @if ($isRank1)
                                                 <span
                                                     class="pointer-events-none absolute left-1/2 -translate-x-1/2 text-amber-500"
-                                                    style="bottom: calc({{ $widthPercent }}% + 2px);"
+                                                    style="bottom: calc({{ $barEndPercent }}% + 2px);"
                                                     title="Päivän halvin"
                                                 >
                                                     <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.957a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.368 2.447a1 1 0 00-.364 1.118l1.287 3.957c.3.921-.755 1.688-1.54 1.118L10.588 14.7a1 1 0 00-1.176 0l-3.368 2.447c-.784.57-1.838-.197-1.539-1.118l1.287-3.957a1 1 0 00-.364-1.118L2.06 8.507c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.289-3.957z"/></svg>
@@ -559,10 +568,16 @@
                                                             </template>
                                                         </span>
                                                         <div class="flex-1 h-4 bg-white rounded relative overflow-hidden ring-1 ring-slate-200">
+                                                            <span
+                                                                class="absolute top-0 bottom-0 w-px bg-slate-300"
+                                                                :style="'left: ' + quarter.zero_percent + '%'"
+                                                                aria-hidden="true"
+                                                            ></span>
                                                             <div
-                                                                class="h-full rounded transition-all duration-200"
+                                                                class="absolute top-0 bottom-0 rounded transition-all duration-200"
                                                                 :class="quarter.is_current_slot ? 'bg-coral-500' : 'bg-slate-500'"
-                                                                :style="'width: ' + quarterBarHeight(quarter.price_with_tax) + '%'"
+                                                                :style="'left: ' + quarter.bar_left_percent + '%; width: ' + quarter.bar_width_percent + '%'"
+                                                                :data-price-direction="quarter.direction"
                                                             ></div>
                                                         </div>
                                                         <span

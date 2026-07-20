@@ -216,6 +216,9 @@ Important semantics:
 - forecast rows must stay labelled as estimates and cite `nordpool-predict-fi` by vividfog with the GitHub URL
 - forecast rows must not affect current price, today/tomorrow actual sections, CSV export, spot averages, or appliance helper calculations unless explicitly redesigned
 - appliance helper cards intentionally exclude the current hour as well as past hours, because a displayed hour must be a fully upcoming actionable slot; tomorrow's official prices may be used when available and cards should label tomorrow/date context
+- hourly day strips use one shared signed domain that includes all displayed values, zero, and the 30-day average; positive bars extend above zero, negative bars below zero, and exact zero has no false minimum-height bar
+- expanded 15-minute rows use the same signed/diverging geometry horizontally; server-precomputed `bar_left_percent`, `bar_width_percent`, and `zero_percent` keep the Alpine view presentation-only
+- minimum visible sizing applies only to non-zero bars and must preserve direction; all-negative and all-zero datasets must remain legible
 
 ## `ArticleContractPriceComparisonChart`
 

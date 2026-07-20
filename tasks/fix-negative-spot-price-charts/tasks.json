@@ -1,0 +1,32 @@
+{
+  "tasks": [
+    {
+      "name": "Define signed-domain and zero-baseline chart metadata",
+      "status": "completed"
+    },
+    {
+      "name": "Implement signed hourly strip scaling and bar geometry",
+      "status": "completed"
+    },
+    {
+      "name": "Update hourly axes, average baseline, and cheapest marker positioning",
+      "status": "completed"
+    },
+    {
+      "name": "Implement signed diverging quarter-hour bars",
+      "status": "completed"
+    },
+    {
+      "name": "Add positive, mixed, all-negative, zero, and small-value regression tests",
+      "status": "completed"
+    },
+    {
+      "name": "Run focused tests and visually verify responsive chart behavior",
+      "status": "completed"
+    },
+    {
+      "name": "Update nearby AGENTS.md documentation with signed-chart semantics",
+      "status": "completed"
+    }
+  ]
+}

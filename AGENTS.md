@@ -158,10 +158,10 @@ php artisan test --filter="ContractsFilterTest"
 - Features:
   - Hourly and 15-minute price granularity
   - Third-party forecast section clearly separated from official prices with source citation
-  - Real-time current price in header
+  - Real-time current price in the header, loaded by one shared retrying/60-second refresh loop; zero and negative values are valid prices
   - Household appliance cost calculators (sauna, laundry, dishwasher, water heater)
   - Historical comparisons (daily, weekly, monthly, year-over-year)
-  - Price charts with color-coded bars
+  - Price charts with signed zero baselines so negative hourly and 15-minute prices extend in the opposite direction from positive prices
   - CSV export
 
 ### 5. Solar Panel Calculator

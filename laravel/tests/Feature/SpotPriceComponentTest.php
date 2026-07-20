@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Livewire\SpotPrice;
 use App\Models\SpotPriceForecast;
 use App\Models\SpotPriceHour;
+use App\Models\SpotPriceQuarter;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -23,6 +25,7 @@ class SpotPriceComponentTest extends TestCase
         // Freeze time to a known moment for consistent testing
         // January 20, 2026 at 14:30 Helsinki time
         Carbon::setTestNow(Carbon::parse('2026-01-20 14:30:00', self::TIMEZONE));
+        Cache::flush();
     }
 
     protected function tearDown(): void
@@ -45,6 +48,20 @@ class SpotPriceComponentTest extends TestCase
             'utc_datetime' => $utcTime,
             'price_without_tax' => $priceWithoutTax,
             'vat_rate' => $vatRate,
+        ]);
+    }
+
+    private function createQuarterSpotPrice(int $year, int $month, int $day, int $hour, int $minute, float $priceWithoutTax): SpotPriceQuarter
+    {
+        $helsinkiTime = Carbon::create($year, $month, $day, $hour, $minute, 0, self::TIMEZONE);
+        $utcTime = $helsinkiTime->copy()->setTimezone('UTC');
+
+        return SpotPriceQuarter::create([
+            'region' => self::REGION,
+            'timestamp' => $utcTime->timestamp,
+            'utc_datetime' => $utcTime,
+            'price_without_tax' => $priceWithoutTax,
+            'vat_rate' => 0.255,
         ]);
     }
 
@@ -204,6 +221,139 @@ class SpotPriceComponentTest extends TestCase
 
         $this->assertEquals(-2.5, $minMax['min']);
         $this->assertEquals(3.0, $minMax['max']);
+    }
+
+    public function test_hourly_chart_uses_signed_geometry_for_mixed_prices(): void
+    {
+        $this->createSpotPrice(2026, 1, 20, 0, -2.0);
+        $this->createSpotPrice(2026, 1, 20, 1, 0.0);
+        $this->createSpotPrice(2026, 1, 20, 2, 3.0);
+
+        $component = Livewire::test(SpotPrice::class);
+        $strip = $component->instance()->getDayStripsForChart()[0];
+        $prices = collect($strip['prices'])->keyBy('hour');
+
+        $this->assertLessThan(0, $strip['scaleMin']);
+        $this->assertGreaterThan(0, $strip['scaleMax']);
+        $this->assertGreaterThan(0, $strip['zeroPercent']);
+        $this->assertLessThan(100, $strip['zeroPercent']);
+        $this->assertSame('negative', $prices[0]['direction']);
+        $this->assertLessThan($strip['zeroPercent'], $prices[0]['barBottomPercent']);
+        $this->assertSame('zero', $prices[1]['direction']);
+        $this->assertSame(0.0, $prices[1]['barHeightPercent']);
+        $this->assertSame('positive', $prices[2]['direction']);
+        $this->assertSame($strip['zeroPercent'], $prices[2]['barBottomPercent']);
+        $this->assertGreaterThan($strip['zeroPercent'], $prices[2]['barEndPercent']);
+    }
+
+    public function test_positive_only_day_strips_share_a_zero_based_domain(): void
+    {
+        $this->createSpotPrice(2026, 1, 20, 0, 1.0);
+        $this->createSpotPrice(2026, 1, 20, 1, 5.0);
+        $this->createSpotPrice(2026, 1, 21, 0, 10.0);
+
+        $component = Livewire::test(SpotPrice::class);
+        $strips = $component->instance()->getDayStripsForChart();
+
+        $this->assertCount(2, $strips);
+        $this->assertSame(0.0, $strips[0]['scaleMin']);
+        $this->assertSame(0.0, $strips[0]['zeroPercent']);
+        $this->assertSame($strips[0]['scaleMin'], $strips[1]['scaleMin']);
+        $this->assertSame($strips[0]['scaleMax'], $strips[1]['scaleMax']);
+        $this->assertSame('positive', $strips[0]['prices'][0]['direction']);
+        $this->assertSame(0.0, $strips[0]['prices'][0]['barBottomPercent']);
+    }
+
+    public function test_all_negative_hourly_chart_keeps_zero_at_top_and_values_distinct(): void
+    {
+        $this->createSpotPrice(2026, 1, 20, 0, -1.0);
+        $this->createSpotPrice(2026, 1, 20, 1, -5.0);
+
+        $component = Livewire::test(SpotPrice::class);
+        $strip = $component->instance()->getDayStripsForChart()[0];
+        $prices = collect($strip['prices'])->keyBy('hour');
+
+        $this->assertSame(0.0, $strip['scaleMax']);
+        $this->assertSame(100.0, $strip['zeroPercent']);
+        $this->assertSame('negative', $prices[0]['direction']);
+        $this->assertSame('negative', $prices[1]['direction']);
+        $this->assertGreaterThan($prices[0]['barHeightPercent'], $prices[1]['barHeightPercent']);
+    }
+
+    public function test_zero_hourly_prices_have_no_false_positive_bar(): void
+    {
+        $this->createSpotPrice(2026, 1, 20, 0, 0.0);
+        $this->createSpotPrice(2026, 1, 20, 1, 0.0);
+
+        $component = Livewire::test(SpotPrice::class);
+        $strip = $component->instance()->getDayStripsForChart()[0];
+        $prices = collect($strip['prices'])->reject(fn (array $price) => !empty($price['isPlaceholder']));
+
+        $this->assertSame(-1.0, $strip['scaleMin']);
+        $this->assertSame(1.0, $strip['scaleMax']);
+        $this->assertSame(50.0, $strip['zeroPercent']);
+        $this->assertTrue($prices->every(fn (array $price) => $price['direction'] === 'zero'));
+        $this->assertTrue($prices->every(fn (array $price) => $price['barHeightPercent'] === 0.0));
+    }
+
+    public function test_small_non_zero_hourly_bars_remain_visible_without_losing_direction(): void
+    {
+        $this->createSpotPrice(2026, 1, 20, 0, -0.01);
+        $this->createSpotPrice(2026, 1, 20, 1, 0.0);
+        $this->createSpotPrice(2026, 1, 20, 2, 0.01);
+        $this->createSpotPrice(2026, 1, 20, 3, 100.0);
+        $this->createSpotPrice(2026, 1, 20, 4, -100.0);
+
+        $component = Livewire::test(SpotPrice::class);
+        $prices = collect($component->instance()->getDayStripsForChart()[0]['prices'])->keyBy('hour');
+
+        $this->assertSame('negative', $prices[0]['direction']);
+        $this->assertSame(4.0, $prices[0]['barHeightPercent']);
+        $this->assertSame(0.0, $prices[1]['barHeightPercent']);
+        $this->assertSame('positive', $prices[2]['direction']);
+        $this->assertSame(4.0, $prices[2]['barHeightPercent']);
+    }
+
+    public function test_zero_rolling_average_is_positioned_on_the_zero_baseline(): void
+    {
+        $this->createSpotPrice(2026, 1, 20, 0, -2.0);
+        $this->createSpotPrice(2026, 1, 20, 1, 3.0);
+
+        $component = Livewire::test(SpotPrice::class);
+        $component->instance()->rolling30DayAvgWithVat = 0.0;
+        $strip = $component->instance()->getDayStripsForChart()[0];
+
+        $this->assertSame($strip['zeroPercent'], $strip['avgBaselinePercent']);
+    }
+
+    public function test_quarter_hour_chart_uses_signed_diverging_geometry(): void
+    {
+        $this->createSpotPrice(2026, 1, 20, 14, 2.0);
+        $this->createQuarterSpotPrice(2026, 1, 20, 14, 0, -2.0);
+        $this->createQuarterSpotPrice(2026, 1, 20, 14, 15, 0.0);
+        $this->createQuarterSpotPrice(2026, 1, 20, 14, 30, 3.0);
+
+        $component = Livewire::test(SpotPrice::class);
+        $quarters = collect($component->get('quarterPricesByHour'))->flatten(1)->keyBy('helsinki_minute');
+
+        $this->assertSame('negative', $quarters[0]['direction']);
+        $this->assertLessThan($quarters[0]['zero_percent'], $quarters[0]['bar_left_percent']);
+        $this->assertGreaterThan(0, $quarters[0]['bar_width_percent']);
+        $this->assertSame('zero', $quarters[15]['direction']);
+        $this->assertSame(0.0, $quarters[15]['bar_width_percent']);
+        $this->assertSame('positive', $quarters[30]['direction']);
+        $this->assertSame($quarters[30]['zero_percent'], $quarters[30]['bar_left_percent']);
+    }
+
+    public function test_signed_chart_markup_exposes_zero_baseline_and_negative_direction(): void
+    {
+        $this->createSpotPrice(2026, 1, 20, 0, -2.0);
+        $this->createSpotPrice(2026, 1, 20, 1, 3.0);
+
+        Livewire::test(SpotPrice::class)
+            ->assertSee('data-chart-zero-baseline', false)
+            ->assertSee('data-price-direction="negative"', false)
+            ->assertSee('-2,51 c/kWh');
     }
 
     // ==========================================

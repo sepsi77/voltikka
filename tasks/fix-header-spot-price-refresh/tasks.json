@@ -1,0 +1,28 @@
+{
+  "tasks": [
+    {
+      "name": "Define explicit loading, valid-price, and unavailable markup states",
+      "status": "completed"
+    },
+    {
+      "name": "Implement one shared retrying and periodic header fetch loop",
+      "status": "completed"
+    },
+    {
+      "name": "Remove non-functional polling assumptions from injected markup",
+      "status": "completed"
+    },
+    {
+      "name": "Add negative, zero, fallback, unavailable, and refresh regression coverage",
+      "status": "completed"
+    },
+    {
+      "name": "Run focused tests and verify desktop and mobile header behavior",
+      "status": "completed"
+    },
+    {
+      "name": "Update nearby AGENTS.md documentation with final behavior",
+      "status": "completed"
+    }
+  ]
+}

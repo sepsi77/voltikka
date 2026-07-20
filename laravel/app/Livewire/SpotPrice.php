@@ -80,7 +80,7 @@ class SpotPrice extends Component
         $this->rolling30DayAvgWithVat = Cache::remember('spot_price:rolling30:v1', 300, function () {
             $rolling30 = SpotPriceAverage::latestRolling30Days(self::REGION);
 
-            return $rolling30?->avg_price_without_tax
+            return $rolling30?->avg_price_without_tax !== null
                 ? round($rolling30->avg_price_without_tax * 1.255, 2)
                 : null;
         });
@@ -353,10 +353,10 @@ class SpotPrice extends Component
      * day. Later forecast-only days are kept only when they have at least 6 hours
      * of data so the page doesn't show sparse "looks broken" strips.
      *
-     * Each strip is self-scaled — its bar heights are computed against its own max
-     * price, not a globally unified max, so a 7-day-out forecast spike can't squash
-     * today's bars. The 30-day average is exposed per strip as a percent height so
-     * the view can draw a labeled baseline.
+     * Every strip uses one signed domain so days remain visually comparable. The
+     * domain always includes zero and the 30-day average, allowing negative prices
+     * to extend below an explicit zero baseline instead of collapsing into tiny
+     * positive-looking bars.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -437,10 +437,6 @@ class SpotPrice extends Component
 
         $avg30d = $this->rolling30DayAvgWithVat;
 
-        // Shared scale across every strip so days are visually comparable. The scale
-        // also reserves enough headroom for the 30-day average baseline so it sits
-        // inside the chart area on every strip, including days whose own max is
-        // below the average.
         $allValues = [];
         foreach ($strips as $strip) {
             foreach ($strip['prices'] as $price) {
@@ -450,26 +446,28 @@ class SpotPrice extends Component
                 }
             }
         }
-        $globalMax = !empty($allValues) ? max($allValues) : 0;
-        $avgFloor = ($avg30d !== null && $avg30d > 0) ? $avg30d * 1.15 : 0;
-        $scaleMax = max($globalMax * 1.1, $avgFloor, 3.0);
 
-        return array_map(function (array $strip) use ($avg30d, $scaleMax) {
+        $domain = $this->buildSignedChartDomain($allValues, $avg30d);
+
+        return array_map(function (array $strip) use ($avg30d, $domain) {
             $strip['stats'] = $this->calculateStripStats($strip['prices']);
-            $strip['scaleMax'] = $scaleMax;
-            $strip['avgBaselinePercent'] = ($avg30d !== null && $avg30d > 0 && $avg30d <= $scaleMax)
-                ? round(($avg30d / $scaleMax) * 100, 1)
+            $strip['scaleMin'] = $domain['min'];
+            $strip['scaleMax'] = $domain['max'];
+            $strip['zeroPercent'] = $domain['zeroPercent'];
+            $strip['avgBaselinePercent'] = $avg30d !== null
+                ? $this->valueToChartPercent($avg30d, $domain)
                 : null;
             $strip['avgBaselineValue'] = $avg30d;
 
-            $strip['prices'] = array_map(function (array $price) use ($scaleMax) {
+            $strip['prices'] = array_map(function (array $price) use ($domain) {
                 $value = $price['price_with_vat'] ?? null;
                 $isForecast = !empty($price['isForecast']);
                 $isCurrent = !empty($price['isCurrentHour']);
 
-                $price['widthPercent'] = $value !== null
-                    ? (int) max(4, min(100, round(((float) $value / $scaleMax) * 100)))
-                    : 0;
+                $price = array_merge($price, $this->buildSignedBarGeometry(
+                    $value !== null ? (float) $value : null,
+                    $domain
+                ));
 
                 if ($isCurrent) {
                     $price['colorClass'] = 'bg-coral-500';
@@ -512,6 +510,10 @@ class SpotPrice extends Component
                 'price_with_vat' => null,
                 'colorClass' => 'bg-transparent',
                 'widthPercent' => 0,
+                'direction' => 'zero',
+                'barBottomPercent' => 0.0,
+                'barHeightPercent' => 0.0,
+                'barEndPercent' => 0.0,
                 'isCurrentHour' => false,
                 'badge' => ['label' => '', 'type' => 'normal'],
                 'timestamp' => 0,
@@ -520,6 +522,92 @@ class SpotPrice extends Component
         }
 
         return $padded;
+    }
+
+    /**
+     * @param array<int, float|int> $values
+     * @return array{min: float, max: float, zeroPercent: float}
+     */
+    private function buildSignedChartDomain(array $values, ?float $referenceValue = null): array
+    {
+        $numericValues = array_map('floatval', $values);
+        $numericValues[] = 0.0;
+
+        if ($referenceValue !== null) {
+            $numericValues[] = $referenceValue;
+        }
+
+        $rawMin = min($numericValues);
+        $rawMax = max($numericValues);
+
+        if (abs($rawMin) < 0.000001 && abs($rawMax) < 0.000001) {
+            $scaleMin = -1.0;
+            $scaleMax = 1.0;
+        } else {
+            $scaleMin = $rawMin < 0 ? $rawMin * 1.1 : 0.0;
+            $scaleMax = $rawMax > 0 ? $rawMax * 1.1 : 0.0;
+        }
+
+        $domain = [
+            'min' => round($scaleMin, 4),
+            'max' => round($scaleMax, 4),
+            'zeroPercent' => 0.0,
+        ];
+        $domain['zeroPercent'] = $this->valueToChartPercent(0.0, $domain);
+
+        return $domain;
+    }
+
+    /**
+     * Convert a signed value to a position measured up from the chart bottom.
+     *
+     * @param array{min: float, max: float, zeroPercent: float} $domain
+     */
+    private function valueToChartPercent(float $value, array $domain): float
+    {
+        $range = $domain['max'] - $domain['min'];
+
+        if ($range <= 0) {
+            return 50.0;
+        }
+
+        return round(max(0, min(100, (($value - $domain['min']) / $range) * 100)), 2);
+    }
+
+    /**
+     * @param array{min: float, max: float, zeroPercent: float} $domain
+     * @return array{direction: string, barBottomPercent: float, barHeightPercent: float, barEndPercent: float}
+     */
+    private function buildSignedBarGeometry(?float $value, array $domain): array
+    {
+        $zeroPercent = $domain['zeroPercent'];
+
+        if ($value === null || abs($value) < 0.000001) {
+            return [
+                'direction' => 'zero',
+                'barBottomPercent' => $zeroPercent,
+                'barHeightPercent' => 0.0,
+                'barEndPercent' => $zeroPercent,
+            ];
+        }
+
+        $valuePercent = $this->valueToChartPercent($value, $domain);
+        $direction = $value > 0 ? 'positive' : 'negative';
+        $availablePercent = $direction === 'positive' ? 100 - $zeroPercent : $zeroPercent;
+        $heightPercent = min($availablePercent, max(4.0, abs($valuePercent - $zeroPercent)));
+        $bottomPercent = $direction === 'positive'
+            ? $zeroPercent
+            : $zeroPercent - $heightPercent;
+
+        return [
+            'direction' => $direction,
+            'barBottomPercent' => round($bottomPercent, 2),
+            'barHeightPercent' => round($heightPercent, 2),
+            'barEndPercent' => round(
+                $direction === 'positive' ? $bottomPercent + $heightPercent : $bottomPercent,
+                2
+            ),
+        ];
     }
 
     /**
@@ -744,6 +832,9 @@ class SpotPrice extends Component
             ->get();
 
         $quarterPricesByHour = [];
+        $quarterDomain = $this->buildSignedChartDomain(
+            $quarterPrices->map(fn (SpotPriceQuarter $price) => (float) $price->price_with_tax)->all()
+        );
 
         // Get current Helsinki time for determining the active slot
         $helsinkiNow = Carbon::now(self::TIMEZONE);
@@ -777,13 +868,20 @@ class SpotPrice extends Component
                 $minute === $currentQuarterMinute
             );
 
+            $priceWithTax = round($price->price_with_tax, 2);
+            $geometry = $this->buildSignedBarGeometry($priceWithTax, $quarterDomain);
+
             $quarterPricesByHour[$hourTimestamp][] = [
                 'timestamp' => $price->timestamp,
                 'price_without_tax' => $price->price_without_tax,
-                'price_with_tax' => round($price->price_with_tax, 2),
+                'price_with_tax' => $priceWithTax,
                 'vat_rate' => $price->vat_rate,
                 'helsinki_minute' => $minute,
                 'is_current_slot' => $isCurrentSlot,
+                'direction' => $geometry['direction'],
+                'bar_left_percent' => $geometry['barBottomPercent'],
+                'bar_width_percent' => $geometry['barHeightPercent'],
+                'zero_percent' => $quarterDomain['zeroPercent'],
                 'time_label' => sprintf(
                     '%s:%02d-%s:%02d',
                     $helsinkiTime->format('H'),

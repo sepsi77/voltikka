@@ -134,7 +134,9 @@ File:
 - `HeaderSpotPriceService.php`
 
 Important semantics:
-- the header badge should prefer current 15-minute `spot_prices_quarter` data, but must fall back to the current hourly `spot_prices_hour` row when quarter data is absent; otherwise the menu indicator can stay in its inactive placeholder state even though hourly spot data exists.
+- the header badge should prefer current 15-minute `spot_prices_quarter` data, but must fall back to the current hourly `spot_prices_hour` row when quarter data is absent; otherwise the menu indicator can stay in its inactive placeholder state even though hourly spot data exists
+- availability is based on whether a current row exists, never numeric truthiness; exactly zero and negative prices are valid active header values
+- the layout fetches the Blade fragment through one shared desktop/mobile JavaScript coordinator, retries failures, and refreshes every 60 seconds; do not add `wire:poll` to the fragment injected through `innerHTML`
 
 ### Spot forecasts
 Directory:
