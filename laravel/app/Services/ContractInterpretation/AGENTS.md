@@ -26,7 +26,7 @@ Configuration and assets:
 
 - `config/contract_interpretation.php`
 - `resources/contract-interpretation/schema-v3.json`
-- `resources/contract-interpretation/system-prompt-v11.md`
+- `resources/contract-interpretation/system-prompt-v12.md`
 
 Important semantics:
 
@@ -53,6 +53,7 @@ Important semantics:
 - Prompt v10 and validator v6 detect a flat consumption package from package wording + positive monthly charge + zero unit price + positive consumption limit. They require `flat_fee_or_package`/`flat_fee`, suppress zero included energy as an ordinary unit-price component, and disallow `fixed` without a positive energy rate. They also retain source Hybrid when sparse text provides no explicit contrary evidence.
 - Validator v7 recognizes explicit symmetric numeric evidence such as `+/-1,5`, `±1.5`, and `+−1,5` as evidence for both positive and negative bounds. A normal one-direction value remains evidence for that direction only.
 - Prompt v11 and validator v8 prohibit unknown package-fee placeholders derived from zero included energy. They also require `not_detected` for complete structured pricing without a directional issue, including ordinary Spot estimates and optional fixing excluded from the base price.
+- Prompt v12 and validator v9 treat recognized non-discounted structured-only FixedPrice/Spot data as assessable when descriptions are empty. They require source-model match, complete pricing, `not_detected`, no description-only insufficient-evidence issue, and exact/estimate-required calculation by model. `SeasonalWinterDay` maps to canonical winter energy.
 - `validator_version` is stored on each interpretation and participates in the analysis fingerprint. Change it whenever deterministic publication semantics change enough to require reanalysis.
 - Phase-aware calculations do not yet read `canonical_pricing`; that is a separate pending task.
 - Source snapshots remain immutable evidence.

@@ -434,6 +434,66 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertSame([], app(ContractInterpretationValidator::class)->validate($output, $input));
     }
 
+    public function test_validator_treats_complete_structured_only_spot_pricing_as_assessable(): void
+    {
+        $output = $this->validOutput('contract-1');
+        $output['pricing']['phases'] = [[
+            'label' => 'Current pricing',
+            'phase_kind' => 'current_structured',
+            'starts' => ['kind' => 'contract_start', 'value' => null],
+            'ends' => ['kind' => 'none', 'value' => null],
+            'components' => [[
+                'component_type' => 'spot_margin',
+                'amount' => 0.36,
+                'normal_amount' => null,
+                'unit' => 'cents_per_kwh',
+                'vat_status' => 'unknown',
+                'price_role' => 'current',
+                'source_kind' => 'structured',
+                'evidence' => [['source' => 'components[0].price', 'quote' => 'components[0].price=0.36']],
+            ], [
+                'component_type' => 'monthly_fee',
+                'amount' => 3.59,
+                'normal_amount' => null,
+                'unit' => 'eur_per_month',
+                'vat_status' => 'unknown',
+                'price_role' => 'current',
+                'source_kind' => 'structured',
+                'evidence' => [['source' => 'components[1].price', 'quote' => 'components[1].price=3.59']],
+            ]],
+            'evidence' => [],
+        ]];
+        $input = [
+            'contract_id' => 'contract-1',
+            'pricing_model' => 'Spot',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'components' => [
+                ['price_component_type' => 'General', 'price' => 0.36, 'has_discount' => false],
+                ['price_component_type' => 'Monthly', 'price' => 3.59, 'has_discount' => false],
+            ],
+        ];
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, $input);
+        $this->assertContains(
+            '$.source_consistency.structured_pricing_status must be complete when recognized non-discounted structured components contain all available pricing facts.',
+            $errors,
+        );
+        $this->assertContains(
+            '$.source_consistency.misleading_first_12_months must be not_detected for complete structured-only pricing.',
+            $errors,
+        );
+        $this->assertContains(
+            '$.source_consistency.issue_codes must not contain insufficient_evidence only because descriptive pricing text is absent.',
+            $errors,
+        );
+
+        $output['source_consistency']['structured_pricing_status'] = 'complete';
+        $output['source_consistency']['misleading_first_12_months'] = 'not_detected';
+        $output['source_consistency']['issue_codes'] = [];
+        $this->assertSame([], app(ContractInterpretationValidator::class)->validate($output, $input));
+    }
+
     public function test_validator_accepts_symmetric_numeric_evidence_for_both_bounds(): void
     {
         foreach (['+/-1,5', '±1.5', '+−1,5'] as $notation) {
@@ -934,8 +994,8 @@ class ContractInterpretationPipelineTest extends TestCase
             'analysis_fingerprint' => hash('sha256', $snapshot->source_fingerprint.microtime(true)),
             'status' => ContractInterpretation::STATUS_PENDING,
             'schema_version' => 'schema-v3',
-            'prompt_version' => 'prompt-v11',
-            'validator_version' => 'validator-v8',
+            'prompt_version' => 'prompt-v12',
+            'validator_version' => 'validator-v9',
             'provider' => 'openrouter',
             'model' => 'test-model',
             'output' => $output,

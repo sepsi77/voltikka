@@ -25,6 +25,7 @@ class ContractInterpretationValidator
         $this->validateEvidence($output, $input, '$', $errors);
         $this->validateClassificationConsistency($output, $input, $errors);
         $this->validatePricing($output, $input, $errors);
+        $this->validateStructuredOnlyConsistency($output, $input, $errors);
         $this->validateTemporalConsistency($output, $input, $errors);
         $this->validateMechanismConsistency($output, $input, $errors);
         $this->validateWarningConsistency($output, $errors);
@@ -251,6 +252,71 @@ class ContractInterpretationValidator
     }
 
     /**
+     * Description silence does not make complete structured prices unassessable.
+     *
+     * @param  array<string, mixed>  $output
+     * @param  array<string, mixed>  $input
+     * @param  list<string>  $errors
+     */
+    private function validateStructuredOnlyConsistency(array $output, array $input, array &$errors): void
+    {
+        $hasDescription = collect([
+            $input['short_description'] ?? null,
+            $input['long_description'] ?? null,
+            $input['extra_information_fi'] ?? null,
+            $input['extra_information_default'] ?? null,
+        ])->contains(fn (mixed $value): bool => is_string($value) && trim($value) !== '');
+        $sourceModel = $input['pricing_model'] ?? null;
+        $components = collect($input['components'] ?? []);
+
+        if ($hasDescription
+            || ! in_array($sourceModel, ['FixedPrice', 'Spot'], true)
+            || $components->isEmpty()
+            || $components->contains(fn (array $component): bool => ($component['has_discount'] ?? false) === true)
+            || $this->isFlatPackageSource($input)
+            || $this->detectSourceRecurringResetCadence($input) !== null
+            || ($output['classification']['primary_pricing_model'] ?? null) !== $sourceModel) {
+            return;
+        }
+
+        $expectedTypes = $components->map(
+            fn (array $component): ?string => $this->interpretedComponentType(
+                $component['price_component_type'] ?? null,
+                $sourceModel,
+            ),
+        );
+        if ($expectedTypes->contains(null)) {
+            return;
+        }
+
+        $actualTypes = collect($output['pricing']['phases'] ?? [])
+            ->flatMap(fn (array $phase): array => $phase['components'] ?? [])
+            ->pluck('component_type');
+        if ($expectedTypes->unique()->diff($actualTypes)->isNotEmpty()) {
+            return;
+        }
+
+        $consistency = $output['source_consistency'] ?? [];
+        if (($consistency['pricing_model_status'] ?? null) !== 'match') {
+            $errors[] = '$.source_consistency.pricing_model_status must be match when complete structured-only pricing preserves the source model.';
+        }
+        if (($consistency['structured_pricing_status'] ?? null) !== 'complete') {
+            $errors[] = '$.source_consistency.structured_pricing_status must be complete when recognized non-discounted structured components contain all available pricing facts.';
+        }
+        if (($consistency['misleading_first_12_months'] ?? null) !== 'not_detected') {
+            $errors[] = '$.source_consistency.misleading_first_12_months must be not_detected for complete structured-only pricing.';
+        }
+        if (in_array('insufficient_evidence', $consistency['issue_codes'] ?? [], true)) {
+            $errors[] = '$.source_consistency.issue_codes must not contain insufficient_evidence only because descriptive pricing text is absent.';
+        }
+
+        $expectedCalculation = $sourceModel === 'Spot' ? 'estimate_required' : 'exact';
+        if (($output['calculation']['status'] ?? null) !== $expectedCalculation) {
+            $errors[] = "$.calculation.status must be {$expectedCalculation} for complete structured-only {$sourceModel} pricing.";
+        }
+    }
+
+    /**
      * @param  array<string, mixed>  $output
      * @param  array<string, mixed>  $input
      * @param  list<string>  $errors
@@ -457,7 +523,7 @@ class ContractInterpretationValidator
             'General' => $pricingModel === 'Spot' ? 'spot_margin' : 'energy_general',
             'DayTime' => 'energy_day',
             'NightTime' => 'energy_night',
-            'SeasonalWinter' => 'energy_seasonal_winter',
+            'SeasonalWinter', 'SeasonalWinterDay' => 'energy_seasonal_winter',
             'SeasonalOther' => 'energy_seasonal_other',
             'Monthly' => 'monthly_fee',
             default => null,
