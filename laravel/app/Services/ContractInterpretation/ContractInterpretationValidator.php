@@ -25,7 +25,9 @@ class ContractInterpretationValidator
         $this->validateEvidence($output, $input, '$', $errors);
         $this->validateClassificationConsistency($output, $input, $errors);
         $this->validatePricing($output, $input, $errors);
+        $this->validateTemporalConsistency($output, $input, $errors);
         $this->validateMechanismConsistency($output, $input, $errors);
+        $this->validateWarningConsistency($output, $errors);
 
         return array_values(array_unique($errors));
     }
@@ -233,6 +235,62 @@ class ContractInterpretationValidator
                 && ! $this->textContainsNumber($consumptionEvidence, $number)) {
                 $errors[] = "$.pricing.consumption_effect.{$field} lacks numeric evidence.";
             }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $output
+     * @param  array<string, mixed>  $input
+     * @param  list<string>  $errors
+     */
+    private function validateTemporalConsistency(array $output, array $input, array &$errors): void
+    {
+        $analysisDateValue = $input['analysis_date'] ?? null;
+        if (! is_string($analysisDateValue) || ! $this->isDate($analysisDateValue)) {
+            return;
+        }
+
+        $analysisDate = new DateTimeImmutable($analysisDateValue);
+        foreach ($output['pricing']['phases'] ?? [] as $phaseIndex => $phase) {
+            $end = $phase['ends'] ?? [];
+            $endValue = $end['value'] ?? null;
+            if (($end['kind'] ?? null) !== 'date'
+                || ! is_string($endValue)
+                || ! $this->isDate($endValue)) {
+                continue;
+            }
+
+            if (new DateTimeImmutable($endValue) < $analysisDate) {
+                $errors[] = "$.pricing.phases[{$phaseIndex}] ends before analysis_date and must not affect the current interpretation.";
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $output
+     * @param  list<string>  $errors
+     */
+    private function validateWarningConsistency(array $output, array &$errors): void
+    {
+        $consistency = $output['source_consistency'] ?? [];
+        if (($consistency['structured_pricing_status'] ?? null) !== 'complete'
+            || ($output['calculation']['status'] ?? null) !== 'exact'
+            || ($consistency['misleading_first_12_months'] ?? null) !== 'uncertain') {
+            return;
+        }
+
+        $directionalIssues = [
+            'promotion_metadata_missing',
+            'structured_matches_intro_only',
+            'future_price_omitted',
+            'future_price_unknown',
+            'pricing_model_mismatch',
+            'component_mismatch',
+            'unsupported_consumption_effect',
+            'recurring_reset_requires_estimate',
+        ];
+        if (array_intersect($consistency['issue_codes'] ?? [], $directionalIssues) === []) {
+            $errors[] = '$.source_consistency.misleading_first_12_months must be not_detected when pricing is complete and exact with no directional issue.';
         }
     }
 

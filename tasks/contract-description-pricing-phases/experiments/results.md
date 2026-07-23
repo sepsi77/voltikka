@@ -240,6 +240,28 @@ Retained evidence:
 - `runs/local-production-v8-gold22-20260723/production-validation-summary.json`
 - `runs/local-production-v8-gold22-20260723/repair-summary.json`
 
+## Prompt v9 temporal and warning evaluation
+
+Prompt v9 excludes absolute-date phases that expired before analysis_date and makes general open-ended price-change rights non-directional. Validator v5 rejects expired output phases and unsupported `uncertain` warning states.
+
+The complete 22-case run produced:
+
+- 22/22 successful initial calls
+- 15/22 initial outputs passed validator v5
+- all seven failed outputs passed within the two-call correction limit
+- 22/22 final outputs passed; one case needed both correction calls
+- weighted key-field score before correction was 96.21%
+- initial calls cost $0.2010; correction calls cost $0.0775
+- mean initial latency was 10.18 seconds
+
+A validator-v5 replay of the latest 10-contract production smoke test flagged only the intended semantic cases: Fortum Kesto's unsupported uncertain state and expired phases in Aalto Kuukausihinta and Huoleton. One local correction call fixed each. Fresh prompt-v9 calls then made Fortum and Aalto semantically valid initially; Huoleton also removed the expired phase and had only an unrelated numeric-evidence error suitable for bounded correction. These calls did not write to production.
+
+Retained evidence:
+
+- `runs/local-production-v9-gold22-20260723/summary.json`
+- `runs/local-production-v9-gold22-20260723/production-validation-summary.json`
+- `runs/local-production-v9-gold22-20260723/repair-summary.json`
+
 ## Recommendation
 
-Use `openai/gpt-5.6-luna`, prompt v8, schema v3, validator v4, low reasoning, exact production validation, and at most two automatic correction calls. Run asynchronously and idempotently by source/prompt/validator/model fingerprint. Persist every model attempt, evidence, usage, and validation result. Do not publish any output that still fails deterministic validation.
+Use `openai/gpt-5.6-luna`, prompt v9, schema v3, validator v5, low reasoning, exact production validation, and at most two automatic correction calls. Run asynchronously and idempotently by source/prompt/validator/model fingerprint. Persist every model attempt, evidence, usage, and validation result. Do not publish any output that still fails deterministic validation.

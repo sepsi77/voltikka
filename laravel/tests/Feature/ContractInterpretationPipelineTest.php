@@ -366,6 +366,74 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertSame([], app(ContractInterpretationValidator::class)->validate($output, $input));
     }
 
+    public function test_validator_rejects_pricing_phases_that_expired_before_analysis_date(): void
+    {
+        $output = $this->validOutput('contract-1');
+        $output['pricing']['phases'] = [[
+            'label' => 'Expired promotion',
+            'phase_kind' => 'introductory',
+            'starts' => ['kind' => 'unknown', 'value' => null],
+            'ends' => ['kind' => 'date', 'value' => '2026-03-31'],
+            'components' => [[
+                'component_type' => 'monthly_fee',
+                'amount' => 0,
+                'normal_amount' => null,
+                'unit' => 'eur_per_month',
+                'vat_status' => 'unknown',
+                'price_role' => 'introductory',
+                'source_kind' => 'description',
+                'evidence' => [[
+                    'source' => 'extra_information_fi',
+                    'quote' => 'Promotion 0 € until 31.3.2026.',
+                ]],
+            ]],
+            'evidence' => [[
+                'source' => 'extra_information_fi',
+                'quote' => 'Promotion 0 € until 31.3.2026.',
+            ]],
+        ]];
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, [
+            'analysis_date' => '2026-07-23',
+            'contract_id' => 'contract-1',
+            'pricing_model' => 'Spot',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'extra_information_fi' => 'Promotion 0 € until 31.3.2026.',
+            'components' => [],
+        ]);
+
+        $this->assertContains(
+            '$.pricing.phases[0] ends before analysis_date and must not affect the current interpretation.',
+            $errors,
+        );
+    }
+
+    public function test_validator_rejects_uncertain_warning_without_a_directional_issue(): void
+    {
+        $output = $this->validOutput('contract-1');
+        $output['source_consistency']['structured_pricing_status'] = 'complete';
+        $output['source_consistency']['misleading_first_12_months'] = 'uncertain';
+        $output['source_consistency']['issue_codes'] = ['structured_matches_description'];
+        $output['calculation']['status'] = 'exact';
+        $input = [
+            'contract_id' => 'contract-1',
+            'pricing_model' => 'Spot',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'components' => [],
+        ];
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, $input);
+        $this->assertContains(
+            '$.source_consistency.misleading_first_12_months must be not_detected when pricing is complete and exact with no directional issue.',
+            $errors,
+        );
+
+        $output['source_consistency']['misleading_first_12_months'] = 'not_detected';
+        $this->assertSame([], app(ContractInterpretationValidator::class)->validate($output, $input));
+    }
+
     public function test_successful_job_automatically_publishes_canonical_classification(): void
     {
         $snapshot = $this->createSnapshot();
@@ -669,8 +737,8 @@ class ContractInterpretationPipelineTest extends TestCase
             'analysis_fingerprint' => hash('sha256', $snapshot->source_fingerprint.microtime(true)),
             'status' => ContractInterpretation::STATUS_PENDING,
             'schema_version' => 'schema-v3',
-            'prompt_version' => 'prompt-v8',
-            'validator_version' => 'validator-v4',
+            'prompt_version' => 'prompt-v9',
+            'validator_version' => 'validator-v5',
             'provider' => 'openrouter',
             'model' => 'test-model',
             'output' => $output,

@@ -19,6 +19,7 @@
   {"name":"Add source-aware quarterly reset validation before the full production backfill", "status":"completed"},
   {"name":"Add explicit pricing-type invariants and examples to prompt v7", "status":"completed"},
   {"name":"Treat unknown future recurring prices as estimable rather than incomplete", "status":"completed"},
+  {"name":"Reject expired pricing phases and unsupported uncertain warning states", "status":"completed"},
   {"name":"Expand labels for category mismatches, recurring resets, and consumption-effect products", "status":"pending"},
   {"name":"Materialize validated pricing phases for calculation and public use", "status":"pending"},
   {"name":"Implement calendar-aware phase pricing and explicit Hybrid assumptions/ranges", "status":"pending"},

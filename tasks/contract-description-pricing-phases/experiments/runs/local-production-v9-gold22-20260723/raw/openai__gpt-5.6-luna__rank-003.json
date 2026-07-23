@@ -1,0 +1,494 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 3,
+    "contract_id": "brxibd-aalto-energia-oyj-tyyni-vakiohinta",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "brxibd-aalto-energia-oyj-tyyni-vakiohinta",
+        "api_id": "0fafcd77-8b42-4af1-a29f-865d8825bdab",
+        "company_name": "Aalto energia Oyj",
+        "contract_name": "Tyyni Vakiohinta",
+        "pricing_model": "FixedPrice",
+        "contract_type": "OpenEnded",
+        "fixed_time_range": "Fixed12",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": false,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "TILAA TUOTE TÄSTÄ Tyyni Vakiohinta Hyödynnä edullinen aloitushinta ilman sitoutumista. Energian hinta on 5,49 snt/kWh ja perusmaksu 2,99 €/kk 31.7.2026 asti. 1.8.2026 alkaen energian hinta on 13,65 snt/kWh ja perusmaksu 5,99 €/kk. Tyyni Vakiohinta on toistaiseksi voimassa oleva sähkösopimus, joka sopii kaikkiin kotitalouksiin. Saat selkeän hinnan nyt ja vapauden vaihtaa sopimusta myöhemmin ilman määräaikoja. Ainoastaan kotitalouksiin, joiden vuosikulutus on alle 35 000 kWh / vuosi Toistaiseksi voimassa oleva sähkösopimus Aalto Energia on suomalainen, yksityisesti omistettu energiayhtiö, joka aloitti toimintansa syksyllä 2023. Edistämme sähköalan vihreää siirtymää. Suosimme fossiilivapaata ja uusiutuvaa sähköä. Voit tilata tuotteen TÄSTÄ linkistä tai olemalla yhteydessä asiakaspalveluumme: Puhelin: 09 2312 1001 (Ma-To 08:30-17:00, Pe 08:30-16, La 10:00-14:00) Sähköposti: info@aaltoenergia.com",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "e595188ab6374a83186fb5c5d12ff3bd",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 5.49,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 5.56,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": "2024-12-31 00:00:00"
+            },
+            {
+                "id": "89edeaafbb18b108853fd4082fe2b959",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 2.99,
+                "payment_unit": "EurPerMonth",
+                "has_discount": false,
+                "discount_value": 5.95,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 1,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "brxibd-aalto-energia-oyj-tyyni-vakiohinta",
+        "classification": {
+            "term_type": "OpenEnded",
+            "fixed_duration_months": null,
+            "primary_pricing_model": "FixedPrice",
+            "pricing_mechanisms": [
+                "fixed"
+            ],
+            "metering": "General",
+            "schedule_kinds": [
+                "introductory_promotion",
+                "other"
+            ],
+            "spot_settlement_interval": "not_applicable",
+            "periodic_reset_cadence": "none"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Aloitushinta",
+                    "phase_kind": "introductory",
+                    "starts": {
+                        "kind": "contract_start",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "date",
+                        "value": "2026-07-31"
+                    },
+                    "components": [
+                        {
+                            "component_type": "energy_general",
+                            "amount": 5.49,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "introductory",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=5.49"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Energian hinta on 5,49 snt/kWh"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 2.99,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "introductory",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=2.99"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "perusmaksu 2,99 €/kk 31.7.2026 asti"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Energian hinta on 5,49 snt/kWh ja perusmaksu 2,99 €/kk 31.7.2026 asti"
+                        }
+                    ]
+                },
+                {
+                    "label": "Hinta 1.8.2026 alkaen",
+                    "phase_kind": "normal",
+                    "starts": {
+                        "kind": "date",
+                        "value": "2026-08-01"
+                    },
+                    "ends": {
+                        "kind": "none",
+                        "value": null
+                    },
+                    "components": [
+                        {
+                            "component_type": "energy_general",
+                            "amount": 13.65,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "normal",
+                            "source_kind": "description",
+                            "evidence": [
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "1.8.2026 alkaen energian hinta on 13,65 snt/kWh"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 5.99,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "normal",
+                            "source_kind": "description",
+                            "evidence": [
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "perusmaksu 5,99 €/kk"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "1.8.2026 alkaen energian hinta on 13,65 snt/kWh ja perusmaksu 5,99 €/kk"
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": false,
+                "cadence": "none",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": null,
+                "description": null,
+                "evidence": []
+            },
+            "consumption_effect": {
+                "present": false,
+                "cadence": "none",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": null,
+                "evidence": [],
+                "applies_to": "unknown"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "FixedPrice",
+            "contract_type_status": "match",
+            "recommended_contract_type": "OpenEnded",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "incomplete",
+            "misleading_first_12_months": "detected",
+            "issue_codes": [
+                "structured_matches_intro_only",
+                "promotion_metadata_missing",
+                "future_price_omitted"
+            ],
+            "summary": "Structured components encode only the introductory energy price and monthly fee. The description discloses higher prices beginning 1.8.2026, which are absent from the structured pricing data and fall within the first 12 months after signup.",
+            "evidence": [
+                {
+                    "source": "pricing_model",
+                    "quote": "pricing_model=FixedPrice"
+                },
+                {
+                    "source": "contract_type",
+                    "quote": "contract_type=OpenEnded"
+                },
+                {
+                    "source": "metering",
+                    "quote": "metering=General"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Energian hinta on 5,49 snt/kWh ja perusmaksu 2,99 €/kk 31.7.2026 asti. 1.8.2026 alkaen energian hinta on 13,65 snt/kWh ja perusmaksu 5,99 €/kk."
+                }
+            ]
+        },
+        "calculation": {
+            "status": "exact",
+            "missing_facts": [],
+            "required_assumptions": []
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "high",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 5786,
+        "completion_tokens": 1327,
+        "total_tokens": 7113,
+        "cost": 0.009259371,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 5079,
+            "cache_write_tokens": 704,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.0093529,
+            "upstream_inference_prompt_cost": 0.0013909,
+            "upstream_inference_completions_cost": 0.007962
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 277,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 9.6586748752743,
+    "response_id": "gen-1784832270-lblMnPoVJMePo4DhcLKC",
+    "evaluation": {
+        "score": 1,
+        "passed": 17,
+        "total": 17,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "OpenEnded",
+                "actual": "OpenEnded"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "FixedPrice",
+                "actual": "FixedPrice"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "not_applicable",
+                "actual": "not_applicable"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "none",
+                "actual": "none"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "fixed"
+                ],
+                "actual": [
+                    "fixed"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": "incomplete",
+                "actual": "incomplete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": "detected",
+                "actual": "detected"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [
+                    "promotion_metadata_missing"
+                ],
+                "actual": [
+                    "future_price_omitted",
+                    "promotion_metadata_missing",
+                    "structured_matches_intro_only"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "exact",
+                "actual": "exact"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": false,
+                "actual": false
+            },
+            {
+                "name": "price:energy_general:5.49",
+                "passed": true,
+                "expected": [
+                    "energy_general",
+                    5.49
+                ],
+                "actual": [
+                    [
+                        "energy_general",
+                        5.49
+                    ],
+                    [
+                        "monthly_fee",
+                        2.99
+                    ],
+                    [
+                        "energy_general",
+                        13.65
+                    ],
+                    [
+                        "monthly_fee",
+                        5.99
+                    ]
+                ]
+            },
+            {
+                "name": "price:monthly_fee:2.99",
+                "passed": true,
+                "expected": [
+                    "monthly_fee",
+                    2.99
+                ],
+                "actual": [
+                    [
+                        "energy_general",
+                        5.49
+                    ],
+                    [
+                        "monthly_fee",
+                        2.99
+                    ],
+                    [
+                        "energy_general",
+                        13.65
+                    ],
+                    [
+                        "monthly_fee",
+                        5.99
+                    ]
+                ]
+            },
+            {
+                "name": "price:energy_general:13.65",
+                "passed": true,
+                "expected": [
+                    "energy_general",
+                    13.65
+                ],
+                "actual": [
+                    [
+                        "energy_general",
+                        5.49
+                    ],
+                    [
+                        "monthly_fee",
+                        2.99
+                    ],
+                    [
+                        "energy_general",
+                        13.65
+                    ],
+                    [
+                        "monthly_fee",
+                        5.99
+                    ]
+                ]
+            },
+            {
+                "name": "price:monthly_fee:5.99",
+                "passed": true,
+                "expected": [
+                    "monthly_fee",
+                    5.99
+                ],
+                "actual": [
+                    [
+                        "energy_general",
+                        5.49
+                    ],
+                    [
+                        "monthly_fee",
+                        2.99
+                    ],
+                    [
+                        "energy_general",
+                        13.65
+                    ],
+                    [
+                        "monthly_fee",
+                        5.99
+                    ]
+                ]
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 3,
+        "contract_id": "brxibd-aalto-energia-oyj-tyyni-vakiohinta",
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    },
+    "repair_attempts": [],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}
