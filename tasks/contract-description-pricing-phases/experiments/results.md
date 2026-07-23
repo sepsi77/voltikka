@@ -286,4 +286,4 @@ Retained evidence:
 
 ## Recommendation
 
-Use `openai/gpt-5.6-luna`, prompt v10, schema v3, validator v6, low reasoning, exact production validation, and at most two automatic correction calls. Run asynchronously and idempotently by source/prompt/validator/model fingerprint. Persist every model attempt, evidence, usage, and validation result. Do not publish any output that still fails deterministic validation.
+Use `openai/gpt-5.6-luna`, prompt v10, schema v3, validator v7, low reasoning, exact production validation, and at most two automatic correction calls. Validator v7 adds deterministic symmetric `+/-` and `±` numeric evidence handling without changing model behavior. Run asynchronously and idempotently by source/prompt/validator/model fingerprint. Persist every model attempt, evidence, usage, and validation result. Do not publish any output that still fails deterministic validation.

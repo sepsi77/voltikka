@@ -434,6 +434,84 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertSame([], app(ContractInterpretationValidator::class)->validate($output, $input));
     }
 
+    public function test_validator_accepts_symmetric_numeric_evidence_for_both_bounds(): void
+    {
+        foreach (['+/-1,5', '±1.5', '+−1,5'] as $notation) {
+            $quote = "Kulutusvaikutus on tyypillisesti {$notation} snt/kWh.";
+            $output = $this->validOutput('contract-1');
+            $output['classification']['pricing_mechanisms'] = ['spot', 'consumption_effect'];
+            $output['pricing']['consumption_effect'] = [
+                'present' => true,
+                'applies_to' => 'base_contract',
+                'cadence' => 'monthly',
+                'expected_cents_per_kwh' => null,
+                'typical_min_cents_per_kwh' => -1.5,
+                'typical_max_cents_per_kwh' => 1.5,
+                'hard_min_cents_per_kwh' => null,
+                'hard_max_cents_per_kwh' => null,
+                'uncapped' => false,
+                'description' => $quote,
+                'evidence' => [['source' => 'extra_information_fi', 'quote' => $quote]],
+            ];
+
+            $errors = app(ContractInterpretationValidator::class)->validate($output, [
+                'contract_id' => 'contract-1',
+                'pricing_model' => 'Spot',
+                'contract_type' => 'OpenEnded',
+                'metering' => 'General',
+                'extra_information_fi' => $quote,
+                'components' => [],
+            ]);
+
+            $this->assertNotContains(
+                '$.pricing.consumption_effect.typical_min_cents_per_kwh lacks numeric evidence.',
+                $errors,
+            );
+            $this->assertNotContains(
+                '$.pricing.consumption_effect.typical_max_cents_per_kwh lacks numeric evidence.',
+                $errors,
+            );
+        }
+    }
+
+    public function test_validator_does_not_treat_one_direction_as_symmetric_evidence(): void
+    {
+        $quote = 'Kulutusvaikutuksen alaraja on -1,5 snt/kWh.';
+        $output = $this->validOutput('contract-1');
+        $output['classification']['pricing_mechanisms'] = ['spot', 'consumption_effect'];
+        $output['pricing']['consumption_effect'] = [
+            'present' => true,
+            'applies_to' => 'base_contract',
+            'cadence' => 'monthly',
+            'expected_cents_per_kwh' => null,
+            'typical_min_cents_per_kwh' => -1.5,
+            'typical_max_cents_per_kwh' => 1.5,
+            'hard_min_cents_per_kwh' => null,
+            'hard_max_cents_per_kwh' => null,
+            'uncapped' => false,
+            'description' => $quote,
+            'evidence' => [['source' => 'extra_information_fi', 'quote' => $quote]],
+        ];
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, [
+            'contract_id' => 'contract-1',
+            'pricing_model' => 'Spot',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'extra_information_fi' => $quote,
+            'components' => [],
+        ]);
+
+        $this->assertNotContains(
+            '$.pricing.consumption_effect.typical_min_cents_per_kwh lacks numeric evidence.',
+            $errors,
+        );
+        $this->assertContains(
+            '$.pricing.consumption_effect.typical_max_cents_per_kwh lacks numeric evidence.',
+            $errors,
+        );
+    }
+
     public function test_validator_requires_flat_package_taxonomy_for_package_source_pattern(): void
     {
         $output = $this->validOutput('contract-1', [
@@ -834,7 +912,7 @@ class ContractInterpretationPipelineTest extends TestCase
             'status' => ContractInterpretation::STATUS_PENDING,
             'schema_version' => 'schema-v3',
             'prompt_version' => 'prompt-v10',
-            'validator_version' => 'validator-v6',
+            'validator_version' => 'validator-v7',
             'provider' => 'openrouter',
             'model' => 'test-model',
             'output' => $output,

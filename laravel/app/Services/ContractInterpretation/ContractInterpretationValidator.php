@@ -344,9 +344,23 @@ class ContractInterpretationValidator
     private function textContainsNumber(string $text, int|float $number): bool
     {
         preg_match_all('/(?<![\d.,])[-+]?\d+(?:[.,]\d+)?(?![\d.,])/u', $text, $matches);
-
-        return collect($matches[0] ?? [])->contains(
+        $hasExactNumber = collect($matches[0] ?? [])->contains(
             fn (string $candidate): bool => abs((float) str_replace(',', '.', $candidate) - $number) < 0.000001,
+        );
+        if ($hasExactNumber) {
+            return true;
+        }
+
+        preg_match_all(
+            '/(?:±|\+\s*\/\s*[-−–—]|\+\s*[-−–—])\s*(\d+(?:[.,]\d+)?)(?![\d.,])/u',
+            $text,
+            $symmetricMatches,
+        );
+
+        return collect($symmetricMatches[1] ?? [])->contains(
+            fn (string $candidate): bool => abs(
+                (float) str_replace(',', '.', $candidate) - abs((float) $number),
+            ) < 0.000001,
         );
     }
 
