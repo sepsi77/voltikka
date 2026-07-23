@@ -294,4 +294,6 @@ A third fresh mixed 10-contract prompt-v12 production smoke test published 10/10
 
 A fourth fresh mixed 10-contract prompt-v13 production smoke test published 9/10 after 15 calls. The only failure changed the opaque ASCII contract ID `kesakampanja` to the Finnish display-name spelling `kesäkampanja` on all three attempts. Prompt v14 makes byte-for-byte ID copying explicit. Medium reasoning was enabled as requested, and reasoning effort was added to the analysis fingerprint. A fresh medium call returned the exact ID and passed validator v10 initially.
 
+After deployment, the failed ASCII-ID case and a second fresh contract with the same `kesakampanja` pattern both passed initially. The final fresh mixed 10-contract medium-reasoning smoke test published 10/10 on 10 calls for $0.1223, with no correction calls and no semantic gaps in manual review.
+
 Use `openai/gpt-5.6-luna`, prompt v14, schema v3, validator v10, medium reasoning, exact production validation, and at most two automatic correction calls. Validator v10 retains prior package, warning, symmetric-evidence, structured-only, and active-discount rules. Run asynchronously and idempotently by source/prompt/validator/model/reasoning fingerprint. Persist every model attempt, evidence, usage, and validation result. Do not publish any output that still fails deterministic validation.
