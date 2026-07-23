@@ -1,0 +1,410 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 37,
+    "contract_id": "iq7fja-vimpelin-voima-oy-vuodenaikatariffi",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "iq7fja-vimpelin-voima-oy-vuodenaikatariffi",
+        "api_id": "97acd125-31fe-44a3-bc77-4f47f40decd5",
+        "company_name": "Vimpelin Voima Oy",
+        "contract_name": "Vuodenaikatariffi",
+        "pricing_model": "FixedPrice",
+        "contract_type": "OpenEnded",
+        "fixed_time_range": "Fixed12",
+        "metering": "Season",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": false,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "Määräaikainen alennus voimassa 1.6.2026-31.8.2026. 1.9.2026 palaamme automaattisesti ilman erillistä ilmoitusta alennusta edeltäneeseen hinnastoon.",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "402e2cdc84fbf4698fcc692da0b858d8",
+                "price_component_type": "Monthly",
+                "fuse_size": "Fuse_3x25",
+                "price": 4.2,
+                "payment_unit": "EurPerMonth",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "99435bf2dd22c09d71b221c248b65fc2",
+                "price_component_type": "SeasonalOther",
+                "fuse_size": "None",
+                "price": 7.2,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "7988bdc669b54a7a20be8e096201a9ec",
+                "price_component_type": "SeasonalWinterDay",
+                "fuse_size": "None",
+                "price": 8,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "iq7fja-vimpelin-voima-oy-vuodenaikatariffi",
+        "classification": {
+            "term_type": "OpenEnded",
+            "fixed_duration_months": null,
+            "primary_pricing_model": "FixedPrice",
+            "pricing_mechanisms": [
+                "fixed",
+                "seasonal"
+            ],
+            "metering": "Season",
+            "schedule_kinds": [
+                "introductory_promotion",
+                "seasonal_tariff"
+            ],
+            "spot_settlement_interval": "not_applicable",
+            "periodic_reset_cadence": "none"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Alennusjakso",
+                    "phase_kind": "introductory",
+                    "starts": {
+                        "kind": "date",
+                        "value": "2026-06-01"
+                    },
+                    "ends": {
+                        "kind": "date",
+                        "value": "2026-08-31"
+                    },
+                    "components": [
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 4.2,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "introductory",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=4.2"
+                                },
+                                {
+                                    "source": "components[0].payment_unit",
+                                    "quote": "components[0].payment_unit=EurPerMonth"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "energy_seasonal_other",
+                            "amount": 7.2,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "introductory",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=7.2"
+                                },
+                                {
+                                    "source": "components[1].payment_unit",
+                                    "quote": "components[1].payment_unit=CentPerKiwattHour"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "energy_seasonal_winter",
+                            "amount": 8,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "introductory",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[2].price",
+                                    "quote": "components[2].price=8"
+                                },
+                                {
+                                    "source": "components[2].payment_unit",
+                                    "quote": "components[2].payment_unit=CentPerKiwattHour"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Määräaikainen alennus voimassa 1.6.2026-31.8.2026."
+                        }
+                    ]
+                },
+                {
+                    "label": "Alennusta edeltänyt hinnasto",
+                    "phase_kind": "future",
+                    "starts": {
+                        "kind": "date",
+                        "value": "2026-09-01"
+                    },
+                    "ends": {
+                        "kind": "none",
+                        "value": null
+                    },
+                    "components": [],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "1.9.2026 palaamme automaattisesti ilman erillistä ilmoitusta alennusta edeltäneeseen hinnastoon."
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": false,
+                "cadence": "none",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": null,
+                "description": null,
+                "evidence": []
+            },
+            "consumption_effect": {
+                "present": false,
+                "cadence": "none",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": null,
+                "evidence": [],
+                "applies_to": "unknown"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "FixedPrice",
+            "contract_type_status": "match",
+            "recommended_contract_type": "OpenEnded",
+            "metering_status": "match",
+            "recommended_metering": "Season",
+            "structured_pricing_status": "incomplete",
+            "misleading_first_12_months": "detected",
+            "issue_codes": [
+                "promotion_metadata_missing",
+                "future_price_unknown"
+            ],
+            "summary": "Structured components provide the seasonal introductory prices and monthly fee, but the disclosed return on 1.9.2026 to the pre-discount tariff is not represented and its amounts are unknown. Using the structured prices through the first 12 months would understate the cost after the discount ends.",
+            "evidence": [
+                {
+                    "source": "pricing_model",
+                    "quote": "pricing_model=FixedPrice"
+                },
+                {
+                    "source": "contract_type",
+                    "quote": "contract_type=OpenEnded"
+                },
+                {
+                    "source": "metering",
+                    "quote": "metering=Season"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Määräaikainen alennus voimassa 1.6.2026-31.8.2026. 1.9.2026 palaamme automaattisesti ilman erillistä ilmoitusta alennusta edeltäneeseen hinnastoon."
+                },
+                {
+                    "source": "components[0].has_discount",
+                    "quote": "components[0].has_discount=false"
+                },
+                {
+                    "source": "components[1].has_discount",
+                    "quote": "components[1].has_discount=false"
+                },
+                {
+                    "source": "components[2].has_discount",
+                    "quote": "components[2].has_discount=false"
+                }
+            ]
+        },
+        "calculation": {
+            "status": "incomplete",
+            "missing_facts": [
+                "Pre-discount monthly fee from 2026-09-01",
+                "Pre-discount SeasonalOther energy price from 2026-09-01",
+                "Pre-discount SeasonalWinterDay energy price from 2026-09-01"
+            ],
+            "required_assumptions": [
+                "Assume the structured component prices apply during the disclosed 2026-06-01 to 2026-08-31 discount period."
+            ]
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "medium",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 5371,
+        "completion_tokens": 1529,
+        "total_tokens": 6900,
+        "cost": 0.0102098205,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 4847,
+            "cache_write_tokens": 521,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.01031295,
+            "upstream_inference_prompt_cost": 0.00113895,
+            "upstream_inference_completions_cost": 0.009174
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 406,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 9.491020249668509,
+    "response_id": "gen-1784831140-nuPdxk0oXchjyFEtyl1d",
+    "evaluation": {
+        "score": 1,
+        "passed": 13,
+        "total": 13,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "OpenEnded",
+                "actual": "OpenEnded"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "FixedPrice",
+                "actual": "FixedPrice"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "Season",
+                "actual": "Season"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "not_applicable",
+                "actual": "not_applicable"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "none",
+                "actual": "none"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "seasonal"
+                ],
+                "actual": [
+                    "fixed",
+                    "seasonal"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": "incomplete",
+                "actual": "incomplete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": "detected",
+                "actual": "detected"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [
+                    "future_price_unknown"
+                ],
+                "actual": [
+                    "future_price_unknown",
+                    "promotion_metadata_missing"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "incomplete",
+                "actual": "incomplete"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": false,
+                "actual": false
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 37,
+        "contract_id": "iq7fja-vimpelin-voima-oy-vuodenaikatariffi",
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    },
+    "repair_attempts": [],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

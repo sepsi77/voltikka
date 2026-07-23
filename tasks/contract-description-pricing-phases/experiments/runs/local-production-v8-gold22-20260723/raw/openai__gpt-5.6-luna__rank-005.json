@@ -1,0 +1,609 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 5,
+    "contract_id": "xlclt2-sahkotytot-oy-porssisahko-tarjous-ilmainen-perusmaksu-ensimmaiset-3kk",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "xlclt2-sahkotytot-oy-porssisahko-tarjous-ilmainen-perusmaksu-ensimmaiset-3kk",
+        "api_id": "a0b29af5-7b06-4a3c-902e-1403250d166e",
+        "company_name": "Sähkötytöt Oy",
+        "contract_name": "Pörssisähkö (Tarjous: ilmainen perusmaksu ensimmäiset 3kk!)",
+        "pricing_model": "Spot",
+        "contract_type": "OpenEnded",
+        "fixed_time_range": "Fixed12",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": true,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "TILAA TUOTE TÄSTÄ Tarjous – 12 kk ajan alennettu marginaali ja perusmaksu! Lisäksi ensimmäiset 3kk kokonaan ilman perusmaksua. Ensimmäiset 12 kk 0,39 c/kWh + 1,95 €/kk, jonka jälkeen 0,99 c/kWh + 5,95 €/kk. Sähkötyttöjen pörssisähkö on joustava sähkösopimus, jossa maksat aina Nord Pool -sähköpörssin Suomen alueen varttikohtaisen spot-hinnan mukaan. Voit ajoittaa sähkönkulutustasi edullisille hetkille ja säästää sähkölaskussa. Kaikki myymämme sähkö on fossiilivapaata ja voit lisäksi valita sopimukseesi uusiutuvan energian! Sähkötyttöjen pörssisähkösopimus sopii sinulle, jos haluat hyötyä markkinoiden dynaamisuudesta ja vaikuttaa aktiivisesti maksamaasi sähkön hintaan. Kun siirrät kulutusta edullisille ajankohdille, pääset usein keskimäärin halvempaan hintaan. Sopimus on toistaiseksi voimassa oleva, joten et sitoudu pitkäksi aikaa ja voit halutessasi vaihtaa sopimuksen 14 päivän irtisanomisajalla. Voit tilata tuotteen TÄSTÄ linkistä tai olemalla yhteydessä asiakaspalveluumme 09 2312 1088",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "48f81ba260d8b8208a0007df1573ad01",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 0.39,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "5d9ad2ab0b6b128cd68bba3f5f3fe83a",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 1.95,
+                "payment_unit": "EurPerMonth",
+                "has_discount": true,
+                "discount_value": 1.95,
+                "discount_is_percentage": false,
+                "discount_type": "NFirstMonth",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 3,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "xlclt2-sahkotytot-oy-porssisahko-tarjous-ilmainen-perusmaksu-ensimmaiset-3kk",
+        "classification": {
+            "term_type": "OpenEnded",
+            "fixed_duration_months": null,
+            "primary_pricing_model": "Spot",
+            "pricing_mechanisms": [
+                "spot"
+            ],
+            "metering": "General",
+            "schedule_kinds": [
+                "introductory_promotion",
+                "fixed_term_continuation"
+            ],
+            "spot_settlement_interval": "quarter_hourly",
+            "periodic_reset_cadence": "none"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Ensimmäiset 3 kuukautta",
+                    "phase_kind": "introductory",
+                    "starts": {
+                        "kind": "contract_start",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "after_months",
+                        "value": "3"
+                    },
+                    "components": [
+                        {
+                            "component_type": "spot_margin",
+                            "amount": 0.39,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "introductory",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=0.39"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Ensimmäiset 12 kk 0,39 c/kWh + 1,95 €/kk"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 0,
+                            "normal_amount": 1.95,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "introductory",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=1.95"
+                                },
+                                {
+                                    "source": "components[1].has_discount",
+                                    "quote": "components[1].has_discount=true"
+                                },
+                                {
+                                    "source": "components[1].discount_value",
+                                    "quote": "components[1].discount_value=1.95"
+                                },
+                                {
+                                    "source": "components[1].discount_is_percentage",
+                                    "quote": "components[1].discount_is_percentage=false"
+                                },
+                                {
+                                    "source": "components[1].discount_type",
+                                    "quote": "components[1].discount_type=NFirstMonth"
+                                },
+                                {
+                                    "source": "components[1].discount_n_first_months",
+                                    "quote": "components[1].discount_n_first_months=3"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Lisäksi ensimmäiset 3kk kokonaan ilman perusmaksua"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Lisäksi ensimmäiset 3kk kokonaan ilman perusmaksua"
+                        }
+                    ]
+                },
+                {
+                    "label": "Kuukaudet 4–12",
+                    "phase_kind": "normal",
+                    "starts": {
+                        "kind": "after_months",
+                        "value": "3"
+                    },
+                    "ends": {
+                        "kind": "after_months",
+                        "value": "12"
+                    },
+                    "components": [
+                        {
+                            "component_type": "spot_margin",
+                            "amount": 0.39,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "normal",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=0.39"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Ensimmäiset 12 kk 0,39 c/kWh + 1,95 €/kk"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 1.95,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "normal",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=1.95"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Ensimmäiset 12 kk 0,39 c/kWh + 1,95 €/kk"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Ensimmäiset 12 kk 0,39 c/kWh + 1,95 €/kk"
+                        }
+                    ]
+                },
+                {
+                    "label": "12 kuukauden jälkeen",
+                    "phase_kind": "continuation",
+                    "starts": {
+                        "kind": "after_months",
+                        "value": "12"
+                    },
+                    "ends": {
+                        "kind": "none",
+                        "value": null
+                    },
+                    "components": [
+                        {
+                            "component_type": "spot_margin",
+                            "amount": 0.99,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "future",
+                            "source_kind": "description",
+                            "evidence": [
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "jonka jälkeen 0,99 c/kWh + 5,95 €/kk"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 5.95,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "future",
+                            "source_kind": "description",
+                            "evidence": [
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "jonka jälkeen 0,99 c/kWh + 5,95 €/kk"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "jonka jälkeen 0,99 c/kWh + 5,95 €/kk"
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": false,
+                "cadence": "none",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": null,
+                "description": null,
+                "evidence": []
+            },
+            "consumption_effect": {
+                "present": false,
+                "cadence": "none",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": null,
+                "evidence": [],
+                "applies_to": "unknown"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "Spot",
+            "contract_type_status": "match",
+            "recommended_contract_type": "OpenEnded",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "incomplete",
+            "misleading_first_12_months": "not_detected",
+            "issue_codes": [
+                "future_price_omitted",
+                "structured_matches_intro_only"
+            ],
+            "summary": "Sopimus on toistaiseksi voimassa oleva Nord Pool Suomen alueen varttikohtaiseen spot-hintaan perustuva sopimus. Rakenteiset tiedot kattavat ensimmäisen 12 kuukauden marginaalin ja perusmaksun alennuksen, mutta 12 kuukauden jälkeiset kuvauksessa ilmoitetut hinnat puuttuvat rakenteisista komponenteista.",
+            "evidence": [
+                {
+                    "source": "pricing_model",
+                    "quote": "pricing_model=Spot"
+                },
+                {
+                    "source": "contract_type",
+                    "quote": "contract_type=OpenEnded"
+                },
+                {
+                    "source": "metering",
+                    "quote": "metering=General"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Sähkötyttöjen pörssisähkö on joustava sähkösopimus, jossa maksat aina Nord Pool -sähköpörssin Suomen alueen varttikohtaisen spot-hinnan mukaan."
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Sopimus on toistaiseksi voimassa oleva"
+                }
+            ]
+        },
+        "calculation": {
+            "status": "estimate_required",
+            "missing_facts": [
+                "Spot-hinnan markkina-arvio ensimmäiselle 12 kuukaudelle"
+            ],
+            "required_assumptions": [
+                "Ensimmäisen 12 kuukauden Nord Pool Suomen alueen varttikohtainen spot-hinta arvioidaan erikseen.",
+                "Ensimmäiset kolme kuukautta kuukausimaksu on 0 euroa ja kuukaudet 4–12 kuukausimaksu on 1,95 euroa."
+            ]
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "high",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 5590,
+        "completion_tokens": 1739,
+        "total_tokens": 7329,
+        "cost": 0.011728233,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 4847,
+            "cache_write_tokens": 740,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.0118467,
+            "upstream_inference_prompt_cost": 0.0014127,
+            "upstream_inference_completions_cost": 0.010434
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 219,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 9.377321832813323,
+    "response_id": "gen-1784831125-cnoKvaXIZSQTPc9vs7m5",
+    "evaluation": {
+        "score": 1,
+        "passed": 17,
+        "total": 17,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "OpenEnded",
+                "actual": "OpenEnded"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "Spot",
+                "actual": "Spot"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "quarter_hourly",
+                "actual": "quarter_hourly"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "none",
+                "actual": "none"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "spot"
+                ],
+                "actual": [
+                    "spot"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": "incomplete",
+                "actual": "incomplete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": "not_detected",
+                "actual": "not_detected"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [],
+                "actual": [
+                    "future_price_omitted",
+                    "structured_matches_intro_only"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "estimate_required",
+                "actual": "estimate_required"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": false,
+                "actual": false
+            },
+            {
+                "name": "price:spot_margin:0.39",
+                "passed": true,
+                "expected": [
+                    "spot_margin",
+                    0.39
+                ],
+                "actual": [
+                    [
+                        "spot_margin",
+                        0.39
+                    ],
+                    [
+                        "monthly_fee",
+                        0
+                    ],
+                    [
+                        "spot_margin",
+                        0.39
+                    ],
+                    [
+                        "monthly_fee",
+                        1.95
+                    ],
+                    [
+                        "spot_margin",
+                        0.99
+                    ],
+                    [
+                        "monthly_fee",
+                        5.95
+                    ]
+                ]
+            },
+            {
+                "name": "price:monthly_fee:1.95",
+                "passed": true,
+                "expected": [
+                    "monthly_fee",
+                    1.95
+                ],
+                "actual": [
+                    [
+                        "spot_margin",
+                        0.39
+                    ],
+                    [
+                        "monthly_fee",
+                        0
+                    ],
+                    [
+                        "spot_margin",
+                        0.39
+                    ],
+                    [
+                        "monthly_fee",
+                        1.95
+                    ],
+                    [
+                        "spot_margin",
+                        0.99
+                    ],
+                    [
+                        "monthly_fee",
+                        5.95
+                    ]
+                ]
+            },
+            {
+                "name": "price:spot_margin:0.99",
+                "passed": true,
+                "expected": [
+                    "spot_margin",
+                    0.99
+                ],
+                "actual": [
+                    [
+                        "spot_margin",
+                        0.39
+                    ],
+                    [
+                        "monthly_fee",
+                        0
+                    ],
+                    [
+                        "spot_margin",
+                        0.39
+                    ],
+                    [
+                        "monthly_fee",
+                        1.95
+                    ],
+                    [
+                        "spot_margin",
+                        0.99
+                    ],
+                    [
+                        "monthly_fee",
+                        5.95
+                    ]
+                ]
+            },
+            {
+                "name": "price:monthly_fee:5.95",
+                "passed": true,
+                "expected": [
+                    "monthly_fee",
+                    5.95
+                ],
+                "actual": [
+                    [
+                        "spot_margin",
+                        0.39
+                    ],
+                    [
+                        "monthly_fee",
+                        0
+                    ],
+                    [
+                        "spot_margin",
+                        0.39
+                    ],
+                    [
+                        "monthly_fee",
+                        1.95
+                    ],
+                    [
+                        "spot_margin",
+                        0.99
+                    ],
+                    [
+                        "monthly_fee",
+                        5.95
+                    ]
+                ]
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 5,
+        "contract_id": "xlclt2-sahkotytot-oy-porssisahko-tarjous-ilmainen-perusmaksu-ensimmaiset-3kk",
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    },
+    "repair_attempts": [],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

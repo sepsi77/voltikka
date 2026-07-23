@@ -457,6 +457,23 @@ class ContractInterpretationValidator
             $errors[] = '$.calculation.status cannot be exact when a recurring future price is unknown.';
         }
 
+        $issueCodes = $output['source_consistency']['issue_codes'] ?? [];
+        $isRecurringEstimateOnly = $hasRecurringSchedule
+            && ($recurringSchedule['future_price_known'] ?? null) === false
+            && in_array('recurring_reset_requires_estimate', $issueCodes, true)
+            && array_diff($issueCodes, ['recurring_reset_requires_estimate', 'structured_matches_description']) === [];
+        if ($isRecurringEstimateOnly) {
+            if (($output['source_consistency']['structured_pricing_status'] ?? null) === 'incomplete') {
+                $errors[] = '$.source_consistency.structured_pricing_status cannot be incomplete solely because recurring future market prices are unknown.';
+            }
+            if (($output['source_consistency']['misleading_first_12_months'] ?? null) !== 'uncertain') {
+                $errors[] = '$.source_consistency.misleading_first_12_months must be uncertain when only unknown recurring future market prices require estimation.';
+            }
+            if (($output['calculation']['status'] ?? null) !== 'estimate_required') {
+                $errors[] = '$.calculation.status must be estimate_required when only unknown recurring future market prices prevent an exact calculation.';
+            }
+        }
+
         $sourceCadence = $this->detectSourceRecurringResetCadence($input);
         if ($sourceCadence !== null) {
             if (! $hasMechanism('periodic_market_reset')) {

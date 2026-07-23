@@ -352,6 +352,18 @@ class ContractInterpretationPipelineTest extends TestCase
 
         $output['calculation']['status'] = 'estimate_required';
         $this->assertSame([], app(ContractInterpretationValidator::class)->validate($output, $input));
+
+        $output['source_consistency']['structured_pricing_status'] = 'incomplete';
+        $output['source_consistency']['misleading_first_12_months'] = 'uncertain';
+        $output['source_consistency']['issue_codes'] = ['recurring_reset_requires_estimate'];
+        $errors = app(ContractInterpretationValidator::class)->validate($output, $input);
+        $this->assertContains(
+            '$.source_consistency.structured_pricing_status cannot be incomplete solely because recurring future market prices are unknown.',
+            $errors,
+        );
+
+        $output['source_consistency']['structured_pricing_status'] = 'complete';
+        $this->assertSame([], app(ContractInterpretationValidator::class)->validate($output, $input));
     }
 
     public function test_successful_job_automatically_publishes_canonical_classification(): void
@@ -501,6 +513,50 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertNull($snapshot->contract->fresh()->published_interpretation_id);
     }
 
+    public function test_complete_current_prices_publish_when_future_recurring_prices_need_an_estimate(): void
+    {
+        $snapshot = $this->createSnapshot();
+        $payload = $snapshot->source_payload;
+        $payload['Name'] = 'Kvartaalisähkö';
+        $payload['Details']['PricingModel'] = 'FixedPrice';
+        $payload['Details']['Pricing'] = [
+            'ElectricitySupplyProductId' => 'api-contract-1',
+            'PriceComponents' => [[
+                'Id' => 'current-quarter-component',
+                'PriceComponentType' => 'General',
+                'HasDiscount' => false,
+                'OriginalPayment' => ['Price' => 7.25, 'PaymentUnit' => 'CentPerKiwattHour'],
+            ]],
+        ];
+        $snapshot->update(['source_payload' => $payload]);
+        $output = $this->validOutput($snapshot->contract_id, [
+            'primary_pricing_model' => 'FixedPrice',
+            'pricing_mechanisms' => ['fixed', 'periodic_market_reset'],
+            'periodic_reset_cadence' => 'quarterly',
+            'schedule_kinds' => ['recurring_market_reset'],
+        ]);
+        $output['pricing']['recurring_schedule'] = [
+            'present' => true,
+            'cadence' => 'quarterly',
+            'current_period_start' => null,
+            'current_period_end' => null,
+            'future_price_known' => false,
+            'description' => 'Future quarterly market prices are not known.',
+            'evidence' => [],
+        ];
+        $output['source_consistency']['structured_pricing_status'] = 'complete';
+        $output['source_consistency']['misleading_first_12_months'] = 'uncertain';
+        $output['source_consistency']['issue_codes'] = ['recurring_reset_requires_estimate'];
+        $output['calculation']['status'] = 'estimate_required';
+        $interpretation = $this->createInterpretation($snapshot, $output);
+
+        $published = app(ContractInterpretationPublisher::class)->publish($interpretation);
+
+        $this->assertTrue($published);
+        $this->assertTrue($interpretation->fresh()->relational_pricing_published);
+        $this->assertSame(7.25, PriceComponent::sole()->price);
+    }
+
     public function test_unsafe_structured_pricing_is_stored_but_not_activated(): void
     {
         $snapshot = $this->createSnapshot();
@@ -613,8 +669,8 @@ class ContractInterpretationPipelineTest extends TestCase
             'analysis_fingerprint' => hash('sha256', $snapshot->source_fingerprint.microtime(true)),
             'status' => ContractInterpretation::STATUS_PENDING,
             'schema_version' => 'schema-v3',
-            'prompt_version' => 'prompt-v7',
-            'validator_version' => 'validator-v3',
+            'prompt_version' => 'prompt-v8',
+            'validator_version' => 'validator-v4',
             'provider' => 'openrouter',
             'model' => 'test-model',
             'output' => $output,

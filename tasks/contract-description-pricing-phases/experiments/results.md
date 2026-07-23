@@ -218,6 +218,28 @@ Retained evidence:
 - `runs/local-production-v7-gold22-20260723/production-validation-summary.json`
 - `runs/local-production-v7-gold22-20260723/repair-summary.json`
 
+## Prompt v8 recurring-estimate evaluation
+
+Prompt v8 separates complete current structured prices from exact 12-month calculability. Unknown future recurring market prices are expected, retain `estimate_required`, and no longer force `structured_pricing_status=incomplete`. Gold v4 updates the recurring-only expectation without changing known omitted-price cases.
+
+The complete 22-case run produced:
+
+- 22/22 successful initial calls
+- 17/22 initial outputs passed validator v4
+- all five failed outputs passed within the two-call correction limit
+- 22/22 final outputs passed; one case needed both correction calls
+- weighted key-field score before correction was 96.85%
+- initial calls cost $0.2092; correction calls cost $0.0563
+- mean initial latency was 8.25 seconds
+
+The recurring-only quarterly case returned complete current structured pricing, uncertain first-year direction, and `estimate_required`; its initial failure was only from exact evidence quotes. A separate fresh prompt v8 call against the production Keravan quarterly input passed validator v4 initially with complete current structured pricing and cost $0.0131. These calls did not write to production.
+
+Retained evidence:
+
+- `runs/local-production-v8-gold22-20260723/summary.json`
+- `runs/local-production-v8-gold22-20260723/production-validation-summary.json`
+- `runs/local-production-v8-gold22-20260723/repair-summary.json`
+
 ## Recommendation
 
-Use `openai/gpt-5.6-luna`, prompt v7, schema v3, validator v3, low reasoning, exact production validation, and at most two automatic correction calls. Run asynchronously and idempotently by source/prompt/validator/model fingerprint. Persist every model attempt, evidence, usage, and validation result. Do not publish any output that still fails deterministic validation.
+Use `openai/gpt-5.6-luna`, prompt v8, schema v3, validator v4, low reasoning, exact production validation, and at most two automatic correction calls. Run asynchronously and idempotently by source/prompt/validator/model fingerprint. Persist every model attempt, evidence, usage, and validation result. Do not publish any output that still fails deterministic validation.

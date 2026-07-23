@@ -1,0 +1,369 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 86,
+    "contract_id": "jf1mar-omavoima-oy-ajoittaja-24-kk",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "jf1mar-omavoima-oy-ajoittaja-24-kk",
+        "api_id": "fb5dc9f2-95e0-4217-8314-7043ee9091a6",
+        "company_name": "Omavoima Oy",
+        "contract_name": "Ajoittaja 24 kk",
+        "pricing_model": "Hybrid",
+        "contract_type": "FixedTerm",
+        "fixed_time_range": "Fixed24",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": false,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "Ajoittaja-sähkösopimuksella saat määräaikaisen sähkösopimuksen turvaa, mutta voit vaikuttaa hintaasi käyttämällä sähköä järkevään aikaan. Sähkön käyttöajankohtasi vaikuttaa hintaan. Ajoita kulutusta edullisempiin hetkiin ja energiamaksustasi vähennetään kulutusvaikutus. Vastaavasti kalleimpiin huippuhetkiin ajoittuva sähkökäyttö nostaa hintaasi. Lopullinen kulutusvaikutus lisätään tai vähennetään pohjahinnan päälle kuukausittain. Ajoittaja -sopimuksessa sähkön hinta muodostuu perusmaksusta, kiinteästä kilowattituntihinnasta ja kulutusvaikutuksesta. Ajoittaja-sopimuksen energiamaksuun eli snt/kWh -hintaan lisätään tai siitä vähennetään käyttöpaikkakohtainen kulutusvaikutus. Kulutusvaikutukselle ei ole ylä- tai alarajaa. Sopimuksen voit tehdä Online-palvelussamme",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "2faa90303bd482f3c252e4d3d1a6b5fe",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 8.35,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "1ef83385d4d0076992ada13f33cfe20f",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 4.99,
+                "payment_unit": "EurPerMonth",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "jf1mar-omavoima-oy-ajoittaja-24-kk",
+        "classification": {
+            "term_type": "FixedTerm",
+            "fixed_duration_months": 24,
+            "primary_pricing_model": "Hybrid",
+            "pricing_mechanisms": [
+                "fixed",
+                "consumption_effect"
+            ],
+            "metering": "General",
+            "schedule_kinds": [],
+            "spot_settlement_interval": "not_applicable",
+            "periodic_reset_cadence": "none"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Fixed base price during 24-month term",
+                    "phase_kind": "current_structured",
+                    "starts": {
+                        "kind": "contract_start",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "after_months",
+                        "value": "24"
+                    },
+                    "components": [
+                        {
+                            "component_type": "energy_general",
+                            "amount": 8.35,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price_component_type",
+                                    "quote": "components[0].price_component_type=General"
+                                },
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=8.35"
+                                },
+                                {
+                                    "source": "components[0].payment_unit",
+                                    "quote": "components[0].payment_unit=CentPerKiwattHour"
+                                },
+                                {
+                                    "source": "components[0].has_discount",
+                                    "quote": "components[0].has_discount=false"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 4.99,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price_component_type",
+                                    "quote": "components[1].price_component_type=Monthly"
+                                },
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=4.99"
+                                },
+                                {
+                                    "source": "components[1].payment_unit",
+                                    "quote": "components[1].payment_unit=EurPerMonth"
+                                },
+                                {
+                                    "source": "components[1].has_discount",
+                                    "quote": "components[1].has_discount=false"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "contract_type",
+                            "quote": "contract_type=FixedTerm"
+                        },
+                        {
+                            "source": "fixed_time_range",
+                            "quote": "fixed_time_range=Fixed24"
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": false,
+                "cadence": "none",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": null,
+                "description": null,
+                "evidence": []
+            },
+            "consumption_effect": {
+                "present": true,
+                "cadence": "monthly",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": true,
+                "description": "The consumption effect is added to or deducted from the base price monthly, with no upper or lower limit.",
+                "evidence": [
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Lopullinen kulutusvaikutus lisätään tai vähennetään pohjahinnan päälle kuukausittain."
+                    },
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Kulutusvaikutukselle ei ole ylä- tai alarajaa."
+                    }
+                ],
+                "applies_to": "base_contract"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "Hybrid",
+            "contract_type_status": "match",
+            "recommended_contract_type": "FixedTerm",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "incomplete",
+            "misleading_first_12_months": "uncertain",
+            "issue_codes": [
+                "unsupported_consumption_effect"
+            ],
+            "summary": "The structured components represent the fixed energy price and monthly fee, while the description discloses a mandatory monthly consumption effect that is not represented in the structured components. The effect may increase or decrease the price and has no upper or lower limit, so first-12-month understatement cannot be determined.",
+            "evidence": [
+                {
+                    "source": "pricing_model",
+                    "quote": "pricing_model=Hybrid"
+                },
+                {
+                    "source": "metering",
+                    "quote": "metering=General"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Sopimuksen voit tehdä Online-palvelussamme"
+                }
+            ]
+        },
+        "calculation": {
+            "status": "unsupported",
+            "missing_facts": [
+                "The applicable first-12-month consumption-effect amount or calculation method is not provided."
+            ],
+            "required_assumptions": []
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "medium",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 5459,
+        "completion_tokens": 1158,
+        "total_tokens": 6617,
+        "cost": 0.0081149805,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 4847,
+            "cache_write_tokens": 609,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.00819695,
+            "upstream_inference_prompt_cost": 0.00124895,
+            "upstream_inference_completions_cost": 0.006948
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 268,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 7.454087167046964,
+    "response_id": "gen-1784831150-wVqfxYAQxgGM0H7lYYjF",
+    "evaluation": {
+        "score": 1,
+        "passed": 14,
+        "total": 14,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "FixedTerm",
+                "actual": "FixedTerm"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "Hybrid",
+                "actual": "Hybrid"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "not_applicable",
+                "actual": "not_applicable"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "none",
+                "actual": "none"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "consumption_effect",
+                    "fixed"
+                ],
+                "actual": [
+                    "consumption_effect",
+                    "fixed"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": "incomplete",
+                "actual": "incomplete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": "uncertain",
+                "actual": "uncertain"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [
+                    "unsupported_consumption_effect"
+                ],
+                "actual": [
+                    "unsupported_consumption_effect"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "unsupported",
+                "actual": "unsupported"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": true,
+                "actual": true
+            },
+            {
+                "name": "consumption_effect.uncapped",
+                "passed": true,
+                "expected": true,
+                "actual": true
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 86,
+        "contract_id": "jf1mar-omavoima-oy-ajoittaja-24-kk",
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    },
+    "repair_attempts": [],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

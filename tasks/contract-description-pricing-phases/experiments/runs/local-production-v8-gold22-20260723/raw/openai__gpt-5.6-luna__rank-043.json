@@ -1,0 +1,536 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 43,
+    "contract_id": "1ucmby-cheap-energy-finland-oy-cheap-kvartaalisahko",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "1ucmby-cheap-energy-finland-oy-cheap-kvartaalisahko",
+        "api_id": "5a4f716f-fecc-4bac-8a49-ba2b543db0d4",
+        "company_name": "Cheap Energy Finland Oy",
+        "contract_name": "Cheap Kvartaalisähkö",
+        "pricing_model": "FixedPrice",
+        "contract_type": "OpenEnded",
+        "fixed_time_range": "Fixed12",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": true,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "Cheap Kvartaalisähkö on toistaiseksi voimassa oleva sähkösopimus, jossa sähkön hinta on kilpailukykyinen ja markkinahintainen. Cheap Kvartaalisähkö -sopimuksessa on kiinteä energiahinta 7,49 snt/kWh + perusmaksu 0 €/kk ensimmäisen kuukauden ajan sopimuksen aloituspäivästä eteenpäin. Tämän jälkeen sopimuksen hinta noudattelee mm. markkinahintaa Nasdaq sähköjohdannaispörssissä, johon lisätään kiinteä kuukausittainen perusmaksu. Energianhinta 9,95 snt/kWh + perusmaksu 4,90€/kk. Hinta on lukittu 30.9.2026 asti. Hinta tarkistetaan kvartaaleittain ja tulevan kvartaalin hinta ilmoitetaan verkkosivuillamme aina maalis- kesä-, syys- ja joulukuun 15. päivään mennessä. Cheap Ilmaveivi TÄÄLTÄ Sopimuksen kesto: Toistaiseksi voimassaoleva.",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "55962c004b378bfe8dfaa73946346ce3",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 7.49,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "c3bf448a16186cba5cdeab7dd659da1f",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 4.9,
+                "payment_unit": "EurPerMonth",
+                "has_discount": true,
+                "discount_value": 4.9,
+                "discount_is_percentage": false,
+                "discount_type": "NFirstMonth",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 1,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "1ucmby-cheap-energy-finland-oy-cheap-kvartaalisahko",
+        "classification": {
+            "term_type": "OpenEnded",
+            "fixed_duration_months": null,
+            "primary_pricing_model": "FixedPrice",
+            "pricing_mechanisms": [
+                "fixed",
+                "periodic_market_reset"
+            ],
+            "metering": "General",
+            "schedule_kinds": [
+                "introductory_promotion",
+                "recurring_market_reset",
+                "general_terms_date"
+            ],
+            "spot_settlement_interval": "not_applicable",
+            "periodic_reset_cadence": "quarterly"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Ensimmäinen kuukausi",
+                    "phase_kind": "introductory",
+                    "starts": {
+                        "kind": "contract_start",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "after_months",
+                        "value": "1"
+                    },
+                    "components": [
+                        {
+                            "component_type": "energy_general",
+                            "amount": 7.49,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "introductory",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=7.49"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "kiinteä energiahinta 7,49 snt/kWh"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 0,
+                            "normal_amount": 4.9,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "introductory",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=4.9"
+                                },
+                                {
+                                    "source": "components[1].has_discount",
+                                    "quote": "components[1].has_discount=true"
+                                },
+                                {
+                                    "source": "components[1].discount_value",
+                                    "quote": "components[1].discount_value=4.9"
+                                },
+                                {
+                                    "source": "components[1].discount_is_percentage",
+                                    "quote": "components[1].discount_is_percentage=false"
+                                },
+                                {
+                                    "source": "components[1].discount_type",
+                                    "quote": "components[1].discount_type=NFirstMonth"
+                                },
+                                {
+                                    "source": "components[1].discount_n_first_months",
+                                    "quote": "components[1].discount_n_first_months=1"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "perusmaksu 0 €/kk ensimmäisen kuukauden ajan sopimuksen aloituspäivästä eteenpäin"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "kiinteä energiahinta 7,49 snt/kWh + perusmaksu 0 €/kk ensimmäisen kuukauden ajan sopimuksen aloituspäivästä eteenpäin"
+                        }
+                    ]
+                },
+                {
+                    "label": "Ensimmäisen kuukauden jälkeinen hinta",
+                    "phase_kind": "recurring_period",
+                    "starts": {
+                        "kind": "after_months",
+                        "value": "1"
+                    },
+                    "ends": {
+                        "kind": "none",
+                        "value": null
+                    },
+                    "components": [
+                        {
+                            "component_type": "energy_general",
+                            "amount": 9.95,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "normal",
+                            "source_kind": "description",
+                            "evidence": [
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Energianhinta 9,95 snt/kWh"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 4.9,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "normal",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=4.9"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "perusmaksu 4,90€/kk"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Tämän jälkeen sopimuksen hinta noudattelee mm. markkinahintaa Nasdaq sähköjohdannaispörssissä"
+                        },
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Hinta tarkistetaan kvartaaleittain"
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": true,
+                "cadence": "quarterly",
+                "current_period_start": null,
+                "current_period_end": "2026-09-30",
+                "future_price_known": false,
+                "description": "Energian hinta tarkistetaan neljännesvuosittain markkinahinnan perusteella; tulevan kvartaalin hinta ilmoitetaan verkkosivuilla.",
+                "evidence": [
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Hinta on lukittu 30.9.2026 asti."
+                    },
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Hinta tarkistetaan kvartaaleittain ja tulevan kvartaalin hinta ilmoitetaan verkkosivuillamme aina maalis- kesä-, syys- ja joulukuun 15. päivään mennessä."
+                    }
+                ]
+            },
+            "consumption_effect": {
+                "present": false,
+                "cadence": "none",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": null,
+                "evidence": [],
+                "applies_to": "unknown"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "FixedPrice",
+            "contract_type_status": "match",
+            "recommended_contract_type": "OpenEnded",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "incomplete",
+            "misleading_first_12_months": "detected",
+            "issue_codes": [
+                "future_price_omitted",
+                "promotion_metadata_missing",
+                "recurring_reset_requires_estimate"
+            ],
+            "summary": "Sopimus on toistaiseksi voimassa oleva kiinteähintainen kvartaalihinnoittelutuote. Rakenteiset tiedot sisältävät ensimmäisen kuukauden energiahinnan ja perusmaksualennuksen, mutta eivät kuvaa ensimmäisen kuukauden jälkeistä tunnettua 9,95 snt/kWh energiahintaa tai kvartaalittaista hinnantarkistusta täydellisesti. Rakenteisten tietojen käyttäminen sellaisenaan voisi aliarvioida ensimmäisten 12 kuukauden kustannusta.",
+            "evidence": [
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Tämän jälkeen sopimuksen hinta noudattelee mm. markkinahintaa Nasdaq sähköjohdannaispörssissä"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Energianhinta 9,95 snt/kWh + perusmaksu 4,90€/kk."
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Hinta tarkistetaan kvartaaleittain"
+                }
+            ]
+        },
+        "calculation": {
+            "status": "estimate_required",
+            "missing_facts": [
+                "Tulevien kvartaalien hinnat ensimmäisen tunnetun hintajakson jälkeen"
+            ],
+            "required_assumptions": [
+                "Tuleville kvartaaleille tarvitaan oletus energiahinnasta tai markkinahinta-arvio.",
+                "Ensimmäisen kuukauden jälkeinen energiahinta on 9,95 snt/kWh kuvauksen mukaisesti."
+            ]
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "medium",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 5469,
+        "completion_tokens": 1743,
+        "total_tokens": 7212,
+        "cost": 0.0116022555,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 4847,
+            "cache_write_tokens": 619,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.01171945,
+            "upstream_inference_prompt_cost": 0.00126145,
+            "upstream_inference_completions_cost": 0.010458
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 291,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 10.760048999916762,
+    "response_id": "gen-1784831141-1G6I72LoXWEfxEbTtAHD",
+    "evaluation": {
+        "score": 1,
+        "passed": 17,
+        "total": 17,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "OpenEnded",
+                "actual": "OpenEnded"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "FixedPrice",
+                "actual": "FixedPrice"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "not_applicable",
+                "actual": "not_applicable"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "quarterly",
+                "actual": "quarterly"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "periodic_market_reset"
+                ],
+                "actual": [
+                    "fixed",
+                    "periodic_market_reset"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": "incomplete",
+                "actual": "incomplete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": "detected",
+                "actual": "detected"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [
+                    "promotion_metadata_missing",
+                    "recurring_reset_requires_estimate"
+                ],
+                "actual": [
+                    "future_price_omitted",
+                    "promotion_metadata_missing",
+                    "recurring_reset_requires_estimate"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "estimate_required",
+                "actual": "estimate_required"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": false,
+                "actual": false
+            },
+            {
+                "name": "price:energy_general:7.49",
+                "passed": true,
+                "expected": [
+                    "energy_general",
+                    7.49
+                ],
+                "actual": [
+                    [
+                        "energy_general",
+                        7.49
+                    ],
+                    [
+                        "monthly_fee",
+                        0
+                    ],
+                    [
+                        "energy_general",
+                        9.95
+                    ],
+                    [
+                        "monthly_fee",
+                        4.9
+                    ]
+                ]
+            },
+            {
+                "name": "price:energy_general:9.95",
+                "passed": true,
+                "expected": [
+                    "energy_general",
+                    9.95
+                ],
+                "actual": [
+                    [
+                        "energy_general",
+                        7.49
+                    ],
+                    [
+                        "monthly_fee",
+                        0
+                    ],
+                    [
+                        "energy_general",
+                        9.95
+                    ],
+                    [
+                        "monthly_fee",
+                        4.9
+                    ]
+                ]
+            },
+            {
+                "name": "price:monthly_fee:0.0",
+                "passed": true,
+                "expected": [
+                    "monthly_fee",
+                    0
+                ],
+                "actual": [
+                    [
+                        "energy_general",
+                        7.49
+                    ],
+                    [
+                        "monthly_fee",
+                        0
+                    ],
+                    [
+                        "energy_general",
+                        9.95
+                    ],
+                    [
+                        "monthly_fee",
+                        4.9
+                    ]
+                ]
+            },
+            {
+                "name": "price:monthly_fee:4.9",
+                "passed": true,
+                "expected": [
+                    "monthly_fee",
+                    4.9
+                ],
+                "actual": [
+                    [
+                        "energy_general",
+                        7.49
+                    ],
+                    [
+                        "monthly_fee",
+                        0
+                    ],
+                    [
+                        "energy_general",
+                        9.95
+                    ],
+                    [
+                        "monthly_fee",
+                        4.9
+                    ]
+                ]
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 43,
+        "contract_id": "1ucmby-cheap-energy-finland-oy-cheap-kvartaalisahko",
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    },
+    "repair_attempts": [],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

@@ -26,7 +26,7 @@ Configuration and assets:
 
 - `config/contract_interpretation.php`
 - `resources/contract-interpretation/schema-v3.json`
-- `resources/contract-interpretation/system-prompt-v7.md`
+- `resources/contract-interpretation/system-prompt-v8.md`
 
 Important semantics:
 
@@ -47,7 +47,8 @@ Important semantics:
 - Structured discounted amounts can pass without a literal output number only when the validator independently recomputes the amount from separately cited structured discount operands and matching phase limits.
 - Validator v2 rejects fixed-fee taxonomy drift: `fixed` on Spot needs an actual fixed energy component, `flat_fee_or_package` must match a `flat_fee` component, and seasonal/time-of-use/consumption-effect mechanisms must match extracted pricing facts.
 - Validator v3 keeps `periodic_market_reset`, both cadence fields, recurring-schedule presence, and calculation status consistent. It also recognizes strong source facts such as `Kvartaalisähkö`, four price changes per year, or explicit three-month price periods and requires a quarterly reset instead of trusting an internally consistent omission.
-- Prompt v7 adds an explicit invariant matrix and compact examples for Spot, fixed, Hybrid, recurring reset, time-of-use, seasonal, flat-fee package, optional fixing, promotions, and common negative cases. Keep these invariants aligned with deterministic validation.
+- Prompt v7 adds an explicit invariant matrix and compact examples for Spot, fixed, Hybrid, recurring reset, time-of-use, seasonal, flat-fee package, optional fixing, promotions, and common negative cases. Prompt v8 clarifies that unknown future recurring market prices are expected and do not make otherwise complete current structured prices incomplete.
+- Validator v4 rejects `incomplete`, a non-uncertain warning state, or a non-estimate calculation when `recurring_reset_requires_estimate` is the only pricing limitation. This permits validated current relational components to publish while canonical calculation remains estimate-required.
 - `validator_version` is stored on each interpretation and participates in the analysis fingerprint. Change it whenever deterministic publication semantics change enough to require reanalysis.
 - Phase-aware calculations do not yet read `canonical_pricing`; that is a separate pending task.
 - Source snapshots remain immutable evidence.

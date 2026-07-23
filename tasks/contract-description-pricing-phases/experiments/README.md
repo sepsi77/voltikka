@@ -6,7 +6,7 @@ This directory contains the reproducible prompt/model evaluation requested befor
 
 - Model: `openai/gpt-5.6-luna`
 - Reasoning effort: `low`
-- Prompt: `system-prompt-v7.md`
+- Prompt: `system-prompt-v8.md`
 - JSON Schema: `schema-v3.json`
 - Deterministic post-processing example: `evaluate_run.py`
 
@@ -15,8 +15,8 @@ The prompt must not be used without deterministic evidence, phase, component, an
 ## Files
 
 - `schema-v3.json` — recommended strict structured-output schema with evidence-path constraints
-- `system-prompt-v7.md` — recommended prompt with flat-input, scalar-evidence, and explicit pricing-invariant rules
-- `gold-v3.json` — 22 manually specified key-field cases covering Spot, fixed, recurring reset, promotions, missing descriptions, seasonal tariffs, optional fixing, and consumption effect
+- `system-prompt-v8.md` — recommended prompt with flat-input, scalar-evidence, explicit pricing invariants, and recurring-estimate completeness rules
+- `gold-v4.json` — 22 manually specified key-field cases covering Spot, fixed, recurring reset, promotions, missing descriptions, seasonal tariffs, optional fixing, and consumption effect
 - `active-434-input.json` — normalized read-only production export used for the full shadow run
 - `run_experiment.py` — OpenRouter runner, cost/latency recorder, key-field scorer, and production-validator launcher
 - `validate_run.php` — runs the exact Laravel production validator against each successful experiment output
@@ -37,10 +37,10 @@ The runner reads `OPENROUTER_API_KEY` from the process environment or `laravel/.
 ```bash
 cd /Users/seppo/code/voltikka
 python3 tasks/contract-description-pricing-phases/experiments/run_experiment.py \
-  --run-name top100-gpt-v7-low-rerun \
-  --prompt system-prompt-v7.md \
+  --run-name top100-gpt-v8-low-rerun \
+  --prompt system-prompt-v8.md \
   --schema schema-v3.json \
-  --gold gold-v3.json \
+  --gold gold-v4.json \
   --models openai/gpt-5.6-luna \
   --all-benchmark \
   --concurrency 10 \
@@ -51,7 +51,7 @@ Retry production-validator failures from a retained run, with at most two correc
 
 ```bash
 php tasks/contract-description-pricing-phases/experiments/repair_run.php \
-  tasks/contract-description-pricing-phases/experiments/runs/top100-gpt-v7-low-rerun \
+  tasks/contract-description-pricing-phases/experiments/runs/top100-gpt-v8-low-rerun \
   2
 ```
 
@@ -59,7 +59,7 @@ Evaluate the focused promotion benchmark:
 
 ```bash
 python3 tasks/contract-description-pricing-phases/experiments/evaluate_run.py \
-  top100-gpt-v7-low-rerun
+  top100-gpt-v8-low-rerun
 ```
 
 ## Important evaluation limitations

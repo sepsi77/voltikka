@@ -1,0 +1,346 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 64,
+    "contract_id": "uio8ny-iin-energia-oy-ien-spot",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "uio8ny-iin-energia-oy-ien-spot",
+        "api_id": "8e4c81fe-9313-45ff-a835-71234b15e032",
+        "company_name": "Iin Energia Oy",
+        "contract_name": "IEN Spot",
+        "pricing_model": "Spot",
+        "contract_type": "OpenEnded",
+        "fixed_time_range": "Fixed12",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": false,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "Myymme sähköä vain Iin kunnan alueelle.",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "4a6c4bc74e4cebf882fdfae272bcea93",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 0.38,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "3eee0fc4ed7d3bfdf0100456b0b796a0",
+                "price_component_type": "Monthly",
+                "fuse_size": "Fuse_3x25",
+                "price": 6.07,
+                "payment_unit": "EurPerMonth",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "uio8ny-iin-energia-oy-ien-spot",
+        "classification": {
+            "term_type": "OpenEnded",
+            "fixed_duration_months": null,
+            "primary_pricing_model": "Spot",
+            "pricing_mechanisms": [
+                "spot"
+            ],
+            "metering": "General",
+            "schedule_kinds": [],
+            "spot_settlement_interval": "unknown",
+            "periodic_reset_cadence": "none"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Current structured pricing",
+                    "phase_kind": "current_structured",
+                    "starts": {
+                        "kind": "contract_start",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "none",
+                        "value": null
+                    },
+                    "components": [
+                        {
+                            "component_type": "spot_margin",
+                            "amount": 0.38,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price_component_type",
+                                    "quote": "components[0].price_component_type=General"
+                                },
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=0.38"
+                                },
+                                {
+                                    "source": "components[0].payment_unit",
+                                    "quote": "components[0].payment_unit=CentPerKiwattHour"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 6.07,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price_component_type",
+                                    "quote": "components[1].price_component_type=Monthly"
+                                },
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=6.07"
+                                },
+                                {
+                                    "source": "components[1].payment_unit",
+                                    "quote": "components[1].payment_unit=EurPerMonth"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": []
+                }
+            ],
+            "recurring_schedule": {
+                "present": false,
+                "cadence": "none",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": null,
+                "description": null,
+                "evidence": []
+            },
+            "consumption_effect": {
+                "present": false,
+                "cadence": "none",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": null,
+                "evidence": [],
+                "applies_to": "unknown"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "Spot",
+            "contract_type_status": "match",
+            "recommended_contract_type": "OpenEnded",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "not_assessable",
+            "misleading_first_12_months": "not_assessable",
+            "issue_codes": [
+                "insufficient_evidence"
+            ],
+            "summary": "Structured data identifies an open-ended Spot contract with a 0.38 c/kWh supplier margin and a 6.07 €/month fee. Descriptions do not provide sufficient independent pricing detail for a complete first-12-month integrity assessment.",
+            "evidence": [
+                {
+                    "source": "pricing_model",
+                    "quote": "pricing_model=Spot"
+                },
+                {
+                    "source": "contract_type",
+                    "quote": "contract_type=OpenEnded"
+                },
+                {
+                    "source": "metering",
+                    "quote": "metering=General"
+                },
+                {
+                    "source": "components[0].price",
+                    "quote": "components[0].price=0.38"
+                },
+                {
+                    "source": "components[1].price",
+                    "quote": "components[1].price=6.07"
+                }
+            ]
+        },
+        "calculation": {
+            "status": "estimate_required",
+            "missing_facts": [
+                "Applicable Spot market energy prices for the first 12 months",
+                "Spot settlement interval"
+            ],
+            "required_assumptions": [
+                "Estimate the underlying Spot market price for the first 12 months",
+                "Use the structured 0.38 c/kWh supplier margin and 6.07 €/month fee"
+            ]
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "medium",
+            "integrity": "low"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 5219,
+        "completion_tokens": 972,
+        "total_tokens": 6191,
+        "cost": 0.0067131405,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 4847,
+            "cache_write_tokens": 369,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.00678095,
+            "upstream_inference_prompt_cost": 0.00094895,
+            "upstream_inference_completions_cost": 0.005832
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 190,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 5.83290704106912,
+    "response_id": "gen-1784831143-E9Tma2J7jvu1ikhs20Al",
+    "evaluation": {
+        "score": 1,
+        "passed": 13,
+        "total": 13,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "OpenEnded",
+                "actual": "OpenEnded"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "Spot",
+                "actual": "Spot"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "unknown",
+                "actual": "unknown"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "none",
+                "actual": "none"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "spot"
+                ],
+                "actual": [
+                    "spot"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": "not_assessable",
+                "actual": "not_assessable"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": "not_assessable",
+                "actual": "not_assessable"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [
+                    "insufficient_evidence"
+                ],
+                "actual": [
+                    "insufficient_evidence"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "estimate_required",
+                "actual": "estimate_required"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": false,
+                "actual": false
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 64,
+        "contract_id": "uio8ny-iin-energia-oy-ien-spot",
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    },
+    "repair_attempts": [],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

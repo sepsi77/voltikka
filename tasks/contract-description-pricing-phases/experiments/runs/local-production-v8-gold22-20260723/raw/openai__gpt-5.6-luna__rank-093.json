@@ -1,0 +1,432 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 93,
+    "contract_id": "yv3sbk-hehku-energia-oy-hehku-jousto-12-kk-ensimmaiset-3-kk-perusmaksu-0",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "yv3sbk-hehku-energia-oy-hehku-jousto-12-kk-ensimmaiset-3-kk-perusmaksu-0",
+        "api_id": "4e602d4b-0313-45d6-ae5a-8276c9ba080e",
+        "company_name": "Hehku Energia Oy",
+        "contract_name": "Hehku Jousto 12 kk - ENSIMMÄISET 3 KK PERUSMAKSU 0 €!",
+        "pricing_model": "Hybrid",
+        "contract_type": "FixedTerm",
+        "fixed_time_range": "Fixed12",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": true,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "Hehku Jousto 12 kk on vuoden määräaikainen sähkösopimus, jossa voit itse vaikuttaa maksamaasi sähkön hintaan. Hehku Jousto -sopimuksessa on kiinteä sähkön pohjahinta. Sen lisäksi sähkön hintaasi vaikuttaa niin sanottu kulutusvaikutus, joka joko laskee tai nostaa sähkön hintaa. Yksinkertaistetusti: mitä enemmän pystyt ohjaamaan sähkönkulutustasi pörssisähkön kuukauden edullisille tunneille, sitä pienempi on maksamasi sähkön hinta. Jos sen sijaan kulutat paljon sähköä kalleilla tunneilla, kulutusvaikutuksesi nostaa maksamaasi sähkön hintaa. Toisin kuin perinteisissä määräaikaisissa sähkösopimuksissa, Hehku Jousto 12 kk -sopimuksessa hyödyt optimoimalla sähkönkulutustasi. Samalla kuitenkin sähkön pohjahinta on lukittu, eli sähkömarkkinan hintojen nousu ei vaikuta sopimuksesi hintaan. Hehku Jousto 12 kk TÄÄLTÄ",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "e2f88cde75a265256d413fc5afc66801",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 8.69,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "1dea53fd712688e6be8e89442052dfaf",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 5.49,
+                "payment_unit": "EurPerMonth",
+                "has_discount": true,
+                "discount_value": 5.49,
+                "discount_is_percentage": false,
+                "discount_type": "NFirstMonth",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 3,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "yv3sbk-hehku-energia-oy-hehku-jousto-12-kk-ensimmaiset-3-kk-perusmaksu-0",
+        "classification": {
+            "term_type": "FixedTerm",
+            "fixed_duration_months": 12,
+            "primary_pricing_model": "Hybrid",
+            "pricing_mechanisms": [
+                "fixed",
+                "consumption_effect"
+            ],
+            "metering": "General",
+            "schedule_kinds": [
+                "introductory_promotion"
+            ],
+            "spot_settlement_interval": "not_applicable",
+            "periodic_reset_cadence": "none"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Ensimmäiset 3 kuukautta",
+                    "phase_kind": "introductory",
+                    "starts": {
+                        "kind": "contract_start",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "after_months",
+                        "value": "3"
+                    },
+                    "components": [
+                        {
+                            "component_type": "energy_general",
+                            "amount": 8.69,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=8.69"
+                                },
+                                {
+                                    "source": "components[0].has_discount",
+                                    "quote": "components[0].has_discount=false"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 0,
+                            "normal_amount": 5.49,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "introductory",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=5.49"
+                                },
+                                {
+                                    "source": "components[1].has_discount",
+                                    "quote": "components[1].has_discount=true"
+                                },
+                                {
+                                    "source": "components[1].discount_value",
+                                    "quote": "components[1].discount_value=5.49"
+                                },
+                                {
+                                    "source": "components[1].discount_is_percentage",
+                                    "quote": "components[1].discount_is_percentage=false"
+                                },
+                                {
+                                    "source": "components[1].discount_type",
+                                    "quote": "components[1].discount_type=NFirstMonth"
+                                },
+                                {
+                                    "source": "components[1].discount_n_first_months",
+                                    "quote": "components[1].discount_n_first_months=3"
+                                },
+                                {
+                                    "source": "contract_name",
+                                    "quote": "ENSIMMÄISET 3 KK PERUSMAKSU 0 €!"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "components[1].discount_n_first_months",
+                            "quote": "components[1].discount_n_first_months=3"
+                        },
+                        {
+                            "source": "contract_name",
+                            "quote": "ENSIMMÄISET 3 KK PERUSMAKSU 0 €!"
+                        }
+                    ]
+                },
+                {
+                    "label": "Kuukaudet 4–12",
+                    "phase_kind": "continuation",
+                    "starts": {
+                        "kind": "after_months",
+                        "value": "3"
+                    },
+                    "ends": {
+                        "kind": "after_months",
+                        "value": "12"
+                    },
+                    "components": [
+                        {
+                            "component_type": "energy_general",
+                            "amount": 8.69,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "normal",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=8.69"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 5.49,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "normal",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=5.49"
+                                },
+                                {
+                                    "source": "components[1].discount_n_first_months",
+                                    "quote": "components[1].discount_n_first_months=3"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "components[1].price",
+                            "quote": "components[1].price=5.49"
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": false,
+                "cadence": "none",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": null,
+                "description": null,
+                "evidence": []
+            },
+            "consumption_effect": {
+                "present": true,
+                "cadence": "monthly",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": "Kulutusvaikutus voi laskea tai nostaa sähkön hintaa kulutuksen ajoituksen perusteella.",
+                "evidence": [
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "kulutusvaikutus, joka joko laskee tai nostaa sähkön hintaa"
+                    },
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "mitä enemmän pystyt ohjaamaan sähkönkulutustasi pörssisähkön kuukauden edullisille tunneille, sitä pienempi on maksamasi sähkön hinta"
+                    }
+                ],
+                "applies_to": "base_contract"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "Hybrid",
+            "contract_type_status": "match",
+            "recommended_contract_type": "FixedTerm",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "incomplete",
+            "misleading_first_12_months": "uncertain",
+            "issue_codes": [
+                "structured_matches_intro_only",
+                "unsupported_consumption_effect"
+            ],
+            "summary": "The structured components represent the fixed energy price and the first-three-month monthly-fee discount, but they do not encode the disclosed consumption effect. The effect may either reduce or increase the price, so understatement during the first 12 months is uncertain.",
+            "evidence": [
+                {
+                    "source": "pricing_model",
+                    "quote": "pricing_model=Hybrid"
+                },
+                {
+                    "source": "contract_type",
+                    "quote": "contract_type=FixedTerm"
+                },
+                {
+                    "source": "metering",
+                    "quote": "metering=General"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Hehku Jousto -sopimuksessa on kiinteä sähkön pohjahinta. Sen lisäksi sähkön hintaasi vaikuttaa niin sanottu kulutusvaikutus, joka joko laskee tai nostaa sähkön hintaa."
+                }
+            ]
+        },
+        "calculation": {
+            "status": "unsupported",
+            "missing_facts": [
+                "A numeric consumption-effect formula or bounds are not provided."
+            ],
+            "required_assumptions": []
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "medium",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 5515,
+        "completion_tokens": 1637,
+        "total_tokens": 7152,
+        "cost": 0.0110295405,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 4847,
+            "cache_write_tokens": 665,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.01114095,
+            "upstream_inference_prompt_cost": 0.00131895,
+            "upstream_inference_completions_cost": 0.009822
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 380,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 8.800213916692883,
+    "response_id": "gen-1784831155-U8MystdfS0xBdkYIVsFH",
+    "evaluation": {
+        "score": 1,
+        "passed": 13,
+        "total": 13,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "FixedTerm",
+                "actual": "FixedTerm"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "Hybrid",
+                "actual": "Hybrid"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "not_applicable",
+                "actual": "not_applicable"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "none",
+                "actual": "none"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "consumption_effect",
+                    "fixed"
+                ],
+                "actual": [
+                    "consumption_effect",
+                    "fixed"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": "incomplete",
+                "actual": "incomplete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": [
+                    "uncertain",
+                    "not_detected"
+                ],
+                "actual": "uncertain"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [
+                    "unsupported_consumption_effect"
+                ],
+                "actual": [
+                    "structured_matches_intro_only",
+                    "unsupported_consumption_effect"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "unsupported",
+                "actual": "unsupported"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": true,
+                "actual": true
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 93,
+        "contract_id": "yv3sbk-hehku-energia-oy-hehku-jousto-12-kk-ensimmaiset-3-kk-perusmaksu-0",
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    },
+    "repair_attempts": [],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}
