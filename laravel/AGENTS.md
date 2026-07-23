@@ -63,7 +63,7 @@ Important semantics:
 - same-day price components are replaced from the complete current payload, so corrected, removed, and new components do not leave stale rows; source snapshots retain each complete payload version
 - postcode and DSO relationships for fetched contracts are replaced from the current payload instead of remaining additive
 - optional legacy short/long descriptions are refreshed only when the API includes those keys; omission does not erase them
-- `contract_interpretations` stores strict output, validation errors, provenance, usage, execution state, and the complete initial/correction call history; there is no human review or override workflow
+- `contract_interpretations` stores strict output, validation errors, schema/prompt/validator provenance, usage, execution state, and the complete initial/correction call history; validator version participates in idempotency so stricter rules cause reanalysis
 - deterministic validation failure can cause at most two automatic LLM correction calls before the interpretation fails; corrected output must pass the same full validator
 - valid latest output publishes compatible classifications plus current `canonical_pricing`, `canonical_source_consistency`, and `canonical_calculation` JSON, and sets `electricity_contracts.published_interpretation_id`
 - each interpretation records `published_fields`; later imports preserve only those canonical fields until a newer interpretation publishes

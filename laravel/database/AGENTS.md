@@ -18,7 +18,8 @@ Stores one versioned automated analysis for each source + schema + prompt + prov
 
 Important semantics:
 - statuses are `pending`, `processing`, `published`, `failed`, and race-protection `superseded`
-- output and validation errors are JSON; model/prompt/schema metadata and execution metrics provide provenance
+- output and validation errors are JSON; model/prompt/schema/validator metadata and execution metrics provide provenance
+- `validator_version` participates in the analysis fingerprint so a stricter deterministic validator can create a new interpretation for the same source and model output contract
 - `llm_attempts` retains the initial call and up to two model correction calls, including each complete output, validation errors, usage, provider response ID, and latency
 - there are no reviewer, approval, or manual-override columns
 - `electricity_contracts.published_interpretation_id` points to the current version, and each interpretation stores its exact `published_fields`

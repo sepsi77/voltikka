@@ -14,6 +14,8 @@
   {"name":"Build reproducible OpenRouter model, cost, latency, and benchmark experiment tooling", "status":"completed"},
   {"name":"Expand automatic numeric, unit, evidence, and phase validation", "status":"pending"},
   {"name":"Run all active contracts through an experimental shadow analysis and evaluate benchmarks", "status":"completed"},
+  {"name":"Run a five-contract prompt v6 production smoke test", "status":"completed"},
+  {"name":"Add deterministic pricing-mechanism consistency checks before the full production backfill", "status":"completed"},
   {"name":"Expand labels for category mismatches, recurring resets, and consumption-effect products", "status":"pending"},
   {"name":"Materialize validated pricing phases for calculation and public use", "status":"pending"},
   {"name":"Implement calendar-aware phase pricing and explicit Hybrid assumptions/ranges", "status":"pending"},

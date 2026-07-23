@@ -24,6 +24,7 @@ class ContractInterpretation extends Model
         'status',
         'schema_version',
         'prompt_version',
+        'validator_version',
         'provider',
         'model',
         'output',

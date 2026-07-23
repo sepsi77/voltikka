@@ -25,6 +25,7 @@ class ContractInterpretationValidator
         $this->validateEvidence($output, $input, '$', $errors);
         $this->validateClassificationConsistency($output, $input, $errors);
         $this->validatePricing($output, $input, $errors);
+        $this->validateMechanismConsistency($output, $errors);
 
         return array_values(array_unique($errors));
     }
@@ -378,6 +379,59 @@ class ContractInterpretationValidator
             'Monthly' => 'monthly_fee',
             default => null,
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $output
+     * @param  list<string>  $errors
+     */
+    private function validateMechanismConsistency(array $output, array &$errors): void
+    {
+        $classification = $output['classification'] ?? [];
+        $mechanisms = $classification['pricing_mechanisms'] ?? [];
+        $componentTypes = collect($output['pricing']['phases'] ?? [])
+            ->flatMap(fn (array $phase): array => $phase['components'] ?? [])
+            ->pluck('component_type')
+            ->filter()
+            ->unique();
+        $hasMechanism = fn (string $mechanism): bool => in_array($mechanism, $mechanisms, true);
+        $hasComponent = fn (string $component): bool => $componentTypes->contains($component);
+        $hasAnyComponent = fn (array $components): bool => $componentTypes->intersect($components)->isNotEmpty();
+
+        $fixedEnergyComponents = [
+            'energy_general',
+            'energy_day',
+            'energy_night',
+            'energy_seasonal_winter',
+            'energy_seasonal_other',
+        ];
+        if (($classification['primary_pricing_model'] ?? null) === 'Spot'
+            && $hasMechanism('fixed')
+            && ! $hasAnyComponent($fixedEnergyComponents)) {
+            $errors[] = '$.classification.pricing_mechanisms contains fixed without a fixed energy-price component.';
+        }
+
+        if ($hasMechanism('flat_fee_or_package') && ! $hasComponent('flat_fee')) {
+            $errors[] = '$.classification.pricing_mechanisms contains flat_fee_or_package without a flat_fee component.';
+        }
+        if ($hasComponent('flat_fee') && ! $hasMechanism('flat_fee_or_package')) {
+            $errors[] = '$.classification.pricing_mechanisms must contain flat_fee_or_package for a flat_fee component.';
+        }
+
+        $hasSeasonalComponents = $hasAnyComponent(['energy_seasonal_winter', 'energy_seasonal_other']);
+        if ($hasMechanism('seasonal') !== $hasSeasonalComponents) {
+            $errors[] = '$.classification.pricing_mechanisms seasonal must match seasonal energy components.';
+        }
+
+        $hasTimeComponents = $hasAnyComponent(['energy_day', 'energy_night']);
+        if ($hasMechanism('time_of_use') !== $hasTimeComponents) {
+            $errors[] = '$.classification.pricing_mechanisms time_of_use must match day/night energy components.';
+        }
+
+        $hasConsumptionEffect = ($output['pricing']['consumption_effect']['present'] ?? false) === true;
+        if ($hasMechanism('consumption_effect') !== $hasConsumptionEffect) {
+            $errors[] = '$.classification.pricing_mechanisms consumption_effect must match pricing.consumption_effect.present.';
+        }
     }
 
     /**

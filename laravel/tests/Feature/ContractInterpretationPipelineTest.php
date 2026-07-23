@@ -39,6 +39,23 @@ class ContractInterpretationPipelineTest extends TestCase
         Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 1);
     }
 
+    public function test_validator_version_changes_the_analysis_fingerprint(): void
+    {
+        Queue::fake();
+        config()->set('contract_interpretation.enabled', true);
+        config()->set('services.openrouter.api_key', 'test-key');
+        $snapshot = $this->createSnapshot();
+        $dispatcher = app(ContractInterpretationDispatcher::class);
+
+        $first = $dispatcher->dispatch($snapshot);
+        config()->set('contract_interpretation.validator_version', 'validator-next');
+        $second = $dispatcher->dispatch($snapshot);
+
+        $this->assertNotSame($first->id, $second->id);
+        $this->assertSame(2, ContractInterpretation::count());
+        Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 2);
+    }
+
     public function test_client_requests_strict_structured_output(): void
     {
         config()->set('services.openrouter.api_key', 'test-key');
@@ -221,6 +238,58 @@ class ContractInterpretationPipelineTest extends TestCase
         ]);
 
         $this->assertSame([], $errors);
+    }
+
+    public function test_validator_rejects_spot_fixed_fee_as_a_fixed_or_package_mechanism(): void
+    {
+        $output = $this->validOutput('contract-1');
+        $output['classification']['pricing_mechanisms'] = ['spot', 'fixed', 'flat_fee_or_package'];
+        $output['pricing']['phases'] = [[
+            'label' => 'Spot price',
+            'phase_kind' => 'current_structured',
+            'starts' => ['kind' => 'contract_start', 'value' => null],
+            'ends' => ['kind' => 'none', 'value' => null],
+            'components' => [[
+                'component_type' => 'spot_margin',
+                'amount' => 0.49,
+                'normal_amount' => null,
+                'unit' => 'cents_per_kwh',
+                'vat_status' => 'unknown',
+                'price_role' => 'current',
+                'source_kind' => 'structured',
+                'evidence' => [['source' => 'components[0].price', 'quote' => 'components[0].price=0.49']],
+            ], [
+                'component_type' => 'monthly_fee',
+                'amount' => 4.9,
+                'normal_amount' => null,
+                'unit' => 'eur_per_month',
+                'vat_status' => 'unknown',
+                'price_role' => 'current',
+                'source_kind' => 'structured',
+                'evidence' => [['source' => 'components[1].price', 'quote' => 'components[1].price=4.9']],
+            ]],
+            'evidence' => [],
+        ]];
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, [
+            'contract_id' => 'contract-1',
+            'pricing_model' => 'Spot',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'components' => [
+                ['price_component_type' => 'General', 'price' => 0.49],
+                ['price_component_type' => 'Monthly', 'price' => 4.9],
+            ],
+        ]);
+
+        $this->assertContains(
+            '$.classification.pricing_mechanisms contains fixed without a fixed energy-price component.',
+            $errors,
+        );
+        $this->assertContains(
+            '$.classification.pricing_mechanisms contains flat_fee_or_package without a flat_fee component.',
+            $errors,
+        );
     }
 
     public function test_successful_job_automatically_publishes_canonical_classification(): void
@@ -483,6 +552,7 @@ class ContractInterpretationPipelineTest extends TestCase
             'status' => ContractInterpretation::STATUS_PENDING,
             'schema_version' => 'schema-v3',
             'prompt_version' => 'prompt-v6',
+            'validator_version' => 'validator-v2',
             'provider' => 'openrouter',
             'model' => 'test-model',
             'output' => $output,

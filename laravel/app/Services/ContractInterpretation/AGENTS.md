@@ -15,7 +15,7 @@ This directory implements the raw source and automatic contract interpretation p
 Primary services:
 
 - `ContractInterpretationInputBuilder` maps a source snapshot to the compact prompt input used in experiments and normalizes HTML descriptions without changing case or punctuation.
-- `ContractAnalysisFingerprint` combines source, schema, prompt, provider, and model versions.
+- `ContractAnalysisFingerprint` combines source, schema, prompt, deterministic validator, provider, and model versions.
 - `OpenRouterContractInterpretationClient` requests strict JSON Schema output.
 - `ContractInterpretationValidator` validates schema shape, identity, dates/ranges, exact description evidence, and classification consistency.
 - `ContractInterpretationDispatcher` creates one interpretation per analysis fingerprint and dispatches the job after commit.
@@ -45,6 +45,8 @@ Important semantics:
 - Unsafe incomplete/conflicting structured prices remain in canonical interpretation JSON but do not activate a new contract or replace relational `price_components`, including on later imports.
 - Evidence paths are relative to the flat prompt input. They must identify one scalar leaf; description quotes must match normalized prompt text exactly.
 - Structured discounted amounts can pass without a literal output number only when the validator independently recomputes the amount from separately cited structured discount operands and matching phase limits.
+- Validator v2 rejects fixed-fee taxonomy drift: `fixed` on Spot needs an actual fixed energy component, `flat_fee_or_package` must match a `flat_fee` component, and seasonal/time-of-use/consumption-effect mechanisms must match extracted pricing facts.
+- `validator_version` is stored on each interpretation and participates in the analysis fingerprint. Change it whenever deterministic publication semantics change enough to require reanalysis.
 - Phase-aware calculations do not yet read `canonical_pricing`; that is a separate pending task.
 - Source snapshots remain immutable evidence.
 

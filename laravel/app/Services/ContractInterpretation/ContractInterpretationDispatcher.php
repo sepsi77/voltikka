@@ -31,6 +31,7 @@ class ContractInterpretationDispatcher
                 'status' => ContractInterpretation::STATUS_PENDING,
                 'schema_version' => config('contract_interpretation.schema_version'),
                 'prompt_version' => config('contract_interpretation.prompt_version'),
+                'validator_version' => config('contract_interpretation.validator_version'),
                 'provider' => config('contract_interpretation.provider'),
                 'model' => config('contract_interpretation.model'),
             ]

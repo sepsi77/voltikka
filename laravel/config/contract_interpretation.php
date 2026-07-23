@@ -6,6 +6,7 @@ return [
     'model' => env('CONTRACT_INTERPRETATION_MODEL', 'openai/gpt-5.6-luna'),
     'schema_version' => 'schema-v3',
     'prompt_version' => 'prompt-v6',
+    'validator_version' => 'validator-v2',
     'schema_path' => resource_path('contract-interpretation/schema-v3.json'),
     'prompt_path' => resource_path('contract-interpretation/system-prompt-v6.md'),
     'reasoning_effort' => env('CONTRACT_INTERPRETATION_REASONING_EFFORT', 'low'),

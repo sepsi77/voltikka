@@ -12,6 +12,7 @@ class ContractAnalysisFingerprint
             $snapshot->source_fingerprint,
             (string) config('contract_interpretation.schema_version'),
             (string) config('contract_interpretation.prompt_version'),
+            (string) config('contract_interpretation.validator_version'),
             (string) config('contract_interpretation.provider'),
             (string) config('contract_interpretation.model'),
         ]));
