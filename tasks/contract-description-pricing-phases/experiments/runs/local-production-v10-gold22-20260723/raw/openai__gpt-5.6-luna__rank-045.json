@@ -1,0 +1,349 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 45,
+    "contract_id": "plbcxh-kokkolan-energia-oy-vuodenaika",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "plbcxh-kokkolan-energia-oy-vuodenaika",
+        "api_id": "8b691c0b-ab16-491b-978a-edb3ac268023",
+        "company_name": "Kokkolan Energia Oy",
+        "contract_name": "Vuodenaika",
+        "pricing_model": "FixedPrice",
+        "contract_type": "OpenEnded",
+        "fixed_time_range": "Fixed12",
+        "metering": "General",
+        "target_group": "Both",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": false,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "Vuodenaika-sähkösopimuksessa sähkön hinta seuraa markkinahintaa kolmen kuukauden jaksoissa. Hinta on voimassa 1.7.-30.9.2026. Hintajaksot ovat 1.1.–31.3., 1.4.–30.6., 1.7.–30.9. sekä 1.10.–31.12. Hinnan muutokset ilmoitetaan noin kuukautta ennen uuden hintakauden alkamista sähköpostilla sekä verkkosivuillamme. Pystyt vaihtamaan sähkötuotteen 14 päivän irtisanomisajalla. Tee sopimus helposti verkossa 24/7 tästä linkistä Olemme tavoitettavissa valitsemallasi tavalla ja viestimme molemmilla kotimaisilla kielillä. Asiakaspalvelu auttaa ja neuvoo monipuolisesti erilaisissa asiakkaita askarruttavissa kysymyksissä. Apua saa muun muassa sähkösopimuksen valinnassa sekä laskutukseen ja muuttoon liittyvissä tilanteissa. Soita arkisin 0800 050 60 Sähköpostilla milloin sinulle itsellesi sopii asiakaspalvelu@kokkolanenergia.fi",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "8e4936e9dbd11b8a1d70b5a74c8400ee",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 7.97,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "f6a2f795e07cf9577a24a2a3aa8e4194",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 2.53,
+                "payment_unit": "EurPerMonth",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "plbcxh-kokkolan-energia-oy-vuodenaika",
+        "classification": {
+            "term_type": "OpenEnded",
+            "fixed_duration_months": null,
+            "primary_pricing_model": "FixedPrice",
+            "pricing_mechanisms": [
+                "fixed",
+                "periodic_market_reset"
+            ],
+            "metering": "General",
+            "schedule_kinds": [
+                "recurring_market_reset"
+            ],
+            "spot_settlement_interval": "not_applicable",
+            "periodic_reset_cadence": "quarterly"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Voimassa oleva hintajakso 1.7.–30.9.2026",
+                    "phase_kind": "current_structured",
+                    "starts": {
+                        "kind": "date",
+                        "value": "2026-07-01"
+                    },
+                    "ends": {
+                        "kind": "date",
+                        "value": "2026-09-30"
+                    },
+                    "components": [
+                        {
+                            "component_type": "energy_general",
+                            "amount": 7.97,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=7.97"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Hinta on voimassa 1.7.-30.9.2026."
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 2.53,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=2.53"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Hinta on voimassa 1.7.-30.9.2026."
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": true,
+                "cadence": "quarterly",
+                "current_period_start": "2026-07-01",
+                "current_period_end": "2026-09-30",
+                "future_price_known": false,
+                "description": "Sähkön hinta vaihtuu kolmen kuukauden hintajaksoissa. Hintajaksot ovat kalenterivuoden neljännekset.",
+                "evidence": [
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "sähkön hinta seuraa markkinahintaa kolmen kuukauden jaksoissa."
+                    },
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Hintajaksot ovat 1.1.–31.3., 1.4.–30.6., 1.7.–30.9. sekä 1.10.–31.12."
+                    }
+                ]
+            },
+            "consumption_effect": {
+                "present": false,
+                "cadence": "none",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": null,
+                "evidence": [],
+                "applies_to": "unknown"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "FixedPrice",
+            "contract_type_status": "match",
+            "recommended_contract_type": "OpenEnded",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "complete",
+            "misleading_first_12_months": "uncertain",
+            "issue_codes": [
+                "recurring_reset_requires_estimate"
+            ],
+            "summary": "Structured data represents the currently known energy price and monthly fee. The base price is replaced quarterly according to market conditions, so future prices for the next 12 months require an estimate.",
+            "evidence": [
+                {
+                    "source": "pricing_model",
+                    "quote": "pricing_model=FixedPrice"
+                },
+                {
+                    "source": "contract_type",
+                    "quote": "contract_type=OpenEnded"
+                },
+                {
+                    "source": "metering",
+                    "quote": "metering=General"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "sähkön hinta seuraa markkinahintaa kolmen kuukauden jaksoissa."
+                }
+            ]
+        },
+        "calculation": {
+            "status": "estimate_required",
+            "missing_facts": [
+                "Future quarterly energy prices after 2026-09-30 are not disclosed."
+            ],
+            "required_assumptions": [
+                "Estimate the energy price for each subsequent quarterly period using an assumed market-price path."
+            ]
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "medium",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 5960,
+        "completion_tokens": 1156,
+        "total_tokens": 7116,
+        "cost": 0.008185716,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 5319,
+            "cache_write_tokens": 638,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.0082684,
+            "upstream_inference_prompt_cost": 0.0013324,
+            "upstream_inference_completions_cost": 0.006936
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 282,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 8.273362958803773,
+    "response_id": "gen-1784833883-cbTAwc1DMD0RjDdkGQV7",
+    "evaluation": {
+        "score": 0.9230769230769231,
+        "passed": 12,
+        "total": 13,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "OpenEnded",
+                "actual": "OpenEnded"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "FixedPrice",
+                "actual": "FixedPrice"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "not_applicable",
+                "actual": "not_applicable"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "quarterly",
+                "actual": "quarterly"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "periodic_market_reset"
+                ],
+                "actual": [
+                    "fixed",
+                    "periodic_market_reset"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": false,
+                "expected": [
+                    "incomplete",
+                    "uncertain"
+                ],
+                "actual": "complete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": "uncertain",
+                "actual": "uncertain"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [
+                    "recurring_reset_requires_estimate"
+                ],
+                "actual": [
+                    "recurring_reset_requires_estimate"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "estimate_required",
+                "actual": "estimate_required"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": false,
+                "actual": false
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 45,
+        "contract_id": "plbcxh-kokkolan-energia-oy-vuodenaika",
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    },
+    "repair_attempts": [],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

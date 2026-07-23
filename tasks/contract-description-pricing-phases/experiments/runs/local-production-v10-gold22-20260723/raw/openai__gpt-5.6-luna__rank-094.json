@@ -1,0 +1,345 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 94,
+    "contract_id": "qgpgvd-herrfors-oy-ab-vakaa",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "qgpgvd-herrfors-oy-ab-vakaa",
+        "api_id": "be7c2ca7-cbb6-48cf-a484-a55454055ec8",
+        "company_name": "Herrfors Oy Ab",
+        "contract_name": "Vakaa",
+        "pricing_model": "FixedPrice",
+        "contract_type": "OpenEnded",
+        "fixed_time_range": "Fixed12",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": false,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "Yleissähkö Sähkönmyyntisopimus sopii erityisesti sinulle, joka haluaa hoitaa sähkösopimusasiat mahdollisimman vaivattomasti. Kiinteä energiahinta tuo mielenrauhaa arkeen - voit käyttää sähköä juuri silloin kun tarvitset, ilman huolta hinnan vaihteluista. Tämä sopimus on erinomainen vaihtoehto kaikille, jotka arvostavat selkeyttä ja budjetin hallintaa. Sopimuksen hinta pysyy vakaana ja sen mahdolliset muutokset ovat maltillisia. Voit valita tuotteen, jos käyttöpaikkasi on Herrfors Nät-Verkon alueella, sähkön käyttösi on alle 100 000 kWh/vuosi ja käyttöpaikallasi ei ole ollut kyseistä tuotetta viimeisen 12 kk:n aikana. Tee sähkösopimus täällä Herrfors Herrfors on Pietarsaaren alueen oma sähköyhtiö, jolta riittää virtaa vaikka puolelle Suomelle. Palvelevana edelläkävijänä haluamme olla luomassa fiksuja sähkönkulutusratkaisuja kaikille suomalaisille. EPSI Rating tekee vuosittain sähköyhtiöiden keskuudessa tutkimuksen asiakastyytyväisyydestä ja asiakasuskollisuudesta. Herrfors on ollut kolmen parhaiten sijoittuneen yrityksen joukossa viisi vuotta peräkkäin. Asiakkaamme arvostavat erityisesti sitä, että olemme luotettava sähköntoimittaja ja palvelemme asiakkaitamme hyvin.",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "80dc94e1c8b4f64bd72cd285268daecb",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 8.74,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "5eeebd243fd2ac4585470bfecffd076e",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 4.05,
+                "payment_unit": "EurPerMonth",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "qgpgvd-herrfors-oy-ab-vakaa",
+        "classification": {
+            "term_type": "OpenEnded",
+            "fixed_duration_months": null,
+            "primary_pricing_model": "FixedPrice",
+            "pricing_mechanisms": [
+                "fixed"
+            ],
+            "metering": "General",
+            "schedule_kinds": [
+                "standard"
+            ],
+            "spot_settlement_interval": "not_applicable",
+            "periodic_reset_cadence": "none"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Nykyinen hinta",
+                    "phase_kind": "current_structured",
+                    "starts": {
+                        "kind": "contract_start",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "none",
+                        "value": null
+                    },
+                    "components": [
+                        {
+                            "component_type": "energy_general",
+                            "amount": 8.74,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=8.74"
+                                },
+                                {
+                                    "source": "components[0].price_component_type",
+                                    "quote": "components[0].price_component_type=General"
+                                },
+                                {
+                                    "source": "components[0].payment_unit",
+                                    "quote": "components[0].payment_unit=CentPerKiwattHour"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 4.05,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=4.05"
+                                },
+                                {
+                                    "source": "components[1].price_component_type",
+                                    "quote": "components[1].price_component_type=Monthly"
+                                },
+                                {
+                                    "source": "components[1].payment_unit",
+                                    "quote": "components[1].payment_unit=EurPerMonth"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "contract_name",
+                            "quote": "Vakaa"
+                        },
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Kiinteä energiahinta tuo mielenrauhaa arkeen - voit käyttää sähköä juuri silloin kun tarvitset, ilman huolta hinnan vaihteluista."
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": false,
+                "cadence": "none",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": null,
+                "description": null,
+                "evidence": []
+            },
+            "consumption_effect": {
+                "present": false,
+                "cadence": "none",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": null,
+                "evidence": [],
+                "applies_to": "unknown"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "FixedPrice",
+            "contract_type_status": "match",
+            "recommended_contract_type": "OpenEnded",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "complete",
+            "misleading_first_12_months": "not_detected",
+            "issue_codes": [
+                "structured_matches_description"
+            ],
+            "summary": "Sopimus on avoin kiinteähintainen yleissähkösopimus. Rakenteiset komponentit sisältävät 8,74 c/kWh energiahinnan ja 4,05 €/kk kuukausimaksun, ja kuvaus vahvistaa kiinteän energiahinnan.",
+            "evidence": [
+                {
+                    "source": "pricing_model",
+                    "quote": "pricing_model=FixedPrice"
+                },
+                {
+                    "source": "contract_type",
+                    "quote": "contract_type=OpenEnded"
+                },
+                {
+                    "source": "metering",
+                    "quote": "metering=General"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Kiinteä energiahinta tuo mielenrauhaa arkeen - voit käyttää sähköä juuri silloin kun tarvitset, ilman huolta hinnan vaihteluista."
+                }
+            ]
+        },
+        "calculation": {
+            "status": "exact",
+            "missing_facts": [],
+            "required_assumptions": []
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "high",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 6016,
+        "completion_tokens": 888,
+        "total_tokens": 6904,
+        "cost": 0.006663096,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 5319,
+            "cache_write_tokens": 694,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.0067304,
+            "upstream_inference_prompt_cost": 0.0014024,
+            "upstream_inference_completions_cost": 0.005328
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 82,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 5.926654708106071,
+    "response_id": "gen-1784833900-0UHyFjnMwCNUeF1jO8YC",
+    "evaluation": {
+        "score": 1,
+        "passed": 13,
+        "total": 13,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "OpenEnded",
+                "actual": "OpenEnded"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "FixedPrice",
+                "actual": "FixedPrice"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "not_applicable",
+                "actual": "not_applicable"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "none",
+                "actual": "none"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "fixed"
+                ],
+                "actual": [
+                    "fixed"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": "complete",
+                "actual": "complete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": "not_detected",
+                "actual": "not_detected"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [],
+                "actual": [
+                    "structured_matches_description"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "exact",
+                "actual": "exact"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": false,
+                "actual": false
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 94,
+        "contract_id": "qgpgvd-herrfors-oy-ab-vakaa",
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    },
+    "repair_attempts": [],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

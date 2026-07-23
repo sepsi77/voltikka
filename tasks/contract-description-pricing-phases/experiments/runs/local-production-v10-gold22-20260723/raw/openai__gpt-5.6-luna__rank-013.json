@@ -1,0 +1,760 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 13,
+    "contract_id": "cxdwul-kokkolan-energia-oy-surffari-kesakampanja",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "cxdwul-kokkolan-energia-oy-surffari-kesakampanja",
+        "api_id": "b1c3b970-48fb-4212-b638-6c6e75e9fa41",
+        "company_name": "Kokkolan Energia Oy",
+        "contract_name": "Surffari kesäkampanja",
+        "pricing_model": "Spot",
+        "contract_type": "OpenEnded",
+        "fixed_time_range": "Fixed12",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": true,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "Surffaa kesällä kampanjahintaan! Marginaali 0,20 snt/kWh sis. ALV 25,5%. Hinta on voimassa 1.5.-31.8.2026. Kampanjan jälkeen 1.9.2026 alkaen Surffari-sopimuksen hinnat ovat marginaali 0,60 snt/kWh + spot-hinta ja perusmaksu 2,53 €/k. Hinnat sisältävät ALV 25,5 %. Sähkön hinta määräytyy sähkön Nord Pool Spot -markkinahinnan perusteella. Surffari pörssisopimus sopii sinulle, joka haluat seurata aktiivisesti sähkön markkinahinnan kehitystä ja ohjata sähkönkulutustasi sen mukaisesti. Voit hyödyntää markkinahinnan vaihtelut ja pienentää sähkölaskua omilla energiankulutusvalinnoilla. Pääsääntöisesti hinta on halvimmillaan yöaikaan. Asiakasportaalissamme Kompassissa voit tilata sähköpostiisi hintavahdin, joka ilmoittaa päivittäin seuraavan päivän pörssihinnat. Tee sopimus helposti verkossa 24/7 tästä linkistä Soita arkisin 0800 050 60 Sähköposti asiakaspalvelu@kokkolanenergia.fi",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "982c0cd7e73002ed63aee2a6624b2c9f",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 0.6,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": true,
+                "discount_value": 0.4,
+                "discount_is_percentage": false,
+                "discount_type": "UntilDate",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": "2026-08-31 00:00:00"
+            },
+            {
+                "id": "023f447dea148d6469853a504482c14b",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 2.53,
+                "payment_unit": "EurPerMonth",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "cxdwul-kokkolan-energia-oy-surffari-kesäkampanja",
+        "classification": {
+            "term_type": "OpenEnded",
+            "fixed_duration_months": null,
+            "primary_pricing_model": "Spot",
+            "pricing_mechanisms": [
+                "spot"
+            ],
+            "metering": "General",
+            "schedule_kinds": [
+                "introductory_promotion"
+            ],
+            "spot_settlement_interval": "unknown",
+            "periodic_reset_cadence": "none"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Kesäkampanja",
+                    "phase_kind": "introductory",
+                    "starts": {
+                        "kind": "date",
+                        "value": "2026-05-01"
+                    },
+                    "ends": {
+                        "kind": "date",
+                        "value": "2026-08-31"
+                    },
+                    "components": [
+                        {
+                            "component_type": "spot_margin",
+                            "amount": 0.2,
+                            "normal_amount": 0.6,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "included",
+                            "price_role": "introductory",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=0.6"
+                                },
+                                {
+                                    "source": "components[0].has_discount",
+                                    "quote": "components[0].has_discount=true"
+                                },
+                                {
+                                    "source": "components[0].discount_value",
+                                    "quote": "components[0].discount_value=0.4"
+                                },
+                                {
+                                    "source": "components[0].discount_is_percentage",
+                                    "quote": "components[0].discount_is_percentage=false"
+                                },
+                                {
+                                    "source": "components[0].discount_type",
+                                    "quote": "components[0].discount_type=UntilDate"
+                                },
+                                {
+                                    "source": "components[0].discount_until_date",
+                                    "quote": "components[0].discount_until_date=2026-08-31 00:00:00"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Marginaali 0,20 snt/kWh sis. ALV 25,5%. Hinta on voimassa 1.5.-31.8.2026."
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 2.53,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "included",
+                            "price_role": "current",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=2.53"
+                                },
+                                {
+                                    "source": "components[1].has_discount",
+                                    "quote": "components[1].has_discount=false"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "perusmaksu 2,53 €/k. Hinnat sisältävät ALV 25,5 %."
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Marginaali 0,20 snt/kWh sis. ALV 25,5%. Hinta on voimassa 1.5.-31.8.2026."
+                        }
+                    ]
+                },
+                {
+                    "label": "Surffari-sopimuksen hinnat kampanjan jälkeen",
+                    "phase_kind": "normal",
+                    "starts": {
+                        "kind": "date",
+                        "value": "2026-09-01"
+                    },
+                    "ends": {
+                        "kind": "none",
+                        "value": null
+                    },
+                    "components": [
+                        {
+                            "component_type": "spot_margin",
+                            "amount": 0.6,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "included",
+                            "price_role": "normal",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=0.6"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Kampanjan jälkeen 1.9.2026 alkaen Surffari-sopimuksen hinnat ovat marginaali 0,60 snt/kWh + spot-hinta"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 2.53,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "included",
+                            "price_role": "normal",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=2.53"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "perusmaksu 2,53 €/k. Hinnat sisältävät ALV 25,5 %."
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Kampanjan jälkeen 1.9.2026 alkaen Surffari-sopimuksen hinnat ovat marginaali 0,60 snt/kWh + spot-hinta ja perusmaksu 2,53 €/k."
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": false,
+                "cadence": "none",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": null,
+                "description": null,
+                "evidence": []
+            },
+            "consumption_effect": {
+                "present": false,
+                "cadence": "none",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": null,
+                "evidence": [],
+                "applies_to": "unknown"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "Spot",
+            "contract_type_status": "match",
+            "recommended_contract_type": "OpenEnded",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "complete",
+            "misleading_first_12_months": "not_detected",
+            "issue_codes": [
+                "structured_matches_description"
+            ],
+            "summary": "Structured components encode the discounted campaign margin, its end date, the normal margin, and the monthly fee consistently with the description. The contract is an open-ended Spot contract; the campaign ends within the first 12 months, but the normal margin is disclosed.",
+            "evidence": [
+                {
+                    "source": "pricing_model",
+                    "quote": "pricing_model=Spot"
+                },
+                {
+                    "source": "contract_type",
+                    "quote": "contract_type=OpenEnded"
+                },
+                {
+                    "source": "metering",
+                    "quote": "metering=General"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Sähkön hinta määräytyy sähkön Nord Pool Spot -markkinahinnan perusteella."
+                }
+            ]
+        },
+        "calculation": {
+            "status": "estimate_required",
+            "missing_facts": [],
+            "required_assumptions": [
+                "Nord Pool Spot market prices are required to calculate the total cost.",
+                "The campaign margin of 0.20 cents/kWh applies through 2026-08-31 and the 0.60 cents/kWh margin applies from 2026-09-01."
+            ]
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "high",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 6001,
+        "completion_tokens": 1583,
+        "total_tokens": 7584,
+        "cost": 0.0107728335,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 5319,
+            "cache_write_tokens": 679,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.01088165,
+            "upstream_inference_prompt_cost": 0.00138365,
+            "upstream_inference_completions_cost": 0.009498
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 277,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 19.239673874806613,
+    "response_id": "gen-1784833867-JPskXOsiq0ed3zNkjbNn",
+    "evaluation": {
+        "score": 1,
+        "passed": 16,
+        "total": 16,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "OpenEnded",
+                "actual": "OpenEnded"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "Spot",
+                "actual": "Spot"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "unknown",
+                "actual": "unknown"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "none",
+                "actual": "none"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "spot"
+                ],
+                "actual": [
+                    "spot"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": "complete",
+                "actual": "complete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": "not_detected",
+                "actual": "not_detected"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [
+                    "structured_matches_description"
+                ],
+                "actual": [
+                    "structured_matches_description"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "estimate_required",
+                "actual": "estimate_required"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": false,
+                "actual": false
+            },
+            {
+                "name": "price:spot_margin:0.2",
+                "passed": true,
+                "expected": [
+                    "spot_margin",
+                    0.2
+                ],
+                "actual": [
+                    [
+                        "spot_margin",
+                        0.2
+                    ],
+                    [
+                        "monthly_fee",
+                        2.53
+                    ],
+                    [
+                        "spot_margin",
+                        0.6
+                    ],
+                    [
+                        "monthly_fee",
+                        2.53
+                    ]
+                ]
+            },
+            {
+                "name": "price:spot_margin:0.6",
+                "passed": true,
+                "expected": [
+                    "spot_margin",
+                    0.6
+                ],
+                "actual": [
+                    [
+                        "spot_margin",
+                        0.2
+                    ],
+                    [
+                        "monthly_fee",
+                        2.53
+                    ],
+                    [
+                        "spot_margin",
+                        0.6
+                    ],
+                    [
+                        "monthly_fee",
+                        2.53
+                    ]
+                ]
+            },
+            {
+                "name": "price:monthly_fee:2.53",
+                "passed": true,
+                "expected": [
+                    "monthly_fee",
+                    2.53
+                ],
+                "actual": [
+                    [
+                        "spot_margin",
+                        0.2
+                    ],
+                    [
+                        "monthly_fee",
+                        2.53
+                    ],
+                    [
+                        "spot_margin",
+                        0.6
+                    ],
+                    [
+                        "monthly_fee",
+                        2.53
+                    ]
+                ]
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 13,
+        "contract_id": "cxdwul-kokkolan-energia-oy-surffari-kesakampanja",
+        "valid": false,
+        "error_count": 1,
+        "errors": [
+            "$.contract_id must match the source contract ID."
+        ]
+    },
+    "repair_attempts": [
+        {
+            "repair": 1,
+            "output": {
+                "schema_version": "1.0",
+                "contract_id": "cxdwul-kokkolan-energia-oy-surffari-kesakampanja",
+                "classification": {
+                    "term_type": "OpenEnded",
+                    "fixed_duration_months": null,
+                    "primary_pricing_model": "Spot",
+                    "pricing_mechanisms": [
+                        "spot"
+                    ],
+                    "metering": "General",
+                    "schedule_kinds": [
+                        "introductory_promotion"
+                    ],
+                    "spot_settlement_interval": "unknown",
+                    "periodic_reset_cadence": "none"
+                },
+                "pricing": {
+                    "phases": [
+                        {
+                            "label": "Kesäkampanja",
+                            "phase_kind": "introductory",
+                            "starts": {
+                                "kind": "date",
+                                "value": "2026-05-01"
+                            },
+                            "ends": {
+                                "kind": "date",
+                                "value": "2026-08-31"
+                            },
+                            "components": [
+                                {
+                                    "component_type": "spot_margin",
+                                    "amount": 0.2,
+                                    "normal_amount": 0.6,
+                                    "unit": "cents_per_kwh",
+                                    "vat_status": "included",
+                                    "price_role": "introductory",
+                                    "source_kind": "both",
+                                    "evidence": [
+                                        {
+                                            "source": "components[0].price",
+                                            "quote": "components[0].price=0.6"
+                                        },
+                                        {
+                                            "source": "components[0].has_discount",
+                                            "quote": "components[0].has_discount=true"
+                                        },
+                                        {
+                                            "source": "components[0].discount_value",
+                                            "quote": "components[0].discount_value=0.4"
+                                        },
+                                        {
+                                            "source": "components[0].discount_is_percentage",
+                                            "quote": "components[0].discount_is_percentage=false"
+                                        },
+                                        {
+                                            "source": "components[0].discount_type",
+                                            "quote": "components[0].discount_type=UntilDate"
+                                        },
+                                        {
+                                            "source": "components[0].discount_until_date",
+                                            "quote": "components[0].discount_until_date=2026-08-31 00:00:00"
+                                        },
+                                        {
+                                            "source": "extra_information_fi",
+                                            "quote": "Marginaali 0,20 snt/kWh sis. ALV 25,5%. Hinta on voimassa 1.5.-31.8.2026."
+                                        }
+                                    ]
+                                },
+                                {
+                                    "component_type": "monthly_fee",
+                                    "amount": 2.53,
+                                    "normal_amount": null,
+                                    "unit": "eur_per_month",
+                                    "vat_status": "included",
+                                    "price_role": "current",
+                                    "source_kind": "both",
+                                    "evidence": [
+                                        {
+                                            "source": "components[1].price",
+                                            "quote": "components[1].price=2.53"
+                                        },
+                                        {
+                                            "source": "components[1].has_discount",
+                                            "quote": "components[1].has_discount=false"
+                                        },
+                                        {
+                                            "source": "extra_information_fi",
+                                            "quote": "perusmaksu 2,53 €/k. Hinnat sisältävät ALV 25,5 %."
+                                        }
+                                    ]
+                                }
+                            ],
+                            "evidence": [
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Marginaali 0,20 snt/kWh sis. ALV 25,5%. Hinta on voimassa 1.5.-31.8.2026."
+                                }
+                            ]
+                        },
+                        {
+                            "label": "Surffari-sopimuksen hinnat kampanjan jälkeen",
+                            "phase_kind": "normal",
+                            "starts": {
+                                "kind": "date",
+                                "value": "2026-09-01"
+                            },
+                            "ends": {
+                                "kind": "none",
+                                "value": null
+                            },
+                            "components": [
+                                {
+                                    "component_type": "spot_margin",
+                                    "amount": 0.6,
+                                    "normal_amount": null,
+                                    "unit": "cents_per_kwh",
+                                    "vat_status": "included",
+                                    "price_role": "normal",
+                                    "source_kind": "both",
+                                    "evidence": [
+                                        {
+                                            "source": "components[0].price",
+                                            "quote": "components[0].price=0.6"
+                                        },
+                                        {
+                                            "source": "extra_information_fi",
+                                            "quote": "Kampanjan jälkeen 1.9.2026 alkaen Surffari-sopimuksen hinnat ovat marginaali 0,60 snt/kWh + spot-hinta"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "component_type": "monthly_fee",
+                                    "amount": 2.53,
+                                    "normal_amount": null,
+                                    "unit": "eur_per_month",
+                                    "vat_status": "included",
+                                    "price_role": "normal",
+                                    "source_kind": "both",
+                                    "evidence": [
+                                        {
+                                            "source": "components[1].price",
+                                            "quote": "components[1].price=2.53"
+                                        },
+                                        {
+                                            "source": "extra_information_fi",
+                                            "quote": "perusmaksu 2,53 €/k. Hinnat sisältävät ALV 25,5 %."
+                                        }
+                                    ]
+                                }
+                            ],
+                            "evidence": [
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Kampanjan jälkeen 1.9.2026 alkaen Surffari-sopimuksen hinnat ovat marginaali 0,60 snt/kWh + spot-hinta ja perusmaksu 2,53 €/k."
+                                }
+                            ]
+                        }
+                    ],
+                    "recurring_schedule": {
+                        "present": false,
+                        "cadence": "none",
+                        "current_period_start": null,
+                        "current_period_end": null,
+                        "future_price_known": null,
+                        "description": null,
+                        "evidence": []
+                    },
+                    "consumption_effect": {
+                        "present": false,
+                        "cadence": "none",
+                        "expected_cents_per_kwh": null,
+                        "typical_min_cents_per_kwh": null,
+                        "typical_max_cents_per_kwh": null,
+                        "hard_min_cents_per_kwh": null,
+                        "hard_max_cents_per_kwh": null,
+                        "uncapped": null,
+                        "description": null,
+                        "evidence": [],
+                        "applies_to": "unknown"
+                    }
+                },
+                "source_consistency": {
+                    "pricing_model_status": "match",
+                    "recommended_pricing_model": "Spot",
+                    "contract_type_status": "match",
+                    "recommended_contract_type": "OpenEnded",
+                    "metering_status": "match",
+                    "recommended_metering": "General",
+                    "structured_pricing_status": "complete",
+                    "misleading_first_12_months": "not_detected",
+                    "issue_codes": [
+                        "structured_matches_description"
+                    ],
+                    "summary": "Structured components encode the discounted campaign margin, its end date, the normal margin, and the monthly fee consistently with the description. The contract is an open-ended Spot contract; the campaign ends within the first 12 months, but the normal margin is disclosed.",
+                    "evidence": [
+                        {
+                            "source": "pricing_model",
+                            "quote": "pricing_model=Spot"
+                        },
+                        {
+                            "source": "contract_type",
+                            "quote": "contract_type=OpenEnded"
+                        },
+                        {
+                            "source": "metering",
+                            "quote": "metering=General"
+                        },
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Sähkön hinta määräytyy sähkön Nord Pool Spot -markkinahinnan perusteella."
+                        }
+                    ]
+                },
+                "calculation": {
+                    "status": "estimate_required",
+                    "missing_facts": [],
+                    "required_assumptions": [
+                        "Nord Pool Spot market prices are required to calculate the total cost.",
+                        "The campaign margin of 0.20 cents/kWh applies through 2026-08-31 and the 0.60 cents/kWh margin applies from 2026-09-01."
+                    ]
+                },
+                "confidence": {
+                    "classification": "high",
+                    "pricing": "high",
+                    "integrity": "high"
+                }
+            },
+            "validation_errors": [],
+            "usage": {
+                "prompt_tokens": 7378,
+                "completion_tokens": 1348,
+                "total_tokens": 8726,
+                "cost": 0.0103079295,
+                "is_byok": false,
+                "prompt_tokens_details": {
+                    "cached_tokens": 5998,
+                    "cache_write_tokens": 1377,
+                    "audio_tokens": 0,
+                    "video_tokens": 0
+                },
+                "cost_details": {
+                    "upstream_inference_cost": 0.01041205,
+                    "upstream_inference_prompt_cost": 0.00232405,
+                    "upstream_inference_completions_cost": 0.008088
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 42,
+                    "image_tokens": 0,
+                    "audio_tokens": 0
+                }
+            },
+            "provider": "OpenAI",
+            "provider_response_id": "gen-1784833914-4JNi19Yvo9L21BhdfjxN",
+            "latency_ms": 7009
+        }
+    ],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

@@ -434,6 +434,102 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertSame([], app(ContractInterpretationValidator::class)->validate($output, $input));
     }
 
+    public function test_validator_requires_flat_package_taxonomy_for_package_source_pattern(): void
+    {
+        $output = $this->validOutput('contract-1', [
+            'primary_pricing_model' => 'FixedPrice',
+            'pricing_mechanisms' => ['fixed'],
+        ]);
+        $output['pricing']['phases'] = [[
+            'label' => 'Package',
+            'phase_kind' => 'current_structured',
+            'starts' => ['kind' => 'contract_start', 'value' => null],
+            'ends' => ['kind' => 'none', 'value' => null],
+            'components' => [[
+                'component_type' => 'monthly_fee',
+                'amount' => 55.9,
+                'normal_amount' => null,
+                'unit' => 'eur_per_month',
+                'vat_status' => 'unknown',
+                'price_role' => 'current',
+                'source_kind' => 'structured',
+                'evidence' => [['source' => 'components[0].price', 'quote' => 'components[0].price=55.9']],
+            ], [
+                'component_type' => 'energy_general',
+                'amount' => 0,
+                'normal_amount' => null,
+                'unit' => 'cents_per_kwh',
+                'vat_status' => 'unknown',
+                'price_role' => 'current',
+                'source_kind' => 'structured',
+                'evidence' => [['source' => 'components[1].price', 'quote' => 'components[1].price=0']],
+            ]],
+            'evidence' => [],
+        ]];
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, [
+            'contract_id' => 'contract-1',
+            'contract_name' => 'Helpposähkö L',
+            'pricing_name' => 'Helpposähkö L',
+            'pricing_model' => 'FixedPrice',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'extra_information_fi' => 'Tilaa Helpposähkö L-paketti tästä.',
+            'consumption_limitation' => ['MaxXKWhPerY' => 3600],
+            'components' => [
+                ['price_component_type' => 'Monthly', 'price' => 55.9],
+                ['price_component_type' => 'General', 'price' => 0],
+            ],
+        ]);
+
+        $this->assertContains(
+            '$.classification.pricing_mechanisms must contain flat_fee_or_package because the source explicitly describes a consumption package.',
+            $errors,
+        );
+        $this->assertContains(
+            '$.pricing.phases must map the package Monthly charge to a flat_fee component.',
+            $errors,
+        );
+        $this->assertContains('$.pricing.phases is missing structured component type flat_fee.', $errors);
+        $this->assertContains(
+            '$.pricing.phases must not represent zero-price included package energy as energy_general.',
+            $errors,
+        );
+        $this->assertContains(
+            '$.classification.pricing_mechanisms must not contain fixed for a package without a positive fixed energy-price component.',
+            $errors,
+        );
+        $this->assertNotContains('$.pricing.phases is missing structured component type energy_general.', $errors);
+    }
+
+    public function test_validator_retains_source_hybrid_without_explicit_contrary_evidence(): void
+    {
+        $output = $this->validOutput('contract-1', [
+            'primary_pricing_model' => 'FixedPrice',
+            'pricing_mechanisms' => ['fixed'],
+        ]);
+        $input = [
+            'contract_id' => 'contract-1',
+            'pricing_model' => 'Hybrid',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'extra_information_fi' => 'Test contract source text.',
+            'components' => [],
+        ];
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, $input);
+        $this->assertContains(
+            '$.classification.primary_pricing_model must retain source Hybrid when no explicit contrary evidence exists.',
+            $errors,
+        );
+
+        $input['extra_information_fi'] = 'Test contract source text. Sopimus on ilman kulutusvaikutusta.';
+        $this->assertNotContains(
+            '$.classification.primary_pricing_model must retain source Hybrid when no explicit contrary evidence exists.',
+            app(ContractInterpretationValidator::class)->validate($output, $input),
+        );
+    }
+
     public function test_successful_job_automatically_publishes_canonical_classification(): void
     {
         $snapshot = $this->createSnapshot();
@@ -737,8 +833,8 @@ class ContractInterpretationPipelineTest extends TestCase
             'analysis_fingerprint' => hash('sha256', $snapshot->source_fingerprint.microtime(true)),
             'status' => ContractInterpretation::STATUS_PENDING,
             'schema_version' => 'schema-v3',
-            'prompt_version' => 'prompt-v9',
-            'validator_version' => 'validator-v5',
+            'prompt_version' => 'prompt-v10',
+            'validator_version' => 'validator-v6',
             'provider' => 'openrouter',
             'model' => 'test-model',
             'output' => $output,

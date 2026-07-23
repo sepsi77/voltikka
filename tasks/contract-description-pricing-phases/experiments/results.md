@@ -262,6 +262,28 @@ Retained evidence:
 - `runs/local-production-v9-gold22-20260723/production-validation-summary.json`
 - `runs/local-production-v9-gold22-20260723/repair-summary.json`
 
+## Prompt v10 package and Hybrid evaluation
+
+Prompt v10 defines a deterministic flat-package pattern and conservative Hybrid fallback. Validator v6 requires flat package taxonomy/components for package wording + positive monthly fee + zero unit price + positive consumption limit, and retains source Hybrid unless explicit contrary evidence exists.
+
+The complete 22-case run produced:
+
+- 22/22 successful initial calls
+- 17/22 initial outputs passed validator v6
+- all five failed outputs passed after one correction call
+- 22/22 final outputs passed
+- weighted key-field score before correction was 95.90%
+- initial calls cost $0.2133; correction calls cost $0.0507
+- mean initial latency was 10.80 seconds
+
+A validator-v6 replay of production interpretations 82-94 flagged only Helen Välkkysähkö and Helpposähkö L. Local correction made Välkkysähkö Hybrid with fixed + consumption_effect and unsupported calculation. Helpposähkö L became FixedPrice with only flat_fee_or_package, one €55.90 flat_fee component, and incomplete calculation because package excess-use terms are absent. Both passed validator v6. These calls did not write to production.
+
+Retained evidence:
+
+- `runs/local-production-v10-gold22-20260723/summary.json`
+- `runs/local-production-v10-gold22-20260723/production-validation-summary.json`
+- `runs/local-production-v10-gold22-20260723/repair-summary.json`
+
 ## Recommendation
 
-Use `openai/gpt-5.6-luna`, prompt v9, schema v3, validator v5, low reasoning, exact production validation, and at most two automatic correction calls. Run asynchronously and idempotently by source/prompt/validator/model fingerprint. Persist every model attempt, evidence, usage, and validation result. Do not publish any output that still fails deterministic validation.
+Use `openai/gpt-5.6-luna`, prompt v10, schema v3, validator v6, low reasoning, exact production validation, and at most two automatic correction calls. Run asynchronously and idempotently by source/prompt/validator/model fingerprint. Persist every model attempt, evidence, usage, and validation result. Do not publish any output that still fails deterministic validation.

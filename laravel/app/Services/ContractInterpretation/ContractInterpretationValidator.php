@@ -208,11 +208,23 @@ class ContractInterpretationValidator
             }
         }
 
+        $isFlatPackageSource = $this->isFlatPackageSource($input);
         $expectedTypes = collect($input['components'] ?? [])
-            ->map(fn (array $component): ?string => $this->interpretedComponentType(
-                $component['price_component_type'] ?? null,
-                $output['classification']['primary_pricing_model'] ?? $input['pricing_model'] ?? null,
-            ))
+            ->map(function (array $component) use ($isFlatPackageSource, $output, $input): ?string {
+                if ($isFlatPackageSource && ($component['price_component_type'] ?? null) === 'Monthly') {
+                    return 'flat_fee';
+                }
+                if ($isFlatPackageSource
+                    && ($component['price_component_type'] ?? null) === 'General'
+                    && (float) ($component['price'] ?? -1) === 0.0) {
+                    return null;
+                }
+
+                return $this->interpretedComponentType(
+                    $component['price_component_type'] ?? null,
+                    $output['classification']['primary_pricing_model'] ?? $input['pricing_model'] ?? null,
+                );
+            })
             ->filter()
             ->unique();
         foreach ($expectedTypes as $expectedType) {
@@ -448,8 +460,9 @@ class ContractInterpretationValidator
     {
         $classification = $output['classification'] ?? [];
         $mechanisms = $classification['pricing_mechanisms'] ?? [];
-        $componentTypes = collect($output['pricing']['phases'] ?? [])
-            ->flatMap(fn (array $phase): array => $phase['components'] ?? [])
+        $interpretedComponents = collect($output['pricing']['phases'] ?? [])
+            ->flatMap(fn (array $phase): array => $phase['components'] ?? []);
+        $componentTypes = $interpretedComponents
             ->pluck('component_type')
             ->filter()
             ->unique();
@@ -475,6 +488,31 @@ class ContractInterpretationValidator
         }
         if ($hasComponent('flat_fee') && ! $hasMechanism('flat_fee_or_package')) {
             $errors[] = '$.classification.pricing_mechanisms must contain flat_fee_or_package for a flat_fee component.';
+        }
+        if ($this->isFlatPackageSource($input)) {
+            if (! $hasMechanism('flat_fee_or_package')) {
+                $errors[] = '$.classification.pricing_mechanisms must contain flat_fee_or_package because the source explicitly describes a consumption package.';
+            }
+            if (! $hasComponent('flat_fee')) {
+                $errors[] = '$.pricing.phases must map the package Monthly charge to a flat_fee component.';
+            }
+            $hasZeroUnitEnergy = $interpretedComponents->contains(
+                fn (array $component): bool => ($component['component_type'] ?? null) === 'energy_general'
+                    && (float) ($component['amount'] ?? -1) === 0.0,
+            );
+            if ($hasZeroUnitEnergy) {
+                $errors[] = '$.pricing.phases must not represent zero-price included package energy as energy_general.';
+            }
+            $hasPositiveFixedEnergy = $interpretedComponents->contains(
+                fn (array $component): bool => in_array(
+                    $component['component_type'] ?? null,
+                    $fixedEnergyComponents,
+                    true,
+                ) && (float) ($component['amount'] ?? 0) > 0,
+            );
+            if ($hasMechanism('fixed') && ! $hasPositiveFixedEnergy) {
+                $errors[] = '$.classification.pricing_mechanisms must not contain fixed for a package without a positive fixed energy-price component.';
+            }
         }
 
         $hasSeasonalComponents = $hasAnyComponent(['energy_seasonal_winter', 'energy_seasonal_other']);
@@ -634,6 +672,74 @@ class ContractInterpretationValidator
         if ($hasMismatch && ! $hasTextEvidence) {
             $errors[] = '$.source_consistency.evidence must cite source text for a classification correction.';
         }
+
+        $sourcePricingModel = $input['pricing_model'] ?? null;
+        $interpretedPricingModel = $classification['primary_pricing_model'] ?? null;
+        if ($sourcePricingModel === 'Hybrid'
+            && $interpretedPricingModel !== 'Hybrid'
+            && ! $this->hasExplicitHybridContradiction($input, $interpretedPricingModel)) {
+            $errors[] = '$.classification.primary_pricing_model must retain source Hybrid when no explicit contrary evidence exists.';
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    private function isFlatPackageSource(array $input): bool
+    {
+        $text = mb_strtolower($this->sourceText($input), 'UTF-8');
+        $hasPackageWording = preg_match('/\b(?:paketti|package)\b/u', $text) === 1;
+        $maximumConsumption = data_get($input, 'consumption_limitation.MaxXKWhPerY');
+        $components = collect($input['components'] ?? []);
+        $hasPositiveMonthlyFee = $components->contains(
+            fn (array $component): bool => ($component['price_component_type'] ?? null) === 'Monthly'
+                && (float) ($component['price'] ?? 0) > 0,
+        );
+        $hasZeroGeneralPrice = $components->contains(
+            fn (array $component): bool => ($component['price_component_type'] ?? null) === 'General'
+                && (float) ($component['price'] ?? -1) === 0.0,
+        );
+
+        return $hasPackageWording
+            && is_numeric($maximumConsumption)
+            && (float) $maximumConsumption > 0
+            && $hasPositiveMonthlyFee
+            && $hasZeroGeneralPrice;
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    private function hasExplicitHybridContradiction(array $input, mixed $interpretedPricingModel): bool
+    {
+        $text = mb_strtolower($this->sourceText($input), 'UTF-8');
+
+        if ($interpretedPricingModel === 'Spot') {
+            return preg_match('/nord\s*pool|spot-hinta|pörssisähkö|porssisahko/u', $text) === 1;
+        }
+
+        if ($interpretedPricingModel === 'FixedPrice') {
+            return preg_match('/(?:ei|ilman)\s+kulutusvaikut/u', $text) === 1
+                || str_contains($text, 'kulutusvaikutukseton');
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    private function sourceText(array $input): string
+    {
+        return collect([
+            $input['contract_name'] ?? null,
+            $input['pricing_name'] ?? null,
+            $input['short_description'] ?? null,
+            $input['long_description'] ?? null,
+            $input['extra_information_fi'] ?? null,
+            $input['extra_information_default'] ?? null,
+        ])->filter(fn (mixed $value): bool => is_string($value) && $value !== '')
+            ->implode(' ');
     }
 
     /**

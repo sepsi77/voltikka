@@ -6,7 +6,7 @@ This directory contains the reproducible prompt/model evaluation requested befor
 
 - Model: `openai/gpt-5.6-luna`
 - Reasoning effort: `low`
-- Prompt: `system-prompt-v9.md`
+- Prompt: `system-prompt-v10.md`
 - JSON Schema: `schema-v3.json`
 - Deterministic post-processing example: `evaluate_run.py`
 
@@ -15,7 +15,7 @@ The prompt must not be used without deterministic evidence, phase, component, an
 ## Files
 
 - `schema-v3.json` — recommended strict structured-output schema with evidence-path constraints
-- `system-prompt-v9.md` — recommended prompt with flat-input, scalar evidence, pricing invariants, recurring-estimate completeness, and analysis-date cutoff rules
+- `system-prompt-v10.md` — recommended prompt with flat-input, scalar evidence, pricing invariants, package detection, conservative Hybrid fallback, recurring completeness, and analysis-date cutoff rules
 - `gold-v4.json` — 22 manually specified key-field cases covering Spot, fixed, recurring reset, promotions, missing descriptions, seasonal tariffs, optional fixing, and consumption effect
 - `active-434-input.json` — normalized read-only production export used for the full shadow run
 - `run_experiment.py` — OpenRouter runner, cost/latency recorder, key-field scorer, and production-validator launcher
@@ -37,8 +37,8 @@ The runner reads `OPENROUTER_API_KEY` from the process environment or `laravel/.
 ```bash
 cd /Users/seppo/code/voltikka
 python3 tasks/contract-description-pricing-phases/experiments/run_experiment.py \
-  --run-name top100-gpt-v9-low-rerun \
-  --prompt system-prompt-v9.md \
+  --run-name top100-gpt-v10-low-rerun \
+  --prompt system-prompt-v10.md \
   --schema schema-v3.json \
   --gold gold-v4.json \
   --models openai/gpt-5.6-luna \
@@ -51,7 +51,7 @@ Retry production-validator failures from a retained run, with at most two correc
 
 ```bash
 php tasks/contract-description-pricing-phases/experiments/repair_run.php \
-  tasks/contract-description-pricing-phases/experiments/runs/top100-gpt-v9-low-rerun \
+  tasks/contract-description-pricing-phases/experiments/runs/top100-gpt-v10-low-rerun \
   2
 ```
 
@@ -59,7 +59,7 @@ Evaluate the focused promotion benchmark:
 
 ```bash
 python3 tasks/contract-description-pricing-phases/experiments/evaluate_run.py \
-  top100-gpt-v9-low-rerun
+  top100-gpt-v10-low-rerun
 ```
 
 ## Important evaluation limitations
