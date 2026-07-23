@@ -82,6 +82,13 @@ class ContractInterpretationValidator
         if (is_string($value) && ($schema['format'] ?? null) === 'date' && ! $this->isDate($value)) {
             $errors[] = "{$path} must be an ISO date.";
         }
+        if (is_string($value) && isset($schema['minLength']) && mb_strlen($value) < $schema['minLength']) {
+            $errors[] = "{$path} is shorter than allowed.";
+        }
+        if (is_string($value) && isset($schema['pattern'])
+            && preg_match('~'.$schema['pattern'].'~u', $value) !== 1) {
+            $errors[] = "{$path} has an invalid format.";
+        }
 
         if (in_array('object', $types, true) && is_array($value)) {
             $required = $schema['required'] ?? [];
@@ -187,7 +194,10 @@ class ContractInterpretationValidator
                 foreach (['amount', 'normal_amount'] as $field) {
                     $number = $component[$field] ?? null;
                     if (is_int($number) || is_float($number)) {
-                        if (! $this->textContainsNumber($evidenceText, $number)) {
+                        $hasLiteralEvidence = $this->textContainsNumber($evidenceText, $number);
+                        $hasDerivedDiscountEvidence = $field === 'amount'
+                            && $this->hasDerivedDiscountEvidence($component, $phase, $number, $input);
+                        if (! $hasLiteralEvidence && ! $hasDerivedDiscountEvidence) {
                             $errors[] = "$.pricing.phases[{$phaseIndex}].components[{$componentIndex}].{$field} lacks numeric evidence.";
                         }
                     }
@@ -262,21 +272,99 @@ class ContractInterpretationValidator
 
     private function textContainsNumber(string $text, int|float $number): bool
     {
-        $normalizedText = str_replace(',', '.', $text);
-        $absolute = abs($number);
-        $candidates = array_unique([
-            (string) $number,
-            (string) $absolute,
-            rtrim(rtrim(number_format($number, 6, '.', ''), '0'), '.'),
-            rtrim(rtrim(number_format($absolute, 6, '.', ''), '0'), '.'),
-        ]);
+        preg_match_all('/(?<![\d.,])[-+]?\d+(?:[.,]\d+)?(?![\d.,])/u', $text, $matches);
 
-        return collect($candidates)->filter()->contains(
-            fn (string $candidate): bool => preg_match(
-                '/(?<![\d.])'.preg_quote($candidate, '/').'(?![\d.])/',
-                $normalizedText,
-            ) === 1
+        return collect($matches[0] ?? [])->contains(
+            fn (string $candidate): bool => abs((float) str_replace(',', '.', $candidate) - $number) < 0.000001,
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $component
+     * @param  array<string, mixed>  $phase
+     * @param  array<string, mixed>  $input
+     */
+    private function hasDerivedDiscountEvidence(
+        array $component,
+        array $phase,
+        int|float $amount,
+        array $input,
+    ): bool {
+        $sources = collect($component['evidence'] ?? [])
+            ->pluck('source')
+            ->filter(fn (mixed $source): bool => is_string($source));
+        $componentIndexes = $sources
+            ->map(fn (string $source): ?int => preg_match('/^components\[(\d+)]\./', $source, $matches) === 1
+                ? (int) $matches[1]
+                : null)
+            ->filter(fn (?int $index): bool => $index !== null)
+            ->unique();
+
+        if ($componentIndexes->count() !== 1) {
+            return false;
+        }
+
+        $index = $componentIndexes->first();
+        $sourceComponent = $input['components'][$index] ?? null;
+        if (! is_array($sourceComponent) || ($sourceComponent['has_discount'] ?? false) !== true) {
+            return false;
+        }
+
+        $requiredFields = ['price', 'has_discount', 'discount_value', 'discount_is_percentage'];
+        foreach ($requiredFields as $field) {
+            if (! $sources->contains("components[{$index}].{$field}")) {
+                return false;
+            }
+        }
+
+        $price = $sourceComponent['price'] ?? null;
+        $discountValue = $sourceComponent['discount_value'] ?? null;
+        if (! is_numeric($price) || ! is_numeric($discountValue)) {
+            return false;
+        }
+
+        $normalAmount = $component['normal_amount'] ?? null;
+        if (! is_numeric($normalAmount) || abs((float) $normalAmount - (float) $price) >= 0.000001) {
+            return false;
+        }
+
+        $discount = ($sourceComponent['discount_is_percentage'] ?? false)
+            ? (float) $price * ((float) $discountValue / 100)
+            : (float) $discountValue;
+        $expectedAmount = max(0.0, (float) $price - min((float) $price, $discount));
+        if (abs($expectedAmount - (float) $amount) >= 0.000001) {
+            return false;
+        }
+
+        $discountType = $sourceComponent['discount_type'] ?? null;
+        if (is_string($discountType) && $discountType !== '') {
+            if (! $sources->contains("components[{$index}].discount_type")) {
+                return false;
+            }
+
+            if ($discountType === 'NFirstKwh') {
+                return false;
+            }
+            if ($discountType === 'NFirstMonth') {
+                $months = $sourceComponent['discount_n_first_months'] ?? null;
+
+                return is_numeric($months)
+                    && $sources->contains("components[{$index}].discount_n_first_months")
+                    && ($phase['starts']['kind'] ?? null) === 'contract_start'
+                    && ($phase['ends']['kind'] ?? null) === 'after_months'
+                    && (int) ($phase['ends']['value'] ?? -1) === (int) $months;
+            }
+            if ($discountType === 'UntilDate') {
+                $untilDate = $sourceComponent['discount_until_date'] ?? null;
+
+                return is_string($untilDate)
+                    && $sources->contains("components[{$index}].discount_until_date")
+                    && ($phase['ends']['kind'] ?? null) === 'date'
+                    && ($phase['ends']['value'] ?? null) === substr($untilDate, 0, 10);
+            }
+        }
+
+        return true;
     }
 
     private function interpretedComponentType(mixed $sourceType, mixed $pricingModel): ?string

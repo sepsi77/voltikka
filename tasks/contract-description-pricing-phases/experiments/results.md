@@ -147,6 +147,57 @@ Before any output affects calculation or frontend behavior:
 9. Derive warning/integrity states from validated facts rather than trusting the model headline.
 10. Block or review category changes, unsupported mechanisms, contradictory duplicates, and unknown future phases.
 
+## Production-validator smoke run after rollout
+
+A five-case local smoke run on 2026-07-23 used the exact production `system-prompt-v5.md`, `schema-v2.json`, GPT-5.6 Luna, and low reasoning.
+
+- OpenRouter returned 5/5 schema-valid responses.
+- The existing experiment key-field scorer reported a 96.15% weighted score.
+- The production `ContractInterpretationValidator` accepted 0/5 responses.
+- Reported OpenRouter cost was $0.0487.
+
+The failures showed a gap in the earlier experiment:
+
+- evidence sources sometimes named an object, a combined expression, or the visible `contract.*` envelope instead of one scalar input value
+- quotes were not always exact substrings of the specifically cited field
+- deterministically derived discounted amounts did not always occur literally in evidence text
+- production and experiment input normalization and field names had drifted
+
+The retained run is `runs/local-production-v5-smoke-20260723/`. Its `production-validation-summary.json` records the production-validator result. Do not resume the full production backfill until the experiment runner uses the production input builder and validator and a new local smoke run passes.
+
+## Prompt v6 and production-validator smoke run
+
+Prompt v6 and schema v3 define one flat model input, require one scalar source path per evidence item, and constrain evidence path syntax. The experiment runner now sends the production field names and runs the exact Laravel production validator.
+
+A five-case local run used GPT-5.6 Luna with low reasoning:
+
+- 5/5 OpenRouter calls succeeded
+- 5/5 initial outputs passed the production validator
+- weighted key-field score was 97.44%
+- reported cost was $0.0580
+- mean latency was 9.86 seconds
+
+A separate correction smoke test gave one old failed output and its 13 validator errors to the production `repair()` call. The corrected complete output passed with zero errors on the first correction call. That call cost $0.0099 and took 14.8 seconds.
+
+The complete 22-case gold set then tested the bounded correction policy:
+
+- 22/22 initial OpenRouter calls succeeded
+- 17/22 initial outputs passed the exact production validator
+- all five failed outputs passed after one correction call
+- 22/22 final outputs passed; no case needed a second correction call
+- weighted key-field score before correction was 98.11%
+- initial calls cost $0.2164; five correction calls cost $0.0446
+- mean initial latency was 8.81 seconds
+
+Retained evidence:
+
+- `runs/local-production-v6-smoke-20260723/summary.json`
+- `runs/local-production-v6-smoke-20260723/production-validation-summary.json`
+- `runs/local-production-v6-smoke-20260723/repair-smoke-rank-002.json`
+- `runs/local-production-v6-gold22-20260723/summary.json`
+- `runs/local-production-v6-gold22-20260723/production-validation-summary.json`
+- `runs/local-production-v6-gold22-20260723/repair-summary.json`
+
 ## Recommendation
 
-Use `openai/gpt-5.6-luna`, prompt v5, schema v2, and low reasoning for the first implementation. Run asynchronously and idempotently by source/prompt/model fingerprint. Persist raw source, raw output, evidence, usage, and validation results. Start in shadow mode and do not activate category or price corrections until deterministic validators and a larger independently labeled benchmark are in place.
+Use `openai/gpt-5.6-luna`, prompt v6, schema v3, low reasoning, exact production validation, and at most two automatic correction calls. Run asynchronously and idempotently by source/prompt/model fingerprint. Persist every model attempt, evidence, usage, and validation result. Do not publish any output that still fails deterministic validation.

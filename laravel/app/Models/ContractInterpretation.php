@@ -28,6 +28,7 @@ class ContractInterpretation extends Model
         'model',
         'output',
         'validation_errors',
+        'llm_attempts',
         'published_fields',
         'relational_pricing_published',
         'usage',
@@ -44,6 +45,7 @@ class ContractInterpretation extends Model
         return [
             'output' => 'array',
             'validation_errors' => 'array',
+            'llm_attempts' => 'array',
             'published_fields' => 'array',
             'relational_pricing_published' => 'boolean',
             'usage' => 'array',

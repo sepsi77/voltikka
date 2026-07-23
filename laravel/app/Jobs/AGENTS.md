@@ -10,11 +10,13 @@ Purpose:
 - automatically publishes valid compatible classifications; it has no human review state
 
 Important semantics:
-- implements `ShouldBeUnique` by interpretation ID and uses three bounded attempts
+- implements `ShouldBeUnique` by interpretation ID and uses three bounded queue attempts for transport/runtime failures
+- each queue execution makes one initial model call and at most two model correction calls for deterministic validation errors
+- every model attempt, output, validation result, usage, provider response ID, and latency is retained in `llm_attempts`; aggregate usage remains in `usage`
 - `contracts:fetch` dispatches it only after the source transaction commits when interpretation is enabled
 - stale results cannot publish over a newer source snapshot; they become `superseded`
-- job timeout is 260 seconds; keep database queue `retry_after` above this timeout
-- schema-invalid output is a permanent failed interpretation and does not throw for queue retry
+- job timeout is 400 seconds; the Supervisor worker timeout is 420 seconds and database queue `retry_after` must remain above both at 450 seconds or more
+- output becomes a permanent failed interpretation only after the allowed correction calls still fail; deterministic validation failure does not use a queue retry
 - transport/provider failures throw so the queue can retry them
 
 ## `WarmContractPriceStatisticsCache`

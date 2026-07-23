@@ -1,0 +1,296 @@
+{
+  "model": "openai/gpt-5.6-luna",
+  "rank": 1,
+  "contract_id": "9a16oh-hehku-energia-oy-hehku-spot",
+  "ok": true,
+  "output": {
+    "schema_version": "1.0",
+    "contract_id": "9a16oh-hehku-energia-oy-hehku-spot",
+    "classification": {
+      "term_type": "OpenEnded",
+      "fixed_duration_months": null,
+      "primary_pricing_model": "Spot",
+      "pricing_mechanisms": [
+        "spot",
+        "flat_fee_or_package"
+      ],
+      "metering": "General",
+      "schedule_kinds": [],
+      "spot_settlement_interval": "quarter_hourly",
+      "periodic_reset_cadence": "none"
+    },
+    "pricing": {
+      "phases": [
+        {
+          "label": "Current pricing",
+          "phase_kind": "current_structured",
+          "starts": {
+            "kind": "contract_start",
+            "value": null
+          },
+          "ends": {
+            "kind": "none",
+            "value": null
+          },
+          "components": [
+            {
+              "component_type": "spot_margin",
+              "amount": 0.49,
+              "normal_amount": null,
+              "unit": "cents_per_kwh",
+              "vat_status": "unknown",
+              "price_role": "current",
+              "source_kind": "both",
+              "evidence": [
+                {
+                  "source": "components[0].price",
+                  "quote": "components[0].price=0.49"
+                },
+                {
+                  "source": "extra_information_fi",
+                  "quote": "marginaali vain 0,49 SNT/KWH"
+                }
+              ]
+            },
+            {
+              "component_type": "monthly_fee",
+              "amount": 4.9,
+              "normal_amount": null,
+              "unit": "eur_per_month",
+              "vat_status": "unknown",
+              "price_role": "current",
+              "source_kind": "both",
+              "evidence": [
+                {
+                  "source": "components[1].price",
+                  "quote": "components[1].price=4.9"
+                },
+                {
+                  "source": "extra_information_fi",
+                  "quote": "PERUSMAKSU 4,90 €/KK"
+                }
+              ]
+            }
+          ],
+          "evidence": [
+            {
+              "source": "extra_information_fi",
+              "quote": "Hehku SPOT- sopimuksella maksat Nord Poolin Suomen hinta-alueen varttituntihinnan + marginaalin oman varttituntikohtaisen kulutuksen mukaan."
+            },
+            {
+              "source": "extra_information_fi",
+              "quote": "Hehku SPOT on pörssisähkösopimus"
+            }
+          ]
+        }
+      ],
+      "recurring_schedule": {
+        "present": false,
+        "cadence": "none",
+        "current_period_start": null,
+        "current_period_end": null,
+        "future_price_known": null,
+        "description": null,
+        "evidence": []
+      },
+      "consumption_effect": {
+        "present": false,
+        "cadence": "none",
+        "expected_cents_per_kwh": null,
+        "typical_min_cents_per_kwh": null,
+        "typical_max_cents_per_kwh": null,
+        "hard_min_cents_per_kwh": null,
+        "hard_max_cents_per_kwh": null,
+        "uncapped": null,
+        "description": null,
+        "evidence": [],
+        "applies_to": "unknown"
+      }
+    },
+    "source_consistency": {
+      "pricing_model_status": "mismatch",
+      "recommended_pricing_model": "Spot",
+      "contract_type_status": "match",
+      "recommended_contract_type": "OpenEnded",
+      "metering_status": "match",
+      "recommended_metering": "General",
+      "structured_pricing_status": "complete",
+      "misleading_first_12_months": "not_detected",
+      "issue_codes": [
+        "structured_matches_description",
+        "pricing_model_mismatch"
+      ],
+      "summary": "The description identifies a Nord Pool Finland spot contract settled using quarter-hourly consumption, with a 0.49 c/kWh margin and a 4.90 €/month fee. The structured pricing components represent those same current charges, but the source pricing_model is incorrectly FixedPrice. The Fixed12 time-range field conflicts with the explicit open-ended contract wording and is not used for term classification.",
+      "evidence": [
+        {
+          "source": "extra_information_fi",
+          "quote": "Nord Poolin Suomen hinta-alueen varttituntihinnan + marginaalin oman varttituntikohtaisen kulutuksen mukaan"
+        },
+        {
+          "source": "extra_information_fi",
+          "quote": "Sopimus on toistaiseksi voimassa olevan, joten voit vaihtaa sen kahden viikon irtisanomisajalla."
+        },
+        {
+          "source": "pricing_model",
+          "quote": "pricing_model=FixedPrice"
+        },
+        {
+          "source": "fixed_time_range",
+          "quote": "fixed_time_range=Fixed12"
+        },
+        {
+          "source": "metering",
+          "quote": "metering=General"
+        },
+        {
+          "source": "components[0].price",
+          "quote": "components[0].price=0.49"
+        },
+        {
+          "source": "components[1].price",
+          "quote": "components[1].price=4.9"
+        }
+      ]
+    },
+    "calculation": {
+      "status": "estimate_required",
+      "missing_facts": [
+        "Nord Pool Finland quarter-hourly market prices for the consumption period",
+        "The customer's quarter-hourly consumption profile"
+      ],
+      "required_assumptions": [
+        "Use an explicit estimate for Nord Pool Finland quarter-hourly market prices and the customer's consumption profile.",
+        "Add the 0.49 c/kWh spot margin and 4.90 €/month fee to the market-price estimate."
+      ]
+    },
+    "confidence": {
+      "classification": "high",
+      "pricing": "high",
+      "integrity": "high"
+    }
+  },
+  "usage": {
+    "prompt_tokens": 4280,
+    "completion_tokens": 1070,
+    "total_tokens": 5350,
+    "cost": 0.007647453,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 3517,
+      "cache_write_tokens": 760,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 0.0077247,
+      "upstream_inference_prompt_cost": 0.0013047,
+      "upstream_inference_completions_cost": 0.00642
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 126,
+      "image_tokens": 0,
+      "audio_tokens": 0
+    }
+  },
+  "provider": "OpenAI",
+  "latency_seconds": 9.980626875068992,
+  "response_id": "gen-1784825157-7U07T0KxvhB0ZGPVBqh0",
+  "evaluation": {
+    "score": 0.8461538461538461,
+    "passed": 11,
+    "total": 13,
+    "checks": [
+      {
+        "name": "term_type",
+        "passed": true,
+        "expected": "OpenEnded",
+        "actual": "OpenEnded"
+      },
+      {
+        "name": "primary_pricing_model",
+        "passed": true,
+        "expected": "Spot",
+        "actual": "Spot"
+      },
+      {
+        "name": "metering",
+        "passed": true,
+        "expected": "General",
+        "actual": "General"
+      },
+      {
+        "name": "spot_settlement_interval",
+        "passed": true,
+        "expected": "quarter_hourly",
+        "actual": "quarter_hourly"
+      },
+      {
+        "name": "periodic_reset_cadence",
+        "passed": true,
+        "expected": "none",
+        "actual": "none"
+      },
+      {
+        "name": "required_mechanisms",
+        "passed": true,
+        "expected": [
+          "spot"
+        ],
+        "actual": [
+          "flat_fee_or_package",
+          "spot"
+        ]
+      },
+      {
+        "name": "pricing_model_status",
+        "passed": true,
+        "expected": "mismatch",
+        "actual": "mismatch"
+      },
+      {
+        "name": "structured_pricing_status",
+        "passed": true,
+        "expected": [
+          "complete",
+          "incomplete"
+        ],
+        "actual": "complete"
+      },
+      {
+        "name": "misleading_first_12_months",
+        "passed": false,
+        "expected": "detected",
+        "actual": "not_detected"
+      },
+      {
+        "name": "required_issue_codes",
+        "passed": true,
+        "expected": [
+          "pricing_model_mismatch"
+        ],
+        "actual": [
+          "pricing_model_mismatch",
+          "structured_matches_description"
+        ]
+      },
+      {
+        "name": "calculation_status",
+        "passed": true,
+        "expected": "estimate_required",
+        "actual": "estimate_required"
+      },
+      {
+        "name": "consumption_effect.present",
+        "passed": true,
+        "expected": false,
+        "actual": false
+      },
+      {
+        "name": "description_evidence_exact",
+        "passed": false,
+        "expected": ">=0.95",
+        "actual": 0.8333333333333334
+      }
+    ]
+  }
+}

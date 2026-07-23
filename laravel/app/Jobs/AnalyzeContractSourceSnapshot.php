@@ -18,7 +18,7 @@ class AnalyzeContractSourceSnapshot implements ShouldBeUnique, ShouldQueue
 
     public int $tries = 3;
 
-    public int $timeout = 260;
+    public int $timeout = 400;
 
     public int $uniqueFor = 3600;
 
@@ -64,31 +64,41 @@ class AnalyzeContractSourceSnapshot implements ShouldBeUnique, ShouldQueue
         try {
             $input = $inputBuilder->build($interpretation->sourceSnapshot);
             $result = $client->interpret($input);
-            $errors = $validator->validate($result['output'], $input);
-            $usage = $result['usage'];
-            if ($result['provider'] !== null) {
-                $usage['provider'] = $result['provider'];
-            }
+            $attempts = [];
+            $maxRepairAttempts = min(2, max(0, (int) config('contract_interpretation.max_repair_attempts')));
 
-            $interpretation->update([
-                'output' => $result['output'],
-                'validation_errors' => $errors === [] ? null : $errors,
-                'usage' => $usage,
-                'provider_response_id' => $result['response_id'],
-                'latency_ms' => $result['latency_ms'],
-            ]);
+            for ($attemptNumber = 0; $attemptNumber <= $maxRepairAttempts; $attemptNumber++) {
+                $errors = $validator->validate($result['output'], $input);
+                $attempts[] = $this->attemptRecord($attemptNumber, $result, $errors);
+                $usage = $this->aggregateUsage($attempts);
 
-            if ($errors !== []) {
                 $interpretation->update([
-                    'status' => ContractInterpretation::STATUS_FAILED,
-                    'completed_at' => now(),
-                    'error' => 'Automatic validation failed.',
+                    'output' => $result['output'],
+                    'validation_errors' => $errors === [] ? null : $errors,
+                    'llm_attempts' => $attempts,
+                    'usage' => $usage,
+                    'provider_response_id' => $result['response_id'],
+                    'latency_ms' => collect($attempts)->sum('latency_ms'),
                 ]);
 
-                return;
-            }
+                if ($errors === []) {
+                    $publisher->publish($interpretation->fresh());
 
-            $publisher->publish($interpretation->fresh());
+                    return;
+                }
+
+                if ($attemptNumber === $maxRepairAttempts) {
+                    $interpretation->update([
+                        'status' => ContractInterpretation::STATUS_FAILED,
+                        'completed_at' => now(),
+                        'error' => 'Automatic validation failed after '.count($attempts).' LLM attempts.',
+                    ]);
+
+                    return;
+                }
+
+                $result = $client->repair($input, $result['output'], $errors);
+            }
         } catch (Throwable $exception) {
             $interpretation->update([
                 'status' => ContractInterpretation::STATUS_FAILED,
@@ -98,6 +108,53 @@ class AnalyzeContractSourceSnapshot implements ShouldBeUnique, ShouldQueue
 
             throw $exception;
         }
+    }
+
+    /**
+     * @param  array{output: array<string, mixed>, usage: array<string, mixed>, provider: ?string, response_id: ?string, latency_ms: int}  $result
+     * @param  list<string>  $errors
+     * @return array<string, mixed>
+     */
+    private function attemptRecord(int $attemptNumber, array $result, array $errors): array
+    {
+        return [
+            'attempt' => $attemptNumber + 1,
+            'type' => $attemptNumber === 0 ? 'initial' : 'repair',
+            'output' => $result['output'],
+            'validation_errors' => $errors,
+            'usage' => $result['usage'],
+            'provider' => $result['provider'],
+            'provider_response_id' => $result['response_id'],
+            'latency_ms' => $result['latency_ms'],
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $attempts
+     * @return array<string, mixed>
+     */
+    private function aggregateUsage(array $attempts): array
+    {
+        $usage = [
+            'attempt_count' => count($attempts),
+            'prompt_tokens' => 0,
+            'completion_tokens' => 0,
+            'total_tokens' => 0,
+            'cost' => 0.0,
+        ];
+
+        foreach ($attempts as $attempt) {
+            $attemptUsage = $attempt['usage'] ?? [];
+            foreach (['prompt_tokens', 'completion_tokens', 'total_tokens'] as $field) {
+                $usage[$field] += (int) ($attemptUsage[$field] ?? 0);
+            }
+            $usage['cost'] += (float) ($attemptUsage['cost'] ?? 0);
+            if (is_string($attempt['provider'] ?? null)) {
+                $usage['provider'] = $attempt['provider'];
+            }
+        }
+
+        return $usage;
     }
 
     public function failed(Throwable $exception): void

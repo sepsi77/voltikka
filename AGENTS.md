@@ -146,7 +146,7 @@ php artisan test --filter="ContractsFilterTest"
 ### Automated Contract Interpretation
 - **Location**: `laravel/app/Services/ContractInterpretation/`, `laravel/app/Jobs/AnalyzeContractSourceSnapshot.php`
 - Every distinct upstream contract payload is stored during `contracts:fetch` as immutable evidence
-- When enabled, a fingerprint-idempotent post-commit job requests strict LLM output and runs automatic validation; there is no human review workflow
+- When enabled, a fingerprint-idempotent post-commit job requests strict LLM output and runs automatic validation; validation errors can cause at most two automatic model correction calls, and there is no human review workflow
 - Valid latest interpretations automatically publish compatible classifications and current canonical pricing JSON to `electricity_contracts`; invalid or stale results do not publish
 - New contracts stay inactive until first validation; changed prices for interpreted contracts wait for the new version before relational publication
 - Versioned interpretation JSON is the validated pricing history, but phase-aware calculations do not yet consume it

@@ -1,0 +1,356 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 85,
+    "contract_id": "zcosto-vaasan-sahko-myynti-oy-tuulisahko-yleissahko",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "zcosto-vaasan-sahko-myynti-oy-tuulisahko-yleissahko",
+        "api_id": "554a2f95-6d11-4cc1-bea4-44510ed784fc",
+        "company_name": "Vaasan Sähkö Myynti Oy",
+        "contract_name": "Tuulisähkö (yleissähkö)",
+        "pricing_model": "FixedPrice",
+        "contract_type": "OpenEnded",
+        "fixed_time_range": "Fixed12",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": false,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "Tutustu ja tilaa! Toistaiseksi voimassa oleva Tuulisähkö-sopimus hinnoitellaan neljästi vuodessa. Hinnat seuraavat sähkön markkinahintaa kolmen kuukauden jaksoissa. Hintajaksot ovat 1.1.–31.3., 1.4.–30.6., 1.7.–30.9. ja 1.10.–31.12. Lähetämme hintailmoituksen seuraavalle kolmen kuukauden jaksolle viimeistään kuukausi ennen jakson alkua. Kotimme on Vaasassa, ja toimitamme Suomen vaasalaisinta sähköä maan joka kolkkaan.",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "4b1b1143456b6351cce2812d0f726fc1",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 8.35,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "e5f7d89183a2485c80a46630ef17da9f",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 4.9,
+                "payment_unit": "EurPerMonth",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "zcosto-vaasan-sahko-myynti-oy-tuulisahko-yleissahko",
+        "classification": {
+            "term_type": "OpenEnded",
+            "fixed_duration_months": null,
+            "primary_pricing_model": "FixedPrice",
+            "pricing_mechanisms": [
+                "fixed",
+                "periodic_market_reset"
+            ],
+            "metering": "General",
+            "schedule_kinds": [
+                "recurring_market_reset"
+            ],
+            "spot_settlement_interval": "not_applicable",
+            "periodic_reset_cadence": "quarterly"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Nykyinen yleissähkön hinta",
+                    "phase_kind": "current_structured",
+                    "starts": {
+                        "kind": "unknown",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "unknown",
+                        "value": null
+                    },
+                    "components": [
+                        {
+                            "component_type": "energy_general",
+                            "amount": 8.35,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=8.35"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 4.9,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=4.9"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "components[0].price_component_type",
+                            "quote": "components[0].price_component_type=General"
+                        },
+                        {
+                            "source": "components[1].price_component_type",
+                            "quote": "components[1].price_component_type=Monthly"
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": true,
+                "cadence": "quarterly",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": false,
+                "description": "Sähkön energiahinnoittelu vaihtuu kolmen kuukauden hintajaksoissa. Seuraavan jakson hinta ilmoitetaan viimeistään kuukautta ennen jakson alkua.",
+                "evidence": [
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Toistaiseksi voimassa oleva Tuulisähkö-sopimus hinnoitellaan neljästi vuodessa."
+                    },
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Hinnat seuraavat sähkön markkinahintaa kolmen kuukauden jaksoissa."
+                    },
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Hintajaksot ovat 1.1.–31.3., 1.4.–30.6., 1.7.–30.9. ja 1.10.–31.12."
+                    },
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Lähetämme hintailmoituksen seuraavalle kolmen kuukauden jaksolle viimeistään kuukausi ennen jakson alkua."
+                    }
+                ]
+            },
+            "consumption_effect": {
+                "present": false,
+                "cadence": "none",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": null,
+                "evidence": [],
+                "applies_to": "unknown"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "FixedPrice",
+            "contract_type_status": "match",
+            "recommended_contract_type": "OpenEnded",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "incomplete",
+            "misleading_first_12_months": "uncertain",
+            "issue_codes": [
+                "future_price_unknown",
+                "recurring_reset_requires_estimate"
+            ],
+            "summary": "Structured data contains the current general energy price and monthly fee, while the description states that the energy price is replaced every three months according to the market. Future quarterly prices are not provided in the structured data.",
+            "evidence": [
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Hinnat seuraavat sähkön markkinahintaa kolmen kuukauden jaksoissa."
+                },
+                {
+                    "source": "components[0].price",
+                    "quote": "components[0].price=8.35"
+                },
+                {
+                    "source": "components[1].price",
+                    "quote": "components[1].price=4.9"
+                }
+            ]
+        },
+        "calculation": {
+            "status": "estimate_required",
+            "missing_facts": [
+                "Future quarterly energy prices for the first 12 months are unknown.",
+                "Contract start date is not provided."
+            ],
+            "required_assumptions": [
+                "Estimate each quarterly energy price using an appropriate market-price assumption; the structured current price cannot be assumed to remain unchanged for the full first 12 months."
+            ]
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "medium",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 4310,
+        "completion_tokens": 1161,
+        "total_tokens": 5471,
+        "cost": 0.00792,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 3785,
+            "cache_write_tokens": 522,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.008,
+            "upstream_inference_prompt_cost": 0.001034,
+            "upstream_inference_completions_cost": 0.006966
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 205,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 7.4912768341600895,
+    "response_id": "gen-1784826579-MjjIPLMPLyPfuWGnQ2RR",
+    "evaluation": {
+        "score": 1,
+        "passed": 13,
+        "total": 13,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "OpenEnded",
+                "actual": "OpenEnded"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "FixedPrice",
+                "actual": "FixedPrice"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "not_applicable",
+                "actual": "not_applicable"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "quarterly",
+                "actual": "quarterly"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "periodic_market_reset"
+                ],
+                "actual": [
+                    "fixed",
+                    "periodic_market_reset"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": [
+                    "incomplete",
+                    "uncertain"
+                ],
+                "actual": "incomplete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": "uncertain",
+                "actual": "uncertain"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [
+                    "recurring_reset_requires_estimate"
+                ],
+                "actual": [
+                    "future_price_unknown",
+                    "recurring_reset_requires_estimate"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "estimate_required",
+                "actual": "estimate_required"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": false,
+                "actual": false
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 85,
+        "contract_id": "zcosto-vaasan-sahko-myynti-oy-tuulisahko-yleissahko",
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    },
+    "repair_attempts": [],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

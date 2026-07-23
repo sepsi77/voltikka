@@ -1,0 +1,761 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 91,
+    "contract_id": "5me61f-paneliankosken-voima-oy-kosken-kayttowoima-24-kk-kulutusjousto",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "5me61f-paneliankosken-voima-oy-kosken-kayttowoima-24-kk-kulutusjousto",
+        "api_id": "4654d1c4-54f1-42e2-91e3-bac20b9bdffd",
+        "company_name": "Paneliankosken Voima Oy",
+        "contract_name": "Kosken käyttöWoima 24 kk - kulutusjousto",
+        "pricing_model": "Hybrid",
+        "contract_type": "FixedTerm",
+        "fixed_time_range": "Fixed24",
+        "metering": "Season",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": false,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "KäyttöWoima on määräaikainen kulutusjoustosopimus, jolla voit suojautua markkinahintatason nousulta. Ajoittamalla sähkön käyttöäsi voit lisäksi vaikuttaa laskusi loppusummaan. Sopimuksen hinta muodostuu kuukausittaisesta perusmaksusta ja sähköenergian osalta muuttuvasta sähköpörssin hinnasta + sähkön käyttöön perustuvasta kulutusvaikutuksesta. Tyypillisesti kulutusvaikutus on kuluttajalla +/-1,5 snt/kWh. Kulutusvaikutus on rajattu +/-5 snt/kWh. Voit tehdä sopimuksen helposti ja nopeasti kotisivuiltamme löytyvällä lomakkeella tästä linkistä tai soittamalla asiakaspalveluumme 02 838 6100 (ma-pe 9-15).",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "eea762ea7db8b22e532ecd7b6cc12bdf",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 4,
+                "payment_unit": "EurPerMonth",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "3d955429ad276d757626942f24a57046",
+                "price_component_type": "SeasonalOther",
+                "fuse_size": "None",
+                "price": 8.7,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "16300a9d45b02874991e1ef8980f2bde",
+                "price_component_type": "SeasonalWinterDay",
+                "fuse_size": "None",
+                "price": 8.7,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "5me61f-paneliankosken-voima-oy-kosken-kayttowoima-24-kk-kulutusjousto",
+        "classification": {
+            "term_type": "FixedTerm",
+            "fixed_duration_months": 24,
+            "primary_pricing_model": "Hybrid",
+            "pricing_mechanisms": [
+                "spot",
+                "consumption_effect",
+                "seasonal"
+            ],
+            "metering": "Season",
+            "schedule_kinds": [],
+            "spot_settlement_interval": "unknown",
+            "periodic_reset_cadence": "none"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Current structured seasonal pricing",
+                    "phase_kind": "current_structured",
+                    "starts": {
+                        "kind": "contract_start",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "none",
+                        "value": null
+                    },
+                    "components": [
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 4,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=4"
+                                },
+                                {
+                                    "source": "components[0].payment_unit",
+                                    "quote": "components[0].payment_unit=EurPerMonth"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "energy_seasonal_other",
+                            "amount": 8.7,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=8.7"
+                                },
+                                {
+                                    "source": "components[1].price_component_type",
+                                    "quote": "components[1].price_component_type=SeasonalOther"
+                                },
+                                {
+                                    "source": "components[1].payment_unit",
+                                    "quote": "components[1].payment_unit=CentPerKiwattHour"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "energy_seasonal_winter",
+                            "amount": 8.7,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[2].price",
+                                    "quote": "components[2].price=8.7"
+                                },
+                                {
+                                    "source": "components[2].price_component_type",
+                                    "quote": "components[2].price_component_type=SeasonalWinterDay"
+                                },
+                                {
+                                    "source": "components[2].payment_unit",
+                                    "quote": "components[2].payment_unit=CentPerKiwattHour"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "components[1].price_component_type",
+                            "quote": "components[1].price_component_type=SeasonalOther"
+                        },
+                        {
+                            "source": "components[2].price_component_type",
+                            "quote": "components[2].price_component_type=SeasonalWinterDay"
+                        }
+                    ]
+                },
+                {
+                    "label": "Market-linked energy price with consumption effect",
+                    "phase_kind": "normal",
+                    "starts": {
+                        "kind": "contract_start",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "after_months",
+                        "value": "24"
+                    },
+                    "components": [
+                        {
+                            "component_type": "spot_margin",
+                            "amount": null,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "normal",
+                            "source_kind": "description",
+                            "evidence": [
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "muuttuvasta sähköpörssin hinnasta + sähkön käyttöön perustuvasta kulutusvaikutuksesta"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Sopimuksen hinta muodostuu kuukausittaisesta perusmaksusta ja sähköenergian osalta muuttuvasta sähköpörssin hinnasta + sähkön käyttöön perustuvasta kulutusvaikutuksesta."
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": false,
+                "cadence": "none",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": null,
+                "description": null,
+                "evidence": []
+            },
+            "consumption_effect": {
+                "present": true,
+                "cadence": "unknown",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": -1.5,
+                "typical_max_cents_per_kwh": 1.5,
+                "hard_min_cents_per_kwh": -5,
+                "hard_max_cents_per_kwh": 5,
+                "uncapped": false,
+                "description": "Kulutusvaikutus on tyypillisesti +/-1,5 snt/kWh ja rajattu +/-5 snt/kWh.",
+                "evidence": [
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Tyypillisesti kulutusvaikutus on kuluttajalla +/-1,5 snt/kWh."
+                    },
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Kulutusvaikutus on rajattu +/-5 snt/kWh."
+                    }
+                ],
+                "applies_to": "base_contract"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "Hybrid",
+            "contract_type_status": "match",
+            "recommended_contract_type": "FixedTerm",
+            "metering_status": "match",
+            "recommended_metering": "Season",
+            "structured_pricing_status": "conflicting",
+            "misleading_first_12_months": "uncertain",
+            "issue_codes": [
+                "component_mismatch",
+                "unsupported_consumption_effect",
+                "insufficient_evidence"
+            ],
+            "summary": "The contract is a 24-month fixed-term hybrid product with market-linked electricity pricing and a bounded consumption effect. Structured components provide seasonal energy prices and a monthly fee, while the description states that the energy price is based on the variable electricity-market price plus the consumption effect. The direction of any first-year understatement cannot be established from the available market-price evidence.",
+            "evidence": [
+                {
+                    "source": "contract_type",
+                    "quote": "contract_type=FixedTerm"
+                },
+                {
+                    "source": "fixed_time_range",
+                    "quote": "fixed_time_range=Fixed24"
+                },
+                {
+                    "source": "pricing_model",
+                    "quote": "pricing_model=Hybrid"
+                },
+                {
+                    "source": "metering",
+                    "quote": "metering=Season"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "KäyttöWoima on määräaikainen kulutusjoustosopimus"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "muuttuvasta sähköpörssin hinnasta + sähkön käyttöön perustuvasta kulutusvaikutuksesta"
+                },
+                {
+                    "source": "components[1].price_component_type",
+                    "quote": "components[1].price_component_type=SeasonalOther"
+                },
+                {
+                    "source": "components[2].price_component_type",
+                    "quote": "components[2].price_component_type=SeasonalWinterDay"
+                }
+            ]
+        },
+        "calculation": {
+            "status": "unsupported",
+            "missing_facts": [
+                "Actual Nord Pool market prices for the relevant settlement periods",
+                "The applicable spot-price margin, if any",
+                "Consumption profile needed to calculate the consumption effect"
+            ],
+            "required_assumptions": [
+                "A market-price estimate would be required for a first-12-month estimate",
+                "The consumption effect would need to be estimated from consumption timing and volume"
+            ]
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "medium",
+            "integrity": "medium"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 4457,
+        "completion_tokens": 1713,
+        "total_tokens": 6170,
+        "cost": 0.015690015,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 4454,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.0158485,
+            "upstream_inference_prompt_cost": 0.0055705,
+            "upstream_inference_completions_cost": 0.010278
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 358,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 10.48520383425057,
+    "response_id": "gen-1784826584-96lwK7PJrwk0nbdlRSUG",
+    "evaluation": {
+        "score": 0.9411764705882353,
+        "passed": 16,
+        "total": 17,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "FixedTerm",
+                "actual": "FixedTerm"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "Hybrid",
+                "actual": "Hybrid"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "Season",
+                "actual": "Season"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": false,
+                "expected": "not_applicable",
+                "actual": "unknown"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "none",
+                "actual": "none"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "consumption_effect"
+                ],
+                "actual": [
+                    "consumption_effect",
+                    "seasonal",
+                    "spot"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": [
+                    "incomplete",
+                    "conflicting"
+                ],
+                "actual": "conflicting"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": [
+                    "detected",
+                    "uncertain"
+                ],
+                "actual": "uncertain"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [
+                    "unsupported_consumption_effect"
+                ],
+                "actual": [
+                    "component_mismatch",
+                    "insufficient_evidence",
+                    "unsupported_consumption_effect"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "unsupported",
+                "actual": "unsupported"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": true,
+                "actual": true
+            },
+            {
+                "name": "typical_min_cents_per_kwh",
+                "passed": true,
+                "expected": -1.5,
+                "actual": -1.5
+            },
+            {
+                "name": "typical_max_cents_per_kwh",
+                "passed": true,
+                "expected": 1.5,
+                "actual": 1.5
+            },
+            {
+                "name": "hard_min_cents_per_kwh",
+                "passed": true,
+                "expected": -5,
+                "actual": -5
+            },
+            {
+                "name": "hard_max_cents_per_kwh",
+                "passed": true,
+                "expected": 5,
+                "actual": 5
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 91,
+        "contract_id": "5me61f-paneliankosken-voima-oy-kosken-kayttowoima-24-kk-kulutusjousto",
+        "valid": false,
+        "error_count": 2,
+        "errors": [
+            "$.pricing.consumption_effect.typical_max_cents_per_kwh lacks numeric evidence.",
+            "$.pricing.consumption_effect.hard_max_cents_per_kwh lacks numeric evidence."
+        ]
+    },
+    "repair_attempts": [
+        {
+            "repair": 1,
+            "output": {
+                "schema_version": "1.0",
+                "contract_id": "5me61f-paneliankosken-voima-oy-kosken-kayttowoima-24-kk-kulutusjousto",
+                "classification": {
+                    "term_type": "FixedTerm",
+                    "fixed_duration_months": 24,
+                    "primary_pricing_model": "Hybrid",
+                    "pricing_mechanisms": [
+                        "spot",
+                        "consumption_effect",
+                        "seasonal"
+                    ],
+                    "metering": "Season",
+                    "schedule_kinds": [],
+                    "spot_settlement_interval": "unknown",
+                    "periodic_reset_cadence": "none"
+                },
+                "pricing": {
+                    "phases": [
+                        {
+                            "label": "Current structured seasonal pricing",
+                            "phase_kind": "current_structured",
+                            "starts": {
+                                "kind": "contract_start",
+                                "value": null
+                            },
+                            "ends": {
+                                "kind": "none",
+                                "value": null
+                            },
+                            "components": [
+                                {
+                                    "component_type": "monthly_fee",
+                                    "amount": 4,
+                                    "normal_amount": null,
+                                    "unit": "eur_per_month",
+                                    "vat_status": "unknown",
+                                    "price_role": "current",
+                                    "source_kind": "structured",
+                                    "evidence": [
+                                        {
+                                            "source": "components[0].price",
+                                            "quote": "components[0].price=4"
+                                        },
+                                        {
+                                            "source": "components[0].payment_unit",
+                                            "quote": "components[0].payment_unit=EurPerMonth"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "component_type": "energy_seasonal_other",
+                                    "amount": 8.7,
+                                    "normal_amount": null,
+                                    "unit": "cents_per_kwh",
+                                    "vat_status": "unknown",
+                                    "price_role": "current",
+                                    "source_kind": "structured",
+                                    "evidence": [
+                                        {
+                                            "source": "components[1].price",
+                                            "quote": "components[1].price=8.7"
+                                        },
+                                        {
+                                            "source": "components[1].price_component_type",
+                                            "quote": "components[1].price_component_type=SeasonalOther"
+                                        },
+                                        {
+                                            "source": "components[1].payment_unit",
+                                            "quote": "components[1].payment_unit=CentPerKiwattHour"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "component_type": "energy_seasonal_winter",
+                                    "amount": 8.7,
+                                    "normal_amount": null,
+                                    "unit": "cents_per_kwh",
+                                    "vat_status": "unknown",
+                                    "price_role": "current",
+                                    "source_kind": "structured",
+                                    "evidence": [
+                                        {
+                                            "source": "components[2].price",
+                                            "quote": "components[2].price=8.7"
+                                        },
+                                        {
+                                            "source": "components[2].price_component_type",
+                                            "quote": "components[2].price_component_type=SeasonalWinterDay"
+                                        },
+                                        {
+                                            "source": "components[2].payment_unit",
+                                            "quote": "components[2].payment_unit=CentPerKiwattHour"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "evidence": [
+                                {
+                                    "source": "components[1].price_component_type",
+                                    "quote": "components[1].price_component_type=SeasonalOther"
+                                },
+                                {
+                                    "source": "components[2].price_component_type",
+                                    "quote": "components[2].price_component_type=SeasonalWinterDay"
+                                }
+                            ]
+                        },
+                        {
+                            "label": "Market-linked energy price with consumption effect",
+                            "phase_kind": "normal",
+                            "starts": {
+                                "kind": "contract_start",
+                                "value": null
+                            },
+                            "ends": {
+                                "kind": "after_months",
+                                "value": "24"
+                            },
+                            "components": [
+                                {
+                                    "component_type": "spot_margin",
+                                    "amount": null,
+                                    "normal_amount": null,
+                                    "unit": "cents_per_kwh",
+                                    "vat_status": "unknown",
+                                    "price_role": "normal",
+                                    "source_kind": "description",
+                                    "evidence": [
+                                        {
+                                            "source": "extra_information_fi",
+                                            "quote": "muuttuvasta sähköpörssin hinnasta + sähkön käyttöön perustuvasta kulutusvaikutuksesta"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "evidence": [
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Sopimuksen hinta muodostuu kuukausittaisesta perusmaksusta ja sähköenergian osalta muuttuvasta sähköpörssin hinnasta + sähkön käyttöön perustuvasta kulutusvaikutuksesta."
+                                }
+                            ]
+                        }
+                    ],
+                    "recurring_schedule": {
+                        "present": false,
+                        "cadence": "none",
+                        "current_period_start": null,
+                        "current_period_end": null,
+                        "future_price_known": null,
+                        "description": null,
+                        "evidence": []
+                    },
+                    "consumption_effect": {
+                        "present": true,
+                        "cadence": "unknown",
+                        "expected_cents_per_kwh": null,
+                        "typical_min_cents_per_kwh": -1.5,
+                        "typical_max_cents_per_kwh": null,
+                        "hard_min_cents_per_kwh": -5,
+                        "hard_max_cents_per_kwh": null,
+                        "uncapped": false,
+                        "description": "Kulutusvaikutus on tyypillisesti +/-1,5 snt/kWh ja rajattu +/-5 snt/kWh.",
+                        "evidence": [
+                            {
+                                "source": "extra_information_fi",
+                                "quote": "Tyypillisesti kulutusvaikutus on kuluttajalla +/-1,5 snt/kWh."
+                            },
+                            {
+                                "source": "extra_information_fi",
+                                "quote": "Kulutusvaikutus on rajattu +/-5 snt/kWh."
+                            }
+                        ],
+                        "applies_to": "base_contract"
+                    }
+                },
+                "source_consistency": {
+                    "pricing_model_status": "match",
+                    "recommended_pricing_model": "Hybrid",
+                    "contract_type_status": "match",
+                    "recommended_contract_type": "FixedTerm",
+                    "metering_status": "match",
+                    "recommended_metering": "Season",
+                    "structured_pricing_status": "conflicting",
+                    "misleading_first_12_months": "uncertain",
+                    "issue_codes": [
+                        "component_mismatch",
+                        "unsupported_consumption_effect",
+                        "insufficient_evidence"
+                    ],
+                    "summary": "The contract is a 24-month fixed-term hybrid product with market-linked electricity pricing and a bounded consumption effect. Structured components provide seasonal energy prices and a monthly fee, while the description states that the energy price is based on the variable electricity-market price plus the consumption effect. The direction of any first-year understatement cannot be established from the available market-price evidence.",
+                    "evidence": [
+                        {
+                            "source": "contract_type",
+                            "quote": "contract_type=FixedTerm"
+                        },
+                        {
+                            "source": "fixed_time_range",
+                            "quote": "fixed_time_range=Fixed24"
+                        },
+                        {
+                            "source": "pricing_model",
+                            "quote": "pricing_model=Hybrid"
+                        },
+                        {
+                            "source": "metering",
+                            "quote": "metering=Season"
+                        },
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "KäyttöWoima on määräaikainen kulutusjoustosopimus"
+                        },
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "muuttuvasta sähköpörssin hinnasta + sähkön käyttöön perustuvasta kulutusvaikutuksesta"
+                        },
+                        {
+                            "source": "components[1].price_component_type",
+                            "quote": "components[1].price_component_type=SeasonalOther"
+                        },
+                        {
+                            "source": "components[2].price_component_type",
+                            "quote": "components[2].price_component_type=SeasonalWinterDay"
+                        }
+                    ]
+                },
+                "calculation": {
+                    "status": "unsupported",
+                    "missing_facts": [
+                        "Actual Nord Pool market prices for the relevant settlement periods",
+                        "The applicable spot-price margin, if any",
+                        "Consumption profile needed to calculate the consumption effect"
+                    ],
+                    "required_assumptions": [
+                        "A market-price estimate would be required for a first-12-month estimate",
+                        "The consumption effect would need to be estimated from consumption timing and volume"
+                    ]
+                },
+                "confidence": {
+                    "classification": "high",
+                    "pricing": "medium",
+                    "integrity": "medium"
+                }
+            },
+            "validation_errors": [],
+            "usage": {
+                "prompt_tokens": 5909,
+                "completion_tokens": 1662,
+                "total_tokens": 7571,
+                "cost": 0.012113046,
+                "is_byok": false,
+                "prompt_tokens_details": {
+                    "cached_tokens": 4454,
+                    "cache_write_tokens": 1452,
+                    "audio_tokens": 0,
+                    "video_tokens": 0
+                },
+                "cost_details": {
+                    "upstream_inference_cost": 0.0122354,
+                    "upstream_inference_prompt_cost": 0.0022634,
+                    "upstream_inference_completions_cost": 0.009972
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 309,
+                    "image_tokens": 0,
+                    "audio_tokens": 0
+                }
+            },
+            "provider": "OpenAI",
+            "provider_response_id": "gen-1784826656-XalEHYTU1YZ1n5bpLRFo",
+            "latency_ms": 13825
+        }
+    ],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

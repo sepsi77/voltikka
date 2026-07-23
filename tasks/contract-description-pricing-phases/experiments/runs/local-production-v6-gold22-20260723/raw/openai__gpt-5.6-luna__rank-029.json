@@ -1,0 +1,472 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 29,
+    "contract_id": "vgornb-lumme-energia-porssisahko-3-kk-ilman-kk-maksua",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "vgornb-lumme-energia-porssisahko-3-kk-ilman-kk-maksua",
+        "api_id": "a8247bae-8866-4b51-98a2-6cdf0d773d86",
+        "company_name": "Lumme Energia",
+        "contract_name": "Pörssisähkö - 3 kk ilman kk-maksua",
+        "pricing_model": "Spot",
+        "contract_type": "OpenEnded",
+        "fixed_time_range": "Fixed12",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": true,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "Lumme Energian Pörssisähkö - valinta, johon kymmenet tuhannet suomalaiset jo luottavat Lumme Energian Pörssisähkö on erinomainen valinta sinulle, joka haluat hyödyntää sähkön markkinahintojen vaihtelua vaikuttaaksesi itse sähkölaskusi loppusummaan. Hinta perustuu pohjoismaisen sähköpörssin Nord Poolin spot-hintaan, jonka päälle lisätään kiinteä kuukausimaksu ja myyjän marginaali. Hinnat sisältävät arvonlisäveron. Sopimus on toistaiseksi voimassa oleva. Pörssisähkö-sopimukseemme sisältyy hinnankiinnitysmahdollisuus: voit kiinnittää hintatason esimerkiksi talven ajaksi ja hyödyntää pörssihintoja muina vuodenaikoina. Tai voit antaa markkinahintojen ohjata koko vuoden. Valinta on sinun. Jos teet hinnankiinnityksiä, sopimus muuttuu määräaikaiseksi viimeisen kiinnityskuukauden loppuun saakka. Hinnankiinnityksiin vaikuttaa kulutusvaikutus. Asiakkaanamme saat käyttöösi OmaLumme-palvelun, pörssisähköasiakkaidemme luottosovelluksen. Sovelluksella seuraat pörssisähkön hintakehitystä, tilaat hintahälytyksiä, tarkastelet kulutustasi ja teet hintakiinnityksiä suoraan puhelimeltasi. Miksi valita Lumme Energian Pörssisähkö? • Ensimmäiset 3 kuukautta ilman kuukausimaksua (norm. 4,91€/kk) • Maksat sähköstä varttitunneittain vaihtuvan markkinahinnan mukaan • Hinnankiinnitysmahdollisuus sisältyy: kiinnitä tai älä, sinä päätät • OmaLumme-sovellus antaa reaaliaikaisen näkymän hintaan ja kulutukseen • Pääset hyödyntämään Lumme-tiimi asiakasetuohjelmaa • Saat ajankohtaista informaatiota ja viimeiset uutiset sähköisellä uutiskirjeellä • Saat sähköisen asiakaslehden suoraan sähköpostiisi 4 kertaa vuodessa Tilaa helposti tästä! Lumme Energia on 1.1.2026 alkaen osa Oomia. Näin ollen tekemäsi sopimus tehdään Oomi Oy:n kanssa. Toistaiseksi laskuttajana toimii Lumme Energia ja voit asioida normaalisti Lumme Energian palvelukanavissa. Lue lisää osoitteessa lumme-energia.fi/oomi.",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "14cacc309802479e2c723c60241c6433",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 0.5,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "b8c0b8c624b80d634405b34d3e2c7b6a",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 4.91,
+                "payment_unit": "EurPerMonth",
+                "has_discount": true,
+                "discount_value": 4.91,
+                "discount_is_percentage": false,
+                "discount_type": "NFirstMonth",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 3,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "vgornb-lumme-energia-porssisahko-3-kk-ilman-kk-maksua",
+        "classification": {
+            "term_type": "OpenEnded",
+            "fixed_duration_months": null,
+            "primary_pricing_model": "Spot",
+            "pricing_mechanisms": [
+                "spot",
+                "fixed",
+                "optional_fixing"
+            ],
+            "metering": "General",
+            "schedule_kinds": [
+                "introductory_promotion",
+                "optional_fixing"
+            ],
+            "spot_settlement_interval": "quarter_hourly",
+            "periodic_reset_cadence": "none"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Ensimmäiset 3 kuukautta",
+                    "phase_kind": "introductory",
+                    "starts": {
+                        "kind": "contract_start",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "after_months",
+                        "value": "3"
+                    },
+                    "components": [
+                        {
+                            "component_type": "spot_margin",
+                            "amount": 0.5,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "included",
+                            "price_role": "current",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=0.5"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "myyjän marginaali"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Hinnat sisältävät arvonlisäveron"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 0,
+                            "normal_amount": 4.91,
+                            "unit": "eur_per_month",
+                            "vat_status": "included",
+                            "price_role": "introductory",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=4.91"
+                                },
+                                {
+                                    "source": "components[1].has_discount",
+                                    "quote": "components[1].has_discount=true"
+                                },
+                                {
+                                    "source": "components[1].discount_value",
+                                    "quote": "components[1].discount_value=4.91"
+                                },
+                                {
+                                    "source": "components[1].discount_is_percentage",
+                                    "quote": "components[1].discount_is_percentage=false"
+                                },
+                                {
+                                    "source": "components[1].discount_type",
+                                    "quote": "components[1].discount_type=NFirstMonth"
+                                },
+                                {
+                                    "source": "components[1].discount_n_first_months",
+                                    "quote": "components[1].discount_n_first_months=3"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Ensimmäiset 3 kuukautta ilman kuukausimaksua"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "norm. 4,91€/kk"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Hinnat sisältävät arvonlisäveron"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Ensimmäiset 3 kuukautta ilman kuukausimaksua"
+                        }
+                    ]
+                },
+                {
+                    "label": "Kuukaudesta 4 alkaen",
+                    "phase_kind": "normal",
+                    "starts": {
+                        "kind": "after_months",
+                        "value": "3"
+                    },
+                    "ends": {
+                        "kind": "none",
+                        "value": null
+                    },
+                    "components": [
+                        {
+                            "component_type": "spot_margin",
+                            "amount": 0.5,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "included",
+                            "price_role": "normal",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=0.5"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 4.91,
+                            "normal_amount": 4.91,
+                            "unit": "eur_per_month",
+                            "vat_status": "included",
+                            "price_role": "normal",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=4.91"
+                                },
+                                {
+                                    "source": "components[1].discount_n_first_months",
+                                    "quote": "components[1].discount_n_first_months=3"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Ensimmäiset 3 kuukautta ilman kuukausimaksua"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "norm. 4,91€/kk"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Hinnat sisältävät arvonlisäveron"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Ensimmäiset 3 kuukautta ilman kuukausimaksua"
+                        },
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "norm. 4,91€/kk"
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": false,
+                "cadence": "none",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": null,
+                "description": null,
+                "evidence": []
+            },
+            "consumption_effect": {
+                "present": true,
+                "cadence": "unknown",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": "Kulutusvaikutus vaikuttaa hinnankiinnityksiin.",
+                "evidence": [
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Hinnankiinnityksiin vaikuttaa kulutusvaikutus."
+                    }
+                ],
+                "applies_to": "optional_fixing"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "Spot",
+            "contract_type_status": "match",
+            "recommended_contract_type": "OpenEnded",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "complete",
+            "misleading_first_12_months": "not_detected",
+            "issue_codes": [
+                "structured_matches_description",
+                "optional_fixing_not_in_base_price"
+            ],
+            "summary": "Sopimus on toistaiseksi voimassa oleva Nord Pool -spot-sopimus, jossa on 0,5 snt/kWh marginaali ja kolmen ensimmäisen kuukauden kuukausimaksuton kampanja. Kuukausimaksu on tämän jälkeen 4,91 €/kk. Hinnankiinnitys ja siihen liittyvä kulutusvaikutus ovat valinnaisia eivätkä kuulu valitsemattoman spot-sopimuksen perushintaan.",
+            "evidence": [
+                {
+                    "source": "pricing_model",
+                    "quote": "pricing_model=Spot"
+                },
+                {
+                    "source": "contract_type",
+                    "quote": "contract_type=OpenEnded"
+                },
+                {
+                    "source": "metering",
+                    "quote": "metering=General"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Hinta perustuu pohjoismaisen sähköpörssin Nord Poolin spot-hintaan"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Maksat sähköstä varttitunneittain vaihtuvan markkinahinnan mukaan"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Hinnankiinnitysmahdollisuus sisältyy: kiinnitä tai älä, sinä päätät"
+                }
+            ]
+        },
+        "calculation": {
+            "status": "estimate_required",
+            "missing_facts": [
+                "Nord Pool spot-hinnat ensimmäisen 12 kuukauden ajalta"
+            ],
+            "required_assumptions": [
+                "Spot-hintojen arviointiin tarvitaan markkinahintaoletus.",
+                "Valinnaista hinnankiinnitystä ei sisällytetä perusspot-sopimuksen laskelmaan."
+            ]
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "high",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 4744,
+        "completion_tokens": 1730,
+        "total_tokens": 6474,
+        "cost": 0.011836935,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 3785,
+            "cache_write_tokens": 956,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.0119565,
+            "upstream_inference_prompt_cost": 0.0015765,
+            "upstream_inference_completions_cost": 0.01038
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 303,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 15.373583999928087,
+    "response_id": "gen-1784826570-4vrNi5VMn7rZDWkTMOY6",
+    "evaluation": {
+        "score": 1,
+        "passed": 14,
+        "total": 14,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "OpenEnded",
+                "actual": "OpenEnded"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "Spot",
+                "actual": "Spot"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "quarter_hourly",
+                "actual": "quarter_hourly"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "none",
+                "actual": "none"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "optional_fixing",
+                    "spot"
+                ],
+                "actual": [
+                    "fixed",
+                    "optional_fixing",
+                    "spot"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": [
+                    "complete",
+                    "incomplete"
+                ],
+                "actual": "complete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": "not_detected",
+                "actual": "not_detected"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [
+                    "optional_fixing_not_in_base_price"
+                ],
+                "actual": [
+                    "optional_fixing_not_in_base_price",
+                    "structured_matches_description"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "estimate_required",
+                "actual": "estimate_required"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": true,
+                "actual": true
+            },
+            {
+                "name": "consumption_effect.applies_to",
+                "passed": true,
+                "expected": "optional_fixing",
+                "actual": "optional_fixing"
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 29,
+        "contract_id": "vgornb-lumme-energia-porssisahko-3-kk-ilman-kk-maksua",
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    },
+    "repair_attempts": [],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

@@ -1,0 +1,695 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 89,
+    "contract_id": "cejarn-oomi-oy-oomi-jousto-24-kk",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "cejarn-oomi-oy-oomi-jousto-24-kk",
+        "api_id": "0adc98b7-54e5-4e99-85a2-c653d8f7bc7f",
+        "company_name": "Oomi Oy",
+        "contract_name": "Oomi Jousto 24 kk",
+        "pricing_model": "Hybrid",
+        "contract_type": "FixedTerm",
+        "fixed_time_range": "Fixed24",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": true,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "Tee sähkösopimus>> Hinnat sisältävä 25,5% arvonlisäveron. Määräaikaisen Oomi Jousto -sähkösopimuksen hinta muodostuu kolmesta osasta: 1) kuukausittaisesta perusmaksusta (€/kk) 2) sähköenergian kiinteästä hinnasta (c/kWh) 3) kulutusvaikutuksesta (c/kWh) Perusmaksu ja sähköenergian kiinteä hinta ovat kiinteät koko sopimuskauden ajan. Kulutusvaikutus muuttuu kuukausittain sähkön kulutuksesi ajoituksen mukaan, eikä siten ole kiinteä. Arvioitu kulutusvaikutus +0,05 c/kWh Kulutusvaikutuksen vaihteluväli on tyypillisesti -3,9 -> +1,6 c/kWh. Arvioitu kulutusvaikutus perustuu otokseen Oomi Jousto 12 kk:n olemassa olevien asiakkaiden toteutuneesta kulutusvaikutuksesta (n=2265). Klikkaa tästä sähkösopimukseen>> Oomilla on yli 800 000 kuluttaja-asiakasta ja yritystä. Oomi Oy:n omistavat Oomi Palvelut Oy (79,2 %) ja Lumme Energia Oy (20,8 %). Oomi Palvelut Oy:n omistajia ovat Vantaan Energia, Oulun Energia, Lahti Energia, Pori Energia, Oulun Seudun Sähkö, Tornion Energia ja Haukiputaan Sähköosuuskunta. Lumme Energia Oy:n omistaa Suur-Savon Sähkö.",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "445da277db31e3cac54425e958427fc0",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 8.59,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "6b794af21f48df34aed9c2b73edc892c",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 5.9,
+                "payment_unit": "EurPerMonth",
+                "has_discount": true,
+                "discount_value": 5.9,
+                "discount_is_percentage": false,
+                "discount_type": "NFirstMonth",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 3,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "cejarn-oomi-oy-oomi-jousto-24-kk",
+        "classification": {
+            "term_type": "FixedTerm",
+            "fixed_duration_months": 24,
+            "primary_pricing_model": "Hybrid",
+            "pricing_mechanisms": [
+                "fixed",
+                "consumption_effect"
+            ],
+            "metering": "General",
+            "schedule_kinds": [
+                "introductory_promotion"
+            ],
+            "spot_settlement_interval": "not_applicable",
+            "periodic_reset_cadence": "none"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Months 1-3",
+                    "phase_kind": "introductory",
+                    "starts": {
+                        "kind": "contract_start",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "after_months",
+                        "value": "3"
+                    },
+                    "components": [
+                        {
+                            "component_type": "energy_general",
+                            "amount": 8.59,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "included",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=8.59"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "sähköenergian kiinteästä hinnasta (c/kWh)"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 0,
+                            "normal_amount": 5.9,
+                            "unit": "eur_per_month",
+                            "vat_status": "included",
+                            "price_role": "introductory",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=5.9"
+                                },
+                                {
+                                    "source": "components[1].has_discount",
+                                    "quote": "components[1].has_discount=true"
+                                },
+                                {
+                                    "source": "components[1].discount_value",
+                                    "quote": "components[1].discount_value=5.9"
+                                },
+                                {
+                                    "source": "components[1].discount_is_percentage",
+                                    "quote": "components[1].discount_is_percentage=false"
+                                },
+                                {
+                                    "source": "components[1].discount_type",
+                                    "quote": "components[1].discount_type=NFirstMonth"
+                                },
+                                {
+                                    "source": "components[1].discount_n_first_months",
+                                    "quote": "components[1].discount_n_first_months=3"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "components[1].discount_n_first_months",
+                            "quote": "components[1].discount_n_first_months=3"
+                        }
+                    ]
+                },
+                {
+                    "label": "Month 4 onward",
+                    "phase_kind": "continuation",
+                    "starts": {
+                        "kind": "after_months",
+                        "value": "3"
+                    },
+                    "ends": {
+                        "kind": "none",
+                        "value": null
+                    },
+                    "components": [
+                        {
+                            "component_type": "energy_general",
+                            "amount": 8.59,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "included",
+                            "price_role": "normal",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=8.59"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "sähköenergian kiinteästä hinnasta (c/kWh)"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 5.9,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "included",
+                            "price_role": "normal",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=5.9"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "components[1].discount_n_first_months",
+                            "quote": "components[1].discount_n_first_months=3"
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": false,
+                "cadence": "none",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": null,
+                "description": null,
+                "evidence": []
+            },
+            "consumption_effect": {
+                "present": true,
+                "cadence": "monthly",
+                "expected_cents_per_kwh": 0.05,
+                "typical_min_cents_per_kwh": -3.9,
+                "typical_max_cents_per_kwh": 1.6,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": "Kulutusvaikutus muuttuu kuukausittain sähkön kulutuksesi ajoituksen mukaan, eikä siten ole kiinteä. Arvioitu kulutusvaikutus +0,05 c/kWh Kulutusvaikutuksen vaihteluväli on tyypillisesti -3,9 -> +1,6 c/kWh.",
+                "evidence": [
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Kulutusvaikutus muuttuu kuukausittain sähkön kulutuksesi ajoituksen mukaan, eikä siten ole kiinteä."
+                    },
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Arvioitu kulutusvaikutus +0,05 c/kWh"
+                    },
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Kulutusvaikutuksen vaihteluväli on tyypillisesti -3,9 -> +1,6 c/kWh"
+                    }
+                ],
+                "applies_to": "base_contract"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "Hybrid",
+            "contract_type_status": "match",
+            "recommended_contract_type": "FixedTerm",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "incomplete",
+            "misleading_first_12_months": "uncertain",
+            "issue_codes": [
+                "unsupported_consumption_effect"
+            ],
+            "summary": "Structured components represent the fixed energy price and the three-month monthly-fee promotion, but do not represent the disclosed monthly consumption effect. Its direction varies, so first-12-month understatement cannot be determined reliably.",
+            "evidence": [
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Hinta muodostuu kolmesta osasta: 1) kuukausittaisesta perusmaksusta (€/kk) 2) sähköenergian kiinteästä hinnasta (c/kWh) 3) kulutusvaikutuksesta (c/kWh)"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Kulutusvaikutus muuttuu kuukausittain sähkön kulutuksesi ajoituksen mukaan, eikä siten ole kiinteä."
+                }
+            ]
+        },
+        "calculation": {
+            "status": "unsupported",
+            "missing_facts": [
+                "The actual monthly consumption effect for the customer is not known."
+            ],
+            "required_assumptions": [
+                "Customer-specific monthly consumption-effect values would be needed to calculate an exact first-12-month cost."
+            ]
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "high",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 4516,
+        "completion_tokens": 1619,
+        "total_tokens": 6135,
+        "cost": 0.010895445,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 3785,
+            "cache_write_tokens": 728,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.0110055,
+            "upstream_inference_prompt_cost": 0.0012915,
+            "upstream_inference_completions_cost": 0.009714
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 338,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 9.59559820778668,
+    "response_id": "gen-1784826580-EaIeBwJTrH4ShNjuZtF2",
+    "evaluation": {
+        "score": 0.9375,
+        "passed": 15,
+        "total": 16,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "FixedTerm",
+                "actual": "FixedTerm"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "Hybrid",
+                "actual": "Hybrid"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "not_applicable",
+                "actual": "not_applicable"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "none",
+                "actual": "none"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "consumption_effect",
+                    "fixed"
+                ],
+                "actual": [
+                    "consumption_effect",
+                    "fixed"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": "incomplete",
+                "actual": "incomplete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": [
+                    "not_detected",
+                    "uncertain"
+                ],
+                "actual": "uncertain"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [
+                    "unsupported_consumption_effect"
+                ],
+                "actual": [
+                    "unsupported_consumption_effect"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "unsupported",
+                "actual": "unsupported"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": true,
+                "actual": true
+            },
+            {
+                "name": "expected_cents_per_kwh",
+                "passed": true,
+                "expected": 0.05,
+                "actual": 0.05
+            },
+            {
+                "name": "typical_min_cents_per_kwh",
+                "passed": true,
+                "expected": -3.9,
+                "actual": -3.9
+            },
+            {
+                "name": "typical_max_cents_per_kwh",
+                "passed": true,
+                "expected": 1.6,
+                "actual": 1.6
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": false,
+                "expected": ">=0.95",
+                "actual": 0.8571428571428571
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 89,
+        "contract_id": "cejarn-oomi-oy-oomi-jousto-24-kk",
+        "valid": false,
+        "error_count": 1,
+        "errors": [
+            "$.source_consistency.evidence[0].quote is not present in the cited source text."
+        ]
+    },
+    "repair_attempts": [
+        {
+            "repair": 1,
+            "output": {
+                "schema_version": "1.0",
+                "contract_id": "cejarn-oomi-oy-oomi-jousto-24-kk",
+                "classification": {
+                    "term_type": "FixedTerm",
+                    "fixed_duration_months": 24,
+                    "primary_pricing_model": "Hybrid",
+                    "pricing_mechanisms": [
+                        "fixed",
+                        "consumption_effect"
+                    ],
+                    "metering": "General",
+                    "schedule_kinds": [
+                        "introductory_promotion"
+                    ],
+                    "spot_settlement_interval": "not_applicable",
+                    "periodic_reset_cadence": "none"
+                },
+                "pricing": {
+                    "phases": [
+                        {
+                            "label": "Months 1-3",
+                            "phase_kind": "introductory",
+                            "starts": {
+                                "kind": "contract_start",
+                                "value": null
+                            },
+                            "ends": {
+                                "kind": "after_months",
+                                "value": "3"
+                            },
+                            "components": [
+                                {
+                                    "component_type": "energy_general",
+                                    "amount": 8.59,
+                                    "normal_amount": null,
+                                    "unit": "cents_per_kwh",
+                                    "vat_status": "included",
+                                    "price_role": "current",
+                                    "source_kind": "structured",
+                                    "evidence": [
+                                        {
+                                            "source": "components[0].price",
+                                            "quote": "components[0].price=8.59"
+                                        },
+                                        {
+                                            "source": "extra_information_fi",
+                                            "quote": "sähköenergian kiinteästä hinnasta (c/kWh)"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "component_type": "monthly_fee",
+                                    "amount": 0,
+                                    "normal_amount": 5.9,
+                                    "unit": "eur_per_month",
+                                    "vat_status": "included",
+                                    "price_role": "introductory",
+                                    "source_kind": "structured",
+                                    "evidence": [
+                                        {
+                                            "source": "components[1].price",
+                                            "quote": "components[1].price=5.9"
+                                        },
+                                        {
+                                            "source": "components[1].has_discount",
+                                            "quote": "components[1].has_discount=true"
+                                        },
+                                        {
+                                            "source": "components[1].discount_value",
+                                            "quote": "components[1].discount_value=5.9"
+                                        },
+                                        {
+                                            "source": "components[1].discount_is_percentage",
+                                            "quote": "components[1].discount_is_percentage=false"
+                                        },
+                                        {
+                                            "source": "components[1].discount_type",
+                                            "quote": "components[1].discount_type=NFirstMonth"
+                                        },
+                                        {
+                                            "source": "components[1].discount_n_first_months",
+                                            "quote": "components[1].discount_n_first_months=3"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "evidence": [
+                                {
+                                    "source": "components[1].discount_n_first_months",
+                                    "quote": "components[1].discount_n_first_months=3"
+                                }
+                            ]
+                        },
+                        {
+                            "label": "Month 4 onward",
+                            "phase_kind": "continuation",
+                            "starts": {
+                                "kind": "after_months",
+                                "value": "3"
+                            },
+                            "ends": {
+                                "kind": "none",
+                                "value": null
+                            },
+                            "components": [
+                                {
+                                    "component_type": "energy_general",
+                                    "amount": 8.59,
+                                    "normal_amount": null,
+                                    "unit": "cents_per_kwh",
+                                    "vat_status": "included",
+                                    "price_role": "normal",
+                                    "source_kind": "structured",
+                                    "evidence": [
+                                        {
+                                            "source": "components[0].price",
+                                            "quote": "components[0].price=8.59"
+                                        },
+                                        {
+                                            "source": "extra_information_fi",
+                                            "quote": "sähköenergian kiinteästä hinnasta (c/kWh)"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "component_type": "monthly_fee",
+                                    "amount": 5.9,
+                                    "normal_amount": null,
+                                    "unit": "eur_per_month",
+                                    "vat_status": "included",
+                                    "price_role": "normal",
+                                    "source_kind": "structured",
+                                    "evidence": [
+                                        {
+                                            "source": "components[1].price",
+                                            "quote": "components[1].price=5.9"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "evidence": [
+                                {
+                                    "source": "components[1].discount_n_first_months",
+                                    "quote": "components[1].discount_n_first_months=3"
+                                }
+                            ]
+                        }
+                    ],
+                    "recurring_schedule": {
+                        "present": false,
+                        "cadence": "none",
+                        "current_period_start": null,
+                        "current_period_end": null,
+                        "future_price_known": null,
+                        "description": null,
+                        "evidence": []
+                    },
+                    "consumption_effect": {
+                        "present": true,
+                        "cadence": "monthly",
+                        "expected_cents_per_kwh": 0.05,
+                        "typical_min_cents_per_kwh": -3.9,
+                        "typical_max_cents_per_kwh": 1.6,
+                        "hard_min_cents_per_kwh": null,
+                        "hard_max_cents_per_kwh": null,
+                        "uncapped": null,
+                        "description": "Kulutusvaikutus muuttuu kuukausittain sähkön kulutuksesi ajoituksen mukaan, eikä siten ole kiinteä. Arvioitu kulutusvaikutus +0,05 c/kWh Kulutusvaikutuksen vaihteluväli on tyypillisesti -3,9 -> +1,6 c/kWh.",
+                        "evidence": [
+                            {
+                                "source": "extra_information_fi",
+                                "quote": "Kulutusvaikutus muuttuu kuukausittain sähkön kulutuksesi ajoituksen mukaan, eikä siten ole kiinteä."
+                            },
+                            {
+                                "source": "extra_information_fi",
+                                "quote": "Arvioitu kulutusvaikutus +0,05 c/kWh"
+                            },
+                            {
+                                "source": "extra_information_fi",
+                                "quote": "Kulutusvaikutuksen vaihteluväli on tyypillisesti -3,9 -> +1,6 c/kWh"
+                            }
+                        ],
+                        "applies_to": "base_contract"
+                    }
+                },
+                "source_consistency": {
+                    "pricing_model_status": "match",
+                    "recommended_pricing_model": "Hybrid",
+                    "contract_type_status": "match",
+                    "recommended_contract_type": "FixedTerm",
+                    "metering_status": "match",
+                    "recommended_metering": "General",
+                    "structured_pricing_status": "incomplete",
+                    "misleading_first_12_months": "uncertain",
+                    "issue_codes": [
+                        "unsupported_consumption_effect"
+                    ],
+                    "summary": "Structured components represent the fixed energy price and the three-month monthly-fee promotion, but do not represent the disclosed monthly consumption effect. Its direction varies, so first-12-month understatement cannot be determined reliably.",
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "hinta muodostuu kolmesta osasta: 1) kuukausittaisesta perusmaksusta (€/kk) 2) sähköenergian kiinteästä hinnasta (c/kWh) 3) kulutusvaikutuksesta (c/kWh)"
+                        },
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Kulutusvaikutus muuttuu kuukausittain sähkön kulutuksesi ajoituksen mukaan, eikä siten ole kiinteä."
+                        }
+                    ]
+                },
+                "calculation": {
+                    "status": "unsupported",
+                    "missing_facts": [
+                        "The actual monthly consumption effect for the customer is not known."
+                    ],
+                    "required_assumptions": [
+                        "Customer-specific monthly consumption-effect values would be needed to calculate an exact first-12-month cost."
+                    ]
+                },
+                "confidence": {
+                    "classification": "high",
+                    "pricing": "high",
+                    "integrity": "high"
+                }
+            },
+            "validation_errors": [],
+            "usage": {
+                "prompt_tokens": 5877,
+                "completion_tokens": 1341,
+                "total_tokens": 7218,
+                "cost": 0.0100995345,
+                "is_byok": false,
+                "prompt_tokens_details": {
+                    "cached_tokens": 4513,
+                    "cache_write_tokens": 1361,
+                    "audio_tokens": 0,
+                    "video_tokens": 0
+                },
+                "cost_details": {
+                    "upstream_inference_cost": 0.01020155,
+                    "upstream_inference_prompt_cost": 0.00215555,
+                    "upstream_inference_completions_cost": 0.008046
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 60,
+                    "image_tokens": 0,
+                    "audio_tokens": 0
+                }
+            },
+            "provider": "OpenAI",
+            "provider_response_id": "gen-1784826648-F7kSTXWKbYn7Ku38ziwE",
+            "latency_ms": 7715
+        }
+    ],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

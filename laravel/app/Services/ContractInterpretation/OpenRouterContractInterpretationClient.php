@@ -13,6 +13,28 @@ class OpenRouterContractInterpretationClient
      */
     public function interpret(array $input): array
     {
+        return $this->request($input);
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @param  array<string, mixed>  $previousOutput
+     * @param  list<string>  $validationErrors
+     * @return array{output: array<string, mixed>, usage: array<string, mixed>, provider: ?string, response_id: ?string, latency_ms: int}
+     */
+    public function repair(array $input, array $previousOutput, array $validationErrors): array
+    {
+        return $this->request($input, $previousOutput, $validationErrors);
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @param  array<string, mixed>|null  $previousOutput
+     * @param  list<string>  $validationErrors
+     * @return array{output: array<string, mixed>, usage: array<string, mixed>, provider: ?string, response_id: ?string, latency_ms: int}
+     */
+    private function request(array $input, ?array $previousOutput = null, array $validationErrors = []): array
+    {
         $apiKey = config('services.openrouter.api_key');
         if (! $apiKey) {
             throw new RuntimeException('OPENROUTER_API_KEY is not configured.');
@@ -20,8 +42,41 @@ class OpenRouterContractInterpretationClient
 
         $schema = $this->readJsonFile((string) config('contract_interpretation.schema_path'));
         $prompt = $this->readFile((string) config('contract_interpretation.prompt_path'));
-        $startedAt = hrtime(true);
+        $messages = [
+            ['role' => 'system', 'content' => $prompt],
+            [
+                'role' => 'user',
+                'content' => json_encode(
+                    $input,
+                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
+                ),
+            ],
+        ];
 
+        if ($previousOutput !== null) {
+            $messages[] = [
+                'role' => 'assistant',
+                'content' => json_encode(
+                    $previousOutput,
+                    JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR,
+                ),
+            ];
+            $messages[] = [
+                'role' => 'user',
+                'content' => json_encode([
+                    'task' => 'Correct the previous complete JSON output.',
+                    'validation_errors' => $validationErrors,
+                    'requirements' => [
+                        'Return the complete corrected JSON object, not a patch.',
+                        'Correct every reported error.',
+                        'Do not invent evidence or change source facts.',
+                        'Remove unsupported facts or use null, Unknown, uncertain, or not_assessable as allowed by the schema.',
+                    ],
+                ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
+            ];
+        }
+
+        $startedAt = hrtime(true);
         $response = Http::withToken($apiKey)
             ->acceptJson()
             ->withHeaders([
@@ -38,16 +93,7 @@ class OpenRouterContractInterpretationClient
                     'effort' => config('contract_interpretation.reasoning_effort'),
                     'exclude' => true,
                 ],
-                'messages' => [
-                    ['role' => 'system', 'content' => $prompt],
-                    [
-                        'role' => 'user',
-                        'content' => json_encode([
-                            'analysis_date' => $input['analysis_date'] ?? now()->toDateString(),
-                            'contract' => $input,
-                        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR),
-                    ],
-                ],
+                'messages' => $messages,
                 'response_format' => [
                     'type' => 'json_schema',
                     'json_schema' => [

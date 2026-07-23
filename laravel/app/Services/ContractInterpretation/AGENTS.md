@@ -14,7 +14,7 @@ This directory implements the raw source and automatic contract interpretation p
 
 Primary services:
 
-- `ContractInterpretationInputBuilder` maps a source snapshot to the compact prompt input used in experiments.
+- `ContractInterpretationInputBuilder` maps a source snapshot to the compact prompt input used in experiments and normalizes HTML descriptions without changing case or punctuation.
 - `ContractAnalysisFingerprint` combines source, schema, prompt, provider, and model versions.
 - `OpenRouterContractInterpretationClient` requests strict JSON Schema output.
 - `ContractInterpretationValidator` validates schema shape, identity, dates/ranges, exact description evidence, and classification consistency.
@@ -25,14 +25,15 @@ Primary services:
 Configuration and assets:
 
 - `config/contract_interpretation.php`
-- `resources/contract-interpretation/schema-v2.json`
-- `resources/contract-interpretation/system-prompt-v5.md`
+- `resources/contract-interpretation/schema-v3.json`
+- `resources/contract-interpretation/system-prompt-v6.md`
 
 Important semantics:
 
 - Enable import-time queueing with `CONTRACT_INTERPRETATION_ENABLED=true`.
 - There is no human review, approval, or override workflow.
-- Invalid output is stored as failed and does not publish.
+- Validation failure can cause at most two model correction calls. Each call receives the exact validator errors and the previous complete output. All attempts are stored in `llm_attempts`.
+- Invalid final output is stored as failed and does not publish.
 - A stale job becomes `superseded` if a newer source snapshot exists.
 - High-confidence, internally consistent mismatch corrections can publish automatically.
 - `electricity_contracts.published_interpretation_id` identifies the published version; `published_fields` records the exact canonical fields it owns.
@@ -42,6 +43,8 @@ Important semantics:
 - For an interpreted contract, a changed raw source price does not replace relational prices before the new interpretation validates it.
 - `relational_pricing_published` records whether source components passed the safe-publication gate.
 - Unsafe incomplete/conflicting structured prices remain in canonical interpretation JSON but do not activate a new contract or replace relational `price_components`, including on later imports.
+- Evidence paths are relative to the flat prompt input. They must identify one scalar leaf; description quotes must match normalized prompt text exactly.
+- Structured discounted amounts can pass without a literal output number only when the validator independently recomputes the amount from separately cited structured discount operands and matching phase limits.
 - Phase-aware calculations do not yet read `canonical_pricing`; that is a separate pending task.
 - Source snapshots remain immutable evidence.
 

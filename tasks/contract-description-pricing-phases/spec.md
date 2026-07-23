@@ -233,6 +233,8 @@ Validated compatible classification fields are materialized into the existing ca
 
 A valid latest interpretation publishes automatically. Only high-confidence category mismatches with internally consistent recommendations can replace source classification fields. Current rich pricing JSON publishes for frontend use, but phase-aware calculations remain disabled until the calculator can consume it safely.
 
+If deterministic validation fails, the job can make at most two model correction calls. Each correction receives the same normalized source input, the previous complete output, and exact validation errors. The same complete validator runs after each call. All attempts are retained, and a result that still fails does not publish.
+
 Historical statistics must not apply today's interpretation retroactively. Interpretation rows and source snapshots provide version history.
 
 ## Calculation behavior
@@ -289,4 +291,4 @@ The earlier description-only investigation remains useful as one benchmark slice
 
 Its focused benchmark contains four description-only promotion mismatches among the 100 cheapest active household contracts. It should be expanded with category mismatches, Hybrid/consumption-effect products, recurring resets, and a stratified random sample before enabling automatic corrections.
 
-Prompt/model/schema experiments are documented in `experiments/README.md` and `experiments/results.md`. The production pipeline uses GPT-5.6 Luna with prompt v5, schema v2, low reasoning, and automatic post-validation when enabled. No production interpretation or migration has been run as part of implementation.
+Prompt/model/schema experiments are documented in `experiments/README.md` and `experiments/results.md`. The production pipeline uses GPT-5.6 Luna with prompt v6, schema v3, low reasoning, exact automatic post-validation, and up to two bounded correction calls. The first production import created 434 snapshots; its prompt v5 calls failed strict evidence validation and did not publish, which led to the aligned prompt v6 and validator-aware local experiment workflow.

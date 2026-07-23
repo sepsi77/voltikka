@@ -15,6 +15,7 @@ import math
 import os
 from pathlib import Path
 import re
+import subprocess
 import time
 import urllib.error
 import urllib.request
@@ -49,9 +50,10 @@ def read_env_value(path: Path, key: str) -> str | None:
 def clean_html(value: object) -> object:
     if not isinstance(value, str):
         return value
-    text = re.sub(r"<[^>]+>", " ", html.unescape(value))
-    text = text.replace("\u00a0", " ")
-    return re.sub(r"[ \t]+", " ", text).strip()
+    text = re.sub(r"<br\s*/?\s*>", " ", html.unescape(value), flags=re.IGNORECASE)
+    text = re.sub(r"<[^>]+>", "", text)
+    text = text.replace("\u00a0", " ").replace("\u202f", " ")
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def contract_input(row: dict) -> dict:
@@ -59,24 +61,27 @@ def contract_input(row: dict) -> dict:
     keys = [
         "contract_id", "api_id", "company_name", "contract_name",
         "pricing_model", "contract_type", "fixed_time_range", "metering",
-        "target_group", "spot_price_selection", "pricing_has_discounts",
-        "consumption_limitation_min_x_kwh_per_y",
-        "consumption_limitation_max_x_kwh_per_y", "short_description",
-        "long_description", "extra_information_fi", "extra_information_default",
-        "transparency_index",
+        "target_group", "spot_price_selection", "pricing_name",
+        "pricing_has_discounts", "short_description", "long_description",
+        "extra_information_fi", "extra_information_default",
+        "time_period_definitions", "billing_frequency", "consumption_limitation",
     ]
     result = {key: row.get(key) for key in keys}
     for key in ["short_description", "long_description", "extra_information_fi", "extra_information_default"]:
         result[key] = clean_html(result.get(key))
     result["components"] = []
     component_keys = [
-        "id", "price_component_type", "payment_unit", "price", "price_date",
-        "fuse_size", "has_discount", "discount_value", "discount_is_percentage",
-        "discount_type", "discount_discount_n_first_months",
-        "discount_discount_n_first_kwh", "discount_discount_until_date",
+        "id", "price_component_type", "fuse_size", "price", "payment_unit",
+        "has_discount", "discount_value", "discount_is_percentage",
+        "discount_type", "discount_n_first_kwh", "discount_n_first_months",
+        "discount_until_date",
     ]
     for component in row.get("components", []):
-        result["components"].append({key: component.get(key) for key in component_keys})
+        normalized = {key: component.get(key) for key in component_keys}
+        normalized["discount_n_first_kwh"] = component.get("discount_n_first_kwh", component.get("discount_discount_n_first_kwh"))
+        normalized["discount_n_first_months"] = component.get("discount_n_first_months", component.get("discount_discount_n_first_months"))
+        normalized["discount_until_date"] = component.get("discount_until_date", component.get("discount_discount_until_date"))
+        result["components"].append(normalized)
     return result
 
 
@@ -173,7 +178,7 @@ def score_output(output: dict, gold: dict, source_input: dict) -> dict:
 
 
 def call_openrouter(api_key: str, model: str, prompt: str, schema: dict, source_input: dict, analysis_date: str, reasoning_effort: str, retries: int = 3) -> dict:
-    user_content = json.dumps({"analysis_date": analysis_date, "contract": source_input}, ensure_ascii=False, separators=(",", ":"))
+    user_content = json.dumps({"analysis_date": analysis_date, **source_input}, ensure_ascii=False, separators=(",", ":"))
     body = {
         "model": model,
         "max_tokens": 6000,
@@ -291,7 +296,7 @@ def main() -> int:
         model, rank, gold, source = job
         print(f"START {model} rank={rank}", flush=True)
         result = call_openrouter(api_key, model, prompt, schema, source, analysis_date, args.reasoning_effort)
-        record = {"model": model, "rank": rank, "contract_id": source["contract_id"], **result}
+        record = {"model": model, "rank": rank, "contract_id": source["contract_id"], "input": {"analysis_date": analysis_date, **source}, **result}
         if result.get("ok"):
             if gold is not None:
                 record["evaluation"] = score_output(result["output"], gold, source)
@@ -311,6 +316,23 @@ def main() -> int:
         for future in concurrent.futures.as_completed(futures):
             records.append(future.result())
 
+    validation_process = subprocess.run(
+        ["php", str(EXPERIMENT_DIR / "validate_run.php"), str(run_dir)],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    validation_summary = json.loads(validation_process.stdout)
+    validation_by_case = {
+        (item["model"], item["rank"]): item
+        for item in validation_summary["results"]
+    }
+    for record in records:
+        validation = validation_by_case.get((record["model"], record["rank"]))
+        if validation is not None:
+            record["production_validation"] = validation
+
     summaries = []
     for model in args.models:
         model_records = [record for record in records if record["model"] == model]
@@ -320,10 +342,13 @@ def main() -> int:
         completion_tokens = sum(int(record.get("usage", {}).get("completion_tokens") or 0) for record in successes)
         evaluated = [record for record in successes if "evaluation" in record]
         score = sum(record["evaluation"]["passed"] for record in evaluated) / sum(record["evaluation"]["total"] for record in evaluated) if evaluated else None
+        production_valid = [record for record in successes if record.get("production_validation", {}).get("valid")]
         summaries.append({
             "model": model,
             "successes": len(successes),
             "failures": len(model_records) - len(successes),
+            "production_validator_passes": len(production_valid),
+            "production_validator_failures": len(successes) - len(production_valid),
             "evaluated_cases": len(evaluated),
             "weighted_score": score,
             "mean_case_score": sum(record["evaluation"]["score"] for record in evaluated) / len(evaluated) if evaluated else None,

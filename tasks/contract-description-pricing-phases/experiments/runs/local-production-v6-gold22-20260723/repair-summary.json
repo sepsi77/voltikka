@@ -1,0 +1,230 @@
+{
+    "cases": 22,
+    "initial_passes": 17,
+    "repaired_cases": 5,
+    "final_passes": 22,
+    "final_failures": 0,
+    "reported_repair_cost_usd": 0.044592075,
+    "results": [
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 1,
+            "contract_id": "9a16oh-hehku-energia-oy-hehku-spot",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 2,
+            "contract_id": "6e4ly6-kokkolan-energia-oy-tyyni",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 3,
+            "contract_id": "brxibd-aalto-energia-oyj-tyyni-vakiohinta",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 5,
+            "contract_id": "xlclt2-sahkotytot-oy-porssisahko-tarjous-ilmainen-perusmaksu-ensimmaiset-3kk",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 7,
+            "contract_id": "kz9acg-cheap-energy-finland-oy-cheap-porssisahko-kampanja-perusmaksualennus-6-kk-490-kk-ja-marginaalialennus-6kk-039-sntkwh",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 11,
+            "contract_id": "nlac9s-seinajoen-energia-oy-se-oikea-yleissahko",
+            "initial_valid": false,
+            "repair_count": 1,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0.006219081
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 13,
+            "contract_id": "cxdwul-kokkolan-energia-oy-surffari-kesakampanja",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 15,
+            "contract_id": "q2gfjf-vattenfall-oy-optimi-porssisahko-perusmaksut-50-ensimmaiset-12-kuukautta",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 20,
+            "contract_id": "djobdk-vihrea-alyenergia-oy-vire-tuuli-opiskelija",
+            "initial_valid": false,
+            "repair_count": 1,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0.0091122075
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 29,
+            "contract_id": "vgornb-lumme-energia-porssisahko-3-kk-ilman-kk-maksua",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 37,
+            "contract_id": "iq7fja-vimpelin-voima-oy-vuodenaikatariffi",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 43,
+            "contract_id": "1ucmby-cheap-energy-finland-oy-cheap-kvartaalisahko",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 45,
+            "contract_id": "plbcxh-kokkolan-energia-oy-vuodenaika",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 64,
+            "contract_id": "uio8ny-iin-energia-oy-ien-spot",
+            "initial_valid": false,
+            "repair_count": 1,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0.007048206
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 80,
+            "contract_id": "mkcxd3-oomi-oy-toimitusvelvollinen-spot",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 83,
+            "contract_id": "jt3szr-koillis-satakunnan-sahko-oy-joustowirta-24-kk",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 85,
+            "contract_id": "zcosto-vaasan-sahko-myynti-oy-tuulisahko-yleissahko",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 86,
+            "contract_id": "jf1mar-omavoima-oy-ajoittaja-24-kk",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 89,
+            "contract_id": "cejarn-oomi-oy-oomi-jousto-24-kk",
+            "initial_valid": false,
+            "repair_count": 1,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0.0100995345
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 91,
+            "contract_id": "5me61f-paneliankosken-voima-oy-kosken-kayttowoima-24-kk-kulutusjousto",
+            "initial_valid": false,
+            "repair_count": 1,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0.012113046
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 93,
+            "contract_id": "yv3sbk-hehku-energia-oy-hehku-jousto-12-kk-ensimmaiset-3-kk-perusmaksu-0",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        },
+        {
+            "model": "openai/gpt-5.6-luna",
+            "rank": 94,
+            "contract_id": "qgpgvd-herrfors-oy-ab-vakaa",
+            "initial_valid": true,
+            "repair_count": 0,
+            "final_valid": true,
+            "final_error_count": 0,
+            "reported_repair_cost_usd": 0
+        }
+    ]
+}

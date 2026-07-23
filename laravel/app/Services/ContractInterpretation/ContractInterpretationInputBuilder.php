@@ -32,10 +32,10 @@ class ContractInterpretationInputBuilder
             'spot_price_selection' => $details['SpotPriceSelection'] ?? null,
             'pricing_name' => $pricing['Name'] ?? null,
             'pricing_has_discounts' => $pricing['HasDiscount'] ?? false,
-            'short_description' => $details['ShortDescription'] ?? null,
-            'long_description' => $details['LongDescription'] ?? null,
-            'extra_information_fi' => $extra['FI'] ?? null,
-            'extra_information_default' => $extra['Default'] ?? null,
+            'short_description' => $this->normalizeText($details['ShortDescription'] ?? null),
+            'long_description' => $this->normalizeText($details['LongDescription'] ?? null),
+            'extra_information_fi' => $this->normalizeText($extra['FI'] ?? null),
+            'extra_information_default' => $this->normalizeText($extra['Default'] ?? null),
             'time_period_definitions' => $details['TimePeriodDefinitions'] ?? null,
             'billing_frequency' => $details['BillingFrequency'] ?? null,
             'consumption_limitation' => $details['ConsumptionLimitation'] ?? null,
@@ -44,6 +44,20 @@ class ContractInterpretationInputBuilder
                 $pricing['PriceComponents'] ?? []
             ),
         ];
+    }
+
+    private function normalizeText(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $text = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = preg_replace('/<br\s*\/?\s*>/iu', ' ', $text) ?? $text;
+        $text = strip_tags($text);
+        $text = preg_replace('/[\s\x{00A0}\x{202F}]+/u', ' ', $text) ?? $text;
+
+        return trim($text);
     }
 
     /**

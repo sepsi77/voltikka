@@ -1,0 +1,24 @@
+{
+  "validator": "laravel/app/Services/ContractInterpretation/ContractInterpretationValidator.php",
+  "input_shape": "experiment contract_input output validated as the inner production contract input",
+  "cases": 5,
+  "passed": 0,
+  "failed": 5,
+  "error_counts_by_rank": {
+    "1": 1,
+    "2": 13,
+    "3": 13,
+    "5": 2,
+    "7": 1
+  },
+  "main_failure_classes": [
+    "Evidence source does not resolve to one scalar source value",
+    "Evidence quote is not an exact substring of the cited source text",
+    "Derived discounted amount lacks literal numeric evidence"
+  ],
+  "notes": [
+    "The OpenRouter strict schema call succeeded for all five cases.",
+    "The experiment key-field scorer and the production publication validator test different requirements.",
+    "No result in this smoke run is safe for canonical publication under the current validator."
+  ]
+}

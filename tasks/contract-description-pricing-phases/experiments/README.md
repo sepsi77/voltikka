@@ -6,19 +6,21 @@ This directory contains the reproducible prompt/model evaluation requested befor
 
 - Model: `openai/gpt-5.6-luna`
 - Reasoning effort: `low`
-- Prompt: `system-prompt-v5.md`
-- JSON Schema: `schema-v2.json`
+- Prompt: `system-prompt-v6.md`
+- JSON Schema: `schema-v3.json`
 - Deterministic post-processing example: `evaluate_run.py`
 
 The prompt must not be used without deterministic evidence, phase, component, and category validation. See `results.md`.
 
 ## Files
 
-- `schema-v2.json` — recommended strict structured-output schema
-- `system-prompt-v5.md` — recommended prompt
+- `schema-v3.json` — recommended strict structured-output schema with evidence-path constraints
+- `system-prompt-v6.md` — recommended prompt with flat-input and scalar-evidence rules
 - `gold-v3.json` — 22 manually specified key-field cases covering Spot, fixed, recurring reset, promotions, missing descriptions, seasonal tariffs, optional fixing, and consumption effect
 - `active-434-input.json` — normalized read-only production export used for the full shadow run
-- `run_experiment.py` — OpenRouter runner, cost/latency recorder, and key-field scorer
+- `run_experiment.py` — OpenRouter runner, cost/latency recorder, key-field scorer, and production-validator launcher
+- `validate_run.php` — runs the exact Laravel production validator against each successful experiment output
+- `repair_run.php` — gives failed outputs and exact validation errors to the production correction client, with a hard maximum of two correction calls
 - `evaluate_run.py` — focused deterministic promotion-mismatch derivation and benchmark evaluator
 - `results.md` — findings and recommendation
 - `runs/*/summary.json` — aggregate run metrics
@@ -35,9 +37,9 @@ The runner reads `OPENROUTER_API_KEY` from the process environment or `laravel/.
 ```bash
 cd /Users/seppo/code/voltikka
 python3 tasks/contract-description-pricing-phases/experiments/run_experiment.py \
-  --run-name top100-gpt-v5-low-rerun \
-  --prompt system-prompt-v5.md \
-  --schema schema-v2.json \
+  --run-name top100-gpt-v6-low-rerun \
+  --prompt system-prompt-v6.md \
+  --schema schema-v3.json \
   --gold gold-v3.json \
   --models openai/gpt-5.6-luna \
   --all-benchmark \
@@ -45,11 +47,19 @@ python3 tasks/contract-description-pricing-phases/experiments/run_experiment.py 
   --reasoning-effort low
 ```
 
+Retry production-validator failures from a retained run, with at most two correction calls:
+
+```bash
+php tasks/contract-description-pricing-phases/experiments/repair_run.php \
+  tasks/contract-description-pricing-phases/experiments/runs/top100-gpt-v6-low-rerun \
+  2
+```
+
 Evaluate the focused promotion benchmark:
 
 ```bash
 python3 tasks/contract-description-pricing-phases/experiments/evaluate_run.py \
-  top100-gpt-v5-low-rerun
+  top100-gpt-v6-low-rerun
 ```
 
 ## Important evaluation limitations

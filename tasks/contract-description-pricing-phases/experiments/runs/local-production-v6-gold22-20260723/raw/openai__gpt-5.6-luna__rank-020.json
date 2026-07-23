@@ -1,0 +1,666 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 20,
+    "contract_id": "djobdk-vihrea-alyenergia-oy-vire-tuuli-opiskelija",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "djobdk-vihrea-alyenergia-oy-vire-tuuli-opiskelija",
+        "api_id": "5348127f-b945-474b-933a-e128fab31aca",
+        "company_name": "Vihreä Älyenergia Oy",
+        "contract_name": "Vire Tuuli – Opiskelija",
+        "pricing_model": "Spot",
+        "contract_type": "OpenEnded",
+        "fixed_time_range": "Fixed12",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": false,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "Vire Tuuli - Opiskelija - 100% tuulivoima Vire Tuuli - Opiskelija -sopimuksessa on alennettu perusmaksu 0,99 €/kk 12kk sopimuksen alkamisesta, jonka jälkeen perusmaksu on 5,99 €/kk Sopimus on tarkoitettu alle 5000 kWh vuosikulutuksen kohteisiin, 18-25-vuotiaille asiakkaille, joilla on voimassa olevat opinnot suomalaisessa oppilaitoksessa. Tarkistamme kulutuksen siirtoverkon lähettämästä vuosikulutusarviosta, opiskelun vahvistamme tarvittaessa (opiskelijakortti). Vire Tuuli - Opiskelija -sähkösopimus on Nordpoolin sähköpörssin varttipohjaiseen sähkön hintaan pohjautuva sopimus, jossa lopullinen hinta määräytyy kuukausittaisesta perusmaksusta, sähköpörssin spot-hinnasta ja spot-hintaan lisättävästä marginaalista. Teet sopimuksen helposti klikkaamalla TÄSTÄ. Sopimuksen energia tuotetaan 100% tuulivoimalla. Asiakaspalvelumme toimii sulavasti ja ystävällisesti Googlen yli 4,6 tähden alansa parhaalla tasolla, joten voit huoletta liittyä jo yli 40000 asiakkaan joukkoomme. Tervetuloa! Suomen paras Älyenergia-sovellus: Meillä on asiakastyytyväisyydeltään (4,4*) ja ominaisuuksiltaan Suomen paras Älyenergia-sovellus. Älyenergia ilmoittaa milloin käytön siirrolla säästää, kaikki halutut ilmoitukset löytyy, se ohjaa lämmitystäsi ja autosi latausta sekä näyttää aurinkopaneeliesi tuotannon. Sovellus sisältää energiankäyttöön ja siinä säästämiseen kaiken oleellisen helposti käytettävässä paketissa. Tavoitteenamme on kehittää maailman paras energia-sovellus.",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "1c9ba25df1d0b9695c84da7a464a23d8",
+                "price_component_type": "General",
+                "fuse_size": "None",
+                "price": 0.99,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "72f50910191a02d17697f8c2aeb372a3",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 0.99,
+                "payment_unit": "EurPerMonth",
+                "has_discount": false,
+                "discount_value": 2.99,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 2,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "djobdk-vihrea-alyenergia-oy-vire-tuuli-opiskelija",
+        "classification": {
+            "term_type": "OpenEnded",
+            "fixed_duration_months": null,
+            "primary_pricing_model": "Spot",
+            "pricing_mechanisms": [
+                "spot",
+                "fixed",
+                "periodic_market_reset"
+            ],
+            "metering": "General",
+            "schedule_kinds": [
+                "introductory_promotion",
+                "fixed_term_continuation"
+            ],
+            "spot_settlement_interval": "quarter_hourly",
+            "periodic_reset_cadence": "none"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "First 12 months",
+                    "phase_kind": "introductory",
+                    "starts": {
+                        "kind": "contract_start",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "after_months",
+                        "value": "12"
+                    },
+                    "components": [
+                        {
+                            "component_type": "spot_margin",
+                            "amount": 0.99,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=0.99"
+                                },
+                                {
+                                    "source": "components[0].payment_unit",
+                                    "quote": "components[0].payment_unit=CentPerKiwattHour"
+                                },
+                                {
+                                    "source": "components[0].price_component_type",
+                                    "quote": "components[0].price_component_type=General"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 0.99,
+                            "normal_amount": 5.99,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "introductory",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=0.99"
+                                },
+                                {
+                                    "source": "components[1].payment_unit",
+                                    "quote": "components[1].payment_unit=EurPerMonth"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "alennettu perusmaksu 0,99 €/kk 12kk sopimuksen alkamisesta"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Nordpoolin sähköpörssin varttipohjaiseen sähkön hintaan pohjautuva sopimus"
+                        }
+                    ]
+                },
+                {
+                    "label": "After first 12 months",
+                    "phase_kind": "continuation",
+                    "starts": {
+                        "kind": "after_months",
+                        "value": "12"
+                    },
+                    "ends": {
+                        "kind": "none",
+                        "value": null
+                    },
+                    "components": [
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 5.99,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "normal",
+                            "source_kind": "description",
+                            "evidence": [
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "jonka jälkeen perusmaksu on 5,99 €/kk"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "alennettu perusmaksu 0,99 €/kk 12kk sopimuksen alkamisesta, jonka jälkeen perusmaksu on 5,99 €/kk"
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": false,
+                "cadence": "none",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": null,
+                "description": null,
+                "evidence": []
+            },
+            "consumption_effect": {
+                "present": false,
+                "cadence": "none",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": null,
+                "evidence": [],
+                "applies_to": "unknown"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "Spot",
+            "contract_type_status": "match",
+            "recommended_contract_type": "OpenEnded",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "incomplete",
+            "misleading_first_12_months": "not_detected",
+            "issue_codes": [
+                "future_price_omitted",
+                "structured_matches_intro_only"
+            ],
+            "summary": "The structured data represents the 0.99 €/month introductory fee and a 0.99 cents/kWh General component interpreted as the Spot margin, but omits the disclosed 5.99 €/month continuation fee after the first 12 months. The contract is a quarter-hourly Nord Pool Spot product with a monthly fee and margin.",
+            "evidence": [
+                {
+                    "source": "pricing_model",
+                    "quote": "pricing_model=Spot"
+                },
+                {
+                    "source": "contract_type",
+                    "quote": "contract_type=OpenEnded"
+                },
+                {
+                    "source": "metering",
+                    "quote": "metering=General"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Vire Tuuli - Opiskelija -sähkösopimus on Nordpoolin sähköpörssin varttipohjaiseen sähkön hintaan pohjautuva sopimus, jossa lopullinen hinta määräytyy kuukausittaisesta perusmaksusta, sähköpörssin spot-hinnasta ja spot-hintaan lisättävästä marginaalista"
+                }
+            ]
+        },
+        "calculation": {
+            "status": "estimate_required",
+            "missing_facts": [
+                "The applicable Nord Pool Spot prices for the first 12 months",
+                "The numeric Spot margin is structured as 0.99 cents/kWh but is not numerically stated in the description"
+            ],
+            "required_assumptions": [
+                "Estimate future Nord Pool Spot prices to calculate total cost",
+                "Treat the structured General component of 0.99 cents/kWh as the Spot margin"
+            ]
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "medium",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 4603,
+        "completion_tokens": 1350,
+        "total_tokens": 5953,
+        "cost": 0.0094052475,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 3785,
+            "cache_write_tokens": 815,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.00950025,
+            "upstream_inference_prompt_cost": 0.00140025,
+            "upstream_inference_completions_cost": 0.0081
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 243,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 8.537009542342275,
+    "response_id": "gen-1784826570-Z74QKQP3ISMhMnHfu9Bi",
+    "evaluation": {
+        "score": 1,
+        "passed": 15,
+        "total": 15,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "OpenEnded",
+                "actual": "OpenEnded"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "Spot",
+                "actual": "Spot"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "quarter_hourly",
+                "actual": "quarter_hourly"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "none",
+                "actual": "none"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "spot"
+                ],
+                "actual": [
+                    "fixed",
+                    "periodic_market_reset",
+                    "spot"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": "incomplete",
+                "actual": "incomplete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": "not_detected",
+                "actual": "not_detected"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [],
+                "actual": [
+                    "future_price_omitted",
+                    "structured_matches_intro_only"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "estimate_required",
+                "actual": "estimate_required"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": false,
+                "actual": false
+            },
+            {
+                "name": "price:monthly_fee:0.99",
+                "passed": true,
+                "expected": [
+                    "monthly_fee",
+                    0.99
+                ],
+                "actual": [
+                    [
+                        "spot_margin",
+                        0.99
+                    ],
+                    [
+                        "monthly_fee",
+                        0.99
+                    ],
+                    [
+                        "monthly_fee",
+                        5.99
+                    ]
+                ]
+            },
+            {
+                "name": "price:monthly_fee:5.99",
+                "passed": true,
+                "expected": [
+                    "monthly_fee",
+                    5.99
+                ],
+                "actual": [
+                    [
+                        "spot_margin",
+                        0.99
+                    ],
+                    [
+                        "monthly_fee",
+                        0.99
+                    ],
+                    [
+                        "monthly_fee",
+                        5.99
+                    ]
+                ]
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 20,
+        "contract_id": "djobdk-vihrea-alyenergia-oy-vire-tuuli-opiskelija",
+        "valid": false,
+        "error_count": 1,
+        "errors": [
+            "$.pricing.phases[0].components[1].normal_amount lacks numeric evidence."
+        ]
+    },
+    "repair_attempts": [
+        {
+            "repair": 1,
+            "output": {
+                "schema_version": "1.0",
+                "contract_id": "djobdk-vihrea-alyenergia-oy-vire-tuuli-opiskelija",
+                "classification": {
+                    "term_type": "OpenEnded",
+                    "fixed_duration_months": null,
+                    "primary_pricing_model": "Spot",
+                    "pricing_mechanisms": [
+                        "spot",
+                        "fixed"
+                    ],
+                    "metering": "General",
+                    "schedule_kinds": [
+                        "introductory_promotion",
+                        "fixed_term_continuation"
+                    ],
+                    "spot_settlement_interval": "quarter_hourly",
+                    "periodic_reset_cadence": "none"
+                },
+                "pricing": {
+                    "phases": [
+                        {
+                            "label": "First 12 months",
+                            "phase_kind": "introductory",
+                            "starts": {
+                                "kind": "contract_start",
+                                "value": null
+                            },
+                            "ends": {
+                                "kind": "after_months",
+                                "value": "12"
+                            },
+                            "components": [
+                                {
+                                    "component_type": "spot_margin",
+                                    "amount": 0.99,
+                                    "normal_amount": null,
+                                    "unit": "cents_per_kwh",
+                                    "vat_status": "unknown",
+                                    "price_role": "current",
+                                    "source_kind": "structured",
+                                    "evidence": [
+                                        {
+                                            "source": "components[0].price",
+                                            "quote": "components[0].price=0.99"
+                                        },
+                                        {
+                                            "source": "components[0].payment_unit",
+                                            "quote": "components[0].payment_unit=CentPerKiwattHour"
+                                        },
+                                        {
+                                            "source": "components[0].price_component_type",
+                                            "quote": "components[0].price_component_type=General"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "component_type": "monthly_fee",
+                                    "amount": 0.99,
+                                    "normal_amount": 5.99,
+                                    "unit": "eur_per_month",
+                                    "vat_status": "unknown",
+                                    "price_role": "introductory",
+                                    "source_kind": "both",
+                                    "evidence": [
+                                        {
+                                            "source": "components[1].price",
+                                            "quote": "components[1].price=0.99"
+                                        },
+                                        {
+                                            "source": "components[1].payment_unit",
+                                            "quote": "components[1].payment_unit=EurPerMonth"
+                                        },
+                                        {
+                                            "source": "extra_information_fi",
+                                            "quote": "alennettu perusmaksu 0,99 €/kk 12kk sopimuksen alkamisesta"
+                                        },
+                                        {
+                                            "source": "extra_information_fi",
+                                            "quote": "perusmaksu on 5,99 €/kk"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "evidence": [
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Nordpoolin sähköpörssin varttipohjaiseen sähkön hintaan pohjautuva sopimus"
+                                }
+                            ]
+                        },
+                        {
+                            "label": "After first 12 months",
+                            "phase_kind": "continuation",
+                            "starts": {
+                                "kind": "after_months",
+                                "value": "12"
+                            },
+                            "ends": {
+                                "kind": "none",
+                                "value": null
+                            },
+                            "components": [
+                                {
+                                    "component_type": "monthly_fee",
+                                    "amount": 5.99,
+                                    "normal_amount": null,
+                                    "unit": "eur_per_month",
+                                    "vat_status": "unknown",
+                                    "price_role": "normal",
+                                    "source_kind": "description",
+                                    "evidence": [
+                                        {
+                                            "source": "extra_information_fi",
+                                            "quote": "jonka jälkeen perusmaksu on 5,99 €/kk"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "evidence": [
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "alennettu perusmaksu 0,99 €/kk 12kk sopimuksen alkamisesta, jonka jälkeen perusmaksu on 5,99 €/kk"
+                                }
+                            ]
+                        }
+                    ],
+                    "recurring_schedule": {
+                        "present": false,
+                        "cadence": "none",
+                        "current_period_start": null,
+                        "current_period_end": null,
+                        "future_price_known": null,
+                        "description": null,
+                        "evidence": []
+                    },
+                    "consumption_effect": {
+                        "present": false,
+                        "cadence": "none",
+                        "expected_cents_per_kwh": null,
+                        "typical_min_cents_per_kwh": null,
+                        "typical_max_cents_per_kwh": null,
+                        "hard_min_cents_per_kwh": null,
+                        "hard_max_cents_per_kwh": null,
+                        "uncapped": null,
+                        "description": null,
+                        "evidence": [],
+                        "applies_to": "unknown"
+                    }
+                },
+                "source_consistency": {
+                    "pricing_model_status": "match",
+                    "recommended_pricing_model": "Spot",
+                    "contract_type_status": "match",
+                    "recommended_contract_type": "OpenEnded",
+                    "metering_status": "match",
+                    "recommended_metering": "General",
+                    "structured_pricing_status": "incomplete",
+                    "misleading_first_12_months": "not_detected",
+                    "issue_codes": [
+                        "future_price_omitted",
+                        "structured_matches_intro_only"
+                    ],
+                    "summary": "The structured data represents the 0.99 €/month introductory fee and a 0.99 cents/kWh General component interpreted as the Spot margin, but omits the disclosed 5.99 €/month continuation fee after the first 12 months. The contract is a quarter-hourly Nord Pool Spot product with a monthly fee and margin.",
+                    "evidence": [
+                        {
+                            "source": "pricing_model",
+                            "quote": "pricing_model=Spot"
+                        },
+                        {
+                            "source": "contract_type",
+                            "quote": "contract_type=OpenEnded"
+                        },
+                        {
+                            "source": "metering",
+                            "quote": "metering=General"
+                        },
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Vire Tuuli - Opiskelija -sähkösopimus on Nordpoolin sähköpörssin varttipohjaiseen sähkön hintaan pohjautuva sopimus, jossa lopullinen hinta määräytyy kuukausittaisesta perusmaksusta, sähköpörssin spot-hinnasta ja spot-hintaan lisättävästä marginaalista"
+                        }
+                    ]
+                },
+                "calculation": {
+                    "status": "estimate_required",
+                    "missing_facts": [
+                        "The applicable Nord Pool Spot prices for the first 12 months",
+                        "The numeric Spot margin is structured as 0.99 cents/kWh but is not numerically stated in the description"
+                    ],
+                    "required_assumptions": [
+                        "Estimate future Nord Pool Spot prices to calculate total cost",
+                        "Treat the structured General component of 0.99 cents/kWh as the Spot margin"
+                    ]
+                },
+                "confidence": {
+                    "classification": "high",
+                    "pricing": "medium",
+                    "integrity": "high"
+                }
+            },
+            "validation_errors": [],
+            "usage": {
+                "prompt_tokens": 5788,
+                "completion_tokens": 1210,
+                "total_tokens": 6998,
+                "cost": 0.0091122075,
+                "is_byok": false,
+                "prompt_tokens_details": {
+                    "cached_tokens": 4600,
+                    "cache_write_tokens": 1185,
+                    "audio_tokens": 0,
+                    "video_tokens": 0
+                },
+                "cost_details": {
+                    "upstream_inference_cost": 0.00920425,
+                    "upstream_inference_prompt_cost": 0.00194425,
+                    "upstream_inference_completions_cost": 0.00726
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 87,
+                    "image_tokens": 0,
+                    "audio_tokens": 0
+                }
+            },
+            "provider": "OpenAI",
+            "provider_response_id": "gen-1784826637-MIB7ojZEDYB1UcnSZYED",
+            "latency_ms": 6285
+        }
+    ],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

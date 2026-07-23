@@ -44,6 +44,7 @@ class ContractInterpretationDispatcher
             $interpretation->update([
                 'status' => ContractInterpretation::STATUS_PENDING,
                 'validation_errors' => null,
+                'llm_attempts' => null,
                 'error' => null,
                 'started_at' => null,
                 'completed_at' => null,

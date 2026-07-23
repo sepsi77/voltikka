@@ -1,0 +1,20 @@
+{
+  "run_name": "local-production-v6-smoke-20260723",
+  "started_at": "2026-07-23T17:04:49.044489+00:00",
+  "models": [
+    "openai/gpt-5.6-luna"
+  ],
+  "ranks": [
+    1,
+    2,
+    3,
+    5,
+    7
+  ],
+  "prompt": "system-prompt-v6.md",
+  "schema": "schema-v3.json",
+  "gold": "gold-v3.json",
+  "analysis_date": "2026-07-23",
+  "input_file": "/Users/seppo/code/voltikka/tasks/contract-description-pricing-phases/benchmark/top-100-input.json",
+  "reasoning_effort": "low"
+}
