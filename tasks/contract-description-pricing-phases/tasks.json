@@ -25,6 +25,7 @@
   {"name":"Accept symmetric +/- and ± notation as numeric evidence for both bounds", "status":"completed"},
   {"name":"Reject package placeholders and unsupported uncertain Spot warnings", "status":"completed"},
   {"name":"Treat complete structured-only FixedPrice and Spot pricing as assessable", "status":"completed"},
+  {"name":"Ignore inactive stale discount timing when has_discount is false", "status":"completed"},
   {"name":"Expand labels for category mismatches, recurring resets, and consumption-effect products", "status":"pending"},
   {"name":"Materialize validated pricing phases for calculation and public use", "status":"pending"},
   {"name":"Implement calendar-aware phase pricing and explicit Hybrid assumptions/ranges", "status":"pending"},

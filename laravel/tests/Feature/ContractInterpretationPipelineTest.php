@@ -221,7 +221,7 @@ class ContractInterpretationPipelineTest extends TestCase
             'evidence' => [],
         ]];
 
-        $errors = app(ContractInterpretationValidator::class)->validate($output, [
+        $input = [
             'contract_id' => 'contract-1',
             'pricing_model' => 'Spot',
             'contract_type' => 'OpenEnded',
@@ -235,9 +235,14 @@ class ContractInterpretationPipelineTest extends TestCase
                 'discount_type' => 'NFirstMonth',
                 'discount_n_first_months' => 3,
             ]],
-        ]);
+        ];
+        $this->assertSame([], app(ContractInterpretationValidator::class)->validate($output, $input));
 
-        $this->assertSame([], $errors);
+        $input['components'][0]['has_discount'] = false;
+        $this->assertContains(
+            '$.pricing.phases[0] must not use inactive discount timing from components[0] when has_discount is false.',
+            app(ContractInterpretationValidator::class)->validate($output, $input),
+        );
     }
 
     public function test_validator_rejects_spot_fixed_fee_as_a_fixed_or_package_mechanism(): void
@@ -994,8 +999,8 @@ class ContractInterpretationPipelineTest extends TestCase
             'analysis_fingerprint' => hash('sha256', $snapshot->source_fingerprint.microtime(true)),
             'status' => ContractInterpretation::STATUS_PENDING,
             'schema_version' => 'schema-v3',
-            'prompt_version' => 'prompt-v12',
-            'validator_version' => 'validator-v9',
+            'prompt_version' => 'prompt-v13',
+            'validator_version' => 'validator-v10',
             'provider' => 'openrouter',
             'model' => 'test-model',
             'output' => $output,

@@ -191,6 +191,7 @@ class ContractInterpretationValidator
 
         foreach ($phases as $phaseIndex => $phase) {
             $this->validateBoundaryOrder($phase, $phaseIndex, $errors);
+            $this->validateActiveDiscountEvidence($phase, $phaseIndex, $input, $errors);
 
             foreach ($phase['components'] ?? [] as $componentIndex => $component) {
                 $interpretedTypes[] = $component['component_type'] ?? null;
@@ -368,6 +369,39 @@ class ContractInterpretationValidator
         ];
         if (array_intersect($consistency['issue_codes'] ?? [], $directionalIssues) === []) {
             $errors[] = '$.source_consistency.misleading_first_12_months must be not_detected when pricing is complete with no directional issue.';
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $phase
+     * @param  array<string, mixed>  $input
+     * @param  list<string>  $errors
+     */
+    private function validateActiveDiscountEvidence(
+        array $phase,
+        int $phaseIndex,
+        array $input,
+        array &$errors,
+    ): void {
+        $evidence = collect($phase['evidence'] ?? [])
+            ->merge(collect($phase['components'] ?? [])->flatMap(
+                fn (array $component): array => $component['evidence'] ?? [],
+            ));
+        $componentIndexes = $evidence
+            ->pluck('source')
+            ->filter(fn (mixed $source): bool => is_string($source))
+            ->map(fn (string $source): ?int => preg_match(
+                '/^components\[(\d+)]\.(?:discount_n_first_months|discount_n_first_kwh|discount_until_date)$/',
+                $source,
+                $matches,
+            ) === 1 ? (int) $matches[1] : null)
+            ->filter(fn (?int $index): bool => $index !== null)
+            ->unique();
+
+        foreach ($componentIndexes as $componentIndex) {
+            if (($input['components'][$componentIndex]['has_discount'] ?? false) !== true) {
+                $errors[] = "$.pricing.phases[{$phaseIndex}] must not use inactive discount timing from components[{$componentIndex}] when has_discount is false.";
+            }
         }
     }
 
