@@ -4,15 +4,17 @@ namespace App\Console\Commands;
 
 use App\Models\ActiveContract;
 use App\Models\Company;
+use App\Models\ContractSourceSnapshot;
 use App\Models\Dso;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\Postcode;
-use App\Models\PriceComponent;
-use App\Models\SpotFutures;
 use App\Services\AzureConsumerApiClient;
 use App\Services\CompanyListCacheService;
 use App\Services\CompanyLogoService;
+use App\Services\ContractInterpretation\CanonicalPriceComponentWriter;
+use App\Services\ContractInterpretation\ContractInterpretationDispatcher;
+use App\Services\ContractInterpretation\ContractSourceCanonicalizer;
 use App\Services\ContractListCacheService;
 use App\Services\ContractReplacement\ContractReplacementLinker;
 use Carbon\Carbon;
@@ -20,7 +22,6 @@ use Illuminate\Console\Command;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 
 class FetchContracts extends Command
 {
@@ -53,11 +54,31 @@ class FetchContracts extends Command
 
     private CompanyLogoService $logoService;
 
-    public function __construct(AzureConsumerApiClient $apiClient, CompanyLogoService $logoService)
-    {
+    private ContractSourceCanonicalizer $sourceCanonicalizer;
+
+    private ContractInterpretationDispatcher $interpretationDispatcher;
+
+    private CanonicalPriceComponentWriter $priceComponentWriter;
+
+    /** @var list<int> */
+    private array $sourceSnapshotIds = [];
+
+    /** @var array<string, int> */
+    private array $sourceSnapshotIdsByContractId = [];
+
+    public function __construct(
+        AzureConsumerApiClient $apiClient,
+        CompanyLogoService $logoService,
+        ContractSourceCanonicalizer $sourceCanonicalizer,
+        ContractInterpretationDispatcher $interpretationDispatcher,
+        CanonicalPriceComponentWriter $priceComponentWriter,
+    ) {
         parent::__construct();
         $this->apiClient = $apiClient;
         $this->logoService = $logoService;
+        $this->sourceCanonicalizer = $sourceCanonicalizer;
+        $this->interpretationDispatcher = $interpretationDispatcher;
+        $this->priceComponentWriter = $priceComponentWriter;
     }
 
     /**
@@ -66,6 +87,8 @@ class FetchContracts extends Command
     public function handle(): int
     {
         $this->info('Fetching contracts from Azure Consumer API...');
+        $this->sourceSnapshotIds = [];
+        $this->sourceSnapshotIdsByContractId = [];
 
         $postcodes = $this->getPostcodes();
         $today = Carbon::now()->toDateString();
@@ -76,17 +99,19 @@ class FetchContracts extends Command
         try {
             $allContracts = $this->fetchAllContracts($postcodes);
         } catch (RequestException $e) {
-            $this->error('Failed to fetch contracts: ' . $e->getMessage());
+            $this->error('Failed to fetch contracts: '.$e->getMessage());
             Log::error('FetchContracts command failed', ['exception' => $e->getMessage()]);
+
             return Command::FAILURE;
         }
 
         if (empty($allContracts)) {
             $this->warn('No contracts fetched from API.');
+
             return Command::SUCCESS;
         }
 
-        $this->info("Fetched " . count($allContracts) . " unique contracts. Processing...");
+        $this->info('Fetched '.count($allContracts).' unique contracts. Processing...');
 
         // Start database transaction
         DB::beginTransaction();
@@ -97,6 +122,9 @@ class FetchContracts extends Command
 
             // Upload contracts
             $this->processContracts($allContracts);
+
+            // Preserve the complete upstream payload for later interpretation
+            $this->processContractSourceSnapshots($allContracts);
 
             // Update active contracts table
             $this->updateActiveContracts($allContracts);
@@ -126,6 +154,17 @@ class FetchContracts extends Command
             ));
 
             DB::commit();
+
+            try {
+                foreach (ContractSourceSnapshot::whereKey($this->sourceSnapshotIds)->get() as $snapshot) {
+                    $this->interpretationDispatcher->dispatch($snapshot);
+                }
+            } catch (\Throwable $dispatchException) {
+                Log::warning('Failed to dispatch contract interpretations after import', [
+                    'exception' => $dispatchException->getMessage(),
+                ]);
+                $this->warn('Contracts were updated, but interpretation dispatch failed.');
+            }
 
             try {
                 $this->info('Clearing stale application caches before warming fresh contract data...');
@@ -167,14 +206,16 @@ class FetchContracts extends Command
             }
 
             $this->info('Contracts fetched successfully!');
+
             return Command::SUCCESS;
         } catch (\Exception $e) {
             DB::rollBack();
-            $this->error('Error processing contracts: ' . $e->getMessage());
+            $this->error('Error processing contracts: '.$e->getMessage());
             Log::error('FetchContracts command failed during processing', [
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return Command::FAILURE;
         }
     }
@@ -235,13 +276,13 @@ class FetchContracts extends Command
 
                 foreach ($contracts as $contract) {
                     $id = $contract['Id'] ?? null;
-                    if ($id && !isset($processedIds[$id])) {
+                    if ($id && ! isset($processedIds[$id])) {
                         $allContracts[] = $contract;
                         $processedIds[$id] = true;
                     }
                 }
             } catch (RequestException $e) {
-                $this->warn("Failed to fetch contracts for postcode {$postcode}: " . $e->getMessage());
+                $this->warn("Failed to fetch contracts for postcode {$postcode}: ".$e->getMessage());
                 // Continue with other postcodes but throw if all fail
                 if ($postcode === end($postcodes) && empty($allContracts)) {
                     throw $e;
@@ -265,7 +306,7 @@ class FetchContracts extends Command
             $companyData = $contract['Company'] ?? [];
             $name = trim($companyData['Name'] ?? '');
 
-            if ($name && !isset($processedNames[$name])) {
+            if ($name && ! isset($processedNames[$name])) {
                 $companies[] = [
                     'name' => $name,
                     'name_slug' => Company::generateSlug($name),
@@ -288,7 +329,7 @@ class FetchContracts extends Command
             );
 
             // Download logo if needed and not skipped
-            if (!$skipLogos && $company->logo_url && !$company->local_logo_path) {
+            if (! $skipLogos && $company->logo_url && ! $company->local_logo_path) {
                 $this->output->write("Downloading logo for {$company->name}... ");
                 $localPath = $this->logoService->downloadAndStore($company);
                 if ($localPath) {
@@ -302,8 +343,8 @@ class FetchContracts extends Command
             }
         }
 
-        $this->info("Processed " . count($companies) . " companies.");
-        if (!$skipLogos && $logosDownloaded > 0) {
+        $this->info('Processed '.count($companies).' companies.');
+        if (! $skipLogos && $logosDownloaded > 0) {
             $this->info("Downloaded {$logosDownloaded} company logos.");
         }
     }
@@ -345,6 +386,7 @@ class FetchContracts extends Command
                 'order_link' => $details['OrderLink'] ?? null,
                 'product_link' => $details['ProductLink'] ?? null,
                 'billing_frequency' => $details['BillingFrequency'] ?? null,
+                'time_period_definitions' => $details['TimePeriodDefinitions'] ?? null,
                 'transparency_index' => $details['TransparencyIndex'] ?? null,
                 'extra_information_default' => $extraInformation['Default'] ?? null,
                 'extra_information_fi' => $extraInformation['FI'] ?? null,
@@ -358,33 +400,27 @@ class FetchContracts extends Command
                 'microproduction_en' => $microProduction['Details']['EN'] ?? null,
             ];
 
+            // Preserve legacy descriptions when the current API omits these optional fields.
+            if (array_key_exists('ShortDescription', $details)) {
+                $contractData['short_description'] = $details['ShortDescription'];
+            }
+            if (array_key_exists('LongDescription', $details)) {
+                $contractData['long_description'] = $details['LongDescription'];
+            }
+
             // Look up existing contract by API ID
             $existingContract = ElectricityContract::where('api_id', $data['Id'])->first();
 
             if ($existingContract) {
-                $needsUpdate = false;
-
-                // Update pricing_has_discounts if it changed (as per Python implementation)
-                if ($existingContract->pricing_has_discounts !== $contractData['pricing_has_discounts']) {
-                    $existingContract->pricing_has_discounts = $contractData['pricing_has_discounts'];
-                    $needsUpdate = true;
+                // Preserve only fields that the published interpretation supplied.
+                // Uncertain fields continue to refresh from the source fallback.
+                $publishedFields = $existingContract->publishedInterpretation?->published_fields ?? [];
+                foreach ($publishedFields as $publishedField) {
+                    unset($contractData[$publishedField]);
                 }
 
-                // Update pricing_model if it's null (backfill new field)
-                if ($existingContract->pricing_model === null && $contractData['pricing_model'] !== null) {
-                    $existingContract->pricing_model = $contractData['pricing_model'];
-                    $needsUpdate = true;
-                }
-
-                // Update target_group if it's null (backfill new field)
-                if ($existingContract->target_group === null && $contractData['target_group'] !== null) {
-                    $existingContract->target_group = $contractData['target_group'];
-                    $needsUpdate = true;
-                }
-
-                if ($needsUpdate) {
-                    $existingContract->save();
-                }
+                $existingContract->fill($contractData);
+                $existingContract->save();
             } else {
                 // Generate new custom ID for new contracts
                 $contractData['id'] = ElectricityContract::generateId($companyName, $contractName);
@@ -392,7 +428,45 @@ class FetchContracts extends Command
             }
         }
 
-        $this->info("Processed " . count($contracts) . " contracts.");
+        $this->info('Processed '.count($contracts).' contracts.');
+    }
+
+    /**
+     * Persist one immutable source snapshot for each distinct upstream payload.
+     */
+    private function processContractSourceSnapshots(array $contracts): void
+    {
+        $apiIds = array_column($contracts, 'Id');
+        $contractIdMap = ElectricityContract::whereIn('api_id', $apiIds)
+            ->pluck('id', 'api_id')
+            ->toArray();
+        $observedAt = now();
+
+        foreach ($contracts as $sourcePayload) {
+            $contractId = $contractIdMap[$sourcePayload['Id']] ?? null;
+
+            if ($contractId === null) {
+                continue;
+            }
+
+            $fingerprint = $this->sourceCanonicalizer->fingerprint($sourcePayload);
+            $snapshot = ContractSourceSnapshot::firstOrNew([
+                'contract_id' => $contractId,
+                'source_fingerprint' => $fingerprint,
+            ]);
+
+            if (! $snapshot->exists) {
+                $snapshot->source_payload = $sourcePayload;
+                $snapshot->first_observed_at = $observedAt;
+            }
+
+            $snapshot->last_observed_at = $observedAt;
+            $snapshot->save();
+            $this->sourceSnapshotIds[] = $snapshot->id;
+            $this->sourceSnapshotIdsByContractId[$contractId] = $snapshot->id;
+        }
+
+        $this->info('Processed '.count($contracts).' contract source snapshots.');
     }
 
     /**
@@ -400,110 +474,84 @@ class FetchContracts extends Command
      */
     private function updateActiveContracts(array $contracts): void
     {
+        $previousActiveIds = ActiveContract::pluck('id')->flip();
+
         // Clear existing active contracts using DELETE (not TRUNCATE)
         // TRUNCATE is DDL in MySQL and would commit the transaction
         ActiveContract::query()->delete();
 
-        // Build a mapping of API IDs to our internal IDs
-        $apiIds = array_map(fn($c) => $c['Id'], $contracts);
-        $contractIdMap = ElectricityContract::whereIn('api_id', $apiIds)
-            ->pluck('id', 'api_id')
-            ->toArray();
+        // Build a mapping of API IDs to our internal models.
+        $apiIds = array_column($contracts, 'Id');
+        $contractMap = ElectricityContract::with(
+            'publishedInterpretation:id,relational_pricing_published'
+        )
+            ->whereIn('api_id', $apiIds)
+            ->get(['id', 'api_id', 'published_interpretation_id'])
+            ->keyBy('api_id');
 
-        // Insert new active contracts using our internal IDs
+        // New contracts remain hidden until their first automatic validation publishes.
         $activeContracts = [];
-        foreach ($contracts as $contract) {
-            $apiId = $contract['Id'];
-            if (isset($contractIdMap[$apiId])) {
-                $activeContracts[] = ['id' => $contractIdMap[$apiId]];
+        foreach ($contracts as $sourceContract) {
+            /** @var ElectricityContract|null $contract */
+            $contract = $contractMap->get($sourceContract['Id']);
+            if ($contract === null) {
+                continue;
+            }
+
+            $canActivate = ! config('contract_interpretation.enabled')
+                || $contract->publishedInterpretation?->relational_pricing_published === true
+                || $previousActiveIds->has($contract->id);
+            if ($canActivate) {
+                $activeContracts[] = ['id' => $contract->id];
             }
         }
 
         // Use insert ignore to handle any duplicates
         ActiveContract::insertOrIgnore($activeContracts);
 
-        $this->info("Updated active contracts table with " . count($activeContracts) . " contracts.");
+        $this->info('Updated active contracts table with '.count($activeContracts).' contracts.');
     }
 
     /**
-     * The null UUID returned by the Azure API when no ID is provided.
-     */
-    private const NULL_UUID = '00000000-0000-0000-0000-000000000000';
-
-    /**
-     * Process and insert price components.
+     * Process source price components that are safe to expose now.
      */
     private function processPriceComponents(array $contracts, string $date): void
     {
-        // Build a mapping of API IDs to our internal IDs
-        $apiIds = array_map(fn($c) => $c['Id'], $contracts);
-        $contractIdMap = ElectricityContract::whereIn('api_id', $apiIds)
-            ->pluck('id', 'api_id')
-            ->toArray();
+        $allowedContractIds = $this->contractsAllowedForImmediatePricePublication($contracts);
+        $count = $this->priceComponentWriter->write($contracts, $date, $allowedContractIds);
 
-        $priceComponents = [];
+        $this->info("Processed {$count} price components.");
+    }
 
-        foreach ($contracts as $data) {
-            $data = $this->trimDictValues($data);
-            $pricing = $data['Details']['Pricing'] ?? [];
-            $apiContractId = $pricing['ElectricitySupplyProductId'] ?? $data['Id'];
-            // Map API ID to our internal ID
-            $contractId = $contractIdMap[$apiContractId] ?? $contractIdMap[$data['Id']] ?? null;
-            if (!$contractId) {
-                continue;
-            }
-            $components = $pricing['PriceComponents'] ?? [];
-
-            foreach ($components as $component) {
-                $component = $this->trimDictValues($component);
-                $discount = $component['Discount'] ?? [];
-
-                // Parse discount until date
-                $discountUntilDate = null;
-                $untilDateStr = $discount['UntilDate'] ?? '0001-01-01T00:00:00';
-                if ($untilDateStr !== '0001-01-01T00:00:00') {
-                    try {
-                        $discountUntilDate = Carbon::parse($untilDateStr);
-                    } catch (\Exception $e) {
-                        // Invalid date, keep null
-                    }
-                }
-
-                // Generate a deterministic ID if the API returns a null UUID
-                // Uses contract_id + type + fuse_size to create reproducible ID
-                $componentId = $component['Id'] ?? self::NULL_UUID;
-                if ($componentId === self::NULL_UUID) {
-                    $priceComponentType = $component['PriceComponentType'];
-                    $fuseSize = $component['FuseSize'] ?? 'null';
-                    // Create deterministic UUID from unique component attributes
-                    $componentId = md5("{$contractId}:{$priceComponentType}:{$fuseSize}");
-                }
-
-                $priceComponents[] = [
-                    'id' => $componentId,
-                    'price_date' => $date,
-                    'price_component_type' => $component['PriceComponentType'],
-                    'fuse_size' => $component['FuseSize'] ?? null,
-                    'electricity_contract_id' => $contractId,
-                    'has_discount' => $component['HasDiscount'] ?? false,
-                    'discount_value' => $discount['DiscountValue'] ?? null,
-                    'discount_is_percentage' => $discount['IsPercentage'] ?? false,
-                    'discount_type' => $discount['DiscountType'] ?? null,
-                    'discount_discount_n_first_kwh' => $discount['NFirstKwh'] ?? null,
-                    'discount_discount_n_first_months' => $discount['NfirstMonths'] ?? null,
-                    'discount_discount_until_date' => $discountUntilDate,
-                    'price' => $component['OriginalPayment']['Price'] ?? 0,
-                    'payment_unit' => $component['OriginalPayment']['PaymentUnit'] ?? null,
-                ];
-            }
+    /**
+     * Hold new prices for an already interpreted contract until its new snapshot passes validation.
+     *
+     * @return list<string>|null
+     */
+    private function contractsAllowedForImmediatePricePublication(array $contracts): ?array
+    {
+        if (! config('contract_interpretation.enabled')) {
+            return null;
         }
 
-        // Use insertOrIgnore to handle composite key conflicts
-        foreach (array_chunk($priceComponents, 500) as $chunk) {
-            PriceComponent::insertOrIgnore($chunk);
-        }
+        $apiIds = array_column($contracts, 'Id');
+        $contractModels = ElectricityContract::with(
+            'publishedInterpretation:id,source_snapshot_id,relational_pricing_published'
+        )
+            ->whereIn('api_id', $apiIds)
+            ->get();
 
-        $this->info("Processed " . count($priceComponents) . " price components.");
+        return $contractModels
+            ->filter(function (ElectricityContract $contract): bool {
+                $publishedInterpretation = $contract->publishedInterpretation;
+                $latestSnapshotId = $this->sourceSnapshotIdsByContractId[$contract->id] ?? null;
+
+                return $publishedInterpretation === null
+                    || ($publishedInterpretation->relational_pricing_published
+                        && (int) $publishedInterpretation->source_snapshot_id === (int) $latestSnapshotId);
+            })
+            ->pluck('id')
+            ->all();
     }
 
     /**
@@ -512,7 +560,7 @@ class FetchContracts extends Command
     private function processElectricitySources(array $contracts): void
     {
         // Build a mapping of API IDs to our internal IDs
-        $apiIds = array_map(fn($c) => $c['Id'], $contracts);
+        $apiIds = array_map(fn ($c) => $c['Id'], $contracts);
         $contractIdMap = ElectricityContract::whereIn('api_id', $apiIds)
             ->pluck('id', 'api_id')
             ->toArray();
@@ -522,7 +570,7 @@ class FetchContracts extends Command
             $source = $data['Details']['ElectricitySource'] ?? [];
             $apiId = $data['Id'];
             $contractId = $contractIdMap[$apiId] ?? null;
-            if (!$contractId) {
+            if (! $contractId) {
                 continue;
             }
 
@@ -553,7 +601,7 @@ class FetchContracts extends Command
             );
         }
 
-        $this->info("Processed " . count($contracts) . " electricity sources.");
+        $this->info('Processed '.count($contracts).' electricity sources.');
     }
 
     /**
@@ -562,10 +610,14 @@ class FetchContracts extends Command
     private function processContractPostcodes(array $contracts, array $validPostcodes): void
     {
         // Build a mapping of API IDs to our internal IDs
-        $apiIds = array_map(fn($c) => $c['Id'], $contracts);
+        $apiIds = array_map(fn ($c) => $c['Id'], $contracts);
         $contractIdMap = ElectricityContract::whereIn('api_id', $apiIds)
             ->pluck('id', 'api_id')
             ->toArray();
+
+        DB::table('contract_postcode')
+            ->whereIn('contract_id', array_values($contractIdMap))
+            ->delete();
 
         $relationships = [];
         $processedPairs = [];
@@ -574,14 +626,14 @@ class FetchContracts extends Command
             $data = $this->trimDictValues($data);
             $apiId = $data['Id'];
             $contractId = $contractIdMap[$apiId] ?? null;
-            if (!$contractId) {
+            if (! $contractId) {
                 continue;
             }
             $postcodes = $data['Details']['AvailabilityArea']['PostalCodes'] ?? [];
 
             foreach ($postcodes as $postcode) {
                 $pairKey = "{$contractId}:{$postcode}";
-                if (!isset($processedPairs[$pairKey]) && in_array($postcode, $validPostcodes)) {
+                if (! isset($processedPairs[$pairKey]) && in_array($postcode, $validPostcodes)) {
                     $relationships[] = [
                         'contract_id' => $contractId,
                         'postcode' => $postcode,
@@ -596,7 +648,7 @@ class FetchContracts extends Command
             DB::table('contract_postcode')->insertOrIgnore($chunk);
         }
 
-        $this->info("Processed " . count($relationships) . " contract-postcode relationships.");
+        $this->info('Processed '.count($relationships).' contract-postcode relationships.');
     }
 
     /**
@@ -637,6 +689,7 @@ class FetchContracts extends Command
                 $result[$key] = $value;
             }
         }
+
         return $result;
     }
 
@@ -646,7 +699,7 @@ class FetchContracts extends Command
     private function processDsos(array $contracts): void
     {
         // Build a mapping of API IDs to our internal IDs
-        $apiIds = array_map(fn($c) => $c['Id'], $contracts);
+        $apiIds = array_map(fn ($c) => $c['Id'], $contracts);
         $contractIdMap = ElectricityContract::whereIn('api_id', $apiIds)
             ->pluck('id', 'api_id')
             ->toArray();
@@ -673,7 +726,11 @@ class FetchContracts extends Command
             $dsoIdMap[$name] = $dso->id;
         }
 
-        // Build contract-DSO relationships
+        // Build contract-DSO relationships from the current payload only.
+        DB::table('contract_dso')
+            ->whereIn('contract_id', array_values($contractIdMap))
+            ->delete();
+
         $relationships = [];
         $processedPairs = [];
 
@@ -681,20 +738,20 @@ class FetchContracts extends Command
             $data = $this->trimDictValues($data);
             $apiId = $data['Id'];
             $contractId = $contractIdMap[$apiId] ?? null;
-            if (!$contractId) {
+            if (! $contractId) {
                 continue;
             }
 
             $dsoNames = $data['Details']['AvailabilityArea']['Dsos'] ?? [];
             foreach ($dsoNames as $name) {
                 $name = trim($name);
-                if ($name === '' || !isset($dsoIdMap[$name])) {
+                if ($name === '' || ! isset($dsoIdMap[$name])) {
                     continue;
                 }
 
                 $dsoId = $dsoIdMap[$name];
                 $pairKey = "{$contractId}:{$dsoId}";
-                if (!isset($processedPairs[$pairKey])) {
+                if (! isset($processedPairs[$pairKey])) {
                     $relationships[] = [
                         'contract_id' => $contractId,
                         'dso_id' => $dsoId,
@@ -709,6 +766,6 @@ class FetchContracts extends Command
             DB::table('contract_dso')->insertOrIgnore($chunk);
         }
 
-        $this->info("Processed " . count($dsoIdMap) . " DSOs and " . count($relationships) . " contract-DSO relationships.");
+        $this->info('Processed '.count($dsoIdMap).' DSOs and '.count($relationships).' contract-DSO relationships.');
     }
 }

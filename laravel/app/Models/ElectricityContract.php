@@ -3,9 +3,9 @@
 namespace App\Models;
 
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -49,6 +49,10 @@ class ElectricityContract extends Model
         'id',
         'api_id',
         'replaced_by_contract_id',
+        'published_interpretation_id',
+        'canonical_pricing',
+        'canonical_source_consistency',
+        'canonical_calculation',
         'company_name',
         'name',
         'name_slug',
@@ -93,6 +97,9 @@ class ElectricityContract extends Model
     protected function casts(): array
     {
         return [
+            'canonical_pricing' => 'array',
+            'canonical_source_consistency' => 'array',
+            'canonical_calculation' => 'array',
             'pricing_has_discounts' => 'boolean',
             'consumption_control' => 'boolean',
             'consumption_limitation_min_x_kwh_per_y' => 'float',
@@ -141,6 +148,7 @@ class ElectricityContract extends Model
         $slug = preg_replace('/[\s_]+/', '-', $slug);
         // Remove consecutive hyphens
         $slug = preg_replace('/-+/', '-', $slug);
+
         return trim($slug, '-');
     }
 
@@ -172,6 +180,38 @@ class ElectricityContract extends Model
     public function priceComponents(): HasMany
     {
         return $this->hasMany(PriceComponent::class, 'electricity_contract_id', 'id');
+    }
+
+    /**
+     * Get the versioned upstream source payloads for the contract.
+     */
+    public function sourceSnapshots(): HasMany
+    {
+        return $this->hasMany(ContractSourceSnapshot::class, 'contract_id', 'id');
+    }
+
+    /**
+     * Get the newest upstream source payload.
+     */
+    public function latestSourceSnapshot(): HasOne
+    {
+        return $this->hasOne(ContractSourceSnapshot::class, 'contract_id', 'id')->latestOfMany();
+    }
+
+    /**
+     * Get all automated interpretations for the contract.
+     */
+    public function interpretations(): HasMany
+    {
+        return $this->hasMany(ContractInterpretation::class, 'contract_id', 'id');
+    }
+
+    /**
+     * Get the interpretation currently published to the canonical fields.
+     */
+    public function publishedInterpretation(): BelongsTo
+    {
+        return $this->belongsTo(ContractInterpretation::class, 'published_interpretation_id');
     }
 
     /**
@@ -341,7 +381,7 @@ class ElectricityContract extends Model
      *
      * If either limit is null, treat it as no restriction on that side.
      *
-     * @param int|float $consumption The consumption value in kWh/year to check
+     * @param  int|float  $consumption  The consumption value in kWh/year to check
      * @return bool True if the consumption is within the allowed range
      */
     public function isConsumptionInRange(int|float $consumption): bool
@@ -397,7 +437,7 @@ class ElectricityContract extends Model
      * still loading only the component rows needed for calculations, not the full
      * historical component relationship for every active contract.
      *
-     * @param iterable<string> $contractIds
+     * @param  iterable<string>  $contractIds
      * @return array<string, array<int, array<string, mixed>>>
      */
     public static function getLatestPriceComponentsForCalculationByContractIds(iterable $contractIds): array
@@ -457,7 +497,7 @@ class ElectricityContract extends Model
      * Statistics backfills use this instead of latest components so each daily
      * snapshot reflects the prices imported for that day only.
      *
-     * @param \DateTimeInterface|string $date
+     * @param  \DateTimeInterface|string  $date
      * @return array<int, array<string, mixed>>
      */
     public function getPriceComponentsForCalculationDate($date): array
@@ -472,7 +512,7 @@ class ElectricityContract extends Model
     /**
      * Normalize a price-component collection for ContractPriceCalculator.
      *
-     * @param \Illuminate\Support\Collection<int, PriceComponent> $priceComponents
+     * @param  \Illuminate\Support\Collection<int, PriceComponent>  $priceComponents
      * @return array<int, array<string, mixed>>
      */
     private static function normalizePriceComponentsForCalculation(Collection $priceComponents): array
@@ -516,8 +556,7 @@ class ElectricityContract extends Model
         $now = Carbon::now();
 
         if ($this->relationLoaded('priceComponents')) {
-            return $this->priceComponents->contains(fn (PriceComponent $component) =>
-                $component->has_discount
+            return $this->priceComponents->contains(fn (PriceComponent $component) => $component->has_discount
                 && ($component->discount_discount_until_date === null || $component->discount_discount_until_date->gt($now))
             );
         }
@@ -543,8 +582,7 @@ class ElectricityContract extends Model
         $now = Carbon::now();
 
         if ($this->relationLoaded('priceComponents')) {
-            $priceComponent = $this->priceComponents->first(fn (PriceComponent $component) =>
-                $component->has_discount
+            $priceComponent = $this->priceComponents->first(fn (PriceComponent $component) => $component->has_discount
                 && ($component->discount_discount_until_date === null || $component->discount_discount_until_date->gt($now))
             );
         } else {
@@ -557,7 +595,7 @@ class ElectricityContract extends Model
                 ->first();
         }
 
-        if (!$priceComponent) {
+        if (! $priceComponent) {
             return null;
         }
 
@@ -578,12 +616,12 @@ class ElectricityContract extends Model
     {
         $discountInfo ??= $this->getActiveDiscountInfo();
 
-        if (!$discountInfo || !$discountInfo['value']) {
+        if (! $discountInfo || ! $discountInfo['value']) {
             return null;
         }
 
         if ($discountInfo['is_percentage']) {
-            return '-' . number_format($discountInfo['value'], 0, ',', ' ') . '% alennus';
+            return '-'.number_format($discountInfo['value'], 0, ',', ' ').'% alennus';
         }
 
         $unit = match ($discountInfo['payment_unit'] ?? null) {
@@ -592,10 +630,10 @@ class ElectricityContract extends Model
             default => ($discountInfo['price_component_type'] ?? null) === 'Monthly' ? '€/kk' : null,
         };
 
-        if (!$unit) {
-            return '-' . number_format($discountInfo['value'], 2, ',', ' ') . ' alennus';
+        if (! $unit) {
+            return '-'.number_format($discountInfo['value'], 2, ',', ' ').' alennus';
         }
 
-        return '-' . number_format($discountInfo['value'], 2, ',', ' ') . ' ' . $unit . ' alennus';
+        return '-'.number_format($discountInfo['value'], 2, ',', ' ').' '.$unit.' alennus';
     }
 }

@@ -47,6 +47,30 @@ Important semantics:
 
 ## Data model
 
+### Contract source snapshots and automatic interpretation
+
+`contracts:fetch` stores each distinct complete upstream contract payload in `contract_source_snapshots` inside the import transaction. When `CONTRACT_INTERPRETATION_ENABLED=true`, it dispatches one versioned interpretation job after commit.
+
+Primary implementation:
+- `app/Services/ContractInterpretation/AGENTS.md`
+- `app/Services/ContractInterpretation/ContractSourceCanonicalizer.php`
+- `app/Models/ContractSourceSnapshot.php`
+
+Important semantics:
+- the SHA-256 fingerprint ignores object-key order, harmless string whitespace, and shared SpotFutures market data, but preserves list order
+- unchanged payloads update `last_observed_at`; meaningful source changes create a new immutable snapshot
+- each import refreshes existing relational contract fields from the current API payload without changing the local contract ID or replacement link
+- same-day price components are replaced from the complete current payload, so corrected, removed, and new components do not leave stale rows; source snapshots retain each complete payload version
+- postcode and DSO relationships for fetched contracts are replaced from the current payload instead of remaining additive
+- optional legacy short/long descriptions are refreshed only when the API includes those keys; omission does not erase them
+- `contract_interpretations` stores strict output, validation errors, provenance, usage, and execution state; there is no human review or override workflow
+- valid latest output publishes compatible classifications plus current `canonical_pricing`, `canonical_source_consistency`, and `canonical_calculation` JSON, and sets `electricity_contracts.published_interpretation_id`
+- each interpretation records `published_fields`; later imports preserve only those canonical fields until a newer interpretation publishes
+- new contracts stay inactive until first validation, and changed source prices for interpreted contracts wait for the new validation before relational publication
+- durable `relational_pricing_published` gates later activation and relational price writes, so unsafe pricing cannot appear on the next import
+- versioned interpretation output is the LLM-validated pricing history; phase-aware calculations do not yet consume it
+- use `php artisan contracts:interpret` to queue the latest active snapshots; add `--retry-failed`, `--contract=`, or `--include-inactive` when needed
+
 ### Contract price statistics
 
 Voltikka stores daily contract-price trend data for `/sahkosopimus/tilastot`.

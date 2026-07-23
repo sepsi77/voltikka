@@ -1,0 +1,65 @@
+<?php
+
+namespace App\Console\Commands;
+
+use App\Models\ElectricityContract;
+use App\Services\ContractInterpretation\ContractInterpretationDispatcher;
+use Illuminate\Console\Command;
+
+class InterpretContracts extends Command
+{
+    protected $signature = 'contracts:interpret
+        {--contract= : One local contract ID}
+        {--include-inactive : Include contracts that are not currently active}
+        {--retry-failed : Queue failed interpretations again}';
+
+    protected $description = 'Queue automatic LLM interpretation for the latest contract source snapshots';
+
+    public function handle(ContractInterpretationDispatcher $dispatcher): int
+    {
+        if (! config('services.openrouter.api_key')) {
+            $this->error('OPENROUTER_API_KEY is not configured.');
+
+            return self::FAILURE;
+        }
+
+        $query = ElectricityContract::query()->with('latestSourceSnapshot');
+
+        if ($contractId = $this->option('contract')) {
+            $query->whereKey($contractId);
+        } elseif (! $this->option('include-inactive')) {
+            $query->active();
+        }
+
+        $queued = 0;
+        $skipped = 0;
+
+        $query->chunkById(100, function ($contracts) use ($dispatcher, &$queued, &$skipped): void {
+            foreach ($contracts as $contract) {
+                $snapshot = $contract->latestSourceSnapshot;
+                if ($snapshot === null) {
+                    $skipped++;
+
+                    continue;
+                }
+
+                $interpretation = $dispatcher->dispatch(
+                    $snapshot,
+                    runWhenDisabled: true,
+                    retryFailed: (bool) $this->option('retry-failed'),
+                );
+
+                if ($interpretation?->wasRecentlyCreated
+                    || ($this->option('retry-failed') && $interpretation?->status === 'pending')) {
+                    $queued++;
+                } else {
+                    $skipped++;
+                }
+            }
+        }, 'id');
+
+        $this->info("Queued {$queued} contract interpretations; skipped {$skipped}.");
+
+        return self::SUCCESS;
+    }
+}

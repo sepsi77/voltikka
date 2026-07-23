@@ -2,6 +2,21 @@
 
 Context for queued jobs under `laravel/app/Jobs`.
 
+## `AnalyzeContractSourceSnapshot`
+
+Purpose:
+- runs one fingerprinted source snapshot through the strict OpenRouter contract interpretation pipeline
+- stores output, automatic validation errors, usage, latency, and failure details in `contract_interpretations`
+- automatically publishes valid compatible classifications; it has no human review state
+
+Important semantics:
+- implements `ShouldBeUnique` by interpretation ID and uses three bounded attempts
+- `contracts:fetch` dispatches it only after the source transaction commits when interpretation is enabled
+- stale results cannot publish over a newer source snapshot; they become `superseded`
+- job timeout is 260 seconds; keep database queue `retry_after` above this timeout
+- schema-invalid output is a permanent failed interpretation and does not throw for queue retry
+- transport/provider failures throw so the queue can retry them
+
 ## `WarmContractPriceStatisticsCache`
 
 Purpose:

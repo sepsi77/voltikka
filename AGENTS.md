@@ -1,5 +1,7 @@
 # AGENTS.md
 
+IMPORTANT: Reply using ASD-STE100 Simplified Technical English.
+
 This file provides guidance to AI coding agents when working with code in this repository.
 
 ## Project Overview
@@ -140,6 +142,15 @@ php artisan test --filter="ContractsFilterTest"
 - Daily import calculates these statistics before optional percentile badge recalculation so this page keeps updating even if badge metrics fail
 - Page requests serve cached prepared view data per period + consumption; cache keys auto-bust when statistics/snapshot/source spot-price fingerprints change
 - Contract and spot-price update commands queue background warming for the default `/sahkosopimus/tilastot?kulutus=5000` page state so low-traffic first visitors do not pay the expensive cache-miss rebuild
+
+### Automated Contract Interpretation
+- **Location**: `laravel/app/Services/ContractInterpretation/`, `laravel/app/Jobs/AnalyzeContractSourceSnapshot.php`
+- Every distinct upstream contract payload is stored during `contracts:fetch` as immutable evidence
+- When enabled, a fingerprint-idempotent post-commit job requests strict LLM output and runs automatic validation; there is no human review workflow
+- Valid latest interpretations automatically publish compatible classifications and current canonical pricing JSON to `electricity_contracts`; invalid or stale results do not publish
+- New contracts stay inactive until first validation; changed prices for interpreted contracts wait for the new version before relational publication
+- Versioned interpretation JSON is the validated pricing history, but phase-aware calculations do not yet consume it
+- Command: `php artisan contracts:interpret`
 
 ### 3. Fixed-term Price Forecasting Backend
 - **Location**: `app/Services/PriceForecasting/`, `app/Models/FixedContractPriceForecast.php`

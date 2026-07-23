@@ -70,6 +70,18 @@ Important discount guardrail:
 - use the discounted component's `payment_unit` / `price_component_type` when formatting promo text
 - prefer calculator-provided discounted/base totals and savings over separate duplicate promo math when possible
 
+### Contract interpretation
+Directory:
+- `ContractInterpretation/`
+
+Purpose:
+- fingerprint and preserve complete upstream contract payloads
+- run versioned strict-output LLM interpretations
+- validate and automatically publish compatible canonical classifications without human review
+
+Read first:
+- `ContractInterpretation/AGENTS.md`
+
 ### Contract replacement
 Directory:
 - `ContractReplacement/`

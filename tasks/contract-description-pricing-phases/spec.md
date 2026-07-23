@@ -28,11 +28,11 @@ The schema is unlikely to evolve as quickly as the market. A strict, auditable L
 
 ## Non-negotiable boundaries
 
-- Never let the LLM overwrite or erase imported source values. Source and interpretation must remain distinguishable.
+- Preserve every imported source version in `contract_source_snapshots`; never replace that evidence with LLM output.
 - Never let free-form model prose directly drive calculations, ranking, filters, redirects, or public warnings.
-- Require schema-constrained output, evidence for extracted facts, and deterministic validation.
+- Require schema-constrained output, evidence for extracted facts, and automatic deterministic validation.
 - Missing description or missing evidence is neutral/unknown, not proof of correctness or deception.
-- The LLM extracts and classifies disclosed facts. Deterministic application logic decides arithmetic, integrity status, activation, and user-facing severity.
+- There is no human approval or review workflow. Valid results publish automatically; invalid results fail and keep the previous publication.
 - Treat descriptions as untrusted data and explicitly prevent prompt instructions embedded in source text from changing the analysis task.
 
 ## Contract taxonomy
@@ -85,9 +85,9 @@ A legitimate recurring schedule must not be labeled deceptive merely because its
 
 ### Import prerequisite
 
-The current importer updates only `pricing_has_discounts` and fills missing `pricing_model` / `target_group` for an existing contract. Descriptions and most structural fields are create-only, so database rows can become stale.
+The importer refreshes current source fields and stores the complete upstream contract payload. After a canonical interpretation publishes, later imports preserve its classification fields until a newer interpretation publishes.
 
-On each fetch, preserve the complete interpretation-relevant upstream payload before splitting it into relational source tables. Refresh source fields that are intended to represent the current API record, while retaining versioned snapshots for auditability.
+On each fetch, preserve the complete interpretation-relevant upstream payload before splitting it into relational source tables. Retain versioned snapshots for auditability and automatic reanalysis.
 
 ### Canonical source fingerprint
 
@@ -117,7 +117,7 @@ Queue analysis when:
 - the output schema, prompt, provider, or model version changes
 - an operator explicitly requests reanalysis
 
-Do not queue again when the same analysis fingerprint has already succeeded. Failed jobs may retry with bounded backoff. Continue using the last approved interpretation until a replacement succeeds and passes validation.
+Do not queue again when the same analysis fingerprint already exists. Failed jobs retry with bounded backoff and can be queued again by command. Continue using the last published interpretation until a newer result succeeds and passes automatic validation.
 
 Dispatch jobs only after the import transaction commits. Analysis must not block the contract fetch itself.
 
@@ -144,13 +144,12 @@ Recommended separation:
 - confidence and integrity status
 - evidence and issue codes
 - token usage, errors, start/completion timestamps
-- optional review/override metadata
 
-### Interpreted components/phases
+### Canonical publication
 
-Initially these may live in validated JSON. Before they drive calculations or need SQL history, normalize them into interpretation component/phase rows with explicit units, dates, duration rules, and evidence.
+Validated components and phases remain in versioned interpretation JSON, which is the interpreted pricing history. Common compatible classifications and the current `canonical_pricing`, `canonical_source_consistency`, and `canonical_calculation` JSON publish automatically into `electricity_contracts`. `published_interpretation_id` selects the current version and interpretation `published_fields` records exact field ownership.
 
-An approved interpretation should be selected through an explicit pointer/profile. Do not overwrite source `electricity_contracts` or historical `price_components` rows.
+The existing relational tables remain the public read model. New contracts stay inactive until first validation. A later source fetch must not overwrite owned classification fields or publish changed prices before its newer interpretation validates. The durable `relational_pricing_published` flag keeps unsafe incomplete/conflicting source pricing in canonical JSON without activating a new contract or replacing relational components on later imports. No review table, approval profile, manual override, or source resolver is part of this version.
 
 ## LLM output contract
 
@@ -198,7 +197,7 @@ Before an interpretation can become effective:
 - reject unsupported category transitions or low-confidence contradictions
 - record `uncertain` when future pricing is acknowledged but not disclosed
 
-A second LLM call may adjudicate ambiguous output, but it does not replace deterministic checks.
+The first implementation validates the strict schema, contract identity, exact cited source values, numeric component evidence, structured component presence, classification consistency, dates, enums, ranges, and basic phase boundary order. More cross-phase and unit checks can be added as automatic rules. There is no human fallback.
 
 ## Integrity assessment
 
@@ -215,15 +214,14 @@ Avoid making provider intent the primary machine judgment. Derive factual issue 
 - `unsupported_consumption_effect`
 - `recurring_reset_requires_estimate`
 - `insufficient_evidence`
-- `review_required`
 
-A focused `deceptive_pricing` review label can be derived for benchmarking or applied manually, but public UI should explain the concrete mismatch and whether Voltikka corrected it.
+A focused `deceptive_pricing` label can be derived for benchmark evaluation, but it is not part of a production review workflow. Public UI should explain the concrete mismatch and whether Voltikka corrected it.
 
 Missing descriptions are not a detector signal. They simply reduce what can be verified.
 
 ## Effective classification and pricing
 
-Introduce one centralized resolver for effective contract semantics. All downstream systems must eventually consume the same approved interpretation rather than independently reading a mixture of source and inferred fields:
+Validated compatible classification fields are materialized into the existing canonical relational tables. Current downstream systems continue to read those tables:
 
 - listing filters and SEO pages
 - listing cards and cached metrics
@@ -233,9 +231,9 @@ Introduce one centralized resolver for effective contract semantics. All downstr
 - bill comparison
 - replacement matching
 
-Roll this out in shadow mode first. Category corrections should not affect public filters, prices, rankings, replacement redirects, or historical statistics until validation and benchmark thresholds are met.
+A valid latest interpretation publishes automatically. Only high-confidence category mismatches with internally consistent recommendations can replace source classification fields. Current rich pricing JSON publishes for frontend use, but phase-aware calculations remain disabled until the calculator can consume it safely.
 
-Historical statistics require special handling: do not retroactively apply today's interpretation to old source snapshots without a version/date policy.
+Historical statistics must not apply today's interpretation retroactively. Interpretation rows and source snapshots provide version history.
 
 ## Calculation behavior
 
@@ -262,7 +260,7 @@ Production text matching consumption-effect terms found 42 active contracts: 38 
 
 ## Operational design
 
-- Build a reusable LLM provider interface rather than copying command-specific OpenRouter calls.
+- Use one reusable structured-output OpenRouter client rather than copying command-specific calls.
 - Use queued, fingerprint-idempotent jobs with bounded timeouts, retries, and rate limiting.
 - Record model, prompt/schema version, token counts, latency, and failures.
 - Batch or cache carefully, but preserve one auditable interpretation per contract/source version.
@@ -273,12 +271,11 @@ Production text matching consumption-effect terms found 42 active contracts: 38 
 
 1. Fix source refresh/snapshot persistence.
 2. Define and test canonical fingerprints and strict output schema.
-3. Backfill all active contracts in shadow mode.
-4. Evaluate extraction/category/integrity quality against the existing promotion benchmark plus new stratified labels.
-5. Review disagreements and tune deterministic validation.
-6. Activate high-confidence classifications separately from calculated pricing.
-7. Activate validated phase-aware pricing and explicit Hybrid estimates.
-8. Update all downstream surfaces and add regression fixtures.
+3. Backfill all active contracts through the automatic interpretation queue.
+4. Publish valid compatible classifications automatically.
+5. Expand automatic numeric and phase validation.
+6. Add validated phase-aware pricing and explicit Hybrid estimates.
+7. Update downstream surfaces that need richer interpretation JSON and add regression fixtures.
 
 ## Existing investigation assets
 
@@ -292,4 +289,4 @@ The earlier description-only investigation remains useful as one benchmark slice
 
 Its focused benchmark contains four description-only promotion mismatches among the 100 cheapest active household contracts. It should be expanded with category mismatches, Hybrid/consumption-effect products, recurring resets, and a stratified random sample before enabling automatic corrections.
 
-Prompt/model/schema experiments are documented in `experiments/README.md` and `experiments/results.md`. The current recommendation is GPT-5.6 Luna with prompt v5, schema v2, low reasoning, and deterministic post-validation. A read-only shadow run completed successfully for all 434 active contracts, but no interpretation has been activated in application code or written to production.
+Prompt/model/schema experiments are documented in `experiments/README.md` and `experiments/results.md`. The production pipeline uses GPT-5.6 Luna with prompt v5, schema v2, low reasoning, and automatic post-validation when enabled. No production interpretation or migration has been run as part of implementation.

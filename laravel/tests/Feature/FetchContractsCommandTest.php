@@ -2,16 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\AnalyzeContractSourceSnapshot;
 use App\Models\ActiveContract;
 use App\Models\Company;
+use App\Models\ContractInterpretation;
+use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
-use App\Models\ElectricitySource;
 use App\Models\Postcode;
 use App\Models\PriceComponent;
-use App\Models\SpotFutures;
-use App\Services\AzureConsumerApiClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -172,6 +173,15 @@ class FetchContractsCommandTest extends TestCase
             'name' => 'Energia Oy',
             'name_slug' => 'energia-oy',
         ]);
+        ElectricityContract::create([
+            'id' => 'replacement-contract-id',
+            'api_id' => 'replacement-api-id',
+            'name' => 'Replacement contract',
+            'company_name' => 'Energia Oy',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'availability_is_national' => true,
+        ]);
 
         ElectricityContract::create([
             'id' => 'existing-contract-id',
@@ -179,25 +189,303 @@ class FetchContractsCommandTest extends TestCase
             'name' => 'Old Name',
             'company_name' => 'Energia Oy',
             'contract_type' => 'Fixed',
+            'spot_price_selection' => 'OldSelection',
+            'fixed_time_range' => 'OldRange',
             'metering' => 'General',
+            'pricing_model' => 'Spot',
+            'target_group' => 'Company',
+            'short_description' => 'Old short description',
+            'long_description' => 'Preserved legacy long description',
+            'pricing_name' => 'Old pricing',
             'pricing_has_discounts' => false,
+            'consumption_control' => true,
+            'order_link' => 'https://old.example/order',
+            'billing_frequency' => ['Old' => true],
+            'time_period_definitions' => ['Old' => true],
+            'extra_information_fi' => 'Vanhentunut kuvaus',
             'availability_is_national' => true,
+            'microproduction_buys' => false,
+            'replaced_by_contract_id' => 'replacement-contract-id',
         ]);
 
-        // API returns contract with updated discount status
+        // API returns current source fields
+        $response = $this->getSampleApiResponse('contract-12345', 'Sähkösopimus Perus', true);
+        $response[0]['Details']['ShortDescription'] = 'Current short description';
+        $response[0]['Details']['TimePeriodDefinitions'] = [
+            'DayAndNight' => [
+                'Default' => null,
+                'FI' => 'Päivä 07–22',
+                'EN' => 'Day 07–22',
+                'SV' => 'Dag 07–22',
+            ],
+        ];
         Http::fake([
-            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response(
-                $this->getSampleApiResponse('contract-12345', 'Sähkösopimus Perus', true),
-                200
-            ),
+            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response($response, 200),
         ]);
 
         $this->artisan('contracts:fetch', ['--postcodes' => '00100'])
             ->assertExitCode(0);
 
-        // Contract should be updated (looked up by api_id)
+        // Current source fields should be refreshed without changing the local ID
         $contract = ElectricityContract::where('api_id', 'contract-12345')->first();
+        $this->assertSame('existing-contract-id', $contract->id);
+        $this->assertSame('replacement-contract-id', $contract->replaced_by_contract_id);
+        $this->assertSame('Sähkösopimus Perus', $contract->name);
+        $this->assertSame('sahkosopimus-perus', $contract->name_slug);
+        $this->assertNull($contract->spot_price_selection);
+        $this->assertSame('24 kk', $contract->fixed_time_range);
+        $this->assertSame('FixedPrice', $contract->pricing_model);
+        $this->assertSame('Household', $contract->target_group);
+        $this->assertSame('Current short description', $contract->short_description);
+        $this->assertSame('Preserved legacy long description', $contract->long_description);
+        $this->assertSame('General Price', $contract->pricing_name);
         $this->assertTrue($contract->pricing_has_discounts);
+        $this->assertFalse($contract->consumption_control);
+        $this->assertSame('https://energia.fi/order', $contract->order_link);
+        $this->assertSame(['Monthly' => true], $contract->billing_frequency);
+        $this->assertSame('Lisätietoja', $contract->extra_information_fi);
+        $this->assertFalse($contract->availability_is_national);
+        $this->assertTrue($contract->microproduction_buys);
+        $this->assertSame('Päivä 07–22', $contract->time_period_definitions['DayAndNight']['FI']);
+    }
+
+    public function test_source_fetch_does_not_overwrite_published_canonical_classification(): void
+    {
+        Http::fake([
+            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response(
+                $this->getSampleApiResponse(),
+                200
+            ),
+        ]);
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+
+        $contract = ElectricityContract::where('api_id', 'contract-12345')->firstOrFail();
+        $snapshot = ContractSourceSnapshot::sole();
+        $interpretation = ContractInterpretation::create([
+            'contract_id' => $contract->id,
+            'source_snapshot_id' => $snapshot->id,
+            'analysis_fingerprint' => str_repeat('c', 64),
+            'status' => ContractInterpretation::STATUS_PUBLISHED,
+            'published_fields' => ['contract_type', 'fixed_time_range', 'metering', 'pricing_model'],
+            'schema_version' => 'schema-v2',
+            'prompt_version' => 'prompt-v5',
+            'provider' => 'openrouter',
+            'model' => 'test-model',
+            'output' => [],
+            'published_at' => now(),
+        ]);
+        $contract->update([
+            'published_interpretation_id' => $interpretation->id,
+            'contract_type' => 'OpenEnded',
+            'fixed_time_range' => 'Fixed6',
+            'metering' => 'Time',
+            'pricing_model' => 'Spot',
+        ]);
+
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+
+        $contract->refresh();
+        $this->assertSame('OpenEnded', $contract->contract_type);
+        $this->assertSame('Fixed6', $contract->fixed_time_range);
+        $this->assertSame('Time', $contract->metering);
+        $this->assertSame('Spot', $contract->pricing_model);
+        $this->assertSame($interpretation->id, $contract->published_interpretation_id);
+    }
+
+    public function test_new_source_price_waits_for_validation_when_a_canonical_version_exists(): void
+    {
+        $firstResponse = $this->getSampleApiResponse();
+        Http::fake([
+            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response($firstResponse, 200),
+        ]);
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+
+        $contract = ElectricityContract::where('api_id', 'contract-12345')->firstOrFail();
+        $snapshot = ContractSourceSnapshot::sole();
+        $interpretation = ContractInterpretation::create([
+            'contract_id' => $contract->id,
+            'source_snapshot_id' => $snapshot->id,
+            'analysis_fingerprint' => str_repeat('d', 64),
+            'status' => ContractInterpretation::STATUS_PUBLISHED,
+            'schema_version' => 'schema-v2',
+            'prompt_version' => 'prompt-v5',
+            'provider' => 'openrouter',
+            'model' => 'test-model',
+            'output' => [],
+            'published_at' => now(),
+        ]);
+        $contract->update(['published_interpretation_id' => $interpretation->id]);
+
+        $secondResponse = $this->getSampleApiResponse();
+        $secondResponse[0]['Details']['Pricing']['PriceComponents'][0]['OriginalPayment']['Price'] = 6.5;
+        Queue::fake();
+        config()->set('contract_interpretation.enabled', true);
+        config()->set('services.openrouter.api_key', 'test-key');
+        Http::fake([
+            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response($secondResponse, 200),
+        ]);
+
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+
+        $component = PriceComponent::where('price_component_type', 'General')->sole();
+        $this->assertSame(5.5, $component->price);
+        $this->assertDatabaseHas('active_contracts', ['id' => $contract->id]);
+        $this->assertSame(2, ContractInterpretation::count());
+        Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 1);
+    }
+
+    public function test_command_stores_one_source_snapshot_for_an_unchanged_payload(): void
+    {
+        $response = $this->getSampleApiResponse();
+
+        Http::fake([
+            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response($response, 200),
+        ]);
+
+        $this->travelTo('2026-07-23 10:00:00');
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+
+        $this->travelTo('2026-07-24 10:00:00');
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+
+        $contract = ElectricityContract::where('api_id', 'contract-12345')->firstOrFail();
+        $snapshot = ContractSourceSnapshot::sole();
+
+        $this->assertSame($contract->id, $snapshot->contract_id);
+        $this->assertEquals($response[0], $snapshot->source_payload);
+        $this->assertSame(64, strlen($snapshot->source_fingerprint));
+        $this->assertSame('2026-07-23 10:00:00', $snapshot->first_observed_at->toDateTimeString());
+        $this->assertSame('2026-07-24 10:00:00', $snapshot->last_observed_at->toDateTimeString());
+        $this->assertCount(1, $contract->sourceSnapshots);
+    }
+
+    public function test_command_queues_interpretation_after_the_snapshot_commits_when_enabled(): void
+    {
+        Queue::fake();
+        config()->set('contract_interpretation.enabled', true);
+        config()->set('services.openrouter.api_key', 'test-key');
+        Http::fake([
+            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response(
+                $this->getSampleApiResponse(),
+                200
+            ),
+        ]);
+
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+
+        $interpretation = ContractInterpretation::sole();
+        $this->assertSame(ContractInterpretation::STATUS_PENDING, $interpretation->status);
+        $this->assertDatabaseHas('contract_source_snapshots', ['id' => $interpretation->source_snapshot_id]);
+        $this->assertDatabaseMissing('active_contracts', ['id' => $interpretation->contract_id]);
+        Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 1);
+    }
+
+    public function test_command_creates_a_new_snapshot_when_the_source_payload_changes(): void
+    {
+        Http::fakeSequence()
+            ->push($this->getSampleApiResponse(), 200)
+            ->push($this->getSampleApiResponse('contract-12345', 'Changed contract name'), 200);
+
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+
+        $snapshots = ContractSourceSnapshot::orderBy('id')->get();
+
+        $this->assertCount(2, $snapshots);
+        $this->assertNotSame($snapshots[0]->source_fingerprint, $snapshots[1]->source_fingerprint);
+        $this->assertSame('Sähkösopimus Perus', $snapshots[0]->source_payload['Name']);
+        $this->assertSame('Changed contract name', $snapshots[1]->source_payload['Name']);
+    }
+
+    public function test_command_refreshes_a_price_component_changed_on_the_same_day(): void
+    {
+        $firstResponse = $this->getSampleApiResponse();
+        $secondResponse = $this->getSampleApiResponse();
+        $secondResponse[0]['Details']['Pricing']['PriceComponents'][0]['OriginalPayment']['Price'] = 6.5;
+        array_pop($secondResponse[0]['Details']['Pricing']['PriceComponents']);
+
+        Http::fakeSequence()
+            ->push($firstResponse, 200)
+            ->push($secondResponse, 200);
+
+        $this->travelTo('2026-07-23 10:00:00');
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+
+        $component = PriceComponent::where('price_component_type', 'General')->sole();
+
+        $this->assertSame(6.5, $component->price);
+        $this->assertSame(1, PriceComponent::count());
+        $this->assertSame(2, ContractSourceSnapshot::count());
+    }
+
+    public function test_command_replaces_stale_postcode_and_dso_relationships(): void
+    {
+        $firstResponse = $this->getSampleApiResponse();
+        $firstResponse[0]['Details']['AvailabilityArea']['Dsos'] = ['Old DSO'];
+        $secondResponse = $this->getSampleApiResponse();
+        $secondResponse[0]['Details']['AvailabilityArea']['PostalCodes'] = ['00100'];
+        $secondResponse[0]['Details']['AvailabilityArea']['Dsos'] = ['New DSO'];
+
+        Http::fakeSequence()
+            ->push($firstResponse, 200)
+            ->push($secondResponse, 200);
+
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+
+        $contract = ElectricityContract::where('api_id', 'contract-12345')->firstOrFail();
+
+        $this->assertDatabaseHas('contract_postcode', [
+            'contract_id' => $contract->id,
+            'postcode' => '00100',
+        ]);
+        $this->assertDatabaseMissing('contract_postcode', [
+            'contract_id' => $contract->id,
+            'postcode' => '02230',
+        ]);
+        $this->assertSame(['New DSO'], $contract->dsos()->pluck('name')->all());
+    }
+
+    public function test_command_rolls_back_source_snapshots_when_the_import_fails(): void
+    {
+        Http::fake([
+            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response(
+                $this->getSampleApiResponse(),
+                200
+            ),
+        ]);
+        $this->app->instance(
+            \App\Services\ContractReplacement\ContractReplacementLinker::class,
+            new class extends \App\Services\ContractReplacement\ContractReplacementLinker
+            {
+                public function __construct() {}
+
+                public function linkHighConfidenceMatches(): array
+                {
+                    throw new \RuntimeException('Test import failure');
+                }
+            }
+        );
+
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(1);
+
+        $this->assertDatabaseCount('contract_source_snapshots', 0);
+        $this->assertDatabaseCount('electricity_contracts', 0);
     }
 
     /**
@@ -311,6 +599,7 @@ class FetchContractsCommandTest extends TestCase
             if ($attempts < 3) {
                 return Http::response(['error' => 'Temporary Error'], 503);
             }
+
             return Http::response($this->getSampleApiResponse(), 200);
         });
 
@@ -454,13 +743,15 @@ class FetchContractsCommandTest extends TestCase
                     'SpotPriceSelection' => null,
                     'FixedTimeRange' => '24 kk',
                     'Metering' => 'General',
+                    'PricingModel' => 'FixedPrice',
+                    'TargetGroup' => 'Household',
                     'Pricing' => [
                         'Name' => 'General Price',
                         'HasDiscount' => $hasDiscount,
                         'ElectricitySupplyProductId' => $contractId,
                         'PriceComponents' => [
                             [
-                                'Id' => 'pc-general-' . $contractId,
+                                'Id' => 'pc-general-'.$contractId,
                                 'PriceComponentType' => 'General',
                                 'FuseSize' => null,
                                 'HasDiscount' => false,
@@ -478,7 +769,7 @@ class FetchContractsCommandTest extends TestCase
                                 ],
                             ],
                             [
-                                'Id' => 'pc-monthly-' . $contractId,
+                                'Id' => 'pc-monthly-'.$contractId,
                                 'PriceComponentType' => 'Monthly',
                                 'FuseSize' => null,
                                 'HasDiscount' => false,
@@ -570,6 +861,7 @@ class FetchContractsCommandTest extends TestCase
             'NfirstMonths' => 3,
             'UntilDate' => '2027-01-01T00:00:00',
         ];
+
         return $response;
     }
 
