@@ -286,4 +286,6 @@ Retained evidence:
 
 ## Recommendation
 
-Use `openai/gpt-5.6-luna`, prompt v10, schema v3, validator v7, low reasoning, exact production validation, and at most two automatic correction calls. Validator v7 adds deterministic symmetric `+/-` and `±` numeric evidence handling without changing model behavior. Run asynchronously and idempotently by source/prompt/validator/model fingerprint. Persist every model attempt, evidence, usage, and validation result. Do not publish any output that still fails deterministic validation.
+A mixed 10-contract validator-v7 production smoke test published 10/10 after 11 calls at low reasoning. Manual review found two outputs that passed but were not reliable enough: a package contained an extra unknown `flat_fee` placeholder, and an ordinary complete Spot contract used an unsupported `uncertain` warning because optional fixing was available outside the base price. Prompt v11/validator v8 make both rules deterministic. Local repair calls corrected both outputs and passed validator v8.
+
+Use `openai/gpt-5.6-luna`, prompt v11, schema v3, validator v8, low reasoning, exact production validation, and at most two automatic correction calls. Validator v8 retains symmetric numeric evidence handling, prohibits unknown package placeholders, and enforces warning direction independently of normal Spot estimation. Run asynchronously and idempotently by source/prompt/validator/model fingerprint. Persist every model attempt, evidence, usage, and validation result. Do not publish any output that still fails deterministic validation.

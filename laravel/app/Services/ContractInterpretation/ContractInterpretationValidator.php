@@ -286,7 +286,6 @@ class ContractInterpretationValidator
     {
         $consistency = $output['source_consistency'] ?? [];
         if (($consistency['structured_pricing_status'] ?? null) !== 'complete'
-            || ($output['calculation']['status'] ?? null) !== 'exact'
             || ($consistency['misleading_first_12_months'] ?? null) !== 'uncertain') {
             return;
         }
@@ -302,7 +301,7 @@ class ContractInterpretationValidator
             'recurring_reset_requires_estimate',
         ];
         if (array_intersect($consistency['issue_codes'] ?? [], $directionalIssues) === []) {
-            $errors[] = '$.source_consistency.misleading_first_12_months must be not_detected when pricing is complete and exact with no directional issue.';
+            $errors[] = '$.source_consistency.misleading_first_12_months must be not_detected when pricing is complete with no directional issue.';
         }
     }
 
@@ -509,6 +508,14 @@ class ContractInterpretationValidator
             }
             if (! $hasComponent('flat_fee')) {
                 $errors[] = '$.pricing.phases must map the package Monthly charge to a flat_fee component.';
+            }
+            $hasUnknownFlatFee = $interpretedComponents->contains(
+                fn (array $component): bool => ($component['component_type'] ?? null) === 'flat_fee'
+                    && ! is_int($component['amount'] ?? null)
+                    && ! is_float($component['amount'] ?? null),
+            );
+            if ($hasUnknownFlatFee) {
+                $errors[] = '$.pricing.phases must not create an unknown flat_fee placeholder from included package energy.';
             }
             $hasZeroUnitEnergy = $interpretedComponents->contains(
                 fn (array $component): bool => ($component['component_type'] ?? null) === 'energy_general'

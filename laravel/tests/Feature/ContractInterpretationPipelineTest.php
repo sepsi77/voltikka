@@ -415,7 +415,7 @@ class ContractInterpretationPipelineTest extends TestCase
         $output['source_consistency']['structured_pricing_status'] = 'complete';
         $output['source_consistency']['misleading_first_12_months'] = 'uncertain';
         $output['source_consistency']['issue_codes'] = ['structured_matches_description'];
-        $output['calculation']['status'] = 'exact';
+        $output['calculation']['status'] = 'estimate_required';
         $input = [
             'contract_id' => 'contract-1',
             'pricing_model' => 'Spot',
@@ -426,7 +426,7 @@ class ContractInterpretationPipelineTest extends TestCase
 
         $errors = app(ContractInterpretationValidator::class)->validate($output, $input);
         $this->assertContains(
-            '$.source_consistency.misleading_first_12_months must be not_detected when pricing is complete and exact with no directional issue.',
+            '$.source_consistency.misleading_first_12_months must be not_detected when pricing is complete with no directional issue.',
             $errors,
         );
 
@@ -578,6 +578,29 @@ class ContractInterpretationPipelineTest extends TestCase
             $errors,
         );
         $this->assertNotContains('$.pricing.phases is missing structured component type energy_general.', $errors);
+
+        $output['classification']['pricing_mechanisms'] = ['flat_fee_or_package'];
+        $output['pricing']['phases'][0]['components'][0]['component_type'] = 'flat_fee';
+        $output['pricing']['phases'][0]['components'][1] = $output['pricing']['phases'][0]['components'][0];
+        $output['pricing']['phases'][0]['components'][1]['amount'] = null;
+        $errors = app(ContractInterpretationValidator::class)->validate($output, [
+            'contract_id' => 'contract-1',
+            'contract_name' => 'Helpposähkö L',
+            'pricing_name' => 'Helpposähkö L',
+            'pricing_model' => 'FixedPrice',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'extra_information_fi' => 'Tilaa Helpposähkö L-paketti tästä.',
+            'consumption_limitation' => ['MaxXKWhPerY' => 3600],
+            'components' => [
+                ['price_component_type' => 'Monthly', 'price' => 55.9],
+                ['price_component_type' => 'General', 'price' => 0],
+            ],
+        ]);
+        $this->assertContains(
+            '$.pricing.phases must not create an unknown flat_fee placeholder from included package energy.',
+            $errors,
+        );
     }
 
     public function test_validator_retains_source_hybrid_without_explicit_contrary_evidence(): void
@@ -911,8 +934,8 @@ class ContractInterpretationPipelineTest extends TestCase
             'analysis_fingerprint' => hash('sha256', $snapshot->source_fingerprint.microtime(true)),
             'status' => ContractInterpretation::STATUS_PENDING,
             'schema_version' => 'schema-v3',
-            'prompt_version' => 'prompt-v10',
-            'validator_version' => 'validator-v7',
+            'prompt_version' => 'prompt-v11',
+            'validator_version' => 'validator-v8',
             'provider' => 'openrouter',
             'model' => 'test-model',
             'output' => $output,
