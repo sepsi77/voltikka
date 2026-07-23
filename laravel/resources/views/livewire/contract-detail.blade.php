@@ -218,9 +218,11 @@
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     @click="$track('Contract Order Clicked', {
-                                        contract_id: {{ $contract->id }},
-                                        company: '{{ addslashes($companyName) }}',
-                                        pricing_model: '{{ $contract->pricing_model }}'
+                                        props: {
+                                            contract_id: @js($contract->id),
+                                            company: @js($companyName),
+                                            pricing_model: @js($contract->pricing_model)
+                                        }
                                     })"
                                     class="inline-flex items-center justify-center gap-3 px-10 py-5 rounded-xl font-bold text-lg text-white bg-gradient-to-r from-coral-500 to-coral-600 hover:from-coral-400 hover:to-coral-500 shadow-coral transition-all"
                                 >

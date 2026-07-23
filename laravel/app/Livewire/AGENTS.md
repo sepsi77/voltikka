@@ -317,6 +317,10 @@ Primary files:
 - `../Models/ElectricityContract.php`
 - `../Services/Caching/ContractPageCacheVersion.php`
 
+### Seller outbound analytics
+
+The primary “Siirry myyjän sivuille” CTA emits the Plausible custom event `Contract Order Clicked`. Keep its contract ID, company, and pricing model nested under Plausible's `props` option, and encode Blade values with `@js` so string/UUID IDs and seller names remain valid JavaScript.
+
 ### SEO metadata
 
 Contract detail meta descriptions are generated from Voltikka-owned comparison data, not provider marketing descriptions. The templates intentionally avoid Finnish inflection for arbitrary company names and use neutral wording like `yhtiöltä {company}`. Product JSON-LD `description` must stay aligned with `metaDescription` so provider `short_description` / `long_description` does not become Google's preferred snippet source.

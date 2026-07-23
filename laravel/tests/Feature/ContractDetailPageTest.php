@@ -111,6 +111,15 @@ class ContractDetailPageTest extends TestCase
         $response->assertSeeLivewire('contract-detail');
     }
 
+    public function test_seller_cta_tracks_plausible_outbound_click(): void
+    {
+        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+            ->assertSeeHtml("\$track('Contract Order Clicked', {")
+            ->assertSeeHtml('props: {')
+            ->assertSeeHtml("contract_id: 'contract-detail-test'")
+            ->assertSeeHtml("company: 'Test Energia Oy'");
+    }
+
     /**
      * Test that the contract name is displayed.
      */
