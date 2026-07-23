@@ -26,7 +26,7 @@ Configuration and assets:
 
 - `config/contract_interpretation.php`
 - `resources/contract-interpretation/schema-v3.json`
-- `resources/contract-interpretation/system-prompt-v13.md`
+- `resources/contract-interpretation/system-prompt-v14.md`
 
 Important semantics:
 
@@ -55,6 +55,7 @@ Important semantics:
 - Prompt v11 and validator v8 prohibit unknown package-fee placeholders derived from zero included energy. They also require `not_detected` for complete structured pricing without a directional issue, including ordinary Spot estimates and optional fixing excluded from the base price.
 - Prompt v12 and validator v9 treat recognized non-discounted structured-only FixedPrice/Spot data as assessable when descriptions are empty. They require source-model match, complete pricing, `not_detected`, no description-only insufficient-evidence issue, and exact/estimate-required calculation by model. `SeasonalWinterDay` maps to canonical winter energy.
 - Prompt v13 and validator v10 prohibit pricing phases derived from stale discount timing fields when the source component has `has_discount=false`. Such duplicate components remain current/conflicting facts instead of an invented promotion schedule.
+- Prompt v14 requires an exact opaque copy of `contract_id`, including ASCII slugs that differ from Finnish display names. Medium reasoning is the production default after a low-reasoning model repeatedly changed `kesakampanja` to `kesäkampanja`. Reasoning effort is part of the analysis fingerprint so effort changes preserve prior attempts and create a new interpretation version.
 - `validator_version` is stored on each interpretation and participates in the analysis fingerprint. Change it whenever deterministic publication semantics change enough to require reanalysis.
 - Phase-aware calculations do not yet read `canonical_pricing`; that is a separate pending task.
 - Source snapshots remain immutable evidence.

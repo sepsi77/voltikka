@@ -15,6 +15,7 @@ class ContractAnalysisFingerprint
             (string) config('contract_interpretation.validator_version'),
             (string) config('contract_interpretation.provider'),
             (string) config('contract_interpretation.model'),
+            (string) config('contract_interpretation.reasoning_effort'),
         ]));
     }
 }

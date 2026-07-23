@@ -56,9 +56,28 @@ class ContractInterpretationPipelineTest extends TestCase
         Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 2);
     }
 
+    public function test_reasoning_effort_changes_the_analysis_fingerprint(): void
+    {
+        Queue::fake();
+        config()->set('contract_interpretation.enabled', true);
+        config()->set('contract_interpretation.reasoning_effort', 'low');
+        config()->set('services.openrouter.api_key', 'test-key');
+        $snapshot = $this->createSnapshot();
+        $dispatcher = app(ContractInterpretationDispatcher::class);
+
+        $first = $dispatcher->dispatch($snapshot);
+        config()->set('contract_interpretation.reasoning_effort', 'medium');
+        $second = $dispatcher->dispatch($snapshot);
+
+        $this->assertNotSame($first->id, $second->id);
+        $this->assertSame(2, ContractInterpretation::count());
+        Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 2);
+    }
+
     public function test_client_requests_strict_structured_output(): void
     {
         config()->set('services.openrouter.api_key', 'test-key');
+        config()->set('contract_interpretation.reasoning_effort', 'medium');
         Http::fake([
             '*/chat/completions' => Http::response([
                 'id' => 'response-1',
@@ -85,7 +104,7 @@ class ContractInterpretationPipelineTest extends TestCase
             return $request->hasHeader('Authorization', 'Bearer test-key')
                 && data_get($body, 'response_format.type') === 'json_schema'
                 && data_get($body, 'response_format.json_schema.strict') === true
-                && data_get($body, 'reasoning.effort') === 'low'
+                && data_get($body, 'reasoning.effort') === 'medium'
                 && data_get($input, 'contract_id') === 'contract-1'
                 && ! array_key_exists('contract', $input);
         });
@@ -999,7 +1018,7 @@ class ContractInterpretationPipelineTest extends TestCase
             'analysis_fingerprint' => hash('sha256', $snapshot->source_fingerprint.microtime(true)),
             'status' => ContractInterpretation::STATUS_PENDING,
             'schema_version' => 'schema-v3',
-            'prompt_version' => 'prompt-v13',
+            'prompt_version' => 'prompt-v14',
             'validator_version' => 'validator-v10',
             'provider' => 'openrouter',
             'model' => 'test-model',
