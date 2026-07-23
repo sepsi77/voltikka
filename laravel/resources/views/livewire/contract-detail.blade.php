@@ -675,7 +675,7 @@
             </div>
 
             <!-- Contract history / price development -->
-            @if (count($priceHistory) > 0 || count($contractHistory) > 1)
+            @if (count($priceHistory) > 0 || count($contractHistory) > 1 || ! $isActive)
                 @php
                     $priceTypeLabels = [
                         'General' => 'Energiahinta',
@@ -768,6 +768,9 @@
                             'delta_to_previous' => $delta,
                         ]);
                     }
+
+                    $currentHistoryEntry = collect($contractHistory)->firstWhere('is_current', true);
+                    $lastSeenOnSaleDate = $currentHistoryEntry['last_seen_on_sale_date'] ?? null;
 
                     $chartLinePath = '';
                     $chartAreaPath = '';
@@ -873,6 +876,27 @@
 
                     {{-- Timeline --}}
                     <ol class="mt-6 relative">
+                        @if (! $isActive)
+                            <li class="relative pl-7 sm:pl-8 pb-6">
+                                <span aria-hidden="true" class="absolute left-[7px] top-5 bottom-0 w-[2px] bg-slate-200 rounded-full"></span>
+                                <span aria-hidden="true" class="absolute left-0 top-1.5 flex items-center justify-center w-4 h-4">
+                                    <span class="block w-3 h-3 rounded-full bg-slate-600 ring-4 ring-slate-100"></span>
+                                </span>
+
+                                <div class="space-y-1.5">
+                                    <div class="text-sm font-semibold text-slate-900">Nyt</div>
+                                    <div class="text-sm font-medium text-slate-800">Sopimus ei ole enää myynnissä</div>
+                                    <p class="text-sm text-slate-500">
+                                        @if ($lastSeenOnSaleDate)
+                                            Viimeksi havaittu myynnissä {{ $lastSeenOnSaleDate->translatedFormat('j.n.Y') }}.
+                                        @else
+                                            Viimeinen havainto myynnissä ei ole tiedossa.
+                                        @endif
+                                    </p>
+                                </div>
+                            </li>
+                        @endif
+
                         @foreach ($timeline as $i => $entry)
                             @php
                                 $isLast = $i === count($timeline) - 1;
@@ -887,7 +911,7 @@
 
                                 {{-- Node dot --}}
                                 <span aria-hidden="true" class="absolute left-0 top-1.5 flex items-center justify-center w-4 h-4">
-                                    @if ($entry['is_current'])
+                                    @if ($entry['is_current'] && $entry['is_active'])
                                         <span class="block w-3 h-3 rounded-full bg-coral-500 ring-4 ring-coral-100"></span>
                                     @else
                                         <span class="block w-2.5 h-2.5 rounded-full bg-slate-300 ring-[3px] ring-slate-100"></span>
@@ -900,7 +924,7 @@
                                         <time class="text-sm font-semibold text-slate-900 tabular-nums">
                                             {{ $entry['latest_price_date']?->translatedFormat('j.n.Y') ?? '—' }}
                                         </time>
-                                        @if ($entry['is_current'])
+                                        @if ($entry['is_current'] && $entry['is_active'])
                                             <span class="inline-flex items-center gap-1 rounded-full bg-coral-50 px-2 py-0.5 text-[11px] font-semibold text-coral-700 ring-1 ring-inset ring-coral-600/20">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-coral-500"></span>
                                                 Nykyinen

@@ -602,6 +602,52 @@ class ContractDetailPageTest extends TestCase
             ->assertSee('6,0'); // Historical price should be shown
     }
 
+    public function test_inactive_contract_history_shows_not_for_sale_node_with_last_observed_date(): void
+    {
+        ActiveContract::query()->whereKey($this->contract->id)->delete();
+        PriceComponent::query()->where('electricity_contract_id', $this->contract->id)->delete();
+
+        PriceComponent::create([
+            'id' => 'pc-inactive-older-positive',
+            'electricity_contract_id' => $this->contract->id,
+            'price_component_type' => 'General',
+            'price_date' => '2026-05-10',
+            'price' => 5.5,
+            'payment_unit' => 'c/kWh',
+        ]);
+        PriceComponent::create([
+            'id' => 'pc-inactive-newest-zero',
+            'electricity_contract_id' => $this->contract->id,
+            'price_component_type' => 'General',
+            'price_date' => '2026-05-12',
+            'price' => 0,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        Livewire::test('contract-detail', ['contractId' => $this->contract->id])
+            ->assertSee('Sopimus ei ole enää myynnissä')
+            ->assertSee('Viimeksi havaittu myynnissä 12.5.2026.')
+            ->assertDontSee('Nykyinen');
+    }
+
+    public function test_inactive_contract_without_price_history_still_shows_status_node(): void
+    {
+        ActiveContract::query()->whereKey($this->contract->id)->delete();
+        PriceComponent::query()->where('electricity_contract_id', $this->contract->id)->delete();
+
+        Livewire::test('contract-detail', ['contractId' => $this->contract->id])
+            ->assertSee('Sopimushistoria')
+            ->assertSee('Sopimus ei ole enää myynnissä')
+            ->assertSee('Viimeinen havainto myynnissä ei ole tiedossa.');
+    }
+
+    public function test_active_contract_history_does_not_show_not_for_sale_node(): void
+    {
+        Livewire::test('contract-detail', ['contractId' => $this->contract->id])
+            ->assertDontSee('Sopimus ei ole enää myynnissä')
+            ->assertSee('Nykyinen');
+    }
+
     /**
      * Test that contract history uses the replacement chain and shows versions newest first.
      */

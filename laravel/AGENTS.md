@@ -15,7 +15,7 @@ Voltikka keeps inactive contracts in `electricity_contracts` for historical cont
 ### Behavior summary
 - If a contract is active, `ContractDetail` renders the full contract detail page normally.
 - If a contract is inactive and has a trusted replacement chain ending in an active contract, `ContractDetail` returns a **301** redirect to the latest active replacement.
-- If a contract is inactive and no trusted replacement exists, `ContractDetail` still renders the normal contract detail page for historical reference with a `noindex` robots meta tag.
+- If a contract is inactive and no trusted replacement exists, `ContractDetail` still renders the normal contract detail page for historical reference with a `noindex` robots meta tag. Its history timeline includes a newest “no longer on sale” status node; because availability transitions are not persisted, the date shown is explicitly the last import date on which Voltikka observed that exact contract (`MAX(price_components.price_date)`), not an asserted expiry date.
 - Inactive contract detail pages without a trusted replacement must not be included in the sitemap.
 - On the current/live contract detail page, the visible contract history is built from the backward replacement chain so users can see older linked versions, newest first.
 

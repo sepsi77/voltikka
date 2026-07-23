@@ -339,7 +339,7 @@ Inactive contracts are kept in the database for history and SEO continuity. They
 ### Current behavior
 - Active contract detail pages render normally.
 - Inactive contracts with a high-confidence replacement chain redirect with **301** to the latest active replacement.
-- Inactive contracts without a trusted replacement still render their normal contract detail page for historical reference, but with a `noindex` robots meta tag.
+- Inactive contracts without a trusted replacement still render their normal contract detail page for historical reference, but with a `noindex` robots meta tag. Their history timeline begins with an explicit “no longer on sale” status node and labels the latest `price_components.price_date` only as the last date Voltikka observed the contract on sale, not as an exact expiry date.
 - Inactive contract detail pages without a trusted replacement are excluded from the sitemap.
 
 ### Replacement matching rules

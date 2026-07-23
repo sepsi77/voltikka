@@ -375,6 +375,8 @@ Current intended behavior:
 - inactive contracts without a trusted replacement also render the normal `contract-detail.blade.php` page for historical reference
 - those inactive historical pages should include a `noindex` robots meta tag
 - inactive historical pages should not appear in the sitemap
+- an inactive rendered contract's timeline starts with a synthetic “Sopimus ei ole enää myynnissä” status node, and the inactive version itself must not keep the `Nykyinen` badge
+- availability transitions have no persisted timestamp; use the rendered contract's maximum `price_components.price_date` only as “Viimeksi havaittu myynnissä”, never as an exact removal/expiry date, and show the unknown-date fallback when it has no price rows
 - start from the currently rendered contract
 - walk backward with `ContractDetail::getBackwardReplacementChainIds()` using a recursive CTE, then eager-load all history contracts with `company`, `priceComponents`, and `activeContract`; do not replace this with per-version relation walking
 - inactive replacement redirects use `ContractDetail::getForwardReplacementChainIds()` plus a bulk `activeContract` load so old bot-hit URLs do not lazy-load `replacedBy` / `activeContract` one link at a time

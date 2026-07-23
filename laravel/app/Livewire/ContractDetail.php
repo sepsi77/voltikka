@@ -1010,6 +1010,7 @@ class ContractDetail extends Component
      *     is_current: bool,
      *     is_active: bool,
      *     latest_price_date: ?\Carbon\Carbon,
+     *     last_seen_on_sale_date: ?\Carbon\Carbon,
      *     prices: array<int, array{label: string, price: float, unit: string}>,
      *     promotion: ?string
      * }>
@@ -1039,6 +1040,14 @@ class ContractDetail extends Component
                     ->sortByDesc(fn ($date) => $date instanceof \Carbon\Carbon ? $date->timestamp : \Carbon\Carbon::parse($date)->timestamp)
                     ->first();
 
+                // This is the last import date on which Voltikka observed this
+                // exact contract. It is not an exact removal/expiry date.
+                $lastSeenOnSaleDate = $historyContract->priceComponents
+                    ->pluck('price_date')
+                    ->filter()
+                    ->sortByDesc(fn ($date) => $date instanceof \Carbon\Carbon ? $date->timestamp : \Carbon\Carbon::parse($date)->timestamp)
+                    ->first();
+
                 return [
                     'id' => $historyContract->id,
                     'name' => $historyContract->name,
@@ -1046,6 +1055,7 @@ class ContractDetail extends Component
                     'is_current' => $historyContract->id === $this->contractId,
                     'is_active' => $historyContract->isActive(),
                     'latest_price_date' => $latestPriceDate,
+                    'last_seen_on_sale_date' => $lastSeenOnSaleDate,
                     'prices' => $this->formatContractHistoryPrices($historyContract, $latestPriceComponents->all()),
                     'promotion' => $this->formatHistoricalPromotionText($historyContract, $latestPriceComponents->all()),
                 ];
@@ -1624,6 +1634,7 @@ class ContractDetail extends Component
                 'calculatedCost' => $this->calculatedCost,
                 'priceHistory' => $this->priceHistory,
                 'contractHistory' => $this->contractHistory,
+                'isActive' => $isActive,
                 'presets' => $this->presets,
                 'co2Emissions' => $this->co2Emissions,
                 'emissionFactorSources' => $this->emissionFactorSources,
@@ -1657,7 +1668,7 @@ class ContractDetail extends Component
 
     protected function contractDetailViewDataCacheKey(): string
     {
-        return 'contract-detail:view-data:v6:' . md5(json_encode([
+        return 'contract-detail:view-data:v7:' . md5(json_encode([
             'contract_id' => $this->contractId,
             'consumption' => $this->consumption,
             'version' => $this->contractPageCacheVersionHash(),
