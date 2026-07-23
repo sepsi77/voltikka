@@ -25,7 +25,7 @@ class ContractInterpretationValidator
         $this->validateEvidence($output, $input, '$', $errors);
         $this->validateClassificationConsistency($output, $input, $errors);
         $this->validatePricing($output, $input, $errors);
-        $this->validateMechanismConsistency($output, $errors);
+        $this->validateMechanismConsistency($output, $input, $errors);
 
         return array_values(array_unique($errors));
     }
@@ -383,9 +383,10 @@ class ContractInterpretationValidator
 
     /**
      * @param  array<string, mixed>  $output
+     * @param  array<string, mixed>  $input
      * @param  list<string>  $errors
      */
-    private function validateMechanismConsistency(array $output, array &$errors): void
+    private function validateMechanismConsistency(array $output, array $input, array &$errors): void
     {
         $classification = $output['classification'] ?? [];
         $mechanisms = $classification['pricing_mechanisms'] ?? [];
@@ -432,6 +433,69 @@ class ContractInterpretationValidator
         if ($hasMechanism('consumption_effect') !== $hasConsumptionEffect) {
             $errors[] = '$.classification.pricing_mechanisms consumption_effect must match pricing.consumption_effect.present.';
         }
+
+        $recurringSchedule = $output['pricing']['recurring_schedule'] ?? [];
+        $hasRecurringSchedule = ($recurringSchedule['present'] ?? false) === true;
+        $classificationCadence = $classification['periodic_reset_cadence'] ?? 'none';
+        $scheduleCadence = $recurringSchedule['cadence'] ?? 'none';
+
+        if ($hasMechanism('periodic_market_reset') !== $hasRecurringSchedule) {
+            $errors[] = '$.classification.pricing_mechanisms periodic_market_reset must match pricing.recurring_schedule.present.';
+        }
+        if ($hasRecurringSchedule && ($classificationCadence === 'none' || $scheduleCadence === 'none')) {
+            $errors[] = 'A present recurring schedule must have a non-none cadence in classification and pricing.';
+        }
+        if ($hasRecurringSchedule && $classificationCadence !== $scheduleCadence) {
+            $errors[] = '$.classification.periodic_reset_cadence must match $.pricing.recurring_schedule.cadence.';
+        }
+        if (! $hasRecurringSchedule && ($classificationCadence !== 'none' || $scheduleCadence !== 'none')) {
+            $errors[] = 'An absent recurring schedule must use none cadence in classification and pricing.';
+        }
+        if ($hasRecurringSchedule
+            && ($recurringSchedule['future_price_known'] ?? null) === false
+            && ($output['calculation']['status'] ?? null) === 'exact') {
+            $errors[] = '$.calculation.status cannot be exact when a recurring future price is unknown.';
+        }
+
+        $sourceCadence = $this->detectSourceRecurringResetCadence($input);
+        if ($sourceCadence !== null) {
+            if (! $hasMechanism('periodic_market_reset')) {
+                $errors[] = '$.classification.pricing_mechanisms must contain periodic_market_reset because the source explicitly describes recurring price resets.';
+            }
+            if (! $hasRecurringSchedule || $scheduleCadence !== $sourceCadence) {
+                $errors[] = "$.pricing.recurring_schedule must be present with {$sourceCadence} cadence because the source explicitly describes that reset schedule.";
+            }
+            if ($classificationCadence !== $sourceCadence) {
+                $errors[] = "$.classification.periodic_reset_cadence must be {$sourceCadence} because the source explicitly describes that reset schedule.";
+            }
+        }
+    }
+
+    /**
+     * Return only cadences supported by strong, explicit source language.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    private function detectSourceRecurringResetCadence(array $input): ?string
+    {
+        $text = collect([
+            $input['contract_name'] ?? null,
+            $input['pricing_name'] ?? null,
+            $input['short_description'] ?? null,
+            $input['long_description'] ?? null,
+            $input['extra_information_fi'] ?? null,
+            $input['extra_information_default'] ?? null,
+        ])->filter(fn (mixed $value): bool => is_string($value) && $value !== '')
+            ->implode(' ');
+        $text = mb_strtolower($text, 'UTF-8');
+
+        if (preg_match('/kvartaali(?:sähkö|sahko)/u', $text) === 1
+            || preg_match('/(?:hinta|hinnoitellaan)[^.]{0,100}(?:neljästi|neljä kertaa) vuodessa/u', $text) === 1
+            || preg_match('/(?:hinta|hinnoitellaan)[^.]{0,100}kolmen kuukauden (?:jaksoissa|välein)/u', $text) === 1) {
+            return 'quarterly';
+        }
+
+        return null;
     }
 
     /**

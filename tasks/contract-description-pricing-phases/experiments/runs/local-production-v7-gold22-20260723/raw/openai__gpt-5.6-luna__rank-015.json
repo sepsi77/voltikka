@@ -1,0 +1,412 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 15,
+    "contract_id": "q2gfjf-vattenfall-oy-optimi-porssisahko-perusmaksut-50-ensimmaiset-12-kuukautta",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "q2gfjf-vattenfall-oy-optimi-porssisahko-perusmaksut-50-ensimmaiset-12-kuukautta",
+        "api_id": "e1cf24b1-2180-4448-8dce-edbe8cffd949",
+        "company_name": "Vattenfall Oy",
+        "contract_name": "Optimi Pörssisähkö - Perusmaksut -50 % ensimmäiset 12 kuukautta",
+        "pricing_model": "Spot",
+        "contract_type": "OpenEnded",
+        "fixed_time_range": "Fixed12",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": true,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "Sähkön spot-hinta määräytyy sähköpörssin Suomen hinta-alueen pörssihinnan mukaisesti. Laskutamme aina voimassa olevan arvonlisäverokannan mukaan. Tutustu ja tee Optimi Pörssisähkö -sopimus Kaikki hinnat sisältävät alv 25,5 %. Optimi Pörssisähkö -sopimuksen laskutus perustuu sähköpörssi Nord Poolin julkaisemiin Suomen hinta-alueen tuntispot-hintoihin sekä asiakkaan tuntikohtaiseen sähkönkulutukseen. Optimi Pörssisähkö -sopimuksen hinnoittelu on täysin läpinäkyvä, koska tuntispot-hinnan lisäksi asiakas maksaa etukäteen tiedossa olevan marginaalin (senttiä/kWh) sekä perusmaksun (EUR/kuukausi). Kuluttajat valitsivat Vattenfallin Suomen vastuullisimmaksi sähköyhtiöksi 2025 Sustainable Brand Index -kyselyssä jo seitsemäntenä vuonna peräkkäin. Oma energia -palvelumme on käytössäsi ympäri vuorokauden. Siellä hoidat kätevästi energia-asiasi ja saat rahanarvoisia etuja meiltä ja kumppaneiltamme. Oletko jo tutustunut Vattenfall Sähköviisas -sovellukseen? Sovelluksessa voit seurata omaa kulutustasi ja vertailla kulutusta aiempiin ajankohtiin. Lataa Vattenfall-sovellus puhelimeesi sovelluskaupoista. Lue lisää sovelluksesta Vattenfallin verkkosivuilta https://www.vattenfall.fi/sovellus Energianeuvoja löydät osoitteesta: vattenfall.fi/energianeuvonta",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "13a669b603d21074f88d14a1b58e7ed3",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 0.5,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "e51c49b7325687c8cea6f3661752276e",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 5.95,
+                "payment_unit": "EurPerMonth",
+                "has_discount": true,
+                "discount_value": 2.98,
+                "discount_is_percentage": false,
+                "discount_type": "NFirstMonth",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 12,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "q2gfjf-vattenfall-oy-optimi-porssisahko-perusmaksut-50-ensimmaiset-12-kuukautta",
+        "classification": {
+            "term_type": "OpenEnded",
+            "fixed_duration_months": null,
+            "primary_pricing_model": "Spot",
+            "pricing_mechanisms": [
+                "spot"
+            ],
+            "metering": "General",
+            "schedule_kinds": [
+                "introductory_promotion"
+            ],
+            "spot_settlement_interval": "hourly",
+            "periodic_reset_cadence": "none"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "First 12 months",
+                    "phase_kind": "introductory",
+                    "starts": {
+                        "kind": "contract_start",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "after_months",
+                        "value": "12"
+                    },
+                    "components": [
+                        {
+                            "component_type": "spot_margin",
+                            "amount": 0.5,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "included",
+                            "price_role": "current",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=0.5"
+                                },
+                                {
+                                    "source": "components[0].price_component_type",
+                                    "quote": "components[0].price_component_type=General"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "etukäteen tiedossa olevan marginaalin (senttiä/kWh)"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 2.97,
+                            "normal_amount": 5.95,
+                            "unit": "eur_per_month",
+                            "vat_status": "included",
+                            "price_role": "introductory",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=5.95"
+                                },
+                                {
+                                    "source": "components[1].has_discount",
+                                    "quote": "components[1].has_discount=true"
+                                },
+                                {
+                                    "source": "components[1].discount_value",
+                                    "quote": "components[1].discount_value=2.98"
+                                },
+                                {
+                                    "source": "components[1].discount_is_percentage",
+                                    "quote": "components[1].discount_is_percentage=false"
+                                },
+                                {
+                                    "source": "components[1].discount_type",
+                                    "quote": "components[1].discount_type=NFirstMonth"
+                                },
+                                {
+                                    "source": "components[1].discount_n_first_months",
+                                    "quote": "components[1].discount_n_first_months=12"
+                                },
+                                {
+                                    "source": "contract_name",
+                                    "quote": "Perusmaksut -50 % ensimmäiset 12 kuukautta"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Kaikki hinnat sisältävät alv 25,5 %."
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "contract_name",
+                            "quote": "Perusmaksut -50 % ensimmäiset 12 kuukautta"
+                        }
+                    ]
+                },
+                {
+                    "label": "After first 12 months",
+                    "phase_kind": "continuation",
+                    "starts": {
+                        "kind": "after_months",
+                        "value": "12"
+                    },
+                    "ends": {
+                        "kind": "none",
+                        "value": null
+                    },
+                    "components": [
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 5.95,
+                            "normal_amount": 5.95,
+                            "unit": "eur_per_month",
+                            "vat_status": "included",
+                            "price_role": "normal",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=5.95"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "components[1].discount_n_first_months",
+                            "quote": "components[1].discount_n_first_months=12"
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": false,
+                "cadence": "none",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": null,
+                "description": null,
+                "evidence": []
+            },
+            "consumption_effect": {
+                "present": false,
+                "cadence": "none",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": null,
+                "evidence": [],
+                "applies_to": "unknown"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "Spot",
+            "contract_type_status": "match",
+            "recommended_contract_type": "OpenEnded",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "complete",
+            "misleading_first_12_months": "not_detected",
+            "issue_codes": [
+                "structured_matches_description"
+            ],
+            "summary": "The contract is an open-ended hourly Nord Pool spot contract with a 0.5 cents/kWh margin and a monthly fee discounted by 2.98 euros for the first 12 months. The structured discount metadata represents the first-year fee; the normal 5.95 euros monthly fee applies thereafter.",
+            "evidence": [
+                {
+                    "source": "pricing_model",
+                    "quote": "pricing_model=Spot"
+                },
+                {
+                    "source": "contract_type",
+                    "quote": "contract_type=OpenEnded"
+                },
+                {
+                    "source": "metering",
+                    "quote": "metering=General"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Optimi Pörssisähkö -sopimuksen laskutus perustuu sähköpörssi Nord Poolin julkaisemiin Suomen hinta-alueen tuntispot-hintoihin"
+                },
+                {
+                    "source": "components[1].discount_n_first_months",
+                    "quote": "components[1].discount_n_first_months=12"
+                }
+            ]
+        },
+        "calculation": {
+            "status": "estimate_required",
+            "missing_facts": [
+                "Nord Pool hourly spot prices for the consumption period",
+                "Customer consumption profile"
+            ],
+            "required_assumptions": [
+                "Use the Finnish Nord Pool hourly spot price for each consumption hour",
+                "Apply the 0.5 cents/kWh supplier margin and the discounted 2.97 euros/month fee during the first 12 months"
+            ]
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "high",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 5472,
+        "completion_tokens": 1490,
+        "total_tokens": 6962,
+        "cost": 0.010289862,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 4683,
+            "cache_write_tokens": 786,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.0103938,
+            "upstream_inference_prompt_cost": 0.0014538,
+            "upstream_inference_completions_cost": 0.00894
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 353,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 10.319160708691925,
+    "response_id": "gen-1784830100-BiyHRhdCJlY5nnyo4YQL",
+    "evaluation": {
+        "score": 1,
+        "passed": 13,
+        "total": 13,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "OpenEnded",
+                "actual": "OpenEnded"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "Spot",
+                "actual": "Spot"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "hourly",
+                "actual": "hourly"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "none",
+                "actual": "none"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "spot"
+                ],
+                "actual": [
+                    "spot"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": [
+                    "complete",
+                    "not_assessable"
+                ],
+                "actual": "complete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": [
+                    "not_detected",
+                    "not_assessable"
+                ],
+                "actual": "not_detected"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [],
+                "actual": [
+                    "structured_matches_description"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "estimate_required",
+                "actual": "estimate_required"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": false,
+                "actual": false
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 15,
+        "contract_id": "q2gfjf-vattenfall-oy-optimi-porssisahko-perusmaksut-50-ensimmaiset-12-kuukautta",
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    },
+    "repair_attempts": [],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

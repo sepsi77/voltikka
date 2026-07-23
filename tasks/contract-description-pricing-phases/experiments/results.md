@@ -198,6 +198,26 @@ Retained evidence:
 - `runs/local-production-v6-gold22-20260723/production-validation-summary.json`
 - `runs/local-production-v6-gold22-20260723/repair-summary.json`
 
+## Prompt v7 invariant evaluation
+
+Prompt v7 adds an explicit pricing-type invariant matrix, compact positive examples, and negative examples for common taxonomy errors. The complete 22-case gold set produced:
+
+- 22/22 successful initial calls
+- 16/22 initial outputs passed validator v3
+- all six failed outputs passed within the two-call correction limit
+- 22/22 final outputs passed; one case needed both correction calls
+- weighted key-field score before correction was 97.16%
+- initial calls cost $0.2160; correction calls cost $0.0662
+- mean initial latency was 10.03 seconds
+
+The quarterly gold case passed initially with `fixed` + `periodic_market_reset`, matching quarterly cadence fields, a present recurring schedule, unknown future price, and `estimate_required`. A separate fresh prompt v7 call against the production Keravan Energia Kvartaalisähkö (aika) input also produced `fixed` + `time_of_use` + `periodic_market_reset` and passed validator v3 without correction for $0.0090. These test calls did not write to production.
+
+Retained evidence:
+
+- `runs/local-production-v7-gold22-20260723/summary.json`
+- `runs/local-production-v7-gold22-20260723/production-validation-summary.json`
+- `runs/local-production-v7-gold22-20260723/repair-summary.json`
+
 ## Recommendation
 
-Use `openai/gpt-5.6-luna`, prompt v6, schema v3, low reasoning, exact production validation, and at most two automatic correction calls. Run asynchronously and idempotently by source/prompt/model fingerprint. Persist every model attempt, evidence, usage, and validation result. Do not publish any output that still fails deterministic validation.
+Use `openai/gpt-5.6-luna`, prompt v7, schema v3, validator v3, low reasoning, exact production validation, and at most two automatic correction calls. Run asynchronously and idempotently by source/prompt/validator/model fingerprint. Persist every model attempt, evidence, usage, and validation result. Do not publish any output that still fails deterministic validation.

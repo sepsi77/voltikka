@@ -1,0 +1,518 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 7,
+    "contract_id": "kz9acg-cheap-energy-finland-oy-cheap-porssisahko-kampanja-perusmaksualennus-6-kk-490-kk-ja-marginaalialennus-6kk-039-sntkwh",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "kz9acg-cheap-energy-finland-oy-cheap-porssisahko-kampanja-perusmaksualennus-6-kk-490-kk-ja-marginaalialennus-6kk-039-sntkwh",
+        "api_id": "ca790e76-b8f1-48fe-92ae-dc7ee3e9e7d4",
+        "company_name": "Cheap Energy Finland Oy",
+        "contract_name": "Cheap Pörssisähkö - KAMPANJA - Perusmaksualennus 6 kk 4,90 €/kk ja marginaalialennus 6kk 0,39 snt/kWh",
+        "pricing_model": "Spot",
+        "contract_type": "OpenEnded",
+        "fixed_time_range": "Fixed12",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": true,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "SUPERDIILI! CHEAP PÖRSSISÄHKÖN MARGINAALI VAIN 0,39 SNT/KWH + KUUDEN KUUKAUDEN PERUSMAKSUT 0 €/KK! Cheap Pörssisähkö on sähkösopimus, jossa hinta vaihtelee tunneittain Nord Pool -sähköpörssin Suomen markkina-alueen hinnan mukaan. Pörssisähkösopimuksessa sähkön hinta on aina ajantasaisesti kilpailutettu. KAMPANJA - Sopimuksen ensimmäiset 6 kuukautta perusmaksu 0,00 €/kk ja marginaali 0,39 snt/kWh. Tämän jälkeen marginaali 0,78 € snt/kWh ja perusmaksu 4,90€/kk. Hinnat sis. alv 25,5%. Jos olet valmis ohjaamaan sähkönkulutustasi tunneittain vaihtuvan hinnan mukaan, pörssisähköllä voit säästää sähkökuluissa. Pörssisähkön kääntöpuolena on toisaalta myös riski hinnannoususta ja ajoittain korkeista hintapiikeistä.\" Cheap Pörssisähkö TÄÄLTÄ Sopimus on toistaiseksi voimassa oleva, joten voit vaihtaa sen kahden viikon irtisanomisajalla.",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "804047906c21f5a4533ee522e6a267de",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 0.39,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "7b1a526af35ae52e59f84e74003988b3",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 4.9,
+                "payment_unit": "EurPerMonth",
+                "has_discount": true,
+                "discount_value": 4.9,
+                "discount_is_percentage": false,
+                "discount_type": "NFirstMonth",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 6,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "kz9acg-cheap-energy-finland-oy-cheap-porssisahko-kampanja-perusmaksualennus-6-kk-490-kk-ja-marginaalialennus-6kk-039-sntkwh",
+        "classification": {
+            "term_type": "OpenEnded",
+            "fixed_duration_months": null,
+            "primary_pricing_model": "Spot",
+            "pricing_mechanisms": [
+                "spot"
+            ],
+            "metering": "General",
+            "schedule_kinds": [
+                "introductory_promotion"
+            ],
+            "spot_settlement_interval": "hourly",
+            "periodic_reset_cadence": "none"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Ensimmäiset 6 kuukautta",
+                    "phase_kind": "introductory",
+                    "starts": {
+                        "kind": "contract_start",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "after_months",
+                        "value": "6"
+                    },
+                    "components": [
+                        {
+                            "component_type": "spot_margin",
+                            "amount": 0.39,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "included",
+                            "price_role": "introductory",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=0.39"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "marginaali 0,39 snt/kWh"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 0,
+                            "normal_amount": 4.9,
+                            "unit": "eur_per_month",
+                            "vat_status": "included",
+                            "price_role": "introductory",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=4.9"
+                                },
+                                {
+                                    "source": "components[1].has_discount",
+                                    "quote": "components[1].has_discount=true"
+                                },
+                                {
+                                    "source": "components[1].discount_value",
+                                    "quote": "components[1].discount_value=4.9"
+                                },
+                                {
+                                    "source": "components[1].discount_is_percentage",
+                                    "quote": "components[1].discount_is_percentage=false"
+                                },
+                                {
+                                    "source": "components[1].discount_type",
+                                    "quote": "components[1].discount_type=NFirstMonth"
+                                },
+                                {
+                                    "source": "components[1].discount_n_first_months",
+                                    "quote": "components[1].discount_n_first_months=6"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Sopimuksen ensimmäiset 6 kuukautta perusmaksu 0,00 €/kk"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "KAMPANJA - Sopimuksen ensimmäiset 6 kuukautta perusmaksu 0,00 €/kk ja marginaali 0,39 snt/kWh."
+                        }
+                    ]
+                },
+                {
+                    "label": "Kuudennen kuukauden jälkeen",
+                    "phase_kind": "normal",
+                    "starts": {
+                        "kind": "after_months",
+                        "value": "6"
+                    },
+                    "ends": {
+                        "kind": "none",
+                        "value": null
+                    },
+                    "components": [
+                        {
+                            "component_type": "spot_margin",
+                            "amount": 0.78,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "included",
+                            "price_role": "normal",
+                            "source_kind": "description",
+                            "evidence": [
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Tämän jälkeen marginaali 0,78 € snt/kWh"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 4.9,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "included",
+                            "price_role": "normal",
+                            "source_kind": "both",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=4.9"
+                                },
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Tämän jälkeen marginaali 0,78 € snt/kWh ja perusmaksu 4,90€/kk."
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Tämän jälkeen marginaali 0,78 € snt/kWh ja perusmaksu 4,90€/kk."
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": false,
+                "cadence": "none",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": null,
+                "description": null,
+                "evidence": []
+            },
+            "consumption_effect": {
+                "present": false,
+                "cadence": "none",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": null,
+                "evidence": [],
+                "applies_to": "unknown"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "Spot",
+            "contract_type_status": "match",
+            "recommended_contract_type": "OpenEnded",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "incomplete",
+            "misleading_first_12_months": "detected",
+            "issue_codes": [
+                "future_price_omitted",
+                "structured_matches_intro_only"
+            ],
+            "summary": "Structured data represents the Spot margin and the six-month monthly-fee discount, but omits the disclosed post-promotion margin of 0.78 cents/kWh. Using the structured margin for the whole first year would understate the cost after month six.",
+            "evidence": [
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Sopimuksen ensimmäiset 6 kuukautta perusmaksu 0,00 €/kk ja marginaali 0,39 snt/kWh. Tämän jälkeen marginaali 0,78 € snt/kWh ja perusmaksu 4,90€/kk."
+                },
+                {
+                    "source": "components[0].price",
+                    "quote": "components[0].price=0.39"
+                },
+                {
+                    "source": "components[1].discount_n_first_months",
+                    "quote": "components[1].discount_n_first_months=6"
+                }
+            ]
+        },
+        "calculation": {
+            "status": "estimate_required",
+            "missing_facts": [
+                "Nord Pool spot prices for the first 12 months",
+                "The contract start date for calendar-date allocation"
+            ],
+            "required_assumptions": [
+                "Estimate Nord Pool hourly prices for the first 12 months",
+                "Apply a 0.39 cents/kWh margin for months 1-6 and a 0.78 cents/kWh margin thereafter",
+                "Apply a 0 €/month fee for months 1-6 and 4.90 €/month thereafter"
+            ]
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "high",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 5421,
+        "completion_tokens": 1562,
+        "total_tokens": 6983,
+        "cost": 0.0106544295,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 4683,
+            "cache_write_tokens": 735,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.01076205,
+            "upstream_inference_prompt_cost": 0.00139005,
+            "upstream_inference_completions_cost": 0.009372
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 271,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 10.82256695907563,
+    "response_id": "gen-1784830089-b1BFSvRprDlVuqvLHIR5",
+    "evaluation": {
+        "score": 0.9411764705882353,
+        "passed": 16,
+        "total": 17,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "OpenEnded",
+                "actual": "OpenEnded"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "Spot",
+                "actual": "Spot"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "hourly",
+                "actual": "hourly"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "none",
+                "actual": "none"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "spot"
+                ],
+                "actual": [
+                    "spot"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": "incomplete",
+                "actual": "incomplete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": "detected",
+                "actual": "detected"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": false,
+                "expected": [
+                    "promotion_metadata_missing"
+                ],
+                "actual": [
+                    "future_price_omitted",
+                    "structured_matches_intro_only"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "estimate_required",
+                "actual": "estimate_required"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": false,
+                "actual": false
+            },
+            {
+                "name": "price:spot_margin:0.39",
+                "passed": true,
+                "expected": [
+                    "spot_margin",
+                    0.39
+                ],
+                "actual": [
+                    [
+                        "spot_margin",
+                        0.39
+                    ],
+                    [
+                        "monthly_fee",
+                        0
+                    ],
+                    [
+                        "spot_margin",
+                        0.78
+                    ],
+                    [
+                        "monthly_fee",
+                        4.9
+                    ]
+                ]
+            },
+            {
+                "name": "price:spot_margin:0.78",
+                "passed": true,
+                "expected": [
+                    "spot_margin",
+                    0.78
+                ],
+                "actual": [
+                    [
+                        "spot_margin",
+                        0.39
+                    ],
+                    [
+                        "monthly_fee",
+                        0
+                    ],
+                    [
+                        "spot_margin",
+                        0.78
+                    ],
+                    [
+                        "monthly_fee",
+                        4.9
+                    ]
+                ]
+            },
+            {
+                "name": "price:monthly_fee:0.0",
+                "passed": true,
+                "expected": [
+                    "monthly_fee",
+                    0
+                ],
+                "actual": [
+                    [
+                        "spot_margin",
+                        0.39
+                    ],
+                    [
+                        "monthly_fee",
+                        0
+                    ],
+                    [
+                        "spot_margin",
+                        0.78
+                    ],
+                    [
+                        "monthly_fee",
+                        4.9
+                    ]
+                ]
+            },
+            {
+                "name": "price:monthly_fee:4.9",
+                "passed": true,
+                "expected": [
+                    "monthly_fee",
+                    4.9
+                ],
+                "actual": [
+                    [
+                        "spot_margin",
+                        0.39
+                    ],
+                    [
+                        "monthly_fee",
+                        0
+                    ],
+                    [
+                        "spot_margin",
+                        0.78
+                    ],
+                    [
+                        "monthly_fee",
+                        4.9
+                    ]
+                ]
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 7,
+        "contract_id": "kz9acg-cheap-energy-finland-oy-cheap-porssisahko-kampanja-perusmaksualennus-6-kk-490-kk-ja-marginaalialennus-6kk-039-sntkwh",
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    },
+    "repair_attempts": [],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

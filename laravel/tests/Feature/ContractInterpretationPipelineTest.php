@@ -292,6 +292,68 @@ class ContractInterpretationPipelineTest extends TestCase
         );
     }
 
+    public function test_validator_requires_quarterly_reset_when_the_source_names_kvartaalisahko(): void
+    {
+        $output = $this->validOutput('contract-1');
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, [
+            'contract_id' => 'contract-1',
+            'contract_name' => 'Kvartaalisähkö (aika)',
+            'pricing_model' => 'Spot',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'components' => [],
+        ]);
+
+        $this->assertContains(
+            '$.classification.pricing_mechanisms must contain periodic_market_reset because the source explicitly describes recurring price resets.',
+            $errors,
+        );
+        $this->assertContains(
+            '$.pricing.recurring_schedule must be present with quarterly cadence because the source explicitly describes that reset schedule.',
+            $errors,
+        );
+        $this->assertContains(
+            '$.classification.periodic_reset_cadence must be quarterly because the source explicitly describes that reset schedule.',
+            $errors,
+        );
+    }
+
+    public function test_validator_keeps_periodic_mechanism_schedule_cadence_and_calculation_consistent(): void
+    {
+        $output = $this->validOutput('contract-1');
+        $output['classification']['pricing_mechanisms'] = ['spot', 'periodic_market_reset'];
+        $output['classification']['periodic_reset_cadence'] = 'quarterly';
+        $output['pricing']['recurring_schedule'] = [
+            'present' => true,
+            'cadence' => 'quarterly',
+            'current_period_start' => null,
+            'current_period_end' => null,
+            'future_price_known' => false,
+            'description' => 'Price resets each quarter.',
+            'evidence' => [],
+        ];
+        $output['calculation']['status'] = 'exact';
+        $input = [
+            'contract_id' => 'contract-1',
+            'contract_name' => 'Kvartaalisähkö',
+            'pricing_model' => 'Spot',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'components' => [],
+        ];
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, $input);
+
+        $this->assertContains(
+            '$.calculation.status cannot be exact when a recurring future price is unknown.',
+            $errors,
+        );
+
+        $output['calculation']['status'] = 'estimate_required';
+        $this->assertSame([], app(ContractInterpretationValidator::class)->validate($output, $input));
+    }
+
     public function test_successful_job_automatically_publishes_canonical_classification(): void
     {
         $snapshot = $this->createSnapshot();
@@ -551,8 +613,8 @@ class ContractInterpretationPipelineTest extends TestCase
             'analysis_fingerprint' => hash('sha256', $snapshot->source_fingerprint.microtime(true)),
             'status' => ContractInterpretation::STATUS_PENDING,
             'schema_version' => 'schema-v3',
-            'prompt_version' => 'prompt-v6',
-            'validator_version' => 'validator-v2',
+            'prompt_version' => 'prompt-v7',
+            'validator_version' => 'validator-v3',
             'provider' => 'openrouter',
             'model' => 'test-model',
             'output' => $output,

@@ -1,0 +1,369 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 83,
+    "contract_id": "jt3szr-koillis-satakunnan-sahko-oy-joustowirta-24-kk",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "jt3szr-koillis-satakunnan-sahko-oy-joustowirta-24-kk",
+        "api_id": "21af78e5-c52d-495f-87fc-030e69de348e",
+        "company_name": "Koillis-Satakunnan Sähkö Oy",
+        "contract_name": "JoustoWirta 24 kk",
+        "pricing_model": "Hybrid",
+        "contract_type": "FixedTerm",
+        "fixed_time_range": "Fixed24",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": false,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "Mikäli haluat määräaikaisen sähkösopimuksen turvan ja pörssisähkön jouston kulutusvaikutuksen, valintasi on JoustoWirta. JoustoWirta on kahden vuoden mittainen määräaikainen sähkösopimus. Hinta koostuu perushinnasta (snt/kWh), perusmaksusta (€/kk), sekä kulutusvaikutuksesta (+/- snt/kWh), josta tulee säästöä tai lisähintaa, riippuen omasta sähkönkulutuksesta. Suosittelemme JoustoWirta -sopimusta sinulle, joka seuraat kulutustietojasi ja pystyt ajoittamaan sähkönkäyttösi öihin tai muihin edullisiin ajankohtiin.",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "0a6ff7c5256f7762f5b556f66da19f6e",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 8.35,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "cdeb0a92a62eae1df683e5012cf3d617",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 4.52,
+                "payment_unit": "EurPerMonth",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "jt3szr-koillis-satakunnan-sahko-oy-joustowirta-24-kk",
+        "classification": {
+            "term_type": "FixedTerm",
+            "fixed_duration_months": 24,
+            "primary_pricing_model": "Hybrid",
+            "pricing_mechanisms": [
+                "fixed",
+                "consumption_effect"
+            ],
+            "metering": "General",
+            "schedule_kinds": [],
+            "spot_settlement_interval": "not_applicable",
+            "periodic_reset_cadence": "none"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Contract price",
+                    "phase_kind": "current_structured",
+                    "starts": {
+                        "kind": "contract_start",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "after_months",
+                        "value": "24"
+                    },
+                    "components": [
+                        {
+                            "component_type": "energy_general",
+                            "amount": 8.35,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price_component_type",
+                                    "quote": "components[0].price_component_type=General"
+                                },
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=8.35"
+                                },
+                                {
+                                    "source": "components[0].payment_unit",
+                                    "quote": "components[0].payment_unit=CentPerKiwattHour"
+                                },
+                                {
+                                    "source": "components[0].has_discount",
+                                    "quote": "components[0].has_discount=false"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 4.52,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price_component_type",
+                                    "quote": "components[1].price_component_type=Monthly"
+                                },
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=4.52"
+                                },
+                                {
+                                    "source": "components[1].payment_unit",
+                                    "quote": "components[1].payment_unit=EurPerMonth"
+                                },
+                                {
+                                    "source": "components[1].has_discount",
+                                    "quote": "components[1].has_discount=false"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "fixed_time_range",
+                            "quote": "fixed_time_range=Fixed24"
+                        },
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "JoustoWirta on kahden vuoden mittainen määräaikainen sähkösopimus."
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": false,
+                "cadence": "none",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": null,
+                "description": null,
+                "evidence": []
+            },
+            "consumption_effect": {
+                "present": true,
+                "cadence": "unknown",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": "Kulutusvaikutus voi aiheuttaa säästöä tai lisähintaa oman sähkönkulutuksen mukaan, mutta vaikutuksen määrää ei ole ilmoitettu.",
+                "evidence": [
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Hinta koostuu perushinnasta (snt/kWh), perusmaksusta (€/kk), sekä kulutusvaikutuksesta (+/- snt/kWh), josta tulee säästöä tai lisähintaa, riippuen omasta sähkönkulutuksesta."
+                    }
+                ],
+                "applies_to": "base_contract"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "Hybrid",
+            "contract_type_status": "match",
+            "recommended_contract_type": "FixedTerm",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "incomplete",
+            "misleading_first_12_months": "uncertain",
+            "issue_codes": [
+                "structured_matches_description",
+                "unsupported_consumption_effect"
+            ],
+            "summary": "Structured data represents the fixed general energy price and monthly fee and agrees with the described Hybrid contract, but it omits the mandatory consumption effect whose amount is not disclosed.",
+            "evidence": [
+                {
+                    "source": "pricing_model",
+                    "quote": "pricing_model=Hybrid"
+                },
+                {
+                    "source": "contract_type",
+                    "quote": "contract_type=FixedTerm"
+                },
+                {
+                    "source": "metering",
+                    "quote": "metering=General"
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Hinta koostuu perushinnasta (snt/kWh), perusmaksusta (€/kk), sekä kulutusvaikutuksesta (+/- snt/kWh), josta tulee säästöä tai lisähintaa, riippuen omasta sähkönkulutuksesta."
+                }
+            ]
+        },
+        "calculation": {
+            "status": "unsupported",
+            "missing_facts": [
+                "The consumption effect amount or calculation formula",
+                "The applicable consumption-effect cadence and calculation basis"
+            ],
+            "required_assumptions": []
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "medium",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 5229,
+        "completion_tokens": 1096,
+        "total_tokens": 6325,
+        "cost": 0.0076487895,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 4683,
+            "cache_write_tokens": 543,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.00772605,
+            "upstream_inference_prompt_cost": 0.00115005,
+            "upstream_inference_completions_cost": 0.006576
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 129,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 8.443301167339087,
+    "response_id": "gen-1784830117-Vs7VNYJrspCa853PcSYV",
+    "evaluation": {
+        "score": 1,
+        "passed": 13,
+        "total": 13,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "FixedTerm",
+                "actual": "FixedTerm"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "Hybrid",
+                "actual": "Hybrid"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "not_applicable",
+                "actual": "not_applicable"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "none",
+                "actual": "none"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "consumption_effect",
+                    "fixed"
+                ],
+                "actual": [
+                    "consumption_effect",
+                    "fixed"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": "incomplete",
+                "actual": "incomplete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": [
+                    "uncertain",
+                    "not_detected"
+                ],
+                "actual": "uncertain"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [
+                    "unsupported_consumption_effect"
+                ],
+                "actual": [
+                    "structured_matches_description",
+                    "unsupported_consumption_effect"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "unsupported",
+                "actual": "unsupported"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": true,
+                "actual": true
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 83,
+        "contract_id": "jt3szr-koillis-satakunnan-sahko-oy-joustowirta-24-kk",
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    },
+    "repair_attempts": [],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

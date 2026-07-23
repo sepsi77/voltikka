@@ -1,0 +1,528 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 11,
+    "contract_id": "nlac9s-seinajoen-energia-oy-se-oikea-yleissahko",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "nlac9s-seinajoen-energia-oy-se-oikea-yleissahko",
+        "api_id": "71bda87d-48f9-458c-85e3-252f0e254635",
+        "company_name": "Seinäjoen Energia Oy",
+        "contract_name": "SE Oikea - Yleissähkö",
+        "pricing_model": "FixedPrice",
+        "contract_type": "OpenEnded",
+        "fixed_time_range": "Fixed12",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": false,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "c11bcd66f59e39b3cd7cc88ce9ffbfbb",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 7.2,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "f69cb856164c7ccbaa339f6c49e71612",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 4.05,
+                "payment_unit": "EurPerMonth",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "nlac9s-seinajoen-energia-oy-se-oikea-yleissahko",
+        "classification": {
+            "term_type": "OpenEnded",
+            "fixed_duration_months": null,
+            "primary_pricing_model": "FixedPrice",
+            "pricing_mechanisms": [
+                "fixed"
+            ],
+            "metering": "General",
+            "schedule_kinds": [
+                "standard"
+            ],
+            "spot_settlement_interval": "not_applicable",
+            "periodic_reset_cadence": "none"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Current pricing",
+                    "phase_kind": "current_structured",
+                    "starts": {
+                        "kind": "contract_start",
+                        "value": null
+                    },
+                    "ends": {
+                        "kind": "none",
+                        "value": null
+                    },
+                    "components": [
+                        {
+                            "component_type": "energy_general",
+                            "amount": 7.2,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price_component_type",
+                                    "quote": "components[0].price_component_type=General"
+                                },
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=7.2"
+                                },
+                                {
+                                    "source": "components[0].payment_unit",
+                                    "quote": "components[0].payment_unit=CentPerKiwattHour"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 4.05,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price_component_type",
+                                    "quote": "components[1].price_component_type=Monthly"
+                                },
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=4.05"
+                                },
+                                {
+                                    "source": "components[1].payment_unit",
+                                    "quote": "components[1].payment_unit=EurPerMonth"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "contract_type",
+                            "quote": "contract_type=OpenEnded"
+                        },
+                        {
+                            "source": "pricing_model",
+                            "quote": "pricing_model=FixedPrice"
+                        },
+                        {
+                            "source": "metering",
+                            "quote": "metering=General"
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": false,
+                "cadence": "none",
+                "current_period_start": null,
+                "current_period_end": null,
+                "future_price_known": null,
+                "description": null,
+                "evidence": []
+            },
+            "consumption_effect": {
+                "present": false,
+                "cadence": "none",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": null,
+                "evidence": [],
+                "applies_to": "unknown"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "FixedPrice",
+            "contract_type_status": "match",
+            "recommended_contract_type": "OpenEnded",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "not_assessable",
+            "misleading_first_12_months": "not_assessable",
+            "issue_codes": [
+                "insufficient_evidence"
+            ],
+            "summary": "The structured data specifies a fixed general energy price of 7.2 c/kWh and a monthly fee of 4.05 euros for an open-ended contract. No descriptive text is available to independently assess additional phases or first-12-month completeness.",
+            "evidence": [
+                {
+                    "source": "extra_information_fi",
+                    "quote": "extra_information_fi="
+                },
+                {
+                    "source": "long_description",
+                    "quote": "long_description=null"
+                },
+                {
+                    "source": "short_description",
+                    "quote": "short_description=null"
+                }
+            ]
+        },
+        "calculation": {
+            "status": "exact",
+            "missing_facts": [],
+            "required_assumptions": []
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "medium",
+            "integrity": "low"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 5055,
+        "completion_tokens": 871,
+        "total_tokens": 5926,
+        "cost": 0.0060969645,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 4683,
+            "cache_write_tokens": 369,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.00615855,
+            "upstream_inference_prompt_cost": 0.00093255,
+            "upstream_inference_completions_cost": 0.005226
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 126,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 12.308103249873966,
+    "response_id": "gen-1784830097-RhVSIlbBum1A0RWMV1Bz",
+    "evaluation": {
+        "score": 0.9230769230769231,
+        "passed": 12,
+        "total": 13,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "OpenEnded",
+                "actual": "OpenEnded"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "FixedPrice",
+                "actual": "FixedPrice"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "not_applicable",
+                "actual": "not_applicable"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "none",
+                "actual": "none"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "fixed"
+                ],
+                "actual": [
+                    "fixed"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": [
+                    "match",
+                    "uncertain"
+                ],
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": "not_assessable",
+                "actual": "not_assessable"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": "not_assessable",
+                "actual": "not_assessable"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [
+                    "insufficient_evidence"
+                ],
+                "actual": [
+                    "insufficient_evidence"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "exact",
+                "actual": "exact"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": false,
+                "actual": false
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": false,
+                "expected": ">=0.95",
+                "actual": 0
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 11,
+        "contract_id": "nlac9s-seinajoen-energia-oy-se-oikea-yleissahko",
+        "valid": false,
+        "error_count": 3,
+        "errors": [
+            "$.source_consistency.evidence[0].quote is not present in the cited source text.",
+            "$.source_consistency.evidence[1].quote is not present in the cited source text.",
+            "$.source_consistency.evidence[2].quote is not present in the cited source text."
+        ]
+    },
+    "repair_attempts": [
+        {
+            "repair": 1,
+            "output": {
+                "schema_version": "1.0",
+                "contract_id": "nlac9s-seinajoen-energia-oy-se-oikea-yleissahko",
+                "classification": {
+                    "term_type": "OpenEnded",
+                    "fixed_duration_months": null,
+                    "primary_pricing_model": "FixedPrice",
+                    "pricing_mechanisms": [
+                        "fixed"
+                    ],
+                    "metering": "General",
+                    "schedule_kinds": [
+                        "standard"
+                    ],
+                    "spot_settlement_interval": "not_applicable",
+                    "periodic_reset_cadence": "none"
+                },
+                "pricing": {
+                    "phases": [
+                        {
+                            "label": "Current pricing",
+                            "phase_kind": "current_structured",
+                            "starts": {
+                                "kind": "contract_start",
+                                "value": null
+                            },
+                            "ends": {
+                                "kind": "none",
+                                "value": null
+                            },
+                            "components": [
+                                {
+                                    "component_type": "energy_general",
+                                    "amount": 7.2,
+                                    "normal_amount": null,
+                                    "unit": "cents_per_kwh",
+                                    "vat_status": "unknown",
+                                    "price_role": "current",
+                                    "source_kind": "structured",
+                                    "evidence": [
+                                        {
+                                            "source": "components[0].price_component_type",
+                                            "quote": "components[0].price_component_type=General"
+                                        },
+                                        {
+                                            "source": "components[0].price",
+                                            "quote": "components[0].price=7.2"
+                                        },
+                                        {
+                                            "source": "components[0].payment_unit",
+                                            "quote": "components[0].payment_unit=CentPerKiwattHour"
+                                        }
+                                    ]
+                                },
+                                {
+                                    "component_type": "monthly_fee",
+                                    "amount": 4.05,
+                                    "normal_amount": null,
+                                    "unit": "eur_per_month",
+                                    "vat_status": "unknown",
+                                    "price_role": "current",
+                                    "source_kind": "structured",
+                                    "evidence": [
+                                        {
+                                            "source": "components[1].price_component_type",
+                                            "quote": "components[1].price_component_type=Monthly"
+                                        },
+                                        {
+                                            "source": "components[1].price",
+                                            "quote": "components[1].price=4.05"
+                                        },
+                                        {
+                                            "source": "components[1].payment_unit",
+                                            "quote": "components[1].payment_unit=EurPerMonth"
+                                        }
+                                    ]
+                                }
+                            ],
+                            "evidence": [
+                                {
+                                    "source": "contract_type",
+                                    "quote": "contract_type=OpenEnded"
+                                },
+                                {
+                                    "source": "pricing_model",
+                                    "quote": "pricing_model=FixedPrice"
+                                },
+                                {
+                                    "source": "metering",
+                                    "quote": "metering=General"
+                                }
+                            ]
+                        }
+                    ],
+                    "recurring_schedule": {
+                        "present": false,
+                        "cadence": "none",
+                        "current_period_start": null,
+                        "current_period_end": null,
+                        "future_price_known": null,
+                        "description": null,
+                        "evidence": []
+                    },
+                    "consumption_effect": {
+                        "present": false,
+                        "cadence": "none",
+                        "expected_cents_per_kwh": null,
+                        "typical_min_cents_per_kwh": null,
+                        "typical_max_cents_per_kwh": null,
+                        "hard_min_cents_per_kwh": null,
+                        "hard_max_cents_per_kwh": null,
+                        "uncapped": null,
+                        "description": null,
+                        "evidence": [],
+                        "applies_to": "unknown"
+                    }
+                },
+                "source_consistency": {
+                    "pricing_model_status": "match",
+                    "recommended_pricing_model": "FixedPrice",
+                    "contract_type_status": "match",
+                    "recommended_contract_type": "OpenEnded",
+                    "metering_status": "match",
+                    "recommended_metering": "General",
+                    "structured_pricing_status": "not_assessable",
+                    "misleading_first_12_months": "not_assessable",
+                    "issue_codes": [
+                        "insufficient_evidence"
+                    ],
+                    "summary": "The structured data specifies a fixed general energy price of 7.2 c/kWh and a monthly fee of 4.05 euros for an open-ended contract. No descriptive text is available to independently assess additional phases or first-12-month completeness.",
+                    "evidence": []
+                },
+                "calculation": {
+                    "status": "exact",
+                    "missing_facts": [],
+                    "required_assumptions": []
+                },
+                "confidence": {
+                    "classification": "high",
+                    "pricing": "medium",
+                    "integrity": "low"
+                }
+            },
+            "validation_errors": [],
+            "usage": {
+                "prompt_tokens": 5918,
+                "completion_tokens": 825,
+                "total_tokens": 6743,
+                "cost": 0.0064715805,
+                "is_byok": false,
+                "prompt_tokens_details": {
+                    "cached_tokens": 5052,
+                    "cache_write_tokens": 863,
+                    "audio_tokens": 0,
+                    "video_tokens": 0
+                },
+                "cost_details": {
+                    "upstream_inference_cost": 0.00653695,
+                    "upstream_inference_prompt_cost": 0.00158695,
+                    "upstream_inference_completions_cost": 0.00495
+                },
+                "completion_tokens_details": {
+                    "reasoning_tokens": 118,
+                    "image_tokens": 0,
+                    "audio_tokens": 0
+                }
+            },
+            "provider": "OpenAI",
+            "provider_response_id": "gen-1784830141-cRthESiAkzldS3aAYS2y",
+            "latency_ms": 5339
+        }
+    ],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}

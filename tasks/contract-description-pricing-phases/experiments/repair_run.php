@@ -24,7 +24,7 @@ $app->make(Kernel::class)->bootstrap();
 
 $metadata = json_decode((string) file_get_contents($runDirectory.'/metadata.json'), true, 512, JSON_THROW_ON_ERROR);
 config()->set('contract_interpretation.schema_path', __DIR__.'/'.basename((string) ($metadata['schema'] ?? 'schema-v3.json')));
-config()->set('contract_interpretation.prompt_path', __DIR__.'/'.basename((string) ($metadata['prompt'] ?? 'system-prompt-v6.md')));
+config()->set('contract_interpretation.prompt_path', __DIR__.'/'.basename((string) ($metadata['prompt'] ?? 'system-prompt-v7.md')));
 config()->set('contract_interpretation.model', $metadata['models'][0] ?? config('contract_interpretation.model'));
 config()->set('contract_interpretation.reasoning_effort', $metadata['reasoning_effort'] ?? 'low');
 

@@ -1,0 +1,405 @@
+{
+    "model": "openai/gpt-5.6-luna",
+    "rank": 2,
+    "contract_id": "6e4ly6-kokkolan-energia-oy-tyyni",
+    "input": {
+        "analysis_date": "2026-07-23",
+        "contract_id": "6e4ly6-kokkolan-energia-oy-tyyni",
+        "api_id": "aaaa7ad5-3058-4a3b-9879-2278e130fb49",
+        "company_name": "Kokkolan Energia Oy",
+        "contract_name": "Tyyni",
+        "pricing_model": "FixedPrice",
+        "contract_type": "OpenEnded",
+        "fixed_time_range": "Fixed12",
+        "metering": "General",
+        "target_group": "Household",
+        "spot_price_selection": "NasdaqMonthly",
+        "pricing_name": null,
+        "pricing_has_discounts": false,
+        "short_description": null,
+        "long_description": null,
+        "extra_information_fi": "Hinta on voimassa heinäkuun ajan eli 1.7.-31.7.2026. Elokuun hinta 6,94 snt/kWh. Hinta on voimassa 1.8.-31.8.2026. Tyyni-sähkösopimuksessa sähkön hinta seuraa markkinahintaa yhden kuukauden jaksoissa. Hyödyt sähkön hinnan vaihteluista, mutta silti tiedät etukäteen, mitä sähkö maksaa! Hinta tarkistetaan 12 kertaa vuodessa. Hintajaksot alkavat aina kuukauden alusta ja päättyvät kuukauden viimeiseen päivään. Hinnanmuutokset ilmoitetaan noin 2 viikkoa ennen uuden hintakauden alkamista asiakkaan sähköpostiin sekä verkkosivuillamme. Pystyt vaihtamaan sähkötuotteen 14 päivän irtisanomisajalla. Tee sopimus helposti verkossa 24/7 tästä Olemme tavoitettavissa valitsemallasi tavalla ja viestimme molemmilla kotimaisilla kielillä. Asiakaspalvelu auttaa ja neuvoo monipuolisesti erilaisissa asiakkaita askarruttavissa kysymyksissä. Apua saa muun muassa sähkösopimuksen valinnassa sekä laskutukseen ja muuttoon liittyvissä tilanteissa. Soita meille arkisin puh. 0800 050 60 (mpm/pvm) klo-10-16 Sähköposti asiakaspalvelu@kokkolanenergia.fi",
+        "extra_information_default": null,
+        "time_period_definitions": null,
+        "billing_frequency": null,
+        "consumption_limitation": null,
+        "components": [
+            {
+                "id": "2a0569840c270c999d903f13b7338c62",
+                "price_component_type": "General",
+                "fuse_size": "Any",
+                "price": 4.98,
+                "payment_unit": "CentPerKiwattHour",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            },
+            {
+                "id": "64909995adc30709887ca784a9d55036",
+                "price_component_type": "Monthly",
+                "fuse_size": "Any",
+                "price": 2.53,
+                "payment_unit": "EurPerMonth",
+                "has_discount": false,
+                "discount_value": 0,
+                "discount_is_percentage": false,
+                "discount_type": "NoDiscount",
+                "discount_n_first_kwh": 0,
+                "discount_n_first_months": 0,
+                "discount_until_date": null
+            }
+        ]
+    },
+    "ok": true,
+    "output": {
+        "schema_version": "1.0",
+        "contract_id": "6e4ly6-kokkolan-energia-oy-tyyni",
+        "classification": {
+            "term_type": "OpenEnded",
+            "fixed_duration_months": null,
+            "primary_pricing_model": "FixedPrice",
+            "pricing_mechanisms": [
+                "fixed",
+                "periodic_market_reset"
+            ],
+            "metering": "General",
+            "schedule_kinds": [
+                "recurring_market_reset"
+            ],
+            "spot_settlement_interval": "not_applicable",
+            "periodic_reset_cadence": "monthly"
+        },
+        "pricing": {
+            "phases": [
+                {
+                    "label": "Heinäkuu 2026",
+                    "phase_kind": "current_structured",
+                    "starts": {
+                        "kind": "date",
+                        "value": "2026-07-01"
+                    },
+                    "ends": {
+                        "kind": "date",
+                        "value": "2026-07-31"
+                    },
+                    "components": [
+                        {
+                            "component_type": "energy_general",
+                            "amount": 4.98,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[0].price",
+                                    "quote": "components[0].price=4.98"
+                                }
+                            ]
+                        },
+                        {
+                            "component_type": "monthly_fee",
+                            "amount": 2.53,
+                            "normal_amount": null,
+                            "unit": "eur_per_month",
+                            "vat_status": "unknown",
+                            "price_role": "current",
+                            "source_kind": "structured",
+                            "evidence": [
+                                {
+                                    "source": "components[1].price",
+                                    "quote": "components[1].price=2.53"
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Hinta on voimassa heinäkuun ajan eli 1.7.-31.7.2026."
+                        }
+                    ]
+                },
+                {
+                    "label": "Elokuu 2026",
+                    "phase_kind": "future",
+                    "starts": {
+                        "kind": "date",
+                        "value": "2026-08-01"
+                    },
+                    "ends": {
+                        "kind": "date",
+                        "value": "2026-08-31"
+                    },
+                    "components": [
+                        {
+                            "component_type": "energy_general",
+                            "amount": 6.94,
+                            "normal_amount": null,
+                            "unit": "cents_per_kwh",
+                            "vat_status": "unknown",
+                            "price_role": "future",
+                            "source_kind": "description",
+                            "evidence": [
+                                {
+                                    "source": "extra_information_fi",
+                                    "quote": "Elokuun hinta 6,94 snt/kWh."
+                                }
+                            ]
+                        }
+                    ],
+                    "evidence": [
+                        {
+                            "source": "extra_information_fi",
+                            "quote": "Hinta on voimassa 1.8.-31.8.2026."
+                        }
+                    ]
+                }
+            ],
+            "recurring_schedule": {
+                "present": true,
+                "cadence": "monthly",
+                "current_period_start": "2026-07-01",
+                "current_period_end": "2026-07-31",
+                "future_price_known": false,
+                "description": "Sähkön hinta seuraa markkinahintaa yhden kuukauden jaksoissa ja hinta tarkistetaan 12 kertaa vuodessa.",
+                "evidence": [
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Tyyni-sähkösopimuksessa sähkön hinta seuraa markkinahintaa yhden kuukauden jaksoissa."
+                    },
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Hinta tarkistetaan 12 kertaa vuodessa."
+                    },
+                    {
+                        "source": "extra_information_fi",
+                        "quote": "Hintajaksot alkavat aina kuukauden alusta ja päättyvät kuukauden viimeiseen päivään."
+                    }
+                ]
+            },
+            "consumption_effect": {
+                "present": false,
+                "cadence": "none",
+                "expected_cents_per_kwh": null,
+                "typical_min_cents_per_kwh": null,
+                "typical_max_cents_per_kwh": null,
+                "hard_min_cents_per_kwh": null,
+                "hard_max_cents_per_kwh": null,
+                "uncapped": null,
+                "description": null,
+                "evidence": [],
+                "applies_to": "unknown"
+            }
+        },
+        "source_consistency": {
+            "pricing_model_status": "match",
+            "recommended_pricing_model": "FixedPrice",
+            "contract_type_status": "match",
+            "recommended_contract_type": "OpenEnded",
+            "metering_status": "match",
+            "recommended_metering": "General",
+            "structured_pricing_status": "incomplete",
+            "misleading_first_12_months": "detected",
+            "issue_codes": [
+                "future_price_omitted",
+                "recurring_reset_requires_estimate"
+            ],
+            "summary": "The structured data contains the current energy price and monthly fee, but omits the disclosed August 2026 energy price and the recurring monthly market-reset schedule. The omitted August price is higher than the structured current energy price and falls within the first 12 months after signup.",
+            "evidence": [
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Elokuun hinta 6,94 snt/kWh."
+                },
+                {
+                    "source": "extra_information_fi",
+                    "quote": "Hinta tarkistetaan 12 kertaa vuodessa."
+                },
+                {
+                    "source": "components[0].price",
+                    "quote": "components[0].price=4.98"
+                }
+            ]
+        },
+        "calculation": {
+            "status": "estimate_required",
+            "missing_facts": [
+                "Energy prices for future monthly periods after August 2026",
+                "Contract start date for an exact first-12-month period calculation"
+            ],
+            "required_assumptions": [
+                "Estimate future monthly market-reset energy prices using an explicit market-price forecast; the disclosed August 2026 price is 6.94 cents/kWh"
+            ]
+        },
+        "confidence": {
+            "classification": "high",
+            "pricing": "high",
+            "integrity": "high"
+        }
+    },
+    "usage": {
+        "prompt_tokens": 5373,
+        "completion_tokens": 1420,
+        "total_tokens": 6793,
+        "cost": 0.0097515495,
+        "is_byok": false,
+        "prompt_tokens_details": {
+            "cached_tokens": 4683,
+            "cache_write_tokens": 687,
+            "audio_tokens": 0,
+            "video_tokens": 0
+        },
+        "cost_details": {
+            "upstream_inference_cost": 0.00985005,
+            "upstream_inference_prompt_cost": 0.00133005,
+            "upstream_inference_completions_cost": 0.00852
+        },
+        "completion_tokens_details": {
+            "reasoning_tokens": 377,
+            "image_tokens": 0,
+            "audio_tokens": 0
+        }
+    },
+    "provider": "OpenAI",
+    "latency_seconds": 10.84667708305642,
+    "response_id": "gen-1784830090-baYb4VzrxjjRR8lF4ZJn",
+    "evaluation": {
+        "score": 1,
+        "passed": 14,
+        "total": 14,
+        "checks": [
+            {
+                "name": "term_type",
+                "passed": true,
+                "expected": "OpenEnded",
+                "actual": "OpenEnded"
+            },
+            {
+                "name": "primary_pricing_model",
+                "passed": true,
+                "expected": "FixedPrice",
+                "actual": "FixedPrice"
+            },
+            {
+                "name": "metering",
+                "passed": true,
+                "expected": "General",
+                "actual": "General"
+            },
+            {
+                "name": "spot_settlement_interval",
+                "passed": true,
+                "expected": "not_applicable",
+                "actual": "not_applicable"
+            },
+            {
+                "name": "periodic_reset_cadence",
+                "passed": true,
+                "expected": "monthly",
+                "actual": "monthly"
+            },
+            {
+                "name": "required_mechanisms",
+                "passed": true,
+                "expected": [
+                    "periodic_market_reset"
+                ],
+                "actual": [
+                    "fixed",
+                    "periodic_market_reset"
+                ]
+            },
+            {
+                "name": "pricing_model_status",
+                "passed": true,
+                "expected": "match",
+                "actual": "match"
+            },
+            {
+                "name": "structured_pricing_status",
+                "passed": true,
+                "expected": "incomplete",
+                "actual": "incomplete"
+            },
+            {
+                "name": "misleading_first_12_months",
+                "passed": true,
+                "expected": [
+                    "detected",
+                    "uncertain"
+                ],
+                "actual": "detected"
+            },
+            {
+                "name": "required_issue_codes",
+                "passed": true,
+                "expected": [
+                    "recurring_reset_requires_estimate"
+                ],
+                "actual": [
+                    "future_price_omitted",
+                    "recurring_reset_requires_estimate"
+                ]
+            },
+            {
+                "name": "calculation_status",
+                "passed": true,
+                "expected": "estimate_required",
+                "actual": "estimate_required"
+            },
+            {
+                "name": "consumption_effect.present",
+                "passed": true,
+                "expected": false,
+                "actual": false
+            },
+            {
+                "name": "price:energy_general:6.94",
+                "passed": true,
+                "expected": [
+                    "energy_general",
+                    6.94
+                ],
+                "actual": [
+                    [
+                        "energy_general",
+                        4.98
+                    ],
+                    [
+                        "monthly_fee",
+                        2.53
+                    ],
+                    [
+                        "energy_general",
+                        6.94
+                    ]
+                ]
+            },
+            {
+                "name": "description_evidence_exact",
+                "passed": true,
+                "expected": ">=0.95",
+                "actual": 1
+            }
+        ]
+    },
+    "production_validation": {
+        "model": "openai/gpt-5.6-luna",
+        "rank": 2,
+        "contract_id": "6e4ly6-kokkolan-energia-oy-tyyni",
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    },
+    "repair_attempts": [],
+    "final_production_validation": {
+        "valid": true,
+        "error_count": 0,
+        "errors": []
+    }
+}
