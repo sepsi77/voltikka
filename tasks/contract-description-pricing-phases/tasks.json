@@ -1,0 +1,19 @@
+[
+  {"name":"Investigate description-only promotion mismatches and build initial benchmark", "status":"completed"},
+  {"name":"Investigate Hybrid and consumption-effect frontend/calculation behavior", "status":"completed"},
+  {"name":"Expand architecture to versioned LLM interpretation of every contract", "status":"completed"},
+  {"name":"Define canonical source snapshot and fingerprint test fixtures", "status":"pending"},
+  {"name":"Refresh interpretation-relevant source fields and persist source snapshots during import", "status":"pending"},
+  {"name":"Add interpretation schema, models, statuses, provenance, and active-selection mechanism", "status":"pending"},
+  {"name":"Extract reusable LLM provider client with structured-output support", "status":"pending"},
+  {"name":"Implement idempotent post-commit analysis queueing and backfill commands", "status":"pending"},
+  {"name":"Define and experimentally optimize strict contract interpretation JSON Schema and prompt", "status":"completed"},
+  {"name":"Build reproducible OpenRouter model, cost, latency, and benchmark experiment tooling", "status":"completed"},
+  {"name":"Implement deterministic evidence, numeric, date, unit, phase, and category validation", "status":"pending"},
+  {"name":"Run all active contracts through an experimental shadow analysis and evaluate benchmarks", "status":"completed"},
+  {"name":"Expand labels for category mismatches, recurring resets, and consumption-effect products", "status":"pending"},
+  {"name":"Implement centralized effective-semantics resolver and staged activation", "status":"pending"},
+  {"name":"Implement calendar-aware phase pricing and explicit Hybrid assumptions/ranges", "status":"pending"},
+  {"name":"Update listings, details, rankings, statistics, bill comparison, and warnings", "status":"pending"},
+  {"name":"Add regression tests, operational metrics, retry controls, and review tooling", "status":"pending"}
+]

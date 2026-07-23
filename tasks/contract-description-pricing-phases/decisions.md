@@ -1,0 +1,38 @@
+# Decisions
+
+- Scope expanded from candidate-only description-phase detection to versioned LLM interpretation of every imported contract.
+- Deterministic text/anomaly rules no longer gate analysis. They remain validation signals, prioritization features, and benchmark detectors.
+- Keep immutable/versioned source snapshots, LLM interpretations, and approved effective semantics as separate layers. Never overwrite source fields or imported `price_components` with raw model output.
+- Parse contract semantics on independent axes (term, pricing mechanism, metering/component schedule, cadence, and phases) instead of relying on one overloaded pricing-model enum.
+- Retain a compatible derived `Spot` / `FixedPrice` / `Hybrid` recommendation for existing queries, but treat the richer mechanism taxonomy as the future source of behavior.
+- Compute a canonical semantic `source_fingerprint` and a separate `analysis_fingerprint` that includes schema/prompt/provider/model versions. Re-run only when one of those inputs changes or an operator explicitly requests it.
+- Persist the full interpretation input during import because current database rows are stale for many existing fields and cannot reliably reconstruct the source payload later.
+- Dispatch idempotent analysis jobs after the import transaction commits; never block `contracts:fetch` on the LLM.
+- Use strict JSON Schema, cited evidence, per-field confidence, and deterministic verification of every extracted number/date/unit before activation.
+- Keep LLM-derived pricing phases separate from imported `price_components` so source provenance remains explicit.
+- Roll out in shadow mode. Category or price corrections must not affect filters, rankings, replacement redirects, statistics, or public UI until validated and explicitly promoted.
+- Use one centralized effective-semantics resolver when activating interpretations; do not patch each downstream consumer independently.
+- Prefer factual integrity reasons and specific price-change warnings over automatically accusing a provider of deceptive conduct.
+- Production investigation was read-only and targeted active contracts in Railway project `Voltikka`, environment `production`, MySQL service.
+- Deterministic matches are pricing-schedule candidates, not deceptive contracts. Schedule classification and integrity comparison are separate stages.
+- Legitimate recurring monthly/quarterly resets and fixed-term continuations must not receive deceptive-promotion warnings merely because prices change over time.
+- A recurring-reset classification is not a contract-wide exemption: a quarterly product can also layer a description-only introductory promotion over its ordinary quarterly price.
+- The initial combined rule routed 24/434 active contracts; a broader rule routes approximately 34/434. Manual review found the broader set useful for schedule extraction, but it intentionally contains legitimate schedules and correctly structured promotions.
+- Do not skip contracts whose API says they have discounts. Production examples show one component can be correctly structured while another disclosed component phase is omitted.
+- Refresh or version source descriptions before extraction. Active production rows contain stale campaign dates because existing contract text is not generally refreshed by the importer.
+- Text routing has unknown recall without labeled deceptive-contract ground truth. Analyze every contract; use the union of text rules, peer-normalized anomalies, source-model consistency checks, discount sanity checks, and previous-version comparisons to validate results and prioritize human review.
+- Segment anomaly baselines by pricing model, target/VAT population, contract type/duration, metering, and component. Spot General prices are margins and must never be compared with fixed energy prices.
+- In the household open-ended FixedPrice segment, a joint energy+monthly rule below 80% of peer medians found both clear description-only future increases plus one legitimate monthly-reset product. Schedule classification correctly separates the legitimate case.
+- Treat low price as a prioritization feature, not proof. Energy-only thresholds produced package tariffs, legitimate reset products, and genuine competitive offers as false positives.
+- The initial manual benchmark samples the 100 active household-eligible contracts with the lowest latest 5,000 kWh snapshot cost. Four subagent batches labeled all rows and a separate subagent adjudicated every initial positive/ambiguous result.
+- The focused positive label requires a persisted description announcing that current structured pricing is period-limited while corresponding promotion/future-phase metadata is absent. Missing descriptions are negative/no-signal, not a warning or review trigger.
+- Focused benchmark counts: 4 target mismatches and 96 negatives. Broad text routing found all 4 with 15 routing false positives; this is too small and selection-biased to claim general 100% recall.
+- Track pricing-model mismatches and unsupported consumption effects as separate `issue_types`, not deceptive-promotion positives.
+- Production text matching consumption-effect terms found 42 active contracts: 38 Hybrid, one FixedPrice, and three Spot/optional-fixing products. Structured Hybrid provides a strong detector but not enough calculation semantics.
+- `ContractPriceCalculator` currently treats Hybrid as an ordinary fixed rate and implicitly assumes zero consumption effect. Future Hybrid handling should expose the assumption/range and use extracted expected/typical/capped effects when available.
+- Prompt/model experiments are under `experiments/`. The recommended initial configuration is `openai/gpt-5.6-luna`, `system-prompt-v5.md`, `schema-v2.json`, and low reasoning effort.
+- The final shadow run returned valid structured output for 434/434 active contracts at a reported total cost of about $5.22; model/provider pricing can change.
+- Do not trust the model's headline integrity judgment directly. Derive promotion mismatch deterministically from validated component direction and touching phase boundaries; this made the four-positive top-100 focused benchmark stable across different runs.
+- Do not directly apply LLM category corrections. The model proposed broad enum changes for package products and fixed-to-Spot continuations where `Spot`/`FixedPrice`/`Hybrid` is inherently insufficient. Require deterministic mapping and a second adjudication/manual review for high-impact category changes.
+- Retail metering is determined by component schedule, not hourly/quarter-hourly Spot measurement. General Spot remains `metering=General`; only day/night components imply Time and seasonal components imply Season.
+- Continuation at `after_months=12` is outside the first-12-month calculation horizon. Missing post-year normal pricing is metadata incompleteness, not a first-year understatement.

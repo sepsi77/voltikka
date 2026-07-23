@@ -1,0 +1,2323 @@
+{
+  "dataset_version": 2,
+  "snapshot_date": "2026-07-23",
+  "selection": "100 active household-eligible contracts with the lowest latest contract_price_snapshots.annual_cost_5000_kwh",
+  "input_sha256": "29bcc076f78132875b2425f7e8ebc90ca340e6e7f6635cc8b0011ef07f1470f0",
+  "review_process": {
+    "first_pass": "Four explorer subagent batches of 25 contracts; the failed final batch was rerun.",
+    "adjudication": "A separate explorer subagent independently re-reviewed every first-pass deceptive or uncertain label.",
+    "rubric": "README.md",
+    "scope_clarification": "Missing descriptions are negative/no-signal, not uncertain. Pricing-model mismatch and unsupported consumption effect are tracked as separate issue_types, not promotion positives."
+  },
+  "counts": {
+    "deceptive": 4,
+    "not_deceptive": 96,
+    "uncertain": 0,
+    "binary_benchmark_eligible": 100
+  },
+  "labels": [
+    {
+      "rank_at_5000_kwh": 1,
+      "contract_id": "9a16oh-hehku-energia-oy-hehku-spot",
+      "company_name": "Hehku Energia Oy",
+      "contract_name": "Hehku Spot",
+      "annual_cost_5000_kwh": 201.4288,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [],
+      "reason_codes": [
+        "NOT_DESCRIPTION_ONLY_PROMOTION",
+        "SEPARATE_PRICING_MODEL_MISMATCH"
+      ],
+      "explanation": "Not a target promotion case: the description does not limit an introductory price by period. It is a separate calculation defect because Spot text conflicts with pricing_model=FixedPrice.",
+      "description_evidence": "maksat Nord Poolin Suomen hinta-alueen varttituntihinnan + marginaalin",
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€201.43; General 0.49 CentPerKiwattHour; Monthly 4.9 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": [
+        "pricing_model_mismatch"
+      ]
+    },
+    {
+      "rank_at_5000_kwh": 2,
+      "contract_id": "6e4ly6-kokkolan-energia-oy-tyyni",
+      "company_name": "Kokkolan Energia Oy",
+      "contract_name": "Tyyni",
+      "annual_cost_5000_kwh": 279.36,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [],
+      "reason_codes": [
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€279.36; General 4.98 CentPerKiwattHour; Monthly 2.53 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 3,
+      "contract_id": "brxibd-aalto-energia-oyj-tyyni-vakiohinta",
+      "company_name": "Aalto energia Oyj",
+      "contract_name": "Tyyni Vakiohinta",
+      "annual_cost_5000_kwh": 310.38,
+      "label": "deceptive",
+      "confidence": "high",
+      "schedule_kinds": [],
+      "reason_codes": [
+        "FUTURE_PHASE_OMITTED",
+        "DISCOUNT_METADATA_MISSING"
+      ],
+      "explanation": "Text raises energy from 5.49 to 13.65 c/kWh and the fee from €2.99 to €5.99 on 1 August 2026, but structure annualizes only the introductory prices.",
+      "description_evidence": "1.8.2026 alkaen energian hinta on 13,65 snt/kWh ja perusmaksu 5,99 €/kk.",
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€310.38; General 5.49 CentPerKiwattHour; Monthly 2.99 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": [
+        "description_only_promotion"
+      ]
+    },
+    {
+      "rank_at_5000_kwh": 4,
+      "contract_id": "eoksoz-vaasan-sahko-myynti-oy-vaikuttaja",
+      "company_name": "Vaasan Sähkö Myynti Oy",
+      "contract_name": "Vaikuttaja",
+      "annual_cost_5000_kwh": 388.8,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "hybrid_consumption_effect"
+      ],
+      "reason_codes": [
+        "HYBRID_MODEL_REVIEWED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Hybrid/OpenEnded; annual_cost_5000=€388.80; General 6.6 CentPerKiwattHour; Monthly 4.9 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 5,
+      "contract_id": "xlclt2-sahkotytot-oy-porssisahko-tarjous-ilmainen-perusmaksu-ensimmaiset-3kk",
+      "company_name": "Sähkötytöt Oy",
+      "contract_name": "Pörssisähkö (Tarjous: ilmainen perusmaksu ensimmäiset 3kk!)",
+      "annual_cost_5000_kwh": 390.93,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION_REVIEWED",
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€390.93; General 0.39 CentPerKiwattHour; Monthly 1.95 EurPerMonth (discount 1.95 NFirstMonth 3 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 6,
+      "contract_id": "zp2qud-korpelan-energia-oy-korpela-kvartaali",
+      "company_name": "Korpelan Energia Oy",
+      "contract_name": "Korpela Kvartaali",
+      "annual_cost_5000_kwh": 394.9,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "hybrid_consumption_effect"
+      ],
+      "reason_codes": [
+        "HYBRID_MODEL_REVIEWED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Hybrid/OpenEnded; annual_cost_5000=€394.90; General 6.95 CentPerKiwattHour; Monthly 3.95 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 7,
+      "contract_id": "kz9acg-cheap-energy-finland-oy-cheap-porssisahko-kampanja-perusmaksualennus-6-kk-490-kk-ja-marginaalialennus-6kk-039-sntkwh",
+      "company_name": "Cheap Energy Finland Oy",
+      "contract_name": "Cheap Pörssisähkö - KAMPANJA - Perusmaksualennus 6 kk 4,90 €/kk ja marginaalialennus 6kk 0,39 snt/kWh",
+      "annual_cost_5000_kwh": 402.78,
+      "label": "deceptive",
+      "confidence": "high",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "PARTIAL_PROMO_METADATA",
+        "MARGIN_PHASE_OMITTED"
+      ],
+      "explanation": "The six-month monthly-fee discount is structured, but the disclosed margin increase from 0.39 to 0.78 c/kWh is omitted.",
+      "description_evidence": "Tämän jälkeen marginaali 0,78 € snt/kWh ja perusmaksu 4,90€/kk.",
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€402.78; General 0.39 CentPerKiwattHour; Monthly 4.9 EurPerMonth (discount 4.9 NFirstMonth 6 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": [
+        "description_only_promotion"
+      ]
+    },
+    {
+      "rank_at_5000_kwh": 8,
+      "contract_id": "o9njxl-herrfors-oy-ab-spot",
+      "company_name": "Herrfors Oy Ab",
+      "contract_name": "Spot+",
+      "annual_cost_5000_kwh": 404.86,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€404.86; General 0.29 CentPerKiwattHour; Monthly 3.04 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 9,
+      "contract_id": "kvwny9-vihrea-alyenergia-oy-vire-tuuli-porssisahko-tarjous-ensimmaiset-12-kk",
+      "company_name": "Vihreä Älyenergia Oy",
+      "contract_name": "Vire Tuuli – pörssisähkö – tarjous ensimmäiset 12 kk!",
+      "annual_cost_5000_kwh": 406.28,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION_REVIEWED",
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€406.28; General 0.45 CentPerKiwattHour; Monthly 2.99 EurPerMonth (discount 2.99 NFirstMonth 2 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 10,
+      "contract_id": "axillh-nordic-green-energy-ilmasto-porssisahko",
+      "company_name": "Nordic Green Energy",
+      "contract_name": "Ilmasto pörssisähkö",
+      "annual_cost_5000_kwh": 406.76,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION_REVIEWED",
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€406.76; General 0.68 CentPerKiwattHour (discount 0.34 NFirstMonth 12 months); Monthly 5.98 EurPerMonth (discount 2.99 NFirstMonth 12 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 11,
+      "contract_id": "nlac9s-seinajoen-energia-oy-se-oikea-yleissahko",
+      "company_name": "Seinäjoen Energia Oy",
+      "contract_name": "SE Oikea - Yleissähkö",
+      "annual_cost_5000_kwh": 408.6,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [],
+      "reason_codes": [
+        "NO_PERSISTED_DESCRIPTION_ONLY_PROMOTION_SIGNAL"
+      ],
+      "explanation": "No persisted description announces that the structured current price is limited to a period without corresponding promotion metadata; missing description is not a target signal.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€408.60; General 7.2 CentPerKiwattHour; Monthly 4.05 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 12,
+      "contract_id": "0uohci-vihrea-alyenergia-oy-opiskelijan-verraton-porssisahko",
+      "company_name": "Vihreä Älyenergia Oy",
+      "contract_name": "Opiskelijan Verraton - Pörssisähkö",
+      "annual_cost_5000_kwh": 409.26,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€409.26; General 0.39 CentPerKiwattHour; Monthly 2.99 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 13,
+      "contract_id": "cxdwul-kokkolan-energia-oy-surffari-kesakampanja",
+      "company_name": "Kokkolan Energia Oy",
+      "contract_name": "Surffari kesäkampanja",
+      "annual_cost_5000_kwh": 412.5733,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION_REVIEWED",
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€412.57; General 0.6 CentPerKiwattHour (discount 0.4 UntilDate 0 months until 2026-08-31); Monthly 2.53 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 14,
+      "contract_id": "rl6kxz-hehku-energia-oy-hehku-porssi-0-kuukausimaksu-ensimmaiset-3-kk",
+      "company_name": "Hehku Energia Oy",
+      "contract_name": "Hehku PÖRSSI - 0€ KUUKAUSIMAKSU ENSIMMÄISET 3 KK!",
+      "annual_cost_5000_kwh": 413.88,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION_REVIEWED",
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€413.88; General 0.39 CentPerKiwattHour; Monthly 4.5 EurPerMonth (discount 4.5 NFirstMonth 3 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 15,
+      "contract_id": "q2gfjf-vattenfall-oy-optimi-porssisahko-perusmaksut-50-ensimmaiset-12-kuukautta",
+      "company_name": "Vattenfall Oy",
+      "contract_name": "Optimi Pörssisähkö - Perusmaksut -50 % ensimmäiset 12 kuukautta",
+      "annual_cost_5000_kwh": 414.52,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION_REVIEWED",
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€414.52; General 0.5 CentPerKiwattHour; Monthly 5.95 EurPerMonth (discount 2.98 NFirstMonth 12 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 16,
+      "contract_id": "nvllc4-vattenfall-oy-optimi-porssisahko-6-kk-perusmaksu-0",
+      "company_name": "Vattenfall Oy",
+      "contract_name": "Optimi Pörssisähkö, 6 kk perusmaksu 0 €",
+      "annual_cost_5000_kwh": 414.58,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION_REVIEWED",
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€414.58; General 0.5 CentPerKiwattHour; Monthly 5.95 EurPerMonth (discount 5.95 NFirstMonth 6 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 17,
+      "contract_id": "83t7i7-pohjois-karjalan-sahko-oy-optimi-kuukausi",
+      "company_name": "Pohjois-Karjalan Sähkö Oy",
+      "contract_name": "Optimi kuukausi",
+      "annual_cost_5000_kwh": 414.72,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "seasonal_tariff"
+      ],
+      "reason_codes": [
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€414.72; Monthly 4.56 EurPerMonth; SeasonalOther 7.2 CentPerKiwattHour; SeasonalWinterDay 7.2 CentPerKiwattHour",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 18,
+      "contract_id": "i5gaxw-pohjois-karjalan-sahko-oy-optimi-kuukausi",
+      "company_name": "Pohjois-Karjalan Sähkö Oy",
+      "contract_name": "Optimi kuukausi",
+      "annual_cost_5000_kwh": 414.72,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [],
+      "reason_codes": [
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€414.72; General 7.2 CentPerKiwattHour; Monthly 4.56 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 19,
+      "contract_id": "jv1sdq-pohjois-karjalan-sahko-oy-optimi-kuukausi",
+      "company_name": "Pohjois-Karjalan Sähkö Oy",
+      "contract_name": "Optimi kuukausi",
+      "annual_cost_5000_kwh": 414.72,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "time_of_use_tariff"
+      ],
+      "reason_codes": [
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€414.72; DayTime 7.2 CentPerKiwattHour; Monthly 4.56 EurPerMonth; NightTime 7.2 CentPerKiwattHour",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 20,
+      "contract_id": "djobdk-vihrea-alyenergia-oy-vire-tuuli-opiskelija",
+      "company_name": "Vihreä Älyenergia Oy",
+      "contract_name": "Vire Tuuli – Opiskelija",
+      "annual_cost_5000_kwh": 415.26,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€415.26; General 0.99 CentPerKiwattHour; Monthly 0.99 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 21,
+      "contract_id": "osszso-aalto-energia-oyj-luotsi-porssisahko-tarjous-perusmaksu-099-ensimmaiset-12kk",
+      "company_name": "Aalto energia Oyj",
+      "contract_name": "Luotsi pörssisähkö (Tarjous! Perusmaksu 0,99€ ensimmäiset 12KK!)",
+      "annual_cost_5000_kwh": 415.26,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€415.26; General 0.99 CentPerKiwattHour; Monthly 0.99 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 22,
+      "contract_id": "408nd7-imatran-seudun-sahko-oy-ajantasa-kampanja-4-ensimmaista-kk-ilman-perusmaksua",
+      "company_name": "Imatran Seudun Sähkö Oy",
+      "contract_name": "Ajantasa kampanja (4 ensimmäistä kk ilman perusmaksua!)",
+      "annual_cost_5000_kwh": 417.08,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION_REVIEWED",
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€417.08; General 0.48 CentPerKiwattHour; Monthly 4.9 EurPerMonth (discount 4.9 NFirstMonth 4 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 23,
+      "contract_id": "d6kml6-herrfors-oy-ab-spot-sahko-100-uusiutuva-sahko",
+      "company_name": "Herrfors Oy Ab",
+      "contract_name": "Spot-sähkö 100% uusiutuva sähkö",
+      "annual_cost_5000_kwh": 417.36,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€417.36; General 0.54 CentPerKiwattHour; Monthly 3.04 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 24,
+      "contract_id": "xvnarv-porvoon-energia-oy-spot-porssisahko",
+      "company_name": "Porvoon Energia Oy",
+      "contract_name": "SPOT pörssisähkö",
+      "annual_cost_5000_kwh": 417.58,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€417.58; General 0.41 CentPerKiwattHour; Monthly 3.6 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 25,
+      "contract_id": "icbxvy-vimpelin-voima-oy-sulaketariffi",
+      "company_name": "Vimpelin Voima Oy",
+      "contract_name": "Sulaketariffi",
+      "annual_cost_5000_kwh": 420.4,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [],
+      "reason_codes": [
+        "NO_PERSISTED_DESCRIPTION_ONLY_PROMOTION_SIGNAL"
+      ],
+      "explanation": "No persisted description announces that the structured current price is limited to a period without corresponding promotion metadata; missing description is not a target signal.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€420.40; General 7.4 CentPerKiwattHour; Monthly 4.2 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 26,
+      "contract_id": "n2vo1z-aanekosken-energia-oy-porssisahko-tunti",
+      "company_name": "Äänekosken Energia Oy",
+      "contract_name": "Pörssisähkö tunti",
+      "annual_cost_5000_kwh": 421.28,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€421.28; General 0.4 CentPerKiwattHour; Monthly 3.95 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 27,
+      "contract_id": "o8rhp6-aanekosken-energia-oy-porssisahko",
+      "company_name": "Äänekosken Energia Oy",
+      "contract_name": "Pörssisähkö",
+      "annual_cost_5000_kwh": 421.28,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€421.28; General 0.4 CentPerKiwattHour; Monthly 3.95 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 28,
+      "contract_id": "kl9bng-seinajoen-energia-oy-porssisahko",
+      "company_name": "Seinäjoen Energia Oy",
+      "contract_name": "Pörssisähkö",
+      "annual_cost_5000_kwh": 422.98,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€422.98; General 0.41 CentPerKiwattHour; Monthly 4.05 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 29,
+      "contract_id": "vgornb-lumme-energia-porssisahko-3-kk-ilman-kk-maksua",
+      "company_name": "Lumme Energia",
+      "contract_name": "Pörssisähkö - 3 kk ilman kk-maksua",
+      "annual_cost_5000_kwh": 423.07,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION_REVIEWED",
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€423.07; General 0.5 CentPerKiwattHour; Monthly 4.91 EurPerMonth (discount 4.91 NFirstMonth 3 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 30,
+      "contract_id": "xwfvrr-hehku-energia-oy-hehku-hiilivapaa-porssi-0-kuukausimaksu-ensimmaiset-6-kk",
+      "company_name": "Hehku Energia Oy",
+      "contract_name": "Hehku Hiilivapaa Pörssi - 0€ KUUKAUSIMAKSU ENSIMMÄISET 6 KK!",
+      "annual_cost_5000_kwh": 423.78,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION_REVIEWED",
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€423.78; General 0.69 CentPerKiwattHour; Monthly 5.9 EurPerMonth (discount 5.9 NFirstMonth 6 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 31,
+      "contract_id": "ecjsml-vimpelin-voima-oy-spot-energia",
+      "company_name": "Vimpelin Voima Oy",
+      "contract_name": "Spot-energia",
+      "annual_cost_5000_kwh": 424.28,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "NO_PERSISTED_DESCRIPTION_ONLY_PROMOTION_SIGNAL"
+      ],
+      "explanation": "No persisted description announces that the structured current price is limited to a period without corresponding promotion metadata; missing description is not a target signal.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€424.28; General 0.4 CentPerKiwattHour; Monthly 4.2 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 32,
+      "contract_id": "n2hxzq-vihrea-alyenergia-oy-verraton-porssisahko-tarjous-ensimmaiset-6-kk",
+      "company_name": "Vihreä Älyenergia Oy",
+      "contract_name": "Verraton pörssisähkö – tarjous ensimmäiset 6 kk!",
+      "annual_cost_5000_kwh": 426.01,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION_REVIEWED",
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€426.01; General 0.59 CentPerKiwattHour (discount 0.21 NFirstMonth 6 months); Monthly 4.99 EurPerMonth (discount 2 NFirstMonth 6 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 33,
+      "contract_id": "0lpjxi-parikkalan-valo-oy-spot-valo",
+      "company_name": "Parikkalan Valo Oy",
+      "contract_name": "Spot Valo",
+      "annual_cost_5000_kwh": 426.18,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "time_of_use_tariff"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€426.18; DayTime 0.33 CentPerKiwattHour; Monthly 4.65 EurPerMonth; NightTime 0.33 CentPerKiwattHour",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 34,
+      "contract_id": "fuabtk-parikkalan-valo-oy-spot-valo",
+      "company_name": "Parikkalan Valo Oy",
+      "contract_name": "Spot Valo",
+      "annual_cost_5000_kwh": 426.18,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€426.18; General 0.33 CentPerKiwattHour; Monthly 4.65 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 35,
+      "contract_id": "grl0lx-parikkalan-valo-oy-spot-valo",
+      "company_name": "Parikkalan Valo Oy",
+      "contract_name": "Spot Valo",
+      "annual_cost_5000_kwh": 426.18,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "seasonal_tariff"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€426.18; Monthly 4.65 EurPerMonth; SeasonalOther 0.33 CentPerKiwattHour; SeasonalWinterDay 0.33 CentPerKiwattHour",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 36,
+      "contract_id": "foheha-korpelan-energia-oy-korpela-spotti",
+      "company_name": "Korpelan Energia Oy",
+      "contract_name": "Korpela Spotti",
+      "annual_cost_5000_kwh": 426.28,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€426.28; General 0.5 CentPerKiwattHour; Monthly 3.95 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 37,
+      "contract_id": "iq7fja-vimpelin-voima-oy-vuodenaikatariffi",
+      "company_name": "Vimpelin Voima Oy",
+      "contract_name": "Vuodenaikatariffi",
+      "annual_cost_5000_kwh": 426.7704,
+      "label": "deceptive",
+      "confidence": "high",
+      "schedule_kinds": [
+        "seasonal_tariff"
+      ],
+      "reason_codes": [
+        "PROMOTION_EXPIRY_UNSTRUCTURED",
+        "CURRENT_DISCOUNT_ANNUALIZED_PAST_EXPIRY"
+      ],
+      "explanation": "The description explicitly limits the current discount to 31 August 2026 and says the prior tariff returns on 1 September, while every current component is marked NoDiscount. Voltikka therefore annualizes temporary prices past their stated expiry; the exact corrected total is unknown because the returning tariff is omitted.",
+      "description_evidence": "Määräaikainen alennus voimassa 1.6.2026-31.8.2026. 1.9.2026 palaamme automaattisesti ilman erillistä ilmoitusta alennusta edeltäneeseen hinnastoon.",
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€426.77; Monthly 4.2 EurPerMonth; SeasonalOther 7.2 CentPerKiwattHour; SeasonalWinterDay 8 CentPerKiwattHour",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": [
+        "description_only_promotion"
+      ]
+    },
+    {
+      "rank_at_5000_kwh": 38,
+      "contract_id": "1xpsyz-paneliankosken-voima-oy-kosken-markkinawoima",
+      "company_name": "Paneliankosken Voima Oy",
+      "contract_name": "Kosken markkinaWoima",
+      "annual_cost_5000_kwh": 426.88,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "seasonal_tariff"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€426.88; Monthly 4 EurPerMonth; SeasonalOther 0.5 CentPerKiwattHour; SeasonalWinterDay 0.5 CentPerKiwattHour",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 39,
+      "contract_id": "qweosn-paneliankosken-voima-oy-kosken-markkinawoima",
+      "company_name": "Paneliankosken Voima Oy",
+      "contract_name": "Kosken markkinaWoima",
+      "annual_cost_5000_kwh": 426.88,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€426.88; General 0.5 CentPerKiwattHour; Monthly 4 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 40,
+      "contract_id": "mfxy4n-helen-oy-markkinahintasahko",
+      "company_name": "Helen Oy",
+      "contract_name": "Markkinahintasähkö",
+      "annual_cost_5000_kwh": 427.26,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [],
+      "reason_codes": [
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€427.26; General 7.59 CentPerKiwattHour; Monthly 3.98 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 41,
+      "contract_id": "jbktvc-seinajoen-energia-oy-se-oikea-vuodenaikasahko",
+      "company_name": "Seinäjoen Energia Oy",
+      "contract_name": "SE Oikea - Vuodenaikasähkö",
+      "annual_cost_5000_kwh": 427.3219,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [
+        "seasonal_tariff"
+      ],
+      "reason_codes": [
+        "NO_PERSISTED_DESCRIPTION_ONLY_PROMOTION_SIGNAL"
+      ],
+      "explanation": "No persisted description announces that the structured current price is limited to a period without corresponding promotion metadata; missing description is not a target signal.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€427.32; Monthly 5.06 EurPerMonth; SeasonalOther 6.8 CentPerKiwattHour; SeasonalWinterDay 8.1 CentPerKiwattHour",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 42,
+      "contract_id": "vt6gp0-keuruun-sahko-oy-spot-sahko",
+      "company_name": "Keuruun Sähkö Oy",
+      "contract_name": "Spot sähkö",
+      "annual_cost_5000_kwh": 427.98,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "NO_PERSISTED_DESCRIPTION_ONLY_PROMOTION_SIGNAL"
+      ],
+      "explanation": "No persisted description announces that the structured current price is limited to a period without corresponding promotion metadata; missing description is not a target signal.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€427.98; General 0.51 CentPerKiwattHour; Monthly 4.05 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 43,
+      "contract_id": "1ucmby-cheap-energy-finland-oy-cheap-kvartaalisahko",
+      "company_name": "Cheap Energy Finland Oy",
+      "contract_name": "Cheap Kvartaalisähkö",
+      "annual_cost_5000_kwh": 428.4,
+      "label": "deceptive",
+      "confidence": "high",
+      "schedule_kinds": [
+        "recurring_quarterly_reset",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "FUTURE_PHASE_OMITTED",
+        "PARTIAL_PROMO_METADATA"
+      ],
+      "explanation": "The first-month fee discount is structured, but the disclosed energy increase from 7.49 to 9.95 c/kWh is not.",
+      "description_evidence": "Energianhinta 9,95 snt/kWh + perusmaksu 4,90€/kk.",
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€428.40; General 7.49 CentPerKiwattHour; Monthly 4.9 EurPerMonth (discount 4.9 NFirstMonth 1 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": [
+        "description_only_promotion"
+      ]
+    },
+    {
+      "rank_at_5000_kwh": 44,
+      "contract_id": "pgbqqk-oomi-oy-oomi-aktiivinen",
+      "company_name": "Oomi Oy",
+      "contract_name": "Oomi Aktiivinen",
+      "annual_cost_5000_kwh": 428.52,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION_REVIEWED",
+        "NO_MATERIAL_UNDERSTATEMENT_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€428.52; General 0.6 CentPerKiwattHour; Monthly 4.96 EurPerMonth (discount 4.96 NFirstMonth 3 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 45,
+      "contract_id": "plbcxh-kokkolan-energia-oy-vuodenaika",
+      "company_name": "Kokkolan Energia Oy",
+      "contract_name": "Vuodenaika",
+      "annual_cost_5000_kwh": 428.86,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "recurring_quarterly_reset"
+      ],
+      "reason_codes": [
+        "LEGITIMATE_RECURRING_RESET",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€428.86; General 7.97 CentPerKiwattHour; Monthly 2.53 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 46,
+      "contract_id": "d5h1uq-keravan-energia-oy-fiksusahko",
+      "company_name": "Keravan Energia Oy",
+      "contract_name": "Fiksusähkö",
+      "annual_cost_5000_kwh": 429.86,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€429.86; General 0.55 CentPerKiwattHour; Monthly 4.04 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 47,
+      "contract_id": "mdf8fw-keravan-energia-oy-fiksusahko-luonnonvoima",
+      "company_name": "Keravan Energia Oy",
+      "contract_name": "Fiksusähkö luonnonvoima",
+      "annual_cost_5000_kwh": 429.86,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "MODEL_ALIGNED",
+        "INACTIVE_DISCOUNT_FIELDS"
+      ],
+      "explanation": "Description and Spot structure align; residual monthly discount fields are explicitly inactive and do not conceal a higher phase.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€429.86; General 0.55 CentPerKiwattHour; Monthly 4.04 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 48,
+      "contract_id": "urlxpl-koillis-satakunnan-sahko-oy-tuntiwirta",
+      "company_name": "Koillis-Satakunnan Sähkö Oy",
+      "contract_name": "TuntiWirta",
+      "annual_cost_5000_kwh": 430.12,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€430.12; General 0.44 CentPerKiwattHour; Monthly 4.52 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 49,
+      "contract_id": "ufstl2-kokkolan-energia-oy-surffari-vihrea",
+      "company_name": "Kokkolan Energia Oy",
+      "contract_name": "Surffari Vihreä",
+      "annual_cost_5000_kwh": 430.24,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€430.24; General 0.92 CentPerKiwattHour; Monthly 2.53 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 50,
+      "contract_id": "vu1pv5-alajarven-sahko-oy-porssisahko",
+      "company_name": "Alajärven Sähkö Oy",
+      "contract_name": "Pörssisähkö",
+      "annual_cost_5000_kwh": 430.38,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "NO_PERSISTED_DESCRIPTION_ONLY_PROMOTION_SIGNAL"
+      ],
+      "explanation": "No persisted description announces that the structured current price is limited to a period without corresponding promotion metadata; missing description is not a target signal.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€430.38; General 0.45 CentPerKiwattHour; Monthly 4.5 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 51,
+      "contract_id": "depdmn-pohjois-karjalan-sahko-oy-priima",
+      "company_name": "Pohjois-Karjalan Sähkö Oy",
+      "contract_name": "Priima",
+      "annual_cost_5000_kwh": 431.4,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€431.40; General 0.456 CentPerKiwattHour; Monthly 4.56 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 52,
+      "contract_id": "sqbosc-nurmijarven-sahko-oy-porssisahko",
+      "company_name": "Nurmijärven Sähkö Oy",
+      "contract_name": "Pörssisähkö",
+      "annual_cost_5000_kwh": 431.98,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€431.98; General 0.59 CentPerKiwattHour; Monthly 4.05 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 53,
+      "contract_id": "akhbwv-parikkalan-valo-oy-q-valo",
+      "company_name": "Parikkalan Valo Oy",
+      "contract_name": "Q-Valo",
+      "annual_cost_5000_kwh": 432.3,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [],
+      "reason_codes": [
+        "NO_PERSISTED_DESCRIPTION_ONLY_PROMOTION_SIGNAL"
+      ],
+      "explanation": "No persisted description announces that the structured current price is limited to a period without corresponding promotion metadata; missing description is not a target signal.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€432.30; General 7.53 CentPerKiwattHour; Monthly 4.65 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 54,
+      "contract_id": "lzyqzg-turku-energia-oy-louna-porssi",
+      "company_name": "Turku Energia Oy",
+      "contract_name": "Louna Pörssi",
+      "annual_cost_5000_kwh": 434.28,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€434.28; General 0.42 CentPerKiwattHour; Monthly 4.95 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 55,
+      "contract_id": "yobmdq-lammaisten-energia-oy-wiksu-markkinasahko",
+      "company_name": "Lammaisten Energia Oy",
+      "contract_name": "WIKSU-MARKKINASÄHKÖ",
+      "annual_cost_5000_kwh": 436.48,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "NO_PERSISTED_DESCRIPTION_ONLY_PROMOTION_SIGNAL"
+      ],
+      "explanation": "No persisted description announces that the structured current price is limited to a period without corresponding promotion metadata; missing description is not a target signal.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€436.48; General 0.56 CentPerKiwattHour; Monthly 4.55 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 56,
+      "contract_id": "mxkabq-vaasan-sahko-myynti-oy-porssisahko",
+      "company_name": "Vaasan Sähkö Myynti Oy",
+      "contract_name": "Pörssisähkö",
+      "annual_cost_5000_kwh": 436.68,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€436.68; General 0.48 CentPerKiwattHour; Monthly 4.9 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 57,
+      "contract_id": "ttpvga-vaasan-sahko-myynti-oy-toimitusvelvollinen-porssisahko",
+      "company_name": "Vaasan Sähkö Myynti Oy",
+      "contract_name": "Toimitusvelvollinen Pörssisähkö",
+      "annual_cost_5000_kwh": 436.68,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€436.68; General 0.48 CentPerKiwattHour; Monthly 4.9 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 58,
+      "contract_id": "huinlz-koylion-sakylan-sahko-oy-lallin-markkinasahko",
+      "company_name": "Köyliön-Säkylän Sähkö Oy",
+      "contract_name": "Lallin Markkinasähkö",
+      "annual_cost_5000_kwh": 437.06,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€437.06; General 0.49 CentPerKiwattHour; Monthly 4.89 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 59,
+      "contract_id": "shnxdx-helen-oy-porssisahko",
+      "company_name": "Helen Oy",
+      "contract_name": "Pörssisähkö",
+      "annual_cost_5000_kwh": 437.9,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€437.90; General 0.49 CentPerKiwattHour; Monthly 4.96 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 60,
+      "contract_id": "cusb9y-omavoima-oy-priima",
+      "company_name": "Omavoima Oy",
+      "contract_name": "Priima",
+      "annual_cost_5000_kwh": 438.88,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€438.88; General 0.5 CentPerKiwattHour; Monthly 5 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 61,
+      "contract_id": "gjhzfc-kokkolan-energia-oy-vuodenaika-uusiutuva",
+      "company_name": "Kokkolan Energia Oy",
+      "contract_name": "Vuodenaika uusiutuva",
+      "annual_cost_5000_kwh": 441.36,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "recurring_quarterly_reset"
+      ],
+      "reason_codes": [
+        "LEGITIMATE_RECURRING_RESET",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€441.36; General 8.22 CentPerKiwattHour; Monthly 2.53 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 62,
+      "contract_id": "tzhie3-herrfors-oy-ab-vakaa",
+      "company_name": "Herrfors Oy Ab",
+      "contract_name": "Vakaa+",
+      "annual_cost_5000_kwh": 442.6,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "hybrid_consumption_effect"
+      ],
+      "reason_codes": [
+        "HYBRID_VARIABILITY",
+        "NO_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "The Hybrid model and consumption effect are disclosed, with no persisted evidence of an omitted systematically higher phase.",
+      "description_evidence": null,
+      "structured_evidence": "Hybrid/OpenEnded; annual_cost_5000=€442.60; General 7.88 CentPerKiwattHour; Monthly 4.05 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 63,
+      "contract_id": "qpc4c9-vihrea-alyenergia-oy-hintalukko-porssisahko-kiinnitysmahdollisuus",
+      "company_name": "Vihreä Älyenergia Oy",
+      "contract_name": "Hintalukko - Pörssisähkö - Kiinnitys­mahdollisuus!",
+      "annual_cost_5000_kwh": 443.26,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€443.26; General 0.59 CentPerKiwattHour; Monthly 4.99 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 64,
+      "contract_id": "uio8ny-iin-energia-oy-ien-spot",
+      "company_name": "Iin Energia Oy",
+      "contract_name": "IEN Spot",
+      "annual_cost_5000_kwh": 445.72,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "NO_PERSISTED_DESCRIPTION_ONLY_PROMOTION_SIGNAL"
+      ],
+      "explanation": "No persisted description announces that the structured current price is limited to a period without corresponding promotion metadata; missing description is not a target signal.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€445.72; General 0.38 CentPerKiwattHour; Monthly 6.07 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 65,
+      "contract_id": "ggpwbi-parikkalan-valo-oy-kesto-valo-kanta-asiakas",
+      "company_name": "Parikkalan Valo Oy",
+      "contract_name": "Kesto Valo kanta-asiakas",
+      "annual_cost_5000_kwh": 448.3,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [],
+      "reason_codes": [
+        "NO_PERSISTED_DESCRIPTION_ONLY_PROMOTION_SIGNAL"
+      ],
+      "explanation": "No persisted description announces that the structured current price is limited to a period without corresponding promotion metadata; missing description is not a target signal.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€448.30; General 7.85 CentPerKiwattHour; Monthly 4.65 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 66,
+      "contract_id": "gxeryx-parikkalan-valo-oy-kesto-valo-kanta-asiakas",
+      "company_name": "Parikkalan Valo Oy",
+      "contract_name": "Kesto Valo kanta-asiakas",
+      "annual_cost_5000_kwh": 448.3,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [
+        "time_of_use_tariff"
+      ],
+      "reason_codes": [
+        "NO_PERSISTED_DESCRIPTION_ONLY_PROMOTION_SIGNAL"
+      ],
+      "explanation": "No persisted description announces that the structured current price is limited to a period without corresponding promotion metadata; missing description is not a target signal.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€448.30; DayTime 7.85 CentPerKiwattHour; Monthly 4.65 EurPerMonth; NightTime 7.85 CentPerKiwattHour",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 67,
+      "contract_id": "jrrlvh-parikkalan-valo-oy-kesto-valo-kanta-asiakas",
+      "company_name": "Parikkalan Valo Oy",
+      "contract_name": "Kesto Valo kanta-asiakas",
+      "annual_cost_5000_kwh": 448.3,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [
+        "seasonal_tariff"
+      ],
+      "reason_codes": [
+        "NO_PERSISTED_DESCRIPTION_ONLY_PROMOTION_SIGNAL"
+      ],
+      "explanation": "No persisted description announces that the structured current price is limited to a period without corresponding promotion metadata; missing description is not a target signal.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€448.30; Monthly 4.65 EurPerMonth; SeasonalOther 7.85 CentPerKiwattHour; SeasonalWinterDay 7.85 CentPerKiwattHour",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 68,
+      "contract_id": "9rgh30-aalto-energia-oyj-huoleton",
+      "company_name": "Aalto energia Oyj",
+      "contract_name": "Huoleton",
+      "annual_cost_5000_kwh": 449.95,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "recurring_quarterly_reset",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "LEGITIMATE_RECURRING_RESET",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€449.95; General 7.69 CentPerKiwattHour; Monthly 5.95 EurPerMonth (discount 5.95 NFirstMonth 1 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 69,
+      "contract_id": "cxvuwg-vattenfall-oy-optimi-porssisahko-tuuli",
+      "company_name": "Vattenfall Oy",
+      "contract_name": "Optimi Pörssisähkö Tuuli",
+      "annual_cost_5000_kwh": 450.28,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€450.28; General 0.5 CentPerKiwattHour; Monthly 5.95 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 70,
+      "contract_id": "e4ohro-vattenfall-oy-optimi-porssisahko-vesi",
+      "company_name": "Vattenfall Oy",
+      "contract_name": "Optimi Pörssisähkö Vesi",
+      "annual_cost_5000_kwh": 450.28,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€450.28; General 0.5 CentPerKiwattHour; Monthly 5.95 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 71,
+      "contract_id": "edr0rh-vattenfall-oy-optimi-porssisahko",
+      "company_name": "Vattenfall Oy",
+      "contract_name": "Optimi Pörssisähkö",
+      "annual_cost_5000_kwh": 450.28,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€450.28; General 0.5 CentPerKiwattHour; Monthly 5.95 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 72,
+      "contract_id": "1eh6re-vaasan-sahko-myynti-oy-perussahko-yleissahko",
+      "company_name": "Vaasan Sähkö Myynti Oy",
+      "contract_name": "Perussähkö (yleissähkö)",
+      "annual_cost_5000_kwh": 453.8,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "recurring_quarterly_reset"
+      ],
+      "reason_codes": [
+        "LEGITIMATE_RECURRING_RESET",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€453.80; General 7.9 CentPerKiwattHour; Monthly 4.9 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 73,
+      "contract_id": "bskkkf-vaasan-sahko-myynti-oy-toimitusvelvollinen-perussahko",
+      "company_name": "Vaasan Sähkö Myynti Oy",
+      "contract_name": "Toimitusvelvollinen Perussähkö",
+      "annual_cost_5000_kwh": 453.8,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "recurring_quarterly_reset"
+      ],
+      "reason_codes": [
+        "LEGITIMATE_RECURRING_RESET",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€453.80; General 7.9 CentPerKiwattHour; Monthly 4.9 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 74,
+      "contract_id": "y32lx5-seinajoen-energia-oy-se-oikea-aikasahko",
+      "company_name": "Seinäjoen Energia Oy",
+      "contract_name": "SE Oikea - Aikasähkö",
+      "annual_cost_5000_kwh": 453.845,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [
+        "time_of_use_tariff"
+      ],
+      "reason_codes": [
+        "NO_PERSISTED_DESCRIPTION_ONLY_PROMOTION_SIGNAL"
+      ],
+      "explanation": "No persisted description announces that the structured current price is limited to a period without corresponding promotion metadata; missing description is not a target signal.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€453.85; DayTime 8.35 CentPerKiwattHour; Monthly 5.06 EurPerMonth; NightTime 5.1 CentPerKiwattHour",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 75,
+      "contract_id": "5x48mf-fortum-markets-oy-fortum-tarkka",
+      "company_name": "Fortum Markets Oy",
+      "contract_name": "Fortum Tarkka",
+      "annual_cost_5000_kwh": 455.26,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_MODEL_ALIGNED",
+        "NO_OMITTED_HIGHER_PHASE_EVIDENCE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€455.26; General 0.59 CentPerKiwattHour; Monthly 5.99 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 76,
+      "contract_id": "iwrxhg-lankosken-sahko-oy-porssisahko",
+      "company_name": "Lankosken Sähkö Oy",
+      "contract_name": "Pörssisähkö",
+      "annual_cost_5000_kwh": 455.38,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "NO_PERSISTED_DESCRIPTION_ONLY_PROMOTION_SIGNAL"
+      ],
+      "explanation": "No persisted description announces that the structured current price is limited to a period without corresponding promotion metadata; missing description is not a target signal.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€455.38; General 0.59 CentPerKiwattHour; Monthly 6 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 77,
+      "contract_id": "gwappc-kuoreveden-sahko-oy-porssisahko-ydinvoima",
+      "company_name": "Kuoreveden Sähkö Oy",
+      "contract_name": "Pörssisähkö Ydinvoima",
+      "annual_cost_5000_kwh": 456.22,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_PRICING_MATCH"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€456.22; General 0.71 CentPerKiwattHour; Monthly 5.57 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 78,
+      "contract_id": "0haoj3-nurmijarven-sahko-oy-porssisahko-plus",
+      "company_name": "Nurmijärven Sähkö Oy",
+      "contract_name": "Pörssisähkö Plus",
+      "annual_cost_5000_kwh": 457.26,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_PRICING_MATCH"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€457.26; General 0.39 CentPerKiwattHour; Monthly 6.99 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 79,
+      "contract_id": "5fkl0x-vaasan-sahko-myynti-oy-porssisahko-tuuli",
+      "company_name": "Vaasan Sähkö Myynti Oy",
+      "contract_name": "Pörssisähkö Tuuli",
+      "annual_cost_5000_kwh": 459.68,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_PRICING_DISCLOSED"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€459.68; General 0.94 CentPerKiwattHour; Monthly 4.9 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 80,
+      "contract_id": "mkcxd3-oomi-oy-toimitusvelvollinen-spot",
+      "company_name": "Oomi Oy",
+      "contract_name": "Toimitusvelvollinen Spot",
+      "annual_cost_5000_kwh": 465.52,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_PRICING_DISCLOSED",
+        "CHANGE_NOTICE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€465.52; General 0.8 CentPerKiwattHour; Monthly 5.97 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 81,
+      "contract_id": "pqfn0s-hehku-energia-oy-hehku-jousto-24-kk-ensimmaiset-3-kk-perusmaksu-0",
+      "company_name": "Hehku Energia Oy",
+      "contract_name": "Hehku Jousto 24 kk - ENSIMMÄISET 3 KK PERUSMAKSU 0 €!",
+      "annual_cost_5000_kwh": 468.6,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "hybrid_consumption_effect",
+        "fixed_term",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Hybrid/FixedTerm; annual_cost_5000=€468.60; General 8.49 CentPerKiwattHour; Monthly 4.9 EurPerMonth (discount 4.9 NFirstMonth 3 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 82,
+      "contract_id": "dkeces-vaasan-sahko-myynti-oy-perussahko-yosahko",
+      "company_name": "Vaasan Sähkö Myynti Oy",
+      "contract_name": "Perussähkö (yösähkö)",
+      "annual_cost_5000_kwh": 469.7,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "recurring_quarterly_reset",
+        "time_of_use_tariff"
+      ],
+      "reason_codes": [
+        "QUARTERLY_RESET",
+        "TIME_TARIFF"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€469.70; DayTime 8.41 CentPerKiwattHour; Monthly 4.9 EurPerMonth; NightTime 7.13 CentPerKiwattHour",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 83,
+      "contract_id": "jt3szr-koillis-satakunnan-sahko-oy-joustowirta-24-kk",
+      "company_name": "Koillis-Satakunnan Sähkö Oy",
+      "contract_name": "JoustoWirta 24 kk",
+      "annual_cost_5000_kwh": 471.74,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "hybrid_consumption_effect",
+        "fixed_term"
+      ],
+      "reason_codes": [
+        "HYBRID_DISCLOSED"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Hybrid/FixedTerm; annual_cost_5000=€471.74; General 8.35 CentPerKiwattHour; Monthly 4.52 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 84,
+      "contract_id": "okinid-keravan-energia-oy-joustosahko-24-kk",
+      "company_name": "Keravan Energia Oy",
+      "contract_name": "Joustosähkö 24 kk",
+      "annual_cost_5000_kwh": 476,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "hybrid_consumption_effect",
+        "fixed_term"
+      ],
+      "reason_codes": [
+        "HYBRID_DISCLOSED",
+        "INACTIVE_DISCOUNT_METADATA"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Hybrid/FixedTerm; annual_cost_5000=€476.00; General 8.2 CentPerKiwattHour; Monthly 5.5 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 85,
+      "contract_id": "zcosto-vaasan-sahko-myynti-oy-tuulisahko-yleissahko",
+      "company_name": "Vaasan Sähkö Myynti Oy",
+      "contract_name": "Tuulisähkö (yleissähkö)",
+      "annual_cost_5000_kwh": 476.3,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "recurring_quarterly_reset"
+      ],
+      "reason_codes": [
+        "QUARTERLY_RESET"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€476.30; General 8.35 CentPerKiwattHour; Monthly 4.9 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 86,
+      "contract_id": "jf1mar-omavoima-oy-ajoittaja-24-kk",
+      "company_name": "Omavoima Oy",
+      "contract_name": "Ajoittaja 24 kk",
+      "annual_cost_5000_kwh": 477.38,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "hybrid_consumption_effect",
+        "fixed_term"
+      ],
+      "reason_codes": [
+        "HYBRID_DISCLOSED"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Hybrid/FixedTerm; annual_cost_5000=€477.38; General 8.35 CentPerKiwattHour; Monthly 4.99 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 87,
+      "contract_id": "7wccxi-korpelan-energia-oy-korpela-kesto-24-kk",
+      "company_name": "Korpelan Energia Oy",
+      "contract_name": "Korpela Kesto 24 kk",
+      "annual_cost_5000_kwh": 481.5,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "hybrid_consumption_effect",
+        "fixed_term"
+      ],
+      "reason_codes": [
+        "HYBRID_DISCLOSED",
+        "FIXED_TERM_CONTINUATION"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Hybrid/FixedTerm; annual_cost_5000=€481.50; General 8.55 CentPerKiwattHour; Monthly 4.5 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 88,
+      "contract_id": "9uczf8-nurmijarven-sahko-oy-porssisahko-tuuli",
+      "company_name": "Nurmijärven Sähkö Oy",
+      "contract_name": "Pörssisähkö Tuuli",
+      "annual_cost_5000_kwh": 482.48,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_PRICING_MATCH"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€482.48; General 1.6 CentPerKiwattHour; Monthly 4.05 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 89,
+      "contract_id": "cejarn-oomi-oy-oomi-jousto-24-kk",
+      "company_name": "Oomi Oy",
+      "contract_name": "Oomi Jousto 24 kk",
+      "annual_cost_5000_kwh": 482.6,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "hybrid_consumption_effect",
+        "fixed_term",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION",
+        "HYBRID_DISCLOSED"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Hybrid/FixedTerm; annual_cost_5000=€482.60; General 8.59 CentPerKiwattHour; Monthly 5.9 EurPerMonth (discount 5.9 NFirstMonth 3 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 90,
+      "contract_id": "dohczy-lumme-energia-joustosahko-24-kk-vaikuta-itse-sahkosi-hintaan",
+      "company_name": "Lumme Energia",
+      "contract_name": "Joustosähkö 24 kk - Vaikuta itse sähkösi hintaan",
+      "annual_cost_5000_kwh": 482.6,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "hybrid_consumption_effect",
+        "fixed_term",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION",
+        "HYBRID_DISCLOSED"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Hybrid/FixedTerm; annual_cost_5000=€482.60; General 8.59 CentPerKiwattHour; Monthly 5.9 EurPerMonth (discount 5.9 NFirstMonth 3 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 91,
+      "contract_id": "5me61f-paneliankosken-voima-oy-kosken-kayttowoima-24-kk-kulutusjousto",
+      "company_name": "Paneliankosken Voima Oy",
+      "contract_name": "Kosken käyttöWoima 24 kk - kulutusjousto",
+      "annual_cost_5000_kwh": 483,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [
+        "hybrid_consumption_effect",
+        "seasonal_tariff",
+        "fixed_term"
+      ],
+      "reason_codes": [
+        "NOT_DESCRIPTION_ONLY_PROMOTION",
+        "SEPARATE_UNSUPPORTED_CONSUMPTION_EFFECT"
+      ],
+      "explanation": "Not a target promotion case. The description instead identifies a kulutusvaikutuksellinen Hybrid contract whose consumption effect is not included in Voltikka’s current calculation.",
+      "description_evidence": null,
+      "structured_evidence": "Hybrid/FixedTerm; annual_cost_5000=€483.00; Monthly 4 EurPerMonth; SeasonalOther 8.7 CentPerKiwattHour; SeasonalWinterDay 8.7 CentPerKiwattHour",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": [
+        "unsupported_consumption_effect"
+      ]
+    },
+    {
+      "rank_at_5000_kwh": 92,
+      "contract_id": "gtjlmh-paneliankosken-voima-oy-kosken-kayttowoima-24-kk-kulutusjousto",
+      "company_name": "Paneliankosken Voima Oy",
+      "contract_name": "Kosken käyttöWoima 24 kk - kulutusjousto",
+      "annual_cost_5000_kwh": 483,
+      "label": "not_deceptive",
+      "confidence": "high",
+      "schedule_kinds": [
+        "hybrid_consumption_effect",
+        "fixed_term"
+      ],
+      "reason_codes": [
+        "NOT_DESCRIPTION_ONLY_PROMOTION",
+        "SEPARATE_UNSUPPORTED_CONSUMPTION_EFFECT"
+      ],
+      "explanation": "Not a target promotion case. The description instead identifies a kulutusvaikutuksellinen Hybrid contract whose consumption effect is not included in Voltikka’s current calculation.",
+      "description_evidence": null,
+      "structured_evidence": "Hybrid/FixedTerm; annual_cost_5000=€483.00; General 8.7 CentPerKiwattHour; Monthly 4 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": true,
+      "issue_types": [
+        "unsupported_consumption_effect"
+      ]
+    },
+    {
+      "rank_at_5000_kwh": 93,
+      "contract_id": "yv3sbk-hehku-energia-oy-hehku-jousto-12-kk-ensimmaiset-3-kk-perusmaksu-0",
+      "company_name": "Hehku Energia Oy",
+      "contract_name": "Hehku Jousto 12 kk - ENSIMMÄISET 3 KK PERUSMAKSU 0 €!",
+      "annual_cost_5000_kwh": 483.91,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "hybrid_consumption_effect",
+        "fixed_term",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION",
+        "HYBRID_DISCLOSED"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Hybrid/FixedTerm; annual_cost_5000=€483.91; General 8.69 CentPerKiwattHour; Monthly 5.49 EurPerMonth (discount 5.49 NFirstMonth 3 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 94,
+      "contract_id": "qgpgvd-herrfors-oy-ab-vakaa",
+      "company_name": "Herrfors Oy Ab",
+      "contract_name": "Vakaa",
+      "annual_cost_5000_kwh": 485.6,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [],
+      "reason_codes": [
+        "OPEN_ENDED_FIXED_PRICE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€485.60; General 8.74 CentPerKiwattHour; Monthly 4.05 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 95,
+      "contract_id": "8pktwg-kuoreveden-sahko-oy-porssisahko-100-uusiutuva",
+      "company_name": "Kuoreveden Sähkö Oy",
+      "contract_name": "Pörssisähkö 100% uusiutuva",
+      "annual_cost_5000_kwh": 486.72,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing"
+      ],
+      "reason_codes": [
+        "SPOT_PRICING_MATCH"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€486.72; General 1.32 CentPerKiwattHour; Monthly 5.57 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 96,
+      "contract_id": "clzibi-keravan-energia-oy-joustosahko-luonnonvoima-24-kk",
+      "company_name": "Keravan Energia Oy",
+      "contract_name": "Joustosähkö luonnonvoima 24 kk",
+      "annual_cost_5000_kwh": 489,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "hybrid_consumption_effect",
+        "fixed_term"
+      ],
+      "reason_codes": [
+        "HYBRID_DISCLOSED",
+        "INACTIVE_DISCOUNT_METADATA"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Hybrid/FixedTerm; annual_cost_5000=€489.00; General 8.46 CentPerKiwattHour; Monthly 5.5 EurPerMonth",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 97,
+      "contract_id": "h925l0-koillis-satakunnan-sahko-oy-vakaawirta-24-kk",
+      "company_name": "Koillis-Satakunnan Sähkö Oy",
+      "contract_name": "VakaaWirta 24 kk",
+      "annual_cost_5000_kwh": 489.18,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "fixed_term",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION",
+        "FIXED_TERM_PRICE"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/FixedTerm; annual_cost_5000=€489.18; General 8.97 CentPerKiwattHour; Monthly 4.52 EurPerMonth (discount 4.52 NFirstMonth 3 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 98,
+      "contract_id": "h8icyg-hehku-energia-oy-hehku-jatkuva",
+      "company_name": "Hehku Energia Oy",
+      "contract_name": "Hehku JATKUVA",
+      "annual_cost_5000_kwh": 491.4,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€491.40; General 8.75 CentPerKiwattHour; Monthly 4.9 EurPerMonth (discount 4.9 NFirstMonth 1 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 99,
+      "contract_id": "mchasn-vaasan-sahko-myynti-oy-tuulisahko-yosahko",
+      "company_name": "Vaasan Sähkö Myynti Oy",
+      "contract_name": "Tuulisähkö (yösähkö)",
+      "annual_cost_5000_kwh": 492.2,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "recurring_quarterly_reset",
+        "time_of_use_tariff"
+      ],
+      "reason_codes": [
+        "QUARTERLY_RESET",
+        "TIME_TARIFF"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "FixedPrice/OpenEnded; annual_cost_5000=€492.20; DayTime 8.86 CentPerKiwattHour; Monthly 4.9 EurPerMonth; NightTime 7.58 CentPerKiwattHour",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    },
+    {
+      "rank_at_5000_kwh": 100,
+      "contract_id": "x2zvvw-nordic-green-energy-uusiutuva-porssisahko",
+      "company_name": "Nordic Green Energy",
+      "contract_name": "Uusiutuva pörssisähkö",
+      "annual_cost_5000_kwh": 493.26,
+      "label": "not_deceptive",
+      "confidence": "medium",
+      "schedule_kinds": [
+        "spot_market_pricing",
+        "structured_promotion"
+      ],
+      "reason_codes": [
+        "STRUCTURED_PROMOTION",
+        "SPOT_PRICING_DISCLOSED"
+      ],
+      "explanation": "Manual subagent review found no persisted evidence that Voltikka annualizes an introductory component beyond its valid first-year period.",
+      "description_evidence": null,
+      "structured_evidence": "Spot/OpenEnded; annual_cost_5000=€493.26; General 0.99 CentPerKiwattHour; Monthly 9.99 EurPerMonth (discount 5 NFirstMonth 6 months)",
+      "benchmark_eligible": true,
+      "reviewer": "explorer-subagent-manual-review",
+      "adjudicated": false,
+      "issue_types": []
+    }
+  ],
+  "label_scope": "Positive only when persisted description announces that current structured pricing is period-limited and corresponding structured promotion/future-phase data is absent, causing the next-12-month calculation to be wrong."
+}

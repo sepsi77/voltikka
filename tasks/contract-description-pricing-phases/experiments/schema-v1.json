@@ -1,0 +1,648 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VoltikkaContractInterpretation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "contract_id",
+    "classification",
+    "pricing",
+    "source_consistency",
+    "calculation",
+    "confidence"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "contract_id": {
+      "type": "string"
+    },
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "term_type",
+        "fixed_duration_months",
+        "primary_pricing_model",
+        "pricing_mechanisms",
+        "metering",
+        "reset_cadence",
+        "schedule_kinds"
+      ],
+      "properties": {
+        "term_type": {
+          "type": "string",
+          "enum": [
+            "OpenEnded",
+            "FixedTerm",
+            "Unknown"
+          ]
+        },
+        "fixed_duration_months": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "maximum": 120
+        },
+        "primary_pricing_model": {
+          "type": "string",
+          "enum": [
+            "Spot",
+            "FixedPrice",
+            "Hybrid",
+            "Unknown"
+          ]
+        },
+        "pricing_mechanisms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "spot",
+              "fixed",
+              "consumption_effect",
+              "periodic_market_reset",
+              "time_of_use",
+              "seasonal",
+              "flat_fee_or_package",
+              "optional_fixing",
+              "mixed",
+              "unknown"
+            ]
+          }
+        },
+        "metering": {
+          "type": "string",
+          "enum": [
+            "General",
+            "Time",
+            "Season",
+            "Mixed",
+            "Unknown"
+          ]
+        },
+        "reset_cadence": {
+          "type": "string",
+          "enum": [
+            "none",
+            "quarter_hourly",
+            "hourly",
+            "monthly",
+            "quarterly",
+            "seasonal",
+            "other",
+            "unknown"
+          ]
+        },
+        "schedule_kinds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "introductory_promotion",
+              "recurring_market_reset",
+              "fixed_term_continuation",
+              "seasonal_tariff",
+              "signup_deadline",
+              "general_terms_date",
+              "optional_fixing",
+              "other",
+              "unknown"
+            ]
+          }
+        }
+      }
+    },
+    "pricing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "phases",
+        "recurring_schedule",
+        "consumption_effect"
+      ],
+      "properties": {
+        "phases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/phase"
+          }
+        },
+        "recurring_schedule": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "present",
+            "cadence",
+            "current_period_start",
+            "current_period_end",
+            "future_price_known",
+            "description",
+            "evidence"
+          ],
+          "properties": {
+            "present": {
+              "type": "boolean"
+            },
+            "cadence": {
+              "type": "string",
+              "enum": [
+                "none",
+                "monthly",
+                "quarterly",
+                "seasonal",
+                "other",
+                "unknown"
+              ]
+            },
+            "current_period_start": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date"
+            },
+            "current_period_end": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date"
+            },
+            "future_price_known": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/evidence"
+              }
+            }
+          }
+        },
+        "consumption_effect": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "present",
+            "cadence",
+            "expected_cents_per_kwh",
+            "typical_min_cents_per_kwh",
+            "typical_max_cents_per_kwh",
+            "hard_min_cents_per_kwh",
+            "hard_max_cents_per_kwh",
+            "uncapped",
+            "description",
+            "evidence"
+          ],
+          "properties": {
+            "present": {
+              "type": "boolean"
+            },
+            "cadence": {
+              "type": "string",
+              "enum": [
+                "none",
+                "monthly",
+                "other",
+                "unknown"
+              ]
+            },
+            "expected_cents_per_kwh": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "typical_min_cents_per_kwh": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "typical_max_cents_per_kwh": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "hard_min_cents_per_kwh": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "hard_max_cents_per_kwh": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "uncapped": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/evidence"
+              }
+            }
+          }
+        }
+      }
+    },
+    "source_consistency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pricing_model_status",
+        "recommended_pricing_model",
+        "contract_type_status",
+        "recommended_contract_type",
+        "metering_status",
+        "recommended_metering",
+        "structured_pricing_status",
+        "misleading_first_12_months",
+        "issue_codes",
+        "summary",
+        "evidence"
+      ],
+      "properties": {
+        "pricing_model_status": {
+          "type": "string",
+          "enum": [
+            "match",
+            "mismatch",
+            "uncertain"
+          ]
+        },
+        "recommended_pricing_model": {
+          "type": "string",
+          "enum": [
+            "Spot",
+            "FixedPrice",
+            "Hybrid",
+            "Unknown"
+          ]
+        },
+        "contract_type_status": {
+          "type": "string",
+          "enum": [
+            "match",
+            "mismatch",
+            "uncertain"
+          ]
+        },
+        "recommended_contract_type": {
+          "type": "string",
+          "enum": [
+            "OpenEnded",
+            "FixedTerm",
+            "Unknown"
+          ]
+        },
+        "metering_status": {
+          "type": "string",
+          "enum": [
+            "match",
+            "mismatch",
+            "uncertain"
+          ]
+        },
+        "recommended_metering": {
+          "type": "string",
+          "enum": [
+            "General",
+            "Time",
+            "Season",
+            "Mixed",
+            "Unknown"
+          ]
+        },
+        "structured_pricing_status": {
+          "type": "string",
+          "enum": [
+            "complete",
+            "incomplete",
+            "conflicting",
+            "not_assessable",
+            "uncertain"
+          ]
+        },
+        "misleading_first_12_months": {
+          "type": "string",
+          "enum": [
+            "detected",
+            "not_detected",
+            "not_assessable",
+            "uncertain"
+          ]
+        },
+        "issue_codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "structured_matches_description",
+              "structured_matches_intro_only",
+              "promotion_metadata_missing",
+              "future_price_omitted",
+              "future_price_unknown",
+              "pricing_model_mismatch",
+              "contract_type_mismatch",
+              "metering_mismatch",
+              "component_mismatch",
+              "unsupported_consumption_effect",
+              "recurring_reset_requires_estimate",
+              "optional_fixing_not_in_base_price",
+              "insufficient_evidence",
+              "other"
+            ]
+          }
+        },
+        "summary": {
+          "type": "string"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        }
+      }
+    },
+    "calculation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "missing_facts",
+        "required_assumptions"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "exact",
+            "estimate_required",
+            "incomplete",
+            "unsupported"
+          ]
+        },
+        "missing_facts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required_assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "confidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification",
+        "pricing",
+        "integrity"
+      ],
+      "properties": {
+        "classification": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "pricing": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "integrity": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "quote"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "quote": {
+          "type": "string"
+        }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "value"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "contract_start",
+            "date",
+            "after_months",
+            "period_boundary",
+            "none",
+            "unknown"
+          ]
+        },
+        "value": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component_type",
+        "amount",
+        "normal_amount",
+        "unit",
+        "vat_status",
+        "price_role",
+        "source_kind",
+        "evidence"
+      ],
+      "properties": {
+        "component_type": {
+          "type": "string",
+          "enum": [
+            "energy_general",
+            "energy_day",
+            "energy_night",
+            "energy_seasonal_winter",
+            "energy_seasonal_other",
+            "spot_margin",
+            "monthly_fee",
+            "consumption_effect",
+            "flat_fee",
+            "other"
+          ]
+        },
+        "amount": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "normal_amount": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "unit": {
+          "type": "string",
+          "enum": [
+            "cents_per_kwh",
+            "eur_per_month",
+            "eur_flat",
+            "percent",
+            "unknown"
+          ]
+        },
+        "vat_status": {
+          "type": "string",
+          "enum": [
+            "included",
+            "excluded",
+            "unknown"
+          ]
+        },
+        "price_role": {
+          "type": "string",
+          "enum": [
+            "current",
+            "introductory",
+            "normal",
+            "future",
+            "estimated",
+            "typical",
+            "bound",
+            "unknown"
+          ]
+        },
+        "source_kind": {
+          "type": "string",
+          "enum": [
+            "structured",
+            "description",
+            "both",
+            "derived",
+            "unknown"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        }
+      }
+    },
+    "phase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "phase_kind",
+        "starts",
+        "ends",
+        "components",
+        "evidence"
+      ],
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "phase_kind": {
+          "type": "string",
+          "enum": [
+            "current_structured",
+            "introductory",
+            "normal",
+            "future",
+            "recurring_period",
+            "continuation",
+            "other"
+          ]
+        },
+        "starts": {
+          "$ref": "#/$defs/boundary"
+        },
+        "ends": {
+          "$ref": "#/$defs/boundary"
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/component"
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        }
+      }
+    }
+  }
+}

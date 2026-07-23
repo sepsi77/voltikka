@@ -1,0 +1,75 @@
+{
+  "metadata": {
+    "run_name": "heldout-v2",
+    "started_at": "2026-07-23T07:38:49.652150+00:00",
+    "models": [
+      "openai/gpt-5.6-luna",
+      "qwen/qwen3.7-plus",
+      "minimax/minimax-m3",
+      "deepseek/deepseek-v4-pro"
+    ],
+    "ranks": [
+      15,
+      20,
+      45,
+      64,
+      80,
+      83,
+      85,
+      86,
+      93,
+      94
+    ],
+    "prompt": "system-prompt-v2.md",
+    "schema": "schema-v2.json",
+    "gold": "gold-v2.json",
+    "analysis_date": "2026-07-23",
+    "reasoning_effort": "low"
+  },
+  "models": [
+    {
+      "model": "openai/gpt-5.6-luna",
+      "successes": 10,
+      "failures": 0,
+      "weighted_score": 0.9699248120300752,
+      "mean_case_score": 0.9713553113553113,
+      "prompt_tokens": 37809,
+      "completion_tokens": 13047,
+      "reported_cost_usd": 0.1242803925,
+      "mean_latency_seconds": 11.392512887436897
+    },
+    {
+      "model": "qwen/qwen3.7-plus",
+      "successes": 10,
+      "failures": 0,
+      "weighted_score": 0.7969924812030075,
+      "mean_case_score": 0.7996336996336997,
+      "prompt_tokens": 25510,
+      "completion_tokens": 60009,
+      "reported_cost_usd": 0.0841249728,
+      "mean_latency_seconds": 110.44702886650339
+    },
+    {
+      "model": "deepseek/deepseek-v4-pro",
+      "successes": 10,
+      "failures": 0,
+      "weighted_score": 0.7969924812030075,
+      "mean_case_score": 0.7964835164835165,
+      "prompt_tokens": 25658,
+      "completion_tokens": 42028,
+      "reported_cost_usd": 0.1408687434,
+      "mean_latency_seconds": 163.4078767166473
+    },
+    {
+      "model": "minimax/minimax-m3",
+      "successes": 10,
+      "failures": 0,
+      "weighted_score": 0.7518796992481203,
+      "mean_case_score": 0.753956043956044,
+      "prompt_tokens": 26057,
+      "completion_tokens": 8483,
+      "reported_cost_usd": 0.023073336,
+      "mean_latency_seconds": 17.049815670587122
+    }
+  ]
+}

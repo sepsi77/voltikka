@@ -1,0 +1,27 @@
+{
+  "run_name": "heldout-v2",
+  "started_at": "2026-07-23T07:38:49.652150+00:00",
+  "models": [
+    "openai/gpt-5.6-luna",
+    "qwen/qwen3.7-plus",
+    "minimax/minimax-m3",
+    "deepseek/deepseek-v4-pro"
+  ],
+  "ranks": [
+    15,
+    20,
+    45,
+    64,
+    80,
+    83,
+    85,
+    86,
+    93,
+    94
+  ],
+  "prompt": "system-prompt-v2.md",
+  "schema": "schema-v2.json",
+  "gold": "gold-v2.json",
+  "analysis_date": "2026-07-23",
+  "reasoning_effort": "low"
+}

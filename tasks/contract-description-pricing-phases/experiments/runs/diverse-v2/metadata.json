@@ -1,0 +1,29 @@
+{
+  "run_name": "diverse-v2",
+  "started_at": "2026-07-23T07:17:28.220713+00:00",
+  "models": [
+    "openai/gpt-5.6-luna",
+    "qwen/qwen3.7-plus",
+    "minimax/minimax-m3",
+    "deepseek/deepseek-v4-pro"
+  ],
+  "ranks": [
+    1,
+    2,
+    3,
+    5,
+    7,
+    11,
+    13,
+    29,
+    37,
+    43,
+    89,
+    91
+  ],
+  "prompt": "system-prompt-v2.md",
+  "schema": "schema-v2.json",
+  "gold": "gold-v2.json",
+  "analysis_date": "2026-07-23",
+  "reasoning_effort": "low"
+}

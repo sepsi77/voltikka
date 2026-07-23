@@ -1,0 +1,560 @@
+{
+  "description": "Manually specified key-field expectations for prompt/model comparison. Expected mechanisms and issue codes are required subsets; extra defensible values are not automatically errors.",
+  "cases": [
+    {
+      "rank": 1,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "Spot",
+      "metering": "General",
+      "required_mechanisms": [
+        "spot"
+      ],
+      "pricing_model_status": "mismatch",
+      "structured_pricing_status": [
+        "complete",
+        "incomplete"
+      ],
+      "misleading_first_12_months": "detected",
+      "required_issue_codes": [
+        "pricing_model_mismatch"
+      ],
+      "calculation_status": "estimate_required",
+      "consumption_effect": false,
+      "spot_settlement_interval": "quarter_hourly",
+      "periodic_reset_cadence": "none"
+    },
+    {
+      "rank": 2,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "FixedPrice",
+      "metering": "General",
+      "required_mechanisms": [
+        "periodic_market_reset"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "incomplete",
+      "misleading_first_12_months": [
+        "detected",
+        "uncertain"
+      ],
+      "required_issue_codes": [
+        "recurring_reset_requires_estimate"
+      ],
+      "calculation_status": "estimate_required",
+      "consumption_effect": false,
+      "required_prices": [
+        [
+          "energy_general",
+          6.94
+        ]
+      ],
+      "spot_settlement_interval": "not_applicable",
+      "periodic_reset_cadence": "monthly"
+    },
+    {
+      "rank": 3,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "FixedPrice",
+      "metering": "General",
+      "required_mechanisms": [
+        "fixed"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "incomplete",
+      "misleading_first_12_months": "detected",
+      "required_issue_codes": [
+        "promotion_metadata_missing"
+      ],
+      "calculation_status": "exact",
+      "consumption_effect": false,
+      "required_prices": [
+        [
+          "energy_general",
+          5.49
+        ],
+        [
+          "monthly_fee",
+          2.99
+        ],
+        [
+          "energy_general",
+          13.65
+        ],
+        [
+          "monthly_fee",
+          5.99
+        ]
+      ],
+      "spot_settlement_interval": "not_applicable",
+      "periodic_reset_cadence": "none"
+    },
+    {
+      "rank": 5,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "Spot",
+      "metering": "General",
+      "required_mechanisms": [
+        "spot"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "incomplete",
+      "misleading_first_12_months": "not_detected",
+      "required_issue_codes": [],
+      "calculation_status": "estimate_required",
+      "consumption_effect": false,
+      "required_prices": [
+        [
+          "spot_margin",
+          0.39
+        ],
+        [
+          "monthly_fee",
+          1.95
+        ],
+        [
+          "spot_margin",
+          0.99
+        ],
+        [
+          "monthly_fee",
+          5.95
+        ]
+      ],
+      "spot_settlement_interval": "quarter_hourly",
+      "periodic_reset_cadence": "none"
+    },
+    {
+      "rank": 7,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "Spot",
+      "metering": "General",
+      "required_mechanisms": [
+        "spot"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "incomplete",
+      "misleading_first_12_months": "detected",
+      "required_issue_codes": [
+        "promotion_metadata_missing"
+      ],
+      "calculation_status": "estimate_required",
+      "consumption_effect": false,
+      "required_prices": [
+        [
+          "spot_margin",
+          0.39
+        ],
+        [
+          "spot_margin",
+          0.78
+        ],
+        [
+          "monthly_fee",
+          0.0
+        ],
+        [
+          "monthly_fee",
+          4.9
+        ]
+      ],
+      "spot_settlement_interval": "hourly",
+      "periodic_reset_cadence": "none"
+    },
+    {
+      "rank": 11,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "FixedPrice",
+      "metering": "General",
+      "required_mechanisms": [
+        "fixed"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "not_assessable",
+      "misleading_first_12_months": "not_assessable",
+      "required_issue_codes": [
+        "insufficient_evidence"
+      ],
+      "calculation_status": "exact",
+      "consumption_effect": false,
+      "spot_settlement_interval": "not_applicable",
+      "periodic_reset_cadence": "none"
+    },
+    {
+      "rank": 13,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "Spot",
+      "metering": "General",
+      "required_mechanisms": [
+        "spot"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "complete",
+      "misleading_first_12_months": "not_detected",
+      "required_issue_codes": [
+        "structured_matches_description"
+      ],
+      "calculation_status": "estimate_required",
+      "consumption_effect": false,
+      "required_prices": [
+        [
+          "spot_margin",
+          0.2
+        ],
+        [
+          "spot_margin",
+          0.6
+        ],
+        [
+          "monthly_fee",
+          2.53
+        ]
+      ],
+      "spot_settlement_interval": "unknown",
+      "periodic_reset_cadence": "none"
+    },
+    {
+      "rank": 15,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "Spot",
+      "metering": "General",
+      "required_mechanisms": [
+        "spot"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": [
+        "complete",
+        "not_assessable"
+      ],
+      "misleading_first_12_months": [
+        "not_detected",
+        "not_assessable"
+      ],
+      "required_issue_codes": [],
+      "calculation_status": "estimate_required",
+      "consumption_effect": false,
+      "spot_settlement_interval": "hourly",
+      "periodic_reset_cadence": "none"
+    },
+    {
+      "rank": 20,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "Spot",
+      "metering": "General",
+      "required_mechanisms": [
+        "spot"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "incomplete",
+      "misleading_first_12_months": "not_detected",
+      "required_issue_codes": [],
+      "calculation_status": "estimate_required",
+      "consumption_effect": false,
+      "required_prices": [
+        [
+          "monthly_fee",
+          0.99
+        ],
+        [
+          "monthly_fee",
+          5.99
+        ]
+      ],
+      "spot_settlement_interval": "quarter_hourly",
+      "periodic_reset_cadence": "none"
+    },
+    {
+      "rank": 29,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "Spot",
+      "metering": "General",
+      "required_mechanisms": [
+        "spot",
+        "optional_fixing"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "complete",
+      "misleading_first_12_months": "not_detected",
+      "required_issue_codes": [
+        "optional_fixing_not_in_base_price"
+      ],
+      "calculation_status": "estimate_required",
+      "consumption_effect": true,
+      "spot_settlement_interval": "quarter_hourly",
+      "periodic_reset_cadence": "none",
+      "consumption_applies_to": "optional_fixing"
+    },
+    {
+      "rank": 37,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "FixedPrice",
+      "metering": "Season",
+      "required_mechanisms": [
+        "seasonal"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "incomplete",
+      "misleading_first_12_months": "detected",
+      "required_issue_codes": [
+        "future_price_unknown"
+      ],
+      "calculation_status": "incomplete",
+      "consumption_effect": false,
+      "spot_settlement_interval": "not_applicable",
+      "periodic_reset_cadence": "none"
+    },
+    {
+      "rank": 43,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "FixedPrice",
+      "metering": "General",
+      "required_mechanisms": [
+        "periodic_market_reset"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "incomplete",
+      "misleading_first_12_months": "detected",
+      "required_issue_codes": [
+        "promotion_metadata_missing",
+        "recurring_reset_requires_estimate"
+      ],
+      "calculation_status": "estimate_required",
+      "consumption_effect": false,
+      "required_prices": [
+        [
+          "energy_general",
+          7.49
+        ],
+        [
+          "energy_general",
+          9.95
+        ],
+        [
+          "monthly_fee",
+          0.0
+        ],
+        [
+          "monthly_fee",
+          4.9
+        ]
+      ],
+      "spot_settlement_interval": "not_applicable",
+      "periodic_reset_cadence": "quarterly"
+    },
+    {
+      "rank": 45,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "FixedPrice",
+      "metering": "General",
+      "required_mechanisms": [
+        "periodic_market_reset"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": [
+        "incomplete",
+        "uncertain"
+      ],
+      "misleading_first_12_months": "uncertain",
+      "required_issue_codes": [
+        "recurring_reset_requires_estimate"
+      ],
+      "calculation_status": "estimate_required",
+      "consumption_effect": false,
+      "spot_settlement_interval": "not_applicable",
+      "periodic_reset_cadence": "quarterly"
+    },
+    {
+      "rank": 64,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "Spot",
+      "metering": "General",
+      "required_mechanisms": [
+        "spot"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "not_assessable",
+      "misleading_first_12_months": "not_assessable",
+      "required_issue_codes": [
+        "insufficient_evidence"
+      ],
+      "calculation_status": "estimate_required",
+      "consumption_effect": false,
+      "spot_settlement_interval": "unknown",
+      "periodic_reset_cadence": "none"
+    },
+    {
+      "rank": 80,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "Spot",
+      "metering": "General",
+      "required_mechanisms": [
+        "spot"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "complete",
+      "misleading_first_12_months": "not_detected",
+      "required_issue_codes": [],
+      "calculation_status": "estimate_required",
+      "consumption_effect": false,
+      "spot_settlement_interval": "hourly",
+      "periodic_reset_cadence": "none"
+    },
+    {
+      "rank": 83,
+      "term_type": "FixedTerm",
+      "primary_pricing_model": "Hybrid",
+      "metering": "General",
+      "required_mechanisms": [
+        "fixed",
+        "consumption_effect"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "incomplete",
+      "misleading_first_12_months": [
+        "uncertain",
+        "not_detected"
+      ],
+      "required_issue_codes": [
+        "unsupported_consumption_effect"
+      ],
+      "calculation_status": "unsupported",
+      "consumption_effect": true,
+      "spot_settlement_interval": "not_applicable",
+      "periodic_reset_cadence": "none"
+    },
+    {
+      "rank": 85,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "FixedPrice",
+      "metering": "General",
+      "required_mechanisms": [
+        "periodic_market_reset"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": [
+        "incomplete",
+        "uncertain"
+      ],
+      "misleading_first_12_months": "uncertain",
+      "required_issue_codes": [
+        "recurring_reset_requires_estimate"
+      ],
+      "calculation_status": "estimate_required",
+      "consumption_effect": false,
+      "spot_settlement_interval": "not_applicable",
+      "periodic_reset_cadence": "quarterly"
+    },
+    {
+      "rank": 86,
+      "term_type": "FixedTerm",
+      "primary_pricing_model": "Hybrid",
+      "metering": "General",
+      "required_mechanisms": [
+        "fixed",
+        "consumption_effect"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "incomplete",
+      "misleading_first_12_months": "uncertain",
+      "required_issue_codes": [
+        "unsupported_consumption_effect"
+      ],
+      "calculation_status": "unsupported",
+      "consumption_effect": true,
+      "uncapped": true,
+      "spot_settlement_interval": "not_applicable",
+      "periodic_reset_cadence": "none"
+    },
+    {
+      "rank": 89,
+      "term_type": "FixedTerm",
+      "primary_pricing_model": "Hybrid",
+      "metering": "General",
+      "required_mechanisms": [
+        "fixed",
+        "consumption_effect"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "incomplete",
+      "misleading_first_12_months": [
+        "not_detected",
+        "uncertain"
+      ],
+      "required_issue_codes": [
+        "unsupported_consumption_effect"
+      ],
+      "calculation_status": "unsupported",
+      "consumption_effect": true,
+      "consumption_expected": 0.05,
+      "consumption_typical_min": -3.9,
+      "consumption_typical_max": 1.6,
+      "spot_settlement_interval": "not_applicable",
+      "periodic_reset_cadence": "none"
+    },
+    {
+      "rank": 91,
+      "term_type": "FixedTerm",
+      "primary_pricing_model": "Hybrid",
+      "metering": "Season",
+      "required_mechanisms": [
+        "consumption_effect"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "incomplete",
+      "misleading_first_12_months": [
+        "detected",
+        "uncertain"
+      ],
+      "required_issue_codes": [
+        "unsupported_consumption_effect"
+      ],
+      "calculation_status": "unsupported",
+      "consumption_effect": true,
+      "consumption_typical_min": -1.5,
+      "consumption_typical_max": 1.5,
+      "consumption_hard_min": -5.0,
+      "consumption_hard_max": 5.0,
+      "spot_settlement_interval": "not_applicable",
+      "periodic_reset_cadence": "none"
+    },
+    {
+      "rank": 93,
+      "term_type": "FixedTerm",
+      "primary_pricing_model": "Hybrid",
+      "metering": "General",
+      "required_mechanisms": [
+        "fixed",
+        "consumption_effect"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "incomplete",
+      "misleading_first_12_months": [
+        "uncertain",
+        "not_detected"
+      ],
+      "required_issue_codes": [
+        "unsupported_consumption_effect"
+      ],
+      "calculation_status": "unsupported",
+      "consumption_effect": true,
+      "spot_settlement_interval": "not_applicable",
+      "periodic_reset_cadence": "none"
+    },
+    {
+      "rank": 94,
+      "term_type": "OpenEnded",
+      "primary_pricing_model": "FixedPrice",
+      "metering": "General",
+      "required_mechanisms": [
+        "fixed"
+      ],
+      "pricing_model_status": "match",
+      "structured_pricing_status": "complete",
+      "misleading_first_12_months": "not_detected",
+      "required_issue_codes": [],
+      "calculation_status": "exact",
+      "consumption_effect": false,
+      "spot_settlement_interval": "not_applicable",
+      "periodic_reset_cadence": "none"
+    }
+  ]
+}

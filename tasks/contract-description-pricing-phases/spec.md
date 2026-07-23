@@ -1,0 +1,295 @@
+# LLM-based electricity contract interpretation
+
+## Expanded scope
+
+Every imported electricity contract should be interpreted by an LLM rather than sending only deterministic promotion candidates. The source Consumer API remains the immutable upstream record, while a versioned interpretation layer supplies richer, validated semantics to Voltikka.
+
+The interpretation should initially:
+
+1. parse the contract's term and pricing mechanism
+2. extract all disclosed pricing components, phases, discounts, reset schedules, and consumption-effect terms
+3. compare the extracted facts with the source's structured fields and identify materially misleading or incomplete structured pricing
+4. verify the source pricing category and recommend a corrected effective category when needed
+
+Deterministic rules remain valuable for validation, prioritization, anomaly detection, and benchmark evaluation, but they no longer gate which contracts are analyzed.
+
+## Why
+
+The source schema cannot represent several increasingly common market products accurately:
+
+- introductory prices followed by description-only increases
+- legitimate monthly or quarterly market resets
+- fixed-base contracts with a variable consumption effect
+- optional price fixing layered over Spot
+- mixed component schedules
+- future reversion to an unspecified tariff
+
+The schema is unlikely to evolve as quickly as the market. A strict, auditable LLM interpretation layer provides flexibility without forcing provider text directly into Voltikka's trusted calculation inputs.
+
+## Non-negotiable boundaries
+
+- Never let the LLM overwrite or erase imported source values. Source and interpretation must remain distinguishable.
+- Never let free-form model prose directly drive calculations, ranking, filters, redirects, or public warnings.
+- Require schema-constrained output, evidence for extracted facts, and deterministic validation.
+- Missing description or missing evidence is neutral/unknown, not proof of correctness or deception.
+- The LLM extracts and classifies disclosed facts. Deterministic application logic decides arithmetic, integrity status, activation, and user-facing severity.
+- Treat descriptions as untrusted data and explicitly prevent prompt instructions embedded in source text from changing the analysis task.
+
+## Contract taxonomy
+
+Do not force the complete interpretation into one overloaded contract-type enum. Parse independent axes:
+
+### Term
+
+- `open_ended`
+- `fixed_term`
+- `unknown`
+- fixed duration or date range when disclosed
+
+### Pricing mechanism
+
+- `spot`
+- `fixed`
+- `consumption_effect`
+- `periodic_market_reset`
+- `time_of_use`
+- `seasonal`
+- `flat_fee_or_package`
+- `mixed`
+- `unknown`
+
+A contract may have more than one mechanism. For compatibility, the interpretation may also recommend Voltikka's current broad `pricing_model` value (`Spot`, `FixedPrice`, or `Hybrid`), but the richer mechanism list is the source of future behavior.
+
+### Metering / component schedule
+
+- general
+- day/night
+- seasonal winter/other
+- fuse-size or consumption-tier dependent
+- unknown
+
+### Schedule kinds
+
+- introductory promotion
+- recurring market reset
+- fixed-term continuation
+- seasonal tariff
+- signup deadline
+- general-terms/VAT date
+- optional fixing
+- other/unknown
+
+A legitimate recurring schedule must not be labeled deceptive merely because its current price expires. A recurring contract can still separately contain an omitted introductory promotion.
+
+## Source snapshot and change detection
+
+### Import prerequisite
+
+The current importer updates only `pricing_has_discounts` and fills missing `pricing_model` / `target_group` for an existing contract. Descriptions and most structural fields are create-only, so database rows can become stale.
+
+On each fetch, preserve the complete interpretation-relevant upstream payload before splitting it into relational source tables. Refresh source fields that are intended to represent the current API record, while retaining versioned snapshots for auditability.
+
+### Canonical source fingerprint
+
+Build a deterministic canonical input containing at least:
+
+- upstream and local contract IDs
+- contract and company names
+- all term, pricing-model, metering, target-group, availability, consumption-limit, and billing fields
+- all description/extra-information languages
+- pricing name and discount flags
+- time-period definitions when available
+- all price components, units, discounts, expiry dates, and upstream pricing/component version metadata
+
+Normalize irrelevant ordering and whitespace. Exclude the local fetch date, retrieval postcode, and other values that do not change contract meaning.
+
+Store:
+
+- `source_fingerprint = sha256(canonical_source_payload)`
+- `analysis_fingerprint = sha256(source_fingerprint + output_schema_version + prompt_version + provider + model)`
+
+### Reanalysis rules
+
+Queue analysis when:
+
+- no successful interpretation exists for the analysis fingerprint
+- any semantic source field changes and therefore the source fingerprint changes
+- the output schema, prompt, provider, or model version changes
+- an operator explicitly requests reanalysis
+
+Do not queue again when the same analysis fingerprint has already succeeded. Failed jobs may retry with bounded backoff. Continue using the last approved interpretation until a replacement succeeds and passes validation.
+
+Dispatch jobs only after the import transaction commits. Analysis must not block the contract fetch itself.
+
+## Versioned data model
+
+Recommended separation:
+
+### `contract_source_snapshots`
+
+- contract ID
+- source fingerprint
+- canonical/raw input payload
+- selected upstream version/timestamp metadata
+- first and last observed timestamps
+
+### `contract_interpretations`
+
+- contract and source-snapshot IDs
+- analysis fingerprint and status
+- schema, prompt, provider, and model versions
+- typed derived classifications
+- raw schema-constrained result
+- deterministic validation result
+- confidence and integrity status
+- evidence and issue codes
+- token usage, errors, start/completion timestamps
+- optional review/override metadata
+
+### Interpreted components/phases
+
+Initially these may live in validated JSON. Before they drive calculations or need SQL history, normalize them into interpretation component/phase rows with explicit units, dates, duration rules, and evidence.
+
+An approved interpretation should be selected through an explicit pointer/profile. Do not overwrite source `electricity_contracts` or historical `price_components` rows.
+
+## LLM output contract
+
+Use strict JSON Schema. The response should include:
+
+- parsed term type, duration, and evidence
+- pricing mechanisms and compatible broad pricing-model recommendation
+- metering/component schedule and evidence
+- price components with:
+  - component type
+  - amount and unit
+  - VAT inclusion when stated
+  - base/normal versus discounted status
+  - applicable metering/tier
+  - evidence quote and source field
+- pricing phases with:
+  - fixed start/end dates or first-N-month semantics
+  - component-specific prices
+  - continuation/reset behavior
+  - evidence for every number and date
+- recurring reset cadence and formula/source when disclosed
+- consumption-effect terms:
+  - base price
+  - expected effect
+  - typical minimum/maximum
+  - hard cap/floor
+  - cadence/formula
+- conflicts with structured source fields
+- missing facts required for calculation
+- per-field confidence, not only one global score
+
+The model must use `null`/unknown when text does not provide a fact. It must not invent market assumptions or calculate annual totals.
+
+## Deterministic validation
+
+Before an interpretation can become effective:
+
+- verify that every extracted number/date/unit occurs in cited source evidence
+- normalize decimal commas, HTML, Unicode spaces, and Finnish unit variants independently
+- reject impossible dates, backwards/overlapping phases, and unexplained component gaps
+- validate component units and plausible ranges
+- compare extracted values with source components and discount metadata component by component
+- distinguish calendar dates from first-N-month terms and signup deadlines
+- check broad category consistency against both source fields and extracted mechanism evidence
+- reject unsupported category transitions or low-confidence contradictions
+- record `uncertain` when future pricing is acknowledged but not disclosed
+
+A second LLM call may adjudicate ambiguous output, but it does not replace deterministic checks.
+
+## Integrity assessment
+
+Avoid making provider intent the primary machine judgment. Derive factual issue codes such as:
+
+- `structured_matches_description`
+- `structured_matches_intro_only`
+- `promotion_metadata_missing`
+- `future_price_omitted`
+- `future_price_unknown`
+- `pricing_model_mismatch`
+- `metering_mismatch`
+- `component_mismatch`
+- `unsupported_consumption_effect`
+- `recurring_reset_requires_estimate`
+- `insufficient_evidence`
+- `review_required`
+
+A focused `deceptive_pricing` review label can be derived for benchmarking or applied manually, but public UI should explain the concrete mismatch and whether Voltikka corrected it.
+
+Missing descriptions are not a detector signal. They simply reduce what can be verified.
+
+## Effective classification and pricing
+
+Introduce one centralized resolver for effective contract semantics. All downstream systems must eventually consume the same approved interpretation rather than independently reading a mixture of source and inferred fields:
+
+- listing filters and SEO pages
+- listing cards and cached metrics
+- rankings
+- contract details and JSON-LD
+- contract statistics
+- bill comparison
+- replacement matching
+
+Roll this out in shadow mode first. Category corrections should not affect public filters, prices, rankings, replacement redirects, or historical statistics until validation and benchmark thresholds are met.
+
+Historical statistics require special handling: do not retroactively apply today's interpretation to old source snapshots without a version/date policy.
+
+## Calculation behavior
+
+### Multi-phase pricing
+
+Calculate from an explicit comparison/signup date across the following 12 months. Apply each component phase to the consumption and monthly fees in its calendar period, including partial months. Do not flatten every phase into `base price - discount`.
+
+### Periodic reset products
+
+Do not present the current monthly/quarterly rate as a guaranteed annual rate. Use an explicitly documented estimate methodology and label it as an estimate.
+
+### Consumption-effect / Hybrid products
+
+The current calculator effectively assumes zero consumption effect and does not disclose that on listing/detail pages. For generic comparisons:
+
+- show the fixed/base cost
+- state the assumed consumption effect
+- include disclosed expected/typical and capped ranges when validated
+- avoid presenting the base-only result as exact
+
+Accurate individualized calculation ultimately requires interval-level consumption and corresponding market prices.
+
+Production text matching consumption-effect terms found 42 active contracts: 38 stored as Hybrid, one FixedPrice, and three Spot/optional-fixing products. This demonstrates why both source fields and semantic interpretation are needed.
+
+## Operational design
+
+- Build a reusable LLM provider interface rather than copying command-specific OpenRouter calls.
+- Use queued, fingerprint-idempotent jobs with bounded timeouts, retries, and rate limiting.
+- Record model, prompt/schema version, token counts, latency, and failures.
+- Batch or cache carefully, but preserve one auditable interpretation per contract/source version.
+- Keep secrets out of stored prompts/results and logs.
+- Support a command to backfill all active contracts and another to re-run by contract, fingerprint, or model version.
+
+## Rollout
+
+1. Fix source refresh/snapshot persistence.
+2. Define and test canonical fingerprints and strict output schema.
+3. Backfill all active contracts in shadow mode.
+4. Evaluate extraction/category/integrity quality against the existing promotion benchmark plus new stratified labels.
+5. Review disagreements and tune deterministic validation.
+6. Activate high-confidence classifications separately from calculated pricing.
+7. Activate validated phase-aware pricing and explicit Hybrid estimates.
+8. Update all downstream surfaces and add regression fixtures.
+
+## Existing investigation assets
+
+The earlier description-only investigation remains useful as one benchmark slice:
+
+- `production-query-findings.md`
+- `benchmark/README.md`
+- `benchmark/top-100-input.json`
+- `benchmark/top-100-labels.json`
+- `benchmark/results.md`
+
+Its focused benchmark contains four description-only promotion mismatches among the 100 cheapest active household contracts. It should be expanded with category mismatches, Hybrid/consumption-effect products, recurring resets, and a stratified random sample before enabling automatic corrections.
+
+Prompt/model/schema experiments are documented in `experiments/README.md` and `experiments/results.md`. The current recommendation is GPT-5.6 Luna with prompt v5, schema v2, low reasoning, and deterministic post-validation. A read-only shadow run completed successfully for all 434 active contracts, but no interpretation has been activated in application code or written to production.
