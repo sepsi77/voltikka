@@ -30,7 +30,7 @@ Configuration and assets:
 
 Important semantics:
 
-- Enable import-time queueing with `CONTRACT_INTERPRETATION_ENABLED=true`.
+- Import-time queueing uses `CONTRACT_INTERPRETATION_ENABLED=true`; production enabled it after the successful 425-contract backfill on 2026-07-24.
 - There is no human review, approval, or override workflow.
 - Validation failure can cause at most two model correction calls. Each call receives the exact validator errors and the previous complete output. All attempts are stored in `llm_attempts`.
 - Invalid final output is stored as failed and does not publish.

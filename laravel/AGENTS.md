@@ -49,7 +49,7 @@ Important semantics:
 
 ### Contract source snapshots and automatic interpretation
 
-`contracts:fetch` stores each distinct complete upstream contract payload in `contract_source_snapshots` inside the import transaction. When `CONTRACT_INTERPRETATION_ENABLED=true`, it dispatches one versioned interpretation job after commit.
+`contracts:fetch` stores each distinct complete upstream contract payload in `contract_source_snapshots` inside the import transaction. `CONTRACT_INTERPRETATION_ENABLED=true` is set in production, so each new semantic snapshot dispatches one versioned interpretation job after commit.
 
 Primary implementation:
 - `app/Services/ContractInterpretation/AGENTS.md`
