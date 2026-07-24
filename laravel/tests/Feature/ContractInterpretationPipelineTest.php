@@ -1198,6 +1198,40 @@ class ContractInterpretationPipelineTest extends TestCase
         );
     }
 
+    public function test_validator_accepts_flat_fee_in_place_of_expected_monthly_fee(): void
+    {
+        // A source Monthly charge may be read as flat_fee (a package-named product like
+        // Kuukausipaketti); the validator must not reject it purely for "missing monthly_fee".
+        $output = $this->validOutput('contract-1', [
+            'primary_pricing_model' => 'FixedPrice',
+            'pricing_mechanisms' => ['flat_fee_or_package', 'fixed'],
+        ]);
+        $output['pricing']['phases'] = [[
+            'label' => 'Current',
+            'phase_kind' => 'current_structured',
+            'starts' => ['kind' => 'contract_start', 'value' => null],
+            'ends' => ['kind' => 'none', 'value' => null],
+            'components' => [
+                ['component_type' => 'flat_fee', 'amount' => 35.0, 'normal_amount' => null, 'unit' => 'eur_per_month', 'vat_status' => 'unknown', 'price_role' => 'current', 'source_kind' => 'structured', 'evidence' => [['source' => 'components[0].price', 'quote' => 'components[0].price=35']]],
+                ['component_type' => 'energy_general', 'amount' => 16.6, 'normal_amount' => null, 'unit' => 'cents_per_kwh', 'vat_status' => 'unknown', 'price_role' => 'current', 'source_kind' => 'structured', 'evidence' => [['source' => 'components[1].price', 'quote' => 'components[1].price=16.6']]],
+            ],
+            'evidence' => [],
+        ]];
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, [
+            'contract_id' => 'contract-1',
+            'pricing_model' => 'FixedPrice',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'components' => [
+                ['price_component_type' => 'Monthly', 'price' => 35],
+                ['price_component_type' => 'General', 'price' => 16.6],
+            ],
+        ]);
+
+        $this->assertNotContains('$.pricing.phases is missing structured component type monthly_fee.', $errors);
+    }
+
     public function test_validator_rejects_detected_on_a_reset_product_with_only_reset_path_codes(): void
     {
         // Cheap Kvartaali: a quarterly market reset is not deceptive for its own intro->market path.

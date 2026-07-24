@@ -236,7 +236,15 @@ class ContractInterpretationValidator
             ->filter()
             ->unique();
         foreach ($expectedTypes as $expectedType) {
-            if (! in_array($expectedType, $interpretedTypes, true)) {
+            $satisfied = in_array($expectedType, $interpretedTypes, true);
+            // A source Monthly charge legitimately maps to either monthly_fee or flat_fee (both
+            // represent the monthly charge and cost the same). Accept flat_fee for an expected
+            // monthly_fee so a package-named product (e.g. Kuukausipaketti) that the model reads as
+            // a flat_fee package is not rejected purely over the label.
+            if (! $satisfied && $expectedType === 'monthly_fee' && in_array('flat_fee', $interpretedTypes, true)) {
+                $satisfied = true;
+            }
+            if (! $satisfied) {
                 $errors[] = "$.pricing.phases is missing structured component type {$expectedType}.";
             }
         }
