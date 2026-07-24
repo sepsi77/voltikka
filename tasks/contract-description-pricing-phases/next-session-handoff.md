@@ -407,6 +407,54 @@ php artisan test --filter=ContractsFilterTest
 
 Run the complete relevant test set before deployment.
 
+## Local development database prepared for the next session
+
+On 2026-07-24, a consistent read-only snapshot of the production contract domain was copied into the local Laravel SQLite database at `laravel/database/database.sqlite`.
+
+The local database file is ignored by Git. It is available to the next agent on this machine, but it does not travel with the repository.
+
+The sync completed inside one local transaction and passed SQLite foreign-key validation. No production data was changed. No database credentials or exported data files were added to Git.
+
+Synced tables and row counts:
+
+| Table | Rows |
+|---|---:|
+| `companies` | 38 |
+| `municipalities` | 308 |
+| `postcodes` | 3,800 |
+| `dsos` | 29 |
+| `electricity_contracts` | 3,680 |
+| `contract_postcode` | 86,377 |
+| `contract_dso` | 819 |
+| `electricity_sources` | 3,680 |
+| `price_components` | 195,569 |
+| `active_contracts` | 425 |
+| `contract_source_snapshots` | 462 |
+| `contract_interpretations` | 591 |
+| `contract_percentiles` | 3 |
+| `contract_price_snapshots` | 61,699 |
+| `contract_price_daily_statistics` | 10,839 |
+| `fixed_contract_price_forecasts` | 882 |
+
+Verified local state:
+
+- Laravel environment: `local`
+- Database connection: SQLite
+- Active contracts: 425
+- Active contracts with a selected published interpretation: 425
+- Active contracts with `canonical_pricing`: 425
+- Active contracts with selected relational pricing publication: 311
+- Historical failed interpretation rows retained for audit: 48
+- Local `CONTRACT_INTERPRETATION_ENABLED=false`
+
+The sync did not replace local Spot price, user, queue, cache, or session tables. Existing local Spot data remains in place. Check its date coverage before using it for new Spot calculations.
+
+A pre-sync local database backup was created at:
+
+`/tmp/voltikka-database-before-contract-sync-20260724-123436.sqlite`
+
+The `/tmp` backup is temporary and can disappear after a reboot. The synced SQLite database is now the working development copy.
+
 ## Operational notes
 
 - Production automatic interpretation is enabled.

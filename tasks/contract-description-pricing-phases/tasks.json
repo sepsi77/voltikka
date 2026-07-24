@@ -32,6 +32,7 @@
   {"name":"Handle zero-month discount boundaries and excess-use package validation", "status":"completed"},
   {"name":"Enable automatic interpretation for future production contract syncs", "status":"completed"},
   {"name":"Prepare canonical-pricing and pricing-integrity handoff for the next session", "status":"completed"},
+  {"name":"Sync production contract snapshots and validated interpretations into the local development database", "status":"completed"},
   {"name":"Expand labels for category mismatches, recurring resets, and consumption-effect products", "status":"pending"},
   {"name":"Materialize validated pricing phases for calculation and public use", "status":"pending"},
   {"name":"Implement calendar-aware phase pricing and explicit Hybrid assumptions/ranges", "status":"pending"},
