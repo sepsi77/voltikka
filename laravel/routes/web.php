@@ -149,6 +149,9 @@ Route::withoutMiddleware($publicListingWithoutMiddleware)
         Route::get('/sahkosopimus/yleissahko', SeoContractsList::class)
             ->name('seo.pricing.yleissahko')
             ->defaults('pricingType', 'GeneralElectricity');
+        Route::get('/sahkosopimus/kulutusvaikutus', SeoContractsList::class)
+            ->name('seo.pricing.kulutusvaikutus')
+            ->defaults('pricingType', 'ConsumptionEffect');
 
         // Price statistics page (must come BEFORE city catch-all)
         Route::get('/sahkosopimus/tilastot', ContractPriceStatistics::class)

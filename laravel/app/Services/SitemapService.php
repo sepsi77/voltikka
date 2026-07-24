@@ -64,6 +64,7 @@ class SitemapService
         'kausisahko',
         'joustosahko',
         'yleissahko',
+        'kulutusvaikutus',
     ];
 
     /**

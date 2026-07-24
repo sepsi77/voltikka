@@ -117,6 +117,7 @@ class SeoContractsList extends ContractsList
         'Seasonal' => 'Kausisähkö',
         'Hybrid' => 'Joustosähkö',
         'GeneralElectricity' => 'Yleissähkö',
+        'ConsumptionEffect' => 'Kulutusvaikutukselliset',
     ];
 
     /**
@@ -349,6 +350,14 @@ class SeoContractsList extends ContractsList
                 $query->where('pricing_model', 'FixedPrice')
                     ->where('metering', 'General')
                     ->where('canonical_calculation->status', 'exact');
+            } elseif ($effectivePricingFilter === 'ConsumptionEffect') {
+                // Kulutusvaikutukselliset: a fixed base energy price plus a mandatory
+                // consumption-profile adjustment (canonical consumption_effect on the base
+                // contract). These are the Hybrid contracts; identify by the mechanism rather than
+                // the pricing_model enum so the definition stays precise. applies_to='base_contract'
+                // excludes the Spot contracts whose effect only applies to optional price fixing.
+                $query->where('canonical_pricing->consumption_effect->present', true)
+                    ->where('canonical_pricing->consumption_effect->applies_to', 'base_contract');
             } else {
                 // Standard pricing models (Spot, FixedPrice, Hybrid)
                 $query->where('pricing_model', $effectivePricingFilter);
@@ -683,6 +692,7 @@ class SeoContractsList extends ContractsList
                 'Seasonal' => 'Vertaa kausisähkösopimuksia',
                 'Hybrid' => 'Vertaa joustosähkö- ja hybridisähkösopimuksia',
                 'GeneralElectricity' => 'Vertaa yleissähkösopimuksia – kiinteähintaiset sähkösopimukset',
+                'ConsumptionEffect' => 'Vertaa kulutusvaikutuksellisia sähkösopimuksia',
                 default => "Vertaa {$this->pricingTypeNames[$this->pricingType]}sopimuksia",
             };
 
@@ -777,6 +787,9 @@ class SeoContractsList extends ContractsList
             if ($this->pricingType === 'GeneralElectricity') {
                 return 'Vertaile yleissähkösopimuksia eli kiinteähintaisia sähkösopimuksia. Yleissähkössä maksat saman hinnan kellon ympäri. Löydä edullisin yleissähkösopimus.';
             }
+            if ($this->pricingType === 'ConsumptionEffect') {
+                return 'Vertaile kulutusvaikutuksellisia sähkösopimuksia. Energian perushinta on kiinteä, mutta lopulliseen hintaan lisätään pieni kulutusprofiilistasi riippuva korjaus ylös tai alas.';
+            }
 
             return 'Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto. Vertaa hintoja, sopimusehtoja ja energialähteitä yhdestä paikasta.';
         }
@@ -852,6 +865,7 @@ class SeoContractsList extends ContractsList
                 'Seasonal' => 'kausisahko',
                 'Hybrid' => 'joustosahko',
                 'GeneralElectricity' => 'yleissahko',
+                'ConsumptionEffect' => 'kulutusvaikutus',
             ];
             $slug = $slugMap[$this->pricingType] ?? 'porssisahko';
 
@@ -1000,6 +1014,10 @@ class SeoContractsList extends ContractsList
             return 'Yleissähkö – kiinteähintaiset sähkösopimukset';
         }
 
+        if ($this->pricingType === 'ConsumptionEffect') {
+            return 'Kulutusvaikutukselliset sähkösopimukset';
+        }
+
         if ($this->pricingType && isset($this->pricingTypeNames[$this->pricingType])) {
             return "{$this->pricingTypeNames[$this->pricingType]}sopimukset";
         }
@@ -1130,6 +1148,7 @@ class SeoContractsList extends ContractsList
             'Seasonal' => 'Kausisähkösopimuksessa sähkön hinta vaihtelee vuodenajan mukaan. Talvikuukausina (marras-maaliskuu) hinta on korkeampi, muulloin edullisempi. Kausisähkö heijastaa sähkön tuotantokustannusten kausivaihtelua ja sopii niille, jotka haluavat ennustettavuutta ilman tuntikohtaista vaihtelua.',
             'Hybrid' => 'Joustosähkö eli hybridisähkö yhdistää kiinteähintaisen sähkösopimuksen ennustettavuuden ja pörssisähkön edut. Joustosähkösopimuksessa osa hinnasta on kiinteä ja osa seuraa sähkön markkinahintaa. Tämä tarjoaa suojaa suurilta hintapiikeiltä, mutta mahdollistaa säästöt sähkön ollessa edullista. Vertaile hybridisähkösopimuksia ja löydä sopimus, joka sopii kulutukseesi.',
             'GeneralElectricity' => 'Yleissähkö eli perussähkö on yleisin sähkösopimustyyppi, jossa maksat saman kiinteän hinnan kilowattitunnilta vuorokauden ympäri. Yleissähkösopimus on yksinkertainen ja helppo ymmärtää – hinta ei vaihtele kellonajan tai vuodenajan mukaan. Yleissähkö sopii erityisesti kotitalouksille, joiden sähkönkulutus jakautuu tasaisesti koko vuorokaudelle. Vertaile yleissähkösopimuksia ja löydä edullisin kiinteähintainen sähkösopimus.',
+            'ConsumptionEffect' => 'Kulutusvaikutuksellisessa sähkösopimuksessa energian perushinta on kiinteä, mutta lopulliseen hintaan lisätään pieni kulutusvaikutus sen mukaan, miten oma kulutuksesi ajoittuu pörssisähkön hintoihin nähden. Jos kulutuksesi painottuu kalliisiin tunteihin, hinta nousee hieman; jos edullisiin, se laskee. Vaikutus on tyypillisesti muutaman sentin luokkaa kilowattitunnilta. Sopimustyyppi on kevyt yhdistelmä kiinteää hintaa ja pörssisähköä: ennustettavampi kuin pörssisähkö mutta ei täysin kiinteä. Sähköyhtiöt eivät useinkaan ilmoita kulutusvaikutuksen tarkkaa suuruutta etukäteen, koska se lasketaan toteutuneesta kulutuksestasi, joten Voltikka vertailee näitä sopimuksia perushinnan ja kuukausimaksun perusteella. Jos haluat täysin varman hinnan ilman kulutusvaikutusta, vertaile kiinteähintaisia sähkösopimuksia.',
             default => 'Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto.',
         };
     }

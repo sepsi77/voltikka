@@ -65,6 +65,7 @@ class SeoContractsListTest extends TestCase
         string $targetGroup = 'Household',
         ?string $canonicalStatus = null,
         bool $recurringReset = false,
+        ?string $consumptionEffectAppliesTo = null,
     ): ElectricityContract {
         $contract = ElectricityContract::create([
             'id' => $id,
@@ -93,6 +94,10 @@ class SeoContractsListTest extends TestCase
                 'recurring_schedule' => [
                     'present' => $recurringReset,
                     'cadence' => $recurringReset ? 'quarterly' : 'none',
+                ],
+                'consumption_effect' => [
+                    'present' => $consumptionEffectAppliesTo !== null,
+                    'applies_to' => $consumptionEffectAppliesTo ?? 'unknown',
                 ],
             ],
         ]);
@@ -750,6 +755,44 @@ class SeoContractsListTest extends TestCase
 
         Livewire::test('seo-contracts-list', ['pricingType' => 'FixedPrice'])
             ->assertSee('Täysin kiinteähintaiset sähkösopimukset');
+    }
+
+    // ==================== Consumption Effect (Kulutusvaikutus) Pricing Type Tests ====================
+
+    public function test_consumption_effect_page_filters_base_contract_effect_contracts(): void
+    {
+        // A Hybrid with a mandatory base consumption effect is a kulutusvaikutus contract.
+        $this->createContract(
+            'ce-hybrid', 'Test Energia Oy', 'Joustohinta 12 kk', 5.0, 3.0, null, 'Hybrid', 'OpenEnded', 'Household',
+            canonicalStatus: 'unsupported', consumptionEffectAppliesTo: 'base_contract',
+        );
+        // A plain fixed contract has no consumption effect.
+        $this->createContract('ce-fixed', 'Test Energia Oy', 'Kiinteä 12 kk', 5.0, 3.0, null, 'FixedPrice');
+        // A Spot contract whose effect only applies to optional fixing must NOT appear here.
+        $this->createContract(
+            'ce-spot-optional', 'Vihreä Voima Ab', 'Pörssisähkö + fixaus', 0.5, 2.0, null, 'Spot', 'OpenEnded', 'Household',
+            canonicalStatus: 'estimate_required', consumptionEffectAppliesTo: 'optional_fixing',
+        );
+
+        $contracts = Livewire::test('seo-contracts-list', ['pricingType' => 'ConsumptionEffect'])->viewData('contracts');
+
+        $this->assertCount(1, $contracts);
+        $this->assertEquals('ce-hybrid', $contracts->first()->id);
+    }
+
+    public function test_consumption_effect_page_seo_metadata(): void
+    {
+        $this->createContract(
+            'ce-hybrid', 'Test Energia Oy', 'Joustohinta 12 kk', 5.0, 3.0, null, 'Hybrid', 'OpenEnded', 'Household',
+            canonicalStatus: 'unsupported', consumptionEffectAppliesTo: 'base_contract',
+        );
+
+        $seoData = Livewire::test('seo-contracts-list', ['pricingType' => 'ConsumptionEffect'])
+            ->assertSee('Kulutusvaikutukselliset sähkösopimukset')
+            ->viewData('seoData');
+
+        $this->assertStringContainsString('kulutusvaikutuksellisia', $seoData['title']);
+        $this->assertStringEndsWith('/sahkosopimus/kulutusvaikutus', $seoData['canonical']);
     }
 
     // ==================== Hybrid (Joustosähkö) Pricing Type Tests ====================

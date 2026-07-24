@@ -859,6 +859,9 @@
                     <li>
                         <a href="/sahkosopimus/yleissahko" class="hover:text-coral-600">Yleissähkösopimukset</a>
                     </li>
+                    <li>
+                        <a href="/sahkosopimus/kulutusvaikutus" class="hover:text-coral-600">Kulutusvaikutukselliset sähkösopimukset</a>
+                    </li>
                 </ul>
             </div>
 

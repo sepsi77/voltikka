@@ -303,7 +303,7 @@ php artisan test --filter="ContractsFilterTest"
 |---------------|------|
 | `/sahkosopimus/paikkakunnat/{location}` | City-specific (e.g., /sahkosopimus/paikkakunnat/helsinki) |
 | `/sahkosopimus/omakotitalo`, `/kerrostalo`, `/rivitalo` | Housing type |
-| `/sahkosopimus/porssisahko`, `/kiintea-hinta`, `/kvartaalisahko`, `/aikasahko`, `/kausisahko`, `/joustosahko`, `/yleissahko` | Pricing type |
+| `/sahkosopimus/porssisahko`, `/kiintea-hinta`, `/kvartaalisahko`, `/aikasahko`, `/kausisahko`, `/joustosahko`, `/yleissahko`, `/kulutusvaikutus` | Pricing type |
 | `/sahkosopimus/tuulisahko`, `/aurinkosahko`, `/vihrea-sahko` | Energy source |
 | `/sahkosopimus/sahkotarjous` | Promotions/offers |
 | `/sahkosopimus/yritykselle` | Business contracts |
@@ -583,6 +583,7 @@ For pricing type pages, the `getContractsProperty()` method determines which con
 
 - **`Spot` / `Hybrid`**: filter by `pricing_model` column directly
 - **`FixedPrice` (fully-fixed / `kiintea-hinta`) and `GeneralElectricity` (`yleissahko`)**: `pricing_model = FixedPrice` is **NOT** sufficient. Kvartaalisähkö and monthly market-price (`markkinahintasähkö`) products are `FixedPrice` in the source enum but reset from the market (canonical `periodic_market_reset` / `recurring_schedule.present`) and are costed as estimates. A genuinely fully-fixed contract — energy price known and unchanging for the whole first year, **no consumption effect** — is marked `canonical_calculation.status = 'exact'` (spot and resets are always `estimate_required`, hybrids `unsupported`). So these pages filter `pricing_model = FixedPrice` **AND** `canonical_calculation->status = 'exact'`. Do not revert to a plain `pricing_model` filter — it puts quarterly/monthly market resets on the "fully fixed, full certainty" page. The page copy promises the energy price never changes and there is no consumption effect, so the filter must match that promise.
+- **`ConsumptionEffect` (kulutusvaikutus / `kulutusvaikutus`)**: contracts with a fixed base energy price plus a mandatory consumption-profile adjustment (the "mini-spot" ± effect). Filter by the **mechanism**, not the enum: `canonical_pricing->consumption_effect->present = true` AND `applies_to = 'base_contract'` (these are the Hybrids; `applies_to = 'optional_fixing'` Spot contracts are excluded because their effect only applies if the customer fixes the price). The effect's numeric ± bounds are often null because sources rarely disclose them — that is expected, so the page ranks by base price + monthly fee and explains the effect rather than quantifying it.
 - **Special types** (`Quarterly`, `TimeOfUse`, `Seasonal`): Filter by name/description patterns or `metering` field since these don't have a dedicated `pricing_model` value
 - New types should use whichever approach matches the data: direct field filtering is preferred when possible
 
