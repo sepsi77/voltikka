@@ -532,9 +532,13 @@ class ContractInterpretationValidator
             if ($discountType === 'NFirstMonth') {
                 $months = $sourceComponent['discount_n_first_months'] ?? null;
 
+                $startsAtContractStart = ($phase['starts']['kind'] ?? null) === 'contract_start'
+                    || (($phase['starts']['kind'] ?? null) === 'after_months'
+                        && (int) ($phase['starts']['value'] ?? -1) === 0);
+
                 return is_numeric($months)
                     && $sources->contains("components[{$index}].discount_n_first_months")
-                    && ($phase['starts']['kind'] ?? null) === 'contract_start'
+                    && $startsAtContractStart
                     && ($phase['ends']['kind'] ?? null) === 'after_months'
                     && (int) ($phase['ends']['value'] ?? -1) === (int) $months;
             }
@@ -809,7 +813,7 @@ class ContractInterpretationValidator
     private function isFlatPackageSource(array $input): bool
     {
         $text = mb_strtolower($this->sourceText($input), 'UTF-8');
-        $hasPackageWording = preg_match('/\b(?:paketti|package)\b/u', $text) === 1;
+        $hasPackageWording = preg_match('/(?<!\p{L})(?:paket\p{L}*|package)(?!\p{L})/u', $text) === 1;
         $maximumConsumption = data_get($input, 'consumption_limitation.MaxXKWhPerY');
         $components = collect($input['components'] ?? []);
         $hasPositiveMonthlyFee = $components->contains(
@@ -820,12 +824,28 @@ class ContractInterpretationValidator
             fn (array $component): bool => ($component['price_component_type'] ?? null) === 'General'
                 && (float) ($component['price'] ?? -1) === 0.0,
         );
+        $hasPositiveGeneralPrice = $components->contains(
+            fn (array $component): bool => ($component['price_component_type'] ?? null) === 'General'
+                && (float) ($component['price'] ?? 0) > 0,
+        );
+        $hasExplicitIncludedUse = preg_match(
+            '/(?:sisältää|sisaltaa)[^.!?]{0,160}(?:energiaa|sähköä|sahkoa)/u',
+            $text,
+        ) === 1;
+        $hasExplicitExcessUse = preg_match(
+            '/(?:ylittävästä|ylittavasta|ylimenevästä|ylimenevasta)[^.!?]{0,160}(?:energiasta|kulutuksesta)[^.!?]{0,160}(?:laskut|hinn)/u',
+            $text,
+        ) === 1;
+        $hasIncludedEnergyPackage = is_numeric($maximumConsumption)
+            && (float) $maximumConsumption > 0
+            && $hasZeroGeneralPrice;
+        $hasExcessUsePackage = $hasPositiveGeneralPrice
+            && $hasExplicitIncludedUse
+            && $hasExplicitExcessUse;
 
         return $hasPackageWording
-            && is_numeric($maximumConsumption)
-            && (float) $maximumConsumption > 0
             && $hasPositiveMonthlyFee
-            && $hasZeroGeneralPrice;
+            && ($hasIncludedEnergyPackage || $hasExcessUsePackage);
     }
 
     /**

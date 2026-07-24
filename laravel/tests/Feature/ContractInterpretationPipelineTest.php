@@ -257,6 +257,9 @@ class ContractInterpretationPipelineTest extends TestCase
         ];
         $this->assertSame([], app(ContractInterpretationValidator::class)->validate($output, $input));
 
+        $output['pricing']['phases'][0]['starts'] = ['kind' => 'after_months', 'value' => '0'];
+        $this->assertSame([], app(ContractInterpretationValidator::class)->validate($output, $input));
+
         $input['components'][0]['has_discount'] = false;
         $this->assertContains(
             '$.pricing.phases[0] must not use inactive discount timing from components[0] when has_discount is false.',
@@ -687,6 +690,81 @@ class ContractInterpretationPipelineTest extends TestCase
         );
     }
 
+    public function test_validator_requires_flat_package_taxonomy_for_explicit_excess_use_package(): void
+    {
+        $output = $this->validOutput('contract-1', [
+            'primary_pricing_model' => 'FixedPrice',
+            'pricing_mechanisms' => ['fixed', 'periodic_market_reset'],
+            'periodic_reset_cadence' => 'other',
+        ]);
+        $output['pricing']['phases'] = [[
+            'label' => 'Current package price',
+            'phase_kind' => 'current_structured',
+            'starts' => ['kind' => 'contract_start', 'value' => null],
+            'ends' => ['kind' => 'none', 'value' => null],
+            'components' => [[
+                'component_type' => 'monthly_fee',
+                'amount' => 9,
+                'normal_amount' => null,
+                'unit' => 'eur_per_month',
+                'vat_status' => 'unknown',
+                'price_role' => 'current',
+                'source_kind' => 'structured',
+                'evidence' => [['source' => 'components[0].price', 'quote' => 'components[0].price=9']],
+            ], [
+                'component_type' => 'energy_general',
+                'amount' => 8.87,
+                'normal_amount' => null,
+                'unit' => 'cents_per_kwh',
+                'vat_status' => 'unknown',
+                'price_role' => 'current',
+                'source_kind' => 'structured',
+                'evidence' => [['source' => 'components[1].price', 'quote' => 'components[1].price=8.87']],
+            ]],
+            'evidence' => [],
+        ]];
+        $output['pricing']['recurring_schedule'] = [
+            'present' => true,
+            'cadence' => 'other',
+            'current_period_start' => null,
+            'current_period_end' => null,
+            'future_price_known' => false,
+            'description' => 'Price updates at least twice each year.',
+            'evidence' => [],
+        ];
+
+        $input = [
+            'contract_id' => 'contract-1',
+            'contract_name' => 'Louna Helppo XS',
+            'pricing_name' => 'Louna Helppo XS',
+            'pricing_model' => 'FixedPrice',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'extra_information_fi' => 'Maksat kiinteän kuukausimaksun, joka sisältää valitsemasi paketin mukaisen määrän energiaa kuukaudessa. Kuukausirajan ylittävästä energiasta laskutamme yleissähkön hinnalla.',
+            'consumption_limitation' => ['MaxXKWhPerY' => null],
+            'components' => [
+                ['price_component_type' => 'Monthly', 'price' => 9],
+                ['price_component_type' => 'General', 'price' => 8.87],
+            ],
+        ];
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, $input);
+        $this->assertContains(
+            '$.classification.pricing_mechanisms must contain flat_fee_or_package because the source explicitly describes a consumption package.',
+            $errors,
+        );
+        $this->assertContains(
+            '$.pricing.phases must map the package Monthly charge to a flat_fee component.',
+            $errors,
+        );
+        $this->assertContains('$.pricing.phases is missing structured component type flat_fee.', $errors);
+        $this->assertNotContains(
+            '$.classification.pricing_mechanisms must not contain fixed for a package without a positive fixed energy-price component.',
+            $errors,
+        );
+        $this->assertNotContains('$.pricing.phases is missing structured component type energy_general.', $errors);
+    }
+
     public function test_validator_retains_source_hybrid_without_explicit_contrary_evidence(): void
     {
         $output = $this->validOutput('contract-1', [
@@ -1018,8 +1096,8 @@ class ContractInterpretationPipelineTest extends TestCase
             'analysis_fingerprint' => hash('sha256', $snapshot->source_fingerprint.microtime(true)),
             'status' => ContractInterpretation::STATUS_PENDING,
             'schema_version' => 'schema-v3',
-            'prompt_version' => 'prompt-v14',
-            'validator_version' => 'validator-v10',
+            'prompt_version' => 'prompt-v15',
+            'validator_version' => 'validator-v11',
             'provider' => 'openrouter',
             'model' => 'test-model',
             'output' => $output,
