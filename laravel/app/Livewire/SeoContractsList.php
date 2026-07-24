@@ -332,10 +332,23 @@ class SeoContractsList extends ContractsList
                         ->orWhere('name', 'LIKE', '%Kausisähkö%')
                         ->orWhere('extra_information_fi', 'LIKE', '%kausisähkö%');
                 });
-            } elseif ($effectivePricingFilter === 'GeneralElectricity') {
-                // Yleissähkö: fixed-price contracts with general (single-tariff) metering
+            } elseif ($effectivePricingFilter === 'FixedPrice') {
+                // Fully fixed price only. pricing_model=FixedPrice is NOT sufficient: Kvartaalisähkö
+                // and monthly market-price ("markkinahintasähkö") products are FixedPrice in the
+                // source enum but reset from the market quarterly/monthly (canonical
+                // periodic_market_reset / recurring schedule) and are costed as estimates. A
+                // genuinely fully-fixed contract has every first-12-month energy price known and
+                // unchanging, which the interpretation marks as canonical_calculation.status='exact'
+                // (spot and reset products are always estimate_required, hybrids unsupported). This
+                // page promises full certainty, so restrict to exact FixedPrice.
                 $query->where('pricing_model', 'FixedPrice')
-                    ->where('metering', 'General');
+                    ->where('canonical_calculation->status', 'exact');
+            } elseif ($effectivePricingFilter === 'GeneralElectricity') {
+                // Yleissähkö: fully-fixed single-tariff (General) contracts. Same fully-fixed rule
+                // as FixedPrice so a General-metered market reset cannot appear here either.
+                $query->where('pricing_model', 'FixedPrice')
+                    ->where('metering', 'General')
+                    ->where('canonical_calculation->status', 'exact');
             } else {
                 // Standard pricing models (Spot, FixedPrice, Hybrid)
                 $query->where('pricing_model', $effectivePricingFilter);
@@ -449,31 +462,44 @@ class SeoContractsList extends ContractsList
         $sorted = $this->applyCachedMetricsToContracts($contracts, $consumption);
 
         if ($sorted === null) {
-            $calculator = app(ContractPriceCalculator::class);
             $emissionsCalculator = app(CO2EmissionsCalculator::class);
+            $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
+            $useCanonical = $canonicalPricing->enabled();
+
+            $usage = new EnergyUsage(total: $consumption, basicLiving: $consumption);
 
             // Do not eager load full price history here. Load only the latest
             // calculation components in bulk, avoiding both N+1 queries and
             // 50k+ historical price-component models in memory.
+            $canonicalMetrics = $useCanonical ? $canonicalPricing->metricsForContracts($contracts, $usage) : [];
 
-            // Get spot price averages for calculations
-            $spotPriceAvg = SpotPriceAverage::latestRolling365Days();
+            $spotPriceAvg = $useCanonical ? null : SpotPriceAverage::latestRolling365Days();
             $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
             $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
 
-            $priceComponentsByContractId = ElectricityContract::getLatestPriceComponentsForCalculationByContractIds(
-                $contracts->pluck('id')
-            );
+            $priceComponentsByContractId = $useCanonical
+                ? []
+                : ElectricityContract::getLatestPriceComponentsForCalculationByContractIds($contracts->pluck('id'));
 
-            // Calculate cost and emissions for each contract and sort by cost
-            $contracts = $contracts->map(function ($contract) use ($calculator, $emissionsCalculator, $spotPriceDay, $spotPriceNight, $consumption, $priceComponentsByContractId) {
+            $calculator = $useCanonical ? null : app(ContractPriceCalculator::class);
+
+            $contracts = $contracts->map(function ($contract) use ($calculator, $emissionsCalculator, $spotPriceDay, $spotPriceNight, $consumption, $usage, $priceComponentsByContractId, $useCanonical, $canonicalMetrics) {
+                $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
+                $maxConsumption = $contract->consumption_limitation_max_x_kwh_per_y;
+                $contract->exceeds_consumption_limit = $maxConsumption > 0 && $consumption > $maxConsumption;
+
+                if ($useCanonical) {
+                    $canonical = $canonicalMetrics[$contract->id] ?? null;
+                    $contract->calculated_cost = $canonical['calculated_cost'] ?? [];
+                    $contract->pricing_integrity = $canonical['integrity'] ?? null;
+                    $contract->comparability = $canonical['comparability'] ?? null;
+                    $contract->is_listed = $canonical['is_listed'] ?? false;
+                    $contract->sort_key = $canonical['sort_key'];
+
+                    return $contract;
+                }
+
                 $priceComponents = $priceComponentsByContractId[$contract->id] ?? [];
-
-                $usage = new EnergyUsage(
-                    total: $consumption,
-                    basicLiving: $consumption,
-                );
-
                 $contractData = [
                     'contract_type' => $contract->contract_type,
                     'pricing_model' => $contract->pricing_model,
@@ -482,28 +508,27 @@ class SeoContractsList extends ContractsList
 
                 $result = $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
                 $contract->calculated_cost = $result->toArray();
-
-                // Calculate emission factor for this contract
-                $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
-
-                // Mark contracts where consumption exceeds their limit
-                $maxConsumption = $contract->consumption_limitation_max_x_kwh_per_y;
-                $contract->exceeds_consumption_limit = $maxConsumption > 0 && $consumption > $maxConsumption;
+                $contract->pricing_integrity = null;
+                $contract->comparability = null;
+                $contract->is_listed = true;
+                $contract->sort_key = $result->totalCost;
 
                 return $contract;
             });
 
+            if ($useCanonical) {
+                $contracts = $contracts->filter(fn ($contract) => $contract->is_listed)->values();
+            }
+
             // Sort by total cost (ascending), but put contracts that exceed consumption limit at the end
             $sorted = $contracts->sort(function ($a, $b) {
-                // First sort by exceeds_consumption_limit (false first, true last)
                 $aExceeds = $a->exceeds_consumption_limit ? 1 : 0;
                 $bExceeds = $b->exceeds_consumption_limit ? 1 : 0;
                 if ($aExceeds !== $bExceeds) {
                     return $aExceeds - $bExceeds;
                 }
-                // Then sort by total cost (ascending)
-                $aCost = $a->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
-                $bCost = $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
+                $aCost = $a->sort_key ?? $a->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
+                $bCost = $b->sort_key ?? $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
 
                 return $aCost <=> $bCost;
             })->values();
@@ -652,7 +677,7 @@ class SeoContractsList extends ContractsList
             // SEO-optimized titles for each pricing type (focus on comparison)
             $baseTitle = match ($this->pricingType) {
                 'Spot' => 'Vertaa pörssisähkösopimuksia',
-                'FixedPrice' => 'Vertaa kiinteähintaisia sähkösopimuksia',
+                'FixedPrice' => 'Vertaa täysin kiinteähintaisia sähkösopimuksia',
                 'Quarterly' => 'Vertaa kvartaalisähkösopimuksia',
                 'TimeOfUse' => 'Vertaa aikasähkösopimuksia',
                 'Seasonal' => 'Vertaa kausisähkösopimuksia',
@@ -735,7 +760,7 @@ class SeoContractsList extends ContractsList
                 return 'Vertaile pörssisähkösopimuksia. Pörssisähkö seuraa tuntikohtaista sähkön pörssihintaa. Löydä paras pörssisähkösopimus.';
             }
             if ($this->pricingType === 'FixedPrice') {
-                return 'Vertaile kiinteähintaisia sähkösopimuksia. Kiinteähintainen sopimus antaa ennustettavan kWh-hinnan ja suojaa pörssisähkön tuntivaihteluilta.';
+                return 'Vertaile täysin kiinteähintaisia sähkösopimuksia, joissa energian kWh-hinta on lukittu eikä muutu. Ei pörssi- tai markkinahintaseurantaa eikä kulutusvaikutusta – täysi varmuus hinnasta.';
             }
             if ($this->pricingType === 'Quarterly') {
                 return 'Vertaile kvartaalisähkösopimuksia. Kvartaalisähkössä hinta päivittyy neljä kertaa vuodessa. Löydä paras kvartaalisähkösopimus kotitalouksille.';
@@ -968,7 +993,7 @@ class SeoContractsList extends ContractsList
         }
 
         if ($this->pricingType === 'FixedPrice') {
-            return 'Kiinteähintaiset sähkösopimukset';
+            return 'Täysin kiinteähintaiset sähkösopimukset';
         }
 
         if ($this->pricingType === 'GeneralElectricity') {
@@ -1099,7 +1124,7 @@ class SeoContractsList extends ContractsList
     {
         return match ($pricingType) {
             'Spot' => 'Pörssisähkösopimuksessa sähkön hinta vaihtelee tunneittain Nord Pool -sähköpörssin hinnan mukaan. Pörssisähkö voi olla edullinen vaihtoehto, jos pystyt ajoittamaan kulutustasi edullisempiin tunteihin. Vertaile pörssisähkösopimuksia ja löydä sopimus, jossa marginaali ja kuukausimaksu sopivat sinulle.',
-            'FixedPrice' => 'Kiinteähintaisessa sähkösopimuksessa energian hinta on ennalta sovittu eikä muutu tunneittain pörssisähkön mukana. Kiinteä hinta sopii kotitalouksille, jotka arvostavat ennustettavaa sähkölaskua ja haluavat vertailla sopimuksia suoraan kWh-hinnan ja kuukausimaksun perusteella.',
+            'FixedPrice' => 'Täysin kiinteähintaisessa sähkösopimuksessa energian kWh-hinta on lukittu eikä muutu sopimuksen aikana. Hinta ei seuraa pörssisähkön tuntihintaa eikä päivity kvartaaleittain tai kuukausittain markkinahinnan mukaan. Näillä sopimuksilla ei myöskään ole kulutusvaikutusta, joten hinta ei riipu kulutuksesi määrästä tai ajoituksesta. Tiedät sähköenergian hinnan etukäteen täydellä varmuudella. Vertaile täysin kiinteähintaisia sopimuksia suoraan kWh-hinnan ja kuukausimaksun perusteella.',
             'Quarterly' => 'Kvartaalisähkösopimuksessa sähkön hinta päivittyy neljännesvuosittain eli neljä kertaa vuodessa. Kvartaalisähkö tarjoaa kompromissin kiinteän hinnan ennustettavuuden ja pörssisähkön markkinahinnan välillä. Hinta seuraa markkinoiden kehitystä maltillisesti ilman tuntikohtaista vaihtelua.',
             'TimeOfUse' => 'Aikasähkösopimuksessa sähkön hinta vaihtelee vuorokaudenajan mukaan. Yöllä (22-07) sähkö on edullisempaa kuin päivällä. Aikasähkö sopii erityisesti niille, jotka voivat ajoittaa suurimmat kulutuspiikkinsä yöaikaan, esimerkiksi lämminvesivaraajan tai sähköauton latauksen.',
             'Seasonal' => 'Kausisähkösopimuksessa sähkön hinta vaihtelee vuodenajan mukaan. Talvikuukausina (marras-maaliskuu) hinta on korkeampi, muulloin edullisempi. Kausisähkö heijastaa sähkön tuotantokustannusten kausivaihtelua ja sopii niille, jotka haluavat ennustettavuutta ilman tuntikohtaista vaihtelua.',

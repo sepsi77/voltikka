@@ -27,6 +27,14 @@ Primary files:
 - After `contracts:calculate-price-statistics` recalculates daily statistics (including when called by `contracts:fetch`), it queues `contracts:warm-price-statistics-cache` for the default weekly/5 000 kWh page state so the next low-traffic visitor does not pay the cold-cache aggregation cost. `spot:fetch` queues the same warmer after spot averages update because spot fingerprints also bust this page cache.
 - The warmer builds many segment/date summaries in one job. Keep `ContractPriceStatistics` request/job-scoped batching intact: one `dailyStats` collection, one daily spot-average load sliced in memory for rolling windows, and no per-segment latest-row SQL lookups.
 
+## Canonical pricing (forward-only, behind `CANONICAL_PRICING_ENABLED`)
+
+`calculateForDate()` takes `?bool $useCanonical` (defaults to the config flag). When true, the daily
+snapshot's `annual_cost` fields come from `CanonicalContractPricingService` (excluded contracts get a
+null annual cost, mirroring spot-missing handling); the per-component c/kWh fields stay relational for
+chart continuity. **`BackfillContractPriceStatistics` always passes `useCanonical: false`** — today's
+canonical interpretation must never be applied retroactively to a historical date.
+
 ## Segment classification
 
 Segment keys are intentionally mutually exclusive and order-dependent:

@@ -8,6 +8,12 @@ use RuntimeException;
 class ContractInterpretationValidator
 {
     /**
+     * Per-kWh ceiling (c/kWh) separating a Spot supplier margin from a genuine all-in energy
+     * price. Mirrors CanonicalContractPriceCalculator::SPOT_MARGIN_CEILING_CENTS.
+     */
+    private const SPOT_MARGIN_CEILING_CENTS = 2.0;
+
+    /**
      * @param  array<string, mixed>  $output
      * @param  array<string, mixed>  $input
      * @return list<string>
@@ -557,8 +563,15 @@ class ContractInterpretationValidator
 
     private function interpretedComponentType(mixed $sourceType, mixed $pricingModel): ?string
     {
+        // On a Spot contract every supplier c/kWh energy adder is a margin over the market price,
+        // whichever tariff slot the source entered it in (General/DayTime/NightTime/Seasonal).
+        if ($pricingModel === 'Spot'
+            && in_array($sourceType, ['General', 'DayTime', 'NightTime', 'SeasonalWinter', 'SeasonalWinterDay', 'SeasonalOther'], true)) {
+            return 'spot_margin';
+        }
+
         return match ($sourceType) {
-            'General' => $pricingModel === 'Spot' ? 'spot_margin' : 'energy_general',
+            'General' => 'energy_general',
             'DayTime' => 'energy_day',
             'NightTime' => 'energy_night',
             'SeasonalWinter', 'SeasonalWinterDay' => 'energy_seasonal_winter',
@@ -598,6 +611,22 @@ class ContractInterpretationValidator
             && $hasMechanism('fixed')
             && ! $hasAnyComponent($fixedEnergyComponents)) {
             $errors[] = '$.classification.pricing_mechanisms contains fixed without a fixed energy-price component.';
+        }
+
+        // On a Spot contract a small per-kWh energy adder is the supplier margin, not a fixed
+        // energy price, whichever tariff slot it was entered in. Anything at or below the margin
+        // ceiling must be spot_margin; a larger value is a genuine all-in market/intro price and
+        // is left alone. Ceiling mirrors CanonicalContractPriceCalculator::SPOT_MARGIN_CEILING_CENTS.
+        if (($classification['primary_pricing_model'] ?? null) === 'Spot') {
+            $hasSmallFixedEnergy = $interpretedComponents->contains(
+                fn (array $component): bool => in_array($component['component_type'] ?? null, $fixedEnergyComponents, true)
+                    && (is_int($component['amount'] ?? null) || is_float($component['amount'] ?? null))
+                    && (float) $component['amount'] > 0.0
+                    && (float) $component['amount'] <= self::SPOT_MARGIN_CEILING_CENTS,
+            );
+            if ($hasSmallFixedEnergy) {
+                $errors[] = '$.pricing.phases: on a Spot contract a per-kWh energy adder at or below the margin ceiling must be spot_margin, not a fixed energy component.';
+            }
         }
 
         if ($hasMechanism('flat_fee_or_package') && ! $hasComponent('flat_fee')) {
@@ -693,6 +722,26 @@ class ContractInterpretationValidator
             if (($output['calculation']['status'] ?? null) !== 'estimate_required') {
                 $errors[] = '$.calculation.status must be estimate_required when only unknown recurring future market prices prevent an exact calculation.';
             }
+        }
+
+        // A periodic market-reset product (e.g. Kvartaalisähkö) is not deceptive for its own price
+        // path: the price varying between periods is the disclosed nature of the product, and whether
+        // the next period's rate is disclosed is not a signal in either direction. So detected on a
+        // reset product requires a genuine deception independent of the reset — expressed by a code
+        // other than the reset/intro/future ones below. When only those reset-path codes are present,
+        // the flag must be uncertain, not detected.
+        $resetPathCodes = [
+            'recurring_reset_requires_estimate',
+            'promotion_metadata_missing',
+            'structured_matches_intro_only',
+            'future_price_omitted',
+            'future_price_unknown',
+            'structured_matches_description',
+        ];
+        if ($hasRecurringSchedule
+            && ($output['source_consistency']['misleading_first_12_months'] ?? null) === 'detected'
+            && array_diff($issueCodes, $resetPathCodes) === []) {
+            $errors[] = '$.source_consistency.misleading_first_12_months must not be detected for a periodic market-reset product whose only issues describe the reset/intro price path; use uncertain.';
         }
 
         $sourceCadence = $this->detectSourceRecurringResetCadence($input);

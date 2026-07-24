@@ -33,9 +33,13 @@
   {"name":"Enable automatic interpretation for future production contract syncs", "status":"completed"},
   {"name":"Prepare canonical-pricing and pricing-integrity handoff for the next session", "status":"completed"},
   {"name":"Sync production contract snapshots and validated interpretations into the local development database", "status":"completed"},
-  {"name":"Expand labels for category mismatches, recurring resets, and consumption-effect products", "status":"pending"},
-  {"name":"Materialize validated pricing phases for calculation and public use", "status":"pending"},
-  {"name":"Implement calendar-aware phase pricing and explicit Hybrid assumptions/ranges", "status":"pending"},
-  {"name":"Update listings, details, rankings, statistics, bill comparison, and warnings", "status":"pending"},
-  {"name":"Add regression tests, operational metrics, and retry controls", "status":"pending"}
+  {"name":"Expand labels for category mismatches, recurring resets, and consumption-effect products", "status":"completed"},
+  {"name":"Materialize validated pricing phases for calculation and public use", "status":"completed"},
+  {"name":"Implement calendar-aware phase pricing and explicit Hybrid assumptions/ranges", "status":"completed"},
+  {"name":"Update listings, details, rankings, statistics, bill comparison, and warnings", "status":"completed"},
+  {"name":"Build CanonicalPricing domain layer (parser, phase-timeline calculator, comparability policy, integrity service)", "status":"completed"},
+  {"name":"Add CANONICAL_PRICING_ENABLED flag and contracts:compare-canonical-pricing staging command", "status":"completed"},
+  {"name":"Add canonical unit + feature regression tests (15 scenarios, integrity, listing/detail)", "status":"completed"},
+  {"name":"Add operational metrics and retry controls for canonical pricing", "status":"pending"},
+  {"name":"Integrate phase-resolved period rates into bill comparison period cost (deferred follow-up)", "status":"pending"}
 ]

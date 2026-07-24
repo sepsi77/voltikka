@@ -45,6 +45,8 @@ class BackfillContractPriceStatistics extends Command
                 date: $date,
                 contractIds: $contractIds,
                 overwrite: (bool) $this->option('overwrite'),
+                // Historical backfills never use today's canonical interpretation.
+                useCanonical: false,
             );
 
             $totalSnapshots += $result['snapshots'];

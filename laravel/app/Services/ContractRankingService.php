@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
+use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\DTO\EnergyUsage;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -17,6 +18,7 @@ class ContractRankingService
     public function __construct(
         private ContractPriceCalculator $calculator,
         private ContractListCacheService $listCache,
+        private CanonicalContractPricingService $canonicalPricing,
     ) {}
 
     /**
@@ -238,7 +240,10 @@ class ContractRankingService
             return $this->rankingsMemo;
         }
 
-        return $this->rankingsMemo = Cache::remember(self::CACHE_KEY_RANKINGS, self::CACHE_TTL_SECONDS, function () {
+        // Vary the cache key by pricing basis so toggling the flag does not serve stale ranks.
+        $cacheKey = self::CACHE_KEY_RANKINGS.($this->canonicalPricing->enabled() ? ':c1' : ':c0');
+
+        return $this->rankingsMemo = Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () {
             return $this->calculateRankings();
         });
     }
@@ -256,21 +261,40 @@ class ContractRankingService
             })
             ->get();
 
-        $spotPriceAvg = SpotPriceAverage::latestRolling365Days();
-        $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
-        $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
-
         $consumption = self::DEFAULT_CONSUMPTION;
         $usage = new EnergyUsage(total: $consumption, basicLiving: $consumption);
 
-        $priceComponentsByContractId = ElectricityContract::getLatestPriceComponentsForCalculationByContractIds(
-            $contracts->pluck('id')
-        );
+        $useCanonical = $this->canonicalPricing->enabled();
+        $canonicalMetrics = $useCanonical ? $this->canonicalPricing->metricsForContracts($contracts, $usage) : [];
+
+        $spotPriceAvg = $useCanonical ? null : SpotPriceAverage::latestRolling365Days();
+        $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
+        $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
+
+        $priceComponentsByContractId = $useCanonical
+            ? []
+            : ElectricityContract::getLatestPriceComponentsForCalculationByContractIds($contracts->pluck('id'));
 
         // Calculate cost for each contract
         $contractCosts = [];
         foreach ($contracts as $contract) {
             if (! $contract->isConsumptionInRange($consumption)) {
+                continue;
+            }
+
+            if ($useCanonical) {
+                $canonical = $canonicalMetrics[$contract->id] ?? null;
+                // Contracts unfit for comparison are excluded from rankings entirely.
+                if ($canonical === null || ! ($canonical['is_listed'] ?? false)) {
+                    continue;
+                }
+
+                $contractCosts[] = [
+                    'id' => $contract->id,
+                    'company_name' => $contract->company_name,
+                    'total_cost' => $canonical['sort_key'] ?? PHP_FLOAT_MAX,
+                ];
+
                 continue;
             }
 

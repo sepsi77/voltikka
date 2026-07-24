@@ -94,3 +94,254 @@
 - Prompt v15/validator v11 deployed as Railway deployment `e62a1b2e-0f51-43da-b18a-fb79b4065e5c`. Fresh fingerprinted production interpretations 590 and 591 both published on their initial calls for $0.0312 combined. Huoleton published complete current quarterly pricing and relational components. Louna Helppo XS published the correct `flat_fee_or_package` + `fixed` + `periodic_market_reset` taxonomy, stayed incomplete because the included package amount is absent, and correctly did not publish relational pricing. Final active coverage is 425/425 current snapshots with a published interpretation; the two failed v14 rows remain immutable audit records. The complete production operation used 470 model calls and cost $5.0158, excluding the $0.0203 local validation call.
 - After the successful backfill, production enabled `CONTRACT_INTERPRETATION_ENABLED=true` on the `voltikka` service. Railway deployment `ab71908c-1d2a-4e3a-96df-8dec56fa8920` applied the variable and completed successfully. Future `contracts:fetch` runs now queue only new analysis fingerprints after commit; unchanged source snapshots remain idempotent and do not create LLM calls.
 - A consistent read-only production snapshot of the contract domain was copied to the ignored local SQLite development database on 2026-07-24. The sync included 3,680 contracts, 425 active rows, 195,569 historical price components, 462 immutable source snapshots, 591 versioned interpretations, contract relationships, percentiles, price history/statistics, and fixed-contract forecasts. All 425 active contracts have selected canonical pricing locally; 311 selected interpretations approved relational source pricing. SQLite foreign-key validation passed. Spot, user, queue, cache, and session tables were not replaced.
+
+## Canonical phase-aware pricing + deceptive-pricing labels (2026-07-24 session)
+
+The validated `canonical_*` JSON is now consumed for public pricing, behind
+`CANONICAL_PRICING_ENABLED` (default off). New domain layer: `laravel/app/Services/CanonicalPricing/`.
+
+Product decisions (user-confirmed this session):
+- Promo + KNOWN later price → rank by the true 12-month cost across phases from the signup date
+  (e.g. Aalto "Tyyni Vakiohinta" is ranked on 13,65 snt/kWh, labelled "Hinta nousee 1.8.2026").
+- Open-ended promo + UNKNOWN later price → hidden from listings/rankings; detail page reachable with a
+  warning. Genuinely broken `incomplete` pricing (ambiguous fees, packages missing allowance) is also hidden.
+- Short fixed terms (< 12 mo) whose only gap is post-term pricing → kept, term price annualized, labelled
+  "{N} kk sopimus – hinta sen jälkeen ei tiedossa".
+- Hybrids (all `unsupported`) → kept, ranked base-only, disclosure "Ei sisällä kulutusvaikutusta".
+- Tiered label: soft card pill + detailed detail-page notice; only `misleading_first_12_months = detected`
+  gets a label; `uncertain`/`not_assessable` never do; the raw LLM `summary` is never rendered.
+
+Engineering decisions:
+- Reuse-by-extraction: `MonthlyUsageProfileBuilder` was extracted from `ContractPriceCalculator` (which now
+  delegates and keeps its constants as aliases) so both calculators share identical usage math. The legacy
+  22-test suite pins parity. Rejected: calling legacy `calculate()` per phase segment (its Jan-anchored
+  seasonal indexing cannot express partial months) and full reimplementation.
+- Fail closed: an unknown enum affecting costing, a missing canonical object, or a conflicting VAT basis for
+  one component excludes the contract rather than costing it on data the calculator does not understand.
+  Unknown issue codes (which do not affect costing) are dropped. Worst case is over-hiding, never
+  promo-flattering.
+- An **unknown phase start with a resolvable end is the already-running current price** and covers from the
+  window start. This was a real bug found in the first full-DB comparison run: 9 legitimate Fixed12/Fixed24
+  contracts (`starts.kind = unknown`, `ends = after_months 12/24`) were wrongly excluded; the fix moved them
+  to `comparable_exact`. Regression test `test_14_unknown_start_current_price_covers_the_window`.
+- VAT amounts are used as-is (structured prices are VAT-inclusive; description prices share the contract's
+  VAT basis; business contracts stay ex-VAT). A component type with both included and excluded VAT in one
+  contract excludes it.
+- Detail-page discount-hero component display stays on relational metadata; only totals/ranking/labels move to
+  canonical.
+- Caches carry a `c1`/`c0` basis marker (`ContractListCacheService`, `ContractRankingService`,
+  `ContractPageCacheVersion`) so toggling the flag busts them immediately.
+- Statistics is forward-only: `calculateForDate(..., useCanonical)` defaults to the flag; the backfill command
+  always passes `false` (today's interpretation must never be applied to a historical date).
+
+First full local-DB comparison (`contracts:compare-canonical-pricing --start-date=2026-07-24`, 425 active
+contracts, after the unknown-start fix): 192 comparable_exact, 125 comparable_estimate, 58 base_only_hybrid,
+24 term_price_only, 24 excluded_incomplete, 2 excluded_unknown_future; 15 integrity-labelled (incl. Tyyni
+Vakiohinta "Hinta nousee 1.8.2026"). Notable product impact to review on the production run before enabling:
+the 24 `excluded_incomplete` contracts (Helen Helpposähkö tiers, Vattenfall Täysvesi/Täystuuli, some seasonal/
+fuse tariffs) drop out of listings; confirm this is acceptable with the user before setting the flag.
+
+Deferred follow-ups (tracked in tasks.json): operational metrics/retry controls for canonical pricing, and
+integrating phase-resolved period rates into the bill-comparison *period* cost (currently only the annualized
+estimate and exclusion go through canonical there).
+
+Zero test regressions: the full Unit suite (310 tests, incl. 51 new canonical tests) is green; the 13 Feature
+failures are all pre-existing (verified identical on clean `main`: CompanyDetail JSON-LD ordering,
+SpotPriceComponent data, ConsumptionCalculator, ContractsListPagination).
+
+### Local-review bug fixes (same session)
+
+Local dev review at 5000 kWh surfaced contracts showing 0,0 €/kk. Two calculator bugs, both fixed
+with regression tests (`test_15_*`, `test_16_*`):
+1. A recurring/current phase with **both** boundaries `unknown` (a market product with no disclosed
+   dates, e.g. Keravan Kvartaalisähkö, Vaasan Perussähkö yösähkö) resolved to no dated range, so no
+   segment covered the window start and the estimate-fill had no phase to hold → total 0.
+   `resolveCurrentPhaseIndex()` now falls back to the first phase that carries pricing (the described
+   current price) when no segment covers `S`.
+2. A phase carrying a **duplicate component** (a spurious `energy_general 0` alongside the real rate,
+   e.g. Vaasan Kiinteä Vaikuttaja) let the placeholder 0 overwrite the real amount. `resolvePhaseRates()`
+   now prefers the first non-zero amount per component type, mirroring the relational loader.
+
+After the fixes: 0 of 400 listed contracts have a zero total (`getCachedMetrics(5000)` sweep).
+
+### Post-review refinements from domain feedback (same session)
+
+Owner reviewed the excluded/labelled contracts and gave domain corrections. Applied as
+calculator/integrity rules (all with regression tests); several remaining gaps are LLM-layer and
+noted below. Excluded dropped 24 → 12; card-level deceptive labels dropped to exactly one
+(Tyyni Vakiohinta "Hinta nousee 1.8.2026").
+
+1. **Recurring market products (monthly/quarterly/seasonal) are estimates, not deceptive.**
+   Cheap Kvartaalisähkö and Kokkola Tyyni were `excluded_unknown_future` (flagged `detected` with a
+   1-month intro). They behave like Spot: current period known, future periods reset with the market.
+   Now: an active recurring reset is never excluded for `detected`; the uncovered tail holds the most
+   recent disclosed (recurring) price, not the intro; and the integrity service suppresses the promo
+   label for active recurring resets. Fill uses `lastCoveredPhaseIndex` (the ongoing price) instead of
+   the phase-at-signup.
+2. **Spot "toimitusmaksu" = margin (Porvoo SPOT ×2).** Their canonical pricing is complete
+   (`spot_margin` + `monthly_fee`); the LLM marked them `incomplete` only over description wording. A
+   Spot contract with a costable disclosed margin now lists as a spot estimate regardless of
+   `incomplete` (`isCostableSpot`).
+3. **Ambiguous duplicate monthly fee → take the higher (Vattenfall Täysvesi/Täystuuli ×8).** A
+   fully-covered contract whose only gap is two `monthly_fee` components now lists, resolving the fee
+   to the higher value (`isResolvableDuplicateFee`; `resolvePhaseRates` takes `max` of duplicate
+   monthly fees, with `flat_fee` package charges additive on top).
+4. **Materiality gate on the deceptive label.** A listed promo is only labelled when the structured
+   price materially understates the first year (impact ≥ 30 € AND structured ≤ 80 % of true). Tyyni
+   understates by 434 € (42 % of true) → labelled; Hehku KIINTEÄ 6 kk / Cheap Määräaikainen 6 kk
+   (6-month fixed continuing at a similar spot price, ~50 € / ~10 %) → no longer labelled.
+
+**Spot dev-data note (not a bug):** the synced dev DB's rolling-365 spot average is 7,54/5,57 c/kWh
+from data ending 2026-05-23 (~2 months stale, low spring prices), so spot contracts look cheap. It is
+the same basis the legacy calculator uses; production has current averages. Run `php artisan
+spot:averages` locally for fresher dev numbers.
+
+**Test isolation fix:** `phpunit.xml` now pins `CANONICAL_PRICING_ENABLED=false` so a local `.env`
+override (used to demo the dev server) cannot leak the flag into the suite; canonical tests opt in via
+`config()->set()`.
+
+### Remaining exclusions (12) and the LLM-prompt follow-ups they need
+
+Still excluded at 5 000 kWh, correctly, but some warrant interpretation-layer fixes:
+- **Helen Helpposähkö XS/S/M/L, Turku Louna Helppo XS/S/M (7)** — flat capped tiers; the price for
+  consumption above the included cap is genuinely absent. Uncomputable at 5 000 kWh (above every cap).
+  Future option: a consumption-dependent policy that lists them where consumption fits the cap.
+- **Vimpelin Voima Päivä ja yötariffi / Vuodenaikatariffi ×2 / Sulaketariffi (4)** — a discount is
+  disclosed but the normal price after the promo (within 12 months) is not in the data. Owner: fine to
+  skip (we can't assume users know the pre-promo price).
+- **Vattenfall Ilmasto Vakio (1)** — consumption-limit rule internally inconsistent (monthly limits
+  sum to 1 605 kWh but the annual limit says 1 500). Genuinely broken; needs source/LLM clarification.
+
+### Spot margin misclassified as fixed energy (Spot Valo, Kosken markkinaWoima) — calculator guard
+
+After the dev spot-price refresh (rolling-365 ending today), three products still showed absurdly low
+totals (~57–73 €/yr): Parikkalan Valo **Spot Valo** (consumer + business, Time and Season variants) and
+Paneliankosken Voima **Kosken markkinaWoima**. All are `pricing_model = Spot`, but their supplier margin
+was interpreted as a small fixed `energy_day`/`energy_night`/`energy_seasonal_*` rate (0.26–0.5 c/kWh)
+with **no** `spot_margin` component. The calculator only added the spot base when it saw a `spot_margin`,
+so it read 0.33 c/kWh as the entire energy price → total collapsed to roughly the monthly fee.
+
+Decision (owner-approved: "calculator guard now + prompt later"): add a deterministic guard in
+`CanonicalContractPriceCalculator::resolvePhaseRates`. On a `Spot` contract with no `spot_margin`, any
+standalone per-kWh energy rate **≤ `SPOT_MARGIN_CEILING_CENTS` (2.0)** is folded into the spot margin so
+the spot base is applied. A rate **above** the ceiling is a genuine all-in price and stays fixed energy —
+this protects **Cheap Markkinahintasähkö** (`energy_general` 6.99), which must not be double-counted
+(6.99 stayed 404 €). The Season metering branch also gained a spot fallback (`?? $spotDay`) so a
+Season-metered spot contract gets the base too. The five affected rows now cost ~432–462 €/yr, in line with
+other spot contracts; the control stayed 404 €. Regression tests 21 (fold) and 22 (control) pin both sides.
+Rationale for a threshold: no supplier sells all-in energy below ~2–3 c/kWh, and spot margins are
+essentially always well under it, so the two populations separate cleanly (≤0.5 vs 6.99). The guard is a
+safety net that also protects rankings if a future interpretation regresses.
+
+**LLM prompt/validator changes recommended (implemented in prompt v16 / validator v12 — see below):**
+- Classify a Spot contract's small per-kWh adder as `spot_margin`, not as fixed
+  `energy_day`/`energy_night`/`energy_seasonal_*` (Spot Valo, Kosken markkinaWoima). The calculator now
+  compensates deterministically, but the canonical JSON should be correct at source.
+- Do not mark a Spot contract `incomplete` when the margin is present just because the description
+  calls it a "toimitusmaksu" (Porvoo). Calculator now compensates, but the interpretation should be
+  correct at source.
+
+### Interpretation-layer fix: prompt v16 / validator v12 (option A — tighten the model-keyed rules)
+
+Chosen direction after discussing where the LLM's judgment belongs. Two options were on the table:
+**A.** tighten the deterministic model-keyed rules in the prompt + validator (validate-and-correct);
+**B.** move the pure-function downstream fields out of the LLM into deterministic derivation. Decision:
+**do A now, then move toward B.** Rationale: A uses the validate-and-correct loop as a forcing function
+that surfaces where our rules and expectations are wrong, and hardens them under real-contract pressure;
+once the rules are proven, flipping to B is just "assign instead of assert." Recognised that the current
+architecture is already "B with LLM validation" — the validator computes the expected value and asks the
+LLM to reproduce it. B's win is cost/iteration (re-derive for free, no wasted correction calls, no
+non-convergence publish failures), **not** correctness — a wrong rule is wrong in either architecture.
+
+Reframing decision: the prompt now leads with a **mission** — the structured API data is the trusted
+baseline (~95% correct); the LLM's active judgment is scoped to exactly three jobs: (1) integrity /
+deception detection, (2) type recovery the source enum cannot express (kvartaali / monthly market reset /
+spot-plus-margin), (3) correcting a structured field only on explicit contrary text. Everything else is a
+faithful transcription of structured components plus deterministic rules. This mission *is* the
+extraction/derivation boundary for B, so writing it now is a down payment on B.
+
+Rules baked into v16/v12 (scope: all five documented gaps):
+1. **Spot ⇒ every energy c/kWh is `spot_margin`** regardless of the source tariff slot
+   (General/DayTime/NightTime/Seasonal). A small day/night/seasonal value is the margin, not fixed energy,
+   so no `time_of_use`/`seasonal` mechanism is added; equal adders collapse to one `spot_margin`. A value
+   **above ~2 c/kWh** is a genuine all-in market/intro price and stays `energy_general` (protects Cheap
+   Markkinahintasähkö's 6.99). Enforced deterministically: `interpretedComponentType` maps every Spot
+   energy source type to `spot_margin`, and a new validator check rejects any `energy_*` ≤
+   `SPOT_MARGIN_CEILING_CENTS` (2.0, mirroring the calculator) on a Spot contract.
+2. A Spot delivery-fee/`toimitusmaksu` margin keeps pricing **complete** + `estimate_required` (Porvoo).
+3. A duplicate/ambiguous monthly base fee resolves to the **higher** value and stays complete (Vattenfall).
+4. A monthly market-price (`markkinahintasähkö`) reset is classified like a quarterly Kvartaalisähkö
+   (periodic_market_reset, monthly cadence, estimate_required).
+5. A disclosed recurring/market reset with a small first-period intro is `uncertain`, not `detected`.
+
+The two deterministic validator checks (1) mean the old outputs of the five affected contracts now **fail**
+validation, forcing re-interpretation to the correct shape. Local verification: re-interpreting Spot Valo
+(×2 metering variants + ×2 business variants) and Kosken markkinaWoima under v16 published each on the
+**first attempt, zero correction calls**, emitting `spot_margin` (0.26–0.5) instead of `energy_day/night/
+seasonal`, dropping the spurious `time_of_use`/`seasonal` mechanisms, `misleading=not_detected`. Their
+calculator totals are now 432–447 €/yr sourced from genuine `spot_margin` (no longer relying on the
+calculator guard, which stays as a backstop). Cheap Markkina was left unchanged (6.99 above ceiling,
+still its own `spot_margin=1.29`). Full-corpus dry-run of the new validator flagged exactly the five
+target contracts on the margin rule with no false positives; a separate ~23-contract backlog fails on
+pre-existing checks (flat-package, kvartaali cadence, expired-phase) because they were published under
+older validators and have not been re-interpreted — a version bump will refresh them too.
+
+### Computational definition of the deceptive/`detected` gate (prompt v16)
+
+Owner clarification: a promotion is `detected` (misleading) **only when the structured data — its pricing
+fields AND its discount/promotion fields (`has_discount`, `discount_value`, `discount_type`,
+`discount_n_first_months/kwh`, `discount_until_date`, and the original/undiscounted `price`) — is
+insufficient to compute the true first-12-month cost**. A promotion whose reduction and duration are
+encoded in the structured discount fields is fully computable (the structured `price` is the
+original/normal amount) → **not deceptive**, even when the description also advertises it. The mere
+presence of promotional wording in a description never warrants `detected`. The test is **per component**:
+one component's promo can be structured (not deceptive) while another's later increase is text-only
+(deceptive). The classic `detected` case is the promo price sitting in the structured pricing fields with
+no structured signal it is temporary, and the increase disclosed only in prose (Tyyni Vakiohinta,
+Kokkola Tyyni).
+
+Made the central definition in prompt v16's integrity section + self-check (previously only scattered
+caveats, which were not strong enough — several `has_discount` promos were wrongly `detected`). This gate
+is LLM judgment (job #1), so it lives in the prompt, not a deterministic validator check.
+
+Local re-interpretation of all 16 previously-`detected` contracts under the refined prompt: 3 correctly
+cleared (Vattenfall Helppo → uncertain consumption-effect; Seinäjoki/Porvoo spot → not_detected); 13 stay
+`detected`, each verified to have a genuine **text-only** increase structured data cannot represent — the
+model now explicitly separates the structured discount from the text-only increase in its own summaries
+(e.g. Cheap kampanja: "represents ... the six-month monthly-fee discount, but omits the disclosed 0.78
+margin after six months"). No false positives remained.
+
+### Market-linked continuations are not deceptive (prompt v17 / validator v13)
+
+Owner clarification on two more contracts: **Cheap Kvartaali** (quarterly market reset: 7.49 first-month
+intro → 9.95 current quarter, locked to 30.9, revised quarterly) and **Cheap Markkina** (6.99 fixed first
+month → Nord Pool spot + 1.29 margin). Both were wrongly `detected`. Owner: a market-reset or spot product
+with a cheaper fixed first-period intro is not deceptive; the ongoing price is market-linked and disclosed
+as variable, and **whether the next period's price is disclosed in the description is not a signal in
+either direction** (the earlier prompt line "use uncertain unless a known omitted future period proves
+higher cost" was exactly wrong and was removed).
+
+New unifying gate: `detected` is for a hidden increase of a **persistent** priced component — a fixed
+energy price jumping to a higher fixed energy price (Tyyni Vakiohinta 5.49→13.65) or a spot-margin adder
+disclosed as rising while structured shows only the lower intro margin (Cheap kampanja 0.39→0.78). A
+temporary fixed intro returning to the ordinary spot+margin (margin/fees unchanged) or a periodic market
+reset is **not** that → `uncertain` + `estimate_required`. Prompt v17 states this; validator v13 enforces
+the reset half deterministically (recurring schedule present + `detected` + only reset/intro/future issue
+codes → must be `uncertain`; a genuine non-reset conflict code still permits `detected`). Verified under
+v17: Cheap Markkina → uncertain, Cheap Kvartaali → uncertain (via one validator-forced correction),
+Cheap kampanja → detected, Tyyni Vakiohinta → detected. Both cleared contracts still cost correctly as
+estimates (Cheap Markkina 404 €, Kvartaali 541 €) with no card label. The Spot-intro case (Cheap Markkina)
+is prompt-guided only, since distinguishing it from a margin hike is genuine LLM judgment; the reset case
+has validator teeth.
+
+**Versioning gotcha (learned):** the analysis fingerprint keys on the version STRINGS
+(`prompt_version`/`validator_version`), not the file contents. Editing prompt content or validator code
+without bumping the version leaves already-interpreted contracts idempotently skipped (they silently reuse
+the prior result). Bump the version whenever content changes must re-run. v16/v12 were mid-session drafts
+superseded by v17/v13 for this reason.
+- Classify market-price products (e.g. Cheap Markkinahintasähkö) as recurring resets like their
+  quarterly siblings, so they are treated as estimates rather than promos.
+- For a genuinely ambiguous duplicate monthly fee, resolve to the higher and mark the pricing
+  complete (Vattenfall), rather than `incomplete`.
+- Consider not flagging `detected` for legitimate recurring/market products with a small first-period
+  intro; the deceptive signal should be reserved for material structured understatement.

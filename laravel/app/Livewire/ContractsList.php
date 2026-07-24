@@ -1584,31 +1584,44 @@ class ContractsList extends Component
         $sorted = $this->applyCachedMetricsToContracts($contracts, $consumption);
 
         if ($sorted === null) {
-            $calculator = app(ContractPriceCalculator::class);
             $emissionsCalculator = app(CO2EmissionsCalculator::class);
+            $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
+            $useCanonical = $canonicalPricing->enabled();
+
+            $usage = new EnergyUsage(total: $consumption, basicLiving: $consumption);
 
             // Do not eager load full price history here. Load only the latest
             // calculation components in bulk, avoiding both N+1 queries and
             // 50k+ historical price-component models in memory.
+            $canonicalMetrics = $useCanonical ? $canonicalPricing->metricsForContracts($contracts, $usage) : [];
 
-            // Get spot price averages for calculations
-            $spotPriceAvg = SpotPriceAverage::latestRolling365Days();
+            $spotPriceAvg = $useCanonical ? null : SpotPriceAverage::latestRolling365Days();
             $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
             $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
 
-            $priceComponentsByContractId = ElectricityContract::getLatestPriceComponentsForCalculationByContractIds(
-                $contracts->pluck('id')
-            );
+            $priceComponentsByContractId = $useCanonical
+                ? []
+                : ElectricityContract::getLatestPriceComponentsForCalculationByContractIds($contracts->pluck('id'));
 
-            // Calculate cost and emissions for each contract and sort by cost
-            $contracts = $contracts->map(function ($contract) use ($calculator, $emissionsCalculator, $spotPriceDay, $spotPriceNight, $consumption, $priceComponentsByContractId) {
+            $calculator = $useCanonical ? null : app(ContractPriceCalculator::class);
+
+            $contracts = $contracts->map(function ($contract) use ($calculator, $emissionsCalculator, $spotPriceDay, $spotPriceNight, $consumption, $usage, $priceComponentsByContractId, $useCanonical, $canonicalMetrics) {
+                $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
+                $maxConsumption = $contract->consumption_limitation_max_x_kwh_per_y;
+                $contract->exceeds_consumption_limit = $maxConsumption > 0 && $consumption > $maxConsumption;
+
+                if ($useCanonical) {
+                    $canonical = $canonicalMetrics[$contract->id] ?? null;
+                    $contract->calculated_cost = $canonical['calculated_cost'] ?? [];
+                    $contract->pricing_integrity = $canonical['integrity'] ?? null;
+                    $contract->comparability = $canonical['comparability'] ?? null;
+                    $contract->is_listed = $canonical['is_listed'] ?? false;
+                    $contract->sort_key = $canonical['sort_key'];
+
+                    return $contract;
+                }
+
                 $priceComponents = $priceComponentsByContractId[$contract->id] ?? [];
-
-                $usage = new EnergyUsage(
-                    total: $consumption,
-                    basicLiving: $consumption,
-                );
-
                 $contractData = [
                     'contract_type' => $contract->contract_type,
                     'pricing_model' => $contract->pricing_model,
@@ -1617,28 +1630,28 @@ class ContractsList extends Component
 
                 $result = $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
                 $contract->calculated_cost = $result->toArray();
-
-                // Calculate emission factor for this contract
-                $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
-
-                // Mark contracts where consumption exceeds their limit
-                $maxConsumption = $contract->consumption_limitation_max_x_kwh_per_y;
-                $contract->exceeds_consumption_limit = $maxConsumption > 0 && $consumption > $maxConsumption;
+                $contract->pricing_integrity = null;
+                $contract->comparability = null;
+                $contract->is_listed = true;
+                $contract->sort_key = $result->totalCost;
 
                 return $contract;
             });
 
+            // Canonical mode drops contracts not fit for comparison entirely.
+            if ($useCanonical) {
+                $contracts = $contracts->filter(fn ($contract) => $contract->is_listed)->values();
+            }
+
             // Sort by total cost (ascending), but put contracts that exceed consumption limit at the end
             $sorted = $contracts->sort(function ($a, $b) {
-                // First sort by exceeds_consumption_limit (false first, true last)
                 $aExceeds = $a->exceeds_consumption_limit ? 1 : 0;
                 $bExceeds = $b->exceeds_consumption_limit ? 1 : 0;
                 if ($aExceeds !== $bExceeds) {
                     return $aExceeds - $bExceeds;
                 }
-                // Then sort by total cost (ascending)
-                $aCost = $a->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
-                $bCost = $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
+                $aCost = $a->sort_key ?? $a->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
+                $bCost = $b->sort_key ?? $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
                 return $aCost <=> $bCost;
             })->values();
         }
@@ -1760,6 +1773,8 @@ class ContractsList extends Component
         $contract->calculated_cost = $metrics['calculated_cost'];
         $contract->emission_factor = $metrics['emission_factor'];
         $contract->exceeds_consumption_limit = $metrics['exceeds_consumption_limit'];
+        $contract->pricing_integrity = $metrics['pricing_integrity'] ?? null;
+        $contract->comparability = $metrics['comparability'] ?? null;
 
         return $contract;
     }
@@ -1798,6 +1813,8 @@ class ContractsList extends Component
             $contract->calculated_cost = $summary->calculated_cost;
             $contract->emission_factor = $summary->emission_factor;
             $contract->exceeds_consumption_limit = $summary->exceeds_consumption_limit;
+            $contract->pricing_integrity = $summary->pricing_integrity ?? null;
+            $contract->comparability = $summary->comparability ?? null;
 
             return $contract;
         })->filter()->values();

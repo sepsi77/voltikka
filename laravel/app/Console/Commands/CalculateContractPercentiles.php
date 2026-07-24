@@ -5,6 +5,8 @@ namespace App\Console\Commands;
 use App\Models\ActiveContract;
 use App\Models\ContractPercentile;
 use App\Models\ElectricityContract;
+use App\Services\CanonicalPricing\CanonicalContractPricingService;
+use App\Services\DTO\EnergyUsage;
 use Illuminate\Console\Command;
 
 class CalculateContractPercentiles extends Command
@@ -40,11 +42,24 @@ class CalculateContractPercentiles extends Command
         // statistics page. Process contracts in chunks and let
         // getLatestPriceComponentsForCalculation() fetch only the rows needed
         // for each contract.
+        $canonicalPricing = app(CanonicalContractPricingService::class);
+        $useCanonical = $canonicalPricing->enabled();
+        $percentileUsage = new EnergyUsage(total: 5000, basicLiving: 5000);
+
         ElectricityContract::query()
             ->whereIn('id', $activeIds)
-            ->chunkById(100, function ($contracts) use (&$metrics) {
+            ->chunkById(100, function ($contracts) use (&$metrics, $canonicalPricing, $useCanonical, $percentileUsage) {
                 foreach ($contracts as $contract) {
                     /** @var ElectricityContract $contract */
+                    // Keep deceptive promo prices and unfit contracts out of the percentile
+                    // thresholds so the card callouts match the prices we actually rank on.
+                    if ($useCanonical) {
+                        $evaluation = $canonicalPricing->evaluate($contract, $percentileUsage);
+                        if (! $evaluation['outcome']->isListed() || $evaluation['integrity']->detected) {
+                            continue;
+                        }
+                    }
+
                     $latest = $contract->getLatestPriceComponentsForCalculation();
                     $byType = collect($latest)->keyBy('price_component_type');
 

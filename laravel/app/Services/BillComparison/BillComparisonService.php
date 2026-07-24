@@ -47,6 +47,7 @@ class BillComparisonService
     public function __construct(
         private readonly ContractPriceCalculator $calculator,
         private readonly ConsumptionProfile $profile,
+        private readonly \App\Services\CanonicalPricing\CanonicalContractPricingService $canonicalPricing,
     ) {
     }
 
@@ -342,6 +343,13 @@ class BillComparisonService
             return null;
         }
 
+        // Keep bill comparison consistent with the listings: never rank a contract whose
+        // canonical pricing excludes it from comparison (unknown-future promo, broken data).
+        if ($this->canonicalPricing->enabled()
+            && ! $this->canonicalPricing->evaluate($contract, new EnergyUsage(total: $annualKwh, basicLiving: $annualKwh))['outcome']->isListed()) {
+            return null;
+        }
+
         $rates = $this->extractRates($components);
         $isSpot = $this->isSpotContract($contract, $rates);
 
@@ -600,6 +608,11 @@ class BillComparisonService
         }
 
         $usage = new EnergyUsage(total: $annualKwh, basicLiving: $annualKwh);
+
+        if ($this->canonicalPricing->enabled()) {
+            return $this->canonicalPricing->evaluate($contract, $usage)['outcome']->totalCost;
+        }
+
         $contractData = [
             'contract_type' => $contract->contract_type,
             'pricing_model' => $contract->pricing_model,

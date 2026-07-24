@@ -114,17 +114,28 @@
                         wire:target="setConsumption"
                     >
                         @php
+                            $isExcludedPricing = ($isPricingExcluded ?? false) === true;
+                            $isEstimatePricing = ($calculatedCost['is_estimate'] ?? false) === true;
                             $heroMonthly = number_format(($calculatedCost['total_cost'] ?? 0) / 12, 1, ',', ' ');
                             [$heroInt, $heroDec] = explode(',', $heroMonthly, 2);
                         @endphp
-                        <div class="font-extrabold text-white tracking-tight leading-none tabular-nums">
-                            <span class="text-5xl sm:text-6xl md:text-7xl">{{ $heroInt }}</span><span class="text-3xl sm:text-4xl md:text-5xl text-slate-300">,{{ $heroDec }}</span>
-                            <span class="text-3xl sm:text-4xl md:text-5xl text-slate-300 font-extrabold">€/kk</span>
-                        </div>
-                        <div class="text-base text-slate-200">
-                            12 kk keskihinta · yhteensä {{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} € · {{ number_format($consumption, 0, ',', ' ') }} kWh vuosikulutuksella
-                        </div>
-                        @if (($calculatedCost['includes_discounts'] ?? false) && ($calculatedCost['discount_savings_total'] ?? 0) > 0)
+                        @if ($isExcludedPricing)
+                            <div class="font-extrabold text-white tracking-tight leading-none">
+                                <span class="text-3xl sm:text-4xl md:text-5xl">Vuosihintaa ei voi laskea luotettavasti</span>
+                            </div>
+                            <div class="text-base text-slate-200">
+                                Sopimuksen hinnoittelusta puuttuu tietoja, joten emme näytä sille vuosiarviota emmekä sisällytä sitä vertailuun.
+                            </div>
+                        @else
+                            <div class="font-extrabold text-white tracking-tight leading-none tabular-nums">
+                                <span class="text-5xl sm:text-6xl md:text-7xl">{{ $heroInt }}</span><span class="text-3xl sm:text-4xl md:text-5xl text-slate-300">,{{ $heroDec }}</span>
+                                <span class="text-3xl sm:text-4xl md:text-5xl text-slate-300 font-extrabold">€/kk</span>
+                            </div>
+                            <div class="text-base text-slate-200">
+                                12 kk {{ $isEstimatePricing ? 'arvio' : 'keskihinta' }} · yhteensä {{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} € · {{ number_format($consumption, 0, ',', ' ') }} kWh vuosikulutuksella
+                            </div>
+                        @endif
+                        @if (! $isExcludedPricing && ($calculatedCost['includes_discounts'] ?? false) && ($calculatedCost['discount_savings_total'] ?? 0) > 0)
                             <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
                                 <span class="inline-flex items-center rounded-full bg-emerald-400/15 px-3 py-1 font-semibold text-emerald-100 border border-emerald-300/25">
                                     Sisältää tarjouksen · säästö {{ number_format($calculatedCost['discount_savings_total'], 0, ',', ' ') }} €/v
@@ -141,6 +152,25 @@
                             <a href="/tietoa#menetelma" class="text-coral-300 hover:text-coral-200 underline underline-offset-2">Näin laskemme</a>
                         </div>
                     </div>
+
+                    {{-- Pricing-integrity notice: shown only for validated deceptive/conflicting pricing --}}
+                    @if (($pricingIntegrity['detected'] ?? false) && !empty($pricingIntegrity['detail_facts']))
+                        <div class="mt-6 rounded-xl bg-amber-500/15 border border-amber-300/30 px-5 py-4">
+                            <div class="flex items-start gap-3">
+                                <svg class="w-5 h-5 text-amber-300 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-bold text-amber-100">{{ $pricingIntegrity['detail_heading'] ?? 'Huomio hinnoittelusta' }}</p>
+                                    <ul class="mt-1.5 space-y-1 text-sm text-amber-50/90 list-disc list-inside">
+                                        @foreach ($pricingIntegrity['detail_facts'] as $fact)
+                                            <li>{{ $fact }}</li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
 
                     <!-- Unified evaluation card: verdict + details + action -->
                     @if ($rank && $totalContracts)

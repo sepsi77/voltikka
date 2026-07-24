@@ -19,8 +19,10 @@ class ContractPriceStatisticsService
 {
     public const CONSUMPTION_LEVELS = [2000, 5000, 18000];
 
-    public function __construct(private readonly ContractPriceCalculator $calculator)
-    {
+    public function __construct(
+        private readonly ContractPriceCalculator $calculator,
+        private readonly \App\Services\CanonicalPricing\CanonicalContractPricingService $canonicalPricing,
+    ) {
     }
 
     /**
@@ -29,17 +31,22 @@ class ContractPriceStatisticsService
      * @param iterable<string> $contractIds
      * @return array{snapshots:int, statistics:int}
      */
-    public function calculateForDate(CarbonInterface|string $date, iterable $contractIds, bool $overwrite = false): array
+    public function calculateForDate(CarbonInterface|string $date, iterable $contractIds, bool $overwrite = false, ?bool $useCanonical = null): array
     {
         $date = $date instanceof CarbonInterface ? $date->copy() : Carbon::parse($date);
         $dateString = $date->toDateString();
         $contractIds = collect($contractIds)->filter()->unique()->values();
 
+        // Forward daily runs may use canonical pricing; historical backfills must not,
+        // because canonical_pricing is today's interpretation and cannot be applied to a
+        // past date. Callers pass false explicitly for backfills.
+        $useCanonical ??= $this->canonicalPricing->enabled();
+
         if ($contractIds->isEmpty()) {
             return ['snapshots' => 0, 'statistics' => 0];
         }
 
-        return DB::transaction(function () use ($date, $dateString, $contractIds, $overwrite) {
+        return DB::transaction(function () use ($date, $dateString, $contractIds, $overwrite, $useCanonical) {
             if ($overwrite) {
                 ContractPriceSnapshot::whereDate('snapshot_date', $dateString)->delete();
                 ContractPriceDailyStatistic::whereDate('stat_date', $dateString)->delete();
@@ -55,7 +62,7 @@ class ContractPriceStatisticsService
                         ->orWhereNull('target_group');
                 })
                 ->orderBy('id')
-                ->chunkById(200, function (Collection $contracts) use ($date, $dateString, $spotPrices, &$snapshotCount) {
+                ->chunkById(200, function (Collection $contracts) use ($date, $dateString, $spotPrices, $useCanonical, &$snapshotCount) {
                     foreach ($contracts as $contract) {
                         /** @var ElectricityContract $contract */
                         $components = $contract->getPriceComponentsForCalculationDate($dateString);
@@ -64,7 +71,7 @@ class ContractPriceStatisticsService
                             continue;
                         }
 
-                        $snapshot = $this->buildSnapshot($contract, $components, $date, $spotPrices);
+                        $snapshot = $this->buildSnapshot($contract, $components, $date, $spotPrices, $useCanonical);
 
                         ContractPriceSnapshot::updateOrCreate(
                             [
@@ -119,7 +126,7 @@ class ContractPriceStatisticsService
      * @param array{avg:?float,day:?float,night:?float} $spotPrices
      * @return array<string, mixed>
      */
-    private function buildSnapshot(ElectricityContract $contract, array $components, CarbonInterface $date, array $spotPrices): array
+    private function buildSnapshot(ElectricityContract $contract, array $components, CarbonInterface $date, array $spotPrices, bool $useCanonical = false): array
     {
         $byType = collect($components)->keyBy('price_component_type');
         $segmentKey = $this->segmentKey($contract);
@@ -149,6 +156,19 @@ class ContractPriceStatisticsService
             }
 
             $usage = new EnergyUsage(total: $consumption, basicLiving: $consumption);
+
+            if ($useCanonical) {
+                $spot = new \App\Services\CanonicalPricing\DTO\SpotAssumptions(
+                    dayAvgWithTax: $isSpot ? $annualSpotPrice : ($spotPrices['day'] ?? $spotPrices['avg']),
+                    nightAvgWithTax: $isSpot ? $annualSpotPrice : ($spotPrices['night'] ?? $spotPrices['avg']),
+                );
+                $outcome = $this->canonicalPricing->evaluate($contract, $usage, $spot, $date)['outcome'];
+                // Excluded contracts contribute no annual cost, mirroring spot-missing handling.
+                $annualCosts[$consumption] = $outcome->isListed() ? $outcome->totalCost : null;
+
+                continue;
+            }
+
             $result = $this->calculator->calculate(
                 $components,
                 [

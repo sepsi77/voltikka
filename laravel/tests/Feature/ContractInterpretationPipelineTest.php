@@ -1123,6 +1123,136 @@ class ContractInterpretationPipelineTest extends TestCase
      * @param  array<string, mixed>  $classificationOverrides
      * @return array<string, mixed>
      */
+    public function test_validator_rejects_spot_day_night_margin_as_fixed_energy(): void
+    {
+        // Spot Valo: source DayTime/NightTime 0.33 are the spot margin, not fixed energy prices.
+        $output = $this->validOutput('contract-1');
+        $output['classification']['pricing_mechanisms'] = ['spot', 'time_of_use'];
+        $output['classification']['metering'] = 'General';
+        $output['pricing']['phases'] = [[
+            'label' => 'Current',
+            'phase_kind' => 'current_structured',
+            'starts' => ['kind' => 'contract_start', 'value' => null],
+            'ends' => ['kind' => 'none', 'value' => null],
+            'components' => [
+                ['component_type' => 'energy_day', 'amount' => 0.33, 'normal_amount' => null, 'unit' => 'cents_per_kwh', 'vat_status' => 'unknown', 'price_role' => 'current', 'source_kind' => 'structured', 'evidence' => [['source' => 'components[1].price', 'quote' => 'components[1].price=0.33']]],
+                ['component_type' => 'energy_night', 'amount' => 0.33, 'normal_amount' => null, 'unit' => 'cents_per_kwh', 'vat_status' => 'unknown', 'price_role' => 'current', 'source_kind' => 'structured', 'evidence' => [['source' => 'components[2].price', 'quote' => 'components[2].price=0.33']]],
+                ['component_type' => 'monthly_fee', 'amount' => 4.65, 'normal_amount' => null, 'unit' => 'eur_per_month', 'vat_status' => 'unknown', 'price_role' => 'current', 'source_kind' => 'structured', 'evidence' => [['source' => 'components[0].price', 'quote' => 'components[0].price=4.65']]],
+            ],
+            'evidence' => [],
+        ]];
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, [
+            'contract_id' => 'contract-1',
+            'pricing_model' => 'Spot',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'Time',
+            'components' => [
+                ['price_component_type' => 'Monthly', 'price' => 4.65],
+                ['price_component_type' => 'DayTime', 'price' => 0.33],
+                ['price_component_type' => 'NightTime', 'price' => 0.33],
+            ],
+        ]);
+
+        $this->assertContains(
+            '$.pricing.phases: on a Spot contract a per-kWh energy adder at or below the margin ceiling must be spot_margin, not a fixed energy component.',
+            $errors,
+        );
+        $this->assertContains('$.pricing.phases is missing structured component type spot_margin.', $errors);
+    }
+
+    public function test_validator_leaves_large_all_in_spot_energy_price_alone(): void
+    {
+        // Cheap Markkina: a 6.99 c/kWh all-in market price is above the margin ceiling and stays
+        // energy_general; only the disclosed 1.29 margin is spot_margin.
+        $output = $this->validOutput('contract-1');
+        $output['classification']['pricing_mechanisms'] = ['spot'];
+        $output['pricing']['phases'] = [[
+            'label' => 'Current',
+            'phase_kind' => 'current_structured',
+            'starts' => ['kind' => 'contract_start', 'value' => null],
+            'ends' => ['kind' => 'none', 'value' => null],
+            'components' => [
+                ['component_type' => 'energy_general', 'amount' => 6.99, 'normal_amount' => null, 'unit' => 'cents_per_kwh', 'vat_status' => 'unknown', 'price_role' => 'current', 'source_kind' => 'structured', 'evidence' => [['source' => 'components[0].price', 'quote' => 'components[0].price=6.99']]],
+                ['component_type' => 'spot_margin', 'amount' => 1.29, 'normal_amount' => null, 'unit' => 'cents_per_kwh', 'vat_status' => 'unknown', 'price_role' => 'current', 'source_kind' => 'description', 'evidence' => [['source' => 'long_description', 'quote' => 'marginaali 1,29']]],
+                ['component_type' => 'monthly_fee', 'amount' => 4.99, 'normal_amount' => null, 'unit' => 'eur_per_month', 'vat_status' => 'unknown', 'price_role' => 'current', 'source_kind' => 'structured', 'evidence' => [['source' => 'components[1].price', 'quote' => 'components[1].price=4.99']]],
+            ],
+            'evidence' => [],
+        ]];
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, [
+            'contract_id' => 'contract-1',
+            'pricing_model' => 'Spot',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'long_description' => 'Nord Pool spot -hinta ja marginaali 1,29 snt/kWh.',
+            'components' => [
+                ['price_component_type' => 'General', 'price' => 6.99],
+                ['price_component_type' => 'Monthly', 'price' => 4.99],
+            ],
+        ]);
+
+        $this->assertNotContains(
+            '$.pricing.phases: on a Spot contract a per-kWh energy adder at or below the margin ceiling must be spot_margin, not a fixed energy component.',
+            $errors,
+        );
+    }
+
+    public function test_validator_rejects_detected_on_a_reset_product_with_only_reset_path_codes(): void
+    {
+        // Cheap Kvartaali: a quarterly market reset is not deceptive for its own intro->market path.
+        $output = $this->validOutput('contract-1', [
+            'primary_pricing_model' => 'FixedPrice',
+            'pricing_mechanisms' => ['fixed', 'periodic_market_reset'],
+            'periodic_reset_cadence' => 'quarterly',
+        ]);
+        $output['pricing']['recurring_schedule']['present'] = true;
+        $output['pricing']['recurring_schedule']['cadence'] = 'quarterly';
+        $output['pricing']['recurring_schedule']['future_price_known'] = false;
+        $output['source_consistency']['misleading_first_12_months'] = 'detected';
+        $output['source_consistency']['issue_codes'] = ['promotion_metadata_missing', 'structured_matches_intro_only', 'future_price_omitted', 'recurring_reset_requires_estimate'];
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, [
+            'contract_id' => 'contract-1',
+            'pricing_model' => 'FixedPrice',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'components' => [],
+        ]);
+
+        $this->assertContains(
+            '$.source_consistency.misleading_first_12_months must not be detected for a periodic market-reset product whose only issues describe the reset/intro price path; use uncertain.',
+            $errors,
+        );
+    }
+
+    public function test_validator_allows_detected_on_a_reset_product_with_a_genuine_conflict(): void
+    {
+        // A reset product can still be detected for a genuine non-reset conflict.
+        $output = $this->validOutput('contract-1', [
+            'primary_pricing_model' => 'FixedPrice',
+            'pricing_mechanisms' => ['fixed', 'periodic_market_reset'],
+            'periodic_reset_cadence' => 'quarterly',
+        ]);
+        $output['pricing']['recurring_schedule']['present'] = true;
+        $output['pricing']['recurring_schedule']['cadence'] = 'quarterly';
+        $output['source_consistency']['misleading_first_12_months'] = 'detected';
+        $output['source_consistency']['issue_codes'] = ['component_mismatch', 'recurring_reset_requires_estimate'];
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, [
+            'contract_id' => 'contract-1',
+            'pricing_model' => 'FixedPrice',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'components' => [],
+        ]);
+
+        $this->assertNotContains(
+            '$.source_consistency.misleading_first_12_months must not be detected for a periodic market-reset product whose only issues describe the reset/intro price path; use uncertain.',
+            $errors,
+        );
+    }
+
     private function validOutput(string $contractId, array $classificationOverrides = []): array
     {
         $classification = array_merge([

@@ -39,6 +39,8 @@ class ContractPageCacheVersion
 
         return [
             'contract_list_cache_version' => $this->contractListCache->getVersion(),
+            // Toggling canonical pricing changes rendered totals, exclusions, and labels.
+            'canonical_pricing_enabled' => (bool) config('canonical_pricing.enabled', false),
             'active_contract_count' => DB::table('active_contracts')->count(),
             'contract_count' => ElectricityContract::query()->count(),
             'latest_contract_id' => ElectricityContract::query()->max('id'),

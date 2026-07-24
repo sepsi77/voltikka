@@ -395,7 +395,17 @@
             || ($contract->relationLoaded('priceComponents') && $contract->hasActiveDiscounts());
         $discountInfo = $contract->relationLoaded('priceComponents') ? $contract->getActiveDiscountInfo() : null;
         $showGreenIndicator = $isZeroEmission || ($source && $source->renewable_total >= 50);
-        $hasFooterContent = count($callouts) > 0 || $exceedsConsumptionLimit || $hasCardDiscount || $showGreenIndicator;
+
+        // Canonical pricing labels (only present when CANONICAL_PRICING_ENABLED).
+        $canonicalCost = is_array($contract->calculated_cost ?? null) ? $contract->calculated_cost : [];
+        $pricingIntegrity = is_array($contract->pricing_integrity ?? null) ? $contract->pricing_integrity : null;
+        $integrityLabel = $pricingIntegrity['card_label'] ?? null;
+        $comparability = $contract->comparability ?? null;
+        $termMonths = $canonicalCost['term_months'] ?? null;
+        $isCanonicalEstimate = ($canonicalCost['is_estimate'] ?? false) === true;
+
+        $hasFooterContent = count($callouts) > 0 || $exceedsConsumptionLimit || $hasCardDiscount || $showGreenIndicator
+            || $integrityLabel !== null || $comparability === 'term_price_only' || $comparability === 'base_only_hybrid' || $isCanonicalEstimate;
     @endphp
 
     {{-- Footer: quiet inline tags. Visual weight here must stay below the price/metrics row. --}}
@@ -430,6 +440,37 @@
                         <path d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z"/>
                     </svg>
                     {{ $isZeroEmission ? 'Päästötön' : 'Vihreä' }}
+                </span>
+            @endif
+
+            {{-- Deceptive-pricing warning: firm amber caveat, same weight as the consumption-limit tag --}}
+            @if ($integrityLabel)
+                <span class="inline-flex items-center gap-1.5 font-semibold text-amber-800">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                    {{ $integrityLabel }}
+                </span>
+            @endif
+
+            {{-- Fixed-term with an undisclosed continuation price --}}
+            @if ($comparability === 'term_price_only' && $termMonths)
+                <span class="inline-flex items-center font-medium text-slate-500">
+                    {{ $termMonths }} kk sopimus – hinta sen jälkeen ei tiedossa
+                </span>
+            @endif
+
+            {{-- Hybrid contract priced without the consumption effect --}}
+            @if ($comparability === 'base_only_hybrid')
+                <span class="inline-flex items-center font-medium text-slate-500">
+                    Ei sisällä kulutusvaikutusta
+                </span>
+            @endif
+
+            {{-- Estimate marker for spot / recurring-reset totals --}}
+            @if ($isCanonicalEstimate && $comparability !== 'term_price_only' && $comparability !== 'base_only_hybrid')
+                <span class="inline-flex items-center font-medium text-slate-400">
+                    Arvio
                 </span>
             @endif
 

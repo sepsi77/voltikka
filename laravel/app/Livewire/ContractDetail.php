@@ -821,13 +821,18 @@ class ContractDetail extends Component
             return $cachedContract['calculated_cost'];
         }
 
-        $calculator = app(ContractPriceCalculator::class);
-        $priceComponents = $this->getNormalizedPriceComponents($contract);
-
         $usage = new EnergyUsage(
             total: $this->consumption,
             basicLiving: $this->consumption,
         );
+
+        $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
+        if ($canonicalPricing->enabled()) {
+            return $canonicalPricing->evaluate($contract, $usage)['outcome']->toCalculatedCostArray();
+        }
+
+        $calculator = app(ContractPriceCalculator::class);
+        $priceComponents = $this->getNormalizedPriceComponents($contract);
 
         $contractData = [
             'contract_type' => $contract->contract_type,
@@ -840,6 +845,64 @@ class ContractDetail extends Component
         $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
 
         return $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight)->toArray();
+    }
+
+    /**
+     * The deterministic pricing-integrity verdict for this contract, or null when
+     * canonical pricing is disabled or the contract is not assessed.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getPricingIntegrityProperty(): ?array
+    {
+        $contract = $this->contract;
+        $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
+
+        if (! $contract || ! $canonicalPricing->enabled()) {
+            return null;
+        }
+
+        $cachedMetrics = app(ContractListCacheService::class)->getCachedMetrics($this->consumption);
+        $cachedContract = $cachedMetrics['contracts'][$contract->id] ?? null;
+        if ($cachedContract !== null && array_key_exists('pricing_integrity', $cachedContract)) {
+            return $cachedContract['pricing_integrity'];
+        }
+
+        $usage = new EnergyUsage(total: $this->consumption, basicLiving: $this->consumption);
+
+        return $canonicalPricing->evaluate($contract, $usage)['integrity']->toArray();
+    }
+
+    /**
+     * The comparison verdict (comparability enum value) for this contract, or null
+     * when canonical pricing is disabled.
+     */
+    public function getPricingComparabilityProperty(): ?string
+    {
+        $contract = $this->contract;
+        $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
+
+        if (! $contract || ! $canonicalPricing->enabled()) {
+            return null;
+        }
+
+        $cachedMetrics = app(ContractListCacheService::class)->getCachedMetrics($this->consumption);
+        $cachedContract = $cachedMetrics['contracts'][$contract->id] ?? null;
+        if ($cachedContract !== null && array_key_exists('comparability', $cachedContract)) {
+            return $cachedContract['comparability'];
+        }
+
+        return $this->getCalculatedCostProperty()['comparability'] ?? null;
+    }
+
+    /**
+     * Whether this contract is excluded from comparison (no reliable annual total).
+     */
+    public function getIsPricingExcludedProperty(): bool
+    {
+        $comparability = $this->pricingComparability;
+
+        return in_array($comparability, ['excluded_incomplete', 'excluded_unknown_future'], true);
     }
 
     /**
@@ -1432,7 +1495,8 @@ class ContractDetail extends Component
             ]);
         }
 
-        if (! empty($offers)) {
+        // Do not advertise price offers for contracts whose pricing we cannot verify/compute.
+        if (! empty($offers) && ! $this->isPricingExcluded) {
             $schema['offers'] = $offers;
         }
 
@@ -1632,6 +1696,9 @@ class ContractDetail extends Component
                 'latestPrices' => $this->latestPrices,
                 'discountedComponents' => $this->discountedComponents,
                 'calculatedCost' => $this->calculatedCost,
+                'pricingIntegrity' => $this->pricingIntegrity,
+                'pricingComparability' => $this->pricingComparability,
+                'isPricingExcluded' => $this->isPricingExcluded,
                 'priceHistory' => $this->priceHistory,
                 'contractHistory' => $this->contractHistory,
                 'isActive' => $isActive,

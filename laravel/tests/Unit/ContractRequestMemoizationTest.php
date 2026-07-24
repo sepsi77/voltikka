@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractListCacheService;
 use App\Services\ContractPriceCalculator;
@@ -26,12 +27,16 @@ class ContractRequestMemoizationTest extends TestCase
 
         Cache::shouldReceive('remember')
             ->once()
-            ->with('contract_list_metrics:v7:5000', 60 * 60 * 48, \Mockery::type(\Closure::class))
+            ->with('contract_list_metrics:v7:c0:5000', 60 * 60 * 48, \Mockery::type(\Closure::class))
             ->andReturn($metrics);
+
+        $canonical = $this->createMock(CanonicalContractPricingService::class);
+        $canonical->method('enabled')->willReturn(false);
 
         $service = new ContractListCacheService(
             $this->createMock(ContractPriceCalculator::class),
             $this->createMock(CO2EmissionsCalculator::class),
+            $canonical,
         );
 
         $this->assertSame($metrics, $service->getCachedMetrics(5000));
@@ -49,12 +54,16 @@ class ContractRequestMemoizationTest extends TestCase
 
         Cache::shouldReceive('remember')
             ->once()
-            ->with('contract_rankings_5000kwh', 3600, \Mockery::type(\Closure::class))
+            ->with('contract_rankings_5000kwh:c0', 3600, \Mockery::type(\Closure::class))
             ->andReturn($rankings);
+
+        $canonical = $this->createMock(CanonicalContractPricingService::class);
+        $canonical->method('enabled')->willReturn(false);
 
         $service = new ContractRankingService(
             $this->createMock(ContractPriceCalculator::class),
             $this->createMock(ContractListCacheService::class),
+            $canonical,
         );
 
         $this->assertSame(3, $service->getContractRank('contract-a'));

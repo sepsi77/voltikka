@@ -22,6 +22,7 @@ class LocalContractsService
     public function __construct(
         private ContractPriceCalculator $calculator,
         private CO2EmissionsCalculator $emissionsCalculator,
+        private \App\Services\CanonicalPricing\CanonicalContractPricingService $canonicalPricing,
     ) {}
 
     /**
@@ -222,8 +223,10 @@ class LocalContractsService
             $contracts->pluck('id')
         );
 
+        $useCanonical = $this->canonicalPricing->enabled();
+
         // Calculate cost for each contract
-        return $contracts->map(function ($contract) use ($consumption, $spotPriceDay, $spotPriceNight, $priceComponentsByContractId) {
+        $mapped = $contracts->map(function ($contract) use ($consumption, $spotPriceDay, $spotPriceNight, $priceComponentsByContractId, $useCanonical) {
             $priceComponents = $priceComponentsByContractId[$contract->id] ?? [];
             $contract->setRelation('priceComponents', new \Illuminate\Database\Eloquent\Collection(
                 array_map(fn (array $component) => new PriceComponent($component), $priceComponents)
@@ -234,17 +237,36 @@ class LocalContractsService
                 basicLiving: $consumption,
             );
 
-            $contractData = [
-                'contract_type' => $contract->contract_type,
-                'pricing_model' => $contract->pricing_model,
-                'metering' => $contract->metering,
-            ];
+            if ($useCanonical) {
+                $evaluation = $this->canonicalPricing->evaluate($contract, $usage);
+                $contract->calculated_cost = $evaluation['outcome']->toCalculatedCostArray();
+                $contract->pricing_integrity = $evaluation['integrity']->toArray();
+                $contract->comparability = $evaluation['outcome']->comparability->value;
+                $contract->is_listed = $evaluation['outcome']->isListed();
+            } else {
+                $contractData = [
+                    'contract_type' => $contract->contract_type,
+                    'pricing_model' => $contract->pricing_model,
+                    'metering' => $contract->metering,
+                ];
 
-            $result = $this->calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
-            $contract->calculated_cost = $result->toArray();
+                $result = $this->calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
+                $contract->calculated_cost = $result->toArray();
+                $contract->pricing_integrity = null;
+                $contract->comparability = null;
+                $contract->is_listed = true;
+            }
+
             $contract->emission_factor = $this->emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
 
             return $contract;
-        })->sortBy(fn ($c) => $c->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX)->values();
+        });
+
+        // Canonical mode drops contracts unfit for comparison from local listings.
+        if ($useCanonical) {
+            $mapped = $mapped->filter(fn ($c) => $c->is_listed);
+        }
+
+        return $mapped->sortBy(fn ($c) => $c->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX)->values();
     }
 }

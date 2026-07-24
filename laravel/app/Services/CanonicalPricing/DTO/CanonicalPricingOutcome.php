@@ -1,0 +1,114 @@
+<?php
+
+namespace App\Services\CanonicalPricing\DTO;
+
+use App\Services\CanonicalPricing\Enums\ContractComparability;
+use App\Services\CanonicalPricing\Enums\EstimateMethod;
+
+/**
+ * The result of costing one contract's canonical pricing across the 12-month comparison
+ * window. `toCalculatedCostArray()` is a superset of the legacy ContractPricingResult
+ * array shape so existing cards/detail views keep working unchanged.
+ *
+ * For excluded contracts (`comparability` not listed) `totalCost` is null and the
+ * contract must not be ranked or shown an annual total.
+ */
+readonly class CanonicalPricingOutcome
+{
+    /**
+     * @param array<int, float> $monthlyCosts
+     * @param array<int, float> $baseMonthlyCosts
+     * @param list<array<string, mixed>> $phaseBreakdown
+     * @param list<string> $assumptions
+     */
+    public function __construct(
+        public ContractComparability $comparability,
+        public EstimateMethod $estimateMethod,
+        public ?float $totalCost,
+        public array $monthlyCosts,
+        public ?float $baseTotalCost,
+        public array $baseMonthlyCosts,
+        public ?float $structuredOnlyTotal,
+        public bool $isSpotContract,
+        public ?float $monthlyFixedFee = null,
+        public ?float $spotPriceMargin = null,
+        public ?float $generalKwhPrice = null,
+        public ?float $daytimeKwhPrice = null,
+        public ?float $nighttimeKwhPrice = null,
+        public ?float $seasonalWinterDayKwhPrice = null,
+        public ?float $seasonalOtherKwhPrice = null,
+        public ?float $spotPriceDayAvg = null,
+        public ?float $spotPriceNightAvg = null,
+        public ?int $termMonths = null,
+        public array $phaseBreakdown = [],
+        public ?ConsumptionEffectData $consumptionEffect = null,
+        public array $assumptions = [],
+    ) {
+    }
+
+    public function isListed(): bool
+    {
+        return $this->comparability->isListed();
+    }
+
+    public function isEstimate(): bool
+    {
+        return $this->comparability->isEstimate();
+    }
+
+    /**
+     * Discount savings vs the disclosed normal price, when a later normal price is known.
+     */
+    public function discountSavingsTotal(): float
+    {
+        if ($this->totalCost === null || $this->baseTotalCost === null) {
+            return 0.0;
+        }
+
+        return max(0.0, $this->baseTotalCost - $this->totalCost);
+    }
+
+    /**
+     * Superset of the legacy `ContractPricingResult::toArray()` shape plus canonical fields.
+     *
+     * @return array<string, mixed>
+     */
+    public function toCalculatedCostArray(): array
+    {
+        $savings = $this->discountSavingsTotal();
+
+        return [
+            // Legacy keys consumed by cards/detail/rankings.
+            'total_cost' => $this->totalCost,
+            'avg_monthly_cost' => $this->totalCost !== null ? $this->totalCost / 12 : null,
+            'monthly_costs' => $this->monthlyCosts,
+            'monthly_fixed_fee' => $this->monthlyFixedFee,
+            'spot_price_margin' => $this->spotPriceMargin,
+            'general_kwh_price' => $this->generalKwhPrice,
+            'nighttime_kwh_price' => $this->nighttimeKwhPrice,
+            'daytime_kwh_price' => $this->daytimeKwhPrice,
+            'seasonal_winter_day_kwh_price' => $this->seasonalWinterDayKwhPrice,
+            'seasonal_other_kwh_price' => $this->seasonalOtherKwhPrice,
+            'spot_price_day_avg' => $this->spotPriceDayAvg,
+            'spot_price_night_avg' => $this->spotPriceNightAvg,
+            'is_spot_contract' => $this->isSpotContract,
+            'base_total_cost' => $this->baseTotalCost,
+            'base_avg_monthly_cost' => $this->baseTotalCost !== null ? $this->baseTotalCost / 12 : null,
+            'base_monthly_costs' => $this->baseMonthlyCosts,
+            'discount_savings_total' => $savings,
+            'monthly_discount_savings' => [],
+            'includes_discounts' => $savings > 0,
+
+            // Canonical additions.
+            'pricing_basis' => 'canonical',
+            'comparability' => $this->comparability->value,
+            'is_estimate' => $this->isEstimate(),
+            'estimate_method' => $this->estimateMethod->value,
+            'term_months' => $this->termMonths,
+            'phase_breakdown' => $this->phaseBreakdown,
+            'structured_only_total' => $this->structuredOnlyTotal,
+            'consumption_effect' => $this->consumptionEffect?->toArray(),
+            'assumptions' => $this->assumptions,
+        ];
+    }
+}

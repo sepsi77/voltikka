@@ -159,6 +159,16 @@ is the entry point for the **in-listing** bill comparison on `/sahkosopimus`
   exclude capped flat-fee tiers on the bill-*annualized* kWh. Keep that check in
   the row builder. See `tasks/expand-bill-comparison-and-compact-listings`.
 
+## Canonical pricing (behind `CANONICAL_PRICING_ENABLED`)
+
+When the flag is on, the **annual cost** estimate (`annualCost()`) comes from
+`CanonicalContractPricingService` so the hero's annualized €/vuosi stays consistent with the
+listings' phase-aware totals, and `buildMarketRow()` returns `null` for any contract the canonical
+verdict excludes from comparison (unknown-future promo, broken data) — so a contract hidden from the
+listings never appears in the bill ranking either. The **period** cost still uses this service's own
+component-rate math for the historical billing period; only the annualized estimate and the
+exclusion go through canonical. When the flag is off, behavior is unchanged.
+
 ## Query guardrails
 
 - Active household contracts only: `ElectricityContract::active()->whereIn('target_group', ['Household','Both'])`.

@@ -149,8 +149,16 @@ php artisan test --filter="ContractsFilterTest"
 - Production import-time interpretation is enabled: each new semantic snapshot from `contracts:fetch` queues a fingerprint-idempotent post-commit job that requests strict LLM output and runs automatic validation; validation errors can cause at most two automatic model correction calls, and there is no human review workflow
 - Valid latest interpretations automatically publish compatible classifications and current canonical pricing JSON to `electricity_contracts`; invalid or stale results do not publish
 - New contracts stay inactive until first validation; changed prices for interpreted contracts wait for the new version before relational publication
-- Versioned interpretation JSON is the validated pricing history, but phase-aware calculations do not yet consume it
+- Versioned interpretation JSON is the validated pricing history
 - Command: `php artisan contracts:interpret`
+
+### Canonical phase-aware pricing (deceptive-pricing fix)
+- **Location**: `laravel/app/Services/CanonicalPricing/`
+- Consumes the validated `canonical_pricing`/`canonical_source_consistency`/`canonical_calculation` JSON to calculate accurate 12-month prices across pricing phases, so a cheap promotional price that later increases (disclosed only in the description) no longer flatters a contract in rankings
+- Assigns a deterministic comparability verdict deciding list inclusion and sort key: open-ended promos with an undisclosed later price and broken/ambiguous pricing are hidden from listings (still reachable on the detail page with a warning); short fixed terms are annualized and labelled; Hybrids rank base-only with a disclosure
+- Adds a tiered deterministic deceptive-pricing label: a soft card pill ("Hinta nousee 1.8.2026") and a detailed detail-page notice with both prices, the change date, and the first-year € impact. Only `misleading_first_12_months = detected` contracts get a label; UI copy is generated from typed fields, never the raw LLM summary
+- **Gated behind `CANONICAL_PRICING_ENABLED` (default off)**; when off, the legacy `ContractPriceCalculator` behavior is unchanged. Staged with `php artisan contracts:compare-canonical-pricing` (diffs legacy vs canonical totals and lists exclusions/labels)
+- See `laravel/app/Services/CanonicalPricing/AGENTS.md`
 
 ### 3. Fixed-term Price Forecasting Backend
 - **Location**: `app/Services/PriceForecasting/`, `app/Models/FixedContractPriceForecast.php`
@@ -573,7 +581,8 @@ Each SEO listing page automatically includes:
 
 For pricing type pages, the `getContractsProperty()` method determines which contracts to show:
 
-- **Standard pricing models** (`Spot`, `FixedPrice`, `Hybrid`): Filter by `pricing_model` column directly
+- **`Spot` / `Hybrid`**: filter by `pricing_model` column directly
+- **`FixedPrice` (fully-fixed / `kiintea-hinta`) and `GeneralElectricity` (`yleissahko`)**: `pricing_model = FixedPrice` is **NOT** sufficient. Kvartaalisähkö and monthly market-price (`markkinahintasähkö`) products are `FixedPrice` in the source enum but reset from the market (canonical `periodic_market_reset` / `recurring_schedule.present`) and are costed as estimates. A genuinely fully-fixed contract — energy price known and unchanging for the whole first year, **no consumption effect** — is marked `canonical_calculation.status = 'exact'` (spot and resets are always `estimate_required`, hybrids `unsupported`). So these pages filter `pricing_model = FixedPrice` **AND** `canonical_calculation->status = 'exact'`. Do not revert to a plain `pricing_model` filter — it puts quarterly/monthly market resets on the "fully fixed, full certainty" page. The page copy promises the energy price never changes and there is no consumption effect, so the filter must match that promise.
 - **Special types** (`Quarterly`, `TimeOfUse`, `Seasonal`): Filter by name/description patterns or `metering` field since these don't have a dedicated `pricing_model` value
 - New types should use whichever approach matches the data: direct field filtering is preferred when possible
 

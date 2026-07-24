@@ -160,6 +160,16 @@ class WeeklyOffersVideoService
             return null;
         }
 
+        // Never promote a contract flagged with deceptive/incomplete pricing or excluded from comparison.
+        $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
+        if ($canonicalPricing->enabled()) {
+            $usage = new EnergyUsage(total: 5000, basicLiving: 5000);
+            $evaluation = $canonicalPricing->evaluate($contract, $usage);
+            if (! $evaluation['outcome']->isListed() || $evaluation['integrity']->detected) {
+                return null;
+            }
+        }
+
         // Get latest price components with discount metadata
         $priceComponents = $contract->getLatestPriceComponentsForCalculation();
 

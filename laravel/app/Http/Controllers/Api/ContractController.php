@@ -133,14 +133,19 @@ class ContractController extends Controller
      */
     private function calculateContractCost(ElectricityContract $contract, int $consumption): array
     {
-        // Get the latest price components (prefer non-zero prices when duplicates exist)
-        $priceComponents = $contract->getLatestPriceComponentsForCalculation();
-
         // Create a simple energy usage object
         $usage = new EnergyUsage(
             total: $consumption,
             basicLiving: $consumption,
         );
+
+        $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
+        if ($canonicalPricing->enabled()) {
+            return $canonicalPricing->evaluate($contract, $usage)['outcome']->toCalculatedCostArray();
+        }
+
+        // Get the latest price components (prefer non-zero prices when duplicates exist)
+        $priceComponents = $contract->getLatestPriceComponentsForCalculation();
 
         $contractData = [
             'contract_type' => $contract->contract_type,

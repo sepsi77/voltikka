@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
+use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\DTO\EnergyUsage;
 use Illuminate\Support\Facades\Cache;
 
@@ -23,6 +24,7 @@ class ContractListCacheService
     public function __construct(
         private readonly ContractPriceCalculator $calculator,
         private readonly CO2EmissionsCalculator $emissionsCalculator,
+        private readonly CanonicalContractPricingService $canonicalPricing,
     ) {}
 
     /**
@@ -87,7 +89,11 @@ class ContractListCacheService
 
     private function getCacheKey(int $consumption): string
     {
-        return sprintf('contract_list_metrics:v%d:%d', $this->getVersion(), $consumption);
+        // The pricing-basis marker (c1/c0) makes toggling CANONICAL_PRICING_ENABLED bust the
+        // cache immediately instead of waiting for the next import version bump.
+        $basis = $this->canonicalPricing->enabled() ? 'c1' : 'c0';
+
+        return sprintf('contract_list_metrics:v%d:%s:%d', $this->getVersion(), $basis, $consumption);
     }
 
     /**
@@ -109,15 +115,42 @@ class ContractListCacheService
             basicLiving: $consumption,
         );
 
-        $priceComponentsByContractId = ElectricityContract::getLatestPriceComponentsForCalculationByContractIds(
-            $contracts->pluck('id')
-        );
+        $useCanonical = $this->canonicalPricing->enabled();
+
+        $canonicalMetrics = $useCanonical
+            ? $this->canonicalPricing->metricsForContracts($contracts, $usage)
+            : [];
+
+        $priceComponentsByContractId = $useCanonical
+            ? []
+            : ElectricityContract::getLatestPriceComponentsForCalculationByContractIds($contracts->pluck('id'));
 
         $metrics = [];
 
         foreach ($contracts as $contract) {
-            $priceComponents = $priceComponentsByContractId[$contract->id] ?? [];
+            $maxConsumption = $contract->consumption_limitation_max_x_kwh_per_y;
+            $exceedsLimit = $maxConsumption > 0 && $consumption > $maxConsumption;
+            $emissionFactor = $this->emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
 
+            if ($useCanonical) {
+                $canonical = $canonicalMetrics[$contract->id] ?? null;
+                $calculatedCost = $canonical['calculated_cost'] ?? [];
+
+                $metrics[$contract->id] = [
+                    'calculated_cost' => $calculatedCost,
+                    'emission_factor' => $emissionFactor,
+                    'exceeds_consumption_limit' => $exceedsLimit,
+                    'total_cost' => $calculatedCost['total_cost'] ?? PHP_FLOAT_MAX,
+                    'comparability' => $canonical['comparability'] ?? null,
+                    'is_listed' => $canonical['is_listed'] ?? false,
+                    'sort_key' => $canonical['sort_key'],
+                    'pricing_integrity' => $canonical['integrity'] ?? null,
+                ];
+
+                continue;
+            }
+
+            $priceComponents = $priceComponentsByContractId[$contract->id] ?? [];
             $contractData = [
                 'contract_type' => $contract->contract_type,
                 'pricing_model' => $contract->pricing_model,
@@ -126,17 +159,22 @@ class ContractListCacheService
 
             $result = $this->calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
             $calculatedCost = $result->toArray();
-            $maxConsumption = $contract->consumption_limitation_max_x_kwh_per_y;
 
             $metrics[$contract->id] = [
                 'calculated_cost' => $calculatedCost,
-                'emission_factor' => $this->emissionsCalculator->calculateEmissionFactor($contract->electricitySource),
-                'exceeds_consumption_limit' => $maxConsumption > 0 && $consumption > $maxConsumption,
+                'emission_factor' => $emissionFactor,
+                'exceeds_consumption_limit' => $exceedsLimit,
                 'total_cost' => $calculatedCost['total_cost'] ?? PHP_FLOAT_MAX,
+                'comparability' => null,
+                'is_listed' => true,
+                'sort_key' => $calculatedCost['total_cost'] ?? PHP_FLOAT_MAX,
+                'pricing_integrity' => null,
             ];
         }
 
         $sortedIds = collect($metrics)
+            // Canonical mode drops contracts not fit for comparison from the ranking entirely.
+            ->reject(fn (array $metric) => $useCanonical && ! $metric['is_listed'])
             ->sort(function (array $a, array $b) {
                 $aExceeds = $a['exceeds_consumption_limit'] ? 1 : 0;
                 $bExceeds = $b['exceeds_consumption_limit'] ? 1 : 0;
@@ -145,8 +183,14 @@ class ContractListCacheService
                     return $aExceeds <=> $bExceeds;
                 }
 
-                return $a['total_cost'] <=> $b['total_cost'];
+                return ($a['sort_key'] ?? PHP_FLOAT_MAX) <=> ($b['sort_key'] ?? PHP_FLOAT_MAX);
             })
+            ->keys()
+            ->values()
+            ->all();
+
+        $excludedIds = collect($metrics)
+            ->filter(fn (array $metric) => $useCanonical && ! $metric['is_listed'])
             ->keys()
             ->values()
             ->all();
@@ -154,6 +198,7 @@ class ContractListCacheService
         return [
             'contracts' => $metrics,
             'sorted_ids' => $sortedIds,
+            'excluded_ids' => $excludedIds,
             'consumption' => $consumption,
         ];
     }

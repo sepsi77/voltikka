@@ -484,12 +484,20 @@ class ContractTypeComparison extends Component
         float $spotPriceDay,
         float $spotPriceNight
     ): float {
-        $priceComponents = $contract->getLatestPriceComponentsForCalculation();
-
         $usage = new EnergyUsage(
             total: $this->consumption,
             basicLiving: $this->consumption,
         );
+
+        $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
+        if ($canonicalPricing->enabled()) {
+            $outcome = $canonicalPricing->evaluate($contract, $usage)['outcome'];
+
+            // Excluded contracts must not be picked as the cheapest editorial example.
+            return $outcome->isListed() ? ($outcome->totalCost ?? PHP_FLOAT_MAX) : PHP_FLOAT_MAX;
+        }
+
+        $priceComponents = $contract->getLatestPriceComponentsForCalculation();
 
         $contractData = [
             'contract_type' => $contract->contract_type,

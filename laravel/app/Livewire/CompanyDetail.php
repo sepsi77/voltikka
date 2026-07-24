@@ -115,6 +115,8 @@ class CompanyDetail extends Component
 
         $calculator = app(ContractPriceCalculator::class);
         $emissionsCalculator = app(CO2EmissionsCalculator::class);
+        $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
+        $useCanonical = $canonicalPricing->enabled();
 
         // Get spot price averages for calculations
         $spotPriceAvg = SpotPriceAverage::latestRolling365Days();
@@ -129,22 +131,32 @@ class CompanyDetail extends Component
 
         // Calculate cost and emissions for each contract
         $consumption = $this->consumption;
-        $contracts = $contracts->map(function ($contract) use ($calculator, $emissionsCalculator, $spotPriceDay, $spotPriceNight, $consumption) {
-            $priceComponents = $contract->getLatestPriceComponentsForCalculation();
-
+        $contracts = $contracts->map(function ($contract) use ($calculator, $emissionsCalculator, $canonicalPricing, $useCanonical, $spotPriceDay, $spotPriceNight, $consumption) {
             $usage = new EnergyUsage(
                 total: $consumption,
                 basicLiving: $consumption,
             );
 
-            $contractData = [
-                'contract_type' => $contract->contract_type,
-                'pricing_model' => $contract->pricing_model,
-                'metering' => $contract->metering,
-            ];
+            if ($useCanonical) {
+                $evaluation = $canonicalPricing->evaluate($contract, $usage);
+                $contract->calculated_cost = $evaluation['outcome']->toCalculatedCostArray();
+                $contract->pricing_integrity = $evaluation['integrity']->toArray();
+                $contract->comparability = $evaluation['outcome']->comparability->value;
+                $contract->is_listed = $evaluation['outcome']->isListed();
+            } else {
+                $priceComponents = $contract->getLatestPriceComponentsForCalculation();
+                $contractData = [
+                    'contract_type' => $contract->contract_type,
+                    'pricing_model' => $contract->pricing_model,
+                    'metering' => $contract->metering,
+                ];
 
-            $result = $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
-            $contract->calculated_cost = $result->toArray();
+                $result = $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
+                $contract->calculated_cost = $result->toArray();
+                $contract->pricing_integrity = null;
+                $contract->comparability = null;
+                $contract->is_listed = true;
+            }
 
             // Calculate emission factor for this contract
             $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
@@ -159,15 +171,21 @@ class CompanyDetail extends Component
             return $contract;
         });
 
-        // Sort by total cost (ascending), but put contracts that exceed consumption limit at the end
+        // Sort listed contracts first, then consumption-limit exceeders, then by total cost.
+        // Excluded contracts stay visible on the company's own page but sink to the bottom.
         return $this->contractsCache = $contracts->sort(function ($a, $b) {
-            // First sort by exceeds_consumption_limit (false first, true last)
+            $aListed = ($a->is_listed ?? true) ? 0 : 1;
+            $bListed = ($b->is_listed ?? true) ? 0 : 1;
+            if ($aListed !== $bListed) {
+                return $aListed - $bListed;
+            }
+
             $aExceeds = $a->exceeds_consumption_limit ? 1 : 0;
             $bExceeds = $b->exceeds_consumption_limit ? 1 : 0;
             if ($aExceeds !== $bExceeds) {
                 return $aExceeds - $bExceeds;
             }
-            // Then sort by total cost (ascending)
+
             $aCost = $a->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
             $bCost = $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
             return $aCost <=> $bCost;

@@ -67,6 +67,16 @@ class CalculationController extends Controller
             );
         }
 
+        $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
+        if ($canonicalPricing->enabled()) {
+            $evaluation = $canonicalPricing->evaluate($contract, $usage);
+
+            return response()->json([
+                'data' => $evaluation['outcome']->toCalculatedCostArray()
+                    + ['pricing_integrity' => $evaluation['integrity']->toArray()],
+            ]);
+        }
+
         // Get the latest price components (prefer non-zero prices when duplicates exist)
         $priceComponents = $contract->getLatestPriceComponentsForCalculation();
 

@@ -63,6 +63,8 @@ class SeoContractsListTest extends TestCase
         string $pricingModel = 'FixedPrice',
         string $contractType = 'OpenEnded',
         string $targetGroup = 'Household',
+        ?string $canonicalStatus = null,
+        bool $recurringReset = false,
     ): ElectricityContract {
         $contract = ElectricityContract::create([
             'id' => $id,
@@ -74,6 +76,25 @@ class SeoContractsListTest extends TestCase
             'pricing_model' => $pricingModel,
             'target_group' => $targetGroup,
             'availability_is_national' => true,
+            // Canonical calculation status drives the fully-fixed (kiintea-hinta) filter. Default to
+            // a realistic value per model: FixedPrice → exact (fully fixed), Spot → estimate_required,
+            // Hybrid → unsupported. A market-reset FixedPrice passes $canonicalStatus/$recurringReset.
+            'canonical_calculation' => [
+                'status' => $canonicalStatus ?? match ($pricingModel) {
+                    'Spot' => 'estimate_required',
+                    'Hybrid' => 'unsupported',
+                    default => 'exact',
+                },
+                'missing_facts' => [],
+                'required_assumptions' => [],
+            ],
+            'canonical_pricing' => [
+                'phases' => [],
+                'recurring_schedule' => [
+                    'present' => $recurringReset,
+                    'cadence' => $recurringReset ? 'quarterly' : 'none',
+                ],
+            ],
         ]);
 
         PriceComponent::create([
@@ -697,6 +718,22 @@ class SeoContractsListTest extends TestCase
         $this->assertEquals('fixed-1', $contracts->first()->id);
     }
 
+    public function test_fixed_price_page_excludes_market_reset_contracts_classified_as_fixedprice(): void
+    {
+        // Kvartaalisähkö is pricing_model=FixedPrice in the source enum but resets from the market
+        // (recurring schedule + estimate_required). It must NOT appear on the fully-fixed page.
+        $this->createContract('truly-fixed', 'Test Energia Oy', 'Kiinteä 12 kk', 5.0, 3.0, null, 'FixedPrice');
+        $this->createContract(
+            'kvartaali', 'Vihreä Voima Ab', 'Kvartaalisähkö', 7.0, 4.0, null, 'FixedPrice', 'OpenEnded', 'Household',
+            canonicalStatus: 'estimate_required', recurringReset: true,
+        );
+
+        $contracts = Livewire::test('seo-contracts-list', ['pricingType' => 'FixedPrice'])->viewData('contracts');
+
+        $this->assertCount(1, $contracts);
+        $this->assertEquals('truly-fixed', $contracts->first()->id);
+    }
+
     public function test_fixed_price_canonical_url_is_kiintea_hinta(): void
     {
         $this->createContract('fixed-1', 'Test Energia Oy', 'Kiinteä Sopimus', 5.0, 3.0, null, 'FixedPrice');
@@ -712,7 +749,7 @@ class SeoContractsListTest extends TestCase
         $this->createContract('fixed-1', 'Test Energia Oy', 'Kiinteä Sopimus', 5.0, 3.0, null, 'FixedPrice');
 
         Livewire::test('seo-contracts-list', ['pricingType' => 'FixedPrice'])
-            ->assertSee('Kiinteähintaiset sähkösopimukset');
+            ->assertSee('Täysin kiinteähintaiset sähkösopimukset');
     }
 
     // ==================== Hybrid (Joustosähkö) Pricing Type Tests ====================
