@@ -132,6 +132,23 @@
                     </div>
 
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                        <h3 class="font-bold text-slate-900 mb-2">Sopimusten tarkistus ja harhaanjohtavat tarjoukset</h3>
+                        <p class="mb-3">
+                            Tarkistamme jokaisen sopimuksen hinnoittelun sekä sähköyhtiön rakenteisesta hintatiedosta
+                            että sopimuksen kuvausteksteistä. Osa yhtiöistä ilmoittaa halvan tarjoushinnan
+                            rakenteiseen hintatietoon, mutta kertoo vasta kuvauksessa, että hinta nousee tietyn
+                            jakson jälkeen.
+                        </p>
+                        <p>
+                            Tunnistamme tällaiset harhaanjohtavat tarjoukset ja korjaamme niiden vaikutuksen: laskemme
+                            sopimuksen todellisen 12 kuukauden kustannuksen kaikkien hintavaiheiden yli, jotta
+                            tarjoushinta ei nosta sopimusta vertailussa ansaitsematta korkeammalle. Merkitsemme tällaiset
+                            sopimukset selkeästi (esimerkiksi <span class="font-medium">"Hinta nousee"</span> -merkinnällä)
+                            ja kerromme hinnan muutoksesta sopimuksen tiedoissa.
+                        </p>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
                         <h3 class="font-bold text-slate-900 mb-2">Pörssisähkön arviot (· arvio)</h3>
                         <p>
                             Pörssisopimuksilla todellinen hinta vaihtelee tunneittain, joten vuosikustannus on aina arvio.
