@@ -134,10 +134,9 @@
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
                         <h3 class="font-bold text-slate-900 mb-2">Sopimusten tarkistus ja harhaanjohtavat tarjoukset</h3>
                         <p class="mb-3">
-                            Tarkistamme jokaisen sopimuksen hinnoittelun sekä sähköyhtiön rakenteisesta hintatiedosta
-                            että sopimuksen kuvausteksteistä. Osa yhtiöistä ilmoittaa halvan tarjoushinnan
-                            rakenteiseen hintatietoon, mutta kertoo vasta kuvauksessa, että hinta nousee tietyn
-                            jakson jälkeen.
+                            Tarkistamme jokaisen sopimuksen hinnoittelun sekä sähköyhtiön ilmoittamista hinnoista
+                            että sopimuksen kuvauksesta. Osa yhtiöistä ilmoittaa halvan tarjoushinnan, mutta
+                            kertoo vasta kuvaustekstissä, että hinta nousee tietyn jakson jälkeen.
                         </p>
                         <p>
                             Tunnistamme tällaiset harhaanjohtavat tarjoukset ja korjaamme niiden vaikutuksen: laskemme

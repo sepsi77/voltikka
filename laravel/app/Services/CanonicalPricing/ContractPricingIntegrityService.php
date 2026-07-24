@@ -128,7 +128,7 @@ class ContractPricingIntegrityService
         if ($laterPriceKnown) {
             $facts[] = 'Sen jälkeen energian hinta on '.$this->cents($normalRate).' snt/kWh.';
         } else {
-            $facts[] = 'Tarjousjakson jälkeistä hintaa ei ole ilmoitettu rakenteisissa hintatiedoissa.';
+            $facts[] = 'Tarjousjakson jälkeistä hintaa ei ole ilmoitettu selkeästi.';
         }
 
         if ($impact !== null) {
@@ -165,7 +165,7 @@ class ContractPricingIntegrityService
             issueCodes: $conflictCodes,
             cardLabel: null,
             detailHeading: 'Sopimuksen hintatiedoissa on ristiriitaisuuksia',
-            detailFacts: ['Rakenteisissa hintatiedoissa on ristiriita tai puutteita. Tarkista hinta suoraan myyjältä ennen sopimuksen tekemistä.'],
+            detailFacts: ['Sopimuksen hintatiedoissa on ristiriita tai puutteita. Tarkista hinta suoraan myyjältä ennen sopimuksen tekemistä.'],
         );
     }
 
