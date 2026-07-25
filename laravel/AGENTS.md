@@ -70,7 +70,8 @@ Important semantics:
 - each interpretation records `published_fields`; later imports preserve only those canonical fields until a newer interpretation publishes
 - new contracts stay inactive until first validation, and changed source prices for interpreted contracts wait for the new validation before relational publication
 - durable `relational_pricing_published` gates later activation and relational price writes, so unsafe pricing cannot appear on the next import
-- versioned interpretation output is the LLM-validated pricing history; `app/Services/CanonicalPricing/` consumes the published `canonical_*` JSON for phase-aware pricing and the deceptive-pricing label behind `CANONICAL_PRICING_ENABLED` (default off — see `app/Services/CanonicalPricing/AGENTS.md`)
+- versioned interpretation output is the LLM-validated pricing history; `app/Services/CanonicalPricing/` consumes the published `canonical_*` JSON for phase-aware pricing and the deceptive-pricing label behind `CANONICAL_PRICING_ENABLED` (default off, **true in production** — see `app/Services/CanonicalPricing/AGENTS.md`)
+- market-reset products (monthly/quarterly/seasonal repricing) are annualised by `app/Services/CanonicalPricing/MarketReset/` with a shape-only FI forward-curve shift behind its own `RESET_FORWARD_SHIFT_ENABLED` flag (default off). It must stay a separate flag because `CANONICAL_PRICING_ENABLED` is already on in production; the flag also varies the list/ranking/page cache keys. See `app/Services/CanonicalPricing/MarketReset/AGENTS.md`
 - use `php artisan contracts:interpret` to queue the latest active snapshots; add `--retry-failed`, `--contract=`, or `--include-inactive` when needed
 
 ### Contract price statistics

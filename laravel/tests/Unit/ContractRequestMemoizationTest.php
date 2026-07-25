@@ -27,7 +27,8 @@ class ContractRequestMemoizationTest extends TestCase
 
         Cache::shouldReceive('remember')
             ->once()
-            ->with('contract_list_metrics:v7:c0:5000', 60 * 60 * 48, \Mockery::type(\Closure::class))
+            // c0r0 = canonical pricing off, market-reset forward shift off.
+            ->with('contract_list_metrics:v7:c0r0:5000', 60 * 60 * 48, \Mockery::type(\Closure::class))
             ->andReturn($metrics);
 
         $canonical = $this->createMock(CanonicalContractPricingService::class);
@@ -54,7 +55,8 @@ class ContractRequestMemoizationTest extends TestCase
 
         Cache::shouldReceive('remember')
             ->once()
-            ->with('contract_rankings_5000kwh:c0', 3600, \Mockery::type(\Closure::class))
+            // :c0:r0 = canonical pricing off, market-reset forward shift off.
+            ->with('contract_rankings_5000kwh:c0:r0', 3600, \Mockery::type(\Closure::class))
             ->andReturn($rankings);
 
         $canonical = $this->createMock(CanonicalContractPricingService::class);

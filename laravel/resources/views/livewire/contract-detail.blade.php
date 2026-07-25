@@ -153,6 +153,34 @@
                         </div>
                     </div>
 
+                    {{-- Market-reset notice: the known current-period price and the estimated 12-month --}}
+                    {{-- equivalent are stated as two separate figures, so the estimate is never read as --}}
+                    {{-- a contractual price. Neutral (not amber): a published reset mechanism is not --}}
+                    {{-- deceptive pricing. All copy is generated from the typed reset_estimate payload. --}}
+                    @php
+                        $resetNotice = \App\Services\CanonicalPricing\MarketReset\ResetEstimateCopy::detailNotice(
+                            is_array($calculatedCost['reset_estimate'] ?? null) ? $calculatedCost['reset_estimate'] : null
+                        );
+                    @endphp
+                    @if (! $isExcludedPricing && $resetNotice)
+                        <div class="mt-6 rounded-xl bg-white/[0.08] border border-white/15 px-5 py-4">
+                            <div class="flex items-start gap-3">
+                                <svg class="w-5 h-5 text-slate-300 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-bold text-slate-100">{{ $resetNotice['heading'] }}</p>
+                                    <ul class="mt-1.5 space-y-1 text-sm text-slate-200/90 list-disc list-inside">
+                                        @foreach ($resetNotice['facts'] as $fact)
+                                            <li>{{ $fact }}</li>
+                                        @endforeach
+                                    </ul>
+                                    <p class="mt-2 text-xs text-slate-400">{{ $resetNotice['note'] }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
                     {{-- Pricing-integrity notice: shown only for validated deceptive/conflicting pricing --}}
                     @if (($pricingIntegrity['detected'] ?? false) && !empty($pricingIntegrity['detail_facts']))
                         <div class="mt-6 rounded-xl bg-amber-500/15 border border-amber-300/30 px-5 py-4">

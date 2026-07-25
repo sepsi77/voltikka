@@ -41,6 +41,8 @@ class ContractPageCacheVersion
             'contract_list_cache_version' => $this->contractListCache->getVersion(),
             // Toggling canonical pricing changes rendered totals, exclusions, and labels.
             'canonical_pricing_enabled' => (bool) config('canonical_pricing.enabled', false),
+            // Toggling the market-reset forward shift changes reset totals and their ordering.
+            'reset_forward_shift_enabled' => (bool) config('canonical_pricing.reset_forward_shift.enabled', false),
             'active_contract_count' => DB::table('active_contracts')->count(),
             'contract_count' => ElectricityContract::query()->count(),
             'latest_contract_id' => ElectricityContract::query()->max('id'),

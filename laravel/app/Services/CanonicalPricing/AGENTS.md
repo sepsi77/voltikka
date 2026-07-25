@@ -32,6 +32,8 @@ layer costs them honestly and labels the mismatch.
   `ContractPriceCalculator`** so both calculators stay numerically identical for constant prices.
   `ContractPriceCalculator` still exposes `WINTER_PRICE_MONTHS` / `NIGHT_TIME_SHARES` as aliases.
 - `CanonicalContractPriceCalculator` — costs the window and assigns a `ContractComparability` verdict.
+- `MarketReset/` — annualises monthly/quarterly/seasonal reset products with a shape-only
+  forward-curve shift instead of holding one seasonal price flat. Own flag, own `AGENTS.md`.
 - `ContractPricingIntegrityService` — the deterministic label state machine.
 - `CanonicalContractPricingService` — batch orchestrator + feature-flag gate. `metricsForContracts()`
   returns array-only metrics for cache/listings; `evaluate()` returns typed `{outcome, integrity}`
@@ -49,7 +51,9 @@ layer costs them honestly and labels the mismatch.
 4. Cost known segments by applying the governing phase's rates to the day-fraction of that month's
    usage. Spot phases use `spot_margin` + rolling-365 day/night averages. Uncovered tails are filled
    by holding the current phase forward only for active recurring resets, Spot, or fixed-term
-   annualization — otherwise the contract is excluded.
+   annualization — otherwise the contract is excluded. For an **active recurring reset** the filled
+   tail (and any tail a phase only claims with `ends: none`) is additionally repriced per calendar
+   month by `MarketReset/`, when `RESET_FORWARD_SHIFT_ENABLED` is on.
 
 An **empty-components phase is UNKNOWN coverage, never €0.**
 
@@ -126,12 +130,16 @@ share the contract's VAT basis (business contracts stay ex-VAT). A component typ
 
 ## Rollout
 
-1. `config/canonical_pricing.php` — `CANONICAL_PRICING_ENABLED` (default false).
-2. `contracts:compare-canonical-pricing {--consumption=} {--start-date=} {--json=} {--fail-on-parse-errors}`
+1. `config/canonical_pricing.php` — `CANONICAL_PRICING_ENABLED` (default false, **true in
+   production**) and the independent `reset_forward_shift.enabled` /
+   `RESET_FORWARD_SHIFT_ENABLED` (default false).
+2. `contracts:compare-canonical-pricing {--consumption=} {--start-date=} {--json=} {--resets} {--fail-on-parse-errors}`
    diffs legacy vs canonical totals across all active contracts and lists exclusions/labels. Run it on
-   the synced local DB and on production (read-only) before flipping the flag.
-3. Cache keys carry a `c1`/`c0` basis marker (`ContractListCacheService`, `ContractRankingService`,
-   `ContractPageCacheVersion`) so toggling the flag busts stale caches immediately.
+   the synced local DB and on production (read-only) before flipping the flag. `--resets` switches to
+   the hold-flat-vs-forward-shift review for market-reset lineages.
+3. Cache keys carry a `c1`/`c0` canonical basis marker **and** an `r1`/`r0` reset-shift marker
+   (`ContractListCacheService`, `ContractRankingService`, `ContractPageCacheVersion`) so toggling
+   either flag busts stale caches immediately.
 
 ## Consumers migrated
 
@@ -143,48 +151,58 @@ Listings (`ContractsList`/`SeoContractsList`/`CheapestContracts`/`SahkosopimusIn
 `ContractPriceStatisticsService` (forward daily only — **backfills always pass `useCanonical: false`**;
 historical statistics must never be reinterpreted with today's canonical data).
 
-Card pills live in `resources/views/components/contract-card.blade.php` (footer tag row).
-The detail-page notice lives in `resources/views/livewire/contract-detail.blade.php` (after the hero).
+Card pills live in `resources/views/components/contract-card.blade.php` (footer tag row); the
+market-reset two-figure energy column is in the same file's metrics row. The detail-page notices live
+in `resources/views/livewire/contract-detail.blade.php` (after the hero): the neutral market-reset
+notice first, then the amber integrity notice.
 
-## KNOWN DEFECT: market-reset contracts are annualized on a seasonal price
+## Market-reset contracts: annualized with a shape-only forward-curve shift
 
-> **This is LIVE.** `config('canonical_pricing.enabled')` is **true in production** (verified
-> 2026-07-25) even though the config default is false. The wrong totals below are what visitors see
-> and what rankings use today. Do not read "default off" above as "inert".
+Market-reset products (`recurring_schedule.present` with cadence `monthly` / `quarterly` /
+`seasonal`) publish one price per period. Holding that seasonal price flat for twelve months was a
+**live defect**: too low in summer, too high in winter, on roughly 32 lineages, about two thirds of
+them quarterly. `config('canonical_pricing.enabled')` is **true in production** even though the
+config default is false, so do not read "default off" above as "inert".
 
-`EstimateMethod::HoldCurrentRecurringPrice` (around `CanonicalContractPriceCalculator.php:172`) fills the
-uncovered window tail by holding the current period price forward for twelve months. For a
-monthly/quarterly reset product that price is a **seasonal** price, so the annual estimate is
-systematically wrong: too low in summer, too high in winter.
-
-Measured on 2026-07-24 production data, 5000 kWh, General metering, against the live FI forward curve:
-
-| Contract | Current price | Hold-flat | Correct | Error |
-|---|---|---|---|---|
-| Kokkolan Energia Tyyni (monthly) | 4.98 c/kWh | 279 €/yr | 588 €/yr | **−308 €** |
-| Helen Markkinahintasähkö (monthly) | 7.59 c/kWh | 427 €/yr | 735 €/yr | **−308 €** |
-| Korpela Kvartaali (quarterly) | 5.54 c/kWh | 315 €/yr | 435 €/yr | −121 € |
-
-For scale, genuinely fully-fixed 12-month contracts had a median energy price of 10.48 c/kWh the same
-day. Roughly 32 lineages are affected, about two thirds of them quarterly.
-
-**The fix is specified and ready to implement** in `tasks/market-reset-annualised-pricing/spec.md`. It is
-a shape-only forward-curve shift that keeps the current period exact and reprices only the held-forward
-tail:
+That is now fixed in **`MarketReset/`** — read `MarketReset/AGENTS.md` before changing any of it.
+The current period stays exact and only the tail is repriced:
 
 ```
 P_m = P_current_period + beta * (F_m - F_reference)
 ```
 
-It needs only **today's** curve, which `futures:fetch-eex` keeps current. Do not re-derive this from
-scratch; read that spec and its `decisions.md` first, which record several measured results and several
-explicitly retracted conclusions.
+Behaviour summary, with the reasons living in `MarketReset/AGENTS.md`:
+
+- Gated behind its own flag **`RESET_FORWARD_SHIFT_ENABLED`** (default false), separate from
+  `CANONICAL_PRICING_ENABLED` because that one is already live and cannot stage this. Flag off is
+  byte-identical to hold-flat, and the flag varies the list/ranking/page cache keys (`r1`/`r0`).
+- **One curve vintage** for both `F_m` and `F_reference`: latest `trade_date < today`. Not the
+  pre-period vintage — that is `RetailPremium`'s job, which measures a spread at pricing time. Mixing
+  vintages reintroduces the level drift the shape-only shift cancels. Accepted cost, measured: about
+  **+79 €/yr** of front-month convergence bias on monthly cadences, about −11 €/yr on quarterly.
+- `beta` is **one global value** (1.0). Per-company calibration stays the documented future work
+  below.
+- A phase with `ends: none` is **not** a credible reset boundary; at minimum the current cadence
+  period stays exact, and any coverage from a *dated* phase end also stays exact.
+- Ladder: forward-curve shift → multi-year spot seasonal index (lower confidence) → hold flat, with
+  the rung recorded on the outcome as `EstimateMethod::RecurringForwardCurveShift` /
+  `RecurringSpotSeasonalIndex` / `HoldCurrentRecurringPrice`, plus a typed
+  `calculated_cost['reset_estimate']` basis payload.
+- Guards: negative-price floor, stale-curve threshold, plausibility band against the fully-fixed
+  12-month retail median.
+- **No deceptive-pricing label.** The suppression rule for active recurring resets is correct: the
+  price change is the published mechanism of the product, not hidden promotional text.
+- UI shows the known current-period price and the estimated 12-month equivalent as **two separate
+  figures**, and the total stays marked "Arvio".
+
+Staging: `php artisan contracts:compare-canonical-pricing --resets`.
 
 ## TO BE IMPLEMENTED IN THE FUTURE: per-company calibration of the reset estimate
 
-The first implementation deliberately uses **one global `beta` and a cadence-driven reference**. Making
-`beta` and the reference period **per company** is a documented future improvement, not part of the
-first rollout.
+The shipped implementation in `MarketReset/` deliberately uses **one global `beta` and a
+cadence-driven reference**. Making `beta` and the reference period **per company** is a documented
+future improvement, not part of the first rollout. It is also the proper fix for the front-month
+convergence bias recorded in `MarketReset/AGENTS.md`.
 
 Why it is deferred rather than done now:
 

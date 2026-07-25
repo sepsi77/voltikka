@@ -90,8 +90,11 @@ class ContractListCacheService
     private function getCacheKey(int $consumption): string
     {
         // The pricing-basis marker (c1/c0) makes toggling CANONICAL_PRICING_ENABLED bust the
-        // cache immediately instead of waiting for the next import version bump.
-        $basis = $this->canonicalPricing->enabled() ? 'c1' : 'c0';
+        // cache immediately instead of waiting for the next import version bump. The r1/r0
+        // marker does the same for RESET_FORWARD_SHIFT_ENABLED, which changes market-reset
+        // totals and therefore the sorted order.
+        $basis = ($this->canonicalPricing->enabled() ? 'c1' : 'c0')
+            .($this->canonicalPricing->resetForwardShiftEnabled() ? 'r1' : 'r0');
 
         return sprintf('contract_list_metrics:v%d:%s:%d', $this->getVersion(), $basis, $consumption);
     }

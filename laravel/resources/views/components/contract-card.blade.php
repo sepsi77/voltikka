@@ -146,6 +146,14 @@
         $headlineEnergyLabel = 'Marginaali';
     }
 
+    // Market-reset (monthly/quarterly/seasonal) products: the headline c/kWh above is the
+    // KNOWN current-period price. The estimated 12-month equivalent is shown as a separate,
+    // quieter figure so the estimate is never read as a contractual price. Copy is generated
+    // from the typed reset_estimate payload, never from an interpretation summary.
+    $resetEstimate = is_array($calculatedCost['reset_estimate'] ?? null) ? $calculatedCost['reset_estimate'] : null;
+    $resetEquivalentLabel = $billMode ? null : \App\Services\CanonicalPricing\MarketReset\ResetEstimateCopy::cardEquivalent($resetEstimate);
+    $resetEquivalentTip = $resetEquivalentLabel !== null ? \App\Services\CanonicalPricing\MarketReset\ResetEstimateCopy::cardTooltip($resetEstimate) : null;
+
     // Determine emissions color for left border
     $emissionFactor = $contract->emission_factor ?? 0;
     if ($featured) {
@@ -277,11 +285,22 @@
                 <div class="flex flex-col lg:w-[7rem]">
                     @if ($headlineEnergyPrice !== null)
                         <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                            {{ $headlineEnergyLabel }}
+                            {{ $resetEquivalentLabel !== null ? $headlineEnergyLabel.' nyt' : $headlineEnergyLabel }}
                         </span>
                         <span class="text-sm lg:text-base font-semibold text-slate-700 tabular-nums whitespace-nowrap leading-tight mt-0.5">
                             {{ number_format($headlineEnergyPrice, 2, ',', ' ') }}<span class="ml-1 text-xs font-medium text-slate-500">c/kWh</span>
                         </span>
+                        {{-- Market-reset products: estimated 12-month equivalent, kept visually --}}
+                        {{-- subordinate to the known current-period price above it. --}}
+                        @if ($resetEquivalentLabel !== null)
+                            <span class="text-[11px] font-medium text-slate-500 tabular-nums whitespace-nowrap leading-tight mt-0.5">
+                                @if ($resetEquivalentTip)
+                                    <x-info-tip :text="$resetEquivalentTip" trigger-class="text-slate-500">{{ $resetEquivalentLabel }}</x-info-tip>
+                                @else
+                                    {{ $resetEquivalentLabel }}
+                                @endif
+                            </span>
+                        @endif
                     @endif
                 </div>
 

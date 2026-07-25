@@ -20,6 +20,9 @@ readonly class CanonicalPricingOutcome
      * @param array<int, float> $baseMonthlyCosts
      * @param list<array<string, mixed>> $phaseBreakdown
      * @param list<string> $assumptions
+     * @param array<string, mixed>|null $resetEstimate Typed evidence for a market-reset tail
+     *        estimate (basis, reference kind, curve vintage, current-period price, estimated
+     *        12-month equivalent). Null when no shift was applied.
      */
     public function __construct(
         public ContractComparability $comparability,
@@ -43,6 +46,7 @@ readonly class CanonicalPricingOutcome
         public array $phaseBreakdown = [],
         public ?ConsumptionEffectData $consumptionEffect = null,
         public array $assumptions = [],
+        public ?array $resetEstimate = null,
     ) {
     }
 
@@ -109,6 +113,7 @@ readonly class CanonicalPricingOutcome
             'structured_only_total' => $this->structuredOnlyTotal,
             'consumption_effect' => $this->consumptionEffect?->toArray(),
             'assumptions' => $this->assumptions,
+            'reset_estimate' => $this->resetEstimate,
         ];
     }
 }

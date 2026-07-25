@@ -14,6 +14,18 @@ enum EstimateMethod: string
     /** Recurring reset: the current period's rates were held forward. */
     case HoldCurrentRecurringPrice = 'hold_current_recurring_price';
 
+    /**
+     * Recurring reset: the current period stays exact and the tail is repriced with a
+     * shape-only shift of the FI forward curve (`P_m = P_current + beta * (F_m - F_ref)`).
+     */
+    case RecurringForwardCurveShift = 'recurring_forward_curve_shift';
+
+    /**
+     * Recurring reset, lower-confidence fallback: no usable forward curve, so the tail is
+     * shaped by a multi-year realized-spot seasonal index instead.
+     */
+    case RecurringSpotSeasonalIndex = 'recurring_spot_seasonal_index';
+
     /** Spot: rolling-365-day day/night averages plus the phase spot margin. */
     case Rolling365Spot = 'rolling_365_spot';
 

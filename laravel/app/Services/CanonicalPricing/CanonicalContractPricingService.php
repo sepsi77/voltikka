@@ -41,6 +41,18 @@ class CanonicalContractPricingService
     }
 
     /**
+     * Whether market-reset contracts are annualized with the shape-only forward-curve shift.
+     *
+     * This is a second, independent flag: canonical pricing is already enabled in production,
+     * so it cannot stage this change. Cache keys must vary by this value the same way they vary
+     * by `enabled()`, otherwise stale hold-flat payloads survive the flip.
+     */
+    public function resetForwardShiftEnabled(): bool
+    {
+        return (bool) config('canonical_pricing.reset_forward_shift.enabled', false);
+    }
+
+    /**
      * Array-only metrics for cache building and listings.
      *
      * @param Collection<int, ElectricityContract> $contracts
