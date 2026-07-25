@@ -218,3 +218,14 @@ historical row must not claim that its inactive carrier had an interpretation.
 - Rows whose vintage predates 2026-04-08 are written as flagged `curve_unavailable` evidence rows,
   not skipped. `VintageAwareReferencePriceService::priceForVatBasis()` was also corrected so a null
   reference stays null instead of casting to 0.0.
+
+## Production backfill outcome (2026-07-25)
+
+- Deployed commit `729d552` as Railway deployment `0e1fe4f7-c346-42ec-8f54-0c4f6d801752` in the production `voltikka` service.
+- Dry runs were completed before each write for Spot, reset, fixed-term, and Hybrid groups over `2026-01-21` through `2026-07-24`.
+- Production now has 1,388 `retail-premium-history-v1` rows and 521 current `retail-premium-v1` rows. The complete range is `2026-01-21` through `2026-07-25`.
+- There are 384 rows with a calculated retail premium and 340 with a fee-inclusive retail premium. Futures vintages cover `2026-04-08` through `2026-07-24`; 454 rows preserve earlier or missing-curve evidence as `curve_unavailable`.
+- Historical rows cover 934 carrier contract IDs across 155 calibrated replacement lineages. Conservative rejection and flags remain visible. Unknown VAT, unresolved discounts, ambiguous source days, overlap conflicts, and unsupported durations were not corrected.
+- The Spot historical command was run again without `--overwrite`; it saved 0 and skipped all 93 existing identities. This verified production idempotency.
+- Vaasan Sähkö `0.0000` energy values are stored unchanged and carry `zero_or_negative_retail_energy_price`; they are not converted into a retail premium.
+- The post-write cross-check found current comparable medians for 6, 12, and 24 months. The 12-month dataset median was `+2.0427 c/kWh` versus market EWMA `+1.7949 c/kWh`; the 24-month median was `+2.3006 c/kWh` versus `+2.1120 c/kWh`.
