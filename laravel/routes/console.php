@@ -72,6 +72,14 @@ Schedule::command('futures:fetch-eex')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/eex-futures-fetch.log'));
 
+// Collect per-contract retail premiums after the morning contract interpretations can publish.
+Schedule::command('retail-premiums:collect')
+    ->dailyAt('07:15')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/retail-premiums.log'));
+
 // Run fixed-term price forecasts after the morning contract import/statistics update.
 Schedule::command('forecasting:run-fixed-contracts')
     ->dailyAt('07:30')

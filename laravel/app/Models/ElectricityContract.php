@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ElectricityContract extends Model
@@ -356,6 +357,55 @@ class ElectricityContract extends Model
         }
 
         return $results;
+    }
+
+    /**
+     * Get this contract and every predecessor in its replacement lineage.
+     *
+     * The replacement graph can converge, so this returns a set and not a path.
+     * Plain UNION also makes malformed cycles terminate without a depth limit.
+     *
+     * @return Collection<int, string>
+     */
+    public function getReplacementLineageIds(): Collection
+    {
+        $rows = DB::select(<<<'SQL'
+            WITH RECURSIVE replacement_lineage(id) AS (
+                SELECT id
+                FROM electricity_contracts
+                WHERE id = ?
+
+                UNION
+
+                SELECT contracts.id
+                FROM electricity_contracts AS contracts
+                INNER JOIN replacement_lineage AS lineage
+                    ON contracts.replaced_by_contract_id = lineage.id
+            )
+            SELECT id
+            FROM replacement_lineage
+            SQL, [$this->id]);
+
+        return collect($rows)
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->values();
+    }
+
+    /**
+     * Get all raw price components in this replacement lineage, newest first.
+     *
+     * @return Collection<int, PriceComponent>
+     */
+    public function getLineagePriceComponents(): Collection
+    {
+        return PriceComponent::query()
+            ->whereIn('electricity_contract_id', $this->getReplacementLineageIds())
+            ->orderByDesc('price_date')
+            ->orderBy('electricity_contract_id')
+            ->orderBy('price_component_type')
+            ->orderBy('id')
+            ->get();
     }
 
     /**

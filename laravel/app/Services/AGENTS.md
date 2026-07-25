@@ -175,6 +175,17 @@ Purpose:
 Read first:
 - `SpotForecasts/AGENTS.md`
 
+### Retail premium observations
+Directory:
+- `RetailPremium/`
+
+Purpose:
+- preserve per-contract and per-company spread-over-wholesale observations by semantic price period and curve vintage
+- store disclosed Spot premiums exactly and inferred premiums against every candidate futures reference
+
+Read first:
+- `RetailPremium/AGENTS.md`
+
 ### Price forecasting
 Directory:
 - `PriceForecasting/`
