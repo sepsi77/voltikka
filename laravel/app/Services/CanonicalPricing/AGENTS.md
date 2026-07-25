@@ -146,6 +146,69 @@ historical statistics must never be reinterpreted with today's canonical data).
 Card pills live in `resources/views/components/contract-card.blade.php` (footer tag row).
 The detail-page notice lives in `resources/views/livewire/contract-detail.blade.php` (after the hero).
 
+## KNOWN DEFECT: market-reset contracts are annualized on a seasonal price
+
+> **This is LIVE.** `config('canonical_pricing.enabled')` is **true in production** (verified
+> 2026-07-25) even though the config default is false. The wrong totals below are what visitors see
+> and what rankings use today. Do not read "default off" above as "inert".
+
+`EstimateMethod::HoldCurrentRecurringPrice` (around `CanonicalContractPriceCalculator.php:172`) fills the
+uncovered window tail by holding the current period price forward for twelve months. For a
+monthly/quarterly reset product that price is a **seasonal** price, so the annual estimate is
+systematically wrong: too low in summer, too high in winter.
+
+Measured on 2026-07-24 production data, 5000 kWh, General metering, against the live FI forward curve:
+
+| Contract | Current price | Hold-flat | Correct | Error |
+|---|---|---|---|---|
+| Kokkolan Energia Tyyni (monthly) | 4.98 c/kWh | 279 €/yr | 588 €/yr | **−308 €** |
+| Helen Markkinahintasähkö (monthly) | 7.59 c/kWh | 427 €/yr | 735 €/yr | **−308 €** |
+| Korpela Kvartaali (quarterly) | 5.54 c/kWh | 315 €/yr | 435 €/yr | −121 € |
+
+For scale, genuinely fully-fixed 12-month contracts had a median energy price of 10.48 c/kWh the same
+day. Roughly 32 lineages are affected, about two thirds of them quarterly.
+
+**The fix is specified and ready to implement** in `tasks/market-reset-annualised-pricing/spec.md`. It is
+a shape-only forward-curve shift that keeps the current period exact and reprices only the held-forward
+tail:
+
+```
+P_m = P_current_period + beta * (F_m - F_reference)
+```
+
+It needs only **today's** curve, which `futures:fetch-eex` keeps current. Do not re-derive this from
+scratch; read that spec and its `decisions.md` first, which record several measured results and several
+explicitly retracted conclusions.
+
+## TO BE IMPLEMENTED IN THE FUTURE: per-company calibration of the reset estimate
+
+The first implementation deliberately uses **one global `beta` and a cadence-driven reference**. Making
+`beta` and the reference period **per company** is a documented future improvement, not part of the
+first rollout.
+
+Why it is deferred rather than done now:
+
+- Pass-through is measurably a company trait. Within-company premium dispersion is well below
+  across-company dispersion, and companies reprice their products together.
+- But it can only be calibrated from observed resets against the futures curve **at the vintage the
+  price was set**, and the FI curve history starts **2026-04-08**. EEX publishes only about a 45-day
+  rolling window server-side, so earlier vintages are **permanently unrecoverable** — verified by
+  request, not assumed (an expired quarter maturity returns zero rows even with the cap lifted).
+- That leaves a sample of two companies today: `beta` 0.90 (R² 0.99) and 1.01 (R² 0.66), both on a month
+  reference. Quarterly cadences have one period each inside the curve window, so they are uncalibrated.
+
+When it becomes possible:
+
+- **1 October 2026** gives every quarterly lineage a second period, so about 24 lineages contribute a
+  pass-through step at once. January 2027 doubles it.
+- Alternatively, buying historical FI Base month/quarter settlements for January–April 2026 would unlock
+  it about two months earlier and roughly double the monthly evidence. Vendors and verified terms are in
+  `tasks/retail-premium-dataset/decisions.md`; all the exchange routes found were annual subscriptions,
+  so waiting is the cheaper default.
+
+The observation dataset that will feed the calibration already exists and collects daily — see
+`../RetailPremium/AGENTS.md`. **Any analysis must filter to the current `method_version` pair.**
+
 ## Deferred / known limitations
 
 - Bill-comparison **period** cost still uses its own component-rate math for the historical billing
@@ -153,3 +216,8 @@ The detail-page notice lives in `resources/views/livewire/contract-detail.blade.
   Phase-resolved period rates are a possible future refinement.
 - `ContractPriceStatisticsService` canonical mode changes only the `annual_cost` fields; per-component
   c/kWh chart fields stay relational for continuity.
+- **Spot** contracts still use one flat rolling-365 average for all twelve months. The same per-month
+  price vector should eventually replace it (level anchored on rolling-365, shape from the curve), but
+  the gain is small: the measured profile cost ranges from −0.3 % to +8.2 % across 2022-2025, and it is
+  exactly **zero** for the flat default usage profile, because `MonthlyUsageProfileBuilder` applies the
+  winter weighting only when `metering === MeteringType::Season`.

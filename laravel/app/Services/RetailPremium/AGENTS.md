@@ -58,6 +58,38 @@ Use **retail premium** or **spread over wholesale**. Never call this value profi
 - Treat `contract_price_daily_statistics` as read-only.
 - Do not change `app/Services/CanonicalPricing/` from this feature.
 
+## TO BE IMPLEMENTED IN THE FUTURE: per-company calibration
+
+The dataset's first purpose is to calibrate the market-reset annualised price estimate in
+`../CanonicalPricing/` — the reference period each company prices from, and the pass-through
+coefficient `beta`. **That calibration is deferred and the estimator ships with one global `beta`
+instead.** Read `../CanonicalPricing/AGENTS.md` for the estimator side.
+
+State as of 2026-07-25:
+
+- Measured `beta` on a month reference: Pohjois-Karjalan Sähkö **0.90** (R² 0.99), Kokkolan Energia
+  **1.01** (R² 0.66). Both consistent with full pass-through. Robust to the VAT scale ambiguity.
+- Only **3 multi-period reset series** exist, so nothing can be concluded per company yet, and every
+  quarterly cadence is uncalibrated — quarterly products are about two thirds of the reset population.
+
+Why it cannot be finished now, and when it can:
+
+- Calibration needs the curve **at the vintage the price was set**. FI curve history starts
+  **2026-04-08** and EEX enforces an approximately 45-day rolling window server-side, so earlier
+  vintages are permanently unrecoverable. Verified by request: an expired quarter maturity returns zero
+  rows even with the local cap lifted. The Azure `Details.SpotFutures` field is a single scalar, not a
+  term structure, so it cannot substitute.
+- **1 October 2026** gives each quarterly lineage a second period, so roughly 24 lineages contribute a
+  pass-through step at once. January 2027 doubles that.
+- Buying historical FI Base month/quarter settlements for January–April 2026 would unlock it about two
+  months earlier; see `tasks/retail-premium-dataset/decisions.md` for verified vendor terms.
+
+Two open questions for that future work, both recorded with evidence in the task decisions file:
+
+1. Whether quarterly sellers price off the quarter contract or off something else. Untestable today.
+2. Why the pooled `beta` (0.53) sits far below both per-company fits — a third series with poor
+   pass-through dominates the `dF^2` weighting.
+
 ## Command
 
 ```bash
