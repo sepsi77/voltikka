@@ -58,6 +58,24 @@ You can use agent browser skill to access a browser and do browser-based testing
 
 Agents should use the task tracking system in `tasks/` when working on this code base. Read `tasks/AGENTS.md` before starting implementation work and keep the relevant task files updated as work progresses.
 
+**A `tasks/` entry is not a reminder.** Nobody reads an old task folder. Anything that must happen at a future date belongs in the section below, and ideally in a scheduled command that surfaces itself. See `## Dated follow-ups`.
+
+## Dated follow-ups
+
+Time-triggered work that is not yet possible. Check this list when the date has passed. Each item says what unblocks it and where the detail lives. **Remove an item once it is done**, and do not add anything here that a scheduled command already surfaces on its own.
+
+### After 2026-10-01 — calibrate the market-reset pricing coefficient
+
+Live pricing currently annualises monthly/quarterly market-reset contracts with **one global pass-through coefficient, `beta = 1.0`** (`RESET_FORWARD_SHIFT_ENABLED`, enabled in production since 2026-07-25). That value is measured only for the **monthly** cadence, from two companies (0.90 with R² 0.99, and 1.01). The **27 quarterly lineages use it as an unverified prior** — quarterly products reprice four times a year, and the FI futures curve only exists from 2026-04-08, so each quarterly lineage had just one usable period.
+
+The **1 October 2026** resets give every quarterly lineage a second period, so roughly 24 lineages contribute a pass-through step at once. At that point:
+
+1. Run `php artisan retail-premiums:calibrate` (it is also scheduled monthly and logs to `storage/logs/retail-premium-calibration.log`).
+2. Compare the measured per-company/per-cadence coefficient against the global 1.0.
+3. If quarterly pass-through differs materially, either retune `RESET_FORWARD_SHIFT_BETA` or implement per-company parameters as specified in `laravel/app/Services/CanonicalPricing/MarketReset/AGENTS.md`.
+
+This moves real published prices for named companies, so treat a retune as a reviewed change and not a config tweak. Full measurements, and several explicitly retracted earlier conclusions, are in `tasks/market-reset-annualised-pricing/decisions.md`.
+
 ## Repository Structure
 
 ```
