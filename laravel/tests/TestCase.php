@@ -6,14 +6,20 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
+    /** @var callable|null */
+    private $previousErrorHandler;
+
     protected function setUp(): void
     {
-        // Suppress PHP 8.4+ PDO constant deprecation from Laravel framework
-        // This can be removed after upgrading to Laravel 12+
-        set_error_handler(function ($errno, $errstr) {
-            if ($errno === E_DEPRECATED && str_contains($errstr, 'PDO::MYSQL_ATTR_SSL_CA')) {
+        $this->previousErrorHandler = set_error_handler(function (int $errorNumber, string $errorMessage, string $errorFile, int $errorLine): bool {
+            if ($errorNumber === E_DEPRECATED && str_contains($errorMessage, 'PDO::MYSQL_ATTR_SSL_CA')) {
                 return true;
             }
+
+            if ($this->previousErrorHandler !== null) {
+                return (bool) ($this->previousErrorHandler)($errorNumber, $errorMessage, $errorFile, $errorLine);
+            }
+
             return false;
         }, E_DEPRECATED);
 

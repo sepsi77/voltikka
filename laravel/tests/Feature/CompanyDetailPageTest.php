@@ -259,8 +259,9 @@ class CompanyDetailPageTest extends TestCase
 
         $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
         $schemas = $component->viewData('schemas');
-        $jsonLd = $schemas[0]; // Organization schema is first
+        $jsonLd = collect($schemas)->firstWhere('@type', 'Organization');
 
+        $this->assertNotNull($jsonLd);
         $this->assertEquals('https://schema.org', $jsonLd['@context']);
         $this->assertEquals('Organization', $jsonLd['@type']);
         $this->assertEquals('Test Energy Oy', $jsonLd['name']);
@@ -276,8 +277,9 @@ class CompanyDetailPageTest extends TestCase
 
         $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
         $schemas = $component->viewData('schemas');
-        $jsonLd = $schemas[0];
+        $jsonLd = collect($schemas)->firstWhere('@type', 'Organization');
 
+        $this->assertNotNull($jsonLd);
         $this->assertArrayHasKey('address', $jsonLd);
         $this->assertEquals('PostalAddress', $jsonLd['address']['@type']);
         $this->assertEquals('Testikatu 1', $jsonLd['address']['streetAddress']);
@@ -286,20 +288,21 @@ class CompanyDetailPageTest extends TestCase
     }
 
     /**
-     * Test JSON-LD includes services for contracts.
+     * Test JSON-LD includes contract products in an item list.
      */
-    public function test_json_ld_includes_contract_services(): void
+    public function test_json_ld_includes_contract_products(): void
     {
         $this->createContract('test-contract', 'Test Sähkö', 5.0, 2.0);
 
         $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
         $schemas = $component->viewData('schemas');
-        $jsonLd = $schemas[0];
+        $jsonLd = collect($schemas)->firstWhere('@type', 'ItemList');
 
-        $this->assertArrayHasKey('knowsAbout', $jsonLd);
-        $this->assertCount(1, $jsonLd['knowsAbout']);
-        $this->assertEquals('Service', $jsonLd['knowsAbout'][0]['@type']);
-        $this->assertEquals('Test Sähkö', $jsonLd['knowsAbout'][0]['name']);
+        $this->assertNotNull($jsonLd);
+        $this->assertArrayHasKey('itemListElement', $jsonLd);
+        $this->assertCount(1, $jsonLd['itemListElement']);
+        $this->assertEquals('Product', $jsonLd['itemListElement'][0]['item']['@type']);
+        $this->assertEquals('Test Sähkö', $jsonLd['itemListElement'][0]['item']['name']);
     }
 
     /**
@@ -475,7 +478,7 @@ class CompanyDetailPageTest extends TestCase
         ]);
 
         PriceComponent::create([
-            'id' => 'pc-' . $id . '-general',
+            'id' => 'pc-'.$id.'-general',
             'electricity_contract_id' => $contract->id,
             'price_component_type' => 'General',
             'price_date' => now()->format('Y-m-d'),
@@ -484,7 +487,7 @@ class CompanyDetailPageTest extends TestCase
         ]);
 
         PriceComponent::create([
-            'id' => 'pc-' . $id . '-monthly',
+            'id' => 'pc-'.$id.'-monthly',
             'electricity_contract_id' => $contract->id,
             'price_component_type' => 'Monthly',
             'price_date' => now()->format('Y-m-d'),

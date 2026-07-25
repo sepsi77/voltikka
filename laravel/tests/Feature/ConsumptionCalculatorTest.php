@@ -76,7 +76,7 @@ class ConsumptionCalculatorTest extends TestCase
     public function test_electric_vehicle_adds_to_total(): void
     {
         $component = Livewire::test('consumption-calculator')
-                        ->set('livingArea', 80)
+            ->set('livingArea', 80)
             ->set('numPeople', 2)
             ->set('electricVehicleKmsPerMonth', 1000);
 
@@ -90,7 +90,7 @@ class ConsumptionCalculatorTest extends TestCase
     public function test_cooling_adds_fixed_amount(): void
     {
         $component = Livewire::test('consumption-calculator')
-                        ->set('livingArea', 80)
+            ->set('livingArea', 80)
             ->set('numPeople', 2)
             ->call('toggleCooling');
 
@@ -103,7 +103,7 @@ class ConsumptionCalculatorTest extends TestCase
     public function test_bathroom_heating_adds_based_on_area(): void
     {
         $component = Livewire::test('consumption-calculator')
-                        ->set('livingArea', 80)
+            ->set('livingArea', 80)
             ->set('numPeople', 2)
             ->set('bathroomHeatingArea', 5);
 
@@ -116,7 +116,7 @@ class ConsumptionCalculatorTest extends TestCase
     public function test_heating_calculation_with_electric_heat(): void
     {
         $component = Livewire::test('consumption-calculator')
-                        ->set('livingArea', 100)
+            ->set('livingArea', 100)
             ->set('numPeople', 4)
             ->set('buildingType', 'detached_house')
             ->call('toggleIncludeHeating')
@@ -135,7 +135,7 @@ class ConsumptionCalculatorTest extends TestCase
     public function test_heating_calculation_with_heat_pump(): void
     {
         $component = Livewire::test('consumption-calculator')
-                        ->set('livingArea', 150)
+            ->set('livingArea', 150)
             ->set('numPeople', 4)
             ->set('buildingType', 'detached_house')
             ->call('toggleIncludeHeating')
@@ -156,7 +156,7 @@ class ConsumptionCalculatorTest extends TestCase
             ->set('livingArea', 80)
             ->set('numPeople', 2)
             ->call('compareContracts')
-            ->assertRedirect('/sahkosopimus?consumption=' . (2 * 400 + 80 * 30));
+            ->assertRedirect('/sahkosopimus?consumption='.(2 * 400 + 80 * 30));
     }
 
     public function test_page_has_correct_title(): void
@@ -166,11 +166,10 @@ class ConsumptionCalculatorTest extends TestCase
         $response->assertSee('Sähkönkulutuslaskuri');
     }
 
-
     public function test_minimum_values_are_enforced(): void
     {
         $component = Livewire::test('consumption-calculator')
-                        ->set('livingArea', 5)  // Below minimum of 10
+            ->set('livingArea', 5)  // Below minimum of 10
             ->set('numPeople', 0);  // Below minimum of 1
 
         // The calculate method should enforce and display minimums
@@ -233,7 +232,7 @@ class ConsumptionCalculatorTest extends TestCase
     public function test_results_section_displays_breakdown(): void
     {
         Livewire::test('consumption-calculator')
-                        ->set('livingArea', 100)
+            ->set('livingArea', 100)
             ->set('numPeople', 2)
             ->set('saunaUsagePerWeek', 2)
             ->assertSee('Perussähkö')
@@ -290,8 +289,8 @@ class ConsumptionCalculatorTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Sähkön hinta laskuri');
         $response->assertSee('Määräaikainen 12 kk');
-        $response->assertSee('8,50 snt/kWh');
-        $response->assertSee('4,00 €/kk');
+        $response->assertSee('320 €/v');
+        $response->assertSee('27 €/kk');
     }
 
     public function test_page_renders_seo_content_sections(): void

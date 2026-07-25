@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\SpotPrice;
+use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceForecast;
 use App\Models\SpotPriceHour;
 use App\Models\SpotPriceQuarter;
@@ -17,6 +18,7 @@ class SpotPriceComponentTest extends TestCase
     use RefreshDatabase;
 
     private const REGION = 'FI';
+
     private const TIMEZONE = 'Europe/Helsinki';
 
     protected function setUp(): void
@@ -287,7 +289,7 @@ class SpotPriceComponentTest extends TestCase
 
         $component = Livewire::test(SpotPrice::class);
         $strip = $component->instance()->getDayStripsForChart()[0];
-        $prices = collect($strip['prices'])->reject(fn (array $price) => !empty($price['isPlaceholder']));
+        $prices = collect($strip['prices'])->reject(fn (array $price) => ! empty($price['isPlaceholder']));
 
         $this->assertSame(-1.0, $strip['scaleMin']);
         $this->assertSame(1.0, $strip['scaleMax']);
@@ -992,7 +994,7 @@ class SpotPriceComponentTest extends TestCase
 
         Livewire::test(SpotPrice::class)
             ->assertSee('Pörssisähkön')
-            ->assertSee('Seuraa sähkön pörssihinnan kehitystä');
+            ->assertSee('Tuntihinnat tänään ja huomenna');
     }
 
     public function test_view_displays_price_comparison_cards(): void
@@ -1025,7 +1027,7 @@ class SpotPriceComponentTest extends TestCase
             ->assertSee('c/kWh');
     }
 
-    public function test_view_displays_best_hours_section(): void
+    public function test_view_displays_next_cheap_hour(): void
     {
         $prices = array_fill(0, 24, 10.0);
         $prices[15] = 2.0;
@@ -1034,7 +1036,7 @@ class SpotPriceComponentTest extends TestCase
         $this->createFullDayPrices(2026, 1, 20, $prices);
 
         Livewire::test(SpotPrice::class)
-            ->assertSee('Edullisimmat tunnit');
+            ->assertSee('Seuraava halpa tunti');
     }
 
     public function test_view_displays_ev_charging_section(): void
@@ -1178,11 +1180,10 @@ class SpotPriceComponentTest extends TestCase
 
         $this->createFullDayPrices(2026, 1, 20, $prices);
 
-        // The view now shows "Edullisimmat tunnit" (plural) section
-        // with cheapest remaining future hours using "HH:00-HH:00" format
+        // The hero shows the next cheap hour and the daily strip confirms its start time.
         Livewire::test(SpotPrice::class)
-            ->assertSee('Edullisimmat tunnit')
-            ->assertSee('15:00-16:00');
+            ->assertSee('Seuraava halpa tunti')
+            ->assertSee('klo 15:00');
     }
 
     public function test_view_displays_most_expensive_hour(): void
@@ -1392,8 +1393,11 @@ class SpotPriceComponentTest extends TestCase
         $instance = $component->instance();
         $chartData = $instance->getWeeklyChartData();
 
-        // Should have additional datasets for min/max range
-        $this->assertCount(2, $chartData['datasets']); // Average + range
+        // The range uses separate minimum and maximum datasets plus the average line.
+        $this->assertCount(3, $chartData['datasets']);
+        $this->assertSame('Päivän alin (c/kWh)', $chartData['datasets'][0]['label']);
+        $this->assertSame('Päivän ylin (c/kWh)', $chartData['datasets'][1]['label']);
+        $this->assertSame('Päivän keskihinta (c/kWh)', $chartData['datasets'][2]['label']);
     }
 
     public function test_generates_csv_data_for_export(): void
@@ -1479,7 +1483,7 @@ class SpotPriceComponentTest extends TestCase
         $component->assertViewHas('yearOverYearComparison');
     }
 
-    public function test_historical_section_shows_weekly_chart_when_data_available(): void
+    public function test_historical_section_shows_30_day_chart_when_data_available(): void
     {
         // Create historical data for the past week
         for ($day = 13; $day <= 19; $day++) {
@@ -1487,9 +1491,9 @@ class SpotPriceComponentTest extends TestCase
         }
         $this->createFullDayPrices(2026, 1, 20);
 
-        // Historical data is loaded on mount, so weekly chart should be visible
+        // Historical data is loaded on mount, so the 30-day chart should be visible.
         Livewire::test(SpotPrice::class)
-            ->assertSee('Viikon hintakehitys');
+            ->assertSee('30 päivän hintakehitys');
     }
 
     public function test_historical_section_shows_data_after_loading(): void
@@ -1502,11 +1506,11 @@ class SpotPriceComponentTest extends TestCase
 
         Livewire::test(SpotPrice::class)
             ->call('loadHistoricalData')
-            ->assertSee('Viikon hintakehitys')
+            ->assertSee('30 päivän hintakehitys')
             ->assertSee('Kuukausivertailu');
     }
 
-    public function test_view_displays_weekly_chart_section(): void
+    public function test_view_displays_30_day_chart_section(): void
     {
         for ($day = 13; $day <= 19; $day++) {
             $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, 10.0));
@@ -1515,7 +1519,7 @@ class SpotPriceComponentTest extends TestCase
 
         Livewire::test(SpotPrice::class)
             ->call('loadHistoricalData')
-            ->assertSee('Viikon hintakehitys');
+            ->assertSee('30 päivän hintakehitys');
     }
 
     public function test_view_displays_monthly_comparison_section(): void
@@ -1539,19 +1543,23 @@ class SpotPriceComponentTest extends TestCase
 
     public function test_view_displays_year_over_year_when_data_available(): void
     {
-        // Create last year's January data
-        for ($day = 1; $day <= 20; $day++) {
-            $this->createFullDayPrices(2025, 1, $day, array_fill(0, 24, 5.0));
-        }
-        // Create this year's data
-        for ($day = 1; $day <= 19; $day++) {
-            $this->createFullDayPrices(2026, 1, $day, array_fill(0, 24, 10.0));
-        }
         $this->createFullDayPrices(2026, 1, 20, array_fill(0, 24, 10.0));
+
+        foreach ([2025 => 6.28, 2026 => 12.55] as $year => $averageWithVat) {
+            SpotPriceAverage::create([
+                'region' => self::REGION,
+                'period_type' => SpotPriceAverage::PERIOD_MONTHLY,
+                'period_start' => "{$year}-01-01",
+                'period_end' => "{$year}-01-31",
+                'avg_price_without_tax' => $averageWithVat / 1.255,
+                'avg_price_with_tax' => $averageWithVat,
+                'hours_count' => 31 * 24,
+            ]);
+        }
 
         Livewire::test(SpotPrice::class)
             ->call('loadHistoricalData')
-            ->assertSee('Vuosivertailu')
+            ->assertSee('Tammikuu vuosittain')
             ->assertSee('2025')
             ->assertSee('2026');
     }
@@ -1566,7 +1574,7 @@ class SpotPriceComponentTest extends TestCase
 
         Livewire::test(SpotPrice::class)
             ->call('loadHistoricalData')
-            ->assertDontSee('Vuosivertailu');
+            ->assertDontSee('Tammikuu vuosittain');
     }
 
     public function test_view_displays_csv_download_button(): void
@@ -1667,8 +1675,8 @@ class SpotPriceComponentTest extends TestCase
 
         // Finnish month names
         $finnishMonths = ['Tammikuu', 'Helmikuu', 'Maaliskuu', 'Huhtikuu', 'Toukokuu',
-                          'Kesäkuu', 'Heinäkuu', 'Elokuu', 'Syyskuu', 'Lokakuu',
-                          'Marraskuu', 'Joulukuu'];
+            'Kesäkuu', 'Heinäkuu', 'Elokuu', 'Syyskuu', 'Lokakuu',
+            'Marraskuu', 'Joulukuu'];
 
         $this->assertContains($monthlyComparison['current_month_name'], $finnishMonths);
         $this->assertContains($monthlyComparison['last_month_name'], $finnishMonths);

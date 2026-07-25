@@ -6,15 +6,22 @@ use App\Models\Postcode;
 use App\Services\SitemapService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\File;
 use Tests\TestCase;
 
 class SitemapTest extends TestCase
 {
     use RefreshDatabase;
 
+    private string $sitemapPublicPath;
+
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->sitemapPublicPath = storage_path('framework/testing/sitemap-public-'.spl_object_id($this));
+        File::ensureDirectoryExists($this->sitemapPublicPath);
+        app()->usePublicPath($this->sitemapPublicPath);
 
         // Clear sitemap cache before each test
         Cache::forget(SitemapService::CACHE_KEY);
@@ -65,6 +72,13 @@ class SitemapTest extends TestCase
                 'municipal_name_fi_slug' => 'turku',
             ],
         ]);
+    }
+
+    protected function tearDown(): void
+    {
+        File::deleteDirectory($this->sitemapPublicPath);
+
+        parent::tearDown();
     }
 
     public function test_sitemap_route_is_accessible(): void
@@ -275,11 +289,12 @@ class SitemapTest extends TestCase
 
         $content = $response->getContent();
 
-        // Try to parse as XML - should not throw exception
-        libxml_use_internal_errors(true);
+        // Try to parse as XML. Restore the process-wide libxml state after parsing.
+        $previousInternalErrors = libxml_use_internal_errors(true);
         $xml = simplexml_load_string($content);
         $errors = libxml_get_errors();
         libxml_clear_errors();
+        libxml_use_internal_errors($previousInternalErrors);
 
         $this->assertNotFalse($xml, 'Sitemap XML should be well-formed');
         $this->assertEmpty($errors, 'Sitemap XML should have no errors');
@@ -398,11 +413,12 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString('<?xml version="1.0" encoding="UTF-8"?>', $xml);
         $this->assertStringContainsString('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"', $xml);
 
-        // Verify it's valid XML
-        libxml_use_internal_errors(true);
+        // Verify it is valid XML and restore the process-wide libxml state.
+        $previousInternalErrors = libxml_use_internal_errors(true);
         $parsedXml = simplexml_load_string($xml);
         $errors = libxml_get_errors();
         libxml_clear_errors();
+        libxml_use_internal_errors($previousInternalErrors);
 
         $this->assertNotFalse($parsedXml);
         $this->assertEmpty($errors);

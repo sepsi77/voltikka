@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
+use App\Models\Municipality;
 use App\Models\PriceComponent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -522,6 +523,15 @@ class ContractsListPaginationTest extends TestCase
     public function test_empty_page_query_parameter_on_city_seo_page_defaults_to_page_one(): void
     {
         $this->createContracts(25);
+        Municipality::create([
+            'code' => '615',
+            'slug' => 'pudasjarvi',
+            'name' => 'Pudasjärvi',
+            'name_locative' => 'Pudasjärvillä',
+            'name_genitive' => 'Pudasjärven',
+            'region_code' => '17',
+            'region_name' => 'Pohjois-Pohjanmaa',
+        ]);
 
         $response = $this->get('/sahkosopimus/paikkakunnat/pudasjarvi?page=');
 
