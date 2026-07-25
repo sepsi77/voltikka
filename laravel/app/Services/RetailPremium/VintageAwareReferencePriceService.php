@@ -149,11 +149,13 @@ class VintageAwareReferencePriceService
 
     public function priceForVatBasis(array $reference, string $vatBasis): ?float
     {
-        return match ($vatBasis) {
-            'included' => (float) $reference['price_cents_per_kwh_including_vat'],
-            'excluded' => (float) $reference['price_cents_per_kwh_excluding_vat'],
+        $value = match ($vatBasis) {
+            'included' => $reference['price_cents_per_kwh_including_vat'] ?? null,
+            'excluded' => $reference['price_cents_per_kwh_excluding_vat'] ?? null,
             default => null,
         };
+
+        return is_numeric($value) ? (float) $value : null;
     }
 
     /**

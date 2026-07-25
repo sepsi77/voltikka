@@ -74,7 +74,7 @@ class RetailPremiumObservationService
         $asOf = CarbonImmutable::instance($asOfDate)->startOfDay();
         $firstObserved = $snapshot->first_observed_at?->toImmutable()->startOfDay() ?? $asOf;
         $lastObserved = $snapshot->last_observed_at?->toImmutable()->startOfDay() ?? $asOf;
-        $lineage = $this->lineageIdentity($contract);
+        $lineage = $this->getLineageIdentity($contract);
 
         return collect($phases)
             ->values()
@@ -283,7 +283,7 @@ class RetailPremiumObservationService
             'pricing' => $contract->canonical_pricing,
             'first_observed' => $snapshot->first_observed_at?->toImmutable()->startOfDay() ?? $asOf,
             'last_observed' => $snapshot->last_observed_at?->toImmutable()->startOfDay() ?? $asOf,
-            'lineage' => $this->lineageIdentity($contract),
+            'lineage' => $this->getLineageIdentity($contract),
         ];
     }
 
@@ -543,7 +543,7 @@ class RetailPremiumObservationService
     /**
      * @return array{key: string, contract_ids: list<string>, root_ids: list<string>}
      */
-    private function lineageIdentity(ElectricityContract $contract): array
+    public function getLineageIdentity(ElectricityContract $contract): array
     {
         $lineageIds = $contract->getReplacementLineageIds()->sort()->values();
         $targetIds = ElectricityContract::query()

@@ -157,3 +157,64 @@ price. Zero retail prices, including the known Vaasan outlier, are retained and 
 `term_strip` rows, it reports the dataset median and company medians beside the stored market-level
 median forecast's current and normal EWMA retail premiums. This gives an explicit consistency check
 without changing `contract_price_daily_statistics` or the forecast model.
+
+## 2026-07-25 — Deployment verified; history needs an explicit backfill
+
+State after deploy (checked read-only on production):
+
+- `retail_premium_observations` exists (migration ran).
+- **0 rows.** `routes/console.php` runs `retail-premiums:collect` at 07:15 Europe/Helsinki, so the
+  first collection is the next morning.
+
+### Why the forward-only collector will not unblock the market-reset task soon
+
+`CollectRetailPremiumObservations` selects `ElectricityContract::query()->active()`, and
+`RetailPremiumObservationService::observationContext()` builds from
+`publishedInterpretation.sourceSnapshot`, using `snapshot->first_observed_at` as the curve vintage.
+
+So each run captures **one observation per current price period per active contract**. Past price
+periods are never visited. A monthly-reset lineage produces roughly one new observation per month, so
+the per-company reference/`beta` question stays underpowered for months.
+
+### Correction: inactive ancestors do not have interpretations or snapshots
+
+A read-only production check disproved the first backfill assumption. Kokkolan Tyyni has 13 lineage
+contracts and Helen Markkinahintasähkö has 7, but each lineage has only **one** contract with a source
+snapshot and published interpretation: the active tip, first observed on 2026-07-23. The lineages do
+have 184 and 185 distinct relational `price_components.price_date` days from 2026-01-21.
+
+Therefore, an `--include-inactive` loop over `buildObservations()` cannot recover history. The safe
+source is the daily relational component history. The active tip can supply only a calibrated
+semantic/VAT template. Historical numeric values must always come from `price_components`, and the
+historical row must not claim that its inactive carrier had an interpretation.
+
+### Hard limits on what a backfill can recover
+
+- **Inferred premiums (market-reset, fixed-term) need the curve.** FI futures history starts
+  **2026-04-08**, and the public EEX window is about 45 days, so periods with a vintage before that
+  date are permanently unrecoverable. Expect roughly 21 month-reference and 9 quarter-reference
+  reset observations from 2026-04-08 to 2026-07-24, plus fixed-term rows.
+- **Spot premiums need no curve.** They are the disclosed `spot_margin`, so Spot history is
+  recoverable back to the earliest published interpretation, potentially to 2026-01-21. This is the
+  larger and cheaper win.
+
+### Implemented backfill design
+
+- `retail-premiums:collect --include-inactive` keeps `--contract` scoped to active lineage tips and
+  reconstructs compatible ancestor history from relational components. It does not call current
+  source-snapshot observation construction for inactive contracts.
+- Raw roles are calibrated against the active tip's latest relational rows plus canonical structured
+  evidence. Description-only values are never invented. VAT is propagated only through that
+  calibrated role and is explicitly flagged as historical template provenance.
+- Same-signature rows on consecutive dates compress into one period, including safe contract-ID
+  rotation. A missing day splits periods. Same-date lineage conflicts are skipped and never averaged.
+- Historical rows use `retail-premium-history-v1`, keep interpretation/snapshot columns null, and put
+  template IDs and all carrier/component provenance in `source_metadata`.
+- The current open period is excluded by default at the day before the template snapshot began.
+  `--include-open` is explicit. Historical reconstruction never calls
+  `reuseOpenPricePeriodIdentity()`.
+- Unresolved structured discounts stay as evidence but make the affected premium or fee-inclusive
+  value null.
+- Rows whose vintage predates 2026-04-08 are written as flagged `curve_unavailable` evidence rows,
+  not skipped. `VintageAwareReferencePriceService::priceForVatBasis()` was also corrected so a null
+  reference stays null instead of casting to 0.0.

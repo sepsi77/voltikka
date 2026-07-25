@@ -54,6 +54,10 @@ class VintageAwareReferencePriceServiceTest extends TestCase
         $this->assertEqualsWithDelta($weightedMonth, $references['term_strip']['price_cents_per_kwh_including_vat'], 0.0001);
         $this->assertEqualsWithDelta(7.0, app(VintageAwareReferencePriceService::class)->priceForVatBasis($references['year'], 'excluded'), 0.0001);
         $this->assertNull(app(VintageAwareReferencePriceService::class)->priceForVatBasis($references['year'], 'unknown'));
+        $this->assertNull(app(VintageAwareReferencePriceService::class)->priceForVatBasis([
+            'price_cents_per_kwh_including_vat' => null,
+            'price_cents_per_kwh_excluding_vat' => null,
+        ], 'included'));
     }
 
     private function future(string $maturityType, string $maturity, string $tradeDate, float $settlementPrice): void

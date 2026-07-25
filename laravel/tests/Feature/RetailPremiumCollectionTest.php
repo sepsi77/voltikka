@@ -70,7 +70,9 @@ class RetailPremiumCollectionTest extends TestCase
         $this->artisan('retail-premiums:collect')->assertExitCode(0);
 
         $this->assertSame(1, RetailPremiumObservation::count());
-        $this->assertSame($first->observation_key, RetailPremiumObservation::sole()->observation_key);
+        $continued = RetailPremiumObservation::sole();
+        $this->assertSame($first->observation_key, $continued->observation_key);
+        $this->assertSame('2026-07-26', $continued->last_observed_date->toDateString());
     }
 
     public function test_a_changed_spot_price_starts_a_new_observation_period(): void
