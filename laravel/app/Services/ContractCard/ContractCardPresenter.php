@@ -1,0 +1,224 @@
+<?php
+
+namespace App\Services\ContractCard;
+
+use App\Models\ElectricityContract;
+use App\Services\ContractCard\DTO\ContractCardView;
+use Carbon\CarbonImmutable;
+
+/**
+ * The single server-side derivation behind both contract-card templates.
+ *
+ * Before this class, `contract-card.blade.php` and `featured-contract-card.blade.php` each
+ * held ~120 lines of the same PHP and had drifted apart: the featured card, which is the
+ * #1 slot on the homepage, /sahkosopimus, every SEO listing page and
+ * /halvin-sahkosopimus, showed no integrity warning, no market-reset figures and no
+ * estimate marker at all. Add card facts here, never in a template.
+ *
+ * NEVER lazy-load a relation from here. Listing pages batch-load `company`,
+ * `electricitySource` and the latest `priceComponents`; a lazy load inside a card turns
+ * every row of a 20-item list into an N+1 query. Callers that cannot batch-load pass the
+ * rates in through `prices`.
+ */
+class ContractCardPresenter
+{
+    /** Below this the promo saving is rounding noise and the block is suppressed. */
+    private const MIN_DISPLAYED_SAVING_EUR = 5.0;
+
+    public function __construct(
+        private readonly PricingCategoryResolver $categories = new PricingCategoryResolver(),
+        private readonly CardReceiptLines $receiptLines = new CardReceiptLines(),
+        private readonly CardFooterItems $footerItems = new CardFooterItems(),
+    ) {
+    }
+
+    /**
+     * @param array<string, array{price: float|null, unit?: string|null}> $prices Latest relational
+     *        components keyed by `price_component_type`. Used when the cost payload has no rates,
+     *        which is the case in bill mode.
+     * @param int|null $consumption The visitor's selected annual kWh, deep-linked to the detail page.
+     * @param bool $billMode Suppresses the annual Arvio chip; the billing-period figures keep
+     *        their own "laskutusjaksollasi" disclosure.
+     */
+    public function present(
+        ElectricityContract $contract,
+        array $prices = [],
+        ?int $consumption = null,
+        ?int $detailConsumption = null,
+        bool $billMode = false,
+        ?CarbonImmutable $today = null,
+    ): ContractCardView {
+        $cost = is_array($contract->calculated_cost ?? null) ? $contract->calculated_cost : [];
+        $integrity = is_array($contract->pricing_integrity ?? null) ? $contract->pricing_integrity : null;
+
+        $facts = $this->categories->resolve($contract, $today)
+            ->withNextReset($this->tailStart($cost));
+        $rates = $this->rates($contract, $cost, $prices);
+
+        $totalCost = is_numeric($cost['total_cost'] ?? null) ? (float) $cost['total_cost'] : null;
+        $exceeds = (bool) ($contract->exceeds_consumption_limit ?? false);
+
+        // A fixed contract with a pre-published later price keeps a truthful fixed band; the
+        // increase is a footer warning and two dated receipt rows, never a band warning.
+        $hasScheduledChange = is_string($integrity['card_label'] ?? null)
+            && is_numeric($integrity['normal_rate_cents'] ?? null);
+
+        $footer = $this->footerItems->build($contract, $cost, $integrity, $facts, $exceeds);
+
+        $company = $contract->relationLoaded('company') ? $contract->company : null;
+
+        return new ContractCardView(
+            category: $facts->category,
+            band: ContractCardCopy::band($facts, $contract->contract_type, $contract->fixed_time_range, $hasScheduledChange),
+            detailUrl: $this->detailUrl($contract, $consumption, $detailConsumption),
+            company: $company,
+            companyName: $company?->name ?? $contract->company_name ?? '',
+            contractName: $contract->name ?? '',
+            metaParts: $this->metaParts($contract, $company),
+            receiptLines: $this->receiptLines->build($rates, $cost, $integrity, $facts, $contract->metering),
+            totalCost: $totalCost,
+            monthlyCost: $totalCost !== null ? $totalCost / 12 : null,
+            estimate: $billMode ? null : ContractCardCopy::estimate($cost, $facts),
+            warnings: $footer['warnings'],
+            facts: $footer['facts'],
+            discountSavings: $this->discountSavings($cost),
+            baseTotalCost: is_numeric($cost['base_total_cost'] ?? null) ? (float) $cost['base_total_cost'] : null,
+            exceedsConsumptionLimit: $exceeds,
+        );
+    }
+
+    /**
+     * The first day of the estimated tail, as the market-reset estimator derived it from the
+     * cadence calendar. Used only when the seller disclosed no period end of their own.
+     *
+     * @param array<string, mixed> $cost
+     */
+    private function tailStart(array $cost): ?CarbonImmutable
+    {
+        $tail = $cost['reset_estimate']['tail_starts'] ?? null;
+
+        if (! is_string($tail) || ! preg_match('/^\d{4}-\d{2}$/', $tail)) {
+            return null;
+        }
+
+        try {
+            return CarbonImmutable::parse($tail.'-01', 'Europe/Helsinki')->startOfDay();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * The meta line under the contract name: company, duration, and the metering word when
+     * there is one. Metering stays here on purpose. "Aikasähkö" and "Kausisähkö" describe
+     * when consumption is measured, not whether the price moves, so they are not categories
+     * and must not compete with the band.
+     *
+     * @return list<string>
+     */
+    private function metaParts(ElectricityContract $contract, ?object $company): array
+    {
+        $parts = [$company?->name ?? $contract->company_name ?? ''];
+
+        $metering = match ($contract->metering) {
+            'Time' => 'Aikasähkö',
+            'Season' => 'Kausisähkö',
+            default => null,
+        };
+        if ($metering !== null) {
+            $parts[] = $metering;
+        }
+
+        $duration = ContractCardCopy::durationLabel($contract->contract_type, $contract->fixed_time_range);
+        if ($duration !== null) {
+            $parts[] = $duration;
+        }
+
+        return array_values(array_filter($parts, static fn (string $part) => $part !== ''));
+    }
+
+    /**
+     * Resolve the component rates, preferring the calculated payload because that is what
+     * the displayed total was actually built from. The relational `prices` array is the
+     * fallback, and the only source in bill mode where no annual cost is calculated.
+     *
+     * @param array<string, mixed> $cost
+     * @param array<string, array{price: float|null, unit?: string|null}> $prices
+     * @return array<string, float|null>
+     */
+    private function rates(ElectricityContract $contract, array $cost, array $prices): array
+    {
+        if ($prices === [] && $contract->relationLoaded('priceComponents')) {
+            $prices = $this->pricesFromRelation($contract);
+        }
+
+        $fromPrices = static function (string $type) use ($prices): ?float {
+            $price = $prices[$type]['price'] ?? null;
+
+            return is_numeric($price) ? (float) $price : null;
+        };
+        $fromCost = static function (string $key) use ($cost): ?float {
+            return is_numeric($cost[$key] ?? null) ? (float) $cost[$key] : null;
+        };
+
+        return [
+            'general' => $fromCost('general_kwh_price') ?? $fromPrices('General'),
+            'day' => $fromCost('daytime_kwh_price') ?? $fromPrices('DayTime'),
+            'night' => $fromCost('nighttime_kwh_price') ?? $fromPrices('NightTime'),
+            'winter' => $fromCost('seasonal_winter_day_kwh_price') ?? $fromPrices('SeasonalWinterDay'),
+            'other' => $fromCost('seasonal_other_kwh_price') ?? $fromPrices('SeasonalOther'),
+            'margin' => $fromCost('spot_price_margin'),
+            'fee' => $fromCost('monthly_fixed_fee') ?? $fromPrices('Monthly') ?? 0.0,
+        ];
+    }
+
+    /**
+     * @return array<string, array{price: float|null}>
+     */
+    private function pricesFromRelation(ElectricityContract $contract): array
+    {
+        $prices = [];
+
+        foreach ($contract->priceComponents->groupBy('price_component_type') as $type => $components) {
+            $sorted = $components->sortByDesc('price_date');
+            $latest = $sorted->first(fn ($component) => $component->price > 0) ?? $sorted->first();
+            $prices[$type] = ['price' => $latest?->price];
+        }
+
+        return $prices;
+    }
+
+    /**
+     * Promo savings worth stating. A rounded "Säästö 0 €/v" line reads as a broken promise,
+     * so anything under a few euros a year is dropped rather than displayed as zero.
+     *
+     * @param array<string, mixed> $cost
+     */
+    private function discountSavings(array $cost): ?float
+    {
+        if (($cost['includes_discounts'] ?? false) !== true) {
+            return null;
+        }
+
+        $savings = $cost['discount_savings_total'] ?? null;
+        if (! is_numeric($savings) || (float) $savings < self::MIN_DISPLAYED_SAVING_EUR) {
+            return null;
+        }
+
+        return (float) $savings;
+    }
+
+    /**
+     * Deep-link the visitor's consumption so the detail price matches the listing. Only when
+     * it differs from the detail page's 5000 kWh default, to keep the common URL clean. The
+     * detail canonical is param-free, so these variants stay non-indexable.
+     */
+    private function detailUrl(ElectricityContract $contract, ?int $consumption, ?int $detailConsumption): string
+    {
+        $linked = (int) ($detailConsumption ?? $consumption ?? 0);
+
+        return ($linked > 0 && $linked !== 5000)
+            ? route('contract.detail', ['contractId' => $contract->id, 'kulutus' => $linked])
+            : route('contract.detail', $contract->id);
+    }
+}

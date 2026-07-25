@@ -151,6 +151,8 @@ class ContractPricingIntegrityService
             detailFacts: $facts,
             changeDate: $changeDate,
             firstYearImpactEur: $impact,
+            promoRateCents: $promoRate,
+            normalRateCents: $laterPriceKnown ? $normalRate : null,
         );
     }
 

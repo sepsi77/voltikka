@@ -747,19 +747,10 @@
                 <span class="font-bold text-slate-900">{{ $contracts->total() }} sopimusta</span> vertailussa. Lasketut 12 kk kulut sisältäen tarjoukset, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
                 <a href="/tietoa#menetelma" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Näin laskemme &rarr;</a>
             </p>
-            <div class="flex items-center gap-4 text-xs text-slate-500 shrink-0">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                    Päästötön
-                </span>
-                <span class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>
-                    Vähäpäästöinen
-                </span>
-                <span class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-                    Fossiilinen
-                </span>
+            {{-- Type-band legend; replaced the emissions legend when the card's emissions
+                 left stripe was removed. See resources/views/components/card/legend.blade.php. --}}
+            <div class="shrink-0">
+                <x-card.legend />
             </div>
         </div>
     @endif
@@ -771,7 +762,7 @@
     </div>
 
     {{-- Contracts List --}}
-    <div class="space-y-4 transition-opacity duration-200 motion-reduce:transition-none" wire:loading.delay.class="opacity-50">
+    <div class="space-y-6 transition-opacity duration-200 motion-reduce:transition-none" wire:loading.delay.class="opacity-50">
         @forelse ($contracts as $index => $contract)
             @php
                 // Calculate the overall rank based on current page

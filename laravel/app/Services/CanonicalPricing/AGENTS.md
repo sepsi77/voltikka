@@ -132,7 +132,20 @@ share the contract's VAT basis (business contracts stay ex-VAT). A component typ
 
 1. `config/canonical_pricing.php` — `CANONICAL_PRICING_ENABLED` (default false, **true in
    production**) and the independent `reset_forward_shift.enabled` /
-   `RESET_FORWARD_SHIFT_ENABLED` (default false).
+   `RESET_FORWARD_SHIFT_ENABLED` (default false, **also true in production since
+   2026-07-25**).
+
+   **Both config defaults are false and both are true in production**, so a local `.env` that
+   omits them prices market-reset contracts differently from the live site: Kokkolan Vuodenaika
+   at 5000 kWh is 429 €/v with the reset flag off and 556 €/v with it on, which is what
+   voltikka.fi serves. Both are documented in `.env.example` with the production value, and
+   both are pinned to `false` with `force="true"` in `phpunit.xml` so the suite cannot inherit a
+   developer's environment. Tests that exercise either flag opt in via `config()->set()`.
+
+   When verifying reset behaviour by hand, resolve the service through `app()`. A plain
+   `new CanonicalContractPricingService()` gets no `MarketResetPriceEstimator` (the calculator's
+   `$resetEstimator` defaults to null and the estimator is bound only in `AppServiceProvider`),
+   so it shows hold-flat behaviour whatever the flag says.
 2. `contracts:compare-canonical-pricing {--consumption=} {--start-date=} {--json=} {--resets} {--fail-on-parse-errors}`
    diffs legacy vs canonical totals across all active contracts and lists exclusions/labels. Run it on
    the synced local DB and on production (read-only) before flipping the flag. `--resets` switches to
@@ -151,8 +164,20 @@ Listings (`ContractsList`/`SeoContractsList`/`CheapestContracts`/`SahkosopimusIn
 `ContractPriceStatisticsService` (forward daily only — **backfills always pass `useCanonical: false`**;
 historical statistics must never be reinterpreted with today's canonical data).
 
-Card pills live in `resources/views/components/contract-card.blade.php` (footer tag row); the
-market-reset two-figure energy column is in the same file's metrics row. The detail-page notices live
+Cards no longer read these payloads directly. `../ContractCard/ContractCardPresenter` turns
+`calculated_cost` / `pricing_integrity` / `comparability` into one view model that both card
+templates render: the price-increase warning and the term/hybrid caveats are coral footer pills,
+the market-reset current-vs-estimated figures are two receipt rows, and the estimate marker is a
+single "Arvio" popover in the card's type band. See `../ContractCard/AGENTS.md`.
+
+**When you add or remove a field on these payloads, bump
+`ContractListCacheService::PAYLOAD_SCHEMA_VERSION` and
+`Caching\ContractPageCacheVersion::PAYLOAD_SCHEMA_VERSION`.** The import-driven version and the
+`c`/`r` flag markers do not move on a code-only deploy, so cards would otherwise read a stale
+cached shape for up to 48 hours. `ContractPricingIntegrity` gained typed `promo_rate_cents` /
+`normal_rate_cents` for the dated receipt rows; that was schema v2.
+
+The detail-page notices live
 in `resources/views/livewire/contract-detail.blade.php` (after the hero): the neutral market-reset
 notice first, then the amber integrity notice.
 

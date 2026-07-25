@@ -20,21 +20,11 @@
                 </nav>
 
                 <div class="flex flex-col lg:flex-row items-center lg:items-start gap-6">
-                    @if ($company->getLogoUrl())
-                        <div class="bg-white p-4 rounded-xl">
-                            <img
-                                src="{{ $company->getLogoUrl() }}"
-                                alt="{{ $company->name }}"
-                                class="w-32 h-auto object-contain"
-                                loading="lazy"
-                                onerror="this.onerror=null; this.src='https://placehold.co/128x48?text=logo'"
-                            >
-                        </div>
-                    @else
-                        <div class="w-32 h-16 bg-slate-700 rounded-xl flex items-center justify-center">
-                            <span class="text-slate-300 text-lg font-bold">{{ substr($company->name, 0, 3) }}</span>
-                        </div>
-                    @endif
+                    <x-company-logo
+                        :company="$company"
+                        class="h-16 w-32 rounded-xl bg-slate-700 text-lg font-bold text-slate-300"
+                        img-class="bg-white rounded-xl p-3"
+                    />
 
                     <div class="flex-1 text-center lg:text-left">
                         <h1 class="text-3xl md:text-4xl font-bold text-white mb-2">
@@ -258,7 +248,7 @@
         <span class="font-semibold">{{ $contracts->count() }}</span> sopimusta saatavilla
     </p>
 
-    <div class="space-y-4">
+    <div class="space-y-6">
         @forelse ($contracts as $index => $contract)
             <x-contract-card
                 :contract="$contract"

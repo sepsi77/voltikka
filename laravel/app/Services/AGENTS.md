@@ -100,6 +100,22 @@ Read first:
 - `CanonicalPricing/AGENTS.md`
 - `CanonicalPricing/MarketReset/AGENTS.md` before touching the market-reset estimator
 
+### Contract card derivation
+Directory:
+- `ContractCard/`
+
+Purpose:
+- one server-side view model for both contract-card templates (normal + featured), which
+  previously duplicated ~120 lines of Blade PHP and drifted apart
+- resolve the three consumer-facing pricing categories (Kiinteä hinta / Markkinahinta /
+  Kulutusvaikutus) and the type-band sentence that states them
+- generate the estimate explanation, the itemised receipt rows, and the footer warnings/facts
+  from typed fields only
+
+Read first:
+- `ContractCard/AGENTS.md`
+- `../../../tasks/contract-card-redesign/spec.md`
+
 ### Contract replacement
 Directory:
 - `ContractReplacement/`

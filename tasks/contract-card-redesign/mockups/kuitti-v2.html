@@ -1,0 +1,364 @@
+<title>Sopimuskortti — Kuitti v2</title>
+<style>
+  :root{
+    /* DESIGN.md tokens */
+    --coral-50:#fff7ed; --coral-100:#ffedd5; --coral-200:#fed7aa; --coral-400:#fb923c;
+    --coral-500:#f97316; --coral-600:#ea580c; --coral-700:#c2410c;
+    --slate-50:#f8fafc; --slate-100:#f1f5f9; --slate-200:#e2e8f0; --slate-300:#cbd5e1;
+    --slate-400:#94a3b8; --slate-500:#64748b; --slate-600:#475569; --slate-700:#334155;
+    --slate-900:#0f172a; --slate-950:#0f1419;
+    --em-low:#22c55e; --badge-green-bg:#dcfce7; --badge-green-text:#15803d;
+    /* Proposed semantic pricing-category tints (to be added to DESIGN.md) */
+    --cat-market-bg:#e0f2fe; --cat-market-ink:#0369a1; --cat-market-border:#bae6fd;
+    --cat-usage-bg:#ede9fe;  --cat-usage-ink:#6d28d9;  --cat-usage-border:#ddd6fe;
+    /* page frame */
+    --bg:var(--slate-50); --ink:var(--slate-900); --muted:var(--slate-500); --hair:var(--slate-200);
+    --font:"Plus Jakarta Sans",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#12161d; --ink:#e8eaef; --muted:#98a1b3; --hair:#2a313d; }
+  }
+  :root[data-theme="dark"]{ --bg:#12161d; --ink:#e8eaef; --muted:#98a1b3; --hair:#2a313d; }
+  :root[data-theme="light"]{ --bg:#f8fafc; --ink:#0f172a; --muted:#64748b; --hair:#e2e8f0; }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--font);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1040px;margin:0 auto;padding:48px 20px 96px}
+
+  header.page h1{font-size:clamp(1.5rem,3vw,2.1rem);font-weight:800;letter-spacing:-.015em;margin:0 0 .4em;text-wrap:balance}
+  header.page p{max-width:62ch;color:var(--muted);margin:0 0 10px;font-size:.95rem}
+  .keylist{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 40px;padding:0;list-style:none}
+  .keylist li{font-size:.8rem;font-weight:600;color:var(--muted);border:1px dashed var(--hair);border-radius:8px;padding:5px 12px}
+
+  .board{background:#fff;border:1px solid var(--slate-200);border-radius:24px;padding:clamp(16px,3vw,32px);
+    display:flex;flex-direction:column;gap:20px}
+  @media (prefers-color-scheme: dark){ .board{background:#f8fafc} }
+
+  /* ============ card ============ */
+  .card{background:#fff;border:1px solid var(--slate-100);border-radius:24px;overflow:hidden;color:var(--slate-900);
+    transition:box-shadow .18s ease-out,transform .18s ease-out}
+  .card:hover{transform:translateY(-2px);box-shadow:0 12px 40px -12px rgb(0 0 0 / .15)}
+
+  /* header band: the price-behavior sentence */
+  .band{display:flex;align-items:center;gap:10px;padding:12px 24px;font-size:.9rem}
+  .band svg{width:16px;height:16px;flex-shrink:0}
+  .band b{font-weight:700}
+  .band .detail{font-weight:500;opacity:.85}
+  .band .sep{opacity:.45;font-weight:400}
+  .band--fixed{background:var(--slate-100);color:var(--slate-700)}
+  .band--market{background:var(--cat-market-bg);color:var(--cat-market-ink)}
+  .band--usage{background:var(--cat-usage-bg);color:var(--cat-usage-ink)}
+
+  /* interactive Arvio chip, right end of the band */
+  .arvio{margin-left:auto;position:relative;display:inline-flex;flex-shrink:0}
+  .arvio > button{
+    font-family:inherit;display:inline-flex;align-items:center;gap:6px;cursor:help;
+    background:#fff;border:1px solid var(--slate-200);border-radius:9999px;padding:4px 12px;
+    font-size:.8rem;font-weight:600;color:var(--slate-600);
+    transition:border-color .15s ease-out,color .15s ease-out,box-shadow .15s ease-out;
+  }
+  .arvio > button:hover{border-color:var(--coral-400);color:var(--coral-600);box-shadow:0 1px 2px 0 rgb(0 0 0 / .05)}
+  .arvio > button:focus-visible{outline:2px solid var(--coral-500);outline-offset:2px}
+  .arvio svg{width:13px;height:13px;opacity:.7}
+  .arvio-bubble{
+    position:absolute;top:calc(100% + 8px);right:0;width:272px;z-index:40;
+    background:#fff;border:1px solid var(--slate-200);border-radius:12px;padding:14px 16px;
+    box-shadow:0 4px 6px -1px rgb(0 0 0 / .1),0 2px 4px -2px rgb(0 0 0 / .1);
+    font-size:.8rem;line-height:1.5;font-weight:400;color:var(--slate-600);text-align:left;
+    opacity:0;visibility:hidden;transform:translateY(4px);
+    transition:opacity .15s ease-out .05s,transform .15s ease-out .05s,visibility 0s linear .2s;
+  }
+  .arvio:hover .arvio-bubble,.arvio:focus-within .arvio-bubble{
+    opacity:1;visibility:visible;transform:translateY(0);transition-delay:.12s,.12s,0s}
+  .arvio-bubble strong{color:var(--slate-900);font-weight:700;display:block;margin-bottom:4px}
+  .arvio-bubble a{display:inline-block;margin-top:10px;color:var(--coral-600);font-weight:700;text-decoration:none}
+  .arvio-bubble a:hover{color:var(--coral-500);text-decoration:underline}
+  .arvio-bubble a:focus-visible{outline:2px solid var(--coral-500);outline-offset:2px;border-radius:4px}
+  @media (prefers-reduced-motion:reduce){ .arvio-bubble,.card{transition:none} }
+
+  /* body */
+  .cbody{display:flex;align-items:center;gap:32px;padding:24px;flex-wrap:wrap}
+  .identity{display:flex;align-items:center;gap:14px;flex:1.1;min-width:250px}
+  .identity > div:last-child{min-width:0;flex:1}
+  .logo{width:56px;height:44px;background:var(--slate-100);border-radius:12px;display:flex;align-items:center;
+    justify-content:center;font-size:.72rem;font-weight:700;color:var(--slate-500);flex-shrink:0}
+  .identity h3{margin:0;font-size:1.125rem;font-weight:700;line-height:1.25;letter-spacing:normal;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .identity .meta{margin:3px 0 0;font-size:.875rem;color:var(--slate-500);line-height:1.45;
+    display:flex;flex-wrap:wrap;column-gap:8px;row-gap:1px}
+  .identity .meta .dot{color:var(--slate-300)}
+  .identity .meta span:not(.dot){white-space:nowrap}
+
+  /* receipt lines: the airy Kuitti core */
+  .lines{flex:1.4;min-width:260px;max-width:390px;font-variant-numeric:tabular-nums}
+  .ln{display:flex;align-items:baseline;gap:10px;padding:5px 0;font-size:.9rem;min-width:0}
+  .ln .lbl{color:var(--slate-500);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1;min-width:0}
+  .ln .dots{flex:1;border-bottom:1px dotted var(--slate-300);transform:translateY(-4px);min-width:24px}
+  .ln .val{font-weight:700;color:var(--slate-900);white-space:nowrap}
+  .ln .val small{font-weight:500;color:var(--slate-400);font-size:.78rem;margin-left:2px}
+  .ln--soft .lbl,.ln--soft .val{color:var(--slate-500);font-weight:500}
+  .ln--soft .val small{color:var(--slate-400)}
+
+  /* price stub */
+  .stub{margin-left:auto;display:flex;align-items:center;gap:18px;padding-left:24px;
+    border-left:1px dashed var(--slate-300);justify-content:flex-end}
+  .price{text-align:right;font-variant-numeric:tabular-nums}
+  .price .big{font-weight:800;line-height:1;letter-spacing:-.01em;color:var(--slate-900);white-space:nowrap}
+  .price .big .int{font-size:2.1rem}
+  .price .big .dec{font-size:1.35rem;color:var(--slate-400)}
+  .price .big .unit{font-size:.95rem;font-weight:600;color:var(--slate-400);margin-left:4px}
+  .price .yr{font-size:.875rem;color:var(--slate-500);margin-top:5px}
+  .cta{display:inline-flex;align-items:center;justify-content:center;font-family:inherit;font-size:.95rem;
+    font-weight:700;color:var(--slate-600);background:#fff;border:2px solid var(--slate-200);border-radius:12px;
+    padding:12px 20px;text-decoration:none;transition:border-color .15s ease-out,color .15s ease-out}
+  .cta:hover{border-color:var(--coral-400);color:var(--coral-600)}
+  .cta:focus-visible{outline:2px solid var(--coral-500);outline-offset:2px}
+
+  /* footer strip */
+  .foot{display:flex;align-items:center;gap:20px;flex-wrap:wrap;background:var(--slate-50);
+    border-top:1px solid var(--slate-100);padding:12px 24px;font-size:.82rem;font-weight:600}
+  .foot .tag{display:inline-flex;align-items:center;gap:6px}
+  .foot .tag svg{width:14px;height:14px}
+  .tag--green{color:var(--badge-green-text)}
+  .tag--warn{color:var(--coral-700)}
+  .tag--fact{color:var(--slate-500)}
+  /* warnings: filled pill so they separate from quiet fact tags */
+  .pill--warn{display:inline-flex;align-items:center;gap:6px;background:var(--coral-50);
+    border:1px solid var(--coral-200);color:var(--coral-700);border-radius:9999px;padding:4px 12px}
+  .pill--warn svg{width:14px;height:14px}
+
+  @media (max-width:840px){
+    .stub{margin-left:0;border-left:0;padding-left:0;width:100%;justify-content:space-between}
+    .lines{max-width:none}
+  }
+
+  /* reconciliation notes */
+  .recon{margin-top:48px}
+  .recon h2{font-size:1.2rem;font-weight:800;letter-spacing:-.01em;margin:0 0 8px}
+  .recon p{color:var(--muted);font-size:.92rem;max-width:68ch;margin:0 0 14px}
+  .recon ul{margin:0;padding-left:20px;color:var(--muted);font-size:.9rem;max-width:72ch}
+  .recon li{margin-bottom:8px}
+  .recon li b{color:var(--ink)}
+</style>
+
+<div class="wrap">
+<header class="page">
+  <h1>Sopimuskortti: Kuitti v2</h1>
+  <p>Kuitti-suunta vietynä design-järjestelmään. Ylin rivi on selväkielinen lause, joka kertoo mitä hinnalle tapahtuu; sävy kertoo kategorian. Arvio on nyt selvästi interaktiivinen elementti, ei leima. Erittelyrivit pitävät kortin ilmavana. Vie hiiri Arvio-nappien päälle.</p>
+  <ul class="keylist">
+    <li>Plus Jakarta Sans, yksi kirjasinperhe</li>
+    <li>Kategoriasävyt semanttisina datavärteinä</li>
+    <li>Ei ajatusviivoja tuotetekstissä</li>
+    <li>Arvio: nappi + popover + linkki menetelmään</li>
+  </ul>
+</header>
+
+<div class="board">
+
+  <!-- 1 · Fixed -->
+  <article class="card">
+    <header class="band band--fixed">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+      <span><b>Energian hinta ei muutu</b> <span class="sep">·</span> <span class="detail">Voimassa toistaiseksi</span></span>
+    </header>
+    <div class="cbody">
+      <div class="identity">
+        <div class="logo">Seinäjoen</div>
+        <div>
+          <h3>SE Oikea – Yleissähkö</h3>
+          <p class="meta"><span>Seinäjoen Energia</span><span class="dot">·</span><span>Toistaiseksi voimassa</span></p>
+        </div>
+      </div>
+      <div class="lines">
+        <div class="ln"><span class="lbl">Energia</span><span class="dots"></span><span class="val">7,20<small>c/kWh</small></span></div>
+        <div class="ln"><span class="lbl">Perusmaksu</span><span class="dots"></span><span class="val">4,05<small>€/kk</small></span></div>
+      </div>
+      <div class="stub">
+        <div class="price">
+          <div class="big"><span class="int">34</span><span class="dec">,1</span><span class="unit">€/kk</span></div>
+          <div class="yr">409 €/v</div>
+        </div>
+        <a class="cta" href="#">Katso</a>
+      </div>
+    </div>
+    <footer class="foot">
+      <span class="tag tag--green"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 8C8 10 5.9 16.2 3.8 21.3l1.9.7 1-2.3c.5.2 1 .3 1.3.3C19 20 22 3 22 3c-1 2-8 2.2-13 3.2S2 11.5 2 13.5s1.8 3.8 1.8 3.8C7 8 17 8 17 8z"/></svg>Uusiutuva 13 %</span>
+    </footer>
+  </article>
+
+  <!-- 2 · Spot -->
+  <article class="card">
+    <header class="band band--market">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 12c2.5 0 2.5-4 5-4s2.5 4 5 4 2.5-4 5-4 2.5 4 5 4"/></svg>
+      <span><b>Hinta seuraa pörssin tuntihintaa</b> <span class="sep">·</span> <span class="detail">Muuttuu joka tunti</span></span>
+      <span class="arvio">
+        <button type="button" aria-label="Miten vuosihinnan arvio lasketaan">Arvio
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 112 0v4a1 1 0 11-2 0V9zm1-5.5a1.25 1.25 0 100 2.5 1.25 1.25 0 000-2.5z" clip-rule="evenodd"/></svg>
+        </button>
+        <span class="arvio-bubble" role="tooltip">
+          <strong>Miten arvio on laskettu?</strong>
+          Vuosihinta perustuu 12 kuukauden toteutuneeseen pörssikeskihintaan (päivä 8,1 c, yö 6,2 c, sis. alv) ja sopimuksen marginaaliin 0,39 c/kWh. Toteutunut hinta vaihtelee tunneittain.
+          <a href="https://voltikka.fi/tietoa#menetelma">Näin laskemme arviot →</a>
+        </span>
+      </span>
+    </header>
+    <div class="cbody">
+      <div class="identity">
+        <div class="logo">Sähkötytöt</div>
+        <div>
+          <h3>Pörssisähkö</h3>
+          <p class="meta"><span>Sähkötytöt</span><span class="dot">·</span><span>Toistaiseksi voimassa</span></p>
+        </div>
+      </div>
+      <div class="lines">
+        <div class="ln ln--soft"><span class="lbl">Pörssin keskihinta 12 kk</span><span class="dots"></span><span class="val">7,45<small>c/kWh</small></span></div>
+        <div class="ln"><span class="lbl">Marginaali</span><span class="dots"></span><span class="val">0,39<small>c/kWh</small></span></div>
+        <div class="ln"><span class="lbl">Perusmaksu</span><span class="dots"></span><span class="val">0,00<small>€/kk</small></span></div>
+      </div>
+      <div class="stub">
+        <div class="price">
+          <div class="big"><span class="int">34</span><span class="dec">,3</span><span class="unit">€/kk</span></div>
+          <div class="yr">411 €/v</div>
+        </div>
+        <a class="cta" href="#">Katso</a>
+      </div>
+    </div>
+    <footer class="foot">
+      <span class="tag tag--warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 7h.01M7 3h5c.5 0 1 .2 1.4.6l7 7a2 2 0 010 2.8l-7 7a2 2 0 01-2.8 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>3 kk tarjous</span>
+    </footer>
+  </article>
+
+  <!-- 3 · Quarterly reset -->
+  <article class="card">
+    <header class="band band--market">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M2 12c2.5 0 2.5-4 5-4s2.5 4 5 4 2.5-4 5-4 2.5 4 5 4"/></svg>
+      <span><b>Hinta tarkistetaan neljännesvuosittain</b> <span class="sep">·</span> <span class="detail">Seuraava tarkistus 1.10.2026</span></span>
+      <span class="arvio">
+        <button type="button" aria-label="Miten vuosihinnan arvio lasketaan">Arvio
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 112 0v4a1 1 0 11-2 0V9zm1-5.5a1.25 1.25 0 100 2.5 1.25 1.25 0 000-2.5z" clip-rule="evenodd"/></svg>
+        </button>
+        <span class="arvio-bubble" role="tooltip">
+          <strong>Miten arvio on laskettu?</strong>
+          Nykyinen hinta 7,97 c/kWh on tiedossa 30.9. asti. Loppuvuoden hinnat on arvioitu sähköjohdannaisten markkinahinnoista. Myyjä julkaisee todelliset hinnat neljännesvuosittain.
+          <a href="https://voltikka.fi/tietoa#menetelma">Näin laskemme arviot →</a>
+        </span>
+      </span>
+    </header>
+    <div class="cbody">
+      <div class="identity">
+        <div class="logo">Kokkolan</div>
+        <div>
+          <h3>Vuodenaika</h3>
+          <p class="meta"><span>Kokkolan Energia</span><span class="dot">·</span><span>Toistaiseksi voimassa</span></p>
+        </div>
+      </div>
+      <div class="lines">
+        <div class="ln"><span class="lbl">Energia nyt, 30.9. asti</span><span class="dots"></span><span class="val">7,97<small>c/kWh</small></span></div>
+        <div class="ln ln--soft"><span class="lbl">Loppuvuosi, arvio</span><span class="dots"></span><span class="val">10,51<small>c/kWh</small></span></div>
+        <div class="ln"><span class="lbl">Perusmaksu</span><span class="dots"></span><span class="val">2,53<small>€/kk</small></span></div>
+      </div>
+      <div class="stub">
+        <div class="price">
+          <div class="big"><span class="int">46</span><span class="dec">,3</span><span class="unit">€/kk</span></div>
+          <div class="yr">556 €/v</div>
+        </div>
+        <a class="cta" href="#">Katso</a>
+      </div>
+    </div>
+    <footer class="foot">
+      <span class="tag tag--warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 7h.01M7 3h5c.5 0 1 .2 1.4.6l7 7a2 2 0 010 2.8l-7 7a2 2 0 01-2.8 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>2 kk tarjous</span>
+    </footer>
+  </article>
+
+  <!-- 4 · Consumption effect -->
+  <article class="card">
+    <header class="band band--usage">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>
+      <span><b>Kiinteä hinta + kulutusvaikutus</b> <span class="sep">·</span> <span class="detail">Korjaus riippuu kulutusprofiilistasi</span></span>
+      <span class="arvio">
+        <button type="button" aria-label="Miten vuosihinnan arvio lasketaan">Arvio
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9 9a1 1 0 112 0v4a1 1 0 11-2 0V9zm1-5.5a1.25 1.25 0 100 2.5 1.25 1.25 0 000-2.5z" clip-rule="evenodd"/></svg>
+        </button>
+        <span class="arvio-bubble" role="tooltip">
+          <strong>Miten arvio on laskettu?</strong>
+          Vuosihinta on laskettu kiinteällä perushinnalla 8,59 c/kWh. Lopullista hintaa nostaa tai laskee kulutusvaikutus, joka riippuu siitä, mihin aikaan käytät sähköä. Myyjä ei julkaise vaikutuksen suuruutta etukäteen.
+          <a href="https://voltikka.fi/tietoa#menetelma">Näin laskemme arviot →</a>
+        </span>
+      </span>
+    </header>
+    <div class="cbody">
+      <div class="identity">
+        <div class="logo">Lumme</div>
+        <div>
+          <h3>Joustosähkö 24 kk</h3>
+          <p class="meta"><span>Lumme Energia</span><span class="dot">·</span><span>Määräaikainen 24 kk</span></p>
+        </div>
+      </div>
+      <div class="lines">
+        <div class="ln"><span class="lbl">Perushinta</span><span class="dots"></span><span class="val">8,59<small>c/kWh</small></span></div>
+        <div class="ln ln--soft"><span class="lbl">Kulutusvaikutus</span><span class="dots"></span><span class="val">± profiilisi mukaan</span></div>
+        <div class="ln"><span class="lbl">Perusmaksu</span><span class="dots"></span><span class="val">0,00<small>€/kk</small></span></div>
+      </div>
+      <div class="stub">
+        <div class="price">
+          <div class="big"><span class="int">35</span><span class="dec">,8</span><span class="unit">€/kk</span></div>
+          <div class="yr">430 €/v</div>
+        </div>
+        <a class="cta" href="#">Katso</a>
+      </div>
+    </div>
+    <footer class="foot">
+      <span class="pill--warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01M5 19h14c1.5 0 2.5-1.7 1.7-3L13.7 4c-.8-1.3-2.7-1.3-3.5 0L3.3 16c-.7 1.3.3 3 1.7 3z"/></svg>Max 20 000 kWh/v</span>
+    </footer>
+  </article>
+
+  <!-- 5 · Deceptive-pricing warning case: category band stays single-purpose, warning lives in the footer -->
+  <article class="card">
+    <header class="band band--fixed">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+      <span><b>Kiinteät hinnat</b> <span class="sep">·</span> <span class="detail">Julkaistu etukäteen, ei sidottu markkinaan</span></span>
+    </header>
+    <div class="cbody">
+      <div class="identity">
+        <div class="logo">Tyyni</div>
+        <div>
+          <h3>Tyyni Vakiohinta</h3>
+          <p class="meta"><span>Tyyni Sähkö</span><span class="dot">·</span><span>Toistaiseksi voimassa</span></p>
+        </div>
+      </div>
+      <div class="lines">
+        <div class="ln"><span class="lbl">Energia 31.7. asti</span><span class="dots"></span><span class="val">6,99<small>c/kWh</small></span></div>
+        <div class="ln"><span class="lbl">Energia 1.8. alkaen</span><span class="dots"></span><span class="val">9,90<small>c/kWh</small></span></div>
+        <div class="ln"><span class="lbl">Perusmaksu</span><span class="dots"></span><span class="val">3,90<small>€/kk</small></span></div>
+      </div>
+      <div class="stub">
+        <div class="price">
+          <div class="big"><span class="int">52</span><span class="dec">,4</span><span class="unit">€/kk</span></div>
+          <div class="yr">629 €/v</div>
+        </div>
+        <a class="cta" href="#">Katso</a>
+      </div>
+    </div>
+    <footer class="foot">
+      <span class="pill--warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v2m0 4h.01M5 19h14c1.5 0 2.5-1.7 1.7-3L13.7 4c-.8-1.3-2.7-1.3-3.5 0L3.3 16c-.7 1.3.3 3 1.7 3z"/></svg>Hinta nousee 1.8.2026</span>
+    </footer>
+  </article>
+
+</div>
+
+<section class="recon">
+  <h2>Sovitukset design-järjestelmään</h2>
+  <p>Nämä poikkeamat DESIGN.md:stä pitää joko dokumentoida tai päättää toisin ennen toteutusta:</p>
+  <ul>
+    <li><b>Kategoriasävyt ovat uusi semanttinen väriakseli.</b> Sininen (seuraa markkinaa) ja violetti (kulutusvaikutus) rikkovat "ei toista korostusväriä" ‑sääntöä, ellei niitä dokumentoida datavärteinä samalla tavalla kuin päästövärit. Ne esiintyvät vain kortin ylärivissä ja vain tinttipintoina, eivät koskaan koristeena. Kiinteä hinta on tarkoituksella harmaa: varmuus on oletustila, väri merkitsee poikkeamaa siitä.</li>
+    <li><b>Kuitin serif-kirjasin on poistettu.</b> Yksi kirjasinperhe ‑sääntö pitää; kuittimaisuus tulee erittelyriveistä, pisteviivoista ja katkoviivajakajasta, ei typografiasta.</li>
+    <li><b>Ylärivi on yksikäyttöinen.</b> Se kertoo vain hinnoittelutyypin. Kaikki varoitukset (hinnannousu, kulutusraja) näytetään footerissa täytettyinä coral-pillereinä, jotka erottuvat hiljaisista faktatageista. Kortilla, jonka hinta nousee, ylärivi pysyy totuudenmukaisena: molemmat hinnat on julkaistu etukäteen, joten tyyppi on kiinteä.</li>
+    <li><b>Varoitukset käyttävät corallia, eivät amberia.</b> Punainen/keltainen/vihreä on varattu päästödatalle. Tarjous- ja rajoitustagit sekä hinnannousuvaroitus käyttävät coral-700:aa: se on brändin huomioväri ja pysyy alle 10 % pinnasta. Vaihtoehto on dokumentoida erillinen varoitusväri.</li>
+    <li><b>Päästöraita on korvattu footerin datamerkinnällä.</b> Ylärivin sävypinta ja 4 px vasen raita kilpailisivat keskenään. Uusiutuva-osuus ja päästötieto siirtyvät footeriin vihreänä datamerkintänä. Tämä vaatii DESIGN.md-päivityksen, koska raita on siellä nyt sanktioitu elementti.</li>
+    <li><b>Ajatusviivat on poistettu tuotetekstistä</b> (mockupin "— Hinta on voimassa" on nyt "· Voimassa"). DESIGN.md kieltää ajatusviivat.</li>
+    <li><b>Arvio-popover seuraa popover-sääntöjä:</b> valkoinen pinta, slate-200-reunus, shadow-md, coral-fokusrengas, linkki coral-600. Aukeaa hoverilla, fokuksella ja napautuksella; sulkeutuu Escapella ja fokuksen poistuessa.</li>
+  </ul>
+</section>
+
+</div>

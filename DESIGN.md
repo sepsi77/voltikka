@@ -26,6 +26,12 @@ colors:
   emissions-high: "#ef4444"
   badge-green-bg: "#dcfce7"
   badge-green-text: "#15803d"
+  category-fixed-bg: "#f1f5f9"
+  category-fixed-text: "#334155"
+  category-market-bg: "#e0f2fe"
+  category-market-text: "#0369a1"
+  category-usage-bg: "#ede9fe"
+  category-usage-text: "#6d28d9"
 typography:
   display:
     fontFamily: "Plus Jakarta Sans, system-ui, sans-serif"
@@ -183,7 +189,7 @@ The system is also explicitly not bank-like, not utility-company corporate, not 
 - Slate neutrals do almost all the work; pure black is forbidden
 - Data typography is tabular and prominent; chrome is muted
 - Dark slate hero used as a focused moment, not as default theme
-- Emissions-tier left-stripe on contract cards is informational, not decorative
+- Two data-colour axes beside coral: emissions tiers and pricing categories. Both encode a measured or derived fact, never decoration
 - Plus Jakarta Sans across the system, weights 400–800
 
 ## 2. Colors
@@ -202,7 +208,8 @@ A two-axis palette: warm coral as the single voice of action, cool slate as the 
 - **Page Ink** (`#0f172a`, `slate-900`): Headings, contract titles, primary body emphasis. The default colour for serious numbers.
 - **Body** (`#475569`, `slate-600`): Body copy.
 - **Secondary Text** (`#64748b`, `slate-500`): Captions, supporting copy.
-- **Muted** (`#94a3b8`, `slate-400`): Labels, placeholders, price units (`/kWh`, `/v`).
+- **Muted** (`#94a3b8`, `slate-400`): Non-text use only. Icons, dividers, decorative rules, disabled-state fills. **Never text.** slate-400 on white measures 2.56:1, which fails WCAG AA for body text (4.5:1) and fails even the large-text bar (3:1). This entry previously sanctioned slate-400 for "labels, placeholders, price units", which directly contradicted the Readable-By-Default rule below; the rule wins.
+- **Inline units** (`slate-500`): A unit attached to a number (`c/kWh`, `€/kk`, `€/v`) may sit at 12px, smaller than the 14px secondary-copy floor, because it is a unit rather than copy and the column heading already states it. It may never sit below `slate-500`. Placeholder text is body text and takes the full 4.5:1 bar at `slate-500` or darker.
 - **Borders & Dividers** (`#e2e8f0`, `slate-200`): Default 1px borders. (`#f1f5f9`, `slate-100`): even quieter dividers and card backgrounds in calm sections.
 - **Page Surfaces** (`#f8fafc`, `slate-50`): Page background tint, filter pill default.
 - **Focus Surface** (`#0f1419`, `slate-950`): Hero and footer background. The room-goes-dark moment.
@@ -215,6 +222,26 @@ These colours mean *one thing*: a CO₂ tier on a contract. They never appear as
 - **Emissions Medium** (`#f59e0b`): 50–200 kg CO₂/v.
 - **Emissions High** (`#ef4444`): 200+ kg CO₂/v.
 
+### Semantic — Pricing Category
+
+The second data-colour axis. These tints mean *one thing*: which of the three pricing
+categories a contract belongs to. They appear only in the contract card's type band, only as
+a tint behind the category sentence, and never as a decorative accent.
+
+- **Kiinteä hinta** (`slate-100` bg, `slate-700` text): the energy price does not change.
+- **Markkinahinta** (`#e0f2fe` bg, `#0369a1` text): the price follows the market. Spot,
+  kvartaalisähkö, markkinahintasähkö, and any other seller-adjusted period price.
+- **Kulutusvaikutus** (`#ede9fe` bg, `#6d28d9` text): otherwise fixed, plus an adjustment
+  that depends on the consumption profile.
+
+Fixed is deliberately grey. Certainty is the default state, so colour marks deviation from
+it rather than decorating the common case. Sky and violet were chosen because emerald is
+already the energy-source badge, amber/red are already emissions tiers, and coral is the
+action colour; a category tint must not be mistakable for a recommendation or a warning.
+
+Derivation lives in `laravel/app/Services/ContractCard/PricingCategoryResolver.php`. The
+listing pages carry a matching legend (`components/card/legend.blade.php`).
+
 ### Named Rules
 
 **The One Voice Rule.** Coral appears on at most ~10% of any given screen. Its rarity is what makes it readable as an action signal. If you find yourself using coral as a section background or reaching for a secondary accent colour, the design is already wrong.
@@ -222,6 +249,10 @@ These colours mean *one thing*: a CO₂ tier on a contract. They never appear as
 **The No Pure Black Rule.** Never `#000`. Use `slate-950` (`#0f1419`) for the deepest dark and `slate-900` (`#0f172a`) for ink. White is acceptable as text on dark slate; everywhere else, prefer slate-50 over white-on-white surfaces.
 
 **The Emissions-Are-Data Rule.** Green/amber/red appear only where they communicate a measured CO₂ tier or a verified clean-energy source. They are never used to "add colour" to a layout. If a designer reaches for green for visual interest, they should reach for coral instead — or for nothing.
+
+**The Data-Colour Rule.** There are exactly two non-coral colour axes, and both encode data: emissions tiers and pricing categories. Adding a third is a design-system change, not a component decision. A colour that encodes nothing is not allowed anywhere in the system.
+
+**The Warnings-Are-Coral Rule.** Caveats that qualify or limit a price — a scheduled increase, a consumption cap, an unknown continuation price, an uncosted consumption effect — render as filled coral pills (`coral-50` bg, `coral-200` border, `coral-700` text). They do **not** use amber, because amber is an emissions tier. Coral is the brand's attention colour, and warning pills are rare enough to stay inside the One Voice Rule.
 
 ## 3. Typography
 
@@ -288,14 +319,32 @@ The system is mostly flat. Surfaces sit on the page with 1px slate-200 borders r
 
 ### Contract Cards
 
-The signature component of the system. Each card encodes a contract row in horizontal layout (rank → identity → metrics → CTA), with a coloured left edge encoding the CO₂ tier.
+The signature component of the system. A card is a receipt: a type band across the top, then identity + itemised price lines + the price stub, then a footer strip.
 
-- **Shape:** 24px radius (`rounded-2xl`), white background, 1px `slate-100` border, 24px padding.
-- **Left edge (informational, not decorative):** 4px coloured stripe (`emissions-low` / `medium` / `high`) bound to the CO₂ tier of the contract. This is the one place a coloured side-stripe is sanctioned, because it carries a measured value the user uses to scan the list. It is never used decoratively elsewhere in the system.
-- **Featured variant:** 6px coral-gradient left stripe (`coral-500 → coral-600`), `coral-200` border, optional corner badge in coral gradient.
-- **Hover:** `translateY(-2px)` + `shadow-card-hover`. Transition 150–200ms ease-out.
-- **Rank number:** 40px, weight 800, `slate-200` (or `coral-500` on featured). Visually quiet but spatially anchoring.
-- **Inside the card:** company logo (WebP), title in slate-900, subtitle in slate-500, energy-source badges, then a horizontal row of metrics (margin, basic fee, annual cost) in tabular-nums. Annual cost is the largest number — that is the answer the user came for.
+- **Shape:** 24px radius (`rounded-2xl`), white background, 1px `slate-200` border, `overflow-hidden` so the band runs edge to edge. Body padding 24px horizontal, 28px vertical. The border is `slate-200`, not `slate-100`: the page is `slate-50`, and a `slate-100` border measures 1.05:1 against it, so the card had no visible outline.
+- **The card is white end to end.** Body and footer are both white, separated by a `slate-200` hairline. The footer was once `slate-50`, which is the exact page background, so the card's bottom edge dissolved and a footer caveat floated ambiguously between two cards. The type band is the card's only tinted surface.
+- **Type band (top, always present):** full-width tint stating the pricing category as one plain-Finnish sentence, in the category colours above, closed by a 1px hairline one step darker than its own tint (`slate-200` / `sky-200` / `violet-200`). The tints sit only ~1.05:1 from white, so without the hairline the band has no bottom edge. **Single purpose.** It says what happens to the price and nothing else; warnings never appear here, however important. A contract with a pre-published later price keeps a truthful fixed band, and the increase is a footer warning plus two dated receipt rows.
+- **Receipt lines:** at most three itemised rows with dotted `slate-300` leaders, monthly fee last. Estimated rows render in `slate-500` weight 500 instead of `slate-900` weight 700, so the breakdown itself shows which figures are contractual.
+- **Price stub:** separated by a 1px dashed `slate-300` vertical divider. €/kk is the largest number (`tabular-nums`, decimal in `slate-400`), €/v below it, then the CTA.
+- **Footer:** white, `slate-200` top border. Coral warning pills first, then quiet fact tags (promotion, energy source with its real percentage).
+- **No emissions left stripe.** It was removed: a 4px emissions stripe and the band tint sat on the same card and competed, and a three-step colour tier says less than the figure. The energy source is a footer data tag instead. Coloured side-stripes (>1px) are now sanctioned **nowhere** in the system.
+- **No rank badges.** Ranks carried nothing the sort order does not already give, and rendering a badge only for the top 3 shifted the logo column by ~37px so nothing aligned down the list. Position in the list is the rank.
+- **Featured variant:** `coral-200` 2px border, a coral-gradient bar above the type band, `coral-600` price, one coral CTA. Deliberately **not** a full-bleed coral gradient card, because the category tint has to stay readable. **Only the featured card is coral.** Emphasising ranks 2 and 3 the same way stacked four coral CTAs at the top of a listing, past the One Voice Rule, and made one action carry two weights by position alone.
+- **Hover:** `translateY(-2px)` + `shadow-card-hover`. Transition 150–200ms ease-out, disabled under `prefers-reduced-motion`.
+- **Estimate chip:** when the 12-month total is an estimate, the band's right end carries an "Arvio" popover trigger (see Popovers below). Every estimated total shows it; no other element in the card claims estimate status.
+
+Derivation for all of the above is server-side in `laravel/app/Services/ContractCard/ContractCardPresenter.php`. Both card templates read that view model; neither computes prices or Finnish copy of its own.
+
+### Popovers
+
+The only sanctioned interactive tooltip. Use it when an explanation has to contain a link; use the plain `x-info-tip` (whose bubble is `pointer-events-none`) for a sentence that does not.
+
+- **Trigger:** white pill button, 1px `slate-200` border, `slate-600` weight-600 text, info glyph at 70% opacity. Hover moves border to `coral-400` and text to `coral-600`. Focus shows a 2px `coral-500` outline at 2px offset. It must read as interactive, never as a decorative stamp.
+- **Panel:** white, 1px `slate-200` border, 12px radius, 16px padding, `shadow-md`, 272px wide, teleported to `<body>` and fixed-positioned so a card's `overflow-hidden` cannot clip it.
+- **Link:** `coral-600` weight 700, underline on hover, trailing `→`.
+- **Behaviour:** opens on hover, focus and tap. Closing is delayed ~220ms and the panel cancels the timer on pointer enter, so the pointer can cross the gap. A click moves focus into the panel; Escape closes and returns focus to the trigger.
+
+Implementation: `laravel/resources/views/components/info-popover.blade.php`.
 
 ### Consumption Selector
 
@@ -341,7 +390,8 @@ The dark slate-950 hero is the only place glassmorphism is sanctioned.
 - **Do** use `shadow-coral` only under coral elements; black/transparent ambient shadows everywhere else.
 - **Do** use `tabular-nums` on every price, kWh value, percentage, and CO₂ figure.
 - **Do** keep the dark slate-950 hero as a focused moment, not a default theme — most pages live on light surfaces.
-- **Do** keep the emissions left-stripe on contract cards because it encodes a CO₂ tier; document any new use of coloured side-stripes in this file before shipping.
+- **Do** keep the contract card's type band single-purpose: it states the pricing category, and every warning goes to the footer.
+- **Do** state a measured figure rather than a colour tier when both are possible ("Uusiutuva 13 %", not a green stripe).
 
 ### Don't:
 
@@ -351,12 +401,14 @@ The dark slate-950 hero is the only place glassmorphism is sanctioned.
 - **Don't** make it feel *bank-like and cold*, *utility-company corporate*, *crypto/neon*, or *generic SaaS*. If a design could ship as-is for any of those, it has lost the brand.
 - **Don't** make it *visually loud in a way that competes with the data*. Chrome stays out of the way; numbers carry the page.
 - **Don't** use `#000` or `#fff` — slate-950 / slate-900 / white-on-dark instead.
-- **Don't** use coloured side-stripes (>1px) on cards or list items for any reason *other* than the emissions-tier encoding on contract cards. No left-bar callouts, no left-bar alerts, no left-bar "info" panels.
+- **Don't** use coloured side-stripes (>1px) on cards or list items, for any reason. The one former exception, the emissions tier on contract cards, was replaced by the footer energy data tag. No left-bar callouts, no left-bar alerts, no left-bar "info" panels.
 - **Don't** use gradient-clipped text (`background-clip: text`). Coloured emphasis is one solid colour.
 - **Don't** use glassmorphism on light surfaces. It is sanctioned only on the dark slate-950 hero.
-- **Don't** introduce a second accent colour. If the design feels like it needs one, it needs less coral, not more colours.
-- **Don't** use red/amber/green for decoration. Those colours mean a measured CO₂ tier or a verified clean-energy source — nothing else.
+- **Don't** introduce a second accent colour. If the design feels like it needs one, it needs less coral, not more colours. The emissions and pricing-category palettes are data axes, not accents, and are not available for decoration.
+- **Don't** use red/amber/green for decoration. Those colours mean a measured CO₂ tier or a verified clean-energy source — nothing else. In particular, don't use amber for a warning; warnings are coral.
+- **Don't** use sky or violet outside the contract card's type band. They encode the pricing category and nothing else.
+- **Don't** put a warning in the contract card's type band. The band states the pricing category; caveats belong in the footer, where their priority order and two-item cap are enforced.
 - **Don't** add bouncy or elastic motion. Easing is exponential ease-out; durations 150–300ms; CSS layout properties are never animated.
 - **Don't** wrap everything in a card. Most layout doesn't need a container, and nested cards are forbidden.
-- **Don't** use em dashes (—) in product copy. Use commas, colons, semicolons, periods, or parentheses.
+- **Don't** use em dashes (—) in product copy. Use commas, colons, semicolons, periods, or parentheses. Contract-card band copy separates its two sentences with a middle dot (`·`), rendered by the template rather than baked into the string.
 - **Don't** drift toward smaller-and-paler. Body copy stays ≥16px in `slate-600`+; secondary copy ≥14px in `slate-500`+; on dark surfaces secondary ink is `slate-200`/`slate-300`. Eyebrow labels are 14px weight 600, not 11–12px weight 500. See "The Readable-By-Default Rule" above. If a refinement pass would push label sizes below 14px or ink below the floors above, stop and ask whether the redesign is actually serving the household reader.

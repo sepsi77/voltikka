@@ -12,6 +12,20 @@ class ContractListCacheService
 {
     private const CACHE_VERSION_KEY = 'contract_list_cache_version';
 
+    /**
+     * Shape marker for the cached metrics payload itself.
+     *
+     * The stored version key only advances on a data import, and the c/r markers only track
+     * feature flags, so neither busts the cache when a deploy changes what the payload
+     * CONTAINS. Bump this whenever a field is added to or removed from the cached
+     * `calculated_cost` / `pricing_integrity` arrays, otherwise cards read a stale shape and
+     * silently fall back for up to 48 hours after release.
+     *
+     * v2: `pricing_integrity` gained `promo_rate_cents` / `normal_rate_cents`, which the
+     * contract card renders as two dated receipt rows.
+     */
+    private const PAYLOAD_SCHEMA_VERSION = 2;
+
     private const CACHE_TTL_SECONDS = 60 * 60 * 48; // 48 hours
 
     /**
@@ -96,7 +110,13 @@ class ContractListCacheService
         $basis = ($this->canonicalPricing->enabled() ? 'c1' : 'c0')
             .($this->canonicalPricing->resetForwardShiftEnabled() ? 'r1' : 'r0');
 
-        return sprintf('contract_list_metrics:v%d:%s:%d', $this->getVersion(), $basis, $consumption);
+        return sprintf(
+            'contract_list_metrics:v%d:s%d:%s:%d',
+            $this->getVersion(),
+            self::PAYLOAD_SCHEMA_VERSION,
+            $basis,
+            $consumption,
+        );
     }
 
     /**

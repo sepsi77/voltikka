@@ -10,6 +10,8 @@ use App\Models\SpotPriceAverage;
 use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractMarketInsights\ContractMarketInsightService;
+use App\Services\ContractCard\Enums\PricingCategory;
+use App\Services\ContractCard\PricingCategoryResolver;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
 use App\Services\LocalContractsService;
@@ -342,22 +344,26 @@ class SeoContractsList extends ContractsList
                 // unchanging, which the interpretation marks as canonical_calculation.status='exact'
                 // (spot and reset products are always estimate_required, hybrids unsupported). This
                 // page promises full certainty, so restrict to exact FixedPrice.
+                // The shared category scope already excludes market resets (they are the
+                // Markkinahinta category); `status = exact` additionally drops fixed contracts
+                // whose first year is not fully priced, which this page's copy promises.
+                PricingCategoryResolver::scopeCategory($query, PricingCategory::Fixed);
                 $query->where('pricing_model', 'FixedPrice')
                     ->where('canonical_calculation->status', 'exact');
             } elseif ($effectivePricingFilter === 'GeneralElectricity') {
                 // Yleissähkö: fully-fixed single-tariff (General) contracts. Same fully-fixed rule
                 // as FixedPrice so a General-metered market reset cannot appear here either.
+                PricingCategoryResolver::scopeCategory($query, PricingCategory::Fixed);
                 $query->where('pricing_model', 'FixedPrice')
                     ->where('metering', 'General')
                     ->where('canonical_calculation->status', 'exact');
             } elseif ($effectivePricingFilter === 'ConsumptionEffect') {
                 // Kulutusvaikutukselliset: a fixed base energy price plus a mandatory
-                // consumption-profile adjustment (canonical consumption_effect on the base
-                // contract). These are the Hybrid contracts; identify by the mechanism rather than
-                // the pricing_model enum so the definition stays precise. applies_to='base_contract'
-                // excludes the Spot contracts whose effect only applies to optional price fixing.
-                $query->where('canonical_pricing->consumption_effect->present', true)
-                    ->where('canonical_pricing->consumption_effect->applies_to', 'base_contract');
+                // consumption-profile adjustment. Uses the same rule as the card category, so a
+                // contract listed here always shows the Kulutusvaikutus band, and a
+                // quarterly-reset contract that also has an effect stays on the market pages
+                // where its band puts it.
+                PricingCategoryResolver::scopeCategory($query, PricingCategory::ConsumptionEffect);
             } else {
                 // Standard pricing models (Spot, FixedPrice, Hybrid)
                 $query->where('pricing_model', $effectivePricingFilter);

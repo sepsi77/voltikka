@@ -14,6 +14,13 @@ readonly class ContractPricingIntegrity
      * @param list<string> $issueCodes
      * @param list<string> $detailFacts Short Finnish fact lines for the detail-page notice.
      */
+    /**
+     * @param float|null $promoRateCents The energy rate in effect before `changeDate`.
+     * @param float|null $normalRateCents The disclosed energy rate from `changeDate` onward.
+     *        Null when the seller never published the later price. Both are typed rather than
+     *        only embedded in `detailFacts`, because the card renders them as two dated
+     *        receipt rows and must not parse a Finnish sentence to get them back.
+     */
     public function __construct(
         public bool $detected,
         public IntegrityReasonFamily $reasonFamily,
@@ -23,6 +30,8 @@ readonly class ContractPricingIntegrity
         public array $detailFacts = [],
         public ?string $changeDate = null,
         public ?float $firstYearImpactEur = null,
+        public ?float $promoRateCents = null,
+        public ?float $normalRateCents = null,
     ) {
     }
 
@@ -45,6 +54,8 @@ readonly class ContractPricingIntegrity
             'detail_facts' => $this->detailFacts,
             'change_date' => $this->changeDate,
             'first_year_impact_eur' => $this->firstYearImpactEur,
+            'promo_rate_cents' => $this->promoRateCents,
+            'normal_rate_cents' => $this->normalRateCents,
         ];
     }
 }

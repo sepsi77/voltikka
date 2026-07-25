@@ -1,0 +1,134 @@
+[
+  {
+    "name": "Audit the current card, verify category derivability on production data (425 active contracts measured)",
+    "status": "completed"
+  },
+  {
+    "name": "Produce five design directions as HTML mockups and iterate to the approved Kuitti v2 (mockups/kuitti-v2.html)",
+    "status": "completed"
+  },
+  {
+    "name": "Update DESIGN.md: pricing-category data colours, coral warnings, emissions-stripe replacement, popover spec, band copy rules",
+    "status": "completed"
+  },
+  {
+    "name": "Add the shared category + card derivation (ContractCardPresenter or equivalent) consumed by both card templates",
+    "status": "completed"
+  },
+  {
+    "name": "Add the x-info-popover Blade component (hover intent, focus, tap, Escape; supports a link; info-tip stays for plain tooltips)",
+    "status": "completed"
+  },
+  {
+    "name": "Rebuild contract-card.blade.php to the Kuitti v2 anatomy: type band, receipt lines, price stub, two-class footer",
+    "status": "completed"
+  },
+  {
+    "name": "Rebuild featured-contract-card.blade.php on the same presenter (restores missing integrity pill, reset figures, estimate marker)",
+    "status": "completed"
+  },
+  {
+    "name": "Generate band copy from typed fields incl. next reset date from recurring_schedule.current_period_end",
+    "status": "completed"
+  },
+  {
+    "name": "Footer: warning pills with priority order, max two; consumption-cap 30 000 kWh/v display threshold with always-show-when-exceeded exception",
+    "status": "completed"
+  },
+  {
+    "name": "Remove percentile callouts from cards (contracts:calculate-percentiles and other consumers stay)",
+    "status": "completed"
+  },
+  {
+    "name": "Replace the emissions left stripe with the footer energy data tag and update the listing legend",
+    "status": "completed"
+  },
+  {
+    "name": "Suppress the discount block when savings round below ~5 EUR/v",
+    "status": "completed"
+  },
+  {
+    "name": "Bill mode pass: band shows, annual Arvio chip hidden, period figures unchanged",
+    "status": "completed"
+  },
+  {
+    "name": "Align SeoContractsList category filters with the shared derivation",
+    "status": "completed"
+  },
+  {
+    "name": "Tests: presenter unit tests per category/estimate/footer rule incl. the 30k cap threshold; card render smoke tests",
+    "status": "completed"
+  },
+  {
+    "name": "Update AGENTS.md files (Livewire, CanonicalPricing pointer, root) after the card change",
+    "status": "completed"
+  },
+  {
+    "name": "Add typed promo/normal rates to ContractPricingIntegrity so the dated receipt rows do not parse a Finnish sentence",
+    "status": "completed"
+  },
+  {
+    "name": "Version the cached payload shape (ContractListCacheService + ContractPageCacheVersion) so a code-only deploy busts stale card data",
+    "status": "completed"
+  },
+  {
+    "name": "FOLLOW-UP (separate task): category chip on the contract detail page",
+    "status": "pending"
+  },
+  {
+    "name": "FOLLOW-UP (separate task): Vattenfall Helppo Pörssisähkö 107 EUR/v detail-page defect (base_only_hybrid misclassification)",
+    "status": "pending"
+  },
+  {
+    "name": "Critique pass: run /impeccable critique on the card (scored 30/40, snapshot in .impeccable/critique/)",
+    "status": "completed"
+  },
+  {
+    "name": "P1 fix: give the card real edges (slate-200 border, white footer with hairline, tint-matched hairline under the band). Footer was slate-50, identical to the page background",
+    "status": "completed"
+  },
+  {
+    "name": "P1 fix: slate-400 text failed WCAG AA at 2.56:1 on units and the price decimal; moved to slate-500 / coral-600 and amended the contradicting DESIGN.md clause",
+    "status": "completed"
+  },
+  {
+    "name": "P2 fix: remove rank badges entirely (they broke logo-column alignment and carried nothing the sort order does not)",
+    "status": "completed"
+  },
+  {
+    "name": "P2 fix: coral price and CTA only on the featured card; ranks 2 and 3 use the standard outline treatment",
+    "status": "completed"
+  },
+  {
+    "name": "P3 fix: legend swatches now use the band tints they name, not a step darker",
+    "status": "completed"
+  },
+  {
+    "name": "Extra: extract <x-company-logo> and remove the placehold.co fallback from all five call sites (both cards, company hero, two company-list spots). Handles pending, network error, non-decodable 200, and success with no blank tile",
+    "status": "completed"
+  },
+  {
+    "name": "Extra: more vertical room per card (body py-7, receipt rows py-1.5, larger logo tile) and more space between cards (space-y-4 to space-y-6 on every listing)",
+    "status": "completed"
+  },
+  {
+    "name": "BUG FIX: the Arvio popover described a flat base price on contracts that are both a market reset and an unsupported Hybrid (estimate_method reports hybrid_base_only while the tail is forward-curve shifted). Copy now composes price level + exclusion, and reads the tail basis from reset_estimate.basis",
+    "status": "completed"
+  },
+  {
+    "name": "FOLLOW-UP (noted during the logo audit): chart.js is loaded from cdn.jsdelivr.net unpinned on /spot-price, contract-type comparison and three article charts. Same third-party-dependency class as the placehold.co issue, but its own decision",
+    "status": "pending"
+  },
+  {
+    "name": "FOLLOW-UP (from critique): verify the card on a real 390px viewport; the browser extension's resize did not change the rendered viewport in this session",
+    "status": "pending"
+  },
+  {
+    "name": "FOLLOW-UP (from critique): make the whole card row clickable, not just the Katso button",
+    "status": "pending"
+  },
+  {
+    "name": "FOLLOW-UP (from critique): the Arvio panel is teleported to end of body, so Tab from the trigger skips it. Click-to-focus works and the methodology link exists elsewhere on the page, so degraded not blocked",
+    "status": "pending"
+  }
+]

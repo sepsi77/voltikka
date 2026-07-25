@@ -179,7 +179,7 @@
     {{-- Remaining Contracts (#2-11) --}}
     <section>
         <h2 class="text-2xl font-bold text-slate-900 mb-4">Seuraavaksi edullisimmat</h2>
-        <div class="space-y-4">
+        <div class="space-y-6">
             @forelse ($contracts as $index => $contract)
                 <x-contract-card
                     :contract="$contract"

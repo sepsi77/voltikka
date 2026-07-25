@@ -21,7 +21,7 @@
                 </div>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-6">
                 @foreach($localCompanyContracts as $index => $contract)
                     <div class="relative" x-show="expanded || {{ $index }} < 10" x-collapse.duration.300ms>
                         {{-- Distance badge --}}
@@ -90,7 +90,7 @@
                 </div>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-6">
                 @foreach($regionalContracts as $index => $contract)
                     <div class="relative" x-show="expanded || {{ $index }} < 10" x-collapse.duration.300ms>
                         {{-- Regional badge --}}

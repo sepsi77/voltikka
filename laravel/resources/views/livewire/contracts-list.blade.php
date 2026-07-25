@@ -498,29 +498,19 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
                 <p class="text-sm text-slate-700">
-                    <span class="font-semibold">{{ $contracts->total() }} sopimusta</span> vertailussa — lasketut 12 kk kulut sisältäen tarjoukset, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
+                    <span class="font-semibold">{{ $contracts->total() }} sopimusta</span> vertailussa: lasketut 12 kk kulut sisältäen tarjoukset, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
                     <a href="/tietoa#menetelma" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Näin laskemme &rarr;</a>
                 </p>
             </div>
-            <div class="flex items-center gap-4 text-xs text-slate-600">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
-                    Päästötön
-                </span>
-                <span class="flex items-center gap-1.5">
-                    <span class="w-3 h-3 rounded-full bg-yellow-500"></span>
-                    Vähäpäästöinen
-                </span>
-                <span class="flex items-center gap-1.5">
-                    <span class="w-3 h-3 rounded-full bg-red-500"></span>
-                    Fossiilinen
-                </span>
-            </div>
+            {{-- Legend for the card type bands. It replaced the emissions-colour legend when the
+                 emissions left stripe was removed; the energy source now appears as a data tag in
+                 each card footer, with its real percentage instead of a colour tier. --}}
+            <x-card.legend />
         </div>
     </div>
 
     <!-- Contracts List -->
-    <div class="space-y-4">
+    <div class="space-y-6">
         @forelse ($contracts as $index => $contract)
             @php
                 // Calculate the overall rank based on current page

@@ -12,6 +12,19 @@ use Illuminate\Support\Facades\DB;
 
 class ContractPageCacheVersion
 {
+    /**
+     * Shape marker for the prepared page payload.
+     *
+     * Every other field here tracks source DATA. None of them move when a deploy changes
+     * what the cached payload contains, so a card that starts reading a new field would
+     * render from a stale shape until the next import. Bump this whenever the prepared
+     * contract payload gains or loses a field.
+     *
+     * v2: contract cards render from `ContractCardPresenter`, which reads the new
+     * `pricing_integrity.promo_rate_cents` / `normal_rate_cents` fields.
+     */
+    private const PAYLOAD_SCHEMA_VERSION = 2;
+
     public function __construct(
         private readonly ContractListCacheService $contractListCache,
     ) {}
@@ -38,6 +51,7 @@ class ContractPageCacheVersion
             ->first();
 
         return [
+            'payload_schema_version' => self::PAYLOAD_SCHEMA_VERSION,
             'contract_list_cache_version' => $this->contractListCache->getVersion(),
             // Toggling canonical pricing changes rendered totals, exclusions, and labels.
             'canonical_pricing_enabled' => (bool) config('canonical_pricing.enabled', false),

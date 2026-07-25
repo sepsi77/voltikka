@@ -152,6 +152,7 @@ php artisan test --filter="ContractsFilterTest"
 - Calculates annual costs based on user consumption
 - SEO-optimized filter links with dual behavior (see SEO section)
 - Low-prominence market-insight pills on comparison heroes reuse cached precomputed price statistics/forecasts; they are informational only and do not affect ranking
+- **Contract cards state one of three pricing categories** (`Kiinteä hinta` / `Markkinahinta` / `Kulutusvaikutus`) in a single-purpose tinted band across the top of the card, followed by itemised receipt rows, the €/kk price stub, and a footer of coral warning pills plus quiet fact tags. An estimated 12-month total carries one `Arvio` popover that explains the estimate and links to `/tietoa#menetelma`. All of it is derived server-side by `laravel/app/Services/ContractCard/ContractCardPresenter`, shared by the normal and featured cards; see `laravel/app/Services/ContractCard/AGENTS.md`
 - Individual contract detail meta descriptions are generated from Voltikka ranking/pricing data instead of provider marketing descriptions
 
 ### 2. Contract Price Statistics
@@ -282,6 +283,7 @@ php artisan test --filter="ContractsFilterTest"
 | Service | Description |
 |---------|-------------|
 | `ContractPriceCalculator` | Calculates annual contract costs |
+| `ContractCard/ContractCardPresenter` | One server-side view model for both contract-card templates: pricing category, type-band copy, receipt rows, estimate explanation, footer warnings/facts |
 | `EntsoeService` | Fetches official spot prices from ENTSO-E API |
 | `SpotForecasts/NordpoolPredictFiService` | Fetches the public nordpool-predict-fi forecast feed for display as an attributed third-party forecast |
 | `SpotPriceAverageService` | Calculates spot price statistics |
