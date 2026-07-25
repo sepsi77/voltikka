@@ -215,7 +215,9 @@ Why it is deferred rather than done now:
   price was set**, and the FI curve history starts **2026-04-08**. EEX publishes only about a 45-day
   rolling window server-side, so earlier vintages are **permanently unrecoverable** — verified by
   request, not assumed (an expired quarter maturity returns zero rows even with the cap lifted).
-- That leaves a sample of two companies today: `beta` 0.90 (R² 0.99) and 1.01 (R² 0.66), both on a month
+- That leaves a sample of two companies today. `retail-premiums:calibrate` on production 2026-07-25:
+  Kokkolan Energia **1.01** (R² 0.66, 3 pairs) and Pohjois-Karjalan Sähkö **0.61** (R² 0.67, 3 pairs),
+  both on a month
   reference. Quarterly cadences have one period each inside the curve window, so they are uncalibrated.
 
 When it becomes possible:

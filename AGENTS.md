@@ -66,7 +66,7 @@ Time-triggered work that is not yet possible. Check this list when the date has 
 
 ### After 2026-10-01 — calibrate the market-reset pricing coefficient
 
-Live pricing currently annualises monthly/quarterly market-reset contracts with **one global pass-through coefficient, `beta = 1.0`** (`RESET_FORWARD_SHIFT_ENABLED`, enabled in production since 2026-07-25). That value is measured only for the **monthly** cadence, from two companies (0.90 with R² 0.99, and 1.01). The **27 quarterly lineages use it as an unverified prior** — quarterly products reprice four times a year, and the FI futures curve only exists from 2026-04-08, so each quarterly lineage had just one usable period.
+Live pricing currently annualises monthly/quarterly market-reset contracts with **one global pass-through coefficient, `beta = 1.0`** (`RESET_FORWARD_SHIFT_ENABLED`, enabled in production since 2026-07-25). That value is measured only for the **monthly** cadence: `retail-premiums:calibrate` on 2026-07-25 gives a gated monthly figure of **0.81** (VAT incl.) / **0.94** (VAT excl.) from the two companies with at least 3 pass-through pairs, which is within the 0.25 review threshold of the configured 1.0. The **27 quarterly lineages use it as an unverified prior** — quarterly products reprice four times a year, and the FI futures curve only exists from 2026-04-08, so each quarterly lineage had just one usable period.
 
 The **1 October 2026** resets give every quarterly lineage a second period, so roughly 24 lineages contribute a pass-through step at once. At that point:
 

@@ -122,8 +122,10 @@ forward shift entirely rather than silently holding one month flat inside a shif
 
 Per-company `beta` and per-company reference periods are documented future work; see the calibration
 section in `../AGENTS.md`. The observed-reset sample cannot support them yet. Measured support for
-1.0, both on a month reference: Pohjois-Karjalan Sähkö **0.90** (R² 0.99), Kokkolan Energia **1.01**
-(R² 0.66).
+1.0, on a month reference (`retail-premiums:calibrate`, production 2026-07-25): gated monthly headline
+**0.81** (VAT incl.) / **0.94** (VAT excl.) across the two companies with at least 3 pass-through pairs —
+Kokkolan Energia 1.01 and Pohjois-Karjalan Sähkö 0.61. That is −0.19 / −0.06 from the configured 1.0,
+inside the 0.25 review threshold. Quarterly remains uncalibrated.
 
 ### 6. No deceptive-pricing label
 

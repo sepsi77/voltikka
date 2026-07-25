@@ -70,8 +70,13 @@ instead.** Read `../CanonicalPricing/AGENTS.md` for the estimator side.
 
 State as of 2026-07-25:
 
-- Measured `beta` on a month reference: Pohjois-Karjalan Sähkö **0.90** (R² 0.99), Kokkolan Energia
-  **1.01** (R² 0.66). Both consistent with full pass-through. Robust to the VAT scale ambiguity.
+- Measured `beta` on a month reference, from `retail-premiums:calibrate` on production 2026-07-25:
+  Kokkolan Energia **1.01** (R² 0.66, 3 pairs), Pohjois-Karjalan Sähkö **0.61** (R² 0.67, 3 pairs).
+  Gated monthly headline **0.81** (VAT incl.) / **0.94** (VAT excl.), a difference of −0.19 / −0.06
+  from the configured 1.0 — inside the 0.25 review threshold, so no retune is indicated yet.
+  **Cite the command, not an older hand figure.** An earlier manual analysis reported Pohjois-Karjalan
+  at 0.90 (R² 0.99); that used `retail-premium-history-v2` only and 2 pairs, while the command adds the
+  forward rows and drops method-seam pairs. The command's scope is the better one.
 - Only **3 multi-period reset series** exist, so nothing can be concluded per company yet, and every
   quarterly cadence is uncalibrated — quarterly products are about two thirds of the reset population.
 
