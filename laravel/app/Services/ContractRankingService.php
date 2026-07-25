@@ -240,8 +240,10 @@ class ContractRankingService
             return $this->rankingsMemo;
         }
 
-        // Vary the cache key by pricing basis so toggling the flag does not serve stale ranks.
-        $cacheKey = self::CACHE_KEY_RANKINGS.($this->canonicalPricing->enabled() ? ':c1' : ':c0');
+        // Vary the cache key by pricing basis so toggling either flag does not serve stale ranks.
+        $cacheKey = self::CACHE_KEY_RANKINGS
+            .($this->canonicalPricing->enabled() ? ':c1' : ':c0')
+            .($this->canonicalPricing->resetForwardShiftEnabled() ? ':r1' : ':r0');
 
         return $this->rankingsMemo = Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () {
             return $this->calculateRankings();

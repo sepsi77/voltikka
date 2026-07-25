@@ -513,3 +513,177 @@ period. It becomes testable after the **1 October 2026** quarterly resets give a
 evidence. It is NOT yet defensible for quarterly cadences, which are 22 of 32 reset lineages. Do not
 enable the reset pricing change for quarterly products before the October resets. A monthly-only
 first rollout is possible but covers a minority of the population, so waiting is probably better.
+
+## 2026-07-25 — IMPLEMENTED: shape-only forward-curve shift, behind its own flag
+
+Shipped in `laravel/app/Services/CanonicalPricing/MarketReset/`. Full implementation notes and the
+non-negotiable rules live in that directory's `AGENTS.md`. Local tests: 1,202 passed / 3,755
+assertions, up from a 1,173 / 3,617 baseline.
+
+Reference `beta = 1.0`, one global value. Reference by cadence: month contract for `monthly`, quarter
+contract with a `quarter_month_average` fallback for `quarterly` / `seasonal`. Both `F_m` and
+`F_reference` read from the single latest vintage with `trade_date < today`, as specified.
+
+### The defect was bigger than "an uncovered tail"
+
+The spec framed the bug as `EstimateMethod::HoldCurrentRecurringPrice` filling the *uncovered tail*.
+Costing all 32 local lineages showed **three** paths that all held one seasonal price flat, and only
+the first was the documented one:
+
+| Path | Lineages | Shape |
+|---|---|---|
+| `costWindow` estimate fill | ~15 | phase end `unknown` or a dated end short of 12 months |
+| `costWindow` fully "covered" | 12 | a phase with `ends: none`, so the window looked fully covered and `estimateFill` was **false** — the outcome was not even marked as a held-forward estimate |
+| `costHeldForward` | 3 | Hybrid `unsupported` base-only annualization |
+
+So the tail boundary cannot be read off segment coverage. `resetTailStart()` takes the latest of the
+cadence period end, the declared `current_period_end`, and the end of any coverage from a phase with
+a **dated** end. `ends: none` is explicitly not trusted as a reset boundary: a product that resets
+quarterly does not have a known price for twelve months. Do not revert that — 12 of 32 lineages
+depend on it, and they are the ones the old code silently mislabelled as fully covered.
+
+### The anchor is the last *disclosed* period, not always the current calendar period
+
+Kokkolan Tyyni discloses both July (4.98 c/kWh, `price_role: current`) and August (6.94,
+`price_role: future`). `future` components are billed, so August is real coverage. The estimate
+therefore anchors on August against the **August** month future and reprices from September, rather
+than anchoring on July as the spec table assumed. Result: annual equivalent 10.52 c/kWh, not the
+11.14 the spec projected from a July anchor. Anchoring on the newest disclosed price and its own
+delivery month is strictly more current information, so this is a deliberate improvement, not a
+deviation to undo.
+
+### `quarter` never resolves in practice, and that is expected
+
+An earlier entry corrected itself to say the quarter contract **is** published at the pricing
+vintage. True, but this estimator reads **today's** vintage by design, and EEX drops a quarter
+contract once that quarter enters delivery. Verified on the refreshed local snapshot: at trade date
+2026-07-24 the FI quarter maturities are 202610, 202701, 202704, 202707, 202710, 202801, 202804 —
+202607 is gone. So **all 25 quarterly lineages resolved to `quarter_month_average`**, and the direct
+`quarter` lookup is only reachable in the last days before a quarter starts. The primary/fallback
+ordering is still correct and is kept; just do not read "fell back to the month average" as a defect.
+
+### RETRACTED: the one-vintage rule (superseded the same day, see the next entry)
+
+The first implementation followed the brief's "one vintage for both `F_m` and `F_reference`" rule
+exactly, and measured its cost rather than assuming it: for a **monthly** cadence the reference period
+is the month currently in delivery, whose future has largely converged to realized spot, so
+`P_current - F_reference` inflated the spread by **1.58 c/kWh** (about **+79 €/yr** at 5000 kWh).
+Monthly resets consequently annualised at 12.5-13.9 c/kWh against a fully-fixed median of 10.47.
+
+That rule is now **retracted and replaced**. See the next entry.
+
+### Guards, and one design decision worth keeping
+
+- Negative floor is applied **per bucket** as `max(0, rate + offset)`, not on the offset, so a
+  Time-metered contract cannot have its night rate floored using its day rate.
+- The band on the annual equivalent is an **absolute** absurdity band (0-60 c/kWh), not a multiple of
+  the fully-fixed median. See the entry below on why a market-relative band was removed.
+- A missing delivery month aborts the whole forward shift instead of holding that one month flat. A
+  partly-shifted, partly-flat window would be a silent hybrid with no honest basis to report.
+- `baseTotalCost` and `structuredOnlyTotal` carry the **same** offsets as `totalCost`. If only the
+  total were shifted, a winter reset would show a fabricated "Säästö … ilman tarjousta" on the card,
+  and a reset carrying conflict codes would report an integrity impact mixing the promo effect with
+  the seasonal repricing. Pinned by a regression test.
+
+### Rollout
+
+`RESET_FORWARD_SHIFT_ENABLED`, default false, separate from `CANONICAL_PRICING_ENABLED` (which is
+already true in production). Flag off is byte-identical: the estimator short-circuits before touching
+any market data, and a test asserts the fake curve is consulted zero times. The flag varies
+`contract_list_metrics:…:c{0,1}r{0,1}:…`, `contract_rankings_5000kwh:c{0,1}:r{0,1}`, and
+`ContractPageCacheVersion`. Two pre-existing memoization tests pinned the old key strings and were
+updated to the new format; no assertion was weakened.
+
+Verified by rendering the real pages locally with the flag on: contract detail, `/`,
+`/sahkosopimus`, `/sahkosopimus/kvartaalisahko`, `/sahkosopimus/halvin-sahkosopimus`,
+`/maksatko-liikaa`, `/sahkosopimus/tilastot` all return 200, and the two-figure display and the
+neutral reset notice render as intended.
+
+## 2026-07-25 — CORRECTION: two vintages, not one. `F_reference` uses the pricing vintage
+
+The "one vintage" rule is retracted. Its justification — that a mixed vintage "reintroduces level
+drift" — was wrong, and the algebra shows why:
+
+- The seller set `P_current` at some `T0` before the period, from the forward for that period as it
+  stood then. Their spread is `pi = P_current - F_ref(T0)`.
+- The honest annual equivalent is `F_strip(today) + pi`.
+- If the whole curve rose by X between `T0` and today, that estimate rises by X. **That is correct,
+  not noise.** The market genuinely got more expensive, the next reset will reflect it, and the
+  customer really will pay more. Cancelling it would delete real information.
+- The one-vintage rule instead computed `pi' = P_current - F_ref(today)`. For a period already in
+  delivery `F_ref(today)` has converged toward realized spot, so `pi' > pi` systematically. That is a
+  pure artifact — the 1.58 c/kWh measured above.
+
+So the quantity that actually needed cancelling is **front-month convergence**, which only ever
+affects `F_reference`. Implemented:
+
+1. `F_reference` → latest `trade_date` strictly before the current period's **start date**.
+2. `F_m` → latest `trade_date < today`, unchanged.
+3. No trade date before the period start → fall back to today's vintage and flag
+   `reference_vintage_fallback_today`, rather than dropping to the much weaker spot index.
+
+This is the same vintage rule `RetailPremium` uses for spread measurement, and for the same reason.
+The `max_curve_age_days` staleness guard therefore applies to the **forward** vintage only; the
+reference vintage is legitimately up to a quarter old.
+
+### Measured effect
+
+| Cadence | n | mean Δ€ before → after | mean 12 kk c/kWh before → after |
+|---|---|---|---|
+| monthly | 7 | +278.9 → **+223.5** | 12.94 → **11.84** (−1.11) |
+| quarterly | 25 | +119.5 → **+128.7** | 10.90 → **11.08** (+0.18) |
+
+The five **July-anchored** monthly lineages each fell by exactly **1.55 c/kWh** — the 1.58 c/kWh
+artifact scaled by the tail's 4892.5/5000 share of the window. The two **August-anchored** ones
+(Kokkolan Tyyni, Aalto Kuukausihinta) are unchanged, correctly: August had not started on 2026-07-25,
+so "latest trade date before the period start" *is* today's trade date and its future has not
+converged. Quarterly moved slightly the other way because the Q3 reference was *lower* at the pricing
+vintage (5.923 vs 6.149 c/kWh).
+
+Vintages actually used, 32 lineages, none falling back: 5 monthly at 2026-06-30, 2 monthly at
+2026-07-24 (unstarted August period), 25 quarterly at 2026-06-30.
+
+## 2026-07-25 — RESOLVED: `quarter` versus `quarter_month_average` is numerically irrelevant
+
+The expectation was that the pricing vintage would let quarterly resets reach the **direct** quarter
+contract, since the quarter has not yet started. Two production facts settle it:
+
+1. **EEX drops a quarter contract a few trading days BEFORE delivery begins**, not on the first day of
+   it. FI quarter `202607`'s last settlement is **2026-06-26**, while the pricing vintage for a Q3
+   period starting 2026-07-01 is 2026-06-30. So the direct lookup is empty and all 25 quarterly
+   lineages still resolve to `quarter_month_average`.
+2. **It does not matter.** Across **96** production trade-date/maturity pairs where both exist, the
+   quarter settlement and the day-weighted average of its three month settlements agree to a mean
+   absolute difference of **0.002 EUR/MWh** and a maximum of **0.006 EUR/MWh = 0.0007 c/kWh**. An EEX
+   quarter settlement *is* the day-weighted average of its months, so `quarter_month_average` is an
+   **exact reconstruction**, not a degraded proxy.
+
+Decision: keep the candidate ordering as specified and **do not** add a look-back rule to reach the
+expired quarter contract. It would buy 0.0007 c/kWh and add a second vintage knob.
+
+## 2026-07-25 — Removed the market-relative plausibility band: it encoded an economic prior
+
+The first implementation banded the resulting annual equivalent to `[0.25, 2.5] ×` the fully-fixed
+12-month retail median. That quietly encoded the prior *"a market-reset product must be cheaper than a
+fixed deal"*, which was also used in an earlier (already retracted) entry to argue for a quarter
+anchor. The prior is weak: Helen at 7.59 c/kWh against a 4.03 c/kWh forward for the same month implies
+a spread near 3.6 c/kWh, entirely plausible for an incumbent with inert customers on a near-default
+product. If such a product's honest annual equivalent really is above a 10.47 c/kWh fixed deal, that
+is a **true and useful finding**, and suppressing it repeats the error of tuning a parameter until the
+output looks reasonable.
+
+The guard is now an **absolute** absurdity band only (`absurdity_band`, 0-60 c/kWh), which catches a
+broken reference or a bad print and nothing else. The fully-fixed median is still read but **only** as
+reported context in `contracts:compare-canonical-pricing --resets`.
+`test_the_guard_does_not_suppress_a_reset_that_annualises_above_the_fixed_market` exists to fail if a
+market-relative band ever comes back. Confirmed no-op on live data: **0 of 32** lineages hit the guard
+before or after.
+
+## 2026-07-25 — Residual: the pricing vintage is a proxy for the pricing date
+
+"Latest trade date before the period start" is a proxy for when the seller actually set the price, and
+it runs late. Cheap announces the next quarter's price by the 15th of the preceding month, Helen by the
+15th or the prior business day. A mid-June Q3 pricing date would have read the reference around
+43.5-44.3 EUR/MWh instead of 47.2. That residual is exactly what the deferred **per-company
+calibration** identifies — the reference period *and* the effective pricing date per seller, from
+observed resets. It is deliberately not guessed at in the estimator.
