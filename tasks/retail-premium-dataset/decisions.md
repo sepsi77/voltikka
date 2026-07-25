@@ -450,3 +450,49 @@ and v2 rows after the bump. It now compares the current pair only.
   interpreted, so no local run reproduces the production vintage timing, the production
   quarter-row zero, or the production VAT counts. The local before/after numbers above are
   structural evidence on the same database, not a production prediction.
+
+## 2026-07-25 — Earlier futures vintages cannot be recovered from the public sources
+
+Tested two candidate sources for pre-2026-04-08 FI forward curve data.
+
+### 1. The Azure `SpotFutures` field — dead end
+
+The Azure contract payload carries `Details.SpotFutures`, preserved in our snapshots since January and
+deliberately excluded from the interpretation fingerprint. It is **a single scalar price, not a term
+structure** (`FetchContracts::processSpotFutures()` reads one number), so it cannot price a specific
+delivery quarter. The stored `spot_futures` table has one `date` and one `price` column, and the value
+is identical (5.602 c/kWh) on 2026-01-21, 01-22, 01-25 and 2026-04-21 — a stale, constant field.
+Unusable for this purpose.
+
+### 2. The EEX public chart endpoint — the 45-day window is server-side and anchored to today
+
+The `history_window_days = 45` config is not our own conservatism. Tested with the cap lifted
+(`--start-date=2026-01-01 --history-window-days=400 --dry-run`):
+
+| Maturity | Trading ended | Prices returned |
+|---|---|---|
+| FI quarter `202607` (Q3 2026) | 2026-06-30 | **13** |
+| FI quarter `202604` (Q2 2026) | 2026-03-31 | **0** |
+
+Q3 returns exactly the overlap between its trading life and the ~45-day window measured back from
+today; Q2 returns nothing at all. So the window is enforced by the API relative to *now*, and
+`--start-date` cannot reach behind it. **Any maturity that stopped trading more than about 45 days ago
+is permanently gone from this endpoint.**
+
+Consequence: the Q2 2026 reference (vintage late March) is unrecoverable, so the Q2 → Q3 quarterly step
+stays half-blind and the first usable quarterly step remains **1 October 2026**.
+
+### Paid route, if waiting is not acceptable
+
+EEX sells historical market data as a separate product, and Nordic-focused vendors (Montel, Volue,
+LSEG, ICIS) carry the same series. A one-off purchase of FI Base month and quarter settlements for
+January-April 2026 would do two things at once: unlock the quarterly month-versus-quarter question
+about two months early, and roughly double the monthly evidence, because monthly lineages have price
+history back to 2026-01-21 and would gain about three more usable steps each. Cost and licence terms
+are unknown and this is a commercial decision, not a technical one.
+
+### No further loss is occurring
+
+The daily collector fetches the whole published curve and upserts, and it is healthy (verified
+2026-07-25). Everything from 2026-04-08 onward is retained permanently. The gap is historical only and
+will not grow.

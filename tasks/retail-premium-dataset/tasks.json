@@ -108,6 +108,14 @@
     "status": "completed"
   },
   {
+    "name": "Investigate recovering pre-2026-04-08 futures vintages (result: impossible from public sources; EEX 45-day window is server-side and anchored to today, Azure SpotFutures is a single scalar)",
+    "status": "completed"
+  },
+  {
+    "name": "DECISION FOR USER: buy historical EEX/Montel FI settlements for Jan-Apr 2026 to unlock the quarterly question ~2 months early and double the monthly evidence, or wait for 1 October",
+    "status": "pending"
+  },
+  {
     "name": "Re-run the month-versus-quarter comparison after the 1 October 2026 quarterly resets give each quarterly lineage a second period",
     "status": "pending"
   },
