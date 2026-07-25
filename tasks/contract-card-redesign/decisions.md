@@ -333,15 +333,50 @@ Body padding moved from `p-6` to `px-6 py-7`, receipt rows from `py-1` to `py-1.
 `py-3` to `py-3.5`, identity gap from `gap-3.5` to `gap-4`, and the logo tile from 44x56 to
 48x64 (user request).
 
+### Mobile layout pass (390 px)
+
+Verified at a true 390 px viewport. The extension's window resize still does not change the
+rendered viewport in this environment, so the page was loaded into a 390 px-wide `<iframe>`
+instead; the iframe gives the inner document a real 390 px viewport, so `sm:` breakpoints
+resolve correctly. Use that method for future mobile checks.
+
+Two defects were visible and are fixed:
+
+1. **The Arvio chip dropped onto a line of its own in the band.** The band was `flex-wrap`
+   with `ml-auto` on the chip, and the label was one long inline span, so on a phone the label
+   filled line one and the chip wrapped to line two, right-aligned against empty space. It
+   read as a stray button rather than as a marker on the price. The row is `flex` with no wrap
+   now; the label is the only flexible item (`min-w-0 flex-1`) and wraps inside its own column
+   while the icon and the chip hold their place. The band can be two or three lines on a phone;
+   that is honest wrapping, not a layout fault.
+
+2. **The price stub did not use the card width.** It kept the desktop shape below `sm`:
+   `justify-between` around a right-aligned block, with the inline CTA `hidden sm:inline-flex`.
+   One child in a `justify-between` row hugs the left edge, so the block shrank to its content
+   and sat as a narrow ragged island in the left half of the card, its lines right-aligned
+   against nothing. Below `sm` it is now a full-width total row under a dashed rule: the €/kk
+   figure on the left, the qualifiers (`€/v`, `Säästö`, `ilman tarjousta`) right-aligned on the
+   right, `items-baseline` so the €/kk and €/v figures share a baseline. The dashed rule is the
+   same rule that is vertical on desktop, so the two shapes read as one idea. Bill mode gets
+   the identical treatment.
+
+Two smaller things in the same pass:
+
+- Card horizontal padding is `px-5` below `sm` (`sm:px-6`) on the band, body and footer
+  together. 24 px each side on a 390 px screen was taking 12 % of the width.
+- The contract name is `line-clamp-2 sm:line-clamp-1`. Promotion wording sits at the end of the
+  name ("... (Tarjous: ilmainen perusmaksu ensimmäiset 3kk!)"), so a single truncated line on
+  mobile cut off the part that answers "why is this one cheap?".
+
+Not changed: when the grey meta line wraps, the `·` separator can end a line. Pre-existing,
+cosmetic, and both alternatives (leading separator, no separator) have their own faults.
+
 ### Still open from the critique
 
 - The card body is not clickable, only "Katso".
 - The Arvio panel is teleported to the end of `<body>`, so tabbing from the trigger reaches the
   next card rather than the panel. Click moves focus correctly and the methodology link exists
   elsewhere on the page, so this is degraded rather than blocked.
-- Mobile was not verified in-browser: the extension's window resize did not change the rendered
-  viewport in this environment. The receipt block carries `min-w-[15rem]` with `max-w-[24rem]`
-  and should be checked on a real 390px viewport.
 
 ## Separate defect found during the audit (not fixed here)
 

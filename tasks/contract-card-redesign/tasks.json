@@ -120,8 +120,12 @@
     "status": "pending"
   },
   {
-    "name": "FOLLOW-UP (from critique): verify the card on a real 390px viewport; the browser extension's resize did not change the rendered viewport in this session",
-    "status": "pending"
+    "name": "Verify the card on a real 390px viewport (loaded the page in a 390px iframe, because the extension's window resize does not change the rendered viewport here)",
+    "status": "completed"
+  },
+  {
+    "name": "Mobile layout fix: band no longer wraps the Arvio chip onto its own line; the price stub is a full-width total row under a dashed rule below sm; px-5 card padding and a two-line contract name on mobile",
+    "status": "completed"
   },
   {
     "name": "FOLLOW-UP (from critique): make the whole card row clickable, not just the Katso button",

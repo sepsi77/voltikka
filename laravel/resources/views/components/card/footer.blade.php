@@ -22,7 +22,7 @@
     band as the card's only tinted strip, so the category reads harder.
 --}}
 @if (count($warnings) > 0 || count($facts) > 0)
-    <div class="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-200 px-6 py-3 text-sm font-semibold">
+    <div class="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-200 px-5 py-3 text-sm font-semibold sm:px-6">
         @foreach ($warnings as $warning)
             <span class="inline-flex items-center gap-1.5 rounded-full border border-coral-200 bg-coral-50 px-3 py-1 text-coral-700">
                 <svg class="h-3.5 w-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v2m0 4h.01M5 19h14c1.5 0 2.5-1.7 1.7-3L13.7 4c-.8-1.3-2.7-1.3-3.5 0L3.3 16c-.7 1.3.3 3 1.7 3z"/></svg>

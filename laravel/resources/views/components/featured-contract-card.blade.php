@@ -30,7 +30,7 @@
 @endphp
 
 <article class="relative w-full overflow-hidden rounded-2xl border-2 border-coral-200 bg-white shadow-lg shadow-coral-500/10 transition-all duration-200 hover:shadow-card-hover motion-reduce:transition-none">
-    <div class="flex items-center gap-2 bg-gradient-to-r from-coral-500 to-coral-600 px-6 py-2.5 text-sm font-bold text-white">
+    <div class="flex items-center gap-2 bg-gradient-to-r from-coral-500 to-coral-600 px-5 py-2.5 text-sm font-bold text-white sm:px-6">
         <svg class="h-4 w-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
         </svg>
@@ -39,7 +39,7 @@
 
     <x-card.band :band="$card->band" :estimate="$card->estimate" />
 
-    <div class="flex flex-wrap items-center gap-x-8 gap-y-6 px-6 py-7">
+    <div class="flex flex-wrap items-center gap-x-8 gap-y-6 px-5 py-6 sm:px-6 sm:py-7">
         <div class="flex min-w-[15rem] flex-[1.1] items-center gap-4">
             <x-company-logo
                 :company="$card->company"
@@ -49,7 +49,7 @@
             />
 
             <div class="min-w-0 flex-1">
-                <h3 class="truncate text-xl font-extrabold leading-tight text-slate-900">{{ $card->contractName }}</h3>
+                <h3 class="line-clamp-2 text-xl font-extrabold leading-tight text-slate-900 sm:line-clamp-1">{{ $card->contractName }}</h3>
                 <p class="mt-0.5 flex flex-wrap gap-x-2 text-sm leading-snug text-slate-500">
                     @foreach ($card->metaParts as $part)
                         @if (! $loop->first)
@@ -67,24 +67,29 @@
             @php
                 [$monthlyInt, $monthlyDec] = explode(',', number_format($card->monthlyCost, 1, ',', ' '), 2);
             @endphp
-            <div class="flex w-full items-center justify-between gap-4 sm:ml-auto sm:w-auto sm:justify-end sm:border-l sm:border-dashed sm:border-slate-300 sm:pl-6">
+            {{-- Same responsive shape as the standard card: a full-width total row under a
+                 dashed rule on a phone, a right-aligned column beside the CTA from sm up. See
+                 contract-card.blade.php for why. --}}
+            <div class="flex w-full items-center gap-4 border-t border-dashed border-slate-300 pt-4 sm:ml-auto sm:w-auto sm:justify-end sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0">
                 {{-- The decimal is de-emphasised by SIZE, not by a paler coral. coral-400 on
                      white is 2.16:1 and fails even the 3:1 large-text bar; coral-600 passes at
                      3.99:1 and the size step already carries the hierarchy. --}}
-                <div class="text-right tabular-nums">
+                <div class="flex w-full flex-wrap items-baseline justify-between gap-x-4 tabular-nums sm:block sm:w-auto sm:text-right">
                     <div class="whitespace-nowrap font-extrabold leading-none text-coral-600">
                         <span class="text-[2.4rem]">{{ $monthlyInt }}</span><span class="text-[1.5rem]">,{{ $monthlyDec }}</span><span class="ml-1 text-base font-semibold text-slate-500">€/kk</span>
                     </div>
-                    <p class="mt-1.5 text-sm text-slate-500">{{ number_format($card->totalCost, 0, ',', ' ') }} €/v</p>
-                    @if ($card->discountSavings !== null)
-                        <p class="mt-1 text-sm font-semibold text-emerald-700">
-                            <x-info-tip text="Säästö = tarjouksen tuoma alennus verrattuna saman sopimuksen normaalihintaan ensimmäisen vuoden aikana." trigger-class="text-emerald-700">Säästö</x-info-tip>
-                            {{ number_format($card->discountSavings, 0, ',', ' ') }} €/v
-                        </p>
-                        @if ($card->baseTotalCost !== null)
-                            <p class="mt-0.5 text-sm text-slate-500">ilman tarjousta {{ number_format($card->baseTotalCost, 0, ',', ' ') }} €/v</p>
+                    <div class="text-right sm:mt-1.5">
+                        <p class="text-sm text-slate-500">{{ number_format($card->totalCost, 0, ',', ' ') }} €/v</p>
+                        @if ($card->discountSavings !== null)
+                            <p class="mt-1 text-sm font-semibold text-emerald-700">
+                                <x-info-tip text="Säästö = tarjouksen tuoma alennus verrattuna saman sopimuksen normaalihintaan ensimmäisen vuoden aikana." trigger-class="text-emerald-700">Säästö</x-info-tip>
+                                {{ number_format($card->discountSavings, 0, ',', ' ') }} €/v
+                            </p>
+                            @if ($card->baseTotalCost !== null)
+                                <p class="mt-0.5 text-sm text-slate-500">ilman tarjousta {{ number_format($card->baseTotalCost, 0, ',', ' ') }} €/v</p>
+                            @endif
                         @endif
-                    @endif
+                    </div>
                 </div>
 
                 <a

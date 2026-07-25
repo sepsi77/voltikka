@@ -12,6 +12,12 @@
     only here and only as tints.
 
     Copy comes from App\Services\ContractCard\ContractCardCopy. Never inline a sentence here.
+
+    The row must NOT wrap. It used to be `flex-wrap` with `ml-auto` on the Arvio chip, so on a
+    phone the label filled line one and the chip dropped onto a line of its own, right-aligned
+    against empty space: it read as a stray button rather than as a marker on the price. The
+    label text is the only flexible item now (`min-w-0 flex-1`); it wraps inside its own column
+    while the icon and the chip keep their place.
 --}}
 @php
     // The hairline gives every band a defined bottom edge. Without it the tints sit only
@@ -23,7 +29,7 @@
         default => 'bg-slate-100 text-slate-700 border-slate-200',
     };
 @endphp
-<div class="flex flex-wrap items-center gap-x-2.5 gap-y-2 border-b px-6 py-3.5 text-sm {{ $tintClass }}">
+<div class="flex items-center gap-x-2.5 border-b px-5 py-3.5 text-sm sm:px-6 {{ $tintClass }}">
     <span class="flex-shrink-0" aria-hidden="true">
         @switch($band->icon)
             @case('wave')
@@ -37,7 +43,7 @@
         @endswitch
     </span>
 
-    <span class="min-w-0">
+    <span class="min-w-0 flex-1">
         <b class="font-bold">{{ $band->headline }}</b>
         @if ($band->detail)
             <span class="px-0.5 font-normal opacity-45" aria-hidden="true">·</span>
@@ -46,7 +52,7 @@
     </span>
 
     @if ($estimate)
-        <span class="ml-auto flex-shrink-0">
+        <span class="flex-shrink-0">
             <x-info-popover
                 label="Arvio"
                 :heading="$estimate->heading"

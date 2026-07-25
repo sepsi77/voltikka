@@ -130,6 +130,24 @@ always shows, because the card is greyed out and sorted last and the reason must
 - **The "Vihreä" label** (claimed green at 50 % renewable) and **the emissions left stripe**.
   Both became one footer tag stating the real figure.
 
+## Responsive shape
+
+`sm` (640 px) is the card's only breakpoint. Below it the card is one column: band, identity,
+receipt, then the price as a **full-width total row under a dashed rule** — the €/kk figure
+left, its qualifiers right-aligned and baseline-aligned with it — then the full-width CTA. From
+`sm` up the same dashed rule turns vertical and the price returns to a right-aligned column
+beside the inline CTA.
+
+Two rules that must not be reverted, because both produced visible defects on a phone:
+
+- **The band row must not wrap.** With `flex-wrap` and `ml-auto` on the Arvio chip, the label
+  filled line one and the chip landed alone on line two, right-aligned against empty space. The
+  label is the only flexible item (`min-w-0 flex-1`) and wraps inside its own column.
+- **The price block must be `w-full` below `sm`.** The stub row is `justify-between`, and the
+  inline CTA is `hidden sm:inline-flex`, so on a phone the row has a single child: without
+  `w-full` it shrinks to its content and sits as a narrow right-aligned island in the left half
+  of the card.
+
 ## Guardrails
 
 - **Never lazy-load a relation from the presenter.** Listing pages batch-load `company`,
