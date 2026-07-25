@@ -687,3 +687,49 @@ it runs late. Cheap announces the next quarter's price by the 15th of the preced
 43.5-44.3 EUR/MWh instead of 47.2. That residual is exactly what the deferred **per-company
 calibration** identifies — the reference period *and* the effective pricing date per seller, from
 observed resets. It is deliberately not guessed at in the estimator.
+
+## 2026-07-25 — Deployed to production with the flag OFF
+
+- Merged `market-reset-annualised-pricing` into `main`, deployment `d2cb065a` SUCCESS.
+- Verified in production: `canonical_pricing.reset_forward_shift.enabled` = **false**, `beta` = 1.0.
+  Production behaviour is unchanged. `/`, `/sahkosopimus`, `/sahkosopimus/kvartaalisahko`,
+  `/sahkosopimus/halvin-sahkosopimus` all HTTP 200.
+- Suite verified independently, not taken from the agent report: **1,209 passed / 3,778 assertions**
+  (pre-task baseline 1,173 / 3,617). No forbidden path touched.
+
+### Production `--resets` result at 5000 kWh, curve vintage 2026-07-24
+
+**38 reset lineages, 36 shifted, 2 fell back to hold flat. Mean delta +153 €, max +255 €. Every delta
+is positive**, which is the expected sign in July and a useful coherence check.
+
+Annual-equivalent energy prices now straddle the fully-fixed 12-month household median of
+10.48 c/kWh instead of sitting far below it: low end Korpela 8.22, Vaasan Perussähkö 8.83, Kokkolan
+Vuodenaika 8.89; high end Keravan 15.04, Fortum Kesto 14.75. Some resets are genuinely cheaper than
+fixed and some are genuinely dearer, which is the outcome a correct estimate should produce.
+
+Reading caveat: `Vattenfall Yrityksen Kesto` (15.88) and the Fortum business products are ex-VAT
+business contracts and must not be compared against the VAT-inclusive household median.
+
+The two hold-flat fallbacks are `Fortum Yritys Spot Portfolio` and
+`Paneliankosken Kosken käyttöWoima` — no reference resolved (`none @ none`), so they keep today's
+behaviour. Both were already on the list as suspicious monthly-reset interpretations, so the safe
+fallback is the correct outcome here.
+
+`forward_month_from_quarter_contract` is flagged on all 36 shifted lineages: from 2027-02 onward no
+month contract exists, so the month→quarter→year ladder uses quarters. Expected, not a defect.
+
+### Residual bias is conservative, which is the right direction
+
+The pricing vintage is a slightly **late** proxy for the real pricing date. Cheap and Helen both
+publish by the 15th of the preceding month, and a mid-June read of Q3 would have been about
+43.5-44.3 rather than the 47.2 EUR/MWh actually used. A reference that is too high makes the implied
+margin too low, so the annual estimates are mildly **understated** — roughly 20 €/yr — not overstated.
+For a public ranking of named companies that is the safer direction to err.
+
+### The flip is deliberately left to the user
+
+Flipping `RESET_FORWARD_SHIFT_ENABLED` changes what Voltikka publishes about named companies and will
+substantially demote these 36 contracts. It is one env var and it is reversible. The remaining
+judgement is that `beta = 1.0` is measured-supported only for the monthly cadence (0.90 with R² 0.99,
+and 1.01); the 27 quarterly lineages use it as a principled prior until the 1 October resets allow
+calibration.
