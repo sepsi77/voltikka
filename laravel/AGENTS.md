@@ -61,6 +61,7 @@ Important semantics:
 - unchanged payloads update `last_observed_at`; meaningful source changes create a new immutable snapshot
 - each import refreshes existing relational contract fields from the current API payload without changing the local contract ID or replacement link
 - same-day price components are replaced from the complete current payload, so corrected, removed, and new components do not leave stale rows; source snapshots retain each complete payload version
+- before same-day `upsert()`, source components that resolve to the same relational key are collapsed deterministically: keep the first positive-price row, or the first row if none is positive. This prevents null-UUID duplicate placeholders from overwriting real prices while preserving valid zero-only package components
 - postcode and DSO relationships for fetched contracts are replaced from the current payload instead of remaining additive
 - optional legacy short/long descriptions are refreshed only when the API includes those keys; omission does not erase them
 - `contract_interpretations` stores strict output, validation errors, schema/prompt/validator provenance, usage, execution state, and the complete initial/correction call history; validator version participates in idempotency so stricter rules cause reanalysis

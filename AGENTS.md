@@ -150,6 +150,7 @@ php artisan test --filter="ContractsFilterTest"
 - Valid latest interpretations automatically publish compatible classifications and current canonical pricing JSON to `electricity_contracts`; invalid or stale results do not publish
 - New contracts stay inactive until first validation; changed prices for interpreted contracts wait for the new version before relational publication
 - Versioned interpretation JSON is the validated pricing history
+- Relational price imports resolve duplicate null-UUID component-key collisions before upsert, so zero consumption-effect placeholders cannot overwrite a real energy price
 - Command: `php artisan contracts:interpret`
 
 ### Canonical phase-aware pricing (deceptive-pricing fix)

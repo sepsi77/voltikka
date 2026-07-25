@@ -8,6 +8,7 @@ use App\Models\ContractInterpretation;
 use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
+use App\Services\ContractInterpretation\CanonicalPriceComponentWriter;
 use App\Services\ContractInterpretation\ContractInterpretationDispatcher;
 use App\Services\ContractInterpretation\ContractInterpretationInputBuilder;
 use App\Services\ContractInterpretation\ContractInterpretationPublisher;
@@ -791,6 +792,90 @@ class ContractInterpretationPipelineTest extends TestCase
             '$.classification.primary_pricing_model must retain source Hybrid when no explicit contrary evidence exists.',
             app(ContractInterpretationValidator::class)->validate($output, $input),
         );
+    }
+
+    public function test_price_component_writer_prefers_first_positive_row_for_a_storage_key_collision(): void
+    {
+        $snapshot = $this->createSnapshot();
+        $payload = $snapshot->source_payload;
+        $payload['Details']['Pricing'] = [
+            'ElectricitySupplyProductId' => 'api-contract-1',
+            'PriceComponents' => [
+                [
+                    'Id' => '00000000-0000-0000-0000-000000000000',
+                    'PriceComponentType' => 'General',
+                    'FuseSize' => null,
+                    'OriginalPayment' => ['Price' => 0, 'PaymentUnit' => 'CentPerKiwattHour'],
+                ],
+                [
+                    'Id' => '00000000-0000-0000-0000-000000000000',
+                    'PriceComponentType' => 'General',
+                    'FuseSize' => null,
+                    'OriginalPayment' => ['Price' => 6.6, 'PaymentUnit' => 'CentPerKiwattHour'],
+                ],
+            ],
+        ];
+
+        $written = app(CanonicalPriceComponentWriter::class)->write([$payload], '2026-07-23');
+
+        $this->assertSame(1, $written);
+        $component = PriceComponent::sole();
+        $this->assertSame(md5('contract-1:General:null'), $component->id);
+        $this->assertSame('2026-07-23', $component->price_date->toDateString());
+        $this->assertSame('contract-1', $component->electricity_contract_id);
+        $this->assertSame('General', $component->price_component_type);
+        $this->assertSame(6.6, $component->price);
+    }
+
+    public function test_price_component_writer_safely_replaces_a_date_with_colliding_rows(): void
+    {
+        $snapshot = $this->createSnapshot();
+        $payload = $snapshot->source_payload;
+        $payload['Details']['Pricing'] = [
+            'ElectricitySupplyProductId' => 'api-contract-1',
+            'PriceComponents' => [
+                [
+                    'Id' => '00000000-0000-0000-0000-000000000000',
+                    'PriceComponentType' => 'General',
+                    'FuseSize' => null,
+                    'OriginalPayment' => ['Price' => 5.5, 'PaymentUnit' => 'CentPerKiwattHour'],
+                ],
+                [
+                    'Id' => '00000000-0000-0000-0000-000000000000',
+                    'PriceComponentType' => 'Monthly',
+                    'FuseSize' => null,
+                    'OriginalPayment' => ['Price' => 4.9, 'PaymentUnit' => 'EurPerMonth'],
+                ],
+            ],
+        ];
+        $writer = app(CanonicalPriceComponentWriter::class);
+        $this->assertSame(2, $writer->write([$payload], '2026-07-23'));
+
+        $payload['Details']['Pricing']['PriceComponents'] = [
+            [
+                'Id' => '00000000-0000-0000-0000-000000000000',
+                'PriceComponentType' => 'General',
+                'FuseSize' => null,
+                'OriginalPayment' => ['Price' => 6.6, 'PaymentUnit' => 'CentPerKiwattHour'],
+            ],
+            [
+                'Id' => '00000000-0000-0000-0000-000000000000',
+                'PriceComponentType' => 'General',
+                'FuseSize' => null,
+                'OriginalPayment' => ['Price' => 0, 'PaymentUnit' => 'CentPerKiwattHour'],
+            ],
+        ];
+
+        $written = $writer->write([$payload], '2026-07-23');
+
+        $this->assertSame(1, $written);
+        $rows = PriceComponent::query()
+            ->where('electricity_contract_id', 'contract-1')
+            ->whereDate('price_date', '2026-07-23')
+            ->get();
+        $this->assertCount(1, $rows);
+        $this->assertSame('General', $rows->sole()->price_component_type);
+        $this->assertSame(6.6, $rows->sole()->price);
     }
 
     public function test_successful_job_automatically_publishes_canonical_classification(): void

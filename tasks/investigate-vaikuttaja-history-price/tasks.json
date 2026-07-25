@@ -1,0 +1,10 @@
+{
+  "tasks": [
+    {"name": "Trace current and historical energy price calculations", "status": "completed"},
+    {"name": "Inspect relevant production contract and price records", "status": "completed"},
+    {"name": "Document root cause and recommended fix", "status": "completed"},
+    {"name": "Implement deterministic component collision resolution", "status": "completed"},
+    {"name": "Add focused regression tests", "status": "completed"},
+    {"name": "Update local implementation documentation", "status": "completed"}
+  ]
+}

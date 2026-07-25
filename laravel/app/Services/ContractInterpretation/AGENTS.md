@@ -21,6 +21,7 @@ Primary services:
 - `ContractInterpretationDispatcher` creates one interpretation per analysis fingerprint and dispatches the job after commit.
 - `ContractInterpretationPublisher` automatically publishes valid compatible classifications and current canonical pricing JSON.
 - `CanonicalPriceComponentWriter` writes relational source components only after the relevant source version is safe to expose.
+- The API can return multiple null-UUID components with the same type and fuse size. These rows generate the same relational `(id, price_date)` key. The writer must collapse each collision before `upsert()`: keep the first positive-price row, or the first row when none is positive. This restores the old importer's effective behavior, prevents a later zero consumption-effect placeholder from overwriting a real energy price, and preserves valid all-zero package components. Do not use source array order to select the last row.
 
 Configuration and assets:
 

@@ -32,7 +32,7 @@ class CanonicalPriceComponentWriter
             ->where('price_date', $date)
             ->delete();
 
-        $rows = [];
+        $rowsByStorageKey = [];
         foreach ($sourcePayloads as $sourcePayload) {
             $sourcePayload = $this->trimStrings($sourcePayload);
             $pricing = $sourcePayload['Details']['Pricing'] ?? [];
@@ -43,9 +43,21 @@ class CanonicalPriceComponentWriter
             }
 
             foreach ($pricing['PriceComponents'] ?? [] as $component) {
-                $rows[] = $this->mapComponent($this->trimStrings($component), $contractId, $date);
+                $row = $this->mapComponent($this->trimStrings($component), $contractId, $date);
+                $storageKey = $row['id'].'|'.$row['price_date'];
+                $selected = $rowsByStorageKey[$storageKey] ?? null;
+
+                // The API can return multiple null-UUID components with the
+                // same type and fuse size. They resolve to one relational key,
+                // so select deterministically before upsert instead of letting
+                // the last source row overwrite the first one.
+                if ($selected === null || $this->preferCandidate($selected, $row)) {
+                    $rowsByStorageKey[$storageKey] = $row;
+                }
             }
         }
+
+        $rows = array_values($rowsByStorageKey);
 
         foreach (array_chunk($rows, 500) as $chunk) {
             PriceComponent::upsert(
@@ -69,6 +81,20 @@ class CanonicalPriceComponentWriter
         }
 
         return count($rows);
+    }
+
+    /**
+     * Prefer the first positive row. If no row is positive, keep the first row.
+     *
+     * This matches the relational calculation model, which can represent only
+     * one component for each generated storage key and prefers positive prices.
+     *
+     * @param  array<string, mixed>  $selected
+     * @param  array<string, mixed>  $candidate
+     */
+    private function preferCandidate(array $selected, array $candidate): bool
+    {
+        return (float) $selected['price'] <= 0 && (float) $candidate['price'] > 0;
     }
 
     /**

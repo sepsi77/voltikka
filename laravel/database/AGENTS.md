@@ -45,4 +45,6 @@ Important semantics:
 
 `contracts:fetch` deletes the fetched contracts' rows for the current import date and inserts/upserts the complete current component set. This removes stale same-day components when an upstream component disappears or gets a new ID. Complete before/after payloads remain available through source snapshots.
 
+The upstream API can return multiple null-UUID components that generate the same `(id, price_date)` key. `CanonicalPriceComponentWriter` must collapse those rows before `upsert()`: keep the first positive-price row, or the first row when all values are zero. Never let the final source row win implicitly through duplicate-key update order.
+
 Keep `price_components_latest_calc_idx` on `(electricity_contract_id, price_component_type, price_date)` in place. It supports the large `WHERE electricity_contract_id IN (...)` bulk lookup without eager-loading full price history on listing/cache rebuilds. The `CASE WHEN price > 0` ordering expression is still computed by MySQL, but this composite index gives the optimizer the correct filtering and partition locality.
