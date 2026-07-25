@@ -461,3 +461,55 @@ The premium backfill landed (1,909 rows, 2026-01-21..2026-07-25), but the reset 
 Best current estimate: `beta` near **1.0** against a month reference, from two clean steps at one
 company (Pohjois-Karjalan Sähkö, pass-through 1.08 and 0.85, premium sd 0.70 c/kWh). Not shippable.
 Do not enable `CANONICAL_PRICING`-side reset changes on this basis.
+
+## 2026-07-25 — Measured beta after the v2 fixes: near 1.0 on a MONTH reference
+
+Deployed the RetailPremium v2 fixes and re-collected production (v2 rows sit beside v1; both are
+diffable). Identification re-run on `retail-premium-history-v2`, market-reset population, using the
+newly stored VAT-consistent reference prices.
+
+Only 14 reset rows carry a curve reference (10 unknown VAT, 4 included), giving **3 multi-period
+series**. Two companies now have enough steps to estimate pass-through, against one before:
+
+| Company | Reference | Pairs | beta | R^2 |
+|---|---|---|---|---|
+| Pohjois-Karjalan Sähkö | month | 2 | **0.90** | **0.99** |
+| Kokkolan Energia | month | 3 | **1.01** | 0.66 |
+| pooled | month | 6 | 0.53 | 0.25 |
+
+The pooled figure is lower than either company because the through-origin fit weights by `dF^2` and a
+third series with poor pass-through dominates it. With n=6 pairs the pooled number is not meaningful;
+the per-company fits are the informative ones.
+
+**Robustness to the VAT scale ambiguity.** Because most reset rows still have `vat_basis = unknown`,
+`beta` is ambiguous by the 1.255 VAT factor. Tested both assumptions: Pohjois-Karjalan is unchanged at
+0.90 (its rows carry a known basis), Kokkolan moves 1.01 → 1.27. Both stay consistent with
+`beta` at or slightly below 1.0.
+
+### This reverses my earlier "conservative quarter anchor" decision
+
+The measured evidence says monthly resets **do** track the front month nearly fully — 0.90 with
+R^2 0.99 for Pohjois-Karjalan. Earlier in this file I chose the quarter strip as a conservative
+provisional anchor, reasoning from the implausibility of the resulting annual figures. That reasoning
+was already flagged as invalid (fitting a parameter to a desired output); the data now contradicts its
+conclusion too. **For monthly cadences, prefer a month reference with `beta` near 1.0.** The original
+"beta stays at 1.0 until measured" prior was right.
+
+### Still blocked for quarterly cadences, which are the majority
+
+There are **zero direct `quarter` reference rows**, because production vintages sit inside the
+delivery quarter and EEX stops publishing a quarter once delivery starts. The v2 fix adds a
+`quarter_month_average` candidate (day-weighted average of the quarter's three month contracts),
+deliberately kept as a separate candidate so the directly observed settlement stays clean.
+
+Coverage: 32 `quarter_month_average` rows across 24 quarterly lineages on the forward collector, but
+only 3 on the history collector, and none of those form a multi-period series. So the
+month-versus-quarter question is **not yet testable** — each quarterly lineage currently has one
+period. It becomes testable after the **1 October 2026** quarterly resets give a second period.
+
+### Practical consequence
+
+`beta = 1.0` with a month reference is now defensible for monthly-cadence resets on two companies'
+evidence. It is NOT yet defensible for quarterly cadences, which are 22 of 32 reset lineages. Do not
+enable the reset pricing change for quarterly products before the October resets. A monthly-only
+first rollout is possible but covers a minority of the population, so waiting is probably better.

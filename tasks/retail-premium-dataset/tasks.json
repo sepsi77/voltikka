@@ -1,32 +1,134 @@
 [
-  {"name":"Confirm what already exists (result: contract_price_daily_statistics stores spot_margin as market aggregate only, 58 contracts collapsed)", "status":"completed"},
-  {"name":"Read tasks/market-reset-annualised-pricing/decisions.md first: it holds the measurements, the retracted findings, and the reference/beta evidence", "status":"completed"},
-  {"name":"Add the lineage price-history helper (replacement-chain ancestors ordered by price_date) - owned by THIS task", "status":"completed"},
-  {"name":"Design and migrate the retail premium observation table (one row per lineage + price period, immutable by default, method version per row)", "status":"completed"},
-  {"name":"Spot case first: per-contract disclosed spot_margin, needs no futures curve", "status":"completed"},
-  {"name":"Fixed-term case: reuse FixedTermHedgeCostService::calculate(asOf, duration) as-is, do NOT refactor it", "status":"completed"},
-  {"name":"Add a single-delivery-period reference lookup at a given vintage (the only new curve code) - owned by THIS task", "status":"completed"},
-  {"name":"Market-reset case: price minus month/quarter reference at the pre-period vintage", "status":"completed"},
-  {"name":"Store premium against every candidate reference (month/quarter/year/strip), not just one", "status":"completed"},
-  {"name":"Flag Hybrid contracts as not_comparable and exclude them from premium aggregates", "status":"completed"},
-  {"name":"Add fee-inclusive premium at a stated reference consumption, plus explicit VAT basis per row", "status":"completed"},
-  {"name":"Cross-check per-company premiums against the market-level EWMA premium in FixedTermPriceForecastService", "status":"completed"},
-  {"name":"Add a daily scheduled collector command with --overwrite protection", "status":"completed"},
-  {"name":"Write AGENTS.md for the new service directory and add a pointer in app/Services/AGENTS.md", "status":"completed"},
-  {"name":"Verify deployment (result: table exists, 0 rows, first scheduled run 07:15 next morning; collector is active-scoped so history is not captured)", "status":"completed"},
-  {"name":"BACKFILL: reconstruct historical semantic price periods from inactive lineage relational price_components with --include-inactive", "status":"completed"},
-  {"name":"BACKFILL: Spot history first - disclosed spot_margin needs no curve, recoverable back to 2026-01-21", "status":"completed"},
-  {"name":"BACKFILL: deploy and populate production through 2026-07-25 (1,388 historical rows plus 521 current rows)", "status":"completed"},
-  {"name":"Run the reference/beta identification on the backfilled data (result: only 9 usable reset rows, 1 usable lineage; three data issues found)", "status":"completed"},
-  {"name":"FIX 1: collapse duplicate price periods where the price is unchanged (cause: the import missed 2026-02-12 and the old rule always split on a missing day; now bridged unless the lineage was absent from a running import)", "status":"completed"},
-  {"name":"FIX 3: store a quarter reference for quarterly resets (plain quarter lookup kept as the primary path; added quarter_month_average for a vintage already inside delivery, which is what production hit)", "status":"completed"},
-  {"name":"FIX 2 (partial): vat_basis is now energy-component-only plus separate fee_vat_basis, within-contract propagation, and the wholesale reference is always stored so unknown-VAT rows stay usable for beta", "status":"completed"},
-  {"name":"FIX 2 (remaining, upstream): 308 of 431 interpreted contracts carry no VAT evidence at all; the source payload has no VAT field and system-prompt-v17 never asks about VAT. Needs a ContractInterpretation prompt change plus reinterpretation, not a RetailPremium change", "status":"pending"},
-  {"name":"Investigate the secondary case: price identical but price_signature differs (result: it is the retail-premium-history/retail-premium method-version seam, not a changing field; now flagged continues_prior_history_period)", "status":"completed"},
-  {"name":"Bump method versions to retail-premium-v2 / retail-premium-history-v2, run the production migration, and re-collect so old and new rows can be diffed side by side", "status":"pending"},
-  {"name":"HANDOFF: re-run the identification after the three fixes and report reference/beta to the market-reset task", "status":"pending"},
-  {"name":"Add company-level aggregation views once a few months of observations exist", "status":"pending"},
-  {"name":"LATER: pass-through asymmetry analysis (speed of increases vs decreases)", "status":"pending"},
-  {"name":"LATER: combine premium with deceptive-pricing detection into a seller value profile", "status":"pending"},
-  {"name":"LATER: public page, only after a full heating season and a copy review of the naming risk", "status":"pending"}
+  {
+    "name": "Confirm what already exists (result: contract_price_daily_statistics stores spot_margin as market aggregate only, 58 contracts collapsed)",
+    "status": "completed"
+  },
+  {
+    "name": "Read tasks/market-reset-annualised-pricing/decisions.md first: it holds the measurements, the retracted findings, and the reference/beta evidence",
+    "status": "completed"
+  },
+  {
+    "name": "Add the lineage price-history helper (replacement-chain ancestors ordered by price_date) - owned by THIS task",
+    "status": "completed"
+  },
+  {
+    "name": "Design and migrate the retail premium observation table (one row per lineage + price period, immutable by default, method version per row)",
+    "status": "completed"
+  },
+  {
+    "name": "Spot case first: per-contract disclosed spot_margin, needs no futures curve",
+    "status": "completed"
+  },
+  {
+    "name": "Fixed-term case: reuse FixedTermHedgeCostService::calculate(asOf, duration) as-is, do NOT refactor it",
+    "status": "completed"
+  },
+  {
+    "name": "Add a single-delivery-period reference lookup at a given vintage (the only new curve code) - owned by THIS task",
+    "status": "completed"
+  },
+  {
+    "name": "Market-reset case: price minus month/quarter reference at the pre-period vintage",
+    "status": "completed"
+  },
+  {
+    "name": "Store premium against every candidate reference (month/quarter/year/strip), not just one",
+    "status": "completed"
+  },
+  {
+    "name": "Flag Hybrid contracts as not_comparable and exclude them from premium aggregates",
+    "status": "completed"
+  },
+  {
+    "name": "Add fee-inclusive premium at a stated reference consumption, plus explicit VAT basis per row",
+    "status": "completed"
+  },
+  {
+    "name": "Cross-check per-company premiums against the market-level EWMA premium in FixedTermPriceForecastService",
+    "status": "completed"
+  },
+  {
+    "name": "Add a daily scheduled collector command with --overwrite protection",
+    "status": "completed"
+  },
+  {
+    "name": "Write AGENTS.md for the new service directory and add a pointer in app/Services/AGENTS.md",
+    "status": "completed"
+  },
+  {
+    "name": "Verify deployment (result: table exists, 0 rows, first scheduled run 07:15 next morning; collector is active-scoped so history is not captured)",
+    "status": "completed"
+  },
+  {
+    "name": "BACKFILL: reconstruct historical semantic price periods from inactive lineage relational price_components with --include-inactive",
+    "status": "completed"
+  },
+  {
+    "name": "BACKFILL: Spot history first - disclosed spot_margin needs no curve, recoverable back to 2026-01-21",
+    "status": "completed"
+  },
+  {
+    "name": "BACKFILL: deploy and populate production through 2026-07-25 (1,388 historical rows plus 521 current rows)",
+    "status": "completed"
+  },
+  {
+    "name": "Run the reference/beta identification on the backfilled data (result: only 9 usable reset rows, 1 usable lineage; three data issues found)",
+    "status": "completed"
+  },
+  {
+    "name": "FIX 1: collapse duplicate price periods where the price is unchanged (cause: the import missed 2026-02-12 and the old rule always split on a missing day; now bridged unless the lineage was absent from a running import)",
+    "status": "completed"
+  },
+  {
+    "name": "FIX 3: store a quarter reference for quarterly resets (plain quarter lookup kept as the primary path; added quarter_month_average for a vintage already inside delivery, which is what production hit)",
+    "status": "completed"
+  },
+  {
+    "name": "FIX 2 (partial): vat_basis is now energy-component-only plus separate fee_vat_basis, within-contract propagation, and the wholesale reference is always stored so unknown-VAT rows stay usable for beta",
+    "status": "completed"
+  },
+  {
+    "name": "FIX 2 (remaining, upstream): 308 of 431 interpreted contracts carry no VAT evidence at all; the source payload has no VAT field and system-prompt-v17 never asks about VAT. Needs a ContractInterpretation prompt change plus reinterpretation, not a RetailPremium change",
+    "status": "pending"
+  },
+  {
+    "name": "Investigate the secondary case: price identical but price_signature differs (result: it is the retail-premium-history/retail-premium method-version seam, not a changing field; now flagged continues_prior_history_period)",
+    "status": "completed"
+  },
+  {
+    "name": "Bump method versions to retail-premium-v2 / retail-premium-history-v2, run the production migration, and re-collect so old and new rows can be diffed side by side",
+    "status": "completed"
+  },
+  {
+    "name": "HANDOFF: re-run the identification after the three fixes and report reference/beta to the market-reset task",
+    "status": "completed"
+  },
+  {
+    "name": "VERIFIED on production: fix 1 confirmed (same-signature duplicate pairs 101 -> 0); fix 3 gives 32 quarter_month_average rows across 24 quarterly lineages but still zero direct quarter rows; fix 2 leaves reset VAT mostly unknown as expected",
+    "status": "completed"
+  },
+  {
+    "name": "Re-run the month-versus-quarter comparison after the 1 October 2026 quarterly resets give each quarterly lineage a second period",
+    "status": "pending"
+  },
+  {
+    "name": "Understand why pooled beta (0.53) is far below both per-company fits (0.90, 1.01) - a third series with poor pass-through dominates the dF^2 weighting",
+    "status": "pending"
+  },
+  {
+    "name": "Add company-level aggregation views once a few months of observations exist",
+    "status": "pending"
+  },
+  {
+    "name": "LATER: pass-through asymmetry analysis (speed of increases vs decreases)",
+    "status": "pending"
+  },
+  {
+    "name": "LATER: combine premium with deceptive-pricing detection into a seller value profile",
+    "status": "pending"
+  },
+  {
+    "name": "LATER: public page, only after a full heating season and a copy review of the naming risk",
+    "status": "pending"
+  }
 ]
