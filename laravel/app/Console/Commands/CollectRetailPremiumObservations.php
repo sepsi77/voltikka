@@ -110,6 +110,7 @@ class CollectRetailPremiumObservations extends Command
             foreach ($service->buildObservations($contract, $asOf) as $observation) {
                 $built++;
                 $observation = $this->reuseOpenPricePeriodIdentity($observation);
+                $observation = $this->flagPriorHistoryContinuation($observation);
                 $premium = $observation['retail_premium_cents_per_kwh'] === null
                     ? 'n/a'
                     : sprintf('%+.4f c/kWh', $observation['retail_premium_cents_per_kwh']);
@@ -346,5 +347,64 @@ class CollectRetailPremiumObservations extends Command
         }
 
         return $observation;
+    }
+
+    /**
+     * Mark the seam where a forward period continues a reconstructed history period.
+     *
+     * Reconstructed history and canonical forward observations use separate method versions, so
+     * they can never merge into one row. Without this flag the seam looks like a new price period
+     * at an unchanged price, which reads as zero pass-through in a beta analysis.
+     *
+     * @param  array<string, mixed>  $observation
+     * @return array<string, mixed>
+     */
+    private function flagPriorHistoryContinuation(array $observation): array
+    {
+        $previous = RetailPremiumObservation::query()
+            ->where('lineage_key', $observation['lineage_key'])
+            ->where('energy_component_type', $observation['energy_component_type'])
+            ->where('reference_kind', $observation['reference_kind'])
+            ->where('method_version', RetailPremiumHistoryBackfillService::METHOD_VERSION)
+            ->whereDate('last_observed_date', CarbonImmutable::parse($observation['first_observed_date'])->subDay())
+            ->orderByDesc('id')
+            ->first();
+
+        if ($previous === null) {
+            return $observation;
+        }
+
+        $samePrice = $this->sameValue(
+            $previous->retail_energy_price_cents_per_kwh,
+            $observation['retail_energy_price_cents_per_kwh'],
+        ) && $this->sameValue(
+            $previous->retail_premium_cents_per_kwh,
+            $observation['retail_premium_cents_per_kwh'],
+        ) && $this->sameValue($previous->monthly_fee_eur, $observation['monthly_fee_eur']);
+
+        if (! $samePrice) {
+            return $observation;
+        }
+
+        $observation['quality_flags'] = collect($observation['quality_flags'] ?? [])
+            ->push('continues_prior_history_period')
+            ->unique()
+            ->values()
+            ->all();
+        $observation['source_metadata'] = ($observation['source_metadata'] ?? []) + [
+            'continued_history_observation_key' => $previous->observation_key,
+            'continued_history_last_observed_date' => $previous->last_observed_date->toDateString(),
+        ];
+
+        return $observation;
+    }
+
+    private function sameValue(mixed $stored, mixed $incoming): bool
+    {
+        if ($stored === null || $incoming === null) {
+            return $stored === null && $incoming === null;
+        }
+
+        return abs((float) $stored - (float) $incoming) < 0.0001;
     }
 }

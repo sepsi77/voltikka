@@ -48,6 +48,141 @@ class InferredRetailPremiumCollectionTest extends TestCase
         $this->assertTrue($observations->every(fn (RetailPremiumObservation $row) => $row->quality === 'inferred'));
     }
 
+    public function test_quarterly_reset_stores_a_quarter_reference_at_a_pre_period_vintage(): void
+    {
+        config()->set('price_forecasting.fixed_term.vat_multiplier', 1.255);
+        $this->future('month', '202607', '2026-06-30', 40.0);
+        $this->future('quarter', '202607', '2026-06-30', 50.0);
+        $this->contract(
+            id: 'quarterly-reset',
+            pricingModel: 'FixedPrice',
+            contractType: 'OpenEnded',
+            price: 9.00,
+            monthlyFee: 4.00,
+            firstObserved: '2026-07-01',
+            cadence: 'quarterly',
+        );
+
+        $this->artisan('retail-premiums:collect')->assertExitCode(0);
+
+        $quarter = RetailPremiumObservation::query()->where('reference_kind', 'quarter')->sole();
+        $this->assertSame('quarterly', $quarter->cadence);
+        $this->assertSame('2026-06-30', $quarter->reference_trade_date->toDateString());
+        $this->assertEqualsWithDelta(6.275, $quarter->reference_price_cents_per_kwh, 0.0001);
+        $this->assertEqualsWithDelta(2.725, $quarter->retail_premium_cents_per_kwh, 0.0001);
+        $this->assertEqualsWithDelta(5.0, $quarter->reference_price_excluding_vat_cents_per_kwh, 0.0001);
+        $this->assertEqualsWithDelta(50.0, $quarter->reference_settlement_price_eur_per_mwh, 0.0001);
+        $this->assertNotContains('vintage_inside_delivery_period', $quarter->quality_flags);
+    }
+
+    public function test_quarterly_reset_inside_delivery_derives_a_quarter_from_month_futures(): void
+    {
+        config()->set('price_forecasting.fixed_term.vat_multiplier', 1.255);
+        $this->future('month', '202604', '2026-05-12', 30.0);
+        $this->future('month', '202605', '2026-05-12', 40.0);
+        $this->future('month', '202606', '2026-05-12', 50.0);
+        $this->contract(
+            id: 'mid-quarter-reset',
+            pricingModel: 'FixedPrice',
+            contractType: 'OpenEnded',
+            price: 9.00,
+            monthlyFee: 4.00,
+            firstObserved: '2026-05-13',
+            cadence: 'quarterly',
+        );
+
+        $this->artisan('retail-premiums:collect')->assertExitCode(0);
+
+        $derived = RetailPremiumObservation::query()->where('reference_kind', 'quarter_month_average')->sole();
+        $expected = (30 * 30.0 + 31 * 40.0 + 30 * 50.0) / 91 / 10.0 * 1.255;
+        $this->assertEqualsWithDelta($expected, $derived->reference_price_cents_per_kwh, 0.0001);
+        $this->assertEqualsWithDelta(9.00 - $expected, $derived->retail_premium_cents_per_kwh, 0.0001);
+        $this->assertContains('quarter_reference_derived_from_month_futures', $derived->quality_flags);
+        $this->assertContains('vintage_inside_delivery_period', $derived->quality_flags);
+        $this->assertSame(0, RetailPremiumObservation::query()->where('reference_kind', 'quarter')->count());
+    }
+
+    public function test_unknown_component_vat_is_resolved_from_the_same_contract_disclosure(): void
+    {
+        $this->future('month', '202607', '2026-06-30', 40.0);
+        $this->contract(
+            id: 'propagated-vat-reset',
+            pricingModel: 'FixedPrice',
+            contractType: 'OpenEnded',
+            price: 8.00,
+            monthlyFee: 5.00,
+            firstObserved: '2026-07-01',
+            cadence: 'monthly',
+            vatStatus: 'unknown',
+            feeVatStatus: 'included',
+        );
+
+        $this->artisan('retail-premiums:collect')->assertExitCode(0);
+
+        $observation = RetailPremiumObservation::query()->where('reference_kind', 'month')->sole();
+        $this->assertSame('included', $observation->vat_basis);
+        $this->assertSame('included', $observation->fee_vat_basis);
+        $this->assertSame('contract_propagated', $observation->vat_basis_source);
+        $this->assertContains('vat_basis_propagated_within_contract', $observation->quality_flags);
+        $this->assertNotContains('vat_unknown', $observation->quality_flags);
+        $this->assertEqualsWithDelta(2.98, $observation->retail_premium_cents_per_kwh, 0.0001);
+    }
+
+    public function test_unresolvable_vat_still_stores_the_wholesale_reference_as_evidence(): void
+    {
+        config()->set('price_forecasting.fixed_term.vat_multiplier', 1.255);
+        $this->future('month', '202607', '2026-06-30', 40.0);
+        $this->contract(
+            id: 'unknown-vat-reset',
+            pricingModel: 'FixedPrice',
+            contractType: 'OpenEnded',
+            price: 8.00,
+            monthlyFee: 5.00,
+            firstObserved: '2026-07-01',
+            cadence: 'monthly',
+            vatStatus: 'unknown',
+        );
+
+        $this->artisan('retail-premiums:collect')->assertExitCode(0);
+
+        $observation = RetailPremiumObservation::query()->where('reference_kind', 'month')->sole();
+        $this->assertSame('unknown', $observation->vat_basis);
+        $this->assertSame('unresolved', $observation->vat_basis_source);
+        $this->assertNull($observation->reference_price_cents_per_kwh);
+        $this->assertNull($observation->retail_premium_cents_per_kwh);
+        $this->assertEqualsWithDelta(8.00, $observation->retail_energy_price_cents_per_kwh, 0.0001);
+        $this->assertEqualsWithDelta(4.0, $observation->reference_price_excluding_vat_cents_per_kwh, 0.0001);
+        $this->assertEqualsWithDelta(5.02, $observation->reference_price_including_vat_cents_per_kwh, 0.0001);
+        $this->assertEqualsWithDelta(40.0, $observation->reference_settlement_price_eur_per_mwh, 0.0001);
+        $this->assertContains('vat_unknown', $observation->quality_flags);
+    }
+
+    public function test_a_fee_on_another_vat_basis_keeps_the_fee_inclusive_premium_null(): void
+    {
+        $this->future('month', '202607', '2026-06-30', 40.0);
+        $this->contract(
+            id: 'mismatched-fee-vat',
+            pricingModel: 'FixedPrice',
+            contractType: 'OpenEnded',
+            price: 8.00,
+            monthlyFee: 5.00,
+            firstObserved: '2026-07-01',
+            cadence: 'monthly',
+            vatStatus: 'included',
+            feeVatStatus: 'excluded',
+        );
+
+        $this->artisan('retail-premiums:collect')->assertExitCode(0);
+
+        $observation = RetailPremiumObservation::query()->where('reference_kind', 'month')->sole();
+        $this->assertSame('included', $observation->vat_basis);
+        $this->assertSame('excluded', $observation->fee_vat_basis);
+        $this->assertSame('component_explicit', $observation->vat_basis_source);
+        $this->assertEqualsWithDelta(2.98, $observation->retail_premium_cents_per_kwh, 0.0001);
+        $this->assertNull($observation->retail_premium_with_fee_cents_per_kwh);
+        $this->assertContains('fee_vat_basis_not_comparable', $observation->quality_flags);
+    }
+
     public function test_explicit_excluded_vat_basis_uses_the_vat_excluded_wholesale_reference(): void
     {
         $this->future('month', '202607', '2026-06-30', 40.0);
@@ -201,6 +336,7 @@ class InferredRetailPremiumCollectionTest extends TestCase
         string $cadence = 'none',
         ?int $durationMonths = null,
         string $vatStatus = 'included',
+        ?string $feeVatStatus = null,
     ): ElectricityContract {
         Company::firstOrCreate(['name' => 'Reference Energy']);
         $contract = ElectricityContract::create([
@@ -214,7 +350,7 @@ class InferredRetailPremiumCollectionTest extends TestCase
             'availability_is_national' => true,
         ]);
         ActiveContract::create(['id' => $id]);
-        $pricing = $this->pricing($price, $monthlyFee, $cadence, $vatStatus);
+        $pricing = $this->pricing($price, $monthlyFee, $cadence, $vatStatus, $feeVatStatus ?? $vatStatus);
         $snapshot = ContractSourceSnapshot::create([
             'contract_id' => $id,
             'source_fingerprint' => hash('sha256', $id.$price.$firstObserved),
@@ -251,8 +387,13 @@ class InferredRetailPremiumCollectionTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function pricing(float $price, float $monthlyFee, string $cadence, string $vatStatus): array
-    {
+    private function pricing(
+        float $price,
+        float $monthlyFee,
+        string $cadence,
+        string $vatStatus,
+        string $feeVatStatus,
+    ): array {
         return [
             'phases' => [[
                 'label' => 'Current price',
@@ -273,7 +414,7 @@ class InferredRetailPremiumCollectionTest extends TestCase
                     'amount' => $monthlyFee,
                     'normal_amount' => null,
                     'unit' => 'eur_per_month',
-                    'vat_status' => $vatStatus,
+                    'vat_status' => $feeVatStatus,
                     'price_role' => 'current',
                     'source_kind' => 'structured',
                     'evidence' => [],

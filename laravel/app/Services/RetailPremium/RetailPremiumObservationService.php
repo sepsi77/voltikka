@@ -9,7 +9,7 @@ use Illuminate\Support\Collection;
 
 class RetailPremiumObservationService
 {
-    public const METHOD_VERSION = 'retail-premium-v1';
+    public const METHOD_VERSION = 'retail-premium-v2';
 
     public const REFERENCE_CONSUMPTION_KWH = 5000;
 
@@ -109,7 +109,12 @@ class RetailPremiumObservationService
                     ->values();
                 $spotPremium = (float) $spotMargins->first()['amount'];
                 $monthlyFee = $monthlyFees->isEmpty() ? null : (float) $monthlyFees->first()['amount'];
-                $vatBasis = $this->vatBasis($spotMargins->concat($monthlyFees));
+                $disclosedVatBasis = $this->contractDisclosedVatBasis($pricing);
+                $energyVat = $this->resolveVatBasis($spotMargins->first(), $disclosedVatBasis);
+                $vatBasis = $energyVat['basis'];
+                $feeVatBasis = $monthlyFees->isEmpty()
+                    ? null
+                    : $this->resolveVatBasis($monthlyFees->first(), $disclosedVatBasis)['basis'];
                 $periodStart = $this->periodBoundary($phase['starts'] ?? null);
                 $periodEnd = $this->periodBoundary($phase['ends'] ?? null);
                 $cadence = $pricing['recurring_schedule']['cadence'] ?? null;
@@ -134,7 +139,7 @@ class RetailPremiumObservationService
                     $firstObserved->toDateString(),
                     (string) $interpretation->id,
                 ]));
-                $premiumWithFee = $monthlyFee === null
+                $premiumWithFee = $monthlyFee === null || $feeVatBasis !== $vatBasis
                     ? null
                     : $spotPremium + ($monthlyFee * 12 * 100 / self::REFERENCE_CONSUMPTION_KWH);
 
@@ -164,10 +169,15 @@ class RetailPremiumObservationService
                     'retail_energy_price_cents_per_kwh' => null,
                     'monthly_fee_eur' => $monthlyFee,
                     'vat_basis' => $vatBasis,
+                    'fee_vat_basis' => $feeVatBasis,
+                    'vat_basis_source' => $energyVat['source'],
                     'reference_consumption_kwh' => self::REFERENCE_CONSUMPTION_KWH,
                     'reference_kind' => 'spot_disclosed',
                     'reference_trade_date' => null,
                     'reference_price_cents_per_kwh' => null,
+                    'reference_price_including_vat_cents_per_kwh' => null,
+                    'reference_price_excluding_vat_cents_per_kwh' => null,
+                    'reference_settlement_price_eur_per_mwh' => null,
                     'retail_premium_cents_per_kwh' => $spotPremium,
                     'retail_premium_with_fee_cents_per_kwh' => $premiumWithFee,
                     'method_version' => self::METHOD_VERSION,
@@ -179,6 +189,8 @@ class RetailPremiumObservationService
                         $spotMargins,
                         $monthlyFees,
                         $vatBasis,
+                        $feeVatBasis,
+                        $energyVat['source'],
                         $spotPremium,
                     ),
                     'source_metadata' => [
@@ -204,7 +216,7 @@ class RetailPremiumObservationService
             return collect();
         }
 
-        $references = $this->referencePriceService->forDeliveryMonth(
+        $references = $this->referencePriceService->forResetPeriod(
             $context['first_observed'],
             $context['first_observed'],
         );
@@ -370,7 +382,12 @@ class RetailPremiumObservationService
                 $energyComponents,
             ) {
                 $retailPrice = (float) $energyComponent['amount'];
-                $vatBasis = $this->vatBasis(collect([$energyComponent])->concat($monthlyFees));
+                $disclosedVatBasis = $this->contractDisclosedVatBasis($pricing);
+                $energyVat = $this->resolveVatBasis($energyComponent, $disclosedVatBasis);
+                $vatBasis = $energyVat['basis'];
+                $feeVatBasis = $monthlyFees->isEmpty()
+                    ? null
+                    : $this->resolveVatBasis($monthlyFees->first(), $disclosedVatBasis)['basis'];
                 $priceSignature = hash('sha256', json_encode([
                     'phase_index' => $phaseIndex,
                     'phase_kind' => $phase['phase_kind'] ?? null,
@@ -403,6 +420,8 @@ class RetailPremiumObservationService
                     $periodEnd,
                     $retailPrice,
                     $vatBasis,
+                    $feeVatBasis,
+                    $energyVat,
                     $priceSignature,
                     $observationKey,
                 ) {
@@ -410,7 +429,7 @@ class RetailPremiumObservationService
                         ? null
                         : $this->referencePriceService->priceForVatBasis($reference, $vatBasis);
                     $premium = $referencePrice === null ? null : $retailPrice - $referencePrice;
-                    $premiumWithFee = $premium === null || $monthlyFee === null
+                    $premiumWithFee = $premium === null || $monthlyFee === null || $feeVatBasis !== $vatBasis
                         ? null
                         : $premium + ($monthlyFee * 12 * 100 / self::REFERENCE_CONSUMPTION_KWH);
 
@@ -440,10 +459,15 @@ class RetailPremiumObservationService
                         'retail_energy_price_cents_per_kwh' => $retailPrice,
                         'monthly_fee_eur' => $monthlyFee,
                         'vat_basis' => $vatBasis,
+                        'fee_vat_basis' => $feeVatBasis,
+                        'vat_basis_source' => $energyVat['source'],
                         'reference_consumption_kwh' => self::REFERENCE_CONSUMPTION_KWH,
                         'reference_kind' => $reference['reference_kind'],
                         'reference_trade_date' => $reference['trade_date'],
                         'reference_price_cents_per_kwh' => $referencePrice,
+                        'reference_price_including_vat_cents_per_kwh' => $reference['price_cents_per_kwh_including_vat'] ?? null,
+                        'reference_price_excluding_vat_cents_per_kwh' => $reference['price_cents_per_kwh_excluding_vat'] ?? null,
+                        'reference_settlement_price_eur_per_mwh' => $reference['settlement_price_eur_per_mwh'] ?? null,
                         'retail_premium_cents_per_kwh' => $premium,
                         'retail_premium_with_fee_cents_per_kwh' => $premiumWithFee,
                         'method_version' => self::METHOD_VERSION,
@@ -455,6 +479,8 @@ class RetailPremiumObservationService
                             $energyComponents,
                             $monthlyFees,
                             $vatBasis,
+                            $feeVatBasis,
+                            $energyVat['source'],
                             $reference,
                             $quality,
                         ),
@@ -489,10 +515,12 @@ class RetailPremiumObservationService
         Collection $energyComponents,
         Collection $monthlyFees,
         string $vatBasis,
+        ?string $feeVatBasis,
+        string $vatBasisSource,
         array $reference,
         string $quality,
     ): array {
-        $flags = collect();
+        $flags = collect($this->vatFlags($vatBasis, $feeVatBasis, $vatBasisSource));
 
         if ($monthlyFees->isEmpty()) {
             $flags->push('monthly_fee_missing');
@@ -508,14 +536,16 @@ class RetailPremiumObservationService
             $flags->push('zero_or_negative_retail_energy_price');
         }
 
-        if ($vatBasis === 'unknown') {
-            $flags->push('vat_unknown');
-        } elseif ($vatBasis === 'mixed') {
-            $flags->push('vat_mixed');
-        }
-
         if (($reference['reference_kind'] ?? null) === 'curve_unavailable') {
             $flags->push('reference_curve_unavailable');
+        }
+
+        if (($reference['metadata']['vintage_inside_delivery_period'] ?? false) === true) {
+            $flags->push('vintage_inside_delivery_period');
+        }
+
+        if (($reference['reference_kind'] ?? null) === 'quarter_month_average') {
+            $flags->push('quarter_reference_derived_from_month_futures');
         }
 
         if ($quality === 'not_comparable') {
@@ -597,21 +627,65 @@ class RetailPremiumObservationService
     }
 
     /**
-     * @param  Collection<int, array<string, mixed>>  $components
+     * The single VAT basis this contract discloses, or null when it discloses none or two.
+     *
+     * This only fills gaps inside one contract's own published price list, which is stated on one
+     * VAT basis. It never looks at `target_group` and never borrows from another contract.
+     *
+     * @param  array<string, mixed>|null  $pricing
      */
-    private function vatBasis(Collection $components): string
+    public function contractDisclosedVatBasis(?array $pricing): ?string
     {
-        $statuses = $components
+        $statuses = collect(is_array($pricing['phases'] ?? null) ? $pricing['phases'] : [])
+            ->flatMap(fn ($phase) => is_array($phase['components'] ?? null) ? $phase['components'] : [])
+            ->filter(fn ($component) => is_array($component))
             ->pluck('vat_status')
-            ->filter(fn ($status) => in_array($status, ['included', 'excluded', 'unknown'], true))
+            ->filter(fn ($status) => in_array($status, ['included', 'excluded'], true))
             ->unique()
             ->values();
 
-        if ($statuses->count() !== 1) {
-            return $statuses->isEmpty() ? 'unknown' : 'mixed';
+        return $statuses->count() === 1 ? $statuses->first() : null;
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $component
+     * @return array{basis: string, source: string}
+     */
+    public function resolveVatBasis(?array $component, ?string $disclosedBasis): array
+    {
+        $status = $component['vat_status'] ?? null;
+
+        if (in_array($status, ['included', 'excluded'], true)) {
+            return ['basis' => $status, 'source' => 'component_explicit'];
         }
 
-        return $statuses->first();
+        if ($disclosedBasis !== null) {
+            return ['basis' => $disclosedBasis, 'source' => 'contract_propagated'];
+        }
+
+        return ['basis' => 'unknown', 'source' => 'unresolved'];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function vatFlags(string $vatBasis, ?string $feeVatBasis, string $vatBasisSource): array
+    {
+        $flags = collect();
+
+        if ($vatBasis === 'unknown') {
+            $flags->push('vat_unknown');
+        }
+
+        if ($vatBasisSource === 'contract_propagated') {
+            $flags->push('vat_basis_propagated_within_contract');
+        }
+
+        if ($feeVatBasis !== null && $feeVatBasis !== $vatBasis) {
+            $flags->push('fee_vat_basis_not_comparable');
+        }
+
+        return $flags->values()->all();
     }
 
     /**
@@ -628,9 +702,11 @@ class RetailPremiumObservationService
         Collection $spotMargins,
         Collection $monthlyFees,
         string $vatBasis,
+        ?string $feeVatBasis,
+        string $vatBasisSource,
         float $spotPremium,
     ): array {
-        $flags = collect();
+        $flags = collect($this->vatFlags($vatBasis, $feeVatBasis, $vatBasisSource));
 
         if ($monthlyFees->isEmpty()) {
             $flags->push('monthly_fee_missing');
@@ -646,12 +722,6 @@ class RetailPremiumObservationService
 
         if ($monthlyFees->count() > 1) {
             $flags->push('multiple_monthly_fees');
-        }
-
-        if ($vatBasis === 'unknown') {
-            $flags->push('vat_unknown');
-        } elseif ($vatBasis === 'mixed') {
-            $flags->push('vat_mixed');
         }
 
         if ($spotPremium <= 0) {

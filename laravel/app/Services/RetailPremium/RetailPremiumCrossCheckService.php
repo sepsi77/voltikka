@@ -18,8 +18,15 @@ class RetailPremiumCrossCheckService
     public function compare(CarbonInterface $asOfDate): Collection
     {
         $asOf = CarbonImmutable::instance($asOfDate)->startOfDay();
+
+        // Only the current method pair is compared. Superseded method versions stay in the table as
+        // an immutable record, and they keep known duplicate-period and unresolved-VAT defects.
         $observations = RetailPremiumObservation::query()
             ->whereDate('first_observed_date', '<=', $asOf->toDateString())
+            ->whereIn('method_version', [
+                RetailPremiumObservationService::METHOD_VERSION,
+                RetailPremiumHistoryBackfillService::METHOD_VERSION,
+            ])
             ->where('pricing_model', 'FixedPrice')
             ->where('reference_kind', 'term_strip')
             ->where('quality', 'inferred')

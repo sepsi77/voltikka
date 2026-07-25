@@ -11,6 +11,7 @@ use App\Models\ElectricityFuturesEodPrice;
 use App\Models\PriceComponent;
 use App\Models\RetailPremiumObservation;
 use App\Services\RetailPremium\RetailPremiumHistoryBackfillService;
+use App\Services\RetailPremium\RetailPremiumObservationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -37,7 +38,7 @@ class RetailPremiumHistoryBackfillTest extends TestCase
 
         $rows = RetailPremiumObservation::query()->orderBy('first_observed_date')->get();
         $this->assertCount(2, $rows);
-        $this->assertSame('retail-premium-history-v1', $rows[0]->method_version);
+        $this->assertSame(RetailPremiumHistoryBackfillService::METHOD_VERSION, $rows[0]->method_version);
         $this->assertSame('2026-01-01', $rows[0]->first_observed_date->toDateString());
         $this->assertSame('2026-01-03', $rows[0]->last_observed_date->toDateString());
         $this->assertSame($old->id, $rows[0]->contract_id);
@@ -90,10 +91,11 @@ class RetailPremiumHistoryBackfillTest extends TestCase
         );
     }
 
-    public function test_missing_day_splits_the_same_price_into_two_periods(): void
+    public function test_import_outage_day_keeps_one_period_for_an_unchanged_price(): void
     {
         [$tip, $old] = $this->lineage('Spot', 'OpenEnded');
 
+        // Nothing at all was imported on 2026-01-02, so that day is no evidence of a price change.
         foreach (['2026-01-01', '2026-01-03'] as $date) {
             $this->price($old, $date, 'General', 0.50);
             $this->price($old, $date, 'Monthly', 4.00);
@@ -106,13 +108,80 @@ class RetailPremiumHistoryBackfillTest extends TestCase
         $this->artisan('retail-premiums:collect --include-inactive --only=spot --to=2026-01-04')
             ->assertExitCode(0);
 
+        $row = RetailPremiumObservation::sole();
+        $this->assertSame('2026-01-01', $row->first_observed_date->toDateString());
+        $this->assertSame('2026-01-04', $row->last_observed_date->toDateString());
+        $this->assertContains('observation_gap_bridged_import_outage', $row->quality_flags);
+        $this->assertSame(['2026-01-02'], $row->source_metadata['bridged_observation_dates']);
+    }
+
+    public function test_a_changed_price_across_an_import_outage_still_starts_a_new_period(): void
+    {
+        [$tip, $old] = $this->lineage('Spot', 'OpenEnded');
+        $this->price($old, '2026-01-01', 'General', 0.50);
+        $this->price($old, '2026-01-01', 'Monthly', 4.00);
+        $this->price($tip, '2026-01-03', 'General', 0.70);
+        $this->price($tip, '2026-01-03', 'Monthly', 4.00);
+        $this->publishTemplate($tip, '2026-01-04', $this->spotPricing(0.70, 4.00));
+
+        $this->artisan('retail-premiums:collect --include-inactive --only=spot --to=2026-01-03')
+            ->assertExitCode(0);
+
+        $rows = RetailPremiumObservation::query()->orderBy('first_observed_date')->get();
+        $this->assertCount(2, $rows);
+        $this->assertEqualsWithDelta(0.50, $rows[0]->retail_premium_cents_per_kwh, 0.0001);
+        $this->assertEqualsWithDelta(0.70, $rows[1]->retail_premium_cents_per_kwh, 0.0001);
+    }
+
+    public function test_lineage_absent_from_a_running_import_splits_the_same_price(): void
+    {
+        [$tip, $old] = $this->lineage('Spot', 'OpenEnded');
+        $other = $this->contract('history-other-product', 'Spot', 'OpenEnded');
+
+        $this->price($old, '2026-01-01', 'General', 0.50);
+        $this->price($old, '2026-01-01', 'Monthly', 4.00);
+        $this->price($tip, '2026-01-03', 'General', 0.50);
+        $this->price($tip, '2026-01-03', 'Monthly', 4.00);
+
+        // The import ran on 2026-01-02 for another product, so this lineage was genuinely off sale.
+        $this->price($other, '2026-01-02', 'General', 0.90);
+        $this->price($other, '2026-01-02', 'Monthly', 4.00);
+        $this->publishTemplate($tip, '2026-01-04', $this->spotPricing(0.50, 4.00));
+
+        $this->artisan('retail-premiums:collect --include-inactive --only=spot --to=2026-01-03')
+            ->assertExitCode(0);
+
+        $rows = RetailPremiumObservation::query()->orderBy('first_observed_date')->get();
         $this->assertSame(
             ['2026-01-01', '2026-01-03'],
-            RetailPremiumObservation::query()->orderBy('first_observed_date')->get()
-                ->map(fn (RetailPremiumObservation $row) => $row->first_observed_date->toDateString())
-                ->all(),
+            $rows->map(fn (RetailPremiumObservation $row) => $row->first_observed_date->toDateString())->all(),
         );
-        $this->assertSame('2026-01-04', RetailPremiumObservation::query()->latest('id')->first()->last_observed_date->toDateString());
+        $this->assertContains('period_follows_lineage_absence', $rows[1]->quality_flags);
+        $this->assertSame(['2026-01-02'], $rows[1]->source_metadata['preceding_absent_observation_dates']);
+    }
+
+    public function test_unreadable_conflicting_day_does_not_split_an_unchanged_price(): void
+    {
+        [$tip, $old] = $this->lineage('Spot', 'OpenEnded');
+        $this->price($old, '2026-01-01', 'General', 0.50);
+        $this->price($old, '2026-01-01', 'Monthly', 4.00);
+
+        // Two lineage carriers disagree on 2026-01-02, so that day cannot be read at all.
+        $this->price($old, '2026-01-02', 'General', 0.50);
+        $this->price($old, '2026-01-02', 'Monthly', 4.00);
+        $this->price($tip, '2026-01-02', 'General', 0.90);
+        $this->price($tip, '2026-01-02', 'Monthly', 4.00);
+        $this->price($tip, '2026-01-03', 'General', 0.50);
+        $this->price($tip, '2026-01-03', 'Monthly', 4.00);
+        $this->publishTemplate($tip, '2026-01-04', $this->spotPricing(0.50, 4.00));
+
+        $this->artisan('retail-premiums:collect --include-inactive --only=spot --to=2026-01-03')
+            ->assertExitCode(0);
+
+        $row = RetailPremiumObservation::sole();
+        $this->assertSame('2026-01-01', $row->first_observed_date->toDateString());
+        $this->assertSame('2026-01-03', $row->last_observed_date->toDateString());
+        $this->assertContains('observation_gap_bridged_unreadable_day', $row->quality_flags);
     }
 
     public function test_conflicting_lineage_rows_on_the_same_day_are_skipped(): void
@@ -198,6 +267,49 @@ class RetailPremiumHistoryBackfillTest extends TestCase
         $this->assertContains('vat_unknown', $row->quality_flags);
         $storedSpot = collect($row->energy_components)->firstWhere('component_type', 'spot_margin');
         $this->assertEqualsWithDelta(0.50, $storedSpot['amount'], 0.0001);
+    }
+
+    public function test_history_vat_is_propagated_from_the_same_contract_disclosure(): void
+    {
+        [$tip, $old] = $this->lineage('Spot', 'OpenEnded');
+        $this->price($old, '2026-01-01', 'General', 0.50);
+        $this->price($old, '2026-01-01', 'Monthly', 4.00);
+        $this->price($tip, '2026-01-02', 'General', 0.50);
+        $this->price($tip, '2026-01-02', 'Monthly', 4.00);
+        $this->publishTemplate($tip, '2026-01-03', $this->spotPricing(0.50, 4.00, 'unknown', 'included'));
+
+        $this->artisan('retail-premiums:collect --include-inactive --only=spot --to=2026-01-02')
+            ->assertExitCode(0);
+
+        $row = RetailPremiumObservation::sole();
+        $this->assertSame('included', $row->vat_basis);
+        $this->assertSame('included', $row->fee_vat_basis);
+        $this->assertSame('contract_propagated', $row->vat_basis_source);
+        $this->assertContains('vat_basis_propagated_within_contract', $row->quality_flags);
+        $this->assertEqualsWithDelta(0.50, $row->retail_premium_cents_per_kwh, 0.0001);
+        $this->assertEqualsWithDelta(1.46, $row->retail_premium_with_fee_cents_per_kwh, 0.0001);
+    }
+
+    public function test_forward_period_is_flagged_when_it_continues_a_history_period(): void
+    {
+        [$tip, $old] = $this->lineage('Spot', 'OpenEnded');
+        $this->price($old, '2026-01-01', 'General', 0.50);
+        $this->price($old, '2026-01-01', 'Monthly', 4.00);
+        $this->price($tip, '2026-01-02', 'General', 0.50);
+        $this->price($tip, '2026-01-02', 'Monthly', 4.00);
+        $this->publishTemplate($tip, '2026-01-03', $this->spotPricing(0.50, 4.00));
+
+        $this->artisan('retail-premiums:collect --include-inactive --only=spot --to=2026-01-02')
+            ->assertExitCode(0);
+        ActiveContract::query()->firstOrCreate(['id' => $tip->id]);
+        $this->artisan('retail-premiums:collect --as-of=2026-01-03')->assertExitCode(0);
+
+        $forward = RetailPremiumObservation::query()
+            ->where('method_version', RetailPremiumObservationService::METHOD_VERSION)
+            ->sole();
+        $this->assertSame('2026-01-03', $forward->first_observed_date->toDateString());
+        $this->assertContains('continues_prior_history_period', $forward->quality_flags);
+        $this->assertSame('2026-01-02', $forward->source_metadata['continued_history_last_observed_date']);
     }
 
     public function test_market_reset_history_uses_prior_curve_and_records_pre_curve_evidence(): void
@@ -362,19 +474,23 @@ class RetailPremiumHistoryBackfillTest extends TestCase
         ]);
     }
 
-    private function spotPricing(float $price, float $monthlyFee, string $vatStatus = 'included'): array
-    {
-        return $this->pricing('spot_margin', $price, $monthlyFee, false, $vatStatus);
+    private function spotPricing(
+        float $price,
+        float $monthlyFee,
+        string $vatStatus = 'included',
+        ?string $feeVatStatus = null,
+    ): array {
+        return $this->pricing('spot_margin', $price, $monthlyFee, false, $vatStatus, $feeVatStatus ?? $vatStatus);
     }
 
     private function resetPricing(float $price, float $monthlyFee, bool $reset = true): array
     {
-        return $this->pricing('energy_general', $price, $monthlyFee, $reset, 'included');
+        return $this->pricing('energy_general', $price, $monthlyFee, $reset, 'included', 'included');
     }
 
     private function timePricing(float $dayPrice, float $nightPrice, float $monthlyFee): array
     {
-        $pricing = $this->pricing('energy_day', $dayPrice, $monthlyFee, true, 'included');
+        $pricing = $this->pricing('energy_day', $dayPrice, $monthlyFee, true, 'included', 'included');
         $pricing['phases'][0]['components'][] = [
             'component_type' => 'energy_night',
             'amount' => $nightPrice,
@@ -395,6 +511,7 @@ class RetailPremiumHistoryBackfillTest extends TestCase
         float $monthlyFee,
         bool $reset,
         string $vatStatus,
+        string $feeVatStatus,
     ): array {
         return [
             'phases' => [[
@@ -416,7 +533,7 @@ class RetailPremiumHistoryBackfillTest extends TestCase
                     'amount' => $monthlyFee,
                     'normal_amount' => null,
                     'unit' => 'eur_per_month',
-                    'vat_status' => $vatStatus,
+                    'vat_status' => $feeVatStatus,
                     'price_role' => 'current',
                     'source_kind' => 'structured',
                     'evidence' => [['source' => 'components[1].price', 'quote' => 'monthly fee']],

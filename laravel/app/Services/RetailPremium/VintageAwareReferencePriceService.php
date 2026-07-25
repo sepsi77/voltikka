@@ -13,6 +13,35 @@ class VintageAwareReferencePriceService
     public function __construct(private readonly FixedTermHedgeCostService $fixedTermHedgeCostService) {}
 
     /**
+     * Get every available reference for the delivery period a market reset price applies to.
+     *
+     * A quarterly reset price is set before the period starts, so the quarter contract normally
+     * still exists at that vintage and a plain lookup works. `quarter_month_average` is stored
+     * beside it as a separate candidate: it is the day-weighted average of the three month
+     * contracts of the same quarter, which is the only quarter-shaped reference left once the
+     * quarter has entered delivery (a mid-period re-anchoring vintage).
+     *
+     * @return Collection<string, array<string, mixed>>
+     */
+    public function forResetPeriod(CarbonInterface $asOfDate, CarbonInterface $periodAnchor): Collection
+    {
+        $tradeDate = $this->fixedTermHedgeCostService->latestTradeDateBefore($asOfDate);
+
+        if ($tradeDate === null) {
+            return collect();
+        }
+
+        $references = $this->forDeliveryMonth($asOfDate, $periodAnchor);
+        $derivedQuarter = $this->quarterFromMonthFutures($tradeDate, $periodAnchor);
+
+        if ($derivedQuarter !== null) {
+            $references->put('quarter_month_average', $derivedQuarter);
+        }
+
+        return $references;
+    }
+
+    /**
      * Get each available month, quarter, and year reference for one delivery month.
      *
      * @return Collection<string, array<string, mixed>>
@@ -51,17 +80,88 @@ class VintageAwareReferencePriceService
                 return [];
             }
 
+            $span = $this->deliverySpan($delivery, $kind);
+
             return [$kind => $this->referencePayload(
                 $kind,
                 $tradeDate,
                 (float) $price->settlement_price,
                 [
                     'maturity' => $maturity,
-                    'delivery_start_month' => $delivery->toDateString(),
-                    'delivery_end_month' => $delivery->toDateString(),
+                    'delivery_start_month' => $span['start']->toDateString(),
+                    'delivery_end_month' => $span['end']->toDateString(),
+                    'vintage_inside_delivery_period' => $tradeDate->gte($span['start']),
                 ],
             )];
         });
+    }
+
+    /**
+     * Build the quarter containing one delivery month from that quarter's month contracts.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function quarterFromMonthFutures(CarbonInterface $tradeDate, CarbonInterface $deliveryMonth): ?array
+    {
+        $span = $this->deliverySpan(CarbonImmutable::instance($deliveryMonth)->startOfMonth(), 'quarter');
+        $months = collect([0, 1, 2])->map(fn (int $offset) => $span['start']->addMonths($offset));
+        $prices = ElectricityFuturesEodPrice::query()
+            ->where('area', config('price_forecasting.fixed_term.area', 'FI'))
+            ->where('product', 'Base')
+            ->where('maturity_type', 'month')
+            ->whereDate('trade_date', CarbonImmutable::instance($tradeDate)->toDateString())
+            ->whereIn('maturity', $months->map(fn (CarbonImmutable $month) => $month->format('Ym'))->all())
+            ->get()
+            ->keyBy('maturity');
+
+        if ($prices->count() !== 3) {
+            return null;
+        }
+
+        $weighted = 0.0;
+        $weights = 0;
+
+        foreach ($months as $month) {
+            $weight = $month->daysInMonth;
+            $weighted += (float) $prices[$month->format('Ym')]->settlement_price * $weight;
+            $weights += $weight;
+        }
+
+        return $this->referencePayload(
+            'quarter_month_average',
+            $tradeDate,
+            $weighted / $weights,
+            [
+                'derivation' => 'day_weighted_month_futures_average',
+                'month_maturities' => $months->map(fn (CarbonImmutable $month) => $month->format('Ym'))->all(),
+                'month_settlement_prices_eur_per_mwh' => $months
+                    ->mapWithKeys(fn (CarbonImmutable $month) => [
+                        $month->format('Ym') => (float) $prices[$month->format('Ym')]->settlement_price,
+                    ])
+                    ->all(),
+                'delivery_start_month' => $span['start']->toDateString(),
+                'delivery_end_month' => $span['end']->toDateString(),
+                'vintage_inside_delivery_period' => CarbonImmutable::instance($tradeDate)->gte($span['start']),
+            ],
+        );
+    }
+
+    /**
+     * @return array{start: CarbonImmutable, end: CarbonImmutable}
+     */
+    private function deliverySpan(CarbonImmutable $deliveryMonth, string $kind): array
+    {
+        return match ($kind) {
+            'quarter', 'quarter_month_average' => [
+                'start' => $deliveryMonth->month(((int) floor(($deliveryMonth->month - 1) / 3)) * 3 + 1),
+                'end' => $deliveryMonth->month(((int) floor(($deliveryMonth->month - 1) / 3)) * 3 + 3),
+            ],
+            'year' => [
+                'start' => $deliveryMonth->month(1),
+                'end' => $deliveryMonth->month(12),
+            ],
+            default => ['start' => $deliveryMonth, 'end' => $deliveryMonth],
+        };
     }
 
     /**

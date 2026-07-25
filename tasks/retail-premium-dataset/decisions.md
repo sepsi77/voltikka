@@ -229,3 +229,224 @@ historical row must not claim that its inactive carrier had an interpretation.
 - The Spot historical command was run again without `--overwrite`; it saved 0 and skipped all 93 existing identities. This verified production idempotency.
 - Vaasan Sähkö `0.0000` energy values are stored unchanged and carry `zero_or_negative_retail_energy_price`; they are not converted into a retail premium.
 - The post-write cross-check found current comparable medians for 6, 12, and 24 months. The 12-month dataset median was `+2.0427 c/kWh` versus market EWMA `+1.7949 c/kWh`; the 24-month median was `+2.3006 c/kWh` versus `+2.1120 c/kWh`.
+
+## 2026-07-25 — Backfill landed; three data issues block the reset analysis
+
+The backfill is mechanically sound (1,909 rows, 2026-01-21..2026-07-25, idempotent on re-run). But the
+**market-reset population is not yet analysable**. Of 143 reset rows, only **9** are usable for
+identifying the reference, and they reduce to **one** lineage with more than one period.
+
+### Issue 1 — duplicate price periods where the price did not change
+
+Across the whole dataset, 259 of 1,209 consecutive same-series pairs have an **unchanged** retail
+price, and **101 of those carry the same `price_signature`**. Examples:
+
+| Company | Periods | Price | Signature |
+|---|---|---|---|
+| Vattenfall | 2026-02-04 → 2026-02-13 | 8.62 both | **SAME** |
+| Nordic Green Energy | 2026-02-03 → 2026-02-13 | 7.70 both | **SAME** |
+| Äänekosken Energia | 2026-02-03 → 2026-02-13 | 8.60 both | **SAME** |
+| Nordic Green Energy | 2026-07-01 → 2026-07-23 | 7.99 both | differs |
+
+The `price_signature` dedupe exists but is not collapsing these, so one price period is stored as
+two. This matters directly: an unchanged price against a moved reference reads as **zero
+pass-through** and biases `beta` down. In the single usable reset series, dropping the spurious step
+moves `beta` from **0.61 to about 0.95** — the conclusion flips on this bug alone.
+
+The "signature differs, price identical" cases are a second, separate question: something in the
+signature changes while the price does not.
+
+### Issue 2 — `vat_basis = unknown` on 90 % of reset rows
+
+128 of 143 reset rows are `unknown`; 1,465 of 1,909 rows overall. VAT resolution clearly works
+sometimes — `cadence = none` has 320 `included` rows — but fails for almost the whole reset
+population. Monthly Household splits 14 unknown / 14 included, so resolution depends on something at
+component or phase level.
+
+Keeping the "do not infer VAT only from `target_group`" rule is right. But leaving 90 % of the target
+population `unknown` makes the dataset unusable for the question it was built to answer, because
+included-VAT and excluded-VAT rows must not be mixed. Needs a real resolution path from the canonical
+component or source payload.
+
+### Issue 3 — no `quarter` reference is ever stored for quarterly resets
+
+Quarterly resets have 34 `month` rows and 57 `curve_unavailable` rows and **zero `quarter` rows**,
+across 24 lineages. Quarterly products are the majority of the reset population (22 of 32 lineages),
+so **the central month-versus-quarter question cannot be tested at all** right now.
+
+**This also corrects an assumption from the market-reset task.** I had reasoned that a quarter
+contract would not exist for a quarter already in delivery, so the quarter reference would have to be
+derived by averaging the three month contracts. The data disproves that: on 2026-04-08 the FI quarter
+maturities included `202607` (Q3), and `202607` only disappears from 2026-07-23 when Q3 entered
+delivery. At the pricing vintage — before the period starts — the quarter contract **is** published.
+
+So `VintageAwareReferencePriceService` needs a plain quarter lookup for the quarter containing the
+reset period. The month-average fallback is only needed for a mid-period re-anchoring vintage, which
+is the less important case.
+
+### Current best estimate of beta, for the record
+
+One usable series: Pohjois-Karjalan Sähkö, monthly, month reference, 4 stored periods of which one is
+spurious. The two clean steps imply pass-through **1.08 and 0.85**, so `beta` is near **1.0** against
+a month reference. Premium sd 0.70 c/kWh.
+
+That is one company and two observations. It is not shippable, and the quarterly majority is
+completely untested. Fix the three issues above, then re-run the identification.
+
+## 2026-07-25 — The three data issues, diagnosed and fixed
+
+All three were reproduced from evidence before any code changed. One of the three was not the bug it
+looked like, and one cannot be fixed inside this service at all. Method versions are bumped to
+`retail-premium-v2` / `retail-premium-history-v2`, so a re-collection **inserts** new rows beside the
+existing 1,909 and the old rows can be diffed against the new ones. Nothing is overwritten and
+`--overwrite` is not needed.
+
+### Fix 1 — duplicate periods: the cause was one missing import day, not a broken signature
+
+The dedupe mechanism was working. `price_signature` matched on both sides of every reported pair,
+exactly as designed. The split came from the *other* condition in `compressPeriods()`, which required
+strictly consecutive `price_date` days.
+
+Local `price_components` has 184 distinct days from 2026-01-21 to 2026-07-24 and exactly **one** gap:
+**2026-02-12 is missing entirely**. Every confirmed example pair starts its second period on
+2026-02-13. One missed import day split roughly one price period per series, which matches the
+reported 101 same-signature pairs.
+
+So the old rule "a missing day splits periods" was the defect. New rule, and the reason it is right:
+
+- A day the whole import missed (no `price_components` row for **any** contract) is no evidence of a
+  price change. An unchanged signature continues across it.
+- A day where the lineage had rows that could not be read (ambiguous, incomplete, or conflicting
+  carriers) is also no evidence of a price change. It bridges too, with its own flag.
+- A day where the import **did** run and the lineage was simply absent is genuine: the product left
+  the market. That still ends the period, and the next period is flagged
+  `period_follows_lineage_absence`.
+
+This needs no arbitrary maximum gap length, because the discriminator is evidence rather than
+duration. Bridged and absent dates are stored in `source_metadata` so nothing is hidden.
+
+Local before/after on the same database, all groups, 2026-01-21..2026-07-24:
+`periods_reconstructed` **1,117 → 986**, with `gap_bridged_periods = 131` and
+`lineage_absence_boundaries = 15`. So 131 spurious duplicate periods collapsed and 15 genuine
+off-sale boundaries were kept.
+
+### Fix 3 — the quarter lookup already worked; the delivery period was the problem
+
+`maturityForMonth($month, 'quarter')` and the plain quarter lookup were both correct. Proven locally:
+`forDeliveryMonth('2026-05-20', '2026-07-01')` returns `month,quarter`.
+
+The production symptom has a different cause. `buildMarketResetObservations()` anchors the delivery
+period on the period's own first observed date, and quarter futures exist only for quarters that have
+**not** entered delivery. So:
+
+- a period starting on a quarter boundary (2026-07-01, vintage 2026-06-30) does get a `quarter` row;
+- a period starting mid-quarter gets none, because that quarter is already in delivery.
+
+Mid-quarter starts dominate the production reset population, for two reasons: the Fix 1 gap-splits
+manufactured them, and several providers genuinely reset off calendar boundaries (Paneliankosken
+2026-04-16 / 05-21 / 07-21, Kokkolan 2026-05-05 / 06-04). Add to that the forward collector, which
+anchors on the snapshot's first-observed date (2026-07-23 for most tips).
+
+Fix: `forResetPeriod()` keeps the plain quarter lookup as the primary path and adds
+`quarter_month_average` as a **separate** candidate — the day-weighted average of the three month
+contracts of that quarter, available even mid-delivery. It is deliberately not merged into `quarter`,
+because the month-versus-quarter question needs the directly observed quarter settlement to stay
+clean. Rows also record `vintage_inside_delivery_period`.
+
+Local run: **57 `quarter_month_average` rows where v1 had none**, 31 of them on quarterly cadences.
+
+Note for anyone re-checking locally: the local futures snapshot ends 2026-05-22, so every local
+vintage is early and the direct quarter contract is nearly always available. That is why the local
+v1 run shows 342 quarter rows and cannot reproduce the production zero. The production zero is a
+vintage-versus-delivery timing artifact, not a lookup bug.
+
+### Fix 2 — partly fixable here; the rest is an upstream interpretation gap
+
+Three real defects were found and fixed:
+
+1. **The premium is an energy-price spread, so it only needs the energy component's VAT basis.**
+   Both builders were combining the energy component and the monthly fee into one basis, so an energy
+   price with a disclosed basis plus a fee with an unknown basis collapsed to `mixed` and threw away a
+   usable premium. `vat_basis` is now energy-only, the fee keeps `fee_vat_basis`, and the
+   fee-inclusive value requires the two to agree.
+2. **The wholesale reference was being discarded whenever VAT was unknown.** `reference_price_cents_per_kwh`
+   was null, so the row carried no curve evidence at all. The settlement price and both VAT variants are
+   now always stored. That is what actually unblocks the reset analysis: `beta` is measured from
+   *differences*, which need only a consistent scale, so an unknown-VAT row is still usable for
+   pass-through while correctly staying out of premium-level aggregates. Local: **861 unknown-VAT rows
+   now carry recoverable reference evidence, against 0 before.**
+3. **Within-contract propagation.** If a component says `unknown` and the same contract discloses
+   exactly one explicit basis elsewhere, that basis fills the gap, recorded as
+   `vat_basis_source = contract_propagated`. This never touches `target_group` and never crosses
+   contracts.
+
+What cannot be fixed here, with counts. Of 431 interpreted contracts locally:
+
+| Contract VAT evidence | Count |
+|---|---|
+| every component explicit | 122 |
+| **no component explicit anywhere** | **308** |
+| partly explicit, so propagation applies | 1 (covering 1 component) |
+| explicit but self-contradicting | 0 |
+
+So propagation is provably near-worthless: it fires on 1 contract. The reason 70 % of components say
+`unknown` is upstream and structural:
+
+- the Azure source payload has **no VAT field at all** — `Details.Pricing.PriceComponents[].OriginalPayment`
+  carries only `Price` and `PaymentUnit`;
+- `vat_status` is the only VAT field anywhere in `schema-v3.json`, and
+  `resources/contract-interpretation/system-prompt-v17.md` never mentions VAT or "alv", so the model
+  correctly answers `unknown`.
+
+The observed explicit labels do follow the feed convention (Household 261 included against 4
+excluded; Company 74 excluded against 4 included), but resolving VAT from that convention is exactly
+the `target_group` inference the rules forbid, and the ~4 % counter-examples are why. Those rows stay
+`unknown`. The real fix is a `ContractInterpretation` prompt change plus reinterpretation, which
+republishes canonical pricing for every contract and therefore belongs in its own task.
+
+### Secondary case — "price identical, signature differs" is the method-version seam
+
+Not a changing field. Every reported example pairs a date at the end of reconstructed history with
+**2026-07-23**, the day the forward collector's snapshot begins. The two method families define
+`price_signature` differently on purpose (the history hash is period-signature plus role plus method;
+the forward hash includes the phase boundaries), and AGENTS.md deliberately forbids them from merging.
+
+Left unmerged, as intended, but the seam is now machine-detectable: the forward row gets
+`continues_prior_history_period` and `source_metadata.continued_history_observation_key` when a
+history period ends the previous day at the same price and fee. A pass-through analysis must drop
+that step.
+
+Also fixed: `RetailPremiumCrossCheckService` did not filter `method_version` and would have mixed v1
+and v2 rows after the bump. It now compares the current pair only.
+
+### Deployment consequences
+
+- **A production migration is required**: `2026_07_25_000002_add_vat_and_reference_evidence_to_retail_premium_observations`.
+  It is additive and nullable only, so existing v1 rows stay valid and simply keep nulls in the new
+  columns.
+- **No `--overwrite` re-collection.** `method_version` is part of the unique identity, so re-running
+  collection after the deploy inserts v2 rows beside the v1 rows. The 1,909-row historical record stays
+  intact and both versions can be diffed on the same price periods.
+- Any analysis must filter to the current method-version pair. This is now written into
+  `laravel/app/Services/RetailPremium/AGENTS.md`, because the v1 rows keep the duplicate-period and
+  unresolved-VAT defects forever.
+
+### Verification
+
+- Full suite before: **1,160 passed, 3,541 assertions**. After: **1,173 passed, 3,617 assertions**.
+  No failures either side.
+- 13 new tests pin each fix: the direct quarter lookup at a pre-period vintage, the derived quarter
+  inside delivery and its absence when a month is missing, an import-outage day producing one period,
+  a changed price across the same outage producing two, a lineage absent from a running import
+  splitting, an unreadable conflicting day bridging, VAT propagation in both builders, reference
+  evidence surviving unknown VAT, a fee on another basis nulling the fee-inclusive value, and the
+  history/forward seam flag.
+- One existing test encoded the old behaviour and was rewritten rather than weakened:
+  `test_missing_day_splits_the_same_price_into_two_periods` asserted
+  `['2026-01-01', '2026-01-03']` for one unchanged price with no import at all on 2026-01-02. It is
+  replaced by `test_import_outage_day_keeps_one_period_for_an_unchanged_price` plus three tests that
+  keep the split for the cases where a split is still correct.
+- What local data cannot verify: local futures stop at 2026-05-22 and only a subset of contracts are
+  interpreted, so no local run reproduces the production vintage timing, the production
+  quarter-row zero, or the production VAT counts. The local before/after numbers above are
+  structural evidence on the same database, not a production prediction.

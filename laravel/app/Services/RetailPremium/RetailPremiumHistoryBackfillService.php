@@ -10,7 +10,7 @@ use Illuminate\Support\Collection;
 
 class RetailPremiumHistoryBackfillService
 {
-    public const METHOD_VERSION = 'retail-premium-history-v1';
+    public const METHOD_VERSION = 'retail-premium-history-v2';
 
     private const RAW_ROLE_MAP = [
         'General' => 'energy_general',
@@ -21,6 +21,13 @@ class RetailPremiumHistoryBackfillService
         'SeasonalOther' => 'energy_seasonal_other',
         'Monthly' => 'monthly_fee',
     ];
+
+    /**
+     * Every date on which the import stored any price component at all.
+     *
+     * @var list<string>|null
+     */
+    private ?array $importDateCache = null;
 
     public function __construct(
         private readonly RetailPremiumObservationService $observationService,
@@ -160,7 +167,12 @@ class RetailPremiumHistoryBackfillService
             $stats['daily_snapshots_accepted']++;
         }
 
-        $periods = $this->compressPeriods($states->values())
+        $lineageDates = $rows
+            ->map(fn (PriceComponent $row) => $row->price_date->toDateString())
+            ->unique()
+            ->values()
+            ->all();
+        $periods = $this->compressPeriods($states->values(), $lineageDates, $this->importDates())
             ->filter(fn (array $period) => $period['last_observed']->gte($from))
             ->values();
         $stats['periods_reconstructed'] = $periods->count();
@@ -182,8 +194,29 @@ class RetailPremiumHistoryBackfillService
         $stats['discount_unresolved_rows'] = $observations
             ->filter(fn (array $row) => in_array('discount_effect_unresolved', $row['quality_flags'], true))
             ->count();
+        $stats['gap_bridged_periods'] = $periods
+            ->filter(fn (array $period) => ($period['bridged_dates'] ?? []) !== [])
+            ->count();
+        $stats['lineage_absence_boundaries'] = $periods
+            ->filter(fn (array $period) => ($period['preceded_by_absent_dates'] ?? []) !== [])
+            ->count();
 
         return ['observations' => $observations->values(), 'stats' => $stats];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function importDates(): array
+    {
+        return $this->importDateCache ??= PriceComponent::query()
+            ->select('price_date')
+            ->distinct()
+            ->orderBy('price_date')
+            ->pluck('price_date')
+            ->map(fn ($date) => CarbonImmutable::parse($date)->toDateString())
+            ->values()
+            ->all();
     }
 
     /**
@@ -200,6 +233,8 @@ class RetailPremiumHistoryBackfillService
             'uncalibrated_lineages' => 0,
             'unsupported_lineages' => 0,
             'periods_reconstructed' => 0,
+            'gap_bridged_periods' => 0,
+            'lineage_absence_boundaries' => 0,
             'observations_built' => 0,
             'curve_unavailable_rows' => 0,
             'vat_unknown_rows' => 0,
@@ -254,10 +289,11 @@ class RetailPremiumHistoryBackfillService
     }
 
     /**
-     * @return array{raw_roles: array<string, array{role: string, vat_status: string}>, required_energy_roles: list<string>}|array{}
+     * @return array{raw_roles: array<string, array{role: string, vat_status: string, vat_source: string}>, required_energy_roles: list<string>}|array{}
      */
     private function calibrateRoleMap(ElectricityContract $tip): array
     {
+        $disclosedVatBasis = $this->observationService->contractDisclosedVatBasis($tip->canonical_pricing);
         $canonicalByRole = collect($tip->canonical_pricing['phases'] ?? [])
             ->flatMap(fn ($phase) => is_array($phase['components'] ?? null) ? $phase['components'] : [])
             ->filter(fn ($component) => is_array($component)
@@ -309,14 +345,19 @@ class RetailPremiumHistoryBackfillService
                 continue;
             }
 
-            $vatStatuses = $canonical
+            $explicitVatStatuses = $canonical
                 ->pluck('vat_status')
-                ->filter(fn ($status) => in_array($status, ['included', 'excluded', 'unknown'], true))
+                ->filter(fn ($status) => in_array($status, ['included', 'excluded'], true))
                 ->unique()
                 ->values();
+            $resolved = $this->observationService->resolveVatBasis(
+                ['vat_status' => $explicitVatStatuses->count() === 1 ? $explicitVatStatuses->first() : 'unknown'],
+                $disclosedVatBasis,
+            );
             $mapping[(string) $rawKey] = [
                 'role' => $role,
-                'vat_status' => $vatStatuses->count() === 1 ? $vatStatuses->first() : 'unknown',
+                'vat_status' => $resolved['basis'],
+                'vat_source' => $resolved['source'],
             ];
         }
 
@@ -373,7 +414,7 @@ class RetailPremiumHistoryBackfillService
 
     /**
      * @param  Collection<int, PriceComponent>  $rows
-     * @param  array<string, array{role: string, vat_status: string}>  $roleMap
+     * @param  array<string, array{role: string, vat_status: string, vat_source: string}>  $roleMap
      * @return array<string, mixed>|null
      */
     private function normalizeCarrierDay(Collection $rows, array $roleMap): ?array
@@ -407,6 +448,7 @@ class RetailPremiumHistoryBackfillService
                     'price' => (float) $row->price,
                     'payment_unit' => $row->payment_unit,
                     'vat_status' => $mapping['vat_status'],
+                    'vat_source' => $mapping['vat_source'],
                     'discount' => $discount,
                 ];
             })
@@ -447,6 +489,10 @@ class RetailPremiumHistoryBackfillService
             $flags->push('monthly_fee_missing');
         }
 
+        if ($normalized->contains(fn (array $component) => ($component['vat_source'] ?? null) === 'contract_propagated')) {
+            $flags->push('vat_basis_propagated_within_contract');
+        }
+
         $signature = hash('sha256', json_encode(
             $normalized->map(fn (array $component) => [
                 'role' => $component['role'],
@@ -469,18 +515,42 @@ class RetailPremiumHistoryBackfillService
     }
 
     /**
+     * Compress accepted daily states into semantic price periods.
+     *
+     * A day without an accepted state does not automatically end a price period. It ends one only
+     * when the lineage was genuinely absent from an import that did run, because that is evidence
+     * that the product left the market. A day the whole import missed, or a day whose rows existed
+     * but could not be read, carries no evidence of a price change, so an unchanged signature
+     * continues the same period across it and the bridged days are flagged. Splitting there would
+     * store one price period twice and read as zero pass-through against a moved reference.
+     *
      * @param  Collection<int, array<string, mixed>>  $states
+     * @param  list<string>  $lineageDates
+     * @param  list<string>  $importDates
      * @return Collection<int, array<string, mixed>>
      */
-    private function compressPeriods(Collection $states): Collection
+    private function compressPeriods(Collection $states, array $lineageDates, array $importDates): Collection
     {
         $periods = collect();
         $current = null;
 
         foreach ($states->sortBy('date') as $state) {
-            $continues = $current !== null
-                && $current['signature'] === $state['signature']
-                && $current['last_observed']->addDay()->isSameDay($state['date']);
+            $gapDates = $current === null ? [] : $this->datesBetween($current['last_observed'], $state['date']);
+            $sameSignature = $current !== null && $current['signature'] === $state['signature'];
+            $unreadableDates = collect($gapDates)
+                ->filter(fn (string $date) => in_array($date, $lineageDates, true))
+                ->values()
+                ->all();
+            $outageDates = collect($gapDates)
+                ->reject(fn (string $date) => in_array($date, $importDates, true))
+                ->values()
+                ->all();
+            $absentDates = collect($gapDates)
+                ->reject(fn (string $date) => in_array($date, $unreadableDates, true)
+                    || in_array($date, $outageDates, true))
+                ->values()
+                ->all();
+            $continues = $sameSignature && $absentDates === [];
 
             if (! $continues) {
                 if ($current !== null) {
@@ -491,7 +561,14 @@ class RetailPremiumHistoryBackfillService
                     'first_observed' => $state['date'],
                     'last_observed' => $state['date'],
                     'first_carrier_id' => $state['carrier_ids'][0],
+                    'bridged_dates' => [],
+                    'preceded_by_absent_dates' => $absentDates,
                 ];
+
+                if ($absentDates !== []) {
+                    $current['quality_flags'] = collect($current['quality_flags'])
+                        ->push('period_follows_lineage_absence')->unique()->values()->all();
+                }
 
                 continue;
             }
@@ -502,7 +579,12 @@ class RetailPremiumHistoryBackfillService
             $current['component_ids'] = collect($current['component_ids'])
                 ->concat($state['component_ids'])->unique()->sort()->values()->all();
             $current['quality_flags'] = collect($current['quality_flags'])
-                ->concat($state['quality_flags'])->unique()->values()->all();
+                ->concat($state['quality_flags'])
+                ->when($outageDates !== [], fn (Collection $flags) => $flags->push('observation_gap_bridged_import_outage'))
+                ->when($unreadableDates !== [], fn (Collection $flags) => $flags->push('observation_gap_bridged_unreadable_day'))
+                ->unique()->values()->all();
+            $current['bridged_dates'] = collect($current['bridged_dates'] ?? [])
+                ->concat($gapDates)->unique()->sort()->values()->all();
         }
 
         if ($current !== null) {
@@ -510,6 +592,20 @@ class RetailPremiumHistoryBackfillService
         }
 
         return $periods;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function datesBetween(CarbonImmutable $after, CarbonImmutable $before): array
+    {
+        $dates = [];
+
+        for ($date = $after->addDay(); $date->lt($before); $date = $date->addDay()) {
+            $dates[] = $date->toDateString();
+        }
+
+        return $dates;
     }
 
     /**
@@ -554,7 +650,7 @@ class RetailPremiumHistoryBackfillService
                 'metadata' => ['reason' => 'consumption_effect_not_comparable'],
             ]]);
         } elseif (($tip->canonical_pricing['recurring_schedule']['present'] ?? false) === true) {
-            $references = $this->referencePriceService->forDeliveryMonth(
+            $references = $this->referencePriceService->forResetPeriod(
                 $period['first_observed'],
                 $period['first_observed'],
             );
@@ -584,7 +680,9 @@ class RetailPremiumHistoryBackfillService
             $quality,
             $references,
         ) {
-            $vatBasis = $this->combinedVatBasis($energyComponent, $monthlyComponent);
+            $vatBasis = $energyComponent['vat_status'] ?? 'unknown';
+            $vatBasisSource = $energyComponent['vat_source'] ?? 'unresolved';
+            $feeVatBasis = $monthlyComponent === null ? null : ($monthlyComponent['vat_status'] ?? 'unknown');
             $hasUsableVatBasis = in_array($vatBasis, ['included', 'excluded'], true);
             $discountUnresolved = $energyComponent['discount'] !== null;
             $retailPrice = (float) $energyComponent['price'];
@@ -610,6 +708,8 @@ class RetailPremiumHistoryBackfillService
                 $quality,
                 $role,
                 $vatBasis,
+                $vatBasisSource,
+                $feeVatBasis,
                 $discountUnresolved,
                 $hasUsableVatBasis,
                 $retailPrice,
@@ -625,10 +725,11 @@ class RetailPremiumHistoryBackfillService
                     'inferred' => $referencePrice === null ? null : $retailPrice - $referencePrice,
                     default => null,
                 };
-                $premiumWithFee = $premium !== null && $monthlyFee !== null
+                $premiumWithFee = $premium !== null && $monthlyFee !== null && $feeVatBasis === $vatBasis
                     ? $premium + ($monthlyFee * 12 * 100 / RetailPremiumObservationService::REFERENCE_CONSUMPTION_KWH)
                     : null;
-                $flags = collect($period['quality_flags']);
+                $flags = collect($period['quality_flags'])
+                    ->concat($this->observationService->vatFlags($vatBasis, $feeVatBasis, $vatBasisSource));
 
                 if ($quality === 'not_comparable') {
                     $flags->push('hybrid_consumption_effect_not_comparable');
@@ -642,10 +743,12 @@ class RetailPremiumHistoryBackfillService
                     $flags->push('reference_curve_unavailable');
                 }
 
-                if ($vatBasis === 'unknown') {
-                    $flags->push('vat_unknown');
-                } elseif ($vatBasis === 'mixed') {
-                    $flags->push('vat_mixed');
+                if (($reference['metadata']['vintage_inside_delivery_period'] ?? false) === true) {
+                    $flags->push('vintage_inside_delivery_period');
+                }
+
+                if ($referenceKind === 'quarter_month_average') {
+                    $flags->push('quarter_reference_derived_from_month_futures');
                 }
 
                 if ($retailPrice <= 0) {
@@ -680,10 +783,15 @@ class RetailPremiumHistoryBackfillService
                     'retail_energy_price_cents_per_kwh' => $quality === 'exact' ? null : $retailPrice,
                     'monthly_fee_eur' => $monthlyFee,
                     'vat_basis' => $vatBasis,
+                    'fee_vat_basis' => $feeVatBasis,
+                    'vat_basis_source' => $vatBasisSource,
                     'reference_consumption_kwh' => RetailPremiumObservationService::REFERENCE_CONSUMPTION_KWH,
                     'reference_kind' => $referenceKind,
                     'reference_trade_date' => $reference['trade_date'],
                     'reference_price_cents_per_kwh' => $referencePrice,
+                    'reference_price_including_vat_cents_per_kwh' => $reference['price_cents_per_kwh_including_vat'] ?? null,
+                    'reference_price_excluding_vat_cents_per_kwh' => $reference['price_cents_per_kwh_excluding_vat'] ?? null,
+                    'reference_settlement_price_eur_per_mwh' => $reference['settlement_price_eur_per_mwh'] ?? null,
                     'retail_premium_cents_per_kwh' => $premium,
                     'retail_premium_with_fee_cents_per_kwh' => $premiumWithFee,
                     'method_version' => self::METHOD_VERSION,
@@ -700,6 +808,8 @@ class RetailPremiumHistoryBackfillService
                         'duration_months' => $this->fixedTermDuration($tip),
                         'vat_provenance' => 'active_tip_canonical_mapping',
                         'vat_multiplier' => (float) config('price_forecasting.fixed_term.vat_multiplier', 1.255),
+                        'bridged_observation_dates' => $period['bridged_dates'] ?? [],
+                        'preceding_absent_observation_dates' => $period['preceded_by_absent_dates'] ?? [],
                         'reference' => $reference['metadata'] ?? null,
                     ],
                 ];
@@ -719,26 +829,11 @@ class RetailPremiumHistoryBackfillService
             'normal_amount' => null,
             'unit' => $component['payment_unit'],
             'vat_status' => $component['vat_status'],
+            'vat_status_source' => $component['vat_source'] ?? 'unresolved',
             'price_role' => 'historical_observed',
             'source_kind' => 'structured',
             'raw_component_types' => $component['raw_types'],
             'discount' => $component['discount'],
         ])->values()->all();
-    }
-
-    private function combinedVatBasis(array $energyComponent, ?array $monthlyComponent): string
-    {
-        $statuses = collect([
-            $energyComponent['vat_status'] ?? 'unknown',
-            $monthlyComponent['vat_status'] ?? null,
-        ])->filter()->unique()->values();
-
-        if ($statuses->count() !== 1) {
-            return 'mixed';
-        }
-
-        return in_array($statuses->first(), ['included', 'excluded'], true)
-            ? $statuses->first()
-            : 'unknown';
     }
 }
