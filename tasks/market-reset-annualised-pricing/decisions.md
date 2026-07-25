@@ -793,3 +793,26 @@ cause is the data, not the method. Pohjois-Karjalan's local reference for the Ju
 trade date before 2026-07-01. Kokkolan loses one of its three production pairs locally because two
 consecutive periods resolve to an identical reference (`dF = 0`, correctly skipped). **Run the
 report against production before drawing any conclusion from it.**
+
+## 2026-07-25 — Flag FLIPPED ON in production
+
+Supersedes the earlier "deployed with the flag OFF" and "the flip is deliberately left to the user"
+entries above. Those were accurate when written; the user then approved the flip and it was applied
+the same day.
+
+- `RESET_FORWARD_SHIFT_ENABLED=true` set on the production service, redeploy `ba3aefb1` SUCCESS,
+  `php artisan cache:clear` run, `config('canonical_pricing.reset_forward_shift.enabled')` verified
+  `true`.
+- Verified rendering live: `/sahkosopimus/kvartaalisahko` shows the two-figure display on 18
+  contracts, values matching the comparison table (Kokkolan Vuodenaika 10.51, Vuodenaika uusiutuva
+  10.76, Aalto Huoleton 10.23, Korpela 9.63 c/kWh).
+- Production effect: 38 reset lineages, 36 shifted, 2 fell back to hold flat, mean **+153 €/yr**,
+  max **+255 €/yr** at 5000 kWh.
+- `/tietoa#menetelma` updated the same day with a section explaining the method in plain Finnish,
+  and EEX added as a named source.
+
+**A later agent flagged that `MarketReset/AGENTS.md` still described the change as deployed-off.**
+That was stale documentation created by flipping the flag after those files were written, not a
+disagreement about fact. Fixed: that file now carries a `STATUS: LIVE` banner. Kept as a lesson —
+when a rollout state changes, the docs that describe the rollout have to change in the same session,
+because the config default keeps saying `false` forever and reads as "not yet rolled out".

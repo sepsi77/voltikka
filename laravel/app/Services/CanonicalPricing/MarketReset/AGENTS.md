@@ -208,11 +208,18 @@ a stale flag value).
 
 ## Flag and rollout
 
+> **STATUS: LIVE.** `RESET_FORWARD_SHIFT_ENABLED=true` was set in production on **2026-07-25** and the
+> page cache was cleared. These estimates are what visitors see and what rankings use. The config
+> *default* below is still false, which only means a fresh environment starts disabled — do not read
+> it as "not yet rolled out". Production effect at 5000 kWh: 38 reset lineages, 36 shifted, 2 fell
+> back to hold flat, mean **+153 €/yr**, max **+255 €/yr**, every delta positive (the expected sign in
+> July).
+
 `RESET_FORWARD_SHIFT_ENABLED`, default **false**, in `config/canonical_pricing.php` under
 `reset_forward_shift`.
 
 It is a **separate** flag from `CANONICAL_PRICING_ENABLED`, which is already true in production and
-therefore cannot stage this change. With the flag off, behaviour is byte-identical to holding the
+therefore could not stage this change. With the flag off, behaviour is byte-identical to holding the
 current period price flat, and the estimator touches no market data at all.
 
 The flag **participates in the cache keys**, the same way the `c1`/`c0` canonical marker does:
