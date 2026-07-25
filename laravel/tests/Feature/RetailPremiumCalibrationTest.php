@@ -227,6 +227,70 @@ class RetailPremiumCalibrationTest extends TestCase
         $this->assertEqualsWithDelta(0.5, $group['beta_included'], 0.0001);
     }
 
+    public function test_a_monthly_cadence_is_measured_against_the_month_reference(): void
+    {
+        // The estimator prices a monthly reset off the month contract (MarketReset rule 3), so the
+        // headline must too. Selecting purely by lowest premium spread used to hand a *monthly*
+        // product a quarter-shaped reference, which is not what production does.
+        $this->series([
+            ['retail' => 10.00, 'reference' => 5.00],
+            ['retail' => 10.20, 'reference' => 5.10],
+        ], ['cadence' => 'monthly', 'reference_kind' => 'quarter_month_average']);
+
+        $this->series([
+            ['retail' => 10.00, 'reference' => 5.00],
+            ['retail' => 11.00, 'reference' => 7.00],
+        ], ['cadence' => 'monthly', 'reference_kind' => 'month']);
+
+        $group = $this->analyse()['groups'][0];
+
+        $this->assertSame('month', $group['best_reference_kind_included']);
+        $this->assertTrue($group['reference_kind_is_cadence_preferred_included']);
+        $this->assertEqualsWithDelta(0.5, $group['beta_included'], 0.0001);
+    }
+
+    public function test_a_quarterly_cadence_prefers_the_quarter_reference(): void
+    {
+        $this->series([
+            ['retail' => 10.00, 'reference' => 5.00],
+            ['retail' => 11.00, 'reference' => 7.00],
+        ], ['reference_kind' => 'month']);
+
+        $this->series([
+            ['retail' => 10.00, 'reference' => 5.00],
+            ['retail' => 10.80, 'reference' => 6.00],
+        ], ['reference_kind' => 'quarter']);
+
+        $group = $this->analyse()['groups'][0];
+
+        $this->assertSame('quarter', $group['best_reference_kind_included']);
+        $this->assertTrue($group['reference_kind_is_cadence_preferred_included']);
+    }
+
+    public function test_a_single_pair_company_cannot_drive_the_headline_beta(): void
+    {
+        // On 2026-07-25 two monthly companies had one pair each (0.00 and -0.86) and dragged the
+        // reported headline to "median 0.00, difference -1.00", while the only company with a real
+        // sample sat at 1.01. A single pair is not a measurement.
+        $this->series([
+            ['retail' => 10.00, 'reference' => 5.00],
+            ['retail' => 10.00, 'reference' => 7.00],
+        ], ['cadence' => 'monthly', 'reference_kind' => 'month', 'company_name' => 'Yksi Pari Oy']);
+
+        $monthly = $this->analyse()['cadences']['monthly'];
+
+        $this->assertSame(1, $monthly['companies_with_pairs']);
+        $this->assertSame(0, $monthly['companies_ready']);
+        $this->assertFalse($monthly['measurable']);
+        $this->assertNull($monthly['median_ready_company_beta_included']);
+        $this->assertNull(
+            $monthly['difference_from_configured_included'],
+            'A company below the pair threshold must not produce a comparison against the configured beta.',
+        );
+        // Still visible as context, just never as the figure.
+        $this->assertEqualsWithDelta(0.0, $monthly['median_company_beta_included'], 0.0001);
+    }
+
     public function test_the_report_is_scheduled_monthly_on_the_second(): void
     {
         $events = collect(app(Schedule::class)->events())

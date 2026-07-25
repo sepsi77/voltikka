@@ -28,6 +28,25 @@ class RetailPremiumCalibrationService
     public const REFERENCE_KINDS = ['month', 'quarter', 'quarter_month_average', 'year'];
 
     /**
+     * The reference kind the ESTIMATOR uses for each cadence, mirroring
+     * CanonicalPricing/MarketReset/AGENTS.md rule 3. The headline measurement must use
+     * the same kind, otherwise it is not comparable with the coefficient in production.
+     *
+     * Selecting purely by lowest premium spread instead let a quarter-shaped reference win
+     * for a *monthly* product (Pohjois-Karjalan on 2026-07-25), which is not what the
+     * estimator does, and it chose inconsistently within one cadence. The cross-reference
+     * comparison is still reported, but as the open month-versus-quarter question rather
+     * than as the measurement.
+     *
+     * @var array<string, list<string>>
+     */
+    public const CADENCE_REFERENCE_PREFERENCE = [
+        'monthly' => ['month'],
+        'quarterly' => ['quarter', 'quarter_month_average'],
+        'seasonal' => ['quarter', 'quarter_month_average'],
+    ];
+
+    /**
      * A reference that did not move carries no pass-through information, and dividing
      * a real retail move by it would be noise amplification. Those pairs are skipped.
      */
@@ -349,12 +368,30 @@ class RetailPremiumCalibrationService
                 $measured,
                 fn (array $a, array $b) => $this->stabilityRank($a, true) <=> $this->stabilityRank($b, true),
             );
+
+            // The headline uses the cadence-appropriate reference, so the measurement is
+            // comparable with what the estimator actually does. Fall back to the most stable
+            // kind that produced a pair only when the preferred kinds yielded none.
+            $preferred = self::CADENCE_REFERENCE_PREFERENCE[$cells[0]['cadence']] ?? [];
             $best = $measured[0];
+
+            foreach ($preferred as $kind) {
+                $match = collect($measured)->first(
+                    fn (array $cell) => $cell['reference_kind'] === $kind && $cell['pair_count'] > 0,
+                );
+
+                if ($match !== null) {
+                    $best = $match;
+
+                    break;
+                }
+            }
 
             $groups[] = [
                 'company_name' => $best['company_name'],
                 'cadence' => $best['cadence'],
                 'best_reference_kind' => $best['reference_kind'],
+                'reference_kind_is_cadence_preferred' => in_array($best['reference_kind'], $preferred, true),
                 'most_stable_reference_kind' => $mostStable['reference_kind'],
                 'most_stable_premium_sd' => $mostStable['mean_premium_sd'],
                 'series' => $best['series'],
@@ -461,6 +498,7 @@ class RetailPremiumCalibrationService
                     'cadence' => $group['cadence'],
                 ];
                 $merged[$key]['best_reference_kind_'.$assumption] = $group['best_reference_kind'];
+                $merged[$key]['reference_kind_is_cadence_preferred_'.$assumption] = $group['reference_kind_is_cadence_preferred'];
                 $merged[$key]['most_stable_reference_kind_'.$assumption] = $group['most_stable_reference_kind'];
                 $merged[$key]['most_stable_premium_sd_'.$assumption] = $group['most_stable_premium_sd'];
                 $merged[$key]['series_'.$assumption] = $group['series'];
@@ -498,9 +536,14 @@ class RetailPremiumCalibrationService
                 $row['median_ready_company_beta_'.$assumption] = $summary['median_ready_company_beta'];
                 $row['pooled_beta_'.$assumption] = $summary['pooled_beta'];
                 $row['company_betas_'.$assumption] = $summary['company_betas'];
-                $row['difference_from_configured_'.$assumption] = $summary['median_company_beta'] === null
+                // Gated on the ready median only. A single pass-through pair is not a
+                // measurement: on 2026-07-25 two monthly companies had one pair each (0.00 and
+                // -0.86) and dragged the headline to "median 0.00, difference -1.00", while the
+                // only company with a real sample sat at 1.01. Never compare an ungated median
+                // against the configured value.
+                $row['difference_from_configured_'.$assumption] = $summary['median_ready_company_beta'] === null
                     ? null
-                    : $summary['median_company_beta'] - $configuredBeta;
+                    : $summary['median_ready_company_beta'] - $configuredBeta;
             }
 
             $row['measurable'] = $row['companies_ready'] >= 1;

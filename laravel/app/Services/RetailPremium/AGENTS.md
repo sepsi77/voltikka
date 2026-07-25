@@ -135,6 +135,23 @@ Method, and the reasons behind each rule:
 - **A frozen reference kind cannot win the stability ranking.** A kind whose reference never moved
   has a premium sd of zero and no pairs; kinds that produced at least one pair rank first, and the
   purely most-stable kind is reported beside the measured one.
+- **The headline reference kind follows the CADENCE, not the lowest spread.**
+  `CADENCE_REFERENCE_PREFERENCE` mirrors `../CanonicalPricing/MarketReset/AGENTS.md` rule 3:
+  monthly → `month`, quarterly/seasonal → `quarter` then `quarter_month_average`. Stability alone
+  is the wrong criterion for the headline: on 2026-07-25 it handed Pohjois-Karjalan — a **monthly**
+  product — a `quarter_month_average` reference, which is not what the estimator does, and it chose
+  inconsistently inside one cadence (`month` for Turku at sd 2.46, `quarter_month_average` for
+  Pohjois-Karjalan at sd 0.36). The measurement has to be comparable with the coefficient that is
+  actually in production. The cross-reference grid is still reported, but as the open
+  month-versus-quarter question. Falls back to the most stable kind with a pair only when no
+  preferred kind produced one; `reference_kind_is_cadence_preferred` records which happened.
+- **A single pass-through pair is not a measurement.** Only companies at or above `min_pairs`
+  (default 3) enter a median, a pooled figure, the logged summary, or a "difference from configured"
+  line. Below the bar the company still appears in the table and the ungated median is still printed,
+  but explicitly labelled as context. Reason: on 2026-07-25 two monthly companies had one pair each
+  (0.00 and −0.86) and dragged the report to *"median company beta 0.00, difference from configured
+  −1.00"* — i.e. "monthly pass-through is zero" — while the only company with a real sample measured
+  **1.01**. Quarterly already reported honestly as UNCALIBRATED; monthly did not.
 - **No R2 is claimed for a single pair.** A through-origin fit passes exactly through one point.
 - **Per company and per cadence is the headline; pooled is secondary and labelled.** A through-origin
   fit weights by `dF^2`, so one series with poor pass-through dominates a pool. The measured pooled

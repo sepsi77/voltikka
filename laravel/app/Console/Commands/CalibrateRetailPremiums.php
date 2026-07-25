@@ -151,18 +151,39 @@ class CalibrateRetailPremiums extends Command
             }
 
             $this->line(sprintf(
-                '  %s: %d companies with pairs (%d measured), %d pairs. Median company beta %s (VAT incl.) / %s (VAT excl.).',
+                '  %s: %d companies with pairs, %d with at least %d pairs, %d pairs total.',
                 $cadence,
                 $row['companies_with_pairs'],
                 $row['companies_ready'],
+                $row['min_pairs_per_company'],
                 $row['pair_count'],
-                $this->number($row['median_company_beta_included']),
-                $this->number($row['median_company_beta_excluded']),
             ));
+
+            if ($row['measurable']) {
+                $this->line(sprintf(
+                    '    measured beta (companies with >= %d pairs): %s (VAT incl.) / %s (VAT excl.)',
+                    $row['min_pairs_per_company'],
+                    $this->number($row['median_ready_company_beta_included']),
+                    $this->number($row['median_ready_company_beta_excluded']),
+                ));
+                $this->line(sprintf(
+                    '    difference from configured: %s (VAT incl.) / %s (VAT excl.)',
+                    $this->signed($row['difference_from_configured_included']),
+                    $this->signed($row['difference_from_configured_excluded']),
+                ));
+            } else {
+                // Deliberately no number here. Single-pair companies are shown in the table
+                // above but must not produce a headline beta or a comparison.
+                $this->line(sprintf(
+                    '    not enough evidence for a beta: no company reaches %d pass-through pairs.',
+                    $row['min_pairs_per_company'],
+                ));
+            }
+
             $this->line(sprintf(
-                '    difference from configured: %s (VAT incl.) / %s (VAT excl.)',
-                $this->signed($row['difference_from_configured_included']),
-                $this->signed($row['difference_from_configured_excluded']),
+                '    context only, below the %d-pair bar — median across all companies with any pair: %s (VAT incl.)',
+                $row['min_pairs_per_company'],
+                $this->number($row['median_company_beta_included']),
             ));
             $this->line(sprintf(
                 '    secondary, do not read as the headline — pooled beta %s (VAT incl.), weighted by dF^2 so one '
@@ -241,11 +262,16 @@ class CalibrateRetailPremiums extends Command
             'observations' => $report['observation_count'],
             'multi_period_series' => $report['multi_period_series_count'],
             'monthly_pairs' => $monthly['pair_count'],
-            'monthly_median_beta_vat_included' => $monthly['median_company_beta_included'],
+            // The `*_median_beta_*` keys are the pair-gated medians. The ungated ones are kept
+            // beside them as `*_median_beta_*_all_companies` for context, never as the figure.
+            'monthly_median_beta_vat_included' => $monthly['median_ready_company_beta_included'],
+            'monthly_median_beta_vat_included_all_companies' => $monthly['median_company_beta_included'],
+            'monthly_companies_ready' => $monthly['companies_ready'],
             'quarterly_pairs' => $quarterly['pair_count'],
             'quarterly_companies_ready' => $quarterly['companies_ready'],
-            'quarterly_median_beta_vat_included' => $quarterly['median_company_beta_included'],
-            'quarterly_median_beta_vat_excluded' => $quarterly['median_company_beta_excluded'],
+            'quarterly_median_beta_vat_included' => $quarterly['median_ready_company_beta_included'],
+            'quarterly_median_beta_vat_excluded' => $quarterly['median_ready_company_beta_excluded'],
+            'quarterly_median_beta_vat_included_all_companies' => $quarterly['median_company_beta_included'],
             'quarterly_measurable' => $review['quarterly_measurable'],
             'companies_ready' => $report['readiness']['companies_ready'],
             'review_needed' => $review['review_needed'],
@@ -265,13 +291,15 @@ class CalibrateRetailPremiums extends Command
             return;
         }
 
+        // Both figures are the pair-gated medians, so the log line cannot report a beta that
+        // rests on a single pass-through pair.
         Log::info(sprintf(
             'Retail premium calibration: %d multi-period reset series, monthly beta %s from %d pairs, quarterly '
             .'beta %s from %d pairs (%s), configured global beta %.2f.',
             $report['multi_period_series_count'],
-            $this->number($monthly['median_company_beta_included']),
+            $this->number($monthly['median_ready_company_beta_included']),
             $monthly['pair_count'],
-            $this->number($quarterly['median_company_beta_included']),
+            $this->number($quarterly['median_ready_company_beta_included']),
             $quarterly['pair_count'],
             $review['quarterly_measurable'] ? 'measurable' : 'still uncalibrated',
             $report['configured_beta'],
