@@ -496,3 +496,32 @@ are unknown and this is a commercial decision, not a technical one.
 The daily collector fetches the whole published curve and upserts, and it is healthy (verified
 2026-07-25). Everything from 2026-04-08 onward is retained permanently. The gap is historical only and
 will not grow.
+
+## 2026-07-25 — Where the historical futures data could be bought (researched)
+
+Checked the three plausible vendors. **No cheap one-off product was found, so this is a judgement call
+rather than an obvious purchase.**
+
+- **EEX Group Webshop** — https://webshop.eex-group.com/eex-public-market-data — verified: everything
+  is an **annual subscription, tacitly renewed**, and sold to commercial customers and public
+  institutions only. Comparable products for other commodities are €45-80/month, so a Nordic power
+  settlements feed is plausibly €600-1,800/year. No dedicated Nordic power historical product was
+  visible on that page. Disproportionate for a four-month backfill.
+- **EEX Group DataSource** — https://www.eex.com/en/market-data/eex-group-datasource/end-of-day-prices
+  — the EOD settlement product itself, token-based, same subscription model.
+- **Montel** — https://montel.energy/analytics/historical — Nordic specialist, explicitly offers
+  historical price download in Excel or via API and covers Nasdaq/ICE futures history. **Pricing is not
+  public**; needs a sales contact. Most likely fit on coverage.
+- **Databento** — https://databento.com/datasets/XEEE.EOBI — sells EEX data with pay-as-you-go credits
+  and gives new users $125 in free credits, which would more than cover a four-month slice of a few
+  maturities. **But Finnish/Nordic coverage (FNBM/FNBQ) is unconfirmed** — the electricity page lists
+  German and French power futures, not Finnish. Worth one enquiry because the economics would be by far
+  the best if coverage exists.
+
+Suggested order of enquiry, cheapest first: Databento (confirm FNBM/FNBQ coverage) → EEX customer
+support (ask for a one-off historical extract rather than a subscription; small extracts are sometimes
+fulfilled) → Montel sales (trial or one-off extract).
+
+**Fallback remains free and rational:** waiting until 1 October 2026 costs nothing and delivers about
+24 quarterly lineages at once. The purchase only buys roughly two months of time plus a doubling of the
+monthly evidence. If no cheap one-off appears, waiting is the better choice.
