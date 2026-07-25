@@ -128,6 +128,8 @@
                             <li>Sähkön <span class="font-medium">siirtomaksu ei sisälly</span> — se maksetaan paikalliselle
                                 verkkoyhtiölle erikseen eikä riipu sähkösopimuksesta.</li>
                             <li>Kulutus jaetaan kuukausille realistisesti: talvikuukausina kulutus on suurempi kuin kesällä.</li>
+                            <li>Kaikkien sopimusten hinta ei pysy samana koko vuotta. Pörssisähkön sekä kuukausi- ja
+                                kvartaalisähkön kohdalla laskemme kuukaudet erikseen — katso omat kohtansa alempana.</li>
                         </ul>
                     </div>
 
@@ -160,6 +162,30 @@
                     </div>
 
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                        <h3 class="font-bold text-slate-900 mb-2">Kuukausi- ja kvartaalisähkön arviot (· arvio)</h3>
+                        <p class="mb-3">
+                            Osa sopimuksista lukitsee energian hinnan kuukaudeksi tai vuosineljännekseksi kerrallaan
+                            ja päivittää sen sitten markkinahinnan mukaan. Voimassa oleva hinta on siis aina yhden
+                            jakson hinta, eikä koko vuoden hinta: kesällä sähkö on halpaa ja talvella kallista.
+                        </p>
+                        <p class="mb-3">
+                            Jos tällaisen sopimuksen nykyinen hinta kerrottaisiin suoraan kahdellatoista, sopimus
+                            näyttäisi kesällä liian halvalta ja talvella liian kalliilta. Siksi laskemme
+                            vuosikustannuksen näin: nykyinen jakso lasketaan sen omalla, jo tiedossa olevalla
+                            hinnalla, ja loput kuukaudet sähkön futuurimarkkinan hinnalla kullekin kuukaudelle
+                            erikseen. Sähköyhtiön oma kate pidetään tässä ennallaan.
+                        </p>
+                        <p>
+                            Emme siis ennusta sähkön hintaa itse, vaan käytämme markkinan omaa hintaa tuleville
+                            kuukausille. Lopputulos on arvio. Näytämme sopimuskortilla sekä
+                            <span class="font-medium">voimassa olevan hinnan</span> että
+                            <span class="font-medium">12 kuukauden arvion</span>, jotta molemmat ovat näkyvissä.
+                            Toteutunut hinta voi olla arviota korkeampi tai matalampi, koska sopimuksen hinta
+                            seuraa markkinaa.
+                        </p>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
                         <h3 class="font-bold text-slate-900 mb-2">"Säästö €/v" -merkinnät</h3>
                         <p>
                             Kun sopimuksessa on tarjous, näytämme arvioidun ensimmäisen vuoden säästön. Säästö tarkoittaa
@@ -170,11 +196,17 @@
 
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
                         <h3 class="font-bold text-slate-900 mb-2">Pörssihintojen ja ennusteiden lähteet</h3>
-                        <p>
+                        <p class="mb-3">
                             Toteutuneet pörssisähkön hinnat ovat peräisin ENTSO-E:n julkisesta datasta. Mahdolliset
                             tuntikohtaiset hintaennusteet ovat kolmannen osapuolen ennusteita avoimesta lähteestä
                             <a href="https://github.com/vividfog/nordpool-predict-fi" rel="nofollow noopener" target="_blank" class="text-coral-600 font-medium hover:text-coral-700 underline underline-offset-2">vividfog/nordpool-predict-fi</a>,
                             ja ne erotetaan sivustolla selkeästi toteutuneista hinnoista.
+                        </p>
+                        <p>
+                            Tulevien kuukausien markkinahinnat, joita käytämme kuukausi- ja kvartaalisähkön
+                            arvioissa, ovat Suomen hinta-alueen julkisia futuurien päätöshintoja
+                            <a href="https://www.eex.com/en/market-data" rel="nofollow noopener" target="_blank" class="text-coral-600 font-medium hover:text-coral-700 underline underline-offset-2">EEX-sähköpörssistä</a>.
+                            Ne päivittyvät jokaisena pörssipäivänä.
                         </p>
                     </div>
                 </div>
