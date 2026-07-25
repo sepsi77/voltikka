@@ -7,9 +7,12 @@ Primary files:
 - `RetailPremiumHistoryBackfillService.php` reconstructs historical semantic price periods from daily relational `price_components` evidence when inactive ancestors have no interpretation snapshots.
 - `VintageAwareReferencePriceService.php` looks up month, quarter, year, and pure/mixed term-strip candidates at a no-same-day-leakage vintage.
 - `RetailPremiumCrossCheckService.php` compares fixed-term per-lineage results with stored market-level EWMA forecast premiums.
+- `RetailPremiumCalibrationService.php` measures market-reset pass-through (`beta`) and premium stability from the stored dataset for the read-only `retail-premiums:calibrate` report.
 - `../../Models/RetailPremiumObservation.php` stores one row per semantic price period and candidate wholesale reference.
 - `../../Console/Commands/CollectRetailPremiumObservations.php` runs `retail-premiums:collect`.
 - `../../Console/Commands/CrossCheckRetailPremiums.php` runs the read-only `retail-premiums:cross-check` diagnostic.
+- `../../Console/Commands/CalibrateRetailPremiums.php` runs the read-only `retail-premiums:calibrate` report.
+- `../../../config/retail_premium.php` holds the calibration review threshold and the per-company pair threshold.
 - `../../../database/migrations/2026_07_25_000001_create_retail_premium_observations_table.php` defines storage.
 - `../../../database/migrations/2026_07_25_000002_add_vat_and_reference_evidence_to_retail_premium_observations.php` adds `fee_vat_basis`, `vat_basis_source`, and the always-stored reference-price evidence columns.
 
@@ -90,6 +93,63 @@ Two open questions for that future work, both recorded with evidence in the task
 2. Why the pooled `beta` (0.53) sits far below both per-company fits — a third series with poor
    pass-through dominates the `dF^2` weighting.
 
+### The measurement now surfaces itself: `retail-premiums:calibrate`
+
+Nobody has to remember to re-run the identification after the 1 October 2026 resets.
+`RetailPremiumCalibrationService` re-measures `beta` from the stored dataset, and
+`routes/console.php` runs the report **monthly on the 2nd at 08:00 Europe/Helsinki**, after the
+1st-of-month resets have been imported and interpreted. It appends to
+`storage/logs/retail-premium-calibration.log`, logs a concise summary through the application
+logger at `info`, and **escalates that line to `warning` with an explicit "calibration review
+needed" message** when the quarterly cadence becomes measurable and disagrees with the configured
+global `beta`. The warning is the self-surfacing mechanism; do not make it depend on a docs file.
+
+The report is **strictly read-only**. It must never write `retail_premium_observations` and must
+never change pricing behaviour. It exists to measure `../CanonicalPricing/MarketReset/`, not to
+feed it — wiring a measured value into the estimator is a separate, reviewed change.
+
+Method, and the reasons behind each rule:
+
+- **Scope**: the current method-version pair only, `cadence IN (monthly, quarterly, seasonal)`,
+  `quality != not_comparable`, a non-null retail energy price and stored reference evidence, and
+  `reference_kind IN (month, quarter, quarter_month_average, year)`.
+- **Method versions are resolved, not hardcoded**: the newest version of each family found in the
+  table, floored at the service constants so an incomplete re-collection can never pull the report
+  back onto a defective older version.
+- **Series** = `lineage_key` + `energy_component_type` + `reference_kind`, ordered by
+  `first_observed_date`. At least two periods are needed.
+- **Premium stability** = the sample standard deviation of `retail_price - reference_price` across
+  the periods. The most stable reference kind is the one that company appears to price from.
+- **Pass-through** = a through-origin fit `beta = sum(dP*dF) / sum(dF*dF)` over consecutive pairs,
+  with `R2 = 1 - SSres / sum(dP^2)`.
+- **`abs(dF) < 0.01` pairs are skipped.** A reference that did not move carries no pass-through
+  information and dividing a real retail move by it only amplifies noise.
+- **Method-seam pairs are skipped.** A row flagged `continues_prior_history_period` repeats an
+  unchanged price against a moved reference, which reads as zero pass-through and biases `beta`
+  down. It is a method boundary, not a reset. This is the same rule as the bridged-day rule above.
+- **VAT is reported under both assumptions, never inferred.** Most reset rows still carry
+  `vat_basis = unknown`. Those rows are not discarded and VAT is never read off `target_group`; the
+  whole measurement is computed twice, once treating an unknown basis as included and once as
+  excluded, because `beta` is ambiguous by the 1.255 VAT factor. Rows with a known basis use it in
+  both scenarios.
+- **A frozen reference kind cannot win the stability ranking.** A kind whose reference never moved
+  has a premium sd of zero and no pairs; kinds that produced at least one pair rank first, and the
+  purely most-stable kind is reported beside the measured one.
+- **No R2 is claimed for a single pair.** A through-origin fit passes exactly through one point.
+- **Per company and per cadence is the headline; pooled is secondary and labelled.** A through-origin
+  fit weights by `dF^2`, so one series with poor pass-through dominates a pool. The measured pooled
+  figure was 0.53 while both usable companies sat at 0.90 and 1.01. Do not promote the pooled line.
+- **The review threshold fires only when no VAT assumption reconciles the measurement** with the
+  configured global value. Escalating on the worse assumption alone would warn on every run purely
+  because of the 1.255 factor.
+
+Thresholds live in `../../../config/retail_premium.php`:
+`RETAIL_PREMIUM_CALIBRATION_BETA_THRESHOLD` (default 0.25 absolute) and
+`RETAIL_PREMIUM_CALIBRATION_MIN_PAIRS` (default 3 pairs before one company counts as measured).
+`--threshold=` and `--min-pairs=` override them for one run.
+
+Tests: `tests/Feature/RetailPremiumCalibrationTest.php`.
+
 ## Command
 
 ```bash
@@ -100,8 +160,11 @@ php artisan retail-premiums:collect --include-inactive --dry-run
 php artisan retail-premiums:collect --include-inactive --only=spot
 php artisan retail-premiums:collect --include-inactive --from=2026-04-08 --to=2026-07-22
 php artisan retail-premiums:cross-check --as-of=2026-07-25
+php artisan retail-premiums:calibrate
+php artisan retail-premiums:calibrate --threshold=0.25 --min-pairs=3
+php artisan retail-premiums:calibrate --json=storage/app/retail-premium-calibration.json
 ```
 
 `--include-inactive` keeps `--contract` scoped to active lineage-tip IDs and reconstructs compatible inactive ancestors from `price_components`. By default it ends yesterday and also excludes the terminal open period owned by the canonical forward collector. Use `--include-open` only for a deliberate overlap. The backfill never calls current-row `reuseOpenPricePeriodIdentity()`.
 
-`retail-premiums:cross-check` is read-only. It compares included-VAT `energy_general` term-strip observations of the **current method-version pair only** with the stored median fixed-term forecast and shows per-company medians. `--as-of` sets the collection date only. It does not rewind current contract JSON. `routes/console.php` runs the collector daily at 07:15 Europe/Helsinki, after the morning contract import.
+`retail-premiums:cross-check` is read-only. It compares included-VAT `energy_general` term-strip observations of the **current method-version pair only** with the stored median fixed-term forecast and shows per-company medians. `--as-of` sets the collection date only. It does not rewind current contract JSON. `routes/console.php` runs the collector daily at 07:15 Europe/Helsinki, after the morning contract import, and `retail-premiums:calibrate` monthly on the 2nd at 08:00 Europe/Helsinki.

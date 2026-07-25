@@ -733,3 +733,63 @@ substantially demote these 36 contracts. It is one env var and it is reversible.
 judgement is that `beta = 1.0` is measured-supported only for the monthly cadence (0.90 with R² 0.99,
 and 1.01); the 27 quarterly lineages use it as a principled prior until the 1 October resets allow
 calibration.
+
+## 2026-07-25 — The calibration re-run is now automated: `retail-premiums:calibrate`
+
+The remaining blocker on this task was a **human remembering** to re-run the reference/`beta`
+identification after the 1 October 2026 quarterly resets. That is now a scheduled, read-only report
+instead.
+
+`php artisan retail-premiums:calibrate` (`app/Services/RetailPremium/RetailPremiumCalibrationService.php`)
+re-measures pass-through from `retail_premium_observations` and prints per company and per cadence:
+series, pairs, `beta` under both VAT assumptions, R², mean premium sd, and the reference kind each
+company appears to price from. `--json=` dumps the full grid. It writes nothing and changes no
+pricing; wiring a measured value into the estimator stays a separate, reviewed change.
+
+`routes/console.php` runs it **monthly on the 2nd at 08:00 Europe/Helsinki**, after the
+1st-of-month resets have been imported and interpreted. It logs a summary line at `info` and
+escalates to `warning` with "calibration review needed" once the quarterly cadence is measurable
+(at least one company with `RETAIL_PREMIUM_CALIBRATION_MIN_PAIRS`, default 3, pass-through pairs)
+and its measured median differs from `canonical_pricing.reset_forward_shift.beta` by more than
+`RETAIL_PREMIUM_CALIBRATION_BETA_THRESHOLD` (default 0.25 absolute). That warning is the
+self-surfacing mechanism and must not be replaced by a note in a docs file.
+
+Three method points that were decided while building it, all documented in
+`app/Services/RetailPremium/AGENTS.md`:
+
+1. **The review only fires when NO VAT assumption reconciles the measurement with the configured
+   value.** Most reset rows still carry `vat_basis = unknown`, so `beta` is ambiguous by the 1.255
+   VAT factor. Escalating on the worse assumption alone would warn on every single run purely
+   because of that factor.
+2. **Method-seam pairs are dropped**, per the existing rule in `RetailPremium/AGENTS.md`: a row
+   flagged `continues_prior_history_period` repeats an unchanged price against a moved reference and
+   reads as zero pass-through. This is a deliberate addition to the brief's method; the report prints
+   how many pairs it dropped so the effect is visible. On local data it dropped 9.
+3. **A reference kind whose reference never moved cannot win the stability ranking.** Its premium sd
+   is zero and it produces no pairs, so it would silently hide a kind that does carry a measurement.
+   Kinds with at least one pair rank first; the purely most-stable kind is reported beside it. This
+   was found on real data — Pohjois-Karjalan's frozen `quarter` candidate has sd 0.00 against
+   `month` at 0.27.
+
+### Local run, 2026-07-25 — NOT the production picture
+
+The local snapshot holds 139 in-scope reset observations against production's larger set, and the
+local `electricity_futures_eod_prices` table resolves different pricing vintages, so the reference
+prices differ from the ones behind the figures recorded earlier in this file.
+
+| Company | Cadence | Pairs | beta (VAT incl.) | beta (VAT excl.) | R² | Measured reference (sd) |
+|---|---|---|---|---|---|---|
+| Kokkolan Energia | monthly | 2 | 1.51 | 1.90 | 0.97 | month (1.13) |
+| Pohjois-Karjalan Sähkö | monthly | 2 | 1.63 | 1.63 | 1.00 | month (0.27) |
+| Turku Energia | monthly | 1 | −1.59 | −1.99 | n/a | month (1.47) |
+| Aalto, Cheap, Kokkolan | quarterly | 0 | n/a | n/a | n/a | — |
+
+Quarterly has **zero** pass-through pairs locally, so it reports as uncalibrated and no warning
+fires — the expected state before October.
+
+The local monthly figures do **not** reproduce the production 0.90 / 1.01 recorded above, and the
+cause is the data, not the method. Pohjois-Karjalan's local reference for the July period is
+4.5130 c/kWh where production read 4.03, because the local futures snapshot has a different latest
+trade date before 2026-07-01. Kokkolan loses one of its three production pairs locally because two
+consecutive periods resolve to an identical reference (`dF = 0`, correctly skipped). **Run the
+report against production before drawing any conclusion from it.**

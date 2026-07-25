@@ -72,8 +72,12 @@
     "status": "completed"
   },
   {
-    "name": "BLOCKER for per-company calibration: re-run reference/beta identification against retail_premium_observations after the 2026-10-01 quarterly resets (see ../retail-premium-dataset/decisions.md)",
+    "name": "BLOCKER for per-company calibration: re-run reference/beta identification against retail_premium_observations after the 2026-10-01 quarterly resets (see ../retail-premium-dataset/decisions.md). AUTOMATED: retail-premiums:calibrate now runs monthly on the 2nd and logs a warning when quarterly becomes measurable and disagrees",
     "status": "pending"
+  },
+  {
+    "name": "Add the read-only retail-premiums:calibrate report: per-company/per-cadence beta and premium stability from retail_premium_observations, scheduled monthly on the 2nd, warning-level log when quarterly disagrees with the configured global beta",
+    "status": "completed"
   },
   {
     "name": "Use the PRICING vintage for F_reference (latest trade_date before the current period start) and today's vintage for F_m; the earlier one-vintage rule was wrong and its front-month convergence artifact is removed",

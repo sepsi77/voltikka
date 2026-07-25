@@ -80,6 +80,17 @@ Schedule::command('retail-premiums:collect')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/retail-premiums.log'));
 
+// Re-measure market-reset pass-through (beta) monthly, on the 2nd, after the 1st-of-month resets
+// have been imported and interpreted. Read-only. It logs a summary line and escalates to warning
+// when the quarterly cadence becomes measurable and disagrees with the configured global beta, so
+// the calibration surfaces itself instead of depending on someone reading a docs file.
+Schedule::command('retail-premiums:calibrate')
+    ->monthlyOn(2, '08:00')
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/retail-premium-calibration.log'));
+
 // Run fixed-term price forecasts after the morning contract import/statistics update.
 Schedule::command('forecasting:run-fixed-contracts')
     ->dailyAt('07:30')

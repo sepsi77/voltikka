@@ -129,6 +129,11 @@ php artisan futures:backfill-eex     # Fetch all EEX futures history available f
 php artisan forecasting:run-fixed-contracts       # Calculate and persist fixed-term contract price forecasts
 php artisan forecasting:evaluate-fixed-contracts  # Compare matured stored forecasts with realized retail prices
 
+# Retail premium dataset (private; spread over wholesale, never called margin or profit)
+php artisan retail-premiums:collect               # Collect per-contract retail premium observations
+php artisan retail-premiums:cross-check           # Read-only: compare fixed-term premiums with stored EWMA forecasts
+php artisan retail-premiums:calibrate             # Read-only: measure market-reset pass-through (beta) per company and cadence
+
 # Utilities
 php artisan logos:optimize           # Optimize company logos to WebP
 php artisan sitemap:generate         # Generate sitemap.xml
