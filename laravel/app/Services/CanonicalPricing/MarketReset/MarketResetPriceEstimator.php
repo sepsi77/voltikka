@@ -75,7 +75,18 @@ class MarketResetPriceEstimator
     }
 
     /**
-     * Step 1: `P_m = P_current + beta * (F_m - F_reference)`, one curve vintage for both terms.
+     * Step 1: `P_m = P_current + beta * (F_m - F_reference)`.
+     *
+     * Two vintages, deliberately:
+     *
+     * - `F_m` from today's curve, because the coming year's shape *and level* is what the
+     *   customer will actually pay. A curve that rose since the price was set means the next
+     *   resets really will be higher; that is information, not noise.
+     * - `F_reference` from the **pricing vintage** — the latest trade date before the period
+     *   started. The seller set the period price from the forward for that period as it stood
+     *   then. Reading it against today's front contract, which has converged toward realized
+     *   spot, inflates the implied spread by a pure artifact (measured at 1.58 c/kWh, about
+     *   79 EUR/yr at 5000 kWh, for a monthly cadence in July 2026).
      */
     private function forwardShift(ResetEstimateRequest $request): ?ResetEstimate
     {
@@ -86,13 +97,25 @@ class MarketResetPriceEstimator
         }
 
         // A stale curve carries a stale *shape*, which is the one thing this estimator
-        // consumes. Reject it rather than shift on it.
+        // consumes. Reject it rather than shift on it. This applies to the forward vintage only:
+        // the reference vintage is expected to be old (up to a quarter for a quarterly cadence).
         if ($tradeDate->diffInDays($request->asOfDate) > $this->settings->maxCurveAgeDays) {
             return null;
         }
 
+        $flags = [];
+        $referenceAsOf = $request->currentPeriodStart;
+
+        // A period that began before the FI curve history starts (2026-04-08) has no pricing
+        // vintage and never will: EEX serves an approximately 45-day rolling window. Fall back to
+        // today's vintage and flag it rather than dropping to the much weaker spot index.
+        if ($this->curve->tradeDate($referenceAsOf) === null) {
+            $referenceAsOf = $request->asOfDate;
+            $flags[] = 'reference_vintage_fallback_today';
+        }
+
         $reference = $this->curve->referencePrice(
-            $request->asOfDate,
+            $referenceAsOf,
             $request->anchorPeriodMonth,
             $request->referenceKindPreference(),
         );
@@ -121,7 +144,6 @@ class MarketResetPriceEstimator
             $offsets[$monthKey] = $beta * ($forward['price_cents_per_kwh'] - $reference['price_cents_per_kwh']);
         }
 
-        $flags = [];
         foreach (array_keys($fallbackKinds) as $kind) {
             $flags[] = 'forward_month_from_'.$kind.'_contract';
         }
@@ -136,6 +158,7 @@ class MarketResetPriceEstimator
             referenceKind: $reference['kind'],
             referencePriceCentsPerKwh: $reference['price_cents_per_kwh'],
             curveTradeDate: $tradeDate->toDateString(),
+            referenceTradeDate: ($reference['trade_date'] ?? '') !== '' ? $reference['trade_date'] : null,
             anchorPeriodLabel: $this->anchorPeriodLabel($request),
             tailStartsMonthKey: $request->tailMonthKeys[0],
             flags: $flags,
@@ -225,9 +248,18 @@ class MarketResetPriceEstimator
     }
 
     /**
-     * Plausibility band against the fully-fixed retail market. A market-tracking product that
-     * annualises far outside it is more likely a bad reference or a bad curve than a real
-     * price, so the estimate drops one rung down the ladder and the reason is flagged.
+     * ABSURDITY guard only: an annual-equivalent energy price outside a very wide absolute band is
+     * a broken reference or a bad curve print, not a real price, so the estimate drops one rung and
+     * the reason is flagged.
+     *
+     * This deliberately does **not** test the result against the fully-fixed retail market. An
+     * earlier version banded it to a multiple of the fully-fixed 12-month median, which quietly
+     * encoded the prior "a market-reset product must be cheaper than a fixed deal". That prior is
+     * weak: an incumbent with inert customers on a near-default product can genuinely carry a
+     * ~3.6 c/kWh spread (Helen at 7.59 c/kWh against a 4.03 c/kWh forward for the same month), and a
+     * reset that honestly annualises above a fixed deal is a **true and useful finding**. Suppressing
+     * it would be the same error as tuning the anchor until the output looked reasonable. Do not
+     * re-introduce a market-relative band here.
      */
     private function isPlausible(ResetEstimate $estimate): bool
     {
@@ -237,19 +269,8 @@ class MarketResetPriceEstimator
             return false;
         }
 
-        if ($annual < $this->settings->plausibilityAbsoluteMinCentsPerKwh
-            || $annual > $this->settings->plausibilityAbsoluteMaxCentsPerKwh) {
-            return false;
-        }
-
-        $median = $this->curve->fixedTermMedianEnergyPrice();
-
-        if ($median === null || $median <= 0) {
-            return true; // no market centre to test against; the absolute band already applied
-        }
-
-        return $annual >= $median * $this->settings->plausibilityMinMultiple
-            && $annual <= $median * $this->settings->plausibilityMaxMultiple;
+        return $annual >= $this->settings->absurdityFloorCentsPerKwh
+            && $annual <= $this->settings->absurdityCeilingCentsPerKwh;
     }
 
     private function anchorPeriodLabel(ResetEstimateRequest $request): string

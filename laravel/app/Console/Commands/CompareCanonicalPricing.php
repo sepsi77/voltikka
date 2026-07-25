@@ -198,7 +198,7 @@ class CompareCanonicalPricing extends Command
             $cadence = (string) data_get($contract->canonical_pricing, 'recurring_schedule.cadence', '?');
             $basis = $reset['basis'] ?? 'hold_flat';
             $basisCounts[$cadence.'/'.$basis] = ($basisCounts[$cadence.'/'.$basis] ?? 0) + 1;
-            $referenceKey = $cadence.'/'.($reset['reference_kind'] ?? 'none');
+            $referenceKey = $cadence.'/'.($reset['reference_kind'] ?? 'none').' @ '.($reset['reference_trade_date'] ?? 'none');
             $referenceCounts[$referenceKey] = ($referenceCounts[$referenceKey] ?? 0) + 1;
             foreach ((array) ($reset['flags'] ?? []) as $flag) {
                 $flagCounts[$flag] = ($flagCounts[$flag] ?? 0) + 1;
@@ -213,6 +213,8 @@ class CompareCanonicalPricing extends Command
                 'current_price' => $reset['current_period_energy_price'] ?? $before->generalKwhPrice,
                 'reference_kind' => $reset['reference_kind'] ?? null,
                 'reference_price' => $reset['reference_price'] ?? null,
+                'reference_trade_date' => $reset['reference_trade_date'] ?? null,
+                'forward_trade_date' => $reset['curve_trade_date'] ?? null,
                 'anchor_period' => $reset['anchor_period'] ?? null,
                 'tail_starts' => $reset['tail_starts'] ?? null,
                 'basis' => $basis,
@@ -231,12 +233,13 @@ class CompareCanonicalPricing extends Command
         usort($rows, fn (array $a, array $b) => ($b['delta_eur'] ?? 0) <=> ($a['delta_eur'] ?? 0));
 
         $this->table(
-            ['Company / contract', 'Cad', 'Now c/kWh', 'Ref', 'Hold-flat €', 'Shifted €', 'Δ €', '12 kk c/kWh'],
+            ['Company / contract', 'Cad', 'Now c/kWh', 'Ref', 'Ref vintage', 'Hold-flat €', 'Shifted €', 'Δ €', '12 kk c/kWh'],
             array_map(fn (array $row) => [
                 mb_substr($row['company'].' — '.$row['name'], 0, 44),
                 mb_substr($row['cadence'], 0, 4),
                 $this->num($row['current_price'], 2),
                 $row['reference_kind'] ?? '—',
+                $row['reference_trade_date'] ?? '—',
                 $this->num($row['hold_flat_total'], 0),
                 $this->num($row['shifted_total'], 0),
                 $this->num($row['delta_eur'], 0),

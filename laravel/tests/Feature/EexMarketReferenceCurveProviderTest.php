@@ -11,9 +11,9 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Pins the market-data reads behind the reset estimator, above all the one-vintage rule:
- * `F_m` and `F_reference` must come from the same settlement day, otherwise the shape-only
- * shift stops cancelling the curve level and reintroduces the drift it exists to remove.
+ * Pins the market-data reads behind the reset estimator, above all the two-vintage rule: every
+ * lookup resolves the latest `trade_date` strictly before its own `$asOfDate`, and the estimator
+ * passes today for `F_m` but the current period's start for `F_reference`.
  */
 class EexMarketReferenceCurveProviderTest extends TestCase
 {
@@ -25,25 +25,64 @@ class EexMarketReferenceCurveProviderTest extends TestCase
         config()->set('price_forecasting.fixed_term.vat_multiplier', 1.255);
     }
 
-    public function test_reference_and_forward_months_share_one_vintage_and_ignore_same_day_rows(): void
+    public function test_each_lookup_resolves_its_own_vintage_and_never_leaks_the_same_day(): void
     {
         $provider = app(MarketReferenceCurveProvider::class);
-        $asOf = CarbonImmutable::parse('2026-07-25');
+        $today = CarbonImmutable::parse('2026-07-25');
+        $periodStart = CarbonImmutable::parse('2026-07-01');
 
+        // The July contract before its delivery month started, and after it had largely converged.
+        $this->future('month', '202607', '2026-06-30', 32.13);
         $this->future('month', '202607', '2026-07-24', 19.53);
         $this->future('month', '202609', '2026-07-24', 87.05);
-        // Same-day settlements must never leak in, and an older vintage must never be mixed in.
+        // Same-day settlements must never leak into a lookup anchored on that same day.
         $this->future('month', '202607', '2026-07-25', 1.0);
-        $this->future('month', '202609', '2026-07-23', 999.0);
 
-        $this->assertSame('2026-07-24', $provider->tradeDate($asOf)?->toDateString());
+        $this->assertSame('2026-07-24', $provider->tradeDate($today)?->toDateString());
+        $this->assertSame('2026-06-30', $provider->tradeDate($periodStart)?->toDateString());
 
-        $reference = $provider->referencePrice($asOf, CarbonImmutable::parse('2026-07-01'), ['month']);
-        $forward = $provider->forwardPriceForMonth($asOf, CarbonImmutable::parse('2026-09-01'));
+        // F_reference reads the pricing vintage: 32,13 EUR/MWh, not the converged 19,53.
+        $reference = $provider->referencePrice($periodStart, $periodStart, ['month']);
+        // F_m reads today's vintage.
+        $forward = $provider->forwardPriceForMonth($today, CarbonImmutable::parse('2026-09-01'));
 
         $this->assertSame('month', $reference['kind']);
-        $this->assertEqualsWithDelta(19.53 / 10 * 1.255, $reference['price_cents_per_kwh'], 0.0001);
+        $this->assertSame('2026-06-30', $reference['trade_date']);
+        $this->assertEqualsWithDelta(32.13 / 10 * 1.255, $reference['price_cents_per_kwh'], 0.0001);
         $this->assertEqualsWithDelta(87.05 / 10 * 1.255, $forward['price_cents_per_kwh'], 0.0001);
+    }
+
+    public function test_a_quarter_not_yet_in_delivery_resolves_to_the_direct_quarter_contract(): void
+    {
+        // At the pricing vintage of a Q3 period (30 June, before Q3 starts) EEX still publishes the
+        // Q3 contract, so the primary `quarter` candidate resolves. This is the case the derived
+        // month-average exists to cover only once the quarter has entered delivery.
+        $provider = app(MarketReferenceCurveProvider::class);
+
+        $this->future('quarter', '202607', '2026-06-30', 47.20);
+        $this->future('month', '202607', '2026-06-30', 32.13);
+        $this->future('month', '202608', '2026-06-30', 43.51);
+        $this->future('month', '202609', '2026-06-30', 66.57);
+
+        $reference = $provider->referencePrice(
+            CarbonImmutable::parse('2026-07-01'),
+            CarbonImmutable::parse('2026-07-01'),
+            ['quarter', 'quarter_month_average'],
+        );
+
+        $this->assertSame('quarter', $reference['kind']);
+        $this->assertEqualsWithDelta(47.20 / 10 * 1.255, $reference['price_cents_per_kwh'], 0.0001);
+    }
+
+    public function test_no_curve_before_the_period_start_reports_no_pricing_vintage(): void
+    {
+        // The estimator uses this to decide whether to fall back to today's vintage and flag it.
+        $provider = app(MarketReferenceCurveProvider::class);
+
+        $this->future('month', '202607', '2026-07-24', 19.53);
+
+        $this->assertNull($provider->tradeDate(CarbonImmutable::parse('2026-04-01')));
+        $this->assertSame('2026-07-24', $provider->tradeDate(CarbonImmutable::parse('2026-07-25'))?->toDateString());
     }
 
     public function test_forward_price_falls_back_month_then_quarter_then_year(): void
@@ -63,8 +102,9 @@ class EexMarketReferenceCurveProviderTest extends TestCase
 
     public function test_a_quarter_in_delivery_resolves_to_the_month_average_candidate(): void
     {
-        // This is the live mid-quarter case: EEX stops publishing a quarter contract once that
-        // quarter enters delivery, so at today's vintage the direct `quarter` lookup is empty.
+        // EEX stops publishing a quarter contract once that quarter enters delivery, so a vintage
+        // inside the quarter has no direct `quarter` row. With the pricing-vintage rule this only
+        // happens when the period's own start has no curve and the lookup falls back to today.
         $provider = app(MarketReferenceCurveProvider::class);
         $asOf = CarbonImmutable::parse('2026-07-25');
 

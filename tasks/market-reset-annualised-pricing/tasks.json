@@ -1,33 +1,138 @@
 [
-  {"name":"Measure the seasonal error of the hold-flat estimate for market-reset contracts", "status":"completed"},
-  {"name":"Verify that futures:fetch-eex still collects a current FI forward curve", "status":"completed"},
-  {"name":"Measure day-to-day curve variation and choose the averaging rule", "status":"completed"},
-  {"name":"Compare futures-implied and realized-spot seasonal shape as the shape source", "status":"completed"},
-  {"name":"Classify reset contracts by observed price behaviour, chain-aware (result: 26/27 are genuine trackers)", "status":"completed"},
-  {"name":"First reference/beta identification from observed resets (result: reference differs by company; n too small to ship)", "status":"completed"},
-  {"name":"Refresh the stale local electricity_futures_eod_prices snapshot with futures:backfill-eex", "status":"completed"},
-  {"name":"CONSUME from ../retail-premium-dataset: VintageAwareReferencePriceService::forResetPeriod() supplies the quarter / quarter_month_average reference candidates; no second lookup was written", "status":"completed"},
-  {"name":"Add a 12-month forward strip vector (month->quarter->year ladder) in CanonicalPricing/MarketReset instead of RetailPremium, which is out of scope for edits", "status":"completed"},
-  {"name":"Add a multi-year spot seasonal index as the last-resort fallback", "status":"completed"},
-  {"name":"Apply the per-month forward shift to filled recurring-reset segments in CanonicalContractPriceCalculator (and to the ends:none and Hybrid held-forward paths, which hid the same defect)", "status":"completed"},
-  {"name":"Add EstimateMethod::RecurringForwardCurveShift / RecurringSpotSeasonalIndex plus a typed reset_estimate basis payload on the outcome", "status":"completed"},
-  {"name":"Add guards: negative price floor, stale-curve threshold, plausibility band against the fully-fixed 12 kk median", "status":"completed"},
-  {"name":"Add the separate RESET_FORWARD_SHIFT_ENABLED flag (default false) and make it participate in the list/ranking/page cache keys", "status":"completed"},
-  {"name":"Show the current-period price and the 12-month estimate separately on cards and detail pages, from typed fields only", "status":"completed"},
-  {"name":"Extend contracts:compare-canonical-pricing with --resets: hold-flat vs shifted per lineage, reference kind, delta, annual-equivalent price", "status":"completed"},
-  {"name":"Add regression tests for summer, winter, direct quarter, quarter month-average, futures-missing, market-data-missing, flag-off byte-identity, and the negative floor", "status":"completed"},
-  {"name":"Update CanonicalPricing AGENTS.md, add MarketReset/AGENTS.md, update root and laravel AGENTS.md", "status":"completed"},
-  {"name":"BLOCKER for per-company calibration: re-run reference/beta identification against retail_premium_observations after the 2026-10-01 quarterly resets (see ../retail-premium-dataset/decisions.md)", "status":"pending"},
-  {"name":"OPEN RISK: the one-vintage rule reads a monthly reset's reference from the month already in delivery, adding about +1.6 c/kWh (+79 EUR/yr) of front-month convergence bias. Monthly resets therefore annualise ABOVE the fully-fixed market median. Resolve with the per-company calibration, not by mixing vintages", "status":"pending"},
-  {"name":"Investigate the Vaasan Sahko Vaikuttaja 0.00 c/kWh General price and add a zero-energy-price guard", "status":"pending"},
-  {"name":"Audit replacement-chain completeness for reset lineages (result: 37/38 complete; matcher is fine)", "status":"completed"},
-  {"name":"Allow Both->Household/Company target-group transitions in replacement matching (Kokkolan Vuodenaika loses 103d of history)", "status":"pending"},
-  {"name":"Add a reusable lineage price-history helper (chain ancestors ordered by price_date) so analyses stop using name matching", "status":"pending"},
-  {"name":"Recheck suspicious monthly-reset interpretations (Kosken kayttoWoima 12 kk, Fortum Kesto)", "status":"pending"},
-  {"name":"Prefer observed reset dates over declared recurring_schedule dates when history exists", "status":"pending"},
-  {"name":"Add per-company reference and beta parameters with a global fallback below 3 observations, fed by ../retail-premium-dataset", "status":"pending"},
-  {"name":"Persist estimated monthly reset prices and add an evaluation command to track beta over time", "status":"pending"},
-  {"name":"SPOT PHASE: replace the flat rolling-365 spot average with a per-month price vector (shape only, level anchored on rolling-365)", "status":"pending"},
-  {"name":"SPOT PHASE: decide separately whether the spot level anchor moves from rolling-365 to the forward strip", "status":"pending"},
-  {"name":"SEPARATE TASK: evaluate winter-weighting the monthly usage profile for General and Time metering (affects every contract)", "status":"pending"}
+  {
+    "name": "Measure the seasonal error of the hold-flat estimate for market-reset contracts",
+    "status": "completed"
+  },
+  {
+    "name": "Verify that futures:fetch-eex still collects a current FI forward curve",
+    "status": "completed"
+  },
+  {
+    "name": "Measure day-to-day curve variation and choose the averaging rule",
+    "status": "completed"
+  },
+  {
+    "name": "Compare futures-implied and realized-spot seasonal shape as the shape source",
+    "status": "completed"
+  },
+  {
+    "name": "Classify reset contracts by observed price behaviour, chain-aware (result: 26/27 are genuine trackers)",
+    "status": "completed"
+  },
+  {
+    "name": "First reference/beta identification from observed resets (result: reference differs by company; n too small to ship)",
+    "status": "completed"
+  },
+  {
+    "name": "Refresh the stale local electricity_futures_eod_prices snapshot with futures:backfill-eex",
+    "status": "completed"
+  },
+  {
+    "name": "CONSUME from ../retail-premium-dataset: VintageAwareReferencePriceService::forResetPeriod() supplies the quarter / quarter_month_average reference candidates; no second lookup was written",
+    "status": "completed"
+  },
+  {
+    "name": "Add a 12-month forward strip vector (month->quarter->year ladder) in CanonicalPricing/MarketReset instead of RetailPremium, which is out of scope for edits",
+    "status": "completed"
+  },
+  {
+    "name": "Add a multi-year spot seasonal index as the last-resort fallback",
+    "status": "completed"
+  },
+  {
+    "name": "Apply the per-month forward shift to filled recurring-reset segments in CanonicalContractPriceCalculator (and to the ends:none and Hybrid held-forward paths, which hid the same defect)",
+    "status": "completed"
+  },
+  {
+    "name": "Add EstimateMethod::RecurringForwardCurveShift / RecurringSpotSeasonalIndex plus a typed reset_estimate basis payload on the outcome",
+    "status": "completed"
+  },
+  {
+    "name": "Add guards: negative price floor, stale-forward-curve threshold, absolute absurdity band on the annual equivalent",
+    "status": "completed"
+  },
+  {
+    "name": "Add the separate RESET_FORWARD_SHIFT_ENABLED flag (default false) and make it participate in the list/ranking/page cache keys",
+    "status": "completed"
+  },
+  {
+    "name": "Show the current-period price and the 12-month estimate separately on cards and detail pages, from typed fields only",
+    "status": "completed"
+  },
+  {
+    "name": "Extend contracts:compare-canonical-pricing with --resets: hold-flat vs shifted per lineage, reference kind, delta, annual-equivalent price",
+    "status": "completed"
+  },
+  {
+    "name": "Add regression tests for summer, winter, direct quarter, quarter month-average, futures-missing, market-data-missing, flag-off byte-identity, and the negative floor",
+    "status": "completed"
+  },
+  {
+    "name": "Update CanonicalPricing AGENTS.md, add MarketReset/AGENTS.md, update root and laravel AGENTS.md",
+    "status": "completed"
+  },
+  {
+    "name": "BLOCKER for per-company calibration: re-run reference/beta identification against retail_premium_observations after the 2026-10-01 quarterly resets (see ../retail-premium-dataset/decisions.md)",
+    "status": "pending"
+  },
+  {
+    "name": "Use the PRICING vintage for F_reference (latest trade_date before the current period start) and today's vintage for F_m; the earlier one-vintage rule was wrong and its front-month convergence artifact is removed",
+    "status": "completed"
+  },
+  {
+    "name": "RESOLVED: quarter vs quarter_month_average is numerically irrelevant (96 production pairs agree to 0.0007 c/kWh); EEX drops a quarter contract a few trading days BEFORE delivery, so do not add a look-back rule",
+    "status": "completed"
+  },
+  {
+    "name": "Remove the market-relative plausibility band; keep only an absolute absurdity band so a reset that honestly annualises above the fixed market is not suppressed",
+    "status": "completed"
+  },
+  {
+    "name": "RESIDUAL: the pricing vintage is a late proxy for the actual pricing date (sellers publish by the 15th of the preceding month). Pin the effective pricing date per seller in the per-company calibration",
+    "status": "pending"
+  },
+  {
+    "name": "Investigate the Vaasan Sahko Vaikuttaja 0.00 c/kWh General price and add a zero-energy-price guard",
+    "status": "pending"
+  },
+  {
+    "name": "Audit replacement-chain completeness for reset lineages (result: 37/38 complete; matcher is fine)",
+    "status": "completed"
+  },
+  {
+    "name": "Allow Both->Household/Company target-group transitions in replacement matching (Kokkolan Vuodenaika loses 103d of history)",
+    "status": "pending"
+  },
+  {
+    "name": "Add a reusable lineage price-history helper (chain ancestors ordered by price_date) so analyses stop using name matching",
+    "status": "pending"
+  },
+  {
+    "name": "Recheck suspicious monthly-reset interpretations (Kosken kayttoWoima 12 kk, Fortum Kesto)",
+    "status": "pending"
+  },
+  {
+    "name": "Prefer observed reset dates over declared recurring_schedule dates when history exists",
+    "status": "pending"
+  },
+  {
+    "name": "Add per-company reference and beta parameters with a global fallback below 3 observations, fed by ../retail-premium-dataset",
+    "status": "pending"
+  },
+  {
+    "name": "Persist estimated monthly reset prices and add an evaluation command to track beta over time",
+    "status": "pending"
+  },
+  {
+    "name": "SPOT PHASE: replace the flat rolling-365 spot average with a per-month price vector (shape only, level anchored on rolling-365)",
+    "status": "pending"
+  },
+  {
+    "name": "SPOT PHASE: decide separately whether the spot level anchor moves from rolling-365 to the forward strip",
+    "status": "pending"
+  },
+  {
+    "name": "SEPARATE TASK: evaluate winter-weighting the monthly usage profile for General and Time metering (affects every contract)",
+    "status": "pending"
+  }
 ]

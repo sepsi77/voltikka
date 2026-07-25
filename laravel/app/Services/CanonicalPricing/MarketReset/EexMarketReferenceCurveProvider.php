@@ -15,11 +15,11 @@ use Carbon\CarbonImmutable;
  *
  * Important properties, do not change casually:
  *
- * - **One vintage.** Every curve read resolves `latestTradeDateBefore($asOfDate)` and the
- *   whole curve for that trade date is loaded once and memoized. `F_m` and `F_reference`
- *   therefore always come from the same settlement day, which is what makes the estimate a
- *   pure shape difference. This deliberately differs from `RetailPremium`, which uses the
- *   pre-period vintage because it measures the seller's spread at the moment they priced.
+ * - **Vintage per lookup.** Every read resolves `latestTradeDateBefore($asOfDate)` and loads and
+ *   memoizes that whole trade date's curve. The caller decides the anchor: today for the forward
+ *   months `F_m`, the current period's start for `F_reference`. The reference therefore uses the
+ *   same pricing-vintage rule as `RetailPremium`, and for the same reason — it measures the
+ *   seller's spread at the moment they priced.
  * - **One query per vintage, not per month.** A listing rebuild costs 32 reset contracts x 12
  *   months of lookups; without the memoized curve that is hundreds of queries per page build.
  * - The reference-period lookup delegates to `VintageAwareReferencePriceService::forResetPeriod()`
@@ -72,7 +72,11 @@ class EexMarketReferenceCurveProvider implements MarketReferenceCurveProvider
             $price = $candidate['price_cents_per_kwh_including_vat'] ?? null;
 
             if (is_numeric($price)) {
-                $resolved = ['kind' => $kind, 'price_cents_per_kwh' => (float) $price];
+                $resolved = [
+                    'kind' => $kind,
+                    'price_cents_per_kwh' => (float) $price,
+                    'trade_date' => (string) ($candidate['trade_date'] ?? ''),
+                ];
                 break;
             }
         }
@@ -177,13 +181,18 @@ class EexMarketReferenceCurveProvider implements MarketReferenceCurveProvider
         return $this->seasonalIndexMemo = $index;
     }
 
+    /**
+     * **Reported context only.** It must never gate an estimate: banding a reset's annual
+     * equivalent to a multiple of this median would encode the prior that a market-reset product
+     * has to be cheaper than a fixed deal. See `MarketResetPriceEstimator::isPlausible()`.
+     */
     public function fixedTermMedianEnergyPrice(): ?float
     {
         if ($this->fixedTermMedianMemo !== false) {
             return $this->fixedTermMedianMemo;
         }
 
-        $segment = (string) config('canonical_pricing.reset_forward_shift.plausibility.fixed_term_segment_key', 'fixed_term_12');
+        $segment = (string) config('canonical_pricing.reset_forward_shift.context_fixed_term_segment_key', 'fixed_term_12');
 
         $row = ContractPriceDailyStatistic::query()
             ->where('segment_key', $segment)

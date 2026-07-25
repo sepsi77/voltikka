@@ -8,24 +8,27 @@ use Carbon\CarbonImmutable;
  * Market data the reset estimator needs, behind a seam so the estimator's arithmetic and
  * guards can be tested without a database.
  *
- * Every method that reads the forward curve takes the same `$asOfDate` and MUST resolve the
- * same single vintage from it (latest `trade_date < asOfDate`). See the one-vintage rule in
- * AGENTS.md: mixing vintages reintroduces the level drift the shape-only shift cancels.
+ * Every method resolves its vintage as the latest `trade_date < $asOfDate` (no same-day
+ * leakage). The estimator deliberately passes **two different** `$asOfDate` values: today for
+ * the forward months `F_m`, and the current period's start for `F_reference`. See the
+ * two-vintage rule in AGENTS.md.
  */
 interface MarketReferenceCurveProvider
 {
     /**
-     * The single curve vintage used for every lookup at this `asOfDate`, or null when no
-     * curve exists at all.
+     * The curve vintage that applies at this `asOfDate`, or null when no curve exists before it.
      */
     public function tradeDate(CarbonImmutable $asOfDate): ?CarbonImmutable;
 
     /**
      * The reference settlement price for the delivery period a reset price was set for.
      *
+     * `$asOfDate` is the **pricing vintage anchor** — the current period's start date — not
+     * today.
+     *
      * @param  list<string>  $kindPreference  Reference kinds to try in order, e.g.
      *                                        `['quarter', 'quarter_month_average']`.
-     * @return array{kind: string, price_cents_per_kwh: float}|null
+     * @return array{kind: string, price_cents_per_kwh: float, trade_date: string}|null
      */
     public function referencePrice(CarbonImmutable $asOfDate, CarbonImmutable $anchorMonth, array $kindPreference): ?array;
 
@@ -45,8 +48,8 @@ interface MarketReferenceCurveProvider
     public function spotSeasonalIndex(): ?array;
 
     /**
-     * Median energy price (c/kWh incl. VAT) of the fully-fixed 12-month retail market, used
-     * only as the centre of the plausibility band. Null when unavailable.
+     * Median energy price (c/kWh incl. VAT) of the fully-fixed 12-month retail market.
+     * **Reported context only** — it must never gate an estimate. Null when unavailable.
      */
     public function fixedTermMedianEnergyPrice(): ?float;
 }

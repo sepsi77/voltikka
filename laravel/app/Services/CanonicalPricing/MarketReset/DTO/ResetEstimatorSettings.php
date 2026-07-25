@@ -11,15 +11,21 @@ namespace App\Services\CanonicalPricing\MarketReset\DTO;
  */
 readonly class ResetEstimatorSettings
 {
+    /**
+     * @param  float  $absurdityFloorCentsPerKwh  Lower bound on the resulting annual-equivalent energy
+     *                                            price. Deliberately an **absolute** bound and never a
+     *                                            multiple of the fixed-term retail market — see
+     *                                            `MarketResetPriceEstimator::isPlausible()` for why a
+     *                                            market-relative band must not come back.
+     * @param  float  $absurdityCeilingCentsPerKwh  Upper bound, same reasoning.
+     */
     public function __construct(
         public bool $enabled = false,
         public float $beta = 1.0,
         public int $maxCurveAgeDays = 14,
         public bool $seasonalIndexEnabled = true,
-        public float $plausibilityMinMultiple = 0.25,
-        public float $plausibilityMaxMultiple = 2.5,
-        public float $plausibilityAbsoluteMinCentsPerKwh = 0.0,
-        public float $plausibilityAbsoluteMaxCentsPerKwh = 45.0,
+        public float $absurdityFloorCentsPerKwh = 0.0,
+        public float $absurdityCeilingCentsPerKwh = 60.0,
     ) {
     }
 
@@ -34,10 +40,8 @@ readonly class ResetEstimatorSettings
             beta: $this->beta,
             maxCurveAgeDays: $this->maxCurveAgeDays,
             seasonalIndexEnabled: $this->seasonalIndexEnabled,
-            plausibilityMinMultiple: $this->plausibilityMinMultiple,
-            plausibilityMaxMultiple: $this->plausibilityMaxMultiple,
-            plausibilityAbsoluteMinCentsPerKwh: $this->plausibilityAbsoluteMinCentsPerKwh,
-            plausibilityAbsoluteMaxCentsPerKwh: $this->plausibilityAbsoluteMaxCentsPerKwh,
+            absurdityFloorCentsPerKwh: $this->absurdityFloorCentsPerKwh,
+            absurdityCeilingCentsPerKwh: $this->absurdityCeilingCentsPerKwh,
         );
     }
 
@@ -45,17 +49,15 @@ readonly class ResetEstimatorSettings
     {
         $config = (array) config('canonical_pricing.reset_forward_shift', []);
         $seasonal = (array) ($config['seasonal_index'] ?? []);
-        $band = (array) ($config['plausibility'] ?? []);
+        $band = (array) ($config['absurdity_band'] ?? []);
 
         return new self(
             enabled: (bool) ($config['enabled'] ?? false),
             beta: (float) ($config['beta'] ?? 1.0),
             maxCurveAgeDays: (int) ($config['max_curve_age_days'] ?? 14),
             seasonalIndexEnabled: (bool) ($seasonal['enabled'] ?? true),
-            plausibilityMinMultiple: (float) ($band['min_multiple'] ?? 0.25),
-            plausibilityMaxMultiple: (float) ($band['max_multiple'] ?? 2.5),
-            plausibilityAbsoluteMinCentsPerKwh: (float) ($band['absolute_min_cents_per_kwh'] ?? 0.0),
-            plausibilityAbsoluteMaxCentsPerKwh: (float) ($band['absolute_max_cents_per_kwh'] ?? 45.0),
+            absurdityFloorCentsPerKwh: (float) ($band['floor_cents_per_kwh'] ?? 0.0),
+            absurdityCeilingCentsPerKwh: (float) ($band['ceiling_cents_per_kwh'] ?? 60.0),
         );
     }
 }

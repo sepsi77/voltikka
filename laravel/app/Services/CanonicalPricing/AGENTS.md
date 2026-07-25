@@ -176,20 +176,23 @@ Behaviour summary, with the reasons living in `MarketReset/AGENTS.md`:
 - Gated behind its own flag **`RESET_FORWARD_SHIFT_ENABLED`** (default false), separate from
   `CANONICAL_PRICING_ENABLED` because that one is already live and cannot stage this. Flag off is
   byte-identical to hold-flat, and the flag varies the list/ranking/page cache keys (`r1`/`r0`).
-- **One curve vintage** for both `F_m` and `F_reference`: latest `trade_date < today`. Not the
-  pre-period vintage — that is `RetailPremium`'s job, which measures a spread at pricing time. Mixing
-  vintages reintroduces the level drift the shape-only shift cancels. Accepted cost, measured: about
-  **+79 €/yr** of front-month convergence bias on monthly cadences, about −11 €/yr on quarterly.
+- **Two curve vintages, deliberately.** `F_m` reads today's curve (latest `trade_date < today`),
+  because the coming year's level is what the customer will actually pay. `F_reference` reads the
+  **pricing** vintage (latest `trade_date <` the current period's start), because that is the forward
+  the seller priced the period from — the same rule `RetailPremium` uses for spread measurement.
+  Reading the reference at today's vintage instead inflates the implied spread by pure front-month
+  convergence, measured at 1.58 c/kWh (about +79 €/yr at 5000 kWh) on monthly cadences.
 - `beta` is **one global value** (1.0). Per-company calibration stays the documented future work
-  below.
+  below, and is also what pins down the effective pricing date behind the vintage proxy.
 - A phase with `ends: none` is **not** a credible reset boundary; at minimum the current cadence
   period stays exact, and any coverage from a *dated* phase end also stays exact.
 - Ladder: forward-curve shift → multi-year spot seasonal index (lower confidence) → hold flat, with
   the rung recorded on the outcome as `EstimateMethod::RecurringForwardCurveShift` /
   `RecurringSpotSeasonalIndex` / `HoldCurrentRecurringPrice`, plus a typed
   `calculated_cost['reset_estimate']` basis payload.
-- Guards: negative-price floor, stale-curve threshold, plausibility band against the fully-fixed
-  12-month retail median.
+- Guards: negative-price floor, stale-**forward**-curve threshold, and an absolute absurdity band on
+  the annual equivalent. The band is deliberately **not** relative to the fully-fixed market: a reset
+  that honestly annualises above a fixed deal is a true finding, not something to suppress.
 - **No deceptive-pricing label.** The suppression rule for active recurring resets is correct: the
   price change is the published mechanism of the product, not hidden promotional text.
 - UI shows the known current-period price and the estimated 12-month equivalent as **two separate

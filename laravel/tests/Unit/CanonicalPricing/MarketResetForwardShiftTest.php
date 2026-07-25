@@ -52,7 +52,7 @@ class MarketResetForwardShiftTest extends TestCase
         ];
     }
 
-    private function resetPricing(float $energyPrice, string $cadence, array $starts = ['kind' => 'unknown', 'value' => null], array $ends = ['kind' => 'unknown', 'value' => null], ?string $periodEnd = null): array
+    private function resetPricing(float $energyPrice, string $cadence, array $starts = ['kind' => 'unknown', 'value' => null], array $ends = ['kind' => 'unknown', 'value' => null], ?string $periodEnd = null, ?string $periodStart = null): array
     {
         return [
             'phases' => [[
@@ -66,7 +66,7 @@ class MarketResetForwardShiftTest extends TestCase
             'recurring_schedule' => [
                 'present' => true,
                 'cadence' => $cadence,
-                'current_period_start' => null,
+                'current_period_start' => $periodStart,
                 'current_period_end' => $periodEnd,
                 'future_price_known' => false,
                 'description' => null,
@@ -93,10 +93,8 @@ class MarketResetForwardShiftTest extends TestCase
             beta: $settingOverrides['beta'] ?? 1.0,
             maxCurveAgeDays: $settingOverrides['maxCurveAgeDays'] ?? 14,
             seasonalIndexEnabled: $settingOverrides['seasonalIndexEnabled'] ?? true,
-            plausibilityMinMultiple: $settingOverrides['plausibilityMinMultiple'] ?? 0.25,
-            plausibilityMaxMultiple: $settingOverrides['plausibilityMaxMultiple'] ?? 2.5,
-            plausibilityAbsoluteMinCentsPerKwh: $settingOverrides['plausibilityAbsoluteMinCentsPerKwh'] ?? 0.0,
-            plausibilityAbsoluteMaxCentsPerKwh: $settingOverrides['plausibilityAbsoluteMaxCentsPerKwh'] ?? 45.0,
+            absurdityFloorCentsPerKwh: $settingOverrides['absurdityFloorCentsPerKwh'] ?? 0.0,
+            absurdityCeilingCentsPerKwh: $settingOverrides['absurdityCeilingCentsPerKwh'] ?? 60.0,
         ));
     }
 
@@ -287,16 +285,15 @@ class MarketResetForwardShiftTest extends TestCase
         }
     }
 
-    public function test_an_implausible_annual_equivalent_falls_back_and_is_flagged(): void
+    public function test_an_absurd_annual_equivalent_falls_back_and_is_flagged(): void
     {
-        // A 100 c/kWh forward against a 5 c/kWh reference implies about 94 c/kWh for the year,
-        // far outside the band around a 10,48 c/kWh fixed-term median. No seasonal index is
-        // available either, so the estimate must degrade to hold flat rather than publish it.
+        // A 300 c/kWh forward against a 5 c/kWh reference implies about 277 c/kWh for the year.
+        // That is a broken reference or a bad print, not a price. No seasonal index is available
+        // either, so the estimate must degrade to hold flat rather than publish it.
         $curve = new FakeMarketCurve(
             reference: ['month' => 5.0],
-            forward: $this->flatForward(100.0),
+            forward: $this->flatForward(300.0),
             seasonalIndex: null,
-            fixedTermMedian: 10.48,
         );
 
         $outcome = $this->evaluate($this->resetPricing(7.0, 'monthly'), $this->estimator($curve));
@@ -304,6 +301,120 @@ class MarketResetForwardShiftTest extends TestCase
         $this->assertSame(EstimateMethod::HoldCurrentRecurringPrice, $outcome->estimateMethod);
         $this->assertNull($outcome->resetEstimate);
         $this->assertEqualsWithDelta(350.0, $outcome->totalCost, 0.05);
+    }
+
+    public function test_the_guard_does_not_suppress_a_reset_that_annualises_above_the_fixed_market(): void
+    {
+        // Helen's shape: 7,59 c/kWh set against a 4,03 c/kWh forward for the same month implies a
+        // ~3,6 c/kWh spread, which annualises well above a 10,47 c/kWh fully-fixed median. That is
+        // a true and useful finding about an incumbent's near-default product, so the guard must
+        // NOT band it away. Re-introducing a market-relative band would break this test, which is
+        // the point of the test.
+        $curve = new FakeMarketCurve(
+            reference: ['month' => 4.03],
+            forward: $this->flatForward(9.0),
+            fixedTermMedian: 10.47,
+        );
+
+        $outcome = $this->evaluate($this->resetPricing(7.59, 'monthly'), $this->estimator($curve));
+
+        $this->assertSame(EstimateMethod::RecurringForwardCurveShift, $outcome->estimateMethod);
+        // 7,59 + (9,00 - 4,03) * 11/12 = 12,145 c/kWh, i.e. above the fixed market. Kept.
+        $this->assertEqualsWithDelta(12.145, $outcome->resetEstimate['annual_equivalent_energy_price'], 0.005);
+        $this->assertGreaterThan(10.47, $outcome->resetEstimate['annual_equivalent_energy_price']);
+    }
+
+    public function test_the_reference_uses_the_pricing_vintage_and_the_forward_months_use_today(): void
+    {
+        // Window starts mid-period (25 July) with a monthly cadence, so the period started on
+        // 1 July and its pricing vintage is the last trade date before that. The reference must be
+        // read there (4,03 c/kWh, the July contract before it converged), NOT at today's vintage
+        // where the same contract has fallen to 2,45. Reading it at today's vintage would inflate
+        // the implied spread by 1,58 c/kWh, about 79 EUR/yr at 5000 kWh, as a pure artifact.
+        $curve = new FakeMarketCurve(
+            tradeDate: '2026-07-24',
+            reference: ['month' => 2.45],
+            forward: $this->flatForward(9.0),
+            today: '2026-07-25',
+            pricingVintageReference: ['month' => 4.03],
+            pricingVintageTradeDate: '2026-06-30',
+        );
+
+        $outcome = $this->evaluate($this->resetPricing(7.59, 'monthly'), $this->estimator($curve), start: '2026-07-25');
+
+        $this->assertSame(EstimateMethod::RecurringForwardCurveShift, $outcome->estimateMethod);
+        $this->assertEqualsWithDelta(4.03, $outcome->resetEstimate['reference_price'], 0.001);
+        $this->assertSame('2026-06-30', $outcome->resetEstimate['reference_trade_date']);
+        $this->assertSame('2026-07-24', $outcome->resetEstimate['curve_trade_date']);
+        $this->assertSame(['2026-07-01'], $curve->referenceAsOfDates);
+        $this->assertNotContains('reference_vintage_fallback_today', $outcome->resetEstimate['flags']);
+    }
+
+    public function test_the_pricing_vintage_makes_the_estimate_lower_than_todays_vintage_would(): void
+    {
+        $args = [
+            'tradeDate' => '2026-07-24',
+            'reference' => ['month' => 2.45],
+            'forward' => $this->flatForward(9.0),
+            'today' => '2026-07-25',
+        ];
+
+        $todaysVintage = new FakeMarketCurve(...$args);
+        $pricingVintage = new FakeMarketCurve(...$args, pricingVintageReference: ['month' => 4.03], pricingVintageTradeDate: '2026-06-30');
+
+        $wrong = $this->evaluate($this->resetPricing(7.59, 'monthly'), $this->estimator($todaysVintage), start: '2026-07-25');
+        $right = $this->evaluate($this->resetPricing(7.59, 'monthly'), $this->estimator($pricingVintage), start: '2026-07-25');
+
+        $convergenceArtifact = 4.03 - 2.45;
+        $this->assertGreaterThan($right->totalCost, $wrong->totalCost);
+        $this->assertEqualsWithDelta(
+            $convergenceArtifact,
+            $wrong->resetEstimate['annual_equivalent_energy_price'] - $right->resetEstimate['annual_equivalent_energy_price'],
+            0.15,
+            'the whole difference between the two vintages is the front-month convergence artifact',
+        );
+    }
+
+    public function test_a_period_that_began_before_the_curve_history_falls_back_to_todays_vintage(): void
+    {
+        // A quarterly period that started before 2026-04-08 has no pricing vintage and never will:
+        // EEX serves an approximately 45-day rolling window. Fall back to today's vintage and flag
+        // it, rather than dropping to the much weaker spot seasonal index.
+        $curve = new FakeMarketCurve(
+            tradeDate: '2026-07-24',
+            reference: ['quarter_month_average' => 6.0],
+            forward: $this->flatForward(9.0),
+            today: '2026-07-25',
+            pricingVintageReference: ['quarter_month_average' => 4.0],
+            hasPricingVintage: false,
+        );
+
+        $outcome = $this->evaluate($this->resetPricing(8.0, 'quarterly'), $this->estimator($curve), start: '2026-07-25');
+
+        $this->assertSame(EstimateMethod::RecurringForwardCurveShift, $outcome->estimateMethod);
+        $this->assertContains('reference_vintage_fallback_today', $outcome->resetEstimate['flags']);
+        $this->assertEqualsWithDelta(6.0, $outcome->resetEstimate['reference_price'], 0.001);
+        $this->assertSame(['2026-07-25'], $curve->referenceAsOfDates);
+    }
+
+    public function test_a_disclosed_non_calendar_period_start_sets_the_pricing_vintage(): void
+    {
+        // Some sellers reset off calendar boundaries (observed: 16 April, 21 May, 21 July). When the
+        // source discloses such a start inside the anchor period, that date is what the seller
+        // priced from, so it is the vintage anchor.
+        $curve = new FakeMarketCurve(
+            tradeDate: '2026-07-24',
+            reference: ['month' => 2.45],
+            forward: $this->flatForward(9.0),
+            today: '2026-07-25',
+            pricingVintageReference: ['month' => 3.0],
+        );
+
+        $pricing = $this->resetPricing(7.0, 'monthly', periodStart: '2026-07-21');
+        $outcome = $this->evaluate($pricing, $this->estimator($curve), start: '2026-07-25');
+
+        $this->assertSame(['2026-07-21'], $curve->referenceAsOfDates);
+        $this->assertEqualsWithDelta(3.0, $outcome->resetEstimate['reference_price'], 0.001);
     }
 
     public function test_a_disclosed_dated_period_stays_exact_and_only_the_later_tail_shifts(): void
@@ -427,15 +538,27 @@ class MarketResetForwardShiftTest extends TestCase
 }
 
 /**
- * In-memory forward curve. Records whether it was consulted at all, so the flag-off test can
- * prove the disabled path does no market work.
+ * In-memory forward curve.
+ *
+ * It models the estimator's TWO vintages: `$tradeDate` / `$reference` answer a lookup at today's
+ * window start, while `$pricingVintageTradeDate` / `$pricingVintageReference` answer a lookup
+ * anchored earlier than that (the current period's start). Setting
+ * `$pricingVintageTradeDate` to null simulates a period that began before the curve history does.
+ *
+ * It also records whether it was consulted at all, so the flag-off test can prove the disabled
+ * path does no market work.
  */
 class FakeMarketCurve implements MarketReferenceCurveProvider
 {
     public int $calls = 0;
 
+    /** @var list<string> asOf dates referencePrice() was asked for, so tests can pin the vintage */
+    public array $referenceAsOfDates = [];
+
     /**
-     * @param  array<string, float>  $reference  reference kind => c/kWh incl. VAT
+     * @param  string  $today  the window start the estimator is called with
+     * @param  array<string, float>  $reference  reference kind => c/kWh incl. VAT at today's vintage
+     * @param  array<string, float>  $pricingVintageReference  same, at the pre-period vintage
      * @param  array<string, float>  $forward  `Y-m` => c/kWh incl. VAT
      * @param  array<int, float>|null  $seasonalIndex
      */
@@ -445,6 +568,10 @@ class FakeMarketCurve implements MarketReferenceCurveProvider
         private readonly array $forward = [],
         private readonly ?array $seasonalIndex = null,
         private readonly ?float $fixedTermMedian = 10.48,
+        private readonly string $today = '2026-07-01',
+        private readonly array $pricingVintageReference = [],
+        private readonly ?string $pricingVintageTradeDate = '2026-06-30',
+        private readonly bool $hasPricingVintage = true,
     ) {
     }
 
@@ -452,16 +579,31 @@ class FakeMarketCurve implements MarketReferenceCurveProvider
     {
         $this->calls++;
 
+        if ($this->isPricingVintageLookup($asOfDate)) {
+            return ($this->hasPricingVintage && $this->pricingVintageTradeDate !== null)
+                ? CarbonImmutable::parse($this->pricingVintageTradeDate)
+                : null;
+        }
+
         return $this->tradeDate !== null ? CarbonImmutable::parse($this->tradeDate) : null;
     }
 
     public function referencePrice(CarbonImmutable $asOfDate, CarbonImmutable $anchorMonth, array $kindPreference): ?array
     {
         $this->calls++;
+        $this->referenceAsOfDates[] = $asOfDate->toDateString();
+
+        $prices = ($this->isPricingVintageLookup($asOfDate) && $this->pricingVintageReference !== [])
+            ? $this->pricingVintageReference
+            : $this->reference;
 
         foreach ($kindPreference as $kind) {
-            if (isset($this->reference[$kind])) {
-                return ['kind' => $kind, 'price_cents_per_kwh' => $this->reference[$kind]];
+            if (isset($prices[$kind])) {
+                return [
+                    'kind' => $kind,
+                    'price_cents_per_kwh' => $prices[$kind],
+                    'trade_date' => $this->tradeDateFor($asOfDate) ?? '',
+                ];
             }
         }
 
@@ -490,5 +632,24 @@ class FakeMarketCurve implements MarketReferenceCurveProvider
         $this->calls++;
 
         return $this->fixedTermMedian;
+    }
+
+    /**
+     * Compared as `Y-m-d` strings on purpose: the calculator builds the window start in
+     * Europe/Helsinki, so comparing instants would make a same-date lookup look earlier than
+     * a UTC-parsed "today" and silently misclassify the vintage.
+     */
+    private function isPricingVintageLookup(CarbonImmutable $asOfDate): bool
+    {
+        return $asOfDate->toDateString() < $this->today;
+    }
+
+    private function tradeDateFor(CarbonImmutable $asOfDate): ?string
+    {
+        if ($this->isPricingVintageLookup($asOfDate)) {
+            return $this->hasPricingVintage ? $this->pricingVintageTradeDate : $this->tradeDate;
+        }
+
+        return $this->tradeDate;
     }
 }

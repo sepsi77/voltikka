@@ -904,6 +904,7 @@ class CanonicalContractPriceCalculator
             cadence: $data->recurringSchedule->cadence,
             asOfDate: $windowStart,
             anchorPeriodMonth: $tailStart->subDay()->startOfMonth(),
+            currentPeriodStart: $this->resetPeriodStart($data, $tailStart),
             tailMonthKeys: $tailMonthKeys,
             anchorEnergyPriceCentsPerKwh: $anchorPrice,
             monthWeights: $monthWeights,
@@ -957,6 +958,36 @@ class CanonicalContractPriceCalculator
         }
 
         return $candidate->greaterThan($windowEnd) ? $windowEnd : $candidate;
+    }
+
+    /**
+     * Start date of the reset period the held-forward price belongs to — the vintage anchor for
+     * `F_reference`. The seller set that price before the period began, so the spread has to be
+     * read against the forward curve as it stood then.
+     *
+     * Derived from the cadence calendar of the anchor period, and overridden by a disclosed
+     * `current_period_start` when the source declares a non-calendar period that falls inside it.
+     * A declared date from an older period can never leak in through that check.
+     */
+    private function resetPeriodStart(CanonicalContractData $data, CarbonImmutable $tailStart): CarbonImmutable
+    {
+        $anchorMonth = $tailStart->subDay()->startOfMonth();
+        $isMonthly = $data->recurringSchedule->cadence === 'monthly';
+
+        $periodStart = $isMonthly
+            ? $anchorMonth
+            : $anchorMonth->month(((int) floor(($anchorMonth->month - 1) / 3)) * 3 + 1);
+        $periodEnd = $isMonthly
+            ? $periodStart->addMonthNoOverflow()
+            : $periodStart->addMonthsNoOverflow(3);
+
+        $declared = $this->parseScheduleDate($data->recurringSchedule->currentPeriodStart);
+
+        if ($declared !== null && $declared->greaterThan($periodStart) && $declared->lessThan($periodEnd)) {
+            return $declared;
+        }
+
+        return $periodStart;
     }
 
     private function parseScheduleDate(?string $value): ?CarbonImmutable

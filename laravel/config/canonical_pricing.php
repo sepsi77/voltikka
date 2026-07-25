@@ -16,15 +16,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Market-reset annualised price (shape-only forward-curve shift)
+    | Market-reset annualised price (forward-curve shift)
     |--------------------------------------------------------------------------
     |
     | A monthly/quarterly/seasonal reset product publishes one seasonal price per
     | period. Holding it flat for twelve months is badly wrong (too low in summer,
     | too high in winter). When this is enabled the uncovered/held-forward tail is
-    | repriced with a shape-only shift of the FI forward curve:
+    | repriced with a shift of the FI forward curve:
     |
     |     P_m = P_current_period + beta * (F_m - F_reference)
+    |
+    | TWO vintages, deliberately. `F_m` reads today's curve, because the coming
+    | year's level is what the customer will actually pay. `F_reference` reads the
+    | PRICING vintage — the latest trade date before the current period started —
+    | because that is the forward the seller priced the period from. Reading the
+    | reference at today's vintage instead would inflate the implied spread by pure
+    | front-month convergence.
     |
     | This is a SEPARATE flag from `enabled` above, because canonical pricing is
     | already live in production and cannot stage this change. With it off the
@@ -63,18 +70,26 @@ return [
         ],
 
         /*
-         | Plausibility band for the resulting annual-equivalent energy price,
-         | expressed as a multiple of the fully-fixed 12-month retail median
-         | (10.48 c/kWh on 2026-07-24). A market-tracking product should not land
-         | absurdly far from the fixed market in either direction; when it does the
-         | estimate is dropped one rung down the ladder and flagged.
+         | ABSURDITY band only, on the resulting annual-equivalent energy price. It
+         | catches a broken reference or a bad curve print, nothing else.
+         |
+         | This is deliberately an ABSOLUTE band and NOT a multiple of the fully-fixed
+         | retail median. A market-relative band would encode the prior "a market-reset
+         | product must be cheaper than a fixed deal", which is weak: an incumbent with
+         | inert customers on a near-default product can genuinely carry a ~3.6 c/kWh
+         | spread. A reset that honestly annualises above a fixed deal is a true and
+         | useful finding, and suppressing it would be fitting the output to a prior.
+         | Do not re-introduce a market-relative band here.
          */
-        'plausibility' => [
-            'fixed_term_segment_key' => 'fixed_term_12',
-            'min_multiple' => 0.25,
-            'max_multiple' => 2.5,
-            'absolute_min_cents_per_kwh' => 0.0,
-            'absolute_max_cents_per_kwh' => 45.0,
+        'absurdity_band' => [
+            'floor_cents_per_kwh' => 0.0,
+            'ceiling_cents_per_kwh' => 60.0,
         ],
+
+        /*
+         | Reported for context only by `contracts:compare-canonical-pricing --resets`.
+         | It must never gate the estimate; see `absurdity_band` above.
+         */
+        'context_fixed_term_segment_key' => 'fixed_term_12',
     ],
 ];

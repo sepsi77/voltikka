@@ -1,4 +1,4 @@
-# Market-reset annualised price (shape-only forward-curve shift)
+# Market-reset annualised price (forward-curve shift)
 
 This directory annualises **market-reset** contracts — `canonical_pricing.recurring_schedule.present
 = true` with cadence `monthly`, `quarterly`, or `seasonal`. Those products publish one price per
@@ -7,7 +7,7 @@ period and follow the wholesale market between periods.
 It fixes a live production defect: the calculator used to hold the current period price flat for
 twelve months. That price is a **seasonal** price, so the annual estimate was systematically too low
 in summer and too high in winter. Measured on the local 2026-07-24 snapshot at 5000 kWh, the
-correction across all 32 reset lineages averaged **+154 €/yr**, up to **+333 €/yr**.
+correction across all 32 reset lineages averaged **+149 €/yr**, up to **+255 €/yr**.
 
 Read `../AGENTS.md` first, then `tasks/market-reset-annualised-pricing/spec.md` and its
 `decisions.md`. That decisions file records several **explicitly retracted** conclusions; do not
@@ -21,28 +21,58 @@ P_m = P_current_period + beta * (F_m - F_reference)
 
 - `P_current_period` — the consumption-weighted energy price of the rates the calculator would have
   held forward. Contract-specific and never estimated: it is the provider's own published price.
-- `F_m` — FI EEX Base settlement price for delivery month `m`, c/kWh incl. VAT
+- `F_m` — FI EEX Base settlement price for delivery month `m` at **today's** vintage, c/kWh incl. VAT
   (`settlement / 10 * config('price_forecasting.fixed_term.vat_multiplier')`).
-- `F_reference` — the settlement price for the delivery period the current price applies to.
+- `F_reference` — settlement price for the delivery period the current price applies to, at the
+  **pricing** vintage (see rule 1).
 - `beta` — pass-through coefficient, **one global value**, `config('canonical_pricing.reset_forward_shift.beta')`.
 
-Only *differences* on the curve are used, so the estimator imports the seasonal **shape** and not
-the price **level**. A uniform curve error cancels out. That is also why it stays comparable with
-Spot contracts, which remain anchored on observed rolling-365 spot.
+Read the identity it computes as: `P_current - F_reference` is the seller's spread over the wholesale
+price they could have hedged the period at, and `F_strip(today) + spread` is the honest annual
+equivalent. It stays anchored on the provider's own published price, and it is contract-specific
+because the spread is observed, never estimated.
 
 ## Non-negotiable rules
 
-### 1. ONE curve vintage for both `F_m` and `F_reference`
+### 1. TWO vintages: `F_m` from today, `F_reference` from the pricing date
 
-Every lookup resolves the same vintage: the latest `trade_date < asOfDate` (the window start).
-`EexMarketReferenceCurveProvider` loads that whole curve once and memoizes it.
+- `F_m` → latest `trade_date < today` (the window start).
+- `F_reference` → latest `trade_date < the current period's start date`.
 
-**Do not** switch `F_reference` to the pre-period vintage. `../../RetailPremium/` deliberately uses
-the pre-period vintage because it measures the seller's spread at the moment they priced. This
-estimator needs a pure shape difference on one consistent curve; mixing vintages reintroduces
-exactly the level drift the design cancels.
+**Both halves matter, and an earlier version of this file got the second one wrong.** The retracted
+argument was that one shared vintage is needed to "cancel level drift". It is not:
 
-The cost of the rule is measured and accepted, not unknown — see "Known bias" below.
+- The seller set `P_current` at some `T0` before the period, from the forward for that period as it
+  stood then, so their spread is `pi = P_current - F_ref(T0)`.
+- If the whole curve rose by X between `T0` and today, the honest estimate `F_strip(today) + pi`
+  rises by X too. **That is correct, not noise.** The market really did get more expensive and the
+  next resets will reflect it; the customer really will pay more. Cancelling it would hide real
+  information.
+- Reading the reference at today's vintage instead computes `pi' = P_current - F_ref(today)`. For a
+  period already in delivery, `F_ref(today)` has converged toward realized spot, so `pi' > pi`
+  systematically. That is a pure artifact.
+
+Measured size of the artifact on FI month 202607: **4.03 c/kWh** on 2026-06-30 (when July retail
+prices were set) against **2.45 c/kWh** on 2026-07-24 — a 1.58 c/kWh inflation of the spread, about
+**+79 €/yr** at 5000 kWh, on every monthly-cadence reset. Fixing it lowered the five July-anchored
+monthly lineages by exactly 1.55 c/kWh each (the artifact scaled by the tail's share of the window).
+
+So the thing that genuinely needed cancelling was **front-month convergence**, and that only ever
+affects `F_reference`. This is the same vintage rule `../../RetailPremium/` uses for spread
+measurement, and for the same reason.
+
+The reference vintage is expected to be old — up to a full quarter for a quarterly cadence — so the
+`max_curve_age_days` staleness guard applies to the **forward** vintage only. Do not extend it to the
+reference.
+
+**Fallback.** A period that began before the FI curve history starts (2026-04-08) has no pricing
+vintage and never will, because EEX serves an approximately 45-day rolling window. Those fall back to
+today's vintage and are flagged `reference_vintage_fallback_today`, rather than dropping to the much
+weaker spot index. Verified 2026-07-25: **0 of 32** lineages needed it.
+
+A period that has not started yet (a disclosed `role: future` phase, e.g. Kokkolan Tyyni's August
+price) resolves its pricing vintage to today's trade date, because that is genuinely the latest trade
+date before its start. Correct and expected: an unstarted month has not converged.
 
 ### 2. The current period stays exact
 
@@ -67,10 +97,19 @@ the window looked fully covered. Do not "simplify" this by trusting `ends: none`
 `VintageAwareReferencePriceService::forResetPeriod()` supplies both candidates. Do not write a second
 lookup for them.
 
-**In practice `quarter` almost never resolves.** EEX stops publishing a quarter contract once that
-quarter enters delivery, and this estimator reads *today's* vintage, which is inside the current
-quarter for all but the last days before a quarter starts. On 2026-07-25 all 25 quarterly lineages
-resolved to `quarter_month_average`. That is correct behaviour, not a fallback failure.
+**Which quarterly candidate resolves does not matter numerically, and this is verified.** On FI Base
+production data, across **96** trade-date/maturity pairs where both exist, the quarter settlement and
+the day-weighted average of its three month settlements agree to a mean absolute difference of
+**0.002 EUR/MWh** and a maximum of **0.006 EUR/MWh (0.0007 c/kWh)**. An EEX quarter settlement *is*
+the day-weighted average of its months. So `quarter_month_average` is an **exact reconstruction**, not
+a degraded proxy.
+
+That matters because EEX stops publishing a quarter contract a few trading days **before** delivery
+begins, not on the first day of it: FI quarter `202607`'s last settlement is **2026-06-26**, while the
+pricing vintage for a Q3 period starting 2026-07-01 is 2026-06-30. So all 25 quarterly lineages
+resolve to `quarter_month_average` even with the pricing-vintage rule. **Do not add a look-back rule
+to reach the direct quarter contract** — it would buy 0.0007 c/kWh of precision and add a second
+vintage knob.
 
 ### 4. `F_m` uses the month → quarter → year ladder
 
@@ -112,33 +151,38 @@ better than flat but must never outrank an available curve. Do not promote it.
 
 - **Negative floor.** Each bucket rate is applied as `max(0, rate + offset)`, in `costSegment()` and
   `holdForwardTotal()`. A steeply falling curve can never produce a negative energy price.
-- **Stale curve.** A vintage older than `max_curve_age_days` (default 14) drops to rung 2. A stale
-  curve carries a stale *shape*, which is the one thing consumed here.
-- **Plausibility band.** The resulting annual-equivalent energy price must sit inside
-  `[min_multiple, max_multiple]` × the fully-fixed 12-month retail median (10.48 c/kWh on
-  2026-07-24, read from `contract_price_daily_statistics`, which is **read-only** here), and inside
-  the absolute band. Outside it the estimate drops one rung and the reason is flagged.
+- **Stale curve.** A **forward** vintage older than `max_curve_age_days` (default 14) drops to rung 2.
+  A stale curve carries a stale shape, which is the one thing consumed here. This never applies to the
+  reference vintage, which is legitimately old (rule 1).
+- **Absurdity band only.** The resulting annual-equivalent energy price must sit inside an **absolute**
+  band (`absurdity_band`, default 0-60 c/kWh). Outside it the estimate drops one rung and the reason is
+  flagged.
+
+  This is deliberately **not** a band against the fully-fixed retail market. An earlier version banded
+  it to a multiple of the fully-fixed 12-month median, which quietly encoded the prior *"a market-reset
+  product must be cheaper than a fixed deal"*. That prior is weak. Helen at 7.59 c/kWh against a
+  4.03 c/kWh forward for the same month implies a spread near 3.6 c/kWh — entirely plausible for an
+  incumbent with inert customers on a near-default product. If such a product's honest annual
+  equivalent really is above a 10.47 c/kWh fixed deal, **that is a true and useful finding**, and
+  suppressing it would be the same error as tuning an anchor until the output looked reasonable.
+  `test_the_guard_does_not_suppress_a_reset_that_annualises_above_the_fixed_market` exists to break if
+  a market-relative band comes back. The fully-fixed median is still read, but **only** as reported
+  context in the comparison command.
 - **Spot contracts are never shifted.** Moving Spot to a per-month vector is separate deferred work
   with a much smaller payoff.
 
-## Known bias, measured and accepted
+## Residual uncertainty
 
-The one-vintage rule means a **monthly** cadence reads its reference from the month currently *in
-delivery*, whose future has largely converged to realized spot. That converged price is not what the
-seller priced against, so `P_current - F_reference` overstates the spread.
+The pricing vintage is a **proxy** for the date the seller actually set the period price, taken as the
+last trade date before the period began. Sellers publish earlier than that: Cheap states the next
+quarter's price is announced by the 15th of the preceding month, and Helen by the 15th of the preceding
+month or the prior business day. So the proxy runs a couple of weeks late, and for the quarterly
+cadence a mid-June pricing date would have read the Q3 reference around 43.5-44.3 EUR/MWh rather than
+47.2.
 
-Measured on FI month 202607: **4.03 c/kWh** on 2026-06-30 (when July prices were set) against
-**2.45 c/kWh** on 2026-07-24. A **1.58 c/kWh** drift, about **+79 €/yr** at 5000 kWh on every
-monthly-cadence reset. This is why monthly resets currently annualise *above* the fully-fixed market
-median (12.5-13.9 c/kWh against 10.47).
-
-The quarterly cadence is barely affected: the Q3 month-average reference moved only 5.92 → 6.15
-c/kWh over the same period (about −11 €/yr), because two of its three months are still forward.
-
-Do not "fix" this by moving `F_reference` to the pre-period vintage — that is rule 1, and the level
-drift it would reintroduce is larger and not self-cancelling. The proper fix is the deferred
-per-company calibration, which identifies `beta` and the reference from observed resets at the
-vintage the price was set.
+That residual is exactly what the deferred **per-company calibration** identifies — the reference
+period *and* the effective pricing date each seller uses, from observed resets. Do not guess at it
+here; see the calibration section in `../AGENTS.md`.
 
 ## Files
 
@@ -151,11 +195,12 @@ vintage the price was set.
   interpretation `summary` string ever reaches a user.
 - `DTO/ResetEstimate.php` — offsets by `Y-m` plus the basis evidence, surfaced as
   `calculated_cost['reset_estimate']`.
-- `DTO/ResetEstimateRequest.php` — cadence, vintage anchor, tail months, anchor price, month weights.
+- `DTO/ResetEstimateRequest.php` — cadence, both vintage anchors (`asOfDate` for the forward months,
+  `currentPeriodStart` for the reference), tail months, anchor price, month weights.
 - `Enums/ResetEstimateBasis.php` — which rung was used.
 
 Caller: `../CanonicalContractPriceCalculator.php` (`resolveResetEstimate`, `resetTailStart`,
-`segmentMonthWeights`, `heldForwardMonthWeights`, `weightedEnergyPrice`).
+`resetPeriodStart`, `segmentMonthWeights`, `heldForwardMonthWeights`, `weightedEnergyPrice`).
 
 Bindings: `app/Providers/AppServiceProvider.php`. The provider is a **singleton** (shared
 memoization); the estimator is **not** (its settings are a config snapshot and a singleton would keep
@@ -178,6 +223,11 @@ The flag **participates in the cache keys**, the same way the `c1`/`c0` canonica
 
 Without this a stale hold-flat payload would survive the flip.
 
+**Caveat:** the cache version tracks the *flag*, not the *code*. Changing the estimator's maths while
+the flag is already on does **not** bust the page cache, because the version fingerprint is identical.
+Run `php artisan cache:clear` after any such deploy. (`contracts:fetch` already truncates the cache, so
+the next import would fix it anyway, but do not rely on that for a pricing change.)
+
 Staging command:
 
 ```bash
@@ -186,8 +236,8 @@ php artisan contracts:compare-canonical-pricing --resets --json=storage/app/rese
 ```
 
 It costs hold-flat and shifted side by side in one process, independent of the deployed flag, and
-prints per contract: current price, reference kind, hold-flat total, shifted total, delta in euros,
-and the implied annual-equivalent energy price. It needs a current FI curve; refresh a stale local
+prints per contract: current price, reference kind, reference vintage, hold-flat total, shifted total,
+delta in euros, and the implied annual-equivalent energy price. It needs a current FI curve; refresh a stale local
 snapshot with `php artisan futures:backfill-eex --area=FI` (throttled, several minutes).
 
 ## UI contract
@@ -214,7 +264,8 @@ same offsets, so their difference keeps measuring only the promotional effect. P
 
 - `tests/Unit/CanonicalPricing/MarketResetForwardShiftTest.php` — the ladder, the guards, and the
   arithmetic against a fake curve. Includes flag-off byte-identity and the negative floor.
-- `tests/Feature/EexMarketReferenceCurveProviderTest.php` — the one-vintage rule, no same-day
-  leakage, the month/quarter/year ladder, the in-delivery quarter, the seasonal index.
+- `tests/Feature/EexMarketReferenceCurveProviderTest.php` — per-lookup vintage resolution, no
+  same-day leakage, the month/quarter/year ladder, the quarter before and during delivery, the
+  seasonal index.
 - `tests/Feature/MarketResetEstimateSurfacesTest.php` — cache-key participation, container wiring,
   and the Finnish copy.
