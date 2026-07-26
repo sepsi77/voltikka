@@ -602,6 +602,114 @@ class ContractDetailPageTest extends TestCase
             ->assertSee('6,0'); // Historical price should be shown
     }
 
+    /**
+     * A spot contract's General component is the supplier margin. The history
+     * timeline and its trend chart used to call it "Energiahinta", which read as
+     * if a 0,60 c/kWh margin were the whole energy price.
+     */
+    public function test_spot_contract_history_labels_the_general_component_as_margin(): void
+    {
+        $contract = ElectricityContract::create([
+            'id' => 'spot-history-labels',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Surffari',
+            'name_slug' => 'surffari',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'pricing_model' => 'Spot',
+            'availability_is_national' => true,
+        ]);
+
+        ActiveContract::create(['id' => $contract->id]);
+
+        PriceComponent::create([
+            'id' => 'pc-spot-history-old',
+            'electricity_contract_id' => $contract->id,
+            'price_component_type' => 'General',
+            'price_date' => now()->subMonths(2)->format('Y-m-d'),
+            'price' => 0.20,
+            'payment_unit' => 'c/kWh',
+        ]);
+        PriceComponent::create([
+            'id' => 'pc-spot-history-new',
+            'electricity_contract_id' => $contract->id,
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 0.60,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        $labels = $this->contractHistoryPriceLabels($contract->id);
+
+        $this->assertContains('Marginaali', $labels);
+        $this->assertNotContains('Energiahinta', $labels);
+    }
+
+    public function test_non_spot_contract_history_labels_the_general_component_as_energy_price(): void
+    {
+        $labels = $this->contractHistoryPriceLabels($this->contract->id);
+
+        $this->assertContains('Energiahinta', $labels);
+        $this->assertNotContains('Marginaali', $labels);
+    }
+
+    /**
+     * `price_component_type` is stored verbatim from the upstream API, so the
+     * history must not drop rows whose type is missing from the label map.
+     * A `Spot` margin component (Turku Energia Louna Nero) used to vanish.
+     */
+    public function test_history_shows_component_types_outside_the_known_label_map(): void
+    {
+        PriceComponent::create([
+            'id' => 'pc-spot-type-margin',
+            'electricity_contract_id' => $this->contract->id,
+            'price_component_type' => 'Spot',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 0.49,
+            'payment_unit' => 'c/kWh',
+        ]);
+        PriceComponent::create([
+            'id' => 'pc-unknown-upstream-type',
+            'electricity_contract_id' => $this->contract->id,
+            'price_component_type' => 'SomeNewUpstreamType',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 1.25,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        $labels = $this->contractHistoryPriceLabels($this->contract->id);
+
+        // A Spot component is a margin whatever the contract's pricing model is.
+        $this->assertContains('Marginaali', $labels);
+        // An unknown type falls back to its raw name instead of being dropped.
+        $this->assertContains('SomeNewUpstreamType', $labels);
+    }
+
+    public function test_both_winter_component_spellings_are_labelled_as_winter_price(): void
+    {
+        $component = Livewire::test('contract-detail', ['contractId' => $this->contract->id])->instance();
+
+        $labels = (fn () => $this->priceTypeLabelsFor($this->contract))->call($component);
+
+        $this->assertSame('Talvihinta', $labels['SeasonalWinter']);
+        $this->assertSame('Talvihinta', $labels['SeasonalWinterDay']);
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function contractHistoryPriceLabels(string $contractId): array
+    {
+        $history = Livewire::test('contract-detail', ['contractId' => $contractId])
+            ->viewData('contractHistory');
+
+        return collect($history)
+            ->flatMap(fn (array $entry) => array_column($entry['prices'], 'label'))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     public function test_inactive_contract_history_shows_not_for_sale_node_with_last_observed_date(): void
     {
         ActiveContract::query()->whereKey($this->contract->id)->delete();

@@ -1074,7 +1074,7 @@ class ContractDetail extends Component
      *     is_active: bool,
      *     latest_price_date: ?\Carbon\Carbon,
      *     last_seen_on_sale_date: ?\Carbon\Carbon,
-     *     prices: array<int, array{label: string, price: float, unit: string}>,
+     *     prices: array<int, array{type: string, label: string, price: float, unit: string}>,
      *     promotion: ?string
      * }>
      */
@@ -1250,23 +1250,71 @@ class ContractDetail extends Component
     }
 
     /**
-     * @param  array<string, \App\Models\PriceComponent>  $latestPriceComponents
-     * @return array<int, array{label: string, price: float, unit: string}>
+     * Display order for price component types in the history timeline and its
+     * trend chart. Earlier entries are also preferred as the charted series.
+     *
+     * `price_component_type` is written verbatim from the upstream API payload
+     * (`CanonicalPriceComponentWriter`), so this list can never be exhaustive by
+     * construction. Types outside it are appended under their raw name rather
+     * than dropped — the old hardcoded whitelist silently hid the `Spot` margin
+     * component from the history of the Hybrid contract that carries it.
      */
-    protected function formatContractHistoryPrices(ElectricityContract $contract, array $latestPriceComponents): array
+    public const PRICE_TYPE_ORDER = [
+        'General',
+        'Spot',
+        'DayTime',
+        'NightTime',
+        'SeasonalWinter',
+        'SeasonalWinterDay',
+        'SeasonalOther',
+        'Monthly',
+    ];
+
+    /**
+     * Display labels per price component type for the rendered contract.
+     *
+     * @return array<string, string>
+     */
+    public function getPriceTypeLabelsProperty(): array
     {
-        $priceTypeLabels = [
-            'General' => 'Energiahinta',
+        return $this->priceTypeLabelsFor($this->contract);
+    }
+
+    /**
+     * A spot contract stores the supplier margin in its `General` component, not
+     * the energy price the customer pays. The hero pricing block already calls
+     * that row "Marginaali", so the history and its trend chart must agree;
+     * calling it "Energiahinta" claimed a 0,60 c/kWh margin was the whole price.
+     *
+     * A `Spot` component is a margin whatever the contract's pricing model is,
+     * so it does not depend on the model the way `General` does. Both winter
+     * spellings are mapped because upstream has used both.
+     *
+     * @return array<string, string>
+     */
+    protected function priceTypeLabelsFor(?ElectricityContract $contract): array
+    {
+        return [
+            'General' => $contract?->pricing_model === 'Spot' ? 'Marginaali' : 'Energiahinta',
+            'Spot' => 'Marginaali',
             'Monthly' => 'Perusmaksu',
             'DayTime' => 'Päiväsähkö',
             'NightTime' => 'Yösähkö',
+            'SeasonalWinter' => 'Talvihinta',
             'SeasonalWinterDay' => 'Talvihinta',
             'SeasonalOther' => 'Muu aika',
         ];
+    }
 
-        $priceTypeOrder = ['General', 'DayTime', 'NightTime', 'SeasonalWinterDay', 'SeasonalOther', 'Monthly'];
+    /**
+     * @param  array<string, \App\Models\PriceComponent>  $latestPriceComponents
+     * @return array<int, array{type: string, label: string, price: float, unit: string}>
+     */
+    protected function formatContractHistoryPrices(ElectricityContract $contract, array $latestPriceComponents): array
+    {
+        $priceTypeLabels = $this->priceTypeLabelsFor($contract);
 
-        return collect($priceTypeOrder)
+        return collect($this->orderPriceTypes(array_keys($latestPriceComponents)))
             ->map(function (string $type) use ($latestPriceComponents, $priceTypeLabels) {
                 $component = $latestPriceComponents[$type] ?? null;
 
@@ -1275,6 +1323,7 @@ class ContractDetail extends Component
                 }
 
                 return [
+                    'type' => $type,
                     'label' => $priceTypeLabels[$type] ?? $type,
                     'price' => (float) $component->price,
                     'unit' => $type === 'Monthly' ? 'EUR/kk' : 'c/kWh',
@@ -1283,6 +1332,20 @@ class ContractDetail extends Component
             ->filter()
             ->values()
             ->toArray();
+    }
+
+    /**
+     * Known types in display order, then any unrecognized upstream type.
+     *
+     * @param  array<int, string>  $types
+     * @return array<int, string>
+     */
+    public function orderPriceTypes(array $types): array
+    {
+        return array_values(array_merge(
+            array_intersect(self::PRICE_TYPE_ORDER, $types),
+            array_diff($types, self::PRICE_TYPE_ORDER),
+        ));
     }
 
     /**
@@ -1701,6 +1764,8 @@ class ContractDetail extends Component
                 'isPricingExcluded' => $this->isPricingExcluded,
                 'priceHistory' => $this->priceHistory,
                 'contractHistory' => $this->contractHistory,
+                'priceTypeLabels' => $this->priceTypeLabels,
+                'priceTypeOrder' => $this->orderPriceTypes(array_keys($this->priceHistory)),
                 'isActive' => $isActive,
                 'presets' => $this->presets,
                 'co2Emissions' => $this->co2Emissions,
@@ -1735,7 +1800,7 @@ class ContractDetail extends Component
 
     protected function contractDetailViewDataCacheKey(): string
     {
-        return 'contract-detail:view-data:v7:' . md5(json_encode([
+        return 'contract-detail:view-data:v8:' . md5(json_encode([
             'contract_id' => $this->contractId,
             'consumption' => $this->consumption,
             'version' => $this->contractPageCacheVersionHash(),

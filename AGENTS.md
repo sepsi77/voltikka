@@ -307,14 +307,19 @@ php artisan test --filter="ContractsFilterTest"
 | `replaced_by_contract_id` | contract id or null | Forward link to detected replacement contract |
 
 #### PriceComponent Types
+`price_component_type` is written verbatim from the upstream API payload, so this
+list is descriptive, not a closed enum. Code that maps types must fall back for
+unknown values instead of dropping the component.
+
 | Type | Description |
 |------|-------------|
 | Monthly | Fixed monthly fee (€/month) |
-| General | Single rate (c/kWh) |
+| General | Single rate (c/kWh); on a `Spot` contract this is the **margin**, not the energy price |
 | DayTime | Day rate 07-22 (c/kWh) |
 | NightTime | Night rate 22-07 (c/kWh) |
-| SeasonalWinter | Winter rate Nov-Mar (c/kWh) |
+| SeasonalWinterDay | Winter rate Nov-Mar (c/kWh). Upstream has also used `SeasonalWinter`; handle both |
 | SeasonalOther | Other seasons (c/kWh) |
+| Spot | Spot margin as its own component (c/kWh); rare, currently one inactive Hybrid contract |
 
 ## Routes
 

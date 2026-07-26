@@ -391,6 +391,32 @@ Current intended behavior:
   - latest relevant prices per component type
   - promotion/discount summary when present
 
+### Price component label guardrail
+
+Component labels and display order for the history timeline and its trend chart
+come from `ContractDetail::priceTypeLabelsFor()` / `ContractDetail::PRICE_TYPE_ORDER`
+and reach the view as `$priceTypeLabels` / `$priceTypeOrder`. **Do not hardcode
+either map in `contract-detail.blade.php` again.**
+
+- A spot contract's `General` component is the supplier **margin**, not the energy
+  price the customer pays. The hero pricing block already labels that row
+  `Marginaali` and the meta description already says `Marginaali`, so the history
+  must agree. The old blade-local map called it `Energiahinta` for all 215 active
+  spot contracts that store a margin there, which read as if a 0,60 c/kWh margin
+  were the whole energy price. A `Spot`-typed component is a margin regardless of
+  `pricing_model`, so it does not carry that conditional.
+- **`price_component_type` is written verbatim from the upstream API payload**
+  (`Services/ContractInterpretation/CanonicalPriceComponentWriter`), so any
+  whitelist of types is incomplete by construction. `orderPriceTypes()` appends
+  unrecognized types under their raw name instead of dropping them; the previous
+  hardcoded order silently hid the `Spot` margin component from Turku Energia
+  Louna Nero's history entirely. Both winter spellings (`SeasonalWinter`,
+  `SeasonalWinterDay`) are mapped for the same reason.
+- The blade's `$lookupPrice` closure matches timeline rows by **component type,
+  not label**. Two types can share a label (both winter spellings are
+  `Talvihinta`) and a label match would read the wrong row's price into the
+  version-to-version delta chip.
+
 ### Discount display guardrail
 
 When showing a promotion/discount summary for a contract or a historical version:

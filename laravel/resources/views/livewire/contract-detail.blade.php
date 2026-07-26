@@ -735,15 +735,8 @@
             <!-- Contract history / price development -->
             @if (count($priceHistory) > 0 || count($contractHistory) > 1 || ! $isActive)
                 @php
-                    $priceTypeLabels = [
-                        'General' => 'Energiahinta',
-                        'Monthly' => 'Perusmaksu',
-                        'DayTime' => 'Päiväsähkö',
-                        'NightTime' => 'Yösähkö',
-                        'SeasonalWinterDay' => 'Talvihinta',
-                        'SeasonalOther' => 'Muu aika',
-                    ];
-
+                    // Labels come from the component (ContractDetail::priceTypeLabelsFor):
+                    // a spot contract's General component is the margin, not the energy price.
                     // De-dupe merged chain history: keep only real price changes.
                     $dedupedHistory = [];
                     foreach ($priceHistory as $type => $history) {
@@ -764,8 +757,10 @@
                     $since = $priceChangeInfo['since'];
 
                     // Pick the primary series for the hero chart: prefer General, else DayTime, else first.
+                    // $priceTypeOrder covers unrecognized upstream types too, so a contract whose
+                    // only priced component is unknown still gets a chart instead of nothing.
                     $primaryType = null;
-                    foreach (['General', 'DayTime', 'NightTime', 'SeasonalWinterDay', 'SeasonalOther', 'Monthly'] as $candidate) {
+                    foreach ($priceTypeOrder as $candidate) {
                         if (!empty($dedupedHistory[$candidate]) && count($dedupedHistory[$candidate]) >= 2) {
                             $primaryType = $candidate;
                             break;
@@ -806,11 +801,13 @@
 
                     // Attach delta-from-previous (older) for each timeline entry (uses primary series).
                     $timeline = [];
-                    $lookupPrice = function (array $entry) use ($primaryType, $priceTypeLabels): ?float {
+                    // Match on the component type, not the label: two types can share a
+                    // label (both winter spellings are "Talvihinta") and a label match
+                    // would then read the wrong row's price into the delta chip.
+                    $lookupPrice = function (array $entry) use ($primaryType): ?float {
                         if (! $primaryType) return null;
-                        $label = $priceTypeLabels[$primaryType] ?? $primaryType;
                         foreach ($entry['prices'] as $p) {
-                            if ($p['label'] === $label) return (float) $p['price'];
+                            if ($p['type'] === $primaryType) return (float) $p['price'];
                         }
                         return null;
                     };
