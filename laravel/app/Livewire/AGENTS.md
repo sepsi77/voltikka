@@ -539,18 +539,37 @@ the alternatives above the content that justifies them.
 Section order, and it is load bearing:
 
 1. **Dark `slate-950` hero** at content width (`max-w-3xl`).
-2. **Kannattaako X?** (`#kannattaako`)
-3. **Vertaa nykyiseen sähkölaskuusi** (`#vertaa-laskuun`), collapsed.
-4. **Hintatiedot** (`#hintatiedot`): category band, integrity notice, receipt rows, receipt
+2. **Vertaa nykyiseen sähkölaskuusi** (`#vertaa-laskuun`), **open by default**.
+3. **Hintatiedot** (`#hintatiedot`): category band, integrity notice, receipt rows, receipt
    notes, warning pills, static cost table, spot counterfactual.
-5. **Näin hinta on kehittynyt** (`#hintakehitys`)
-6. **Sopimusehdot lyhyesti** (`#sopimusehdot`): terms grid, pientuotanto, seller identity,
+4. **Näin hinta on kehittynyt** (`#hintakehitys`)
+5. **Kannattaako X?** (`#kannattaako`)
+6. **Sähkön alkuperä ja päästöt** (`#ymparisto`)
+7. **Sopimusehdot lyhyesti** (`#sopimusehdot`): terms grid, pientuotanto, seller identity,
    internal comparison links, and the seller's own description **collapsed** inside it.
-7. **Usein kysyttyä** (`#usein-kysyttya`)
-8. **Sähkön alkuperä ja päästöt** (`#ymparisto`)
+8. **Usein kysyttyä** (`#usein-kysyttya`)
 9. **Halvemmat vaihtoehdot** (`#halvemmat`) — the only cards.
 10. Closing method statement.
 11. Mobile sticky CTA bar.
+
+The 2026-07 reorder that produced this list moved three things, and the reasons are the load
+bearing part:
+
+- **The bill module went to the top and opens by default.** It is the page's strongest
+  personalisation surface and it now sits immediately under the hero's consumption picker,
+  which is the control it escalates.
+- **"Kannattaako X?" moved down, below the price history.** It reads as a verdict, and a
+  verdict belongs after the evidence it judges: the visitor's own bill, the itemised price,
+  and how the price has moved. It used to open the body and assert a conclusion before the
+  reader had seen a single figure.
+- **"Sähkön alkuperä ja päästöt" moved above "Sopimusehdot lyhyesti".** Origin and emissions
+  are a buying criterion; the terms grid is reference material read after the decision, and
+  it closes with the seller's own description, which is the natural end of the editorial run
+  before the FAQ.
+
+Section top borders track what is actually rendered above them, not a fixed list: the bill
+module is first under the dark hero and therefore carries **no** top rule, and Hintatiedot
+draws one only when `$showBillComparison` put a section above it.
 
 Rules that must not be undone casually:
 
@@ -568,6 +587,13 @@ Rules that must not be undone casually:
   lived in a third panel. They are one section now with **one** taxonomy: DESIGN.md's three
   emissions tiers (`< 50` green, `< 200` amber, `>= 200` red). Its figures stay smaller than
   the price on purpose; the residual mix must not rival the money on this page.
+  **The lead figure is the driving equivalent in kilometres, not the kilograms.** A reader has
+  no sense of scale for 3 909 kg of CO₂e a year for an invisible product, so the number set in
+  32px carried the least meaning in the block. The kilograms are directly under it as the
+  measured metric the equivalence comes from, and the g/kWh intensity pill is unchanged. The
+  factor is 140 g/km (Traficom/Sitra, the Finnish fleet actually on the road, **not** new-car
+  type approval). A zero-emission contract keeps `0 kg CO₂e vuodessa` as its lead: its message
+  is "no emissions", and "0 km" would say that badly.
 - **Warnings are coral, never amber**, including the pricing-integrity notice and the
   inactive-contract notice (the latter is slate). Amber and red are emissions tiers.
 - **No em dashes and no `EUR/kk` in any Finnish string on this page.** The old verdict strip
@@ -609,7 +635,7 @@ Rules that must not be undone casually:
     390 px it landed mid-wrap and the beat's only action was buried in running text. Above
     `sm` it sits beside the rail in a `flex flex-wrap items-end` row, so pulling it out costs
     no height; below `sm` it wraps under. It is deliberately shorter than the
-    "Katso halvemmat vaihtoehdot" link that closes "Kannattaako X?" one screen below.
+    "Katso halvemmat vaihtoehdot" link that closes "Kannattaako X?" further down the page.
   - The rail is `420px`, not the original `340px`: at 340 the marker read as a dot beside a
     label rather than as a position on a scale.
   - **The lit part of the rail is the share of the market that is cheaper than this
@@ -678,8 +704,7 @@ budget below.
 
 ### Mobile
 
-- The hero is about 1 050 px tall at 390 px (one screen is 844 px); the "Vertaa sähkölaskuusi"
-  link under the chips costs 52 px of that, all of it below the fold. The **price, the verdict
+- The hero is about 1 000 px tall at 390 px (one screen is 844 px). The **price, the verdict
   line, the rail and `Katso halvemmat` sit inside the first screen** (the rail block ends
   around 512 px); the chips and the CTA follow. Every approved hero element is present, so a
   strict one-screen hero would mean dropping one.
@@ -907,10 +932,9 @@ Tests: `tests/Feature/ContractDetailPresenterTest.php`, one per defect above.
 
 ### Bill comparison module ("Vertaa nykyiseen sähkölaskuusi")
 
-The third bill-comparison surface (after `/maksatko-liikaa` and the in-listing mode). It sits
-directly after "Kannattaako X?" and **above** "Hintatiedot", is **collapsed by default**, and
-answers one question: what this contract would have cost for the visitor's own billing period
-and kWh.
+The third bill-comparison surface (after `/maksatko-liikaa` and the in-listing mode). It is the
+**first section under the hero**, it is **open by default**, and it answers one question: what
+this contract would have cost for the visitor's own billing period and kWh.
 
 **It is rung two of the hero's consumption ladder, and the placement is deliberate.** Rung one
 is the hero's preset chips: one tap, and every number on the page moves. Rung two is this
@@ -918,16 +942,31 @@ module: several fields, and one scoped answer that changes nothing else. That di
 the two are *not* merged into one block — a multi-field form beside the chips reads as "fill
 both in to use this page" and puts an entry price on a page that works at zero cost, and moving
 the chips out of the hero would put the CTA above the only control that sets the price it acts
-on. The hero instead carries one link under the chips ("Tiedätkö tarkan laskusi? Vertaa
-sähkölaskuusi ↓") which scrolls here **and** dispatches `open-bill-comparison` so the visitor
-does not land on a collapsed heading. Keep the link and the section's `@open-bill-comparison`
-listener together; either one alone is broken.
+on. **Adjacency is what makes the two read as one ladder now** — the module starts about 40 px
+below the hero's last block — so the ladder no longer needs a link to state itself.
+
+The hero used to close its picker block with "Tiedätkö tarkan laskusi? Vertaa sähkölaskuusi ↓",
+which scrolled here and dispatched `open-bill-comparison`. It was removed with the reorder: its
+whole job was to stop a visitor landing on a collapsed heading, and the module is now first and
+open. The section keeps its `@open-bill-comparison` listener, so any future opener still works
+and a visitor who collapsed the panel can be taken back to an open form.
 
 It used to sit after "Hintatiedot", which put it 2 138 px down on desktop and 2 890 px down at
-390 px — about 3.4 phone screens, collapsed, behind the largest section on the page. It is now
-at 1 372 / 1 880 px. Both section borders are conditional on what is actually above them
-(`$verdict` for this one, `$verdict || $showBillComparison` for Hintatiedot), so neither draws a
-rule straight against the dark hero when the sections above are absent.
+390 px — about 3.4 phone screens, collapsed, behind the largest section on the page. Moving it
+above "Kannattaako X?" brought it to 1 372 / 1 880 px; it is now first under the hero at 851 px
+on desktop.
+
+**Open by default has two consequences in the template that are easy to undo by accident.** The
+panel must not carry `x-cloak` (it would hide an open panel until Alpine boots, which is the
+flash `x-cloak` exists to prevent, inverted), and the chevron carries `rotate-180` in its static
+class list **plus** an object-syntax `:class="{ 'rotate-180': billOpen }"`, so the server HTML is
+already correct and the icon does not visibly spin once on hydration. Object syntax, not the
+`billOpen && '...'` string form, because only the object form removes a class the static list
+put there when the visitor collapses the panel.
+
+Being first under the hero, the section carries **no top border** — a rule straight against the
+dark hero would read as a seam. Hintatiedot below it owns that rule and draws it only when
+`$showBillComparison` actually rendered this section.
 
 - **Inputs come from `Concerns/BillComparisonInputs` and the shared partial**
   `partials/bill-comparison-form.blade.php`, the same two files the listing uses. The module
@@ -972,7 +1011,7 @@ Three page sections carry no seller or LLM text at all. All three are built in P
 fields, for the same reason as `getPriceQualifierProperty()` and the counterfactual: a Finnish
 sentence written in a Blade template drifts away from the numbers beside it.
 
-**"Kannattaako X?" (`getVerdictProperty()`)** renders directly after the hero. Two paragraphs:
+**"Kannattaako X?" (`getVerdictProperty()`)** renders after the price history. Two paragraphs:
 where the contract sits (tier, cheaper/pricier counts, money gap) and what its pricing type means
 for the buyer. Constraints:
 

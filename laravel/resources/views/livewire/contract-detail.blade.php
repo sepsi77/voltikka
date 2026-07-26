@@ -168,10 +168,13 @@
                             <span class="self-center">
                                 <x-info-popover
                                     label="Arvio"
-                                    {{-- Standalone control beside the price, so it carries a 44px
-                                         hit area. `!` forces the override past the component's own
-                                         card-sized padding. --}}
-                                    trigger-class="!py-[11px] !px-4"
+                                    {{-- The 44px touch target is a transparent `::before` box, not
+                                         padding. Padding made the pill 44px TALL beside a 56px
+                                         number, so a footnote marker read as a second button
+                                         competing with the price. The pill now keeps the
+                                         component's own slim card size and the hit area extends
+                                         invisibly past it. --}}
+                                    trigger-class="relative before:absolute before:inset-x-0 before:top-1/2 before:h-11 before:-translate-y-1/2 before:content-['']"
                                     :heading="$card->estimate->heading"
                                     :body="$card->estimate->body"
                                     :link-url="$card->estimate->linkUrl"
@@ -338,38 +341,12 @@
                     <p class="mt-2 max-w-[60ch] text-sm text-slate-300">{{ $rankBasisNotice }}</p>
                 @endif
 
-                {{-- Rung two of the same ladder. The chips are "tell us roughly"; the bill
-                     module is "tell us exactly", and it is a separate section rather than a
-                     second field group here because it is a self-contained calculator, not a
-                     page-level basis control: the chips move every number on the page, the
-                     bill moves only its own answer. Merging them into one block would put a
-                     multi-field form in front of a page that works at zero entry cost. The
-                     link is what makes the two read as one ladder.
-
-                     It opens the disclosure as well as scrolling, for the same reason the
-                     pricing-category label opens `#faq-miten`: landing on a collapsed section
-                     reads as arriving nowhere. --}}
-                @if ($showBillComparison)
-                    <p class="mt-2">
-                        <a
-                            href="#vertaa-laskuun"
-                            x-data
-                            @click.prevent="
-                                const target = document.getElementById('vertaa-laskuun');
-                                if (! target) return;
-                                target.dispatchEvent(new CustomEvent('open-bill-comparison'));
-                                target.scrollIntoView({
-                                    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-                                    block: 'start',
-                                });
-                            "
-                            class="inline-flex min-h-[44px] items-center gap-1.5 rounded-sm text-sm text-slate-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                        >
-                            <span>Tiedätkö tarkan laskusi? <span class="font-semibold text-white underline underline-offset-2">Vertaa sähkölaskuusi</span></span>
-                            <span aria-hidden="true">↓</span>
-                        </a>
-                    </p>
-                @endif
+                {{-- The "Tiedätkö tarkan laskusi? Vertaa sähkölaskuusi ↓" link used to close
+                     this block. It existed to stop a visitor landing on a collapsed heading,
+                     and the bill module is now the first section under the hero and open by
+                     default, so the link advertised something already visible. Do not add it
+                     back without a reason that survives that change; the section still listens
+                     for `open-bill-comparison` so any future opener works. --}}
             </div>
 
             @if ($sellerCta)
@@ -426,66 +403,25 @@
             </p>
         @endif
 
-        {{-- ============================ Kannattaako X? ============================
-             Generated in PHP from typed fields only. Every figure is priced at the
-             comparison consumption, so it moves with the picker. --}}
-        @if ($verdict)
-            <section id="kannattaako" class="scroll-mt-20 py-10 sm:py-11">
-                <h2 class="text-[22px] font-bold text-slate-900">{{ $verdict['heading'] }}</h2>
-                <div
-                    class="mt-4 space-y-2.5 transition-opacity duration-150"
-                    wire:loading.class.delay="opacity-40"
-                    wire:target="setConsumption, directConsumption"
-                >
-                    @foreach ($verdict['paragraphs'] as $paragraph)
-                        <p class="max-w-[65ch] text-[17px] leading-relaxed text-slate-700">{{ $paragraph }}</p>
-                    @endforeach
-
-                    @if ($verdict['show_cheaper_link'])
-                        <p>
-                            <a
-                                href="#halvemmat"
-                                class="inline-flex min-h-[44px] items-center gap-1 rounded-sm text-[15px] font-semibold text-coral-600 hover:text-coral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
-                                x-data
-                                @click.prevent="
-                                    const target = document.getElementById('halvemmat');
-                                    if (! target) return;
-                                    target.scrollIntoView({
-                                        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-                                        block: 'start',
-                                    });
-                                "
-                            >
-                                Katso halvemmat vaihtoehdot
-                                <span aria-hidden="true">↓</span>
-                            </a>
-                        </p>
-                    @endif
-
-                    <p class="text-sm text-slate-500">{{ $verdict['basis'] }}</p>
-                </div>
-            </section>
-        @endif
-
         {{-- ============================ Vertaa nykyiseen sähkölaskuusi ============================
              One bill, this contract, the same billing period. Period basis only, exactly
              like the in-listing mode: the bill total is the anchor and no annual figure is
-             derived from it. Collapsed by default; per-user compute that never enters the
-             page's prepared payload cache.
+             derived from it. Per-user compute that never enters the page's prepared payload
+             cache.
 
-             It sits directly after "Kannattaako X?" and ABOVE Hintatiedot. It used to follow
-             Hintatiedot, which put the page's strongest personalisation surface 2 138 px down
-             on desktop and 2 890 px down at 390 px, roughly 3.4 phone screens, collapsed,
-             behind the largest section on the page. It is the second rung of the ladder the
-             hero's consumption picker starts, and the hero links down to it by name.
+             It is the FIRST section under the hero, and it is OPEN by default. It used to sit
+             below Hintatiedot and later below "Kannattaako X?", collapsed, which put the
+             page's strongest personalisation surface roughly 3.4 phone screens down behind
+             the largest section on the page. It is the second rung of the ladder the hero's
+             consumption picker starts, and the hero links down to it by name.
 
-             The border rule tracks what is actually above it: without a verdict this is the
-             first section under the dark hero and must not draw a rule against it. --}}
+             Being first under the dark hero, it must not draw a rule against it, so this
+             section carries no top border. Hintatiedot below it owns that rule instead. --}}
         @if ($showBillComparison)
             <section
                 id="vertaa-laskuun"
-                class="scroll-mt-20 py-10 sm:py-11 {{ $verdict ? 'border-t border-slate-200' : '' }}"
-                x-data="{ billOpen: @js($billComparison !== null) }"
+                class="scroll-mt-20 py-10 sm:py-11"
+                x-data="{ billOpen: true }"
                 @open-bill-comparison="billOpen = true"
             >
                 {{-- The disclosure trigger stays inside an h2 so the restructured page keeps
@@ -505,13 +441,19 @@
                                 Syötä yhden laskun tiedot, niin näytämme mitä tämä sopimus olisi maksanut samalta jaksolta.
                             </span>
                         </span>
-                        <svg class="mt-1 h-5 w-5 shrink-0 text-slate-400 transition-transform" :class="billOpen && 'rotate-180'" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                        {{-- Object syntax, and `rotate-180` also in the static class list: the
+                             panel is open in the server HTML, so the chevron must already be
+                             flipped there or it visibly spins once on Alpine init. Object
+                             syntax removes the class again when the visitor collapses it. --}}
+                        <svg class="mt-1 h-5 w-5 shrink-0 rotate-180 text-slate-400 transition-transform" :class="{ 'rotate-180': billOpen }" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"></path>
                         </svg>
                     </button>
                 </h2>
 
-                <div id="vertaa-laskuun-paneeli" x-show="billOpen" x-collapse x-cloak class="pt-6">
+                {{-- No `x-cloak`: it would hide a panel that is open by default until Alpine
+                     boots, which is the flash it exists to prevent, inverted. --}}
+                <div id="vertaa-laskuun-paneeli" x-show="billOpen" x-collapse class="pt-6">
                     @include('partials.bill-comparison-form', [
                         'idPrefix' => 'detail-bill',
                         'totalLabel' => 'Sähköenergian osuus (€)',
@@ -594,8 +536,10 @@
             </section>
         @endif
 
-        {{-- ============================ Hintatiedot ============================ --}}
-        <section id="hintatiedot" class="scroll-mt-20 py-10 sm:py-11 {{ ($verdict || $showBillComparison) ? 'border-t border-slate-200' : '' }}">
+        {{-- ============================ Hintatiedot ============================
+             The bill module above it is optional, so this section draws the rule only when
+             something is actually above it to rule against. --}}
+        <section id="hintatiedot" class="scroll-mt-20 py-10 sm:py-11 {{ $showBillComparison ? 'border-t border-slate-200' : '' }}">
             <h2 class="text-[22px] font-bold text-slate-900">Hintatiedot</h2>
 
             {{-- The pricing category, from the same presenter and with the same tint as
@@ -998,6 +942,250 @@
             </section>
         @endif
 
+        {{-- ============================ Kannattaako X? ============================
+             Generated in PHP from typed fields only. Every figure is priced at the
+             comparison consumption, so it moves with the picker.
+
+             It reads as a verdict, so it sits AFTER the evidence it is a verdict on: the
+             bill comparison, the itemised price, and the price history. It used to open the
+             body, where it asserted a conclusion before the reader had seen a single
+             figure. Hintatiedot always renders above it, so the rule is unconditional. --}}
+        @if ($verdict)
+            <section id="kannattaako" class="scroll-mt-20 border-t border-slate-200 py-10 sm:py-11">
+                <h2 class="text-[22px] font-bold text-slate-900">{{ $verdict['heading'] }}</h2>
+                <div
+                    class="mt-4 space-y-2.5 transition-opacity duration-150"
+                    wire:loading.class.delay="opacity-40"
+                    wire:target="setConsumption, directConsumption"
+                >
+                    @foreach ($verdict['paragraphs'] as $paragraph)
+                        <p class="max-w-[65ch] text-[17px] leading-relaxed text-slate-700">{{ $paragraph }}</p>
+                    @endforeach
+
+                    @if ($verdict['show_cheaper_link'])
+                        <p>
+                            <a
+                                href="#halvemmat"
+                                class="inline-flex min-h-[44px] items-center gap-1 rounded-sm text-[15px] font-semibold text-coral-600 hover:text-coral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500"
+                                x-data
+                                @click.prevent="
+                                    const target = document.getElementById('halvemmat');
+                                    if (! target) return;
+                                    target.scrollIntoView({
+                                        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                                        block: 'start',
+                                    });
+                                "
+                            >
+                                Katso halvemmat vaihtoehdot
+                                <span aria-hidden="true">↓</span>
+                            </a>
+                        </p>
+                    @endif
+
+                    <p class="text-sm text-slate-500">{{ $verdict['basis'] }}</p>
+                </div>
+            </section>
+        @endif
+
+        {{-- ============================ Sähkön alkuperä ja päästöt ============================
+             ONE environment module. The hero used to carry a second CO2 stat block with its
+             own severity taxonomy (4 tiers) while this section used a fifth-tier variant,
+             and the origin breakdown lived in a third panel. They are one section now with
+             one taxonomy: DESIGN.md's three emissions tiers. The figures stay smaller than
+             the price, because the residual mix must not rival the money on this page. --}}
+        @if (! empty($co2Emissions))
+            @php
+                $sourceLabels = [
+                    'coal' => 'Kivihiili',
+                    'natural_gas' => 'Maakaasu',
+                    'oil' => 'Öljy',
+                    'peat' => 'Turve',
+                    'fossil_generic' => 'Fossiiliset (erittelemätön)',
+                    'nuclear' => 'Ydinvoima',
+                    'wind' => 'Tuulivoima',
+                    'solar' => 'Aurinkovoima',
+                    'hydro' => 'Vesivoima',
+                    'biomass' => 'Biomassa',
+                    'renewable_general' => 'Uusiutuva (erittelemätön)',
+                    'renewable_unspecified' => 'Uusiutuva (erittelemätön)',
+                    'residual_mix' => 'Jäännösjakauma',
+                ];
+                $emissionFactor = (float) ($co2Emissions['emission_factor_g_per_kwh'] ?? 0);
+                $annualEmissionsKg = (float) ($co2Emissions['total_emissions_kg'] ?? 0);
+                // Average Finnish car fleet: ~140 gCO2/km (Traficom/Sitra), i.e. the cars
+                // actually on the road, not new-car type approval.
+                $drivingKm = $annualEmissionsKg > 0 ? round($annualEmissionsKg * 1000 / 140) : 0;
+                $physicalAverage = \App\Services\CO2EmissionsCalculator::FINLAND_BENCHMARKS['physical_grid_average'];
+
+                // ONE taxonomy, the three DESIGN.md emissions tiers. Static class strings so
+                // Tailwind can scan them.
+                if ($emissionFactor < 50) {
+                    $severityLabel = $emissionFactor == 0 ? 'Päästötön' : 'Matalat päästöt';
+                    $severityClass = 'bg-emerald-50 text-emerald-700 ring-emerald-200';
+                    $severityDot = 'bg-emerald-500';
+                } elseif ($emissionFactor < 200) {
+                    $severityLabel = 'Keskitason päästöt';
+                    $severityClass = 'bg-amber-50 text-amber-700 ring-amber-200';
+                    $severityDot = 'bg-amber-500';
+                } else {
+                    $severityLabel = 'Korkeat päästöt';
+                    $severityClass = 'bg-red-50 text-red-700 ring-red-200';
+                    $severityDot = 'bg-red-500';
+                }
+
+                $source = $contract->electricitySource;
+                $hasSourceData = $source && (
+                    ($source->renewable_total ?? 0) > 0 || ($source->nuclear_total ?? 0) > 0 || ($source->fossil_total ?? 0) > 0
+                );
+            @endphp
+            <section id="ymparisto" class="scroll-mt-20 border-t border-slate-200 py-10 sm:py-11">
+                <h2 class="text-[22px] font-bold text-slate-900">Sähkön alkuperä ja päästöt</h2>
+
+                <div
+                    class="mt-5 flex flex-wrap gap-x-10 gap-y-6 transition-opacity duration-150"
+                    wire:loading.class.delay="opacity-40"
+                    wire:target="setConsumption, directConsumption"
+                >
+                    <div class="tabular-nums">
+                        @if ($emissionFactor == 0)
+                            <p class="text-3xl font-extrabold text-slate-900">0 <span class="text-sm font-semibold text-slate-500">kg CO₂e vuodessa</span></p>
+                            <p class="mt-1 max-w-[24ch] text-sm text-slate-600">Tämän sopimuksen sähköntuotannolla ei ole suoria CO₂-päästöjä.</p>
+                        @else
+                            {{-- The driving equivalent leads, not the kilograms. Nobody holds a
+                                 sense of scale for 3 909 kg of CO₂e, and the figure is a yearly
+                                 total for an invisible product, so the number that was set in
+                                 32px carried the least meaning on the block. Kilometres are a
+                                 quantity a reader already has intuition for. The kilograms stay
+                                 directly under it as the measured metric the equivalence is
+                                 derived from; they are not dropped, only demoted. --}}
+                            <p class="text-3xl font-extrabold text-slate-900">
+                                {{ number_format($drivingKm, 0, ',', ' ') }} <span class="text-sm font-semibold text-slate-500">km ajoa bensiiniautolla</span>
+                            </p>
+                            {{-- The figure and its unit are one token: "3 909" and "kg CO₂e"
+                                 landed on separate lines at this column width. --}}
+                            <p class="mt-1 max-w-[30ch] text-sm text-slate-600">
+                                vastaa sopimuksen vuosipäästöjä
+                                <strong class="whitespace-nowrap font-semibold text-slate-900">{{ number_format($annualEmissionsKg, 0, ',', ' ') }} kg CO₂e</strong>
+                            </p>
+                        @endif
+                        <span class="mt-2.5 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold ring-1 ring-inset {{ $severityClass }}">
+                            <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full {{ $severityDot }}"></span>
+                            {{ $severityLabel }} · {{ number_format($emissionFactor, 0, ',', '') }} g/kWh
+                        </span>
+                    </div>
+
+                    <div class="min-w-[260px] max-w-[58ch] flex-1 text-[15px] leading-relaxed text-slate-600">
+                        <p>
+                            Luku on laskettu valitsemallasi {{ number_format($consumption, 0, ',', ' ') }} kWh vuosikulutuksella.
+                            @if (($co2Emissions['residual_mix_percent'] ?? 0) > 0)
+                                Myyjä ei ole eritellyt
+                                <span class="font-semibold text-slate-900 tabular-nums">{{ number_format($co2Emissions['residual_mix_percent'], 0, ',', '') }} %</span>
+                                tämän sopimuksen sähkön alkuperästä, joten se osuus lasketaan jäännösjakaumalla: sillä sähköllä, joka jää jäljelle kun alkuperätakuilla myyty tuotanto on poistettu. Se ei kerro, millaista sähköä juuri sinulle toimitetaan.
+                            @elseif ($emissionFactor > $physicalAverage)
+                                Päästökerroin perustuu myyjän ilmoittamiin energialähteisiin. Suomen sähköverkon fyysinen keskipäästö on noin {{ number_format($physicalAverage, 0) }} g/kWh.
+                            @endif
+                        </p>
+                        @if ($drivingKm > 0)
+                            <p class="mt-3">
+                                <a href="/sahkosopimus/fossiiliton" class="inline-flex min-h-[44px] items-center rounded-sm font-semibold text-coral-600 hover:text-coral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">Katso vähäpäästöiset sopimukset →</a>
+                            </p>
+                        @endif
+                    </div>
+                </div>
+
+                {{-- Origin breakdown --}}
+                @if ($hasSourceData)
+                    <dl class="mt-7 max-w-[420px] space-y-3">
+                        @foreach ([
+                            ['Uusiutuva', $source->renewable_total, 'bg-emerald-500'],
+                            ['Ydinvoima', $source->nuclear_total, 'bg-slate-500'],
+                            ['Fossiilinen', $source->fossil_total, 'bg-red-500'],
+                        ] as [$label, $share, $barClass])
+                            @if ($share && $share > 0)
+                                <div>
+                                    <div class="flex items-baseline justify-between text-sm">
+                                        <dt class="text-slate-600">{{ $label }}</dt>
+                                        <dd class="font-semibold text-slate-900 tabular-nums">{{ number_format($share, 0, ',', ' ') }} %</dd>
+                                    </div>
+                                    <div class="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                                        <div class="h-2 rounded-full {{ $barClass }}" style="width: {{ min($share, 100) }}%"></div>
+                                    </div>
+                                </div>
+                            @endif
+                        @endforeach
+                    </dl>
+
+                    @if ($source->renewable_total && $source->renewable_total > 0)
+                        <dl class="mt-5 flex flex-wrap gap-x-8 gap-y-2 text-sm">
+                            @foreach ([
+                                ['Tuulivoima', $source->renewable_wind],
+                                ['Vesivoima', $source->renewable_hydro],
+                                ['Aurinkovoima', $source->renewable_solar],
+                                ['Biomassa', $source->renewable_biomass],
+                            ] as [$label, $share])
+                                @if ($share && $share > 0)
+                                    <div class="flex items-baseline gap-2">
+                                        <dt class="text-slate-500">{{ $label }}</dt>
+                                        <dd class="font-semibold text-slate-900 tabular-nums">{{ number_format($share, 0, ',', ' ') }} %</dd>
+                                    </div>
+                                @endif
+                            @endforeach
+                        </dl>
+                    @endif
+                @else
+                    <p class="mt-6 max-w-[65ch] text-[15px] text-slate-600">
+                        Sähkön alkuperätietoja ei ole saatavilla tälle sopimukselle, joten päästölaskennassa käytetään Suomen jäännösjakaumaa.
+                    </p>
+                @endif
+
+                <details class="group mt-6 border-t border-slate-100">
+                    <summary class="flex min-h-[44px] cursor-pointer list-none items-center text-sm font-semibold text-slate-600 hover:text-slate-900">
+                        Näytä laskennan yksityiskohdat
+                        <span aria-hidden="true" class="ml-1 inline-block transition-transform group-open:rotate-180">▾</span>
+                    </summary>
+
+                    <div class="mt-3 space-y-5">
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-700">Päästöt energialähteittäin</h3>
+                            <dl class="mt-2 divide-y divide-slate-100 text-sm">
+                                @foreach ($co2Emissions['emissions_by_source'] as $sourceKey => $emissionsKg)
+                                    <div class="flex items-baseline justify-between gap-4 py-2">
+                                        <dt class="text-slate-600">{{ $sourceLabels[$sourceKey] ?? $sourceKey }}</dt>
+                                        <dd class="font-medium text-slate-900 tabular-nums">{{ number_format($emissionsKg, 1, ',', ' ') }} kg CO₂e</dd>
+                                    </div>
+                                @endforeach
+                            </dl>
+                        </div>
+
+                        <div>
+                            <h3 class="text-sm font-semibold text-slate-700">Käytetyt päästökertoimet</h3>
+                            <dl class="mt-2 divide-y divide-slate-100 text-sm">
+                                @foreach ($co2Emissions['emissions_by_source'] as $sourceKey => $emissionsKg)
+                                    @if (isset($emissionFactorSources[$sourceKey]))
+                                        <div class="flex items-baseline justify-between gap-4 py-2">
+                                            <dt class="text-slate-600">
+                                                {{ $sourceLabels[$sourceKey] ?? $sourceKey }}
+                                                <span class="text-slate-400">({{ $emissionFactorSources[$sourceKey]['source'] }})</span>
+                                            </dt>
+                                            <dd class="font-medium text-slate-700 tabular-nums">{{ number_format($emissionFactorSources[$sourceKey]['value'], 0, ',', ' ') }} g/kWh</dd>
+                                        </div>
+                                    @endif
+                                @endforeach
+                            </dl>
+                        </div>
+
+                        <ul class="space-y-1 text-sm text-slate-500">
+                            <li>Fossiilisten polttoaineiden päästökertoimet: Tilastokeskus ja IPCC Guidelines for National GHG Inventories.</li>
+                            <li>Suomen tuotannon keskiarvo (noin {{ number_format($physicalAverage, 0) }} g/kWh): Fingrid ja Tilastokeskus 2024.</li>
+                            <li>Jäännösjakauman päästökerroin: kansallinen jäännösjakauma 2024.</li>
+                            <li>Uusiutuvat ja ydinvoima: EU:n alkuperätakuujärjestelmän mukainen 0 g/kWh.</li>
+                        </ul>
+                    </div>
+                </details>
+            </section>
+        @endif
+
         {{-- ============================ Sopimusehdot lyhyesti ============================
              One flat grid of the terms Voltikka actually holds, then the seller's own
              description COLLAPSED under it. Rows come from
@@ -1128,194 +1316,6 @@
                         </details>
                     @endforeach
                 </div>
-            </section>
-        @endif
-
-        {{-- ============================ Sähkön alkuperä ja päästöt ============================
-             ONE environment module. The hero used to carry a second CO2 stat block with its
-             own severity taxonomy (4 tiers) while this section used a fifth-tier variant,
-             and the origin breakdown lived in a third panel. They are one section now with
-             one taxonomy: DESIGN.md's three emissions tiers. The figures stay smaller than
-             the price, because the residual mix must not rival the money on this page. --}}
-        @if (! empty($co2Emissions))
-            @php
-                $sourceLabels = [
-                    'coal' => 'Kivihiili',
-                    'natural_gas' => 'Maakaasu',
-                    'oil' => 'Öljy',
-                    'peat' => 'Turve',
-                    'fossil_generic' => 'Fossiiliset (erittelemätön)',
-                    'nuclear' => 'Ydinvoima',
-                    'wind' => 'Tuulivoima',
-                    'solar' => 'Aurinkovoima',
-                    'hydro' => 'Vesivoima',
-                    'biomass' => 'Biomassa',
-                    'renewable_general' => 'Uusiutuva (erittelemätön)',
-                    'renewable_unspecified' => 'Uusiutuva (erittelemätön)',
-                    'residual_mix' => 'Jäännösjakauma',
-                ];
-                $emissionFactor = (float) ($co2Emissions['emission_factor_g_per_kwh'] ?? 0);
-                $annualEmissionsKg = (float) ($co2Emissions['total_emissions_kg'] ?? 0);
-                // Average Finnish car fleet: ~140 gCO2/km (Traficom/Sitra), i.e. the cars
-                // actually on the road, not new-car type approval.
-                $drivingKm = $annualEmissionsKg > 0 ? round($annualEmissionsKg * 1000 / 140) : 0;
-                $physicalAverage = \App\Services\CO2EmissionsCalculator::FINLAND_BENCHMARKS['physical_grid_average'];
-
-                // ONE taxonomy, the three DESIGN.md emissions tiers. Static class strings so
-                // Tailwind can scan them.
-                if ($emissionFactor < 50) {
-                    $severityLabel = $emissionFactor == 0 ? 'Päästötön' : 'Matalat päästöt';
-                    $severityClass = 'bg-emerald-50 text-emerald-700 ring-emerald-200';
-                    $severityDot = 'bg-emerald-500';
-                } elseif ($emissionFactor < 200) {
-                    $severityLabel = 'Keskitason päästöt';
-                    $severityClass = 'bg-amber-50 text-amber-700 ring-amber-200';
-                    $severityDot = 'bg-amber-500';
-                } else {
-                    $severityLabel = 'Korkeat päästöt';
-                    $severityClass = 'bg-red-50 text-red-700 ring-red-200';
-                    $severityDot = 'bg-red-500';
-                }
-
-                $source = $contract->electricitySource;
-                $hasSourceData = $source && (
-                    ($source->renewable_total ?? 0) > 0 || ($source->nuclear_total ?? 0) > 0 || ($source->fossil_total ?? 0) > 0
-                );
-            @endphp
-            <section id="ymparisto" class="scroll-mt-20 border-t border-slate-200 py-10 sm:py-11">
-                <h2 class="text-[22px] font-bold text-slate-900">Sähkön alkuperä ja päästöt</h2>
-
-                <div
-                    class="mt-5 flex flex-wrap gap-x-10 gap-y-6 transition-opacity duration-150"
-                    wire:loading.class.delay="opacity-40"
-                    wire:target="setConsumption, directConsumption"
-                >
-                    <div class="tabular-nums">
-                        @if ($emissionFactor == 0)
-                            <p class="text-3xl font-extrabold text-slate-900">0 <span class="text-sm font-semibold text-slate-500">kg CO₂e vuodessa</span></p>
-                            <p class="mt-1 max-w-[24ch] text-sm text-slate-600">Tämän sopimuksen sähköntuotannolla ei ole suoria CO₂-päästöjä.</p>
-                        @else
-                            <p class="text-3xl font-extrabold text-slate-900">
-                                {{ number_format($annualEmissionsKg, 0, ',', ' ') }} <span class="text-sm font-semibold text-slate-500">kg CO₂e vuodessa</span>
-                            </p>
-                            <p class="mt-1 max-w-[26ch] text-sm text-slate-600">
-                                vastaa n. <strong class="font-semibold text-slate-900">{{ number_format($drivingKm, 0, ',', ' ') }} km</strong> ajoa bensiiniautolla
-                            </p>
-                        @endif
-                        <span class="mt-2.5 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold ring-1 ring-inset {{ $severityClass }}">
-                            <span aria-hidden="true" class="h-1.5 w-1.5 rounded-full {{ $severityDot }}"></span>
-                            {{ $severityLabel }} · {{ number_format($emissionFactor, 0, ',', '') }} g/kWh
-                        </span>
-                    </div>
-
-                    <div class="min-w-[260px] max-w-[58ch] flex-1 text-[15px] leading-relaxed text-slate-600">
-                        <p>
-                            Luku on laskettu valitsemallasi {{ number_format($consumption, 0, ',', ' ') }} kWh vuosikulutuksella.
-                            @if (($co2Emissions['residual_mix_percent'] ?? 0) > 0)
-                                Myyjä ei ole eritellyt
-                                <span class="font-semibold text-slate-900 tabular-nums">{{ number_format($co2Emissions['residual_mix_percent'], 0, ',', '') }} %</span>
-                                tämän sopimuksen sähkön alkuperästä, joten se osuus lasketaan jäännösjakaumalla: sillä sähköllä, joka jää jäljelle kun alkuperätakuilla myyty tuotanto on poistettu. Se ei kerro, millaista sähköä juuri sinulle toimitetaan.
-                            @elseif ($emissionFactor > $physicalAverage)
-                                Päästökerroin perustuu myyjän ilmoittamiin energialähteisiin. Suomen sähköverkon fyysinen keskipäästö on noin {{ number_format($physicalAverage, 0) }} g/kWh.
-                            @endif
-                        </p>
-                        @if ($drivingKm > 0)
-                            <p class="mt-3">
-                                <a href="/sahkosopimus/fossiiliton" class="inline-flex min-h-[44px] items-center rounded-sm font-semibold text-coral-600 hover:text-coral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">Katso vähäpäästöiset sopimukset →</a>
-                            </p>
-                        @endif
-                    </div>
-                </div>
-
-                {{-- Origin breakdown --}}
-                @if ($hasSourceData)
-                    <dl class="mt-7 max-w-[420px] space-y-3">
-                        @foreach ([
-                            ['Uusiutuva', $source->renewable_total, 'bg-emerald-500'],
-                            ['Ydinvoima', $source->nuclear_total, 'bg-slate-500'],
-                            ['Fossiilinen', $source->fossil_total, 'bg-red-500'],
-                        ] as [$label, $share, $barClass])
-                            @if ($share && $share > 0)
-                                <div>
-                                    <div class="flex items-baseline justify-between text-sm">
-                                        <dt class="text-slate-600">{{ $label }}</dt>
-                                        <dd class="font-semibold text-slate-900 tabular-nums">{{ number_format($share, 0, ',', ' ') }} %</dd>
-                                    </div>
-                                    <div class="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200">
-                                        <div class="h-2 rounded-full {{ $barClass }}" style="width: {{ min($share, 100) }}%"></div>
-                                    </div>
-                                </div>
-                            @endif
-                        @endforeach
-                    </dl>
-
-                    @if ($source->renewable_total && $source->renewable_total > 0)
-                        <dl class="mt-5 flex flex-wrap gap-x-8 gap-y-2 text-sm">
-                            @foreach ([
-                                ['Tuulivoima', $source->renewable_wind],
-                                ['Vesivoima', $source->renewable_hydro],
-                                ['Aurinkovoima', $source->renewable_solar],
-                                ['Biomassa', $source->renewable_biomass],
-                            ] as [$label, $share])
-                                @if ($share && $share > 0)
-                                    <div class="flex items-baseline gap-2">
-                                        <dt class="text-slate-500">{{ $label }}</dt>
-                                        <dd class="font-semibold text-slate-900 tabular-nums">{{ number_format($share, 0, ',', ' ') }} %</dd>
-                                    </div>
-                                @endif
-                            @endforeach
-                        </dl>
-                    @endif
-                @else
-                    <p class="mt-6 max-w-[65ch] text-[15px] text-slate-600">
-                        Sähkön alkuperätietoja ei ole saatavilla tälle sopimukselle, joten päästölaskennassa käytetään Suomen jäännösjakaumaa.
-                    </p>
-                @endif
-
-                <details class="group mt-6 border-t border-slate-100">
-                    <summary class="flex min-h-[44px] cursor-pointer list-none items-center text-sm font-semibold text-slate-600 hover:text-slate-900">
-                        Näytä laskennan yksityiskohdat
-                        <span aria-hidden="true" class="ml-1 inline-block transition-transform group-open:rotate-180">▾</span>
-                    </summary>
-
-                    <div class="mt-3 space-y-5">
-                        <div>
-                            <h3 class="text-sm font-semibold text-slate-700">Päästöt energialähteittäin</h3>
-                            <dl class="mt-2 divide-y divide-slate-100 text-sm">
-                                @foreach ($co2Emissions['emissions_by_source'] as $sourceKey => $emissionsKg)
-                                    <div class="flex items-baseline justify-between gap-4 py-2">
-                                        <dt class="text-slate-600">{{ $sourceLabels[$sourceKey] ?? $sourceKey }}</dt>
-                                        <dd class="font-medium text-slate-900 tabular-nums">{{ number_format($emissionsKg, 1, ',', ' ') }} kg CO₂e</dd>
-                                    </div>
-                                @endforeach
-                            </dl>
-                        </div>
-
-                        <div>
-                            <h3 class="text-sm font-semibold text-slate-700">Käytetyt päästökertoimet</h3>
-                            <dl class="mt-2 divide-y divide-slate-100 text-sm">
-                                @foreach ($co2Emissions['emissions_by_source'] as $sourceKey => $emissionsKg)
-                                    @if (isset($emissionFactorSources[$sourceKey]))
-                                        <div class="flex items-baseline justify-between gap-4 py-2">
-                                            <dt class="text-slate-600">
-                                                {{ $sourceLabels[$sourceKey] ?? $sourceKey }}
-                                                <span class="text-slate-400">({{ $emissionFactorSources[$sourceKey]['source'] }})</span>
-                                            </dt>
-                                            <dd class="font-medium text-slate-700 tabular-nums">{{ number_format($emissionFactorSources[$sourceKey]['value'], 0, ',', ' ') }} g/kWh</dd>
-                                        </div>
-                                    @endif
-                                @endforeach
-                            </dl>
-                        </div>
-
-                        <ul class="space-y-1 text-sm text-slate-500">
-                            <li>Fossiilisten polttoaineiden päästökertoimet: Tilastokeskus ja IPCC Guidelines for National GHG Inventories.</li>
-                            <li>Suomen tuotannon keskiarvo (noin {{ number_format($physicalAverage, 0) }} g/kWh): Fingrid ja Tilastokeskus 2024.</li>
-                            <li>Jäännösjakauman päästökerroin: kansallinen jäännösjakauma 2024.</li>
-                            <li>Uusiutuvat ja ydinvoima: EU:n alkuperätakuujärjestelmän mukainen 0 g/kWh.</li>
-                        </ul>
-                    </div>
-                </details>
             </section>
         @endif
 
