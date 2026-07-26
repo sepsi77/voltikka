@@ -17,11 +17,13 @@
                 </a>
 
                 <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4">
-                    {{ $pageTitle }}
+                    {{ $pageHeading }}
                 </h1>
 
-                <p class="text-lg text-slate-300 max-w-2xl">
-                    Vertaile {{ $companyCount }} sähköyhtiön sopimuksia, hintoja ja energialähteitä.
+                <p class="text-lg text-slate-300 max-w-3xl">
+                    Vertaile {{ $companyCount }} sähköyhtiön {{ $contractCount }} sopimusta, hintaa ja energialähdettä.
+                    Mukana ovat kaikki sähköä myyvät energiayhtiöt suurista valtakunnallisista sähkönmyyjistä
+                    pieniin paikallisiin yhtiöihin – emme rajaa vertailua yhteistyökumppaneihimme.
                 </p>
             </div>
         </div>
@@ -207,6 +209,62 @@
         </section>
         @endif
 
+        <!-- Small and Local Companies Section -->
+        @if ($this->smallCompanies->isNotEmpty())
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">Pienet ja paikalliset sähköyhtiöt</h2>
+            <p class="text-slate-600 mb-6 max-w-3xl leading-relaxed">
+                Pieni sähköyhtiö myy täsmälleen samaa sähköä kuin suuri, koska sähkö tulee samasta verkosta.
+                Ero on hinnassa ja palvelussa, ei sähkön laadussa. Moni pieni paikallinen energiayhtiö pärjää
+                hintavertailussa hyvin, koska se ei hanki asiakkaita kalliilla markkinoinnilla.
+            </p>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                @php($localCompanies = $this->smallCompaniesOfGroup('local'))
+                @if ($localCompanies->isNotEmpty())
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900 mb-2">Paikalliset energiayhtiöt</h3>
+                        <p class="text-sm text-slate-500 mb-4">
+                            Kaupungin tai kunnan alueella toimivia yhtiöitä, joilla on usein oma sähköverkko.
+                            Useimmat myyvät sähköä myös oman alueensa ulkopuolelle.
+                        </p>
+                        <ul class="flex flex-wrap gap-2">
+                            @foreach ($localCompanies as $row)
+                                <li>
+                                    <a
+                                        href="/sahkosopimus/sahkoyhtiot/{{ $row['company']->name_slug }}"
+                                        class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-coral-300 hover:text-coral-600 transition-colors"
+                                    >{{ $row['company']->name }}</a>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+
+                @php($challengerCompanies = $this->smallCompaniesOfGroup('challenger'))
+                @if ($challengerCompanies->isNotEmpty())
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-900 mb-2">Pienet haastajat</h3>
+                        <p class="text-sm text-slate-500 mb-4">
+                            Yhtiöitä, jotka myyvät sähköä koko Suomeen ilman omaa sähköverkkoa.
+                            Ne kilpailevat yleensä hinnalla tai kapealla erikoistumisella.
+                        </p>
+                        <ul class="flex flex-wrap gap-2">
+                            @foreach ($challengerCompanies as $row)
+                                <li>
+                                    <a
+                                        href="/sahkosopimus/sahkoyhtiot/{{ $row['company']->name_slug }}"
+                                        class="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-coral-300 hover:text-coral-600 transition-colors"
+                                    >{{ $row['company']->name }}</a>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+            </div>
+        </section>
+        @endif
+
         <!-- All Companies Section -->
         <section>
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
@@ -275,6 +333,19 @@
                         <p class="text-slate-500">Ei yhtiöitä hakuehdoilla.</p>
                     </div>
                 @endforelse
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section class="mt-12">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">Usein kysyttyä sähköyhtiöistä</h2>
+            <div class="space-y-4">
+                @foreach ($this->faqItems as $faq)
+                    <div class="border border-slate-200 rounded-lg p-4">
+                        <h3 class="font-semibold text-slate-900 mb-2">{{ $faq['question'] }}</h3>
+                        <p class="text-slate-700">{{ $faq['answer'] }}</p>
+                    </div>
+                @endforeach
             </div>
         </section>
     </div>

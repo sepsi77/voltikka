@@ -249,6 +249,67 @@ Query guardrails:
 - Keep company contract queries eager-loading `company`, `priceComponents`, and `electricitySource`; company detail cards need the loaded company relation for logos, and stats/calculations use source and price relations.
 - Clear the memoized contract/stat caches whenever the selected consumption changes.
 
+## `CompanyList`
+
+Primary files:
+- `CompanyList.php`
+- `../../resources/views/livewire/company-list.blade.php`
+- `../Services/CompanyListCacheService.php`
+
+Route: `/sahkosopimus/sahkoyhtiot` (`companies.list`).
+
+### SEO metadata decisions (2026-07)
+
+Google Search Console showed roughly 1 100 impressions and about 22 clicks. The queries fall into
+clusters, and the decisions below follow from which cluster the page can actually serve:
+
+- **List intent** (`sähköyhtiöt` 214 impressions at position 14.3, `sähköyhtiöt suomessa`,
+  `suomalaiset sähköyhtiöt`, `kaikki sähköyhtiöt`, `energiayhtiöt suomessa`, `sähkönmyyjät`) — this
+  is the page's cluster. The head term sits on page 2, which is a position problem, not a title
+  problem.
+- **Small-company intent** (`pienet sähköyhtiöt`, 58 impressions at position 9.9) had the page's
+  **best CTR at 6.9 %** with no content behind it. It now has a section and an FAQ answer.
+- **Quality intent** (`parhaat sähköyhtiöt` at position 7.6, `luotettavat sähköyhtiöt`,
+  `sähkö parhaat arviot`) and **review intent** (`... kokemuksia`) are **deliberately not served.**
+  Voltikka holds no customer-satisfaction or review data. Do not add a "paras/luotettavin
+  sähköyhtiö" answer, ranking, or title claim until a real data source exists behind it;
+  `test_faq_makes_no_unsupported_quality_claims` guards this.
+
+**The differentiator is completeness of the live market, not roster length.** Competing pages
+publish longer *name* lists (Sähkövertailu.fi claims 55, Kilpailuta-sähkö.fi claims 71) that include
+sellers no longer trading and quote no price at all; most comparison sites list only their affiliate
+partners. Voltikka lists every contract on sale, so the title leads with the **contract** count next
+to the company count. Do not rewrite the title to compete on company count alone — we would lose
+that comparison while giving up the stronger claim.
+
+Consequences to preserve:
+- **Keep the year dynamic** (`now()->year`), never a literal. Every competing title in this SERP
+  carries a year.
+- **No `| Voltikka` suffix.** Google prints the site name beside the title and truncated the old
+  77-character title. This component used to append the suffix itself in `render()`.
+- **`pageTitle` and `pageHeading` are separate** so the H1 can stay natural language while the title
+  is tuned. The Blade H1 reads `$pageHeading`.
+- The public copy claims Voltikka does not restrict the comparison to partner companies and lists
+  all contracts on the market. **That claim must stay true**; it depends on the upstream
+  postcode-driven import staying market-wide.
+- `energiayhtiö` and `sähkönmyyjä` appear in the intro and FAQ on purpose. Those synonym clusters
+  are about 170 impressions and neither word was previously on the page.
+- The FAQ feeds both the visible block and the `FAQPage` entry in the JSON-LD `@graph`. The JSON-LD
+  moved from a bare `ItemList` to an `@graph`; keep `ItemList` in it.
+
+### Company size classification
+
+`COMPANY_SIZE_GROUPS` in `CompanyList.php` is a **static editorial map** of company name to
+`national` / `regional` / `local` / `challenger`. It is static because size cannot be derived from
+our data: `companies` holds no customer count or turnover, `contractCount` measures product breadth
+rather than size, and `postal_name` is unreliable (Fortum stores `FORTUM`, Lankosken Sähkö stores
+its own company name). **Do not build a city or size section off `postal_name`.**
+
+The judgement is static but the rendering is dynamic: `smallCompanies` intersects the map with the
+live company list, so a company that leaves the market disappears from the section by itself, and a
+new company that is not in the map is simply left out rather than guessed into a group. Add new
+sellers to the map when they appear.
+
 ## `ConsumptionCalculator`
 
 Primary files:
@@ -261,6 +322,43 @@ Important semantics:
 - blank/too-small numeric inputs are normalized back onto the component so the UI displays minimum allowed values: 20 m² living area, 1 resident, and 0 for optional numeric extras.
 - fallback select defaults are apartment, electric heating, central region, and 2000-era energy rating.
 - the page also renders a `sähkön hinta laskuri` section when `contract_price_daily_statistics` data exists. It estimates p20/median/p80 annual costs from the calculated kWh, energy-price statistics, and monthly-fee statistics; spot comparisons prefer interpolated `annual_cost` rows so trailing-365-day spot costs stay comparable with fixed contracts.
+- `priceEstimatesFor(int $consumption)` holds that estimate logic; `contractTypePriceEstimates` is just the visitor's own consumption. `priceStatisticsRows()` memoizes `[statDate, groupedRows]` for the request, so the FAQ can price extra fixed levels at **no extra query** (measured: 2 statistics queries per render, unchanged). Keep that memo `protected` — as a public property the grouped Eloquent collection would be dehydrated into the Livewire snapshot for nothing.
+- `priceSegments()` is the single source of truth for which contract types are quoted; `priceStatisticsRows()` derives its `segment_key` filter from `array_keys()` of it. Do not add a parallel key constant — a segment present in the config but missing from the query is silently dropped from the table instead of failing.
+
+### SEO metadata decisions (2026-07)
+
+Search Console showed the page split across two query clusters: consumption
+(`sähkönkulutus laskuri`, position 9–10, **0 clicks**) and price (`sähkön hinta laskuri`,
+`laske sähkön hinta`, `kwh hinta laskuri`, position 5.5–7.2, ~2.6 % CTR). Impressions were
+roughly 50/50, but impressions are demand × visibility, so an even split earned with a
+3-position handicap means consumption demand is the **larger** of the two.
+
+The page is nonetheless tuned for the **price** cluster, and the reason is the competitive
+field, not the CTR arithmetic:
+- `sähkönkulutus laskuri` is held by Vattenfall, Fortum, Caruna, Helen and Turku Energia —
+  utility brands that a title edit will not out-rank.
+- `sähkön hinta laskuri` is held by thin single-purpose calculators (sahkosnap.fi,
+  laskurix.fi, 1plus1.fi, sahko24.fi, alv-laskuri-online.fi). That SERP is winnable.
+
+Consequences to preserve:
+- `generateSeoTitle()` leads with `Sähkön hinta laskuri` and carries `now()->year`. **Keep the
+  year dynamic**; a hardcoded year silently rots. The `| Voltikka` suffix was dropped on
+  purpose — Google prints the site name separately and was already truncating it.
+- **`getFaqItemsProperty()` is a CTR surface, not only a schema surface.** For
+  `sähkön hinta laskuri` Google ignores the meta description and quotes the
+  `Miten sähkön hinta lasketaan vuosikulutuksesta?` answer instead. That answer must keep the
+  formula (the match that earns the ranking) *and* a reason to click, because a snippet that
+  only prints the formula answers the searcher inside the SERP. Do not shorten it back to the
+  bare formula.
+- The `Paljonko N kWh sähköä maksaa vuodessa?` answers are generated by
+  `consumptionCostFaqAnswer()` from current statistics, never hardcoded cents. They **must**
+  keep saying the figure excludes siirto: competing PAA answers for the same question are
+  transfer-inclusive, so an unqualified energy-only number reads as simply wrong.
+- The calculator cross-links `/sahkosopimus/kulutus/{2000,5000,10000,18000,20000}-kwh`
+  (`consumptionPageLinks`, plus `nearestConsumptionPage` beside the result). Those pages
+  already earn PAA citations for "Paljonko maksaa 20 000 kWh?"-style queries, so the
+  calculator's output should hand off to them. Keep `CONSUMPTION_PAGE_LEVELS` in sync with the
+  routes in `routes/web.php`.
 
 ## `ContractTypeComparison`
 

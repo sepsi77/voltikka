@@ -121,14 +121,140 @@ class CompanyListPageTest extends TestCase
 
     /**
      * Test that page title is correct.
+     *
+     * The year must come from the clock, never a literal, and the brand suffix must
+     * stay off: the old 77-character title was truncated by Google.
      */
     public function test_page_has_correct_title(): void
     {
+        $this->seedCheapContract();
+
         $response = $this->get('/sahkosopimus/sahkoyhtiot');
 
         $response->assertStatus(200);
-        // Page title now uses the updated format
-        $response->assertSee('sähköyhtiö', false);
+        $response->assertSee(
+            '<title>Sähköyhtiöt Suomessa '.now()->year.' – 1 yhtiötä ja kaikki 1 sopimusta</title>',
+            false,
+        );
+        $response->assertDontSee('sopimusta | Voltikka</title>', false);
+    }
+
+    /**
+     * Test that the meta description leads with the completeness claim.
+     */
+    public function test_page_has_seo_meta_description(): void
+    {
+        $this->seedCheapContract();
+
+        $response = $this->get('/sahkosopimus/sahkoyhtiot');
+
+        $response->assertStatus(200);
+        $response->assertSee('Vertaa kaikkien 1 sähköyhtiön hinnat samalla 5 000 kWh kulutuksella', false);
+        $response->assertSee('Emme rajaa vertailua kumppaneihin.', false);
+    }
+
+    /**
+     * Test that the FAQ renders and is published as FAQPage schema.
+     */
+    public function test_page_has_faq_block_and_faq_schema(): void
+    {
+        $this->seedCheapContract();
+
+        $response = $this->get('/sahkosopimus/sahkoyhtiot');
+
+        $response->assertStatus(200);
+        $response->assertSee('FAQPage', false);
+        $response->assertSee('Kuinka monta sähköyhtiötä Suomessa on?', false);
+        $response->assertSee('Mitä eroa on sähköyhtiöllä ja energiayhtiöllä?', false);
+        $response->assertSee('Mitä eroa on sähkön myynnillä ja sähkön siirrolla?', false);
+        $response->assertSee('Kannattaako valita pieni sähköyhtiö?', false);
+    }
+
+    /**
+     * Test that the FAQ does not make quality claims Voltikka cannot substantiate.
+     *
+     * Voltikka holds no customer-satisfaction or review data, so the page must not
+     * answer "which company is best/most reliable". Do not add such an answer without
+     * a real data source behind it.
+     */
+    public function test_faq_makes_no_unsupported_quality_claims(): void
+    {
+        $this->seedCheapContract();
+
+        $response = $this->get('/sahkosopimus/sahkoyhtiot');
+
+        $response->assertDontSee('luotettavin sähköyhtiö', false);
+        $response->assertDontSee('paras sähköyhtiö on', false);
+    }
+
+    /**
+     * Test that the cheapest FAQ answer is derived from live data.
+     */
+    public function test_cheapest_faq_answer_quotes_the_calculated_company(): void
+    {
+        $this->seedCheapContract();
+
+        $faq = Livewire::test('company-list')->instance()->faqItems;
+        $cheapest = collect($faq)->firstWhere('question', 'Mikä sähköyhtiö on halvin?');
+
+        $this->assertNotNull($cheapest);
+        $this->assertStringContainsString('Cheap Energy Oy', $cheapest['answer']);
+        $this->assertStringContainsString('5 000 kWh', $cheapest['answer']);
+        // The figure is energy only; the exclusion must stay explicit.
+        $this->assertStringContainsString('eikä siihen kuulu sähkön siirtoa', $cheapest['answer']);
+    }
+
+    /**
+     * Test that the small-company section only lists classified, still-listed companies.
+     */
+    public function test_small_companies_section_lists_classified_companies_only(): void
+    {
+        // 'Parikkalan Valo Oy' is classified `local`, 'Hehku Energia Oy' is
+        // `challenger`, and 'Cheap Energy Oy' is not classified at all.
+        foreach ([['Parikkalan Valo Oy', 'parikkalan-valo-oy'], ['Hehku Energia Oy', 'hehku-energia-oy']] as [$name, $slug]) {
+            Company::create(['name' => $name, 'name_slug' => $slug]);
+            $this->seedCheapContract($name, 'contract-'.$slug, 'pc-'.$slug);
+        }
+        $this->seedCheapContract();
+
+        $component = Livewire::test('company-list');
+
+        $component->assertSee('Pienet ja paikalliset sähköyhtiöt')
+            ->assertSeeHtml('href="/sahkosopimus/sahkoyhtiot/parikkalan-valo-oy"')
+            ->assertSeeHtml('href="/sahkosopimus/sahkoyhtiot/hehku-energia-oy"');
+
+        $small = $component->instance()->smallCompanies->pluck('company.name')->all();
+        $this->assertContains('Parikkalan Valo Oy', $small);
+        $this->assertContains('Hehku Energia Oy', $small);
+        $this->assertNotContains('Cheap Energy Oy', $small);
+    }
+
+    /**
+     * Seed one active, priced contract so the page has a company to rank.
+     */
+    private function seedCheapContract(
+        string $companyName = 'Cheap Energy Oy',
+        string $contractId = 'cheap-contract-1',
+        string $priceComponentId = 'pc-cheap-1',
+    ): void {
+        ElectricityContract::create([
+            'id' => $contractId,
+            'company_name' => $companyName,
+            'name' => 'Budget Sähkö',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'availability_is_national' => true,
+        ]);
+        $this->markAsActive($contractId);
+
+        PriceComponent::create([
+            'id' => $priceComponentId,
+            'electricity_contract_id' => $contractId,
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 4.0,
+            'payment_unit' => 'c/kWh',
+        ]);
     }
 
     /**
