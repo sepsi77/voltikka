@@ -37,6 +37,12 @@ canonical interpretation must never be applied retroactively to a historical dat
 
 ## Segment classification
 
+`ContractPriceStatisticsService::segmentKey()` is **public and static**, and
+`SEGMENT_LABELS` beside it is the one label map (`ContractPriceStatistics::$segments`
+reads it). The contract detail page's price-development chart overlays a segment
+median and must name the same segment the daily aggregation wrote, so do not add
+a second classifier or a second label map anywhere.
+
 Segment keys are intentionally mutually exclusive and order-dependent:
 1. `spot` for `pricing_model = Spot`
 2. `hybrid` for `pricing_model = Hybrid`

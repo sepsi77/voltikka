@@ -42,18 +42,8 @@ class CanonicalPriceComponentWriter
                 continue;
             }
 
-            foreach ($pricing['PriceComponents'] ?? [] as $component) {
-                $row = $this->mapComponent($this->trimStrings($component), $contractId, $date);
-                $storageKey = $row['id'].'|'.$row['price_date'];
-                $selected = $rowsByStorageKey[$storageKey] ?? null;
-
-                // The API can return multiple null-UUID components with the
-                // same type and fuse size. They resolve to one relational key,
-                // so select deterministically before upsert instead of letting
-                // the last source row overwrite the first one.
-                if ($selected === null || $this->preferCandidate($selected, $row)) {
-                    $rowsByStorageKey[$storageKey] = $row;
-                }
+            foreach ($this->resolveRows($pricing['PriceComponents'] ?? [], $contractId, $date) as $storageKey => $row) {
+                $rowsByStorageKey[$storageKey] = $row;
             }
         }
 
@@ -81,6 +71,40 @@ class CanonicalPriceComponentWriter
         }
 
         return count($rows);
+    }
+
+    /**
+     * Resolve one contract's source components for one date into relational rows,
+     * collapsing null-UUID collisions deterministically.
+     *
+     * Public because `contracts:repair-price-component-collisions` rebuilds
+     * historical rows from the immutable source snapshots and has to arrive at
+     * byte-identical rows to a correct import. A repair that re-derived the
+     * mapping or the collision rule for itself would drift from ingestion, which
+     * is the class of bug it exists to clean up.
+     *
+     * @param  list<array<string, mixed>>  $components
+     * @return array<string, array<string, mixed>> keyed by "{id}|{price_date}"
+     */
+    public function resolveRows(array $components, string $contractId, string $date): array
+    {
+        $rowsByStorageKey = [];
+
+        foreach ($components as $component) {
+            $row = $this->mapComponent($this->trimStrings($component), $contractId, $date);
+            $storageKey = $row['id'].'|'.$row['price_date'];
+            $selected = $rowsByStorageKey[$storageKey] ?? null;
+
+            // The API can return multiple null-UUID components with the same
+            // type and fuse size. They resolve to one relational key, so select
+            // deterministically before upsert instead of letting the last source
+            // row overwrite the first one.
+            if ($selected === null || $this->preferCandidate($selected, $row)) {
+                $rowsByStorageKey[$storageKey] = $row;
+            }
+        }
+
+        return $rowsByStorageKey;
     }
 
     /**

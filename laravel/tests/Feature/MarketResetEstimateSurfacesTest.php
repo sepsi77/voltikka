@@ -155,7 +155,7 @@ class MarketResetEstimateSurfacesTest extends TestCase
         $this->assertSame('2026-Q3', $outcome->resetEstimate['anchor_period']);
         $this->assertSame('2026-10', $outcome->resetEstimate['tail_starts']);
         $this->assertGreaterThan(400.0, $outcome->totalCost, 'hold-flat would have been 400 EUR at 8,00 c/kWh');
-        $this->assertNotNull(ResetEstimateCopy::detailNotice($outcome->toCalculatedCostArray()['reset_estimate']));
+        $this->assertNotNull(ResetEstimateCopy::receiptNote($outcome->toCalculatedCostArray()['reset_estimate']));
     }
 
     public function test_reset_copy_states_both_figures_in_plain_finnish(): void
@@ -177,32 +177,34 @@ class MarketResetEstimateSurfacesTest extends TestCase
         $this->assertStringContainsString('8,05 c/kWh', $tooltip);
         $this->assertStringContainsString('ei ole hintalupaus', $tooltip);
 
-        $notice = ResetEstimateCopy::detailNotice($reset);
-        $this->assertSame('Hinta tarkistetaan neljännesvuosittain', $notice['heading']);
-        $this->assertStringContainsString('5,54 c/kWh', $notice['facts'][0]);
-        $this->assertStringContainsString('8,05 c/kWh', $notice['facts'][1]);
-        $this->assertStringContainsString('10/2026', $notice['facts'][2]);
-        $this->assertStringContainsString('24.7.2026', $notice['facts'][3]);
+        // The detail page's receipt note deliberately states only what the hero
+        // qualifier and the dated receipt rows do not: that future period prices are
+        // unknown, when the estimated tail starts, and which forward vintage it reads.
+        $note = ResetEstimateCopy::receiptNote($reset);
+        $this->assertStringContainsString('ei tiedetä etukäteen', $note);
+        $this->assertStringContainsString('10/2026', $note);
+        $this->assertStringContainsString('24.7.2026', $note);
+        $this->assertStringContainsString('tukkumarkkinan ennakkohintoihin eli sähköfutuureihin', $note);
     }
 
     public function test_reset_copy_marks_the_seasonal_index_fallback_as_such(): void
     {
-        $notice = ResetEstimateCopy::detailNotice([
+        $note = ResetEstimateCopy::receiptNote([
             'basis' => 'spot_seasonal_index',
             'cadence' => 'monthly',
             'current_period_energy_price' => 7.0,
             'annual_equivalent_energy_price' => 11.5,
         ]);
 
-        $this->assertSame('Hinta tarkistetaan kuukausittain', $notice['heading']);
-        $this->assertStringContainsString('futuurihintoja ei ollut saatavilla', implode(' ', $notice['facts']));
+        $this->assertStringContainsString('pörssisähkön usean vuoden kausivaihteluun', $note);
+        $this->assertStringContainsString('tukkumarkkinan ennakkohintoja ei ollut saatavilla', $note);
     }
 
     public function test_reset_copy_is_absent_without_an_estimate(): void
     {
         $this->assertNull(ResetEstimateCopy::cardEquivalent(null));
         $this->assertNull(ResetEstimateCopy::cardTooltip(null));
-        $this->assertNull(ResetEstimateCopy::detailNotice(null));
+        $this->assertNull(ResetEstimateCopy::receiptNote(null));
         $this->assertNull(ResetEstimateCopy::cardEquivalent(['annual_equivalent_energy_price' => null]));
     }
 

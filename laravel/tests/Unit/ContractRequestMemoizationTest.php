@@ -27,9 +27,9 @@ class ContractRequestMemoizationTest extends TestCase
 
         Cache::shouldReceive('remember')
             ->once()
-            // v7 = import-driven data version, s2 = cached payload shape version,
+            // v7 = import-driven data version, s3 = cached payload shape version,
             // c0r0 = canonical pricing off, market-reset forward shift off.
-            ->with('contract_list_metrics:v7:s2:c0r0:5000', 60 * 60 * 48, \Mockery::type(\Closure::class))
+            ->with('contract_list_metrics:v7:s3:c0r0:5000', 60 * 60 * 48, \Mockery::type(\Closure::class))
             ->andReturn($metrics);
 
         $canonical = $this->createMock(CanonicalContractPricingService::class);

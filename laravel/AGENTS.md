@@ -45,6 +45,31 @@ Important semantics:
 - page-level prepared-data caching is disabled under `app()->runningUnitTests()` to avoid cross-test cache pollution
 - contract detail redirects for inactive contracts still happen before view-data caching
 
+### Edge HTML caching vs hashed assets (known race)
+
+`app/Http/Middleware/SetPublicCacheHeaders` marks the comparison/detail HTML
+`public, max-age=300, s-maxage=3600, stale-while-revalidate=86400`, so Railway's edge can serve
+that HTML for an hour and serve it **stale for a further 24 hours** while it revalidates.
+
+Vite filenames are content-hashed and the Docker image runs a clean `npm run build`, so the
+previous release's `public/build/assets/app-<hash>.css` **does not exist** on the new container
+(verified: a removed hash returns 404). For up to that stale window after a deploy, a visitor can
+receive HTML from the old release that links a CSS file the new one no longer serves, and the page
+renders with no styling at all until the HTML is revalidated. This was observed once in the July
+2026 contract-detail critique. Keep the two facts together in mind before shortening or lengthening
+either window.
+
+`Caddyfile` sends `Cache-Control: public, max-age=31536000, immutable` for `/build/assets/*` only.
+Those names are content-hashed so the bytes behind one URL never change; **do not widen the matcher
+to `/build/*`**, because `build/manifest.json` has a fixed name and changes on every build. Before
+editing `Caddyfile`, validate it with the real runtime — plain `caddy` rejects the `frankenphp`
+global option:
+
+```bash
+docker run --rm -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" dunglas/frankenphp:1-php8.4 \
+  frankenphp validate --config /etc/caddy/Caddyfile --adapter caddyfile
+```
+
 ## Data model
 
 ### Contract source snapshots and automatic interpretation

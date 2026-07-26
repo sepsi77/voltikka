@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup · Korpela Kvartaali · Voltikka</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --coral-50:#fff7ed; --coral-100:#ffedd5; --coral-200:#fed7aa; --coral-300:#fdba74;
+    --coral-400:#fb923c; --coral-500:#f97316; --coral-600:#ea580c; --coral-700:#c2410c; --coral-800:#9a3412;
+    --slate-50:#f8fafc; --slate-100:#f1f5f9; --slate-200:#e2e8f0; --slate-300:#cbd5e1;
+    --slate-400:#94a3b8; --slate-500:#64748b; --slate-600:#475569; --slate-700:#334155;
+    --slate-800:#1e293b; --slate-900:#0f172a; --slate-950:#0f1419;
+    --sky-100:#e0f2fe; --sky-200:#bae6fd; --sky-700:#0369a1;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  @media (prefers-reduced-motion:no-preference){
+    html{scroll-behavior:smooth}
+    .spot-pill .dot{animation:pulse 2s ease infinite}
+  }
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  body{font-family:"Plus Jakarta Sans",system-ui,-apple-system,sans-serif;background:#fff;color:var(--slate-600);font-size:16px;line-height:1.5}
+  .num{font-variant-numeric:tabular-nums}
+  a{color:inherit}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  .content{max-width:780px;margin:0 auto;padding:0 20px}
+
+  /* ---------- header ---------- */
+  header.site{background:#fff;border-bottom:1px solid var(--slate-200)}
+  header.site .wrap{display:flex;align-items:center;gap:28px;height:64px}
+  .logo{font-weight:800;font-size:22px;color:var(--slate-900);text-decoration:none}
+  .logo em{font-style:normal;color:var(--coral-600)}
+  nav.main{display:flex;gap:22px;margin-left:8px}
+  nav.main a{text-decoration:none;font-weight:500;color:var(--slate-500);font-size:15px;padding:10px 0}
+  nav.main a:hover{color:var(--slate-900)}
+  .spot-pill{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--coral-50);border:1px solid var(--coral-200);border-radius:12px;padding:8px 14px;font-size:14px;font-weight:600;color:var(--slate-900)}
+  .spot-pill .dot{width:8px;height:8px;border-radius:99px;background:var(--coral-600)}
+
+  /* ---------- hero: price + verdict, one column, two beats ---------- */
+  .hero{background:var(--slate-950);color:#fff;padding:32px 0 40px}
+  .crumbs{font-size:14px;color:var(--slate-300);margin-bottom:28px}
+  .crumbs a{color:var(--slate-300);text-decoration:none;padding:6px 0}
+  .crumbs a:hover{color:#fff;text-decoration:underline}
+  .crumbs span{color:var(--slate-500);margin:0 6px}
+
+  .meta{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;color:var(--slate-300);margin-bottom:10px}
+  .seller-logo{width:28px;height:28px;border-radius:8px;background:#fff;color:var(--slate-900);display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex:none}
+  .meta .sep{color:var(--slate-500)}
+  .meta a.cat{color:var(--sky-200);text-decoration:none;border-bottom:1px dotted var(--sky-200);padding:4px 0}
+  .meta a.cat:hover{color:#fff;border-bottom-style:solid}
+  h1{font-size:clamp(28px,4vw,40px);font-weight:800;line-height:1.1;letter-spacing:-.02em;color:#fff;margin-bottom:26px}
+
+  .price-label{font-size:14px;font-weight:600;color:var(--slate-300);margin-bottom:6px}
+  .price-line{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;position:relative}
+  .price-big{font-size:56px;font-weight:800;line-height:1;letter-spacing:-.01em;color:#fff}
+  .price-big .dec{color:var(--slate-400)}
+  .price-big .unit{font-size:22px;font-weight:700;color:var(--slate-300);margin-left:4px}
+  .arvio-chip{display:inline-flex;align-items:center;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:var(--slate-200);border-radius:99px;padding:11px 16px;font-size:14px;font-weight:600;cursor:pointer}
+  .arvio-chip:hover{border-color:var(--coral-400);color:#fff}
+  .arvio-pop{display:none;position:absolute;top:calc(100% + 10px);left:0;z-index:30;background:#fff;color:var(--slate-600);border:1px solid var(--slate-200);border-radius:12px;box-shadow:0 4px 6px -1px rgb(0 0 0 / .1);padding:14px 16px;font-size:14px;line-height:1.5;width:320px;font-weight:400}
+  .arvio-pop.open{display:block}
+  .arvio-pop a{color:var(--coral-600);font-weight:600;text-decoration:none}
+  .price-sub{font-size:15px;color:var(--slate-300);margin-top:8px}
+
+  .verdict-line{margin-top:22px;font-size:17px;line-height:1.5;color:var(--slate-200)}
+  .verdict-line strong{color:#fff;font-weight:800;font-size:20px}
+  .verdict-line a{color:var(--coral-400);font-weight:600;text-decoration:none}
+  .verdict-line a:hover{text-decoration:underline}
+  .scale{margin:14px 0 6px;position:relative;height:6px;border-radius:99px;max-width:340px;background:linear-gradient(90deg,rgba(255,255,255,.35),rgba(255,255,255,.08))}
+  .scale .marker{position:absolute;top:-5px;left:37.8%;width:16px;height:16px;border-radius:99px;background:var(--coral-500);border:3px solid var(--slate-950);transition:left .2s ease-out}
+  .scale-lbls{display:flex;justify-content:space-between;font-size:14px;color:var(--slate-300);max-width:340px}
+  .verdict-note{margin-top:12px;font-size:14px;color:var(--slate-300);max-width:60ch;line-height:1.5}
+
+  .qualifier{margin-top:18px;font-size:15px;line-height:1.55;color:var(--slate-200);max-width:60ch}
+  .qualifier a{color:var(--coral-400);font-weight:600;text-decoration:none}
+  .qualifier a:hover{text-decoration:underline}
+
+  .kwh-row{margin-top:32px}
+  .kwh-row .lbl{font-size:14px;font-weight:600;color:var(--slate-300);margin-bottom:10px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch}
+  .chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:var(--slate-200);border-radius:12px;padding:10px 14px;font-size:14px;font-weight:600;cursor:pointer;transition:background .15s ease-out}
+  .chip small{display:block;font-weight:400;font-size:13px;color:var(--slate-300)}
+  .chip:hover{background:rgba(255,255,255,.12)}
+  .chip.active{background:#fff;border-color:#fff;color:var(--slate-900)}
+  .chip.active small{color:var(--slate-500)}
+  .kwh-free{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:6px 6px 6px 14px}
+  .kwh-free.active{background:#fff;border-color:#fff}
+  .kwh-free.active input{color:var(--slate-900)}
+  .kwh-free.active span{color:var(--slate-500)}
+  .kwh-free input{width:76px;background:transparent;border:0;color:#fff;font:inherit;font-weight:600;outline:none}
+  .kwh-free input::placeholder{color:var(--slate-400)}
+  .kwh-free span{font-size:14px;color:var(--slate-300);padding-right:8px}
+
+  .cta-row{margin-top:28px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .btn-primary{display:inline-block;background:var(--coral-600);color:#fff;font-weight:700;font-size:19px;border:0;border-radius:12px;padding:14px 28px;text-decoration:none;transition:background .15s ease-out}
+  .btn-primary:hover{background:var(--coral-700)}
+  .cta-note{font-size:14px;color:var(--slate-300);max-width:34ch;line-height:1.45}
+  .cta-note strong{color:var(--slate-200);font-weight:600}
+
+  /* ---------- editorial sections ---------- */
+  main{padding:8px 0 64px}
+  .sec{padding:44px 0;border-top:1px solid var(--slate-200)}
+  main > .content > .sec:first-child{border-top:0}
+  .sec h2{font-size:22px;font-weight:700;color:var(--slate-900);margin-bottom:8px}
+  .sec .sub{font-size:15px;color:var(--slate-500);margin-bottom:22px;max-width:70ch}
+
+  /* kannattaako */
+  .opinion p{font-size:17px;line-height:1.6;color:var(--slate-700);max-width:65ch}
+  .opinion p + p{margin-top:10px}
+  .opinion .basis{margin-top:14px;font-size:14px;color:var(--slate-500)}
+  .opinion .basis a{color:var(--coral-600);font-weight:600;text-decoration:none}
+
+  /* receipt */
+  .receipt{max-width:560px}
+  .receipt-row{display:flex;align-items:baseline;gap:8px;padding:9px 0;font-size:15px}
+  .receipt-row .name{color:var(--slate-700);font-weight:500}
+  .receipt-row .name small{color:var(--slate-500);font-weight:400}
+  .receipt-row .dots{flex:1;border-bottom:1px dotted var(--slate-300);transform:translateY(-4px)}
+  .receipt-row .val{font-weight:700;color:var(--slate-900)}
+  .receipt-row.est .name,.receipt-row.est .val{color:var(--slate-500);font-weight:500}
+  .receipt-note{font-size:14px;color:var(--slate-500);margin-top:10px;max-width:65ch}
+  .receipt-note a{color:var(--coral-600);font-weight:600;text-decoration:none}
+
+  table.costs{width:100%;border-collapse:collapse;margin-top:26px;font-size:15px}
+  table.costs caption{text-align:left;font-size:15px;font-weight:700;color:var(--slate-900);padding-bottom:10px}
+  table.costs th{font-size:14px;font-weight:600;color:var(--slate-500);text-align:right;padding:8px 12px;border-bottom:1px solid var(--slate-200)}
+  table.costs th:first-child,table.costs td:first-child{text-align:left;padding-left:0}
+  table.costs td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--slate-100);color:var(--slate-700)}
+  table.costs td strong{color:var(--slate-900);font-weight:700}
+  table.costs td .hint{color:var(--slate-500)}
+  table.costs tr.hl td{background:var(--slate-50)}
+  .table-note{font-size:14px;color:var(--slate-500);margin-top:10px}
+
+  .counterfactual{margin-top:22px;font-size:15px;color:var(--slate-600);max-width:65ch}
+  .counterfactual strong{color:var(--slate-900)}
+  .counterfactual a{color:var(--coral-600);font-weight:600;text-decoration:none}
+
+  /* bill comparison */
+  .bill summary{list-style:none;cursor:pointer;display:flex;align-items:flex-start;gap:14px;min-height:44px}
+  .bill summary::-webkit-details-marker{display:none}
+  .bill .s-txt strong{display:block;font-size:22px;font-weight:700;color:var(--slate-900)}
+  .bill .s-txt span{font-size:15px;color:var(--slate-500)}
+  .bill .s-chev{margin-left:auto;color:var(--slate-400);transition:transform .2s ease-out;padding:4px}
+  .bill[open] .s-chev{transform:rotate(180deg)}
+  .bill-form{margin-top:24px;display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:end;max-width:720px}
+  .field label{display:block;font-size:14px;font-weight:600;color:var(--slate-600);margin-bottom:6px}
+  .field input{width:100%;background:#fff;border:1px solid var(--slate-300);border-radius:12px;padding:12px 14px;font:inherit;color:var(--slate-900)}
+  .field input:focus{outline:none;border-color:var(--coral-600)}
+  .bill-opts{grid-column:1/-1;display:flex;gap:22px;align-items:center;font-size:14px;color:var(--slate-600);flex-wrap:wrap}
+  .bill-opts label{display:flex;gap:8px;align-items:center;cursor:pointer;padding:10px 0}
+  .bill-opts input[type=checkbox]{width:18px;height:18px}
+  .btn-secondary{background:var(--slate-900);color:#fff;font-weight:700;font-size:15px;border:0;border-radius:12px;padding:13px 24px;cursor:pointer}
+  .btn-secondary:hover{background:var(--slate-800)}
+  .bill-result{margin-top:26px;border-top:1px solid var(--slate-200);padding-top:18px;max-width:720px}
+  .bill-result .head{font-size:14px;font-weight:600;color:var(--slate-500);margin-bottom:16px}
+  .bill-result .body{display:grid;grid-template-columns:1fr 1fr auto;gap:18px;align-items:center}
+  .bill-cell .l{font-size:14px;font-weight:600;color:var(--slate-500);margin-bottom:4px}
+  .bill-cell .v{font-size:24px;font-weight:800;color:var(--slate-900)}
+  .bill-cell .v small{font-size:14px;font-weight:600;color:var(--slate-500)}
+  .delta-pill{display:inline-flex;align-items:center;background:var(--coral-50);border:1px solid var(--coral-200);color:var(--coral-700);border-radius:99px;padding:8px 16px;font-size:15px;font-weight:700}
+  .bill-result .foot{margin-top:16px;font-size:14px;color:var(--slate-600);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .bill-result .foot a{color:var(--coral-600);font-weight:700;text-decoration:none}
+  .bill-result .foot a:hover{text-decoration:underline}
+  .demo-note{font-size:13px;color:var(--slate-500);margin-top:10px}
+
+  /* price history */
+  .chart-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .legend{display:flex;gap:18px;font-size:14px;color:var(--slate-600);align-items:center}
+  .legend .sw{display:inline-block;width:18px;height:0;border-top:2.5px solid var(--slate-900);vertical-align:middle;margin-right:6px;border-radius:2px}
+  .legend .sw.med{border-top-style:dashed;border-top-color:var(--slate-500)}
+  .chart-scroll{overflow-x:auto;margin-top:8px}
+  .chart-wrap{position:relative;min-width:560px}
+  .chart-tip{position:absolute;pointer-events:none;background:#fff;border:1px solid var(--slate-200);border-radius:10px;box-shadow:0 4px 6px -1px rgb(0 0 0 / .1);padding:8px 12px;font-size:13px;color:var(--slate-600);display:none;white-space:nowrap}
+  .chart-tip strong{color:var(--slate-900)}
+  .record{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+  .fact-tag{background:var(--slate-100);color:var(--slate-600);border-radius:8px;padding:6px 12px;font-size:14px;font-weight:600}
+  details.versions{margin-top:20px;border-top:1px solid var(--slate-200)}
+  details.versions summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--slate-600);list-style:none;padding:14px 0;min-height:44px;display:flex;align-items:center}
+  details.versions summary::-webkit-details-marker{display:none}
+  details.versions summary:hover{color:var(--slate-900)}
+  .vrow{display:flex;gap:12px;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--slate-100);font-size:14px}
+  .vrow time{color:var(--slate-500);flex:none;width:88px}
+  .vrow .what{color:var(--slate-700)}
+  .vrow .d{margin-left:auto;font-weight:700;color:var(--slate-900);white-space:nowrap}
+
+  /* terms */
+  .terms-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;max-width:720px}
+  .term .l{font-size:14px;font-weight:600;color:var(--slate-500);margin-bottom:4px}
+  .term .v{font-size:16px;font-weight:700;color:var(--slate-900)}
+  .src-note{font-size:14px;color:var(--slate-500);margin-top:18px}
+  details.desc{margin-top:14px;border-top:1px solid var(--slate-200)}
+  details.desc summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--slate-600);list-style:none;padding:14px 0;min-height:44px;display:flex;align-items:center}
+  details.desc summary::-webkit-details-marker{display:none}
+  details.desc p{margin:4px 0 12px;font-size:15px;color:var(--slate-600);max-width:68ch}
+
+  /* faq */
+  .faq details{border-bottom:1px solid var(--slate-100)}
+  .faq details:last-child{border-bottom:0}
+  .faq summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:16px 0;font-size:16px;font-weight:600;color:var(--slate-900);min-height:44px}
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary .chev{color:var(--slate-400);transition:transform .2s ease-out;flex:none}
+  .faq details[open] summary .chev{transform:rotate(180deg)}
+  .faq .a{padding:0 0 18px;font-size:15px;line-height:1.6;color:var(--slate-600);max-width:68ch}
+  .faq .a strong{color:var(--slate-900)}
+
+  /* environment */
+  .env-grid{display:flex;gap:32px;align-items:flex-start;flex-wrap:wrap}
+  .env-stat .v{font-size:30px;font-weight:800;color:var(--slate-900)}
+  .env-stat .v small{font-size:14px;font-weight:600;color:var(--slate-500)}
+  .env-stat .v2{font-size:14px;color:var(--slate-600);margin-top:4px;max-width:22ch}
+  .env-stat .v2 strong{color:var(--slate-900)}
+  .env-badge{display:inline-block;margin-top:8px;background:#fee2e2;color:#b91c1c;font-size:13px;font-weight:700;border-radius:8px;padding:5px 12px}
+  .env-copy{flex:1;min-width:260px;font-size:15px;line-height:1.6;color:var(--slate-600);max-width:58ch}
+  .env-copy a{color:var(--coral-600);font-weight:600;text-decoration:none}
+  .origin-bar{margin-top:14px;height:10px;border-radius:99px;background:var(--slate-200);overflow:hidden;max-width:420px}
+  .origin-bar i{display:block;height:100%;width:100%;background:var(--slate-400)}
+  .origin-lbl{font-size:14px;color:var(--slate-500);margin-top:6px}
+
+  /* alternatives: the only cards on the page */
+  .alts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .alt{border:1px solid var(--slate-200);border-radius:16px;padding:18px;background:#fff;display:flex;flex-direction:column;gap:8px;text-decoration:none;transition:transform .15s ease-out,box-shadow .15s ease-out}
+  .alt:hover{transform:translateY(-2px);box-shadow:0 12px 40px -12px rgb(0 0 0 / .15)}
+  .alt .tag{align-self:flex-start;font-size:13px;font-weight:700;border-radius:8px;padding:4px 10px;background:var(--sky-100);color:var(--sky-700)}
+  .alt .tag.same{background:var(--slate-100);color:var(--slate-600)}
+  .alt .n{font-size:15px;font-weight:700;color:var(--slate-900);line-height:1.3}
+  .alt .c{font-size:14px;color:var(--slate-500)}
+  .alt .p{margin-top:auto;font-size:22px;font-weight:800;color:var(--slate-900)}
+  .alt .p small{font-size:13px;font-weight:600;color:var(--slate-500)}
+  .alt .save{font-size:13px;font-weight:700;color:var(--slate-900);background:var(--slate-100);border-radius:8px;padding:5px 10px;align-self:flex-start}
+  .alts-foot{margin-top:16px;font-size:14px}
+  .alts-foot a{color:var(--coral-600);font-weight:700;text-decoration:none}
+  .alts-foot a:hover{text-decoration:underline}
+
+  footer.site{background:var(--slate-950);color:var(--slate-300);padding:36px 0;font-size:14px}
+  footer.site .trust{color:var(--slate-200);font-weight:600;margin-bottom:8px}
+  footer.site p{max-width:70ch;line-height:1.6}
+
+  /* sticky mobile cta: appears only after the hero CTA scrolls out */
+  .sticky-cta{display:none}
+
+  @media (max-width:860px){
+    .bill-form{grid-template-columns:1fr 1fr}
+    .terms-grid{grid-template-columns:1fr 1fr}
+    .alts{grid-template-columns:1fr}
+    .bill-result .body{grid-template-columns:1fr;gap:14px}
+    nav.main{display:none}
+  }
+  @media (max-width:560px){
+    .price-big{font-size:44px}
+    .hero{padding:24px 0 32px}
+    .sec{padding:36px 0}
+    .bill-form{grid-template-columns:1fr}
+    .sticky-cta.show{display:flex;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--slate-200);padding:10px 16px;gap:12px;align-items:center;z-index:50}
+    .sticky-cta .p{font-weight:800;font-size:18px;color:var(--slate-900)}
+    .sticky-cta .p small{font-weight:600;font-size:13px;color:var(--slate-500);display:block}
+    .sticky-cta .btn-primary{margin-left:auto;padding:12px 20px;font-size:17px}
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="logo" href="#">volt<em>ikka</em></a>
+    <nav class="main">
+      <a href="#">Sähkösopimukset</a>
+      <a href="#">Sähkölaskuri</a>
+      <a href="#">Aurinkopaneelit</a>
+    </nav>
+    <div class="spot-pill num"><span class="dot"></span> Spot nyt 0,42 c/kWh</div>
+  </div>
+</header>
+
+<!-- ============ HERO: price + verdict fused, two beats ============ -->
+<section class="hero">
+  <div class="content">
+    <div class="crumbs">
+      <a href="#">Etusivu</a><span>/</span><a href="#">Sähkösopimukset</a><span>/</span><a href="#">Korpelan Energia Oy</a><span>/</span>Korpela Kvartaali
+    </div>
+
+    <p class="meta">
+      <span class="seller-logo">KE</span> Korpelan Energia Oy
+      <span class="sep">·</span>
+      <a class="cat" href="#faq-miten" id="catLink">Markkinahinta, tarkistetaan 4 kertaa vuodessa</a>
+    </p>
+    <h1>Korpela Kvartaali</h1>
+
+    <!-- beat 1: price + verdict -->
+    <p class="price-label">Hinta-arvio seuraavalle 12 kuukaudelle</p>
+    <div class="price-line">
+      <span class="price-big num" id="priceMonthly">44<span class="dec">,10</span><span class="unit">€/kk</span></span>
+      <span class="arvio-chip" id="arvioChip" role="button" tabindex="0" aria-expanded="false">ⓘ Arvio</span>
+      <span class="arvio-pop" id="arvioPop">12 kuukauden hinta lasketaan samalla menetelmällä kaikille sopimuksille: tiedossa olevat hinnat sellaisenaan, tulevat hintajaksot tukkumarkkinan ennakkohinnoista. <a href="#hintatiedot">Näin laskemme →</a></span>
+    </div>
+    <p class="price-sub num"><span id="priceYearly">529</span> € vuodessa · <span id="kwhLabel">5 000</span> kWh vuosikulutuksella · sisältää ALV 25,5 %</p>
+
+    <p class="verdict-line num"><strong>Sija <span id="rankVal">113</span></strong> / 299 sopimuksesta · <span id="gapVal">124</span> €/v kalliimpi kuin halvin (<span id="cheapVal">33,70</span> €/kk) · <a href="#vaihtoehdot">katso halvemmat ↓</a></p>
+    <div class="scale"><span class="marker" id="scaleMarker"></span></div>
+    <div class="scale-lbls"><span>halvin</span><span>kallein</span></div>
+    <p class="verdict-note">Sijoitus 26.7.2026, perustuu 12 kk hinta-arvioon valitulla kulutuksella. Edelle sijoittuvat sopimukset ovat pääosin pörssisähköä.</p>
+
+    <p class="qualifier num">Nykyinen energianhinta <strong>6,95 c/kWh</strong> on voimassa 30.9.2026 asti. Loppuvuoden jaksoille arvioimme <strong>9,63 c/kWh</strong> sähkön tukkumarkkinan ennakkohintojen (futuurien) perusteella. Vuosihinta on arvio, ei hintalupaus. <a href="#hintatiedot">Näin laskemme</a></p>
+
+    <!-- beat 2: consumption + action -->
+    <div class="kwh-row">
+      <p class="lbl">Laske omalla kulutuksellasi</p>
+      <div class="chips">
+        <button class="chip num" data-kwh="2000" aria-pressed="false">Yksiö<small>2 000 kWh</small></button>
+        <button class="chip num active" data-kwh="5000" aria-pressed="true">Kerrostalo<small>5 000 kWh</small></button>
+        <button class="chip num" data-kwh="10000" aria-pressed="false">Pieni talo<small>10 000 kWh</small></button>
+        <button class="chip num" data-kwh="18000" aria-pressed="false">Sähkölämmitteinen<small>18 000 kWh</small></button>
+        <span class="kwh-free num" id="kwhFree"><input type="text" inputmode="numeric" placeholder="Oma" id="kwhInput" aria-label="Oma vuosikulutus kilowattitunteina"> <span>kWh/v</span></span>
+      </div>
+    </div>
+
+    <div class="cta-row">
+      <a class="btn-primary" href="#">Siirry myyjän sivuille</a>
+      <p class="cta-note"><strong>Tilaus tehdään sähköyhtiön omilla sivuilla.</strong> Voltikka ei saa provisiota eikä näytä mainoksia.</p>
+    </div>
+  </div>
+</section>
+
+<main>
+  <div class="content">
+
+    <!-- ============ Kannattaako? ============ -->
+    <section class="sec opinion">
+      <h2>Kannattaako Korpela Kvartaali?</h2>
+      <p>Korpela Kvartaali on hinnaltaan markkinoiden keskitasoa: 299 vertaillusta sopimuksesta <span class="num" id="cheaperCount">112</span> on halvempia ja <span class="num" id="pricierCount">186</span> kalliimpia. Halvimpaan pörssisopimukseen verrattuna maksat arviolta <span class="num" id="gapInline">124</span> € vuodessa enemmän, mutta saat vastineeksi kolmen kuukauden hintavakauden kerrallaan.</p>
+      <p>Sopimus sopii, jos haluat pörssisähköä tasaisemman hinnan sitoutumatta kiinteään vuosihintaan. Jos tavoitteesi on halvin mahdollinen hinta ja tuntivaihtelu ei haittaa, pörssisähkö on todennäköisesti edullisempi.</p>
+      <p class="basis">Arvio perustuu hintasijoitukseen, hintatyyppiin ja 12 kk hinta-arvioon. <a href="#">Lue miten muodostamme arviot →</a></p>
+    </section>
+
+    <!-- ============ Hintatiedot ============ -->
+    <section class="sec" id="hintatiedot">
+      <h2>Hintatiedot</h2>
+      <p class="sub">Hinnat sisältävät ALV 25,5 %. Energianhinta tarkistetaan neljännesvuosittain, seuraavan kerran 1.10.2026.</p>
+
+      <div class="receipt num">
+        <div class="receipt-row">
+          <span class="name">Energia <small>· nykyinen jakso 30.9. asti</small></span><span class="dots"></span><span class="val">6,95 c/kWh</span>
+        </div>
+        <div class="receipt-row est">
+          <span class="name">Energia <small>· 1.10. alkaen, arvio</small></span><span class="dots"></span><span class="val">9,63 c/kWh</span>
+        </div>
+        <div class="receipt-row">
+          <span class="name">Perusmaksu</span><span class="dots"></span><span class="val">4,50 €/kk</span>
+        </div>
+      </div>
+      <p class="receipt-note">Tulevien hintajaksojen hintoja ei tiedetä etukäteen. Arvio 1.10. alkaville jaksoille perustuu tukkumarkkinan ennakkohintoihin eli Suomen aluehinnan sähköfutuureihin. <a href="#">Näin laskemme →</a></p>
+
+      <table class="costs num">
+        <caption>Kustannus eri vuosikulutuksilla, arvio</caption>
+        <thead><tr><th scope="col">Vuosikulutus</th><th scope="col">€/kk</th><th scope="col">€/vuosi</th></tr></thead>
+        <tbody>
+          <tr data-kwh="2000"><td>2 000 kWh <span class="hint">· yksiö</span></td><td><strong>20,30</strong></td><td>244</td></tr>
+          <tr data-kwh="5000" class="hl"><td>5 000 kWh <span class="hint">· kerrostalo</span></td><td><strong>44,10</strong></td><td>529</td></tr>
+          <tr data-kwh="10000"><td>10 000 kWh <span class="hint">· pieni omakotitalo</span></td><td><strong>83,70</strong></td><td>1 004</td></tr>
+          <tr data-kwh="18000"><td>18 000 kWh <span class="hint">· sähkölämmitteinen talo</span></td><td><strong>147,00</strong></td><td>1 764</td></tr>
+        </tbody>
+      </table>
+      <p class="table-note">12 kk arvio ilman siirtomaksuja. Valittu kulutus korostettu.</p>
+
+      <p class="counterfactual num">Vertailun vuoksi: <strong>pörssisähköllä</strong> sama <span id="cfKwh">5 000</span> kWh kulutus olisi maksanut viimeisen 12 kk toteutuneilla hinnoilla noin <strong><span id="cfEur">404</span> €/v</strong> halvimmalla pörssisopimuksella. <a href="#">Katso pörssisopimukset →</a></p>
+    </section>
+
+    <!-- ============ Bill comparison ============ -->
+    <details class="sec bill" open>
+      <summary>
+        <span class="s-txt">
+          <strong>Vertaa nykyiseen sähkölaskuusi</strong>
+          <span>Syötä yhden laskun tiedot, niin näytämme mitä tämä sopimus olisi maksanut samalta jaksolta.</span>
+        </span>
+        <span class="s-chev">▾</span>
+      </summary>
+
+      <div class="bill-form">
+        <div class="field"><label for="b1">Laskutusjakso alkoi</label><input id="b1" type="date" value="2026-06-01"></div>
+        <div class="field"><label for="b2">Jakso päättyi</label><input id="b2" type="date" value="2026-06-30"></div>
+        <div class="field"><label for="b3">Kulutus (kWh)</label><input id="b3" type="text" inputmode="numeric" value="380" class="num"></div>
+        <div class="field"><label for="b4">Sähköenergian osuus (€)</label><input id="b4" type="text" inputmode="decimal" value="30,10" class="num"></div>
+        <div class="bill-opts">
+          <label><input type="checkbox" checked> Summa sisältää ALV:n</label>
+          <label><input type="checkbox"> Asunnossa on sähkölämmitys</label>
+          <button class="btn-secondary" type="button">Vertaa</button>
+        </div>
+      </div>
+
+      <div class="bill-result num">
+        <p class="head">Sama jakso 1.6. – 30.6.2026 · 380 kWh · kesäkuussa energia 7,55 c/kWh + perusmaksu 4,50 €/kk</p>
+        <div class="body">
+          <div class="bill-cell">
+            <p class="l">Maksoit nykyisellä sopimuksellasi</p>
+            <p class="v">30,10 <small>€</small></p>
+          </div>
+          <div class="bill-cell">
+            <p class="l">Korpela Kvartaali olisi maksanut</p>
+            <p class="v">33,20 <small>€</small></p>
+          </div>
+          <span class="delta-pill">Olisit maksanut n. 3 € enemmän</span>
+        </div>
+        <p class="foot">
+          <span>Toteutuneilla hinnoilla, ilman siirtomaksuja. Ei arvio vaan laskettu jaksosi hinnoista.</span>
+          <a href="#vaihtoehdot">Katso <span id="altCountFoot">112</span> halvempaa vaihtoehtoa →</a>
+        </p>
+      </div>
+      <p class="demo-note">Mockup: esimerkkitulos näytetty valmiiksi täytettynä. Tuotannossa moduuli on suljettuna, kunnes kävijä avaa sen.</p>
+    </details>
+
+    <!-- ============ Hintakehitys ============ -->
+    <section class="sec">
+      <div class="chart-head">
+        <div>
+          <h2>Näin hinta on kehittynyt</h2>
+          <p class="sub" style="margin-bottom:0">Energianhinta c/kWh · seurattu 7.3.2026 alkaen</p>
+        </div>
+        <div class="legend">
+          <span><span class="sw"></span>Korpela Kvartaali</span>
+          <span><span class="sw med"></span>Markkinahintaisten mediaani</span>
+        </div>
+      </div>
+
+      <div class="chart-scroll">
+      <div class="chart-wrap">
+        <svg id="chart" viewBox="0 0 680 230" width="100%" role="img" aria-label="Korpela Kvartaalin energianhinta verrattuna markkinahintaisten sopimusten mediaaniin, maaliskuusta heinäkuuhun 2026">
+          <!-- gridlines -->
+          <g stroke="#f1f5f9" stroke-width="1">
+            <line x1="52" y1="30" x2="660" y2="30"/><line x1="52" y1="80" x2="660" y2="80"/>
+            <line x1="52" y1="130" x2="660" y2="130"/><line x1="52" y1="180" x2="660" y2="180"/>
+          </g>
+          <!-- y labels: 10 / 9 / 8 / 7 c/kWh -->
+          <g font-size="12" fill="#64748b" text-anchor="end" font-family="inherit">
+            <text x="44" y="34">10</text><text x="44" y="84">9</text>
+            <text x="44" y="134">8</text><text x="44" y="184">7</text>
+          </g>
+          <text x="20" y="18" font-size="12" fill="#64748b">c/kWh</text>
+          <!-- x labels -->
+          <g font-size="12" fill="#64748b" text-anchor="middle">
+            <text x="82" y="222">maalis</text><text x="217" y="222">huhti</text><text x="352" y="222">touko</text><text x="487" y="222">kesä</text><text x="622" y="222">heinä</text>
+          </g>
+          <!-- median reference: dashed neutral -->
+          <path d="M82 92 L217 100 L352 112 L487 118 L622 108" fill="none" stroke="#64748b" stroke-width="2" stroke-dasharray="6 5" stroke-linecap="round"/>
+          <text x="628" y="100" font-size="12" fill="#64748b">mediaani 8,7</text>
+          <!-- contract: stepped ink line (quarterly resets); coral stays reserved for actions -->
+          <path d="M82 155 L486 155 L487 172 L622 172" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <g fill="#0f172a">
+            <circle cx="82" cy="155" r="4"/><circle cx="487" cy="172" r="4"/><circle cx="622" cy="172" r="4"/>
+          </g>
+          <text x="628" y="180" font-size="12" fill="#0f172a" font-weight="700">6,95</text>
+          <!-- reset annotation -->
+          <line x1="487" y1="30" x2="487" y2="185" stroke="#e2e8f0" stroke-width="1"/>
+          <text x="493" y="44" font-size="12" fill="#64748b">tarkistus 1.7.</text>
+          <!-- hover targets -->
+          <g id="hovers" fill="transparent">
+            <rect x="52" y="20" width="132" height="180" data-m="Maaliskuu" data-c="7,55" data-md="8,76"/>
+            <rect x="184" y="20" width="135" height="180" data-m="Huhtikuu" data-c="7,55" data-md="8,60"/>
+            <rect x="319" y="20" width="135" height="180" data-m="Toukokuu" data-c="7,55" data-md="8,36"/>
+            <rect x="454" y="20" width="135" height="180" data-m="Kesäkuu" data-c="7,55 → 6,95" data-md="8,24"/>
+            <rect x="589" y="20" width="71" height="180" data-m="Heinäkuu" data-c="6,95" data-md="8,44"/>
+          </g>
+        </svg>
+        <div class="chart-tip" id="chartTip"></div>
+      </div>
+      </div>
+
+      <div class="record num">
+        <span class="fact-tag">Hintaa tarkistettu 2 kertaa</span>
+        <span class="fact-tag">Viimeisin muutos −0,60 c/kWh (1.7.)</span>
+        <span class="fact-tag">Perusmaksu ennallaan koko seurannan ajan</span>
+      </div>
+
+      <details class="versions">
+        <summary>Näytä sopimuksen versiohistoria (3 versiota) ▾</summary>
+        <div class="vrow num"><time datetime="2026-07-01">1.7.2026</time><span class="what">Energianhinta 7,55 → 6,95 c/kWh</span><span class="d">−0,60 c/kWh</span></div>
+        <div class="vrow num"><time datetime="2026-04-01">1.4.2026</time><span class="what">Energianhinta 8,20 → 7,55 c/kWh</span><span class="d">−0,65 c/kWh</span></div>
+        <div class="vrow num"><time datetime="2026-03-07">7.3.2026</time><span class="what">Seuranta alkoi · energia 8,20 c/kWh · perusmaksu 4,50 €/kk</span><span class="d"></span></div>
+      </details>
+    </section>
+
+    <!-- ============ Sopimusehdot ============ -->
+    <section class="sec">
+      <h2>Sopimusehdot lyhyesti</h2>
+      <p class="sub">Poimittu myyjän ilmoittamista sopimustiedoista.</p>
+      <div class="terms-grid">
+        <div class="term"><p class="l">Sopimuskausi</p><p class="v">Toistaiseksi voimassa</p></div>
+        <div class="term"><p class="l">Irtisanomisaika</p><p class="v num">14 vrk</p></div>
+        <div class="term"><p class="l">Laskutusväli</p><p class="v num">1, 2 tai 3 kk</p></div>
+        <div class="term"><p class="l">Saatavuus</p><p class="v">Koko Suomi</p></div>
+      </div>
+      <p class="src-note">Tarkista ajantasaiset ehdot myyjän sivuilta ennen tilausta.</p>
+      <details class="desc">
+        <summary>Myyjän oma kuvaus sopimuksesta ▾</summary>
+        <p>Korpela Kvartaali on sopimus, jossa sähköenergian hinta tarkistetaan neljännesvuosittain tukkumarkkinahintojen perusteella. Hinta pysyy samana kolmen kuukauden jakson ajan. Sopimus on voimassa toistaiseksi ja sen voi irtisanoa 14 vuorokauden irtisanomisajalla.</p>
+      </details>
+    </section>
+
+    <!-- ============ FAQ ============ -->
+    <section class="sec faq">
+      <h2>Usein kysyttyä</h2>
+      <details>
+        <summary>Paljonko Korpela Kvartaali maksaa 5 000 kWh vuosikulutuksella? <span class="chev">▾</span></summary>
+        <p class="a">Arviolta <strong class="num">44,10 €/kk eli 529 € vuodessa</strong> ilman siirtomaksuja. Nykyinen energianhinta 6,95 c/kWh on voimassa 30.9.2026 asti, minkä jälkeen hinta tarkistetaan. Loppuvuoden arvio perustuu sähköfutuureihin.</p>
+      </details>
+      <details id="faq-miten">
+        <summary>Miten kvartaalihinta määräytyy? <span class="chev">▾</span></summary>
+        <p class="a">Myyjä tarkistaa energianhinnan neljä kertaa vuodessa (1.1., 1.4., 1.7. ja 1.10.) tukkumarkkinoiden hintatason perusteella. Hinta pysyy samana kolmen kuukauden jakson ajan, joten se on pörssisähköä vakaampi mutta seuraa markkinaa kiinteää sopimusta nopeammin.</p>
+      </details>
+      <details>
+        <summary>Voiko sopimuksen irtisanoa milloin vain? <span class="chev">▾</span></summary>
+        <p class="a">Kyllä. Sopimus on voimassa toistaiseksi ja irtisanomisaika on <strong class="num">14 vuorokautta</strong>. Käytännössä uusi sähköyhtiö hoitaa irtisanomisen puolestasi, kun teet uuden sopimuksen.</p>
+      </details>
+      <details>
+        <summary>Mistä Voltikan hinta-arvio tulee? <span class="chev">▾</span></summary>
+        <p class="a">Laskemme kaikille sopimuksille vertailukelpoisen 12 kuukauden hinnan samalla menetelmällä: tiedossa olevat hinnat sellaisenaan ja tulevat hintajaksot sähköfutuurien perusteella. Sama menetelmä kaikille, joten arvio ei suosi ketään myyjää.</p>
+      </details>
+    </section>
+
+    <!-- ============ Ympäristö ============ -->
+    <section class="sec">
+      <h2>Sähkön alkuperä ja päästöt</h2>
+      <div class="env-grid">
+        <div class="env-stat num">
+          <p class="v"><span id="envKg">1 955</span> <small>kg CO₂e vuodessa</small></p>
+          <p class="v2">vastaa n. <strong id="envKm">13 960</strong> km ajoa bensiiniautolla</p>
+          <span class="env-badge num">Korkeat päästöt · 391 g/kWh</span>
+        </div>
+        <div class="env-copy">
+          <p>Luku on laskettu valitsemallasi <span class="num" id="envKwh">5 000</span> kWh vuosikulutuksella. Myyjä ei ole eritellyt tämän sopimuksen sähkön alkuperää, joten päästöt lasketaan jäännösjakaumalla: sillä sähköllä, joka jää jäljelle kun alkuperätakuilla myyty tuotanto on poistettu. Se ei kerro, millaista sähköä juuri sinulle toimitetaan. <a href="#">Katso vihreät vaihtoehdot →</a></p>
+          <div class="origin-bar"><i></i></div>
+          <p class="origin-lbl num">Erittelemätön alkuperä 100 % · lähde: myyjän ilmoitus ja kansallinen jäännösjakauma 2025</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ Vaihtoehdot ============ -->
+    <section class="sec" id="vaihtoehdot">
+      <h2>Halvemmat vaihtoehdot</h2>
+      <p class="sub num"><span id="altCount">112</span> sopimusta on tällä kulutuksella halvempia. Tässä halvimmat, sekä halvin samantyyppinen.</p>
+      <div class="alts num">
+        <a class="alt" href="#">
+          <span class="tag">Pörssisähkö</span>
+          <span class="n">Cheap Markkinahintasähkö</span>
+          <span class="c">Cheap Energy Finland Oy</span>
+          <span class="p"><span id="a1p">33,70</span> <small>€/kk · arvio</small></span>
+          <span class="save">Säästä n. <span id="a1s">124</span> €/v</span>
+        </a>
+        <a class="alt" href="#">
+          <span class="tag">Pörssisähkö</span>
+          <span class="n">Helppo Pörssisähkö</span>
+          <span class="c">Vattenfall Oy</span>
+          <span class="p"><span id="a2p">34,20</span> <small>€/kk · arvio</small></span>
+          <span class="save">Säästä n. <span id="a2s">119</span> €/v</span>
+        </a>
+        <a class="alt" href="#">
+          <span class="tag same">Samantyyppinen · kvartaali</span>
+          <span class="n">Tyyni Kvartaali</span>
+          <span class="c">Kokkolan Energia Oy</span>
+          <span class="p"><span id="a3p">41,80</span> <small>€/kk · arvio</small></span>
+          <span class="save">Säästä n. <span id="a3s">28</span> €/v</span>
+        </a>
+      </div>
+      <p class="alts-foot"><a href="#">Vertaa kaikkia 299 sopimusta →</a></p>
+    </section>
+
+  </div>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <p class="trust">Voltikka on riippumaton energiavertailupalvelu.</p>
+    <p>Emme ota provisiota sähköyhtiöiltä emmekä rahoita toimintaamme mainoksilla. Hintatiedot päivittyvät päivittäin ja arviot lasketaan samalla menetelmällä kaikille sopimuksille.</p>
+  </div>
+</footer>
+
+<div class="sticky-cta num" id="stickyCta">
+  <span class="p" id="stickyPrice">44,10 €/kk<small>12 kk arvio · 5 000 kWh</small></span>
+  <a class="btn-primary" href="#">Myyjän sivuille</a>
+</div>
+
+<script>
+  // Demo pricing model: piecewise-linear interpolation between the four reference
+  // consumptions, so the free kWh input and every chip stay arithmetically
+  // consistent with the static cost table. Server-side in the real page.
+  const BR = [2000, 5000, 10000, 18000];
+  const F = {
+    m:     [20.30, 44.10, 83.70, 147.00],   // this contract, €/kk
+    cheap: [18.30, 33.70, 71.90, 127.30],   // cheapest in comparison, €/kk
+    a2p:   [18.70, 34.20, 72.50, 128.30],   // alternative 2, €/kk
+    a3p:   [19.80, 41.80, 81.00, 143.60],   // alternative 3 (same type), €/kk
+    cf:    [220, 404, 863, 1528],           // spot counterfactual, €/v
+    rank:  [98, 113, 121, 134]              // rank shifts: spot gets relatively cheaper at high consumption
+  };
+  const TOTAL = 299;
+  const lerp = (arr, k) => {
+    if (k <= BR[0]) return arr[0];
+    if (k >= BR[BR.length-1]) return arr[arr.length-1];
+    for (let i = 0; i < BR.length-1; i++) {
+      if (k <= BR[i+1]) { const t = (k - BR[i]) / (BR[i+1] - BR[i]); return arr[i] + t * (arr[i+1] - arr[i]); }
+    }
+  };
+  const fi = (n, d = 0) => n.toLocaleString('fi-FI', {minimumFractionDigits: d, maximumFractionDigits: d});
+  const set = (id, v) => { document.getElementById(id).textContent = v; };
+
+  function apply(kwh) {
+    const m = lerp(F.m, kwh), cheap = lerp(F.cheap, kwh);
+    const a2 = lerp(F.a2p, kwh), a3 = lerp(F.a3p, kwh);
+    const rank = Math.round(lerp(F.rank, kwh));
+    const gap = Math.round((m - cheap) * 12);
+    const kg = Math.round(0.391 * kwh);
+    const km = Math.round(kg * 7.14 / 10) * 10;
+    const lbl = fi(kwh);
+    const [int, dec] = fi(m, 2).split(',');
+    document.getElementById('priceMonthly').innerHTML = int + '<span class="dec">,' + dec + '</span><span class="unit">€/kk</span>';
+    set('priceYearly', fi(Math.round(m * 12)));
+    set('kwhLabel', lbl);
+    set('rankVal', fi(rank)); set('gapVal', fi(gap)); set('cheapVal', fi(cheap, 2));
+    document.getElementById('scaleMarker').style.left = (rank / TOTAL * 100).toFixed(1) + '%';
+    set('cheaperCount', fi(rank - 1)); set('pricierCount', fi(TOTAL - rank)); set('gapInline', fi(gap));
+    set('altCount', fi(rank - 1)); set('altCountFoot', fi(rank - 1));
+    set('cfKwh', lbl); set('cfEur', fi(Math.round(lerp(F.cf, kwh))));
+    set('envKg', fi(kg)); set('envKm', fi(km)); set('envKwh', lbl);
+    set('a1p', fi(cheap, 2)); set('a1s', fi(gap));
+    set('a2p', fi(a2, 2)); set('a2s', fi(Math.round((m - a2) * 12)));
+    set('a3p', fi(a3, 2)); set('a3s', fi(Math.round((m - a3) * 12)));
+    document.querySelectorAll('table.costs tbody tr').forEach(tr => tr.classList.toggle('hl', +tr.dataset.kwh === kwh));
+    document.getElementById('stickyPrice').innerHTML = fi(m, 2) + ' €/kk<small>12 kk arvio · ' + lbl + ' kWh</small>';
+  }
+
+  const kwhFree = document.getElementById('kwhFree');
+  const kwhInput = document.getElementById('kwhInput');
+  document.querySelectorAll('.chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('.chip').forEach(c => { c.classList.remove('active'); c.setAttribute('aria-pressed', 'false'); });
+      chip.classList.add('active');
+      chip.setAttribute('aria-pressed', 'true');
+      kwhFree.classList.remove('active');
+      kwhInput.value = '';
+      apply(+chip.dataset.kwh);
+    });
+  });
+  const applyFree = () => {
+    const v = parseInt(kwhInput.value.replace(/\D/g, ''), 10);
+    if (!v) return;
+    const kwh = Math.min(30000, Math.max(1000, v));
+    kwhInput.value = kwh;
+    document.querySelectorAll('.chip').forEach(c => { c.classList.remove('active'); c.setAttribute('aria-pressed', 'false'); });
+    kwhFree.classList.add('active');
+    apply(kwh);
+  };
+  kwhInput.addEventListener('keydown', e => { if (e.key === 'Enter') applyFree(); });
+  kwhInput.addEventListener('blur', () => { if (kwhInput.value.trim()) applyFree(); });
+
+  // Category chip opens the FAQ entry that explains the pricing type
+  document.getElementById('catLink').addEventListener('click', () => {
+    document.getElementById('faq-miten').open = true;
+  });
+
+  // Arvio popover: click/keyboard toggle, Escape closes
+  const arvioChip = document.getElementById('arvioChip');
+  const arvioPop = document.getElementById('arvioPop');
+  const setArvio = open => { arvioPop.classList.toggle('open', open); arvioChip.setAttribute('aria-expanded', String(open)); };
+  arvioChip.addEventListener('click', () => setArvio(!arvioPop.classList.contains('open')));
+  arvioChip.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setArvio(!arvioPop.classList.contains('open')); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') setArvio(false); });
+  document.addEventListener('click', e => { if (!arvioChip.contains(e.target) && !arvioPop.contains(e.target)) setArvio(false); });
+
+  // Sticky mobile CTA: only after the hero CTA scrolls out, never over alternatives/footer
+  const sticky = document.getElementById('stickyCta');
+  const ctaRow = document.querySelector('.cta-row');
+  const altsEl = document.getElementById('vaihtoehdot');
+  const footEl = document.querySelector('footer.site');
+  const updSticky = () => {
+    const heroOut = ctaRow.getBoundingClientRect().bottom < 0;
+    const altsIn = altsEl.getBoundingClientRect().top < innerHeight && altsEl.getBoundingClientRect().bottom > 0;
+    const footIn = footEl.getBoundingClientRect().top < innerHeight;
+    sticky.classList.toggle('show', heroOut && !altsIn && !footIn);
+  };
+  addEventListener('scroll', updSticky, {passive: true});
+  addEventListener('resize', updSticky, {passive: true});
+  updSticky();
+
+  // Chart hover tooltip
+  const tip = document.getElementById('chartTip');
+  const chart = document.getElementById('chart');
+  document.querySelectorAll('#hovers rect').forEach(r => {
+    r.addEventListener('mousemove', e => {
+      tip.style.display = 'block';
+      tip.innerHTML = '<strong>' + r.dataset.m + '</strong><br>Korpela Kvartaali: <strong>' + r.dataset.c + '</strong> c/kWh<br>Mediaani: ' + r.dataset.md + ' c/kWh';
+      const wrap = chart.parentElement.getBoundingClientRect();
+      tip.style.left = Math.min(e.clientX - wrap.left + 14, wrap.width - 190) + 'px';
+      tip.style.top = (e.clientY - wrap.top - 10) + 'px';
+    });
+    r.addEventListener('mouseleave', () => tip.style.display = 'none');
+  });
+</script>
+</body>
+</html>

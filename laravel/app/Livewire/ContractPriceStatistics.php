@@ -6,6 +6,7 @@ use App\Models\ContractPriceDailyStatistic;
 use App\Models\ContractPriceSnapshot;
 use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
+use App\Services\ContractStatistics\ContractPriceStatisticsService;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -31,20 +32,8 @@ class ContractPriceStatistics extends Component
 
     public array $consumptionLevels = [2000, 5000, 18000];
 
-    public array $segments = [
-        'spot' => 'Pörssisähkö',
-        'hybrid' => 'Joustosähkö',
-        'quarterly' => 'Kvartaalisähkö',
-        'fixed_term_below6' => 'Määräaikainen alle 6 kk',
-        'fixed_term_6' => 'Määräaikainen 6 kk',
-        'fixed_term_7_11' => 'Määräaikainen 7–11 kk',
-        'fixed_term_12' => 'Määräaikainen 12 kk',
-        'fixed_term_13_23' => 'Määräaikainen 13–23 kk',
-        'fixed_term_24' => 'Määräaikainen 24 kk',
-        'fixed_term_over24' => 'Määräaikainen yli 24 kk',
-        'fixed_term_other' => 'Määräaikainen muu',
-        'open_ended' => 'Toistaiseksi voimassa oleva',
-    ];
+    /** @see ContractPriceStatisticsService::SEGMENT_LABELS — one map beside the classifier. */
+    public array $segments = ContractPriceStatisticsService::SEGMENT_LABELS;
 
     /** Segments that get a line in the lead chart and a callout. Order matters: index 0 is the coral lead. */
     public array $primarySegments = [

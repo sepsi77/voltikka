@@ -25,13 +25,14 @@ class ContractCardPresenterTest extends TestCase
 
     private const TODAY = '2026-07-26';
 
-    private function present(ElectricityContract $contract, array $prices = [], bool $billMode = false): \App\Services\ContractCard\DTO\ContractCardView
+    private function present(ElectricityContract $contract, array $prices = [], bool $billMode = false, bool $detailed = false): \App\Services\ContractCard\DTO\ContractCardView
     {
         return app(ContractCardPresenter::class)->present(
             contract: $contract,
             prices: $prices,
             billMode: $billMode,
             today: CarbonImmutable::parse(self::TODAY, 'Europe/Helsinki'),
+            detailed: $detailed,
         );
     }
 
@@ -342,6 +343,111 @@ class ContractCardPresenterTest extends TestCase
 
         $this->assertSame(['Energia 31.7. asti', 'Energia 1.8. alkaen', 'Perusmaksu'], array_map(fn ($l) => $l->label, $card->receiptLines));
         $this->assertSame('13,65', $card->receiptLines[1]->value);
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function promoThenSpotPhases(): array
+    {
+        // Cheap Markkinahintasähkö's shape as the calculator resolves it: one flat month,
+        // then Nord Pool's monthly average plus a margin, with the monthly fee changing too.
+        return [
+            [
+                'label' => 'introductory', 'phase_kind' => 'introductory',
+                'window_start' => '2026-07-26', 'window_end' => '2026-08-25',
+                'uses_spot' => false, 'energy_cents' => 6.99, 'spot_margin_cents' => null, 'monthly_fee' => 0.0,
+            ],
+            [
+                'label' => 'continuation', 'phase_kind' => 'continuation',
+                'window_start' => '2026-08-26', 'window_end' => '2027-07-25',
+                'uses_spot' => true, 'energy_cents' => null, 'spot_margin_cents' => 1.29, 'monthly_fee' => 4.99,
+            ],
+        ];
+    }
+
+    public function test_a_promotional_flat_price_before_a_spot_margin_is_never_labelled_a_margin(): void
+    {
+        // The detail page hard-labelled a Spot contract's General component "Marginaali", so
+        // this contract's flat 6,99 intro price printed as a 6,99 margin a few hundred pixels
+        // above the seller's own text saying the margin is 1,29.
+        $card = $this->present($this->contract(['pricing_model' => 'Spot'], [
+            'is_spot_contract' => true,
+            'estimate_method' => 'rolling_365_spot',
+            'general_kwh_price' => 6.99,
+            'spot_price_margin' => null,
+            'spot_price_day_avg' => 7.77,
+            'monthly_fixed_fee' => 0.0,
+            'phase_breakdown' => $this->promoThenSpotPhases(),
+        ]));
+
+        $this->assertSame(
+            ['Energia 25.8. asti', 'Marginaali 26.8. alkaen', 'Perusmaksu'],
+            array_map(fn ($l) => $l->label, $card->receiptLines),
+        );
+        $this->assertSame('6,99', $card->receiptLines[0]->value);
+        $this->assertSame('1,29', $card->receiptLines[1]->value);
+    }
+
+    public function test_the_detail_receipt_adds_the_market_baseline_and_the_dated_fee_pair(): void
+    {
+        $card = $this->present($this->contract(['pricing_model' => 'Spot'], [
+            'is_spot_contract' => true,
+            'estimate_method' => 'rolling_365_spot',
+            'general_kwh_price' => 6.99,
+            'spot_price_margin' => null,
+            'spot_price_day_avg' => 7.77,
+            'monthly_fixed_fee' => 0.0,
+            'phase_breakdown' => $this->promoThenSpotPhases(),
+        ]), detailed: true);
+
+        $this->assertSame(
+            ['Energia 25.8. asti', 'Pörssin keskihinta 12 kk', 'Marginaali 26.8. alkaen', 'Perusmaksu 25.8. asti', 'Perusmaksu 26.8. alkaen'],
+            array_map(fn ($l) => $l->label, $card->receiptLines),
+        );
+        $this->assertTrue($card->receiptLines[1]->soft, 'the market baseline is the estimated part');
+        $this->assertSame('0,00', $card->receiptLines[3]->value);
+        $this->assertSame('4,99', $card->receiptLines[4]->value);
+    }
+
+    public function test_a_rate_change_inside_one_mechanism_is_not_a_mechanism_switch(): void
+    {
+        // Two spot phases with different margins keep the ordinary spot rows; the dated pair
+        // is only for the case where the per-kWh price stops meaning the same thing.
+        $card = $this->present($this->contract(['pricing_model' => 'Spot'], [
+            'is_spot_contract' => true,
+            'estimate_method' => 'rolling_365_spot',
+            'spot_price_margin' => 0.39,
+            'spot_price_day_avg' => 7.77,
+            'monthly_fixed_fee' => 3.9,
+            'phase_breakdown' => [
+                ['uses_spot' => true, 'spot_margin_cents' => 0.19, 'monthly_fee' => 0.0, 'window_start' => '2026-07-26', 'window_end' => '2026-10-25'],
+                ['uses_spot' => true, 'spot_margin_cents' => 0.39, 'monthly_fee' => 3.9, 'window_start' => '2026-10-26', 'window_end' => '2027-07-25'],
+            ],
+        ]));
+
+        $this->assertSame(['Pörssin keskihinta 12 kk', 'Marginaali', 'Perusmaksu'], array_map(fn ($l) => $l->label, $card->receiptLines));
+    }
+
+    public function test_a_spot_contract_without_a_margin_never_prints_the_bare_spot_average_as_energy(): void
+    {
+        // The detail page computed "Energiahinta (spot + marginaali)" from
+        // `spot_price_margin ?? 0`, so a null margin printed the market average as if it were
+        // the contract's own energy price.
+        $card = $this->present($this->contract(['pricing_model' => 'Spot'], [
+            'is_spot_contract' => true,
+            'estimate_method' => 'rolling_365_spot',
+            'general_kwh_price' => null,
+            'spot_price_margin' => null,
+            'spot_price_day_avg' => 7.77,
+            'monthly_fixed_fee' => 4.99,
+        ]));
+
+        $labels = array_map(fn ($l) => $l->label, $card->receiptLines);
+        $this->assertSame(['Pörssin keskihinta 12 kk', 'Perusmaksu'], $labels);
+        $this->assertTrue($card->receiptLines[0]->soft);
+        $this->assertNotContains('Marginaali', $labels);
+        $this->assertNotContains('Energiahinta', $labels);
     }
 
     public function test_time_metering_shows_day_and_night_rates(): void
@@ -710,6 +816,52 @@ class ContractCardPresenterTest extends TestCase
 
         $html->assertDontSee('Edullinen energianhinta');
         $html->assertDontSee('Edullinen perusmaksu');
+    }
+
+    // ---------------------------------------------------------------- name and seller link
+
+    public function test_a_shouted_contract_name_is_calm_on_the_card(): void
+    {
+        // Sellers submit shouted names. The card, the featured card and the detail page H1
+        // all read the same normalizer, so a name cannot be shouted on one surface and calm
+        // on the page it links to. The stored name is untouched.
+        $contract = $this->contract(['name' => 'Hehku KIINTEÄ 12 kk - 0€ KUUKAUSIMAKSU ENSIMMÄISET 3 KK!']);
+
+        $this->assertSame('Hehku Kiinteä 12 kk - 0€ Kuukausimaksu ensimmäiset 3 KK!', $this->present($contract)->contractName);
+        $this->assertSame('Hehku KIINTEÄ 12 kk - 0€ KUUKAUSIMAKSU ENSIMMÄISET 3 KK!', $contract->name);
+    }
+
+    public function test_the_seller_cta_falls_back_until_it_has_a_destination(): void
+    {
+        $company = \App\Models\Company::create([
+            'name' => 'Testi Energia Oy',
+            'name_slug' => 'testi-energia-oy',
+            'company_url' => 'https://testi.fi',
+        ]);
+
+        $withOrderLink = $this->contract(['order_link' => 'https://testi.fi/tilaa', 'product_link' => 'https://testi.fi/tuote']);
+        $withOrderLink->setRelation('company', $company);
+        $this->assertSame('https://testi.fi/tilaa', $this->present($withOrderLink)->sellerCta->url);
+        $this->assertSame('Siirry myyjän sivuille', $this->present($withOrderLink)->sellerCta->label);
+
+        $withProductLink = $this->contract(['product_link' => 'https://testi.fi/tuote']);
+        $withProductLink->setRelation('company', $company);
+        $this->assertSame('https://testi.fi/tuote', $this->present($withProductLink)->sellerCta->url);
+
+        // One live contract carried neither link and its detail page rendered no action at all.
+        $withNeither = $this->contract();
+        $withNeither->setRelation('company', $company);
+        $this->assertSame('https://testi.fi', $this->present($withNeither)->sellerCta->url);
+        $this->assertTrue($this->present($withNeither)->sellerCta->external);
+
+        // No seller site either: the label must stop promising the seller's own pages.
+        $company->company_url = null;
+        $noSite = $this->contract();
+        $noSite->setRelation('company', $company);
+        $cta = $this->present($noSite)->sellerCta;
+        $this->assertSame('/sahkosopimus/sahkoyhtiot/testi-energia-oy', $cta->url);
+        $this->assertSame('Katso myyjän tiedot', $cta->label);
+        $this->assertFalse($cta->external);
     }
 
     // ---------------------------------------------------------------- query scope parity

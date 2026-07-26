@@ -674,10 +674,21 @@ class ElectricityContract extends Model
             return '-'.number_format($discountInfo['value'], 0, ',', ' ').'% alennus';
         }
 
-        $unit = match ($discountInfo['payment_unit'] ?? null) {
-            'EurPerMonth' => '€/kk',
-            'CentPerKiwattHour' => 'c/kWh',
-            default => ($discountInfo['price_component_type'] ?? null) === 'Monthly' ? '€/kk' : null,
+        // The component TYPE wins over the stored unit, and that order is the
+        // whole point. 563 stored `Monthly` rows carry
+        // `payment_unit = CentPerKiwattHour` straight from the upstream payload,
+        // across 25 contracts. Trusting the unit printed "-5,90 c/kWh alennus"
+        // for a base-fee waiver on two live contracts, which reads as a discount
+        // of about 295 EUR/yr at 5 000 kWh instead of the real 71 EUR/yr. A
+        // monthly fee is never a per-kWh price, whatever the source says.
+        // `ContractPriceCalculator` already applies the same precedence when it
+        // costs the discount (`$paymentUnit === 'EurPerMonth' || $componentType
+        // === 'Monthly'`), so the label now agrees with the arithmetic.
+        $unit = match (true) {
+            ($discountInfo['price_component_type'] ?? null) === 'Monthly' => '€/kk',
+            ($discountInfo['payment_unit'] ?? null) === 'EurPerMonth' => '€/kk',
+            ($discountInfo['payment_unit'] ?? null) === 'CentPerKiwattHour' => 'c/kWh',
+            default => null,
         };
 
         if (! $unit) {
