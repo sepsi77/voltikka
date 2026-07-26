@@ -87,8 +87,10 @@ Domain rules layered on top (each with a regression test and a documented reason
   price and the total collapses to roughly the monthly fee (Spot Valo, Kosken markkinaWoima showed ~57–73
   €/yr). When a Spot contract has no `spot_margin` and every standalone per-kWh rate is **≤ 2.0 c/kWh**,
   those rates are folded into the spot margin so the spot base is added. A rate **above** the ceiling is a
-  genuine all-in price (a market-price product at ~7 c/kWh, e.g. Cheap Markkinahintasähkö) and stays fixed
-  energy — folding it would double-count the base. Bucket values are equal in practice so the `max` is
+  genuine all-in price (a market-price product at ~7 c/kWh, e.g. Cheap Markkinahintasähkö's 6,99 c/kWh
+  first month) and stays fixed energy — folding it would double-count the base. Note that a contract can
+  hold both shapes in different phases; see the mechanism rule below before assuming the whole year is
+  flat. Bucket values are equal in practice so the `max` is
   exact; if they ever differ it is the conservative (higher) choice. This is a deterministic safety net that
   also protects rankings if a future interpretation regresses; the matching LLM-prompt fix (classify these
   as `spot_margin`) is a documented follow-up. Regression tests 21 (fold) and 22 (control) pin both sides.
@@ -98,6 +100,19 @@ Domain rules layered on top (each with a regression test and a documented reason
 - **Component inheritance**: a promo phase that lists only the changed component (e.g. `monthly_fee = 0`
   for month 1) inherits the unchanged energy price from the base (fullest-priced) phase — it is not read
   as free energy. An explicit value (including 0) is an override and is not inherited.
+- **Inheritance never crosses the per-kWh mechanism** (`effectiveBilledComponents`): `spot_margin` and the
+  fixed `energy_*` rates are two ways of pricing the same kWh, so a phase that states one must not receive
+  the other from the base phase. `resolvePhaseRates` prefers a fixed rate over the spot base
+  (`$rate = $general ?? $spotDay`), so an inherited `energy_general` silently overrode the phase's own spot
+  margin. **This was live.** Cheap Markkinahintasähkö is one flat month at 6,99 c/kWh and then Nord Pool
+  monthly average + 1,29 c/kWh; the whole year was priced at the one-month promo rate, 404 €/v instead of
+  486 €/v at 5000 kWh. `basePricingPhase` made it worse by breaking a component-count tie in favour of the
+  earliest (promotional) phase, but the mechanism guard fixes the class of bug whichever phase wins.
+  Measured 2026-07-26 on the 425 active contracts: exactly 3 change, all fixed-then-spot shapes, and the
+  other two move *down* because their spot continuation is cheaper than the fixed term they inherited
+  (Hehku KIINTEÄ 6 kk −41 €/v, Cheap Määräaikainen 6 kk −29 €/v). Inheritance **inside** one mechanism is
+  unchanged, so a Time phase that restates only `energy_day` still inherits `energy_night`. Regression
+  tests 23 (cross-mechanism) and 24 (same-mechanism control) pin both sides.
 - **Duplicate-zero guard**: within a phase, a placeholder `0` never overwrites a real non-zero rate of
   the same component type.
 
@@ -176,6 +191,14 @@ single "Arvio" popover in the card's type band. See `../ContractCard/AGENTS.md`.
 `c`/`r` flag markers do not move on a code-only deploy, so cards would otherwise read a stale
 cached shape for up to 48 hours. `ContractPricingIntegrity` gained typed `promo_rate_cents` /
 `normal_rate_cents` for the dated receipt rows; that was schema v2.
+
+Schema **v3** enriched `calculated_cost['phase_breakdown']`. Each governing phase now records
+the coverage the timeline actually resolved for it (`window_start`, `window_end`, the last day
+inclusive) and the rates it was costed at (`uses_spot`, `energy_cents`, `spot_margin_cents`,
+`monthly_fee`). `ContractCard/CardReceiptLines` reads it to state a mid-window switch between
+the two per-kWh mechanisms as two dated rows ("Energia 25.8. asti 6,99" / "Marginaali 26.8.
+alkaen 1,29"). **Keep the record here rather than re-deriving boundaries in a presenter** —
+`Support/PhaseTimelineBuilder` is the only implementation of that algorithm and must stay so.
 
 The detail-page notices live
 in `resources/views/livewire/contract-detail.blade.php` (after the hero): the neutral market-reset

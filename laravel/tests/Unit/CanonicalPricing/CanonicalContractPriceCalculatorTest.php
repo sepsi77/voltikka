@@ -510,4 +510,98 @@ class CanonicalContractPriceCalculatorTest extends TestCase
         // 5000 kWh * 6.99 c/kWh = 349.5 EUR energy + 36 EUR fee = ~385.5, not ~700 (base + 6.99)
         $this->assertEqualsWithDelta(385.5, $outcome->totalCost, 1.0);
     }
+
+    public function test_23_spot_continuation_phase_does_not_inherit_the_intro_fixed_energy_price(): void
+    {
+        // Cheap Markkinahintasähkö: one month at a flat 6,99 c/kWh, then Nord Pool monthly
+        // average + 1,29 c/kWh. The continuation phase states only its margin, so component
+        // inheritance used to hand it the intro phase's energy_general 6,99, and
+        // resolvePhaseRates prefers a fixed rate over the spot base. The whole year was then
+        // priced at the one-month promo rate. spot_margin and energy_* are two ways of pricing
+        // the same kWh, so a phase that states one must not inherit the other.
+        $pricing = $this->pricing([
+            $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '1'], [
+                $this->component('energy_general', 6.99, 'cents_per_kwh', 'introductory'),
+                $this->component('monthly_fee', 0.0, 'eur_per_month', 'introductory'),
+            ]),
+            $this->phase('continuation', ['kind' => 'after_months', 'value' => '1'], ['kind' => 'none', 'value' => null], [
+                $this->component('spot_margin', 1.29, 'cents_per_kwh', 'normal'),
+                $this->component('monthly_fee', 4.99, 'eur_per_month', 'normal'),
+            ]),
+        ]);
+
+        $outcome = $this->evaluate($pricing, 'estimate_required', $this->cs('not_detected'), $this->context('Spot'), new SpotAssumptions(8.0, 5.0));
+
+        $this->assertTrue($outcome->isListed());
+        $this->assertTrue($outcome->isSpotContract);
+        // Month 1 at a flat 6,99 with no fee; months 2-12 at the spot base plus the 1,29 margin,
+        // blended over the 15 % default night share, plus 4,99/kk.
+        $intro = 5000 / 12 * 6.99 / 100;
+        $tailRate = 0.85 * (8.0 + 1.29) + 0.15 * (5.0 + 1.29);
+        $tail = 5000 * 11 / 12 * $tailRate / 100 + 4.99 * 11;
+        $this->assertEqualsWithDelta($intro + $tail, $outcome->totalCost, 2.0);
+        // The old behaviour held the intro rate for the year: 349,5 + 11 * 4,99 = 404,4.
+        $this->assertGreaterThan(450, $outcome->totalCost);
+    }
+
+    public function test_23b_the_phase_breakdown_records_the_resolved_dates_and_rates(): void
+    {
+        // The detail page states a mid-window mechanism change as two dated receipt rows. It
+        // reads them from this breakdown instead of re-deriving the phase timeline, so the
+        // resolved coverage and the rates each phase was costed at have to travel with the
+        // cost payload.
+        $pricing = $this->pricing([
+            $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '1'], [
+                $this->component('energy_general', 6.99, 'cents_per_kwh', 'introductory'),
+                $this->component('monthly_fee', 0.0, 'eur_per_month', 'introductory'),
+            ]),
+            $this->phase('continuation', ['kind' => 'after_months', 'value' => '1'], ['kind' => 'none', 'value' => null], [
+                $this->component('spot_margin', 1.29, 'cents_per_kwh', 'normal'),
+                $this->component('monthly_fee', 4.99, 'eur_per_month', 'normal'),
+            ]),
+        ]);
+
+        $breakdown = $this->evaluate($pricing, 'estimate_required', $this->cs('not_detected'), $this->context('Spot'), new SpotAssumptions(8.0, 5.0))
+            ->phaseBreakdown;
+
+        $this->assertCount(2, $breakdown);
+
+        $this->assertFalse($breakdown[0]['uses_spot']);
+        $this->assertSame('2026-07-24', $breakdown[0]['window_start']);
+        $this->assertSame('2026-08-23', $breakdown[0]['window_end']);
+        $this->assertEqualsWithDelta(6.99, $breakdown[0]['energy_cents'], 0.001);
+        $this->assertNull($breakdown[0]['spot_margin_cents']);
+        $this->assertEqualsWithDelta(0.0, $breakdown[0]['monthly_fee'], 0.001);
+
+        $this->assertTrue($breakdown[1]['uses_spot']);
+        $this->assertSame('2026-08-24', $breakdown[1]['window_start']);
+        $this->assertSame('2027-07-23', $breakdown[1]['window_end']);
+        $this->assertNull($breakdown[1]['energy_cents']);
+        $this->assertEqualsWithDelta(1.29, $breakdown[1]['spot_margin_cents'], 0.001);
+        $this->assertEqualsWithDelta(4.99, $breakdown[1]['monthly_fee'], 0.001);
+    }
+
+    public function test_24_fixed_term_phase_still_inherits_within_the_same_energy_mechanism(): void
+    {
+        // The mechanism guard must not break ordinary inheritance: a Time-metered phase that
+        // restates only the day rate still inherits the unchanged night rate from the base phase.
+        $pricing = $this->pricing([
+            $this->phase('normal', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '6'], [
+                $this->component('energy_day', 9.0),
+                $this->component('energy_night', 6.0),
+                $this->component('monthly_fee', 4.0, 'eur_per_month'),
+            ]),
+            $this->phase('continuation', ['kind' => 'after_months', 'value' => '6'], ['kind' => 'none', 'value' => null], [
+                $this->component('energy_day', 10.0),
+            ]),
+        ]);
+
+        $context = new ContractContext('FixedPrice', 'OpenEnded', 'Time', null, 'Household');
+        $outcome = $this->evaluate($pricing, 'exact', $this->cs('not_detected'), $context);
+
+        $this->assertTrue($outcome->isListed());
+        // The second phase keeps night 6,0 and fee 4,0 by inheritance; only the day rate changes.
+        $this->assertEqualsWithDelta(6.0, $outcome->nighttimeKwhPrice, 0.001);
+        $this->assertEqualsWithDelta(4.0, $outcome->monthlyFixedFee, 0.001);
+    }
 }

@@ -129,7 +129,7 @@ class ContractPriceStatisticsService
     private function buildSnapshot(ElectricityContract $contract, array $components, CarbonInterface $date, array $spotPrices, bool $useCanonical = false): array
     {
         $byType = collect($components)->keyBy('price_component_type');
-        $segmentKey = $this->segmentKey($contract);
+        $segmentKey = self::segmentKey($contract);
         $isSpot = $contract->pricing_model === 'Spot';
         $monthlyFee = $byType->has('Monthly') ? (float) $byType['Monthly']['price'] : null;
         $spotMargin = $isSpot ? $this->firstEnergyComponentPrice($components) : null;
@@ -443,7 +443,35 @@ class ContractPriceStatisticsService
         return null;
     }
 
-    private function segmentKey(ElectricityContract $contract): string
+    /**
+     * Consumer-facing labels for the segment keys below, in display order.
+     *
+     * This map is the single source for `/sahkosopimus/tilastot` and for the
+     * contract detail page's price-development chart, which names the segment
+     * whose median it overlays. Two copies drifted into disagreeing about the
+     * same segment once, so keep it here beside the classifier.
+     */
+    public const SEGMENT_LABELS = [
+        'spot' => 'Pörssisähkö',
+        'hybrid' => 'Joustosähkö',
+        'quarterly' => 'Kvartaalisähkö',
+        'fixed_term_below6' => 'Määräaikainen alle 6 kk',
+        'fixed_term_6' => 'Määräaikainen 6 kk',
+        'fixed_term_7_11' => 'Määräaikainen 7–11 kk',
+        'fixed_term_12' => 'Määräaikainen 12 kk',
+        'fixed_term_13_23' => 'Määräaikainen 13–23 kk',
+        'fixed_term_24' => 'Määräaikainen 24 kk',
+        'fixed_term_over24' => 'Määräaikainen yli 24 kk',
+        'fixed_term_other' => 'Määräaikainen muu',
+        'open_ended' => 'Toistaiseksi voimassa oleva',
+    ];
+
+    /**
+     * Static so any surface that needs the statistics segment of one contract
+     * (the detail page's median overlay) classifies it exactly like the daily
+     * aggregation did, without constructing the whole snapshot service.
+     */
+    public static function segmentKey(ElectricityContract $contract): string
     {
         if ($contract->pricing_model === 'Spot') {
             return 'spot';
@@ -453,7 +481,7 @@ class ContractPriceStatisticsService
             return 'hybrid';
         }
 
-        if ($this->isQuarterly($contract)) {
+        if (self::isQuarterly($contract)) {
             return 'quarterly';
         }
 
@@ -477,7 +505,7 @@ class ContractPriceStatisticsService
         return 'other';
     }
 
-    private function isQuarterly(ElectricityContract $contract): bool
+    private static function isQuarterly(ElectricityContract $contract): bool
     {
         $haystack = mb_strtolower(implode(' ', array_filter([
             $contract->name,

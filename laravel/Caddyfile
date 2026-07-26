@@ -11,6 +11,14 @@
     # Enable compression
     encode zstd gzip
 
+    # Vite writes content-hashed filenames into build/assets, so the bytes behind one URL
+    # never change; a new build produces a new URL. Without this the files went out with no
+    # Cache-Control at all (only ETag/Last-Modified), so every page view revalidated the CSS
+    # and JS over the network. build/manifest.json is deliberately excluded: its name is
+    # fixed and its contents change on every build.
+    @vite_assets path /build/assets/*
+    header @vite_assets Cache-Control "public, max-age=31536000, immutable"
+
     # Handle PHP requests
     php_server
 

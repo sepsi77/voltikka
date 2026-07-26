@@ -60,42 +60,53 @@ class ResetEstimateCopy
     }
 
     /**
-     * Detail-page notice. Returns a heading plus separate fact lines so the two figures stay
-     * visually distinct and the estimate is never presented as a contractual price.
+     * The one sentence the contract detail page prints under its receipt rows.
+     *
+     * It deliberately states ONLY what the surfaces above it do not. The card band
+     * already names the reset cadence, the dated receipt rows already separate the
+     * known current period from the estimated tail, and the hero price qualifier
+     * already states the current price, its end date and the 12-month equivalent.
+     * The old `detailNotice()` repeated all three in a boxed notice under the hero;
+     * that duplication was removed in the Phase 4 composition pass. What is left
+     * here is genuinely new: that future period prices are not known in advance,
+     * when the estimated part starts, and which market data it reads.
      *
      * @param  array<string, mixed>|null  $reset
-     * @return array{heading: string, facts: list<string>, note: string}|null
      */
-    public static function detailNotice(?array $reset): ?array
+    public static function receiptNote(?array $reset): ?string
     {
         if ($reset === null) {
             return null;
         }
 
-        $current = self::price($reset['current_period_energy_price'] ?? null);
-        $annual = self::price($reset['annual_equivalent_energy_price'] ?? null);
-
-        if ($current === null || $annual === null) {
+        if (self::price($reset['annual_equivalent_energy_price'] ?? null) === null) {
             return null;
         }
 
-        $facts = [
-            'Nykyisen hintajakson energianhinta: '.$current.' c/kWh.',
-            'Arvio 12 kuukauden keskihinnasta: '.$annual.' c/kWh.',
-        ];
-
         $tailStarts = self::monthLabel($reset['tail_starts'] ?? null);
-        if ($tailStarts !== null) {
-            $facts[] = 'Arvioitu osuus alkaa '.$tailStarts.'.';
-        }
+        $subject = $tailStarts !== null
+            ? 'Arvio '.$tailStarts.' alkaville jaksoille'
+            : 'Arvio tuleville jaksoille';
 
-        $facts[] = ucfirst(self::basisPhrase($reset)).'.';
+        // "Sähköfutuurit" never appears without the plain-language gloss.
+        $basis = match ($reset['basis'] ?? null) {
+            'forward_curve_shift' => self::forwardBasisPhrase($reset),
+            'spot_seasonal_index' => 'pörssisähkön usean vuoden kausivaihteluun, koska tukkumarkkinan ennakkohintoja ei ollut saatavilla',
+            default => 'nykyisen hintajakson hintaan',
+        };
 
-        return [
-            'heading' => 'Hinta tarkistetaan '.self::cadenceAdverb($reset['cadence'] ?? null),
-            'facts' => $facts,
-            'note' => 'Tulevien hintajaksojen hintoja ei tiedetä etukäteen. Vuosihinta on arvio, ei hintalupaus.',
-        ];
+        return 'Tulevien hintajaksojen hintoja ei tiedetä etukäteen. '.$subject.' perustuu '.$basis.'.';
+    }
+
+    /**
+     * @param  array<string, mixed>  $reset
+     */
+    private static function forwardBasisPhrase(array $reset): string
+    {
+        $phrase = 'tukkumarkkinan ennakkohintoihin eli sähköfutuureihin';
+        $tradeDate = self::dayLabel($reset['curve_trade_date'] ?? null);
+
+        return $tradeDate !== null ? $phrase.' ('.$tradeDate.')' : $phrase;
     }
 
     /**

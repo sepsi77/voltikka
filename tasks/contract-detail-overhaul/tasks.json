@@ -1,0 +1,22 @@
+{
+  "task": "Contract detail page overhaul",
+  "tasks": [
+    { "name": "HTML mockups of the updated page (gate: Seppo approves before implementation)", "status": "structure_approved" },
+    { "name": "Port rank1-spot.html mockup to the approved editorial structure", "status": "done" },
+    { "name": "Phase 1: fix rank-1 verdict box + count mismatch", "status": "done" },
+    { "name": "Phase 1: hero price qualifier sentence per pricing category", "status": "done" },
+    { "name": "Phase 1: data hygiene (laskutusvali dedupe, logo fallback, description sanitization, margin contradiction)", "status": "done" },
+    { "name": "Phase 1: investigate unstyled-render flake", "status": "done" },
+    { "name": "Phase 2: detail page consumes ContractCardPresenter (band, receipt, warnings, CTA)", "status": "done" },
+    { "name": "Phase 3: bill comparison module on detail page", "status": "done" },
+    { "name": "Phase 3: consumption picker above CTA + free kWh input", "status": "done" },
+    { "name": "Phase 3: Kannattaako X? verdict paragraph", "status": "done" },
+    { "name": "Phase 3: price-vs-market module + seller behavior record", "status": "done" },
+    { "name": "Phase 3: FAQ block with FAQPage schema", "status": "done" },
+    { "name": "Phase 3: static per-consumption cost table", "status": "done" },
+    { "name": "Phase 3: structured terms summary", "status": "done" },
+    { "name": "Phase 3: spot counterfactual + same-type alternatives", "status": "done" },
+    { "name": "Phase 4: dedupe sections, mobile ergonomics, color/copy alignment, a11y, trust placement", "status": "done" },
+    { "name": "Update AGENTS.md files (Livewire, ContractCard, BillComparison) after behavior changes", "status": "done" }
+  ]
+}

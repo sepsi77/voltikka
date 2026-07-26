@@ -167,12 +167,18 @@ class BillComparisonService
      * usable pricing, are omitted, matching compare()). Consumption-cap
      * eligibility is still applied against the annualized kWh.
      *
-     * This is the in-listing ("Maksatko liikaa" on /sahkosopimus) entry point:
-     * the caller owns filtering/sorting/pagination and only needs each
-     * contract's exact-period counterfactual cost.
+     * This is the in-listing ("Maksatko liikaa" on /sahkosopimus) entry point
+     * and the contract detail page's single-contract module: the caller owns
+     * filtering/sorting/pagination and only needs each contract's exact-period
+     * counterfactual cost.
+     *
+     * `unavailable` explains, per omitted contract id, why there is no row
+     * (`consumption_cap`, `not_comparable`, `no_spot_history`, `no_pricing`).
+     * A listing just drops those contracts; a single-contract surface has to
+     * say something true instead of showing an empty module.
      *
      * @param  iterable<int, ElectricityContract>  $contracts
-     * @return array{rows: array<int, BillComparisonRow>, annual_kwh: int, period_months: float, user_period_cost: float, spot_avg_cents_per_kwh: ?float}
+     * @return array{rows: array<int, BillComparisonRow>, unavailable: array<int|string, string>, annual_kwh: int, period_months: float, user_period_cost: float, spot_avg_cents_per_kwh: ?float}
      */
     public function periodRowsForContracts(iterable $contracts, BillComparisonRequest $request): array
     {
@@ -185,7 +191,9 @@ class BillComparisonService
         );
 
         $rows = [];
+        $unavailable = [];
         foreach ($contracts as $contract) {
+            $reason = null;
             $row = $this->buildMarketRow(
                 $contract,
                 $componentsByContractId[$contract->id] ?? [],
@@ -198,15 +206,19 @@ class BillComparisonService
                 $ctx['spotHours'],
                 $ctx['spotPriceDay'],
                 $ctx['spotPriceNight'],
+                $reason,
             );
 
             if ($row !== null) {
                 $rows[$contract->id] = $row;
+            } else {
+                $unavailable[$contract->id] = $reason ?? 'no_pricing';
             }
         }
 
         return [
             'rows' => $rows,
+            'unavailable' => $unavailable,
             'annual_kwh' => $ctx['annualKwh'],
             'period_months' => $ctx['monthsInPeriod'],
             'user_period_cost' => $ctx['userTotalEur'],
@@ -318,6 +330,7 @@ class BillComparisonService
     /**
      * @param  array<int, array<string, mixed>>  $components
      * @param  Collection<int, SpotPriceHour>  $spotHours
+     * @param  string|null  $reason  Out-param naming why a null row was returned.
      */
     private function buildMarketRow(
         ElectricityContract $contract,
@@ -331,6 +344,7 @@ class BillComparisonService
         Collection $spotHours,
         ?float $spotPriceDay,
         ?float $spotPriceNight,
+        ?string &$reason = null,
     ): ?BillComparisonRow {
         // Consumption-cap eligibility. Products with an annual kWh floor/cap
         // (e.g. flat-fee Helpposähkö tiers capped at 1200/2400/3600 kWh/y) are
@@ -340,6 +354,8 @@ class BillComparisonService
         // freezes the top of the ranking. `$annualKwh` already reflects the
         // visitor's known annual use or the seasonal annualization.
         if (! $this->fitsConsumptionLimits($contract, $annualKwh)) {
+            $reason = 'consumption_cap';
+
             return null;
         }
 
@@ -347,6 +363,8 @@ class BillComparisonService
         // canonical pricing excludes it from comparison (unknown-future promo, broken data).
         if ($this->canonicalPricing->enabled()
             && ! $this->canonicalPricing->evaluate($contract, new EnergyUsage(total: $annualKwh, basicLiving: $annualKwh))['outcome']->isListed()) {
+            $reason = 'not_comparable';
+
             return null;
         }
 
@@ -363,6 +381,10 @@ class BillComparisonService
                 $monthsInPeriod,
                 $spotHours
             );
+
+            if ($periodCost === null) {
+                $reason = 'no_spot_history';
+            }
         } elseif ($rates['generalRate'] > 0) {
             $periodCost = ($rates['generalRate'] * $kwh) / 100 + ($rates['monthlyFee'] * $monthsInPeriod);
         } elseif ($rates['dayTimeRate'] > 0 || $rates['nightTimeRate'] > 0) {
@@ -391,10 +413,14 @@ class BillComparisonService
             $periodCost = $rates['monthlyFee'] * $monthsInPeriod;
         } else {
             // No usable pricing at all — skip rather than show a misleading €0.
+            $reason = 'no_pricing';
+
             return null;
         }
 
         if ($periodCost === null) {
+            $reason = $reason ?? 'no_pricing';
+
             return null;
         }
 

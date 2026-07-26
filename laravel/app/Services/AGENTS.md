@@ -116,6 +116,20 @@ Read first:
 - `ContractCard/AGENTS.md`
 - `../../../tasks/contract-card-redesign/spec.md`
 
+### Contract price development ("Näin hinta on kehittynyt")
+Directory:
+- `ContractPriceHistory/`
+
+Purpose:
+- build the contract detail page's price-development chart (server-rendered SVG),
+  its seller-behaviour fact tags, and the copy that scopes both
+- overlay the contract's own observed price on its `contract_price_daily_statistics`
+  segment median; spot contracts instead get monthly realized market averages
+  against the trailing-12-month average
+
+Read first:
+- `ContractPriceHistory/AGENTS.md`
+
 ### Contract replacement
 Directory:
 - `ContractReplacement/`

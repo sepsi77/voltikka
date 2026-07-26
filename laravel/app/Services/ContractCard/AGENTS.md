@@ -4,6 +4,10 @@ Everything a contract card shows, derived once on the server. Both card template
 (`resources/views/components/contract-card.blade.php` and
 `featured-contract-card.blade.php`) read the view model this directory produces.
 
+**The contract detail page is the third consumer** (`../../Livewire/ContractDetail.php` →
+`$this->card`, rendered with the same `x-card.band` / `x-card.receipt` / `x-card.footer`
+components). See "The detail page" below.
+
 ## Why this exists
 
 The two card templates each carried ~120 lines of the same PHP and drifted apart. The
@@ -32,6 +36,7 @@ writing a Finnish sentence is how the drift happened.
 | `CardReceiptLines.php` | The itemised price rows, capped at three. |
 | `CardFooterItems.php` | Warnings (priority ordered, max two) and fact tags. |
 | `ContractCardPresenter.php` | Orchestrates the above into `DTO/ContractCardView`. |
+| `DTO/CardSellerCta.php` | Where "Siirry myyjän sivuille" goes, with a guaranteed destination. |
 
 ## The three categories
 
@@ -152,6 +157,68 @@ The spot receipt row shows `spot_price_day_avg`, not a blend. That is exact: for
 metering (every active spot contract) the calculator prices the whole bucket at
 `spot_price_day_avg + margin`. The night average appears in the popover.
 
+## Dated rows for a mid-window mechanism switch
+
+`CardReceiptLines::mechanismSwitchPhases()` reads `calculated_cost['phase_breakdown']` and,
+when two adjacent phases price the same kWh by **different mechanisms** (a flat energy rate
+then a spot margin, or the reverse), replaces the ordinary rows with two dated ones:
+"Energia 25.8. asti 6,99 c/kWh" and "Marginaali 26.8. alkaen 1,29 c/kWh".
+
+- **The trigger is the mechanism, not the rate.** A rate change inside one mechanism is
+  already covered by the scheduled-change rows (pre-published increase) and by the reset
+  rows. This case is different in kind: the number stops meaning the same thing.
+- Cheap Markkinahintasähkö is the live example, and it is why this exists. One flat month at
+  6,99 c/kWh, then Nord Pool's monthly average + 1,29 c/kWh. Nothing in the relational data
+  says so — the upstream API sends only the promotional 6,99 as a `General` component — so
+  the detail page, which labelled a Spot contract's `General` component "Marginaali",
+  printed "Marginaali 6,99" a few hundred pixels above the seller's own text saying the
+  margin is 1,29. Measured blast radius: 3 active contracts, all fixed-then-spot.
+- **The dates and rates come from the cost payload, not from a second timeline derivation.**
+  `CanonicalContractPriceCalculator::buildBreakdown()` records each governing phase's resolved
+  `window_start` / `window_end`, its `uses_spot`, `energy_cents`, `spot_margin_cents` and
+  `monthly_fee`. Re-resolving phase boundaries in a presenter would be a second implementation
+  of the phase-timeline algorithm.
+
+## Detail mode
+
+`present(detailed: true)` raises the receipt cap from three rows to five and lets a mechanism
+switch keep two things the card has no room for: the soft "Pörssin keskihinta 12 kk" baseline
+between the dated rows (a margin alone does not state a price), and a dated monthly-fee pair
+when the phases disagree on the fee. The card's three-row cap is unchanged — a longer receipt
+turns a scannable list back into a metric strip.
+
+## The detail page
+
+`ContractDetail::$card` presents the viewed contract with `detailed: true`, after copying the
+page's own `calculated_cost` / `pricing_integrity` / `comparability` onto the model (the same
+shape the listing metric cache attaches; none of them are database columns). The page renders
+the band, the receipt and the warning pills from it.
+
+It became a consumer because it had drifted **below** the honesty of the card that links to
+it: a Hybrid showed "Energiahinta 0,00 c/kWh" with no consumption-effect row, a spot promo
+price was labelled "Marginaali", `spot_price_margin ?? 0` printed the bare market average as
+an energy price, a consumption cap warned on the card and nowhere on the page, and one
+contract's page carried no call to action. `tests/Feature/ContractDetailPresenterTest.php`
+pins one assertion per defect.
+
+The page keeps what the cards do not have: the full component history, the version timeline,
+the VAT note, the market-reset notice and the integrity notice.
+
+## The seller CTA
+
+`ContractCardPresenter::sellerCta()` resolves `order_link` → `product_link` →
+`company.company_url` → the company's Voltikka page. Cards do not use it (they link to the
+detail page); the detail page does. **The label follows the destination**: the company-page
+fallback says "Katso myyjän tiedot", never "Siirry myyjän sivuille", so the button cannot
+promise an order form it does not have.
+
+## Contract names
+
+`contractName` is `Support\ContractContentSanitizer::displayName()`, the same normalizer the
+detail page's H1 and title tag use. A shouted name ("... 0€ KUUKAUSIMAKSU ENSIMMÄISET 3 KK!")
+cannot be loud on a card and calm on the page it links to. **The stored `name` is never
+rewritten** — imports, the replacement matcher and the price history all key off it.
+
 ## Footer rules
 
 Warnings are coral pills in priority order, **max two**: price increase → consumption cap →
@@ -205,9 +272,14 @@ Two rules that must not be reverted, because both produced visible defects on a 
   and `Caching\ContractPageCacheVersion::PAYLOAD_SCHEMA_VERSION` must be bumped when the
   cached `calculated_cost` / `pricing_integrity` arrays gain or lose a field. Neither the
   import-driven version nor the feature-flag markers move on a code-only deploy, so without
-  a bump cards read a stale shape for up to 48 hours after release.
+  a bump cards read a stale shape for up to 48 hours after release. Both are at **v3**
+  (`phase_breakdown` gained the resolved window dates and per-phase rates). The detail page's
+  own prepared-payload key (`ContractDetail::contractDetailViewDataCacheKey()`, **v11**) has
+  to move with them, because that payload now carries the whole `ContractCardView`.
 
 ## Tests
 
 `tests/Feature/ContractCardPresenterTest.php` pins every rule above, including the scope
 parity check and render smoke tests for both card templates.
+`tests/Feature/ContractDetailPresenterTest.php` pins the detail page's use of the same view
+model, one test per defect that made the page a consumer.

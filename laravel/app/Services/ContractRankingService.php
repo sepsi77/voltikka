@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
+use App\Services\ContractCard\Enums\PricingBucket;
+use App\Services\ContractCard\PricingCategoryResolver;
 use App\Services\DTO\EnergyUsage;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -29,6 +31,15 @@ class ContractRankingService
      * @var array<string, array{sortedIds: list<string>, selfCost: float}|null>
      */
     private array $eligibleSortedIdsMemo = [];
+
+    /**
+     * Request-scoped memo for getBucketCostSummary(), keyed by
+     * "{contractId}:{consumption}:{bucket}". The detail page asks for at most
+     * two buckets per render and each costs one contract query.
+     *
+     * @var array<string, array{count: int, cheapest_id: ?string, cheapest_cost: ?float, median_cost: ?float}|null>
+     */
+    private array $bucketCostSummaryMemo = [];
 
     /**
      * Request-scoped memo for the default 5 000 kWh rankings cache payload.
@@ -97,6 +108,47 @@ class ContractRankingService
     }
 
     /**
+     * The contract directly behind the given one in the ranking.
+     *
+     * The rank-1 contract has nothing cheaper to compare against, so its hero
+     * verdict states the gap to the runner-up instead of rendering an empty
+     * "no comparison data" state.
+     *
+     * @return array{contract: ElectricityContract, total_cost: float, extra_cost: float}|null
+     */
+    public function getNextCheapestContract(string $contractId, int $consumption): ?array
+    {
+        $summary = $this->getEligibleSortedIds($contractId, $consumption);
+        if ($summary === null) {
+            return null;
+        }
+
+        $selfPosition = array_search($contractId, $summary['sortedIds'], true);
+        if ($selfPosition === false) {
+            return null;
+        }
+
+        $nextId = $summary['sortedIds'][$selfPosition + 1] ?? null;
+        if ($nextId === null) {
+            return null;
+        }
+
+        $contract = ElectricityContract::query()->with('company')->find($nextId);
+        if (! $contract) {
+            return null;
+        }
+
+        $metrics = $this->listCache->getCachedMetrics($consumption);
+        $cost = (float) ($metrics['contracts'][$nextId]['total_cost'] ?? 0);
+
+        return [
+            'contract' => $contract,
+            'total_cost' => $cost,
+            'extra_cost' => max(0.0, $cost - $summary['selfCost']),
+        ];
+    }
+
+    /**
      * Contract's rank within the target-group-eligible universe for the given
      * consumption. Matches the household/business audience of the viewed
      * contract so the number is consistent with getCheaperContracts().
@@ -122,10 +174,117 @@ class ContractRankingService
     }
 
     /**
-     * Filter the cached sorted_ids to entries matching the viewed contract's
-     * target-group eligibility, preserving cost order. Returns null when the
-     * consumption isn't cache-supported or the viewed contract isn't in the
+     * Cost summary for one pricing bucket inside the same eligible universe the
+     * viewed contract is ranked in, at the given consumption. The viewed
+     * contract itself is excluded.
+     *
+     * The detail page reads it twice: for the counterfactual line ("what would a
+     * typical pörssisähkö contract cost instead?") and for the same-type
+     * alternative tile. Both must describe the market the rest of that page
+     * describes, so this reuses getEligibleSortedIds() instead of re-deriving
+     * the target-group and consumption-limit filtering.
+     *
+     * `median_cost` is the median annual total inside the bucket, which is what
+     * "typical" means here. Every spot total in it comes from the same
+     * trailing-12-month realized spot average plus that contract's own margin as
+     * the statistics page uses, so the median embodies a typical margin without
+     * a second market-wide calculation.
+     *
+     * @return array{count: int, cheapest_id: ?string, cheapest_cost: ?float, median_cost: ?float}|null
+     */
+    public function getBucketCostSummary(string $contractId, int $consumption, PricingBucket $bucket): ?array
+    {
+        $memoKey = $contractId.':'.$consumption.':'.$bucket->value;
+        if (array_key_exists($memoKey, $this->bucketCostSummaryMemo)) {
+            return $this->bucketCostSummaryMemo[$memoKey];
+        }
+
+        $summary = $this->getEligibleSortedIds($contractId, $consumption);
+        if ($summary === null) {
+            return $this->bucketCostSummaryMemo[$memoKey] = null;
+        }
+
+        $candidateIds = array_values(array_filter(
+            $summary['sortedIds'],
+            fn (string $id) => $id !== $contractId,
+        ));
+
+        if (empty($candidateIds)) {
+            return $this->bucketCostSummaryMemo[$memoKey] = [
+                'count' => 0,
+                'cheapest_id' => null,
+                'cheapest_cost' => null,
+                'median_cost' => null,
+            ];
+        }
+
+        // The shared scope is what keeps this line, the pricing-type filter and
+        // the card band from drifting; never hand-write the bucket SQL here.
+        $bucketIds = ElectricityContract::query()
+            ->whereIn('id', $candidateIds)
+            ->where(function ($query) use ($bucket) {
+                PricingCategoryResolver::scopeBucket($query, $bucket);
+            })
+            ->pluck('id')
+            ->flip();
+
+        $metrics = $this->listCache->getCachedMetrics($consumption);
+
+        $costs = [];
+        $cheapestId = null;
+        foreach ($candidateIds as $id) {
+            if (! $bucketIds->has($id)) {
+                continue;
+            }
+
+            $cost = $metrics['contracts'][$id]['total_cost'] ?? null;
+            if (! is_numeric($cost) || ! is_finite((float) $cost)) {
+                continue;
+            }
+
+            $costs[] = (float) $cost;
+            $cheapestId ??= $id;
+        }
+
+        if (empty($costs)) {
+            return $this->bucketCostSummaryMemo[$memoKey] = [
+                'count' => 0,
+                'cheapest_id' => null,
+                'cheapest_cost' => null,
+                'median_cost' => null,
+            ];
+        }
+
+        $sorted = $costs;
+        sort($sorted);
+        $middle = (int) floor((count($sorted) - 1) / 2);
+        $median = count($sorted) % 2 === 1
+            ? $sorted[$middle]
+            : ($sorted[$middle] + $sorted[$middle + 1]) / 2;
+
+        return $this->bucketCostSummaryMemo[$memoKey] = [
+            'count' => count($sorted),
+            'cheapest_id' => $cheapestId,
+            'cheapest_cost' => $sorted[0],
+            'median_cost' => $median,
+        ];
+    }
+
+    /**
+     * Filter the cached sorted_ids to entries the viewed contract's audience can
+     * actually buy at this consumption, preserving cost order. Returns null when
+     * the consumption isn't cache-supported or the viewed contract isn't in the
      * cache (e.g. consumption exceeds its limits).
+     *
+     * Two filters, and both are load-bearing:
+     * - target group, so a household shopper is not ranked against business-only
+     *   contracts;
+     * - the contract's own consumption limits, because a contract that cannot be
+     *   bought at this consumption is not part of the comparison the visitor is
+     *   making. It also keeps this universe identical in size to the one behind
+     *   getTotalActiveContracts(), which has always applied isConsumptionInRange().
+     *   Without it the detail page stated two different market sizes on one screen
+     *   (measured 2026-07-26: title 291, hero 299, the 8 being capped contracts).
      *
      * @return array{sortedIds: list<string>, selfCost: float}|null
      */
@@ -141,19 +300,34 @@ class ContractRankingService
             return $this->eligibleSortedIdsMemo[$memoKey] = null;
         }
 
+        $candidates = ElectricityContract::query()
+            ->whereIn('id', $metrics['sorted_ids'])
+            ->get([
+                'id',
+                'target_group',
+                'consumption_limitation_min_x_kwh_per_y',
+                'consumption_limitation_max_x_kwh_per_y',
+            ])
+            ->keyBy('id');
+
         $viewed = ElectricityContract::find($viewedContractId);
         $eligibleTargets = $this->eligibleTargetGroups($viewed?->target_group);
 
-        $targetGroups = ElectricityContract::query()
-            ->whereIn('id', $metrics['sorted_ids'])
-            ->pluck('target_group', 'id')
-            ->all();
-
         $filtered = [];
         foreach ($metrics['sorted_ids'] as $id) {
-            if ($this->matchesTargetGroup($targetGroups[$id] ?? null, $eligibleTargets)) {
-                $filtered[] = $id;
+            $candidate = $candidates->get($id);
+
+            if (! $this->matchesTargetGroup($candidate?->target_group, $eligibleTargets)) {
+                continue;
             }
+
+            // The viewed contract always stays in its own ranking, even if bad
+            // limit data would exclude it; a page cannot rank against nothing.
+            if ($id !== $viewedContractId && $candidate && ! $candidate->isConsumptionInRange($consumption)) {
+                continue;
+            }
+
+            $filtered[] = $id;
         }
 
         return $this->eligibleSortedIdsMemo[$memoKey] = [

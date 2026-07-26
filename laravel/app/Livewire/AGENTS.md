@@ -49,13 +49,21 @@ in-place, showing **EUR savings vs their current contract** on the cards. Proven
 on `/sahkosopimus` first.
 
 Primary files:
-- `ContractsList.php` (bill-mode properties, actions, `buildBillModePaginator()`)
+- `Concerns/BillComparisonInputs.php` (the shared bill inputs + actions)
+- `ContractsList.php` (rollout switch, `recomputeBill()`, `buildBillModePaginator()`)
 - `SeoContractsList.php` / `SahkosopimusIndex.php` (the latter sets `$showBillComparison = true`)
-- `../../resources/views/livewire/seo-contracts-list.blade.php` (entry form + anchor + period-mode card loop)
+- `../../resources/views/partials/bill-comparison-form.blade.php` (the shared form fields)
+- `../../resources/views/livewire/seo-contracts-list.blade.php` (disclosure + anchor + period-mode card loop)
 - `../../resources/views/components/contract-card.blade.php` (`billMode` / `periodComparison` props)
-- `../Services/BillComparison/AGENTS.md` (`periodRowsForContracts`)
+- `../Services/BillComparison/AGENTS.md` (`periodRowsForContracts`, "Three surfaces, one form")
 
 Important semantics:
+- **The inputs live in a trait, the fields live in one partial.** `ContractsList`
+  and `ContractDetail` both `use BillComparisonInputs` and both `@include`
+  `partials/bill-comparison-form`, so the two period-basis surfaces cannot drift
+  in field set, VAT normalization or period presets. Each component keeps only
+  what is genuinely its own: `recomputeBill()` (invalidation + its own Plausible
+  `source`) and `billInputsEnabled()`. Do not add a field to one template.
 - **Period basis only (facts).** When a valid bill is entered, the listing
   reranks by each contract's *exact billing-period* cost (`periodCostEur`) via
   `BillComparisonService::periodRowsForContracts()`, not the annual estimate.
@@ -179,6 +187,7 @@ Important semantics:
 - cache invalidation is automatic through cheap `contract_price_daily_statistics` / `contract_price_snapshots` / spot-price max-date/update fingerprints, so daily imports/backfills should not need manual page-cache clearing
 - run `contracts:backfill-price-statistics` before expecting historical data
 - spot metrics are split between `spot_margin` and `spot_total_energy_price`
+- `ContractPriceStatistics::$segments` is `ContractPriceStatisticsService::SEGMENT_LABELS`; the classifier and its labels live beside each other in the service because the contract detail page's price-development chart names the same segments
 - the “Hinnat sopimustyypeittäin” spot row must display a trailing-12-month realized spot daily average + latest typical margin, not the latest daily spot price; show p20–p80 daily-price variation under the value without adding a column
 - the “Hinnat sopimustyypeittäin” sparkline must track the displayed median energy-price basis; the annual-cost sparkline belongs in the “Hintahaarukka” table below
 - deep-dive spot c/kWh charts and top editorial spot callouts must use the same trailing-12-month spot average + typical margin as the upper spot row, with p20–p80 daily-price variation as the shaded band; do not show latest-day spot there unless explicitly adding a separate volatility view
@@ -498,7 +507,7 @@ Important semantics:
 - the card's type band is single-purpose: it states one of three pricing categories (Kiinteä hinta / Markkinahinta / Kulutusvaikutus) and never a warning. Warnings are coral footer pills, priority ordered and capped at two. Consumption caps only warn at ≤ 30 000 kWh/v unless the selected consumption actually exceeds the cap.
 - the percentile callouts were removed from cards (they rendered only on SEO listing pages, half the switch was unreachable, and they could contradict the sort order). `ContractsList::getPercentiles()` and `contracts:calculate-percentiles` are unchanged; the `percentiles` card prop is a retained no-op.
 - listing pages carry `<x-card.legend />` explaining the type-band tints; it replaced the emissions colour legend when the card's emissions left stripe was removed.
-- **Canonical pricing (behind `CANONICAL_PRICING_ENABLED`):** when on, `ContractListCacheService`/the listing fallback paths attach `comparability` + `pricing_integrity` to each contract (batch, like percentiles), drop non-listed contracts from `sorted_ids`, and rank by the canonical true 12-month total. Cards consume those fields through `ContractCardPresenter`: `Hinta nousee …`, `{N} kk sopimus, jatkohinta ei tiedossa` and `Ei sisällä kulutusvaikutusta` are coral footer pills, and the estimate marker is the band's `Arvio` popover rather than a footer tag. `ContractDetail` exposes `pricingIntegrity`/`pricingComparability`/`isPricingExcluded`: excluded contracts show a "Vuosihintaa ei voi laskea luotettavasti" hero and omit JSON-LD `offers`; detected contracts render the amber integrity notice after the hero. All flag-driven caches carry a `c1`/`c0` marker (incl. `ContractPageCacheVersion`) so a toggle busts them. See `../Services/CanonicalPricing/AGENTS.md`.
+- **Canonical pricing (behind `CANONICAL_PRICING_ENABLED`):** when on, `ContractListCacheService`/the listing fallback paths attach `comparability` + `pricing_integrity` to each contract (batch, like percentiles), drop non-listed contracts from `sorted_ids`, and rank by the canonical true 12-month total. Cards consume those fields through `ContractCardPresenter`: `Hinta nousee …`, `{N} kk sopimus, jatkohinta ei tiedossa` and `Ei sisällä kulutusvaikutusta` are coral footer pills, and the estimate marker is the band's `Arvio` popover rather than a footer tag. `ContractDetail` exposes `pricingIntegrity`/`pricingComparability`/`isPricingExcluded`: excluded contracts show a "Vuosihintaa ei voi laskea luotettavasti" hero and omit JSON-LD `offers`; detected contracts render the integrity notice at the top of `Hintatiedot`, in coral (it was amber until Phase 4; amber is an emissions tier). All flag-driven caches carry a `c1`/`c0` marker (incl. `ContractPageCacheVersion`) so a toggle busts them. See `../Services/CanonicalPricing/AGENTS.md`.
 - city-page solar potential must stay in the lazy `CitySolarEstimate` child component; `SeoContractsList` must not call `CitySolarService`/PVGIS while building initial page HTML because a cache miss can add blocking time
 - `CitySolarEstimate` must not make uncached PVGIS requests for crawler user agents (Googlebot, generic bots/spiders); bot-triggered Livewire lazy updates should render cached data only or nothing, because PVGIS can hang long enough to hit PHP's request timeout
 - `SeoContractsList` validates city slugs against `municipalities` during mount and returns 404 for unknown `/sahkosopimus/paikkakunnat/{location}` slugs so SEO pricing/duration slugs cannot become fake location pages. It still memoizes the municipality lookup because city metadata is read by contracts filtering, title/meta generation, headings, JSON-LD, and local-contract sections during one render; do not revert to direct `Municipality::where('slug', ...)` calls from those accessors
@@ -517,6 +526,105 @@ Primary files:
 - `../../resources/views/livewire/contract-detail.blade.php`
 - `../Models/ElectricityContract.php`
 - `../Services/Caching/ContractPageCacheVersion.php`
+- `../../../../tasks/contract-detail-overhaul/` (spec, decisions, approved mockups)
+
+### Page composition (the approved editorial structure)
+
+The page is **one editorial column on a white surface**. A section is an `h2`, a hairline
+rule and whitespace; there are **no nested cards**, and the only card chrome on the page is
+on the three alternative-contract tiles. It replaced a two-column grid of white rounded
+panels, which the design review rejected as "cards within cards everywhere" and which forced
+the alternatives above the content that justifies them.
+
+Section order, and it is load bearing:
+
+1. **Dark `slate-950` hero** at content width (`max-w-3xl`).
+2. **Kannattaako X?** (`#kannattaako`)
+3. **Hintatiedot** (`#hintatiedot`): category band, integrity notice, receipt rows, receipt
+   notes, warning pills, static cost table, spot counterfactual.
+4. **Vertaa nykyiseen sähkölaskuusi** (`#vertaa-laskuun`), collapsed.
+5. **Näin hinta on kehittynyt** (`#hintakehitys`)
+6. **Sopimusehdot lyhyesti** (`#sopimusehdot`): terms grid, pientuotanto, seller identity,
+   internal comparison links, and the seller's own description **collapsed** inside it.
+7. **Usein kysyttyä** (`#usein-kysyttya`)
+8. **Sähkön alkuperä ja päästöt** (`#ymparisto`)
+9. **Halvemmat vaihtoehdot** (`#halvemmat`) — the only cards.
+10. Closing method statement.
+11. Mobile sticky CTA bar.
+
+Rules that must not be undone casually:
+
+- **Do not wrap a section in a bordered / rounded / shadowed panel.** That is the exact
+  change the approved structure exists to reverse.
+- **The price is rendered once**, in the hero. The page used to repeat it in a
+  "Kuukausihinta (12 kk keskihinta)" mini-hero inside Hintatiedot, and a third time in a
+  TARJOUS ticket with its own strikethrough normal price and a green savings chip. Both are
+  gone; the promotion is now one quiet receipt note (`getReceiptNotesProperty()`).
+- **One `Arvio` popover per page**, in the hero next to the number it qualifies. The card
+  band on this page is therefore rendered with `:estimate="null"`. Two `<x-info-popover>`
+  instances would also collide: the teleported panel carries a constant `wire:key`.
+- **One environment module.** The hero used to carry a second CO2 block with a four-tier
+  severity taxonomy while the section below used a five-tier one, and the origin breakdown
+  lived in a third panel. They are one section now with **one** taxonomy: DESIGN.md's three
+  emissions tiers (`< 50` green, `< 200` amber, `>= 200` red). Its figures stay smaller than
+  the price on purpose; the residual mix must not rival the money on this page.
+- **Warnings are coral, never amber**, including the pricing-integrity notice and the
+  inactive-contract notice (the latter is slate). Amber and red are emissions tiers.
+- **No em dashes and no `EUR/kk` in any Finnish string on this page.** The old verdict strip
+  read `Halvin sopimus — N vertailussa`.
+- **Public copy never names Energiavirasto.** The emissions-method source list used to cite
+  it; it now says "kansallinen jäännösjakauma".
+- The hero breadcrumb's `Sähkösopimukset` crumb carries `?kulutus=` whenever the selected
+  consumption differs from 5 000, so going back to the listing keeps the visitor's basis.
+  The `Vertaa kaikkia N sopimusta` link at the end of the alternatives does the same.
+- The internal SEO links for duration / metering / pricing model
+  (`Support\ContractInternalLinks::heroBadgeLinks()`) moved out of the hero into a
+  "Vertaa samankaltaisia" line in **Sopimusehdot lyhyesti**. The editorial hero keeps only
+  the pricing-category label. The links themselves must stay on the page.
+
+### Hero: quiet metadata, then two beats
+
+- **Quiet metadata**: breadcrumb, then seller logo + name · the pricing-category label
+  (`$card->category->label()`). The label is a **real link to `#faq-miten`** that opens the
+  FAQ item explaining the mechanism, with a `prefers-reduced-motion`-guarded scroll. A user
+  simulation found the page's most important concept rendered as a dead label. The link is
+  suppressed when that FAQ item does not exist (`getHasPricingMechanismFaqProperty()`),
+  because a link to a missing anchor is worse than plain text.
+- **Beat 1, price fused with the verdict.** `ContractDetail::getHeroVerdictProperty()`
+  produces the rank, the comparison size, the money comparison clause, the marker position
+  on the halvin–kallein rail, and the small print. It **replaced a boxed verdict card** whose
+  tier strip (`Halvin sopimus` / `Yksi halvimmista` / `Edullinen vaihtoehto` /
+  `Keskihintainen` / `Kalliimpi vaihtoehto`) used emerald/amber/red price semantics and
+  competed with the price it was meant to qualify. Rank 1 still compares against the
+  runner-up by name and never renders an empty state. Every string is generated in PHP from
+  typed fields and every figure is read at `rankConsumption()`.
+  - `nonBreakingMoney()` glues a figure to its unit inside the parenthetical, because at
+    390 px `(34,05 €/kk)` split across two lines.
+  - The "why the cheapest contracts are spot" sentence is **measured, not assumed**: it
+    counts the loaded `cheaperContracts` and says "vertailun halvimmat", which is exactly the
+    set it counted. Do not restate it as a claim about every contract ahead without a query
+    that supports it.
+- **Beat 2, action**: the consumption chips + free kWh field, then the coral CTA and the
+  no-commission note. The CTA is **flat `coral-600` at 19px/700, no gradient and no glow**:
+  white on `coral-500` is 2,8:1 and the gradient pair failed contrast. This is a deliberate
+  deviation from DESIGN.md's gradient CTA, made for contrast; keep it.
+- **The no-commission line appears exactly twice on a rendered page**: beside the CTA and in
+  the shared site footer. The closing method statement deliberately does not repeat it, and
+  "arvio, ei hintalupaus" appears only in the price qualifier.
+
+### Mobile
+
+- The hero is about 1 000 px tall at 390 px (one screen is 844 px). The **price, the verdict
+  line and the rail sit inside the first screen**; the chips and the CTA follow. Every
+  approved hero element is present, so a strict one-screen hero would mean dropping one.
+- **The sticky bottom CTA bar shows only when the hero CTA has scrolled PAST the top of the
+  viewport** (`#hero-cta` rect `bottom < 0`), never merely because it is below the fold, and
+  it hides again while `#halvemmat` or the footer is in view so it cannot cover the cheaper
+  options. A scroll/resize listener is used rather than IntersectionObserver because the rule
+  is a position test, not a visibility test, and one rect check answers all three conditions.
+- Standalone controls (chips, free input, disclosure summaries, both CTAs, the `Arvio` pill)
+  are at least 44 px. Links inline in running text are not padded to 44 px; that would break
+  the line box, and they stay above the 24 px AA floor.
 
 ### Seller outbound analytics
 
@@ -532,15 +640,325 @@ Active ranked contract title tags lead with Voltikka-specific facts when availab
 
 ### Hero verdict thresholds
 
-The `Yksi halvimmista` hero verdict is intentionally limited to contracts ranked in the absolute top 25, not a percentile. For example, rank 26 / 300 should fall through to the broader `Edullinen vaihtoehto` tier even though it is within the cheapest 10%.
+The tiered verdict strip is **gone** (see "Hero: quiet metadata, then two beats"): the hero now
+states `Sija N / M sopimuksesta` plus one comparison clause. The absolute-top-25 rule survives
+only in `getVerdictProperty()`'s tier wording, where it additionally needs a percentile guard.
+
+**Rank 1 compares against the runner-up, never against nothing.** The verdict used to render
+`Ei vertailutietoa` / `Ei tietoa` on the cheapest contract in the comparison, because
+`cheaperContracts` is empty by definition at rank 1 — the page that has the most to prove said it
+had no data. It shows the gap to the second cheapest contract by name
+(`ContractRankingService::getNextCheapestContract()` → `ContractDetail::$nextCheapestContract`), and
+degrades to `Ainoa vertailukelpoinen sopimus tällä kulutuksella` when the universe really holds one
+contract. Do not reintroduce an empty state here; every branch must say something true.
+
+**One comparison size, one scope.** `priceRank` / `totalContracts` (title, OG title, meta
+description) and `liveRank` / `liveTotalContracts` (hero) both read
+`ContractRankingService::getRankForConsumption()` / `getTotalContractsForConsumption()` through
+`ContractDetail::seoRankSummary()`; the SEO pair is only pinned to the default 5 000 kWh basis so
+the title does not move when a visitor changes the consumption chip. They used to come from two
+different universes and one page stated both **291** (global rankings, which drop contracts whose
+limits exclude 5 000 kWh) and **299** (the hero universe, which kept them). The global rankings also
+always count HOUSEHOLD contracts, so a business contract's title quoted a market its own hero was
+not ranked in. `getEligibleSortedIds()` now filters on the contract's own consumption limits as well
+as the target group, so rank, comparison size and cheaper-contract list all describe the same set;
+the viewed contract is never filtered out of its own ranking.
+
+### Hero price qualifier
+
+`ContractDetail::getPriceQualifierProperty()` generates one plain-Finnish sentence under the hero
+price stating what that figure is, per pricing category resolved by
+`../Services/ContractCard/PricingCategoryResolver`: spot states the trailing-12-month realized spot
+average plus the contract's margin; a market reset states the known current-period price with its
+end date and that the rest of the year is an estimate; a consumption-effect contract states the
+effect is not in the number; a fully fixed contract states the price does not change (a term shorter
+than 12 months says the year is an estimate).
+
+Constraints that are not stylistic:
+- **Copy stays in PHP, generated from typed fields only** — never in the Blade template and never
+  from seller or LLM text, for the reason recorded in `../Services/ContractCard/AGENTS.md`. It is
+  still page-local (Phase 2 moved the pricing surfaces onto the presenter but left this sentence
+  here, because the hero rewrite belongs to the later editorial phases); it already resolves the
+  category through `PricingCategoryResolver`, so it cannot contradict the band.
+- **`sähköfutuurit` never appears without the plain-language gloss `tukkumarkkinan ennakkohinnat`.**
+- Every estimate sentence contains the word `arvio`; no em dashes; `€/kk`, not `EUR/kk`.
+
+### Consumption state, and what reacts to it
+
+The hero carries the consumption picker **above the seller CTA**: the four preset chips
+plus a free kWh field. The placement is the point — the visitor must be able to enter
+their own consumption before the page asks them to act on the price.
+
+- **`directConsumption` is the free field** and is intentionally `int|string|null`, the
+  same tolerance as `ContractsList::$directConsumption`, because Livewire and mobile
+  browsers send an empty string while a number input is being cleared.
+  `updatedDirectConsumption()` ignores blank/zero (a cleared field must never zero the
+  consumption), clamps to `MIN_FREE_CONSUMPTION`/`MAX_FREE_CONSUMPTION` (1 000–30 000)
+  and then to the contract's own limits, and writes the clamped value back so the field
+  shows what is actually in effect. `setConsumption()` keeps it in sync, so a chip click
+  and the field never disagree. The template commits on blur (`wire:model.blur`) and on
+  Enter (an Alpine `@keydown.enter` that blurs the field).
+- **The active chip is a white-on-dark inversion, never white on coral** (2,8:1 on
+  coral-500). Every chip and the field are at least 44px high. Tests address chips
+  through `data-consumption-preset="{N}"`, because the bare "2 000 kWh" substring now
+  also appears in the static cost table and in the consumption-cap warning pill.
+- **A missing chip is explained, not hidden.** `presetNotice` states the seller's
+  consumption limits when `presets` is shorter than the four defaults; the static cost
+  table keeps every reference row and marks the unbuyable ones "Ei saatavilla tällä
+  kulutuksella".
+- **`?kulutus=` stays read-only-on-mount and is deliberately NOT `#[Url]`.** Arriving
+  deep links from the listing cards preselect the consumption (`mount()`), but changing
+  a chip does not rewrite the URL. Two reasons: a URL-bound consumption would make every
+  interaction a crawlable variant of a page whose canonical is param-free, and a strict
+  typed `#[Url]` int property is the exact shape that produced hydration errors for
+  `ContractsList::$page` when bots request `?kulutus=`. It also keeps
+  `request()->query() === []` meaningful as the prepared-cache guard.
+
+What the exact selected consumption drives: the hero price, the receipt rows, the
+static cost table's highlighted row, and the CO2 figures. What it drives through
+`rankConsumption()`: the rank, the comparison size, the cheaper-contract tiles, the
+verdict gap, the counterfactual and the same-type alternative.
+
+**`rankConsumption()` snaps a free value to the nearest `ContractListCacheService`
+preset.** Those figures need every active contract priced at the same consumption, which
+only the preset metric caches hold. Building that market-wide payload for an arbitrary
+number typed into a text field would put an uncached full-market calculation behind a
+public input and give the cache unbounded cardinality. The four chips are all presets,
+so a chip is always exact; a free value is snapped and `rankBasisNotice` says so on the
+page. **Do not "fix" this by calling `ContractListCacheService::getCachedMetrics()` with
+the raw value** — it returns null for a non-preset and the whole verdict box silently
+disappears, which is how this was found.
+
+### Static per-consumption cost table, and the counterfactual
+
+- `consumptionCostTable` prices 2 000 / 5 000 / 10 000 / 18 000 kWh through
+  `calculatedCostFor()`, the same path as the hero price, so the table cannot disagree
+  with the figure above it. It is server-rendered for every visitor regardless of the
+  interactive selection, because "paljonko tämä sopimus maksaa 18 000 kWh kulutuksella"
+  is a search query and the answer has to be in the initial HTML. It does not depend on
+  the selected consumption (only the highlight does), so it stays inside the cached
+  canonical payload.
+- `spotCounterfactual` is the one line under that table. A fixed, market-reset or
+  consumption-effect contract is compared with the **median** pörssisähkö contract
+  ("what if I had taken pörssisähkö" is a question about the typical outcome); a spot
+  contract is compared with the **cheapest** fully fixed contract (certainty is bought
+  deliberately, and you would buy the cheapest of it). Both sides are read at
+  `rankConsumption()`, so the quoted figure and the figure it is compared against are
+  always priced at the same consumption, and the sentence names that consumption itself.
+- Both read `ContractRankingService::getBucketCostSummary()`, which filters the eligible
+  sorted ids through `PricingCategoryResolver::scopeBucket()`. Every spot total in it
+  comes from the same trailing-12-month realized spot average plus that contract's own
+  margin as `/sahkosopimus/tilastot` uses, so the median embodies a typical margin
+  without a second market-wide calculation.
+- The counterfactual sentence lives in PHP, generated from typed fields, for the same
+  reason as `getPriceQualifierProperty()`.
+- **Fixtures must set `canonical_pricing`.** The bucket scope's negations rely on
+  three-valued SQL logic, so a NULL `canonical_pricing` row falls out of *every* bucket
+  and both features silently find nothing. No active production contract is in that
+  state; `createComparisonContract()` in `ContractDetailPageTest` now matches it.
+
+### Alternatives: two cheapest plus one same-type
+
+`sameTypeAlternative` is the cheapest contract in the viewed contract's own
+`PricingBucket`. Ranking puts pörssisähkö on top almost everywhere, so the two cheapest
+tiles are usually spot and a visitor who came for price certainty was offered nothing
+they would buy. The tile is skipped when it is already one of the two cheapest. Savings
+deltas on these tiles are neutral slate, not emerald: green and red are reserved for the
+CO2 delta (see `../../../DESIGN.md`).
+
+### Pricing surfaces come from `ContractCardPresenter`
+
+`ContractDetail::$card` (`getCardProperty()`) presents the viewed contract through
+`../Services/ContractCard/ContractCardPresenter` in `detailed: true` mode, and the Blade renders
+the shared `x-card.band`, `x-card.receipt` and `x-card.footer` components from it. The detail page
+is the **third consumer** after the two card templates.
+
+It became one because the page had drifted **below** the honesty of the listing card that links to
+it, and every item on that list was live:
+
+- a Hybrid printed "Energiahinta 0,00 c/kWh" with no consumption-effect row;
+- the template hard-labelled every `pricing_model = Spot` contract's relational `General`
+  component "Marginaali (yhtiön lisä)", so Cheap Markkinahintasähkö's flat 6,99 c/kWh intro price
+  printed as a margin above the seller's own text saying the margin is 1,29;
+- the same block computed "Energiahinta (arvio) (spot + marginaali)" from
+  `spot_price_margin ?? 0`, so a null margin printed the bare market average as an energy price;
+- a market-reset page showed the current-period price unqualified;
+- consumption caps and scheduled increases warned on the card and nowhere on the page;
+- a contract with neither `order_link` nor `product_link` had no call to action at all.
+
+Rules to keep:
+
+- **Do not put a price, a category or a Finnish sentence back into `contract-detail.blade.php`.**
+  Add the fact to `../Services/ContractCard/` and let all three surfaces read it. That directory's
+  `AGENTS.md` documents detail mode, the dated mechanism-switch rows and the CTA ladder.
+- `getCardProperty()` copies `calculated_cost` / `pricing_integrity` / `comparability` onto the
+  model first. None are database columns; this is the shape listings get from the metric cache.
+- The `ContractCardView` travels inside the prepared view payload, so
+  `contractDetailViewDataCacheKey()` was bumped to **v11** with it, and is at **v15** since
+  the payload also carries the static cost table, the counterfactual, the same-type
+  alternative, the price-development module and the Phase 4 `heroVerdict` / `receiptNotes` /
+  `hasPricingMechanismFaq` keys. It no longer carries `latestPrices`, `discountedComponents`
+  or `priceChangeInfo`; no template read them after the editorial restructure, and
+  `getDiscountedComponentsProperty()`, `getPriceChangeInfoProperty()` and
+  `components/contract-price-row.blade.php` were deleted with them.
+- The page keeps what the cards do not have: the price-development chart and its seller-behaviour
+  facts, the version timeline, the VAT note and the integrity notice. The boxed **market-reset
+  notice is gone**: it repeated the hero qualifier's figures. What it uniquely said now lives in
+  one receipt note from `CanonicalPricing\MarketReset\ResetEstimateCopy::receiptNote()` (future
+  period prices are unknown, when the estimated tail starts, which forward vintage it reads).
+  `detailNotice()` was removed with it.
+- `ContractDetail::displayNameFor()` gives the alternative-contract tiles and the named runner-up
+  the same name normalization as the H1 and the cards.
+
+Tests: `tests/Feature/ContractDetailPresenterTest.php`, one per defect above.
+
+### Bill comparison module ("Vertaa nykyiseen sähkölaskuusi")
+
+The third bill-comparison surface (after `/maksatko-liikaa` and the in-listing mode). It sits
+after "Hintatiedot", is **collapsed by default**, and answers one question: what this contract
+would have cost for the visitor's own billing period and kWh.
+
+- **Inputs come from `Concerns/BillComparisonInputs` and the shared partial**
+  `partials/bill-comparison-form.blade.php`, the same two files the listing uses. The module
+  adds only `getShowBillComparisonProperty()`, `recomputeBill()`, `clearBill()` and
+  `getBillComparisonProperty()`.
+- **Period basis only.** The bill total is the anchor and nothing is annualized from it, exactly
+  as in the listing: annualizing one bill's implied unit rate is biased for spot, seasonal and
+  time-of-use contracts. `test_the_answer_is_period_basis_only` pins that no annual/monthly key
+  is ever derived and that `delta === user_total − contract_cost`.
+- **It goes through `BillComparisonService::periodRowsForContracts()` with a one-contract set**,
+  never a second cost calculation, so the module and the listing card that linked here price the
+  same period the same way. The rendered result states the implied c/kWh including the base fee,
+  so the visitor can check it against the receipt rows above.
+- **Every unavailable state says why.** The service's `unavailable` reason map becomes one
+  Finnish sentence in `billUnavailableMessage()`: no spot history for the period, a consumption
+  cap the bill's annualized kWh falls outside, a contract canonical pricing excludes, or no
+  usable pricing. The module never renders an empty or zero result.
+- **Delta colours are not decorative.** Saving is the neutral dark `slate-900` pill; paying more
+  is a coral warning pill, the same language as the card warning pills, and it links on to
+  `#halvemmat`. Green and red stay reserved for the CO2 delta (`../../../DESIGN.md`). A delta
+  under 0,50 € reads "suunnilleen sama" instead of inventing a winner.
+- **Per-user compute, never cached.** `render()` merges `billModuleViewData()` *beside*
+  `contractDetailViewData()`, so bill state cannot be written into the shared prepared payload;
+  `$billResultCache` is protected, so it never enters the Livewire snapshot either (same rule as
+  `BillComparison::$resultArray`); and `isDefaultContractDetailCacheable()` refuses an active
+  bill explicitly, on top of the existing GET + empty-query guard. Tests:
+  `ContractDetailBillComparisonTest::test_bill_state_never_enters_the_prepared_view_data_payload`.
+- Hidden on inactive contracts and on contracts whose pricing is excluded: "what would this have
+  cost you" is misleading for a product that is not on sale or has no trustworthy price.
+- Known limitation, shared with the in-listing mode: `BillComparisonService` reads the
+  **relational** components, so a mechanism-switch contract (a flat promotional energy price
+  followed by a spot margin) has its promo rate read as the spot margin. The receipt rows above
+  come from canonical pricing and state the mechanism correctly, so the two can disagree on that
+  contract shape. Fixing it belongs in the service, for all three surfaces at once.
+
+Tests: `tests/Feature/ContractDetailBillComparisonTest.php`.
+
+### Generated content modules: verdict, FAQ, terms
+
+Three page sections carry no seller or LLM text at all. All three are built in PHP from typed
+fields, for the same reason as `getPriceQualifierProperty()` and the counterfactual: a Finnish
+sentence written in a Blade template drifts away from the numbers beside it.
+
+**"Kannattaako X?" (`getVerdictProperty()`)** renders directly after the hero. Two paragraphs:
+where the contract sits (tier, cheaper/pricier counts, money gap) and what its pricing type means
+for the buyer. Constraints:
+
+- Every figure is read at `rankConsumption()`, so the counts and the gap move with the
+  consumption picker. A verdict that says "valitulla kulutuksella" and never moves reads as a
+  rigged ranking; that was a P0 in the mockup critique.
+- **Rank 1 states the lead over the runner-up**, never an empty state, exactly as the hero
+  verdict box does. `cheaperContracts` is empty by definition at rank 1.
+- The `vertailun kärkipäässä` tier needs both `rank <= 25` **and** `percentile <= 0.33`. The hero
+  verdict's absolute top-25 rule is wrong here, because in a small universe rank 2 of 2 is the
+  most expensive contract there is and the sentence prints the counts that prove it.
+- The "Katso halvemmat vaihtoehdot" link scrolls to `#halvemmat` and is guarded by
+  `prefers-reduced-motion`. It renders only when a cheaper contract actually exists.
+
+**"Usein kysyttyä" (`getFaqItemsProperty()`)** is the single source for both the visible
+`<details>` list and `getFaqSchemaProperty()` (FAQPage), the same rule as
+`ConsumptionCalculator` and `HeatPumpCalculator`. Do not hand-write a second FAQ `<script>`;
+that is how the heat-pump FAQ drifted once. Items, at most five: cost at the selected
+consumption, the pricing mechanism, spot variation (spot only), cancellation, and Voltikka's
+estimate method. An item whose facts are missing is dropped rather than answered "ei tietoa".
+
+- **The mechanism item owns the anchor `#faq-miten`.** The hero's pricing-category label links
+  to it, because the mockup critique found the most important concept on the page rendered as a
+  dead label. The section opens a hash-targeted `<details>` on load and on `hashchange`.
+- The spot variation item quotes realized monthly averages from `spot_price_averages`
+  (`spotMonthlyPriceRange()`, at least three months) and is dropped when there is no history.
+  Do not answer it from the rolling 365-day average alone; that states no variation.
+
+**"Sopimusehdot lyhyesti" (`getContractTermsProperty()`)** is one flat grid above the seller's
+own description, and it **absorbed the old "Laskutus ja ehdot" box** in the right column. Do not
+add a second terms list anywhere on the page.
+
+- Only rows whose data exists are returned. The old box printed "Alueellinen" for a NULL
+  `availability_is_national` because it tested truthiness.
+- **`irtisanomisaika` is not a per-contract field.** The two-week consumer notice period is a
+  market fact the site already states editorially, so it is derived from `contract_type` only
+  (`OpenEnded` → `14 vrk`, fixed term → `Sitoo sopimuskauden loppuun`), and the grid closes with
+  "Tarkista ajantasaiset ehdot myyjän sivuilta".
+- "Hinta määräajan jälkeen" appears only when `comparability === 'term_price_only'`. That is a
+  typed verdict ("the only unpriced gap is after the term"), not an absence of data.
+- A consumption cap is stated only when it could bind a household. `CAP_RELEVANCE_THRESHOLD_KWH`
+  mirrors `ContractCard\CardFooterItems`, so the card warning and the terms row agree about
+  which caps matter; without it every page printed "Enintään 200 000 kWh/v".
+- `termMonths()` reads `calculated_cost.term_months` first and falls back to the exact
+  `fixed_time_range` buckets. The calculator reports no term for a Hybrid (it is costed
+  base-only), so a 6 kk hybrid otherwise said "sovitun sopimuskauden ajan" with no number.
+
+Tests: `tests/Feature/ContractDetailPageTest.php` (`test_verdict_paragraph_*`, `test_faq_*`,
+`test_terms_grid_*`).
+
+### Source-text hygiene
+
+Three defects on the detail page came from the upstream payload, not from Voltikka. All three
+are fixed in one shared helper, `../Support/ContractContentSanitizer.php`, so later phases and
+the card presenter can reuse the rules instead of re-deriving them in a template. **Add new
+cleanup rules there, never in `contract-detail.blade.php`.**
+
+- **`billing_frequency` is a localized map, not a list.** Every observed contract stores
+  `{"EN": "1 kk", "FI": "1 kk", "SV": "1 kk", "Default": null}`, so `implode(', ', ...)` printed
+  "1 kk, 1 kk, 1 kk, ". `ContractDetail::$billingFrequencyLabels` collapses it with
+  `uniqueLabels()`, which compares case-insensitively on the trimmed value, so two genuinely
+  different intervals both survive. Do not "simplify" this to `['FI']` — the key set is what the
+  source sends today, not a contract. It then runs `billingFrequencyLabels()`, which expands a
+  bare number (273 contracts store the interval as `"12"`, which rendered as "Laskutusväli 12")
+  and drops "Ei ilmoitettu" (112 contracts), because the terms grid promises that every row it
+  shows has data behind it.
+- **Shouted contract names are normalized for display only.** `ContractDetail::$displayName`
+  runs `displayName()` over `$contract->name` for the H1, the title tag, the OG title, the meta
+  description, the Product/Breadcrumb JSON-LD and the history timeline. The rule is deliberately
+  narrow: a word is lowered only when it is fully uppercase, has more than three letters, holds
+  no digit, and is not in `KEEP_UPPERCASE`. Consecutive shouted words are one run, capitalized
+  once, because Finnish is not title-cased. **The stored `name` is never rewritten** — imports,
+  the replacement matcher and price history all key off it.
+- **Seller descriptions are cleaned before rendering.** `extra_information_fi` is printed
+  unescaped, so `descriptionHtml()` drops `<script>`/`<style>`/`<iframe>` and `on*=` handlers,
+  strips quotes that wrap the whole text, unwraps an `<a>` that carries no `href`, and removes
+  shouted "TÄÄLTÄ"/"TÄSTÄ"-style callouts **only where they are not inside a real link** — a live
+  `<a href>` callout still helps the visitor. Sentence punctuation is kept when the word is
+  removed, otherwise two sentences merged into one. When nothing readable is left the property
+  returns null and the whole section is dropped rather than rendered with an empty body.
+
+### Logo fallback
+
+The hero tile and the alternative-contract tiles use `<x-company-logo>`
+(`../../resources/views/components/company-logo.blade.php`), the same component as the cards,
+the company list and the company page. It paints initials first and reveals the logo only when
+it actually decoded, so a 404 or an HTML error page leaves initials instead of a broken image or
+a blank gap. **Do not hand-roll an `@if (getLogoUrl())` / `@else` pair here again** — that is the
+pattern the component replaced, and its `onerror` used to point at a third-party placeholder host.
 
 ### Prepared view-data caching
 
 Contract detail pages cache their contract lookup and prepared default GET payload until tomorrow with a `ContractPageCacheVersion` key.
 
 Important semantics:
-- only the canonical default consumption state is cached (`5000 kWh`, clamped into the contract's allowed range)
+- only the canonical default consumption state is cached (`5000 kWh`, clamped into the contract's allowed range); a Livewire consumption change is a POST, so per-user consumption state never reaches this cache. The static cost table is the one per-consumption surface inside the cached payload, and it is safe there because it prices four fixed reference consumptions that do not depend on the selection
 - query-string/Livewire interaction states are not cached by this page-level cache
+- the bill module is passed to the view from `render()` **outside** `contractDetailViewData()`, and `isDefaultContractDetailCacheable()` additionally refuses an active bill; keep both, a per-user calculation must never be shareable
 - inactive redirect decisions still happen in `mount()` before view-data caching
 - inactive historical pages without replacements can be cached, but the cached layout data must keep `robots => noindex, follow`
 - page-level caching is disabled when `app()->runningUnitTests()` to avoid cross-test cache pollution from Laravel's array cache driver
@@ -567,6 +985,39 @@ Use broad existing SEO pages for duration badges instead of creating exact-durat
 
 `ContractDetail` memoizes `ContractPageCacheVersion::hash()` per component instance because both the contract lookup cache key and prepared view-data cache key need it. On the database cache driver, recomputing the version hash can create repeated cache/source-table queries before the page data is even built.
 
+### Price development module ("Näin hinta on kehittynyt")
+
+Primary files:
+- `../Services/ContractPriceHistory/PriceDevelopmentPresenter.php` (+ its `AGENTS.md`, read it before changing chart semantics)
+- `ContractDetail::getPriceDevelopmentProperty()`
+- the `#hintakehitys` section of `../../resources/views/livewire/contract-detail.blade.php`
+- `../../resources/views/partials/contract-version-timeline-item.blade.php`
+
+One module, one chart. It replaced a separate "hero trajectory" sparkline that
+sat above the same timeline and told a weaker second version of the same story
+with amber/emerald price semantics and percentage deltas. **Do not add a parallel
+price chart to this page.**
+
+Important semantics:
+- the payload is built entirely in the presenter; **do not compute chart geometry
+  in Blade again**. The old block did, and the geometry drifted from the copy
+  beside it
+- the module is consumption-independent, which is why it lives inside the
+  prepared view-data cache and needs no consumption scope sentence
+- non-spot contracts get their own stepped `#0f172a` line over their statistics
+  segment median; spot contracts get monthly realized market averages over the
+  trailing-12-month average. Coral is never a data series here
+- the chart has a hover tooltip (Alpine, plain absolute child of the section, not
+  teleported) and an `sr-only` table mirror carrying the same numbers. The band
+  rows drive the tooltip, the x labels and the table, so the three cannot disagree
+- an observation window under 21 days renders an honest sentence and **no** chart
+  and **no** behaviour tags
+- behaviour tags are built only from data that exists, and every figure in them is
+  c/kWh or €/kk. The percentage form is banned on this page
+- the version timeline shows its three newest entries and collapses the rest into
+  a `<details>`; both lists render `partials/contract-version-timeline-item`, so
+  the two paths cannot drift
+
 ### Contract history UI
 
 The contract detail page now builds its visible history from the replacement-link chain instead of only the current contract row.
@@ -590,18 +1041,24 @@ Current intended behavior:
 
 ### Price component label guardrail
 
-Component labels and display order for the history timeline and its trend chart
+Component labels and display order for the version timeline and its delta chips
 come from `ContractDetail::priceTypeLabelsFor()` / `ContractDetail::PRICE_TYPE_ORDER`
 and reach the view as `$priceTypeLabels` / `$priceTypeOrder`. **Do not hardcode
-either map in `contract-detail.blade.php` again.**
+either map in `contract-detail.blade.php` again.** (The chart above the timeline
+does not read this map at all; it builds one representative energy series in
+`PriceDevelopmentPresenter`.)
 
-- A spot contract's `General` component is the supplier **margin**, not the energy
-  price the customer pays. The hero pricing block already labels that row
-  `Marginaali` and the meta description already says `Marginaali`, so the history
-  must agree. The old blade-local map called it `Energiahinta` for all 215 active
-  spot contracts that store a margin there, which read as if a 0,60 c/kWh margin
-  were the whole energy price. A `Spot`-typed component is a margin regardless of
-  `pricing_model`, so it does not carry that conditional.
+- A spot contract's `General` component is usually the supplier **margin**, not the
+  energy price the customer pays, and the meta description already says `Marginaali`,
+  so the history must agree. The old blade-local map called it `Energiahinta` for all
+  215 active spot contracts that store a margin there, which read as if a 0,60 c/kWh
+  margin were the whole energy price. A `Spot`-typed component is a margin regardless
+  of `pricing_model`, so it does not carry that conditional.
+  **This map is for the history timeline only.** The current price rows come from
+  `ContractCardPresenter`, which reads the margin from the calculated payload instead of
+  from `pricing_model`, because "Spot" does not guarantee the `General` row is a margin:
+  Cheap Markkinahintasähkö's `General` is a flat all-in intro price. Do not extend this
+  map back over the current-price rows.
 - **`price_component_type` is written verbatim from the upstream API payload**
   (`Services/ContractInterpretation/CanonicalPriceComponentWriter`), so any
   whitelist of types is incomplete by construction. `orderPriceTypes()` appends

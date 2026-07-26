@@ -182,7 +182,7 @@ class CanonicalContractPriceCalculator
         $usesSpot = false;
         $monthly = array_fill(0, 12, 0.0);
         $flatApplied = [];
-        $breakdown = [];
+        $spans = [];
         $monthKeys = $this->windowMonthKeys($windowStart);
 
         // Fill an uncovered tail with the most recent disclosed price (the ongoing/recurring
@@ -205,6 +205,15 @@ class CanonicalContractPriceCalculator
                 return $this->excluded(ContractComparability::ExcludedIncomplete, $context, $data);
             }
             $usesSpot = $usesSpot || $rates['uses_spot'];
+
+            // Record the resolved coverage per phase. A filled tail extends the phase that
+            // fills it, which is what the customer will actually be charged.
+            $known = $spans[$phaseIndex] ?? null;
+            $spans[$phaseIndex] = [
+                'start' => ($known !== null && $known['start']->lessThan($segment->start)) ? $known['start'] : $segment->start,
+                'end' => ($known !== null && $known['end']->greaterThan($segment->end)) ? $known['end'] : $segment->end,
+                'rates' => $rates,
+            ];
 
             $cost = $this->costSegment($segment, $profile, $rates, $flatApplied, $phaseIndex, $reset);
             $monthly[$this->elapsedMonth($windowStart, $segment->start)] += $cost;
@@ -246,7 +255,7 @@ class CanonicalContractPriceCalculator
             seasonalOtherKwhPrice: $currentRates['display']['seasonal_other'] ?? null,
             spotPriceDayAvg: $usesSpot ? $spot->dayAvgWithTax : null,
             spotPriceNightAvg: $usesSpot ? $spot->nightAvgWithTax : null,
-            phaseBreakdown: $this->buildBreakdown($data->phases, $segments, $windowStart),
+            phaseBreakdown: $this->buildBreakdown($data->phases, $spans),
             consumptionEffect: null,
             assumptions: $this->assumptions($comparability, $usesSpot, $estimateFill, $reset),
             resetEstimate: $reset?->shiftsPrices() ? $reset->toArray() : null,
@@ -543,6 +552,16 @@ class CanonicalContractPriceCalculator
      * price from the base phase instead of being read as free energy. A component type the
      * phase specifies at all — including an explicit 0 — is an override and is not inherited.
      *
+     * **A phase never inherits the other per-kWh mechanism.** `spot_margin` and the fixed
+     * `energy_*` rates are two ways of pricing the same kWh, so a phase that states one must
+     * not receive the other from the base phase: `resolvePhaseRates` prefers a fixed rate over
+     * the spot base, so an inherited `energy_general` silently overrides the phase's own spot
+     * margin. Cheap Markkinahintasähkö is exactly that shape (month 1 flat 6,99 c/kWh, then
+     * Nord Pool monthly average + 1,29 c/kWh margin) and the whole year was priced at the
+     * one-month promo rate, understating it by about 95 €/yr at 5000 kWh. Inheritance inside
+     * one mechanism is unchanged, so a Time phase that restates only `energy_day` still
+     * inherits `energy_night`.
+     *
      * @param list<PricingPhase> $allPhases
      * @return list<CanonicalComponent>
      */
@@ -556,15 +575,29 @@ class CanonicalContractPriceCalculator
         }
 
         $ownTypes = [];
+        $ownFixedEnergy = false;
+        $ownSpotMargin = false;
         foreach ($own as $component) {
             $ownTypes[$component->type->value] = true;
+            $ownFixedEnergy = $ownFixedEnergy || $component->type->isPerKwhEnergy();
+            $ownSpotMargin = $ownSpotMargin || $component->type === ComponentType::SpotMargin;
         }
 
         $effective = $own;
         foreach ($base->billedComponents() as $component) {
-            if (! isset($ownTypes[$component->type->value])) {
-                $effective[] = $component;
+            if (isset($ownTypes[$component->type->value])) {
+                continue;
             }
+
+            if ($ownSpotMargin && $component->type->isPerKwhEnergy()) {
+                continue;
+            }
+
+            if ($ownFixedEnergy && $component->type === ComponentType::SpotMargin) {
+                continue;
+            }
+
+            $effective[] = $component;
         }
 
         return $effective;
@@ -768,28 +801,48 @@ class CanonicalContractPriceCalculator
     }
 
     /**
+     * The phases that actually governed the window, with the dates and the rates they were
+     * costed at.
+     *
+     * The resolved dates and rates are here (and not only the phase's own boundary kinds)
+     * because the contract detail page has to state a mid-window mechanism change as two
+     * dated receipt rows. Cheap Markkinahintasähkö is one flat month at 6,99 c/kWh and then
+     * Nord Pool's monthly average + 1,29 c/kWh; without the resolved pair the page had to
+     * guess from one relational component and printed "Marginaali 6,99". Re-deriving the
+     * timeline in a presenter would be a second implementation of this algorithm, so the
+     * record of what happened travels with the cost payload instead.
+     *
      * @param list<PricingPhase> $phases
-     * @param list<WindowSegment> $segments
+     * @param array<int, array{start: CarbonImmutable, end: CarbonImmutable, rates: array<string, mixed>}> $spans
      * @return list<array<string, mixed>>
      */
-    private function buildBreakdown(array $phases, array $segments, CarbonImmutable $windowStart): array
+    private function buildBreakdown(array $phases, array $spans): array
     {
-        $breakdown = [];
-        $seen = [];
+        uasort($spans, static fn (array $a, array $b) => $a['start'] <=> $b['start']);
 
-        foreach ($segments as $segment) {
-            $index = $segment->phaseIndex;
-            if ($index === null || isset($seen[$index])) {
-                continue;
-            }
-            $seen[$index] = true;
+        $breakdown = [];
+
+        foreach ($spans as $index => $span) {
             $phase = $phases[$index];
+            $rates = $span['rates'];
+            $display = $rates['display'] ?? [];
+
             $breakdown[] = [
                 'label' => $phase->label,
                 'phase_kind' => $phase->phaseKind->value,
                 'starts' => $phase->starts->kind->value,
                 'ends' => $phase->ends->kind->value,
                 'ends_value' => $phase->ends->value,
+                // Resolved coverage inside the 12-month window. `window_end` is the last day
+                // the phase governs (the segment end is exclusive).
+                'window_start' => $span['start']->format('Y-m-d'),
+                'window_end' => $span['end']->subDay()->format('Y-m-d'),
+                // The per-kWh mechanism, so a consumer can see a spot/fixed switch without
+                // reinterpreting the components.
+                'uses_spot' => (bool) ($rates['uses_spot'] ?? false),
+                'energy_cents' => $display['general'] ?? $display['day'] ?? $display['seasonal_winter'] ?? null,
+                'spot_margin_cents' => $rates['spot_margin'] ?? null,
+                'monthly_fee' => $rates['monthly_fee'] ?? null,
             ];
         }
 

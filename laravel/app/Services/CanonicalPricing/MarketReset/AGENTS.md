@@ -194,7 +194,14 @@ here; see the calibration section in `../AGENTS.md`.
 - `EexMarketReferenceCurveProvider.php` — FI EEX curve, realized-spot seasonal index, fixed-term
   median. Memoizes one curve per vintage; a listing rebuild otherwise costs hundreds of queries.
 - `ResetEstimateCopy.php` — Finnish public copy, generated **only** from typed fields. No
-  interpretation `summary` string ever reaches a user.
+  interpretation `summary` string ever reaches a user. Three surfaces: `cardEquivalent()` and
+  `cardTooltip()` on a listing card, and `receiptNote()` on the contract detail page.
+  `receiptNote()` deliberately states **only** what the detail page's other surfaces do not:
+  that future period prices are unknown, when the estimated tail starts, and which forward
+  vintage it reads. It replaced `detailNotice()`, a boxed notice that repeated the current
+  price, its end date and the 12-month equivalent, all three of which the hero price
+  qualifier and the dated receipt rows already state. Do not re-add a surface that restates
+  the figures; check what the page already says first.
 - `DTO/ResetEstimate.php` — offsets by `Y-m` plus the basis evidence, surfaced as
   `calculated_cost['reset_estimate']`.
 - `DTO/ResetEstimateRequest.php` — cadence, both vintage anchors (`asOfDate` for the forward months,

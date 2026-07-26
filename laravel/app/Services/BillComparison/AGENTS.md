@@ -16,6 +16,10 @@ no annual consumption and no pricing-model knowledge required.
 - `../../../Livewire/BillComparison.php` — Livewire component at `/maksatko-liikaa`
 - `../../../resources/views/livewire/bill-comparison.blade.php` — view
 - `../../DTO/BillComparisonRequest.php`, `BillComparisonResult.php`, `BillComparisonRow.php`
+- `../../Livewire/Concerns/BillComparisonInputs.php` — bill inputs shared by the
+  in-listing mode and the contract detail module
+- `../../../resources/views/partials/bill-comparison-form.blade.php` — the form
+  those two surfaces both render
 
 ## The anchor principle (do not break this)
 
@@ -131,12 +135,37 @@ Note: the main site (`ContractsList` / `ContractPriceCalculator`) does **not**
 apply this cap filtering, so those capped tiers can still appear as implausibly
 cheap for heavy users in the main listings. That is a separate, broader fix.
 
+## Three surfaces, one form (do not let them drift)
+
+1. `/maksatko-liikaa` (`BillComparison`) — the standalone tool, `compare()`.
+   Keeps its own property names and its own richer form, because it also owns
+   the annualized hero, the ranking table and the `annualKwh` override.
+2. the in-listing mode (`ContractsList`) — `periodRowsForContracts()`, period
+   basis only.
+3. the contract detail module (`ContractDetail`, "Vertaa nykyiseen
+   sähkölaskuusi") — `periodRowsForContracts()` with a **one-contract set**,
+   period basis only.
+
+Surfaces 2 and 3 share their inputs in `app/Livewire/Concerns/BillComparisonInputs.php`
+(properties, preset chips, VAT normalization, `buildBillRequest()`) **and** the
+Blade partial `resources/views/partials/bill-comparison-form.blade.php`, which
+binds exactly those property names. **Add a field to the trait and the partial,
+never to one template.** Each component supplies its own `recomputeBill()` and
+its own `billInputsEnabled()` gate (listing: the rollout switch; detail page:
+active, non-excluded contract).
+
+Deliberately **not** in the shared field set: the heating toggle. It only selects
+the seasonal annualization profile, and both period-basis surfaces show no
+annualized figure; its one real effect there is the consumption-cap basis. The
+standalone tool keeps it because its headline number is annualized.
+
 ## In-listing usage (`periodRowsForContracts`)
 
 `BillComparisonService::periodRowsForContracts(iterable $contracts, BillComparisonRequest $request)`
 is the entry point for the **in-listing** bill comparison on `/sahkosopimus`
-(`ContractsList::buildBillModePaginator()`), as opposed to the standalone
-`/maksatko-liikaa` page which uses `compare()`.
+(`ContractsList::buildBillModePaginator()`) and for the single-contract detail
+module, as opposed to the standalone `/maksatko-liikaa` page which uses
+`compare()`.
 
 - The caller (the listing component) owns filtering, sorting and pagination and
   passes its already-filtered contract set; the service returns each contract's
@@ -144,6 +173,14 @@ is the entry point for the **in-listing** bill comparison on `/sahkosopimus`
 - Rows are **available-only**: spot contracts with no spot history for the
   period and contracts with no usable pricing are omitted (never shown at €0),
   exactly like `compare()`.
+- The return value also carries **`unavailable`**, an id → reason map
+  (`consumption_cap`, `not_comparable`, `no_spot_history`, `no_pricing`) filled
+  by a `&$reason` out-param on `buildMarketRow()`. A listing simply drops those
+  contracts, but a single-contract surface has to say something true, so the
+  detail module turns the reason into one honest Finnish sentence
+  (`ContractDetail::billUnavailableMessage()`). Add a new skip branch in
+  `buildMarketRow()` together with its reason string, otherwise the detail page
+  degrades to the generic "no pricing" wording.
 - Per-request setup (dates, annualized kWh, spot history, trailing-365-day spot
   averages) is shared with `compare()` via the private `periodContext()` so the
   two paths stay numerically identical. Change period/annualization math in

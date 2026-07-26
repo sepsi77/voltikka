@@ -464,7 +464,7 @@
                 <!-- Publisher identity & copyright -->
                 <div class="border-t border-slate-800 pt-8 text-center text-sm text-slate-500">
                     <p class="max-w-2xl mx-auto mb-3">
-                        Voltikka on yksityishenkilön ylläpitämä riippumaton energiavertailupalvelu — harrasteprojekti,
+                        Voltikka on yksityishenkilön ylläpitämä riippumaton energiavertailupalvelu. Se on harrasteprojekti,
                         joka ei ota provisiota sähköyhtiöiltä eikä rahoita toimintaansa mainoksilla.
                         <a href="/tietoa" class="text-slate-400 hover:text-white underline underline-offset-2 transition-colors">Lue lisää</a>.
                     </p>

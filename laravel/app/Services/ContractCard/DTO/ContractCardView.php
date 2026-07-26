@@ -39,6 +39,8 @@ readonly class ContractCardView
         public ?float $discountSavings,
         public ?float $baseTotalCost,
         public bool $exceedsConsumptionLimit,
+        /** The seller link. Cards link to the detail page instead; the detail page uses this. */
+        public ?CardSellerCta $sellerCta = null,
     ) {
     }
 

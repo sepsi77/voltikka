@@ -2,8 +2,12 @@
 
 namespace App\Services\ContractCard;
 
+use App\Models\Company;
 use App\Models\ElectricityContract;
+use App\Services\ContractCard\DTO\CardSellerCta;
 use App\Services\ContractCard\DTO\ContractCardView;
+use App\Support\ContractContentSanitizer;
+use App\Support\ContractInternalLinks;
 use Carbon\CarbonImmutable;
 
 /**
@@ -39,6 +43,8 @@ class ContractCardPresenter
      * @param int|null $consumption The visitor's selected annual kWh, deep-linked to the detail page.
      * @param bool $billMode Suppresses the annual Arvio chip; the billing-period figures keep
      *        their own "laskutusjaksollasi" disclosure.
+     * @param bool $detailed Contract detail page mode: the receipt may run longer, because the
+     *        page shows one contract instead of a scannable list.
      */
     public function present(
         ElectricityContract $contract,
@@ -47,6 +53,7 @@ class ContractCardPresenter
         ?int $detailConsumption = null,
         bool $billMode = false,
         ?CarbonImmutable $today = null,
+        bool $detailed = false,
     ): ContractCardView {
         $cost = is_array($contract->calculated_cost ?? null) ? $contract->calculated_cost : [];
         $integrity = is_array($contract->pricing_integrity ?? null) ? $contract->pricing_integrity : null;
@@ -73,9 +80,13 @@ class ContractCardPresenter
             detailUrl: $this->detailUrl($contract, $consumption, $detailConsumption),
             company: $company,
             companyName: $company?->name ?? $contract->company_name ?? '',
-            contractName: $contract->name ?? '',
+            // Sellers submit shouted names ("... 0€ KUUKAUSIMAKSU ENSIMMÄISET 3 KK!"). One
+            // normalizer for every surface: the two card templates and the detail page's H1
+            // all read the same rule, so a name cannot be shouted on a card and calm on the
+            // page it links to. The stored `name` is never rewritten.
+            contractName: ContractContentSanitizer::displayName($contract->name) ?: (string) ($contract->name ?? ''),
             metaParts: $this->metaParts($contract, $company),
-            receiptLines: $this->receiptLines->build($rates, $cost, $integrity, $facts, $contract->metering),
+            receiptLines: $this->receiptLines->build($rates, $cost, $integrity, $facts, $contract->metering, $detailed),
             totalCost: $totalCost,
             monthlyCost: $totalCost !== null ? $totalCost / 12 : null,
             estimate: $billMode ? null : ContractCardCopy::estimate($cost, $facts),
@@ -84,7 +95,31 @@ class ContractCardPresenter
             discountSavings: $this->discountSavings($cost),
             baseTotalCost: is_numeric($cost['base_total_cost'] ?? null) ? (float) $cost['base_total_cost'] : null,
             exceedsConsumptionLimit: $exceeds,
+            sellerCta: $this->sellerCta($contract, $company),
         );
+    }
+
+    /**
+     * Where "Siirry myyjän sivuille" goes.
+     *
+     * The ladder exists because one live contract had neither an order link nor a product
+     * link, and the detail page then rendered no call to action at all. It falls back to
+     * the seller's own site and finally to their Voltikka page, and the label changes with
+     * the destination so the button never promises an order form it does not have.
+     */
+    private function sellerCta(ElectricityContract $contract, ?object $company): ?CardSellerCta
+    {
+        foreach ([$contract->order_link, $contract->product_link, $company?->company_url] as $url) {
+            if (is_string($url) && trim($url) !== '') {
+                return new CardSellerCta(trim($url), 'Siirry myyjän sivuille', external: true);
+            }
+        }
+
+        $companyPage = $company instanceof Company ? ContractInternalLinks::companyUrl($company) : null;
+
+        return $companyPage !== null
+            ? new CardSellerCta($companyPage, 'Katso myyjän tiedot', external: false)
+            : null;
     }
 
     /**

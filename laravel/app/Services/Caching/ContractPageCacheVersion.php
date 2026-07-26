@@ -22,8 +22,10 @@ class ContractPageCacheVersion
      *
      * v2: contract cards render from `ContractCardPresenter`, which reads the new
      * `pricing_integrity.promo_rate_cents` / `normal_rate_cents` fields.
+     * v3: `calculated_cost.phase_breakdown` carries resolved window dates and per-phase
+     * rates, and the contract detail page renders the presenter's view model.
      */
-    private const PAYLOAD_SCHEMA_VERSION = 2;
+    private const PAYLOAD_SCHEMA_VERSION = 3;
 
     public function __construct(
         private readonly ContractListCacheService $contractListCache,

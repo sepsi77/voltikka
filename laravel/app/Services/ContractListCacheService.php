@@ -23,8 +23,10 @@ class ContractListCacheService
      *
      * v2: `pricing_integrity` gained `promo_rate_cents` / `normal_rate_cents`, which the
      * contract card renders as two dated receipt rows.
+     * v3: `calculated_cost.phase_breakdown` entries gained the resolved window dates and the
+     * rates each phase was costed at, which the receipt reads for a dated mechanism switch.
      */
-    private const PAYLOAD_SCHEMA_VERSION = 2;
+    private const PAYLOAD_SCHEMA_VERSION = 3;
 
     private const CACHE_TTL_SECONDS = 60 * 60 * 48; // 48 hours
 
