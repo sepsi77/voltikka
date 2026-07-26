@@ -648,14 +648,30 @@ class ContractDetail extends Component
         $cost = $this->calculatedCost;
         $facts = $this->pricingFacts();
 
+        // Division of labour with the hero's `Arvio` popover, which is built by
+        // ContractCard\ContractCardCopy::estimate() from the same cost payload:
+        //
+        //   the popover  = HOW the estimate was calculated (the figures, the basis)
+        //   the qualifier = WHAT KIND of price this is (the mechanism)
+        //
+        // They used to say the same thing twice, six lines apart. For a
+        // consumption-effect contract the two were near verbatim, and the popover
+        // was the better copy of the two (it also names what the effect depends
+        // on); for a market reset the popover additionally states the cadence.
+        // Where the popover exists, the qualifier now says only what the popover
+        // cannot. Where it does NOT exist, the qualifier is the sole carrier and
+        // keeps its full form: a fully fixed 12-month contract is not an estimate,
+        // so `estimate()` returns null and there is no popover to defer to.
+        $hasEstimateExplainer = $this->card?->estimate !== null;
+
         $qualifier = match (true) {
-            $facts->isSpot => $this->spotPriceQualifier($cost),
+            $facts->isSpot => $this->spotPriceQualifier(),
             // Market wins over the consumption effect, exactly as the card
             // category does, so a reset contract that also has an effect is
             // described by its reset mechanism.
-            $facts->isReset => $this->resetPriceQualifier($cost, $facts),
-            $facts->hasConsumptionEffect => $this->consumptionEffectPriceQualifier($cost),
-            default => $this->fixedPriceQualifier($cost, $contract),
+            $facts->isReset => $hasEstimateExplainer ? null : $this->resetPriceQualifier($cost, $facts),
+            $facts->hasConsumptionEffect => $hasEstimateExplainer ? null : $this->consumptionEffectPriceQualifier($cost),
+            default => $this->fixedPriceQualifier($cost, $contract, $hasEstimateExplainer),
         };
 
         return $this->computedValueCache['priceQualifier'] = $qualifier;
@@ -664,20 +680,24 @@ class ContractDetail extends Component
     /**
      * @param  array<string, mixed>  $cost
      */
-    protected function spotPriceQualifier(array $cost): string
+    /**
+     * The mechanism, and only the mechanism.
+     *
+     * This is the hero's one plain-language explanation of what pörssisähkö is,
+     * and the `Arvio` popover never says it, so it stays. What it no longer says
+     * is the arithmetic: it used to name the trailing 12-month spot average and
+     * the contract's margin, which the popover already carries (split into day and
+     * night, so its version is strictly better) and which the itemised receipt
+     * rows in Hintatiedot carry again. Three places for one pair of figures, six
+     * lines apart in the case of the first two.
+     *
+     * A spot contract always has the popover: `ContractCardCopy::estimate()` falls
+     * back to `rolling_365_spot` whenever the cost payload is a spot total, so
+     * there is no branch here for its absence.
+     */
+    protected function spotPriceQualifier(): string
     {
-        $spotAverage = $this->qualifierCents($cost['spot_price_day_avg'] ?? null);
-        $margin = $this->qualifierCents($cost['spot_price_margin'] ?? null);
-
-        if ($spotAverage === null) {
-            return 'Pörssisähkössä maksat sähkön tuntihinnan, joten vuosihinta on arvio, joka perustuu viimeisen 12 kuukauden toteutuneeseen pörssikeskihintaan ja sopimuksen marginaaliin.';
-        }
-
-        $basis = $margin !== null
-            ? "pörssikeskihintaan {$spotAverage} c/kWh ja sopimuksen marginaaliin {$margin} c/kWh"
-            : "pörssikeskihintaan {$spotAverage} c/kWh ja sopimuksen marginaaliin";
-
-        return "Pörssisähkössä maksat sähkön tuntihinnan, joten vuosihinta on arvio, joka perustuu viimeisen 12 kuukauden toteutuneeseen {$basis}.";
+        return 'Pörssisähkössä maksat sähkön tuntihinnan, joten vuosihinta on arvio.';
     }
 
     /**
@@ -707,12 +727,16 @@ class ContractDetail extends Component
         if ($basis === null) {
             $cadence = \App\Services\ContractCard\ContractCardCopy::cadenceAdverb($facts->cadence);
 
-            return "{$head}, ja koska myyjä tarkistaa hinnan {$cadence}, koko vuoden hinta on arvio.";
+            return "{$head}. Myyjä tarkistaa hinnan {$cadence}, joten koko vuoden hinta on arvio.";
         }
 
-        $estimate = $annual !== null ? ", jolloin koko vuoden keskihinnaksi tulee noin {$annual} c/kWh" : '';
+        // Two sentences, not one three-clause chain: the known figure is a fact and
+        // the rest of the year is an estimate, and the reader should be able to
+        // stop after the fact. The annual equivalent closes on a colon for the
+        // same reason as the spot variant.
+        $estimate = $annual !== null ? ": koko vuoden keskihinta noin {$annual} c/kWh" : '';
 
-        return "{$head}, ja seuraavien jaksojen hinnat ovat arvio {$basis}{$estimate}.";
+        return "{$head}. Seuraavat jaksot ovat arvio {$basis}{$estimate}.";
     }
 
     /**
@@ -734,7 +758,7 @@ class ContractDetail extends Component
     /**
      * @param  array<string, mixed>  $cost
      */
-    protected function fixedPriceQualifier(array $cost, ElectricityContract $contract): string
+    protected function fixedPriceQualifier(array $cost, ElectricityContract $contract, bool $hasEstimateExplainer = false): string
     {
         $price = $this->qualifierCents($cost['general_kwh_price'] ?? null);
         $subject = $price !== null ? "Energian hinta {$price} c/kWh" : 'Energian hinta';
@@ -742,9 +766,14 @@ class ContractDetail extends Component
         $termMonths = is_numeric($cost['term_months'] ?? null) ? (int) $cost['term_months'] : null;
 
         // A term shorter than the compared year is fixed only for that term, so
-        // the 12-month figure is an estimate and has to say so.
+        // the 12-month figure is an estimate and has to say so. The popover's
+        // `termBody` already explains the annualisation and the unknown price
+        // after the term, but it carries no c/kWh figure, so the qualifier keeps
+        // the price and hands the estimate reasoning over.
         if ($termMonths !== null && $termMonths > 0 && $termMonths < 12) {
-            return "{$subject} ei muutu {$termMonths} kuukauden sopimusjakson aikana, mutta myyjä ei ole kertonut hintaa sen jälkeen, joten vuosihinta on arvio.";
+            return $hasEstimateExplainer
+                ? "{$subject} ei muutu {$termMonths} kuukauden sopimusjakson aikana."
+                : "{$subject} ei muutu {$termMonths} kuukauden sopimusjakson aikana, mutta myyjä ei ole kertonut hintaa sen jälkeen, joten vuosihinta on arvio.";
         }
 
         if (in_array($contract->contract_type, ['FixedTerm', 'Fixed'], true)) {
@@ -1603,7 +1632,7 @@ class ContractDetail extends Component
             'marker_percent' => round($markerPercent, 1),
             'comparison' => $this->heroVerdictComparison($rank),
             'show_cheaper_link' => $rank > 1 && $this->cheaperContracts->isNotEmpty(),
-            'note' => $this->heroVerdictNote($basis),
+            'note' => $this->heroVerdictNote(),
         ];
     }
 
@@ -1666,18 +1695,21 @@ class ContractDetail extends Component
     }
 
     /**
-     * The small print under the verdict line: the date, the basis, and why the
-     * contracts at the top of the comparison are what they are.
+     * The small print under the verdict line: the date, and why the contracts at
+     * the top of the comparison are what they are.
      *
-     * The spot sentence is measured, not assumed: it counts the loaded cheapest
-     * contracts, and it says "vertailun halvimmat", which is exactly the set it
-     * counted. Claiming something about every contract ahead would need a query
-     * this page does not run.
+     * It used to restate the basis as well ("perustuu 12 kuukauden hinta-arvioon
+     * 5 000 kWh vuosikulutuksella"), which made the hero say the comparison
+     * consumption three times and the word "arvio" four times. Both facts are
+     * already on screen: the line under the price states the consumption and the
+     * VAT basis, the `Arvio` popover is the page's single estimate marker, and
+     * when the rank basis genuinely differs from the selected consumption
+     * `getRankBasisNoticeProperty()` names both figures. The date is what only
+     * this sentence carries, so the date is what it keeps.
      */
-    protected function heroVerdictNote(int $basis): string
+    protected function heroVerdictNote(): string
     {
-        $note = 'Sijoitus '.now()->format('j.n.Y').', perustuu 12 kuukauden hinta-arvioon '
-            .$this->formatKwh($basis).' vuosikulutuksella.';
+        $note = 'Sijoitus laskettu '.now()->format('j.n.Y').'.';
 
         if ($this->pricingFacts()->isSpot) {
             return $note;

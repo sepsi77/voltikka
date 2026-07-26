@@ -1314,14 +1314,27 @@ class ContractDetailPageTest extends TestCase
         $contract = $this->createComparisonContract('spot-qualifier-contract', 'Pörssisähkö Perus', 0.42);
         $contract->update(['pricing_model' => 'Spot']);
 
+        // With the `Arvio` popover present the qualifier states only the mechanism:
+        // the popover carries the figures, and split day/night at that. Without a
+        // popover the same property still returns the full figure sentence, which
+        // `test_spot_qualifier_carries_the_figures_without_a_popover` covers.
         Livewire::test('contract-detail', ['contractId' => $contract->id])
-            ->assertSee('Pörssisähkössä maksat sähkön tuntihinnan, joten vuosihinta on arvio, joka perustuu viimeisen 12 kuukauden toteutuneeseen pörssikeskihintaan 6,57 c/kWh ja sopimuksen marginaaliin 0,42 c/kWh.');
+            ->assertSee('Pörssisähkössä maksat sähkön tuntihinnan, joten vuosihinta on arvio.')
+            ->assertSee('Vuosihinta perustuu 12 kuukauden toteutuneeseen pörssikeskihintaan')
+            ->assertDontSee('joten vuosihinta on arvio: viimeisen 12 kuukauden');
     }
 
     /**
      * A market-reset contract states the known current price with its end date
      * and says the rest of the year is an estimate from wholesale forward
      * prices, in plain language.
+     *
+     * That statement is owned by the hero's `Arvio` popover, not by the price
+     * qualifier. The two used to render it twice, six lines apart, with the
+     * popover's version the richer of the two (it also names the reset cadence),
+     * so the qualifier now returns null whenever the popover is there. The null
+     * assertion at the end is the point of the split; do not "fix" it by
+     * reinstating the sentence in both places.
      */
     public function test_market_reset_contract_shows_the_current_price_and_estimate_qualifier(): void
     {
@@ -1375,13 +1388,16 @@ class ContractDetailPageTest extends TestCase
             ],
         ]);
 
-        $qualifier = Livewire::test('contract-detail', ['contractId' => $contract->id])
-            ->instance()
-            ->priceQualifier;
+        $component = Livewire::test('contract-detail', ['contractId' => $contract->id])->instance();
+        $estimate = $component->card?->estimate;
 
-        $this->assertStringContainsString('Nykyinen energianhinta 8,00 c/kWh on voimassa 30.9.2026 asti', $qualifier);
-        $this->assertStringContainsString('arvio tukkumarkkinan ennakkohinnoista eli sähköfutuureista', $qualifier);
-        $this->assertStringContainsString('koko vuoden keskihinnaksi tulee noin', $qualifier);
+        $this->assertNotNull($estimate, 'A market reset must carry the Arvio popover.');
+        $this->assertStringContainsString('Nykyinen hinta 8,00 c/kWh on tiedossa 30.9. asti', $estimate->body);
+        $this->assertStringContainsString('Loppuvuoden hinnat on arvioitu sähköjohdannaisten markkinahinnoista', $estimate->body);
+        $this->assertStringContainsString('koko vuoden keskihinnaksi tulee', $estimate->body);
+        $this->assertStringContainsString('Myyjä julkaisee todelliset hinnat neljännesvuosittain', $estimate->body);
+
+        $this->assertNull($component->priceQualifier, 'The qualifier must not repeat what the popover already says.');
     }
 
     public function test_fully_fixed_contract_states_that_the_price_does_not_change(): void
@@ -1400,6 +1416,17 @@ class ContractDetailPageTest extends TestCase
             ->assertSee('Energian hinta 5,50 c/kWh ei seuraa markkinahintaa, ja myyjän on ilmoitettava hinnanmuutoksesta etukäteen.');
     }
 
+    /**
+     * The fallback branch: with no `Arvio` popover, the qualifier is the sole carrier.
+     *
+     * This fixture is on the legacy pricing path (`canonical_pricing.enabled` off), so
+     * `calculated_cost` has no `estimate_method` and `ContractCardCopy::estimate()`
+     * returns null. With canonical pricing on, as in production, the same contract gets
+     * `hybrid_base_only`, the popover renders the richer version of this sentence, and
+     * `priceQualifier` returns null instead. Verified live on Herrfors Vakaa+; the
+     * popover-present branch is pinned by
+     * `test_market_reset_contract_shows_the_current_price_and_estimate_qualifier`.
+     */
     public function test_consumption_effect_contract_states_the_effect_is_not_included(): void
     {
         $this->contract->update(['pricing_model' => 'Hybrid']);

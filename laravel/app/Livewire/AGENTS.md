@@ -540,9 +540,9 @@ Section order, and it is load bearing:
 
 1. **Dark `slate-950` hero** at content width (`max-w-3xl`).
 2. **Kannattaako X?** (`#kannattaako`)
-3. **Hintatiedot** (`#hintatiedot`): category band, integrity notice, receipt rows, receipt
+3. **Vertaa nykyiseen sähkölaskuusi** (`#vertaa-laskuun`), collapsed.
+4. **Hintatiedot** (`#hintatiedot`): category band, integrity notice, receipt rows, receipt
    notes, warning pills, static cost table, spot counterfactual.
-4. **Vertaa nykyiseen sähkölaskuusi** (`#vertaa-laskuun`), collapsed.
 5. **Näin hinta on kehittynyt** (`#hintakehitys`)
 6. **Sopimusehdot lyhyesti** (`#sopimusehdot`): terms grid, pientuotanto, seller identity,
    internal comparison links, and the seller's own description **collapsed** inside it.
@@ -604,6 +604,27 @@ Rules that must not be undone casually:
     counts the loaded `cheaperContracts` and says "vertailun halvimmat", which is exactly the
     set it counted. Do not restate it as a claim about every contract ahead without a query
     that supports it.
+  - The verdict renders as **rank sentence, then the rail, then `Katso halvemmat ↓`, then the
+    small print**. The link used to be a third `·` clause inside the rank sentence, where at
+    390 px it landed mid-wrap and the beat's only action was buried in running text. Above
+    `sm` it sits beside the rail in a `flex flex-wrap items-end` row, so pulling it out costs
+    no height; below `sm` it wraps under. It is deliberately shorter than the
+    "Katso halvemmat vaihtoehdot" link that closes "Kannattaako X?" one screen below.
+  - The rail is `420px`, not the original `340px`: at 340 the marker read as a dot beside a
+    label rather than as a position on a scale.
+  - **The lit part of the rail is the share of the market that is cheaper than this
+    contract**, so rank 1 leaves it dark and rank 253/291 leaves it almost fully lit. It used
+    to be an even bar with a dot on it, which said only "somewhere". The fill and the marker
+    both read `marker_percent`, so the dot always sits on the fill's edge; keep them on one
+    figure. The whole rail group is `aria-hidden`: "halvin / kallein" read aloud after the
+    rank sentence is noise, and the sentence carries every fact the rail draws.
+  - **Motion is transform-only.** The fill is `scaleX()` on a full-width child and the marker
+    is a full-track-width layer translated by a percentage of itself, both at 300 ms
+    `cubic-bezier(0.16,1,0.3,1)` with `motion-reduce:transition-none`. Do not go back to
+    animating `left`/`width`: DESIGN.md does not animate layout properties, and the old
+    `transition-[left] duration-200` did exactly that. The moment this exists for is the
+    consumption picker: changing household size makes the contract visibly travel through the
+    market, which is the one thing on this page no seller can draw.
 - **Beat 2, action**: the consumption chips + free kWh field, then the coral CTA and the
   no-commission note. The CTA is **flat `coral-600` at 19px/700, no gradient and no glow**:
   white on `coral-500` is 2,8:1 and the gradient pair failed contrast. This is a deliberate
@@ -612,11 +633,56 @@ Rules that must not be undone casually:
   the shared site footer. The closing method statement deliberately does not repeat it, and
   "arvio, ei hintalupaus" appears only in the price qualifier.
 
+#### Say each fact once
+
+The hero stated the comparison consumption three times and the word "arvio" four times inside
+one screen, which is most of what made it read as a grey wall. Each fact now has one owner:
+
+- **The consumption** belongs to the line under the price ("668 € vuodessa · 5 000 kWh
+  vuosikulutuksella · sisältää alv 25,5 %") and to the selected chip. `heroVerdictNote()`
+  therefore carries only the date, `Sijoitus laskettu 26.7.2026.` — the one fact nothing else
+  on the page states. When the rank basis genuinely differs from the selected consumption,
+  `getRankBasisNoticeProperty()` names both figures, so the note never had to hedge for it.
+- **Estimate status** belongs to the `Arvio` popover. The eyebrow is `Hinta seuraavalle 12
+  kuukaudelle` unconditionally; it used to switch to `Hinta-arvio ...` and duplicate the pill
+  six pixels below it.
+- The qualifier keeps the word `arvio` (that rule is in "Hero price qualifier" below) because
+  it is a sentence about the figure, not a second badge.
+
+The spot and reset qualifiers were also restructured from connective chains into a colon and
+two sentences, so the c/kWh figures land early instead of at the end of a relative clause.
+Every figure, date and required word survived; only the connectives went.
+
+#### The hero spacing ladder
+
+The hero is one column of eleven stacked blocks on a flat dark surface, with no rules, no
+panels and no chrome, so **the interval between two blocks is the only thing that can group
+them**. It ran on eleven ad-hoc values between 6 and 28 px, which made a beat boundary
+indistinguishable from a line gap; blurred, the whole hero read as one grey stack under the
+price. There are three steps now, and they must stay three:
+
+| role | utility | px |
+|---|---|---|
+| beat boundary | `mt-8 sm:mt-10` (`mt-7 sm:mt-8` for identity to price) | 32 / 40 |
+| group boundary inside a beat | `mt-5` | 20 |
+| inside a group | `mt-1.5` .. `mt-3` | 6 .. 12 |
+
+The beat gap is deliberately about **3x** the in-group gap. Narrowing that ratio, or adding a
+fourth intermediate value, brings the wall back. Identity to price is the softest of the three
+boundaries on purpose: the contract name and its price are strongly bound, and the
+load-bearing boundaries are price|verdict and verdict|act.
+
+Cost of the ladder: the hero grew from 730 to **783 px** at 1440 (the CTA still ends at 804,
+inside a 900 px viewport) and from 932 to **996 px** at 390, which is the documented mobile
+budget below.
+
 ### Mobile
 
-- The hero is about 1 000 px tall at 390 px (one screen is 844 px). The **price, the verdict
-  line and the rail sit inside the first screen**; the chips and the CTA follow. Every
-  approved hero element is present, so a strict one-screen hero would mean dropping one.
+- The hero is about 1 050 px tall at 390 px (one screen is 844 px); the "Vertaa sähkölaskuusi"
+  link under the chips costs 52 px of that, all of it below the fold. The **price, the verdict
+  line, the rail and `Katso halvemmat` sit inside the first screen** (the rail block ends
+  around 512 px); the chips and the CTA follow. Every approved hero element is present, so a
+  strict one-screen hero would mean dropping one.
 - **The sticky bottom CTA bar shows only when the hero CTA has scrolled PAST the top of the
   viewport** (`#hero-cta` rect `bottom < 0`), never merely because it is below the fold, and
   it hides again while `#halvemmat` or the footer is in view so it cannot cover the cheaper
@@ -668,11 +734,38 @@ the viewed contract is never filtered out of its own ranking.
 
 `ContractDetail::getPriceQualifierProperty()` generates one plain-Finnish sentence under the hero
 price stating what that figure is, per pricing category resolved by
-`../Services/ContractCard/PricingCategoryResolver`: spot states the trailing-12-month realized spot
-average plus the contract's margin; a market reset states the known current-period price with its
-end date and that the rest of the year is an estimate; a consumption-effect contract states the
-effect is not in the number; a fully fixed contract states the price does not change (a term shorter
-than 12 months says the year is an estimate).
+`../Services/ContractCard/PricingCategoryResolver`.
+
+**It divides labour with the hero's `Arvio` popover, and the split is the point:**
+
+> the popover (`ContractCard\ContractCardCopy::estimate()`) = **how** the estimate was calculated
+> the qualifier = **what kind of price** this is
+
+They used to say the same thing twice, six lines apart. On a consumption-effect contract the two
+were near verbatim ("... kiinteällä perushinnalla 7,88 c/kWh ... kulutusvaikutus, jonka suuruutta
+myyjä ei julkaise etukäteen"), and the popover was the better copy of the two, because it also
+names what the effect depends on. On a market reset the popover additionally states the cadence.
+
+So the qualifier is now conditional on `$this->card?->estimate !== null`:
+
+| category | popover | qualifier |
+|---|---|---|
+| Pörssisähkö | always | `Pörssisähkössä maksat sähkön tuntihinnan, joten vuosihinta on arvio.` — mechanism only. The popover carries the spot average and the margin, split day/night, and the receipt rows carry them again |
+| Markkinahinta (reset) | yes | **null** |
+| Kulutusvaikutus | yes | **null** |
+| Kiinteä, term < 12 kk | yes (`termBody`) | price sentence only; the popover owns the annualisation and the unknown continuation |
+| Kiinteä, 12 kk+ / toistaiseksi | **none** — not an estimate | full sentence, sole carrier |
+
+**Do not make the qualifier unconditional again**, and do not delete the no-popover branches: a
+fully fixed contract has no popover to defer to, so deleting them would leave its hero with no
+statement of what kind of price it is. `spotPriceQualifier()` has no fallback branch on purpose —
+`estimate()` falls back to `rolling_365_spot` for any spot cost payload, so a spot contract always
+has the popover.
+
+Nothing became hover-only. Every fact the qualifier stopped repeating is still visible without
+opening anything: the itemised receipt rows in Hintatiedot, the card's own type band, and the
+generated "Kannattaako X?" paragraphs, which explain the consumption effect and the reset mechanism
+in full plain Finnish one section below the hero.
 
 Constraints that are not stylistic:
 - **Copy stays in PHP, generated from typed fields only** — never in the Blade template and never
@@ -815,8 +908,26 @@ Tests: `tests/Feature/ContractDetailPresenterTest.php`, one per defect above.
 ### Bill comparison module ("Vertaa nykyiseen sähkölaskuusi")
 
 The third bill-comparison surface (after `/maksatko-liikaa` and the in-listing mode). It sits
-after "Hintatiedot", is **collapsed by default**, and answers one question: what this contract
-would have cost for the visitor's own billing period and kWh.
+directly after "Kannattaako X?" and **above** "Hintatiedot", is **collapsed by default**, and
+answers one question: what this contract would have cost for the visitor's own billing period
+and kWh.
+
+**It is rung two of the hero's consumption ladder, and the placement is deliberate.** Rung one
+is the hero's preset chips: one tap, and every number on the page moves. Rung two is this
+module: several fields, and one scoped answer that changes nothing else. That difference is why
+the two are *not* merged into one block — a multi-field form beside the chips reads as "fill
+both in to use this page" and puts an entry price on a page that works at zero cost, and moving
+the chips out of the hero would put the CTA above the only control that sets the price it acts
+on. The hero instead carries one link under the chips ("Tiedätkö tarkan laskusi? Vertaa
+sähkölaskuusi ↓") which scrolls here **and** dispatches `open-bill-comparison` so the visitor
+does not land on a collapsed heading. Keep the link and the section's `@open-bill-comparison`
+listener together; either one alone is broken.
+
+It used to sit after "Hintatiedot", which put it 2 138 px down on desktop and 2 890 px down at
+390 px — about 3.4 phone screens, collapsed, behind the largest section on the page. It is now
+at 1 372 / 1 880 px. Both section borders are conditional on what is actually above them
+(`$verdict` for this one, `$verdict || $showBillComparison` for Hintatiedot), so neither draws a
+rule straight against the dark hero when the sections above are absent.
 
 - **Inputs come from `Concerns/BillComparisonInputs` and the shared partial**
   `partials/bill-comparison-form.blade.php`, the same two files the listing uses. The module
@@ -829,7 +940,8 @@ would have cost for the visitor's own billing period and kWh.
 - **It goes through `BillComparisonService::periodRowsForContracts()` with a one-contract set**,
   never a second cost calculation, so the module and the listing card that linked here price the
   same period the same way. The rendered result states the implied c/kWh including the base fee,
-  so the visitor can check it against the receipt rows above.
+  so the visitor can check it against the receipt rows in "Hintatiedot", which is now the section
+  **below** this one rather than above it.
 - **Every unavailable state says why.** The service's `unavailable` reason map becomes one
   Finnish sentence in `billUnavailableMessage()`: no spot history for the period, a consumption
   cap the bill's annualized kWh falls outside, a contract canonical pricing excludes, or no
@@ -1014,6 +1126,14 @@ Important semantics:
   and **no** behaviour tags
 - behaviour tags are built only from data that exists, and every figure in them is
   c/kWh or €/kk. The percentage form is banned on this page
+- a 0,00 c/kWh energy observation on a contract that is priced above zero on
+  another observed date is a known ingestion artifact (duplicate null-UUID
+  `General` components collapsing to one relational key) and the presenter drops
+  it. It used to draw a vertical fall to zero that contradicted the version
+  timeline directly below. Zero is still charted when it is the contract's whole
+  history, so flat-fee package contracts are unaffected. **The stored rows are
+  still wrong** — repairing them from the source snapshots is a production
+  mutation. See `../Services/ContractPriceHistory/AGENTS.md`
 - the version timeline shows its three newest entries and collapses the rest into
   a `<details>`; both lists render `partials/contract-version-timeline-item`, so
   the two paths cannot drift

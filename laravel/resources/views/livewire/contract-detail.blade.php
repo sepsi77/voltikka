@@ -57,7 +57,20 @@
          Dark slate-950, single column at content width. Quiet metadata, then two
          beats: price fused with the verdict, then consumption + action. The old
          hero carried a separate verdict card, a CO2 aside and a boxed market-reset
-         notice; all three competed with the price and all three are gone. --}}
+         notice; all three competed with the price and all three are gone.
+
+         SPACING LADDER. The hero is one column of eleven stacked blocks, so the
+         only thing that can group them is the interval between them. It ran on
+         eleven ad-hoc values between 6 and 28 px, which made a beat boundary
+         indistinguishable from a line gap and turned the whole hero into one
+         undifferentiated stack. Three steps only, and keep them:
+
+           beat boundary   mt-8 sm:mt-10   (32 / 40)  identity | price | verdict | act
+           group boundary  mt-5            (20)       a new thought inside one beat
+           inside a group  mt-1.5 .. mt-3  (6 .. 12)  label to value, value to caption
+
+         The beat gap is deliberately ~3x the in-group gap. Anything that narrows
+         that ratio brings the wall back. --}}
     <section class="bg-slate-950 text-white">
         <div class="mx-auto max-w-3xl px-5 pt-4 pb-8 sm:pt-7 sm:pb-11">
             <nav aria-label="Murupolku" class="text-sm text-slate-300">
@@ -119,11 +132,14 @@
                 @endif
             </p>
 
-            <h1 class="mt-2 text-[28px] font-extrabold leading-[1.1] tracking-tight text-white sm:text-4xl">{{ $displayName }}</h1>
+            <h1 class="mt-1.5 text-[28px] font-extrabold leading-[1.1] tracking-tight text-white sm:text-4xl">{{ $displayName }}</h1>
 
             {{-- ---------- Beat 1: price + verdict, the one dominant statement ---------- --}}
             <div
-                class="mt-6 transition-opacity duration-150"
+                {{-- The title and its price are strongly bound, so this beat gap is the
+                     softest of the three; the load-bearing boundaries are price|verdict
+                     and verdict|act. --}}
+                class="mt-7 transition-opacity duration-150 sm:mt-8"
                 wire:loading.class.delay="opacity-40"
                 wire:target="setConsumption, directConsumption"
             >
@@ -137,9 +153,11 @@
                         $heroMonthly = number_format(($calculatedCost['total_cost'] ?? 0) / 12, 2, ',', ' ');
                         [$heroInt, $heroDec] = explode(',', $heroMonthly, 2);
                     @endphp
-                    <p class="text-sm font-semibold text-slate-300">
-                        {{ $isEstimatePricing ? 'Hinta-arvio seuraavalle 12 kuukaudelle' : 'Hinta seuraavalle 12 kuukaudelle' }}
-                    </p>
+                    {{-- Not "Hinta-arvio ...": the `Arvio` popover sits six pixels below
+                         this label and is the page's single estimate marker. The eyebrow,
+                         the pill, the verdict small print and the qualifier between them
+                         used to say "arvio" four times inside one screen. --}}
+                    <p class="text-sm font-semibold text-slate-300">Hinta seuraavalle 12 kuukaudelle</p>
                     <div class="mt-1.5 flex flex-wrap items-baseline gap-x-4 gap-y-3">
                         <span class="font-extrabold leading-none tracking-tight text-white tabular-nums">
                             <span class="text-[44px] sm:text-[56px]">{{ $heroInt }}</span><span class="text-2xl text-slate-400 sm:text-3xl">,{{ $heroDec }}</span><span class="ml-1 text-lg font-bold text-slate-300 sm:text-[22px]">€/kk</span>
@@ -168,54 +186,98 @@
                         sisältää alv 25,5 %
                     </p>
 
-                    {{-- The verdict, fused with the price rather than boxed beside it. --}}
+                    {{-- ---------- The verdict, fused with the price rather than boxed
+                         beside it. Its four parts read top to bottom as statement, then
+                         the same statement drawn, then the way out, then the small print.
+                         `katso halvemmat` used to be a third `·` clause inside the rank
+                         sentence, where at 390 px it landed mid-wrap and the one action in
+                         the beat was buried in running text. It is its own line now. --}}
                     @if ($heroVerdict)
-                        <p class="mt-4 text-[17px] leading-relaxed text-slate-200 tabular-nums">
-                            <strong class="text-xl font-extrabold text-white">Sija {{ number_format($heroVerdict['rank'], 0, ',', ' ') }}</strong>
-                            / {{ number_format($heroVerdict['total'], 0, ',', ' ') }} sopimuksesta
-                            @if ($heroVerdict['comparison'])
-                                <span aria-hidden="true" class="text-slate-500">·</span> {{ $heroVerdict['comparison'] }}
-                            @endif
-                            @if ($heroVerdict['show_cheaper_link'])
-                                <span aria-hidden="true" class="text-slate-500">·</span>
-                                <a
-                                    href="#halvemmat"
-                                    x-data
-                                    @click.prevent="
-                                        const target = document.getElementById('halvemmat');
-                                        if (! target) return;
-                                        target.scrollIntoView({
-                                            behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-                                            block: 'start',
-                                        });
-                                    "
-                                    class="rounded-sm font-semibold text-coral-400 hover:text-coral-300 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-400"
-                                >katso halvemmat <span aria-hidden="true">↓</span></a>
-                            @endif
-                        </p>
+                        <div class="mt-8 sm:mt-10">
+                            <p class="text-[17px] leading-relaxed text-slate-200 tabular-nums">
+                                <strong class="text-xl font-extrabold text-white">Sija {{ number_format($heroVerdict['rank'], 0, ',', ' ') }}</strong>
+                                / {{ number_format($heroVerdict['total'], 0, ',', ' ') }} sopimuksesta
+                                @if ($heroVerdict['comparison'])
+                                    <span aria-hidden="true" class="text-slate-500">·</span> {{ $heroVerdict['comparison'] }}
+                                @endif
+                            </p>
 
-                        {{-- Halvin–kallein rail with the contract's own marker. --}}
-                        <div class="mt-3 max-w-[340px]">
-                            <div class="relative h-1.5 rounded-full bg-gradient-to-r from-white/35 to-white/10">
-                                <span
-                                    aria-hidden="true"
-                                    class="absolute -top-[5px] h-4 w-4 -translate-x-1/2 rounded-full border-[3px] border-slate-950 bg-coral-500 transition-[left] duration-200"
-                                    style="left: {{ $heroVerdict['marker_percent'] }}%;"
-                                ></span>
+                            {{-- Halvin–kallein rail with the contract's own marker, and the
+                                 way out beside it. The rail is wider than the old 340 px so
+                                 the marker resolves a position on it rather than reading as
+                                 a dot beside a label; the link takes the column width the
+                                 rail leaves over, so pulling it out of the rank sentence
+                                 costs no height above `sm`. Below `sm` it wraps under. --}}
+                            <div class="mt-3 flex flex-wrap items-end gap-x-6">
+                                {{-- The rail carries the whole market, and the lit part of it
+                                     is the share that is cheaper than this contract, so rank 1
+                                     leaves it dark and rank 253/291 leaves it almost fully lit.
+                                     It was a dot on an even bar, which said only "somewhere".
+
+                                     `aria-hidden` on the group: "halvin / kallein" read aloud
+                                     after "Sija 253 / 291 sopimuksesta · 259 €/v kalliimpi kuin
+                                     halvin" is noise, and the sentence already carries every
+                                     fact the rail draws.
+
+                                     Motion: transforms only, 300 ms, exponential ease-out, and
+                                     off under `prefers-reduced-motion`. `left`/`width` are
+                                     layout properties and DESIGN.md does not animate those, so
+                                     the fill scales and the marker layer translates by a
+                                     percentage of its own full-track width. --}}
+                                <div aria-hidden="true" class="w-[420px] max-w-full">
+                                    <div class="relative h-1.5">
+                                        <div class="absolute inset-0 overflow-hidden rounded-full bg-white/10">
+                                            <div
+                                                class="h-full w-full origin-left rounded-full bg-white/40 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
+                                                style="transform: scaleX({{ $heroVerdict['marker_percent'] / 100 }});"
+                                            ></div>
+                                        </div>
+                                        <span
+                                            class="absolute left-0 top-0 block w-full transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none"
+                                            style="transform: translateX({{ $heroVerdict['marker_percent'] }}%);"
+                                        >
+                                            <span class="block h-4 w-4 -translate-x-1/2 -translate-y-[5px] rounded-full border-[3px] border-slate-950 bg-coral-500"></span>
+                                        </span>
+                                    </div>
+                                    <div class="mt-1.5 flex justify-between text-sm text-slate-300">
+                                        <span>halvin</span>
+                                        <span>kallein</span>
+                                    </div>
+                                </div>
+
+                                @if ($heroVerdict['show_cheaper_link'])
+                                    <a
+                                        href="#halvemmat"
+                                        x-data
+                                        @click.prevent="
+                                            const target = document.getElementById('halvemmat');
+                                            if (! target) return;
+                                            target.scrollIntoView({
+                                                behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                                                block: 'start',
+                                            });
+                                        "
+                                        {{-- `gap-1.5`, not a literal space: an inline-flex box
+                                             discards the whitespace between its items and the
+                                             arrow rendered flush against the word. --}}
+                                        class="-mb-1.5 inline-flex min-h-[44px] items-center gap-1.5 rounded-sm text-[15px] font-semibold text-coral-400 hover:text-coral-300 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-400"
+                                        {{-- Deliberately shorter than the "Katso halvemmat vaihtoehdot"
+                                             link that closes "Kannattaako X?" just below: two
+                                             identical coral links a screen apart read as a repeat. --}}
+                                    >Katso halvemmat <span aria-hidden="true">↓</span></a>
+                                @endif
                             </div>
-                            <div class="mt-1.5 flex justify-between text-sm text-slate-300">
-                                <span>halvin</span>
-                                <span>kallein</span>
-                            </div>
+
+                            <p class="mt-3 max-w-[60ch] text-sm leading-relaxed text-slate-300">{{ $heroVerdict['note'] }}</p>
                         </div>
-
-                        <p class="mt-2.5 max-w-[60ch] text-sm leading-relaxed text-slate-300">{{ $heroVerdict['note'] }}</p>
                     @endif
 
                     {{-- Category-specific price qualifier: what the figure above actually is.
-                         This is the page's only "arvio, ei hintalupaus" statement. --}}
+                         This is the page's only "arvio, ei hintalupaus" statement. It is a
+                         new thought inside the verdict beat, so it takes the group interval
+                         rather than a beat gap. --}}
                     @if ($priceQualifier)
-                        <p class="mt-3.5 max-w-[60ch] text-[15px] leading-relaxed text-slate-200">{{ $priceQualifier }}</p>
+                        <p class="mt-5 max-w-[60ch] text-[15px] leading-relaxed text-slate-200">{{ $priceQualifier }}</p>
                     @endif
                 @endif
             </div>
@@ -225,7 +287,7 @@
                  to put their own consumption in before the page asks them to act on the
                  price. The active chip is a white-on-dark inversion, never white on coral
                  (2,8:1). Every control is at least 44px high. --}}
-            <div id="consumption-picker" class="mt-7 scroll-mt-20">
+            <div id="consumption-picker" class="mt-8 scroll-mt-20 sm:mt-10">
                 <p class="text-sm font-semibold text-slate-300">Laske omalla kulutuksellasi</p>
                 <div
                     class="mt-3 flex flex-wrap items-stretch gap-2"
@@ -249,6 +311,10 @@
                         </button>
                     @endforeach
 
+                    {{-- Sized to its content, not stretched to the column edge: a 4-digit
+                         field widened to fill the row's slack reads as the primary input
+                         and dwarfs the chips it sits beside. The row's ragged right edge
+                         is correct for a control cluster. --}}
                     <label class="flex min-h-[44px] items-center gap-2 rounded-xl border border-white/20 bg-white/[0.06] px-4 py-2 focus-within:border-white/60">
                         <span class="sr-only">Oma vuosikulutus kilowattitunteina</span>
                         <input
@@ -271,10 +337,43 @@
                 @if ($rankBasisNotice)
                     <p class="mt-2 max-w-[60ch] text-sm text-slate-300">{{ $rankBasisNotice }}</p>
                 @endif
+
+                {{-- Rung two of the same ladder. The chips are "tell us roughly"; the bill
+                     module is "tell us exactly", and it is a separate section rather than a
+                     second field group here because it is a self-contained calculator, not a
+                     page-level basis control: the chips move every number on the page, the
+                     bill moves only its own answer. Merging them into one block would put a
+                     multi-field form in front of a page that works at zero entry cost. The
+                     link is what makes the two read as one ladder.
+
+                     It opens the disclosure as well as scrolling, for the same reason the
+                     pricing-category label opens `#faq-miten`: landing on a collapsed section
+                     reads as arriving nowhere. --}}
+                @if ($showBillComparison)
+                    <p class="mt-2">
+                        <a
+                            href="#vertaa-laskuun"
+                            x-data
+                            @click.prevent="
+                                const target = document.getElementById('vertaa-laskuun');
+                                if (! target) return;
+                                target.dispatchEvent(new CustomEvent('open-bill-comparison'));
+                                target.scrollIntoView({
+                                    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+                                    block: 'start',
+                                });
+                            "
+                            class="inline-flex min-h-[44px] items-center gap-1.5 rounded-sm text-sm text-slate-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                        >
+                            <span>Tiedätkö tarkan laskusi? <span class="font-semibold text-white underline underline-offset-2">Vertaa sähkölaskuusi</span></span>
+                            <span aria-hidden="true">↓</span>
+                        </a>
+                    </p>
+                @endif
             </div>
 
             @if ($sellerCta)
-                <div id="hero-cta" class="mt-6 flex flex-wrap items-center gap-x-7 gap-y-4">
+                <div id="hero-cta" class="mt-5 flex flex-wrap items-center gap-x-7 gap-y-4">
                     {{-- Flat coral-600 at 19px/700: large-text 3:1 against white. The old
                          gradient + coral glow put white on coral-500 (2,8:1). --}}
                     <a
@@ -368,116 +467,26 @@
             </section>
         @endif
 
-        {{-- ============================ Hintatiedot ============================ --}}
-        <section id="hintatiedot" class="scroll-mt-20 py-10 sm:py-11 {{ $verdict ? 'border-t border-slate-200' : '' }}">
-            <h2 class="text-[22px] font-bold text-slate-900">Hintatiedot</h2>
-
-            {{-- The pricing category, from the same presenter and with the same tint as
-                 the listing card that linked here. Single purpose: it states the category
-                 and never a warning. The Arvio marker lives in the hero, on the number it
-                 qualifies, so this band deliberately passes no estimate. --}}
-            <div class="mt-4 overflow-hidden rounded-lg">
-                <x-card.band :band="$card->band" :estimate="null" />
-            </div>
-
-            {{-- Pricing-integrity notice: shown only for validated deceptive/conflicting
-                 pricing. Coral, not amber: warnings are coral on this site and amber is an
-                 emissions tier. --}}
-            @if (($pricingIntegrity['detected'] ?? false) && ! empty($pricingIntegrity['detail_facts']))
-                <div class="mt-5 rounded-xl border border-coral-200 bg-coral-50 px-5 py-4">
-                    <p class="text-sm font-bold text-coral-800">{{ $pricingIntegrity['detail_heading'] ?? 'Huomio hinnoittelusta' }}</p>
-                    <ul class="mt-1.5 list-inside list-disc space-y-1 text-sm text-coral-800">
-                        @foreach ($pricingIntegrity['detail_facts'] as $fact)
-                            <li>{{ $fact }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-
-            {{-- Itemised price rows, from ContractCard\CardReceiptLines. This block used to
-                 be hand-rolled here and it drifted below the listing card's honesty; the
-                 presenter states the mechanism instead of guessing it from one relational
-                 component. --}}
-            <div class="mt-5">
-                <x-card.receipt :lines="$card->receiptLines" />
-            </div>
-
-            {{-- Quiet notes: what the reset estimate reads, and what a promotion is worth.
-                 Both replace a block that duplicated the hero (a boxed reset notice and a
-                 TARJOUS mini-hero with its own price). --}}
-            @foreach ($receiptNotes as $note)
-                <p class="mt-3 max-w-[65ch] text-sm leading-relaxed text-slate-500">{{ $note }}</p>
-            @endforeach
-
-            {{-- Coral warning pills, priority ordered and capped at two by
-                 ContractCard\CardFooterItems. --}}
-            @if (count($card->warnings) > 0)
-                <div class="mt-4">
-                    <x-card.footer :warnings="$card->warnings" />
-                </div>
-            @endif
-
-            {{-- Static per-consumption cost table. Server-rendered for every visitor
-                 regardless of the interactive selection, because "paljonko tämä sopimus
-                 maksaa 18 000 kWh kulutuksella" is a search query and the answer has to be
-                 in the initial HTML. Costs come from the same calculation path as the hero
-                 price, so the two cannot disagree. --}}
-            @if (! empty($consumptionCostTable))
-                <div class="mt-8 overflow-x-auto">
-                    <table class="w-full border-collapse text-[15px]">
-                        <caption class="pb-2.5 text-left text-[15px] font-bold text-slate-900">
-                            Arvioitu kustannus eri vuosikulutuksilla
-                        </caption>
-                        <thead>
-                            <tr class="border-b border-slate-200 text-sm font-semibold text-slate-500">
-                                <th scope="col" class="py-2 pr-3 text-left font-semibold">Vuosikulutus</th>
-                                <th scope="col" class="py-2 px-3 text-right font-semibold">€/kk</th>
-                                <th scope="col" class="py-2 pl-3 text-right font-semibold">€/vuosi</th>
-                            </tr>
-                        </thead>
-                        <tbody class="tabular-nums">
-                            @foreach ($consumptionCostTable as $row)
-                                <tr class="border-b border-slate-100 {{ $row['consumption'] === $consumption ? 'bg-slate-50 text-slate-900' : 'text-slate-600' }}">
-                                    <th scope="row" class="py-2.5 pr-3 text-left {{ $row['consumption'] === $consumption ? 'font-semibold text-slate-900' : 'font-normal' }}">
-                                        {{ number_format($row['consumption'], 0, ',', ' ') }} kWh
-                                        <span class="font-normal text-slate-500">· {{ $row['hint'] }}</span>
-                                    </th>
-                                    @if ($row['total_cost'] !== null)
-                                        <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ number_format($row['monthly_cost'], 2, ',', ' ') }}</td>
-                                        <td class="py-2.5 pl-3 text-right">{{ number_format($row['total_cost'], 0, ',', ' ') }}</td>
-                                    @else
-                                        <td class="py-2.5 px-3 text-right text-slate-500" colspan="2">Ei saatavilla tällä kulutuksella</td>
-                                    @endif
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                    <p class="mt-2 text-sm text-slate-500">
-                        12 kuukauden arvio ilman siirtomaksuja, hinnat sisältävät alv 25,5 %. Valittu kulutus on korostettu.
-                    </p>
-                </div>
-            @endif
-
-            {{-- The counterfactual: the alternative the visitor is really deciding against.
-                 Sentence generated in ContractDetail from typed fields. --}}
-            @if ($spotCounterfactual)
-                <p class="mt-6 max-w-[65ch] text-[15px] leading-relaxed text-slate-600">
-                    {{ $spotCounterfactual['text'] }}
-                    <a href="{{ $spotCounterfactual['url'] }}" class="whitespace-nowrap rounded-sm font-semibold text-coral-600 hover:text-coral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">{{ $spotCounterfactual['label'] }} →</a>
-                </p>
-            @endif
-        </section>
-
         {{-- ============================ Vertaa nykyiseen sähkölaskuusi ============================
              One bill, this contract, the same billing period. Period basis only, exactly
              like the in-listing mode: the bill total is the anchor and no annual figure is
              derived from it. Collapsed by default; per-user compute that never enters the
-             page's prepared payload cache. --}}
+             page's prepared payload cache.
+
+             It sits directly after "Kannattaako X?" and ABOVE Hintatiedot. It used to follow
+             Hintatiedot, which put the page's strongest personalisation surface 2 138 px down
+             on desktop and 2 890 px down at 390 px, roughly 3.4 phone screens, collapsed,
+             behind the largest section on the page. It is the second rung of the ladder the
+             hero's consumption picker starts, and the hero links down to it by name.
+
+             The border rule tracks what is actually above it: without a verdict this is the
+             first section under the dark hero and must not draw a rule against it. --}}
         @if ($showBillComparison)
             <section
                 id="vertaa-laskuun"
-                class="scroll-mt-20 border-t border-slate-200 py-10 sm:py-11"
+                class="scroll-mt-20 py-10 sm:py-11 {{ $verdict ? 'border-t border-slate-200' : '' }}"
                 x-data="{ billOpen: @js($billComparison !== null) }"
+                @open-bill-comparison="billOpen = true"
             >
                 {{-- The disclosure trigger stays inside an h2 so the restructured page keeps
                      one flat h1 → h2 outline; a bare button would drop this module out of
@@ -584,6 +593,106 @@
                 </div>
             </section>
         @endif
+
+        {{-- ============================ Hintatiedot ============================ --}}
+        <section id="hintatiedot" class="scroll-mt-20 py-10 sm:py-11 {{ ($verdict || $showBillComparison) ? 'border-t border-slate-200' : '' }}">
+            <h2 class="text-[22px] font-bold text-slate-900">Hintatiedot</h2>
+
+            {{-- The pricing category, from the same presenter and with the same tint as
+                 the listing card that linked here. Single purpose: it states the category
+                 and never a warning. The Arvio marker lives in the hero, on the number it
+                 qualifies, so this band deliberately passes no estimate. --}}
+            <div class="mt-4 overflow-hidden rounded-lg">
+                <x-card.band :band="$card->band" :estimate="null" />
+            </div>
+
+            {{-- Pricing-integrity notice: shown only for validated deceptive/conflicting
+                 pricing. Coral, not amber: warnings are coral on this site and amber is an
+                 emissions tier. --}}
+            @if (($pricingIntegrity['detected'] ?? false) && ! empty($pricingIntegrity['detail_facts']))
+                <div class="mt-5 rounded-xl border border-coral-200 bg-coral-50 px-5 py-4">
+                    <p class="text-sm font-bold text-coral-800">{{ $pricingIntegrity['detail_heading'] ?? 'Huomio hinnoittelusta' }}</p>
+                    <ul class="mt-1.5 list-inside list-disc space-y-1 text-sm text-coral-800">
+                        @foreach ($pricingIntegrity['detail_facts'] as $fact)
+                            <li>{{ $fact }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
+
+            {{-- Itemised price rows, from ContractCard\CardReceiptLines. This block used to
+                 be hand-rolled here and it drifted below the listing card's honesty; the
+                 presenter states the mechanism instead of guessing it from one relational
+                 component. --}}
+            <div class="mt-5">
+                <x-card.receipt :lines="$card->receiptLines" />
+            </div>
+
+            {{-- Quiet notes: what the reset estimate reads, and what a promotion is worth.
+                 Both replace a block that duplicated the hero (a boxed reset notice and a
+                 TARJOUS mini-hero with its own price). --}}
+            @foreach ($receiptNotes as $note)
+                <p class="mt-3 max-w-[65ch] text-sm leading-relaxed text-slate-500">{{ $note }}</p>
+            @endforeach
+
+            {{-- Coral warning pills, priority ordered and capped at two by
+                 ContractCard\CardFooterItems. --}}
+            @if (count($card->warnings) > 0)
+                <div class="mt-4">
+                    <x-card.footer :warnings="$card->warnings" />
+                </div>
+            @endif
+
+            {{-- Static per-consumption cost table. Server-rendered for every visitor
+                 regardless of the interactive selection, because "paljonko tämä sopimus
+                 maksaa 18 000 kWh kulutuksella" is a search query and the answer has to be
+                 in the initial HTML. Costs come from the same calculation path as the hero
+                 price, so the two cannot disagree. --}}
+            @if (! empty($consumptionCostTable))
+                <div class="mt-8 overflow-x-auto">
+                    <table class="w-full border-collapse text-[15px]">
+                        <caption class="pb-2.5 text-left text-[15px] font-bold text-slate-900">
+                            Arvioitu kustannus eri vuosikulutuksilla
+                        </caption>
+                        <thead>
+                            <tr class="border-b border-slate-200 text-sm font-semibold text-slate-500">
+                                <th scope="col" class="py-2 pr-3 text-left font-semibold">Vuosikulutus</th>
+                                <th scope="col" class="py-2 px-3 text-right font-semibold">€/kk</th>
+                                <th scope="col" class="py-2 pl-3 text-right font-semibold">€/vuosi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="tabular-nums">
+                            @foreach ($consumptionCostTable as $row)
+                                <tr class="border-b border-slate-100 {{ $row['consumption'] === $consumption ? 'bg-slate-50 text-slate-900' : 'text-slate-600' }}">
+                                    <th scope="row" class="py-2.5 pr-3 text-left {{ $row['consumption'] === $consumption ? 'font-semibold text-slate-900' : 'font-normal' }}">
+                                        {{ number_format($row['consumption'], 0, ',', ' ') }} kWh
+                                        <span class="font-normal text-slate-500">· {{ $row['hint'] }}</span>
+                                    </th>
+                                    @if ($row['total_cost'] !== null)
+                                        <td class="py-2.5 px-3 text-right font-bold text-slate-900">{{ number_format($row['monthly_cost'], 2, ',', ' ') }}</td>
+                                        <td class="py-2.5 pl-3 text-right">{{ number_format($row['total_cost'], 0, ',', ' ') }}</td>
+                                    @else
+                                        <td class="py-2.5 px-3 text-right text-slate-500" colspan="2">Ei saatavilla tällä kulutuksella</td>
+                                    @endif
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                    <p class="mt-2 text-sm text-slate-500">
+                        12 kuukauden arvio ilman siirtomaksuja, hinnat sisältävät alv 25,5 %. Valittu kulutus on korostettu.
+                    </p>
+                </div>
+            @endif
+
+            {{-- The counterfactual: the alternative the visitor is really deciding against.
+                 Sentence generated in ContractDetail from typed fields. --}}
+            @if ($spotCounterfactual)
+                <p class="mt-6 max-w-[65ch] text-[15px] leading-relaxed text-slate-600">
+                    {{ $spotCounterfactual['text'] }}
+                    <a href="{{ $spotCounterfactual['url'] }}" class="whitespace-nowrap rounded-sm font-semibold text-coral-600 hover:text-coral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coral-500">{{ $spotCounterfactual['label'] }} →</a>
+                </p>
+            @endif
+        </section>
 
         {{-- ============================ Näin hinta on kehittynyt ============================
              One module, one chart. The payload is
