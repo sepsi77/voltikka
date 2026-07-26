@@ -225,8 +225,9 @@ These colours mean *one thing*: a CO₂ tier on a contract. They never appear as
 ### Semantic — Pricing Category
 
 The second data-colour axis. These tints mean *one thing*: which of the three pricing
-categories a contract belongs to. They appear only in the contract card's type band, only as
-a tint behind the category sentence, and never as a decorative accent.
+categories a contract belongs to. They appear in the contract card's type band, in the
+listing legend, and on a **selected** pricing-type filter pill — always as a tint behind the
+category name, and never as a decorative accent.
 
 - **Kiinteä hinta** (`slate-100` bg, `slate-700` text): the energy price does not change.
 - **Markkinahinta** (`#e0f2fe` bg, `#0369a1` text): the price follows the market. Spot,
@@ -241,6 +242,13 @@ action colour; a category tint must not be mistakable for a recommendation or a 
 
 Derivation lives in `laravel/app/Services/ContractCard/PricingCategoryResolver.php`. The
 listing pages carry a matching legend (`components/card/legend.blade.php`).
+
+The pricing-type filter row (`partials/pricing-bucket-pills.blade.php`) offers four buckets,
+not three: Markkinahinta is split into Pörssisähkö and Päivittyvä hinta, which are different
+amounts of risk for the customer. Both wear the same sky tint, because they are one category
+on the card. A selected pill uses the tint's `100` background with its `400` border (a
+`200` hairline is too faint to read as "on" beside an unselected white pill); an unselected
+pill carries no tint at all, so the colour always means "this category is active".
 
 ### Named Rules
 

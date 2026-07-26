@@ -14,6 +14,8 @@ use App\Models\SpotPriceAverage;
 use App\Services\BillComparison\BillComparisonService;
 use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\CO2EmissionsCalculator;
+use App\Services\ContractCard\Enums\PricingBucket;
+use App\Services\ContractCard\PricingCategoryResolver;
 use App\Services\ContractListCacheService;
 use App\Services\ContractMarketInsights\ContractMarketInsightService;
 use App\Services\ContractPriceCalculator;
@@ -49,6 +51,16 @@ class ContractsList extends Component
      * Base path for filter links (used for SEO crawlable links).
      */
     public string $basePath = '/';
+
+    /**
+     * Whether the pricing-type pills may render as crawlable links to the canonical SEO
+     * pages (root AGENTS.md, "Filter Links (Dual Behavior)").
+     *
+     * Off by default and enabled only on `/sahkosopimus`, so filter combinations never
+     * become crawlable URLs. The pills fall back to plain Livewire toggles whenever any
+     * filter is active; see `resources/views/partials/pricing-bucket-pills.blade.php`.
+     */
+    public bool $showSeoFilterLinks = false;
 
     /**
      * Cache for all filtered contracts (before pagination).
@@ -327,6 +339,19 @@ class ContractsList extends Component
     public string $pricingModelFilter = '';
 
     /**
+     * Pricing-type (bucket) filter: comma-separated `PricingBucket` values, for
+     * example `?hintatyyppi=porssisahko,kiintea`.
+     *
+     * Multi-select include semantics: no bucket selected shows everything, and
+     * selecting all four is the same constraint as selecting none. The raw string
+     * is kept URL-bound and parsed tolerantly (see selectedPricingBuckets()) so a
+     * bot-supplied `?hintatyyppi=<garbage>` degrades to "no constraint" instead of
+     * a hydration error, exactly like the `$page` property.
+     */
+    #[Url(as: 'hintatyyppi')]
+    public string $pricingBucketFilter = '';
+
+    /**
      * Metering type filter (General, Time, Seasonal).
      */
     #[Url]
@@ -395,6 +420,11 @@ class ContractsList extends Component
         'Time' => 'Aikamittarointi',
         'Season' => 'Kausimittarointi',
     ];
+
+    public function mount(): void
+    {
+        $this->applyLegacyPricingModelFilter();
+    }
 
     /**
      * Set the active tab.
@@ -1138,6 +1168,161 @@ class ContractsList extends Component
     }
 
     /**
+     * Translate a legacy `?pricingModelFilter=` link into the pricing-type filter.
+     *
+     * Spot / FixedPrice / Hybrid are the three values the new buckets replace, so an
+     * old bookmark or inbound link keeps working. The legacy value is cleared after the
+     * translation, otherwise both filters would apply and, for Hybrid, contradict each
+     * other (a Hybrid with a quarterly reset is in the Päivittyvä hinta bucket).
+     *
+     * Quarterly / TimeOfUse / Seasonal keep their legacy behaviour untouched: they are
+     * metering or name-matched pseudo-types, not risk-transfer buckets, and they have no
+     * equivalent here.
+     */
+    protected function applyLegacyPricingModelFilter(): void
+    {
+        if ($this->pricingBucketFilter !== '' || $this->pricingModelFilter === '') {
+            return;
+        }
+
+        $bucket = match ($this->pricingModelFilter) {
+            'Spot' => PricingBucket::Spot,
+            'FixedPrice' => PricingBucket::Fixed,
+            'Hybrid' => PricingBucket::ConsumptionEffect,
+            default => null,
+        };
+
+        if ($bucket === null) {
+            return;
+        }
+
+        $this->pricingBucketFilter = $bucket->value;
+        $this->pricingModelFilter = '';
+    }
+
+    /**
+     * The pricing buckets currently selected, in enum order and without duplicates.
+     *
+     * Unknown keys are dropped rather than rejected: the value is user-visible in the
+     * URL and crawlers request malformed variants of everything.
+     *
+     * @return array<int, PricingBucket>
+     */
+    public function selectedPricingBuckets(): array
+    {
+        $raw = isset($this->pricingBucketFilter) ? (string) $this->pricingBucketFilter : '';
+
+        if (trim($raw) === '') {
+            return [];
+        }
+
+        $requested = array_filter(array_map('trim', explode(',', $raw)), fn ($value) => $value !== '');
+
+        return array_values(array_filter(
+            PricingBucket::cases(),
+            fn (PricingBucket $bucket) => in_array($bucket->value, $requested, true),
+        ));
+    }
+
+    public function isPricingBucketSelected(string $bucket): bool
+    {
+        return in_array($bucket, array_map(fn (PricingBucket $case) => $case->value, $this->selectedPricingBuckets()), true);
+    }
+
+    /**
+     * Toggle one pricing bucket in the selection.
+     */
+    public function togglePricingBucket(string $bucket): void
+    {
+        $target = PricingBucket::tryFrom($bucket);
+
+        if ($target === null) {
+            return;
+        }
+
+        $selected = $this->selectedPricingBuckets();
+        $turningOn = ! in_array($target, $selected, true);
+
+        $next = $turningOn
+            ? array_merge($selected, [$target])
+            : array_filter($selected, fn (PricingBucket $case) => $case !== $target);
+
+        $this->writePricingBuckets($next);
+        $this->resetPage();
+
+        if ($turningOn) {
+            $this->dispatch('track',
+                eventName: 'Contracts Filter Applied',
+                props: [
+                    'filter_type' => 'pricing_category',
+                    'value' => $target->value,
+                ]
+            );
+        }
+    }
+
+    /**
+     * Write the selection back in canonical enum order so the URL value is stable.
+     *
+     * @param  iterable<PricingBucket>  $buckets
+     */
+    protected function writePricingBuckets(iterable $buckets): void
+    {
+        $values = [];
+
+        foreach ($buckets as $bucket) {
+            $values[$bucket->value] = true;
+        }
+
+        $ordered = array_filter(
+            PricingBucket::cases(),
+            fn (PricingBucket $case) => isset($values[$case->value]),
+        );
+
+        $this->pricingBucketFilter = implode(',', array_map(fn (PricingBucket $case) => $case->value, $ordered));
+        $this->contractsCache = null;
+        $this->allFilteredContractsCache = null;
+    }
+
+    /**
+     * The buckets that actually narrow the query. Selecting all four is the same
+     * set as selecting none, so it is not a constraint.
+     *
+     * @return array<int, PricingBucket>
+     */
+    protected function constrainingPricingBuckets(): array
+    {
+        $selected = $this->selectedPricingBuckets();
+
+        return count($selected) === count(PricingBucket::cases()) ? [] : $selected;
+    }
+
+    /**
+     * Constrain a contract query to the selected pricing buckets (an OR union).
+     *
+     * The SQL always comes from `PricingCategoryResolver::scopeBucket()` so the filter
+     * cannot drift from the category the card band renders. Never hand-write it here.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<ElectricityContract>  $query
+     */
+    protected function applyPricingBucketFilter($query): void
+    {
+        $buckets = $this->constrainingPricingBuckets();
+
+        if ($buckets === []) {
+            return;
+        }
+
+        $query->where(function ($outer) use ($buckets) {
+            foreach ($buckets as $bucket) {
+                $outer->orWhere(function ($inner) use ($bucket) {
+                    PricingCategoryResolver::scopeBucket($inner, $bucket);
+                });
+            }
+        });
+    }
+
+    /**
      * Set the metering type filter.
      */
     public function setMeteringFilter(string $type): void
@@ -1222,6 +1407,7 @@ class ContractsList extends Component
     {
         $this->contractTypeFilter = '';
         $this->pricingModelFilter = '';
+        $this->pricingBucketFilter = '';
         $this->meteringFilter = '';
         $this->postcodeFilter = '';
         $this->postcodeSearch = '';
@@ -1292,13 +1478,47 @@ class ContractsList extends Component
      */
     public function hasActiveFilters(): bool
     {
+        // Any pricing-bucket selection counts, including all four. The set it lists is
+        // the same as no filter, but the state is not the canonical default, so the
+        // default-listing prepared-data cache must not serve it.
         return $this->contractTypeFilter !== ''
             || $this->pricingModelFilter !== ''
+            || $this->selectedPricingBuckets() !== []
             || $this->meteringFilter !== ''
             || $this->postcodeFilter !== ''
             || $this->renewableFilter
             || $this->nuclearFilter
             || $this->fossilFreeFilter;
+    }
+
+    /**
+     * How many of the filters hosted inside the "Rajaa hakua" accordion are active.
+     *
+     * The pricing-type pills deliberately sit OUTSIDE that accordion, so they must not
+     * open it or inflate its badge. `hasActiveFilters()` still counts them, because it
+     * gates "Tyhjennä suodattimet" and the default-listing cache; this is the narrower
+     * question the accordion asks. Keep it in step with
+     * `resources/views/partials/contract-filters.blade.php`.
+     *
+     * Legacy `pricingModelFilter` is counted even though its buttons are gone: an inbound
+     * `?pricingModelFilter=Quarterly` link still narrows the list, and a badge of zero
+     * beside a narrowed list would be a lie.
+     */
+    public function activeAccordionFilterCount(): int
+    {
+        return count(array_filter([
+            $this->contractTypeFilter !== '',
+            $this->pricingModelFilter !== '',
+            $this->postcodeFilter !== '',
+            $this->fossilFreeFilter,
+            $this->renewableFilter,
+            $this->nuclearFilter,
+        ]));
+    }
+
+    public function hasActiveAccordionFilters(): bool
+    {
+        return $this->activeAccordionFilterCount() > 0;
     }
 
     /**
@@ -1513,6 +1733,10 @@ class ContractsList extends Component
                 $query->where('pricing_model', $this->pricingModelFilter);
             }
         }
+
+        // Apply the pricing-type (bucket) filter. It sits with the other query filters
+        // so bill mode prices exactly the filtered set.
+        $this->applyPricingBucketFilter($query);
 
         // Apply metering type filter
         if ($this->meteringFilter !== '') {

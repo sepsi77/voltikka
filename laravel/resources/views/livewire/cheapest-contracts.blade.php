@@ -165,6 +165,11 @@
         </div>
     </section>
 
+    {{-- Pricing-type pills. This page has its own template (it is not the shared
+         seo-contracts-list view) and carries no filter accordion, so the pill row is
+         included on its own; it narrows the cheapest ranking to one pricing type. --}}
+    @include('partials.pricing-bucket-pills')
+
     {{-- Featured Contract (#1 Cheapest) --}}
     @if ($featuredContract)
         <section class="mb-8">

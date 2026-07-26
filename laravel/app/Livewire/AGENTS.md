@@ -278,6 +278,93 @@ Important semantics:
 - default `contract_term` mode compares määräaikainen vs toistaiseksi voimassa oleva for the määräaikainen article
 - `comparisonContext="spot_article"` keeps pörssisähkö as the left-side anchor in both tabs: pörssisähkö vs kiinteähintainen and pörssisähkö vs määräaikainen
 
+## Pricing-type filter (`?hintatyyppi=`)
+
+Primary files:
+- `ContractsList.php` (state, toggle action, legacy mapping, `applyPricingBucketFilter()`)
+- `SeoContractsList.php` (`mount()` legacy mapping call, `getContractsProperty()` filter call)
+- `../Services/ContractCard/Enums/PricingBucket.php` + `../Services/ContractCard/AGENTS.md`
+  ("The four filter buckets")
+- `../../resources/views/partials/pricing-bucket-pills.blade.php` (the visible pill row)
+- `../../tests/Feature/PricingBucketFilterTest.php`
+
+State:
+- `ContractsList::$pricingBucketFilter` is a `#[Url(as: 'hintatyyppi')]` **string** holding
+  comma-separated `PricingBucket` values (`porssisahko,kiintea`). It is a string, not an
+  array, because the value is user-visible in the URL and must stay readable; parse it with
+  `selectedPricingBuckets()`, never by hand.
+- Parsing is deliberately tolerant, like `$page`: unknown keys are dropped through
+  `PricingBucket::tryFrom()`, so `?hintatyyppi=<garbage>` degrades to "no constraint"
+  instead of a hydration error. Crawlers request malformed variants of everything.
+- **Empty and all-four both mean "no constraint"** (`constrainingPricingBuckets()` returns
+  `[]` for both), because the four buckets partition the contract set.
+- `togglePricingBucket(string $bucket)` is the UI action: it toggles membership, calls
+  `resetPage()`, rewrites the value in canonical enum order, and dispatches the existing
+  Plausible `Contracts Filter Applied` event with `filter_type = 'pricing_category'` only
+  when a bucket is turned **on**.
+- Any non-empty selection — **including all four** — makes `hasActiveFilters()` true, so
+  `isDefaultListingCacheable()` refuses to serve the prepared-data cache for it. All four
+  lists the same contracts as none, but it is not the canonical default state.
+  `resetFilters()` clears it.
+
+Query:
+- `applyPricingBucketFilter($query)` adds an OR-union of
+  `PricingCategoryResolver::scopeBucket()` calls. **Never hand-write this SQL in a
+  component** — the shared scope is what keeps the filter, the SEO pages and the card band
+  from drifting.
+- It is called from `getContractsProperty()` in both `ContractsList` and `SeoContractsList`,
+  beside the other query filters, so bill mode (`buildBillModePaginator()`) automatically
+  prices exactly the filtered set. `CheapestContracts` inherits it.
+- On an SEO page whose route already fixes a pricing type (`/sahkosopimus/porssisahko`) the
+  interactive filter composes on top (AND). It can narrow such a page, never widen it.
+
+Legacy `?pricingModelFilter=`:
+- `applyLegacyPricingModelFilter()` runs once at mount (from `ContractsList::mount()` and
+  `SeoContractsList::mount()`) and maps `Spot → porssisahko`, `FixedPrice → kiintea`,
+  `Hybrid → kulutusvaikutus`, then **clears `pricingModelFilter`** so the two filters cannot
+  double-apply. It does nothing when `hintatyyppi` is already present.
+- `Quarterly` / `TimeOfUse` / `Seasonal` keep their legacy name/metering matching untouched:
+  they are pseudo-types, not risk-transfer buckets, and have no bucket equivalent.
+- One behaviour change is intended: legacy `Hybrid` listed a Hybrid contract that also has a
+  quarterly reset; the mapped bucket does not, because market wins over consumption effect
+  and that contract's card band says Markkinahinta.
+
+UI (`partials/pricing-bucket-pills.blade.php`):
+- The row is **always visible, above the list and outside the "Rajaa hakua" accordion**. That
+  placement is the whole feature: ranking makes page 1 spot-heavy, and every filter used to
+  sit inside a collapsed accordion, so a visitor who wanted price certainty had no visible
+  way out. Do not move it back inside the accordion.
+- Included by `contracts-list.blade.php`, `seo-contracts-list.blade.php` **and**
+  `cheapest-contracts.blade.php`. The cheapest page has its own template, so it needs its own
+  include; `CompanyDetail` deliberately has none.
+- A selected pill wears its bucket's card tint (`PricingBucket::category()->tint()`, the sky /
+  violet / slate axis in `../../../DESIGN.md`), so the pill, `<x-card.legend />` and the card
+  band it lists are one system. Unselected pills stay quiet in the existing filter-button
+  idiom. Two columns below `sm`, four across above it.
+- Every Finnish string lives in the partial's `$pricingBucketPills` array. **"Päivittyvä
+  hinta" + "kvartaali- ja kuukausisähkö" is a locked user decision**; the other sub-lines are
+  short restatements of `ContractCardCopy::band()`.
+- **No per-bucket counts.** The listing applies its energy-source and consumption-range
+  filters in PHP after the query, so an honest count would need the whole filtered set
+  re-resolved per bucket, not one grouped query. Too expensive for a cached default page.
+- Dual behaviour: with `ContractsList::$showSeoFilterLinks` (true only on `SahkosopimusIndex`)
+  and **no** active filter, the three buckets that own a canonical SEO page render as
+  crawlable `<a href>` to `/sahkosopimus/porssisahko`, `/kiintea-hinta` and
+  `/kulutusvaikutus`, with `wire:click.prevent` so a real click filters in place. Any active
+  filter turns all four back into plain toggles, so filter combinations never become
+  crawlable URLs. Päivittyvä hinta owns no page and is a toggle in every state. SEO listing
+  pages stay opted out: a pill link from `/sahkosopimus/omakotitalo` would drop the housing
+  context that page ranks for.
+- Accordion scoping: the accordion's open-default and badge read
+  `ContractsList::hasActiveAccordionFilters()` / `activeAccordionFilterCount()`, which count
+  only contract type, energy source, postcode and legacy `pricingModelFilter`. A pill
+  selection must not open the accordion or inflate its badge. `hasActiveFilters()` still
+  counts pills, because it gates "Tyhjennä suodattimet" and `isDefaultListingCacheable()`.
+- The accordion's old "Hinnoittelumalli" section was removed with this row. The
+  `pricingModelFilter` property and its query logic stay so legacy links keep working; the
+  metering pseudo-types (Quarterly / TimeOfUse / Seasonal) remain reachable through their own
+  SEO pages and the "Katso myös" links.
+
 ## Contract listing page caching
 
 Primary files:

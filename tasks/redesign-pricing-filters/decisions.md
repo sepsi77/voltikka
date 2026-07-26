@@ -98,3 +98,50 @@ porssisahko, FixedPrice → kiintea, Hybrid → kulutusvaikutus, translated once
 mount when no `hintatyyppi` is present; Quarterly/TimeOfUse/Seasonal keep their
 legacy behavior (they are metering/name-based pseudo-types, not risk-transfer
 buckets).
+
+## 2026-07-26 — steps 2–4 (state + wiring + legacy mapping) done
+
+Property is `pricingBucketFilter` (string, `#[Url(as: 'hintatyyppi')]`,
+comma-separated). Public API for the UI: `selectedPricingBuckets()`,
+`isPricingBucketSelected(string)`, `togglePricingBucket(string)` (Plausible
+`Contracts Filter Applied`, `filter_type = pricing_category`, fired on turn-on
+only). Applied in both `getContractsProperty()` paths, so bill mode and
+`CheapestContracts`/`SahkosopimusIndex` inherit it; on route-typed SEO pages it
+composes as AND. Legacy mapping happens in `mount()` via
+`applyLegacyPricingModelFilter()`. 0 or all-4 selected = no query constraint, but
+any non-empty selection counts as an active filter. New
+`tests/Feature/PricingBucketFilterTest.php` (17 tests); full suite 1291 passed.
+Documented in `Livewire/AGENTS.md` ("Pricing-type filter (`?hintatyyppi=`)").
+
+Notes for the UI unit: per-bucket counts do not exist yet; the accordion
+"Hinnoittelumalli" section still renders but arrives inactive on legacy query
+strings (mapping clears the property); the accordion open/badge logic keys on
+`hasActiveFilters()`, which now includes pill selections — the UI unit must split
+those so pill use does not auto-open the accordion.
+
+## 2026-07-26 — steps 5–6 (pill row UI + accordion + SEO links) done
+
+Pill row partial `partials/pricing-bucket-pills.blade.php`, included above the
+accordion in `contracts-list`, `seo-contracts-list`, and `cheapest-contracts`
+templates (cheapest has its own template — verified; company pages have no filter
+partials and are untouched). Selected pills use the band tints via
+`PricingBucket::category()->tint()` so filter, legend and cards match. 2×2 grid
+below `sm`. Accordion "Hinnoittelumalli" section removed; badge/open-default now
+use accordion-scoped helpers (`activeAccordionFilterCount()` /
+`hasActiveAccordionFilters()`), so pill use never opens the accordion.
+`showSeoFilterLinks` restored (it had been deleted in commit a30bd04); only
+`SahkosopimusIndex` opts in; porssisahko/kulutusvaikutus/kiintea pills render as
+crawlable anchors in the no-filter state, paivittyva is always a toggle.
+Verified in the browser at 1440/375 px. Full suite 1297 passed; `npm run build` ok.
+
+**Per-bucket counts dropped (spec allowed "when cheap"):** energy-source and
+consumption-range filters apply in PHP after `->get()`, so a SQL grouped count
+would disagree with the visible totals; an honest count is too expensive for the
+cached default payload. Revisit only if those filters move into SQL.
+
+**Stale doc found:** root AGENTS.md claims `/` → `ContractsList`; actually `/`
+serves the marketing `HomePage` (no contract list) and `ContractsList` has no
+route of its own. Not fixed here (unrelated to this task).
+
+**Minor polish option:** at 640–700 px the kulutusvaikutus sub-line wraps to
+three lines; fallback copy if wanted: "kiinteä hinta ± käyttöaika".

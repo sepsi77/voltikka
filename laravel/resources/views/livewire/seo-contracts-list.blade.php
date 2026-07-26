@@ -683,6 +683,9 @@
         </section>
     @endif
 
+    {{-- Pricing-type pills: always visible, above the list and outside the accordion. --}}
+    @include('partials.pricing-bucket-pills')
+
     {{-- Filter Section (shared partial) --}}
     @include('partials.contract-filters')
 

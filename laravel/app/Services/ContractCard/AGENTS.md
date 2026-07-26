@@ -87,11 +87,16 @@ pricing-type filter (`?hintatyyppi=`, comma-separated). It is the three categori
   `scopeBucket()` are assembled from the same private `spotConstraint()` /
   `marketConstraint()` / `effectConstraint()` closures, so a rule cannot be changed in one
   and not the other. **Never hand-write this SQL in a Livewire component.**
-- `PricingBucket::category()` gives the card category, so a filter pill can reuse the band
-  tint and the filter, the legend and the cards read as one system.
+- `PricingBucket::category()` gives the card category, and the visible pill row
+  (`../../../resources/views/partials/pricing-bucket-pills.blade.php`) uses it for the tint of
+  a selected pill, so the filter, the legend and the cards read as one system.
 
 `ContractCardPresenterTest::test_the_bucket_scope_agrees_with_the_resolver_and_partitions_the_set`
 pins the parity, the partition, and the spot-plus-reset case.
+
+The consumer is `ContractsList::$pricingBucketFilter` / `applyPricingBucketFilter()`, which
+unions the selected buckets' scopes; see `../../Livewire/AGENTS.md` ("Pricing-type filter")
+for the URL state, the legacy `?pricingModelFilter=` mapping and the caching rules.
 
 **Known gap, not yet fixed:** the SQL negations (`whereNot`) rely on three-valued logic, so a
 contract with `canonical_pricing` NULL (or a NULL `pricing_model`) evaluates to SQL NULL and

@@ -1,11 +1,11 @@
 [
   { "name": "Add granular four-bucket scope beside PricingCategoryResolver::scopeCategory (spot / non-spot reset / effect / fixed) + parity test", "status": "completed" },
-  { "name": "Add pricingCategoryFilter multi-select state to ContractsList (#[Url], resetPage, hasActiveFilters, cacheability guard, Plausible event)", "status": "in_progress" },
-  { "name": "Apply the bucket filter in getContractsProperty (ContractsList + SeoContractsList inheritance paths, incl. bill mode)", "status": "in_progress" },
-  { "name": "Map/keep legacy ?pricingModelFilter= values working", "status": "in_progress" },
-  { "name": "Build the visible pill row UI with category tints and counts; slim the accordion (remove Hinnoittelumalli section)", "status": "pending" },
-  { "name": "SEO dual-behavior links for pills where a canonical SEO page exists", "status": "pending" },
+  { "name": "Add pricingCategoryFilter multi-select state to ContractsList (#[Url], resetPage, hasActiveFilters, cacheability guard, Plausible event)", "status": "completed" },
+  { "name": "Apply the bucket filter in getContractsProperty (ContractsList + SeoContractsList inheritance paths, incl. bill mode)", "status": "completed" },
+  { "name": "Map/keep legacy ?pricingModelFilter= values working", "status": "completed" },
+  { "name": "Build the visible pill row UI with category tints and counts; slim the accordion (remove Hinnoittelumalli section)", "status": "completed" },
+  { "name": "SEO dual-behavior links for pills where a canonical SEO page exists", "status": "completed" },
   { "name": "Rewrite hybrid band detail copy in ContractCardCopy::band(); check CardReceiptLines wording", "status": "completed" },
-  { "name": "Update tests (filters, page cache, presenter, bill mode) and run the suite", "status": "pending" },
-  { "name": "Update AGENTS.md files (root, Livewire, ContractCard) and DESIGN.md if the pill row adds a pattern", "status": "pending" }
+  { "name": "Update tests (filters, page cache, presenter, bill mode) and run the suite", "status": "completed" },
+  { "name": "Update AGENTS.md files (root, Livewire, ContractCard) and DESIGN.md if the pill row adds a pattern", "status": "completed" }
 ]

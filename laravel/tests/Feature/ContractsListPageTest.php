@@ -423,7 +423,12 @@ class ContractsListPageTest extends TestCase
     }
 
     /**
-     * Test that contract type is displayed.
+     * Test that a listed contract states its pricing category.
+     *
+     * This used to assert the bare string "Spot" against an inactive contract, so it was
+     * really matching the accordion's `setPricingModelFilter('Spot')` markup. That section
+     * is gone (pricing type is the visible pill row now), so the test asserts what it
+     * claims: an active spot contract renders the market type band.
      */
     public function test_contract_type_is_displayed(): void
     {
@@ -431,7 +436,8 @@ class ContractsListPageTest extends TestCase
             'id' => 'spot-contract',
             'company_name' => 'Test Energia Oy',
             'name' => 'Spot Sähkö',
-            'contract_type' => 'Spot',
+            'contract_type' => 'OpenEnded',
+            'pricing_model' => 'Spot',
             'metering' => 'General',
             'availability_is_national' => true,
         ]);
@@ -445,8 +451,11 @@ class ContractsListPageTest extends TestCase
             'payment_unit' => 'c/kWh',
         ]);
 
+        ActiveContract::create(['id' => 'spot-contract']);
+
         Livewire::test('contracts-list')
-            ->assertSee('Spot'); // Contract type label
+            ->assertSee('Spot Sähkö')
+            ->assertSee('Hinta seuraa pörssin tuntihintaa');
     }
 
     /**

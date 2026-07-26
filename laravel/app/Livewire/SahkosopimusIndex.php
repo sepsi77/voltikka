@@ -30,6 +30,15 @@ class SahkosopimusIndex extends SeoContractsList
     public bool $showBillComparison = true;
 
     /**
+     * `/sahkosopimus` is the one listing page where the pricing-type pills may render as
+     * crawlable links to `/sahkosopimus/porssisahko`, `/kiintea-hinta` and
+     * `/kulutusvaikutus`. The SEO listing pages keep them as plain toggles: from
+     * `/sahkosopimus/omakotitalo` a pill link would drop the housing context it was
+     * ranking for, and the homepage is not a filter-crawl surface.
+     */
+    public bool $showSeoFilterLinks = true;
+
+    /**
      * Generate SEO-optimized title for the comparison index page.
      * When filters are active, use filter-aware title from parent.
      * Page suffix is added for pages > 1.

@@ -149,6 +149,8 @@ php artisan test --filter="ContractsFilterTest"
 - **Location**: `app/Livewire/ContractsList.php`, `SahkosopimusIndex.php`
 - **Route**: `/`, `/sahkosopimus`
 - Filters by pricing model, contract type, energy source, housing type
+- **Pricing-type filter** `?hintatyyppi=porssisahko,kiintea` (multi-select include semantics over the four `PricingBucket` cases: `porssisahko` / `paivittyva` / `kulutusvaikutus` / `kiintea`). It filters in SQL through the shared `PricingCategoryResolver::scopeBucket()`, so the bucket that listed a contract always agrees with its card band. Legacy `?pricingModelFilter=Spot|FixedPrice|Hybrid` links are mapped onto it once at mount; see `laravel/app/Livewire/AGENTS.md`
+- It renders as a row of four toggle pills (`resources/views/partials/pricing-bucket-pills.blade.php`) that is **always visible above the contract list on every listing page**, outside the collapsed "Rajaa hakua" accordion, because ranking makes page 1 spot-heavy and a hidden filter did not help a visitor who wants price certainty. A selected pill carries its category's card tint. The accordion keeps duration, energy source and postcode; its old "Hinnoittelumalli" section was removed
 - Calculates annual costs based on user consumption
 - SEO-optimized filter links with dual behavior (see SEO section)
 - Low-prominence market-insight pills on comparison heroes reuse cached precomputed price statistics/forecasts; they are informational only and do not affect ranking
@@ -512,13 +514,13 @@ Pages include JSON-LD structured data for rich search results:
 Implementation: Each Livewire component has a `getJsonLdSchema()` method that returns the schema data, rendered via `<x-schema-markup>` component.
 
 ### Filter Links (Dual Behavior)
-The filter buttons in ContractsList have dual behavior for SEO optimization:
+The visible pricing-type pills (`resources/views/partials/pricing-bucket-pills.blade.php`) have dual behavior for SEO optimization:
 
-1. **When NO filters are selected**: Filter buttons render as `<a href="...">` links with URL query parameters (e.g., `?pricingModelFilter=Spot`). This allows search engines to crawl and index filtered views.
+1. **When NO filters are selected**: the three buckets that own a canonical SEO page render as `<a href="...">` links to that page (`/sahkosopimus/porssisahko`, `/sahkosopimus/kiintea-hinta`, `/sahkosopimus/kulutusvaikutus`), so search engines crawl the real landing page instead of a query-string variant. `wire:click.prevent` keeps a human click filtering in place.
 
-2. **When ANY filter IS selected**: Filter buttons become Livewire toggle buttons (`wire:click`). This prevents infinite URL combinations.
+2. **When ANY filter IS selected**: every pill becomes a Livewire toggle button (`wire:click`). This prevents infinite URL combinations.
 
-The `showSeoFilterLinks` property controls this behavior - enabled only on `/sahkosopimus` routes, not on the homepage.
+The `ContractsList::$showSeoFilterLinks` property controls this behavior — enabled only on `/sahkosopimus` (`SahkosopimusIndex`), not on the SEO listing pages or the cheapest page, where a pill link would drop the context that page ranks for. The `paivittyva` bucket owns no canonical page and stays a toggle in every state. See `laravel/app/Livewire/AGENTS.md` ("Pricing-type filter").
 
 ### Pagination SEO
 - URLs use query string `?page=N` for unique, crawlable URLs

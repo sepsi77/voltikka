@@ -263,6 +263,8 @@ class SeoContractsList extends ContractsList
             }
         }
 
+        $this->applyLegacyPricingModelFilter();
+
         $this->normalizePageProperty();
     }
 
@@ -369,6 +371,11 @@ class SeoContractsList extends ContractsList
                 $query->where('pricing_model', $effectivePricingFilter);
             }
         }
+
+        // Apply the interactive pricing-type (bucket) filter. On a page whose route
+        // already fixes a pricing type it composes on top (AND), so a visitor can narrow
+        // /sahkosopimus/porssisahko further but never widen it.
+        $this->applyPricingBucketFilter($query);
 
         // Apply metering type filter
         if ($this->meteringFilter !== '') {
