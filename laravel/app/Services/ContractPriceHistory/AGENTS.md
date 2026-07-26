@@ -63,6 +63,26 @@ variant plots the market instead. This follows the approved
   returns the real changes plus `last_date`; `plateauPoints()` adds the terminal
   point only for drawing. Counting the terminal plateau as a change made the
   behaviour record claim a price move that never happened.
+- **A 0,00 c/kWh energy observation is dropped when the same component type is
+  priced above zero on another observed date** (`withoutCollidedZeroEnergyPrices()`).
+  This is a display guard against a known ingestion artifact, not a rule that
+  zero cannot be a price. The upstream payload can send two `General` components
+  with the null UUID and the same fuse size, one real and one zero; they collapse
+  to one relational key, and before `ContractInterpretation\CanonicalPriceComponentWriter`
+  learned to select the positive row (2026-07-25) the zero could win the day's
+  upsert. Nine active contracts (eight Vaasan Sähkö Vaikuttaja variants plus
+  Herrfors Vakaa+) still carry false zeros on 23.–24.7.2026, and the chart drew
+  them as a vertical drop to zero while the version timeline underneath kept
+  showing the real price, because every other surface already prefers a positive
+  row. **The stored rows are still wrong**; repairing them from the immutable
+  source snapshots is a production mutation and needs explicit confirmation.
+  Two exclusions are deliberate: **spot contracts are skipped entirely** (their
+  tracked component is the margin, and a 0 c/kWh margin is a real commercial
+  position), and **`Monthly` is skipped** (dropping a base fee to 0 €/kk is an
+  ordinary seller move). A genuinely zero-priced package component survives
+  because it is zero on *every* observed date: Helen Helpposähkö, Väre
+  Kuukausisähkö and Vattenfall Ilmasto Vakio charge nothing per kWh and still
+  chart a flat 0,00 line.
 - **Point markers are dropped past 12 change points.** Near-daily repricers exist
   (Lumme Vuosisähkö 6 kk moved 45 times in 3 months across its replacement
   chain) and 45 dots turn the line into a smear.
@@ -74,3 +94,24 @@ can span several contract IDs of one lineage. That is deliberate: sellers
 republish a fixed-term offer as a new contract row on every reprice, and the
 lineage is the product. It also means the change count describes the lineage,
 not one database row.
+
+### Repairing the collided rows
+
+The display guard above hides the artifact; it does not fix the stored data.
+`contracts:repair-price-component-collisions` does that, rebuilding each poisoned
+row from the `contract_source_snapshots` payload that was in observation on its
+date, through `ContractInterpretation\CanonicalPriceComponentWriter::resolveRows()`
+so a repaired row is byte-identical to what a correct import would have written.
+
+- **Dry run by default**; `--apply` is the only thing that writes, inside one
+  transaction. `--contract=` and `--date=` narrow the scope.
+- **Evidence, never inference.** A row with no covering snapshot, no positive
+  candidate in the payload, or a resolved type that disagrees with the stored row
+  is reported and skipped. Nothing is ever filled in from a neighbouring day.
+- A storage key that is non-positive on *every* observed date is a real
+  zero-priced component and is never a candidate.
+- Page caches hold the old series, so run `php artisan cache:clear` afterwards.
+
+**Keep the display guard after the data is repaired.** It costs nothing on clean
+data, and it is the only thing standing between a future ingestion regression and
+a published price chart that crashes to zero.

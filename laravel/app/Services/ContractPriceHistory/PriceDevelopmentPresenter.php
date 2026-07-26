@@ -37,6 +37,9 @@ class PriceDevelopmentPresenter
     /** Below this many completed months the spot volatility chart is noise. */
     public const MIN_SPOT_MONTHS = 3;
 
+    /** The one €/kk component type; every other type is an energy price. */
+    private const FEE_TYPE = 'Monthly';
+
     /** Completed months plotted in the spot variant. */
     private const SPOT_MONTHS = 12;
 
@@ -79,12 +82,17 @@ class PriceDevelopmentPresenter
      */
     public function present(ElectricityContract $contract, array $priceHistory, array $calculatedCost = []): array
     {
-        $byDate = $this->componentsByDate($priceHistory);
-        $trackedSince = $byDate === [] ? null : Carbon::parse((string) array_key_first($byDate))->startOfDay();
         $isSpot = $contract->pricing_model === 'Spot';
+        $byDate = $this->componentsByDate($priceHistory);
+
+        if (! $isSpot) {
+            $byDate = $this->withoutCollidedZeroEnergyPrices($byDate);
+        }
+
+        $trackedSince = $byDate === [] ? null : Carbon::parse((string) array_key_first($byDate))->startOfDay();
 
         $energySeries = $this->changeSeries($byDate, fn (array $components) => $this->representativeEnergy($components, $isSpot));
-        $feeSeries = $this->changeSeries($byDate, fn (array $components) => $components['Monthly'] ?? null);
+        $feeSeries = $this->changeSeries($byDate, fn (array $components) => $components[self::FEE_TYPE] ?? null);
 
         $result = $isSpot
             ? $this->spotVariant($contract, $calculatedCost, $energySeries, $feeSeries, $trackedSince)
@@ -788,6 +796,74 @@ class PriceDevelopmentPresenter
     }
 
     /**
+     * Drop a 0,00 c/kWh energy observation from a contract that is priced above
+     * zero somewhere else in the same window.
+     *
+     * The upstream payload can carry two `General` components for one contract,
+     * both with the null UUID and the same fuse size, one holding the real
+     * energy price and one holding a zero placeholder. They resolve to a single
+     * relational key, and before `CanonicalPriceComponentWriter` learned to
+     * collapse them deterministically the zero could win the day's upsert. The
+     * surviving rows are real database rows, so nothing downstream can tell
+     * them apart from a price — and every other surface on the detail page
+     * already prefers a positive row, so the chart was the only place that drew
+     * the artifact. It drew it as a vertical drop to zero on the last observed
+     * day, and the behaviour tags then reported that drop as a price change.
+     *
+     * A zero is only dropped when the same component type is positive on
+     * another observed date, so a genuinely zero-priced package component is
+     * kept: 7 active contracts (Helen Helpposähkö, Väre Kuukausisähkö,
+     * Vattenfall Ilmasto Vakio) charge nothing per kWh and price at zero on
+     * every single observed date, which this rule never touches. What it
+     * excludes is the mixed shape — positive for months, then exactly zero —
+     * and no seller has ever published that; it is the collision artifact.
+     *
+     * Two deliberate exclusions:
+     *
+     * - **Spot contracts are skipped entirely** (the caller decides). Their
+     *   tracked component is the margin, and a 0 c/kWh margin is a real
+     *   commercial position a seller can move to and back.
+     * - **`Monthly` is skipped.** Dropping a base fee to 0 €/kk is an ordinary
+     *   seller move, and the fee series has to be able to show it.
+     *
+     * This is a display guard, not a repair. The stored rows stay wrong until
+     * they are rebuilt from the immutable source snapshots.
+     *
+     * @param  array<string, array<string, float>>  $byDate
+     * @return array<string, array<string, float>>
+     */
+    private function withoutCollidedZeroEnergyPrices(array $byDate): array
+    {
+        $pricedTypes = [];
+
+        foreach ($byDate as $components) {
+            foreach ($components as $type => $price) {
+                if ($type !== self::FEE_TYPE && $price > 0) {
+                    $pricedTypes[$type] = true;
+                }
+            }
+        }
+
+        if ($pricedTypes === []) {
+            return $byDate;
+        }
+
+        foreach ($byDate as $date => $components) {
+            foreach ($components as $type => $price) {
+                if ($price <= 0 && isset($pricedTypes[$type])) {
+                    unset($byDate[$date][$type]);
+                }
+            }
+
+            if ($byDate[$date] === []) {
+                unset($byDate[$date]);
+            }
+        }
+
+        return $byDate;
+    }
+
+    /**
      * Collapse a daily observation series into its actual changes. Voltikka
      * imports every contract every day, so the raw rows are mostly repeats.
      *
@@ -860,7 +936,7 @@ class PriceDevelopmentPresenter
     {
         if ($isSpot) {
             foreach ($components as $type => $price) {
-                if ($type !== 'Monthly') {
+                if ($type !== self::FEE_TYPE) {
                     return $price;
                 }
             }

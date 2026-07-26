@@ -8,6 +8,7 @@ use App\Models\ContractPriceDailyStatistic;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
+use App\Services\ContractPriceHistory\PriceDevelopmentPresenter;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -355,6 +356,114 @@ class ContractDetailPriceDevelopmentTest extends TestCase
 
         Livewire::test('contract-detail', ['contractId' => $contract->id])
             ->assertSeeInOrder(['-0,50', 'c/kWh', 'Energiahinta muuttui']);
+    }
+
+    // ------------------------------------------------------------------
+    // Zero energy prices: the duplicate null-UUID collision artifact
+    // ------------------------------------------------------------------
+
+    /**
+     * The upstream payload can send two `General` components for one contract,
+     * both with the null UUID and the same fuse size, one real and one zero.
+     * They collapse to a single relational key, and a day whose upsert let the
+     * zero win stores an energy price of 0,00 c/kWh beside months of real
+     * prices. The chart used to plot it as a vertical drop to zero, and the
+     * behaviour tags reported that drop as a price change, while the version
+     * timeline six pixels below kept showing the real price.
+     */
+    public function test_a_zero_energy_price_beside_real_prices_is_not_charted(): void
+    {
+        $contract = $this->openEndedContract('history-collided-zero');
+        $this->generalPriceSeries($contract->id, [
+            '2026-01-10' => 7.88,
+            '2026-07-22' => 7.88,
+            // The collision artifact: two observed days at exactly zero.
+            '2026-07-23' => 0.00,
+            '2026-07-24' => 0.00,
+        ]);
+        $this->monthlyFee($contract->id, '2026-01-10', 4.05);
+        $this->monthlyFee($contract->id, '2026-07-24', 4.05);
+
+        $development = Livewire::test('contract-detail', ['contractId' => $contract->id])
+            ->viewData('priceDevelopment');
+
+        $chart = $development['chart'];
+
+        // The line ends on the last trusted observation, at the real price.
+        $this->assertSame('7,88', $chart['series_end_label']['text']);
+        foreach ($chart['series_points'] as $point) {
+            $this->assertGreaterThan(0, $point['value']);
+        }
+
+        // The sr-only table mirror and the hover bands share these rows, so
+        // they cannot disagree with the line.
+        foreach ($chart['rows'] as $row) {
+            $this->assertNotSame('0,00', $row['series']);
+        }
+
+        // No invented price change, and no invented -7,88 c/kWh drop.
+        $this->assertContains('Energianhinta ennallaan koko seurannan ajan', $development['facts']);
+        foreach ($development['facts'] as $fact) {
+            $this->assertStringNotContainsString('Viimeisin muutos', $fact);
+        }
+
+        // The monthly fee is unaffected by the energy-side guard.
+        $this->assertContains('Perusmaksu ennallaan koko seurannan ajan', $development['facts']);
+    }
+
+    /**
+     * Zero is a real per-kWh price for a flat-fee package contract (Helen
+     * Helpposähkö, Väre Kuukausisähkö, Vattenfall Ilmasto Vakio). Those price
+     * at zero on every observed date, so the guard must leave them alone.
+     */
+    public function test_a_contract_priced_at_zero_throughout_keeps_its_zero_series(): void
+    {
+        $contract = $this->openEndedContract('history-package-zero');
+        $this->generalPriceSeries($contract->id, [
+            '2026-03-07' => 0.00,
+            '2026-05-01' => 0.00,
+            '2026-07-25' => 0.00,
+        ]);
+        $this->monthlyFee($contract->id, '2026-03-07', 39.90);
+        $this->monthlyFee($contract->id, '2026-07-25', 39.90);
+
+        $development = Livewire::test('contract-detail', ['contractId' => $contract->id])
+            ->viewData('priceDevelopment');
+
+        $this->assertTrue($development['available']);
+        $this->assertSame('0,00', $development['chart']['series_end_label']['text']);
+        $this->assertContains('Energianhinta ennallaan koko seurannan ajan', $development['facts']);
+    }
+
+    /**
+     * A spot contract's tracked component is its margin, and a 0 c/kWh margin
+     * is a real commercial position, so the guard must not reach it.
+     */
+    public function test_a_spot_margin_of_zero_is_left_alone(): void
+    {
+        $contract = $this->spotContract('history-zero-margin');
+        $this->monthlySpotAverages([
+            '2026-04' => 4.10,
+            '2026-05' => 3.40,
+            '2026-06' => 2.90,
+        ]);
+
+        // Called directly, because the relational calculator resolves the
+        // margin from the latest *positive* component and would never report a
+        // zero margin back into the payload.
+        $development = app(PriceDevelopmentPresenter::class)->present(
+            $contract,
+            ['General' => [
+                ['date' => '2026-07-25', 'price' => 0.00],
+                ['date' => '2026-06-01', 'price' => 0.00],
+                ['date' => '2026-01-10', 'price' => 0.60],
+            ]],
+            ['spot_price_margin' => 0.0],
+        );
+
+        $this->assertSame('spot', $development['variant']);
+        $this->assertContains('Marginaalia laskettu kerran 6 kuukauden seurannan aikana', $development['facts']);
+        $this->assertContains('Viimeisin muutos -0,60 c/kWh (1.6.2026)', $development['facts']);
     }
 
     // ------------------------------------------------------------------
