@@ -4,6 +4,7 @@ namespace App\Services\ContractCard;
 
 use App\Models\ElectricityContract;
 use App\Services\ContractCard\DTO\PricingCategoryFacts;
+use App\Services\ContractCard\Enums\PricingBucket;
 use App\Services\ContractCard\Enums\PricingCategory;
 use Carbon\CarbonImmutable;
 
@@ -78,27 +79,71 @@ class PricingCategoryResolver
      */
     public static function scopeCategory($query, PricingCategory $category): void
     {
-        $market = static function ($q): void {
-            $q->where('pricing_model', 'Spot')
-                ->orWhere(function ($reset): void {
-                    $reset->where('canonical_pricing->recurring_schedule->present', true)
-                        ->whereIn('canonical_pricing->recurring_schedule->cadence', self::RESET_CADENCES);
-                });
-        };
-
-        $effect = static function ($q): void {
-            $q->where('pricing_model', 'Hybrid')
-                ->orWhere(function ($disclosed): void {
-                    $disclosed->where('canonical_pricing->consumption_effect->present', true)
-                        ->whereIn('canonical_pricing->consumption_effect->applies_to', self::BASE_CONTRACT_EFFECT);
-                });
-        };
+        $market = self::marketConstraint();
+        $effect = self::effectConstraint();
 
         match ($category) {
             PricingCategory::Market => $query->where($market),
             // Market wins over consumption effect, so the effect category must exclude it.
             PricingCategory::ConsumptionEffect => $query->whereNot($market)->where($effect),
             PricingCategory::Fixed => $query->whereNot($market)->whereNot($effect),
+        };
+    }
+
+    /**
+     * Constrain a query to one pricing bucket — the granular form of scopeCategory(), used by
+     * the visible pricing-type filter (`?hintatyyppi=`).
+     *
+     * Built from the same constraints as scopeCategory() so the filter, the SEO pages and the
+     * card band cannot drift apart. The buckets partition the contract set, so the four scopes
+     * are disjoint and their union is every contract.
+     *
+     * @param \Illuminate\Database\Eloquent\Builder<ElectricityContract> $query
+     */
+    public static function scopeBucket($query, PricingBucket $bucket): void
+    {
+        $spot = self::spotConstraint();
+        $market = self::marketConstraint();
+        $effect = self::effectConstraint();
+
+        match ($bucket) {
+            PricingBucket::Spot => $query->where($spot),
+            // Spot wins inside the market category, so the reset bucket must exclude it.
+            PricingBucket::MarketReset => $query->whereNot($spot)->where($market),
+            PricingBucket::ConsumptionEffect => $query->whereNot($market)->where($effect),
+            PricingBucket::Fixed => $query->whereNot($market)->whereNot($effect),
+        };
+    }
+
+    /** The SQL form of `$isSpot` in resolve(). */
+    private static function spotConstraint(): \Closure
+    {
+        return static function ($q): void {
+            $q->where('pricing_model', 'Spot');
+        };
+    }
+
+    /** The SQL form of `$isSpot || $isReset` in resolve(). */
+    private static function marketConstraint(): \Closure
+    {
+        return static function ($q): void {
+            $q->where(self::spotConstraint())
+                ->orWhere(function ($reset): void {
+                    $reset->where('canonical_pricing->recurring_schedule->present', true)
+                        ->whereIn('canonical_pricing->recurring_schedule->cadence', self::RESET_CADENCES);
+                });
+        };
+    }
+
+    /** The SQL form of `$hasConsumptionEffect` in resolve(). */
+    private static function effectConstraint(): \Closure
+    {
+        return static function ($q): void {
+            $q->where('pricing_model', 'Hybrid')
+                ->orWhere(function ($disclosed): void {
+                    $disclosed->where('canonical_pricing->consumption_effect->present', true)
+                        ->whereIn('canonical_pricing->consumption_effect->applies_to', self::BASE_CONTRACT_EFFECT);
+                });
         };
     }
 

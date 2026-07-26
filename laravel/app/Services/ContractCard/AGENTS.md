@@ -26,7 +26,8 @@ writing a Finnish sentence is how the drift happened.
 | File | Purpose |
 |---|---|
 | `Enums/PricingCategory.php` | The three categories. Not `pricing_model`, not `metering`. |
-| `PricingCategoryResolver.php` | Contract → category + mechanism facts. Also `scopeCategory()` for queries. |
+| `Enums/PricingBucket.php` | The four filter buckets: the categories with Market split spot / reset. |
+| `PricingCategoryResolver.php` | Contract → category + mechanism facts. Also `scopeCategory()` / `scopeBucket()` for queries. |
 | `ContractCardCopy.php` | Every Finnish sentence, generated from typed fields. |
 | `CardReceiptLines.php` | The itemised price rows, capped at three. |
 | `CardFooterItems.php` | Warnings (priority ordered, max two) and fact tags. |
@@ -60,6 +61,46 @@ Decisions that must not be casually changed:
 kiintea-hinta / yleissahko / kulutusvaikutus pages. **Keep it in step with `resolve()`** — a
 divergence means a contract is listed on a page whose category contradicts its own card.
 `ContractCardPresenterTest::test_the_query_scope_agrees_with_the_resolver` pins the parity.
+
+## The four filter buckets
+
+`Enums/PricingBucket` is the granular form of the same taxonomy, used by the visible
+pricing-type filter (`?hintatyyppi=`, comma-separated). It is the three categories with
+**Market split into spot and non-spot resets**, because "follows the hourly exchange" and
+"the seller republishes a price each quarter" are different amounts of risk for the customer.
+
+| Bucket | Value (URL) | Rule |
+|---|---|---|
+| Pörssisähkö | `porssisahko` | `pricing_model = Spot` |
+| Päivittyvä hinta | `paivittyva` | not spot, and a reset schedule with a cadence in monthly/quarterly/seasonal/other |
+| Kulutusvaikutus | `kulutusvaikutus` | the `PricingCategory::ConsumptionEffect` rule |
+| Kiinteä hinta | `kiintea` | the `PricingCategory::Fixed` rule |
+
+- **The buckets partition the contract set.** Every contract is in exactly one, and
+  `porssisahko ∪ paivittyva` is exactly the `Market` category scope. That is what makes
+  multi-select include semantics well defined and per-bucket counts add up.
+- **Spot wins inside the market category**, mirroring "market wins over consumption effect":
+  a spot contract that also carries a reset schedule is Pörssisähkö, not Päivittyvä hinta,
+  because the hourly exchange price is what the customer pays.
+- `PricingBucket::fromFacts()` maps resolver output to a bucket;
+  `PricingCategoryResolver::scopeBucket()` is its SQL form. Both `scopeCategory()` and
+  `scopeBucket()` are assembled from the same private `spotConstraint()` /
+  `marketConstraint()` / `effectConstraint()` closures, so a rule cannot be changed in one
+  and not the other. **Never hand-write this SQL in a Livewire component.**
+- `PricingBucket::category()` gives the card category, so a filter pill can reuse the band
+  tint and the filter, the legend and the cards read as one system.
+
+`ContractCardPresenterTest::test_the_bucket_scope_agrees_with_the_resolver_and_partitions_the_set`
+pins the parity, the partition, and the spot-plus-reset case.
+
+**Known gap, not yet fixed:** the SQL negations (`whereNot`) rely on three-valued logic, so a
+contract with `canonical_pricing` NULL (or a NULL `pricing_model`) evaluates to SQL NULL and
+falls out of *every* category and bucket, although `resolve()` calls it Fixed. No active
+contract is affected today (measured 2026-07-26: 0 of 425 active rows have a NULL
+`pricing_model` or NULL `canonical_pricing` leaf; the 3 249 NULL-`canonical_pricing` rows are
+all inactive), because new contracts stay inactive until an interpretation publishes. If that
+ever changes, guard each leaf with `whereNotNull` inside the positive constraints so they
+return false instead of NULL.
 
 ## The type band is single purpose
 

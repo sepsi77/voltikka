@@ -60,7 +60,7 @@ class ContractCardCopy
             return new CardTypeBand(
                 category: PricingCategory::ConsumptionEffect,
                 headline: 'Kiinteä hinta + kulutusvaikutus',
-                detail: 'Korjaus riippuu kulutusprofiilistasi',
+                detail: 'Vaikutus riippuu siitä, mihin aikaan käytät sähköä',
                 icon: 'pulse',
             );
         }

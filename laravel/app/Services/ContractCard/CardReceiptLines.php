@@ -75,7 +75,7 @@ class CardReceiptLines
         if ($facts->category === PricingCategory::ConsumptionEffect) {
             return [
                 new CardReceiptLine('Perushinta', $this->amount($this->baseRate($rates, $metering)), 'c/kWh'),
-                new CardReceiptLine('Kulutusvaikutus', '± profiilisi mukaan', null, soft: true),
+                new CardReceiptLine('Kulutusvaikutus', '± käyttöajan mukaan', null, soft: true),
             ];
         }
 

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ElectricityContract;
 use App\Services\ContractCard\ContractCardPresenter;
+use App\Services\ContractCard\Enums\PricingBucket;
 use App\Services\ContractCard\Enums\PricingCategory;
 use App\Services\ContractCard\PricingCategoryResolver;
 use Carbon\CarbonImmutable;
@@ -150,6 +151,9 @@ class ContractCardPresenterTest extends TestCase
 
         $this->assertSame(PricingCategory::ConsumptionEffect, $card->category);
         $this->assertSame('Kiinteä hinta + kulutusvaikutus', $card->band->headline);
+        // The band detail deliberately repeats the popover phrasing in hybridBody(), so the
+        // band and the Arvio explanation describe the effect the same way.
+        $this->assertSame('Vaikutus riippuu siitä, mihin aikaan käytät sähköä', $card->band->detail);
     }
 
     public function test_hybrid_without_a_consumption_effect_block_still_falls_into_the_effect_category(): void
@@ -319,7 +323,7 @@ class ContractCardPresenterTest extends TestCase
         ], ['estimate_method' => 'hybrid_base_only', 'general_kwh_price' => 8.59, 'monthly_fixed_fee' => 0.0]));
 
         $this->assertSame(['Perushinta', 'Kulutusvaikutus', 'Perusmaksu'], array_map(fn ($l) => $l->label, $card->receiptLines));
-        $this->assertSame('± profiilisi mukaan', $card->receiptLines[1]->value);
+        $this->assertSame('± käyttöajan mukaan', $card->receiptLines[1]->value);
         $this->assertNull($card->receiptLines[1]->unit);
         $this->assertTrue($card->receiptLines[1]->soft);
     }
@@ -753,5 +757,78 @@ class ContractCardPresenterTest extends TestCase
 
             $this->assertSame($expected, $actual, "scopeCategory disagrees with resolve() for {$category->value}");
         }
+    }
+
+    public function test_the_bucket_scope_agrees_with_the_resolver_and_partitions_the_set(): void
+    {
+        $fixtures = [
+            ['id' => 'buc-spot', 'pricing_model' => 'Spot', 'canonical_pricing' => $this->canonicalPricing()],
+            // Spot wins inside the market category: a spot contract that also carries a reset
+            // schedule is Pörssisähkö, not Päivittyvä hinta.
+            ['id' => 'buc-spot-reset', 'pricing_model' => 'Spot', 'canonical_pricing' => $this->canonicalPricing(['present' => true, 'cadence' => 'quarterly'])],
+            ['id' => 'buc-reset-quarterly', 'pricing_model' => 'FixedPrice', 'canonical_pricing' => $this->canonicalPricing(['present' => true, 'cadence' => 'quarterly'])],
+            ['id' => 'buc-reset-monthly', 'pricing_model' => 'FixedPrice', 'canonical_pricing' => $this->canonicalPricing(['present' => true, 'cadence' => 'monthly'])],
+            ['id' => 'buc-reset-unknown-cadence', 'pricing_model' => 'FixedPrice', 'canonical_pricing' => $this->canonicalPricing(['present' => true, 'cadence' => 'unknown'])],
+            ['id' => 'buc-effect', 'pricing_model' => 'FixedPrice', 'canonical_pricing' => $this->canonicalPricing([], ['present' => true, 'applies_to' => 'base_contract'])],
+            ['id' => 'buc-hybrid', 'pricing_model' => 'Hybrid', 'canonical_pricing' => $this->canonicalPricing()],
+            // Reset base + effect: the reset bucket, with the effect left as a footer caveat.
+            ['id' => 'buc-both', 'pricing_model' => 'Hybrid', 'canonical_pricing' => $this->canonicalPricing(['present' => true, 'cadence' => 'monthly'], ['present' => true, 'applies_to' => 'both'])],
+            ['id' => 'buc-optional', 'pricing_model' => 'Spot', 'canonical_pricing' => $this->canonicalPricing([], ['present' => true, 'applies_to' => 'optional_fixing'])],
+            ['id' => 'buc-fixed', 'pricing_model' => 'FixedPrice', 'canonical_pricing' => $this->canonicalPricing()],
+        ];
+
+        \App\Models\Company::create([
+            'name' => 'Testi Energia Oy',
+            'name_slug' => 'testi-energia-oy',
+            'company_url' => 'https://testi.fi',
+        ]);
+
+        foreach ($fixtures as $attributes) {
+            ElectricityContract::create(array_merge([
+                'company_name' => 'Testi Energia Oy',
+                'name' => 'Sopimus '.$attributes['id'],
+                'contract_type' => 'OpenEnded',
+                'metering' => 'General',
+                'target_group' => 'Household',
+                'availability_is_national' => true,
+            ], $attributes));
+        }
+
+        $resolver = new PricingCategoryResolver();
+        $all = ElectricityContract::all();
+        $listed = [];
+
+        foreach (PricingBucket::cases() as $bucket) {
+            $expected = $all
+                ->filter(fn (ElectricityContract $c) => PricingBucket::fromFacts($resolver->resolve($c)) === $bucket)
+                ->pluck('id')->sort()->values()->all();
+
+            $query = ElectricityContract::query();
+            PricingCategoryResolver::scopeBucket($query, $bucket);
+            $actual = $query->pluck('id')->sort()->values()->all();
+
+            $this->assertSame($expected, $actual, "scopeBucket disagrees with the resolver for {$bucket->value}");
+            $listed = array_merge($listed, $actual);
+        }
+
+        // The buckets partition the set: no contract is listed twice and none is dropped.
+        $this->assertSame(count($listed), count(array_unique($listed)), 'a contract fell into more than one bucket');
+        $this->assertSame($all->pluck('id')->sort()->values()->all(), collect($listed)->sort()->values()->all());
+
+        // The two market buckets together are exactly the existing Market category scope.
+        $marketQuery = ElectricityContract::query();
+        PricingCategoryResolver::scopeCategory($marketQuery, PricingCategory::Market);
+
+        $spotQuery = ElectricityContract::query();
+        PricingCategoryResolver::scopeBucket($spotQuery, PricingBucket::Spot);
+        $resetQuery = ElectricityContract::query();
+        PricingCategoryResolver::scopeBucket($resetQuery, PricingBucket::MarketReset);
+
+        $this->assertSame(
+            $marketQuery->pluck('id')->sort()->values()->all(),
+            $spotQuery->pluck('id')->merge($resetQuery->pluck('id'))->sort()->values()->all(),
+        );
+
+        $this->assertContains('buc-spot-reset', $spotQuery->pluck('id')->all());
     }
 }
