@@ -374,6 +374,16 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
             </svg>
         </button>
+
+        @if ($this->nearestConsumptionPage)
+            <p class="text-slate-400 text-sm text-center mt-4">
+                Lähin vakiokulutustaso:
+                <a
+                    href="{{ $this->nearestConsumptionPage['url'] }}"
+                    class="text-white underline underline-offset-2 hover:text-coral-300 transition-colors"
+                >{{ $this->nearestConsumptionPage['label'] }} sähkön hinta</a>
+            </p>
+        @endif
     </section>
 
     @php($priceEstimates = $this->contractTypePriceEstimates)
@@ -642,7 +652,7 @@
             Sähkön hinta vaihtelee sopimustyypin mukaan – pörssisähkössä hinta seuraa tuntikohtaista markkinahintaa,
             kun taas kiinteähintaisessa sopimuksessa hinta pysyy samana koko sopimuskauden.
         </p>
-        <p class="mb-6">
+        <p class="mb-4">
             Voltikan
             <a href="/sahkosopimus" class="text-coral-600 hover:underline">sähkösopimusten vertailussa</a>
             näet eri sopimusten arvioidut vuosikustannukset suoraan sinun kulutuksellesi laskettuna.
@@ -651,6 +661,17 @@
             tai vertailla
             <a href="/sahkosopimus/porssisahko" class="text-coral-600 hover:underline">pörssisähkösopimuksia</a>.
         </p>
+        <p class="mb-3">Katso sähkön hinta valmiiksi lasketulla vuosikulutuksella:</p>
+        <ul class="flex flex-wrap gap-2 mb-6 list-none pl-0">
+            @foreach ($this->consumptionPageLinks as $link)
+                <li>
+                    <a
+                        href="{{ $link['url'] }}"
+                        class="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 hover:border-coral-300 hover:text-coral-600 transition-colors"
+                    >{{ $link['label'] }}</a>
+                </li>
+            @endforeach
+        </ul>
 
         <h2 class="text-2xl font-bold text-slate-900 mb-3">Usein kysyttyä sähkönkulutuksesta</h2>
         <div class="space-y-4">

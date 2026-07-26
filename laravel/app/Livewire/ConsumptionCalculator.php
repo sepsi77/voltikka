@@ -18,6 +18,19 @@ use Livewire\Component;
 
 class ConsumptionCalculator extends Component
 {
+    /** Consumption levels that own their own SEO landing page under /sahkosopimus/kulutus. */
+    private const CONSUMPTION_PAGE_LEVELS = [2000, 5000, 10000, 18000, 20000];
+
+    /**
+     * Request-scoped memo for `priceStatisticsRows()`: `[statDate, groupedRows]`, or
+     * `false` once a lookup has confirmed there are no statistics. Deliberately
+     * protected, never public: it holds a full Eloquent collection and would bloat the
+     * Livewire snapshot for no gain, because it is recomputed from the database anyway.
+     *
+     * @var array{0: string, 1: Collection}|false|null
+     */
+    protected array|false|null $priceStatisticsRows = null;
+
     // Basic form fields
     public int|string|null $livingArea = 80;
     public int|string|null $numPeople = 2;
@@ -356,16 +369,20 @@ class ConsumptionCalculator extends Component
     #[Computed]
     public function contractTypePriceEstimates(): array
     {
-        $latestDate = ContractPriceDailyStatistic::query()->max('stat_date');
+        return $this->priceEstimatesFor($this->totalConsumption);
+    }
 
-        if (! $latestDate || $this->totalConsumption <= 0) {
-            return [
-                'date' => null,
-                'rows' => [],
-            ];
-        }
-
-        $segments = [
+    /**
+     * The contract types the price table and the FAQ quote, keyed by statistics segment.
+     *
+     * Single source of truth: `priceStatisticsRows()` loads exactly these segment keys, so
+     * adding a type here is enough for its rows to be fetched. Do not reintroduce a
+     * separate key list — a segment missing from the query is silently dropped from the
+     * table rather than failing.
+     */
+    protected function priceSegments(): array
+    {
+        return [
             'spot' => [
                 'label' => 'Pörssisähkö',
                 'description' => 'Toteutuneeseen pörssihintaan ja tyypilliseen marginaaliin perustuva arvio.',
@@ -397,19 +414,31 @@ class ConsumptionCalculator extends Component
                 'use_annual_cost' => false,
             ],
         ];
+    }
 
-        $segmentKeys = array_keys($segments);
-        $statDate = substr((string) $latestDate, 0, 10);
+    /**
+     * Annual-cost estimates per contract type at an arbitrary consumption level.
+     *
+     * Split out from `contractTypePriceEstimates()` so the FAQ can quote fixed kWh
+     * levels (10 000 / 20 000 kWh) that answer the "Paljonko maksaa N kWh?" queries
+     * without hardcoding cent figures that go stale. The statistics rows are loaded
+     * once per request by `priceStatisticsRows()`, so extra levels cost no extra query.
+     */
+    protected function priceEstimatesFor(int $consumption): array
+    {
+        $snapshot = $this->priceStatisticsRows();
 
-        $stats = ContractPriceDailyStatistic::query()
-            ->whereDate('stat_date', $statDate)
-            ->whereIn('segment_key', $segmentKeys)
-            ->whereIn('metric_key', ['energy_price', 'spot_total_energy_price', 'monthly_fee', 'annual_cost'])
-            ->get()
-            ->groupBy(fn (ContractPriceDailyStatistic $row): string => $row->segment_key . ':' . $row->metric_key . ':' . ($row->consumption_kwh ?? ''));
+        if ($snapshot === null || $consumption <= 0) {
+            return [
+                'date' => null,
+                'rows' => [],
+            ];
+        }
+
+        [$statDate, $stats] = $snapshot;
 
         $rows = [];
-        foreach ($segments as $segmentKey => $config) {
+        foreach ($this->priceSegments() as $segmentKey => $config) {
             $energy = $this->statValues($stats->get($segmentKey . ':' . $config['energy_metric'] . ':')?->first());
             $monthlyFee = $this->statValues($stats->get($segmentKey . ':monthly_fee:')?->first());
 
@@ -422,10 +451,10 @@ class ConsumptionCalculator extends Component
                 $annual = null;
 
                 if ($config['use_annual_cost']) {
-                    $annual = $this->interpolatedAnnualCost($stats, $segmentKey, $quantile, $this->totalConsumption);
+                    $annual = $this->interpolatedAnnualCost($stats, $segmentKey, $quantile, $consumption);
                 } else {
                     $annual = $this->annualCostFromEnergyAndMonthlyFee(
-                        $this->totalConsumption,
+                        $consumption,
                         $energy[$quantile] ?? null,
                         $monthlyFee[$quantile] ?? null,
                     );
@@ -458,6 +487,41 @@ class ConsumptionCalculator extends Component
             'date' => $statDate,
             'rows' => $rows,
         ];
+    }
+
+    /**
+     * Latest statistics date plus its grouped rows, loaded at most once per request.
+     *
+     * Returns `null` when no statistics exist at all. The page calls
+     * `priceEstimatesFor()` for the visitor's own consumption and again for the two
+     * fixed FAQ levels, so this must not run one query per call.
+     *
+     * @return array{0: string, 1: Collection}|null
+     */
+    protected function priceStatisticsRows(): ?array
+    {
+        if ($this->priceStatisticsRows !== null) {
+            return $this->priceStatisticsRows === false ? null : $this->priceStatisticsRows;
+        }
+
+        $latestDate = ContractPriceDailyStatistic::query()->max('stat_date');
+
+        if (! $latestDate) {
+            $this->priceStatisticsRows = false;
+
+            return null;
+        }
+
+        $statDate = substr((string) $latestDate, 0, 10);
+
+        $stats = ContractPriceDailyStatistic::query()
+            ->whereDate('stat_date', $statDate)
+            ->whereIn('segment_key', array_keys($this->priceSegments()))
+            ->whereIn('metric_key', ['energy_price', 'spot_total_energy_price', 'monthly_fee', 'annual_cost'])
+            ->get()
+            ->groupBy(fn (ContractPriceDailyStatistic $row): string => $row->segment_key . ':' . $row->metric_key . ':' . ($row->consumption_kwh ?? ''));
+
+        return $this->priceStatisticsRows = [$statDate, $stats];
     }
 
     protected function statValues(?ContractPriceDailyStatistic $row): ?array
@@ -559,6 +623,112 @@ class ConsumptionCalculator extends Component
             . 'Kun tiedät vuosikulutuksesi kilowattitunteina, sähkön hinta laskuri arvioi vuosikustannuksen pörssisähköllä, määräaikaisilla ja toistaiseksi voimassa olevilla sopimuksilla Voltikan hintatilastojen perusteella.';
     }
 
+    /**
+     * The consumption levels that have their own SEO landing page, for cross-linking.
+     *
+     * @return list<array{kwh: int, label: string, url: string}>
+     */
+    #[Computed]
+    public function consumptionPageLinks(): array
+    {
+        return array_map(fn (int $level): array => [
+            'kwh' => $level,
+            'label' => number_format($level, 0, ',', ' ') . ' kWh',
+            'url' => '/sahkosopimus/kulutus/' . $level . '-kwh',
+        ], self::CONSUMPTION_PAGE_LEVELS);
+    }
+
+    /**
+     * The consumption-level page closest to the visitor's calculated result, so the
+     * calculator hands its answer to a page that already ranks for that kWh amount.
+     */
+    #[Computed]
+    public function nearestConsumptionPage(): ?array
+    {
+        if ($this->totalConsumption <= 0) {
+            return null;
+        }
+
+        $closest = null;
+        $smallestGap = null;
+
+        foreach ($this->consumptionPageLinks as $link) {
+            $gap = abs($link['kwh'] - $this->totalConsumption);
+
+            if ($smallestGap === null || $gap < $smallestGap) {
+                $smallestGap = $gap;
+                $closest = $link;
+            }
+        }
+
+        return $closest;
+    }
+
+    /**
+     * Cheapest-to-priciest median annual cost across contract types at one consumption
+     * level, or null when statistics are missing. Used to answer "Paljonko maksaa
+     * N kWh?" with current figures instead of a cent price that rots in the source.
+     *
+     * @return array{min: float, max: float}|null
+     */
+    protected function annualCostRangeFor(int $consumption): ?array
+    {
+        $medians = [];
+
+        foreach ($this->priceEstimatesFor($consumption)['rows'] as $row) {
+            $annual = $row['costs']['median']['annual'] ?? null;
+
+            if ($annual !== null) {
+                $medians[] = $annual;
+            }
+        }
+
+        if ($medians === []) {
+            return null;
+        }
+
+        return ['min' => min($medians), 'max' => max($medians)];
+    }
+
+    /** Round to the nearest 10 € so a FAQ sentence does not imply false precision. */
+    protected function formatRoundedEur(float $value): string
+    {
+        return number_format(round($value / 10) * 10, 0, ',', ' ');
+    }
+
+    /**
+     * Answers "Paljonko maksaa N kWh sähköä?" for a level that owns a landing page.
+     *
+     * The figure is energy only, excluding siirto. Competing results answer the same
+     * question with a transfer-inclusive total, so the exclusion must stay explicit in
+     * the sentence — otherwise our number reads as a wrong, too-cheap version of theirs.
+     */
+    protected function consumptionCostFaqAnswer(int $consumption): string
+    {
+        $label = number_format($consumption, 0, ',', ' ');
+        $range = $this->annualCostRangeFor($consumption);
+
+        if ($range === null) {
+            return $label . ' kWh vuosikulutuksen hinta lasketaan kaavalla kulutus × energian hinta snt/kWh / 100 '
+                . '+ perusmaksu × 12. Hinta riippuu sopimustyypistä, joten vertaa se omalla kulutuksellasi '
+                . 'Voltikan sähkösopimusvertailussa. Luku kattaa sähköenergian, ei sähkön siirtoa.';
+        }
+
+        $cheapest = $this->formatRoundedEur($range['min']);
+        $priciest = $this->formatRoundedEur($range['max']);
+
+        // Both ends can round to the same figure when only one contract type has
+        // statistics for the day; "1 750–1 750 €" reads as a bug, so collapse it.
+        $amount = $cheapest === $priciest
+            ? 'noin ' . $cheapest . ' € vuodessa'
+            : 'noin ' . $cheapest . '–' . $priciest . ' € vuodessa sopimustyypistä riippuen';
+
+        return $label . ' kWh sähköä maksaa tällä hetkellä ' . $amount . '. '
+            . 'Luku on pelkkää sähköenergiaa sisältäen arvonlisäveron, eikä siihen kuulu sähkön siirtoa, '
+            . 'joka laskutetaan erikseen verkkoyhtiön laskulla. Arvio perustuu Voltikan päivittäin '
+            . 'päivittyviin sopimushintatilastoihin.';
+    }
+
     public function getFaqItemsProperty(): array
     {
         return [
@@ -583,24 +753,53 @@ class ConsumptionCalculator extends Component
                 'answer' => 'Tavallinen sähkökiuas kuluttaa noin 7,5 kWh yhtä lämmityskertaa kohti. Kerran viikossa lämmitettävä sauna lisää vuosikulutusta noin 390 kWh, ja jatkuvalämmitteinen kiuas voi nostaa kulutusta jopa 2 500–3 000 kWh vuodessa.',
             ],
             [
+                // Google quotes this answer as the search snippet for "sähkön hinta laskuri"
+                // instead of the meta description. It must therefore state the formula (that
+                // match is why the page ranks) AND give a reason to click, because a snippet
+                // that only prints the formula answers the searcher inside the SERP.
                 'question' => 'Miten sähkön hinta lasketaan vuosikulutuksesta?',
-                'answer' => 'Sähkön vuosikustannus lasketaan kertomalla vuosikulutus kilowattitunteina energian hinnalla ja lisäämällä sopimuksen perusmaksut: kulutus kWh × snt/kWh / 100 + kuukausimaksu × 12. Voltikan laskuri käyttää tähän hintatilastojen p20-, mediaani- ja p80-tasoja eri sopimustyypeille.',
+                'answer' => 'Sähkön vuosikustannus on kulutus kWh × snt/kWh / 100 + kuukausimaksu × 12. Laskuri täyttää nykyisen snt/kWh-hinnan puolestasi ja näyttää vuosihinnan erikseen pörssisähkölle, määräaikaisille ja toistaiseksi voimassa oleville sopimuksille. Hinnat tulevat Voltikan päivittäin päivittyvistä sopimushintatilastoista, joten kaavaan ei tarvitse arvata hintaa itse.',
             ],
             [
                 'question' => 'Mikä sopimustyyppi on halvin omalla kulutuksella?',
                 'answer' => 'Halvin sopimustyyppi riippuu kulutuksesta, kuukausimaksusta ja energian hinnasta. Pienellä kulutuksella perusmaksu korostuu, kun taas suurella kulutuksella pienikin ero senttiä per kilowattitunti -hinnassa vaikuttaa paljon vuosikustannukseen.',
             ],
+            [
+                'question' => 'Paljonko 20 000 kWh sähköä maksaa vuodessa?',
+                'answer' => $this->consumptionCostFaqAnswer(20000),
+            ],
+            [
+                'question' => 'Paljonko 10 000 kWh sähköä maksaa vuodessa?',
+                'answer' => $this->consumptionCostFaqAnswer(10000),
+            ],
+            [
+                'question' => 'Mikä kodin laite kuluttaa eniten sähköä?',
+                'answer' => 'Sähkölämmitteisessä kodissa selvästi eniten kuluttaa lämmitys, joka vie tyypillisesti 50–70 % koko vuosikulutuksesta. Yksittäisistä laitteista suurimmat ovat käyttöveden lämmitys (noin 1 000 kWh asukasta kohti vuodessa), sähkökiuas (noin 7,5 kWh lämmityskerralta) ja sähköauton lataus (noin 0,2 kWh kilometriltä). Kylmälaitteet kuluttavat vähemmän kerralla mutta ovat päällä jatkuvasti, joten vanha pakastin voi silti viedä 300–500 kWh vuodessa.',
+            ],
+            [
+                'question' => 'Paljonko on normaali sähkölasku kuukaudessa?',
+                'answer' => 'Sähkölaskun suuruus seuraa kulutusta: kerrostaloasunnossa energiaosuus on tyypillisesti noin 15–35 € kuukaudessa, rivitaloasunnossa noin 35–70 € ja sähkölämmitteisessä omakotitalossa noin 100–200 € kuukaudessa. Lämmityskuukausina lasku on selvästi vuosikeskiarvoa suurempi. Näiden päälle tulee sähkön siirto, joka laskutetaan erikseen verkkoyhtiön laskulla eikä muutu sopimusta vaihtamalla.',
+            ],
         ];
     }
 
+    /**
+     * Title and description are tuned for CTR on the price-intent queries
+     * ("sähkön hinta laskuri", "laske sähkön hinta", "kwh hinta laskuri"), where the
+     * competing results are thin single-purpose calculators, rather than for the
+     * consumption queries, where the SERP is held by utility brands. The brand suffix
+     * is deliberately omitted: Google prints the site name beside the title anyway and
+     * truncated the old "| Voltikka" off. Keep the year dynamic, never hardcoded.
+     */
     protected function generateSeoTitle(): string
     {
-        return 'Sähkönkulutuslaskuri – laske kulutus ja sähkön hinta | Voltikka';
+        return 'Sähkön hinta laskuri ' . now()->year . ' – laske kulutus ja vuosihinta';
     }
 
     protected function generateMetaDescription(): string
     {
-        return 'Laske kotisi sähkönkulutus ja arvioi sähkön hinta vuodessa eri sopimustyypeillä. Sähkönkulutuslaskuri näyttää kulutuksen, vuosikustannuksen ja hintaerot.';
+        return 'Paljonko sähkö maksaa vuodessa? Laske kulutuksesi kWh ja vuosihinta: '
+            . 'asunto, lämmitys, sauna, sähköauto. Vertaa hintaa eri sopimustyypeillä. Ilmainen.';
     }
 
     protected function generateCanonicalUrl(): string

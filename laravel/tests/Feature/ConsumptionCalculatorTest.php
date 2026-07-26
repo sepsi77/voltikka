@@ -163,7 +163,34 @@ class ConsumptionCalculatorTest extends TestCase
     {
         $response = $this->get('/sahkosopimus/laskuri');
 
+        // The title targets the price-intent queries and carries the current year, which
+        // must come from the clock rather than a literal that silently goes stale.
+        $response->assertSee(
+            '<title>Sähkön hinta laskuri '.now()->year.' – laske kulutus ja vuosihinta</title>',
+            false,
+        );
         $response->assertSee('Sähkönkulutuslaskuri');
+    }
+
+    public function test_consumption_level_pages_are_linked_from_the_calculator(): void
+    {
+        $response = $this->get('/sahkosopimus/laskuri');
+
+        $response->assertStatus(200);
+
+        foreach (['2000', '5000', '10000', '18000', '20000'] as $level) {
+            $response->assertSee('/sahkosopimus/kulutus/'.$level.'-kwh', false);
+        }
+    }
+
+    public function test_faq_answers_the_fixed_kwh_amount_questions(): void
+    {
+        $response = $this->get('/sahkosopimus/laskuri');
+
+        $response->assertStatus(200);
+        $response->assertSee('Paljonko 20 000 kWh sähköä maksaa vuodessa?', false);
+        $response->assertSee('Paljonko 10 000 kWh sähköä maksaa vuodessa?', false);
+        $response->assertSee('Mikä kodin laite kuluttaa eniten sähköä?', false);
     }
 
     public function test_minimum_values_are_enforced(): void
@@ -253,7 +280,7 @@ class ConsumptionCalculatorTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('<meta name="description"', false);
-        $response->assertSee('Laske kotisi sähkönkulutus ja arvioi sähkön hinta vuodessa eri sopimustyypeillä', false);
+        $response->assertSee('Paljonko sähkö maksaa vuodessa?', false);
         $response->assertSee('<link rel="canonical"', false);
         $response->assertSee('/sahkosopimus/laskuri', false);
     }
@@ -291,6 +318,42 @@ class ConsumptionCalculatorTest extends TestCase
         $response->assertSee('Määräaikainen 12 kk');
         $response->assertSee('320 €/v');
         $response->assertSee('27 €/kk');
+    }
+
+    public function test_kwh_amount_faq_quotes_current_statistics_and_excludes_transfer(): void
+    {
+        foreach ([
+            ['metric_key' => 'energy_price', 'consumption_kwh' => null, 'p20_value' => 7.0, 'avg_value' => 8.0, 'median_value' => 8.5, 'p80_value' => 10.0],
+            ['metric_key' => 'monthly_fee', 'consumption_kwh' => null, 'p20_value' => 2.0, 'avg_value' => 3.0, 'median_value' => 4.0, 'p80_value' => 5.0],
+        ] as $row) {
+            ContractPriceDailyStatistic::create(array_merge([
+                'stat_date' => '2026-05-30',
+                'segment_key' => 'fixed_term_12',
+                'min_value' => 1.0,
+                'max_value' => 20.0,
+                'contract_count' => 12,
+            ], $row));
+        }
+
+        $response = $this->get('/sahkosopimus/laskuri');
+
+        $response->assertStatus(200);
+        // 20 000 kWh * 8,5 snt / 100 + 4 EUR * 12 = 1748 EUR, rounded to the nearest ten.
+        // Only one segment is seeded, so both ends of the range collapse to one figure.
+        $response->assertSee('20 000 kWh sähköä maksaa tällä hetkellä noin 1 750 € vuodessa.', false);
+        // The competing PAA answer for this query is transfer-inclusive, so our narrower
+        // basis must stay stated or the figure reads as simply wrong.
+        $response->assertSee('eikä siihen kuulu sähkön siirtoa', false);
+    }
+
+    public function test_kwh_amount_faq_falls_back_when_no_statistics_exist(): void
+    {
+        $response = $this->get('/sahkosopimus/laskuri');
+
+        $response->assertStatus(200);
+        $response->assertSee('Paljonko 20 000 kWh sähköä maksaa vuodessa?', false);
+        $response->assertSee('20 000 kWh vuosikulutuksen hinta lasketaan kaavalla', false);
+        $response->assertDontSee('maksaa tällä hetkellä noin', false);
     }
 
     public function test_page_renders_seo_content_sections(): void
