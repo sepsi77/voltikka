@@ -101,7 +101,7 @@ class ContractDetailBillComparisonTest extends TestCase
             ->set('billTotalEur', $totalEur);
     }
 
-    public function test_module_renders_collapsed_with_the_shared_form_and_no_result(): void
+    public function test_module_renders_open_with_the_shared_form_and_no_result(): void
     {
         $this->createContract('bill-detail-contract', 'Perus Kiinteä', 5.0, 3.00);
 
@@ -111,8 +111,11 @@ class ContractDetailBillComparisonTest extends TestCase
             // The shared bill form partial, same field ids on both surfaces.
             ->assertSeeHtml('id="detail-bill-kwh"')
             ->assertSeeHtml('id="detail-bill-total"')
-            // Collapsed until the visitor opens it.
-            ->assertSeeHtml('billOpen: false');
+            // Open by default: the module is the first section under the hero, and its
+            // fields have to be visible in the server HTML, not behind a disclosure.
+            ->assertSeeHtml('billOpen: true')
+            // And therefore never cloaked, which would hide it until Alpine boots.
+            ->assertDontSeeHtml('x-cloak class="pt-6"');
 
         $this->assertNull($component->instance()->billComparison);
         $this->assertFalse($component->instance()->billActive);
