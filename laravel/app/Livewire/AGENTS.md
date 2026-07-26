@@ -337,13 +337,25 @@ UI (`partials/pricing-bucket-pills.blade.php`):
 - Included by `contracts-list.blade.php`, `seo-contracts-list.blade.php` **and**
   `cheapest-contracts.blade.php`. The cheapest page has its own template, so it needs its own
   include; `CompanyDetail` deliberately has none.
-- A selected pill wears its bucket's card tint (`PricingBucket::category()->tint()`, the sky /
+- **Shape: one segmented rail, not four cards.** A single `rounded-xl` `slate-200` box holds
+  four equal cells divided by `slate-200` hairlines, drawn as `gap-px` over a `slate-200`
+  background so the same markup gives 2x2 below `sm` and 1x4 above it with no per-cell border
+  rules. The first version was four separate bordered cards; stacked above the contract cards
+  they read as a second card grid rather than as a control. Do not go back to detached cards.
+- A selected cell wears its bucket's card tint (`PricingBucket::category()->tint()`, the sky /
   violet / slate axis in `../../../DESIGN.md`), so the pill, `<x-card.legend />` and the card
-  band it lists are one system. Unselected pills stay quiet in the existing filter-button
-  idiom. Two columns below `sm`, four across above it.
+  band it lists are one system: tint-100 fill, 1px inset tint-400 ring, tint-900 label,
+  tint-700 sub-line. The **ring is load-bearing** — the tints sit about 1.05:1 from white, so
+  a fill alone does not read as "on" across a row. Unselected cells carry no tint at all.
+- The leading 16px glyph is the category icon at rest (`slate-400`) and swaps to a check when
+  selected, in the same slot: a second saturated signal with no width change and no label
+  shift. Spot / consumption-effect / fixed reuse the card band's own wave / pulse / lock
+  glyphs; Päivittyvä hinta uses a calendar, because the band gives spot and resets the same
+  wave and two identical glyphs side by side would say nothing.
 - Every Finnish string lives in the partial's `$pricingBucketPills` array. **"Päivittyvä
   hinta" + "kvartaali- ja kuukausisähkö" is a locked user decision**; the other sub-lines are
-  short restatements of `ContractCardCopy::band()`.
+  short restatements of `ContractCardCopy::band()`. Labels are 15px bold, sub-lines 14px
+  `slate-500` — the DESIGN.md floor for secondary copy, not the 12px the first version used.
 - **No per-bucket counts.** The listing applies its energy-source and consumption-range
   filters in PHP after the query, so an honest count would need the whole filtered set
   re-resolved per bucket, not one grouped query. Too expensive for a cached default page.

@@ -191,6 +191,29 @@ It should **not** blindly collapse materially different product variants when va
 
 Desktop dropdown menus in the same layout are hover-opened Alpine children. Keep their absolute dropdown panels physically touching the trigger (no top margin gap), otherwise moving the pointer from the trigger to secondary menu items can close the panel before click and make navigation feel like the first/top item was clicked.
 
+### Teleported Alpine panels inside Livewire components
+
+`resources/views/components/info-popover.blade.php` (the card "Arvio" popover) and
+`resources/views/components/info-tip.blade.php` both teleport their panel to `<body>` with
+`x-teleport`, because the contract card sets `overflow-hidden` and applies a hover transform,
+so neither an absolute nor a plain fixed child of the card can escape it. That puts the panel
+outside the Livewire component root, and Livewire then reaches it only through the
+`from._x_teleport <-> to._x_teleport` bridge inside its morph. Two rules follow, and both
+already caused a visible defect once:
+
+- **A teleported panel must have a morph key that is stable across renders.** Livewire's morph
+  key is `wire:id`, then `wire:key`, then `el.id`. The popover panel's id was
+  `Str::random(8)`, redrawn on every render, so the keys never matched and every Livewire
+  update replaced the live panel with a scopeless `cloneNode(true)`. Alpine re-initialised
+  that copy against an empty scope, so `x-show="open"` resolved `window.open` and the style
+  binding wrote the string `"undefined"`, leaving the panel at the viewport origin. The panel
+  now pins a constant `wire:key`; the tooltip bubble has no id and therefore needs none.
+- **Do not position a teleported panel through a reactive `:style` binding.** The server
+  markup inside `<template>` carries no `style`, so a morph strips whatever Alpine wrote and
+  the binding does not re-run afterwards if the coordinates are unchanged. Both components
+  write `style.top` / `style.left` imperatively each time the panel opens, and re-resolve the
+  trigger at that moment instead of trusting a node cached at init.
+
 ## Backups and disaster recovery
 
 Voltikka uses `spatie/laravel-backup` for first-pass production database backups. Configuration lives in `config/backup.php`; scheduling lives in `routes/console.php`.

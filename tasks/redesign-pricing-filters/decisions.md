@@ -145,3 +145,36 @@ route of its own. Not fixed here (unrelated to this task).
 
 **Minor polish option:** at 640–700 px the kulutusvaikutus sub-line wraps to
 three lines; fallback copy if wanted: "kiinteä hinta ± käyttöaika".
+
+## 2026-07-26 — pill restyle (user: first version's cards were ugly)
+
+The four detached cards became one **segmented rail**: single `rounded-xl`
+slate-200 box, cells divided by `gap-px` hairlines, 2×2 below `sm` / 1×4 above.
+Selected cell = category tint `100` fill + 1 px inset tint-400 ring (load-bearing:
+the tints are near-white, a fill alone does not read as "on") + check glyph in the
+same slot as the rest-state icon so nothing shifts. Sub-lines raised to the 14 px
+type floor; kulutusvaikutus sub shortened to "kiinteä hinta ± käyttöaika". Coral
+stays reserved (focus ring only). No behavior/test changes. Documented as
+"Segmented Filter Rail" in DESIGN.md with a forbidden list (no coral selected
+state, no tint at rest, no colored edge bar).
+
+**Pre-existing, out of scope:** `/sahkosopimus/halvin-sahkosopimus` at 375 px
+overflows horizontally by 16 px — caused by the dark hero section's `-mx-4`
+full-bleed, not the pill row (verified by removing the row and re-measuring).
+
+## 2026-07-26 — Arvio popover misplacement fixed
+
+Root cause was NOT a detached anchor: the `x-teleport`ed panel's `id` was
+`Str::random()` per render, so Livewire's teleport-bridge morph key-mismatched it
+and `swapElements` replaced the live panel with a scopeless `cloneNode` — Alpine
+re-initialised it against an empty scope (`x-show="open"` hit `window.open`, the
+style binding rendered literal `style="undefined"`), and a `fixed` element with no
+top/left sits at the viewport origin. Fix in `info-popover.blade.php`: constant
+`wire:key` on the panel, client-generated `panelId`, and imperative positioning at
+open time (`place()` writes top/left/id directly; reactive `:style`/`:id` bindings
+removed because a morph strips attributes the server markup does not carry).
+`info-tip.blade.php` had the same latent pattern and got the same treatment. Rules
+documented in `laravel/AGENTS.md` ("Teleported Alpine panels inside Livewire
+components"). Only cards that survived a morph in place were affected, which is
+why it looked intermittent. Browser-verified across chained morphs at desktop and
+~375 px; full suite 1297 passed.

@@ -8,18 +8,34 @@
     teleported to <body> and fixed-positioned from the trigger's rect so card overflow/rounded
     corners cannot clip it. Replaces native <abbr title> tooltips, which were slow, unstyled,
     and gave no visible hint that the word was explainable.
+
+    Livewire morph, same rules as `info-popover.blade.php` and for the same reason: the bubble
+    sits outside the Livewire component root, and a morph rewrites its attributes from the
+    server markup inside <template>, which carries no `style`. Position is therefore written
+    imperatively on every open instead of through a `:style` binding, which would not re-run
+    after the morph stripped it, and the trigger is re-resolved on open instead of read from a
+    node cached at init. The bubble deliberately carries NO `id`, so Livewire's morph key
+    (which falls back to `el.id`) matches on both sides without a `wire:key`.
 --}}
 <span
     x-data="{
         open: false,
-        x: 0,
-        y: 0,
-        place() {
-            const r = $refs.trigger.getBoundingClientRect();
-            this.x = Math.min(Math.max(r.left + r.width / 2, 88), window.innerWidth - 88);
-            this.y = r.bottom + 6;
+        anchor() {
+            const cached = this.$refs.trigger;
+            return cached && cached.isConnected ? cached : this.$el.querySelector('[x-ref=\'trigger\']');
         },
-        show() { this.place(); this.open = true; },
+        place() {
+            const trigger = this.anchor();
+            const bubble = this.$refs.bubble?.isConnected
+                ? this.$refs.bubble
+                : this.$el.querySelector('template')?._x_teleport ?? null;
+            if (! trigger || ! bubble) return false;
+            const r = trigger.getBoundingClientRect();
+            bubble.style.left = Math.min(Math.max(r.left + r.width / 2, 88), window.innerWidth - 88) + 'px';
+            bubble.style.top = (r.bottom + 6) + 'px';
+            return true;
+        },
+        show() { if (this.place()) this.open = true; },
     }"
     @click.outside="open = false"
     @keydown.escape.window="open = false"
@@ -43,8 +59,8 @@
         <span
             x-show="open"
             x-cloak
+            x-ref="bubble"
             x-transition.opacity.duration.120ms
-            :style="`top:${y}px; left:${x}px`"
             role="tooltip"
             class="pointer-events-none fixed z-[100] w-max max-w-[17rem] -translate-x-1/2 rounded-lg bg-slate-900 px-3 py-2 text-xs font-normal normal-case leading-snug tracking-normal text-white shadow-xl ring-1 ring-black/5"
         >{{ $text }}</span>

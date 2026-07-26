@@ -7,5 +7,7 @@
   { "name": "SEO dual-behavior links for pills where a canonical SEO page exists", "status": "completed" },
   { "name": "Rewrite hybrid band detail copy in ContractCardCopy::band(); check CardReceiptLines wording", "status": "completed" },
   { "name": "Update tests (filters, page cache, presenter, bill mode) and run the suite", "status": "completed" },
-  { "name": "Update AGENTS.md files (root, Livewire, ContractCard) and DESIGN.md if the pill row adds a pattern", "status": "completed" }
+  { "name": "Update AGENTS.md files (root, Livewire, ContractCard) and DESIGN.md if the pill row adds a pattern", "status": "completed" },
+  { "name": "Fix Arvio popover rendering at viewport top-left after a filter toggles (Livewire morph breaks popover anchoring)", "status": "completed" },
+  { "name": "Redesign the pill row visuals (user: current cards are ugly)", "status": "completed" }
 ]

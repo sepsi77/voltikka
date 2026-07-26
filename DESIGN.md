@@ -246,9 +246,10 @@ listing pages carry a matching legend (`components/card/legend.blade.php`).
 The pricing-type filter row (`partials/pricing-bucket-pills.blade.php`) offers four buckets,
 not three: Markkinahinta is split into Pörssisähkö and Päivittyvä hinta, which are different
 amounts of risk for the customer. Both wear the same sky tint, because they are one category
-on the card. A selected pill uses the tint's `100` background with its `400` border (a
-`200` hairline is too faint to read as "on" beside an unselected white pill); an unselected
-pill carries no tint at all, so the colour always means "this category is active".
+on the card. A selected cell uses the tint's `100` background with a 1px inset `400` ring (a
+`200` hairline is too faint to read as "on" beside an unselected white cell); an unselected
+cell carries no tint at all, so the colour always means "this category is active". See
+"Segmented Filter Rail" under Components.
 
 ### Named Rules
 
@@ -324,6 +325,26 @@ The system is mostly flat. Surfaces sit on the page with 1px slate-200 borders r
 - **Default:** `slate-50` background, 1px `slate-200` border, label-styled text in `slate-600`, 8px radius. Hover deepens border to `slate-300`.
 - **Active:** `slate-950` background, white text, no border. The active filter is the darkest object in its row — visually obvious without colour.
 - **Energy-source variant:** Same shape with a 8px coloured dot prefix (`emissions-low` for clean energy, otherwise omitted).
+
+### Segmented Filter Rail
+
+The always-visible pricing-type filter above a contract list. Not a pill row and deliberately
+not a card grid: four detached bordered cards stacked above the contract cards read as a
+second list of cards, which is the one thing a filter must not look like.
+
+- **Rail:** one `rounded-xl` box, 1px `slate-200` border, `overflow-hidden`. Cells are equal
+  and divided by `slate-200` hairlines drawn as `gap-px` over a `slate-200` background, so
+  2-up below `sm` and 4-up above it need no per-cell border rules. Flat: no shadow.
+- **Cell at rest:** white, 15px weight-700 label in `slate-800`, 14px sub-line in `slate-500`,
+  leading 16px glyph in `slate-400`. Hover fills `slate-50`. Height is ~70px, comfortably past
+  the 44px tap target.
+- **Cell selected:** the category tint's `100` fill, a 1px inset `400` ring, `900` label and
+  `700` sub-line, and the leading glyph swaps to a check in the tint's `600`. The ring carries
+  the state — the tints are ~1.05:1 against white and a fill alone does not read across a row.
+  Swapping the glyph rather than appending a check keeps the label from shifting on toggle.
+- **Multi-select.** Cells are `aria-pressed` toggles, not tabs. Nothing selected means "all".
+- **Forbidden:** coral for the selected state (coral is action, not classification), a tint on
+  an unselected cell, and a coloured bar along any edge of the rail.
 
 ### Contract Cards
 

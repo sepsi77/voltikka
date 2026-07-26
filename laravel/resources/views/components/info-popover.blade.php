@@ -25,27 +25,63 @@
     Keyboard/AT: the trigger is a real button with aria-expanded/aria-controls. A click moves
     focus into the panel (it is teleported to the end of <body>, so Tab order alone would
     never reach it); Escape closes and returns focus to the trigger.
+
+    LIVEWIRE MORPH. Three rules below exist only because this panel lives outside the Livewire
+    component root, and undoing any of them puts the panel back in the top-left corner of the
+    viewport after the first filter click. The measured failure was: click any filter pill,
+    then open an Arvio chip, and the panel renders at 0,0 detached from its chip.
+
+    1. The panel carries a CONSTANT `wire:key`, and it must keep one. Livewire reaches a
+       teleported node only through the `from._x_teleport <-> to._x_teleport` bridge in its
+       morph, and that bridge runs the normal key comparison first. Livewire's morph key falls
+       back to `el.id` when there is no `wire:key`, and the id used to be `Str::random(8)`,
+       freshly drawn on every render. Two random ids never match, so every Livewire update (a
+       filter, a consumption change, pagination) replaced the live panel with a raw
+       `cloneNode(true)`: identical markup, no Alpine scope. Alpine re-initialised that copy
+       against an empty scope, so `x-show="open"` resolved `window.open` ("Illegal
+       invocation"), the style binding threw "y is not defined" and wrote the literal string
+       "undefined" into the style attribute, and the `fixed` panel fell back to the viewport
+       origin. One shared key value is safe here: this node is only ever compared 1:1 with its
+       own teleport counterpart, never as one of a keyed list of siblings.
+    2. Position and id are written IMPERATIVELY on the panel each time it opens, not through
+       `:style` / `:id` bindings. The server markup inside <template> carries neither
+       attribute, so a morph strips whatever Alpine wrote; a reactive binding would not
+       re-run afterwards, because x and y had not changed. Writing them on open means the
+       panel is correct after any number of morphs, and it cannot inherit a stale rect.
+    3. The trigger is re-resolved on open rather than read from a node cached at init.
 --}}
-@php
-    $popoverId = 'popover-'.\Illuminate\Support\Str::random(8);
-@endphp
 <span
     x-data="{
         open: false,
-        x: 0,
-        y: 0,
         closeTimer: null,
+        panelId: 'popover-' + Math.random().toString(36).slice(2, 10),
+        anchor() {
+            const cached = this.$refs.trigger;
+            return cached && cached.isConnected ? cached : this.$el.querySelector('[x-ref=\'trigger\']');
+        },
+        panelEl() {
+            const cached = this.$refs.panel;
+            if (cached && cached.isConnected) return cached;
+            return this.$el.querySelector('template')?._x_teleport ?? null;
+        },
         place() {
-            const r = $refs.trigger.getBoundingClientRect();
+            const trigger = this.anchor();
+            const panel = this.panelEl();
+            if (! trigger || ! panel) return false;
+            const r = trigger.getBoundingClientRect();
             const width = 272;
             const margin = 12;
-            this.x = Math.min(Math.max(r.right - width, margin), Math.max(margin, window.innerWidth - width - margin));
+            const x = Math.min(Math.max(r.right - width, margin), Math.max(margin, window.innerWidth - width - margin));
             const below = r.bottom + 8;
-            this.y = (below + 240 > window.innerHeight && r.top - 8 > 240) ? r.top - 8 - 240 : below;
+            const y = (below + 240 > window.innerHeight && r.top - 8 > 240) ? r.top - 8 - 240 : below;
+            panel.id = this.panelId;
+            panel.style.top = y + 'px';
+            panel.style.left = x + 'px';
+            return true;
         },
         show() {
             clearTimeout(this.closeTimer);
-            this.place();
+            if (! this.place()) return;
             this.open = true;
         },
         scheduleHide() {
@@ -56,12 +92,12 @@
         toggle() {
             if (this.open) { this.open = false; return }
             this.show();
-            $nextTick(() => $refs.panel?.focus());
+            $nextTick(() => this.panelEl()?.focus());
         },
         dismiss() {
             clearTimeout(this.closeTimer);
             this.open = false;
-            $refs.trigger?.focus();
+            this.anchor()?.focus();
         },
     }"
     @keydown.escape.window="open && dismiss()"
@@ -75,7 +111,7 @@
         @focus="show()"
         @click.prevent.stop="toggle()"
         :aria-expanded="open"
-        aria-controls="{{ $popoverId }}"
+        :aria-controls="panelId"
         aria-label="{{ $ariaLabel ?? 'Miten vuosihinnan arvio lasketaan' }}"
         class="{{ $triggerClass }} inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-600 transition-colors hover:border-coral-400 hover:text-coral-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral-500 cursor-help"
     >
@@ -88,7 +124,8 @@
             x-show="open"
             x-cloak
             x-ref="panel"
-            id="{{ $popoverId }}"
+            wire:key="info-popover-panel"
+            x-init="$el.id = panelId"
             tabindex="-1"
             role="dialog"
             aria-label="{{ $heading ?? 'Miten arvio on laskettu' }}"
@@ -101,7 +138,6 @@
             x-transition:leave="transition ease-in duration-100"
             x-transition:leave-start="opacity-100"
             x-transition:leave-end="opacity-0"
-            :style="`top:${y}px; left:${x}px`"
             class="fixed z-[100] w-[17rem] rounded-xl border border-slate-200 bg-white p-4 text-sm font-normal leading-relaxed text-slate-600 shadow-md focus:outline-none"
         >
             @if ($heading)
