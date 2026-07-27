@@ -293,3 +293,27 @@ Note the accuracy direction. This is not only a count fix: the relational path h
 Kokkolan Tyyni at 279 €/v and Aalto Tyyni Vakiohinta at 310 €/v — their promo prices, presented as
 the year's cost — against canonical figures of 555 and 748. The page was publishing the seller's
 framing until the gate withheld those rows.
+
+### Deployed result
+
+`5a893d8`. Statistics recalculated for 2026-07-25…27: **12 canonical-only snapshots** per day
+(annual cost present, per-component c/kWh null). Segment counts at 5 000 kWh, 07-24 → 07-27:
+
+| segment | before | after | note |
+|---|---|---|---|
+| spot | 59 → 52 | **59** | fully back to the pre-incident level |
+| fixed_term_12 | 49 | **53** | above it |
+| fixed_term_24 | 49 | **50** | |
+| quarterly | 13 | **14** | |
+| fixed_term_6 | 20 | **18** | |
+| open_ended | 62 | **57** | |
+| hybrid | 39 | **34** | 4 carry a null `annual_cost_5000_kwh` |
+
+The open-ended average stayed ~699 (was 701), confirming the corrected diagnosis above: the
+07-25 step is repricing, not composition.
+
+Note the page legitimately shows **different contract counts per metric**. The
+"Hinnat sopimustyypeittäin" table counts the `energy_price` metric and a canonical-only snapshot
+has none, so Pörssisähkö reads 52 there while the annual-cost chart uses 59. Both are honest
+per-metric counts; `cleanValues()` drops nulls per metric. Do not "fix" this by inventing a
+c/kWh figure for a canonical-only row.

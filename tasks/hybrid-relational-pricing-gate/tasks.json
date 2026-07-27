@@ -46,8 +46,8 @@
       "status": "completed"
     },
     {
-      "name": "Follow-up: price withheld promo contracts into /sahkosopimus/tilastot from canonical_pricing phases so the open_ended average is not biased upward by their absence",
-      "status": "pending"
+      "name": "Price gate-withheld contracts from canonical phases on /sahkosopimus/tilastot",
+      "status": "completed"
     }
   ]
 }
