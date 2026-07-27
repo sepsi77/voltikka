@@ -203,18 +203,62 @@ symptom that surfaced a gate-wide problem.
 2026-07-25…27. Segment counts at 5 000 kWh, 07-24 → 07-27: hybrid 39 → 34, fixed_term_12 49 → 53,
 spot 59 → 52, open_ended 62 → 55.
 
-### Known residue: the open-ended average is biased upward
+### The open-ended step on 07-25 is not a composition effect (earlier note here was wrong)
 
-`open_ended` moved from ~628 €/v on 07-24 to ~701 €/v on 07-25…27, and the visible line ticks up
-at the right edge of `/sahkosopimus/tilastot`. This is composition, not a price move: the 21
-contracts still withheld are mostly **promotional** open-ended products
-(`promotion_metadata_missing` + `structured_matches_intro_only`), i.e. the cheap end of that
-segment. Withholding them is correct — their structured components hold only the intro price, so
-publishing those rows would state a promo as the price — but their absence lifts the segment
-average.
+`open_ended` moved from ~628 €/v on 07-24 to ~701 €/v on 07-25…27. This was first written up here
+as the withheld promo contracts biasing the average upward. **That was wrong, twice over**, and the
+measurement is worth keeping so nobody re-derives it:
 
-This predates the inverted gate (it was worse before, when more contracts were withheld) and it is
-not fixable by loosening the gate. The real fix is to let the statistics pipeline price those
-contracts from `canonical_pricing` phases, which already hold their true first-12-month cost and
-already drive the card-level deceptive-pricing label. Not attempted here; it is a change to
-`ContractPriceStatisticsService`, not to publication.
+- The 07-27 open-ended set is a **strict subset** of the 07-24 set — no contract joined. Seven left.
+- The contracts still withheld are **expensive**, not cheap. Pricing them through canonical and
+  adding them back moves `open_ended` 701 → **703**. Full effect of adding every withheld contract
+  we can price: spot 433 → 437, quarterly 644 → 646, open_ended 701 → 703, fixed_term_6 646 → 637.
+  Composition explains essentially none of the step.
+
+The step is **14 surviving contracts repricing upward**, summing to +3508 € across the 55 contracts
+present on both days — which accounts for the whole gap. The movers name the cause:
+
+| change | contract |
+|---|---|
+| 721 → 1418, 752 → 1250, 783 → 1082 | Vaasan Sähkö **Kuukausipaketti** XS/S/M |
+| 415 → 670, 415 → 652 (×2) | Pohjois-Karjalan **Optimi kuukausi** |
+| 427 → 665 | Helen **Markkinahintasähkö** |
+| 559 → 797 | Fortum **Kesto** yleissähkö |
+
+These are market-reset and flat-fee-package products, and **`RESET_FORWARD_SHIFT_ENABLED` was
+enabled in production on 2026-07-25** — the same day. The root `AGENTS.md` states the old method
+"understated them badly in summer"; July is summer, so the new, higher figures are the correction.
+The Vaasan packages moved for a second reason: validator v14 changed how their monthly charge maps
+(€35/mo + 16.6 c/kWh), so a re-interpretation raised their total.
+
+None of this is caused by the publication gate or by the republish. Two independent pricing-accuracy
+changes landed on the same day as the gate fix, which is what made the chart look like one event.
+
+### Still worth doing: price withheld contracts from canonical phases
+
+Independent of the above, the statistics pipeline drops contracts it could price.
+`ContractPriceStatisticsService::calculateForDate()` does:
+
+```php
+$components = $contract->getPriceComponentsForCalculationDate($dateString);
+if ($components === []) { continue; }        // <- canonical pricing is never consulted
+```
+
+So a contract with no relational rows gets no snapshot at all, even though `buildSnapshot()` would
+have taken its `annual_cost` from `CanonicalContractPricingService` anyway when
+`CANONICAL_PRICING_ENABLED` is on. Measured on 2026-07-27: of the 18 still-withheld **active**
+contracts, **14 already produce a listed canonical total**. Only Vimpelin Voima's 4 do not — their
+`continuation` phase carries zero components because the pre-discount price list is undisclosed, so
+`calculation.status = incomplete` and canonical correctly refuses.
+
+The accuracy argument is stronger than the count argument. On 07-24 the relational snapshot recorded
+**Kokkolan Tyyni at 279 €/v** and **Aalto Tyyni Vakiohinta at 310 €/v**, because the relational rows
+held only the promo price. Canonical prices the same two contracts at **555** and **748**. Tyyni
+Vakiohinta (5.49 → 13.65 c/kWh) is the worked example in `ContractInterpretation/AGENTS.md` for
+exactly this deception. So the statistics page was publishing fake-cheap numbers for them until the
+gate withheld them, and canonical would publish honest ones.
+
+Caveat for whoever implements it: a canonical-only snapshot has no relational components, so the
+per-component c/kWh fields (`energy_price_cents_per_kwh`, `monthly_fee_eur`) stay null and only the
+`annual_cost` metric gains these contracts. `cleanValues()` already drops nulls, so the c/kWh series
+is unaffected. Historical backfill must still pass `useCanonical: false`.
