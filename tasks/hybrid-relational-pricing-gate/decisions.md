@@ -317,3 +317,36 @@ Note the page legitimately shows **different contract counts per metric**. The
 has none, so Pörssisähkö reads 52 there while the annual-cost chart uses 59. Both are honest
 per-metric counts; `cleanValues()` drops nulls per metric. Do not "fix" this by inventing a
 c/kWh figure for a canonical-only row.
+
+### Why some contracts have no energy price (and the copy that got it wrong first)
+
+The `energy_price_cents_per_kwh` column of a snapshot comes from `representativeEnergyPrice()`,
+which reads the **relational** components. So it is null exactly when the contract has no
+relational rows for that date — i.e. when the publication gate withheld them. Verified on
+2026-07-27: all 12 snapshots with a null energy price had **zero** components; none was a
+"has components but no energy component" case.
+
+A first attempt at explaining this to visitors said the price is missing "when the price changes
+during the first year". That is wrong and was caught in review: nearly every contract's price
+changes during a year. Spot changes hourly, a quarterly product reprices four times, a fixed term
+ends. Those all still have a publishable unit price:
+
+| product | what the unit price column shows |
+|---|---|
+| spot | realized 12-month spot average + the published margin |
+| monthly/quarterly reset | the current period's published price |
+| fixed | the fixed published price |
+| **these 12** | *nothing publishable* |
+
+The actual distinction is not whether the price changes but whether the seller's structured
+per-unit field states something that honestly represents the contract. For these 12 it does not.
+Their issue codes say so directly — 8 carry `structured_matches_intro_only` /
+`promotion_metadata_missing` / `future_price_omitted` (the structured number is the campaign rate
+and the ongoing rate is in prose or absent), 1 carries `component_mismatch`, and 2 market-reset
+products are held by an unclassified `other`. 10 of the 12 have an `introductory` first phase, and
+the names show it: Tarjous, KAMPANJA, Opiskelija.
+
+Publishing that number as the contract's energy price would understate it and drag the segment
+median down — Tyyni Vakiohinta's structured rate is 5.49 c/kWh against the 13.65 that applies for
+most of the year. The whole-year figure is still computed from every phase, so the contract stays
+in the annual-cost table. Hence: no unit price, but a year price.
