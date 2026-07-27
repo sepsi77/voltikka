@@ -7,6 +7,7 @@ use App\Models\ContractPriceDailyStatistic;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceHour;
 use App\Models\SpotPriceQuarter;
+use App\Services\ContractStatistics\ContractPriceBasis;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
@@ -14,6 +15,7 @@ use Livewire\Component;
 class HomePage extends Component
 {
     private const REGION = 'FI';
+
     private const TIMEZONE = 'Europe/Helsinki';
 
     public function render()
@@ -57,6 +59,7 @@ class HomePage extends Component
                     ->format('H');
                 $rounded = round($price->price_with_tax, 2);
                 $tier = $rounded < 10 ? 'low' : ($rounded < 20 ? 'medium' : 'high');
+
                 return [
                     'hour' => $hour,
                     'price' => $rounded,
@@ -100,7 +103,7 @@ class HomePage extends Component
             ->where('utc_datetime', '<', $quarterEnd)
             ->first();
 
-        if (!$price) {
+        if (! $price) {
             return null;
         }
 
@@ -126,10 +129,11 @@ class HomePage extends Component
                 $helsinkiTime = Carbon::parse($price->utc_datetime)
                     ->shiftTimezone('UTC')
                     ->setTimezone(self::TIMEZONE);
+
                 return (int) $helsinkiTime->format('H') === $currentHour;
             });
 
-        if (!$price) {
+        if (! $price) {
             return null;
         }
 
@@ -140,46 +144,79 @@ class HomePage extends Component
     }
 
     /**
-     * Weekly energy-price (c/kWh) trend for the four primary segments shown on
-     * the /sahkosopimus/tilastot lead chart: pörssi (lead), määräaikainen 12 kk,
-     * toistaiseksi voimassa oleva, joustosähkö. Spot uses `spot_total_energy_price`
-     * (stored daily spot avg + typical supplier margin), other segments use
-     * `energy_price`. Daily medians are averaged per ISO week so the line stays
-     * market-day weighted.
+     * Weekly 5,000 kWh annual-cost trend for the four primary segments shown on
+     * `/sahkosopimus/tilastot`. This metric is canonical-backed on forward rows
+     * and remains observed seller evidence on historical rows. Using it avoids
+     * claiming that a relational unit rate is today's market price.
+     * Daily medians are averaged per ISO week so the line stays market-day weighted.
      *
      * Shaped for the shared uPlot mount in resources/js/contract-price-statistics.js;
      * `data-line-chart="spot"` on the container makes the lead series render in coral.
      *
      * Cached until tomorrow because the underlying statistics table refreshes
-     * once per day after `contracts:calculate-price-statistics`.
+     * once per day after `contracts:calculate-price-statistics`. The key carries
+     * the expected current basis and a source fingerprint so a feature-mode flip
+     * or same-day rewrite cannot serve a stale current point.
      *
-     * @return array{x: array<int,int>, series: array<int, array{label:string, values:array<int,?float>}>, caption: ?string}
+     * @return array{x: array<int,int>, series: array<int, array{label:string, values:array<int,?float>}>, pricing_basis?: string, caption?: ?string}
      */
     private function getContractPriceTrend(): array
     {
-        return Cache::remember('home-page:contract-price-trend:v4', Carbon::tomorrow(), function () {
-            $segments = [
-                'spot' => 'Pörssisähkö',
-                'fixed_term_12' => 'Määräaikainen 12 kk',
-                'open_ended' => 'Toistaiseksi voimassa oleva',
-                'hybrid' => 'Joustosähkö',
-            ];
-            $start = Carbon::now()->subDays(180)->toDateString();
+        $segments = [
+            'spot' => 'Pörssisähkö',
+            'fixed_term_12' => 'Määräaikainen 12 kk',
+            'open_ended' => 'Toistaiseksi voimassa oleva',
+            'hybrid' => 'Joustosähkö',
+        ];
+        $start = Carbon::now()->subDays(180)->toDateString();
+        $expectedBasis = ContractPriceBasis::expectedCurrent()->value;
+        $sourceQuery = ContractPriceDailyStatistic::query()
+            ->whereIn('segment_key', array_keys($segments))
+            ->where('metric_key', 'annual_cost')
+            ->where('consumption_kwh', 5000)
+            ->where('stat_date', '>=', $start);
+        $latestExpectedDate = (clone $sourceQuery)
+            ->where('pricing_basis', $expectedBasis)
+            ->max('stat_date');
 
+        if ($latestExpectedDate === null) {
+            return ['x' => [], 'series' => []];
+        }
+        $latestExpectedDate = Carbon::parse($latestExpectedDate)->toDateString();
+
+        $sourceVersion = (clone $sourceQuery)
+            ->where('stat_date', '<=', $latestExpectedDate)
+            ->selectRaw('COUNT(*) as row_count, MAX(updated_at) as latest_update')
+            ->first();
+        $cacheKey = 'home-page:contract-price-trend:v6:'.md5(json_encode([
+            'pricing_basis' => $expectedBasis,
+            'latest_expected_date' => (string) $latestExpectedDate,
+            'row_count' => (int) ($sourceVersion?->row_count ?? 0),
+            'latest_update' => $sourceVersion?->latest_update,
+        ]));
+
+        return Cache::remember($cacheKey, Carbon::tomorrow(), function () use ($segments, $start, $expectedBasis, $latestExpectedDate) {
             $rows = ContractPriceDailyStatistic::query()
                 ->whereIn('segment_key', array_keys($segments))
-                ->whereIn('metric_key', ['energy_price', 'spot_total_energy_price'])
-                ->whereNull('consumption_kwh')
+                ->where('metric_key', 'annual_cost')
+                ->where('consumption_kwh', 5000)
                 ->where('stat_date', '>=', $start)
+                ->where(function ($query) use ($expectedBasis, $latestExpectedDate) {
+                    $query->where('stat_date', '<', $latestExpectedDate)
+                        ->orWhere(function ($current) use ($expectedBasis, $latestExpectedDate) {
+                            $current->whereDate('stat_date', $latestExpectedDate)
+                                ->where('pricing_basis', $expectedBasis);
+                        });
+                })
                 ->orderBy('stat_date')
-                ->get(['stat_date', 'segment_key', 'metric_key', 'median_value']);
+                ->get(['stat_date', 'segment_key', 'metric_key', 'median_value', 'pricing_basis']);
 
+            $latestPricingBasis = $expectedBasis;
             $weeklyBySegment = [];
             foreach ($segments as $segmentKey => $label) {
-                $metric = $segmentKey === 'spot' ? 'spot_total_energy_price' : 'energy_price';
                 $byWeek = [];
                 foreach ($rows as $row) {
-                    if ($row->segment_key !== $segmentKey || $row->metric_key !== $metric || $row->median_value === null) {
+                    if ($row->segment_key !== $segmentKey || $row->median_value === null) {
                         continue;
                     }
                     $weekStart = Carbon::parse($row->stat_date)->startOfWeek(Carbon::MONDAY)->toDateString();
@@ -218,20 +255,21 @@ class HomePage extends Component
             return [
                 'x' => array_map(static fn ($w) => Carbon::parse($w)->getTimestamp(), $allWeeks),
                 'series' => $series,
-                'caption' => $this->buildTrendCaption($series),
+                'pricing_basis' => $latestPricingBasis,
+                'caption' => $this->buildTrendCaption($series, $latestPricingBasis),
             ];
         });
     }
 
     /**
      * Build a one-paragraph plain-Finnish caption describing the chart's
-     * current state from the actual series values: spot's weekly range,
-     * fixed-term 12 kk range, and which segment is currently most/least
-     * expensive. Returns null if data is too sparse to characterize.
+     * current state from the actual annual-cost series values: spot's weekly
+     * range, fixed-term 12-month range, and which segment is currently most or
+     * least expensive. Returns null if data is too sparse to characterize.
      *
-     * @param array<int, array{label:string, values:array<int,?float>}> $series
+     * @param  array<int, array{label:string, values:array<int,?float>}>  $series
      */
-    private function buildTrendCaption(array $series): ?string
+    private function buildTrendCaption(array $series, string $latestPricingBasis): ?string
     {
         if (count($series) < 4) {
             return null;
@@ -262,17 +300,22 @@ class HomePage extends Component
         $highestLabel = array_key_first($latestBySegment);
         $lowestLabel = array_key_last($latestBySegment);
 
-        $fmt = static fn (float $v): string => number_format($v, 1, ',', ' ');
-        $lcfirst = static fn (string $s): string => mb_strtolower(mb_substr($s, 0, 1)) . mb_substr($s, 1);
+        $fmt = static fn (float $v): string => number_format($v, 0, ',', ' ');
+        $lcfirst = static fn (string $s): string => mb_strtolower(mb_substr($s, 0, 1)).mb_substr($s, 1);
+
+        $provenance = $latestPricingBasis === 'canonical_calculation'
+            ? 'Aikasarjan vanhat pisteet säilyttävät oman keräyspäivänsä perusteen; uusin laskelma käyttää kanonista nykyhintaa.'
+            : 'Pisteet perustuvat kyseisinä päivinä havaittuihin myyjähintoihin.';
 
         return sprintf(
-            'Pörssin viikkohinta on vaihdellut %s–%s c/kWh, kun määräaikaisten 12 kk hinta on pysynyt %s–%s c/kWh välillä. Kallein vaihtoehto tällä hetkellä on %s, edullisin %s. Tarkemmat luvut, vuosikustannukset ja kulutustasot löytyvät tilastosivulta.',
+            'Pörssisähkön vuosikustannus on vaihdellut %s–%s €/v, kun määräaikaisten 12 kk sopimusten vuosikustannus on ollut %s–%s €/v. Kallein vaihtoehto uusimmassa laskelmassa on %s, edullisin %s. %s',
             $fmt(min($spotValues)),
             $fmt(max($spotValues)),
             $fmt(min($fixedValues)),
             $fmt(max($fixedValues)),
             $lcfirst($highestLabel),
             $lcfirst($lowestLabel),
+            $provenance,
         );
     }
 }

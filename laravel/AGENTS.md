@@ -6,7 +6,7 @@ See root `../AGENTS.md` for project overview and architecture. Keep implementati
 
 ## Data investigation docs
 
-Research/planning documents live in `data-investigation/`; read `data-investigation/AGENTS.md` first. The fixed-term contract price forecasting plan is `data-investigation/price-forecasting-plan.md`; local-only Python model exploration lives under `data-investigation/price-forecasting/`. The first production backend implementation lives under `app/Services/PriceForecasting/` and persists forecasts, but no public frontend exists yet.
+Research/planning documents live in `data-investigation/`; read `data-investigation/AGENTS.md` first. The fixed-term contract price forecasting plan is `data-investigation/price-forecasting-plan.md`; local-only Python model exploration lives under `data-investigation/price-forecasting/`. The production implementation lives under `app/Services/PriceForecasting/`, persists forecasts, and serves `/sahkosopimus/sahkon-hintaennuste` through `app/Livewire/FixedContractPriceForecast.php`.
 
 ## Contract replacement system
 
@@ -70,6 +70,14 @@ docker run --rm -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" dunglas/frankenphp:1
   frankenphp validate --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
 
+## Public contract API
+
+`GET /api/contracts` and `GET /api/contracts/{id}` use canonical-only current pricing when
+`CANONICAL_PRICING_ENABLED=true`; they omit relational component resources and expose typed
+`current_pricing` plus the canonical `calculated_cost` when consumption is requested. The
+feature-off branch keeps the legacy response. See `app/Http/AGENTS.md` for the response and batch
+query rules.
+
 ## Data model
 
 ### Contract source snapshots and automatic interpretation
@@ -123,18 +131,20 @@ php artisan contracts:backfill-price-statistics --from=2025-01-01 --to=2026-04-2
 ```
 
 Important semantics:
-- future daily calculations are run during `contracts:fetch` and use `active_contracts`
+- future daily calculations are run during `contracts:fetch` and use `active_contracts`; in canonical mode all current numeric metrics and measured offer state come from batched typed canonical outcomes and no `price_components` query runs
 - `/sahkosopimus/tilastot` serves cached prepared view data per period + consumption and automatically busts that cache when statistics/snapshot/source spot-price fingerprints change
 - `contracts:fetch` calculates daily contract-price statistics before optional percentile badge thresholds so `/sahkosopimus/tilastot` continues to advance even if percentile recalculation fails
 - `contracts:warm-price-statistics-cache` queues `App\Jobs\WarmContractPriceStatisticsCache` by default; use `--sync` only for manual immediate warming/tests. `contracts:calculate-price-statistics` (including when called by `contracts:fetch`) and `spot:fetch` queue warming for the default weekly/5 000 kWh page state after their source data updates.
 - Production containers start `php artisan queue:work --timeout=420 --tries=3` through root `supervisord.conf`; keep database queue `retry_after` at 450 seconds or more. Queued cache warmers and contract interpretation depend on that worker running.
-- historical backfills infer availability from `price_components.price_date`
+- historical backfills infer availability from `price_components.price_date` and always store observed seller evidence; `pricing_basis` distinguishes these rows from canonical forward calculations in the page and CSV
+- public current-statistics consumers use one shared rule: canonical flag on requires `canonical_calculation`, while feature-off requires `observed_seller_data`; they select the latest date for that basis and never fall back across bases
+- one pricing basis owns each newly calculated date: inside the calculation transaction, the target date loses opposite-basis snapshots and the run's own prior snapshots before aggregates are rebuilt; this removes stale canonical exclusions without deleting other dates
 - missing contract rows for a date are excluded; prices are not carried forward
 - spot contracts store both supplier margin and total spot energy price (`stored spot average + margin`)
 
 ### Fixed-term price forecasts
 
-Voltikka stores backend-only fixed-term price forecasts so forecast accuracy can be evaluated later. No public UI is implemented yet.
+Voltikka stores fixed-term price forecasts for the public `/sahkosopimus/sahkon-hintaennuste` page and later accuracy evaluation.
 
 Primary files:
 - `app/Services/PriceForecasting/AGENTS.md`
@@ -150,11 +160,14 @@ php artisan forecasting:evaluate-fixed-contracts --as-of=today
 Scheduled in `routes/console.php`: EEX futures fetch runs overnight at 04:00 Europe/Helsinki so previous trading-day FI settlements are available before the forecast run; forecast run daily at 07:30 Europe/Helsinki, evaluation daily at 07:45.
 
 Important semantics:
-- v1 forecasts fixed-term 6/12/24 month market p20/median/p80 `energy_price` indices from `contract_price_daily_statistics`
+- model v2 forecasts fixed-term 6/12/24 month market p20/median/p80 `energy_price` indices from `contract_price_daily_statistics`
+- canonical mode requires `canonical_calculation` for the current retail input and never falls back to observed rows; feature-off requires `observed_seller_data`
+- historical EWMA evidence remains dated observed seller statistics before the forecast date; metadata records its basis counts separately from the current input
 - futures hedge costs use FI EEX Base futures with no same-day leakage (`trade_date < forecast_date`)
-- forecasts are skipped when required delivery months are missing rather than silently using stale futures
+- forecasts are skipped when required current-basis statistics or delivery months are missing rather than silently using another basis or stale futures
 - reruns skip existing same date/horizon/duration/quantile/model-version rows unless `--overwrite` is passed, preserving historical forecast records
-- evaluation fills actual target-date retail price, forecast error, absolute error, and direction correctness when the target-date daily statistic exists
+- evaluation keeps matured actuals as observed seller data and records that provenance in `source_metadata`
+- the public page and comparison-page teaser accept only the configured model version and expected current-input basis; old or missing-provenance rows are hidden
 
 ### `electricity_contracts.replaced_by_contract_id`
 - Nullable FK to `electricity_contracts.id`

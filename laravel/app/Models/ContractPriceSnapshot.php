@@ -17,6 +17,7 @@ class ContractPriceSnapshot extends Model
         'fixed_time_range',
         'metering',
         'segment_key',
+        'pricing_basis',
         'energy_price_cents_per_kwh',
         'spot_margin_cents_per_kwh',
         'spot_total_energy_price_cents_per_kwh',

@@ -83,7 +83,10 @@
                     <p class="mt-1 text-xs text-coral-700">{{ $diffLabel }}</p>
                 </div>
             </div>
-            <p class="mt-2 text-xs text-slate-500">Tilanne {{ $marketSnapshot['date'] }}. Hinnat sisältävät ALV 25,5 %.</p>
+            <p class="mt-2 text-xs text-slate-500">
+                Tilanne {{ $marketSnapshot['date'] }}. Hinnat sisältävät ALV 25,5 %.
+                {{ ($marketSnapshot['pricing_basis'] ?? null) === 'canonical_calculation' ? 'Nykyhinnat ovat kanonisia laskelmia.' : 'Nykyhinnat perustuvat havaittuun myyjädataan.' }}
+            </p>
         </div>
         @endif
 

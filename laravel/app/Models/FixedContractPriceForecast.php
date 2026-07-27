@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Services\PriceForecasting\FixedTermPriceForecastService;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class FixedContractPriceForecast extends Model
@@ -38,6 +40,21 @@ class FixedContractPriceForecast extends Model
         'direction_correct',
         'evaluated_at',
     ];
+
+    /**
+     * Keep public forecast surfaces on one current model and an explicit current
+     * retail-input basis. Old rows remain stored for audit and evaluation.
+     */
+    public function scopeEligibleForPublicDisplay(Builder $query): Builder
+    {
+        $pricingBasis = (bool) config('canonical_pricing.enabled', false)
+            ? FixedTermPriceForecastService::CANONICAL_PRICING_BASIS
+            : FixedTermPriceForecastService::OBSERVED_PRICING_BASIS;
+
+        return $query
+            ->where('model_version', (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_ewma_gap_v2'))
+            ->where('source_metadata->current_retail_pricing_basis', $pricingBasis);
+    }
 
     protected function casts(): array
     {

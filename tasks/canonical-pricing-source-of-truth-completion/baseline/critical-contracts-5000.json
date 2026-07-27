@@ -1,0 +1,1229 @@
+{
+    "vaasan_packages": [
+        {
+            "id": "zqskv0-vaasan-sahko-myynti-oy-kuukausipaketti-l",
+            "company": "Vaasan Sähkö Myynti Oy",
+            "name": "Kuukausipaketti L",
+            "pricing_model": "FixedPrice",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "comparable_exact",
+            "estimate_method": "none",
+            "total_cost": 1418,
+            "base_total_cost": 1418,
+            "discount_savings_total": 0,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [
+                {
+                    "window_start": "2026-07-27",
+                    "window_end": "2027-07-26",
+                    "uses_spot": false,
+                    "energy_cents": 16.6,
+                    "spot_margin_cents": null,
+                    "monthly_fee": 49
+                }
+            ],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "bl8nmw-vaasan-sahko-myynti-oy-kuukausipaketti-m",
+            "company": "Vaasan Sähkö Myynti Oy",
+            "name": "Kuukausipaketti M",
+            "pricing_model": "FixedPrice",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "comparable_exact",
+            "estimate_method": "none",
+            "total_cost": 1250,
+            "base_total_cost": 1250,
+            "discount_savings_total": 0,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [
+                {
+                    "window_start": "2026-07-27",
+                    "window_end": "2027-07-26",
+                    "uses_spot": false,
+                    "energy_cents": 16.6,
+                    "spot_margin_cents": null,
+                    "monthly_fee": 35
+                }
+            ],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "jhy1qj-vaasan-sahko-myynti-oy-kuukausipaketti-s",
+            "company": "Vaasan Sähkö Myynti Oy",
+            "name": "Kuukausipaketti S",
+            "pricing_model": "FixedPrice",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "comparable_exact",
+            "estimate_method": "none",
+            "total_cost": 1082,
+            "base_total_cost": 1082,
+            "discount_savings_total": 0,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [
+                {
+                    "window_start": "2026-07-27",
+                    "window_end": "2027-07-26",
+                    "uses_spot": false,
+                    "energy_cents": 16.6,
+                    "spot_margin_cents": null,
+                    "monthly_fee": 21
+                }
+            ],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "pyhgkn-vaasan-sahko-myynti-oy-kuukausipaketti-xs",
+            "company": "Vaasan Sähkö Myynti Oy",
+            "name": "Kuukausipaketti XS",
+            "pricing_model": "FixedPrice",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "comparable_exact",
+            "estimate_method": "none",
+            "total_cost": 956,
+            "base_total_cost": 956,
+            "discount_savings_total": 0,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [
+                {
+                    "window_start": "2026-07-27",
+                    "window_end": "2027-07-26",
+                    "uses_spot": false,
+                    "energy_cents": 16.6,
+                    "spot_margin_cents": null,
+                    "monthly_fee": 10.5
+                }
+            ],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        }
+    ],
+    "surffari": [
+        {
+            "id": "p8k8ke-kokkolan-energia-oy-surffari-kesakampanja",
+            "company": "Kokkolan Energia Oy",
+            "name": "Surffari kesäkampanja",
+            "pricing_model": "Spot",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "comparable_estimate",
+            "estimate_method": "rolling_365_spot",
+            "total_cost": 431.53,
+            "base_total_cost": 433.08,
+            "discount_savings_total": 1.55,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [
+                {
+                    "window_start": "2026-07-27",
+                    "window_end": "2026-08-31",
+                    "uses_spot": true,
+                    "energy_cents": null,
+                    "spot_margin_cents": 0.16,
+                    "monthly_fee": 2.02
+                },
+                {
+                    "window_start": "2026-09-01",
+                    "window_end": "2027-07-26",
+                    "uses_spot": true,
+                    "energy_cents": null,
+                    "spot_margin_cents": 0.48,
+                    "monthly_fee": 2.02
+                }
+            ],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "cxdwul-kokkolan-energia-oy-surffari-kesakampanja",
+            "company": "Kokkolan Energia Oy",
+            "name": "Surffari kesäkampanja",
+            "pricing_model": "Spot",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "comparable_estimate",
+            "estimate_method": "rolling_365_spot",
+            "total_cost": 415.84,
+            "base_total_cost": 417.78,
+            "discount_savings_total": 1.94,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [
+                {
+                    "window_start": "2026-07-27",
+                    "window_end": "2026-08-31",
+                    "uses_spot": true,
+                    "energy_cents": null,
+                    "spot_margin_cents": 0.2,
+                    "monthly_fee": 2.53
+                },
+                {
+                    "window_start": "2026-09-01",
+                    "window_end": "2027-07-26",
+                    "uses_spot": true,
+                    "energy_cents": null,
+                    "spot_margin_cents": 0.6,
+                    "monthly_fee": 0
+                }
+            ],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "ufstl2-kokkolan-energia-oy-surffari-vihrea",
+            "company": "Kokkolan Energia Oy",
+            "name": "Surffari Vihreä",
+            "pricing_model": "Spot",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "comparable_estimate",
+            "estimate_method": "rolling_365_spot",
+            "total_cost": 461.2,
+            "base_total_cost": 461.2,
+            "discount_savings_total": 0,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [
+                {
+                    "window_start": "2026-07-27",
+                    "window_end": "2027-07-26",
+                    "uses_spot": true,
+                    "energy_cents": null,
+                    "spot_margin_cents": 0.92,
+                    "monthly_fee": 2.53
+                }
+            ],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        }
+    ],
+    "vattenfall_positive_offers": [
+        {
+            "id": "7uiigw-vattenfall-oy-ilmasto-mix-12-kk-perusmaksut-0-ensimmaiset-3-kk",
+            "company": "Vattenfall Oy",
+            "name": "Ilmasto Mix 12 kk - Perusmaksut 0 € ensimmäiset 3 kk",
+            "pricing_model": "FixedPrice",
+            "contract_type": "FixedTerm",
+            "fixed_time_range": "Fixed12",
+            "comparability": "comparable_exact",
+            "estimate_method": "none",
+            "total_cost": 593.05,
+            "base_total_cost": 610.9,
+            "discount_savings_total": 17.85,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [
+                {
+                    "window_start": "2026-07-27",
+                    "window_end": "2026-10-26",
+                    "uses_spot": false,
+                    "energy_cents": 10.79,
+                    "spot_margin_cents": null,
+                    "monthly_fee": 0
+                },
+                {
+                    "window_start": "2026-10-27",
+                    "window_end": "2027-07-26",
+                    "uses_spot": false,
+                    "energy_cents": 10.79,
+                    "spot_margin_cents": null,
+                    "monthly_fee": 5.95
+                }
+            ],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "ecld9c-vattenfall-oy-ilmasto-mix-24-kk-perusmaksut-0-ensimmaiset-3-kk",
+            "company": "Vattenfall Oy",
+            "name": "Ilmasto Mix 24 kk - Perusmaksut 0 € ensimmäiset 3 kk",
+            "pricing_model": "FixedPrice",
+            "contract_type": "FixedTerm",
+            "fixed_time_range": "Fixed24",
+            "comparability": "comparable_exact",
+            "estimate_method": "none",
+            "total_cost": 538.55,
+            "base_total_cost": 553.4,
+            "discount_savings_total": 14.85,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [
+                {
+                    "window_start": "2026-07-27",
+                    "window_end": "2026-10-26",
+                    "uses_spot": false,
+                    "energy_cents": 9.88,
+                    "spot_margin_cents": null,
+                    "monthly_fee": 0
+                },
+                {
+                    "window_start": "2026-10-27",
+                    "window_end": "2027-07-26",
+                    "uses_spot": false,
+                    "energy_cents": 9.88,
+                    "spot_margin_cents": null,
+                    "monthly_fee": 4.95
+                }
+            ],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "q2gfjf-vattenfall-oy-optimi-porssisahko-perusmaksut-50-ensimmaiset-12-kuukautta",
+            "company": "Vattenfall Oy",
+            "name": "Optimi Pörssisähkö - Perusmaksut -50 % ensimmäiset 12 kuukautta",
+            "pricing_model": "Spot",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "comparable_estimate",
+            "estimate_method": "rolling_365_spot",
+            "total_cost": 445.48,
+            "base_total_cost": 481.24,
+            "discount_savings_total": 35.76,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [
+                {
+                    "window_start": "2026-07-27",
+                    "window_end": "2027-07-26",
+                    "uses_spot": true,
+                    "energy_cents": null,
+                    "spot_margin_cents": 0.5,
+                    "monthly_fee": 2.97
+                }
+            ],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "nvllc4-vattenfall-oy-optimi-porssisahko-6-kk-perusmaksu-0",
+            "company": "Vattenfall Oy",
+            "name": "Optimi Pörssisähkö, 6 kk perusmaksu 0 €",
+            "pricing_model": "Spot",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "comparable_estimate",
+            "estimate_method": "rolling_365_spot",
+            "total_cost": 445.54,
+            "base_total_cost": 481.24,
+            "discount_savings_total": 35.7,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [
+                {
+                    "window_start": "2026-07-27",
+                    "window_end": "2027-01-26",
+                    "uses_spot": true,
+                    "energy_cents": null,
+                    "spot_margin_cents": 0.5,
+                    "monthly_fee": 0
+                },
+                {
+                    "window_start": "2027-01-27",
+                    "window_end": "2027-07-26",
+                    "uses_spot": true,
+                    "energy_cents": null,
+                    "spot_margin_cents": 0.5,
+                    "monthly_fee": 5.95
+                }
+            ],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "xnbikt-vattenfall-oy-yrityksen-ilmasto-mix-12-kk-perusmaksut-0-ensimmaiset-3-kk",
+            "company": "Vattenfall Oy",
+            "name": "Yrityksen Ilmasto Mix 12 kk - Perusmaksut 0 € ensimmäiset 3 kk",
+            "pricing_model": "FixedPrice",
+            "contract_type": "FixedTerm",
+            "fixed_time_range": "Fixed12",
+            "comparability": "comparable_exact",
+            "estimate_method": "none",
+            "total_cost": 472.66,
+            "base_total_cost": 486.88,
+            "discount_savings_total": 14.22,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [
+                {
+                    "window_start": "2026-07-27",
+                    "window_end": "2026-10-26",
+                    "uses_spot": false,
+                    "energy_cents": 8.6,
+                    "spot_margin_cents": null,
+                    "monthly_fee": 0
+                },
+                {
+                    "window_start": "2026-10-27",
+                    "window_end": "2027-07-26",
+                    "uses_spot": false,
+                    "energy_cents": 8.6,
+                    "spot_margin_cents": null,
+                    "monthly_fee": 4.74
+                }
+            ],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "7lw9yw-vattenfall-oy-yrityksen-ilmasto-mix-24-kk-perusmaksut-0-ensimmaiset-3-kk",
+            "company": "Vattenfall Oy",
+            "name": "Yrityksen Ilmasto Mix 24 kk - Perusmaksut 0 € ensimmäiset 3 kk",
+            "pricing_model": "FixedPrice",
+            "contract_type": "FixedTerm",
+            "fixed_time_range": "Fixed24",
+            "comparability": "comparable_exact",
+            "estimate_method": "none",
+            "total_cost": 428.96,
+            "base_total_cost": 440.78,
+            "discount_savings_total": 11.82,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [
+                {
+                    "window_start": "2026-07-27",
+                    "window_end": "2026-10-26",
+                    "uses_spot": false,
+                    "energy_cents": 7.87,
+                    "spot_margin_cents": null,
+                    "monthly_fee": 0
+                },
+                {
+                    "window_start": "2026-10-27",
+                    "window_end": "2027-07-26",
+                    "uses_spot": false,
+                    "energy_cents": 7.87,
+                    "spot_margin_cents": null,
+                    "monthly_fee": 3.94
+                }
+            ],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "difwxj-vattenfall-oy-yrityksen-optimi-porssisahko-perusmaksut-50-ensimmaiset-12-kuukautta",
+            "company": "Vattenfall Oy",
+            "name": "Yrityksen Optimi Pörssisähkö - Perusmaksut -50 % ensimmäiset 12 kuukautta",
+            "pricing_model": "Spot",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "comparable_estimate",
+            "estimate_method": "rolling_365_spot",
+            "total_cost": 433.28,
+            "base_total_cost": 461.72,
+            "discount_savings_total": 28.44,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [
+                {
+                    "window_start": "2026-07-27",
+                    "window_end": "2027-07-26",
+                    "uses_spot": true,
+                    "energy_cents": null,
+                    "spot_margin_cents": 0.4,
+                    "monthly_fee": 2.37
+                }
+            ],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        }
+    ],
+    "hybrids": {
+        "count": 49,
+        "positive_offer_count": 9,
+        "recurring_reset_count": 4,
+        "with_consumption_effect_count": 49,
+        "positive_offers": [
+            {
+                "id": "yv3sbk-hehku-energia-oy-hehku-jousto-12-kk-ensimmaiset-3-kk-perusmaksu-0",
+                "company": "Hehku Energia Oy",
+                "name": "Hehku Jousto 12 kk - ENSIMMÄISET 3 KK PERUSMAKSU 0 €!",
+                "pricing_model": "Hybrid",
+                "contract_type": "FixedTerm",
+                "fixed_time_range": "Fixed12",
+                "comparability": "base_only_hybrid",
+                "estimate_method": "hybrid_base_only",
+                "total_cost": 483.91,
+                "base_total_cost": 500.38,
+                "discount_savings_total": 16.47,
+                "energy_package": null,
+                "contract_term": null,
+                "phase_breakdown": [
+                    {
+                        "window_start": "2026-07-27",
+                        "window_end": "2026-10-26",
+                        "uses_spot": false,
+                        "energy_cents": 8.69,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 0
+                    },
+                    {
+                        "window_start": "2026-10-27",
+                        "window_end": "2027-07-26",
+                        "uses_spot": false,
+                        "energy_cents": 8.69,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 5.49
+                    }
+                ],
+                "has_recurring_schedule": false,
+                "recurring_cadence": "none",
+                "has_consumption_effect": true
+            },
+            {
+                "id": "pqfn0s-hehku-energia-oy-hehku-jousto-24-kk-ensimmaiset-3-kk-perusmaksu-0",
+                "company": "Hehku Energia Oy",
+                "name": "Hehku Jousto 24 kk - ENSIMMÄISET 3 KK PERUSMAKSU 0 €!",
+                "pricing_model": "Hybrid",
+                "contract_type": "FixedTerm",
+                "fixed_time_range": "Fixed24",
+                "comparability": "base_only_hybrid",
+                "estimate_method": "hybrid_base_only",
+                "total_cost": 468.6,
+                "base_total_cost": 483.3,
+                "discount_savings_total": 14.7,
+                "energy_package": null,
+                "contract_term": null,
+                "phase_breakdown": [
+                    {
+                        "window_start": "2026-07-27",
+                        "window_end": "2026-10-26",
+                        "uses_spot": false,
+                        "energy_cents": 8.49,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 0
+                    },
+                    {
+                        "window_start": "2026-10-27",
+                        "window_end": "2027-07-26",
+                        "uses_spot": false,
+                        "energy_cents": 8.49,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 4.9
+                    }
+                ],
+                "has_recurring_schedule": false,
+                "recurring_cadence": "none",
+                "has_consumption_effect": true
+            },
+            {
+                "id": "epasaz-hehku-energia-oy-hehku-yritysjousto-24-kk",
+                "company": "Hehku Energia Oy",
+                "name": "Hehku Yritysjousto 24 kk",
+                "pricing_model": "Hybrid",
+                "contract_type": "FixedTerm",
+                "fixed_time_range": "Fixed24",
+                "comparability": "base_only_hybrid",
+                "estimate_method": "hybrid_base_only",
+                "total_cost": 386.5,
+                "base_total_cost": 413.5,
+                "discount_savings_total": 27,
+                "energy_package": null,
+                "contract_term": null,
+                "phase_breakdown": [
+                    {
+                        "window_start": "2026-07-27",
+                        "window_end": "2027-01-26",
+                        "uses_spot": false,
+                        "energy_cents": 7.19,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 0
+                    },
+                    {
+                        "window_start": "2027-01-27",
+                        "window_end": "2027-07-26",
+                        "uses_spot": false,
+                        "energy_cents": 7.19,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 4.5
+                    }
+                ],
+                "has_recurring_schedule": false,
+                "recurring_cadence": "none",
+                "has_consumption_effect": true
+            },
+            {
+                "id": "nea9qs-vaasan-sahko-myynti-oy-kiintea-vaikuttaja-12-kk",
+                "company": "Vaasan Sähkö Myynti Oy",
+                "name": "Kiinteä Vaikuttaja 12 kk",
+                "pricing_model": "Hybrid",
+                "contract_type": "FixedTerm",
+                "fixed_time_range": "Fixed12",
+                "comparability": "base_only_hybrid",
+                "estimate_method": "hybrid_base_only",
+                "total_cost": 553.34,
+                "base_total_cost": 565.3,
+                "discount_savings_total": 11.96,
+                "energy_package": null,
+                "contract_term": null,
+                "phase_breakdown": [
+                    {
+                        "window_start": "2026-07-27",
+                        "window_end": "2026-09-26",
+                        "uses_spot": false,
+                        "energy_cents": 9.89,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 0
+                    },
+                    {
+                        "window_start": "2026-09-27",
+                        "window_end": "2027-07-26",
+                        "uses_spot": false,
+                        "energy_cents": 9.89,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 5.9
+                    }
+                ],
+                "has_recurring_schedule": false,
+                "recurring_cadence": "none",
+                "has_consumption_effect": true
+            },
+            {
+                "id": "sqoo6m-vaasan-sahko-myynti-oy-kiintea-vaikuttaja-12-kk-yrityksille",
+                "company": "Vaasan Sähkö Myynti Oy",
+                "name": "Kiinteä Vaikuttaja 12 kk, yrityksille",
+                "pricing_model": "Hybrid",
+                "contract_type": "FixedTerm",
+                "fixed_time_range": "Fixed12",
+                "comparability": "base_only_hybrid",
+                "estimate_method": "hybrid_base_only",
+                "total_cost": 440.87,
+                "base_total_cost": 450.4,
+                "discount_savings_total": 9.53,
+                "energy_package": null,
+                "contract_term": null,
+                "phase_breakdown": [
+                    {
+                        "window_start": "2026-07-27",
+                        "window_end": "2026-09-26",
+                        "uses_spot": false,
+                        "energy_cents": 7.88,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 0
+                    },
+                    {
+                        "window_start": "2026-09-27",
+                        "window_end": "2027-07-26",
+                        "uses_spot": false,
+                        "energy_cents": 7.88,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 4.7
+                    }
+                ],
+                "has_recurring_schedule": false,
+                "recurring_cadence": "none",
+                "has_consumption_effect": true
+            },
+            {
+                "id": "o6lt9w-vaasan-sahko-myynti-oy-kiintea-vaikuttaja-24-kk",
+                "company": "Vaasan Sähkö Myynti Oy",
+                "name": "Kiinteä Vaikuttaja 24 kk",
+                "pricing_model": "Hybrid",
+                "contract_type": "FixedTerm",
+                "fixed_time_range": "Fixed24",
+                "comparability": "base_only_hybrid",
+                "estimate_method": "hybrid_base_only",
+                "total_cost": 504.84,
+                "base_total_cost": 516.8,
+                "discount_savings_total": 11.96,
+                "energy_package": null,
+                "contract_term": null,
+                "phase_breakdown": [
+                    {
+                        "window_start": "2026-07-27",
+                        "window_end": "2026-09-26",
+                        "uses_spot": false,
+                        "energy_cents": 8.92,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 0
+                    },
+                    {
+                        "window_start": "2026-09-27",
+                        "window_end": "2027-07-26",
+                        "uses_spot": false,
+                        "energy_cents": 8.92,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 5.9
+                    }
+                ],
+                "has_recurring_schedule": false,
+                "recurring_cadence": "none",
+                "has_consumption_effect": true
+            },
+            {
+                "id": "zpjpbn-vaasan-sahko-myynti-oy-kiintea-vaikuttaja-24-kk-yrityksille",
+                "company": "Vaasan Sähkö Myynti Oy",
+                "name": "Kiinteä Vaikuttaja 24 kk, yrityksille",
+                "pricing_model": "Hybrid",
+                "contract_type": "FixedTerm",
+                "fixed_time_range": "Fixed24",
+                "comparability": "base_only_hybrid",
+                "estimate_method": "hybrid_base_only",
+                "total_cost": 402.37,
+                "base_total_cost": 411.9,
+                "discount_savings_total": 9.53,
+                "energy_package": null,
+                "contract_term": null,
+                "phase_breakdown": [
+                    {
+                        "window_start": "2026-07-27",
+                        "window_end": "2026-09-26",
+                        "uses_spot": false,
+                        "energy_cents": 7.11,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 0
+                    },
+                    {
+                        "window_start": "2026-09-27",
+                        "window_end": "2027-07-26",
+                        "uses_spot": false,
+                        "energy_cents": 7.11,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 4.7
+                    }
+                ],
+                "has_recurring_schedule": false,
+                "recurring_cadence": "none",
+                "has_consumption_effect": true
+            },
+            {
+                "id": "fudplf-vaasan-sahko-myynti-oy-kiintea-vaikuttaja-6-kk",
+                "company": "Vaasan Sähkö Myynti Oy",
+                "name": "Kiinteä Vaikuttaja 6 kk",
+                "pricing_model": "Hybrid",
+                "contract_type": "FixedTerm",
+                "fixed_time_range": "Fixed6",
+                "comparability": "base_only_hybrid",
+                "estimate_method": "hybrid_base_only",
+                "total_cost": 563,
+                "base_total_cost": 633.8,
+                "discount_savings_total": 70.8,
+                "energy_package": null,
+                "contract_term": null,
+                "phase_breakdown": [],
+                "has_recurring_schedule": false,
+                "recurring_cadence": "none",
+                "has_consumption_effect": true
+            },
+            {
+                "id": "o4v6dj-vaasan-sahko-myynti-oy-kiintea-vaikuttaja-6-kk-yrityksille",
+                "company": "Vaasan Sähkö Myynti Oy",
+                "name": "Kiinteä Vaikuttaja 6 kk, yrityksille",
+                "pricing_model": "Hybrid",
+                "contract_type": "FixedTerm",
+                "fixed_time_range": "Fixed6",
+                "comparability": "base_only_hybrid",
+                "estimate_method": "hybrid_base_only",
+                "total_cost": 500.2,
+                "base_total_cost": 504.9,
+                "discount_savings_total": 4.7,
+                "energy_package": null,
+                "contract_term": null,
+                "phase_breakdown": [
+                    {
+                        "window_start": "2026-07-27",
+                        "window_end": "2026-08-26",
+                        "uses_spot": false,
+                        "energy_cents": 8.97,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 0
+                    },
+                    {
+                        "window_start": "2026-08-27",
+                        "window_end": "2027-07-26",
+                        "uses_spot": false,
+                        "energy_cents": 8.97,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 4.7
+                    }
+                ],
+                "has_recurring_schedule": false,
+                "recurring_cadence": "none",
+                "has_consumption_effect": true
+            }
+        ],
+        "reset_samples": [
+            {
+                "id": "y6jm1e-korpelan-energia-oy-korpela-kvartaali",
+                "company": "Korpelan Energia Oy",
+                "name": "Korpela Kvartaali",
+                "pricing_model": "Hybrid",
+                "contract_type": "OpenEnded",
+                "fixed_time_range": null,
+                "comparability": "base_only_hybrid",
+                "estimate_method": "hybrid_base_only",
+                "total_cost": 448.63,
+                "base_total_cost": 448.63,
+                "discount_savings_total": 0,
+                "energy_package": null,
+                "contract_term": null,
+                "phase_breakdown": [],
+                "has_recurring_schedule": true,
+                "recurring_cadence": "quarterly",
+                "has_consumption_effect": true
+            },
+            {
+                "id": "zp2qud-korpelan-energia-oy-korpela-kvartaali",
+                "company": "Korpelan Energia Oy",
+                "name": "Korpela Kvartaali",
+                "pricing_model": "Hybrid",
+                "contract_type": "OpenEnded",
+                "fixed_time_range": null,
+                "comparability": "base_only_hybrid",
+                "estimate_method": "hybrid_base_only",
+                "total_cost": 528.73,
+                "base_total_cost": 528.73,
+                "discount_savings_total": 0,
+                "energy_package": null,
+                "contract_term": null,
+                "phase_breakdown": [],
+                "has_recurring_schedule": true,
+                "recurring_cadence": "quarterly",
+                "has_consumption_effect": true
+            },
+            {
+                "id": "exizi7-paneliankosken-voima-oy-kosken-kayttowoima-12-kk-kulutusjousto",
+                "company": "Paneliankosken Voima Oy",
+                "name": "Kosken käyttöWoima 12 kk - kulutusjousto",
+                "pricing_model": "Hybrid",
+                "contract_type": "FixedTerm",
+                "fixed_time_range": "Fixed12",
+                "comparability": "base_only_hybrid",
+                "estimate_method": "hybrid_base_only",
+                "total_cost": 510.5,
+                "base_total_cost": 510.5,
+                "discount_savings_total": 0,
+                "energy_package": null,
+                "contract_term": null,
+                "phase_breakdown": [
+                    {
+                        "window_start": "2026-07-27",
+                        "window_end": "2027-07-26",
+                        "uses_spot": false,
+                        "energy_cents": 9.25,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 4
+                    }
+                ],
+                "has_recurring_schedule": true,
+                "recurring_cadence": "monthly",
+                "has_consumption_effect": true
+            },
+            {
+                "id": "eoksoz-vaasan-sahko-myynti-oy-vaikuttaja",
+                "company": "Vaasan Sähkö Myynti Oy",
+                "name": "Vaikuttaja",
+                "pricing_model": "Hybrid",
+                "contract_type": "OpenEnded",
+                "fixed_time_range": null,
+                "comparability": "base_only_hybrid",
+                "estimate_method": "recurring_forward_curve_shift",
+                "total_cost": 515.33,
+                "base_total_cost": 515.33,
+                "discount_savings_total": 0,
+                "energy_package": null,
+                "contract_term": null,
+                "phase_breakdown": [
+                    {
+                        "window_start": "2026-07-27",
+                        "window_end": "2027-07-26",
+                        "uses_spot": false,
+                        "energy_cents": 6.6,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 4.9
+                    }
+                ],
+                "has_recurring_schedule": true,
+                "recurring_cadence": "quarterly",
+                "has_consumption_effect": true
+            }
+        ]
+    },
+    "short_terms": {
+        "count": 22,
+        "positive_offer_count": 4,
+        "positive_offers": [
+            {
+                "id": "qseg85-vaasan-sahko-myynti-oy-kiintea-6-kk-yleissahko",
+                "company": "Vaasan Sähkö Myynti Oy",
+                "name": "Kiinteä 6 kk (yleissähkö)",
+                "pricing_model": "FixedPrice",
+                "contract_type": "FixedTerm",
+                "fixed_time_range": "Fixed6",
+                "comparability": "term_price_only",
+                "estimate_method": "term_price_annualized",
+                "total_cost": 659.5,
+                "base_total_cost": 671.3,
+                "discount_savings_total": 11.8,
+                "energy_package": null,
+                "contract_term": {
+                    "months": 6,
+                    "total_cost": 329.75,
+                    "base_total_cost": 335.65000000000003,
+                    "discount_savings_total": 5.900000000000034
+                },
+                "phase_breakdown": [
+                    {
+                        "window_start": "2026-07-27",
+                        "window_end": "2026-08-26",
+                        "uses_spot": false,
+                        "energy_cents": 12.01,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 0
+                    },
+                    {
+                        "window_start": "2026-08-27",
+                        "window_end": "2027-01-26",
+                        "uses_spot": false,
+                        "energy_cents": 12.01,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 5.9
+                    }
+                ],
+                "has_recurring_schedule": false,
+                "recurring_cadence": "none",
+                "has_consumption_effect": false
+            },
+            {
+                "id": "fdmdrt-vaasan-sahko-myynti-oy-kiintea-6-kk-yleissahko-yrityksille",
+                "company": "Vaasan Sähkö Myynti Oy",
+                "name": "Kiinteä 6 kk (yleissähkö), yrityksille",
+                "pricing_model": "FixedPrice",
+                "contract_type": "FixedTerm",
+                "fixed_time_range": "Fixed6",
+                "comparability": "term_price_only",
+                "estimate_method": "term_price_annualized",
+                "total_cost": 525.5,
+                "base_total_cost": 534.9,
+                "discount_savings_total": 9.4,
+                "energy_package": null,
+                "contract_term": {
+                    "months": 6,
+                    "total_cost": 262.75000000000006,
+                    "base_total_cost": 267.45000000000005,
+                    "discount_savings_total": 4.699999999999989
+                },
+                "phase_breakdown": [
+                    {
+                        "window_start": "2026-07-27",
+                        "window_end": "2026-08-26",
+                        "uses_spot": false,
+                        "energy_cents": 9.57,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 0
+                    },
+                    {
+                        "window_start": "2026-08-27",
+                        "window_end": "2027-01-26",
+                        "uses_spot": false,
+                        "energy_cents": 9.57,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 4.7
+                    }
+                ],
+                "has_recurring_schedule": false,
+                "recurring_cadence": "none",
+                "has_consumption_effect": false
+            },
+            {
+                "id": "skj5fb-vaasan-sahko-myynti-oy-kiintea-6-kk-yosahko",
+                "company": "Vaasan Sähkö Myynti Oy",
+                "name": "Kiinteä 6 kk (yösähkö)",
+                "pricing_model": "FixedPrice",
+                "contract_type": "FixedTerm",
+                "fixed_time_range": "Fixed6",
+                "comparability": "term_price_only",
+                "estimate_method": "term_price_annualized",
+                "total_cost": 683.95,
+                "base_total_cost": 695.75,
+                "discount_savings_total": 11.8,
+                "energy_package": null,
+                "contract_term": {
+                    "months": 6,
+                    "total_cost": 341.975,
+                    "base_total_cost": 347.87500000000006,
+                    "discount_savings_total": 5.900000000000034
+                },
+                "phase_breakdown": [
+                    {
+                        "window_start": "2026-07-27",
+                        "window_end": "2026-08-26",
+                        "uses_spot": false,
+                        "energy_cents": 12.79,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 0
+                    },
+                    {
+                        "window_start": "2026-08-27",
+                        "window_end": "2027-01-26",
+                        "uses_spot": false,
+                        "energy_cents": 12.79,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 5.9
+                    }
+                ],
+                "has_recurring_schedule": false,
+                "recurring_cadence": "none",
+                "has_consumption_effect": false
+            },
+            {
+                "id": "3d2htj-vaasan-sahko-myynti-oy-kiintea-6-kk-yosahko-yrityksille",
+                "company": "Vaasan Sähkö Myynti Oy",
+                "name": "Kiinteä 6 kk (yösähkö), yrityksille",
+                "pricing_model": "FixedPrice",
+                "contract_type": "FixedTerm",
+                "fixed_time_range": "Fixed6",
+                "comparability": "term_price_only",
+                "estimate_method": "term_price_annualized",
+                "total_cost": 544.88,
+                "base_total_cost": 554.28,
+                "discount_savings_total": 9.4,
+                "energy_package": null,
+                "contract_term": {
+                    "months": 6,
+                    "total_cost": 272.4375000000001,
+                    "base_total_cost": 277.1375000000001,
+                    "discount_savings_total": 4.699999999999989
+                },
+                "phase_breakdown": [
+                    {
+                        "window_start": "2026-07-27",
+                        "window_end": "2026-08-26",
+                        "uses_spot": false,
+                        "energy_cents": 10.19,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 0
+                    },
+                    {
+                        "window_start": "2026-08-27",
+                        "window_end": "2027-01-26",
+                        "uses_spot": false,
+                        "energy_cents": 10.19,
+                        "spot_margin_cents": null,
+                        "monthly_fee": 4.7
+                    }
+                ],
+                "has_recurring_schedule": false,
+                "recurring_cadence": "none",
+                "has_consumption_effect": false
+            }
+        ]
+    },
+    "excluded": [
+        {
+            "id": "3sivst-helen-oy-helpposahko-s",
+            "company": "Helen Oy",
+            "name": "Helpposähkö S",
+            "pricing_model": "FixedPrice",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "excluded_incomplete",
+            "estimate_method": "none",
+            "total_cost": null,
+            "base_total_cost": null,
+            "discount_savings_total": 0,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "dyykyx-helen-oy-helpposahko-xs",
+            "company": "Helen Oy",
+            "name": "Helpposähkö XS",
+            "pricing_model": "FixedPrice",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "excluded_incomplete",
+            "estimate_method": "none",
+            "total_cost": null,
+            "base_total_cost": null,
+            "discount_savings_total": 0,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "8lw2cg-turku-energia-oy-louna-helppo-l",
+            "company": "Turku Energia Oy",
+            "name": "Louna Helppo L",
+            "pricing_model": "FixedPrice",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "excluded_incomplete",
+            "estimate_method": "none",
+            "total_cost": null,
+            "base_total_cost": null,
+            "discount_savings_total": 0,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [],
+            "has_recurring_schedule": true,
+            "recurring_cadence": "other",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "dgh71e-turku-energia-oy-louna-helppo-m",
+            "company": "Turku Energia Oy",
+            "name": "Louna Helppo M",
+            "pricing_model": "FixedPrice",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "excluded_incomplete",
+            "estimate_method": "none",
+            "total_cost": null,
+            "base_total_cost": null,
+            "discount_savings_total": 0,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [],
+            "has_recurring_schedule": true,
+            "recurring_cadence": "other",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "ztawud-turku-energia-oy-louna-helppo-s",
+            "company": "Turku Energia Oy",
+            "name": "Louna Helppo S",
+            "pricing_model": "FixedPrice",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "excluded_incomplete",
+            "estimate_method": "none",
+            "total_cost": null,
+            "base_total_cost": null,
+            "discount_savings_total": 0,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [],
+            "has_recurring_schedule": true,
+            "recurring_cadence": "other",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "kw0pi8-turku-energia-oy-louna-helppo-xs",
+            "company": "Turku Energia Oy",
+            "name": "Louna Helppo XS",
+            "pricing_model": "FixedPrice",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "excluded_incomplete",
+            "estimate_method": "none",
+            "total_cost": null,
+            "base_total_cost": null,
+            "discount_savings_total": 0,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [],
+            "has_recurring_schedule": true,
+            "recurring_cadence": "other",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "gto5hg-vimpelin-voima-oy-paiva-ja-yotariffi",
+            "company": "Vimpelin Voima Oy",
+            "name": "Päivä ja yötariffi",
+            "pricing_model": "FixedPrice",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "excluded_incomplete",
+            "estimate_method": "none",
+            "total_cost": null,
+            "base_total_cost": null,
+            "discount_savings_total": 0,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "xqf8be-vimpelin-voima-oy-sulaketariffi",
+            "company": "Vimpelin Voima Oy",
+            "name": "Sulaketariffi",
+            "pricing_model": "FixedPrice",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "excluded_incomplete",
+            "estimate_method": "none",
+            "total_cost": null,
+            "base_total_cost": null,
+            "discount_savings_total": 0,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "rfarmu-vimpelin-voima-oy-vuodenaikatariffi",
+            "company": "Vimpelin Voima Oy",
+            "name": "Vuodenaikatariffi",
+            "pricing_model": "FixedPrice",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "excluded_incomplete",
+            "estimate_method": "none",
+            "total_cost": null,
+            "base_total_cost": null,
+            "discount_savings_total": 0,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        },
+        {
+            "id": "iq7fja-vimpelin-voima-oy-vuodenaikatariffi",
+            "company": "Vimpelin Voima Oy",
+            "name": "Vuodenaikatariffi",
+            "pricing_model": "FixedPrice",
+            "contract_type": "OpenEnded",
+            "fixed_time_range": null,
+            "comparability": "excluded_incomplete",
+            "estimate_method": "none",
+            "total_cost": null,
+            "base_total_cost": null,
+            "discount_savings_total": 0,
+            "energy_package": null,
+            "contract_term": null,
+            "phase_breakdown": [],
+            "has_recurring_schedule": false,
+            "recurring_cadence": "none",
+            "has_consumption_effect": false
+        }
+    ]
+}

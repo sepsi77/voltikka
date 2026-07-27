@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class ContractPriceStatisticsPageTest extends TestCase
@@ -261,6 +262,69 @@ class ContractPriceStatisticsPageTest extends TestCase
         $this->assertMatchesRegularExpression('/energiahinta on noussut.*24(?: |\x{00A0})%.*aineiston alusta/su', $response->getContent());
     }
 
+    public function test_page_and_prepared_payload_identify_canonical_latest_values(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        Cache::flush();
+        $this->seedSampleStatistics();
+        $latestDate = ContractPriceDailyStatistic::query()->orderByDesc('stat_date')->firstOrFail()->stat_date->toDateString();
+        $updated = ContractPriceDailyStatistic::query()
+            ->whereDate('stat_date', $latestDate)
+            ->update(['pricing_basis' => 'canonical_calculation']);
+        $this->assertGreaterThan(0, $updated);
+
+        $component = Livewire::test(ContractPriceStatistics::class);
+
+        $component->assertSee('Uusimman päivän nykyhinnat ja vuosikustannukset ovat Voltikan kanonisia laskelmia');
+        $this->assertSame('canonical_calculation', $component->viewData('latestPricingBasis'));
+        $this->assertSame('canonical_calculation', $component->viewData('segmentRows')[0]['pricing_basis']);
+    }
+
+    public function test_current_statistics_do_not_fall_back_to_a_newer_wrong_basis_date(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        Cache::flush();
+        $this->seedSampleStatistics();
+        $latestDate = Carbon::parse(ContractPriceDailyStatistic::query()->max('stat_date'))->toDateString();
+        ContractPriceDailyStatistic::query()
+            ->whereDate('stat_date', $latestDate)
+            ->update(['pricing_basis' => 'canonical_calculation']);
+
+        ContractPriceDailyStatistic::create([
+            'stat_date' => Carbon::parse($latestDate)->addDay(),
+            'segment_key' => 'spot',
+            'metric_key' => 'annual_cost',
+            'pricing_basis' => 'observed_seller_data',
+            'consumption_kwh' => 5000,
+            'min_value' => 9999,
+            'p20_value' => 9999,
+            'avg_value' => 9999,
+            'median_value' => 9999,
+            'p80_value' => 9999,
+            'max_value' => 9999,
+            'contract_count' => 20,
+        ]);
+
+        $component = Livewire::test(ContractPriceStatistics::class);
+
+        $this->assertSame('canonical_calculation', $component->viewData('latestPricingBasis'));
+        $this->assertNotContains(9999.0, $component->viewData('leadChartPayload')['series'][0]['values']);
+    }
+
+    public function test_prepared_cache_key_uses_the_new_provenance_schema_and_basis(): void
+    {
+        $component = app(ContractPriceStatistics::class);
+        $method = new \ReflectionMethod($component, 'statisticsViewDataCacheKey');
+        $legacyKey = $method->invoke($component);
+
+        config()->set('canonical_pricing.enabled', true);
+        $canonicalKey = $method->invoke(app(ContractPriceStatistics::class));
+
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v10:', $legacyKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v10:', $canonicalKey);
+        $this->assertNotSame($legacyKey, $canonicalKey);
+    }
+
     public function test_csv_endpoint_streams_with_attribution_header_lines(): void
     {
         $this->seedSampleStatistics();
@@ -274,8 +338,9 @@ class ContractPriceStatisticsPageTest extends TestCase
         $this->assertStringContainsString('Voltikka', $body);
         $this->assertStringContainsString('CC BY 4.0', $body);
         $this->assertStringContainsString('arvonlisäveron 25,5 %', $body);
-        $this->assertStringContainsString('segment_key,metric_key', $body);
-        $this->assertStringContainsString('spot,annual_cost,5000', $body);
+        $this->assertStringContainsString('pricing_basis=canonical_calculation', $body);
+        $this->assertStringContainsString('segment_key,metric_key,pricing_basis', $body);
+        $this->assertStringContainsString('spot,annual_cost,observed_seller_data,5000', $body);
     }
 
     private function seedRisingSpotYearlyAverages(): void

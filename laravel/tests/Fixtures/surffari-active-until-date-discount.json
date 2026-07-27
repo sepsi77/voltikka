@@ -1,0 +1,452 @@
+{
+  "input": {
+    "analysis_date": "2026-07-23",
+    "contract_id": "cxdwul-kokkolan-energia-oy-surffari-kesakampanja",
+    "api_id": "b1c3b970-48fb-4212-b638-6c6e75e9fa41",
+    "company_name": "Kokkolan Energia Oy",
+    "contract_name": "Surffari kesäkampanja",
+    "pricing_model": "Spot",
+    "contract_type": "OpenEnded",
+    "fixed_time_range": "Fixed12",
+    "metering": "General",
+    "target_group": "Household",
+    "spot_price_selection": "NasdaqMonthly",
+    "pricing_name": "Surffari kesäkampanja",
+    "pricing_has_discounts": true,
+    "short_description": null,
+    "long_description": null,
+    "extra_information_fi": "Surffaa kesällä kampanjahintaan! Marginaali 0,20 snt/kWh sis. ALV 25,5%. Hinta on voimassa 1.5.-31.8.2026. Kampanjan jälkeen 1.9.2026 alkaen Surffari-sopimuksen hinnat ovat marginaali 0,60 snt/kWh + spot-hinta ja perusmaksu 2,53 €/k. Hinnat sisältävät ALV 25,5 %. Sähkön hinta määräytyy sähkön Nord Pool Spot -markkinahinnan perusteella. Surffari pörssisopimus sopii sinulle, joka haluat seurata aktiivisesti sähkön markkinahinnan kehitystä ja ohjata sähkönkulutustasi sen mukaisesti. Voit hyödyntää markkinahinnan vaihtelut ja pienentää sähkölaskua omilla energiankulutusvalinnoilla. Pääsääntöisesti hinta on halvimmillaan yöaikaan. Asiakasportaalissamme Kompassissa voit tilata sähköpostiisi hintavahdin, joka ilmoittaa päivittäin seuraavan päivän pörssihinnat. Tee sopimus helposti verkossa 24/7 tästä linkistä Soita arkisin 0800 050 60 Sähköposti asiakaspalvelu@kokkolanenergia.fi",
+    "extra_information_default": null,
+    "time_period_definitions": {
+      "DayAndNight": {
+        "EN": "",
+        "FI": "",
+        "SV": "",
+        "Default": null
+      },
+      "WinterOtherSeasons": {
+        "EN": "",
+        "FI": "",
+        "SV": "",
+        "Default": null
+      }
+    },
+    "billing_frequency": {
+      "EN": "Kuukausittain (1/kk)",
+      "FI": "Kuukausittain (1/kk)",
+      "SV": "Kuukausittain (1/kk)",
+      "Default": null
+    },
+    "consumption_limitation": {
+      "MaxXKWhPerY": 99999,
+      "MinXKWhPerY": null
+    },
+    "components": [
+      {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "price_component_type": "Monthly",
+        "fuse_size": "Any",
+        "price": 2.53,
+        "payment_unit": "EurPerMonth",
+        "has_discount": false,
+        "discount_value": 0,
+        "discount_is_percentage": false,
+        "discount_type": "NoDiscount",
+        "discount_n_first_kwh": 0,
+        "discount_n_first_months": 0,
+        "discount_until_date": "0001-01-01T00:00:00"
+      },
+      {
+        "id": "00000000-0000-0000-0000-000000000000",
+        "price_component_type": "General",
+        "fuse_size": "Any",
+        "price": 0.6,
+        "payment_unit": "CentPerKiwattHour",
+        "has_discount": true,
+        "discount_value": 0.4,
+        "discount_is_percentage": false,
+        "discount_type": "UntilDate",
+        "discount_n_first_kwh": 0,
+        "discount_n_first_months": 0,
+        "discount_until_date": "2026-08-31T00:00:00"
+      }
+    ]
+  },
+  "faulty_output": {
+    "pricing": {
+      "phases": [
+        {
+          "ends": {
+            "kind": "none",
+            "value": null
+          },
+          "label": "Surffari-sopimuksen hinnat 1.9.2026 alkaen",
+          "starts": {
+            "kind": "date",
+            "value": "2026-09-01"
+          },
+          "evidence": [
+            {
+              "quote": "Kampanjan jälkeen 1.9.2026 alkaen Surffari-sopimuksen hinnat ovat marginaali 0,60 snt/kWh + spot-hinta ja perusmaksu 2,53 €/k.",
+              "source": "extra_information_fi"
+            }
+          ],
+          "components": [
+            {
+              "unit": "eur_per_month",
+              "amount": 2.53,
+              "evidence": [
+                {
+                  "quote": "components[0].price=2.53",
+                  "source": "components[0].price"
+                },
+                {
+                  "quote": "perusmaksu 2,53 €/k",
+                  "source": "extra_information_fi"
+                }
+              ],
+              "price_role": "normal",
+              "vat_status": "included",
+              "source_kind": "both",
+              "normal_amount": null,
+              "component_type": "monthly_fee"
+            },
+            {
+              "unit": "cents_per_kwh",
+              "amount": 0.6,
+              "evidence": [
+                {
+                  "quote": "components[1].price=0.6",
+                  "source": "components[1].price"
+                },
+                {
+                  "quote": "1.9.2026 alkaen Surffari-sopimuksen hinnat ovat marginaali 0,60 snt/kWh + spot-hinta",
+                  "source": "extra_information_fi"
+                }
+              ],
+              "price_role": "normal",
+              "vat_status": "included",
+              "source_kind": "both",
+              "normal_amount": null,
+              "component_type": "spot_margin"
+            }
+          ],
+          "phase_kind": "normal",
+          "package": null
+        }
+      ],
+      "consumption_effect": {
+        "cadence": "none",
+        "present": false,
+        "evidence": [],
+        "uncapped": null,
+        "applies_to": "unknown",
+        "description": null,
+        "expected_cents_per_kwh": null,
+        "hard_max_cents_per_kwh": null,
+        "hard_min_cents_per_kwh": null,
+        "typical_max_cents_per_kwh": null,
+        "typical_min_cents_per_kwh": null
+      },
+      "recurring_schedule": {
+        "cadence": "none",
+        "present": false,
+        "evidence": [],
+        "description": null,
+        "current_period_end": null,
+        "future_price_known": null,
+        "current_period_start": null
+      }
+    },
+    "confidence": {
+      "pricing": "high",
+      "integrity": "high",
+      "classification": "high"
+    },
+    "calculation": {
+      "status": "estimate_required",
+      "missing_facts": [
+        "Future Nord Pool Spot market prices"
+      ],
+      "required_assumptions": [
+        "An estimate of future Nord Pool Spot market prices is required for a 12-month cost calculation."
+      ]
+    },
+    "contract_id": "cxdwul-kokkolan-energia-oy-surffari-kesakampanja",
+    "classification": {
+      "metering": "General",
+      "term_type": "OpenEnded",
+      "schedule_kinds": [
+        "standard"
+      ],
+      "pricing_mechanisms": [
+        "spot"
+      ],
+      "fixed_duration_months": null,
+      "primary_pricing_model": "Spot",
+      "periodic_reset_cadence": "none",
+      "spot_settlement_interval": "unknown"
+    },
+    "schema_version": "1.1",
+    "source_consistency": {
+      "summary": "The current structured monthly fee and spot margin match the disclosed prices from 1 September 2026. The May-August 2026 campaign has ended before the analysis date and is excluded from current pricing.",
+      "evidence": [
+        {
+          "quote": "pricing_model=Spot",
+          "source": "pricing_model"
+        },
+        {
+          "quote": "contract_type=OpenEnded",
+          "source": "contract_type"
+        },
+        {
+          "quote": "metering=General",
+          "source": "metering"
+        },
+        {
+          "quote": "Sähkön hinta määräytyy sähkön Nord Pool Spot -markkinahinnan perusteella.",
+          "source": "extra_information_fi"
+        }
+      ],
+      "issue_codes": [
+        "structured_matches_description"
+      ],
+      "metering_status": "match",
+      "contract_type_status": "match",
+      "pricing_model_status": "match",
+      "recommended_metering": "General",
+      "recommended_contract_type": "OpenEnded",
+      "recommended_pricing_model": "Spot",
+      "structured_pricing_status": "complete",
+      "misleading_first_12_months": "not_detected"
+    }
+  },
+  "corrected_output": {
+    "pricing": {
+      "phases": [
+        {
+          "label": "Surffari kesäkampanja",
+          "phase_kind": "introductory",
+          "starts": {
+            "kind": "date",
+            "value": "2026-05-01"
+          },
+          "ends": {
+            "kind": "date",
+            "value": "2026-08-31"
+          },
+          "components": [
+            {
+              "component_type": "spot_margin",
+              "amount": 0.2,
+              "normal_amount": 0.6,
+              "unit": "cents_per_kwh",
+              "vat_status": "included",
+              "price_role": "introductory",
+              "source_kind": "both",
+              "evidence": [
+                {
+                  "source": "components[1].price",
+                  "quote": "components[1].price=0.6"
+                },
+                {
+                  "source": "components[1].has_discount",
+                  "quote": "components[1].has_discount=true"
+                },
+                {
+                  "source": "components[1].discount_value",
+                  "quote": "components[1].discount_value=0.4"
+                },
+                {
+                  "source": "components[1].discount_is_percentage",
+                  "quote": "components[1].discount_is_percentage=false"
+                },
+                {
+                  "source": "components[1].discount_type",
+                  "quote": "components[1].discount_type=UntilDate"
+                },
+                {
+                  "source": "components[1].discount_until_date",
+                  "quote": "components[1].discount_until_date=2026-08-31T00:00:00"
+                },
+                {
+                  "source": "extra_information_fi",
+                  "quote": "Marginaali 0,20 snt/kWh sis. ALV 25,5%."
+                },
+                {
+                  "source": "extra_information_fi",
+                  "quote": "Hinta on voimassa 1.5.-31.8.2026."
+                }
+              ]
+            },
+            {
+              "component_type": "monthly_fee",
+              "amount": 2.53,
+              "normal_amount": null,
+              "unit": "eur_per_month",
+              "vat_status": "included",
+              "price_role": "current",
+              "source_kind": "structured",
+              "evidence": [
+                {
+                  "source": "components[0].price",
+                  "quote": "components[0].price=2.53"
+                }
+              ]
+            }
+          ],
+          "package": null,
+          "evidence": [
+            {
+              "source": "extra_information_fi",
+              "quote": "Surffaa kesällä kampanjahintaan!"
+            }
+          ]
+        },
+        {
+          "ends": {
+            "kind": "none",
+            "value": null
+          },
+          "label": "Surffari-sopimuksen hinnat 1.9.2026 alkaen",
+          "starts": {
+            "kind": "date",
+            "value": "2026-09-01"
+          },
+          "evidence": [
+            {
+              "quote": "Kampanjan jälkeen 1.9.2026 alkaen Surffari-sopimuksen hinnat ovat marginaali 0,60 snt/kWh + spot-hinta ja perusmaksu 2,53 €/k.",
+              "source": "extra_information_fi"
+            }
+          ],
+          "components": [
+            {
+              "unit": "eur_per_month",
+              "amount": 2.53,
+              "evidence": [
+                {
+                  "quote": "components[0].price=2.53",
+                  "source": "components[0].price"
+                },
+                {
+                  "quote": "perusmaksu 2,53 €/k",
+                  "source": "extra_information_fi"
+                }
+              ],
+              "price_role": "normal",
+              "vat_status": "included",
+              "source_kind": "both",
+              "normal_amount": null,
+              "component_type": "monthly_fee"
+            },
+            {
+              "unit": "cents_per_kwh",
+              "amount": 0.6,
+              "evidence": [
+                {
+                  "quote": "components[1].price=0.6",
+                  "source": "components[1].price"
+                },
+                {
+                  "quote": "1.9.2026 alkaen Surffari-sopimuksen hinnat ovat marginaali 0,60 snt/kWh + spot-hinta",
+                  "source": "extra_information_fi"
+                }
+              ],
+              "price_role": "normal",
+              "vat_status": "included",
+              "source_kind": "both",
+              "normal_amount": null,
+              "component_type": "spot_margin"
+            }
+          ],
+          "phase_kind": "normal",
+          "package": null
+        }
+      ],
+      "consumption_effect": {
+        "cadence": "none",
+        "present": false,
+        "evidence": [],
+        "uncapped": null,
+        "applies_to": "unknown",
+        "description": null,
+        "expected_cents_per_kwh": null,
+        "hard_max_cents_per_kwh": null,
+        "hard_min_cents_per_kwh": null,
+        "typical_max_cents_per_kwh": null,
+        "typical_min_cents_per_kwh": null
+      },
+      "recurring_schedule": {
+        "cadence": "none",
+        "present": false,
+        "evidence": [],
+        "description": null,
+        "current_period_end": null,
+        "future_price_known": null,
+        "current_period_start": null
+      }
+    },
+    "confidence": {
+      "pricing": "high",
+      "integrity": "high",
+      "classification": "high"
+    },
+    "calculation": {
+      "status": "estimate_required",
+      "missing_facts": [
+        "Future Nord Pool Spot market prices"
+      ],
+      "required_assumptions": [
+        "An estimate of future Nord Pool Spot market prices is required for a 12-month cost calculation."
+      ]
+    },
+    "contract_id": "cxdwul-kokkolan-energia-oy-surffari-kesakampanja",
+    "classification": {
+      "metering": "General",
+      "term_type": "OpenEnded",
+      "schedule_kinds": [
+        "standard"
+      ],
+      "pricing_mechanisms": [
+        "spot"
+      ],
+      "fixed_duration_months": null,
+      "primary_pricing_model": "Spot",
+      "periodic_reset_cadence": "none",
+      "spot_settlement_interval": "unknown"
+    },
+    "schema_version": "1.1",
+    "source_consistency": {
+      "summary": "The active structured margin discount is represented through 31 August 2026, followed by the known normal margin.",
+      "evidence": [
+        {
+          "quote": "pricing_model=Spot",
+          "source": "pricing_model"
+        },
+        {
+          "quote": "contract_type=OpenEnded",
+          "source": "contract_type"
+        },
+        {
+          "quote": "metering=General",
+          "source": "metering"
+        },
+        {
+          "quote": "Sähkön hinta määräytyy sähkön Nord Pool Spot -markkinahinnan perusteella.",
+          "source": "extra_information_fi"
+        }
+      ],
+      "issue_codes": [
+        "structured_matches_description"
+      ],
+      "metering_status": "match",
+      "contract_type_status": "match",
+      "pricing_model_status": "match",
+      "recommended_metering": "General",
+      "recommended_contract_type": "OpenEnded",
+      "recommended_pricing_model": "Spot",
+      "structured_pricing_status": "complete",
+      "misleading_first_12_months": "not_detected"
+    }
+  }
+}

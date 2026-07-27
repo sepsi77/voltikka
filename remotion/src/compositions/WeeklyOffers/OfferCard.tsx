@@ -8,7 +8,7 @@ import {
   Img,
 } from "remotion";
 import { Building2, Zap } from "lucide-react";
-import type { ContractOffer } from "../../types";
+import type { ContractOffer, LegacyContractOffer } from "../../types";
 
 // Brand colors
 const BG_LIGHT = "#f8fafc"; // slate-50
@@ -32,7 +32,7 @@ type OfferCardProps = {
 /**
  * Format discount value for display - split into value and unit
  */
-function formatDiscountParts(discount: ContractOffer["discount"]): { value: string; unit: string } {
+function formatDiscountParts(discount: LegacyContractOffer["discount"]): { value: string; unit: string } {
   if (!discount) return { value: "", unit: "" };
 
   if (discount.is_percentage) {
@@ -47,7 +47,7 @@ function formatDiscountParts(discount: ContractOffer["discount"]): { value: stri
 /**
  * Format discount subtext
  */
-function formatDiscountSubtext(discount: ContractOffer["discount"]): string | null {
+function formatDiscountSubtext(discount: LegacyContractOffer["discount"]): string | null {
   if (!discount) return null;
 
   if (discount.n_first_months !== null && discount.n_first_months !== undefined && discount.n_first_months > 0) {
@@ -133,13 +133,31 @@ export const OfferCard: React.FC<OfferCardProps> = ({
     config: SPRING_FLOW,
   });
 
-  // Get featured savings (townhouse = 5000 kWh)
-  const featuredSavings = offer.savings.townhouse;
-  const hasSavings = featuredSavings > 0;
+  const isCanonical = offer.pricing_basis === "canonical";
+  const featuredSavings = isCanonical
+    ? offer.consumptions.townhouse.customer_benefit_eur
+    : offer.savings.townhouse;
+  const hasSavings = featuredSavings !== null && featuredSavings > 0;
+  const benefitMonths = isCanonical
+    ? offer.consumptions.townhouse.customer_benefit_basis_months
+    : 12;
 
-  // Parse discount parts
-  const discountParts = formatDiscountParts(offer.discount);
-  const discountSubtext = formatDiscountSubtext(offer.discount);
+  const discountParts = isCanonical
+    ? { value: `${Math.round(offer.offer.benefit_eur)}`, unit: "€" }
+    : formatDiscountParts(offer.discount);
+  const discountSubtext = isCanonical
+    ? `mitattu etu / ${offer.offer.basis_months} kk`
+    : formatDiscountSubtext(offer.discount);
+  const showOfferHero = isCanonical || offer.discount !== null;
+  const costs = isCanonical
+    ? {
+        apartment: offer.consumptions.apartment.total_cost,
+        townhouse: offer.consumptions.townhouse.total_cost,
+        house: offer.consumptions.house.total_cost,
+      }
+    : offer.costs;
+  const annualizedShortTerm = isCanonical
+    && offer.consumptions.townhouse.total_basis === "annualized_contract_term";
 
   return (
     <AbsoluteFill
@@ -252,8 +270,8 @@ export const OfferCard: React.FC<OfferCardProps> = ({
           </div>
         </div>
 
-        {/* === HERO: Discount section === */}
-        {offer.discount && (
+        {/* === HERO: Canonical measured benefit or legacy discount === */}
+        {showOfferHero && (
           <div
             className="rounded-3xl mb-10"
             style={{
@@ -336,7 +354,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
               color: "#64748b",
             }}
           >
-            VUOSIKUSTANNUS
+            {annualizedShortTerm ? "VUOSITASOLLE MUUNNETTU VERTAILUHINTA" : "ENSIMMÄISEN 12 KK HINTA"}
           </div>
 
           {/* All three tiers in a row */}
@@ -359,7 +377,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                 className="font-bold"
                 style={{ fontSize: 56, color: "white", marginTop: 12 }}
               >
-                {formatEur(offer.costs.apartment)}
+                {costs.apartment === null ? "Ei saatavilla" : formatEur(costs.apartment)}
               </div>
             </div>
 
@@ -387,7 +405,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                   letterSpacing: "-0.02em",
                 }}
               >
-                {formatEur(offer.costs.townhouse)}
+                {costs.townhouse === null ? "Ei saatavilla" : formatEur(costs.townhouse)}
               </div>
             </div>
 
@@ -409,7 +427,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
                 className="font-bold"
                 style={{ fontSize: 56, color: "white", marginTop: 12 }}
               >
-                {formatEur(offer.costs.house)}
+                {costs.house === null ? "Ei saatavilla" : formatEur(costs.house)}
               </div>
             </div>
           </div>
@@ -434,7 +452,7 @@ export const OfferCard: React.FC<OfferCardProps> = ({
               className="font-black"
               style={{ fontSize: 44, color: "white" }}
             >
-              SÄÄSTÄT {formatEur(featuredSavings)}/vuosi
+              ETU {formatEur(featuredSavings ?? 0)} / {benefitMonths ?? "?"} KK
             </span>
           </div>
         )}

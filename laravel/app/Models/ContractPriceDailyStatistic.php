@@ -10,6 +10,7 @@ class ContractPriceDailyStatistic extends Model
         'stat_date',
         'segment_key',
         'metric_key',
+        'pricing_basis',
         'consumption_kwh',
         'min_value',
         'p20_value',

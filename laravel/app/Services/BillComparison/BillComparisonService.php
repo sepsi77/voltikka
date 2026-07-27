@@ -5,12 +5,16 @@ namespace App\Services\BillComparison;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
+use App\Services\CanonicalPricing\DTO\CanonicalPeriodPricingRequest;
+use App\Services\CanonicalPricing\DTO\HistoricalSpotPrice;
+use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\BillComparisonRequest;
 use App\Services\DTO\BillComparisonResult;
 use App\Services\DTO\BillComparisonRow;
 use App\Services\DTO\EnergyUsage;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
@@ -26,9 +30,9 @@ use Illuminate\Support\Collection;
  * Two costs are produced per contract:
  *  - period cost: the exact-ish counterfactual for the bill's date range + kWh
  *    (spot uses actual historical hourly spot prices for the period).
- *  - annual cost: a seasonal-adjusted estimate via the existing
- *    `ContractPriceCalculator`, so the annualized "€/kk" savings shown to the
- *    user stays consistent with the rest of Voltikka's listings.
+ *  - annual cost: a seasonal-adjusted estimate from the same source as the
+ *    listings (canonical when enabled, legacy `ContractPriceCalculator` when
+ *    disabled).
  *
  * Market contract costs are energy-only, including ALV 25.5 % (no siirto),
  * which is exactly the comparable to "the electricity portion of your bill
@@ -48,8 +52,7 @@ class BillComparisonService
         private readonly ContractPriceCalculator $calculator,
         private readonly ConsumptionProfile $profile,
         private readonly \App\Services\CanonicalPricing\CanonicalContractPricingService $canonicalPricing,
-    ) {
-    }
+    ) {}
 
     public function compare(BillComparisonRequest $request): BillComparisonResult
     {
@@ -70,9 +73,16 @@ class BillComparisonService
         $spotPriceNight = $ctx['spotPriceNight'];
 
         $contracts = $this->loadActiveHouseholdContracts();
-        $componentsByContractId = ElectricityContract::getLatestPriceComponentsForCalculationByContractIds(
-            $contracts->pluck('id')
-        );
+        $componentsByContractId = $this->canonicalPricing->enabled()
+            ? []
+            : ElectricityContract::getLatestPriceComponentsForCalculationByContractIds($contracts->pluck('id'));
+        $canonicalEvaluations = $this->canonicalPricing->enabled()
+            ? $this->canonicalPricing->periodEvaluationsForContracts(
+                $contracts,
+                $this->canonicalPeriodRequest($ctx),
+                new SpotAssumptions($spotPriceDay, $spotPriceNight),
+            )
+            : [];
 
         $rows = [];
         foreach ($contracts as $contract) {
@@ -89,6 +99,7 @@ class BillComparisonService
                 $spotHours,
                 $spotPriceDay,
                 $spotPriceNight,
+                canonicalEvaluation: $canonicalEvaluations[$contract->id] ?? null,
             );
             if ($row !== null) {
                 $rows[] = $row;
@@ -186,9 +197,16 @@ class BillComparisonService
 
         $contracts = $contracts instanceof Collection ? $contracts : collect($contracts);
 
-        $componentsByContractId = ElectricityContract::getLatestPriceComponentsForCalculationByContractIds(
-            $contracts->pluck('id')
-        );
+        $componentsByContractId = $this->canonicalPricing->enabled()
+            ? []
+            : ElectricityContract::getLatestPriceComponentsForCalculationByContractIds($contracts->pluck('id'));
+        $canonicalEvaluations = $this->canonicalPricing->enabled()
+            ? $this->canonicalPricing->periodEvaluationsForContracts(
+                $contracts,
+                $this->canonicalPeriodRequest($ctx),
+                new SpotAssumptions($ctx['spotPriceDay'], $ctx['spotPriceNight']),
+            )
+            : [];
 
         $rows = [];
         $unavailable = [];
@@ -207,6 +225,7 @@ class BillComparisonService
                 $ctx['spotPriceDay'],
                 $ctx['spotPriceNight'],
                 $reason,
+                $canonicalEvaluations[$contract->id] ?? null,
             );
 
             if ($row !== null) {
@@ -283,6 +302,23 @@ class BillComparisonService
         ];
     }
 
+    /** Build one typed canonical request from the shared period facts and observations. */
+    private function canonicalPeriodRequest(array $context): CanonicalPeriodPricingRequest
+    {
+        $history = $context['spotHours']->map(static fn (SpotPriceHour $hour): HistoricalSpotPrice => new HistoricalSpotPrice(
+            startsAtUtc: CarbonImmutable::instance($hour->utc_datetime)->utc(),
+            centsPerKwhWithTax: (float) $hour->price_with_tax,
+        ))->values()->all();
+
+        return new CanonicalPeriodPricingRequest(
+            startDate: CarbonImmutable::instance($context['startLocal'])->startOfDay(),
+            endDate: CarbonImmutable::instance($context['endLocal'])->startOfDay(),
+            periodKwh: (float) $context['kwh'],
+            annualizedKwh: (int) $context['annualKwh'],
+            historicalSpotPrices: $history,
+        );
+    }
+
     /**
      * @return Collection<int, ElectricityContract>
      */
@@ -345,6 +381,7 @@ class BillComparisonService
         ?float $spotPriceDay,
         ?float $spotPriceNight,
         ?string &$reason = null,
+        ?array $canonicalEvaluation = null,
     ): ?BillComparisonRow {
         // Consumption-cap eligibility. Products with an annual kWh floor/cap
         // (e.g. flat-fee Helpposähkö tiers capped at 1200/2400/3600 kWh/y) are
@@ -359,13 +396,8 @@ class BillComparisonService
             return null;
         }
 
-        // Keep bill comparison consistent with the listings: never rank a contract whose
-        // canonical pricing excludes it from comparison (unknown-future promo, broken data).
-        if ($this->canonicalPricing->enabled()
-            && ! $this->canonicalPricing->evaluate($contract, new EnergyUsage(total: $annualKwh, basicLiving: $annualKwh))['outcome']->isListed()) {
-            $reason = 'not_comparable';
-
-            return null;
+        if ($this->canonicalPricing->enabled()) {
+            return $this->buildCanonicalMarketRow($contract, $kwh, $canonicalEvaluation, $reason);
         }
 
         $rates = $this->extractRates($components);
@@ -424,8 +456,8 @@ class BillComparisonService
             return null;
         }
 
-        // Annualized estimate via the standard site calculator (consistent with
-        // contract listings: trailing-365-day spot, seasonal model, promos).
+        // Feature-off annual estimate via the legacy site calculator. Canonical
+        // rows return earlier with their batched annual outcome.
         $annualCost = $this->annualCost($contract, $components, $annualKwh, $spotPriceDay, $spotPriceNight);
 
         $impliedCents = $kwh > 0 ? ($periodCost / $kwh) * 100 : 0.0;
@@ -454,6 +486,55 @@ class BillComparisonService
             isUser: false,
             detailUrl: route('contract.detail', $contract->id),
             available: true,
+            pricingBasis: 'legacy',
+        );
+    }
+
+    /**
+     * @param  array{annual: \App\Services\CanonicalPricing\DTO\CanonicalPricingOutcome, period: \App\Services\CanonicalPricing\DTO\CanonicalPeriodPricingOutcome}|null  $evaluation
+     */
+    private function buildCanonicalMarketRow(
+        ElectricityContract $contract,
+        float $kwh,
+        ?array $evaluation,
+        ?string &$reason,
+    ): ?BillComparisonRow {
+        if ($evaluation === null) {
+            $reason = 'no_pricing';
+
+            return null;
+        }
+
+        $period = $evaluation['period'];
+        $annual = $evaluation['annual'];
+
+        if (! $period->isAvailable()) {
+            $reason = $period->unavailableReason?->value ?? 'no_pricing';
+
+            return null;
+        }
+
+        $periodCost = (float) $period->periodTotal;
+
+        return new BillComparisonRow(
+            contractId: $contract->id,
+            name: $contract->name,
+            companyName: $contract->company?->name ?? $contract->company_name,
+            companySlug: $contract->company?->name_slug,
+            pricingModel: $contract->pricing_model,
+            contractType: $contract->contract_type,
+            periodCostEur: $periodCost,
+            annualCostEur: $annual->totalCost,
+            impliedCentsPerKwh: $kwh > 0 ? ($periodCost / $kwh) * 100 : 0.0,
+            isSpot: $period->usesSpot,
+            spotMargin: $period->relevantSpotMargin(),
+            hasPromo: $period->hasPromotion(),
+            isUser: false,
+            detailUrl: route('contract.detail', $contract->id),
+            available: true,
+            pricingBasis: $period->pricingBasis,
+            comparability: $period->comparability->value,
+            assumptions: $period->assumptions,
         );
     }
 
@@ -635,10 +716,6 @@ class BillComparisonService
 
         $usage = new EnergyUsage(total: $annualKwh, basicLiving: $annualKwh);
 
-        if ($this->canonicalPricing->enabled()) {
-            return $this->canonicalPricing->evaluate($contract, $usage)['outcome']->totalCost;
-        }
-
         $contractData = [
             'contract_type' => $contract->contract_type,
             'pricing_model' => $contract->pricing_model,
@@ -649,6 +726,4 @@ class BillComparisonService
 
         return $result->totalCost;
     }
-
 }
-

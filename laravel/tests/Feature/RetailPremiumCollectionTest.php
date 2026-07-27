@@ -154,6 +154,9 @@ class RetailPremiumCollectionTest extends TestCase
             'first_observed_at' => $firstObserved.' 06:00:00',
             'last_observed_at' => $firstObserved.' 06:00:00',
         ]);
+        // Deliberately preserve pre-rollout interpretation provenance. Retail-premium
+        // collection must continue to read a currently published legacy version while
+        // the schema-v4 reinterpretation stage is pending.
         $interpretation = ContractInterpretation::create([
             'contract_id' => $contract->id,
             'source_snapshot_id' => $snapshot->id,

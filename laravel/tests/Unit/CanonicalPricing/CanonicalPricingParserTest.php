@@ -16,7 +16,7 @@ class CanonicalPricingParserTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->parser = new CanonicalPricingParser();
+        $this->parser = new CanonicalPricingParser;
     }
 
     private function phase(array $overrides = []): array
@@ -38,6 +38,7 @@ class CanonicalPricingParserTest extends TestCase
                     'evidence' => [],
                 ],
             ],
+            'package' => null,
             'evidence' => [],
         ], $overrides);
     }
@@ -174,6 +175,84 @@ class CanonicalPricingParserTest extends TestCase
                     ]],
                 ]),
             ]),
+            ['status' => 'exact', 'missing_facts' => [], 'required_assumptions' => []],
+            [],
+        );
+    }
+
+    public function test_parses_complete_monthly_included_energy_package(): void
+    {
+        $data = $this->parser->parse(
+            $this->pricing([$this->phase([
+                'components' => [],
+                'package' => [
+                    'monthly_fee_eur' => 25.0,
+                    'included_kwh' => 150.0,
+                    'allowance_cadence' => 'monthly',
+                    'excess_rate_cents_per_kwh' => 16.6,
+                    'evidence' => [],
+                ],
+            ])]),
+            ['status' => 'exact', 'missing_facts' => [], 'required_assumptions' => []],
+            [],
+        );
+
+        $this->assertSame(25.0, $data->phases[0]->package?->monthlyFeeEur);
+        $this->assertSame(150.0, $data->phases[0]->package?->includedKwh);
+        $this->assertSame(16.6, $data->phases[0]->package?->excessRateCentsPerKwh);
+        $this->assertTrue($data->phases[0]->hasKnownPricing());
+    }
+
+    public function test_package_with_missing_or_invalid_values_fails_closed(): void
+    {
+        foreach ([
+            ['monthly_fee_eur' => 25.0, 'included_kwh' => null, 'allowance_cadence' => 'monthly', 'excess_rate_cents_per_kwh' => 16.6],
+            ['monthly_fee_eur' => 25.0, 'included_kwh' => 150.0, 'allowance_cadence' => 'monthly', 'excess_rate_cents_per_kwh' => null],
+            ['monthly_fee_eur' => 25.0, 'included_kwh' => 150.0, 'allowance_cadence' => 'annual', 'excess_rate_cents_per_kwh' => 16.6],
+        ] as $package) {
+            try {
+                $this->parser->parse(
+                    $this->pricing([$this->phase(['components' => [], 'package' => $package])]),
+                    ['status' => 'exact', 'missing_facts' => [], 'required_assumptions' => []],
+                    [],
+                );
+                $this->fail('Invalid package data did not fail closed.');
+            } catch (CanonicalPricingParseException) {
+                $this->addToAssertionCount(1);
+            }
+        }
+    }
+
+    public function test_package_rejects_duplicate_component_charges(): void
+    {
+        $this->expectException(CanonicalPricingParseException::class);
+
+        $this->parser->parse(
+            $this->pricing([$this->phase([
+                'package' => [
+                    'monthly_fee_eur' => 49.0,
+                    'included_kwh' => 350.0,
+                    'allowance_cadence' => 'monthly',
+                    'excess_rate_cents_per_kwh' => 16.6,
+                ],
+            ])]),
+            ['status' => 'exact', 'missing_facts' => [], 'required_assumptions' => []],
+            [],
+        );
+    }
+
+    public function test_flat_and_monthly_fee_duplicate_fails_closed(): void
+    {
+        $this->expectException(CanonicalPricingParseException::class);
+
+        $monthly = $this->phase()['components'][0];
+        $monthly['component_type'] = 'monthly_fee';
+        $monthly['unit'] = 'eur_per_month';
+        $flat = $monthly;
+        $flat['component_type'] = 'flat_fee';
+
+        $this->parser->parse(
+            $this->pricing([$this->phase(['components' => [$monthly, $flat]])]),
             ['status' => 'exact', 'missing_facts' => [], 'required_assumptions' => []],
             [],
         );

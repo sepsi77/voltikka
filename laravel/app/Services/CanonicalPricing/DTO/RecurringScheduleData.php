@@ -3,7 +3,7 @@
 namespace App\Services\CanonicalPricing\DTO;
 
 /**
- * Canonical recurring reset schedule (schema-v3 `pricing.recurring_schedule`).
+ * Canonical recurring reset schedule (schema-v4 `pricing.recurring_schedule`).
  */
 readonly class RecurringScheduleData
 {
@@ -13,8 +13,7 @@ readonly class RecurringScheduleData
         public ?string $currentPeriodStart,
         public ?string $currentPeriodEnd,
         public ?bool $futurePriceKnown,
-    ) {
-    }
+    ) {}
 
     public function isActiveReset(): bool
     {

@@ -320,8 +320,12 @@
                             </div>
 
                             <div class="flex-shrink-0 text-right">
-                                <p class="text-sm font-semibold text-slate-900">{{ number_format($data['lowestPrice'], 0, ',', ' ') }} EUR</p>
-                                <p class="text-xs text-slate-500">alkaen/vuosi</p>
+                                @if ($data['lowestPrice'] !== null)
+                                    <p class="text-sm font-semibold text-slate-900">{{ number_format($data['lowestPrice'], 0, ',', ' ') }} EUR</p>
+                                    <p class="text-xs text-slate-500">alkaen/vuosi</p>
+                                @else
+                                    <p class="text-xs text-slate-500">Hinta ei saatavilla</p>
+                                @endif
                             </div>
                         </div>
                     </a>

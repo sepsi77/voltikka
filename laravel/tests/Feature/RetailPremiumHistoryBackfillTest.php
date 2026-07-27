@@ -450,6 +450,8 @@ class RetailPremiumHistoryBackfillTest extends TestCase
             'first_observed_at' => $firstObserved.' 06:00:00',
             'last_observed_at' => $firstObserved.' 06:00:00',
         ]);
+        // Deliberately preserve the historical interpretation version that supplied
+        // this lineage template. Backfill must not rewrite old provenance as schema v4.
         $interpretation = ContractInterpretation::create([
             'contract_id' => $tip->id,
             'source_snapshot_id' => $snapshot->id,

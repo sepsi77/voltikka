@@ -3,7 +3,7 @@
 namespace App\Services\CanonicalPricing\Enums;
 
 /**
- * Canonical pricing component price roles (schema-v3 `$defs.component.price_role`).
+ * Canonical pricing component price roles (schema-v4 `$defs.component.price_role`).
  */
 enum PriceRole: string
 {

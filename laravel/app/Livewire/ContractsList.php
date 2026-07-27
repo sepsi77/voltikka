@@ -726,8 +726,8 @@ class ContractsList extends Component
             electricVehicleKmsPerMonth: $electricVehicleEnabled ? $evKmsPerMonth : 0,
             bathroomHeatingArea: $underfloorHeatingEnabled ? $this->calculatorIntValue('calcBathroomHeatingArea', 0) : 0,
             saunaUsagePerWeek: $saunaEnabled ? $this->calculatorIntValue('calcSaunaUsagePerWeek', 0) : 0,
-            externalHeating: !$includeHeating,
-            externalHeatingWater: !$includeHeating,
+            externalHeating: ! $includeHeating,
+            externalHeatingWater: ! $includeHeating,
             cooling: $this->calculatorBoolValue('calcCooling', false),
         );
 
@@ -916,25 +916,25 @@ class ContractsList extends Component
     {
         switch ($extra) {
             case 'underfloor':
-                $this->calcUnderfloorHeatingEnabled = !$this->calcUnderfloorHeatingEnabled;
-                if (!$this->calcUnderfloorHeatingEnabled) {
+                $this->calcUnderfloorHeatingEnabled = ! $this->calcUnderfloorHeatingEnabled;
+                if (! $this->calcUnderfloorHeatingEnabled) {
                     $this->calcBathroomHeatingArea = 0;
                 }
                 break;
             case 'sauna':
-                $this->calcSaunaEnabled = !$this->calcSaunaEnabled;
-                if (!$this->calcSaunaEnabled) {
+                $this->calcSaunaEnabled = ! $this->calcSaunaEnabled;
+                if (! $this->calcSaunaEnabled) {
                     $this->calcSaunaUsagePerWeek = 0;
                 }
                 break;
             case 'ev':
-                $this->calcElectricVehicleEnabled = !$this->calcElectricVehicleEnabled;
-                if (!$this->calcElectricVehicleEnabled) {
+                $this->calcElectricVehicleEnabled = ! $this->calcElectricVehicleEnabled;
+                if (! $this->calcElectricVehicleEnabled) {
                     $this->calcElectricVehicleKmsPerWeek = 0;
                 }
                 break;
             case 'cooling':
-                $this->calcCooling = !$this->calcCooling;
+                $this->calcCooling = ! $this->calcCooling;
                 break;
         }
         $this->selectedPreset = null;
@@ -1174,7 +1174,7 @@ class ContractsList extends Component
      */
     public function toggleRenewableFilter(): void
     {
-        $this->renewableFilter = !$this->renewableFilter;
+        $this->renewableFilter = ! $this->renewableFilter;
         $this->resetPage();
 
         // Track filter change
@@ -1194,7 +1194,7 @@ class ContractsList extends Component
      */
     public function toggleNuclearFilter(): void
     {
-        $this->nuclearFilter = !$this->nuclearFilter;
+        $this->nuclearFilter = ! $this->nuclearFilter;
         $this->resetPage();
     }
 
@@ -1203,7 +1203,7 @@ class ContractsList extends Component
      */
     public function toggleFossilFreeFilter(): void
     {
-        $this->fossilFreeFilter = !$this->fossilFreeFilter;
+        $this->fossilFreeFilter = ! $this->fossilFreeFilter;
         $this->resetPage();
 
         // Track filter change
@@ -1282,7 +1282,7 @@ class ContractsList extends Component
     public function getPostcodeSuggestionsProperty(): Collection
     {
         if (strlen($this->postcodeSearch) < 2) {
-            return new Collection();
+            return new Collection;
         }
 
         return Postcode::query()
@@ -1407,24 +1407,24 @@ class ContractsList extends Component
 
         // Pricing model determines the base noun
         if ($this->pricingModelFilter === 'Spot') {
-            $parts[] = $energySourcePrefix . 'pörssisähkösopimukset';
+            $parts[] = $energySourcePrefix.'pörssisähkösopimukset';
         } elseif ($this->pricingModelFilter === 'FixedPrice') {
-            $parts[] = $energySourcePrefix . 'kiinteähintaiset sähkösopimukset';
+            $parts[] = $energySourcePrefix.'kiinteähintaiset sähkösopimukset';
         } elseif ($this->pricingModelFilter === 'Hybrid') {
-            $parts[] = $energySourcePrefix . 'hybridisähkösopimukset';
+            $parts[] = $energySourcePrefix.'hybridisähkösopimukset';
         } elseif ($this->pricingModelFilter === 'Quarterly') {
-            $parts[] = $energySourcePrefix . 'kvartaalisähkösopimukset';
+            $parts[] = $energySourcePrefix.'kvartaalisähkösopimukset';
         } elseif ($this->pricingModelFilter === 'TimeOfUse') {
-            $parts[] = $energySourcePrefix . 'aikasähkösopimukset';
+            $parts[] = $energySourcePrefix.'aikasähkösopimukset';
         } elseif ($this->pricingModelFilter === 'Seasonal') {
-            $parts[] = $energySourcePrefix . 'kausisähkösopimukset';
+            $parts[] = $energySourcePrefix.'kausisähkösopimukset';
         } else {
-            $parts[] = $energySourcePrefix . 'sähkösopimukset';
+            $parts[] = $energySourcePrefix.'sähkösopimukset';
         }
 
         // Combine parts and capitalize first letter
         $title = implode(' ', $parts);
-        $title = mb_strtoupper(mb_substr($title, 0, 1)) . mb_substr($title, 1);
+        $title = mb_strtoupper(mb_substr($title, 0, 1)).mb_substr($title, 1);
 
         // Add page suffix for pages > 1
         if ($this->page > 1) {
@@ -1488,7 +1488,7 @@ class ContractsList extends Component
             return 'Vertaile ydinvoimalla tuotettuja sähkösopimuksia. Päästötön ja vakaa sähköntuotanto.';
         }
 
-        return $baseDescription . ' Katso hinnat, sopimusehdot ja energialähteet yhdestä paikasta.';
+        return $baseDescription.' Katso hinnat, sopimusehdot ja energialähteet yhdestä paikasta.';
     }
 
     /**
@@ -1512,7 +1512,7 @@ class ContractsList extends Component
             // Filter for household contracts only (exclude company-only contracts)
             ->where(function ($q) {
                 $q->whereIn('target_group', ['Household', 'Both'])
-                  ->orWhereNull('target_group');
+                    ->orWhereNull('target_group');
             });
 
         // Apply contract type filter (FixedTerm, OpenEnded)
@@ -1526,26 +1526,26 @@ class ContractsList extends Component
                 // Quarterly contracts are identified by name or description patterns
                 $query->where(function ($q) {
                     $q->where('name', 'LIKE', '%kvartaali%')
-                      ->orWhere('extra_information_fi', 'LIKE', '%kvartaali%')
-                      ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden jaksoissa%')
-                      ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden jaksolle%')
-                      ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden välein%');
+                        ->orWhere('extra_information_fi', 'LIKE', '%kvartaali%')
+                        ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden jaksoissa%')
+                        ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden jaksolle%')
+                        ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden välein%');
                 });
             } elseif ($this->pricingModelFilter === 'TimeOfUse') {
                 // Time-of-use (aikasähkö) contracts have day/night pricing
                 $query->where(function ($q) {
                     $q->where('metering', 'Time')
-                      ->orWhere('name', 'LIKE', '%aikasähkö%')
-                      ->orWhere('name', 'LIKE', '%Aikasähkö%')
-                      ->orWhere('extra_information_fi', 'LIKE', '%aikasähkö%');
+                        ->orWhere('name', 'LIKE', '%aikasähkö%')
+                        ->orWhere('name', 'LIKE', '%Aikasähkö%')
+                        ->orWhere('extra_information_fi', 'LIKE', '%aikasähkö%');
                 });
             } elseif ($this->pricingModelFilter === 'Seasonal') {
                 // Seasonal (kausisähkö) contracts have seasonal pricing
                 $query->where(function ($q) {
                     $q->where('metering', 'Season')
-                      ->orWhere('name', 'LIKE', '%kausisähkö%')
-                      ->orWhere('name', 'LIKE', '%Kausisähkö%')
-                      ->orWhere('extra_information_fi', 'LIKE', '%kausisähkö%');
+                        ->orWhere('name', 'LIKE', '%kausisähkö%')
+                        ->orWhere('name', 'LIKE', '%Kausisähkö%')
+                        ->orWhere('extra_information_fi', 'LIKE', '%kausisähkö%');
                 });
             } else {
                 $query->where('pricing_model', $this->pricingModelFilter);
@@ -1567,12 +1567,12 @@ class ContractsList extends Component
             $postcode = $this->postcodeFilter;
             $query->where(function ($q) use ($postcode) {
                 $q->where('availability_is_national', true)
-                  ->orWhereExists(function ($subquery) use ($postcode) {
-                      $subquery->select(DB::raw(1))
-                               ->from('contract_postcode')
-                               ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
-                               ->where('contract_postcode.postcode', $postcode);
-                  });
+                    ->orWhereExists(function ($subquery) use ($postcode) {
+                        $subquery->select(DB::raw(1))
+                            ->from('contract_postcode')
+                            ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
+                            ->where('contract_postcode.postcode', $postcode);
+                    });
             });
         }
 
@@ -1582,6 +1582,7 @@ class ContractsList extends Component
         if ($this->renewableFilter) {
             $contracts = $contracts->filter(function ($contract) {
                 $source = $contract->electricitySource;
+
                 return $source && $source->renewable_total >= 50;
             });
         }
@@ -1589,6 +1590,7 @@ class ContractsList extends Component
         if ($this->nuclearFilter) {
             $contracts = $contracts->filter(function ($contract) {
                 $source = $contract->electricitySource;
+
                 return $source && $source->hasNuclear();
             });
         }
@@ -1596,6 +1598,7 @@ class ContractsList extends Component
         if ($this->fossilFreeFilter) {
             $contracts = $contracts->filter(function ($contract) {
                 $source = $contract->electricitySource;
+
                 return $source && $source->isFossilFree();
             });
         }
@@ -1694,6 +1697,7 @@ class ContractsList extends Component
                 }
                 $aCost = $a->sort_key ?? $a->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
                 $bCost = $b->sort_key ?? $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
+
                 return $aCost <=> $bCost;
             })->values();
         }
@@ -1728,6 +1732,12 @@ class ContractsList extends Component
      */
     public function getLatestPrices(ElectricityContract $contract): array
     {
+        // Card presenters ignore relational rates in canonical mode. Return before
+        // `loadMissing()` so a Blade call cannot recreate one query per visible card.
+        if (config('canonical_pricing.enabled', false)) {
+            return [];
+        }
+
         $contract->loadMissing('priceComponents');
 
         $prices = [];
@@ -1745,6 +1755,7 @@ class ContractsList extends Component
 
     /**
      * Precomputed percentile thresholds for pricing components.
+     *
      * @var array<string, array{p15: float, p85: float}>|null
      */
     protected ?array $percentileCache = null;
@@ -1839,9 +1850,12 @@ class ContractsList extends Component
             ->get()
             ->keyBy('id');
 
-        $priceComponentsByContractId = ElectricityContract::getLatestPriceComponentsForCalculationByContractIds($visibleIds);
+        $useCanonical = (bool) config('canonical_pricing.enabled', false);
+        $priceComponentsByContractId = $useCanonical
+            ? []
+            : ElectricityContract::getLatestPriceComponentsForCalculationByContractIds($visibleIds);
 
-        return $visibleSummaries->map(function (ElectricityContract $summary) use ($contractsById, $priceComponentsByContractId) {
+        return $visibleSummaries->map(function (ElectricityContract $summary) use ($contractsById, $priceComponentsByContractId, $useCanonical) {
             /** @var ElectricityContract|null $contract */
             $contract = $contractsById->get($summary->id);
 
@@ -1849,9 +1863,11 @@ class ContractsList extends Component
                 return null;
             }
 
-            $contract->setRelation('priceComponents', new Collection(
-                array_map(fn (array $component) => new PriceComponent($component), $priceComponentsByContractId[$contract->id] ?? [])
-            ));
+            if (! $useCanonical) {
+                $contract->setRelation('priceComponents', new Collection(
+                    array_map(fn (array $component) => new PriceComponent($component), $priceComponentsByContractId[$contract->id] ?? [])
+                ));
+            }
             $contract->calculated_cost = $summary->calculated_cost;
             $contract->emission_factor = $summary->emission_factor;
             $contract->exceeds_consumption_limit = $summary->exceeds_consumption_limit;
@@ -1868,10 +1884,10 @@ class ContractsList extends Component
      */
     public function getCanonicalUrlProperty(): string
     {
-        $baseUrl = config('app.url') . $this->basePath;
+        $baseUrl = config('app.url').$this->basePath;
 
         if ($this->page > 1) {
-            return $baseUrl . '?page=' . $this->page;
+            return $baseUrl.'?page='.$this->page;
         }
 
         return $baseUrl;
@@ -1887,7 +1903,7 @@ class ContractsList extends Component
             return null;
         }
 
-        $baseUrl = config('app.url') . $this->basePath;
+        $baseUrl = config('app.url').$this->basePath;
 
         // Page 2 -> prev is page 1 (no page param)
         if ($this->page === 2) {
@@ -1895,7 +1911,7 @@ class ContractsList extends Component
         }
 
         // Pages > 2 -> prev includes page param
-        return $baseUrl . '?page=' . ($this->page - 1);
+        return $baseUrl.'?page='.($this->page - 1);
     }
 
     /**
@@ -1912,9 +1928,9 @@ class ContractsList extends Component
             return null;
         }
 
-        $baseUrl = config('app.url') . $this->basePath;
+        $baseUrl = config('app.url').$this->basePath;
 
-        return $baseUrl . '?page=' . ($this->page + 1);
+        return $baseUrl.'?page='.($this->page + 1);
     }
 
     /**
@@ -1925,12 +1941,12 @@ class ContractsList extends Component
         return [
             '@context' => 'https://schema.org',
             '@type' => 'WebPage',
-            '@id' => $this->canonicalUrl . '#webpage',
+            '@id' => $this->canonicalUrl.'#webpage',
             'url' => $this->canonicalUrl,
             'name' => $this->pageTitle,
             'description' => $this->metaDescription,
             'mainEntity' => [
-                '@id' => $this->canonicalUrl . '#comparison-service',
+                '@id' => $this->canonicalUrl.'#comparison-service',
             ],
         ];
     }
@@ -1943,7 +1959,7 @@ class ContractsList extends Component
         return [
             '@context' => 'https://schema.org',
             '@type' => 'Service',
-            '@id' => $this->canonicalUrl . '#comparison-service',
+            '@id' => $this->canonicalUrl.'#comparison-service',
             'name' => 'Sähkösopimusten vertailu',
             'description' => 'Voltikka vertailee sähkösopimuksia, hintoja ja sopimustyyppejä Suomessa.',
             'url' => $this->canonicalUrl,
@@ -1976,11 +1992,11 @@ class ContractsList extends Component
 
             $productItem = [
                 '@type' => 'Product',
-                '@id' => route('contract.detail', ['contractId' => $contract->id]) . '#product',
+                '@id' => route('contract.detail', ['contractId' => $contract->id]).'#product',
                 'name' => $contract->name,
                 'url' => route('contract.detail', ['contractId' => $contract->id]),
                 'category' => 'Electricity Contract',
-                'description' => 'Arvioitu vuosikustannus ' . number_format($this->consumption, 0, ',', ' ') . ' kWh kulutuksella',
+                'description' => 'Arvioitu vuosikustannus '.number_format($this->consumption, 0, ',', ' ').' kWh kulutuksella',
             ];
 
             if ($contract->company) {
@@ -2028,7 +2044,7 @@ class ContractsList extends Component
                 '@type' => 'ListItem',
                 'position' => 2,
                 'name' => 'Sähkösopimukset',
-                'item' => config('app.url') . '/sahkosopimus',
+                'item' => config('app.url').'/sahkosopimus',
             ],
         ];
 
@@ -2084,12 +2100,12 @@ class ContractsList extends Component
             '@type' => 'WebSite',
             'name' => 'Voltikka',
             'url' => config('app.url'),
-            'description' => 'Vertailussa ' . \App\Livewire\AboutPage::cachedContractCount() . ' sähkösopimusta — yksi Suomen kattavimmista riippumattomista vertailuista. Vertaile hintoja ja löydä edullisin sähkösopimus.',
+            'description' => 'Vertailussa '.\App\Livewire\AboutPage::cachedContractCount().' sähkösopimusta — yksi Suomen kattavimmista riippumattomista vertailuista. Vertaile hintoja ja löydä edullisin sähkösopimus.',
             'potentialAction' => [
                 '@type' => 'SearchAction',
                 'target' => [
                     '@type' => 'EntryPoint',
-                    'urlTemplate' => config('app.url') . '/sahkosopimus?postcodeFilter={postcode}',
+                    'urlTemplate' => config('app.url').'/sahkosopimus?postcodeFilter={postcode}',
                 ],
                 'query-input' => 'required name=postcode',
             ],
@@ -2130,7 +2146,7 @@ class ContractsList extends Component
      * If the lock is already held, serve an uncached response rather than making
      * the request wait long enough to hit PHP's 30 second request timeout.
      *
-     * @param callable(): array{view: array<string, mixed>, layout: array<string, mixed>} $callback
+     * @param  callable(): array{view: array<string, mixed>, layout: array<string, mixed>}  $callback
      * @return array{view: array<string, mixed>, layout: array<string, mixed>}
      */
     protected function rememberDefaultListingViewData(string $key, callable $callback): array
@@ -2180,7 +2196,7 @@ class ContractsList extends Component
                 'marketInsight' => $this->marketInsight,
             ],
             'layout' => [
-                'title' => $this->pageTitle . ' | Voltikka',
+                'title' => $this->pageTitle.' | Voltikka',
                 'metaDescription' => $this->metaDescription,
                 'canonical' => $this->canonicalUrl,
                 'prevUrl' => $this->prevUrl,
@@ -2224,7 +2240,7 @@ class ContractsList extends Component
 
     protected function contractsListViewDataCacheKey(): string
     {
-        return 'contracts-list:view-data:v1:' . md5(json_encode([
+        return 'contracts-list:view-data:v1:'.md5(json_encode([
             'class' => static::class,
             'base_path' => $this->basePath,
             'page' => $this->page,

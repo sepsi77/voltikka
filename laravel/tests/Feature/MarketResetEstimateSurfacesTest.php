@@ -33,6 +33,7 @@ class MarketResetEstimateSurfacesTest extends TestCase
         $version = app(ContractPageCacheVersion::class);
 
         config(['canonical_pricing.reset_forward_shift.enabled' => false]);
+        $this->assertSame(8, $version->version()['payload_schema_version']);
         $this->assertFalse($version->version()['reset_forward_shift_enabled']);
         $off = $version->hash();
 
@@ -76,8 +77,24 @@ class MarketResetEstimateSurfacesTest extends TestCase
 
         $keys = $this->cacheKeysMatching('contract_rankings');
 
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':s1:')));
         $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_ends_with($key, ':r1')));
         $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_ends_with($key, ':r0')));
+    }
+
+    public function test_ranking_cache_key_varies_by_the_contract_list_data_version(): void
+    {
+        Cache::flush();
+
+        app(ContractRankingService::class)->getTotalActiveContracts();
+        app(ContractListCacheService::class)->bumpVersion();
+        app()->forgetInstance(ContractRankingService::class);
+        app(ContractRankingService::class)->getTotalActiveContracts();
+
+        $keys = $this->cacheKeysMatching('contract_rankings');
+
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':lv1:')));
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':lv2:')));
     }
 
     /**

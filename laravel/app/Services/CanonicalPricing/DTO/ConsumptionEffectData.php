@@ -3,7 +3,7 @@
 namespace App\Services\CanonicalPricing\DTO;
 
 /**
- * Canonical Hybrid consumption-effect disclosure (schema-v3 `pricing.consumption_effect`).
+ * Canonical Hybrid consumption-effect disclosure (schema-v4 `pricing.consumption_effect`).
  * Used for base-only Hybrid disclosure copy; not costed into the base total.
  */
 readonly class ConsumptionEffectData
@@ -18,8 +18,7 @@ readonly class ConsumptionEffectData
         public ?float $hardMinCentsPerKwh,
         public ?float $hardMaxCentsPerKwh,
         public ?bool $uncapped,
-    ) {
-    }
+    ) {}
 
     public function hasDisclosedBounds(): bool
     {

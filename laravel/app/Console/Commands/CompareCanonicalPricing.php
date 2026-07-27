@@ -6,6 +6,8 @@ use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
 use App\Services\CanonicalPricing\CanonicalContractPriceCalculator;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
+use App\Services\CanonicalPricing\CanonicalPricingParser;
+use App\Services\CanonicalPricing\Exceptions\CanonicalPricingParseException;
 use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimatorSettings;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketResetPriceEstimator;
@@ -36,6 +38,7 @@ class CompareCanonicalPricing extends Command
 
     public function handle(
         CanonicalContractPricingService $canonical,
+        CanonicalPricingParser $parser,
         ContractPriceCalculator $legacy,
     ): int {
         $consumption = (int) $this->option('consumption');
@@ -63,6 +66,16 @@ class CompareCanonicalPricing extends Command
         $parseErrors = [];
 
         foreach ($contracts as $contract) {
+            try {
+                $parser->parse(
+                    $contract->canonical_pricing,
+                    $contract->canonical_calculation,
+                    $contract->canonical_source_consistency,
+                );
+            } catch (CanonicalPricingParseException) {
+                $parseErrors[] = $contract->id;
+            }
+
             $evaluation = $canonical->evaluate($contract, $usage, null, $startDate);
             $outcome = $evaluation['outcome'];
             $integrity = $evaluation['integrity'];
@@ -109,9 +122,6 @@ class CompareCanonicalPricing extends Command
                 $labeled[] = "{$contract->id} — {$contract->name} [{$integrity->reasonFamily->value}] ".($integrity->cardLabel ?? '(detail-only)');
             }
 
-            if ($outcome->totalCost === null && $components !== [] && $comparability === 'excluded_incomplete' && $contract->canonical_pricing === null) {
-                $parseErrors[] = $contract->id;
-            }
         }
 
         $this->info("Compared {$contracts->count()} active contracts at {$consumption} kWh, window from {$startDate->toDateString()}.");

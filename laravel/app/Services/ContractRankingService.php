@@ -14,7 +14,12 @@ use Illuminate\Support\Facades\Cache;
 class ContractRankingService
 {
     private const CACHE_TTL_SECONDS = 3600; // 1 hour
+
     private const CACHE_KEY_RANKINGS = 'contract_rankings_5000kwh';
+
+    /** Bump when ranking eligibility, ordering, or the cached payload shape changes. */
+    private const PAYLOAD_SCHEMA_VERSION = 1;
+
     private const DEFAULT_CONSUMPTION = 5000;
 
     public function __construct(
@@ -96,6 +101,7 @@ class ContractRankingService
                     return null;
                 }
                 $cost = (float) ($metrics['contracts'][$id]['total_cost'] ?? 0);
+
                 return [
                     'contract' => $contract,
                     'total_cost' => $cost,
@@ -160,6 +166,7 @@ class ContractRankingService
             return null;
         }
         $position = array_search($contractId, $summary['sortedIds'], true);
+
         return $position === false ? null : $position + 1;
     }
 
@@ -170,6 +177,7 @@ class ContractRankingService
     public function getTotalContractsForConsumption(string $contractId, int $consumption): ?int
     {
         $summary = $this->getEligibleSortedIds($contractId, $consumption);
+
         return $summary === null ? null : count($summary['sortedIds']);
     }
 
@@ -290,7 +298,7 @@ class ContractRankingService
      */
     private function getEligibleSortedIds(string $viewedContractId, int $consumption): ?array
     {
-        $memoKey = $viewedContractId . ':' . $consumption;
+        $memoKey = $viewedContractId.':'.$consumption;
         if (array_key_exists($memoKey, $this->eligibleSortedIdsMemo)) {
             return $this->eligibleSortedIdsMemo[$memoKey];
         }
@@ -346,11 +354,12 @@ class ContractRankingService
         if ($viewedTargetGroup === 'Company') {
             return ['Company', 'Both'];
         }
+
         return ['Household', 'Both'];
     }
 
     /**
-     * @param array<int, string> $eligible
+     * @param  array<int, string>  $eligible
      */
     private function matchesTargetGroup(?string $candidate, array $eligible): bool
     {
@@ -358,6 +367,7 @@ class ContractRankingService
             // Treat unset target group as household-eligible (matches existing ranking logic).
             return in_array('Household', $eligible, true);
         }
+
         return in_array($candidate, $eligible, true);
     }
 
@@ -416,6 +426,8 @@ class ContractRankingService
 
         // Vary the cache key by pricing basis so toggling either flag does not serve stale ranks.
         $cacheKey = self::CACHE_KEY_RANKINGS
+            .':s'.self::PAYLOAD_SCHEMA_VERSION
+            .':lv'.$this->listCache->getVersion()
             .($this->canonicalPricing->enabled() ? ':c1' : ':c0')
             .($this->canonicalPricing->resetForwardShiftEnabled() ? ':r1' : ':r0');
 
@@ -433,7 +445,7 @@ class ContractRankingService
             ->active()
             ->where(function ($q) {
                 $q->whereIn('target_group', ['Household', 'Both'])
-                  ->orWhereNull('target_group');
+                    ->orWhereNull('target_group');
             })
             ->get();
 

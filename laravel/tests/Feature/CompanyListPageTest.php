@@ -7,7 +7,11 @@ use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\PriceComponent;
+use App\Services\CompanyListCacheService;
+use App\Services\ContractListCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -975,5 +979,197 @@ class CompanyListPageTest extends TestCase
 
         Livewire::test('company-list')
             ->assertSeeHtml('href="/sahkosopimus/sahkoyhtiot/cheap-energy-oy"');
+    }
+
+    public function test_canonical_company_prices_ignore_conflicting_relational_rows_and_include_canonical_only_contracts(): void
+    {
+        config(['canonical_pricing.enabled' => true]);
+
+        $this->createCanonicalContract('cheap-canonical', 'Cheap Energy Oy', 10.0, 1.0);
+        $this->createCanonicalContract('green-canonical', 'Green Power Ab', 5.0, 20.0);
+        $this->createCanonicalContract('nuclear-canonical-only', 'Nuclear Plus Oy', 7.0);
+
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = strtolower($query->sql);
+        });
+
+        $component = Livewire::test('company-list');
+        $companies = $component->viewData('companies')->keyBy('company.name');
+        $cheapest = $component->viewData('cheapestCompanies');
+
+        $this->assertCount(3, $companies);
+        $this->assertEqualsWithDelta(500.0, $companies['Cheap Energy Oy']['avgPrice'], 0.01);
+        $this->assertEqualsWithDelta(500.0, $companies['Cheap Energy Oy']['lowestPrice'], 0.01);
+        $this->assertEqualsWithDelta(250.0, $companies['Green Power Ab']['lowestPrice'], 0.01);
+        $this->assertEqualsWithDelta(350.0, $companies['Nuclear Plus Oy']['lowestPrice'], 0.01);
+        $this->assertSame('Green Power Ab', $cheapest->first()['company']->name);
+        $this->assertEmpty(array_filter(
+            $queries,
+            fn (string $sql): bool => str_contains($sql, 'price_components'),
+        ));
+        $component->assertSee('250 EUR')->assertSee('350 EUR')->assertSee('500 EUR');
+    }
+
+    public function test_canonical_excluded_and_missing_outcomes_do_not_become_zero_counts_or_rankings(): void
+    {
+        config(['canonical_pricing.enabled' => true]);
+
+        $this->createCanonicalContract('listed-canonical', 'Cheap Energy Oy', 8.0);
+        $this->createCanonicalContract('missing-canonical', 'Cheap Energy Oy', null, 0.0);
+        $this->createCanonicalContract('excluded-canonical', 'Green Power Ab', null, 0.0);
+        $this->createCanonicalContract('incomplete-canonical', 'Nuclear Plus Oy', null, 0.0, true);
+
+        $component = Livewire::test('company-list');
+        $companies = $component->viewData('companies');
+        $cheapest = $component->viewData('cheapestCompanies');
+
+        $this->assertCount(1, $companies);
+        $this->assertSame(1, $component->viewData('companyCount'));
+        $this->assertSame(1, $component->viewData('contractCount'));
+        $this->assertCount(1, $cheapest);
+        $this->assertSame(1, $companies->first()['contractCount']);
+        $this->assertSame('Cheap Energy Oy', $cheapest->first()['company']->name);
+        $component
+            ->assertDontSee('Green Power Ab')
+            ->assertDontSee('Nuclear Plus Oy')
+            ->assertDontSeeHtml('>0 EUR<');
+    }
+
+    public function test_company_list_keeps_relational_pricing_when_canonical_feature_is_off(): void
+    {
+        config(['canonical_pricing.enabled' => false]);
+
+        $this->createCanonicalContract('cheap-legacy', 'Cheap Energy Oy', 20.0, 2.0);
+        $this->createCanonicalContract('green-legacy', 'Green Power Ab', 1.0, 8.0);
+
+        $component = Livewire::test('company-list');
+        $companies = $component->viewData('companies')->keyBy('company.name');
+        $cheapest = $component->viewData('cheapestCompanies');
+
+        $this->assertEqualsWithDelta(100.0, $companies['Cheap Energy Oy']['lowestPrice'], 0.01);
+        $this->assertEqualsWithDelta(400.0, $companies['Green Power Ab']['lowestPrice'], 0.01);
+        $this->assertSame('Cheap Energy Oy', $cheapest->first()['company']->name);
+    }
+
+    public function test_company_cache_key_has_schema_and_separates_both_pricing_flags(): void
+    {
+        Cache::flush();
+
+        foreach ([[false, false], [true, false], [true, true]] as [$canonical, $reset]) {
+            config([
+                'canonical_pricing.enabled' => $canonical,
+                'canonical_pricing.reset_forward_shift.enabled' => $reset,
+            ]);
+            app(CompanyListCacheService::class)->getCachedCompanies(5000);
+        }
+
+        app(ContractListCacheService::class)->bumpVersion();
+        app(CompanyListCacheService::class)->getCachedCompanies(5000);
+
+        $keys = $this->cacheKeysMatching('company_list:');
+
+        $this->assertContains('company_list:v1:s1:lv1:c0r0:5000', $keys);
+        $this->assertContains('company_list:v1:s1:lv1:c1r0:5000', $keys);
+        $this->assertContains('company_list:v1:s1:lv1:c1r1:5000', $keys);
+        $this->assertContains('company_list:v1:s1:lv2:c1r1:5000', $keys);
+    }
+
+    private function createCanonicalContract(
+        string $id,
+        string $company,
+        ?float $canonicalRate,
+        ?float $relationalRate = null,
+        bool $emptyPhase = false,
+    ): void {
+        $components = $canonicalRate !== null && ! $emptyPhase ? [[
+            'component_type' => 'energy_general',
+            'amount' => $canonicalRate,
+            'normal_amount' => null,
+            'unit' => 'cents_per_kwh',
+            'vat_status' => 'included',
+            'price_role' => 'current',
+            'source_kind' => 'both',
+            'evidence' => [],
+        ]] : [];
+
+        ElectricityContract::create([
+            'id' => $id,
+            'company_name' => $company,
+            'name' => $id,
+            'contract_type' => 'OpenEnded',
+            'pricing_model' => 'FixedPrice',
+            'metering' => 'General',
+            'target_group' => 'Household',
+            'availability_is_national' => true,
+            'canonical_pricing' => $canonicalRate === null && ! $emptyPhase ? null : [
+                'phases' => [[
+                    'label' => 'current',
+                    'phase_kind' => 'current_structured',
+                    'starts' => ['kind' => 'contract_start', 'value' => null],
+                    'ends' => ['kind' => 'none', 'value' => null],
+                    'components' => $components,
+                    'evidence' => [],
+                ]],
+                'recurring_schedule' => [
+                    'present' => false,
+                    'cadence' => 'none',
+                    'current_period_start' => null,
+                    'current_period_end' => null,
+                    'future_price_known' => null,
+                    'description' => null,
+                    'evidence' => [],
+                ],
+                'consumption_effect' => [
+                    'present' => false,
+                    'applies_to' => 'unknown',
+                    'cadence' => 'none',
+                    'expected_cents_per_kwh' => null,
+                    'typical_min_cents_per_kwh' => null,
+                    'typical_max_cents_per_kwh' => null,
+                    'hard_min_cents_per_kwh' => null,
+                    'hard_max_cents_per_kwh' => null,
+                    'uncapped' => null,
+                    'description' => null,
+                    'evidence' => [],
+                ],
+            ],
+            'canonical_calculation' => [
+                'status' => 'exact',
+                'missing_facts' => [],
+                'required_assumptions' => [],
+            ],
+            'canonical_source_consistency' => [
+                'misleading_first_12_months' => 'not_detected',
+                'structured_pricing_status' => 'complete',
+                'issue_codes' => [],
+            ],
+        ]);
+        $this->markAsActive($id);
+
+        if ($relationalRate !== null) {
+            PriceComponent::create([
+                'id' => 'pc-'.$id,
+                'electricity_contract_id' => $id,
+                'price_component_type' => 'General',
+                'price_date' => now()->format('Y-m-d'),
+                'price' => $relationalRate,
+                'payment_unit' => 'c/kWh',
+            ]);
+        }
+    }
+
+    /** @return list<string> */
+    private function cacheKeysMatching(string $needle): array
+    {
+        $store = Cache::store()->getStore();
+        $storage = (new \ReflectionClass($store))->getProperty('storage');
+        $storage->setAccessible(true);
+
+        return collect(array_keys((array) $storage->getValue($store)))
+            ->map(fn ($key) => (string) $key)
+            ->filter(fn (string $key) => str_contains($key, $needle))
+            ->values()
+            ->all();
     }
 }

@@ -62,10 +62,7 @@ receives a with-VAT-comparable total.
   for the period (flat hourly consumption assumption). Fixed/General is exact.
   Time-of-use uses an 85/15 day/night split. Seasonal splits kWh by winter vs
   other days **computed from the period's actual dates**.
-- **annual cost** — a seasonal-adjusted estimate via the existing
-  `ContractPriceCalculator` with `annual_kWh`, so the annualized "€/kk" savings
-  stays consistent with the rest of Voltikka's listings (trailing-365-day spot
-  averages, seasonal model, promo-aware first-year estimate).
+- **annual cost** — a seasonal-adjusted estimate at `annual_kWh`. Canonical mode uses the normal typed 12-month canonical outcome from the same batched evaluation as period pricing. Feature-off uses `ContractPriceCalculator`. This keeps annualized "€/kk" savings consistent with the active listing basis, including trailing-365-day Spot assumptions, seasonal timing, packages, and canonical offer phases.
 
 The ranking table sorts by **period cost** (most honest), and its row-level
 savings column must use the same period basis (`user period cost - row period
@@ -101,17 +98,19 @@ is too seasonal, especially with electric heating.
 
 ## Spot contract handling
 
-- Spot is detected by `pricing_model === 'Spot'` or the calculator's heuristic
-  (a General rate < 0.8 c/kWh is a margin). The margin is the first non-Monthly
-  component price.
-- Period spot cost = `Σ(hourly_kwh × price_with_tax) + margin × kWh + base × months`,
-  using actual `SpotPriceHour` rows for the period (UTC-converted query).
-- If no spot history exists for the period, spot contracts are skipped from the
-  ranking (marked unavailable) rather than shown at €0.
-- When a spot contract appears in the top 3, the view shows a caveat with the
-  period's realized average spot c/kWh. Annualized spot savings are always
-  labelled "arvio" because future spot ≠ past spot.
-- `monthsInPeriod = totalDays / 30` (fractional) for base-fee scaling.
+- In canonical mode, the canonical phase mechanism decides whether each hour is
+  Spot. A fixed-price phase can therefore switch to Spot, and two Spot phases can
+  use different margins during one bill period. No relational heuristic or
+  current-margin fallback runs in this branch.
+- Canonical period Spot cost uses flat consumption over the period's real UTC
+  hours and the realized `SpotPriceHour::price_with_tax` for every hour governed
+  by a Spot phase. Missing required history returns `no_spot_history`, never zero.
+- Feature-off keeps the legacy detection (`pricing_model === 'Spot'` or a General
+  rate below 0.8 c/kWh) and the first non-Monthly component margin.
+- When a Spot contract appears in the top 3, the view shows a caveat with the
+  period's realized average spot c/kWh. Annualized Spot savings are always
+  labelled "arvio" because future Spot differs from past Spot.
+- Ordinary monthly fees keep the existing `totalDays / 30` proration.
 
 ## Consumption-cap eligibility (do not remove)
 
@@ -198,21 +197,42 @@ module, as opposed to the standalone `/maksatko-liikaa` page which uses
 
 ## Canonical pricing (behind `CANONICAL_PRICING_ENABLED`)
 
-When the flag is on, the **annual cost** estimate (`annualCost()`) comes from
-`CanonicalContractPricingService` so the hero's annualized €/vuosi stays consistent with the
-listings' phase-aware totals, and `buildMarketRow()` returns `null` for any contract the canonical
-verdict excludes from comparison (unknown-future promo, broken data) — so a contract hidden from the
-listings never appears in the bill ranking either. The **period** cost still uses this service's own
-component-rate math for the historical billing period; only the annualized estimate and the
-exclusion go through canonical. When the flag is off, behavior is unchanged.
+All three bill surfaces use `CanonicalContractPricingService::periodEvaluationsForContracts()`.
+It parses each contract once and returns both the normal 12-month outcome and a separate typed
+`CanonicalPeriodPricingOutcome`. The period calculator is part of
+`CanonicalContractPriceCalculator`; `BillComparisonService` supplies only billing facts and the
+shared realized Spot observations. It does not interpret canonical components.
+
+Period rules:
+
+- the contract is treated as an offer accepted at the bill-period start;
+  `contract_start` and `after_months` boundaries anchor there, while absolute disclosed dates keep
+  their calendar meaning;
+- fixed General usage is flat across the real period hours; Time keeps the 85/15 day/night split;
+  Season applies the same 85/15 split on actual winter dates and the other rate on other dates;
+- ordinary monthly fees keep days/30; package fees and allowances reset per intersected calendar
+  month and use the same calendar-month fraction for a partial month. Unused allowance does not
+  carry, and a package is not a promotion;
+- annual comparability, Hybrid base-only treatment, recurring-reset fill/forward shift, phase
+  inheritance, mechanism switches, and fail-closed parsing are the same rules as annual canonical
+  evaluation;
+- `hasPromo` means positive canonical normal-vs-actual savings measured on this exact period;
+- unavailable reasons are stable: `consumption_cap`, `not_comparable`, `no_spot_history`, and
+  `no_pricing`.
+
+Canonical mode never calls the latest-component loader, `extractRates()`, `spotPeriodCost()`,
+`seasonalPeriodCost()`, or `ContractPriceCalculator` for a market row. Canonical-only contracts can
+be costed. Missing, excluded, incomplete, or unsafe canonical pricing never falls back to relational
+rates. Feature-off keeps the prior component calculation unchanged.
 
 ## Query guardrails
 
 - Active household contracts only: `ElectricityContract::active()->whereIn('target_group', ['Household','Both'])`.
-- Use `ElectricityContract::getLatestPriceComponentsForCalculationByContractIds()`
-  to load components in one query (do not eager-load full price history).
-- Spot hours for the period are loaded once and shared across all spot
-  contracts.
+- Canonical mode batches annual and period evaluation and issues no
+  `price_components` query. Feature-off uses
+  `getLatestPriceComponentsForCalculationByContractIds()` once; never eager-load full history.
+- Spot hours and the rolling annual assumptions are loaded once and shared
+  across all contracts.
 - This is a per-user calculator; do not add public prepared-data caching.
   Match the heat-pump / solar calculator pattern (not public-cached).
 

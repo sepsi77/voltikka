@@ -1,0 +1,104 @@
+{
+  "captured_date": "2026-07-27",
+  "responses": [
+    {
+      "key": "home",
+      "url": "https://voltikka.fi/",
+      "curl_exit": 0,
+      "http_status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "time_seconds": 0.403,
+      "bytes": 72361,
+      "sha256": "69d86cc8012c0213eb2e0be3d819b5c97d17fe54b6bcf46c66a162b278aef502",
+      "error": null
+    },
+    {
+      "key": "contracts",
+      "url": "https://voltikka.fi/sahkosopimus",
+      "curl_exit": 0,
+      "http_status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "time_seconds": 0.664,
+      "bytes": 421784,
+      "sha256": "8cd07589d69ad57a4e8534c645216bc60bd596fece57b4a5a2092e458feffa58",
+      "error": null
+    },
+    {
+      "key": "companies",
+      "url": "https://voltikka.fi/sahkosopimus/sahkoyhtiot",
+      "curl_exit": 0,
+      "http_status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "time_seconds": 0.389,
+      "bytes": 194874,
+      "sha256": "48df64c50c8f6de63884d18f1492d941f11a02a1fbfdc5f1a0a099347659b1e6",
+      "error": null
+    },
+    {
+      "key": "statistics",
+      "url": "https://voltikka.fi/sahkosopimus/tilastot",
+      "curl_exit": 0,
+      "http_status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "time_seconds": 0.485,
+      "bytes": 233684,
+      "sha256": "45a393fa7690ef95ddf808b9278006ac9217a4829bd4ad80cee990eccbd119fe",
+      "error": null
+    },
+    {
+      "key": "bill_comparison",
+      "url": "https://voltikka.fi/maksatko-liikaa",
+      "curl_exit": 0,
+      "http_status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "time_seconds": 4.83,
+      "bytes": 95469,
+      "sha256": "788ce1f9c5089fb94a66759976f2e36d712dfc3f7cb3dc643422d300b365d1fc",
+      "error": null
+    },
+    {
+      "key": "company_vaasan",
+      "url": "https://voltikka.fi/sahkosopimus/sahkoyhtiot/vaasan-sahko-myynti-oy",
+      "curl_exit": 0,
+      "http_status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "time_seconds": 0.994,
+      "bytes": 586764,
+      "sha256": "8926d7532d35c2de43153636ec07e738d37695d741b80aa9ca33cf28d6304a1d",
+      "error": null
+    },
+    {
+      "key": "contract_vaasan_xs",
+      "url": "https://voltikka.fi/sahkosopimus/sopimus/pyhgkn-vaasan-sahko-myynti-oy-kuukausipaketti-xs",
+      "curl_exit": 0,
+      "http_status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "time_seconds": 1.384,
+      "bytes": 141570,
+      "sha256": "3b07c4e544e66aa469e148218c35712a927818eca1a2ea1ed426c5b472cec8e3",
+      "error": null
+    },
+    {
+      "key": "api_contracts_5000",
+      "url": "https://voltikka.fi/api/contracts?consumption=5000",
+      "curl_exit": 0,
+      "http_status": 200,
+      "content_type": "application/json",
+      "time_seconds": 0.646,
+      "bytes": 128837,
+      "sha256": "1d55711622a1d8783f88fc19677b541bcc3475d162ed154ab291c1aabc4018ab",
+      "error": null
+    },
+    {
+      "key": "api_weekly_offers",
+      "url": "https://voltikka.fi/api/video/weekly-offers",
+      "curl_exit": 0,
+      "http_status": 200,
+      "content_type": "application/json",
+      "time_seconds": 0.967,
+      "bytes": 2057,
+      "sha256": "65daec403745ac119beb281cae4c7c1ab018fe513dd84ba75a25ac2ce761a840",
+      "error": null
+    }
+  ]
+}

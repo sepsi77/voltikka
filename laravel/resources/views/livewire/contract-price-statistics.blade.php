@@ -95,6 +95,14 @@
                 </div>
             </dl>
 
+            <p class="mt-5 max-w-[72ch] text-sm text-slate-500 leading-relaxed">
+                @if ($latestPricingBasis === 'canonical_calculation')
+                    Uusimman päivän nykyhinnat ja vuosikustannukset ovat Voltikan kanonisia laskelmia. Historialliset havaintorivit säilyttävät kyseisenä päivänä kerätyn myyjädatan, eikä tämän päivän tulkintaa sovelleta niihin jälkikäteen.
+                @else
+                    Tämän aineiston rivit ovat kyseisinä päivinä kerättyjä myyjähintojen havaintoja.
+                @endif
+            </p>
+
             <div class="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
                 <a href="/sahkosopimus/sahkon-hintaennuste"
                    class="inline-flex items-center gap-2 font-semibold text-slate-900 underline decoration-slate-300 decoration-2 underline-offset-4 hover:decoration-coral-500">
@@ -716,19 +724,19 @@
                     <h2 class="text-2xl font-bold text-slate-900 tracking-tight mb-4">Mistä luvut tulevat</h2>
                     <div class="space-y-4 text-base text-slate-600 leading-relaxed max-w-[58ch]">
                         <p>
-                            Voltikka kerää sähkösopimusten hintatiedot päivittäin ja tallentaa kotitalouksille tarjottujen sopimusten hintakomponentit omaan tietokantaan.
+                            Voltikka kerää sähkösopimusten lähdetiedot päivittäin. Nykyisen päivän julkiset hinta-arvot lasketaan validoidusta kanonisesta hinnoittelusta. Jos kanonisella tuloksella ei ole merkityksellistä yksikköhintaa, kenttä jätetään tyhjäksi. Esimerkiksi energiapaketin ylityshintaa ei esitetä paketin keskimääräisenä energiahintana.
                         </p>
                         <p>
-                            Kunkin päivän tilastoihin otetaan mukaan ne sopimukset, joilla on kyseiselle päivälle hintatiedot tietokannassa. Hinnat sisältävät arvonlisäveron 25,5 %.
+                            Historiallinen takaisin täyttö käyttää kyseisenä päivänä havaittuja myyjän hintakomponentteja. Tämän päivän kanonista tulkintaa ei käytetä vanhan havainnon muuttamiseen. CSV-tiedoston <code>pricing_basis</code>-sarake erottaa kanonisen laskelman ja havaitun myyjäaineiston. Hinnat sisältävät arvonlisäveron 25,5 %.
                         </p>
                         <p>
                             Pörssipohjaisille sopimuksille käytetään kahta eri laskentatapaa. Sopimustyyppien c/kWh-taulukossa pörssisähkö näytetään viimeisen 12 kuukauden toteutuneena päiväkeskiarvona + tyypillisenä marginaalina, jotta sitä voi verrata pitkäkestoisempiin sopimushintoihin. P20–P80-väli lasketaan saman 12 kuukauden päivähinnoista ja kertoo, missä haarukassa tavanomaiset spot-päivät liikkuivat. Vuosikustannukset lasketaan samalla edeltävän 12 kuukauden pörssitasolla plus marginaali, jolloin yksittäiset hintapiikit eivät vääristä vertailua.
                         </p>
                         <p>
-                            Kiinteähintaisille sopimuksille (määräaikaiset, joustosähkö ja toistaiseksi voimassa olevat) käytetään sopimuksen omaa energiahintaa. Vuosikustannus on energiahinta&nbsp;×&nbsp;kulutus + perusmaksut&nbsp;×&nbsp;12, eli sama kaava kuin Voltikan sopimusvertailussa.
+                            Nykyiset vuosikustannukset tulevat samasta kanonisesta 12 kuukauden laskelmasta kuin Voltikan sopimusvertailussa. Laskelma huomioi hinnoitteluvaiheet, tarjoukset, aika- ja kausihinnat, pörssimarginaalit, markkinahinnan päivitykset ja kuukausittaiset energiapaketit silloin, kun ne koskevat sopimusta.
                         </p>
                         <p>
-                            Vuosikustannukset 2&nbsp;000, 5&nbsp;000 ja 18&nbsp;000&nbsp;kWh kulutuksilla sisältävät energiahinnan ja perusmaksut.
+                            Vuosikustannukset 2&nbsp;000, 5&nbsp;000 ja 18&nbsp;000&nbsp;kWh kulutuksilla sisältävät kaikki kanonisessa tuloksessa laskettavat energia- ja kuukausimaksut. Puuttuva tai poissuljettu tulos jätetään pois tilastosta, eikä sitä täytetä havaitulla komponenttihinnalla.
                         </p>
                         <p>
                             Tämän sivun keskiluku on mediaani: kuvaa tyypillistä sopimusta paremmin kuin keskiarvo, koska yksittäiset poikkeavat tarjoukset tai virheellinen aineisto eivät vinouta sitä. Hintahaarukan rajat ovat 20.&nbsp;ja 80.&nbsp;persentiilit: halvempi&nbsp;20&nbsp;% on raja jonka alle viidennes saman tyypin sopimuksista jää, ja kalliimpi&nbsp;20&nbsp;% on raja jonka yli viidennes nousee.

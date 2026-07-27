@@ -8,6 +8,8 @@ use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
+use App\Services\CanonicalPricing\DTO\CanonicalPricingOutcome;
+use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
 use Carbon\Carbon;
@@ -22,13 +24,12 @@ class ContractPriceStatisticsService
     public function __construct(
         private readonly ContractPriceCalculator $calculator,
         private readonly \App\Services\CanonicalPricing\CanonicalContractPricingService $canonicalPricing,
-    ) {
-    }
+    ) {}
 
     /**
      * Calculate per-contract snapshots and aggregate statistics for one date.
      *
-     * @param iterable<string> $contractIds
+     * @param  iterable<string>  $contractIds
      * @return array{snapshots:int, statistics:int}
      */
     public function calculateForDate(CarbonInterface|string $date, iterable $contractIds, bool $overwrite = false, ?bool $useCanonical = null): array
@@ -47,10 +48,23 @@ class ContractPriceStatisticsService
         }
 
         return DB::transaction(function () use ($date, $dateString, $contractIds, $overwrite, $useCanonical) {
+            $pricingBasis = ContractPriceBasis::forCanonical($useCanonical)->value;
+            $dateSnapshots = ContractPriceSnapshot::whereDate('snapshot_date', $dateString);
+
             if ($overwrite) {
-                ContractPriceSnapshot::whereDate('snapshot_date', $dateString)->delete();
-                ContractPriceDailyStatistic::whereDate('stat_date', $dateString)->delete();
+                $dateSnapshots->delete();
+            } else {
+                // One basis owns a statistics date. Remove the other basis for the
+                // complete date, then replace this run's contracts so an outcome that
+                // is now excluded cannot leave its old same-basis snapshot behind.
+                (clone $dateSnapshots)->where('pricing_basis', '!=', $pricingBasis)->delete();
+                (clone $dateSnapshots)
+                    ->where('pricing_basis', $pricingBasis)
+                    ->whereIn('contract_id', $contractIds)
+                    ->delete();
             }
+
+            ContractPriceDailyStatistic::whereDate('stat_date', $dateString)->delete();
 
             $spotPrices = $this->spotPricesForDate($dateString);
             $snapshotCount = 0;
@@ -63,35 +77,37 @@ class ContractPriceStatisticsService
                 })
                 ->orderBy('id')
                 ->chunkById(200, function (Collection $contracts) use ($date, $dateString, $spotPrices, $useCanonical, &$snapshotCount) {
+                    $canonicalOutcomes = $useCanonical
+                        ? $this->canonicalPricing->outcomesForContractsAtConsumptions(
+                            $contracts,
+                            self::CONSUMPTION_LEVELS,
+                            $this->canonicalSpotAssumptions($dateString),
+                            $date,
+                        )
+                        : [];
+
                     foreach ($contracts as $contract) {
                         /** @var ElectricityContract $contract */
-                        $components = $contract->getPriceComponentsForCalculationDate($dateString);
+                        if ($useCanonical) {
+                            $snapshot = $this->buildCanonicalSnapshot(
+                                $contract,
+                                $canonicalOutcomes[$contract->id] ?? [],
+                            );
 
-                        // No relational components does not mean unpriceable. The interpretation
-                        // publication gate deliberately withholds source components whenever the
-                        // interpretation named a reason to distrust them — structured rows holding
-                        // only a promo price, a later price the source omits, a component conflict.
-                        // Those are precisely the contracts whose relational price would have been
-                        // wrong, and canonical pricing prices them correctly from the validated
-                        // phase structure instead. Skipping them dropped 14 active contracts from
-                        // this page, two of which had previously been recorded at their promo price
-                        // as if it were the year's cost: Kokkolan Tyyni at 279 €/v against a
-                        // canonical 555, Aalto Tyyni Vakiohinta at 310 against 748.
-                        //
-                        // Legacy (non-canonical) calculation still needs components, because it has
-                        // nothing else to read. Historical backfills always take that path.
-                        if ($components === [] && ! $useCanonical) {
-                            continue;
-                        }
+                            // An excluded or incomplete canonical result must not leave an
+                            // identity-only row that a later consumer can mistake for pricing.
+                            if (! $this->hasAnyNumericPrice($snapshot)) {
+                                continue;
+                            }
+                        } else {
+                            // Historical backfills and the feature-off forward path preserve
+                            // observed relational prices exactly as before.
+                            $components = $contract->getPriceComponentsForCalculationDate($dateString);
+                            if ($components === []) {
+                                continue;
+                            }
 
-                        $snapshot = $this->buildSnapshot($contract, $components, $date, $spotPrices, $useCanonical);
-
-                        // Canonical pricing declines to total a contract it cannot price honestly
-                        // (Vimpelin Voima's tariffs disclose no pre-discount price list, so their
-                        // continuation phase is empty). With no components either, such a row would
-                        // carry nothing but nulls, so do not create it.
-                        if ($components === [] && ! $this->hasAnyAnnualCost($snapshot)) {
-                            continue;
+                            $snapshot = $this->buildRelationalSnapshot($contract, $components, $date, $spotPrices);
                         }
 
                         ContractPriceSnapshot::updateOrCreate(
@@ -99,14 +115,14 @@ class ContractPriceStatisticsService
                                 'snapshot_date' => $dateString,
                                 'contract_id' => $contract->id,
                             ],
-                            $snapshot
+                            $snapshot,
                         );
 
                         $snapshotCount++;
                     }
                 });
 
-            $statisticsCount = $this->calculateDailyStatistics($dateString);
+            $statisticsCount = $this->calculateDailyStatistics($dateString, $pricingBasis);
 
             return ['snapshots' => $snapshotCount, 'statistics' => $statisticsCount];
         });
@@ -143,14 +159,67 @@ class ContractPriceStatisticsService
     }
 
     /**
-     * @param array<int, array<string, mixed>> $components
-     * @param array{avg:?float,day:?float,night:?float} $spotPrices
+     * Build the forward snapshot only from typed canonical outcomes. The 5,000 kWh
+     * outcome supplies current unit facts; each reference outcome supplies its own total.
+     * A package has a meaningful package fee, but its excess-use rate is not an all-in
+     * energy price and is therefore not stored in `energy_price_cents_per_kwh`.
+     *
+     * @param  array<int, CanonicalPricingOutcome>  $outcomes
      * @return array<string, mixed>
      */
-    private function buildSnapshot(ElectricityContract $contract, array $components, CarbonInterface $date, array $spotPrices, bool $useCanonical = false): array
+    private function buildCanonicalSnapshot(ElectricityContract $contract, array $outcomes): array
+    {
+        $current = $outcomes[5000] ?? reset($outcomes) ?: null;
+        $isListed = $current?->isListed() ?? false;
+        $isPackage = $current?->energyPackage !== null;
+        $spotMargin = $isListed && ! $isPackage ? $current->spotPriceMargin : null;
+        $spotMarketPrice = $isListed && ! $isPackage ? $this->representativeSpotPrice($current) : null;
+        $energyPrice = $isListed && ! $isPackage
+            ? ($spotMargin !== null && $spotMarketPrice !== null
+                ? $spotMarketPrice + $spotMargin
+                : $this->representativeCanonicalEnergyPrice($current))
+            : null;
+
+        $annualCosts = [];
+        foreach (self::CONSUMPTION_LEVELS as $consumption) {
+            $outcome = $outcomes[$consumption] ?? null;
+            $annualCosts[$consumption] = $contract->isConsumptionInRange($consumption)
+                && $outcome?->isListed()
+                    ? $outcome->totalCost
+                    : null;
+        }
+
+        return [
+            ...$this->snapshotIdentity($contract),
+            'pricing_basis' => ContractPriceBasis::CanonicalCalculation->value,
+            'energy_price_cents_per_kwh' => $energyPrice,
+            'spot_margin_cents_per_kwh' => $spotMargin,
+            'spot_total_energy_price_cents_per_kwh' => $spotMargin !== null && $spotMarketPrice !== null
+                ? $spotMarketPrice + $spotMargin
+                : null,
+            'monthly_fee_eur' => $isListed
+                ? ($current->energyPackage?->monthlyFeeEur ?? $current->monthlyFixedFee)
+                : null,
+            'annual_cost_2000_kwh' => $annualCosts[2000],
+            'annual_cost_5000_kwh' => $annualCosts[5000],
+            'annual_cost_18000_kwh' => $annualCosts[18000],
+            'has_discount' => $isListed && $current->discountSavingsTotal() > 0,
+            'includes_spot_price' => $spotMargin !== null && $spotMarketPrice !== null,
+        ];
+    }
+
+    /**
+     * The historical and feature-off calculation path. Keep this relational:
+     * historical rows record what the seller published on that date and must not be
+     * reinterpreted with today's canonical phases.
+     *
+     * @param  array<int, array<string, mixed>>  $components
+     * @param  array{avg:?float,day:?float,night:?float}  $spotPrices
+     * @return array<string, mixed>
+     */
+    private function buildRelationalSnapshot(ElectricityContract $contract, array $components, CarbonInterface $date, array $spotPrices): array
     {
         $byType = collect($components)->keyBy('price_component_type');
-        $segmentKey = self::segmentKey($contract);
         $isSpot = $contract->pricing_model === 'Spot';
         $monthlyFee = $byType->has('Monthly') ? (float) $byType['Monthly']['price'] : null;
         $spotMargin = $isSpot ? $this->firstEnergyComponentPrice($components) : null;
@@ -159,12 +228,8 @@ class ContractPriceStatisticsService
             ? $spotPrices['avg'] + $spotMargin
             : null;
 
-        // For spot annual-cost projection use the trailing-365-day spot
-        // average as of the snapshot date, not that day's spot avg. A real
-        // spot customer's yearly bill is smoothed across the full year, not
-        // determined by a single peak day. The c/kWh spot_total field above
-        // remains today's price + margin so the deep-dive c/kWh chart still
-        // shows real-time market movement.
+        // The historical Spot annual estimate uses the trailing-365-day average
+        // as of the observed date. Keep this legacy calculation unchanged.
         $annualSpotPrice = $isSpot
             ? $this->spotRolling365ForDate($date->toDateString())
             : ($spotPrices['avg'] ?? null);
@@ -173,23 +238,11 @@ class ContractPriceStatisticsService
         foreach (self::CONSUMPTION_LEVELS as $consumption) {
             if (! $contract->isConsumptionInRange($consumption) || ($isSpot && $annualSpotPrice === null)) {
                 $annualCosts[$consumption] = null;
+
                 continue;
             }
 
             $usage = new EnergyUsage(total: $consumption, basicLiving: $consumption);
-
-            if ($useCanonical) {
-                $spot = new \App\Services\CanonicalPricing\DTO\SpotAssumptions(
-                    dayAvgWithTax: $isSpot ? $annualSpotPrice : ($spotPrices['day'] ?? $spotPrices['avg']),
-                    nightAvgWithTax: $isSpot ? $annualSpotPrice : ($spotPrices['night'] ?? $spotPrices['avg']),
-                );
-                $outcome = $this->canonicalPricing->evaluate($contract, $usage, $spot, $date)['outcome'];
-                // Excluded contracts contribute no annual cost, mirroring spot-missing handling.
-                $annualCosts[$consumption] = $outcome->isListed() ? $outcome->totalCost : null;
-
-                continue;
-            }
-
             $result = $this->calculator->calculate(
                 $components,
                 [
@@ -207,13 +260,8 @@ class ContractPriceStatisticsService
         }
 
         return [
-            'company_name' => $contract->company_name,
-            'contract_name' => $contract->name,
-            'pricing_model' => $contract->pricing_model,
-            'contract_type' => $contract->contract_type,
-            'fixed_time_range' => $contract->fixed_time_range,
-            'metering' => $contract->metering,
-            'segment_key' => $segmentKey,
+            ...$this->snapshotIdentity($contract),
+            'pricing_basis' => ContractPriceBasis::ObservedSellerData->value,
             'energy_price_cents_per_kwh' => $energyPrice,
             'spot_margin_cents_per_kwh' => $spotMargin,
             'spot_total_energy_price_cents_per_kwh' => $spotTotalEnergyPrice,
@@ -226,13 +274,59 @@ class ContractPriceStatisticsService
         ];
     }
 
-    /**
-     * @param array<string, mixed> $snapshot
-     */
-    private function hasAnyAnnualCost(array $snapshot): bool
+    /** @return array<string, mixed> */
+    private function snapshotIdentity(ElectricityContract $contract): array
     {
-        foreach (self::CONSUMPTION_LEVELS as $consumption) {
-            if ($snapshot["annual_cost_{$consumption}_kwh"] !== null) {
+        return [
+            'company_name' => $contract->company_name,
+            'contract_name' => $contract->name,
+            'pricing_model' => $contract->pricing_model,
+            'contract_type' => $contract->contract_type,
+            'fixed_time_range' => $contract->fixed_time_range,
+            'metering' => $contract->metering,
+            'segment_key' => self::segmentKey($contract),
+        ];
+    }
+
+    private function representativeCanonicalEnergyPrice(CanonicalPricingOutcome $outcome): ?float
+    {
+        if ($outcome->generalKwhPrice !== null) {
+            return $outcome->generalKwhPrice;
+        }
+
+        if ($outcome->daytimeKwhPrice !== null && $outcome->nighttimeKwhPrice !== null) {
+            return ($outcome->daytimeKwhPrice * 15 + $outcome->nighttimeKwhPrice * 9) / 24;
+        }
+
+        if ($outcome->seasonalWinterDayKwhPrice !== null && $outcome->seasonalOtherKwhPrice !== null) {
+            return ($outcome->seasonalWinterDayKwhPrice * 5 + $outcome->seasonalOtherKwhPrice * 7) / 12;
+        }
+
+        return null;
+    }
+
+    private function representativeSpotPrice(CanonicalPricingOutcome $outcome): ?float
+    {
+        if ($outcome->spotPriceDayAvg === null || $outcome->spotPriceNightAvg === null) {
+            return null;
+        }
+
+        return ($outcome->spotPriceDayAvg * 15 + $outcome->spotPriceNightAvg * 9) / 24;
+    }
+
+    /** @param array<string, mixed> $snapshot */
+    private function hasAnyNumericPrice(array $snapshot): bool
+    {
+        foreach ([
+            'energy_price_cents_per_kwh',
+            'spot_margin_cents_per_kwh',
+            'spot_total_energy_price_cents_per_kwh',
+            'monthly_fee_eur',
+            'annual_cost_2000_kwh',
+            'annual_cost_5000_kwh',
+            'annual_cost_18000_kwh',
+        ] as $key) {
+            if ($snapshot[$key] !== null) {
                 return true;
             }
         }
@@ -240,11 +334,14 @@ class ContractPriceStatisticsService
         return false;
     }
 
-    private function calculateDailyStatistics(string $dateString): int
+    private function calculateDailyStatistics(string $dateString, string $pricingBasis): int
     {
         ContractPriceDailyStatistic::whereDate('stat_date', $dateString)->delete();
 
-        $snapshots = ContractPriceSnapshot::whereDate('snapshot_date', $dateString)->get();
+        $snapshots = ContractPriceSnapshot::query()
+            ->whereDate('snapshot_date', $dateString)
+            ->where('pricing_basis', $pricingBasis)
+            ->get();
         $count = 0;
 
         foreach ($snapshots->groupBy('segment_key') as $segmentKey => $segmentSnapshots) {
@@ -269,6 +366,7 @@ class ContractPriceStatisticsService
                     'stat_date' => $dateString,
                     'segment_key' => $segmentKey,
                     'metric_key' => $metricKey,
+                    'pricing_basis' => $pricingBasis,
                     'consumption_kwh' => $consumption,
                     'min_value' => $stats['min'],
                     'p20_value' => $stats['p20'],
@@ -296,7 +394,7 @@ class ContractPriceStatisticsService
      * annual costs at the published consumption levels never exceed 50 000 €/v.
      * Anything past these bounds has been a unit-import error in practice.
      *
-     * @param array<int, mixed> $values
+     * @param  array<int, mixed>  $values
      * @return array<int, float>
      */
     private function cleanValues(array $values, string $metricKey): array
@@ -324,12 +422,13 @@ class ContractPriceStatisticsService
             if ($value > $upperBound) {
                 return false;
             }
+
             return true;
         }));
     }
 
     /**
-     * @param array<int, float> $values
+     * @param  array<int, float>  $values
      * @return array{min:float,p20:float,median:float,avg:float,p80:float,max:float}
      */
     private function stats(array $values): array
@@ -347,7 +446,7 @@ class ContractPriceStatisticsService
     }
 
     /**
-     * @param array<int, float> $sortedValues
+     * @param  array<int, float>  $sortedValues
      */
     private function percentile(array $sortedValues, float $percentile): float
     {
@@ -407,6 +506,16 @@ class ContractPriceStatisticsService
     /** @var array<string, ?float> */
     private array $rolling365Cache = [];
 
+    private function canonicalSpotAssumptions(string $dateString): SpotAssumptions
+    {
+        $rollingAverage = $this->spotRolling365ForDate($dateString);
+
+        return new SpotAssumptions(
+            dayAvgWithTax: $rollingAverage,
+            nightAvgWithTax: $rollingAverage,
+        );
+    }
+
     /**
      * @return array{avg:?float,day:?float,night:?float}
      */
@@ -434,7 +543,7 @@ class ContractPriceStatisticsService
     }
 
     /**
-     * @param array<int, array<string, mixed>> $components
+     * @param  array<int, array<string, mixed>>  $components
      */
     private function representativeEnergyPrice(ElectricityContract $contract, array $components, ?float $spotAverage): ?float
     {
@@ -442,6 +551,7 @@ class ContractPriceStatisticsService
 
         if ($contract->pricing_model === 'Spot') {
             $margin = $this->firstEnergyComponentPrice($components);
+
             return $margin !== null && $spotAverage !== null ? $spotAverage + $margin : null;
         }
 
@@ -452,12 +562,14 @@ class ContractPriceStatisticsService
         if ($byType->has('DayTime') || $byType->has('NightTime')) {
             $day = (float) ($byType['DayTime']['price'] ?? 0);
             $night = (float) ($byType['NightTime']['price'] ?? $day);
+
             return ($day * 15 + $night * 9) / 24;
         }
 
         if ($byType->has('SeasonalWinterDay') || $byType->has('SeasonalOther')) {
             $winter = (float) ($byType['SeasonalWinterDay']['price'] ?? 0);
             $other = (float) ($byType['SeasonalOther']['price'] ?? $winter);
+
             return ($winter * 5 + $other * 7) / 12;
         }
 
@@ -465,7 +577,7 @@ class ContractPriceStatisticsService
     }
 
     /**
-     * @param array<int, array<string, mixed>> $components
+     * @param  array<int, array<string, mixed>>  $components
      */
     private function firstEnergyComponentPrice(array $components): ?float
     {
@@ -521,7 +633,7 @@ class ContractPriceStatisticsService
         }
 
         if ($contract->contract_type === 'FixedTerm') {
-            return 'fixed_term_' . match ($contract->fixed_time_range) {
+            return 'fixed_term_'.match ($contract->fixed_time_range) {
                 'Below6' => 'below6',
                 'Fixed6' => '6',
                 'Between711' => '7_11',

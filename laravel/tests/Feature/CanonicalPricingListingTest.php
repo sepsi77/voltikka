@@ -121,12 +121,31 @@ class CanonicalPricingListingTest extends TestCase
             'estimate_required', 'detected', ['promotion_metadata_missing', 'future_price_unknown'],
         );
 
+        // Malformed package data must fail closed even when a relational rate is available.
+        $this->createContract(
+            'invalid-package-1', 'Viekas Virhepaketti', 'Viekas Energia Oy',
+            $this->canonicalPricing([[
+                'label' => 'package', 'phase_kind' => 'current_structured',
+                'starts' => $this->boundary('contract_start'), 'ends' => $this->boundary('none'),
+                'components' => [],
+                'package' => [
+                    'monthly_fee_eur' => 25.0,
+                    'included_kwh' => 150.0,
+                    'allowance_cadence' => 'annual',
+                    'excess_rate_cents_per_kwh' => 16.6,
+                ],
+                'evidence' => [],
+            ]]),
+            'exact', 'not_detected', [],
+        );
+
         $component = Livewire::test(SahkosopimusIndex::class)->set('consumption', 5000);
 
         $component->assertSee('Reilu Perussähkö');
         $component->assertSee('Viekas Tarjoushinta');
         // Excluded contract must not appear in the listing.
         $component->assertDontSee('Viekas Piilohinta');
+        $component->assertDontSee('Viekas Virhepaketti');
         // Deceptive contract carries the price-increase warning pill.
         $component->assertSee('Hinta nousee');
     }

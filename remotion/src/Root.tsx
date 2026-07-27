@@ -49,6 +49,7 @@ const placeholderData: DailyVideoData = {
 // Placeholder for Weekly Offers - actual data is fetched via calculateMetadata
 const placeholderWeeklyOffersData: WeeklyOffersVideoData = {
   generated_at: "",
+  pricing_basis: "canonical",
   week: { start: "", end: "", formatted: "" },
   offers_count: 0,
   offers: [],

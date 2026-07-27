@@ -26,8 +26,8 @@ Primary services:
 Configuration and assets:
 
 - `config/contract_interpretation.php`
-- `resources/contract-interpretation/schema-v3.json`
-- `resources/contract-interpretation/system-prompt-v15.md`
+- `resources/contract-interpretation/schema-v4.json`
+- `resources/contract-interpretation/system-prompt-v19.md`
 
 Important semantics:
 
@@ -74,7 +74,10 @@ Important semantics:
   - Also: a Spot delivery-fee/`toimitusmaksu` margin is not `incomplete`; a duplicate monthly base fee resolves to the higher value while staying complete.
 
   This is the deterministic-rule half of the eventual "extract with the LLM, derive with code" (option B) direction. NOTE: the analysis fingerprint keys on the version *strings*, so iterating on prompt content or validator code requires bumping `prompt_version`/`validator_version` to force re-interpretation of already-processed contracts. See `tasks/contract-description-pricing-phases/decisions.md`.
-- Validator v14 accepts a `flat_fee` component in place of an expected `monthly_fee` for a source `Monthly` charge (both represent the monthly charge and cost the same). This resolves package-named products with a positive per-kWh energy price and no included-energy/excess-use evidence (e.g. Vaasan **Kuukausipaketti**: €35/mo + 16.6 c/kWh, no description): the model reliably reads the monthly charge as `flat_fee`, and forcing `monthly_fee` via the prompt was fragile (a v18 attempt produced duplicate/`flat_fee`-only output). Working *with* the model's label is the robust fix since the cost is identical. Prompt stays v17.
+- Validator v14 accepts a `flat_fee` component in place of an expected `monthly_fee` for a source `Monthly` charge (both represent the monthly charge and cost the same). This remains valid for flat-fee products that do not disclose a monthly excess-use package.
+- Schema v4, prompt v18, and validator v15 add one phase-level `package` object for a monthly fee that includes a numeric monthly kWh allowance and charges one positive c/kWh rate for excess use. The package phase has `components=[]`; fee, allowance, cadence, and excess rate all need numeric evidence. The validator checks them against the disclosed source values, requires `monthly` cadence, and treats NFirstKwh equal to the annual included amount as package evidence rather than a promotion. A package cannot create a misleading/promotion state by itself.
+- Duplicate-fee safety is deterministic at both boundaries. Validator v15 rejects a package plus billed components and rejects `flat_fee` (EUR/month) plus `monthly_fee` in one phase. `CanonicalPricingParser` repeats these checks so already-published malformed JSON fails closed. The repair output must represent the source charge once as `package.monthly_fee_eur`; unknown or conflicting duplicate charges are not guessed.
+- Prompt v19 and validator v16 prevent a current structured discount from disappearing from canonical pricing. For active `UntilDate` and `NFirstMonth` discounts, validation recomputes the discounted amount from source `price`, value, and percentage mode; requires that exact component scope in the active phase; and requires the same component at the known normal source price in the continuation phase. A Spot margin maps to `spot_margin` from every source energy tariff slot. Expired absolute discounts and `has_discount=false` metadata create no requirement. Unsafe amount/timing and unsupported active discount types fail validation. The typed monthly `NFirstKwh` package allowance remains exempt when it equals 12 times the disclosed monthly allowance.
 - `validator_version` is stored on each interpretation and participates in the analysis fingerprint. Change it whenever deterministic publication semantics change enough to require reanalysis.
 - Phase-aware calculations that read `canonical_pricing` live in `../CanonicalPricing/` (gated behind `CANONICAL_PRICING_ENABLED`). This directory only produces and publishes the canonical JSON; it does not calculate prices from it.
 - Source snapshots remain immutable evidence.

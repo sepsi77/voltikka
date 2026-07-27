@@ -27,23 +27,24 @@ use PHPUnit\Framework\TestCase;
 class MarketResetForwardShiftTest extends TestCase
 {
     private CanonicalPricingParser $parser;
+
     private EnergyUsage $usage;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->parser = new CanonicalPricingParser();
+        $this->parser = new CanonicalPricingParser;
         $this->usage = new EnergyUsage(total: 5000, basicLiving: 5000);
     }
 
     // ---------------------------------------------------------------- helpers
 
-    private function component(string $type, ?float $amount, string $unit = 'cents_per_kwh', string $role = 'current'): array
+    private function component(string $type, ?float $amount, string $unit = 'cents_per_kwh', string $role = 'current', ?float $normalAmount = null): array
     {
         return [
             'component_type' => $type,
             'amount' => $amount,
-            'normal_amount' => null,
+            'normal_amount' => $normalAmount,
             'unit' => $unit,
             'vat_status' => 'included',
             'price_role' => $role,
@@ -506,6 +507,28 @@ class MarketResetForwardShiftTest extends TestCase
         $this->assertSame(0.0, $outcome->discountSavingsTotal());
     }
 
+    public function test_component_savings_keep_the_same_forward_shift_in_both_prices(): void
+    {
+        $curve = new FakeMarketCurve(
+            reference: ['month' => 5.0],
+            forward: $this->flatForward(9.0),
+        );
+        $pricing = $this->resetPricing(
+            7.0,
+            'monthly',
+            starts: ['kind' => 'contract_start', 'value' => null],
+            ends: ['kind' => 'none', 'value' => null],
+        );
+        $pricing['phases'][0]['components'][] = $this->component('monthly_fee', 2.0, 'eur_per_month', 'introductory', 4.0);
+
+        $outcome = $this->evaluate($pricing, $this->estimator($curve));
+
+        $this->assertEqualsWithDelta(557.33, $outcome->totalCost, 0.05);
+        $this->assertEqualsWithDelta(581.33, $outcome->baseTotalCost, 0.05);
+        $this->assertEqualsWithDelta(24.0, $outcome->discountSavingsTotal(), 0.01);
+        $this->assertEqualsWithDelta(24.0, array_sum($outcome->monthlyDiscountSavings), 0.01);
+    }
+
     public function test_beta_scales_the_correction_linearly(): void
     {
         $curve = new FakeMarketCurve(
@@ -572,8 +595,7 @@ class FakeMarketCurve implements MarketReferenceCurveProvider
         private readonly array $pricingVintageReference = [],
         private readonly ?string $pricingVintageTradeDate = '2026-06-30',
         private readonly bool $hasPricingVintage = true,
-    ) {
-    }
+    ) {}
 
     public function tradeDate(CarbonImmutable $asOfDate): ?CarbonImmutable
     {

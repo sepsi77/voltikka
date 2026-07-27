@@ -30,10 +30,11 @@ class CardReceiptLines
     private const MAX_DETAIL_LINES = 5;
 
     /**
-     * @param array<string, float|null> $rates Resolved rates: general, day, night, winter, other, fee, margin.
-     * @param array<string, mixed> $cost The `calculated_cost` payload.
-     * @param array<string, mixed>|null $integrity The `pricing_integrity` payload.
-     * @param bool $detailed Detail-page mode: more rows, and a dated monthly-fee pair.
+     * @param  array<string, float|null>  $rates  Resolved rates: general, day, night, winter, other, fee, margin.
+     * @param  array<string, mixed>  $cost  The `calculated_cost` payload.
+     * @param  array<string, mixed>|null  $integrity  The `pricing_integrity` payload.
+     * @param  bool  $detailed  Detail-page mode: more rows, and a dated monthly-fee pair.
+     * @param  bool  $useCanonical  Canonical mode reads phase changes only from calculated output.
      * @return list<CardReceiptLine>
      */
     public function build(
@@ -43,16 +44,48 @@ class CardReceiptLines
         PricingCategoryFacts $facts,
         ?string $metering,
         bool $detailed = false,
+        bool $useCanonical = false,
     ): array {
+        $package = $this->packageLines($cost);
+        if ($package !== []) {
+            return $package;
+        }
+
         $switch = $this->mechanismSwitchPhases($cost);
 
         $lines = $switch !== null
             ? $this->mechanismSwitchLines($switch, $cost, $detailed)
-            : $this->energyLines($rates, $cost, $integrity, $facts, $metering);
+            : $this->energyLines($rates, $cost, $integrity, $facts, $metering, $useCanonical);
 
         $lines = [...$lines, ...$this->feeLines($rates, $switch, $detailed)];
 
         return array_slice($lines, 0, $detailed ? self::MAX_DETAIL_LINES : self::MAX_LINES);
+    }
+
+    /**
+     * A monthly included-energy package is one billing mechanism, not an energy promotion.
+     * All three current facts come from the typed canonical outcome.
+     *
+     * @param  array<string, mixed>  $cost
+     * @return list<CardReceiptLine>
+     */
+    private function packageLines(array $cost): array
+    {
+        $package = is_array($cost['energy_package'] ?? null) ? $cost['energy_package'] : null;
+
+        if ($package === null
+            || ! is_numeric($package['monthly_fee_eur'] ?? null)
+            || ! is_numeric($package['included_kwh'] ?? null)
+            || ! is_numeric($package['excess_rate_cents_per_kwh'] ?? null)
+            || ($package['allowance_cadence'] ?? null) !== 'monthly') {
+            return [];
+        }
+
+        return [
+            new CardReceiptLine('Kuukausipaketti', $this->amount((float) $package['monthly_fee_eur']), '€/kk'),
+            new CardReceiptLine('Sisältää', number_format((float) $package['included_kwh'], 0, ',', ' '), 'kWh/kk'),
+            new CardReceiptLine('Ylittävä kulutus', $this->amount((float) $package['excess_rate_cents_per_kwh']), 'c/kWh'),
+        ];
     }
 
     /**
@@ -66,7 +99,7 @@ class CardReceiptLines
      * detail page used to print the flat intro price as "Marginaali 6,99" a few hundred
      * pixels above the seller's own text saying the margin is 1,29.
      *
-     * @param array<string, mixed> $cost
+     * @param  array<string, mixed>  $cost
      * @return array{0: array<string, mixed>, 1: array<string, mixed>}|null
      */
     private function mechanismSwitchPhases(array $cost): ?array
@@ -100,8 +133,8 @@ class CardReceiptLines
     }
 
     /**
-     * @param array{0: array<string, mixed>, 1: array<string, mixed>} $switch
-     * @param array<string, mixed> $cost
+     * @param  array{0: array<string, mixed>, 1: array<string, mixed>}  $switch
+     * @param  array<string, mixed>  $cost
      * @return list<CardReceiptLine>
      */
     private function mechanismSwitchLines(array $switch, array $cost, bool $detailed): array
@@ -131,7 +164,7 @@ class CardReceiptLines
     }
 
     /**
-     * @param array<string, mixed> $phase
+     * @param  array<string, mixed>  $phase
      */
     private function mechanismLine(array $phase, string $when): CardReceiptLine
     {
@@ -144,7 +177,7 @@ class CardReceiptLines
      * The per-kWh figure that phase is priced on: its margin when it follows the market,
      * otherwise its flat energy rate.
      *
-     * @param array<string, mixed> $phase
+     * @param  array<string, mixed>  $phase
      */
     private function mechanismRate(array $phase): ?float
     {
@@ -157,8 +190,8 @@ class CardReceiptLines
      * The monthly fee, as a dated pair when a mechanism switch also changes it and there is
      * room to say so.
      *
-     * @param array<string, float|null> $rates
-     * @param array{0: array<string, mixed>, 1: array<string, mixed>}|null $switch
+     * @param  array<string, float|null>  $rates
+     * @param  array{0: array<string, mixed>, 1: array<string, mixed>}|null  $switch
      * @return list<CardReceiptLine>
      */
     private function feeLines(array $rates, ?array $switch, bool $detailed): array
@@ -200,9 +233,9 @@ class CardReceiptLines
     }
 
     /**
-     * @param array<string, float|null> $rates
-     * @param array<string, mixed> $cost
-     * @param array<string, mixed>|null $integrity
+     * @param  array<string, float|null>  $rates
+     * @param  array<string, mixed>  $cost
+     * @param  array<string, mixed>|null  $integrity
      * @return list<CardReceiptLine>
      */
     private function energyLines(
@@ -211,10 +244,15 @@ class CardReceiptLines
         ?array $integrity,
         PricingCategoryFacts $facts,
         ?string $metering,
+        bool $useCanonical,
     ): array {
         // A pre-published later price is the most useful thing the rows can say: both dates
-        // and both prices, so the footer warning is backed by the breakdown.
-        $scheduled = $this->scheduledChangeLines($integrity);
+        // and both prices, so the footer warning is backed by the breakdown. Canonical mode
+        // reads the calculator's resolved phase record. The integrity payload stays only in
+        // the explicit legacy branch.
+        $scheduled = $useCanonical
+            ? $this->canonicalScheduledChangeLines($cost)
+            : $this->legacyScheduledChangeLines($integrity);
         if ($scheduled !== []) {
             return $scheduled;
         }
@@ -238,10 +276,10 @@ class CardReceiptLines
     }
 
     /**
-     * @param array<string, mixed>|null $integrity
+     * @param  array<string, mixed>|null  $integrity
      * @return list<CardReceiptLine>
      */
-    private function scheduledChangeLines(?array $integrity): array
+    private function legacyScheduledChangeLines(?array $integrity): array
     {
         $promo = $integrity['promo_rate_cents'] ?? null;
         $normal = $integrity['normal_rate_cents'] ?? null;
@@ -272,8 +310,50 @@ class CardReceiptLines
     }
 
     /**
-     * @param array<string, float|null> $rates
-     * @param array<string, mixed> $cost
+     * A canonical rate change from the calculator's resolved phase timeline.
+     *
+     * @param  array<string, mixed>  $cost
+     * @return list<CardReceiptLine>
+     */
+    private function canonicalScheduledChangeLines(array $cost): array
+    {
+        $phases = is_array($cost['phase_breakdown'] ?? null)
+            ? array_values($cost['phase_breakdown'])
+            : [];
+
+        for ($index = 0; $index < count($phases) - 1; $index++) {
+            $first = $phases[$index];
+            $second = $phases[$index + 1];
+
+            if (! is_array($first) || ! is_array($second)
+                || ($first['uses_spot'] ?? null) !== ($second['uses_spot'] ?? null)) {
+                continue;
+            }
+
+            $firstRate = $this->mechanismRate($first);
+            $secondRate = $this->mechanismRate($second);
+            $until = $this->date($first['window_end'] ?? null);
+            $from = $this->date($second['window_start'] ?? null);
+
+            if ($firstRate === null || $secondRate === null || $until === null || $from === null
+                || abs($firstRate - $secondRate) < 0.0001) {
+                continue;
+            }
+
+            $label = ($first['uses_spot'] ?? false) ? 'Marginaali ' : 'Energia ';
+
+            return [
+                new CardReceiptLine($label.ContractCardCopy::dayMonth($until).' asti', $this->amount($firstRate), 'c/kWh'),
+                new CardReceiptLine($label.ContractCardCopy::dayMonth($from).' alkaen', $this->amount($secondRate), 'c/kWh'),
+            ];
+        }
+
+        return [];
+    }
+
+    /**
+     * @param  array<string, float|null>  $rates
+     * @param  array<string, mixed>  $cost
      * @return list<CardReceiptLine>
      */
     private function resetLines(array $rates, array $cost, PricingCategoryFacts $facts, ?string $metering): array
@@ -306,8 +386,8 @@ class CardReceiptLines
     }
 
     /**
-     * @param array<string, float|null> $rates
-     * @param array<string, mixed> $cost
+     * @param  array<string, float|null>  $rates
+     * @param  array<string, mixed>  $cost
      * @return list<CardReceiptLine>
      */
     private function spotLines(array $rates, array $cost): array
@@ -338,7 +418,7 @@ class CardReceiptLines
     }
 
     /**
-     * @param array<string, float|null> $rates
+     * @param  array<string, float|null>  $rates
      * @return list<CardReceiptLine>
      */
     private function meteringLines(array $rates, ?string $metering): array
@@ -368,7 +448,7 @@ class CardReceiptLines
     /**
      * The single headline rate for a contract whose rows do not split by time or season.
      *
-     * @param array<string, float|null> $rates
+     * @param  array<string, float|null>  $rates
      */
     private function baseRate(array $rates, ?string $metering): ?float
     {

@@ -25,18 +25,16 @@ class ArticleSpotVolatilityChart extends Component
      */
     public function getChartDataProperty(): array
     {
-        return Cache::remember('article:spot-volatility-chart:data:' . now()->format('Y-m-d-H'), now()->addHours(6), function () {
+        return Cache::remember('article:spot-volatility-chart:data:'.now()->format('Y-m-d-H'), now()->addHours(6), function () {
             $start = CarbonImmutable::now()->subYear()->startOfWeek();
 
             $rows = SpotPriceHour::query()
                 ->forRegion('FI')
                 ->where('utc_datetime', '>=', $start)
                 ->orderBy('utc_datetime')
-                ->get(['utc_datetime', 'price_without_tax', 'vat_rate']);
-
-            if ($rows->isEmpty()) {
-                return [];
-            }
+                ->select(['utc_datetime', 'price_without_tax', 'vat_rate'])
+                ->toBase()
+                ->cursor();
 
             $byWeek = [];
             foreach ($rows as $row) {
@@ -44,6 +42,10 @@ class ArticleSpotVolatilityChart extends Component
                 $local = Carbon::parse($row->utc_datetime)->setTimezone('Europe/Helsinki');
                 $weekStart = $local->copy()->startOfWeek()->format('Y-m-d');
                 $byWeek[$weekStart][] = $price;
+            }
+
+            if ($byWeek === []) {
+                return [];
             }
 
             ksort($byWeek);
@@ -59,7 +61,7 @@ class ArticleSpotVolatilityChart extends Component
                 sort($prices);
                 $count = count($prices);
                 $date = Carbon::parse($weekStart);
-                $labels[] = $date->day . '.' . $this->finnishMonths[$date->month];
+                $labels[] = $date->day.'.'.$this->finnishMonths[$date->month];
                 $median[] = round($this->percentile($prices, 0.5), 2);
                 $p20[] = round($this->percentile($prices, 0.2), 2);
                 $p80[] = round($this->percentile($prices, 0.8), 2);
@@ -97,6 +99,7 @@ class ArticleSpotVolatilityChart extends Component
             return $sorted[$low];
         }
         $weight = $rank - $low;
+
         return $sorted[$low] * (1 - $weight) + $sorted[$high] * $weight;
     }
 
@@ -105,7 +108,7 @@ class ArticleSpotVolatilityChart extends Component
      */
     public function getMetricsProperty(): array
     {
-        return Cache::remember('article:spot-volatility-chart:metrics:' . now()->format('Y-m-d-H'), now()->addHours(6), function () {
+        return Cache::remember('article:spot-volatility-chart:metrics:'.now()->format('Y-m-d-H'), now()->addHours(6), function () {
             $yearAgo = now()->subYear();
 
             $agg = SpotPriceHour::query()

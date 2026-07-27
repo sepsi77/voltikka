@@ -7,7 +7,7 @@ use App\Services\CanonicalPricing\Enums\ComponentUnit;
 use App\Services\CanonicalPricing\Enums\PriceRole;
 
 /**
- * One priced component inside a canonical pricing phase (schema-v3 `$defs.component`).
+ * One priced component inside a canonical pricing phase (schema-v4 `$defs.component`).
  */
 readonly class CanonicalComponent
 {
@@ -17,8 +17,7 @@ readonly class CanonicalComponent
         public ?float $normalAmount,
         public ComponentUnit $unit,
         public PriceRole $priceRole,
-    ) {
-    }
+    ) {}
 
     /**
      * Whether this component contributes a billed amount to the 12-month cost timeline.

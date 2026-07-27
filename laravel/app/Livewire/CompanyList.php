@@ -254,6 +254,7 @@ class CompanyList extends Component
     public function getCheapestCompaniesProperty(): Collection
     {
         return $this->companies
+            ->filter(fn (array $data) => $data['lowestPrice'] !== null)
             ->sortBy('lowestPrice')
             ->take(5)
             ->values();

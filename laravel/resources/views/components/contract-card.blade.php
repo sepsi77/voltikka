@@ -147,11 +147,11 @@
                         <p class="text-sm text-slate-500">{{ number_format($card->totalCost, 0, ',', ' ') }} €/v</p>
                         @if ($card->discountSavings !== null)
                             <p class="mt-1 text-sm font-semibold text-emerald-700">
-                                <x-info-tip text="Säästö = tarjouksen tuoma alennus verrattuna saman sopimuksen normaalihintaan ensimmäisen vuoden aikana." trigger-class="text-emerald-700">Säästö</x-info-tip>
-                                {{ number_format($card->discountSavings, 0, ',', ' ') }} €/v
+                                <x-info-tip :text="$card->discountExplanation" trigger-class="text-emerald-700">Säästö</x-info-tip>
+                                {{ number_format($card->discountSavings, 0, ',', ' ') }} € / {{ $card->discountPeriodLabel }}
                             </p>
                             @if ($card->baseTotalCost !== null)
-                                <p class="mt-0.5 text-sm text-slate-500">ilman tarjousta {{ number_format($card->baseTotalCost, 0, ',', ' ') }} €/v</p>
+                                <p class="mt-0.5 text-sm text-slate-500">ilman tarjousta {{ number_format($card->baseTotalCost, 0, ',', ' ') }} € / {{ $card->discountPeriodLabel }}</p>
                             @endif
                         @endif
                     </div>

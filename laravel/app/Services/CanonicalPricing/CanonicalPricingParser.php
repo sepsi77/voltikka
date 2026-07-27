@@ -5,9 +5,11 @@ namespace App\Services\CanonicalPricing;
 use App\Services\CanonicalPricing\DTO\CanonicalComponent;
 use App\Services\CanonicalPricing\DTO\CanonicalContractData;
 use App\Services\CanonicalPricing\DTO\ConsumptionEffectData;
+use App\Services\CanonicalPricing\DTO\IncludedEnergyPackageData;
 use App\Services\CanonicalPricing\DTO\PhaseBoundary;
 use App\Services\CanonicalPricing\DTO\PricingPhase;
 use App\Services\CanonicalPricing\DTO\RecurringScheduleData;
+use App\Services\CanonicalPricing\Enums\AllowanceCadence;
 use App\Services\CanonicalPricing\Enums\BoundaryKind;
 use App\Services\CanonicalPricing\Enums\CalculationStatus;
 use App\Services\CanonicalPricing\Enums\ComponentType;
@@ -105,10 +107,30 @@ class CanonicalPricingParser
                 throw new CanonicalPricingParseException('Unknown phase_kind: '.($rawPhase['phase_kind'] ?? 'null'));
             }
 
+            $rawComponents = $rawPhase['components'] ?? [];
+            if (! is_array($rawComponents)) {
+                throw new CanonicalPricingParseException('Malformed pricing phase components.');
+            }
+
             $components = [];
-            foreach (($rawPhase['components'] ?? []) as $rawComponent) {
-                $component = $this->parseComponent($rawComponent, $vatBasis);
-                $components[] = $component;
+            foreach ($rawComponents as $rawComponent) {
+                $components[] = $this->parseComponent($rawComponent, $vatBasis);
+            }
+
+            $package = $this->parsePackage($rawPhase['package'] ?? null);
+            if ($package !== null && $components !== []) {
+                throw new CanonicalPricingParseException('A package phase must not duplicate its fee or excess rate as components.');
+            }
+
+            $hasMonthlyFee = false;
+            $hasMonthlyFlatFee = false;
+            foreach ($components as $component) {
+                $hasMonthlyFee = $hasMonthlyFee || $component->type === ComponentType::MonthlyFee;
+                $hasMonthlyFlatFee = $hasMonthlyFlatFee
+                    || ($component->type === ComponentType::FlatFee && $component->unit === ComponentUnit::EurPerMonth);
+            }
+            if ($hasMonthlyFee && $hasMonthlyFlatFee) {
+                throw new CanonicalPricingParseException('A phase has ambiguous duplicate monthly fees.');
             }
 
             $phases[] = new PricingPhase(
@@ -117,6 +139,7 @@ class CanonicalPricingParser
                 starts: $this->parseBoundary($rawPhase['starts'] ?? null),
                 ends: $this->parseBoundary($rawPhase['ends'] ?? null),
                 components: $components,
+                package: $package,
             );
         }
 
@@ -124,7 +147,7 @@ class CanonicalPricingParser
     }
 
     /**
-     * @param array<string, string> $vatBasis
+     * @param  array<string, string>  $vatBasis
      */
     private function parseComponent(mixed $raw, array &$vatBasis): CanonicalComponent
     {
@@ -162,6 +185,38 @@ class CanonicalPricingParser
             normalAmount: $this->nullableFloat($raw['normal_amount'] ?? null),
             unit: $unit,
             priceRole: $priceRole,
+        );
+    }
+
+    private function parsePackage(mixed $raw): ?IncludedEnergyPackageData
+    {
+        if ($raw === null) {
+            return null;
+        }
+
+        if (! is_array($raw)) {
+            throw new CanonicalPricingParseException('Malformed included-energy package.');
+        }
+
+        $monthlyFee = $this->nullableFloat($raw['monthly_fee_eur'] ?? null);
+        $includedKwh = $this->nullableFloat($raw['included_kwh'] ?? null);
+        $excessRate = $this->nullableFloat($raw['excess_rate_cents_per_kwh'] ?? null);
+        if ($monthlyFee === null || $monthlyFee <= 0
+            || $includedKwh === null || $includedKwh <= 0
+            || $excessRate === null || $excessRate <= 0) {
+            throw new CanonicalPricingParseException('Included-energy package values must be positive and complete.');
+        }
+
+        $cadence = AllowanceCadence::tryFrom((string) ($raw['allowance_cadence'] ?? ''));
+        if ($cadence === null) {
+            throw new CanonicalPricingParseException('Unsupported included-energy package allowance cadence.');
+        }
+
+        return new IncludedEnergyPackageData(
+            monthlyFeeEur: $monthlyFee,
+            includedKwh: $includedKwh,
+            allowanceCadence: $cadence,
+            excessRateCentsPerKwh: $excessRate,
         );
     }
 

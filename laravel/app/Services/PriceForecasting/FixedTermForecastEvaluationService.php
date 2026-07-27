@@ -39,10 +39,13 @@ class FixedTermForecastEvaluationService
         $query->chunkById(100, function (Collection $forecasts) use (&$evaluated, &$missingActual, $updated): void {
             foreach ($forecasts as $forecast) {
                 /** @var FixedContractPriceForecast $forecast */
+                // A matured actual is the seller price observed on the target date.
+                // Do not reinterpret it with today's canonical pricing state.
                 $actual = $this->forecastService->retailStatistic(
                     $forecast->target_date,
                     $forecast->duration_months,
                     $forecast->target_quantile,
+                    FixedTermPriceForecastService::OBSERVED_PRICING_BASIS,
                 );
 
                 if ($actual === null || $actual['price'] === null) {
@@ -55,6 +58,13 @@ class FixedTermForecastEvaluationService
                 $forecastError = $forecast->forecast_price_cents_per_kwh - $actual['price'];
                 $actualDirection = $this->forecastService->directionLabel($actualChange);
 
+                $sourceMetadata = $forecast->source_metadata ?? [];
+                $sourceMetadata['actual_retail_pricing_basis'] = $actual['pricing_basis'];
+                $sourceMetadata['actual_retail_source_date'] = $actual['source_date'];
+                $sourceMetadata['actual_retail_segment'] = $actual['segment'];
+                $sourceMetadata['actual_retail_metric'] = $actual['metric'];
+                $sourceMetadata['actual_retail_contract_count'] = $actual['contract_count'];
+
                 $forecast->fill([
                     'actual_price_cents_per_kwh' => round($actual['price'], 4),
                     'actual_change_cents_per_kwh' => round($actualChange, 4),
@@ -62,6 +72,7 @@ class FixedTermForecastEvaluationService
                     'absolute_error_cents_per_kwh' => round(abs($forecastError), 4),
                     'actual_direction' => $actualDirection,
                     'direction_correct' => $this->forecastService->directionCategory($forecast->direction) === $this->forecastService->directionCategory($actualDirection),
+                    'source_metadata' => $sourceMetadata,
                     'evaluated_at' => now(),
                 ])->save();
 

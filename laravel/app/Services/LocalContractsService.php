@@ -32,8 +32,7 @@ class LocalContractsService
      * - Tier 1: Contracts from companies headquartered in the municipality
      * - Tier 2: Regional contracts (availability_is_national = false) available in the city
      *
-     * @param Municipality $municipality
-     * @param int $consumption Annual consumption in kWh
+     * @param  int  $consumption  Annual consumption in kWh
      * @return array{local_companies: Collection, regional_contracts: Collection, has_content: bool}
      */
     public function getLocalContracts(Municipality $municipality, int $consumption = 5000): array
@@ -79,7 +78,7 @@ class LocalContractsService
             ->whereIn('company_name', $nearbyCompanies->pluck('name')->toArray())
             ->where(function ($q) {
                 $q->whereIn('target_group', ['Household', 'Both'])
-                  ->orWhereNull('target_group');
+                    ->orWhereNull('target_group');
             })
             ->get();
 
@@ -100,12 +99,13 @@ class LocalContractsService
      */
     private function findNearbyCompanies(Municipality $municipality): Collection
     {
-        if (!$municipality->hasCoordinates()) {
+        if (! $municipality->hasCoordinates()) {
             // Fallback to exact match if no coordinates
             return Company::where('postal_name', $municipality->name)
                 ->get()
                 ->map(function ($company) {
                     $company->distance_km = 0;
+
                     return $company;
                 });
         }
@@ -126,12 +126,13 @@ class LocalContractsService
         foreach ($companies as $company) {
             $postcode = $postcodes->get($company->postal_code);
 
-            if (!$postcode || !$postcode->latitude || !$postcode->longitude) {
+            if (! $postcode || ! $postcode->latitude || ! $postcode->longitude) {
                 // If no coordinates for postcode, check if it's in the same municipality
                 if ($company->postal_name === $municipality->name) {
                     $company->distance_km = 0;
                     $nearbyCompanies->push($company);
                 }
+
                 continue;
             }
 
@@ -191,15 +192,15 @@ class LocalContractsService
             ->whereNotIn('company_name', $excludeCompanyNames)
             ->where(function ($q) {
                 $q->whereIn('target_group', ['Household', 'Both'])
-                  ->orWhereNull('target_group');
+                    ->orWhereNull('target_group');
             })
             // Available in the city (has postcodes in this municipality)
             ->whereExists(function ($subquery) use ($cityName) {
                 $subquery->select(DB::raw(1))
-                         ->from('contract_postcode')
-                         ->join('postcodes', 'contract_postcode.postcode', '=', 'postcodes.postcode')
-                         ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
-                         ->where('postcodes.municipal_name_fi', $cityName);
+                    ->from('contract_postcode')
+                    ->join('postcodes', 'contract_postcode.postcode', '=', 'postcodes.postcode')
+                    ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
+                    ->where('postcodes.municipal_name_fi', $cityName);
             })
             ->get();
 
@@ -219,18 +220,20 @@ class LocalContractsService
         // Filter by consumption range
         $contracts = $contracts->filter(fn ($contract) => $contract->isConsumptionInRange($consumption));
 
-        $priceComponentsByContractId = ElectricityContract::getLatestPriceComponentsForCalculationByContractIds(
-            $contracts->pluck('id')
-        );
-
         $useCanonical = $this->canonicalPricing->enabled();
+        $priceComponentsByContractId = $useCanonical
+            ? []
+            : ElectricityContract::getLatestPriceComponentsForCalculationByContractIds($contracts->pluck('id'));
 
         // Calculate cost for each contract
         $mapped = $contracts->map(function ($contract) use ($consumption, $spotPriceDay, $spotPriceNight, $priceComponentsByContractId, $useCanonical) {
             $priceComponents = $priceComponentsByContractId[$contract->id] ?? [];
-            $contract->setRelation('priceComponents', new \Illuminate\Database\Eloquent\Collection(
-                array_map(fn (array $component) => new PriceComponent($component), $priceComponents)
-            ));
+
+            if (! $useCanonical) {
+                $contract->setRelation('priceComponents', new \Illuminate\Database\Eloquent\Collection(
+                    array_map(fn (array $component) => new PriceComponent($component), $priceComponents)
+                ));
+            }
 
             $usage = new EnergyUsage(
                 total: $consumption,

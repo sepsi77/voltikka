@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class CalculationApiTest extends TestCase
@@ -252,6 +253,98 @@ class CalculationApiTest extends TestCase
         $this->assertEqualsWithDelta(508.9, $data['base_total_cost'], 0.01);
         $this->assertEqualsWithDelta(35.7, $data['discount_savings_total'], 0.01);
         $this->assertEqualsWithDelta(473.2, $data['total_cost'], 0.01);
+    }
+
+    public function test_canonical_calculation_does_not_query_price_components(): void
+    {
+        config(['canonical_pricing.enabled' => true]);
+
+        ElectricityContract::create([
+            'id' => 'canonical-query-contract',
+            'company_name' => 'Test Company Oy',
+            'name' => 'Canonical Query Contract',
+            'contract_type' => 'OpenEnded',
+            'pricing_model' => 'FixedPrice',
+            'metering' => 'General',
+            'availability_is_national' => true,
+            'canonical_pricing' => [
+                'phases' => [[
+                    'label' => 'current',
+                    'phase_kind' => 'current_structured',
+                    'starts' => ['kind' => 'contract_start', 'value' => null],
+                    'ends' => ['kind' => 'none', 'value' => null],
+                    'components' => [[
+                        'component_type' => 'energy_general',
+                        'amount' => 10.0,
+                        'normal_amount' => null,
+                        'unit' => 'cents_per_kwh',
+                        'vat_status' => 'included',
+                        'price_role' => 'current',
+                        'source_kind' => 'both',
+                        'evidence' => [],
+                    ]],
+                    'evidence' => [],
+                ]],
+                'recurring_schedule' => [
+                    'present' => false,
+                    'cadence' => 'none',
+                    'current_period_start' => null,
+                    'current_period_end' => null,
+                    'future_price_known' => null,
+                    'description' => null,
+                    'evidence' => [],
+                ],
+                'consumption_effect' => [
+                    'present' => false,
+                    'applies_to' => 'unknown',
+                    'cadence' => 'none',
+                    'expected_cents_per_kwh' => null,
+                    'typical_min_cents_per_kwh' => null,
+                    'typical_max_cents_per_kwh' => null,
+                    'hard_min_cents_per_kwh' => null,
+                    'hard_max_cents_per_kwh' => null,
+                    'uncapped' => null,
+                    'description' => null,
+                    'evidence' => [],
+                ],
+            ],
+            'canonical_calculation' => [
+                'status' => 'exact',
+                'missing_facts' => [],
+                'required_assumptions' => [],
+            ],
+            'canonical_source_consistency' => [
+                'misleading_first_12_months' => 'not_detected',
+                'structured_pricing_status' => 'complete',
+                'issue_codes' => [],
+            ],
+        ]);
+
+        PriceComponent::create([
+            'id' => 'pc-canonical-query-contract',
+            'electricity_contract_id' => 'canonical-query-contract',
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 1.0,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = strtolower($query->sql);
+        });
+
+        $response = $this->postJson('/api/calculate-price', [
+            'contract_id' => 'canonical-query-contract',
+            'consumption' => 5000,
+        ]);
+
+        $response->assertOk()->assertJsonPath('data.pricing_basis', 'canonical');
+        $this->assertEqualsWithDelta(500.0, (float) $response->json('data.total_cost'), 0.01);
+        $this->assertEmpty(array_filter(
+            $queries,
+            fn (string $sql): bool => str_contains($sql, 'price_components'),
+        ));
     }
 
     /**

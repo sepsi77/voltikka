@@ -9,6 +9,12 @@ use Illuminate\Support\Collection;
 
 class FixedTermPriceForecastService
 {
+    public const CANONICAL_PRICING_BASIS = 'canonical_calculation';
+
+    public const OBSERVED_PRICING_BASIS = 'observed_seller_data';
+
+    private const RETAIL_METRIC = 'energy_price';
+
     public const SEGMENTS = [
         6 => 'fixed_term_6',
         12 => 'fixed_term_12',
@@ -33,7 +39,7 @@ class FixedTermPriceForecastService
         $horizon = $horizonDays ?? (int) config('price_forecasting.fixed_term.default_horizon_days', 30);
         $durations = $durationsMonths ?: config('price_forecasting.fixed_term.durations_months', [6, 12, 24]);
         $quantiles = $targetQuantiles ?: config('price_forecasting.fixed_term.target_quantiles', ['median', 'p20', 'p80']);
-        $modelVersion = (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_ewma_gap_v1');
+        $modelVersion = (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_ewma_gap_v2');
         $alpha = (float) config('price_forecasting.fixed_term.ewma_alpha', 0.25);
         $lambda = (float) config('price_forecasting.fixed_term.gap_closure_lambda', 0.30);
         $minimumHistory = (int) config('price_forecasting.fixed_term.minimum_history_observations', 10);
@@ -57,7 +63,8 @@ class FixedTermPriceForecastService
                     continue;
                 }
 
-                $historyPremiums = $this->historyPremiums($asOf, $durationMonths, $targetQuantile);
+                $history = $this->historyPremiumEvidence($asOf, $durationMonths, $targetQuantile);
+                $historyPremiums = $history['premiums'];
 
                 if (count($historyPremiums) < $minimumHistory) {
                     continue;
@@ -102,6 +109,17 @@ class FixedTermPriceForecastService
                         'direction_threshold_cents_per_kwh' => $directionThreshold,
                         'minimum_history_observations' => $minimumHistory,
                         'history_observations' => count($historyPremiums),
+                        'current_retail_pricing_basis' => $current['pricing_basis'],
+                        'current_retail_source_date' => $current['source_date'],
+                        'current_retail_segment' => $current['segment'],
+                        'current_retail_metric' => $current['metric'],
+                        'current_retail_contract_count' => $current['contract_count'],
+                        'historical_retail_observations' => count($historyPremiums),
+                        'historical_retail_pricing_basis_counts' => $history['pricing_basis_counts'],
+                        'historical_retail_source_start_date' => $history['source_start_date'],
+                        'historical_retail_source_end_date' => $history['source_end_date'],
+                        'historical_retail_segment' => $current['segment'],
+                        'historical_retail_metric' => self::RETAIL_METRIC,
                         'vat_multiplier' => (float) config('price_forecasting.fixed_term.vat_multiplier', 1.255),
                         'monthly_futures_months' => $hedgeCost['monthly_futures_months'],
                         'quarter_futures_months' => $hedgeCost['quarter_futures_months'],
@@ -117,8 +135,12 @@ class FixedTermPriceForecastService
         return $forecasts;
     }
 
-    public function retailStatistic(CarbonInterface $date, int $durationMonths, string $targetQuantile): ?array
-    {
+    public function retailStatistic(
+        CarbonInterface $date,
+        int $durationMonths,
+        string $targetQuantile,
+        ?string $pricingBasis = null,
+    ): ?array {
         $segment = self::SEGMENTS[$durationMonths] ?? null;
         $column = self::QUANTILE_COLUMNS[$targetQuantile] ?? null;
 
@@ -126,11 +148,15 @@ class FixedTermPriceForecastService
             return null;
         }
 
+        $sourceDate = CarbonImmutable::instance($date)->toDateString();
+        $pricingBasis ??= $this->currentRetailPricingBasis();
         $stat = ContractPriceDailyStatistic::query()
-            ->whereDate('stat_date', CarbonImmutable::instance($date)->toDateString())
+            ->whereDate('stat_date', $sourceDate)
             ->where('segment_key', $segment)
-            ->where('metric_key', 'energy_price')
+            ->where('metric_key', self::RETAIL_METRIC)
+            ->where('pricing_basis', $pricingBasis)
             ->whereNull('consumption_kwh')
+            ->orderByDesc('id')
             ->first();
 
         if ($stat === null || $stat->{$column} === null) {
@@ -140,6 +166,10 @@ class FixedTermPriceForecastService
         return [
             'price' => (float) $stat->{$column},
             'contract_count' => (int) $stat->contract_count,
+            'pricing_basis' => (string) $stat->pricing_basis,
+            'source_date' => $stat->stat_date->toDateString(),
+            'segment' => (string) $stat->segment_key,
+            'metric' => (string) $stat->metric_key,
         ];
     }
 
@@ -175,25 +205,43 @@ class FixedTermPriceForecastService
         };
     }
 
-    private function historyPremiums(CarbonInterface $asOfDate, int $durationMonths, string $targetQuantile): array
+    /**
+     * Historical model evidence stays date-scoped observed seller data. The current
+     * canonical input is selected separately by retailStatistic().
+     *
+     * @return array{premiums:array<int,float>,pricing_basis_counts:array<string,int>,source_start_date:?string,source_end_date:?string}
+     */
+    private function historyPremiumEvidence(CarbonInterface $asOfDate, int $durationMonths, string $targetQuantile): array
     {
         $segment = self::SEGMENTS[$durationMonths] ?? null;
         $column = self::QUANTILE_COLUMNS[$targetQuantile] ?? null;
 
         if ($segment === null || $column === null) {
-            return [];
+            return [
+                'premiums' => [],
+                'pricing_basis_counts' => [],
+                'source_start_date' => null,
+                'source_end_date' => null,
+            ];
         }
 
         $stats = ContractPriceDailyStatistic::query()
-            ->whereDate('stat_date', '<=', CarbonImmutable::instance($asOfDate)->toDateString())
+            ->whereDate('stat_date', '<', CarbonImmutable::instance($asOfDate)->toDateString())
             ->where('segment_key', $segment)
-            ->where('metric_key', 'energy_price')
+            ->where('metric_key', self::RETAIL_METRIC)
+            ->where('pricing_basis', self::OBSERVED_PRICING_BASIS)
             ->whereNull('consumption_kwh')
             ->whereNotNull($column)
             ->orderBy('stat_date')
-            ->get(['stat_date', $column]);
+            ->orderByDesc('id')
+            ->get(['id', 'stat_date', 'pricing_basis', $column])
+            ->unique(fn (ContractPriceDailyStatistic $stat) => $stat->stat_date->toDateString().'|'.$stat->pricing_basis)
+            ->sortBy('stat_date')
+            ->values();
 
         $premiums = [];
+        $basisCounts = [];
+        $sourceDates = [];
 
         foreach ($stats as $stat) {
             $hedgeCost = $this->hedgeCostService->calculate($stat->stat_date, $durationMonths);
@@ -202,10 +250,27 @@ class FixedTermPriceForecastService
                 continue;
             }
 
+            $basis = (string) $stat->pricing_basis;
             $premiums[] = (float) $stat->{$column} - $hedgeCost['price_cents_per_kwh'];
+            $basisCounts[$basis] = ($basisCounts[$basis] ?? 0) + 1;
+            $sourceDates[] = $stat->stat_date->toDateString();
         }
 
-        return $premiums;
+        ksort($basisCounts);
+
+        return [
+            'premiums' => $premiums,
+            'pricing_basis_counts' => $basisCounts,
+            'source_start_date' => $sourceDates[0] ?? null,
+            'source_end_date' => $sourceDates === [] ? null : $sourceDates[array_key_last($sourceDates)],
+        ];
+    }
+
+    private function currentRetailPricingBasis(): string
+    {
+        return (bool) config('canonical_pricing.enabled', false)
+            ? self::CANONICAL_PRICING_BASIS
+            : self::OBSERVED_PRICING_BASIS;
     }
 
     private function ewma(array $values, float $alpha): float

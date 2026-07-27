@@ -4,11 +4,18 @@ namespace Tests\Feature;
 
 use App\Models\ActiveContract;
 use App\Models\Company;
+use App\Models\ContractPriceDailyStatistic;
 use App\Models\ContractPriceSnapshot;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
+use App\Models\SpotPriceAverage;
+use App\Services\CanonicalPricing\CanonicalContractPricingService;
+use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
+use App\Services\DTO\EnergyUsage;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -52,17 +59,18 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         // recorded year cannot be the promo price alone.
         $this->assertGreaterThan(5000 * 0.04, (float) $snapshot->annual_cost_5000_kwh);
 
-        // Nothing relational exists, so the per-component c/kWh fields stay empty rather
-        // than being invented. `cleanValues()` drops them from the aggregate metrics.
-        $this->assertNull($snapshot->energy_price_cents_per_kwh);
-        $this->assertNull($snapshot->monthly_fee_eur);
+        // The current unit rate also comes from the typed canonical outcome. It is
+        // available even though no relational row exists.
+        $this->assertSame(4.0, (float) $snapshot->energy_price_cents_per_kwh);
+        $this->assertSame(0.0, (float) $snapshot->monthly_fee_eur);
+        $this->assertSame('canonical_calculation', $snapshot->pricing_basis);
     }
 
     public function test_a_contract_canonical_pricing_refuses_to_total_is_still_skipped(): void
     {
         // Vimpelin Voima's shape: the pre-discount price list is undisclosed, so the
         // continuation phase has no components and canonical declines to price the year.
-        $this->createContract('incomplete-1', [
+        $contract = $this->createContract('incomplete-1', [
             $this->phase('Alennettu hinnasto', 'introductory', 5.0, $this->boundary('contract_start'), $this->boundary('after_months', '3')),
             [
                 'label' => 'Alennusta edeltänyt hinnasto',
@@ -73,6 +81,7 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
                 'evidence' => [],
             ],
         ], calculationStatus: 'incomplete');
+        $this->createRelationalComponent($contract, 'General', 5.0);
 
         $result = $this->calculate();
 
@@ -95,23 +104,284 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         $this->assertSame(0, $result['snapshots']);
     }
 
-    public function test_a_contract_with_components_is_unaffected(): void
+    public function test_canonical_current_rate_wins_when_the_relational_rate_conflicts(): void
     {
         $contract = $this->createContract('normal-1', [
-            $this->phase('Nykyinen', 'current_structured', 7.0, $this->boundary('contract_start'), $this->boundary('none')),
+            $this->phase('Nykyinen', 'current_structured', 9.0, $this->boundary('contract_start'), $this->boundary('none')),
         ]);
         PriceComponent::create([
             'id' => 'pc-normal-1',
             'electricity_contract_id' => $contract->id,
             'price_component_type' => 'General',
             'price_date' => self::DATE,
-            'price' => 7.0,
+            'price' => 3.0,
             'payment_unit' => 'c/kWh',
         ]);
 
         $this->calculate();
 
-        $this->assertSame(7.0, (float) ContractPriceSnapshot::sole()->energy_price_cents_per_kwh);
+        $this->assertSame(9.0, (float) ContractPriceSnapshot::sole()->energy_price_cents_per_kwh);
+    }
+
+    public function test_a_missing_canonical_unit_rate_stays_null_even_when_a_relational_rate_exists(): void
+    {
+        $contract = $this->createContract('fee-only-1', [
+            $this->phaseWithComponents([
+                $this->canonicalComponent('monthly_fee', 4.0, 'eur_per_month'),
+            ]),
+        ]);
+        $this->createRelationalComponent($contract, 'General', 8.0);
+
+        $this->calculate();
+
+        $snapshot = ContractPriceSnapshot::sole();
+        $this->assertNull($snapshot->energy_price_cents_per_kwh);
+        $this->assertSame(4.0, (float) $snapshot->monthly_fee_eur);
+        $this->assertSame(48.0, (float) $snapshot->annual_cost_5000_kwh);
+    }
+
+    public function test_a_package_keeps_annual_total_and_fee_but_omits_an_all_in_energy_rate_and_offer(): void
+    {
+        $contract = $this->createContract('package-1', [[
+            'label' => 'Kuukausipaketti',
+            'phase_kind' => 'current_structured',
+            'starts' => $this->boundary('contract_start'),
+            'ends' => $this->boundary('none'),
+            'components' => [],
+            'package' => [
+                'monthly_fee_eur' => 21.0,
+                'included_kwh' => 150.0,
+                'allowance_cadence' => 'monthly',
+                'excess_rate_cents_per_kwh' => 16.6,
+                'evidence' => [],
+            ],
+            'evidence' => [],
+        ]]);
+        $this->createRelationalComponent($contract, 'General', 16.6);
+
+        $this->calculate();
+
+        $snapshot = ContractPriceSnapshot::sole();
+        $this->assertNotNull($snapshot->annual_cost_5000_kwh);
+        $this->assertNull($snapshot->energy_price_cents_per_kwh);
+        $this->assertSame(21.0, (float) $snapshot->monthly_fee_eur);
+        $this->assertFalse($snapshot->has_discount);
+    }
+
+    public function test_spot_margin_and_total_come_from_the_canonical_outcome(): void
+    {
+        SpotPriceAverage::create([
+            'region' => 'FI',
+            'period_type' => SpotPriceAverage::PERIOD_ROLLING_365D,
+            'period_start' => '2026-07-26',
+            'period_end' => '2026-07-26',
+            'avg_price_without_tax' => 6.0,
+            'avg_price_with_tax' => 6.0,
+            'day_avg_with_tax' => 6.0,
+            'night_avg_with_tax' => 6.0,
+            'hours_count' => 8760,
+        ]);
+        $contract = $this->createContract('spot-1', [
+            $this->phaseWithComponents([
+                $this->canonicalComponent('spot_margin', 0.7),
+                $this->canonicalComponent('monthly_fee', 4.0, 'eur_per_month'),
+            ]),
+        ], calculationStatus: 'estimate_required', pricingModel: 'Spot');
+        $this->createRelationalComponent($contract, 'General', 0.2);
+
+        $outcome = app(CanonicalContractPricingService::class)->evaluate(
+            $contract,
+            new EnergyUsage(total: 5000, basicLiving: 5000),
+            new SpotAssumptions(dayAvgWithTax: 6.0, nightAvgWithTax: 6.0),
+            Carbon::parse(self::DATE),
+        )['outcome'];
+        $this->assertTrue($outcome->isListed(), $outcome->comparability->value);
+        $statistics = app(ContractPriceStatisticsService::class);
+        $spotMethod = new \ReflectionMethod($statistics, 'canonicalSpotAssumptions');
+        $this->assertSame(6.0, $spotMethod->invoke($statistics, self::DATE)->dayAvgWithTax);
+
+        $statistics->calculateForDate(self::DATE, ActiveContract::query()->pluck('id'));
+
+        $snapshot = ContractPriceSnapshot::sole();
+        $this->assertSame(0.7, (float) $snapshot->spot_margin_cents_per_kwh);
+        $this->assertSame(6.7, (float) $snapshot->spot_total_energy_price_cents_per_kwh);
+        $this->assertSame(6.7, (float) $snapshot->energy_price_cents_per_kwh);
+        $this->assertTrue($snapshot->includes_spot_price);
+    }
+
+    public function test_time_and_season_rates_use_only_the_canonical_current_outcome(): void
+    {
+        $time = $this->createContract('time-1', [
+            $this->phaseWithComponents([
+                $this->canonicalComponent('energy_day', 10.0),
+                $this->canonicalComponent('energy_night', 2.0),
+            ]),
+        ], metering: 'Time');
+        $season = $this->createContract('season-1', [
+            $this->phaseWithComponents([
+                $this->canonicalComponent('energy_seasonal_winter', 12.0),
+                $this->canonicalComponent('energy_seasonal_other', 6.0),
+            ]),
+        ], metering: 'Season');
+        $this->createRelationalComponent($time, 'General', 1.0);
+        $this->createRelationalComponent($season, 'General', 1.0);
+
+        $this->calculate();
+
+        $snapshots = ContractPriceSnapshot::all()->keyBy('contract_id');
+        $this->assertEqualsWithDelta(7.0, $snapshots['time-1']->energy_price_cents_per_kwh, 0.0001);
+        $this->assertEqualsWithDelta(8.5, $snapshots['season-1']->energy_price_cents_per_kwh, 0.0001);
+    }
+
+    public function test_measured_canonical_offer_sets_the_snapshot_offer_flag(): void
+    {
+        $this->createContract('offer-1', [
+            $this->phaseWithComponents([
+                $this->canonicalComponent('energy_general', 7.0, normalAmount: 9.0),
+            ]),
+        ]);
+
+        $this->calculate();
+
+        $this->assertTrue(ContractPriceSnapshot::sole()->has_discount);
+    }
+
+    public function test_a_relational_offer_does_not_set_the_canonical_offer_flag(): void
+    {
+        $contract = $this->createContract('no-offer-1', [
+            $this->phaseWithComponents([
+                $this->canonicalComponent('energy_general', 7.0),
+            ]),
+        ]);
+        $this->createRelationalComponent($contract, 'General', 3.0);
+        PriceComponent::query()
+            ->where('electricity_contract_id', $contract->id)
+            ->update([
+                'has_discount' => true,
+                'discount_value' => 2.0,
+                'discount_is_percentage' => false,
+            ]);
+
+        $this->calculate();
+
+        $this->assertFalse(ContractPriceSnapshot::sole()->has_discount);
+    }
+
+    public function test_feature_off_keeps_the_relational_forward_calculation(): void
+    {
+        config()->set('canonical_pricing.enabled', false);
+        $contract = $this->createContract('legacy-1', [
+            $this->phase('Nykyinen', 'current_structured', 9.0, $this->boundary('contract_start'), $this->boundary('none')),
+        ]);
+        $this->createRelationalComponent($contract, 'General', 7.0);
+        $this->createRelationalComponent($contract, 'Monthly', 3.0);
+
+        $this->calculate();
+
+        $snapshot = ContractPriceSnapshot::sole();
+        $this->assertSame(7.0, (float) $snapshot->energy_price_cents_per_kwh);
+        $this->assertSame(3.0, (float) $snapshot->monthly_fee_eur);
+        $this->assertSame(386.0, (float) $snapshot->annual_cost_5000_kwh);
+        $this->assertSame('observed_seller_data', $snapshot->pricing_basis);
+    }
+
+    public function test_each_calculation_date_has_one_basis_and_stale_excluded_snapshots_are_removed(): void
+    {
+        $contract = $this->createContract('ownership-1', [
+            $this->phase('Nykyinen', 'current_structured', 9.0, $this->boundary('contract_start'), $this->boundary('none')),
+        ]);
+        $this->createRelationalComponent($contract, 'General', 3.0);
+        PriceComponent::create([
+            'id' => 'pc-ownership-history',
+            'electricity_contract_id' => $contract->id,
+            'price_component_type' => 'General',
+            'price_date' => '2026-07-26',
+            'price' => 3.0,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        $service = app(ContractPriceStatisticsService::class);
+        $service->calculateForDate('2026-07-26', [$contract->id], useCanonical: false);
+        $service->calculateForDate(self::DATE, [$contract->id], useCanonical: false);
+        $this->assertSame('observed_seller_data', ContractPriceSnapshot::whereDate('snapshot_date', self::DATE)->sole()->pricing_basis);
+
+        $service->calculateForDate(self::DATE, [$contract->id], useCanonical: true);
+        $this->assertSame(1, ContractPriceSnapshot::whereDate('snapshot_date', self::DATE)->count());
+        $this->assertSame('canonical_calculation', ContractPriceSnapshot::whereDate('snapshot_date', self::DATE)->sole()->pricing_basis);
+        $this->assertFalse(ContractPriceDailyStatistic::whereDate('stat_date', self::DATE)
+            ->where('pricing_basis', 'observed_seller_data')->exists());
+
+        $contract->update([
+            'canonical_pricing' => [
+                ...$contract->canonical_pricing,
+                'phases' => [[
+                    'label' => 'Tuntematon jatko',
+                    'phase_kind' => 'continuation',
+                    'starts' => $this->boundary('contract_start'),
+                    'ends' => $this->boundary('none'),
+                    'components' => [],
+                    'evidence' => [],
+                ]],
+            ],
+            'canonical_calculation' => ['status' => 'incomplete', 'missing_facts' => ['price'], 'required_assumptions' => []],
+        ]);
+
+        $result = $service->calculateForDate(self::DATE, [$contract->id], useCanonical: true);
+
+        $this->assertSame(0, $result['snapshots']);
+        $this->assertFalse(ContractPriceSnapshot::whereDate('snapshot_date', self::DATE)->exists());
+        $this->assertTrue(ContractPriceSnapshot::whereDate('snapshot_date', '2026-07-26')
+            ->where('pricing_basis', 'observed_seller_data')->exists(), 'Other historical dates must stay intact.');
+    }
+
+    public function test_feature_off_run_takes_ownership_from_a_canonical_run_on_the_same_date(): void
+    {
+        $contract = $this->createContract('feature-off-owner-1', [
+            $this->phase('Nykyinen', 'current_structured', 9.0, $this->boundary('contract_start'), $this->boundary('none')),
+        ]);
+        $this->createRelationalComponent($contract, 'General', 3.0);
+        $service = app(ContractPriceStatisticsService::class);
+
+        $service->calculateForDate(self::DATE, [$contract->id], useCanonical: true);
+        $service->calculateForDate(self::DATE, [$contract->id], useCanonical: false);
+
+        $this->assertSame(1, ContractPriceSnapshot::whereDate('snapshot_date', self::DATE)->count());
+        $this->assertSame('observed_seller_data', ContractPriceSnapshot::whereDate('snapshot_date', self::DATE)->sole()->pricing_basis);
+        $this->assertFalse(ContractPriceDailyStatistic::whereDate('stat_date', self::DATE)
+            ->where('pricing_basis', 'canonical_calculation')->exists());
+    }
+
+    public function test_historical_mode_keeps_the_observed_relational_rate_and_basis(): void
+    {
+        $contract = $this->createContract('history-1', [
+            $this->phase('Nykyinen', 'current_structured', 9.0, $this->boundary('contract_start'), $this->boundary('none')),
+        ]);
+        $this->createRelationalComponent($contract, 'General', 3.0);
+
+        app(ContractPriceStatisticsService::class)->calculateForDate(
+            self::DATE,
+            [$contract->id],
+            useCanonical: false,
+        );
+
+        $snapshot = ContractPriceSnapshot::sole();
+        $this->assertSame(3.0, (float) $snapshot->energy_price_cents_per_kwh);
+        $this->assertSame('observed_seller_data', $snapshot->pricing_basis);
+    }
+
+    public function test_canonical_forward_collection_does_not_query_price_components(): void
+    {
+        $contract = $this->createContract('query-1', [
+            $this->phase('Nykyinen', 'current_structured', 9.0, $this->boundary('contract_start'), $this->boundary('none')),
+        ]);
+        $this->createRelationalComponent($contract, 'General', 3.0);
+
+        DB::enableQueryLog();
+        $this->calculate();
+        $queries = collect(DB::getQueryLog())->pluck('query');
+        DB::disableQueryLog();
+
+        $this->assertFalse($queries->contains(fn (string $query) => str_contains($query, 'price_components')));
     }
 
     /**
@@ -128,15 +398,20 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
     /**
      * @param  list<array<string, mixed>>  $phases
      */
-    private function createContract(string $id, array $phases, string $calculationStatus = 'exact'): ElectricityContract
-    {
+    private function createContract(
+        string $id,
+        array $phases,
+        string $calculationStatus = 'exact',
+        string $pricingModel = 'FixedPrice',
+        string $metering = 'General',
+    ): ElectricityContract {
         $contract = ElectricityContract::create([
             'id' => $id,
             'company_name' => 'Tyyni Energia Oy',
             'name' => 'Tyyni '.$id,
             'contract_type' => 'OpenEnded',
-            'pricing_model' => 'FixedPrice',
-            'metering' => 'General',
+            'pricing_model' => $pricingModel,
+            'metering' => $metering,
             'target_group' => 'Household',
             'availability_is_national' => true,
             'canonical_pricing' => [
@@ -191,6 +466,50 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
             ]],
             'evidence' => [],
         ];
+    }
+
+    /** @param list<array<string, mixed>> $components */
+    private function phaseWithComponents(array $components): array
+    {
+        return [
+            'label' => 'Nykyinen',
+            'phase_kind' => 'current_structured',
+            'starts' => $this->boundary('contract_start'),
+            'ends' => $this->boundary('none'),
+            'components' => $components,
+            'evidence' => [],
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function canonicalComponent(
+        string $type,
+        float $amount,
+        string $unit = 'cents_per_kwh',
+        ?float $normalAmount = null,
+    ): array {
+        return [
+            'component_type' => $type,
+            'amount' => $amount,
+            'normal_amount' => $normalAmount,
+            'unit' => $unit,
+            'vat_status' => 'included',
+            'price_role' => 'current',
+            'source_kind' => 'both',
+            'evidence' => [],
+        ];
+    }
+
+    private function createRelationalComponent(ElectricityContract $contract, string $type, float $price): void
+    {
+        PriceComponent::create([
+            'id' => 'pc-'.$contract->id.'-'.$type,
+            'electricity_contract_id' => $contract->id,
+            'price_component_type' => $type,
+            'price_date' => self::DATE,
+            'price' => $price,
+            'payment_unit' => $type === 'Monthly' ? 'EurPerMonth' : 'c/kWh',
+        ]);
     }
 
     /**

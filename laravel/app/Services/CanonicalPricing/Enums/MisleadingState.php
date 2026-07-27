@@ -3,7 +3,7 @@
 namespace App\Services\CanonicalPricing\Enums;
 
 /**
- * Canonical deceptive-pricing signal (schema-v3 `source_consistency.misleading_first_12_months`).
+ * Canonical deceptive-pricing signal (schema-v4 `source_consistency.misleading_first_12_months`).
  * Only `Detected` may drive a public integrity label.
  */
 enum MisleadingState: string

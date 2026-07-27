@@ -25,8 +25,14 @@ class ContractListCacheService
      * contract card renders as two dated receipt rows.
      * v3: `calculated_cost.phase_breakdown` entries gained the resolved window dates and the
      * rates each phase was costed at, which the receipt reads for a dated mechanism switch.
+     * v4: canonical `base_monthly_costs`, `discount_savings_total`, and
+     * `monthly_discount_savings` now contain the measured promotion-free calculation.
+     * v5: short annualized terms carry their actual unannualized contract-term costs and saving.
+     * v6: canonical package outcomes carry typed monthly allowance and excess-rate data.
+     * v7: cards use canonical-only current values and real-term offer copy in canonical mode.
+     * v8: company and SEO offer surfaces use canonical measured membership and benefit copy.
      */
-    private const PAYLOAD_SCHEMA_VERSION = 3;
+    private const PAYLOAD_SCHEMA_VERSION = 8;
 
     private const CACHE_TTL_SECONDS = 60 * 60 * 48; // 48 hours
 

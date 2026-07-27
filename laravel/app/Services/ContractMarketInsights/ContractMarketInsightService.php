@@ -4,6 +4,7 @@ namespace App\Services\ContractMarketInsights;
 
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\FixedContractPriceForecast;
+use App\Services\ContractStatistics\ContractPriceBasis;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -34,14 +35,29 @@ class ContractMarketInsightService
 
     public function fingerprint(): string
     {
-        return Cache::remember('contract-market-insight:fingerprint:v1', now()->addMinutes(10), function () {
-            return md5(json_encode([
-                'statistics_latest_date' => ContractPriceDailyStatistic::max('stat_date'),
-                'statistics_latest_updated' => ContractPriceDailyStatistic::max('updated_at'),
-                'forecast_latest_date' => FixedContractPriceForecast::max('forecast_date'),
-                'forecast_latest_updated' => FixedContractPriceForecast::max('updated_at'),
-            ]));
-        });
+        $pricingBasis = ContractPriceBasis::expectedCurrent()->value;
+        $canonicalEnabled = (bool) config('canonical_pricing.enabled', false);
+
+        return Cache::remember(
+            'contract-market-insight:fingerprint:v3:'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis,
+            now()->addMinutes(10),
+            function () use ($pricingBasis, $canonicalEnabled) {
+                $expected = ContractPriceDailyStatistic::query()->where('pricing_basis', $pricingBasis);
+                $observed = ContractPriceDailyStatistic::query()
+                    ->where('pricing_basis', ContractPriceBasis::ObservedSellerData->value);
+
+                return md5(json_encode([
+                    'canonical_enabled' => $canonicalEnabled,
+                    'pricing_basis' => $pricingBasis,
+                    'statistics_latest_date' => $expected->max('stat_date'),
+                    'statistics_latest_updated' => $expected->max('updated_at'),
+                    'observed_latest_date' => $observed->max('stat_date'),
+                    'observed_latest_updated' => $observed->max('updated_at'),
+                    'forecast_latest_date' => FixedContractPriceForecast::max('forecast_date'),
+                    'forecast_latest_updated' => FixedContractPriceForecast::max('updated_at'),
+                ]));
+            },
+        );
     }
 
     /**
@@ -53,7 +69,14 @@ class ContractMarketInsightService
         $segmentKey = $segmentKey ?: 'aggregate';
 
         return Cache::remember(
-            'contract-market-insight:v3:' . md5(json_encode([$segmentKey, $consumption, $includeForecast, $this->fingerprint()])),
+            'contract-market-insight:v5:'.md5(json_encode([
+                $segmentKey,
+                $consumption,
+                $includeForecast,
+                $this->fingerprint(),
+                (bool) config('canonical_pricing.enabled', false),
+                (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_ewma_gap_v2'),
+            ])),
             Carbon::tomorrow(),
             function () use ($segmentKey, $consumption, $includeForecast) {
                 $trend = $segmentKey === 'aggregate'
@@ -95,9 +118,14 @@ class ContractMarketInsightService
      */
     private function segmentTrend(string $segmentKey, int $consumption): ?array
     {
+        $latestBasis = ContractPriceBasis::expectedCurrent()->value;
+        $previousBasis = $latestBasis === ContractPriceBasis::CanonicalCalculation->value
+            ? ContractPriceBasis::ObservedSellerData->value
+            : $latestBasis;
         $latest = ContractPriceDailyStatistic::query()
             ->where('segment_key', $segmentKey)
             ->where('metric_key', self::TREND_METRIC)
+            ->where('pricing_basis', $latestBasis)
             ->where('consumption_kwh', $consumption)
             ->where('contract_count', '>', 0)
             ->orderByDesc('stat_date')
@@ -110,6 +138,7 @@ class ContractMarketInsightService
         $previous = ContractPriceDailyStatistic::query()
             ->where('segment_key', $segmentKey)
             ->where('metric_key', self::TREND_METRIC)
+            ->where('pricing_basis', $previousBasis)
             ->where('consumption_kwh', $consumption)
             ->where('contract_count', '>', 0)
             ->whereDate('stat_date', '<=', Carbon::parse($latest->stat_date)->subDays(30)->toDateString())
@@ -125,7 +154,9 @@ class ContractMarketInsightService
             (float) $previous->median_value,
             (int) $latest->contract_count,
             Carbon::parse($latest->stat_date),
-            'Sopimustyypin hinnat'
+            'Sopimustyypin hinnat',
+            $latestBasis,
+            $previousBasis,
         );
     }
 
@@ -134,9 +165,14 @@ class ContractMarketInsightService
      */
     private function aggregateTrend(int $consumption): ?array
     {
+        $latestBasis = ContractPriceBasis::expectedCurrent()->value;
+        $previousBasis = $latestBasis === ContractPriceBasis::CanonicalCalculation->value
+            ? ContractPriceBasis::ObservedSellerData->value
+            : $latestBasis;
         $latestDate = ContractPriceDailyStatistic::query()
             ->whereIn('segment_key', $this->aggregateSegments)
             ->where('metric_key', self::TREND_METRIC)
+            ->where('pricing_basis', $latestBasis)
             ->where('consumption_kwh', $consumption)
             ->where('contract_count', '>', 0)
             ->max('stat_date');
@@ -145,9 +181,14 @@ class ContractMarketInsightService
             return null;
         }
 
+        $latestDate = Carbon::parse($latestDate)
+            ->setTimezone((string) config('app.timezone'))
+            ->toDateString();
+
         $previousDate = ContractPriceDailyStatistic::query()
             ->whereIn('segment_key', $this->aggregateSegments)
             ->where('metric_key', self::TREND_METRIC)
+            ->where('pricing_basis', $previousBasis)
             ->where('consumption_kwh', $consumption)
             ->where('contract_count', '>', 0)
             ->whereDate('stat_date', '<=', Carbon::parse($latestDate)->subDays(30)->toDateString())
@@ -157,8 +198,12 @@ class ContractMarketInsightService
             return null;
         }
 
-        $latestRows = $this->aggregateRowsForDate($latestDate, $consumption);
-        $previousRows = $this->aggregateRowsForDate($previousDate, $consumption);
+        $previousDate = Carbon::parse($previousDate)
+            ->setTimezone((string) config('app.timezone'))
+            ->toDateString();
+
+        $latestRows = $this->aggregateRowsForDate($latestDate, $consumption, $latestBasis);
+        $previousRows = $this->aggregateRowsForDate($previousDate, $consumption, $previousBasis);
 
         $latestWeighted = $this->weightedAverage($latestRows);
         $previousWeighted = $this->weightedAverage($previousRows);
@@ -172,26 +217,29 @@ class ContractMarketInsightService
             $previousWeighted['value'],
             $latestWeighted['count'],
             Carbon::parse($latestDate),
-            'Sähkösopimukset'
+            'Sähkösopimukset',
+            $latestBasis,
+            $previousBasis,
         );
     }
 
     /**
      * @return Collection<int, ContractPriceDailyStatistic>
      */
-    private function aggregateRowsForDate(string $date, int $consumption): Collection
+    private function aggregateRowsForDate(string $date, int $consumption, string $pricingBasis): Collection
     {
         return ContractPriceDailyStatistic::query()
             ->whereDate('stat_date', $date)
             ->whereIn('segment_key', $this->aggregateSegments)
             ->where('metric_key', self::TREND_METRIC)
+            ->where('pricing_basis', $pricingBasis)
             ->where('consumption_kwh', $consumption)
             ->where('contract_count', '>', 0)
             ->get(['median_value', 'contract_count']);
     }
 
     /**
-     * @param Collection<int, ContractPriceDailyStatistic> $rows
+     * @param  Collection<int, ContractPriceDailyStatistic>  $rows
      * @return array{value:float,count:int}|null
      */
     private function weightedAverage(Collection $rows): ?array
@@ -218,8 +266,15 @@ class ContractMarketInsightService
     /**
      * @return array<string,mixed>
      */
-    private function formatTrend(float $latest, float $previous, int $contractCount, Carbon $latestDate, string $subject): array
-    {
+    private function formatTrend(
+        float $latest,
+        float $previous,
+        int $contractCount,
+        Carbon $latestDate,
+        string $subject,
+        string $latestBasis,
+        string $previousBasis,
+    ): array {
         $change = $latest - $previous;
         $changePct = $previous != 0.0 ? ($change / $previous) * 100.0 : 0.0;
         $absPct = abs($changePct);
@@ -259,11 +314,15 @@ class ContractMarketInsightService
             'eyebrow' => '30 päivän trendi',
             'change_label' => $changeLabel,
             'period_label' => '30 päivää',
-            'supporting' => $headline,
+            'supporting' => $latestBasis === ContractPriceBasis::CanonicalCalculation->value
+                ? 'Kanoninen nykyarvio verrattuna 30 päivää aiemmin havaittuun myyjädataan'
+                : 'Havaitut myyjähinnat 30 päivän välein',
             'latest_value' => $latest,
             'previous_value' => $previous,
             'change_percent' => $changePct,
             'contract_count' => $contractCount,
+            'latest_pricing_basis' => $latestBasis,
+            'previous_pricing_basis' => $previousBasis,
             'as_of' => $latestDate->toDateString(),
             'url' => '/sahkosopimus/tilastot',
             'link_label' => 'Katso hintakehitys',
@@ -276,6 +335,7 @@ class ContractMarketInsightService
     private function fixedTermForecast(): ?array
     {
         $row = FixedContractPriceForecast::query()
+            ->eligibleForPublicDisplay()
             ->where('duration_months', 12)
             ->where('target_quantile', 'median')
             ->orderByDesc('forecast_date')

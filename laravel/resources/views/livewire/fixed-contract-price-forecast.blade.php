@@ -110,7 +110,7 @@
                 Sähkön hintaennuste: kannattaako sähkösopimus lukita nyt?
             </h1>
             <p class="mt-5 max-w-[62ch] text-lg text-slate-600 leading-relaxed">
-                Voltikan sähkön hintaennuste seuraa päivittäin määräaikaisten sähkösopimusten hintakehitystä. Malli yhdistää suomalaisten EEX-pörssifutuurien hinnat ja tarjottujen sopimusten tämänhetkisen tason, ja arvioi onko hinta nyt poikkeuksellisen korkea, matala vai tavanomainen seuraavaa kuukautta varten.
+                Voltikan sähkön hintaennuste seuraa päivittäin määräaikaisten sähkösopimusten hintakehitystä. Malli yhdistää suomalaiset EEX-pörssifutuurit, {{ $usesCanonicalCurrentRetailInput ? 'Voltikan kanonisella laskennalla muodostetun nykyisen sopimushinnan' : 'myyjiltä havaitun nykyisen sopimushinnan' }} ja aiempien päivien havaitut hintatilastot. Näiden perusteella se arvioi, onko hinta nyt poikkeuksellisen korkea, matala vai tavanomainen seuraavaa kuukautta varten.
             </p>
 
             {{-- Meta strip --}}
@@ -227,7 +227,7 @@
                                 @php
                                     $payload = $rowsByDuration->get($duration);
                                     $signal = $payload['signal'] ?? null;
-                                    $median = $payload['lanes'] ? collect($payload['lanes'])->firstWhere('quantile', 'median') : null;
+                                    $median = ! empty($payload['lanes']) ? collect($payload['lanes'])->firstWhere('quantile', 'median') : null;
                                     $tone = $signal['tone'] ?? 'neutral';
                                     $textClass = $toneAccentText[$tone] ?? 'text-slate-700';
                                     $anchor = $durationAnchors[$duration] ?? '';
@@ -287,7 +287,7 @@
                     Sopimuspituudet tarkemmin
                 </h2>
                 <p class="text-sm text-slate-500 max-w-[60ch] mb-7">
-                    Markkinatason hinta on pörssifutuurien hinta + tämän sopimustyypin tavanomainen myyjän kate. Jos tarjottu hinta on selvästi markkinatason yläpuolella, malli odottaa laskua kohti sitä; jos selvästi alapuolella, malli odottaa nousua. Liikkeet ovat aina maltillisia, sillä retail-hinnat seuraavat futuureja vain hitaasti.
+                    Markkinatason hinta on pörssifutuurien hinta + tämän sopimustyypin tavanomainen vähittäishintalisä. Jos tarjottu hinta on selvästi markkinatason yläpuolella, malli odottaa laskua kohti sitä; jos selvästi alapuolella, malli odottaa nousua. Liikkeet ovat aina maltillisia, sillä vähittäishinnat seuraavat futuureja vain hitaasti.
                 </p>
 
                 {{-- TOC chips, matching /sahkosopimus/tilastot deep-dive nav. --}}
@@ -553,10 +553,10 @@
                             Malli on tarkoitettu yksinkertaiseksi kuluttajan apuvälineeksi, ei markkinaennusteeksi. Se vastaa kysymykseen: <em>onko tämänhetkinen tarjottu hinta poikkeuksellisen korkea, matala vai tavanomainen seuraavaa kuukautta varten?</em>
                         </p>
                         <p>
-                            Mallin syötteet ovat (1) tämänhetkinen mediaani-/p20-/p80-hinta määräaikaisille sopimuksille Voltikan päivittäisestä aineistosta, ja (2) suomalaisten EEX Base -sähköfutuurien settlement-hinnat. Futuurien hinnat muunnetaan kuluttajan hintayksiköihin (sentit/kWh sis. ALV) ja painotetaan sopimuksen toimitusjakson yli.
+                            Nykyinen mediaani-/p20-/p80-hinta tulee {{ $usesCanonicalCurrentRetailInput ? 'Voltikan kanonisesta hintalaskennasta' : 'kyseisen päivän myyjiltä havaitusta hintatilastosta' }}. Historiallinen vertailuaineisto koostuu aiempina päivinä myyjiltä havaituista hinnoista. Kolmas syöte on suomalaisten EEX Base -sähköfutuurien settlement-hinta, joka muunnetaan kuluttajan hintayksikköön (sentit/kWh sis. ALV) ja painotetaan sopimuksen toimitusjakson yli.
                         </p>
                         <p>
-                            Malli arvioi sopimustyypin tavanomaisen myyjän katteen historiallisesta erosta tarjotun hinnan ja futuurien välillä (eksponentiaalinen liukuva keskiarvo). Markkinatason hinta on futuurien hinta + tavanomainen kate. Jos tarjottu hinta on tämän yläpuolella, malli odottaa tasaantumista alaspäin; jos alapuolella, ylöspäin. Yksi 30 päivän ennuste sulkee noin 30 % näistä erosta.
+                            Malli arvioi sopimustyypin tavanomaisen vähittäishintalisän havaitun historiallisen hinnan ja futuurien välisestä erosta (eksponentiaalinen liukuva keskiarvo). Markkinatason hinta on futuurien hinta + tavanomainen vähittäishintalisä. Jos tarjottu hinta on tämän yläpuolella, malli odottaa tasaantumista alaspäin; jos alapuolella, ylöspäin. Yksi 30 päivän ennuste sulkee noin 30 % tästä erosta.
                         </p>
                         <p>
                             Pieniin liikkeisiin (alle 0,15&nbsp;c/kWh) sovelletaan "lievästi nouseva" / "lievästi laskeva" -leimaa, joka kääntyy kuluttajan suosituksessa neutraaliksi. Vain selvä nouseva tai laskeva näkymä antaa "lukitse pian" tai "voit odottaa" -suosituksen.

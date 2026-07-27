@@ -166,6 +166,24 @@ Important semantics:
 - `getFaqItemsProperty()` is the single source of truth for the FAQ; it drives both the visible `<details>` loop and `buildFaqJsonLd()` (FAQPage). Do not hand-write a separate FAQ `<script>` again, that previously drifted from the visible list.
 - Both schemas render in the **view** via `<x-schema-markup :schemas="[$jsonLd, $faqJsonLd]" />` (WebApplication + FAQPage). The shared `layouts.app` does NOT output a passed `$jsonLd`, so schemas must be passed to `view(...)` and rendered by the component, not via the layout array.
 
+## `FixedContractPriceForecast`
+
+Primary files:
+- `FixedContractPriceForecast.php`
+- `../../resources/views/livewire/fixed-contract-price-forecast.blade.php`
+- `../Services/PriceForecasting/AGENTS.md`
+
+Purpose:
+- renders `/sahkosopimus/sahkon-hintaennuste`
+- presents the current 6/12/24-month fixed-term forecast and its eligible history
+
+Important semantics:
+- the page reads only `FixedContractPriceForecast::eligibleForPublicDisplay()`: configured model version plus canonical current-retail provenance in canonical mode, or observed current-retail provenance in feature-off mode
+- old-model, missing-provenance, and wrong-basis rows are not current forecasts; when no eligible rows exist, render the existing unavailable state
+- history uses the same eligibility scope, so the chart cannot silently mix old input semantics into the current model
+- page copy separates the current retail input, historical observed seller evidence, and EEX futures input without exposing metadata internals or claiming certainty
+- comparison-page forecast teasers use the same model scope through `ContractMarketInsightService`
+
 ## `ContractPriceStatistics`
 
 Primary files:
@@ -187,6 +205,8 @@ Important semantics:
 - cache invalidation is automatic through cheap `contract_price_daily_statistics` / `contract_price_snapshots` / spot-price max-date/update fingerprints, so daily imports/backfills should not need manual page-cache clearing
 - run `contracts:backfill-price-statistics` before expecting historical data
 - spot metrics are split between `spot_margin` and `spot_total_energy_price`
+- forward rows store `pricing_basis=canonical_calculation`; historical backfill and feature-off rows store `observed_seller_data`. Current unit panels and latest points require `ContractPriceBasis::expectedCurrent()` and do not fall back to a newer opposite-mode date. Historical rows stay date-scoped evidence and are not described as today's canonical interpretation. The page explains this split, CSV exports `pricing_basis`, and prepared view-data cache schema is v10; its key includes the expected basis
+- a package can contribute an annual total and package fee, but its excess-use rate is not an all-in energy price and stays out of unit-price panels
 - `ContractPriceStatistics::$segments` is `ContractPriceStatisticsService::SEGMENT_LABELS`; the classifier and its labels live beside each other in the service because the contract detail page's price-development chart names the same segments
 - the “Hinnat sopimustyypeittäin” spot row must display a trailing-12-month realized spot daily average + latest typical margin, not the latest daily spot price; show p20–p80 daily-price variation under the value without adding a column
 - the “Hinnat sopimustyypeittäin” sparkline must track the displayed median energy-price basis; the annual-cost sparkline belongs in the “Hintahaarukka” table below
@@ -229,6 +249,12 @@ Important semantics:
 - expanded 15-minute rows use the same signed/diverging geometry horizontally; server-precomputed `bar_left_percent`, `bar_width_percent`, and `zero_percent` keep the Alpine view presentation-only
 - minimum visible sizing applies only to non-zero bars and must preserve direction; all-negative and all-zero datasets must remain legible
 
+## `ArticleSpotElectricity`
+
+- The `Markkinatilanne nyt` snapshot uses only `annual_cost` rows on the latest date for `ContractPriceBasis::expectedCurrent()`. Canonical mode cannot fall back to a newer observed date; feature-off uses observed rows.
+- Its six-hour cache key includes canonical state, expected basis, latest relevant date, and maximum `updated_at`, so flag changes and same-day rewrites create a new payload.
+- The two contract-statistics article series end on the latest date for `ContractPriceBasis::expectedCurrent()`, keep older observed rows as historical evidence, and read only the trailing year. Their cold-cache reads select only date, segment, and the plotted value through the base query builder; they cache small prepared arrays, not unbounded Eloquent collections. The volatility widget streams its already date-bounded hourly rows with the same selective base-query pattern. These limits keep the eager article route below the 128 MB production PHP limit.
+
 ## `ArticleContractPriceComparisonChart`
 
 Primary files:
@@ -245,6 +271,7 @@ Important semantics:
 - keep its aggregation aligned with `ContractPriceStatistics`: weekly views average daily median statistics so trends remain market-day weighted
 - do not calculate contract prices during the article request; the component only reads aggregate statistics rows
 - article chart data is cached with short TTLs (typically 6 hours) because it is derived from daily/hourly precomputed market tables and does not need per-request freshness
+- the embed shows at most the trailing 12 months and caches only its weekly prepared payload; never cache or group an unbounded all-column Eloquent statistics collection here
 - do not Livewire-lazy-load the article chart widgets unless their pushed scripts/chart initializers are moved to a non-lazy parent bundle; otherwise the widget markup can hydrate without the chart drawing
 
 ## `CompanyDetail`
@@ -252,11 +279,69 @@ Important semantics:
 Primary files:
 - `CompanyDetail.php`
 - `../../resources/views/livewire/company-detail.blade.php`
+- `../../resources/views/partials/company-market-comparison.blade.php`
+- `../Services/CompanyStatistics/AGENTS.md`
 
 Query guardrails:
 - `contracts` and `companyStats` are memoized per render because layout title/meta, JSON-LD, H1/hero text, and the visible list all read the same company contract set.
-- Keep company contract queries eager-loading `company`, `priceComponents`, and `electricitySource`; company detail cards need the loaded company relation for logos, and stats/calculations use source and price relations.
-- Clear the memoized contract/stat caches whenever the selected consumption changes.
+- Keep company contract queries eager-loading `company` and `electricitySource`. Load `priceComponents` only in the explicit feature-off branch; canonical calculations, offers, cards, and current company facts must not require or query relational prices.
+- Clear the memoized contract/stat caches whenever the selected consumption changes. `marketComparison` is memoized with a separate `marketComparisonResolved` flag, because null is a valid result and must not be recomputed every render.
+
+### Query-cluster sections (2026-07)
+
+Search Console showed three clusters on these pages that the page answered with
+nothing but a list of cards: `[yhtiö] tarjoukset`, `[yhtiö] hinta` /
+`sähkön hinta`, and `[yhtiö] pörssisähkö`. Four sections were added between the
+summary and the card list, in this order, and each is derived from data the page
+already loads or from precomputed statistics.
+
+1. **`#tarjoukset` — "{yhtiö} tarjoukset".** In canonical mode,
+   `getPromotionContractsProperty()` uses only the `calculated_cost` outcome
+   already attached by `getContractsProperty()`. Membership requires a listed
+   canonical outcome with `includes_discounts=true` and a positive measured
+   benefit. It never reads `priceComponents`, relational discount flags, or
+   relational discount formatters. Company contract queries therefore omit the
+   full component-history relation in canonical mode; feature-off still eager-loads
+   it and keeps the legacy behavior.
+   **The heading always renders.** Only 13 of 35 sellers had a live promotion on
+   2026-07-24, and an empty state that says the page updates itself is the
+   product decision; do not hide the section when the list is empty.
+
+   `CanonicalOfferFacts` supplies the generic typed label and measured benefit.
+   Ordinary outcomes state the benefit over the 12-month comparison period. A
+   short fixed term states `contract_term.discount_savings_total` over the real
+   term and labels its month count; the annualized top-level saving is never
+   described as benefit received. A package, excluded outcome, missing benefit,
+   or zero benefit is not an offer. No seller or interpretation free text is used.
+   Feature-off keeps `hasActiveDiscounts()` and
+   `formatActiveDiscountValue()` in its separate legacy branch, including the
+   dash for a relational promotion whose old calculator cannot measure a saving.
+2. **`#hintavertailu` — "{yhtiö}: hinnat markkinaan verrattuna."** Range rows per
+   contract-type segment plus a trailing-12-month trend chart, from
+   `../Services/CompanyStatistics/CompanyMarketComparisonService`. **Read that
+   `AGENTS.md` before changing the metric, the segment floor, or the geometry.**
+   The section is omitted when the service returns null.
+3. **`#porssisahko` — "{yhtiö} pörssisähkö".** The seller's `Spot` contracts with
+   their margin in c/kWh, which is the figure a visitor compares between sellers
+   and which no seller publishes beside a rival. Omitted when the seller has no
+   spot contract.
+4. **`#usein-kysyttya`.** `getFaqItemsProperty()` is the single source for the
+   visible `<details>` list and for `getFaqSchemaProperty()` (FAQPage), the same
+   rule as `ConsumptionCalculator` and `ContractDetail`. Do not hand-write a
+   second FAQ `<script>`. Items are generated from typed fields, capped at five,
+   and an item whose data is missing is dropped rather than answered "ei tietoa".
+
+**FAQ questions use the colon form** (`Helen Oy: paljonko sähkö maksaa?`) on
+purpose. Finnish inflection of an arbitrary company name is unsafe, and many
+sellers are already named "... Sähkö" or "... Energia", so the plain form
+produces "Vaasan Sähkö sähkön hinta". The same constraint applies to the page
+title and H1, which are **deliberately unchanged** and still carry an em dash and
+a `| Voltikka` suffix; that rewrite is a separate open decision.
+
+The offers and spot sections render as compact tables inside `overflow-x-auto`
+wrappers rather than as contract cards, because Vaasan Sähkö has a promotion on
+all 22 of its contracts and a card list would duplicate the whole page above the
+card list.
 
 ## `CompanyList`
 
@@ -266,6 +351,12 @@ Primary files:
 - `../Services/CompanyListCacheService.php`
 
 Route: `/sahkosopimus/sahkoyhtiot` (`companies.list`).
+
+Pricing and cache rules:
+- In canonical mode, `CompanyListCacheService` derives every company price, price average, contract count, and price ranking only from listed canonical metrics already produced by `ContractListCacheService`. A missing, excluded, non-canonical, or non-numeric total does not count and cannot become EUR 0 or a sentinel rank. A canonical-only contract is valid.
+- The feature-off branch keeps the legacy relational metrics. The component never calculates a contract price itself.
+- A company without a price at the selected consumption is not in the cheapest ranking, and its card states that the price is unavailable instead of formatting null as zero.
+- The 48-hour company cache key includes its own payload schema marker, the shared `ContractListCacheService` data version, and canonical/reset-shift markers. Interpretation publication bumps the shared version, so company output cannot remain stale for 48 hours. Bump `CompanyListCacheService::PAYLOAD_SCHEMA_VERSION` after a code-only change to company metric membership or payload fields.
 
 ### SEO metadata decisions (2026-07)
 
@@ -330,7 +421,7 @@ Important semantics:
 - `calculate()` must read public inputs through safe helper methods and use enum `tryFrom()` fallbacks so blank/stale browser state does not become `PropertyNotFoundException` or enum `ValueError`.
 - blank/too-small numeric inputs are normalized back onto the component so the UI displays minimum allowed values: 20 m² living area, 1 resident, and 0 for optional numeric extras.
 - fallback select defaults are apartment, electric heating, central region, and 2000-era energy rating.
-- the page also renders a `sähkön hinta laskuri` section when `contract_price_daily_statistics` data exists. It estimates p20/median/p80 annual costs from the calculated kWh, energy-price statistics, and monthly-fee statistics; spot comparisons prefer interpolated `annual_cost` rows so trailing-365-day spot costs stay comparable with fixed contracts.
+- the page also renders a `sähkön hinta laskuri` section when `contract_price_daily_statistics` data exists. Every contract type uses stored `annual_cost` p20/median/p80 rows with the existing interpolation/nearest-reference behavior. The current date and rows use `ContractPriceBasis::expectedCurrent()`: canonical mode requires `canonical_calculation`, and feature-off requires `observed_seller_data`, with no newer wrong-basis fallback. It never rebuilds a public annual total from unit price + monthly fee. If annual rows are missing, that type is unavailable; this keeps canonical-only and package totals while preventing relational fallback.
 - `priceEstimatesFor(int $consumption)` holds that estimate logic; `contractTypePriceEstimates` is just the visitor's own consumption. `priceStatisticsRows()` memoizes `[statDate, groupedRows]` for the request, so the FAQ can price extra fixed levels at **no extra query** (measured: 2 statistics queries per render, unchanged). Keep that memo `protected` — as a public property the grouped Eloquent collection would be dehydrated into the Livewire snapshot for nothing.
 - `priceSegments()` is the single source of truth for which contract types are quoted; `priceStatisticsRows()` derives its `segment_key` filter from `array_keys()` of it. Do not add a parallel key constant — a segment present in the config but missing from the query is silently dropped from the table instead of failing.
 
@@ -369,6 +460,10 @@ Consequences to preserve:
   calculator's output should hand off to them. Keep `CONSUMPTION_PAGE_LEVELS` in sync with the
   routes in `routes/web.php`.
 
+## `HomePage`
+
+- The homepage contract trend uses stored `annual_cost` at 5,000 kWh, not `energy_price` / `spot_total_energy_price`. Its current endpoint requires `ContractPriceBasis::expectedCurrent()` and excludes newer opposite-mode rows; older points keep their own stored date basis. The chart and caption use €/year and identify the current basis. Cache key schema is `home-page:contract-price-trend:v6`, with the expected basis, latest expected date, and source fingerprint in the key so a flag flip or same-day rewrite cannot serve stale output.
+
 ## `ContractTypeComparison`
 
 Primary files:
@@ -384,6 +479,10 @@ Important semantics:
 - contract selection is interaction-gated: the default view shows only auto-selected/explicit contracts, and searchable async results render only after the user opens a selector and types at least 2 characters
 - default `contract_term` mode compares määräaikainen vs toistaiseksi voimassa oleva for the määräaikainen article
 - `comparisonContext="spot_article"` keeps pörssisähkö as the left-side anchor in both tabs: pörssisähkö vs kiinteähintainen and pörssisähkö vs määräaikainen
+- in canonical mode, candidate selection, the monthly chart, annual and average-monthly totals, winner/savings, current rates/fees, package facts, offer fact, and estimate labels all read one memoized `CanonicalPricingOutcome` per contract and consumption basis. The chart renders `monthlyCosts` directly; it must not reconstruct monthly prices from unit rates.
+- a canonical-only contract is valid. An excluded or incomplete selected contract gets an unavailable state with no zero series and stops the winner/savings result. Do not fill any missing current fact from `priceComponents`.
+- package facts are ordinary pricing, not a promotion. `term_price_only` totals must state that the real term was annualized, and `base_only_hybrid` must retain the unknown consumption-effect disclosure.
+- canonical candidate queries load `company` only. The explicit feature-off branch still eager-loads `priceComponents` and keeps the legacy monthly calculator and last-year monthly Spot basis without N+1 queries.
 
 ## Pricing-type filter (`?hintatyyppi=`)
 
@@ -503,21 +602,21 @@ Important semantics:
 - this is prepared-data caching, not full HTML caching; Livewire actions still recompute/serve their interactive state normally
 - page-level caching is disabled when `app()->runningUnitTests()` to avoid cross-test cache pollution from Laravel's array cache driver
 - listing metric rebuilds should use `ElectricityContract::getLatestPriceComponentsForCalculationByContractIds()` so crawler hits do not produce one `price_components` query per contract while still avoiding eager-loading full price history
-- contract card Blade partials (`resources/views/components/contract-card.blade.php`, `featured-contract-card.blade.php`) must not lazy-load `company`, `electricitySource`, or `priceComponents`; listing components should batch-load what cards need, and cards should fall back to scalar fields if relations are missing. Both templates now derive everything through `../Services/ContractCard/ContractCardPresenter`, which enforces the no-lazy-load rule in one place. **Do not put price logic, category logic or Finnish copy back into a card template** — the two templates previously held duplicate derivation and drifted, leaving the featured card (the #1 slot everywhere) with no price-increase warning, no market-reset figures and no estimate marker. See `../Services/ContractCard/AGENTS.md`.
+- contract card Blade partials (`resources/views/components/contract-card.blade.php`, `featured-contract-card.blade.php`) must not lazy-load `company`, `electricitySource`, or `priceComponents`; listing components should batch-load what cards need, and cards should fall back to scalar fields if relations are missing. Both templates now derive everything through `../Services/ContractCard/ContractCardPresenter`, which enforces the no-lazy-load rule in one place. **Do not put price logic, category logic or Finnish copy back into a card template** — the two templates previously held duplicate derivation and drifted, leaving the featured card (the #1 slot everywhere) with no price-increase warning, no market-reset figures and no estimate marker. In canonical mode, `loadVisibleContracts()` does not load latest components and `getLatestPrices()` returns before `loadMissing()`; feature-off keeps the bulk component load. See `../Services/ContractCard/AGENTS.md`.
 - the card's type band is single-purpose: it states one of three pricing categories (Kiinteä hinta / Markkinahinta / Kulutusvaikutus) and never a warning. Warnings are coral footer pills, priority ordered and capped at two. Consumption caps only warn at ≤ 30 000 kWh/v unless the selected consumption actually exceeds the cap.
 - the percentile callouts were removed from cards (they rendered only on SEO listing pages, half the switch was unreachable, and they could contradict the sort order). `ContractsList::getPercentiles()` and `contracts:calculate-percentiles` are unchanged; the `percentiles` card prop is a retained no-op.
 - listing pages carry `<x-card.legend />` explaining the type-band tints; it replaced the emissions colour legend when the card's emissions left stripe was removed.
-- **Canonical pricing (behind `CANONICAL_PRICING_ENABLED`):** when on, `ContractListCacheService`/the listing fallback paths attach `comparability` + `pricing_integrity` to each contract (batch, like percentiles), drop non-listed contracts from `sorted_ids`, and rank by the canonical true 12-month total. Cards consume those fields through `ContractCardPresenter`: `Hinta nousee …`, `{N} kk sopimus, jatkohinta ei tiedossa` and `Ei sisällä kulutusvaikutusta` are coral footer pills, and the estimate marker is the band's `Arvio` popover rather than a footer tag. `ContractDetail` exposes `pricingIntegrity`/`pricingComparability`/`isPricingExcluded`: excluded contracts show a "Vuosihintaa ei voi laskea luotettavasti" hero and omit JSON-LD `offers`; detected contracts render the integrity notice at the top of `Hintatiedot`, in coral (it was amber until Phase 4; amber is an emissions tier). All flag-driven caches carry a `c1`/`c0` marker (incl. `ContractPageCacheVersion`) so a toggle busts them. See `../Services/CanonicalPricing/AGENTS.md`.
+- **Canonical pricing (behind `CANONICAL_PRICING_ENABLED`):** when on, `ContractListCacheService`/the listing fallback paths attach `comparability` + `pricing_integrity` to each contract (batch, like percentiles), drop non-listed contracts from `sorted_ids`, and rank by the canonical true 12-month total. Cards consume those fields through `ContractCardPresenter`: `Hinta nousee …`, `{N} kk sopimus, jatkohinta ei tiedossa` and `Ei sisällä kulutusvaikutusta` are coral footer pills, and the estimate marker is the band's `Arvio` popover rather than a footer tag. `ContractDetail` exposes `pricingIntegrity`/`pricingComparability`/`isPricingExcluded`: excluded contracts show a "Vuosihintaa ei voi laskea luotettavasti" hero and omit JSON-LD `offers`; detected contracts render the integrity notice at the top of `Hintatiedot`, in coral (it was amber until Phase 4; amber is an emissions tier). The SEO offer page filters after canonical metrics are attached, so canonical-only offers enter while relational-only, package, zero-benefit, and excluded rows do not. Its Product descriptions use `CanonicalOfferFacts`, not relational labels. Feature-off keeps the old relational candidate query and JSON-LD text. All flag-driven caches carry a `c1`/`c0` marker (incl. `ContractPageCacheVersion`) so a toggle busts them. See `../Services/CanonicalPricing/AGENTS.md`.
 - city-page solar potential must stay in the lazy `CitySolarEstimate` child component; `SeoContractsList` must not call `CitySolarService`/PVGIS while building initial page HTML because a cache miss can add blocking time
 - `CitySolarEstimate` must not make uncached PVGIS requests for crawler user agents (Googlebot, generic bots/spiders); bot-triggered Livewire lazy updates should render cached data only or nothing, because PVGIS can hang long enough to hit PHP's request timeout
 - `SeoContractsList` validates city slugs against `municipalities` during mount and returns 404 for unknown `/sahkosopimus/paikkakunnat/{location}` slugs so SEO pricing/duration slugs cannot become fake location pages. It still memoizes the municipality lookup because city metadata is read by contracts filtering, title/meta generation, headings, JSON-LD, and local-contract sections during one render; do not revert to direct `Municipality::where('slug', ...)` calls from those accessors
 - `ContractsList::$page` is URL-bound and intentionally typed `int|string`; `normalizePageProperty()` coerces empty, malformed, or negative query values to page 1 before render/SEO pagination. Keep this tolerant because bots and browsers can request `?page=` before Livewire mount, and a strict `int` property causes typed-property hydration errors.
 - `ContractsList::calculateFromInlineCalculator()` reads calculator fields through safe typed helper methods. Keep this tolerant of blank mobile number inputs and stale/partially hydrated Livewire snapshots from SEO pages so user edits do not turn into `PropertyNotFoundException` / enum errors.
 - `CheapestContracts` calls `SeoContractsList::getContractsProperty()` through inheritance. Read consumption with `ContractsList::selectedConsumptionValue()` in inherited listing paths and cheapest-page render data so stale Livewire snapshots that miss the URL-bound `consumption` property fall back to 5 000 kWh instead of throwing `PropertyNotFoundException`.
-- Contract comparison hero market-insight pills are intentionally small and must not push results down. They use cached precomputed statistics/forecast payloads from `ContractMarketInsightService`; do not calculate contract prices or scan raw `price_components` for these pills during page requests.
+- Contract comparison hero market-insight pills are intentionally small and must not push results down. They use cached precomputed statistics/forecast payloads from `ContractMarketInsightService`; do not calculate contract prices or scan raw `price_components` for these pills during page requests. Their latest point uses the basis expected by the canonical flag. In canonical mode the 30-day comparison can use an older dated observed point, and its visible supporting copy identifies that provenance. Cache keys and fingerprints vary by flag and basis.
 - Market insights show on `/sahkosopimus`, SEO pricing/duration pages, and cheapest contracts. They are hidden on business, housing-type, energy-source, and consumption-level SEO pages. The cheapest page uses the same aggregate trend as the main page.
 - Default listing prepared-data cache writes are protected by a short cache lock to prevent crawler/user stampedes after daily import invalidation. If lock acquisition times out, render uncached instead of waiting toward PHP's 30-second request limit.
-- City SEO listing pages (`/sahkosopimus/paikkakunnat/{location}`) intentionally skip prepared view-data caching because there are many long-tail city URLs and their local/regional sections make serialized database-cache payloads large. They still use shared contract metric caches and should keep visible contract `priceComponents` limited to latest calculation components, not full history.
+- City SEO listing pages (`/sahkosopimus/paikkakunnat/{location}`) intentionally skip prepared view-data caching because there are many long-tail city URLs and their local/regional sections make serialized database-cache payloads large. They still use shared contract metric caches. Canonical local/list card loading does not load `priceComponents`; feature-off attaches only the latest calculation components, never full history.
 
 ## `ContractDetail`
 
@@ -911,12 +1010,24 @@ Rules to keep:
   `AGENTS.md` documents detail mode, the dated mechanism-switch rows and the CTA ladder.
 - `getCardProperty()` copies `calculated_cost` / `pricing_integrity` / `comparability` onto the
   model first. None are database columns; this is the shape listings get from the metric cache.
+  In canonical mode it passes no relational prices. The presenter also rejects any payload that
+  does not identify `pricing_basis = canonical`.
+- Current receipt rows, title price phrases, current-price meta text, and Product JSON-LD all read
+  `currentDisplayValues()`. Canonical mode builds it only from `calculated_cost`; a missing unit
+  stays absent, a canonical-only contract can show its available values, and an excluded outcome
+  has no current unit value or JSON-LD Offer. Feature-off mode keeps the relational values.
+- `priceHistory`, `contractHistory`, the price-development chart, and the replacement timeline
+  remain relational observed history. Do not use their newest observation as a canonical current
+  price. The meta history sentence can describe the observed change, but its "maksaa nyt" rate and
+  fee come from `currentDisplayValues()`.
+- A short fixed term's receipt note uses `calculated_cost.contract_term.discount_savings_total`.
+  The annualized top-level saving is ranking/comparison data and must not be called the customer's
+  actual six-month benefit.
 - The `ContractCardView` travels inside the prepared view payload, so
-  `contractDetailViewDataCacheKey()` was bumped to **v11** with it, and is at **v15** since
-  the payload also carries the static cost table, the counterfactual, the same-type
-  alternative, the price-development module and the Phase 4 `heroVerdict` / `receiptNotes` /
-  `hasPricingMechanismFaq` keys. It no longer carries `latestPrices`, `discountedComponents`
-  or `priceChangeInfo`; no template read them after the editorial restructure, and
+  `contractDetailViewDataCacheKey()` was bumped to **v11** with it, to **v15** for the Phase 4
+  composition keys, and to **v16** for canonical-only current values, offer notes, metadata,
+  and Product JSON-LD. It no longer carries `latestPrices`, `discountedComponents` or
+  `priceChangeInfo`; no template read them after the editorial restructure, and
   `getDiscountedComponentsProperty()`, `getPriceChangeInfoProperty()` and
   `components/contract-price-row.blade.php` were deleted with them.
 - The page keeps what the cards do not have: the price-development chart and its seller-behaviour
@@ -997,11 +1108,12 @@ dark hero would read as a seam. Hintatiedot below it owns that rule and draws it
   `ContractDetailBillComparisonTest::test_bill_state_never_enters_the_prepared_view_data_payload`.
 - Hidden on inactive contracts and on contracts whose pricing is excluded: "what would this have
   cost you" is misleading for a product that is not on sale or has no trustworthy price.
-- Known limitation, shared with the in-listing mode: `BillComparisonService` reads the
-  **relational** components, so a mechanism-switch contract (a flat promotional energy price
-  followed by a spot margin) has its promo rate read as the spot margin. The receipt rows above
-  come from canonical pricing and state the mechanism correctly, so the two can disagree on that
-  contract shape. Fixing it belongs in the service, for all three surfaces at once.
+- With canonical pricing on, all three surfaces now receive one typed period result from
+  `CanonicalContractPriceCalculator`. The period path applies the same canonical phase timing and
+  can switch from a fixed energy rate to realized hourly Spot, or between Spot margins, inside the
+  bill period. Canonical-only contracts work; missing or excluded canonical pricing returns an
+  honest unavailable reason and never reads relational rates. Feature-off keeps the old component
+  path. Regression coverage aligns the standalone row, listing card, and detail result numerically.
 
 Tests: `tests/Feature/ContractDetailBillComparisonTest.php`.
 
@@ -1132,7 +1244,7 @@ Use broad existing SEO pages for duration badges instead of creating exact-durat
 
 `ContractDetail` also memoizes rank-related computed values and keeps one request-scoped `ContractRankingService` instance. Do not replace `rankingService()` with repeated `app(ContractRankingService::class)` calls in `liveRank`, `liveTotalContracts`, or `cheaperContracts`; those methods share the same eligible target-group lookup and otherwise repeat large `electricity_contracts` queries during one render.
 
-`ContractRankingService` and `ContractListCacheService` intentionally memoize cache payloads per service instance. Production uses the database cache driver, so repeated `Cache::remember()` calls for `contract_rankings_5000kwh`, `contract_list_cache_version`, or `contract_list_metrics:*` become repeated `select * from cache where key in (?)` spans that Sentry can classify as N+1 even when application data is already cached.
+`ContractRankingService`, `ContractListCacheService`, and `CompanyListCacheService` intentionally memoize cache payloads per service instance. Production uses the database cache driver, so repeated `Cache::remember()` calls for `contract_rankings_5000kwh`, `contract_list_cache_version`, `contract_list_metrics:*`, or `company_list:*` become repeated `select * from cache where key in (?)` spans that Sentry can classify as N+1 even when application data is already cached.
 
 `ContractDetail` memoizes `ContractPageCacheVersion::hash()` per component instance because both the contract lookup cache key and prepared view-data cache key need it. On the database cache driver, recomputing the version hash can create repeated cache/source-table queries before the page data is even built.
 

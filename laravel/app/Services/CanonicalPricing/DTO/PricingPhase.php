@@ -5,7 +5,7 @@ namespace App\Services\CanonicalPricing\DTO;
 use App\Services\CanonicalPricing\Enums\PhaseKind;
 
 /**
- * One canonical pricing phase (schema-v3 `$defs.phase`).
+ * One canonical pricing phase (schema-v4 `$defs.phase`).
  *
  * A phase with no billed components represents an UNKNOWN-coverage period (an
  * unknown or empty future/recurring schedule). It must never be read as a €0 period.
@@ -13,7 +13,7 @@ use App\Services\CanonicalPricing\Enums\PhaseKind;
 readonly class PricingPhase
 {
     /**
-     * @param list<CanonicalComponent> $components
+     * @param  list<CanonicalComponent>  $components
      */
     public function __construct(
         public string $label,
@@ -21,8 +21,8 @@ readonly class PricingPhase
         public PhaseBoundary $starts,
         public PhaseBoundary $ends,
         public array $components,
-    ) {
-    }
+        public ?IncludedEnergyPackageData $package = null,
+    ) {}
 
     /**
      * @return list<CanonicalComponent>
@@ -37,7 +37,7 @@ readonly class PricingPhase
      */
     public function hasKnownPricing(): bool
     {
-        return $this->billedComponents() !== [];
+        return $this->package !== null || $this->billedComponents() !== [];
     }
 
     /**

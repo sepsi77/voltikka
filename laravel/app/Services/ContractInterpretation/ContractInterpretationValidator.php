@@ -199,6 +199,34 @@ class ContractInterpretationValidator
             $this->validateBoundaryOrder($phase, $phaseIndex, $errors);
             $this->validateActiveDiscountEvidence($phase, $phaseIndex, $input, $errors);
 
+            $package = $phase['package'] ?? null;
+            if (is_array($package)) {
+                $packageEvidence = $this->evidenceText($package['evidence'] ?? []);
+                foreach (['monthly_fee_eur', 'included_kwh', 'excess_rate_cents_per_kwh'] as $field) {
+                    $number = $package[$field] ?? null;
+                    if ((is_int($number) || is_float($number))
+                        && ! $this->textContainsNumber($packageEvidence, $number)) {
+                        $errors[] = "$.pricing.phases[{$phaseIndex}].package.{$field} lacks numeric evidence.";
+                    }
+                }
+
+                if (($phase['components'] ?? []) !== []) {
+                    $errors[] = "$.pricing.phases[{$phaseIndex}] must not duplicate package charges as components.";
+                }
+            }
+
+            $phaseComponents = collect($phase['components'] ?? []);
+            $hasMonthlyFee = $phaseComponents->contains(
+                fn (array $component): bool => ($component['component_type'] ?? null) === 'monthly_fee',
+            );
+            $hasMonthlyFlatFee = $phaseComponents->contains(
+                fn (array $component): bool => ($component['component_type'] ?? null) === 'flat_fee'
+                    && ($component['unit'] ?? null) === 'eur_per_month',
+            );
+            if ($hasMonthlyFee && $hasMonthlyFlatFee) {
+                $errors[] = "$.pricing.phases[{$phaseIndex}] has ambiguous duplicate monthly fees as flat_fee and monthly_fee.";
+            }
+
             foreach ($phase['components'] ?? [] as $componentIndex => $component) {
                 $interpretedTypes[] = $component['component_type'] ?? null;
                 $evidenceText = $this->evidenceText($component['evidence'] ?? []);
@@ -216,9 +244,16 @@ class ContractInterpretationValidator
             }
         }
 
+        $this->validateStructuredDiscountCoverage($output, $input, $errors);
+
+        $monthlyPackageFacts = $this->monthlyExcessPackageFacts($input);
         $isFlatPackageSource = $this->isFlatPackageSource($input);
         $expectedTypes = collect($input['components'] ?? [])
-            ->map(function (array $component) use ($isFlatPackageSource, $output, $input): ?string {
+            ->map(function (array $component) use ($monthlyPackageFacts, $isFlatPackageSource, $output, $input): ?string {
+                if ($monthlyPackageFacts !== null
+                    && in_array($component['price_component_type'] ?? null, ['Monthly', 'General'], true)) {
+                    return null;
+                }
                 if ($isFlatPackageSource && ($component['price_component_type'] ?? null) === 'Monthly') {
                     return 'flat_fee';
                 }
@@ -417,6 +452,255 @@ class ContractInterpretationValidator
                 $errors[] = "$.pricing.phases[{$phaseIndex}] must not use inactive discount timing from components[{$componentIndex}] when has_discount is false.";
             }
         }
+    }
+
+    /**
+     * Require every current structured discount to survive as an exact canonical timeline.
+     *
+     * @param  array<string, mixed>  $output
+     * @param  array<string, mixed>  $input
+     * @param  list<string>  $errors
+     */
+    private function validateStructuredDiscountCoverage(array $output, array $input, array &$errors): void
+    {
+        $analysisDateValue = $input['analysis_date'] ?? null;
+        $analysisDate = is_string($analysisDateValue) && $this->isDate($analysisDateValue)
+            ? new DateTimeImmutable($analysisDateValue)
+            : null;
+        $phases = $output['pricing']['phases'] ?? [];
+        $pricingModel = $output['classification']['primary_pricing_model']
+            ?? $input['pricing_model']
+            ?? null;
+        $packageFacts = $this->monthlyExcessPackageFacts($input);
+
+        foreach ($input['components'] ?? [] as $componentIndex => $sourceComponent) {
+            if (($sourceComponent['has_discount'] ?? false) !== true) {
+                continue;
+            }
+
+            $discountType = $sourceComponent['discount_type'] ?? null;
+            if ($this->isMonthlyPackageAllowanceDiscount($sourceComponent, $packageFacts)) {
+                continue;
+            }
+
+            // Expired absolute discounts are historical evidence. Ignore them before
+            // validating amount fields, because stale metadata can be incomplete and must
+            // not create a current-phase requirement.
+            if ($discountType === 'UntilDate') {
+                $untilDateValue = $sourceComponent['discount_until_date'] ?? null;
+                $untilDate = is_string($untilDateValue) ? substr($untilDateValue, 0, 10) : null;
+                if ($analysisDate !== null && is_string($untilDate) && $this->isDate($untilDate)
+                    && new DateTimeImmutable($untilDate) < $analysisDate) {
+                    continue;
+                }
+            }
+
+            $componentTypes = $this->discountComponentTypes(
+                $sourceComponent['price_component_type'] ?? null,
+                $pricingModel,
+            );
+            if ($componentTypes === []) {
+                $errors[] = "components[{$componentIndex}] has an active structured discount whose component scope cannot be represented safely.";
+
+                continue;
+            }
+
+            $normalAmount = $sourceComponent['price'] ?? null;
+            $discountValue = $sourceComponent['discount_value'] ?? null;
+            $isPercentage = $sourceComponent['discount_is_percentage'] ?? null;
+            if (! is_numeric($normalAmount)
+                || ! is_numeric($discountValue)
+                || ! is_bool($isPercentage)
+                || (float) $normalAmount < 0
+                || (float) $discountValue <= 0) {
+                $errors[] = "components[{$componentIndex}] has an active structured discount whose amount cannot be represented safely.";
+
+                continue;
+            }
+
+            $discount = $isPercentage
+                ? (float) $normalAmount * ((float) $discountValue / 100)
+                : (float) $discountValue;
+            $discountedAmount = max(0.0, (float) $normalAmount - min((float) $normalAmount, $discount));
+
+            $discountBoundary = null;
+            $continuationBoundary = null;
+            $periodDescription = null;
+
+            if ($discountType === 'UntilDate') {
+                $untilDateValue = $sourceComponent['discount_until_date'] ?? null;
+                $untilDate = is_string($untilDateValue) ? substr($untilDateValue, 0, 10) : null;
+                if ($analysisDate === null || ! is_string($untilDate) || ! $this->isDate($untilDate)) {
+                    $errors[] = "components[{$componentIndex}] has an active UntilDate discount whose timing cannot be represented safely.";
+
+                    continue;
+                }
+
+                $endDate = new DateTimeImmutable($untilDate);
+                if ($endDate < $analysisDate) {
+                    continue;
+                }
+
+                $discountBoundary = fn (array $phase): bool => $this->phaseCoversActiveUntilDate(
+                    $phase,
+                    $analysisDate,
+                    $untilDate,
+                );
+                $continuationDate = $endDate->modify('+1 day')->format('Y-m-d');
+                $continuationBoundary = fn (array $phase): bool => ($phase['starts']['kind'] ?? null) === 'date'
+                    && ($phase['starts']['value'] ?? null) === $continuationDate;
+                $periodDescription = "through {$untilDate}";
+            } elseif ($discountType === 'NFirstMonth') {
+                $months = $sourceComponent['discount_n_first_months'] ?? null;
+                if (! is_numeric($months) || (int) $months <= 0 || (float) $months !== (float) (int) $months) {
+                    $errors[] = "components[{$componentIndex}] has an active first-N-month discount whose timing cannot be represented safely.";
+
+                    continue;
+                }
+
+                $months = (int) $months;
+                $discountBoundary = fn (array $phase): bool => $this->phaseCoversFirstMonths($phase, $months);
+                $continuationBoundary = fn (array $phase): bool => ($phase['starts']['kind'] ?? null) === 'after_months'
+                    && (int) ($phase['starts']['value'] ?? -1) === $months;
+                $periodDescription = "for the first {$months} months";
+            } else {
+                $type = is_string($discountType) && $discountType !== '' ? $discountType : 'missing type';
+                $errors[] = "components[{$componentIndex}] has an active structured discount with {$type} timing that canonical phases cannot represent safely.";
+
+                continue;
+            }
+
+            $discountPhases = collect($phases)->filter($discountBoundary);
+            if ($discountPhases->isEmpty()) {
+                $errors[] = "$.pricing.phases must represent the active structured discount from components[{$componentIndex}] {$periodDescription}.";
+
+                continue;
+            }
+
+            $scopedDiscountComponents = $discountPhases->flatMap(
+                fn (array $phase): array => $this->componentsWithTypes($phase, $componentTypes),
+            );
+            if ($scopedDiscountComponents->isEmpty()) {
+                $errors[] = "$.pricing.phases must represent the active structured discount from components[{$componentIndex}] on {$this->componentTypeDescription($componentTypes)}; another component scope cannot satisfy it.";
+            } elseif ($scopedDiscountComponents->count() !== 1
+                || ! $scopedDiscountComponents->contains(
+                    fn (array $component): bool => $this->amountEquals($component['amount'] ?? null, $discountedAmount)
+                        && $this->amountEquals($component['normal_amount'] ?? null, (float) $normalAmount),
+                )) {
+                $errors[] = "$.pricing.phases must represent the active structured discount from components[{$componentIndex}] with amount {$this->formatAmount($discountedAmount)} and normal_amount {$this->formatAmount((float) $normalAmount)}.";
+            }
+
+            $continuationPhases = collect($phases)->filter($continuationBoundary);
+            $continuationComponents = $continuationPhases->flatMap(
+                fn (array $phase): array => $this->componentsWithTypes($phase, $componentTypes),
+            );
+            if ($continuationComponents->count() !== 1
+                || ! $continuationComponents->contains(
+                    fn (array $component): bool => $this->amountEquals($component['amount'] ?? null, (float) $normalAmount),
+                )) {
+                $errors[] = "$.pricing.phases must continue components[{$componentIndex}] as {$this->componentTypeDescription($componentTypes)} at the known normal amount {$this->formatAmount((float) $normalAmount)} after the structured discount ends.";
+            }
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $sourceComponent
+     * @param  array{monthly_fee_eur: float, included_kwh: float, excess_rate_cents_per_kwh: float}|null  $packageFacts
+     */
+    private function isMonthlyPackageAllowanceDiscount(array $sourceComponent, ?array $packageFacts): bool
+    {
+        return $packageFacts !== null
+            && ($sourceComponent['price_component_type'] ?? null) === 'General'
+            && ($sourceComponent['discount_type'] ?? null) === 'NFirstKwh'
+            && is_numeric($sourceComponent['discount_n_first_kwh'] ?? null)
+            && abs(
+                (float) $sourceComponent['discount_n_first_kwh'] - ($packageFacts['included_kwh'] * 12),
+            ) < 0.000001;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function discountComponentTypes(mixed $sourceType, mixed $pricingModel): array
+    {
+        if ($sourceType === 'Monthly') {
+            return ['monthly_fee', 'flat_fee'];
+        }
+
+        $type = $this->interpretedComponentType($sourceType, $pricingModel);
+
+        return $type === null ? [] : [$type];
+    }
+
+    /**
+     * @param  array<string, mixed>  $phase
+     */
+    private function phaseCoversActiveUntilDate(
+        array $phase,
+        DateTimeImmutable $analysisDate,
+        string $untilDate,
+    ): bool {
+        if (($phase['ends']['kind'] ?? null) !== 'date'
+            || ($phase['ends']['value'] ?? null) !== $untilDate) {
+            return false;
+        }
+
+        $start = $phase['starts'] ?? [];
+        if (in_array($start['kind'] ?? null, ['contract_start', 'unknown'], true)) {
+            return true;
+        }
+
+        $startDate = $start['value'] ?? null;
+
+        return ($start['kind'] ?? null) === 'date'
+            && is_string($startDate)
+            && $this->isDate($startDate)
+            && new DateTimeImmutable($startDate) <= $analysisDate;
+    }
+
+    /**
+     * @param  array<string, mixed>  $phase
+     */
+    private function phaseCoversFirstMonths(array $phase, int $months): bool
+    {
+        $startsAtContractStart = ($phase['starts']['kind'] ?? null) === 'contract_start'
+            || (($phase['starts']['kind'] ?? null) === 'after_months'
+                && (int) ($phase['starts']['value'] ?? -1) === 0);
+
+        return $startsAtContractStart
+            && ($phase['ends']['kind'] ?? null) === 'after_months'
+            && (int) ($phase['ends']['value'] ?? -1) === $months;
+    }
+
+    /**
+     * @param  array<string, mixed>  $phase
+     * @param  list<string>  $componentTypes
+     * @return list<array<string, mixed>>
+     */
+    private function componentsWithTypes(array $phase, array $componentTypes): array
+    {
+        return array_values(array_filter(
+            $phase['components'] ?? [],
+            fn (array $component): bool => in_array($component['component_type'] ?? null, $componentTypes, true),
+        ));
+    }
+
+    private function amountEquals(mixed $actual, float $expected): bool
+    {
+        return is_numeric($actual) && abs((float) $actual - $expected) < 0.000001;
+    }
+
+    /**
+     * @param  list<string>  $componentTypes
+     */
+    private function componentTypeDescription(array $componentTypes): string
+    {
+        return implode(' or ', $componentTypes);
+    }
+
+    private function formatAmount(float $amount): string
+    {
+        return rtrim(rtrim(number_format($amount, 6, '.', ''), '0'), '.');
     }
 
     /**
@@ -637,13 +921,46 @@ class ContractInterpretationValidator
             }
         }
 
-        if ($hasMechanism('flat_fee_or_package') && ! $hasComponent('flat_fee')) {
-            $errors[] = '$.classification.pricing_mechanisms contains flat_fee_or_package without a flat_fee component.';
+        $packages = collect($output['pricing']['phases'] ?? [])
+            ->pluck('package')
+            ->filter(fn (mixed $package): bool => is_array($package));
+        $hasPackage = $packages->isNotEmpty();
+        if ($hasMechanism('flat_fee_or_package') && ! $hasComponent('flat_fee') && ! $hasPackage) {
+            $errors[] = '$.classification.pricing_mechanisms contains flat_fee_or_package without a flat_fee component or package.';
         }
-        if ($hasComponent('flat_fee') && ! $hasMechanism('flat_fee_or_package')) {
-            $errors[] = '$.classification.pricing_mechanisms must contain flat_fee_or_package for a flat_fee component.';
+        if (($hasComponent('flat_fee') || $hasPackage) && ! $hasMechanism('flat_fee_or_package')) {
+            $errors[] = '$.classification.pricing_mechanisms must contain flat_fee_or_package for a flat_fee component or package.';
         }
-        if ($this->isFlatPackageSource($input)) {
+
+        $monthlyPackageFacts = $this->monthlyExcessPackageFacts($input);
+        if ($monthlyPackageFacts !== null) {
+            if (! $hasMechanism('flat_fee_or_package') || ! $hasMechanism('fixed')) {
+                $errors[] = '$.classification.pricing_mechanisms must contain flat_fee_or_package and fixed for a monthly included-energy package.';
+            }
+            if ($packages->count() !== 1) {
+                $errors[] = '$.pricing.phases must contain exactly one package for a monthly included-energy package.';
+            } else {
+                $package = $packages->first();
+                foreach (['monthly_fee_eur', 'included_kwh', 'excess_rate_cents_per_kwh'] as $field) {
+                    if (! is_numeric($package[$field] ?? null)
+                        || abs((float) $package[$field] - $monthlyPackageFacts[$field]) >= 0.000001) {
+                        $errors[] = "$.pricing.phases package {$field} must match the disclosed package value.";
+                    }
+                }
+                if (($package['allowance_cadence'] ?? null) !== 'monthly') {
+                    $errors[] = '$.pricing.phases package allowance_cadence must be monthly.';
+                }
+            }
+            if ($hasComponent('flat_fee') || $hasComponent('monthly_fee') || $hasAnyComponent($fixedEnergyComponents)) {
+                $errors[] = '$.pricing.phases must not duplicate a monthly package fee or excess rate as components.';
+            }
+            if (($output['calculation']['status'] ?? null) !== 'exact') {
+                $errors[] = '$.calculation.status must be exact when monthly package fee, allowance, and excess rate are complete.';
+            }
+            if (($output['source_consistency']['misleading_first_12_months'] ?? null) !== 'not_detected') {
+                $errors[] = '$.source_consistency.misleading_first_12_months must be not_detected for package pricing without a separate promotion.';
+            }
+        } elseif ($this->isFlatPackageSource($input)) {
             if (! $hasMechanism('flat_fee_or_package')) {
                 $errors[] = '$.classification.pricing_mechanisms must contain flat_fee_or_package because the source explicitly describes a consumption package.';
             }
@@ -865,12 +1182,52 @@ class ContractInterpretationValidator
     }
 
     /**
+     * Return deterministic source values for a monthly included-energy package.
+     *
      * @param  array<string, mixed>  $input
+     * @return array{monthly_fee_eur: float, included_kwh: float, excess_rate_cents_per_kwh: float}|null
      */
+    private function monthlyExcessPackageFacts(array $input): ?array
+    {
+        $text = mb_strtolower($this->sourceText($input), 'UTF-8');
+        if (preg_match('/(?<!\p{L})(?:\p{L}*paket\p{L}*|package)(?!\p{L})/u', $text) !== 1
+            || preg_match('/(?:ylittävästä|ylittavasta|ylimenevästä|ylimenevasta)[^.!?]{0,160}(?:energiasta|kulutuksesta)[^.!?]{0,160}(?:laskut|hinn)/u', $text) !== 1
+            || preg_match('/(?:sisältää|sisaltaa)[^.!?]{0,80}?(\d+(?:[,.]\d+)?)\s*kwh[^.!?]{0,80}(?:kuukaudessa|\/\s*kk|per month)/u', $text, $allowanceMatch) !== 1) {
+            return null;
+        }
+
+        $monthlyFees = collect($input['components'] ?? [])
+            ->filter(fn (array $component): bool => ($component['price_component_type'] ?? null) === 'Monthly'
+                && is_numeric($component['price'] ?? null)
+                && (float) $component['price'] > 0)
+            ->pluck('price')
+            ->map(fn (mixed $value): float => (float) $value)
+            ->unique()
+            ->values();
+        $excessRates = collect($input['components'] ?? [])
+            ->filter(fn (array $component): bool => ($component['price_component_type'] ?? null) === 'General'
+                && is_numeric($component['price'] ?? null)
+                && (float) $component['price'] > 0)
+            ->pluck('price')
+            ->map(fn (mixed $value): float => (float) $value)
+            ->unique()
+            ->values();
+
+        if ($monthlyFees->count() !== 1 || $excessRates->count() !== 1) {
+            return null;
+        }
+
+        return [
+            'monthly_fee_eur' => $monthlyFees->first(),
+            'included_kwh' => (float) str_replace(',', '.', $allowanceMatch[1]),
+            'excess_rate_cents_per_kwh' => $excessRates->first(),
+        ];
+    }
+
     private function isFlatPackageSource(array $input): bool
     {
         $text = mb_strtolower($this->sourceText($input), 'UTF-8');
-        $hasPackageWording = preg_match('/(?<!\p{L})(?:paket\p{L}*|package)(?!\p{L})/u', $text) === 1;
+        $hasPackageWording = preg_match('/(?<!\p{L})(?:\p{L}*paket\p{L}*|package)(?!\p{L})/u', $text) === 1;
         $maximumConsumption = data_get($input, 'consumption_limitation.MaxXKWhPerY');
         $components = collect($input['components'] ?? []);
         $hasPositiveMonthlyFee = $components->contains(

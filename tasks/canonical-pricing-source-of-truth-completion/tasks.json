@@ -1,0 +1,117 @@
+{
+  "task": "canonical-pricing-source-of-truth-completion",
+  "tasks": [
+    {
+      "name": "Confirm the source-of-truth invariants and document the permitted uses of price_components",
+      "status": "completed"
+    },
+    {
+      "name": "Complete the per-surface current-price audit and record compliant, violating, and historical-evidence consumers",
+      "status": "completed"
+    },
+    {
+      "name": "Define the complete typed canonical pricing outcome required by all public consumers",
+      "status": "completed"
+    },
+    {
+      "name": "Expose actual short fixed-term costs and benefits before comparison annualization",
+      "status": "completed"
+    },
+    {
+      "name": "Design canonical offer resolution using amount, normal_amount, phase timing, and explicit measured savings",
+      "status": "completed"
+    },
+    {
+      "name": "Design canonical monthly included-energy allowance and excess-rate pricing for package products",
+      "status": "completed"
+    },
+    {
+      "name": "Add interpretation and validator rules for missing structured discounts, unsupported pricing, and duplicate billed fees",
+      "status": "completed"
+    },
+    {
+      "name": "Prevent active structured UntilDate and first-N-month discounts from disappearing from canonical phases",
+      "status": "completed"
+    },
+    {
+      "name": "Version the canonical schema, prompt, validator, and typed DTOs as required by the new domain model",
+      "status": "completed"
+    },
+    {
+      "name": "Implement canonical actual-price, normal-price, monthly-cost, and measured-saving calculations",
+      "status": "completed"
+    },
+    {
+      "name": "Implement monthly package allowance pricing and prevent Kuukausipaketti duplicate fees",
+      "status": "completed"
+    },
+    {
+      "name": "Add regression tests for Vattenfall offers, Surffari, Hybrids, short terms, packages, deceptive phases, canonical-only rows, and excluded rows",
+      "status": "completed"
+    },
+    {
+      "name": "Make standard and featured cards plus ContractDetail current-price surfaces canonical-only in canonical mode",
+      "status": "completed"
+    },
+    {
+      "name": "Migrate the public contract list/show API to canonical-only current pricing in canonical mode",
+      "status": "completed"
+    },
+    {
+      "name": "Migrate company-page and SEO offer membership, benefit copy, and JSON-LD to canonical facts in canonical mode",
+      "status": "completed"
+    },
+    {
+      "name": "Migrate CompanyList counts, averages, displayed prices, ordering, and cache boundaries to listed canonical metrics",
+      "status": "completed"
+    },
+    {
+      "name": "Migrate weekly-offers generated data, public API, prompt, and Remotion input to canonical facts in canonical mode",
+      "status": "completed"
+    },
+    {
+      "name": "Migrate standalone, in-listing, and ContractDetail bill-comparison period pricing to one typed canonical period outcome",
+      "status": "completed"
+    },
+    {
+      "name": "Migrate ContractTypeComparison chart, winner, savings, current rates, package facts, and estimate disclosures to one canonical outcome",
+      "status": "completed"
+    },
+    {
+      "name": "Remove raw current-price fallbacks from remaining calculator, comparison, statistics, and generated-media consumers in canonical mode",
+      "status": "completed"
+    },
+    {
+      "name": "Review and migrate the fixed-term forecast residual identified after the public-surface audit",
+      "status": "completed"
+    },
+    {
+      "name": "Document and test the historical surfaces that must continue to use observed relational evidence",
+      "status": "completed"
+    },
+    {
+      "name": "Keep and test the feature-off legacy path until a separate retirement decision is approved",
+      "status": "completed"
+    },
+    {
+      "name": "Bump all affected list, page, ranking, and API cache payload versions",
+      "status": "completed"
+    },
+    {
+      "name": "Reinterpret affected active snapshots and compare old and new canonical outputs on current production data",
+      "status": "pending"
+    },
+    {
+      "name": "Run contracts:compare-canonical-pricing, review all material total and ranking changes, and record the results",
+      "status": "pending"
+    },
+    {
+      "name": "Update root and local AGENTS.md files with the final architecture, source rules, and consumer behavior",
+      "status": "completed"
+    },
+    {
+      "name": "Run the full test suite and complete the reviewed rollout plan before any production activation",
+      "status": "completed"
+    }
+  ]
+}

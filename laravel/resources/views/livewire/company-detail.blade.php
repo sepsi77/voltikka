@@ -239,6 +239,153 @@
         </section>
     @endif
 
+    @php
+        $detailUrl = function ($contract) use ($consumption) {
+            $url = route('contract.detail', ['contractId' => $contract->id]);
+
+            return $consumption === 5000 ? $url : $url . '?kulutus=' . $consumption;
+        };
+    @endphp
+
+    {{-- Promotions --}}
+    <section id="tarjoukset" class="mb-10">
+        <h2 class="text-2xl font-bold text-slate-900 mb-2">{{ $company->name }} tarjoukset</h2>
+
+        @if ($promotionContracts->isEmpty())
+            <p class="text-slate-600 mb-4 max-w-prose">
+                {{ $company->name }} ei tarjoa juuri nyt kampanjahintaisia sopimuksia.
+                Voltikka tarkistaa sopimukset päivittäin. Kun yhtiö julkaisee tarjouksen, se ilmestyy tähän automaattisesti.
+                Käy siis katsomassa myöhemmin uudelleen.
+            </p>
+            <a href="/sahkosopimus/sahkotarjous" class="inline-flex items-center font-medium text-coral-600 hover:text-coral-700">
+                Katso kaikki voimassa olevat sähkötarjoukset &rarr;
+            </a>
+        @else
+            <p class="text-slate-600 mb-4 max-w-prose">
+                <span class="font-semibold">{{ $promotionContracts->count() }}</span> sopimusta kampanjahinnalla.
+                Vertailuhinta on laskettu {{ number_format($consumption, 0, ',', ' ') }} kWh kulutuksella ja se sisältää tarjouksen.
+                Mitattu etu vertaa laskettua hintaa saman sopimuksen normaalihintaan.
+                Tavallisen sopimuksen etu koskee 12 kuukauden vertailujaksoa. Lyhyen määräaikaisen sopimuksen rivillä näkyy todellinen etu ja sopimuskauden kesto.
+            </p>
+
+            <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                        <tr>
+                            <th scope="col" class="px-4 py-3 font-semibold">Sopimus</th>
+                            <th scope="col" class="px-4 py-3 font-semibold">Tarjous</th>
+                            <th scope="col" class="px-4 py-3 font-semibold text-right">Mitattu etu</th>
+                            <th scope="col" class="px-4 py-3 font-semibold text-right">Vertailuhinta (12 kk)</th>
+                            <th scope="col" class="px-4 py-3"><span class="sr-only">Tiedot</span></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach ($promotionContracts as $contract)
+                            @php
+                                $offerFact = $contract->offer_fact;
+                            @endphp
+                            <tr>
+                                <td class="px-4 py-3 font-medium text-slate-900">{{ $contract->name }}</td>
+                                <td class="px-4 py-3">
+                                    <span class="inline-flex items-center rounded-lg bg-coral-50 px-2 py-1 text-xs font-semibold text-coral-700">
+                                        {{ $offerFact['label'] }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                                    @if (($offerFact['benefit_text'] ?? null) !== null)
+                                        <span class="font-semibold text-slate-900">{{ $offerFact['benefit_text'] }}</span>
+                                        <span class="block text-xs font-normal text-slate-500">{{ $offerFact['basis_label'] }}</span>
+                                    @else
+                                        <span class="text-slate-400" title="Kampanjan euromääräistä vaikutusta ei voi laskea luotettavasti tästä sopimuksesta.">&ndash;</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-right font-semibold text-slate-900 whitespace-nowrap">
+                                    @if (($contract->calculated_cost['total_cost'] ?? null) !== null)
+                                        {{ number_format($contract->calculated_cost['total_cost'], 0, ',', ' ') }} {{ "\u{20AC}" }}/v
+                                    @else
+                                        <span class="font-normal text-slate-400">Ei laskettavissa</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-right whitespace-nowrap">
+                                    <a href="{{ $detailUrl($contract) }}" class="font-medium text-coral-600 hover:text-coral-700">Tiedot &rarr;</a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="mt-3 text-xs text-slate-500">
+                Viiva etusarakkeessa tarkoittaa, ettei kampanjan euromääräistä vaikutusta voi laskea luotettavasti tämän sopimuksen tiedoista.
+                Hinnat sis. alv 25,5 %, siirtomaksu ei sisälly.
+                <a href="/sahkosopimus/sahkotarjous" class="font-medium text-coral-600 hover:text-coral-700">Vertaa kaikkia sähkötarjouksia &rarr;</a>
+            </p>
+        @endif
+    </section>
+
+    {{-- Market comparison --}}
+    @if ($marketComparison)
+        @include('partials.company-market-comparison', [
+            'company' => $company,
+            'marketComparison' => $marketComparison,
+        ])
+    @endif
+
+    {{-- Spot contracts --}}
+    @if ($spotContracts->isNotEmpty())
+        <section id="porssisahko" class="mb-10">
+            <h2 class="text-2xl font-bold text-slate-900 mb-2">{{ $company->name }} pörssisähkö</h2>
+            <p class="text-slate-600 mb-4 max-w-prose">
+                Pörssisähkössä maksat sähkön tuntikohtaisen markkinahinnan, yhtiön marginaalin ja kuukausittaisen perusmaksun.
+                Marginaali on se osa hinnasta, jonka yhtiö itse päättää, joten vertaa sitä muihin myyjiin.
+                Vuosihinta on arvio ja perustuu edeltävän 12 kuukauden toteutuneeseen pörssihintaan.
+            </p>
+
+            <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                        <tr>
+                            <th scope="col" class="px-4 py-3 font-semibold">Sopimus</th>
+                            <th scope="col" class="px-4 py-3 font-semibold text-right">Marginaali</th>
+                            <th scope="col" class="px-4 py-3 font-semibold text-right">Perusmaksu</th>
+                            <th scope="col" class="px-4 py-3 font-semibold text-right">Vuosihinta (arvio)</th>
+                            <th scope="col" class="px-4 py-3"><span class="sr-only">Tiedot</span></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach ($spotContracts as $contract)
+                            @php
+                                $margin = $contract->calculated_cost['spot_price_margin'] ?? null;
+                                $fee = $contract->calculated_cost['monthly_fixed_fee'] ?? null;
+                                $total = $contract->calculated_cost['total_cost'] ?? null;
+                            @endphp
+                            <tr>
+                                <td class="px-4 py-3 font-medium text-slate-900">{{ $contract->name }}</td>
+                                <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                                    {{ $margin !== null ? number_format($margin, 2, ',', ' ') . ' c/kWh' : '–' }}
+                                </td>
+                                <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap">
+                                    {{ $fee !== null ? number_format($fee, 2, ',', ' ') . ' ' . "\u{20AC}" . '/kk' : '–' }}
+                                </td>
+                                <td class="px-4 py-3 text-right font-semibold tabular-nums text-slate-900 whitespace-nowrap">
+                                    {{ $total !== null ? number_format($total, 0, ',', ' ') . ' ' . "\u{20AC}" . '/v' : '–' }}
+                                </td>
+                                <td class="px-4 py-3 text-right whitespace-nowrap">
+                                    <a href="{{ $detailUrl($contract) }}" class="font-medium text-coral-600 hover:text-coral-700">Tiedot &rarr;</a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            <p class="mt-3 text-xs text-slate-500">
+                Hinnat sis. alv 25,5 %, siirtomaksu ei sisälly. Vertailu {{ number_format($consumption, 0, ',', ' ') }} kWh vuosikulutuksella.
+                <a href="/sahkosopimus/porssisahko" class="font-medium text-coral-600 hover:text-coral-700">Vertaa kaikkia pörssisähkösopimuksia &rarr;</a>
+            </p>
+        </section>
+    @endif
+
     <!-- Contracts Section -->
     <h2 class="text-2xl font-bold text-slate-900 mb-4">
         Sähkösopimukset
@@ -266,6 +413,27 @@
             </div>
         @endforelse
     </div>
+
+    {{-- FAQ. Items come from CompanyDetail::getFaqItemsProperty(), which also feeds the FAQPage schema. --}}
+    @if (! empty($faqItems))
+        <section id="usein-kysyttya" class="mt-12">
+            <h2 class="text-2xl font-bold text-slate-900 mb-4">Usein kysyttyä</h2>
+
+            <div class="divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white">
+                @foreach ($faqItems as $item)
+                    <details class="group px-5 py-4">
+                        <summary class="flex cursor-pointer items-center justify-between gap-4 text-base font-semibold text-slate-900 marker:content-none">
+                            {{ $item['question'] }}
+                            <svg class="h-5 w-5 shrink-0 text-slate-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </summary>
+                        <p class="mt-3 text-slate-600 leading-relaxed">{{ $item['answer'] }}</p>
+                    </details>
+                @endforeach
+            </div>
+        </section>
+    @endif
 
     {{-- Back to Companies Link --}}
     <div class="mt-8 text-center">

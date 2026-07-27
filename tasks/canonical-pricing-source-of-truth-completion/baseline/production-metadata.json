@@ -1,0 +1,205 @@
+{
+    "captured_at_utc": "2026-07-27T12:07:58+00:00",
+    "flags": {
+        "CANONICAL_PRICING_ENABLED": true,
+        "RESET_FORWARD_SHIFT_ENABLED": true,
+        "PRICE_FORECASTING_MODEL_VERSION": "fixed_term_ewma_gap_v2"
+    },
+    "configured_interpretation_versions": {
+        "schema_version": "schema-v4",
+        "prompt_version": "prompt-v19",
+        "validator_version": "validator-v16"
+    },
+    "counts": {
+        "active_contracts": 420,
+        "active_household_contracts": 304,
+        "active_companies": 35,
+        "active_without_published_interpretation": 0
+    },
+    "interpretations_all_by_provenance_status": [
+        {
+            "schema_version": "schema-v2",
+            "prompt_version": "prompt-v5",
+            "validator_version": "validator-v1",
+            "status": "failed",
+            "count": 44
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v10",
+            "validator_version": "validator-v6",
+            "status": "failed",
+            "count": 1
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v10",
+            "validator_version": "validator-v6",
+            "status": "published",
+            "count": 11
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v10",
+            "validator_version": "validator-v7",
+            "status": "published",
+            "count": 11
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v11",
+            "validator_version": "validator-v8",
+            "status": "published",
+            "count": 12
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v12",
+            "validator_version": "validator-v9",
+            "status": "published",
+            "count": 22
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v13",
+            "validator_version": "validator-v10",
+            "status": "failed",
+            "count": 1
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v13",
+            "validator_version": "validator-v10",
+            "status": "published",
+            "count": 10
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v14",
+            "validator_version": "validator-v10",
+            "status": "failed",
+            "count": 2
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v14",
+            "validator_version": "validator-v10",
+            "status": "published",
+            "count": 425
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v15",
+            "validator_version": "validator-v11",
+            "status": "published",
+            "count": 2
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v17",
+            "validator_version": "validator-v13",
+            "status": "failed",
+            "count": 4
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v17",
+            "validator_version": "validator-v13",
+            "status": "published",
+            "count": 421
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v17",
+            "validator_version": "validator-v14",
+            "status": "failed",
+            "count": 1
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v17",
+            "validator_version": "validator-v14",
+            "status": "published",
+            "count": 537
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v6",
+            "validator_version": "validator-v1",
+            "status": "published",
+            "count": 5
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v6",
+            "validator_version": "validator-v2",
+            "status": "published",
+            "count": 20
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v7",
+            "validator_version": "validator-v3",
+            "status": "published",
+            "count": 1
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v8",
+            "validator_version": "validator-v4",
+            "status": "published",
+            "count": 11
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v9",
+            "validator_version": "validator-v5",
+            "status": "published",
+            "count": 13
+        }
+    ],
+    "active_published_by_provenance_status": [
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v14",
+            "validator_version": "validator-v10",
+            "status": "published",
+            "count": 1
+        },
+        {
+            "schema_version": "schema-v3",
+            "prompt_version": "prompt-v17",
+            "validator_version": "validator-v14",
+            "status": "published",
+            "count": 419
+        }
+    ],
+    "current_version_interpretations_by_status": [],
+    "statistics": {
+        "contract_price_snapshots": {
+            "date_column": "snapshot_date",
+            "latest_date": "2026-07-27",
+            "has_pricing_basis": false
+        },
+        "contract_price_daily_statistics": {
+            "date_column": "stat_date",
+            "latest_date": "2026-07-27",
+            "has_pricing_basis": false
+        }
+    },
+    "forecasts_by_model_and_current_basis": [
+        {
+            "model_version": "fixed_term_ewma_gap_v1",
+            "current_retail_pricing_basis": "missing",
+            "count": 909,
+            "latest_forecast_date": "2026-07-27"
+        }
+    ],
+    "queue": {
+        "queued_jobs": 0,
+        "reserved_jobs": 0,
+        "failed_jobs": 0,
+        "by_queue": [],
+        "oldest_available_at_utc": null
+    }
+}

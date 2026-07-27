@@ -27,7 +27,25 @@ Important semantics:
 - `electricity_contracts.canonical_pricing`, `canonical_source_consistency`, and `canonical_calculation` materialize the current validated rich JSON
 - versioned interpretation output is the canonical interpretation/pricing history
 - `relational_pricing_published` is the durable gate used by later imports for activation and relational price writes
-- interpreted pricing phases do not yet drive the calculator; unsafe source pricing is not copied to relational `price_components`
+- canonical phase-aware calculators consume the published interpretation phases for annual and exact-period pricing; unsafe source pricing is not copied to relational `price_components`
+
+## Contract price statistics provenance
+
+`contract_price_snapshots.pricing_basis` and `contract_price_daily_statistics.pricing_basis`
+distinguish `canonical_calculation` forward values from `observed_seller_data` historical or
+feature-off values. Existing rows default to observed. These columns are necessary because the
+old tables could mix canonical annual totals with relational unit metrics and had no way for the
+public page or CSV to state provenance. They do not change the date/contract or aggregate unique
+keys. The existing unique keys still allow only one row per date+contract and per aggregate key.
+Before a calculation writes snapshots, it removes opposite-basis rows for that target date and
+replaces its own contract set inside the same transaction. Thus one run and one basis own a newly
+calculated date, including when canonical mode now excludes a contract. Other dates remain intact.
+
+## `fixed_contract_price_forecasts` provenance
+
+Forecast rows keep their input provenance in the existing `source_metadata` JSON. Model v2 records the current retail statistic's pricing basis, date, segment, metric, and contract count separately from historical observed basis counts/date bounds and futures coverage. Matured evaluation adds the actual retail basis/date/segment/metric without replacing forecast-input metadata.
+
+`model_version` remains part of the unique identity. A semantics change inserts v2 rows beside immutable v1 rows; no replacement column or migration is needed. Public queries accept only the configured model version and expected current basis, while prior rows remain available for audit and evaluation.
 
 ## `electricity_futures_eod_prices`
 

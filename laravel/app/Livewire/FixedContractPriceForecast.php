@@ -46,7 +46,7 @@ class FixedContractPriceForecast extends Component
             ->layout('layouts.app', [
                 'title' => 'Sähkön hintaennuste: kannattaako lukita sähkösopimus nyt? | Voltikka',
                 'metaDescription' => 'Sähkön hintaennuste määräaikaisille sähkösopimuksille (6, 12 ja 24 kk). Voltikan päivittäin päivittyvä hintaennuste yhdistää pörssifutuurit ja tarjotut sopimukset, ja kertoo kannattaako hinta lukita nyt.',
-                'canonical' => config('app.url') . '/sahkosopimus/sahkon-hintaennuste',
+                'canonical' => config('app.url').'/sahkosopimus/sahkon-hintaennuste',
             ]);
     }
 
@@ -55,7 +55,9 @@ class FixedContractPriceForecast extends Component
      */
     private function buildViewData(): array
     {
-        $latestForecastDate = ForecastModel::max('forecast_date');
+        $latestForecastDate = ForecastModel::query()
+            ->eligibleForPublicDisplay()
+            ->max('forecast_date');
         $latestForecastDate = $latestForecastDate ? Carbon::parse($latestForecastDate)->toDateString() : null;
 
         if ($latestForecastDate === null) {
@@ -68,12 +70,14 @@ class FixedContractPriceForecast extends Component
                 'rowsByDuration' => collect(),
                 'history' => collect(),
                 'overall' => null,
+                'usesCanonicalCurrentRetailInput' => (bool) config('canonical_pricing.enabled', false),
                 'citations' => $this->citations(null),
                 'jsonLd' => $this->jsonLd(null, null),
             ];
         }
 
         $latestRows = ForecastModel::query()
+            ->eligibleForPublicDisplay()
             ->whereDate('forecast_date', $latestForecastDate)
             ->orderBy('duration_months')
             ->get();
@@ -102,13 +106,14 @@ class FixedContractPriceForecast extends Component
             'rowsByDuration' => $rowsByDuration,
             'history' => $history,
             'overall' => $this->buildOverallSummary($rowsByDuration),
+            'usesCanonicalCurrentRetailInput' => (bool) config('canonical_pricing.enabled', false),
             'citations' => $this->citations($forecastDate),
             'jsonLd' => $this->jsonLd($forecastDate, $history),
         ];
     }
 
     /**
-     * @param Collection<int, ForecastModel> $rows
+     * @param  Collection<int, ForecastModel>  $rows
      * @return array<string,mixed>
      */
     private function durationPayload(Collection $rows): array
@@ -232,7 +237,7 @@ class FixedContractPriceForecast extends Component
     /**
      * Aggregate signal headline for the page lead.
      *
-     * @param Collection<int, array<string,mixed>> $rowsByDuration
+     * @param  Collection<int, array<string,mixed>>  $rowsByDuration
      * @return array<string,mixed>|null
      */
     private function buildOverallSummary(Collection $rowsByDuration): ?array
@@ -276,6 +281,7 @@ class FixedContractPriceForecast extends Component
     private function historySeries(): Collection
     {
         $rows = ForecastModel::query()
+            ->eligibleForPublicDisplay()
             ->where('target_quantile', 'median')
             ->orderBy('forecast_date')
             ->get([
@@ -292,7 +298,7 @@ class FixedContractPriceForecast extends Component
 
             return [
                 'duration_months' => (int) $duration,
-                'label' => $this->durationShortLabels[(int) $duration] ?? ($duration . ' kk'),
+                'label' => $this->durationShortLabels[(int) $duration] ?? ($duration.' kk'),
                 'x' => $points->map(fn ($r) => Carbon::parse($r->forecast_date)->getTimestamp())->all(),
                 'current' => $points->map(fn ($r) => (float) $r->current_price_cents_per_kwh)->all(),
                 'forecast' => $points->map(fn ($r) => (float) $r->forecast_price_cents_per_kwh)->all(),
@@ -328,12 +334,12 @@ class FixedContractPriceForecast extends Component
         $dateFi = $date->translatedFormat('j.n.Y');
         $dateIso = $date->toDateString();
         $title = 'Sähkön hintaennuste';
-        $url = config('app.url') . '/sahkosopimus/sahkon-hintaennuste';
+        $url = config('app.url').'/sahkosopimus/sahkon-hintaennuste';
 
         return [
             'plain' => "Lähde: Voltikka, {$title}, päivitetty {$dateFi}. {$url}",
             'markdown' => "Lähde: [Voltikka, {$title}]({$url}), päivitetty {$dateFi}.",
-            'html' => '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">Voltikka, ' . htmlspecialchars($title) . '</a>, päivitetty <time datetime="' . $dateIso . '">' . $dateFi . '</time>.',
+            'html' => '<a href="'.htmlspecialchars($url, ENT_QUOTES, 'UTF-8').'">Voltikka, '.htmlspecialchars($title).'</a>, päivitetty <time datetime="'.$dateIso.'">'.$dateFi.'</time>.',
         ];
     }
 
@@ -341,19 +347,19 @@ class FixedContractPriceForecast extends Component
      * Dataset JSON-LD schema. The forecast is a derived data product, so
      * temporalCoverage spans from the first stored forecast date to today.
      *
-     * @param Collection<int, array<string,mixed>>|null $history
+     * @param  Collection<int, array<string,mixed>>|null  $history
      * @return array<string,mixed>
      */
     private function jsonLd(?Carbon $forecastDate, ?Collection $history): array
     {
-        $url = config('app.url') . '/sahkosopimus/sahkon-hintaennuste';
+        $url = config('app.url').'/sahkosopimus/sahkon-hintaennuste';
         $date = $forecastDate?->toDateString() ?? Carbon::today()->toDateString();
 
         $historyDates = collect($history ?? [])->flatMap(fn ($series) => $series['x'] ?? []);
         $earliestTs = $historyDates->min();
         $latestTs = $historyDates->max();
         $temporalCoverage = $earliestTs && $latestTs
-            ? Carbon::createFromTimestamp($earliestTs)->toDateString() . '/' . Carbon::createFromTimestamp($latestTs)->toDateString()
+            ? Carbon::createFromTimestamp($earliestTs)->toDateString().'/'.Carbon::createFromTimestamp($latestTs)->toDateString()
             : null;
 
         return [

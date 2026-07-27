@@ -178,6 +178,7 @@ class ContractInterpretationPipelineTest extends TestCase
             'phase_kind' => 'current_structured',
             'starts' => ['kind' => 'contract_start', 'value' => null],
             'ends' => ['kind' => 'none', 'value' => null],
+            'package' => null,
             'components' => [[
                 'component_type' => 'energy_general',
                 'amount' => 9.99,
@@ -218,9 +219,10 @@ class ContractInterpretationPipelineTest extends TestCase
             'phase_kind' => 'introductory',
             'starts' => ['kind' => 'contract_start', 'value' => null],
             'ends' => ['kind' => 'after_months', 'value' => '3'],
+            'package' => null,
             'components' => [[
                 'component_type' => 'monthly_fee',
-                'amount' => 0,
+                'amount' => 2.45,
                 'normal_amount' => 4.9,
                 'unit' => 'eur_per_month',
                 'vat_status' => 'unknown',
@@ -229,14 +231,34 @@ class ContractInterpretationPipelineTest extends TestCase
                 'evidence' => collect([
                     'price' => 4.9,
                     'has_discount' => true,
-                    'discount_value' => 4.9,
-                    'discount_is_percentage' => false,
+                    'discount_value' => 50,
+                    'discount_is_percentage' => true,
                     'discount_type' => 'NFirstMonth',
                     'discount_n_first_months' => 3,
                 ])->map(fn (mixed $value, string $field): array => [
                     'source' => "components[0].{$field}",
                     'quote' => "components[0].{$field}=".json_encode($value),
                 ])->values()->all(),
+            ]],
+            'evidence' => [],
+        ], [
+            'label' => 'Normal monthly fee',
+            'phase_kind' => 'normal',
+            'starts' => ['kind' => 'after_months', 'value' => '3'],
+            'ends' => ['kind' => 'none', 'value' => null],
+            'package' => null,
+            'components' => [[
+                'component_type' => 'monthly_fee',
+                'amount' => 4.9,
+                'normal_amount' => null,
+                'unit' => 'eur_per_month',
+                'vat_status' => 'unknown',
+                'price_role' => 'normal',
+                'source_kind' => 'structured',
+                'evidence' => [[
+                    'source' => 'components[0].price',
+                    'quote' => 'components[0].price=4.9',
+                ]],
             ]],
             'evidence' => [],
         ]];
@@ -250,8 +272,8 @@ class ContractInterpretationPipelineTest extends TestCase
                 'price_component_type' => 'Monthly',
                 'price' => 4.9,
                 'has_discount' => true,
-                'discount_value' => 4.9,
-                'discount_is_percentage' => false,
+                'discount_value' => 50,
+                'discount_is_percentage' => true,
                 'discount_type' => 'NFirstMonth',
                 'discount_n_first_months' => 3,
             ]],
@@ -261,10 +283,176 @@ class ContractInterpretationPipelineTest extends TestCase
         $output['pricing']['phases'][0]['starts'] = ['kind' => 'after_months', 'value' => '0'];
         $this->assertSame([], app(ContractInterpretationValidator::class)->validate($output, $input));
 
+        $missingDiscountPhase = $output;
+        array_shift($missingDiscountPhase['pricing']['phases']);
+        $this->assertContains(
+            '$.pricing.phases must represent the active structured discount from components[0] for the first 3 months.',
+            app(ContractInterpretationValidator::class)->validate($missingDiscountPhase, $input),
+        );
+
         $input['components'][0]['has_discount'] = false;
         $this->assertContains(
             '$.pricing.phases[0] must not use inactive discount timing from components[0] when has_discount is false.',
             app(ContractInterpretationValidator::class)->validate($output, $input),
+        );
+    }
+
+    public function test_surffari_active_until_date_margin_discount_cannot_disappear(): void
+    {
+        $fixture = json_decode(
+            file_get_contents(base_path('tests/Fixtures/surffari-active-until-date-discount.json')),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        $validator = app(ContractInterpretationValidator::class);
+
+        $faultyErrors = $validator->validate($fixture['faulty_output'], $fixture['input']);
+        $this->assertContains(
+            '$.pricing.phases must represent the active structured discount from components[1] through 2026-08-31.',
+            $faultyErrors,
+        );
+        $this->assertSame([], $validator->validate($fixture['corrected_output'], $fixture['input']));
+    }
+
+    public function test_validator_rejects_wrong_discount_scope_amount_and_missing_normal_continuation(): void
+    {
+        $fixture = json_decode(
+            file_get_contents(base_path('tests/Fixtures/surffari-active-until-date-discount.json')),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+        $validator = app(ContractInterpretationValidator::class);
+
+        $wrongScope = $fixture['corrected_output'];
+        $wrongScope['pricing']['phases'][0]['components'][0]['component_type'] = 'monthly_fee';
+        $this->assertContains(
+            '$.pricing.phases must represent the active structured discount from components[1] on spot_margin; another component scope cannot satisfy it.',
+            $validator->validate($wrongScope, $fixture['input']),
+        );
+
+        $wrongAmount = $fixture['corrected_output'];
+        $wrongAmount['pricing']['phases'][0]['components'][0]['amount'] = 0.21;
+        $wrongAmount['pricing']['phases'][0]['components'][0]['evidence'][] = [
+            'source' => 'extra_information_fi',
+            'quote' => 'Hinnat sisältävät ALV 25,5 %.',
+        ];
+        $this->assertContains(
+            '$.pricing.phases must represent the active structured discount from components[1] with amount 0.2 and normal_amount 0.6.',
+            $validator->validate($wrongAmount, $fixture['input']),
+        );
+
+        $missingContinuation = $fixture['corrected_output'];
+        array_pop($missingContinuation['pricing']['phases']);
+        $this->assertContains(
+            '$.pricing.phases must continue components[1] as spot_margin at the known normal amount 0.6 after the structured discount ends.',
+            $validator->validate($missingContinuation, $fixture['input']),
+        );
+    }
+
+    public function test_validator_ignores_expired_and_inactive_structured_discount_metadata(): void
+    {
+        $input = [
+            'analysis_date' => '2026-09-01',
+            'contract_id' => 'contract-1',
+            'pricing_model' => 'Spot',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'components' => [[
+                'price_component_type' => 'General',
+                'price' => 0.6,
+                'has_discount' => true,
+                'discount_value' => 0.4,
+                'discount_is_percentage' => false,
+                'discount_type' => 'UntilDate',
+                'discount_until_date' => '2026-08-31T00:00:00',
+            ]],
+        ];
+        $output = $this->validOutput('contract-1');
+        $output['pricing']['phases'] = [$this->normalSpotMarginPhase()];
+        $output['source_consistency']['structured_pricing_status'] = 'complete';
+        $output['source_consistency']['misleading_first_12_months'] = 'not_detected';
+        $output['source_consistency']['issue_codes'] = [];
+
+        $validator = app(ContractInterpretationValidator::class);
+        $this->assertSame([], $validator->validate($output, $input));
+
+        // Stale expired metadata can be incomplete. It is historical and must be
+        // ignored before active-discount amount validation.
+        $input['components'][0]['discount_value'] = null;
+        $this->assertSame([], $validator->validate($output, $input));
+
+        $input['analysis_date'] = '2026-07-23';
+        $input['components'][0]['discount_value'] = 0.4;
+        $input['components'][0]['has_discount'] = false;
+        $this->assertSame([], $validator->validate($output, $input));
+    }
+
+    public function test_validator_maps_spot_margin_discount_from_every_source_tariff_slot(): void
+    {
+        $validator = app(ContractInterpretationValidator::class);
+
+        foreach (['General', 'DayTime', 'NightTime', 'SeasonalWinter', 'SeasonalWinterDay', 'SeasonalOther'] as $sourceType) {
+            $input = [
+                'analysis_date' => '2026-07-23',
+                'contract_id' => 'contract-1',
+                'pricing_model' => 'Spot',
+                'contract_type' => 'OpenEnded',
+                'metering' => 'General',
+                'components' => [[
+                    'price_component_type' => $sourceType,
+                    'price' => 0.6,
+                    'has_discount' => true,
+                    'discount_value' => 0.4,
+                    'discount_is_percentage' => false,
+                    'discount_type' => 'UntilDate',
+                    'discount_until_date' => '2026-08-31T00:00:00',
+                ]],
+            ];
+            $output = $this->validOutput('contract-1');
+            $output['pricing']['phases'] = $this->activeSpotMarginDiscountPhases();
+
+            $this->assertSame(
+                [],
+                $validator->validate($output, $input),
+                "Spot source slot {$sourceType} must map its active discount to spot_margin.",
+            );
+        }
+    }
+
+    public function test_validator_rejects_active_discount_when_amount_or_timing_is_unsafe(): void
+    {
+        $output = $this->validOutput('contract-1');
+        $output['pricing']['phases'] = [$this->normalSpotMarginPhase()];
+        $input = [
+            'analysis_date' => '2026-07-23',
+            'contract_id' => 'contract-1',
+            'pricing_model' => 'Spot',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'components' => [[
+                'price_component_type' => 'General',
+                'price' => 0.6,
+                'has_discount' => true,
+                'discount_value' => null,
+                'discount_is_percentage' => false,
+                'discount_type' => 'UntilDate',
+                'discount_until_date' => '2026-08-31T00:00:00',
+            ]],
+        ];
+        $validator = app(ContractInterpretationValidator::class);
+
+        $this->assertContains(
+            'components[0] has an active structured discount whose amount cannot be represented safely.',
+            $validator->validate($output, $input),
+        );
+
+        $input['components'][0]['discount_value'] = 0.4;
+        $input['components'][0]['discount_until_date'] = null;
+        $this->assertContains(
+            'components[0] has an active UntilDate discount whose timing cannot be represented safely.',
+            $validator->validate($output, $input),
         );
     }
 
@@ -277,6 +465,7 @@ class ContractInterpretationPipelineTest extends TestCase
             'phase_kind' => 'current_structured',
             'starts' => ['kind' => 'contract_start', 'value' => null],
             'ends' => ['kind' => 'none', 'value' => null],
+            'package' => null,
             'components' => [[
                 'component_type' => 'spot_margin',
                 'amount' => 0.49,
@@ -315,7 +504,7 @@ class ContractInterpretationPipelineTest extends TestCase
             $errors,
         );
         $this->assertContains(
-            '$.classification.pricing_mechanisms contains flat_fee_or_package without a flat_fee component.',
+            '$.classification.pricing_mechanisms contains flat_fee_or_package without a flat_fee component or package.',
             $errors,
         );
     }
@@ -402,6 +591,7 @@ class ContractInterpretationPipelineTest extends TestCase
             'phase_kind' => 'introductory',
             'starts' => ['kind' => 'unknown', 'value' => null],
             'ends' => ['kind' => 'date', 'value' => '2026-03-31'],
+            'package' => null,
             'components' => [[
                 'component_type' => 'monthly_fee',
                 'amount' => 0,
@@ -470,6 +660,7 @@ class ContractInterpretationPipelineTest extends TestCase
             'phase_kind' => 'current_structured',
             'starts' => ['kind' => 'contract_start', 'value' => null],
             'ends' => ['kind' => 'none', 'value' => null],
+            'package' => null,
             'components' => [[
                 'component_type' => 'spot_margin',
                 'amount' => 0.36,
@@ -611,6 +802,7 @@ class ContractInterpretationPipelineTest extends TestCase
             'phase_kind' => 'current_structured',
             'starts' => ['kind' => 'contract_start', 'value' => null],
             'ends' => ['kind' => 'none', 'value' => null],
+            'package' => null,
             'components' => [[
                 'component_type' => 'monthly_fee',
                 'amount' => 55.9,
@@ -703,6 +895,7 @@ class ContractInterpretationPipelineTest extends TestCase
             'phase_kind' => 'current_structured',
             'starts' => ['kind' => 'contract_start', 'value' => null],
             'ends' => ['kind' => 'none', 'value' => null],
+            'package' => null,
             'components' => [[
                 'component_type' => 'monthly_fee',
                 'amount' => 9,
@@ -764,6 +957,90 @@ class ContractInterpretationPipelineTest extends TestCase
             $errors,
         );
         $this->assertNotContains('$.pricing.phases is missing structured component type energy_general.', $errors);
+    }
+
+    public function test_validator_accepts_typed_monthly_package_and_rejects_missing_or_duplicate_charges(): void
+    {
+        $input = [
+            'contract_id' => 'contract-1',
+            'contract_name' => 'Kuukausipaketti S',
+            'pricing_name' => 'Kuukausipaketti S',
+            'pricing_model' => 'FixedPrice',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'extra_information_fi' => 'Kuukausipaketti S sisältää 150 kWh sähköenergiaa kuukaudessa. Kuukausirajan ylittävästä energiasta laskutamme lisäenergian hinnalla 16,60 c/kWh.',
+            'components' => [
+                ['price_component_type' => 'Monthly', 'price' => 21],
+                ['price_component_type' => 'General', 'price' => 16.6, 'has_discount' => true, 'discount_type' => 'NFirstKwh', 'discount_n_first_kwh' => 1800],
+            ],
+        ];
+        $output = $this->validOutput('contract-1', [
+            'primary_pricing_model' => 'FixedPrice',
+            'pricing_mechanisms' => ['flat_fee_or_package', 'fixed'],
+        ]);
+        $output['pricing']['phases'] = [[
+            'label' => 'Current monthly package',
+            'phase_kind' => 'current_structured',
+            'starts' => ['kind' => 'contract_start', 'value' => null],
+            'ends' => ['kind' => 'none', 'value' => null],
+            'components' => [],
+            'package' => [
+                'monthly_fee_eur' => 21,
+                'included_kwh' => 150,
+                'allowance_cadence' => 'monthly',
+                'excess_rate_cents_per_kwh' => 16.6,
+                'evidence' => [
+                    ['source' => 'components[0].price', 'quote' => 'components[0].price=21'],
+                    ['source' => 'components[1].price', 'quote' => 'components[1].price=16.6'],
+                    ['source' => 'extra_information_fi', 'quote' => 'Kuukausipaketti S sisältää 150 kWh sähköenergiaa kuukaudessa.'],
+                ],
+            ],
+            'evidence' => [],
+        ]];
+        $output['source_consistency']['pricing_model_status'] = 'match';
+        $output['source_consistency']['evidence'] = [];
+        $output['source_consistency']['structured_pricing_status'] = 'complete';
+        $output['source_consistency']['misleading_first_12_months'] = 'not_detected';
+        $output['source_consistency']['issue_codes'] = ['structured_matches_description'];
+        $output['calculation']['status'] = 'exact';
+
+        $this->assertSame([], app(ContractInterpretationValidator::class)->validate($output, $input));
+
+        $missingAllowance = $output;
+        unset($missingAllowance['pricing']['phases'][0]['package']['included_kwh']);
+        $this->assertContains(
+            '$.pricing.phases[0].package.included_kwh is required.',
+            app(ContractInterpretationValidator::class)->validate($missingAllowance, $input),
+        );
+
+        $missingExcessRate = $output;
+        unset($missingExcessRate['pricing']['phases'][0]['package']['excess_rate_cents_per_kwh']);
+        $this->assertContains(
+            '$.pricing.phases[0].package.excess_rate_cents_per_kwh is required.',
+            app(ContractInterpretationValidator::class)->validate($missingExcessRate, $input),
+        );
+
+        $unsupportedCadence = $output;
+        $unsupportedCadence['pricing']['phases'][0]['package']['allowance_cadence'] = 'annual';
+        $this->assertContains(
+            '$.pricing.phases[0].package.allowance_cadence has an unsupported value.',
+            app(ContractInterpretationValidator::class)->validate($unsupportedCadence, $input),
+        );
+
+        $duplicateFee = $output;
+        $duplicateFee['pricing']['phases'][0]['components'][] = [
+            'component_type' => 'monthly_fee',
+            'amount' => 21,
+            'normal_amount' => null,
+            'unit' => 'eur_per_month',
+            'vat_status' => 'unknown',
+            'price_role' => 'current',
+            'source_kind' => 'structured',
+            'evidence' => [['source' => 'components[0].price', 'quote' => 'components[0].price=21']],
+        ];
+        $duplicateErrors = app(ContractInterpretationValidator::class)->validate($duplicateFee, $input);
+        $this->assertContains('$.pricing.phases[0] must not duplicate package charges as components.', $duplicateErrors);
+        $this->assertContains('$.pricing.phases must not duplicate a monthly package fee or excess rate as components.', $duplicateErrors);
     }
 
     public function test_validator_retains_source_hybrid_without_explicit_contrary_evidence(): void
@@ -904,6 +1181,7 @@ class ContractInterpretationPipelineTest extends TestCase
             'phase_kind' => 'current_structured',
             'starts' => ['kind' => 'contract_start', 'value' => null],
             'ends' => ['kind' => 'none', 'value' => null],
+            'package' => null,
             'components' => [[
                 'component_type' => 'energy_general',
                 'amount' => 7.25,
@@ -1524,7 +1802,7 @@ class ContractInterpretationPipelineTest extends TestCase
     }
 
     /**
-     * The exact output shape prompt v17 requires for a Hybrid whose consumption effect
+     * The exact output shape prompt v19 requires for a Hybrid whose consumption effect
      * the source never prices: incomplete + unsupported, with that one issue code.
      *
      * @return array<string, mixed>
@@ -1569,9 +1847,9 @@ class ContractInterpretationPipelineTest extends TestCase
             'source_snapshot_id' => $snapshot->id,
             'analysis_fingerprint' => hash('sha256', $snapshot->source_fingerprint.microtime(true)),
             'status' => ContractInterpretation::STATUS_PENDING,
-            'schema_version' => 'schema-v3',
-            'prompt_version' => 'prompt-v15',
-            'validator_version' => 'validator-v11',
+            'schema_version' => config('contract_interpretation.schema_version'),
+            'prompt_version' => config('contract_interpretation.prompt_version'),
+            'validator_version' => config('contract_interpretation.validator_version'),
             'provider' => 'openrouter',
             'model' => 'test-model',
             'output' => $output,
@@ -1608,6 +1886,7 @@ class ContractInterpretationPipelineTest extends TestCase
             'phase_kind' => 'current_structured',
             'starts' => ['kind' => 'contract_start', 'value' => null],
             'ends' => ['kind' => 'none', 'value' => null],
+            'package' => null,
             'components' => [
                 ['component_type' => 'energy_day', 'amount' => 0.33, 'normal_amount' => null, 'unit' => 'cents_per_kwh', 'vat_status' => 'unknown', 'price_role' => 'current', 'source_kind' => 'structured', 'evidence' => [['source' => 'components[1].price', 'quote' => 'components[1].price=0.33']]],
                 ['component_type' => 'energy_night', 'amount' => 0.33, 'normal_amount' => null, 'unit' => 'cents_per_kwh', 'vat_status' => 'unknown', 'price_role' => 'current', 'source_kind' => 'structured', 'evidence' => [['source' => 'components[2].price', 'quote' => 'components[2].price=0.33']]],
@@ -1646,6 +1925,7 @@ class ContractInterpretationPipelineTest extends TestCase
             'phase_kind' => 'current_structured',
             'starts' => ['kind' => 'contract_start', 'value' => null],
             'ends' => ['kind' => 'none', 'value' => null],
+            'package' => null,
             'components' => [
                 ['component_type' => 'energy_general', 'amount' => 6.99, 'normal_amount' => null, 'unit' => 'cents_per_kwh', 'vat_status' => 'unknown', 'price_role' => 'current', 'source_kind' => 'structured', 'evidence' => [['source' => 'components[0].price', 'quote' => 'components[0].price=6.99']]],
                 ['component_type' => 'spot_margin', 'amount' => 1.29, 'normal_amount' => null, 'unit' => 'cents_per_kwh', 'vat_status' => 'unknown', 'price_role' => 'current', 'source_kind' => 'description', 'evidence' => [['source' => 'long_description', 'quote' => 'marginaali 1,29']]],
@@ -1685,6 +1965,7 @@ class ContractInterpretationPipelineTest extends TestCase
             'phase_kind' => 'current_structured',
             'starts' => ['kind' => 'contract_start', 'value' => null],
             'ends' => ['kind' => 'none', 'value' => null],
+            'package' => null,
             'components' => [
                 ['component_type' => 'flat_fee', 'amount' => 35.0, 'normal_amount' => null, 'unit' => 'eur_per_month', 'vat_status' => 'unknown', 'price_role' => 'current', 'source_kind' => 'structured', 'evidence' => [['source' => 'components[0].price', 'quote' => 'components[0].price=35']]],
                 ['component_type' => 'energy_general', 'amount' => 16.6, 'normal_amount' => null, 'unit' => 'cents_per_kwh', 'vat_status' => 'unknown', 'price_role' => 'current', 'source_kind' => 'structured', 'evidence' => [['source' => 'components[1].price', 'quote' => 'components[1].price=16.6']]],
@@ -1704,6 +1985,44 @@ class ContractInterpretationPipelineTest extends TestCase
         ]);
 
         $this->assertNotContains('$.pricing.phases is missing structured component type monthly_fee.', $errors);
+    }
+
+    public function test_validator_rejects_flat_and_monthly_fee_duplicate_from_one_source_charge(): void
+    {
+        $output = $this->validOutput('contract-1', [
+            'primary_pricing_model' => 'FixedPrice',
+            'pricing_mechanisms' => ['flat_fee_or_package', 'fixed'],
+        ]);
+        $fee = ['amount' => 49, 'normal_amount' => 49, 'unit' => 'eur_per_month', 'vat_status' => 'unknown', 'price_role' => 'current', 'source_kind' => 'structured', 'evidence' => [['source' => 'components[0].price', 'quote' => 'components[0].price=49']]];
+        $output['pricing']['phases'] = [[
+            'label' => 'Current',
+            'phase_kind' => 'current_structured',
+            'starts' => ['kind' => 'contract_start', 'value' => null],
+            'ends' => ['kind' => 'none', 'value' => null],
+            'components' => [
+                array_merge($fee, ['component_type' => 'flat_fee']),
+                array_merge($fee, ['component_type' => 'monthly_fee']),
+                ['component_type' => 'energy_general', 'amount' => 16.6, 'normal_amount' => 16.6, 'unit' => 'cents_per_kwh', 'vat_status' => 'unknown', 'price_role' => 'current', 'source_kind' => 'structured', 'evidence' => [['source' => 'components[1].price', 'quote' => 'components[1].price=16.6']]],
+            ],
+            'package' => null,
+            'evidence' => [],
+        ]];
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, [
+            'contract_id' => 'contract-1',
+            'pricing_model' => 'FixedPrice',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'components' => [
+                ['price_component_type' => 'Monthly', 'price' => 49],
+                ['price_component_type' => 'General', 'price' => 16.6],
+            ],
+        ]);
+
+        $this->assertContains(
+            '$.pricing.phases[0] has ambiguous duplicate monthly fees as flat_fee and monthly_fee.',
+            $errors,
+        );
     }
 
     public function test_validator_rejects_detected_on_a_reset_product_with_only_reset_path_codes(): void
@@ -1761,6 +2080,71 @@ class ContractInterpretationPipelineTest extends TestCase
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function normalSpotMarginPhase(): array
+    {
+        return [
+            'label' => 'Normal margin',
+            'phase_kind' => 'normal',
+            'starts' => ['kind' => 'contract_start', 'value' => null],
+            'ends' => ['kind' => 'none', 'value' => null],
+            'package' => null,
+            'components' => [[
+                'component_type' => 'spot_margin',
+                'amount' => 0.6,
+                'normal_amount' => null,
+                'unit' => 'cents_per_kwh',
+                'vat_status' => 'unknown',
+                'price_role' => 'normal',
+                'source_kind' => 'structured',
+                'evidence' => [['source' => 'components[0].price', 'quote' => 'components[0].price=0.6']],
+            ]],
+            'evidence' => [],
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function activeSpotMarginDiscountPhases(): array
+    {
+        $evidence = collect([
+            'price' => 0.6,
+            'has_discount' => true,
+            'discount_value' => 0.4,
+            'discount_is_percentage' => false,
+            'discount_type' => 'UntilDate',
+            'discount_until_date' => '2026-08-31T00:00:00',
+        ])->map(fn (mixed $value, string $field): array => [
+            'source' => "components[0].{$field}",
+            'quote' => "components[0].{$field}=".json_encode($value),
+        ])->values()->all();
+
+        $normal = $this->normalSpotMarginPhase();
+        $normal['starts'] = ['kind' => 'date', 'value' => '2026-09-01'];
+
+        return [[
+            'label' => 'Active margin campaign',
+            'phase_kind' => 'introductory',
+            'starts' => ['kind' => 'unknown', 'value' => null],
+            'ends' => ['kind' => 'date', 'value' => '2026-08-31'],
+            'package' => null,
+            'components' => [[
+                'component_type' => 'spot_margin',
+                'amount' => 0.2,
+                'normal_amount' => 0.6,
+                'unit' => 'cents_per_kwh',
+                'vat_status' => 'unknown',
+                'price_role' => 'introductory',
+                'source_kind' => 'structured',
+                'evidence' => $evidence,
+            ]],
+            'evidence' => [],
+        ], $normal];
+    }
+
     private function validOutput(string $contractId, array $classificationOverrides = []): array
     {
         $classification = array_merge([
@@ -1778,7 +2162,7 @@ class ContractInterpretationPipelineTest extends TestCase
             || $classification['metering'] !== 'General';
 
         return [
-            'schema_version' => '1.0',
+            'schema_version' => '1.1',
             'contract_id' => $contractId,
             'classification' => $classification,
             'pricing' => [

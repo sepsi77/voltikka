@@ -45,7 +45,8 @@ Important pricing guardrails:
 - use `ElectricityContract::getLatestPriceComponentsForCalculation()` for single-contract calculations and `ElectricityContract::getLatestPriceComponentsForCalculationByContractIds()` for listing/cache batches instead of rebuilding calculator arrays ad hoc
 - do not eagerly load full `priceComponents` history for contract-list/cache calculations; the active dataset has tens of thousands of historical price rows and can exceed PHP's 128M request memory limit
 - `ContractListCacheService` memoizes its version and per-consumption metrics per service instance to avoid repeated database-cache reads during one request; clear per-consumption memo entries inside cache-warming loops so workers do not retain every preset payload at once
-- city/local contract sections must also avoid caching full `priceComponents` history; attach only latest normalized components needed by contract cards
+- `CompanyListCacheService` consumes those list metrics. In canonical mode it accepts only listed canonical outcomes with a finite total for company membership, counts, averages, displayed prices, and price rankings; canonical-only contracts work and excluded/missing outcomes do not become zero or sentinels. Its separate 48-hour cache key has its own payload schema, the shared contract-list data version, and `c`/`r` markers, and the service memoizes reads per instance. The shared version makes interpretation publication invalidate company output without waiting 48 hours. Feature-off keeps the legacy relational metrics.
+- city/local contract sections do not load `priceComponents` in canonical mode. Feature-off must still avoid full history and attach only the latest normalized components needed by contract cards
 - city/local company-distance logic must bulk-load company postcodes; do not call `Postcode::find()` per company because crawler hits to city SEO pages otherwise trigger Sentry N+1 reports
 - first-year promo-aware pricing should return both discounted totals and base totals/savings so UI can explain the effect of the offer
 - do not assume `monthly_costs` represent calendar Jan-Dec once promo timing matters; they are the calculator's 12-month estimate timeline
@@ -64,11 +65,13 @@ Files currently living directly under this directory:
 - `WeeklyOffersVideoService.php`
 - `WeeklyOffersPromptFormatter.php`
 
-Important discount guardrail:
-- imported `price_components.price` comes from API `OriginalPayment.Price`, i.e. the base/original component price
-- weekly-offer output must not assume absolute discounts are always `c/kWh`
-- use the discounted component's `payment_unit` / `price_component_type` when formatting promo text
-- prefer calculator-provided discounted/base totals and savings over separate duplicate promo math when possible
+Important pricing guardrails:
+- in canonical mode, query the broad active household set and evaluate the three consumption levels with one batch call per level; do not prefilter or load `price_components`
+- canonical membership requires a positive `CanonicalOfferFacts` benefit and no package at 5,000 kWh, plus a listed outcome and no detected integrity state at every requested consumption level
+- canonical order is measured customer benefit at 5,000 kWh descending, then canonical comparison total ascending, then contract ID; keep at most one contract per company after sorting
+- canonical records and prompt text use typed totals, normal totals, rates, comparability, estimate state, and benefit basis only; a short fixed term uses its real `contract_term` benefit while its annualized total is labelled as a comparison value
+- the public `/api/video/weekly-offers` payload carries `pricing_basis`; canonical offers use `consumptions`, while the explicit feature-off branch keeps the old `discount` / `costs` / `savings` shape
+- legacy mode still reads `price_components.price` as API `OriginalPayment.Price`; use the discounted component's unit/type and do not assume an absolute discount is always `c/kWh`
 
 ### Contract interpretation
 Directory:

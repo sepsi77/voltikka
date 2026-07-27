@@ -1,0 +1,42 @@
+[
+  {
+    "name": "Re-measure the discrepancy against current local data",
+    "status": "completed"
+  },
+  {
+    "name": "Confirm the canonical source-of-truth rule for offer prices",
+    "status": "completed"
+  },
+  {
+    "name": "Keep Kuukausipaketti and other package interpretation outside this pricing change",
+    "status": "completed"
+  },
+  {
+    "name": "Apply canonical base-fee offers to base-only Hybrid pricing",
+    "status": "completed"
+  },
+  {
+    "name": "Cost all disclosed short-term phases before annualisation",
+    "status": "completed"
+  },
+  {
+    "name": "Prevent double counting by using one canonical actual and normal-price pass",
+    "status": "completed"
+  },
+  {
+    "name": "Store measured total and monthly offer savings in CanonicalPricingOutcome",
+    "status": "completed"
+  },
+  {
+    "name": "Add Vattenfall, Hybrid timing, short-term timing, constant-price, and market-reset regression tests",
+    "status": "completed"
+  },
+  {
+    "name": "Run canonical comparison and record the local blast radius",
+    "status": "completed"
+  },
+  {
+    "name": "Update canonical and company-page context documentation",
+    "status": "completed"
+  }
+]

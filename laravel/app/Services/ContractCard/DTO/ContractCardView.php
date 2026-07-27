@@ -17,10 +17,10 @@ use App\Services\ContractCard\Enums\PricingCategory;
 readonly class ContractCardView
 {
     /**
-     * @param list<string> $metaParts Company, then duration, then optional metering words.
-     * @param list<CardReceiptLine> $receiptLines At most three rows, fee last.
-     * @param list<CardFooterItem> $warnings At most two, priority ordered.
-     * @param list<CardFooterItem> $facts Promotion and energy source.
+     * @param  list<string>  $metaParts  Company, then duration, then optional metering words.
+     * @param  list<CardReceiptLine>  $receiptLines  At most three rows, fee last.
+     * @param  list<CardFooterItem>  $warnings  At most two, priority ordered.
+     * @param  list<CardFooterItem>  $facts  Promotion and energy source.
      */
     public function __construct(
         public PricingCategory $category,
@@ -38,11 +38,14 @@ readonly class ContractCardView
         public array $facts,
         public ?float $discountSavings,
         public ?float $baseTotalCost,
+        /** Non-null when saving and normal total describe the real short contract term. */
+        public ?int $discountTermMonths,
+        public ?string $discountPeriodLabel,
+        public ?string $discountExplanation,
         public bool $exceedsConsumptionLimit,
         /** The seller link. Cards link to the detail page instead; the detail page uses this. */
         public ?CardSellerCta $sellerCta = null,
-    ) {
-    }
+    ) {}
 
     /**
      * Whether the annual total is a labelled estimate. Drives the Arvio chip.

@@ -6,6 +6,7 @@ use App\Models\ContractPriceDailyStatistic;
 use App\Models\ContractPriceSnapshot;
 use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
+use App\Services\ContractStatistics\ContractPriceBasis;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -138,11 +139,16 @@ class ContractPriceStatistics extends Component
      */
     public function getDailyStatsProperty(): Collection
     {
-        return $this->dailyStatsCache ??= ContractPriceDailyStatistic::query()
+        if ($this->dailyStatsCache !== null) {
+            return $this->dailyStatsCache;
+        }
+
+        $rows = ContractPriceDailyStatistic::query()
             ->select([
                 'stat_date',
                 'segment_key',
                 'metric_key',
+                'pricing_basis',
                 'consumption_kwh',
                 'p20_value',
                 'avg_value',
@@ -152,6 +158,27 @@ class ContractPriceStatistics extends Component
             ])
             ->orderBy('stat_date')
             ->get();
+
+        $expectedBasis = ContractPriceBasis::expectedCurrent()->value;
+        $latestExpectedDate = $rows
+            ->where('pricing_basis', $expectedBasis)
+            ->max(fn (ContractPriceDailyStatistic $row) => $row->stat_date->toDateString());
+
+        if ($latestExpectedDate === null) {
+            return $this->dailyStatsCache = collect();
+        }
+
+        // Historical rows keep their date-specific basis. A newer row from the
+        // opposite feature mode must not become the public current point, and an
+        // opposite-basis row on the owned current date must not enter an aggregate.
+        return $this->dailyStatsCache = $rows
+            ->filter(function (ContractPriceDailyStatistic $row) use ($expectedBasis, $latestExpectedDate): bool {
+                $date = $row->stat_date->toDateString();
+
+                return $date < $latestExpectedDate
+                    || ($date === $latestExpectedDate && $row->pricing_basis === $expectedBasis);
+            })
+            ->values();
     }
 
     /**
@@ -191,6 +218,11 @@ class ContractPriceStatistics extends Component
         $latestDate = $this->latestSnapshotDateRaw();
 
         return $latestDate ? Carbon::parse($latestDate)->format('j.n.Y') : null;
+    }
+
+    public function getLatestPricingBasisProperty(): string
+    {
+        return ContractPriceBasis::expectedCurrent()->value;
     }
 
     /**
@@ -264,6 +296,7 @@ class ContractPriceStatistics extends Component
                 'delta_30d_pct' => $this->percentDelta($current['value'] ?? null, $thirtyDaysAgo),
                 'delta_since_start_pct' => $this->percentDelta($current['value'] ?? null, $first['value'] ?? null),
                 'contract_count' => $this->latestContractCount($segmentKey),
+                'pricing_basis' => $this->latestStatisticRow($segmentKey, $metric, null)?->pricing_basis,
                 'has_data' => count($bands['x']) >= 2 && $current['value'] !== null,
                 'quotable' => $this->buildQuotableForSegment(
                     $segmentKey,
@@ -356,6 +389,7 @@ class ContractPriceStatistics extends Component
                 'spot_range_p20' => $spotEnergySummary['p20'] ?? null,
                 'spot_range_p80' => $spotEnergySummary['p80'] ?? null,
                 'spot_range_days' => $spotEnergySummary['days'] ?? null,
+                'pricing_basis' => $this->latestStatisticRow($segmentKey, $metric, null)?->pricing_basis,
                 'sparkline_path' => $this->sparklinePath($values, 80, 24),
             ];
         }
@@ -390,6 +424,7 @@ class ContractPriceStatistics extends Component
                 'median' => $latestRow->median_value,
                 'p80' => $latestRow->p80_value,
                 'contract_count' => $latestRow->contract_count,
+                'pricing_basis' => $latestRow->pricing_basis,
                 'sparkline_path' => $this->sparklinePath($annualCostSeries['median'], 80, 24),
             ];
         }
@@ -496,12 +531,12 @@ class ContractPriceStatistics extends Component
         $dateFi = $today->format('j.n.Y');
         $dateIso = $today->toDateString();
         $title = 'Sähkön hintatilastot';
-        $url = config('app.url') . '/sahkosopimus/tilastot';
+        $url = config('app.url').'/sahkosopimus/tilastot';
 
         return [
             'plain' => "Lähde: Voltikka, {$title}, päivitetty {$dateFi}. {$url}",
             'markdown' => "Lähde: [Voltikka, {$title}]({$url}), päivitetty {$dateFi}.",
-            'html' => '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">Voltikka, ' . htmlspecialchars($title) . '</a>, päivitetty <time datetime="' . $dateIso . '">' . $dateFi . '</time>.',
+            'html' => '<a href="'.htmlspecialchars($url, ENT_QUOTES, 'UTF-8').'">Voltikka, '.htmlspecialchars($title).'</a>, päivitetty <time datetime="'.$dateIso.'">'.$dateFi.'</time>.',
         ];
     }
 
@@ -512,8 +547,8 @@ class ContractPriceStatistics extends Component
     {
         $window = $this->dataWindow;
         $today = Carbon::today()->toDateString();
-        $url = config('app.url') . '/sahkosopimus/tilastot';
-        $csvUrl = config('app.url') . '/sahkosopimus/tilastot.csv';
+        $url = config('app.url').'/sahkosopimus/tilastot';
+        $csvUrl = config('app.url').'/sahkosopimus/tilastot.csv';
 
         return [
             '@context' => 'https://schema.org',
@@ -550,7 +585,7 @@ class ContractPriceStatistics extends Component
         return view('livewire.contract-price-statistics', $this->statisticsViewData())->layout('layouts.app', [
             'title' => 'Sähkösopimusten hintakehitys ja hintatilastot Suomessa | Voltikka',
             'metaDescription' => 'Sähkösopimusten hintakehitys ja hintatilastot Suomessa. Seuraa pörssi-, määräaikais- ja toistaiseksi voimassa olevien sopimusten hintojen kehitystä, hintaeroja ja vuosikustannuksia eri kulutustasoilla.',
-            'canonical' => config('app.url') . '/sahkosopimus/tilastot',
+            'canonical' => config('app.url').'/sahkosopimus/tilastot',
         ]);
     }
 
@@ -598,15 +633,17 @@ class ContractPriceStatistics extends Component
             'dataWindow' => $this->dataWindow,
             'latestSnapshotDate' => $this->latestSnapshotDate,
             'latestSnapshotCount' => $this->latestSnapshotCount,
+            'latestPricingBasis' => $this->latestPricingBasis,
             'jsonLd' => $this->jsonLd,
         ];
     }
 
     private function statisticsViewDataCacheKey(): string
     {
-        return 'contract-price-statistics:view-data:v8:' . md5(json_encode([
+        return 'contract-price-statistics:view-data:v10:'.md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
+            'pricing_basis' => ContractPriceBasis::expectedCurrent()->value,
             'version' => $this->statisticsDataVersion(),
         ]));
     }
@@ -622,6 +659,7 @@ class ContractPriceStatistics extends Component
             ->first();
 
         $snapshots = ContractPriceSnapshot::query()
+            ->where('pricing_basis', ContractPriceBasis::expectedCurrent()->value)
             ->selectRaw('MAX(snapshot_date) as latest_date, MAX(updated_at) as latest_update')
             ->first();
         $this->latestSnapshotDateLoaded = true;
@@ -657,7 +695,7 @@ class ContractPriceStatistics extends Component
     // -----------------------------------------------------------------------
 
     /**
-     * @param array<int,string> $segmentKeys
+     * @param  array<int,string>  $segmentKeys
      * @return array{x:array<int,int>,series:array<int,array{label:string,values:array<int,?float>}>,unit:string,decimals:int}
      */
     private function buildAnnualCostChart(array $segmentKeys, int $consumption): array
@@ -739,6 +777,7 @@ class ContractPriceStatistics extends Component
     private function averageOrNull(Collection $values): ?float
     {
         $clean = $values->filter(fn ($v) => $v !== null);
+
         return $clean->isEmpty() ? null : (float) $clean->avg();
     }
 
@@ -961,7 +1000,7 @@ class ContractPriceStatistics extends Component
     }
 
     /**
-     * @param array<int, float> $values
+     * @param  array<int, float>  $values
      */
     private function percentileFromValues(array $values, float $percentile): ?float
     {
@@ -995,7 +1034,7 @@ class ContractPriceStatistics extends Component
     }
 
     /**
-     * @param array<int,?float> $values
+     * @param  array<int,?float>  $values
      * @return array{value:?float,index:?int}
      */
     private function lastNonNull(array $values): array
@@ -1010,7 +1049,7 @@ class ContractPriceStatistics extends Component
     }
 
     /**
-     * @param array<int,?float> $values
+     * @param  array<int,?float>  $values
      * @return array{value:?float,index:?int}
      */
     private function firstNonNull(array $values): array
@@ -1028,7 +1067,7 @@ class ContractPriceStatistics extends Component
      * Find the value closest to a given day-offset from a reference index.
      * Used for "30 days ago" deltas regardless of period aggregation.
      *
-     * @param array{x:array<int,int>,values:array<int,?float>} $series
+     * @param  array{x:array<int,int>,values:array<int,?float>}  $series
      */
     private function valueClosestToOffset(array $series, ?int $referenceIndex, int $dayOffset): ?float
     {
@@ -1092,7 +1131,7 @@ class ContractPriceStatistics extends Component
             'hybrid' => 'Joustosähkösopimukset',
             'open_ended' => 'Toistaiseksi voimassa olevat sopimukset',
         ];
-        $subject = $subjects[$segmentKey] ?? (($this->segments[$segmentKey] ?? $segmentKey) . '-sopimukset');
+        $subject = $subjects[$segmentKey] ?? (($this->segments[$segmentKey] ?? $segmentKey).'-sopimukset');
 
         $fmtCents = fn (float $v) => number_format($v, 2, ',', ' ');
 
@@ -1103,13 +1142,13 @@ class ContractPriceStatistics extends Component
         if ($segmentKey === 'spot' || $annualCostCurrent === null || $spotAnnualCostCurrent === null || $spotAnnualCostCurrent <= 0) {
             if ($first === null) {
                 return [
-                    'headline' => $fmtCents($current) . "\u{00A0}c/kWh",
+                    'headline' => $fmtCents($current)."\u{00A0}c/kWh",
                     'headline_label' => 'Energiahinta nyt',
                     'tone' => 'neutral',
                     'sentence_before' => "{$subject} on tällä hetkellä ",
-                    'sentence_highlight' => $fmtCents($current) . "\u{00A0}c/kWh",
+                    'sentence_highlight' => $fmtCents($current)."\u{00A0}c/kWh",
                     'sentence_after' => '.',
-                    'sentence_plain' => "{$subject} on tällä hetkellä " . $fmtCents($current) . " c/kWh.",
+                    'sentence_plain' => "{$subject} on tällä hetkellä ".$fmtCents($current).' c/kWh.',
                 ];
             }
             $delta = $this->percentDelta($current, $first);
@@ -1123,21 +1162,22 @@ class ContractPriceStatistics extends Component
                     'tone' => 'neutral',
                     'sentence_before' => "{$subject} on pysynyt ",
                     'sentence_highlight' => 'käytännössä ennallaan',
-                    'sentence_after' => " aineiston alusta (" . $fmtCents($current) . "\u{00A0}c/kWh).",
-                    'sentence_plain' => "{$subject} on pysynyt käytännössä ennallaan aineiston alusta (" . $fmtCents($current) . " c/kWh).",
+                    'sentence_after' => ' aineiston alusta ('.$fmtCents($current)."\u{00A0}c/kWh).",
+                    'sentence_plain' => "{$subject} on pysynyt käytännössä ennallaan aineiston alusta (".$fmtCents($current).' c/kWh).',
                 ];
             }
             $absPct = number_format(abs($delta), 0, ',', ' ');
-            $sign = $delta < 0 ? "−" : "+";
+            $sign = $delta < 0 ? '−' : '+';
             $verb = $delta < 0 ? 'laskenut' : 'noussut';
+
             return [
                 'headline' => "{$sign}{$absPct}\u{00A0}%",
                 'headline_label' => 'Aineiston alusta',
                 'tone' => $delta < 0 ? 'down' : 'up',
                 'sentence_before' => "{$subject} on {$verb} ",
                 'sentence_highlight' => "{$absPct}\u{00A0}%",
-                'sentence_after' => " aineiston alusta (" . $fmtCents($current) . "\u{00A0}c/kWh).",
-                'sentence_plain' => "{$subject} on {$verb} {$absPct} % aineiston alusta (" . $fmtCents($current) . " c/kWh).",
+                'sentence_after' => ' aineiston alusta ('.$fmtCents($current)."\u{00A0}c/kWh).",
+                'sentence_plain' => "{$subject} on {$verb} {$absPct} % aineiston alusta (".$fmtCents($current).' c/kWh).',
             ];
         }
 
@@ -1153,21 +1193,22 @@ class ContractPriceStatistics extends Component
                 'tone' => 'neutral',
                 'sentence_before' => "{$subject} ovat ",
                 'sentence_highlight' => 'lähellä pörssisähkön tasoa',
-                'sentence_after' => " {$consumption}\u{00A0}kWh vuosikulutuksella (" . $fmtEur($annualCostCurrent) . "\u{00A0}€/v vs.\u{00A0}" . $fmtEur($spotAnnualCostCurrent) . "\u{00A0}€/v).",
-                'sentence_plain' => "{$subject} ovat lähellä pörssisähkön tasoa {$consumption} kWh vuosikulutuksella (" . $fmtEur($annualCostCurrent) . " €/v vs. " . $fmtEur($spotAnnualCostCurrent) . " €/v).",
+                'sentence_after' => " {$consumption}\u{00A0}kWh vuosikulutuksella (".$fmtEur($annualCostCurrent)."\u{00A0}€/v vs.\u{00A0}".$fmtEur($spotAnnualCostCurrent)."\u{00A0}€/v).",
+                'sentence_plain' => "{$subject} ovat lähellä pörssisähkön tasoa {$consumption} kWh vuosikulutuksella (".$fmtEur($annualCostCurrent).' €/v vs. '.$fmtEur($spotAnnualCostCurrent).' €/v).',
             ];
         }
         $absPct = number_format(abs($vsSpot), 0, ',', ' ');
-        $sign = $vsSpot < 0 ? "−" : "+";
+        $sign = $vsSpot < 0 ? '−' : '+';
         $direction = $vsSpot > 0 ? 'enemmän' : 'vähemmän';
+
         return [
             'headline' => "{$sign}{$absPct}\u{00A0}%",
             'headline_label' => "Vs. pörssisähkö, {$consumption} kWh/v",
             'tone' => $vsSpot > 0 ? 'up' : 'down',
             'sentence_before' => "{$subject} maksavat {$consumption}\u{00A0}kWh vuosikulutuksella ",
             'sentence_highlight' => "{$absPct}\u{00A0}% {$direction}",
-            'sentence_after' => " kuin pörssisähkö (" . $fmtEur($annualCostCurrent) . "\u{00A0}€/v vs.\u{00A0}" . $fmtEur($spotAnnualCostCurrent) . "\u{00A0}€/v).",
-            'sentence_plain' => "{$subject} maksavat {$consumption} kWh vuosikulutuksella {$absPct} % {$direction} kuin pörssisähkö (" . $fmtEur($annualCostCurrent) . " €/v vs. " . $fmtEur($spotAnnualCostCurrent) . " €/v).",
+            'sentence_after' => ' kuin pörssisähkö ('.$fmtEur($annualCostCurrent)."\u{00A0}€/v vs.\u{00A0}".$fmtEur($spotAnnualCostCurrent)."\u{00A0}€/v).",
+            'sentence_plain' => "{$subject} maksavat {$consumption} kWh vuosikulutuksella {$absPct} % {$direction} kuin pörssisähkö (".$fmtEur($annualCostCurrent).' €/v vs. '.$fmtEur($spotAnnualCostCurrent).' €/v).',
         ];
     }
 
@@ -1198,7 +1239,7 @@ class ContractPriceStatistics extends Component
 
     private function latestContractCount(string $segmentKey): ?int
     {
-        $row = $this->latestStatisticRow($segmentKey, 'energy_price', null);
+        $row = $this->latestStatisticRow($segmentKey, 'annual_cost', 5000);
 
         return $row ? (int) $row->contract_count : null;
     }
@@ -1208,6 +1249,7 @@ class ContractPriceStatistics extends Component
         return $this->dailyStats
             ->where('segment_key', $segmentKey)
             ->where('metric_key', $metricKey)
+            ->where('pricing_basis', ContractPriceBasis::expectedCurrent()->value)
             ->filter(fn ($row) => $row->consumption_kwh === $consumption)
             ->sortByDesc('stat_date')
             ->first();
@@ -1216,7 +1258,9 @@ class ContractPriceStatistics extends Component
     private function latestSnapshotDateRaw(): ?string
     {
         if (! $this->latestSnapshotDateLoaded) {
-            $this->latestSnapshotDateCache = ContractPriceSnapshot::max('snapshot_date');
+            $this->latestSnapshotDateCache = ContractPriceSnapshot::query()
+                ->where('pricing_basis', ContractPriceBasis::expectedCurrent()->value)
+                ->max('snapshot_date');
             $this->latestSnapshotDateLoaded = true;
         }
 
@@ -1301,7 +1345,7 @@ class ContractPriceStatistics extends Component
     }
 
     /**
-     * @param array<string, float> $pricesByDate
+     * @param  array<string, float>  $pricesByDate
      * @return array<int, float>
      */
     private function spotMarketPricesForWindow(array $pricesByDate, string $startDate, string $endDate): array
@@ -1315,7 +1359,7 @@ class ContractPriceStatistics extends Component
     /**
      * Generate an inline-SVG path string ("M x,y L x,y …") for sparkline rendering.
      *
-     * @param array<int,?float> $values
+     * @param  array<int,?float>  $values
      */
     private function sparklinePath(array $values, int $width, int $height): ?string
     {
@@ -1337,11 +1381,12 @@ class ContractPriceStatistics extends Component
         foreach ($values as $i => $v) {
             if ($v === null) {
                 $started = false;
+
                 continue;
             }
             $x = round($i * $stepX, 2);
             $y = round($padY + ($usableH - (($v - $min) / $range) * $usableH), 2);
-            $parts[] = ($started ? 'L' : 'M') . " {$x},{$y}";
+            $parts[] = ($started ? 'L' : 'M')." {$x},{$y}";
             $started = true;
         }
 

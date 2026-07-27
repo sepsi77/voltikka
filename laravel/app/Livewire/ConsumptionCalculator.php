@@ -8,9 +8,10 @@ use App\Enums\BuildingType;
 use App\Enums\HeatingMethod;
 use App\Enums\SupplementaryHeatingMethod;
 use App\Models\ContractPriceDailyStatistic;
+use App\Services\ContractStatistics\ContractPriceBasis;
 use App\Services\DTO\EnergyCalculatorRequest;
-use App\Services\DTO\EnergyCalculatorResult;
 use App\Services\EnergyCalculator;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
@@ -33,21 +34,31 @@ class ConsumptionCalculator extends Component
 
     // Basic form fields
     public int|string|null $livingArea = 80;
+
     public int|string|null $numPeople = 2;
+
     public ?string $buildingType = 'apartment';
 
     // Heating settings
     public bool $includeHeating = false;
+
     public ?string $heatingMethod = 'electricity';
+
     public ?string $buildingRegion = 'central';
+
     public ?string $buildingEnergyEfficiency = '2000';
+
     public ?string $supplementaryHeating = null;
 
     // Extras
     public int|string|null $bathroomHeatingArea = 0;
+
     public int|string|null $saunaUsagePerWeek = 0;
+
     public bool $saunaIsAlwaysOnType = false;
+
     public int|string|null $electricVehicleKmsPerMonth = 0;
+
     public bool $cooling = false;
 
     // Results (stored as array for Livewire serialization)
@@ -250,14 +261,14 @@ class ConsumptionCalculator extends Component
 
     public function toggleIncludeHeating(): void
     {
-        $this->includeHeating = !$this->includeHeating;
+        $this->includeHeating = ! $this->includeHeating;
         $this->selectedPreset = null;
         $this->calculate();
     }
 
     public function toggleCooling(): void
     {
-        $this->cooling = !$this->cooling;
+        $this->cooling = ! $this->cooling;
         $this->selectedPreset = null;
         $this->calculate();
     }
@@ -304,8 +315,8 @@ class ConsumptionCalculator extends Component
             bathroomHeatingArea: $bathroomHeatingArea,
             saunaUsagePerWeek: $saunaUsagePerWeek,
             saunaIsAlwaysOnType: $this->saunaIsAlwaysOnType,
-            externalHeating: !$this->includeHeating,
-            externalHeatingWater: !$this->includeHeating,
+            externalHeating: ! $this->includeHeating,
+            externalHeatingWater: ! $this->includeHeating,
             cooling: $this->cooling,
         );
 
@@ -386,32 +397,22 @@ class ConsumptionCalculator extends Component
             'spot' => [
                 'label' => 'Pörssisähkö',
                 'description' => 'Toteutuneeseen pörssihintaan ja tyypilliseen marginaaliin perustuva arvio.',
-                'energy_metric' => 'spot_total_energy_price',
-                'use_annual_cost' => true,
             ],
             'fixed_term_12' => [
                 'label' => 'Määräaikainen 12 kk',
                 'description' => 'Vuodeksi lukittu kiinteä energiahinta.',
-                'energy_metric' => 'energy_price',
-                'use_annual_cost' => false,
             ],
             'fixed_term_24' => [
                 'label' => 'Määräaikainen 24 kk',
                 'description' => 'Kahdeksi vuodeksi lukittu kiinteä energiahinta.',
-                'energy_metric' => 'energy_price',
-                'use_annual_cost' => false,
             ],
             'open_ended' => [
                 'label' => 'Toistaiseksi voimassa oleva',
                 'description' => 'Jatkuva sopimus, jonka hintaa voidaan muuttaa ennakkoilmoituksella.',
-                'energy_metric' => 'energy_price',
-                'use_annual_cost' => false,
             ],
             'hybrid' => [
                 'label' => 'Joustosähkö',
                 'description' => 'Kiinteä energiahinta, johon voi tulla kulutusvaikutus.',
-                'energy_metric' => 'energy_price',
-                'use_annual_cost' => false,
             ],
         ];
     }
@@ -439,26 +440,12 @@ class ConsumptionCalculator extends Component
 
         $rows = [];
         foreach ($this->priceSegments() as $segmentKey => $config) {
-            $energy = $this->statValues($stats->get($segmentKey . ':' . $config['energy_metric'] . ':')?->first());
-            $monthlyFee = $this->statValues($stats->get($segmentKey . ':monthly_fee:')?->first());
-
-            if ($energy === null || $monthlyFee === null) {
-                continue;
-            }
-
             $costs = [];
             foreach (['p20', 'median', 'p80'] as $quantile) {
-                $annual = null;
-
-                if ($config['use_annual_cost']) {
-                    $annual = $this->interpolatedAnnualCost($stats, $segmentKey, $quantile, $consumption);
-                } else {
-                    $annual = $this->annualCostFromEnergyAndMonthlyFee(
-                        $consumption,
-                        $energy[$quantile] ?? null,
-                        $monthlyFee[$quantile] ?? null,
-                    );
-                }
+                // Every public annual estimate comes from the stored annual-cost
+                // metric. A canonical package or canonical-only contract can have a
+                // valid annual total while its all-in unit rate is intentionally null.
+                $annual = $this->interpolatedAnnualCost($stats, $segmentKey, $quantile, $consumption);
 
                 $costs[$quantile] = $annual !== null ? [
                     'annual' => $annual,
@@ -474,10 +461,8 @@ class ConsumptionCalculator extends Component
                 'key' => $segmentKey,
                 'label' => $config['label'],
                 'description' => $config['description'],
-                'energy' => $energy,
-                'monthly_fee' => $monthlyFee,
                 'costs' => $costs,
-                'contract_count' => $stats->get($segmentKey . ':' . $config['energy_metric'] . ':')?->first()?->contract_count,
+                'contract_count' => $this->nearestAnnualCostRow($stats, $segmentKey, $consumption)?->contract_count,
             ];
         }
 
@@ -504,7 +489,11 @@ class ConsumptionCalculator extends Component
             return $this->priceStatisticsRows === false ? null : $this->priceStatisticsRows;
         }
 
-        $latestDate = ContractPriceDailyStatistic::query()->max('stat_date');
+        $pricingBasis = ContractPriceBasis::expectedCurrent()->value;
+        $latestDate = ContractPriceDailyStatistic::query()
+            ->where('pricing_basis', $pricingBasis)
+            ->where('metric_key', 'annual_cost')
+            ->max('stat_date');
 
         if (! $latestDate) {
             $this->priceStatisticsRows = false;
@@ -512,14 +501,17 @@ class ConsumptionCalculator extends Component
             return null;
         }
 
-        $statDate = substr((string) $latestDate, 0, 10);
+        $statDate = Carbon::parse($latestDate)
+            ->setTimezone((string) config('app.timezone'))
+            ->toDateString();
 
         $stats = ContractPriceDailyStatistic::query()
             ->whereDate('stat_date', $statDate)
             ->whereIn('segment_key', array_keys($this->priceSegments()))
-            ->whereIn('metric_key', ['energy_price', 'spot_total_energy_price', 'monthly_fee', 'annual_cost'])
+            ->where('metric_key', 'annual_cost')
+            ->where('pricing_basis', $pricingBasis)
             ->get()
-            ->groupBy(fn (ContractPriceDailyStatistic $row): string => $row->segment_key . ':' . $row->metric_key . ':' . ($row->consumption_kwh ?? ''));
+            ->groupBy(fn (ContractPriceDailyStatistic $row): string => $row->segment_key.':'.$row->metric_key.':'.($row->consumption_kwh ?? ''));
 
         return $this->priceStatisticsRows = [$statDate, $stats];
     }
@@ -537,20 +529,11 @@ class ConsumptionCalculator extends Component
         ];
     }
 
-    protected function annualCostFromEnergyAndMonthlyFee(int $consumption, ?float $energyCentsPerKwh, ?float $monthlyFee): ?float
-    {
-        if ($energyCentsPerKwh === null || $monthlyFee === null) {
-            return null;
-        }
-
-        return ($consumption * $energyCentsPerKwh / 100) + ($monthlyFee * 12);
-    }
-
     protected function interpolatedAnnualCost(Collection $stats, string $segmentKey, string $quantile, int $consumption): ?float
     {
         $points = [];
         foreach ([2000, 5000, 18000] as $level) {
-            $row = $stats->get($segmentKey . ':annual_cost:' . $level)?->first();
+            $row = $stats->get($segmentKey.':annual_cost:'.$level)?->first();
             $values = $this->statValues($row);
 
             if (($values[$quantile] ?? null) !== null) {
@@ -592,6 +575,17 @@ class ConsumptionCalculator extends Component
         return $points[$lower] + (($points[$upper] - $points[$lower]) * $ratio);
     }
 
+    private function nearestAnnualCostRow(Collection $stats, string $segmentKey, int $consumption): ?ContractPriceDailyStatistic
+    {
+        $nearest = collect([2000, 5000, 18000])
+            ->sortBy(fn (int $level) => abs($level - $consumption))
+            ->first(fn (int $level) => $stats->has($segmentKey.':annual_cost:'.$level));
+
+        return $nearest === null
+            ? null
+            : $stats->get($segmentKey.':annual_cost:'.$nearest)?->first();
+    }
+
     public function compareContracts(): void
     {
         // Track compare button click
@@ -603,7 +597,7 @@ class ConsumptionCalculator extends Component
             ]
         );
 
-        $this->redirect('/sahkosopimus?consumption=' . $this->totalConsumption);
+        $this->redirect('/sahkosopimus?consumption='.$this->totalConsumption);
     }
 
     public function getPageHeadingProperty(): string
@@ -619,8 +613,8 @@ class ConsumptionCalculator extends Component
     public function getSeoIntroTextProperty(): string
     {
         return 'Sähkönkulutuslaskurilla arvioit nopeasti, paljonko kotitaloutesi käyttää sähköä vuodessa ja mitä sähkö maksaisi eri sopimustyypeillä. '
-            . 'Syötä asunnon koko, asukasmäärä ja lämmitystapa – laskuri laskee perussähkön, lämmityksen ja muut kulutuskohteet (sauna, sähköauto, lattialämmitys) erikseen. '
-            . 'Kun tiedät vuosikulutuksesi kilowattitunteina, sähkön hinta laskuri arvioi vuosikustannuksen pörssisähköllä, määräaikaisilla ja toistaiseksi voimassa olevilla sopimuksilla Voltikan hintatilastojen perusteella.';
+            .'Syötä asunnon koko, asukasmäärä ja lämmitystapa – laskuri laskee perussähkön, lämmityksen ja muut kulutuskohteet (sauna, sähköauto, lattialämmitys) erikseen. '
+            .'Kun tiedät vuosikulutuksesi kilowattitunteina, sähkön hinta laskuri arvioi vuosikustannuksen pörssisähköllä, määräaikaisilla ja toistaiseksi voimassa olevilla sopimuksilla Voltikan hintatilastojen perusteella.';
     }
 
     /**
@@ -633,8 +627,8 @@ class ConsumptionCalculator extends Component
     {
         return array_map(fn (int $level): array => [
             'kwh' => $level,
-            'label' => number_format($level, 0, ',', ' ') . ' kWh',
-            'url' => '/sahkosopimus/kulutus/' . $level . '-kwh',
+            'label' => number_format($level, 0, ',', ' ').' kWh',
+            'url' => '/sahkosopimus/kulutus/'.$level.'-kwh',
         ], self::CONSUMPTION_PAGE_LEVELS);
     }
 
@@ -709,9 +703,9 @@ class ConsumptionCalculator extends Component
         $range = $this->annualCostRangeFor($consumption);
 
         if ($range === null) {
-            return $label . ' kWh vuosikulutuksen hinta lasketaan kaavalla kulutus × energian hinta snt/kWh / 100 '
-                . '+ perusmaksu × 12. Hinta riippuu sopimustyypistä, joten vertaa se omalla kulutuksellasi '
-                . 'Voltikan sähkösopimusvertailussa. Luku kattaa sähköenergian, ei sähkön siirtoa.';
+            return $label.' kWh vuosikulutuksen hinta lasketaan kaavalla kulutus × energian hinta snt/kWh / 100 '
+                .'+ perusmaksu × 12. Hinta riippuu sopimustyypistä, joten vertaa se omalla kulutuksellasi '
+                .'Voltikan sähkösopimusvertailussa. Luku kattaa sähköenergian, ei sähkön siirtoa.';
         }
 
         $cheapest = $this->formatRoundedEur($range['min']);
@@ -720,13 +714,13 @@ class ConsumptionCalculator extends Component
         // Both ends can round to the same figure when only one contract type has
         // statistics for the day; "1 750–1 750 €" reads as a bug, so collapse it.
         $amount = $cheapest === $priciest
-            ? 'noin ' . $cheapest . ' € vuodessa'
-            : 'noin ' . $cheapest . '–' . $priciest . ' € vuodessa sopimustyypistä riippuen';
+            ? 'noin '.$cheapest.' € vuodessa'
+            : 'noin '.$cheapest.'–'.$priciest.' € vuodessa sopimustyypistä riippuen';
 
-        return $label . ' kWh sähköä maksaa tällä hetkellä ' . $amount . '. '
-            . 'Luku on pelkkää sähköenergiaa sisältäen arvonlisäveron, eikä siihen kuulu sähkön siirtoa, '
-            . 'joka laskutetaan erikseen verkkoyhtiön laskulla. Arvio perustuu Voltikan päivittäin '
-            . 'päivittyviin sopimushintatilastoihin.';
+        return $label.' kWh sähköä maksaa tällä hetkellä '.$amount.'. '
+            .'Luku on pelkkää sähköenergiaa sisältäen arvonlisäveron, eikä siihen kuulu sähkön siirtoa, '
+            .'joka laskutetaan erikseen verkkoyhtiön laskulla. Arvio perustuu Voltikan päivittäin '
+            .'päivittyviin sopimushintatilastoihin.';
     }
 
     public function getFaqItemsProperty(): array
@@ -793,18 +787,18 @@ class ConsumptionCalculator extends Component
      */
     protected function generateSeoTitle(): string
     {
-        return 'Sähkön hinta laskuri ' . now()->year . ' – laske kulutus ja vuosihinta';
+        return 'Sähkön hinta laskuri '.now()->year.' – laske kulutus ja vuosihinta';
     }
 
     protected function generateMetaDescription(): string
     {
         return 'Paljonko sähkö maksaa vuodessa? Laske kulutuksesi kWh ja vuosihinta: '
-            . 'asunto, lämmitys, sauna, sähköauto. Vertaa hintaa eri sopimustyypeillä. Ilmainen.';
+            .'asunto, lämmitys, sauna, sähköauto. Vertaa hintaa eri sopimustyypeillä. Ilmainen.';
     }
 
     protected function generateCanonicalUrl(): string
     {
-        return rtrim((string) config('app.url'), '/') . '/sahkosopimus/laskuri';
+        return rtrim((string) config('app.url'), '/').'/sahkosopimus/laskuri';
     }
 
     public function generateJsonLd(): array
@@ -826,7 +820,7 @@ class ConsumptionCalculator extends Component
             '@graph' => [
                 [
                     '@type' => 'WebApplication',
-                    '@id' => $canonical . '#webapp',
+                    '@id' => $canonical.'#webapp',
                     'name' => $heading,
                     'url' => $canonical,
                     'description' => $this->generateMetaDescription(),
@@ -847,19 +841,19 @@ class ConsumptionCalculator extends Component
                 ],
                 [
                     '@type' => 'BreadcrumbList',
-                    '@id' => $canonical . '#breadcrumbs',
+                    '@id' => $canonical.'#breadcrumbs',
                     'itemListElement' => [
                         [
                             '@type' => 'ListItem',
                             'position' => 1,
                             'name' => 'Etusivu',
-                            'item' => rtrim((string) config('app.url'), '/') . '/',
+                            'item' => rtrim((string) config('app.url'), '/').'/',
                         ],
                         [
                             '@type' => 'ListItem',
                             'position' => 2,
                             'name' => 'Sähkösopimus',
-                            'item' => rtrim((string) config('app.url'), '/') . '/sahkosopimus',
+                            'item' => rtrim((string) config('app.url'), '/').'/sahkosopimus',
                         ],
                         [
                             '@type' => 'ListItem',
@@ -871,7 +865,7 @@ class ConsumptionCalculator extends Component
                 ],
                 [
                     '@type' => 'FAQPage',
-                    '@id' => $canonical . '#faq',
+                    '@id' => $canonical.'#faq',
                     'mainEntity' => $faqEntities,
                 ],
             ],

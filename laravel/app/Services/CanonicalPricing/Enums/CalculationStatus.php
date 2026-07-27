@@ -3,7 +3,7 @@
 namespace App\Services\CanonicalPricing\Enums;
 
 /**
- * Canonical calculation feasibility (schema-v3 `calculation.status`).
+ * Canonical calculation feasibility (schema-v4 `calculation.status`).
  */
 enum CalculationStatus: string
 {

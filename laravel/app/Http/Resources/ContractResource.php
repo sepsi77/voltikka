@@ -14,7 +14,9 @@ class ContractResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return [
+        $canonicalMode = (bool) config('canonical_pricing.enabled', false);
+
+        $data = [
             'id' => $this->id,
             'name' => $this->name,
             'name_slug' => $this->name_slug,
@@ -24,15 +26,24 @@ class ContractResource extends JsonResource
             'long_description' => $this->long_description,
             'order_link' => $this->order_link,
             'product_link' => $this->product_link,
-            'pricing_has_discounts' => $this->pricing_has_discounts,
+            'pricing_has_discounts' => $canonicalMode
+                ? (bool) ($this->canonical_pricing_has_discounts ?? false)
+                : $this->pricing_has_discounts,
             'availability_is_national' => $this->availability_is_national,
             'company' => new CompanyResource($this->whenLoaded('company')),
-            'price_components' => PriceComponentResource::collection($this->whenLoaded('priceComponents')),
             'electricity_source' => new ElectricitySourceResource($this->whenLoaded('electricitySource')),
             'calculated_cost' => $this->when(
                 isset($this->calculated_cost),
                 fn () => $this->calculated_cost
             ),
         ];
+
+        if ($canonicalMode) {
+            $data['current_pricing'] = $this->current_pricing;
+        } else {
+            $data['price_components'] = PriceComponentResource::collection($this->whenLoaded('priceComponents'));
+        }
+
+        return $data;
     }
 }

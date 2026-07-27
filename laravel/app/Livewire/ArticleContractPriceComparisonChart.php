@@ -3,9 +3,9 @@
 namespace App\Livewire;
 
 use App\Models\ContractPriceDailyStatistic;
+use App\Services\ContractStatistics\ContractPriceBasis;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
@@ -27,95 +27,118 @@ class ArticleContractPriceComparisonChart extends Component
         'hybrid',
     ];
 
-    public function getDailyStatsProperty(): Collection
+    public function getPreparedDataProperty(): array
     {
-        return Cache::remember('article:contract-price-comparison-chart:daily-stats', now()->addHours(6), fn () =>
-            ContractPriceDailyStatistic::query()
-                ->where('metric_key', 'annual_cost')
-                ->where('consumption_kwh', self::CONSUMPTION)
-                ->whereIn('segment_key', $this->primarySegments)
-                ->orderBy('stat_date')
-                ->get()
+        $pricingBasis = ContractPriceBasis::expectedCurrent()->value;
+        $latestDate = ContractPriceDailyStatistic::query()
+            ->where('metric_key', 'annual_cost')
+            ->where('pricing_basis', $pricingBasis)
+            ->where('consumption_kwh', self::CONSUMPTION)
+            ->whereIn('segment_key', $this->primarySegments)
+            ->max('stat_date');
+
+        if (! $latestDate) {
+            return $this->emptyPreparedData();
+        }
+
+        $to = Carbon::parse($latestDate)->toDateString();
+        $from = Carbon::parse($to)->subYear()->toDateString();
+
+        return Cache::remember(
+            'article:contract-price-comparison-chart:prepared:v2:'.$pricingBasis.':'.$to,
+            now()->addHours(6),
+            function () use ($from, $pricingBasis, $to): array {
+                $rows = ContractPriceDailyStatistic::query()
+                    ->where('metric_key', 'annual_cost')
+                    ->where('consumption_kwh', self::CONSUMPTION)
+                    ->whereIn('segment_key', $this->primarySegments)
+                    ->whereBetween('stat_date', [$from, $to])
+                    ->where(function ($query) use ($pricingBasis, $to) {
+                        $query->where('stat_date', '<', $to)
+                            ->orWhere(function ($query) use ($pricingBasis, $to) {
+                                $query->where('stat_date', $to)
+                                    ->where('pricing_basis', $pricingBasis);
+                            });
+                    })
+                    ->orderBy('stat_date')
+                    ->toBase()
+                    ->get(['stat_date', 'segment_key', 'median_value']);
+
+                if ($rows->isEmpty()) {
+                    return $this->emptyPreparedData();
+                }
+
+                $weekly = [];
+                $firstDate = null;
+                $lastDate = null;
+
+                foreach ($rows as $row) {
+                    $date = Carbon::parse($row->stat_date);
+                    $dateString = $date->toDateString();
+                    $firstDate ??= $dateString;
+                    $lastDate = $dateString;
+
+                    if ($row->median_value === null) {
+                        continue;
+                    }
+
+                    $timestamp = $this->periodStart($date)->getTimestamp();
+                    $weekly[$row->segment_key][$timestamp]['sum'] =
+                        ($weekly[$row->segment_key][$timestamp]['sum'] ?? 0.0) + (float) $row->median_value;
+                    $weekly[$row->segment_key][$timestamp]['count'] =
+                        ($weekly[$row->segment_key][$timestamp]['count'] ?? 0) + 1;
+                }
+
+                $timestamps = [];
+                foreach ($weekly as $segmentWeeks) {
+                    $timestamps = array_merge($timestamps, array_keys($segmentWeeks));
+                }
+                $timestamps = array_values(array_unique($timestamps));
+                sort($timestamps);
+
+                $series = [];
+                foreach ($this->primarySegments as $key) {
+                    $values = [];
+                    foreach ($timestamps as $timestamp) {
+                        $bucket = $weekly[$key][$timestamp] ?? null;
+                        $values[] = $bucket === null ? null : $bucket['sum'] / $bucket['count'];
+                    }
+
+                    $series[] = [
+                        'label' => $this->segments[$key] ?? $key,
+                        'values' => $values,
+                    ];
+                }
+
+                return [
+                    'data_window' => ['from' => $firstDate, 'to' => $lastDate],
+                    'lead_chart' => [
+                        'x' => $timestamps,
+                        'series' => $series,
+                        'unit' => 'eur',
+                        'decimals' => 0,
+                    ],
+                ];
+            },
         );
     }
 
     public function getDataWindowProperty(): array
     {
-        $stats = $this->dailyStats;
-
-        if ($stats->isEmpty()) {
-            return ['from' => null, 'to' => null];
-        }
-
-        return [
-            'from' => Carbon::parse($stats->min('stat_date'))->toDateString(),
-            'to' => Carbon::parse($stats->max('stat_date'))->toDateString(),
-        ];
+        return $this->preparedData['data_window'];
     }
 
     public function getLeadChartPayloadProperty(): array
     {
-        $aggregated = [];
-        foreach ($this->primarySegments as $key) {
-            $aggregated[$key] = $this->aggregatedSeries($key);
-        }
-
-        $allTimestamps = collect($aggregated)
-            ->flatMap(fn ($series) => $series['x'])
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
-
-        if ($allTimestamps === []) {
-            return ['x' => [], 'series' => [], 'unit' => 'eur', 'decimals' => 0];
-        }
-
-        $series = [];
-        foreach ($this->primarySegments as $key) {
-            $byTs = array_combine($aggregated[$key]['x'], $aggregated[$key]['median']);
-            $values = [];
-
-            foreach ($allTimestamps as $ts) {
-                $values[] = $byTs[$ts] ?? null;
-            }
-
-            $series[] = [
-                'label' => $this->segments[$key] ?? $key,
-                'values' => $values,
-            ];
-        }
-
-        return [
-            'x' => $allTimestamps,
-            'series' => $series,
-            'unit' => 'eur',
-            'decimals' => 0,
-        ];
+        return $this->preparedData['lead_chart'];
     }
 
-    private function aggregatedSeries(string $segmentKey): array
+    private function emptyPreparedData(): array
     {
-        $rows = $this->dailyStats->where('segment_key', $segmentKey);
-
-        if ($rows->isEmpty()) {
-            return ['x' => [], 'median' => []];
-        }
-
-        $grouped = $rows
-            ->groupBy(fn ($row) => $this->periodStart($row->stat_date)->toDateString())
-            ->sortKeys();
-
-        $x = [];
-        $median = [];
-
-        foreach ($grouped as $periodStart => $periodRows) {
-            $values = $periodRows->pluck('median_value')->filter(fn ($value) => $value !== null);
-            $x[] = Carbon::parse($periodStart)->getTimestamp();
-            $median[] = $values->isEmpty() ? null : (float) $values->avg();
-        }
-
-        return ['x' => $x, 'median' => $median];
+        return [
+            'data_window' => ['from' => null, 'to' => null],
+            'lead_chart' => ['x' => [], 'series' => [], 'unit' => 'eur', 'decimals' => 0],
+        ];
     }
 
     private function periodStart(CarbonInterface|string $date): CarbonInterface

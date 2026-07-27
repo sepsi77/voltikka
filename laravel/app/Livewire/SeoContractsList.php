@@ -8,10 +8,12 @@ use App\Models\Municipality;
 use App\Models\Postcode;
 use App\Models\SpotPriceAverage;
 use App\Services\Caching\ContractPageCacheVersion;
+use App\Services\CanonicalPricing\CanonicalContractPricingService;
+use App\Services\CanonicalPricing\CanonicalOfferFacts;
 use App\Services\CO2EmissionsCalculator;
-use App\Services\ContractMarketInsights\ContractMarketInsightService;
 use App\Services\ContractCard\Enums\PricingCategory;
 use App\Services\ContractCard\PricingCategoryResolver;
+use App\Services\ContractMarketInsights\ContractMarketInsightService;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
 use App\Services\LocalContractsService;
@@ -282,6 +284,9 @@ class SeoContractsList extends ContractsList
             return $this->contractsCache;
         }
 
+        $canonicalPricing = app(CanonicalContractPricingService::class);
+        $useCanonical = $canonicalPricing->enabled();
+
         $query = ElectricityContract::query()
             ->active()
             ->with(['electricitySource'])
@@ -414,8 +419,10 @@ class SeoContractsList extends ContractsList
             });
         }
 
-        // Apply promotion filter (contracts with active discounts)
-        if ($this->offerType === 'promotion') {
+        // Feature-off keeps the relational promotion candidate filter. Canonical
+        // mode must evaluate the broad candidate set first because canonical-only
+        // offers can have no relational discount row.
+        if ($this->offerType === 'promotion' && ! $useCanonical) {
             $now = now();
             $query->where(function ($q) use ($now) {
                 $q->where('pricing_has_discounts', true)
@@ -478,6 +485,14 @@ class SeoContractsList extends ContractsList
         // Bill ("Maksatko liikaa") mode: price the filtered set for the user's
         // actual billing period and rank by period cost instead of annual cost.
         if ($this->isBillModeActive()) {
+            if ($this->offerType === 'promotion' && $useCanonical) {
+                $contracts = $this->attachAndFilterCanonicalOffers(
+                    $contracts,
+                    $canonicalPricing,
+                    $this->selectedConsumptionValue(),
+                );
+            }
+
             return $this->contractsCache = $this->buildBillModePaginator($contracts);
         }
 
@@ -485,9 +500,6 @@ class SeoContractsList extends ContractsList
 
         if ($sorted === null) {
             $emissionsCalculator = app(CO2EmissionsCalculator::class);
-            $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
-            $useCanonical = $canonicalPricing->enabled();
-
             $usage = new EnergyUsage(total: $consumption, basicLiving: $consumption);
 
             // Do not eager load full price history here. Load only the latest
@@ -556,6 +568,14 @@ class SeoContractsList extends ContractsList
             })->values();
         }
 
+        if ($this->offerType === 'promotion' && $useCanonical) {
+            $sorted = $sorted
+                ->filter(fn (ElectricityContract $contract) => CanonicalOfferFacts::fromCalculatedCost(
+                    is_array($contract->calculated_cost ?? null) ? $contract->calculated_cost : [],
+                ) !== null)
+                ->values();
+        }
+
         // Store cheapest total cost for SEO titles
         $this->cheapestTotalCost = $sorted->first()?->calculated_cost['total_cost'] ?? null;
 
@@ -588,6 +608,33 @@ class SeoContractsList extends ContractsList
                 'pageName' => 'page',
             ]
         );
+    }
+
+    /**
+     * Attach one batch of canonical outcomes and retain only measurable offers.
+     * Used before bill-mode pricing, where the normal annual metrics path is skipped.
+     */
+    private function attachAndFilterCanonicalOffers(
+        Collection $contracts,
+        CanonicalContractPricingService $canonicalPricing,
+        int $consumption,
+    ): Collection {
+        $usage = new EnergyUsage(total: $consumption, basicLiving: $consumption);
+        $metrics = $canonicalPricing->metricsForContracts($contracts, $usage);
+
+        return $contracts
+            ->map(function (ElectricityContract $contract) use ($metrics) {
+                $canonical = $metrics[$contract->id] ?? null;
+                $contract->calculated_cost = $canonical['calculated_cost'] ?? [];
+                $contract->pricing_integrity = $canonical['integrity'] ?? null;
+                $contract->comparability = $canonical['comparability'] ?? null;
+                $contract->is_listed = $canonical['is_listed'] ?? false;
+
+                return $contract;
+            })
+            ->filter(fn (ElectricityContract $contract) => $contract->is_listed
+                && CanonicalOfferFacts::fromCalculatedCost($contract->calculated_cost) !== null)
+            ->values();
     }
 
     /**
@@ -905,15 +952,28 @@ class SeoContractsList extends ContractsList
         $items = [];
         $canonicalUrl = $this->generateCanonicalUrl();
 
+        $useCanonical = app(CanonicalContractPricingService::class)->enabled();
+
         foreach ($contracts as $index => $contract) {
             $company = $contract->relationLoaded('company') ? $contract->company : null;
-            $description = $contract->short_description ?? 'Sähkösopimus yritykseltä '.($company?->name ?? $contract->company_name);
+            $genericDescription = 'Sähkösopimus yritykseltä '.($company?->name ?? $contract->company_name);
+            $description = $contract->short_description ?? $genericDescription;
 
-            // Avoid lazy-loading price_components while building JSON-LD. The
-            // visible listing query loads them in bulk; if another caller passes
-            // slim models, omit detailed discount text rather than issuing one
-            // query per contract.
-            if ($contract->relationLoaded('priceComponents') && $contract->hasActiveDiscounts()) {
+            if ($useCanonical) {
+                if ($this->offerType === 'promotion') {
+                    // The seller description can contain stale campaign arithmetic.
+                    // Offer-page JSON-LD uses only the generic identity and typed fact.
+                    $description = $genericDescription;
+                    $offerFact = CanonicalOfferFacts::fromCalculatedCost(
+                        is_array($contract->calculated_cost ?? null) ? $contract->calculated_cost : [],
+                    );
+                    if ($offerFact !== null) {
+                        $description .= ' '.$offerFact['description'];
+                    }
+                }
+            } elseif ($contract->relationLoaded('priceComponents') && $contract->hasActiveDiscounts()) {
+                // Feature-off keeps the relational offer description. The relation
+                // is loaded in one batch for visible cards, so this causes no N+1.
                 $discountInfo = $contract->getActiveDiscountInfo();
                 if ($discountInfo) {
                     $discountDesc = $contract->formatActiveDiscountValue($discountInfo);

@@ -3,7 +3,7 @@
 namespace App\Services\CanonicalPricing\Enums;
 
 /**
- * Canonical pricing component types (schema-v3 `$defs.component.component_type`).
+ * Canonical pricing component types (schema-v4 `$defs.component.component_type`).
  */
 enum ComponentType: string
 {

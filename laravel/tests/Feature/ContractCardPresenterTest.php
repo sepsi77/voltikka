@@ -37,9 +37,9 @@ class ContractCardPresenterTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $attributes
-     * @param array<string, mixed> $cost
-     * @param array<string, mixed>|null $integrity
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, mixed>  $cost
+     * @param  array<string, mixed>|null  $integrity
      */
     private function contract(array $attributes = [], array $cost = [], ?array $integrity = null): ElectricityContract
     {
@@ -69,8 +69,8 @@ class ContractCardPresenterTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $schedule
-     * @param array<string, mixed> $effect
+     * @param  array<string, mixed>  $schedule
+     * @param  array<string, mixed>  $effect
      */
     private function canonicalPricing(array $schedule = [], array $effect = []): array
     {
@@ -483,6 +483,8 @@ class ContractCardPresenterTest extends TestCase
 
     public function test_rates_fall_back_to_relational_prices_when_no_cost_payload_exists(): void
     {
+        config()->set('canonical_pricing.enabled', false);
+
         $contract = $this->contract();
         $contract->calculated_cost = [];
 
@@ -493,6 +495,98 @@ class ContractCardPresenterTest extends TestCase
 
         $this->assertSame('6,50', $card->receiptLines[0]->value);
         $this->assertSame('3,90', $card->receiptLines[1]->value);
+    }
+
+    public function test_canonical_mode_never_fills_a_missing_rate_from_relational_prices(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+
+        $contract = $this->contract(cost: [
+            'pricing_basis' => 'canonical',
+            'general_kwh_price' => null,
+            'monthly_fixed_fee' => null,
+        ]);
+
+        $card = $this->present($contract, prices: [
+            'General' => ['price' => 1.11],
+            'Monthly' => ['price' => 0.55],
+        ]);
+
+        $this->assertSame([], $card->receiptLines);
+    }
+
+    public function test_canonical_phase_rows_and_rates_ignore_conflicting_relational_and_integrity_values(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+
+        $contract = $this->contract(cost: [
+            'pricing_basis' => 'canonical',
+            'general_kwh_price' => 8.4,
+            'monthly_fixed_fee' => 4.2,
+            'phase_breakdown' => [
+                [
+                    'uses_spot' => false, 'energy_cents' => 8.4, 'spot_margin_cents' => null,
+                    'window_start' => '2026-07-26', 'window_end' => '2026-08-25', 'monthly_fee' => 4.2,
+                ],
+                [
+                    'uses_spot' => false, 'energy_cents' => 9.4, 'spot_margin_cents' => null,
+                    'window_start' => '2026-08-26', 'window_end' => '2027-07-25', 'monthly_fee' => 4.2,
+                ],
+            ],
+        ], integrity: [
+            'card_label' => 'Hinta nousee 1.8.2026',
+            'change_date' => '2026-08-01',
+            'promo_rate_cents' => 1.11,
+            'normal_rate_cents' => 2.22,
+        ]);
+
+        $card = $this->present($contract, prices: [
+            'General' => ['price' => 1.11],
+            'Monthly' => ['price' => 0.55],
+        ]);
+
+        $this->assertSame(['8,40', '9,40', '4,20'], array_map(fn ($line) => $line->value, $card->receiptLines));
+        $this->assertNotContains('1,11', array_map(fn ($line) => $line->value, $card->receiptLines));
+        $this->assertNotContains('2,22', array_map(fn ($line) => $line->value, $card->receiptLines));
+
+        foreach (['contract-card', 'featured-contract-card'] as $component) {
+            $html = $this->blade(
+                '<x-'.$component.' :contract="$contract" :consumption="5000" :prices="$prices" />',
+                [
+                    'contract' => $contract,
+                    'prices' => ['General' => ['price' => 1.11], 'Monthly' => ['price' => 0.55]],
+                ],
+            );
+
+            $html->assertSee('8,40');
+            $html->assertSee('9,40');
+            $html->assertSee('4,20');
+            $html->assertDontSee('1,11');
+            $html->assertDontSee('2,22');
+        }
+    }
+
+    public function test_canonical_mode_rejects_a_legacy_calculated_payload(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+
+        $contract = $this->contract(cost: ['general_kwh_price' => 8.4, 'monthly_fixed_fee' => 4.2]);
+
+        $card = $this->present($contract, prices: ['General' => ['price' => 1.11]]);
+
+        $this->assertNull($card->totalCost);
+        $this->assertSame([], $card->receiptLines);
+    }
+
+    public function test_listing_price_helper_does_not_lazy_load_components_in_canonical_mode(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+
+        $contract = $this->contract();
+        $this->assertFalse($contract->relationLoaded('priceComponents'));
+
+        $this->assertSame([], (new \App\Livewire\ContractsList)->getLatestPrices($contract));
+        $this->assertFalse($contract->relationLoaded('priceComponents'));
     }
 
     // ---------------------------------------------------------------- estimate disclosure
@@ -730,6 +824,61 @@ class ContractCardPresenterTest extends TestCase
         $this->assertSame(42.0, $card->discountSavings);
     }
 
+    public function test_a_canonical_package_is_not_a_promotion(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+
+        $contract = $this->contract(
+            ['pricing_has_discounts' => true],
+            [
+                'pricing_basis' => 'canonical',
+                'includes_discounts' => false,
+                'discount_savings_total' => 0.0,
+                'general_kwh_price' => 16.6,
+                'monthly_fixed_fee' => 21.0,
+                'energy_package' => [
+                    'monthly_fee_eur' => 21.0,
+                    'included_kwh' => 150.0,
+                    'allowance_cadence' => 'monthly',
+                    'excess_rate_cents_per_kwh' => 16.6,
+                ],
+            ],
+        );
+
+        $card = $this->present($contract, prices: ['General' => ['price' => 0.0]]);
+
+        $this->assertSame(['Kuukausipaketti', 'Sisältää', 'Ylittävä kulutus'], array_map(fn ($line) => $line->label, $card->receiptLines));
+        $this->assertNotContains('Tarjous', array_map(fn ($fact) => $fact->text, $card->facts));
+        $this->assertNull($card->discountSavings);
+    }
+
+    public function test_both_card_templates_describe_the_real_six_month_benefit(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+
+        $contract = $this->contract(cost: [
+            'pricing_basis' => 'canonical',
+            'includes_discounts' => true,
+            'discount_savings_total' => 120.0,
+            'base_total_cost' => 720.0,
+            'contract_term' => [
+                'months' => 6,
+                'total_cost' => 300.0,
+                'base_total_cost' => 360.0,
+                'discount_savings_total' => 60.0,
+            ],
+        ]);
+
+        foreach (['contract-card', 'featured-contract-card'] as $component) {
+            $html = $this->blade('<x-'.$component.' :contract="$contract" :consumption="5000" />', ['contract' => $contract]);
+
+            $html->assertSee('60 € / 6 kk');
+            $html->assertSee('360 € / 6 kk');
+            $html->assertSee('koko 6 kuukauden sopimuskauden aikana');
+            $html->assertDontSee('120 € / 12 kk');
+        }
+    }
+
     // ---------------------------------------------------------------- render smoke tests
 
     public function test_the_card_renders_its_band_estimate_chip_and_footer(): void
@@ -895,7 +1044,7 @@ class ContractCardPresenterTest extends TestCase
             ], $attributes));
         }
 
-        $resolver = new PricingCategoryResolver();
+        $resolver = new PricingCategoryResolver;
         $all = ElectricityContract::all();
 
         foreach (PricingCategory::cases() as $category) {
@@ -946,7 +1095,7 @@ class ContractCardPresenterTest extends TestCase
             ], $attributes));
         }
 
-        $resolver = new PricingCategoryResolver();
+        $resolver = new PricingCategoryResolver;
         $all = ElectricityContract::all();
         $listed = [];
 

@@ -4,6 +4,10 @@ namespace App\Livewire;
 
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
+use App\Services\CanonicalPricing\CanonicalContractPricingService;
+use App\Services\CanonicalPricing\DTO\CanonicalPricingOutcome;
+use App\Services\CanonicalPricing\Enums\ContractComparability;
+use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
 use Carbon\Carbon;
@@ -47,12 +51,14 @@ class ContractTypeComparison extends Component
      * Whether the async contract picker is open for each side.
      */
     public bool $selectorOpenA = false;
+
     public bool $selectorOpenB = false;
 
     /**
      * Search terms for async contract picker results.
      */
     public string $contractSearchA = '';
+
     public string $contractSearchB = '';
 
     /**
@@ -77,6 +83,13 @@ class ContractTypeComparison extends Component
         11 => 'Marras',
         12 => 'Joulu',
     ];
+
+    /**
+     * One canonical evaluation per contract and consumption basis during this render.
+     *
+     * @var array<string, CanonicalPricingOutcome>
+     */
+    protected array $canonicalOutcomeMemo = [];
 
     /**
      * Monthly heating need distribution (Jan-Dec).
@@ -289,7 +302,7 @@ class ContractTypeComparison extends Component
      */
     public function getMonthlySpotPricesLastYear(): array
     {
-        return Cache::remember('contract-type-comparison:monthly-spot-prices:' . now()->format('Y-m'), now()->addDay(), function () {
+        return Cache::remember('contract-type-comparison:monthly-spot-prices:'.now()->format('Y-m'), now()->addDay(), function () {
             $prices = [];
             $now = Carbon::now();
 
@@ -338,8 +351,12 @@ class ContractTypeComparison extends Component
      */
     protected function getContractsForType(string $field, string $value): Collection
     {
+        $relations = $this->canonicalPricingService()->enabled()
+            ? ['company']
+            : ['company', 'priceComponents'];
+
         return $this->baseContractsForTypeQuery($field, $value)
-            ->with(['company', 'priceComponents'])
+            ->with($relations)
             ->get()
             ->filter(fn ($contract) => $contract->isConsumptionInRange($this->consumption));
     }
@@ -371,7 +388,7 @@ class ContractTypeComparison extends Component
             return collect();
         }
 
-        $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $term) . '%';
+        $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $term).'%';
 
         return $this->baseContractsForTypeQuery($field, $value)
             ->with('company')
@@ -454,6 +471,23 @@ class ContractTypeComparison extends Component
             return null;
         }
 
+        if ($this->canonicalPricingService()->enabled()) {
+            $cheapest = null;
+            $lowestCost = PHP_FLOAT_MAX;
+
+            foreach ($contracts as $contract) {
+                $outcome = $this->canonicalOutcome($contract);
+                $cost = $outcome->isListed() ? ($outcome->totalCost ?? PHP_FLOAT_MAX) : PHP_FLOAT_MAX;
+
+                if ($cost < $lowestCost) {
+                    $lowestCost = $cost;
+                    $cheapest = $contract;
+                }
+            }
+
+            return $cheapest;
+        }
+
         $calculator = app(ContractPriceCalculator::class);
         $monthlySpotPrices = $this->getMonthlySpotPricesLastYear();
 
@@ -489,9 +523,8 @@ class ContractTypeComparison extends Component
             basicLiving: $this->consumption,
         );
 
-        $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
-        if ($canonicalPricing->enabled()) {
-            $outcome = $canonicalPricing->evaluate($contract, $usage)['outcome'];
+        if ($this->canonicalPricingService()->enabled()) {
+            $outcome = $this->canonicalOutcome($contract);
 
             // Excluded contracts must not be picked as the cheapest editorial example.
             return $outcome->isListed() ? ($outcome->totalCost ?? PHP_FLOAT_MAX) : PHP_FLOAT_MAX;
@@ -529,17 +562,35 @@ class ContractTypeComparison extends Component
     /**
      * Calculate 12-month projected costs for a contract.
      *
-     * Uses seasonal consumption distribution based on heating patterns
-     * for higher consumption levels.
+     * Canonical mode renders the outcome timeline as-is. Legacy mode uses
+     * the widget's seasonal heating distribution for higher consumption.
      */
     protected function calculateProjectedCosts(?ElectricityContract $contract): array
     {
-        if (!$contract) {
+        if (! $contract) {
+            return $this->unavailableProjectedCosts();
+        }
+
+        if ($this->canonicalPricingService()->enabled()) {
+            $outcome = $this->canonicalOutcome($contract);
+
+            if (! $outcome->isListed() || $outcome->totalCost === null || count($outcome->monthlyCosts) !== 12) {
+                return $this->unavailableProjectedCosts($outcome->comparability->value);
+            }
+
             return [
-                'monthly' => array_fill(0, 12, 0),
-                'total' => 0,
-                'labels' => [],
-                'consumption' => array_fill(0, 12, 0),
+                'available' => true,
+                'monthly' => array_map(static fn (float $cost): float => round($cost, 2), $outcome->monthlyCosts),
+                'total' => round($outcome->totalCost, 2),
+                'labels' => $this->comparisonMonthLabels(),
+                // The canonical outcome does not expose a second usage profile. Do not
+                // reconstruct one beside the calculator only for chart tooltips.
+                'consumption' => [],
+                'pricingBasis' => 'canonical',
+                'comparability' => $outcome->comparability->value,
+                'isEstimate' => $outcome->isEstimate(),
+                'estimateMethod' => $outcome->estimateMethod->value,
+                'totalBasisLabel' => $this->totalBasisLabel($outcome),
             ];
         }
 
@@ -582,11 +633,49 @@ class ContractTypeComparison extends Component
         }
 
         return [
+            'available' => true,
             'monthly' => $monthlyCosts,
             'total' => round(array_sum($monthlyCosts), 2),
             'labels' => $labels,
             'consumption' => $monthlyConsumption,
+            'pricingBasis' => 'legacy_relational',
+            'comparability' => null,
+            'isEstimate' => $isSpotContract,
+            'estimateMethod' => null,
+            'totalBasisLabel' => '12 kuukauden kustannus',
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function unavailableProjectedCosts(?string $comparability = null): array
+    {
+        return [
+            'available' => false,
+            'monthly' => [],
+            'total' => null,
+            'labels' => $this->comparisonMonthLabels(),
+            'consumption' => [],
+            'pricingBasis' => $this->canonicalPricingService()->enabled() ? 'canonical' : 'legacy_relational',
+            'comparability' => $comparability,
+            'isEstimate' => false,
+            'estimateMethod' => null,
+            'totalBasisLabel' => null,
+        ];
+    }
+
+    /** @return list<string> */
+    protected function comparisonMonthLabels(): array
+    {
+        $labels = [];
+        $month = Carbon::now();
+
+        for ($index = 0; $index < 12; $index++) {
+            $labels[] = $this->finnishMonths[$month->copy()->addMonths($index)->month];
+        }
+
+        return $labels;
     }
 
     /**
@@ -594,15 +683,22 @@ class ContractTypeComparison extends Component
      */
     public function getComparisonResultProperty(): array
     {
-        $costA = $this->projectedCostsA['total'];
-        $costB = $this->projectedCostsB['total'];
+        $projectedA = $this->projectedCostsA;
+        $projectedB = $this->projectedCostsB;
+        $costA = $projectedA['total'];
+        $costB = $projectedB['total'];
 
-        if ($costA === 0 && $costB === 0) {
+        if (! $projectedA['available'] || ! $projectedB['available'] || $costA === null || $costB === null) {
             return [
                 'hasResult' => false,
+                'unavailable' => true,
                 'winner' => null,
-                'savings' => 0,
-                'savingsPercent' => 0,
+                'savings' => null,
+                'savingsPercent' => null,
+                'costA' => $costA,
+                'costB' => $costB,
+                'availableA' => $projectedA['available'],
+                'availableB' => $projectedB['available'],
             ];
         }
 
@@ -614,6 +710,7 @@ class ContractTypeComparison extends Component
 
             return [
                 'hasResult' => true,
+                'unavailable' => false,
                 'winner' => 'A',
                 'winnerLabel' => $config['labelA'],
                 'loserLabel' => $config['labelB'],
@@ -628,6 +725,7 @@ class ContractTypeComparison extends Component
 
             return [
                 'hasResult' => true,
+                'unavailable' => false,
                 'winner' => 'B',
                 'winnerLabel' => $config['labelB'],
                 'loserLabel' => $config['labelA'],
@@ -639,6 +737,7 @@ class ContractTypeComparison extends Component
         } else {
             return [
                 'hasResult' => true,
+                'unavailable' => false,
                 'winner' => 'tie',
                 'winnerLabel' => null,
                 'loserLabel' => null,
@@ -655,8 +754,30 @@ class ContractTypeComparison extends Component
      */
     public function getContractPriceInfo(?ElectricityContract $contract): array
     {
-        if (!$contract) {
+        if (! $contract) {
             return [];
+        }
+
+        if ($this->canonicalPricingService()->enabled()) {
+            $outcome = $this->canonicalOutcome($contract);
+
+            if (! $outcome->isListed() || $outcome->totalCost === null) {
+                return [];
+            }
+
+            $prices = [];
+            $this->addCanonicalPriceInfo($prices, 'Monthly', $outcome->monthlyFixedFee, 'EUR/month');
+            $this->addCanonicalPriceInfo($prices, 'General', $outcome->generalKwhPrice ?? $outcome->spotPriceMargin, 'c/kWh');
+            $this->addCanonicalPriceInfo($prices, 'DayTime', $outcome->daytimeKwhPrice, 'c/kWh');
+            $this->addCanonicalPriceInfo($prices, 'NightTime', $outcome->nighttimeKwhPrice, 'c/kWh');
+            $this->addCanonicalPriceInfo($prices, 'SeasonalWinterDay', $outcome->seasonalWinterDayKwhPrice, 'c/kWh');
+            $this->addCanonicalPriceInfo($prices, 'SeasonalOther', $outcome->seasonalOtherKwhPrice, 'c/kWh');
+
+            if ($outcome->energyPackage !== null) {
+                $prices['Package'] = $outcome->energyPackage->toArray();
+            }
+
+            return $prices;
         }
 
         $prices = [];
@@ -673,12 +794,28 @@ class ContractTypeComparison extends Component
     }
 
     /**
+     * @param  array<string, array<string, float|string>>  $prices
+     */
+    protected function addCanonicalPriceInfo(array &$prices, string $type, ?float $price, string $unit): void
+    {
+        if ($price === null) {
+            return;
+        }
+
+        $prices[$type] = ['price' => $price, 'unit' => $unit];
+    }
+
+    /**
      * Get display price for a contract.
      */
     public function getDisplayPrice(?ElectricityContract $contract): array
     {
-        if (!$contract) {
-            return ['type' => 'none', 'value' => null, 'unit' => null];
+        if (! $contract) {
+            return ['type' => 'none', 'available' => false];
+        }
+
+        if ($this->canonicalPricingService()->enabled()) {
+            return $this->canonicalDisplayPrice($this->canonicalOutcome($contract));
         }
 
         $priceInfo = $this->getContractPriceInfo($contract);
@@ -692,6 +829,7 @@ class ContractTypeComparison extends Component
 
             return [
                 'type' => 'spot',
+                'available' => true,
                 'margin' => $margin,
                 'monthlyFee' => $monthlyFee,
             ];
@@ -704,11 +842,111 @@ class ContractTypeComparison extends Component
 
         return [
             'type' => 'fixed',
+            'available' => true,
             'generalRate' => $generalRate,
             'dayRate' => $dayRate,
             'nightRate' => $nightRate,
             'monthlyFee' => $monthlyFee,
         ];
+    }
+
+    /** @return array<string, mixed> */
+    protected function canonicalDisplayPrice(CanonicalPricingOutcome $outcome): array
+    {
+        if (! $outcome->isListed() || $outcome->totalCost === null) {
+            return [
+                'type' => 'unavailable',
+                'available' => false,
+                'comparability' => $outcome->comparability->value,
+            ];
+        }
+
+        $common = [
+            'available' => true,
+            'monthlyFee' => $outcome->monthlyFixedFee,
+            'annualCost' => $outcome->totalCost,
+            'avgMonthlyCost' => $outcome->totalCost / 12,
+            'comparability' => $outcome->comparability->value,
+            'isEstimate' => $outcome->isEstimate(),
+            'estimateMethod' => $outcome->estimateMethod->value,
+            'estimateLabel' => $this->estimateLabel($outcome),
+            'totalBasisLabel' => $this->totalBasisLabel($outcome),
+            'offerSaving' => $outcome->termMonths !== null
+                ? $outcome->contractTermDiscountSavingsTotal
+                : $outcome->measuredDiscountSavingsTotal,
+            'offerBasisLabel' => $outcome->termMonths !== null
+                ? $outcome->termMonths.' kk sopimusajalta'
+                : '12 kuukauden vertailujaksolta',
+        ];
+
+        if ($outcome->energyPackage !== null) {
+            return array_merge($common, [
+                'type' => 'package',
+                'packageMonthlyFee' => $outcome->energyPackage->monthlyFeeEur,
+                'includedKwh' => $outcome->energyPackage->includedKwh,
+                'excessRate' => $outcome->energyPackage->excessRateCentsPerKwh,
+            ]);
+        }
+
+        $hasFixedRate = $outcome->generalKwhPrice !== null
+            || $outcome->daytimeKwhPrice !== null
+            || $outcome->nighttimeKwhPrice !== null
+            || $outcome->seasonalWinterDayKwhPrice !== null
+            || $outcome->seasonalOtherKwhPrice !== null;
+
+        if ($outcome->spotPriceMargin !== null && ! $hasFixedRate) {
+            return array_merge($common, [
+                'type' => 'spot',
+                'margin' => $outcome->spotPriceMargin,
+            ]);
+        }
+
+        return array_merge($common, [
+            'type' => 'fixed',
+            'generalRate' => $outcome->generalKwhPrice,
+            'dayRate' => $outcome->daytimeKwhPrice,
+            'nightRate' => $outcome->nighttimeKwhPrice,
+            'seasonalWinterRate' => $outcome->seasonalWinterDayKwhPrice,
+            'seasonalOtherRate' => $outcome->seasonalOtherKwhPrice,
+        ]);
+    }
+
+    protected function estimateLabel(CanonicalPricingOutcome $outcome): ?string
+    {
+        return match ($outcome->comparability) {
+            ContractComparability::TermPriceOnly => 'Arvio – '.$outcome->termMonths.' kk sopimushinta on muunnettu vuositasolle',
+            ContractComparability::BaseOnlyHybrid => 'Arvio – ei sisällä kulutusvaikutusta',
+            ContractComparability::ComparableEstimate => match ($outcome->estimateMethod) {
+                EstimateMethod::Rolling365Spot => 'Arvio – pörssihinta perustuu 365 päivän keskiarvoon',
+                EstimateMethod::RecurringForwardCurveShift,
+                EstimateMethod::RecurringSpotSeasonalIndex,
+                EstimateMethod::HoldCurrentRecurringPrice => 'Arvio – tulevat hinnanmuutokset on arvioitu',
+                default => 'Arvio',
+            },
+            default => null,
+        };
+    }
+
+    protected function totalBasisLabel(CanonicalPricingOutcome $outcome): string
+    {
+        return $outcome->comparability === ContractComparability::TermPriceOnly
+            ? 'Vuositasolle muunnettu '.$outcome->termMonths.' kk vertailuhinta'
+            : '12 kuukauden vertailuhinta';
+    }
+
+    protected function canonicalPricingService(): CanonicalContractPricingService
+    {
+        return app(CanonicalContractPricingService::class);
+    }
+
+    protected function canonicalOutcome(ElectricityContract $contract): CanonicalPricingOutcome
+    {
+        $key = $this->consumption.':'.$contract->id;
+
+        return $this->canonicalOutcomeMemo[$key] ??= $this->canonicalPricingService()->evaluate(
+            $contract,
+            new EnergyUsage(total: $this->consumption, basicLiving: $this->consumption),
+        )['outcome'];
     }
 
     public function placeholder(): string
@@ -737,7 +975,7 @@ class ContractTypeComparison extends Component
             'projectedCostsA' => $this->projectedCostsA,
             'projectedCostsB' => $this->projectedCostsB,
             'comparisonResult' => $this->comparisonResult,
-            'monthlySpotPrices' => $this->getMonthlySpotPricesLastYear(),
+            'canonicalPricingEnabled' => $this->canonicalPricingService()->enabled(),
         ]);
     }
 }

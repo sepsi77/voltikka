@@ -20,8 +20,7 @@ class VideoController extends Controller
     public function __construct(
         private readonly SpotPriceVideoService $videoService,
         private readonly WeeklyOffersVideoService $weeklyOffersService,
-    ) {
-    }
+    ) {}
 
     /**
      * Get daily spot price data for video generation.
@@ -75,11 +74,13 @@ class VideoController extends Controller
     /**
      * Get weekly offers data for video generation.
      *
-     * Returns contracts with active discounts including:
-     * - Contract details with company info
-     * - Discount information
-     * - Calculated costs at different consumption levels
-     * - Savings compared to non-discounted prices
+     * In canonical mode, returns safe contracts with a positive measured offer including:
+     * - Contract and company identity
+     * - Canonical current rates and pricing basis
+     * - Typed actual/normal costs at each consumption level
+     * - Measured customer benefit on its real period basis
+     *
+     * Feature-off mode keeps the legacy relational discount payload.
      */
     public function weeklyOffers(): JsonResponse
     {

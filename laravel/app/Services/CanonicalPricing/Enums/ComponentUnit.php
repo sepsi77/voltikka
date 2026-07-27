@@ -3,7 +3,7 @@
 namespace App\Services\CanonicalPricing\Enums;
 
 /**
- * Canonical pricing component units (schema-v3 `$defs.component.unit`).
+ * Canonical pricing component units (schema-v4 `$defs.component.unit`).
  */
 enum ComponentUnit: string
 {

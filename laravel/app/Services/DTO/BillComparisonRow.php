@@ -26,6 +26,8 @@ class BillComparisonRow
         public readonly bool $isUser,
         public readonly ?string $detailUrl = null,
         public readonly bool $available = true,
-    ) {
-    }
+        public readonly ?string $pricingBasis = null,
+        public readonly ?string $comparability = null,
+        public readonly array $assumptions = [],
+    ) {}
 }

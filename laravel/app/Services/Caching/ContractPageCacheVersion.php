@@ -24,8 +24,13 @@ class ContractPageCacheVersion
      * `pricing_integrity.promo_rate_cents` / `normal_rate_cents` fields.
      * v3: `calculated_cost.phase_breakdown` carries resolved window dates and per-phase
      * rates, and the contract detail page renders the presenter's view model.
+     * v4: canonical offer outcomes carry measured promotion-free monthly costs and savings.
+     * v5: short annualized terms carry their actual unannualized contract-term costs and saving.
+     * v6: canonical package outcomes carry typed monthly allowance and excess-rate data.
+     * v7: card/detail current values and offer copy are canonical-only in canonical mode.
+     * v8: company and SEO offer surfaces use canonical measured membership and benefit copy.
      */
-    private const PAYLOAD_SCHEMA_VERSION = 3;
+    private const PAYLOAD_SCHEMA_VERSION = 8;
 
     public function __construct(
         private readonly ContractListCacheService $contractListCache,

@@ -32,8 +32,8 @@ class CardFooterItems
     private const CAP_RELEVANCE_THRESHOLD_KWH = 30000;
 
     /**
-     * @param array<string, mixed>|null $integrity The `pricing_integrity` payload.
-     * @param array<string, mixed> $cost The `calculated_cost` payload.
+     * @param  array<string, mixed>|null  $integrity  The `pricing_integrity` payload.
+     * @param  array<string, mixed>  $cost  The `calculated_cost` payload.
      * @return array{warnings: list<CardFooterItem>, facts: list<CardFooterItem>}
      */
     public function build(
@@ -42,18 +42,19 @@ class CardFooterItems
         ?array $integrity,
         PricingCategoryFacts $facts,
         bool $exceedsConsumptionLimit,
+        bool $useCanonical,
     ): array {
         return [
             'warnings' => array_slice($this->warnings($contract, $cost, $integrity, $facts, $exceedsConsumptionLimit), 0, self::MAX_WARNINGS),
-            'facts' => $this->facts($contract),
+            'facts' => $this->facts($contract, $cost, $useCanonical),
         ];
     }
 
     /**
      * Priority order. The first two survive.
      *
-     * @param array<string, mixed> $cost
-     * @param array<string, mixed>|null $integrity
+     * @param  array<string, mixed>  $cost
+     * @param  array<string, mixed>|null  $integrity
      * @return list<CardFooterItem>
      */
     private function warnings(
@@ -115,13 +116,16 @@ class CardFooterItems
     }
 
     /**
+     * @param  array<string, mixed>  $cost
      * @return list<CardFooterItem>
      */
-    private function facts(ElectricityContract $contract): array
+    private function facts(ElectricityContract $contract, array $cost, bool $useCanonical): array
     {
         $facts = [];
 
-        $discount = $this->discountText($contract);
+        $discount = $useCanonical
+            ? (($cost['includes_discounts'] ?? false) === true ? 'Tarjous' : null)
+            : $this->legacyDiscountText($contract);
         if ($discount !== null) {
             $facts[] = CardFooterItem::fact($discount, 'tag');
         }
@@ -134,7 +138,7 @@ class CardFooterItems
         return $facts;
     }
 
-    private function discountText(ElectricityContract $contract): ?string
+    private function legacyDiscountText(ElectricityContract $contract): ?string
     {
         $hasDiscount = $contract->pricing_has_discounts
             || ($contract->relationLoaded('priceComponents') && $contract->hasActiveDiscounts());

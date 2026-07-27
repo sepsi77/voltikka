@@ -301,6 +301,7 @@ class ConsumptionCalculatorTest extends TestCase
         foreach ([
             ['metric_key' => 'energy_price', 'consumption_kwh' => null, 'p20_value' => 7.0, 'avg_value' => 8.0, 'median_value' => 8.5, 'p80_value' => 10.0],
             ['metric_key' => 'monthly_fee', 'consumption_kwh' => null, 'p20_value' => 2.0, 'avg_value' => 3.0, 'median_value' => 4.0, 'p80_value' => 5.0],
+            ['metric_key' => 'annual_cost', 'consumption_kwh' => 5000, 'p20_value' => 800.0, 'avg_value' => 910.0, 'median_value' => 910.0, 'p80_value' => 1000.0],
         ] as $row) {
             ContractPriceDailyStatistic::create(array_merge([
                 'stat_date' => '2026-05-30',
@@ -316,8 +317,10 @@ class ConsumptionCalculatorTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Sähkön hinta laskuri');
         $response->assertSee('Määräaikainen 12 kk');
-        $response->assertSee('320 €/v');
-        $response->assertSee('27 €/kk');
+        // Unit-rate arithmetic would give 320 EUR. The public value must use the
+        // stored annual-cost metric instead.
+        $response->assertSee('910 €/v');
+        $response->assertSee('76 €/kk');
     }
 
     public function test_kwh_amount_faq_quotes_current_statistics_and_excludes_transfer(): void
@@ -325,6 +328,7 @@ class ConsumptionCalculatorTest extends TestCase
         foreach ([
             ['metric_key' => 'energy_price', 'consumption_kwh' => null, 'p20_value' => 7.0, 'avg_value' => 8.0, 'median_value' => 8.5, 'p80_value' => 10.0],
             ['metric_key' => 'monthly_fee', 'consumption_kwh' => null, 'p20_value' => 2.0, 'avg_value' => 3.0, 'median_value' => 4.0, 'p80_value' => 5.0],
+            ['metric_key' => 'annual_cost', 'consumption_kwh' => 18000, 'p20_value' => 1750.0, 'avg_value' => 1750.0, 'median_value' => 1750.0, 'p80_value' => 1750.0],
         ] as $row) {
             ContractPriceDailyStatistic::create(array_merge([
                 'stat_date' => '2026-05-30',
@@ -338,12 +342,59 @@ class ConsumptionCalculatorTest extends TestCase
         $response = $this->get('/sahkosopimus/laskuri');
 
         $response->assertStatus(200);
-        // 20 000 kWh * 8,5 snt / 100 + 4 EUR * 12 = 1748 EUR, rounded to the nearest ten.
+        // The nearest stored canonical annual-cost metric is 1,750 EUR. No unit-rate
+        // arithmetic is used when 20,000 kWh is above the stored range.
         // Only one segment is seeded, so both ends of the range collapse to one figure.
         $response->assertSee('20 000 kWh sähköä maksaa tällä hetkellä noin 1 750 € vuodessa.', false);
         // The competing PAA answer for this query is transfer-inclusive, so our narrower
         // basis must stay stated or the figure reads as simply wrong.
         $response->assertSee('eikä siihen kuulu sähkön siirtoa', false);
+    }
+
+    public function test_current_estimates_use_only_the_basis_expected_by_the_canonical_flag(): void
+    {
+        $this->annualStat('2026-07-27', 'fixed_term_12', 910.0, 'canonical_calculation');
+        $this->annualStat('2026-07-28', 'fixed_term_12', 111.0, 'observed_seller_data');
+        $this->annualStat('2026-07-27', 'spot', 222.0, 'observed_seller_data');
+
+        config()->set('canonical_pricing.enabled', true);
+        $canonical = Livewire::test('consumption-calculator')->get('contractTypePriceEstimates');
+
+        $this->assertSame('2026-07-27', $canonical['date']);
+        $this->assertSame(910.0, collect($canonical['rows'])->firstWhere('key', 'fixed_term_12')['costs']['median']['annual']);
+        $this->assertNull(collect($canonical['rows'])->firstWhere('key', 'spot'));
+
+        config()->set('canonical_pricing.enabled', false);
+        $observed = Livewire::test('consumption-calculator')->get('contractTypePriceEstimates');
+
+        $this->assertSame('2026-07-28', $observed['date']);
+        $this->assertSame(111.0, collect($observed['rows'])->firstWhere('key', 'fixed_term_12')['costs']['median']['annual']);
+        $this->assertSame(3, ContractPriceDailyStatistic::count(), 'Selecting the current basis must not delete historical evidence.');
+    }
+
+    public function test_unit_statistics_without_an_annual_metric_are_unavailable(): void
+    {
+        foreach (['energy_price', 'monthly_fee'] as $metric) {
+            ContractPriceDailyStatistic::create([
+                'stat_date' => '2026-05-30',
+                'segment_key' => 'fixed_term_12',
+                'metric_key' => $metric,
+                'consumption_kwh' => null,
+                'min_value' => 1.0,
+                'p20_value' => 7.0,
+                'avg_value' => 8.0,
+                'median_value' => 8.5,
+                'p80_value' => 10.0,
+                'max_value' => 20.0,
+                'contract_count' => 12,
+            ]);
+        }
+
+        $response = $this->get('/sahkosopimus/laskuri');
+
+        $response->assertStatus(200);
+        $response->assertDontSee('Määräaikainen 12 kk');
+        $response->assertDontSee('320 €/v');
     }
 
     public function test_kwh_amount_faq_falls_back_when_no_statistics_exist(): void
@@ -354,6 +405,24 @@ class ConsumptionCalculatorTest extends TestCase
         $response->assertSee('Paljonko 20 000 kWh sähköä maksaa vuodessa?', false);
         $response->assertSee('20 000 kWh vuosikulutuksen hinta lasketaan kaavalla', false);
         $response->assertDontSee('maksaa tällä hetkellä noin', false);
+    }
+
+    private function annualStat(string $date, string $segment, float $value, string $pricingBasis): void
+    {
+        ContractPriceDailyStatistic::create([
+            'stat_date' => $date,
+            'segment_key' => $segment,
+            'metric_key' => 'annual_cost',
+            'pricing_basis' => $pricingBasis,
+            'consumption_kwh' => 5000,
+            'min_value' => $value,
+            'p20_value' => $value,
+            'avg_value' => $value,
+            'median_value' => $value,
+            'p80_value' => $value,
+            'max_value' => $value,
+            'contract_count' => 12,
+        ]);
     }
 
     public function test_page_renders_seo_content_sections(): void

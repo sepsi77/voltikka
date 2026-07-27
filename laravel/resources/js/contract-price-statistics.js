@@ -20,6 +20,18 @@ const NON_LEAD_STYLES = [
     { stroke: SLATE_500, dash: [6, 3, 2, 3],  width: 1.8 }, // 4th: dash-dot
 ];
 
+// The lead series colour is resolved in three places (the line, the tooltip
+// swatch and the end label) and they did not previously agree: the line was
+// coral only on a spot palette, while the end label was always coral. An
+// optional `leadStroke` in the payload pins all three to one colour. Without
+// it every existing chart keeps its previous behaviour exactly.
+//
+// The company page sets it, because its two series are "this seller" and
+// "market median"; the default would draw both in near-identical navy.
+function resolveLeadStroke(payload, isSpotPalette, fallback) {
+    return payload.leadStroke || (isSpotPalette ? CORAL_500 : fallback);
+}
+
 const FI_MONTHS_SHORT = ['tam', 'hel', 'maa', 'huh', 'tou', 'kes', 'hei', 'elo', 'syy', 'lok', 'mar', 'jou'];
 
 function formatFinnishDate(ts) {
@@ -65,7 +77,7 @@ function buildOptions(payload, root) {
         if (idx === 0) {
             uplotSeries.push({
                 label: s.label,
-                stroke: isSpotPalette ? CORAL_500 : SLATE_800,
+                stroke: resolveLeadStroke(payload, isSpotPalette, SLATE_800),
                 width: 2.2,
                 points: { show: false },
                 paths: splinePath,
@@ -220,7 +232,7 @@ function attachEndLabels(u, payload, enabled = true) {
         el.style.lineHeight = '1';
         el.style.whiteSpace = 'nowrap';
         el.style.color = i === 0
-            ? CORAL_500
+            ? (payload.leadStroke || CORAL_500)
             : NON_LEAD_STYLES[(i - 1) % NON_LEAD_STYLES.length].stroke;
         el.style.fontFamily = '"Plus Jakarta Sans", system-ui, sans-serif';
         layer.appendChild(el);
@@ -253,10 +265,10 @@ function ensureTooltip(root) {
     return tip;
 }
 
-function tooltipSeriesStyle(sIdx, isSpotPalette, hasBand) {
+function tooltipSeriesStyle(sIdx, isSpotPalette, hasBand, payload) {
     if (sIdx === 0) {
         return {
-            stroke: isSpotPalette ? CORAL_500 : (hasBand ? SLATE_800 : CORAL_500),
+            stroke: resolveLeadStroke(payload, isSpotPalette, hasBand ? SLATE_800 : CORAL_500),
             width: 2.4,
             dash: [],
         };
@@ -299,7 +311,7 @@ function updateTooltip(u, payload) {
 
     const rows = payload.series.map((s, sIdx) => {
         const y = u.data[dataOffset + sIdx][idx];
-        const style = tooltipSeriesStyle(sIdx, isSpotPalette, Boolean(payload.band));
+        const style = tooltipSeriesStyle(sIdx, isSpotPalette, Boolean(payload.band), payload);
         const display = y === null || y === undefined ? '–' : `${formatNumber(y, payload.decimals)} ${payload.unit === 'eur' ? '€' : 'c/kWh'}`;
         const dash = style.dash && style.dash.length ? `stroke-dasharray="${style.dash.join(' ')}"` : '';
         const sortY = y === null || y === undefined ? Number.NEGATIVE_INFINITY : Number(y);

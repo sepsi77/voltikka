@@ -149,7 +149,7 @@ export type DailySpotPriceProps = {
 
 // Types for WeeklyOffers video composition
 
-export type ContractOffer = {
+type ContractOfferIdentity = {
   id: string;
   name: string;
   description: string | null;
@@ -158,6 +158,10 @@ export type ContractOffer = {
     logo_url: string | null;
   };
   pricing_model: 'Spot' | 'FixedPrice' | 'Hybrid';
+};
+
+export type LegacyContractOffer = ContractOfferIdentity & {
+  pricing_basis?: 'legacy_relational';
   discount: {
     value: number;
     is_percentage: boolean;
@@ -169,9 +173,9 @@ export type ContractOffer = {
     energy_price: number | null;
   };
   costs: {
-    apartment: number; // 2000 kWh
-    townhouse: number; // 5000 kWh
-    house: number; // 10000 kWh
+    apartment: number;
+    townhouse: number;
+    house: number;
   };
   savings: {
     apartment: number;
@@ -180,8 +184,48 @@ export type ContractOffer = {
   };
 };
 
+type CanonicalConsumptionOffer = {
+  annual_consumption_kwh: number;
+  pricing_basis: 'canonical';
+  availability: 'available' | 'unavailable';
+  comparability: string;
+  total_cost: number | null;
+  normal_total_cost: number | null;
+  avg_monthly_cost: number | null;
+  normal_avg_monthly_cost: number | null;
+  comparison_measured_saving: number | null;
+  total_basis: 'first_12_months' | 'annualized_contract_term';
+  total_basis_label: string;
+  is_estimate: boolean;
+  estimate_method: string | null;
+  customer_benefit_eur: number | null;
+  customer_benefit_basis_months: number | null;
+  customer_benefit_basis_label: string | null;
+};
+
+export type CanonicalContractOffer = ContractOfferIdentity & {
+  pricing_basis: 'canonical';
+  comparability: string;
+  offer: {
+    label: string;
+    benefit_eur: number;
+    benefit_text: string;
+    basis_months: number;
+    basis_label: string;
+    description: string;
+  };
+  consumptions: {
+    apartment: CanonicalConsumptionOffer;
+    townhouse: CanonicalConsumptionOffer;
+    house: CanonicalConsumptionOffer;
+  };
+};
+
+export type ContractOffer = LegacyContractOffer | CanonicalContractOffer;
+
 export type WeeklyOffersVideoData = {
   generated_at: string;
+  pricing_basis: 'canonical' | 'legacy_relational';
   week: {
     start: string;
     end: string;

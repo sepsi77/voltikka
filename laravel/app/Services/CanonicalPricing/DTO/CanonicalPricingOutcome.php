@@ -16,13 +16,14 @@ use App\Services\CanonicalPricing\Enums\EstimateMethod;
 readonly class CanonicalPricingOutcome
 {
     /**
-     * @param array<int, float> $monthlyCosts
-     * @param array<int, float> $baseMonthlyCosts
-     * @param list<array<string, mixed>> $phaseBreakdown
-     * @param list<string> $assumptions
-     * @param array<string, mixed>|null $resetEstimate Typed evidence for a market-reset tail
-     *        estimate (basis, reference kind, curve vintage, current-period price, estimated
-     *        12-month equivalent). Null when no shift was applied.
+     * @param  array<int, float>  $monthlyCosts
+     * @param  array<int, float>  $baseMonthlyCosts
+     * @param  array<int, float>  $monthlyDiscountSavings
+     * @param  list<array<string, mixed>>  $phaseBreakdown
+     * @param  list<string>  $assumptions
+     * @param  array<string, mixed>|null  $resetEstimate  Typed evidence for a market-reset tail
+     *                                                    estimate (basis, reference kind, curve vintage, current-period price, estimated
+     *                                                    12-month equivalent). Null when no shift was applied.
      */
     public function __construct(
         public ContractComparability $comparability,
@@ -31,6 +32,8 @@ readonly class CanonicalPricingOutcome
         public array $monthlyCosts,
         public ?float $baseTotalCost,
         public array $baseMonthlyCosts,
+        public float $measuredDiscountSavingsTotal,
+        public array $monthlyDiscountSavings,
         public ?float $structuredOnlyTotal,
         public bool $isSpotContract,
         public ?float $monthlyFixedFee = null,
@@ -43,12 +46,15 @@ readonly class CanonicalPricingOutcome
         public ?float $spotPriceDayAvg = null,
         public ?float $spotPriceNightAvg = null,
         public ?int $termMonths = null,
+        public ?IncludedEnergyPackageData $energyPackage = null,
+        public ?float $contractTermTotalCost = null,
+        public ?float $contractTermBaseTotalCost = null,
+        public ?float $contractTermDiscountSavingsTotal = null,
         public array $phaseBreakdown = [],
         public ?ConsumptionEffectData $consumptionEffect = null,
         public array $assumptions = [],
         public ?array $resetEstimate = null,
-    ) {
-    }
+    ) {}
 
     public function isListed(): bool
     {
@@ -65,11 +71,7 @@ readonly class CanonicalPricingOutcome
      */
     public function discountSavingsTotal(): float
     {
-        if ($this->totalCost === null || $this->baseTotalCost === null) {
-            return 0.0;
-        }
-
-        return max(0.0, $this->baseTotalCost - $this->totalCost);
+        return $this->measuredDiscountSavingsTotal;
     }
 
     /**
@@ -100,7 +102,7 @@ readonly class CanonicalPricingOutcome
             'base_avg_monthly_cost' => $this->baseTotalCost !== null ? $this->baseTotalCost / 12 : null,
             'base_monthly_costs' => $this->baseMonthlyCosts,
             'discount_savings_total' => $savings,
-            'monthly_discount_savings' => [],
+            'monthly_discount_savings' => $this->monthlyDiscountSavings,
             'includes_discounts' => $savings > 0,
 
             // Canonical additions.
@@ -109,6 +111,18 @@ readonly class CanonicalPricingOutcome
             'is_estimate' => $this->isEstimate(),
             'estimate_method' => $this->estimateMethod->value,
             'term_months' => $this->termMonths,
+            'energy_package' => $this->energyPackage?->toArray(),
+            'contract_term' => $this->termMonths !== null
+                && $this->contractTermTotalCost !== null
+                && $this->contractTermBaseTotalCost !== null
+                && $this->contractTermDiscountSavingsTotal !== null
+                    ? [
+                        'months' => $this->termMonths,
+                        'total_cost' => $this->contractTermTotalCost,
+                        'base_total_cost' => $this->contractTermBaseTotalCost,
+                        'discount_savings_total' => $this->contractTermDiscountSavingsTotal,
+                    ]
+                    : null,
             'phase_breakdown' => $this->phaseBreakdown,
             'structured_only_total' => $this->structuredOnlyTotal,
             'consumption_effect' => $this->consumptionEffect?->toArray(),

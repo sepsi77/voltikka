@@ -1,6 +1,6 @@
 # Price forecasting services
 
-Production backend for fixed-term contract price forecasts. No public frontend is implemented yet.
+Production fixed-term contract price forecasts and the public `/sahkosopimus/sahkon-hintaennuste` page.
 
 Primary files:
 - `FixedTermHedgeCostService.php` — builds FI EEX futures-implied hedge costs for 6/12/24 month delivery windows.
@@ -9,17 +9,24 @@ Primary files:
 - `../../Models/FixedContractPriceForecast.php` — persisted forecasts and later evaluation metrics.
 - `../../Console/Commands/RunFixedContractPriceForecasts.php` — Artisan command `forecasting:run-fixed-contracts`.
 - `../../Console/Commands/EvaluateFixedContractPriceForecasts.php` — Artisan command `forecasting:evaluate-fixed-contracts`.
+- `../../Livewire/FixedContractPriceForecast.php` and `../../../resources/views/livewire/fixed-contract-price-forecast.blade.php` — public forecast page and provenance disclosure.
 - `../../../config/price_forecasting.php` — model constants and defaults.
 
-Model v1 conventions:
+Model v2 conventions:
 - Forecast scope is fixed-term contracts only, durations 6/12/24 months, market-level p20/median/p80 energy-price indices.
 - Retail targets come from `contract_price_daily_statistics` where `metric_key = energy_price`, `consumption_kwh is null`, and segment keys are `fixed_term_6`, `fixed_term_12`, `fixed_term_24`.
+- In canonical mode, the current retail row must have `pricing_basis = canonical_calculation`. There is no fallback to `observed_seller_data`; a missing canonical current row skips that forecast.
+- In feature-off mode, the current row must have `pricing_basis = observed_seller_data`.
+- Historical EWMA evidence uses observed seller rows strictly before the forecast date. It deduplicates each date+basis and stores basis counts and source date bounds in `source_metadata`.
+- `source_metadata` records the current retail basis/date/segment/metric separately from historical evidence and futures coverage. Model v2 is the provenance boundary; v1 rows remain immutable prior records.
 - Futures use FI EEX Base instruments and strictly align with `latest trade_date < forecast_date` to avoid same-day settlement leakage.
 - Delivery windows start at the next full calendar month after the forecast date.
 - Futures fallback order is month -> quarter -> year. Missing delivery months prevent a forecast for that row instead of silently using stale data.
 - Futures settlement prices are converted from EUR/MWh to consumer c/kWh including VAT using `settlement_price / 10 * config('price_forecasting.fixed_term.vat_multiplier')`.
 - The model estimates normal retail premium with EWMA, then forecasts partial 30-day gap closure: `expected_change = lambda * (hedge_cost + normal_premium - current_retail_price)`.
 - Direction labels deliberately use a threshold; small moves are `slightly_rising` / `slightly_falling` and map to neutral consumer signal.
+- Matured actuals remain historical `observed_seller_data`; evaluation writes their basis/date/segment/metric into the existing `source_metadata` without changing evaluation meaning.
+- Public forecast queries require the configured current model version and the current-mode basis metadata. Canonical mode therefore hides old, missing-provenance, and observed-current rows and shows the existing unavailable state when no eligible row exists. Feature-off accepts current-model observed-basis rows.
 
 Operational commands:
 ```bash

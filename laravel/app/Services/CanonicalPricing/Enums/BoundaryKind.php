@@ -3,7 +3,7 @@
 namespace App\Services\CanonicalPricing\Enums;
 
 /**
- * Canonical pricing phase boundary kinds (schema-v3 `$defs.boundary.kind`).
+ * Canonical pricing phase boundary kinds (schema-v4 `$defs.boundary.kind`).
  */
 enum BoundaryKind: string
 {

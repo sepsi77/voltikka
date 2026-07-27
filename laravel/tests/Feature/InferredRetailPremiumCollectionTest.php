@@ -358,6 +358,8 @@ class InferredRetailPremiumCollectionTest extends TestCase
             'first_observed_at' => $firstObserved.' 06:00:00',
             'last_observed_at' => $firstObserved.' 06:00:00',
         ]);
+        // Deliberately preserve pre-rollout interpretation provenance. Inferred
+        // observations must remain compatible with published schema-v3 history.
         $interpretation = ContractInterpretation::create([
             'contract_id' => $id,
             'source_snapshot_id' => $snapshot->id,

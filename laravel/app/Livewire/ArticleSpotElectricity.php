@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\SpotPriceAverage;
+use App\Services\ContractStatistics\ContractPriceBasis;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
@@ -52,7 +53,7 @@ class ArticleSpotElectricity extends Component
             'dateModified' => now()->format('Y-m-d'),
             'mainEntityOfPage' => [
                 '@type' => 'WebPage',
-                '@id' => config('app.url') . '/sahkosopimus/kannattaako-porssisahko',
+                '@id' => config('app.url').'/sahkosopimus/kannattaako-porssisahko',
             ],
         ];
     }
@@ -62,44 +63,68 @@ class ArticleSpotElectricity extends Component
      */
     public function getMarketSnapshotProperty(): array
     {
-        return Cache::remember('article:spot-electricity:market-snapshot', now()->addHours(6), function () {
-            $latestDate = ContractPriceDailyStatistic::query()
-                ->where('metric_key', 'annual_cost')
-                ->where('consumption_kwh', 5000)
-                ->max('stat_date');
+        $pricingBasis = ContractPriceBasis::expectedCurrent()->value;
+        $canonicalEnabled = (bool) config('canonical_pricing.enabled', false);
+        $source = ContractPriceDailyStatistic::query()
+            ->where('metric_key', 'annual_cost')
+            ->where('pricing_basis', $pricingBasis)
+            ->where('consumption_kwh', 5000);
+        $fingerprint = md5(json_encode([
+            'canonical_enabled' => $canonicalEnabled,
+            'pricing_basis' => $pricingBasis,
+            'latest_date' => $source->max('stat_date'),
+            'latest_updated' => $source->max('updated_at'),
+        ]));
 
-            if (!$latestDate) {
-                return [];
-            }
+        return Cache::remember(
+            'article:spot-electricity:market-snapshot:v2:'.$fingerprint,
+            now()->addHours(6),
+            function () use ($pricingBasis) {
+                $latestDate = ContractPriceDailyStatistic::query()
+                    ->where('metric_key', 'annual_cost')
+                    ->where('pricing_basis', $pricingBasis)
+                    ->where('consumption_kwh', 5000)
+                    ->max('stat_date');
 
-            $stats = ContractPriceDailyStatistic::query()
-                ->where('metric_key', 'annual_cost')
-                ->where('consumption_kwh', 5000)
-                ->whereIn('segment_key', ['spot', 'fixed_term_12', 'open_ended'])
-                ->whereDate('stat_date', $latestDate)
-                ->get()
-                ->keyBy('segment_key');
+                if (! $latestDate) {
+                    return [];
+                }
 
-            $spot = $stats->get('spot');
-            $fixed = $stats->get('fixed_term_12');
-            $open = $stats->get('open_ended');
+                $latestDate = Carbon::parse($latestDate)
+                    ->setTimezone((string) config('app.timezone'))
+                    ->toDateString();
 
-            $snapshot = [
-                'date' => Carbon::parse($latestDate)->translatedFormat('j.n.Y'),
-                'spot' => $spot ? round($spot->median_value, 0) : null,
-                'fixed' => $fixed ? round($fixed->median_value, 0) : null,
-                'openEnded' => $open ? round($open->median_value, 0) : null,
-            ];
+                $stats = ContractPriceDailyStatistic::query()
+                    ->where('metric_key', 'annual_cost')
+                    ->where('pricing_basis', $pricingBasis)
+                    ->where('consumption_kwh', 5000)
+                    ->whereIn('segment_key', ['spot', 'fixed_term_12', 'open_ended'])
+                    ->whereDate('stat_date', $latestDate)
+                    ->get()
+                    ->keyBy('segment_key');
 
-            if ($snapshot['spot'] && $snapshot['fixed']) {
-                $snapshot['diff'] = $snapshot['fixed'] - $snapshot['spot'];
-                $snapshot['diffPercent'] = $snapshot['fixed'] > 0
-                    ? round(($snapshot['diff'] / $snapshot['fixed']) * 100, 1)
-                    : 0;
-            }
+                $spot = $stats->get('spot');
+                $fixed = $stats->get('fixed_term_12');
+                $open = $stats->get('open_ended');
 
-            return $snapshot;
-        });
+                $snapshot = [
+                    'date' => Carbon::parse($latestDate)->translatedFormat('j.n.Y'),
+                    'pricing_basis' => $pricingBasis,
+                    'spot' => $spot ? round($spot->median_value, 0) : null,
+                    'fixed' => $fixed ? round($fixed->median_value, 0) : null,
+                    'openEnded' => $open ? round($open->median_value, 0) : null,
+                ];
+
+                if ($snapshot['spot'] && $snapshot['fixed']) {
+                    $snapshot['diff'] = $snapshot['fixed'] - $snapshot['spot'];
+                    $snapshot['diffPercent'] = $snapshot['fixed'] > 0
+                        ? round(($snapshot['diff'] / $snapshot['fixed']) * 100, 1)
+                        : 0;
+                }
+
+                return $snapshot;
+            },
+        );
     }
 
     /**
@@ -107,7 +132,7 @@ class ArticleSpotElectricity extends Component
      */
     public function getSeasonalityDataProperty(): array
     {
-        return Cache::remember('article:spot-electricity:seasonality:' . now()->format('Y-m-d'), now()->addHours(6), function () {
+        return Cache::remember('article:spot-electricity:seasonality:'.now()->format('Y-m-d'), now()->addHours(6), function () {
             $monthly = SpotPriceAverage::query()
                 ->where('region', 'FI')
                 ->where('period_type', 'monthly')
@@ -126,7 +151,7 @@ class ArticleSpotElectricity extends Component
 
             foreach ($monthly as $m) {
                 $date = Carbon::parse($m->period_start);
-                $labels[] = $this->finnishMonths[$date->month] . " '" . substr((string) $date->year, 2);
+                $labels[] = $this->finnishMonths[$date->month]." '".substr((string) $date->year, 2);
                 $dayPrices[] = round($m->day_avg_with_tax, 2);
                 $nightPrices[] = round($m->night_avg_with_tax, 2);
                 $avgPrices[] = round($m->avg_price_with_tax, 2);
@@ -150,7 +175,7 @@ class ArticleSpotElectricity extends Component
         ])->layout('layouts.app', [
             'title' => 'Kannattaako pörssisähkö? Vertailu ja laskuri 2026 | Voltikka',
             'metaDescription' => 'Kannattaako pörssisähkö sinulle? Vertaile pörssisähköä ja kiinteähintaista sopimusta omalla kulutuksellasi. Näe todelliset säästöt ja riskit.',
-            'canonical' => config('app.url') . '/sahkosopimus/kannattaako-porssisahko',
+            'canonical' => config('app.url').'/sahkosopimus/kannattaako-porssisahko',
         ]);
     }
 }

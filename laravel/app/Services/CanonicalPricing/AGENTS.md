@@ -13,11 +13,49 @@ and hiding the later increase in the free-text description. The structured price
 contract in rankings. The interpretation pipeline already extracts the real pricing phases; this
 layer costs them honestly and labels the mismatch.
 
+## Canonical offer savings
+
+When a billed canonical component has an actual `amount` and a higher
+`normal_amount`, `CanonicalContractPriceCalculator` costs a second,
+promotion-free result on the same phase segments and usage profile as the actual
+result. Spot averages and market-reset offsets are identical in both passes, so
+market movement cannot become a false offer saving. A fully covered Hybrid costs
+each disclosed base-price phase on the 12-month timeline and still excludes the
+unknown consumption effect. A short fixed term costs every disclosed phase inside
+the real term first, then annualizes the complete actual and normal term results
+with the same `12 / term_months` factor. Do not hold the signup phase for either
+path: that extends a short offer past its disclosed end.
+
+`CanonicalPricingOutcome` stores the measured total and monthly differences.
+Its `base_total_cost`, `base_monthly_costs`, `discount_savings_total`, and
+`monthly_discount_savings` therefore come from one promotion-free calculation;
+`total_cost`, comparability, inclusion, and sort key do not change. A shorter
+component offer uses `normal_amount` only on the segments where that component
+is billed, so a later normal phase is not counted twice. Phase-only promotions
+without `normal_amount` keep the existing latest-normal-phase fallback, now
+costed over the same window segments.
+
+A `term_price_only` outcome also has `calculated_cost.contract_term`. It contains
+`months`, `total_cost`, `base_total_cost`, and `discount_savings_total` for the
+complete real term before the `12 / term_months` comparison factor is applied.
+The term saving is the difference between the term base and actual totals. The
+field is null for all other outcomes and when the complete finite term was not
+costed. The existing top-level totals stay annualized for ranking and
+comparison. This is derived calculation output; it is not stored in the LLM
+interpretation JSON.
+
+This logic does **not** read relational `price_components` or copy the legacy
+calculator. The interpretation validator now rejects an active structured
+`UntilDate` or first-N-month discount unless canonical phases contain the exact
+scoped discounted component and its known normal-price continuation. Thus the
+Surffari campaign cannot disappear and then use relational rows as a repair.
+Monthly included-energy packages are typed and costed as described below.
+
 ## Read first
 
 - Root `../../../AGENTS.md`, `../../../../AGENTS.md`
 - `../ContractInterpretation/AGENTS.md` (how the canonical JSON is produced/validated)
-- `resources/contract-interpretation/schema-v3.json` (the exact JSON shape)
+- `resources/contract-interpretation/schema-v4.json` (the exact JSON shape)
 
 ## Components
 
@@ -31,13 +69,21 @@ layer costs them honestly and labels the mismatch.
   summer ×0.889 weighting, cooling Jun–Aug, per-month heating), **extracted from
   `ContractPriceCalculator`** so both calculators stay numerically identical for constant prices.
   `ContractPriceCalculator` still exposes `WINTER_PRICE_MONTHS` / `NIGHT_TIME_SHARES` as aliases.
-- `CanonicalContractPriceCalculator` — costs the window and assigns a `ContractComparability` verdict.
+- `CanonicalContractPriceCalculator` — costs the annual window and assigns a
+  `ContractComparability` verdict. Its typed `calculatePeriod()` entry point costs an exact bill
+  period with the same parser, phase timeline, inherited rates, packages, mechanism switches,
+  reset fill policy, and fail-closed rules. It accepts realized hourly Spot facts instead of
+  adding a second bill-specific canonical calculator.
+- `DTO/CanonicalPeriodPricingRequest` / `CanonicalPeriodPricingOutcome` — keep exact-period totals,
+  measured period savings, relevant rates/margins, comparability, assumptions, and typed
+  unavailable reasons separate from the 12-month payload.
 - `MarketReset/` — annualises monthly/quarterly/seasonal reset products with a shape-only
   forward-curve shift instead of holding one seasonal price flat. Own flag, own `AGENTS.md`.
 - `ContractPricingIntegrityService` — the deterministic label state machine.
 - `CanonicalContractPricingService` — batch orchestrator + feature-flag gate. `metricsForContracts()`
   returns array-only metrics for cache/listings; `evaluate()` returns typed `{outcome, integrity}`
-  for single-contract callers (detail page, statistics, bill comparison).
+  for single-contract callers. `outcomesForContractsAtConsumptions()` parses each contract once for
+  forward statistics that need several reference consumptions without loading relational rows.
 
 ## Phase-timeline algorithm
 
@@ -50,12 +96,40 @@ layer costs them honestly and labels the mismatch.
 3. Segment `W` at phase and calendar-month boundaries; latest-starting phase wins on overlap.
 4. Cost known segments by applying the governing phase's rates to the day-fraction of that month's
    usage. Spot phases use `spot_margin` + rolling-365 day/night averages. Uncovered tails are filled
-   by holding the current phase forward only for active recurring resets, Spot, or fixed-term
-   annualization — otherwise the contract is excluded. For an **active recurring reset** the filled
-   tail (and any tail a phase only claims with `ends: none`) is additionally repriced per calendar
-   month by `MarketReset/`, when `RESET_FORWARD_SHIFT_ENABLED` is on.
+   by holding the current phase forward only for active recurring resets or Spot; otherwise the
+   contract is excluded. A short fixed term is the explicit exception: cost all covered segments
+   up to the real term end and annualize that complete term, without filling the unknown tail. For
+   an **active recurring reset** the filled tail (and any tail a phase only claims with `ends: none`)
+   is additionally repriced per calendar month by `MarketReset/`, when
+   `RESET_FORWARD_SHIFT_ENABLED` is on.
 
-An **empty-components phase is UNKNOWN coverage, never €0.**
+An **empty-components phase is UNKNOWN coverage, never €0**, unless it has a
+validated non-null `package` object.
+
+## Monthly included-energy packages
+
+Schema v4 puts package terms on the pricing phase. A package object has one
+`monthly_fee_eur`, one positive `included_kwh` allowance, the only supported
+`allowance_cadence` (`monthly`), and one positive
+`excess_rate_cents_per_kwh`. Its phase has `components=[]`. This makes the fee
+and excess rate one billing mechanism instead of two ordinary components.
+Missing or invalid values, another cadence, a package plus billed components,
+or a phase that contains both `flat_fee` (EUR/month) and `monthly_fee` fails
+closed in `CanonicalPricingParser`.
+
+For each calendar month, the calculator charges the package fee once and then
+`max(month_usage - included_kwh, 0) * excess_rate`. A partial calendar month
+pro-rates the fee, allowance, and usage by the same day fraction. Unused kWh do
+not carry to another month. For a Time or Season profile, the usage buckets are
+mutually exclusive, so the calculator sums all buckets first and applies the
+one shared allowance. It never gives one allowance to each bucket.
+
+A package is contract pricing, not a promotion. Actual and normal monthly costs
+stay equal unless a separate future package-offer model is added. Thus package
+allowances do not create `discount_savings_total`,
+`monthly_discount_savings`, or `includes_discounts`. The typed calculated-cost
+payload exposes `energy_package`; its schema version is v6. The calculator does
+not read relational `price_components` to fill missing package facts.
 
 ## Comparability policy (the ranking/label contract)
 
@@ -68,10 +142,11 @@ An **empty-components phase is UNKNOWN coverage, never €0.**
 | `excluded_unknown_future` | no | open-ended promo with an undisclosed later price; detail page only |
 | `excluded_incomplete` | no | broken/ambiguous/unsupported structured pricing; detail page only |
 
-Order of decision in the calculator: unsupported → fixed-term-term-only → incomplete (with two
-costable exceptions below) → `detected` contracts must be fully covered by disclosed phases or they are
-excluded, **unless they are an active recurring reset** → estimate-fill for recurring/spot →
-`exact`/`estimate_required` map to the two comparable verdicts.
+Order of decision in the calculator: unsupported Hybrid (phase timeline when fully covered; held
+current base only when not covered) → fixed-term-term-only (all term phases, then annualize) →
+incomplete (with two costable exceptions below) → `detected` contracts must be fully covered by
+disclosed phases or they are excluded, **unless they are an active recurring reset** → estimate-fill
+for recurring/spot → `exact`/`estimate_required` map to the two comparable verdicts.
 
 Domain rules layered on top (each with a regression test and a documented reason):
 - **Recurring market products** (monthly/quarterly/seasonal reset) are never excluded for `detected`
@@ -172,25 +247,99 @@ share the contract's VAT basis (business contracts stay ex-VAT). A component typ
 ## Consumers migrated
 
 Listings (`ContractsList`/`SeoContractsList`/`CheapestContracts`/`SahkosopimusIndex`),
-`ContractListCacheService`, `ContractRankingService`, `ContractDetail` (hero/notice/meta/JSON-LD),
+`ContractListCacheService`, `CompanyListCacheService`, `ContractRankingService`, `ContractDetail` (hero/notice/meta/JSON-LD),
 `CompanyDetail`, `LocalContractsService`, `ContractTypeComparison`, `BillComparisonService`
-(annual cost + excluded-row skip), `WeeklyOffersVideoService` (skips detected/excluded),
+(annual + exact-period canonical outcomes for all three bill surfaces), `WeeklyOffersVideoService`,
 `CalculateContractPercentiles` (listed, non-detected only), the API controllers, and
-`ContractPriceStatisticsService` (forward daily only — **backfills always pass `useCanonical: false`**;
-historical statistics must never be reinterpreted with today's canonical data).
+`ContractPriceStatisticsService` (all forward numeric metrics and measured offer state; **backfills
+always pass `useCanonical: false`** because historical seller observations must never be
+reinterpreted with today's canonical data).
 
 Cards no longer read these payloads directly. `../ContractCard/ContractCardPresenter` turns
 `calculated_cost` / `pricing_integrity` / `comparability` into one view model that both card
-templates render: the price-increase warning and the term/hybrid caveats are coral footer pills,
-the market-reset current-vs-estimated figures are two receipt rows, and the estimate marker is a
-single "Arvio" popover in the card's type band. See `../ContractCard/AGENTS.md`.
+templates render. In canonical mode, current rates, fees, package facts, phase rows, offer
+membership, totals, and savings come only from a payload with `pricing_basis = canonical`; no
+passed price or loaded relation can fill a gap. Excluded outcomes have no current rates. Short
+fixed-term benefit copy uses `calculated_cost.contract_term`, not annualized savings. See
+`../ContractCard/AGENTS.md`.
+
+`ContractDetail` uses the same canonical current values for its receipt, title price phrase,
+current-price meta text, and Product JSON-LD. Missing values are omitted; canonical-only
+contracts can emit available values; excluded outcomes emit no Offer. Its historical chart and
+version/replacement timeline remain relational observed evidence and are not current fallbacks.
+
+All three bill-comparison surfaces use one batched canonical period path. Relative phases anchor at
+that counterfactual signup date; absolute dates stay absolute. General consumption is flat, Time is
+85/15, Season uses actual winter dates, and Spot phases use each matching realized hour, including a
+mid-period fixed/Spot or margin switch. Ordinary fees use the existing days/30 convention. Package
+fee and allowance are both prorated by calendar-month fraction, reset separately per month, and do
+not create promo status. The period promotion flag is the measured normal-minus-actual period
+saving. Canonical mode loads no relational components; feature-off keeps the old period calculator.
+
+`ContractTypeComparison` also uses one request-memoized typed annual outcome per candidate and
+consumption basis in canonical mode. Auto-selection, the monthly chart, current unit/package facts,
+average-monthly and annual totals, comparability, winner, and savings all use that same outcome. The
+chart renders canonical `monthlyCosts` directly. Excluded or incomplete selections have no series
+and stop the comparison instead of becoming zero; canonical queries do not load components.
+Feature-off keeps the legacy calculator and historical monthly Spot basis. This widget has no
+prepared result cache, so its migration required no cache payload version.
+
+Company offer sections and the SEO offer listing use `CanonicalOfferFacts` in canonical mode.
+It accepts only a listed canonical calculated outcome with a positive measured benefit and no
+package. Ordinary offers state the 12-month comparison-period benefit; a short fixed term uses
+its unannualized `contract_term` benefit and labels the real duration. The SEO candidate set is
+not prefiltered by relational rows, so canonical-only offers remain eligible. Product JSON-LD
+uses the same typed facts. Feature-off keeps the relational membership and label paths.
+
+The weekly-offers generated-data service also uses this boundary. In canonical mode it starts from
+all active household contracts and calls `metricsForContracts()` once for each of 2,000, 5,000, and
+10,000 kWh. Membership requires a positive `CanonicalOfferFacts` benefit with no package at 5,000
+kWh, plus a listed outcome and no detected integrity state at every output level. It ranks by the
+real customer benefit at 5,000 kWh, then canonical total,
+then contract ID, before keeping one contract per company. Its API, Remotion input, and prompt use
+typed canonical totals, normal totals, current rates, comparability, estimate state, and benefit
+basis. A short term states the real term benefit; annualized totals are comparison values only.
+Feature-off keeps the old relational data and prompt branch.
+
+The public contract list/show API follows the same boundary. In canonical mode,
+`Api\ContractController` uses one `metricsForContracts()` batch for each list page, returns typed
+canonical current facts in `current_pricing`, returns the existing canonical `calculated_cost` only
+when consumption was requested, and omits relational `price_components`. Excluded results carry an
+explicit unavailable/comparability state and no current rates. Feature-off responses retain the
+legacy `PriceComponentResource` rows and calculator. See `../../Http/AGENTS.md`.
 
 **When you add or remove a field on these payloads, bump
 `ContractListCacheService::PAYLOAD_SCHEMA_VERSION` and
 `Caching\ContractPageCacheVersion::PAYLOAD_SCHEMA_VERSION`.** The import-driven version and the
 `c`/`r` flag markers do not move on a code-only deploy, so cards would otherwise read a stale
-cached shape for up to 48 hours. `ContractPricingIntegrity` gained typed `promo_rate_cents` /
+cached shape for up to 48 hours. `CompanyListCacheService` and `ContractRankingService` have their
+own payload schema markers because their prepared aggregates can also survive a code-only deploy;
+bump the applicable marker when company membership/metrics or ranking behavior changes. Both keys
+also include `ContractListCacheService::getVersion()`, so each published interpretation invalidates
+company and ranking data instead of leaving it stale for 48 hours or one hour.
+`ContractPricingIntegrity` gained typed `promo_rate_cents` /
 `normal_rate_cents` for the dated receipt rows; that was schema v2.
+
+Schema **v8** is the company/SEO offer boundary. Offer membership and Product JSON-LD now use
+canonical measured facts, including real-term benefit copy, instead of relational discount rows.
+
+Schema **v7** is the card/detail cache boundary for canonical-only current values and
+real-term offer copy. It adds no interpretation field; it prevents stale prepared payloads and
+view models from crossing the consumer migration.
+
+Schema **v6** adds `calculated_cost.energy_package` with the monthly package
+fee, included kWh, monthly cadence, and excess-use rate. Package totals use the
+allowance month by month and never report package inclusion as an offer saving.
+
+Schema **v5** adds `calculated_cost.contract_term` for the unannualized cost and
+benefit of a fully costed short term. It is null for non-term and excluded
+outcomes.
+
+Schema **v4** changed the canonical offer fields:
+`base_monthly_costs`, `discount_savings_total`, and
+`monthly_discount_savings` now carry the measured promotion-free calculation.
+This fixes canonical offers such as Vattenfall's 50 percent base-fee cases while
+leaving their already-correct actual total unchanged.
 
 Schema **v3** enriched `calculated_cost['phase_breakdown']`. Each governing phase now records
 the coverage the timeline actually resolved for it (`window_start`, `window_end`, the last day
@@ -282,11 +431,6 @@ The observation dataset that will feed the calibration already exists and collec
 
 ## Deferred / known limitations
 
-- Bill-comparison **period** cost still uses its own component-rate math for the historical billing
-  period (as before); only the annualized estimate and the excluded-row skip go through canonical.
-  Phase-resolved period rates are a possible future refinement.
-- `ContractPriceStatisticsService` canonical mode changes only the `annual_cost` fields; per-component
-  c/kWh chart fields stay relational for continuity.
 - **Spot** contracts still use one flat rolling-365 average for all twelve months. The same per-month
   price vector should eventually replace it (level anchored on rolling-365, shape from the curve), but
   the gain is small: the measured profile cost ranges from −0.3 % to +8.2 % across 2022-2025, and it is

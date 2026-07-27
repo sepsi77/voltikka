@@ -94,18 +94,36 @@
                         {{-- Price Info --}}
                         @php $priceA = $this->getDisplayPrice($contractA); @endphp
                         <div class="bg-slate-100 rounded-lg p-3">
-                            @if ($priceA['type'] === 'spot')
+                            @if (! ($priceA['available'] ?? false))
+                                <p class="font-semibold text-slate-800">Hintaa ei voi laskea luotettavasti</p>
+                                <p class="mt-1 text-sm text-slate-600">Sopimusta ei käytetä voittajan tai säästön laskennassa.</p>
+                            @elseif ($priceA['type'] === 'package')
                                 <div class="flex justify-between items-center">
-                                    <span class="text-sm text-slate-600">Marginaali</span>
-                                    <span class="font-bold text-slate-900">{{ number_format($priceA['margin'], 2, ',', ' ') }} c/kWh</span>
+                                    <span class="text-sm text-slate-600">Kuukausipaketti</span>
+                                    <span class="font-bold text-slate-900">{{ number_format($priceA['packageMonthlyFee'], 2, ',', ' ') }} €/kk</span>
                                 </div>
+                                <div class="mt-1 flex justify-between items-center text-sm">
+                                    <span class="text-slate-600">Sisältää</span>
+                                    <span class="font-medium text-slate-900">{{ number_format($priceA['includedKwh'], 0, ',', ' ') }} kWh/kk</span>
+                                </div>
+                                <div class="mt-1 flex justify-between items-center text-sm">
+                                    <span class="text-slate-600">Ylimenevä energia</span>
+                                    <span class="font-medium text-slate-900">{{ number_format($priceA['excessRate'], 2, ',', ' ') }} c/kWh</span>
+                                </div>
+                            @elseif ($priceA['type'] === 'spot')
+                                @if ($priceA['margin'] !== null)
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-slate-600">Marginaali</span>
+                                        <span class="font-bold text-slate-900">{{ number_format($priceA['margin'], 2, ',', ' ') }} c/kWh</span>
+                                    </div>
+                                @endif
                             @else
-                                @if ($priceA['generalRate'])
+                                @if (($priceA['generalRate'] ?? null) !== null)
                                     <div class="flex justify-between items-center">
                                         <span class="text-sm text-slate-600">Energia</span>
                                         <span class="font-bold text-slate-900">{{ number_format($priceA['generalRate'], 2, ',', ' ') }} c/kWh</span>
                                     </div>
-                                @elseif ($priceA['dayRate'] && $priceA['nightRate'])
+                                @elseif (($priceA['dayRate'] ?? null) !== null && ($priceA['nightRate'] ?? null) !== null)
                                     <div class="flex justify-between items-center text-sm">
                                         <span class="text-slate-600">Päivä</span>
                                         <span class="font-medium text-slate-900">{{ number_format($priceA['dayRate'], 2, ',', ' ') }} c/kWh</span>
@@ -114,12 +132,39 @@
                                         <span class="text-slate-600">Yö</span>
                                         <span class="font-medium text-slate-900">{{ number_format($priceA['nightRate'], 2, ',', ' ') }} c/kWh</span>
                                     </div>
+                                @elseif (($priceA['seasonalWinterRate'] ?? null) !== null && ($priceA['seasonalOtherRate'] ?? null) !== null)
+                                    <div class="flex justify-between items-center text-sm">
+                                        <span class="text-slate-600">Talvipäivä</span>
+                                        <span class="font-medium text-slate-900">{{ number_format($priceA['seasonalWinterRate'], 2, ',', ' ') }} c/kWh</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-sm mt-1">
+                                        <span class="text-slate-600">Muu aika</span>
+                                        <span class="font-medium text-slate-900">{{ number_format($priceA['seasonalOtherRate'], 2, ',', ' ') }} c/kWh</span>
+                                    </div>
                                 @endif
                             @endif
-                            @if (isset($priceA['monthlyFee']) && $priceA['monthlyFee'])
+                            @if (($priceA['available'] ?? false) && $priceA['type'] !== 'package' && array_key_exists('monthlyFee', $priceA) && $priceA['monthlyFee'] !== null)
                                 <div class="flex justify-between items-center mt-2 pt-2 border-t border-slate-200">
                                     <span class="text-sm text-slate-600">Perusmaksu</span>
                                     <span class="font-medium text-slate-900">{{ number_format($priceA['monthlyFee'], 2, ',', ' ') }} €/kk</span>
+                                </div>
+                            @endif
+                            @if (($priceA['available'] ?? false) && isset($priceA['annualCost']))
+                                <div class="mt-2 space-y-1 border-t border-slate-200 pt-2 text-sm">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-slate-600">Keskimäärin</span>
+                                        <span class="font-semibold text-slate-900">{{ number_format($priceA['avgMonthlyCost'], 2, ',', ' ') }} €/kk</span>
+                                    </div>
+                                    <div class="flex justify-between items-start gap-3">
+                                        <span class="text-slate-600">{{ $priceA['totalBasisLabel'] }}</span>
+                                        <span class="whitespace-nowrap font-semibold text-slate-900">{{ number_format($priceA['annualCost'], 0, ',', ' ') }} €</span>
+                                    </div>
+                                    @if ($priceA['estimateLabel'])
+                                        <p class="pt-1 text-xs font-medium text-slate-600">{{ $priceA['estimateLabel'] }}</p>
+                                    @endif
+                                    @if (($priceA['offerSaving'] ?? 0) > 0)
+                                        <p class="pt-1 text-xs font-medium text-coral-800">Tarjousetu {{ number_format($priceA['offerSaving'], 0, ',', ' ') }} € {{ $priceA['offerBasisLabel'] }}</p>
+                                    @endif
                                 </div>
                             @endif
                         </div>
@@ -245,18 +290,36 @@
                         {{-- Price Info --}}
                         @php $priceB = $this->getDisplayPrice($contractB); @endphp
                         <div class="bg-slate-100 rounded-lg p-3">
-                            @if ($priceB['type'] === 'spot')
+                            @if (! ($priceB['available'] ?? false))
+                                <p class="font-semibold text-slate-800">Hintaa ei voi laskea luotettavasti</p>
+                                <p class="mt-1 text-sm text-slate-600">Sopimusta ei käytetä voittajan tai säästön laskennassa.</p>
+                            @elseif ($priceB['type'] === 'package')
                                 <div class="flex justify-between items-center">
-                                    <span class="text-sm text-slate-600">Marginaali</span>
-                                    <span class="font-bold text-slate-900">{{ number_format($priceB['margin'], 2, ',', ' ') }} c/kWh</span>
+                                    <span class="text-sm text-slate-600">Kuukausipaketti</span>
+                                    <span class="font-bold text-slate-900">{{ number_format($priceB['packageMonthlyFee'], 2, ',', ' ') }} €/kk</span>
                                 </div>
+                                <div class="mt-1 flex justify-between items-center text-sm">
+                                    <span class="text-slate-600">Sisältää</span>
+                                    <span class="font-medium text-slate-900">{{ number_format($priceB['includedKwh'], 0, ',', ' ') }} kWh/kk</span>
+                                </div>
+                                <div class="mt-1 flex justify-between items-center text-sm">
+                                    <span class="text-slate-600">Ylimenevä energia</span>
+                                    <span class="font-medium text-slate-900">{{ number_format($priceB['excessRate'], 2, ',', ' ') }} c/kWh</span>
+                                </div>
+                            @elseif ($priceB['type'] === 'spot')
+                                @if ($priceB['margin'] !== null)
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-slate-600">Marginaali</span>
+                                        <span class="font-bold text-slate-900">{{ number_format($priceB['margin'], 2, ',', ' ') }} c/kWh</span>
+                                    </div>
+                                @endif
                             @else
-                                @if ($priceB['generalRate'])
+                                @if (($priceB['generalRate'] ?? null) !== null)
                                     <div class="flex justify-between items-center">
                                         <span class="text-sm text-slate-600">Energia</span>
                                         <span class="font-bold text-slate-900">{{ number_format($priceB['generalRate'], 2, ',', ' ') }} c/kWh</span>
                                     </div>
-                                @elseif ($priceB['dayRate'] && $priceB['nightRate'])
+                                @elseif (($priceB['dayRate'] ?? null) !== null && ($priceB['nightRate'] ?? null) !== null)
                                     <div class="flex justify-between items-center text-sm">
                                         <span class="text-slate-600">Päivä</span>
                                         <span class="font-medium text-slate-900">{{ number_format($priceB['dayRate'], 2, ',', ' ') }} c/kWh</span>
@@ -265,12 +328,39 @@
                                         <span class="text-slate-600">Yö</span>
                                         <span class="font-medium text-slate-900">{{ number_format($priceB['nightRate'], 2, ',', ' ') }} c/kWh</span>
                                     </div>
+                                @elseif (($priceB['seasonalWinterRate'] ?? null) !== null && ($priceB['seasonalOtherRate'] ?? null) !== null)
+                                    <div class="flex justify-between items-center text-sm">
+                                        <span class="text-slate-600">Talvipäivä</span>
+                                        <span class="font-medium text-slate-900">{{ number_format($priceB['seasonalWinterRate'], 2, ',', ' ') }} c/kWh</span>
+                                    </div>
+                                    <div class="flex justify-between items-center text-sm mt-1">
+                                        <span class="text-slate-600">Muu aika</span>
+                                        <span class="font-medium text-slate-900">{{ number_format($priceB['seasonalOtherRate'], 2, ',', ' ') }} c/kWh</span>
+                                    </div>
                                 @endif
                             @endif
-                            @if (isset($priceB['monthlyFee']) && $priceB['monthlyFee'])
+                            @if (($priceB['available'] ?? false) && $priceB['type'] !== 'package' && array_key_exists('monthlyFee', $priceB) && $priceB['monthlyFee'] !== null)
                                 <div class="flex justify-between items-center mt-2 pt-2 border-t border-slate-200">
                                     <span class="text-sm text-slate-600">Perusmaksu</span>
                                     <span class="font-medium text-slate-900">{{ number_format($priceB['monthlyFee'], 2, ',', ' ') }} €/kk</span>
+                                </div>
+                            @endif
+                            @if (($priceB['available'] ?? false) && isset($priceB['annualCost']))
+                                <div class="mt-2 space-y-1 border-t border-slate-200 pt-2 text-sm">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-slate-600">Keskimäärin</span>
+                                        <span class="font-semibold text-slate-900">{{ number_format($priceB['avgMonthlyCost'], 2, ',', ' ') }} €/kk</span>
+                                    </div>
+                                    <div class="flex justify-between items-start gap-3">
+                                        <span class="text-slate-600">{{ $priceB['totalBasisLabel'] }}</span>
+                                        <span class="whitespace-nowrap font-semibold text-slate-900">{{ number_format($priceB['annualCost'], 0, ',', ' ') }} €</span>
+                                    </div>
+                                    @if ($priceB['estimateLabel'])
+                                        <p class="pt-1 text-xs font-medium text-slate-600">{{ $priceB['estimateLabel'] }}</p>
+                                    @endif
+                                    @if (($priceB['offerSaving'] ?? 0) > 0)
+                                        <p class="pt-1 text-xs font-medium text-coral-800">Tarjousetu {{ number_format($priceB['offerSaving'], 0, ',', ' ') }} € {{ $priceB['offerBasisLabel'] }}</p>
+                                    @endif
                                 </div>
                             @endif
                         </div>
@@ -366,15 +456,23 @@
     </div>
 
     {{-- Summary Section --}}
-    @if ($comparisonResult['hasResult'])
+    @if ($comparisonResult['unavailable'] ?? false)
+        <div class="border-t border-slate-100 bg-slate-50 p-4 md:p-6">
+            <div class="rounded-xl border border-slate-200 bg-white p-4 text-center">
+                <p class="font-semibold text-slate-900">Vertailua ei voi laskea luotettavasti</p>
+                <p class="mt-1 text-sm text-slate-600">Vähintään yhden valitun sopimuksen nykyhinta ei ole vertailukelpoinen. Voittajaa tai säästöä ei ilmoiteta.</p>
+            </div>
+        </div>
+    @elseif ($comparisonResult['hasResult'])
         <div class="border-t border-slate-100 p-4 md:p-6 bg-slate-50">
-            <h4 class="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-4">Yhteenveto (12 kk)</h4>
+            <h4 class="text-sm font-semibold text-slate-600 uppercase tracking-wide mb-4">Yhteenveto</h4>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 {{-- Cost A --}}
                 <div class="bg-white rounded-xl p-4 text-center {{ $comparisonResult['winner'] === 'A' ? 'ring-2 ring-coral-500' : '' }}">
                     <p class="text-sm text-slate-500 mb-1">{{ $modeConfig['labelA'] }}</p>
                     <p class="text-2xl font-bold text-slate-900">{{ number_format($comparisonResult['costA'], 0, ',', ' ') }} €</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ $projectedCostsA['totalBasisLabel'] }}</p>
                 </div>
 
                 {{-- Comparison Arrow --}}
@@ -390,6 +488,7 @@
                 <div class="bg-white rounded-xl p-4 text-center {{ $comparisonResult['winner'] === 'B' ? 'ring-2 ring-coral-500' : '' }}">
                     <p class="text-sm text-slate-500 mb-1">{{ $modeConfig['labelB'] }}</p>
                     <p class="text-2xl font-bold text-slate-900">{{ number_format($comparisonResult['costB'], 0, ',', ' ') }} €</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ $projectedCostsB['totalBasisLabel'] }}</p>
                 </div>
             </div>
 
@@ -560,11 +659,16 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
             <p>
-                Pörssisähkön arvio perustuu viime vuoden saman kuukauden keskihintoihin.
-                @if($consumption > 4000)
-                Suuremmalla kulutuksella laskuri huomioi sähkölämmityksen kausivaihtelun (talvella enemmän, kesällä vähemmän).
+                @if ($canonicalPricingEnabled)
+                    Kuukausipalkit käyttävät samaa sopimuksen 12 kuukauden vertailuarviota kuin voittaja ja säästö.
+                    Pörssisähkön arvio perustuu viimeisen 365 päivän päivä- ja yöhintoihin. Päivittyvien sopimusten tulevat hinnat ja kulutusvaikutussopimusten kulutusvaikutus eivät ole tarkkoja ennusteita.
+                @else
+                    Pörssisähkön arvio perustuu viime vuoden saman kuukauden keskihintoihin.
+                    @if($consumption > 4000)
+                    Suuremmalla kulutuksella laskuri huomioi sähkölämmityksen kausivaihtelun (talvella enemmän, kesällä vähemmän).
+                    @endif
                 @endif
-                Arvio ei ennusta tulevaa hintaa. Todelliset kustannukset voivat poiketa laskurin tuloksesta.
+                Todelliset kustannukset voivat poiketa laskurin tuloksesta.
             </p>
         </div>
     </div>

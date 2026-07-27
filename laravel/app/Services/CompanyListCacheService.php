@@ -3,22 +3,43 @@
 namespace App\Services;
 
 use App\Models\ElectricityContract;
+use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class CompanyListCacheService
 {
     private const CACHE_VERSION_KEY = 'company_list_cache_version';
+
+    /**
+     * Shape marker for the prepared company payload.
+     *
+     * The import version and pricing flags do not change on a code-only deploy. Bump this
+     * value whenever company metric membership or payload fields change.
+     */
+    private const PAYLOAD_SCHEMA_VERSION = 1;
+
     private const CACHE_TTL_SECONDS = 60 * 60 * 48; // 48 hours
+
     private const DEFAULT_CONSUMPTION = 5000;
+
+    /** @var array<int, Collection<int, array<string, mixed>>> */
+    private array $cachedCompaniesMemo = [];
+
+    private ?int $versionMemo = null;
 
     public function __construct(
         private readonly ContractListCacheService $contractListCache,
+        private readonly CanonicalContractPricingService $canonicalPricing,
     ) {}
 
     public function getCachedCompanies(int $consumption = self::DEFAULT_CONSUMPTION): Collection
     {
-        return Cache::remember(
+        if (isset($this->cachedCompaniesMemo[$consumption])) {
+            return $this->cachedCompaniesMemo[$consumption];
+        }
+
+        return $this->cachedCompaniesMemo[$consumption] = Cache::remember(
             $this->getCacheKey($consumption),
             self::CACHE_TTL_SECONDS,
             fn () => $this->buildCachedCompanies($consumption)
@@ -34,18 +55,30 @@ class CompanyListCacheService
     {
         $version = $this->getVersion() + 1;
         Cache::forever(self::CACHE_VERSION_KEY, $version);
+        $this->versionMemo = $version;
+        $this->cachedCompaniesMemo = [];
 
         return $version;
     }
 
     public function getVersion(): int
     {
-        return (int) Cache::get(self::CACHE_VERSION_KEY, 1);
+        return $this->versionMemo ??= (int) Cache::get(self::CACHE_VERSION_KEY, 1);
     }
 
     private function getCacheKey(int $consumption): string
     {
-        return sprintf('company_list:v%d:%d', $this->getVersion(), $consumption);
+        $basis = ($this->canonicalPricing->enabled() ? 'c1' : 'c0')
+            .($this->canonicalPricing->resetForwardShiftEnabled() ? 'r1' : 'r0');
+
+        return sprintf(
+            'company_list:v%d:s%d:lv%d:%s:%d',
+            $this->getVersion(),
+            self::PAYLOAD_SCHEMA_VERSION,
+            $this->contractListCache->getVersion(),
+            $basis,
+            $consumption,
+        );
     }
 
     private function buildCachedCompanies(int $consumption): Collection
@@ -60,8 +93,22 @@ class CompanyListCacheService
 
         $contractsByCompany = $contracts->groupBy('company_name');
         $companies = collect();
+        $useCanonical = $this->canonicalPricing->enabled();
 
-        foreach ($contractsByCompany as $companyContracts) {
+        foreach ($contractsByCompany as $allCompanyContracts) {
+            $companyContracts = $useCanonical
+                ? $allCompanyContracts->filter(function (ElectricityContract $contract) use ($cachedMetrics): bool {
+                    $metric = $cachedMetrics['contracts'][$contract->id] ?? null;
+                    $total = $metric['calculated_cost']['total_cost'] ?? null;
+
+                    return is_array($metric)
+                        && ($metric['is_listed'] ?? false) === true
+                        && ($metric['calculated_cost']['pricing_basis'] ?? null) === 'canonical'
+                        && is_numeric($total)
+                        && is_finite((float) $total);
+                })
+                : $allCompanyContracts;
+
             $company = $companyContracts->first()?->company;
 
             if (! $company) {
@@ -69,14 +116,13 @@ class CompanyListCacheService
             }
 
             $applicableContracts = $companyContracts->filter(function (ElectricityContract $contract) use ($cachedMetrics) {
-                return !($cachedMetrics['contracts'][$contract->id]['exceeds_consumption_limit'] ?? false);
+                return ! ($cachedMetrics['contracts'][$contract->id]['exceeds_consumption_limit'] ?? false);
             });
 
             $priceMetrics = $applicableContracts
                 ->mapWithKeys(function (ElectricityContract $contract) use ($cachedMetrics) {
-                    return [$contract->id => $cachedMetrics['contracts'][$contract->id] ?? null];
-                })
-                ->filter();
+                    return [$contract->id => $cachedMetrics['contracts'][$contract->id]];
+                });
 
             $spotContracts = $applicableContracts->filter(fn (ElectricityContract $contract) => $contract->pricing_model === 'Spot');
 
@@ -84,26 +130,27 @@ class CompanyListCacheService
                 'company' => $company,
                 'contractCount' => $companyContracts->count(),
                 'avgPrice' => $priceMetrics->isNotEmpty()
-                    ? $priceMetrics->avg(fn (array $metric) => $metric['calculated_cost']['total_cost'] ?? 0)
+                    ? $priceMetrics->avg(fn (array $metric) => (float) $metric['calculated_cost']['total_cost'])
                     : null,
                 'lowestPrice' => $priceMetrics->isNotEmpty()
-                    ? $priceMetrics->min(fn (array $metric) => $metric['calculated_cost']['total_cost'] ?? PHP_FLOAT_MAX)
+                    ? $priceMetrics->min(fn (array $metric) => (float) $metric['calculated_cost']['total_cost'])
                     : null,
                 'avgEmissions' => $companyContracts->avg(fn (ElectricityContract $contract) => $cachedMetrics['contracts'][$contract->id]['emission_factor'] ?? 0),
                 'lowestEmissions' => $companyContracts->min(fn (ElectricityContract $contract) => $cachedMetrics['contracts'][$contract->id]['emission_factor'] ?? PHP_FLOAT_MAX),
                 'avgRenewable' => $companyContracts->avg(fn (ElectricityContract $contract) => $contract->electricitySource?->renewable_total ?? 0),
                 'maxRenewable' => $companyContracts->max(fn (ElectricityContract $contract) => $contract->electricitySource?->renewable_total ?? 0),
                 'lowestMonthlyFee' => $priceMetrics
-                    ->map(fn (array $metric) => $metric['calculated_cost']['monthly_fixed_fee'] ?? PHP_FLOAT_MAX)
-                    ->filter(fn (float|int $fee) => $fee < PHP_FLOAT_MAX)
-                    ->min() ?? null,
+                    ->map(fn (array $metric) => $metric['calculated_cost']['monthly_fixed_fee'] ?? null)
+                    ->filter(fn ($fee) => is_numeric($fee) && is_finite((float) $fee))
+                    ->map(fn ($fee) => (float) $fee)
+                    ->min(),
                 'lowestSpotMargin' => $spotContracts
-                    ->map(fn (ElectricityContract $contract) => $cachedMetrics['contracts'][$contract->id]['calculated_cost']['spot_price_margin'] ?? PHP_FLOAT_MAX)
-                    ->filter(fn (float|int $margin) => $margin < PHP_FLOAT_MAX)
-                    ->min() ?? null,
+                    ->map(fn (ElectricityContract $contract) => $cachedMetrics['contracts'][$contract->id]['calculated_cost']['spot_price_margin'] ?? null)
+                    ->filter(fn ($margin) => is_numeric($margin) && is_finite((float) $margin))
+                    ->map(fn ($margin) => (float) $margin)
+                    ->min(),
                 'hasSpotContracts' => $spotContracts->isNotEmpty(),
-                'hasFullyRenewable' => $companyContracts->contains(fn (ElectricityContract $contract) =>
-                    $contract->electricitySource && $contract->electricitySource->isFullyRenewable()
+                'hasFullyRenewable' => $companyContracts->contains(fn (ElectricityContract $contract) => $contract->electricitySource && $contract->electricitySource->isFullyRenewable()
                 ),
             ]);
         }

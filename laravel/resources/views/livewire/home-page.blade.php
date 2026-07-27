@@ -203,10 +203,10 @@
                 <a href="/sahkosopimus/tilastot" class="group lg:col-span-2 lg:border-r lg:border-slate-200 lg:pr-12 block">
                     <p class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Hintakehitys &middot; 6 kk &middot; viikoittain</p>
                     <h3 class="text-2xl lg:text-3xl font-extrabold text-slate-900 mb-4 group-hover:text-coral-600 transition-colors leading-tight">
-                        Sähkösopimusten energiahinta sopimustyypeittäin
+                        Sähkösopimusten vuosikustannus sopimustyypeittäin
                     </h3>
                     <p class="text-slate-600 mb-8 max-w-xl leading-relaxed">
-                        {{ $contractPriceTrend['caption'] ?? 'Vertaa pörssin, määräaikaisten ja toistaiseksi voimassa olevien sopimusten energiahintaa viimeisten kuuden kuukauden ajalta. Tarkemmat luvut, vuosikustannukset ja kulutustasot löytyvät tilastosivulta.' }}
+                        {{ $contractPriceTrend['caption'] ?? 'Vertaa pörssin, määräaikaisten ja toistaiseksi voimassa olevien sopimusten vuosikustannusta 5 000 kWh kulutuksella. Tarkemmat luvut ja kulutustasot löytyvät tilastosivulta.' }}
                     </p>
 
                     @if(!empty($contractPriceTrend['x']) && count($contractPriceTrend['x']) >= 2)
@@ -217,13 +217,13 @@
                                 data-line-chart="spot"
                                 class="relative h-72 sm:h-80 w-full select-none"
                                 role="img"
-                                aria-label="Sähkösopimusten viikoittaiset keskihinnat sopimustyypeittäin, viimeiset 6 kuukautta"
+                                aria-label="Sähkösopimusten viikoittaiset vuosikustannukset 5 000 kilowattitunnin kulutuksella, viimeiset 6 kuukautta"
                             >
                                 <script type="application/json">{!! json_encode([
                                     'x' => $contractPriceTrend['x'],
                                     'series' => $contractPriceTrend['series'],
-                                    'unit' => 'cent',
-                                    'decimals' => 1,
+                                    'unit' => 'eur',
+                                    'decimals' => 0,
                                 ], JSON_UNESCAPED_UNICODE) !!}</script>
                             </div>
 

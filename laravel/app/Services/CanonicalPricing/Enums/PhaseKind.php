@@ -3,7 +3,7 @@
 namespace App\Services\CanonicalPricing\Enums;
 
 /**
- * Canonical pricing phase kinds (schema-v3 `pricing.phases[].phase_kind`).
+ * Canonical pricing phase kinds (schema-v4 `pricing.phases[].phase_kind`).
  */
 enum PhaseKind: string
 {

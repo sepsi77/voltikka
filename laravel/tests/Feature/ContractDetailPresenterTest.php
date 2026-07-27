@@ -52,8 +52,8 @@ class ContractDetailPresenterTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $attributes
-     * @param array<string, float> $components
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, float>  $components
      */
     private function contract(string $id, array $attributes = [], array $components = ['General' => 7.2, 'Monthly' => 3.9]): ElectricityContract
     {
@@ -87,9 +87,9 @@ class ContractDetailPresenterTest extends TestCase
     }
 
     /**
-     * @param array<string, mixed> $schedule
-     * @param array<string, mixed> $effect
-     * @param list<array<string, mixed>> $phases
+     * @param  array<string, mixed>  $schedule
+     * @param  array<string, mixed>  $effect
+     * @param  list<array<string, mixed>>  $phases
      * @return array<string, mixed>
      */
     private function canonicalPricing(array $phases = [], array $schedule = [], array $effect = []): array
@@ -110,7 +110,7 @@ class ContractDetailPresenterTest extends TestCase
     }
 
     /**
-     * @param list<array{0: string, 1: float|null, 2?: string}> $components
+     * @param  list<array{0: string, 1: float|null, 2?: string, 3?: float|null, 4?: string}>  $components
      * @return array<string, mixed>
      */
     private function phase(string $kind, array $starts, array $ends, array $components): array
@@ -123,14 +123,31 @@ class ContractDetailPresenterTest extends TestCase
             'components' => array_map(fn (array $c) => [
                 'component_type' => $c[0],
                 'amount' => $c[1],
-                'normal_amount' => null,
+                'normal_amount' => $c[3] ?? null,
                 'unit' => $c[2] ?? 'cents_per_kwh',
                 'vat_status' => 'included',
-                'price_role' => 'current',
+                'price_role' => $c[4] ?? 'current',
                 'source_kind' => 'both',
                 'evidence' => [],
             ], $components),
             'evidence' => [],
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $phases
+     * @return array<string, mixed>
+     */
+    private function canonicalAttributes(array $phases, string $status = 'exact'): array
+    {
+        return [
+            'canonical_pricing' => $this->canonicalPricing($phases),
+            'canonical_calculation' => ['status' => $status, 'missing_facts' => [], 'required_assumptions' => []],
+            'canonical_source_consistency' => [
+                'misleading_first_12_months' => 'not_detected',
+                'structured_pricing_status' => 'complete',
+                'issue_codes' => [],
+            ],
         ];
     }
 
@@ -180,6 +197,144 @@ class ContractDetailPresenterTest extends TestCase
             ->assertSee('Marginaali')
             // The old block computed "Energiahinta (arvio) (spot + marginaali)" here.
             ->assertDontSee('spot + marginaali');
+    }
+
+    public function test_canonical_current_values_win_over_relational_values_on_all_detail_surfaces(): void
+    {
+        config(['canonical_pricing.enabled' => true]);
+
+        $contract = $this->contract('canonical-conflict', $this->canonicalAttributes([
+            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
+                ['energy_general', 8.4],
+                ['monthly_fee', 4.2, 'eur_per_month'],
+            ]),
+        ]), ['General' => 1.11, 'Monthly' => 0.55]);
+
+        PriceComponent::create([
+            'id' => 'canonical-conflict-general-old',
+            'electricity_contract_id' => $contract->id,
+            'price_component_type' => 'General',
+            'price_date' => now()->subMonth()->format('Y-m-d'),
+            'price' => 2.22,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        $component = Livewire::test('contract-detail', ['contractId' => $contract->id])->instance();
+        $receiptValues = array_map(fn ($line) => $line->value, $component->card->receiptLines);
+        $offers = collect($component->productSchema['offers'] ?? [])->keyBy('name');
+
+        $this->assertSame(['8,40', '4,20'], $receiptValues);
+        $this->assertStringContainsString('8,40 c/kWh', $component->pageTitle);
+        $this->assertStringContainsString('maksaa nyt 8,40 c/kWh + 4,20 €/kk', $component->metaDescription);
+        $this->assertSame(8.4, $offers['Energiahinta']['priceSpecification']['price']);
+        $this->assertSame(4.2, $offers['Perusmaksu']['priceSpecification']['price']);
+
+        // Historical surfaces remain the observed relational record.
+        $this->assertSame(1.11, $component->priceHistory['General'][0]['price']);
+        $this->assertContains(1.11, collect($component->contractHistory[0]['prices'])->pluck('price')->all());
+    }
+
+    public function test_canonical_missing_unit_value_is_omitted_instead_of_filled_from_relational_data(): void
+    {
+        config(['canonical_pricing.enabled' => true]);
+
+        $contract = $this->contract('canonical-missing-unit', $this->canonicalAttributes([
+            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
+                ['monthly_fee', 4.2, 'eur_per_month'],
+            ]),
+        ]), ['General' => 1.11, 'Monthly' => 0.55]);
+
+        $component = Livewire::test('contract-detail', ['contractId' => $contract->id])->instance();
+        $offers = collect($component->productSchema['offers'] ?? [])->keyBy('name');
+
+        $this->assertSame(['Perusmaksu'], array_map(fn ($line) => $line->label, $component->card->receiptLines));
+        $this->assertStringNotContainsString('1,11 c/kWh', $component->pageTitle);
+        $this->assertStringNotContainsString('maksaa nyt 1,11 c/kWh', $component->metaDescription);
+        $this->assertFalse($offers->has('Energiahinta'));
+        $this->assertSame(4.2, $offers['Perusmaksu']['priceSpecification']['price']);
+    }
+
+    public function test_a_canonical_only_contract_emits_its_available_current_values(): void
+    {
+        config(['canonical_pricing.enabled' => true]);
+
+        $contract = $this->contract('canonical-only', $this->canonicalAttributes([
+            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
+                ['energy_general', 7.35],
+                ['monthly_fee', 3.25, 'eur_per_month'],
+            ]),
+        ]), []);
+
+        $component = Livewire::test('contract-detail', ['contractId' => $contract->id])->instance();
+        $offers = collect($component->productSchema['offers'] ?? [])->keyBy('name');
+
+        $this->assertSame(['7,35', '3,25'], array_map(fn ($line) => $line->value, $component->card->receiptLines));
+        $this->assertStringContainsString('7,35 c/kWh', $component->pageTitle);
+        $this->assertSame(7.35, $offers['Energiahinta']['priceSpecification']['price']);
+        $this->assertSame(3.25, $offers['Perusmaksu']['priceSpecification']['price']);
+    }
+
+    public function test_an_excluded_contract_emits_no_current_unit_value_or_json_ld_offer(): void
+    {
+        config(['canonical_pricing.enabled' => true]);
+
+        $contract = $this->contract('canonical-excluded', $this->canonicalAttributes([], 'incomplete'), [
+            'General' => 1.11,
+            'Monthly' => 0.55,
+        ]);
+
+        $component = Livewire::test('contract-detail', ['contractId' => $contract->id])->instance();
+
+        $this->assertTrue($component->isPricingExcluded);
+        $this->assertSame([], $component->card->receiptLines);
+        $this->assertStringNotContainsString('1,11 c/kWh', $component->pageTitle);
+        $this->assertStringNotContainsString('maksaa nyt 1,11 c/kWh', $component->metaDescription);
+        $this->assertArrayNotHasKey('offers', $component->productSchema);
+    }
+
+    public function test_feature_off_detail_surfaces_keep_relational_current_values(): void
+    {
+        config(['canonical_pricing.enabled' => false]);
+
+        $contract = $this->contract('legacy-current-value', $this->canonicalAttributes([
+            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
+                ['energy_general', 8.4],
+                ['monthly_fee', 4.2, 'eur_per_month'],
+            ]),
+        ]), ['General' => 1.11, 'Monthly' => 0.55]);
+
+        $component = Livewire::test('contract-detail', ['contractId' => $contract->id])->instance();
+        $offers = collect($component->productSchema['offers'] ?? [])->keyBy('name');
+
+        $this->assertSame(['1,11', '0,55'], array_map(fn ($line) => $line->value, $component->card->receiptLines));
+        $this->assertStringContainsString('1,11 c/kWh', $component->pageTitle);
+        $this->assertSame(1.11, $offers['Energiahinta']['priceSpecification']['price']);
+    }
+
+    public function test_six_month_detail_copy_uses_the_real_term_benefit_not_the_annualized_saving(): void
+    {
+        config(['canonical_pricing.enabled' => true]);
+
+        $contract = $this->contract('canonical-six-month', array_merge(
+            [
+                'contract_type' => 'FixedTerm',
+                'fixed_time_range' => 'Fixed6',
+            ],
+            $this->canonicalAttributes([
+                $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '6'], [
+                    ['energy_general', 7.0],
+                    ['monthly_fee', 5.0, 'eur_per_month', 10.0, 'introductory'],
+                ]),
+            ]),
+        ), ['General' => 1.11, 'Monthly' => 0.55]);
+
+        $component = Livewire::test('contract-detail', ['contractId' => $contract->id])->instance();
+        $notes = implode(' ', $component->receiptNotes);
+
+        $this->assertSame(60.0, $component->calculatedCost['discount_savings_total']);
+        $this->assertSame(30.0, $component->calculatedCost['contract_term']['discount_savings_total']);
+        $this->assertStringContainsString('30 € 6 kuukauden sopimuskauden aikana', $notes);
+        $this->assertStringNotContainsString('60 € ensimmäisenä vuonna', $notes);
     }
 
     public function test_a_promotional_flat_price_before_a_spot_margin_shows_two_dated_rows(): void
@@ -245,7 +400,9 @@ class ContractDetailPresenterTest extends TestCase
 
                 // Quarter and year maturities repeat across delivery months; keep the first.
                 $rows[$type.$maturity] ??= [
-                    'short_code' => match ($type) { 'month' => 'FNBM', 'quarter' => 'FNBQ', default => 'FNBY' },
+                    'short_code' => match ($type) {
+                        'month' => 'FNBM', 'quarter' => 'FNBQ', default => 'FNBY'
+                    },
                     'maturity' => $maturity,
                     'maturity_type' => $type,
                     'settlement_price' => 30.0 + ($i * 4),

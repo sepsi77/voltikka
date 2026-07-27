@@ -442,9 +442,10 @@
                 <div>
                     <p class="font-semibold text-slate-900 mb-1">Miten hinta lasketaan?</p>
                     <p>
-                        Perusarvio on kulutus kWh × energian hinta snt/kWh / 100 + perusmaksu × 12.
-                        Pörssisähkön vertailussa käytetään tilastojen vuosikustannusarviota, jotta toteutunut
-                        12 kuukauden pörssihinta on vertailukelpoinen kiinteiden sopimusten kanssa.
+                        Kaikki taulukon luvut tulevat tilastojen valmiista vuosikustannuksista. Nykyiset luvut
+                        käyttävät samaa kanonista 12 kuukauden laskelmaa kuin sopimusvertailu, joten tarjoukset,
+                        hintavaiheet ja kuukausittaiset energiapaketit säilyvät mukana. Puuttuvaa vuosihintaa
+                        ei rakenneta energiahinnasta ja perusmaksusta.
                     </p>
                 </div>
                 <div>

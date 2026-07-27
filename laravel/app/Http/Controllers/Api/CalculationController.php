@@ -16,8 +16,7 @@ class CalculationController extends Controller
     public function __construct(
         private readonly ContractPriceCalculator $priceCalculator,
         private readonly EnergyCalculator $energyCalculator,
-    ) {
-    }
+    ) {}
 
     /**
      * Calculate the annual electricity cost for a contract.
@@ -25,8 +24,6 @@ class CalculationController extends Controller
      * Accepts either:
      * - consumption (int): Total annual kWh consumption
      * - energy_usage (array): Detailed breakdown of energy usage
-     *
-     * @return JsonResponse
      */
     public function calculatePrice(Request $request): JsonResponse
     {
@@ -47,10 +44,11 @@ class CalculationController extends Controller
             'spot_price_night' => 'sometimes|numeric',
         ]);
 
-        // Find the contract
-        $contract = ElectricityContract::with(['priceComponents'])->find($validated['contract_id']);
+        // Canonical pricing reads only the published contract JSON. The feature-off
+        // branch loads relational components through the legacy model helper below.
+        $contract = ElectricityContract::find($validated['contract_id']);
 
-        if (!$contract) {
+        if (! $contract) {
             return response()->json([
                 'error' => 'Contract not found',
             ], 404);
@@ -104,8 +102,6 @@ class CalculationController extends Controller
 
     /**
      * Estimate annual electricity consumption based on building parameters.
-     *
-     * @return JsonResponse
      */
     public function estimateConsumption(Request $request): JsonResponse
     {

@@ -25,12 +25,15 @@ class ContractPriceStatisticsCsvController extends Controller
             fputcsv($out, ['# Lisenssi: CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/deed.fi). Lähde mainittava: Voltikka.']);
             fputcsv($out, ['# Hinnat sisältävät arvonlisäveron 25,5 %.']);
             fputcsv($out, ['# Spot-sopimusten kokonaishinta = pörssin keskihinta + sopimuksen marginaali.']);
+            fputcsv($out, ['# pricing_basis=canonical_calculation: nykyhinta on validoidusta kanonisesta hinnoittelusta laskettu arvo.']);
+            fputcsv($out, ['# pricing_basis=observed_seller_data: historiallinen arvo on kyseisenä päivänä havaittu myyjädata.']);
             fputcsv($out, []);
 
             fputcsv($out, [
                 'date',
                 'segment_key',
                 'metric_key',
+                'pricing_basis',
                 'consumption_kwh',
                 'min',
                 'p20',
@@ -54,6 +57,7 @@ class ContractPriceStatisticsCsvController extends Controller
                                 : (string) $row->stat_date,
                             $row->segment_key,
                             $row->metric_key,
+                            $row->pricing_basis,
                             $row->consumption_kwh,
                             $row->min_value,
                             $row->p20_value,

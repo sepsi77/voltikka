@@ -179,6 +179,26 @@ then a spot margin, or the reverse), replaces the ordinary rows with two dated o
   `monthly_fee`. Re-resolving phase boundaries in a presenter would be a second implementation
   of the phase-timeline algorithm.
 
+## Canonical current-price boundary
+
+When `CANONICAL_PRICING_ENABLED=true`, the presenter accepts current pricing only from a
+`calculated_cost` payload whose `pricing_basis` is `canonical`. It does not read passed
+`prices`, a loaded `priceComponents` relation, `hasActiveDiscounts()`, or relational discount
+formatters. A missing canonical value stays missing. An excluded comparability verdict clears
+all receipt rates and totals even if a stale payload contains them. Feature-off mode keeps the
+legacy calculated-cost-first relational fallback in a separate branch.
+
+Canonical phase rows come from `calculated_cost.phase_breakdown`; integrity rate fields are
+used only in the feature-off branch. Package facts come from `energy_package`, and offer
+membership comes from canonical `includes_discounts`, so a package is never called an offer.
+For `term_price_only`, card benefit copy uses the unannualized `contract_term` saving and normal
+total. Top-level annualized savings remain comparison data. Both templates render the same
+prepared strings from `ContractCardView`; do not add offer copy to Blade.
+
+Main and local listing paths do not load latest components for cards in canonical mode. They
+still batch-load them in feature-off mode. `ContractsList::getLatestPrices()` returns before
+`loadMissing()` in canonical mode so existing Blade calls cannot create an N+1 query.
+
 ## Detail mode
 
 `present(detailed: true)` raises the receipt cap from three rows to five and lets a mechanism
@@ -263,19 +283,22 @@ Two rules that must not be reverted, because both produced visible defects on a 
 
 ## Guardrails
 
-- **Never lazy-load a relation from the presenter.** Listing pages batch-load `company`,
-  `electricitySource` and the latest `priceComponents`; a lazy load turns every row of a
-  20-item list into an N+1 query. Callers that cannot batch-load pass rates via `prices`.
+- **Never lazy-load a relation from the presenter.** Listing pages batch-load `company` and
+  `electricitySource`. Canonical mode does not load `priceComponents`; feature-off callers
+  batch-load only the latest calculation components and can pass rates via `prices`. A lazy
+  relation load turns every row of a 20-item list into an N+1 query and can cross the canonical
+  current-price boundary.
 - **All copy from typed fields.** No interpretation `summary` string, and no seller free
   text, reaches a card. Same rule as `../CanonicalPricing/MarketReset/ResetEstimateCopy.php`.
 - **Cached payload shape is versioned.** `ContractListCacheService::PAYLOAD_SCHEMA_VERSION`
   and `Caching\ContractPageCacheVersion::PAYLOAD_SCHEMA_VERSION` must be bumped when the
   cached `calculated_cost` / `pricing_integrity` arrays gain or lose a field. Neither the
   import-driven version nor the feature-flag markers move on a code-only deploy, so without
-  a bump cards read a stale shape for up to 48 hours after release. Both are at **v3**
-  (`phase_breakdown` gained the resolved window dates and per-phase rates). The detail page's
-  own prepared-payload key (`ContractDetail::contractDetailViewDataCacheKey()`, **v11**) has
-  to move with them, because that payload now carries the whole `ContractCardView`.
+  a bump cards read a stale shape for up to 48 hours after release. Both are at **v8**: v6
+  added package/real-term fields, v7 made card/detail current values canonical-only and
+  changed real-term offer copy, and v8 moved company/SEO offer surfaces to those canonical
+  facts. The detail page's own prepared-payload key is **v16** because
+  its cached `ContractCardView`, metadata, and Product JSON-LD changed with this boundary.
 
 ## Tests
 

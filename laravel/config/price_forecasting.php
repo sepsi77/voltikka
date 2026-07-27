@@ -2,7 +2,7 @@
 
 return [
     'fixed_term' => [
-        'model_version' => env('PRICE_FORECASTING_MODEL_VERSION', 'fixed_term_ewma_gap_v1'),
+        'model_version' => env('PRICE_FORECASTING_MODEL_VERSION', 'fixed_term_ewma_gap_v2'),
         'area' => env('PRICE_FORECASTING_FUTURES_AREA', 'FI'),
         'vat_multiplier' => (float) env('PRICE_FORECASTING_VAT_MULTIPLIER', 1.255),
         'ewma_alpha' => (float) env('PRICE_FORECASTING_EWMA_ALPHA', 0.25),

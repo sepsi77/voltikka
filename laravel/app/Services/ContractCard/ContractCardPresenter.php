@@ -30,21 +30,20 @@ class ContractCardPresenter
     private const MIN_DISPLAYED_SAVING_EUR = 5.0;
 
     public function __construct(
-        private readonly PricingCategoryResolver $categories = new PricingCategoryResolver(),
-        private readonly CardReceiptLines $receiptLines = new CardReceiptLines(),
-        private readonly CardFooterItems $footerItems = new CardFooterItems(),
-    ) {
-    }
+        private readonly PricingCategoryResolver $categories = new PricingCategoryResolver,
+        private readonly CardReceiptLines $receiptLines = new CardReceiptLines,
+        private readonly CardFooterItems $footerItems = new CardFooterItems,
+    ) {}
 
     /**
-     * @param array<string, array{price: float|null, unit?: string|null}> $prices Latest relational
-     *        components keyed by `price_component_type`. Used when the cost payload has no rates,
-     *        which is the case in bill mode.
-     * @param int|null $consumption The visitor's selected annual kWh, deep-linked to the detail page.
-     * @param bool $billMode Suppresses the annual Arvio chip; the billing-period figures keep
-     *        their own "laskutusjaksollasi" disclosure.
-     * @param bool $detailed Contract detail page mode: the receipt may run longer, because the
-     *        page shows one contract instead of a scannable list.
+     * @param  array<string, array{price: float|null, unit?: string|null}>  $prices  Latest relational
+     *                                                                               components keyed by `price_component_type`. Used only by the feature-off legacy path.
+     *                                                                               Canonical mode never reads this array or the loaded component relation.
+     * @param  int|null  $consumption  The visitor's selected annual kWh, deep-linked to the detail page.
+     * @param  bool  $billMode  Suppresses the annual Arvio chip; the billing-period figures keep
+     *                          their own "laskutusjaksollasi" disclosure.
+     * @param  bool  $detailed  Contract detail page mode: the receipt may run longer, because the
+     *                          page shows one contract instead of a scannable list.
      */
     public function present(
         ElectricityContract $contract,
@@ -55,12 +54,25 @@ class ContractCardPresenter
         ?CarbonImmutable $today = null,
         bool $detailed = false,
     ): ContractCardView {
-        $cost = is_array($contract->calculated_cost ?? null) ? $contract->calculated_cost : [];
+        $rawCost = is_array($contract->calculated_cost ?? null) ? $contract->calculated_cost : [];
         $integrity = is_array($contract->pricing_integrity ?? null) ? $contract->pricing_integrity : null;
+        $useCanonical = (bool) config('canonical_pricing.enabled', false);
+
+        // In canonical mode, accept only a payload that identifies the canonical calculator as
+        // its source. This prevents a legacy result left on a model from becoming a second
+        // current-price source after the feature flag changes.
+        $canonicalComparability = $rawCost['comparability'] ?? $contract->comparability ?? null;
+        $canonicalExcluded = in_array($canonicalComparability, ['excluded_unknown_future', 'excluded_incomplete'], true);
+        $cost = $useCanonical
+            && (($rawCost['pricing_basis'] ?? null) !== 'canonical' || $canonicalExcluded)
+                ? []
+                : $rawCost;
 
         $facts = $this->categories->resolve($contract, $today)
             ->withNextReset($this->tailStart($cost));
-        $rates = $this->rates($contract, $cost, $prices);
+        $rates = $useCanonical
+            ? $this->canonicalRates($cost)
+            : $this->legacyRates($contract, $cost, $prices);
 
         $totalCost = is_numeric($cost['total_cost'] ?? null) ? (float) $cost['total_cost'] : null;
         $exceeds = (bool) ($contract->exceeds_consumption_limit ?? false);
@@ -70,7 +82,8 @@ class ContractCardPresenter
         $hasScheduledChange = is_string($integrity['card_label'] ?? null)
             && is_numeric($integrity['normal_rate_cents'] ?? null);
 
-        $footer = $this->footerItems->build($contract, $cost, $integrity, $facts, $exceeds);
+        $footer = $this->footerItems->build($contract, $cost, $integrity, $facts, $exceeds, $useCanonical);
+        $discount = $this->discountDisplay($cost);
 
         $company = $contract->relationLoaded('company') ? $contract->company : null;
 
@@ -86,14 +99,21 @@ class ContractCardPresenter
             // page it links to. The stored `name` is never rewritten.
             contractName: ContractContentSanitizer::displayName($contract->name) ?: (string) ($contract->name ?? ''),
             metaParts: $this->metaParts($contract, $company),
-            receiptLines: $this->receiptLines->build($rates, $cost, $integrity, $facts, $contract->metering, $detailed),
+            receiptLines: $this->receiptLines->build($rates, $cost, $integrity, $facts, $contract->metering, $detailed, $useCanonical),
             totalCost: $totalCost,
             monthlyCost: $totalCost !== null ? $totalCost / 12 : null,
             estimate: $billMode ? null : ContractCardCopy::estimate($cost, $facts),
             warnings: $footer['warnings'],
             facts: $footer['facts'],
-            discountSavings: $this->discountSavings($cost),
-            baseTotalCost: is_numeric($cost['base_total_cost'] ?? null) ? (float) $cost['base_total_cost'] : null,
+            discountSavings: $discount['saving'],
+            baseTotalCost: $discount['base_total'],
+            discountTermMonths: $discount['term_months'],
+            discountPeriodLabel: $discount['saving'] !== null
+                ? ($discount['term_months'] !== null ? $discount['term_months'].' kk' : '12 kk')
+                : null,
+            discountExplanation: $discount['saving'] !== null
+                ? $this->discountExplanation($discount['term_months'])
+                : null,
             exceedsConsumptionLimit: $exceeds,
             sellerCta: $this->sellerCta($contract, $company),
         );
@@ -126,7 +146,7 @@ class ContractCardPresenter
      * The first day of the estimated tail, as the market-reset estimator derived it from the
      * cadence calendar. Used only when the seller disclosed no period end of their own.
      *
-     * @param array<string, mixed> $cost
+     * @param  array<string, mixed>  $cost
      */
     private function tailStart(array $cost): ?CarbonImmutable
     {
@@ -173,15 +193,37 @@ class ContractCardPresenter
     }
 
     /**
-     * Resolve the component rates, preferring the calculated payload because that is what
-     * the displayed total was actually built from. The relational `prices` array is the
-     * fallback, and the only source in bill mode where no annual cost is calculated.
+     * Current canonical display rates. Missing means unavailable. This branch does not inspect
+     * relational prices, even when the relation is already loaded for a historical surface.
      *
-     * @param array<string, mixed> $cost
-     * @param array<string, array{price: float|null, unit?: string|null}> $prices
+     * @param  array<string, mixed>  $cost
      * @return array<string, float|null>
      */
-    private function rates(ElectricityContract $contract, array $cost, array $prices): array
+    private function canonicalRates(array $cost): array
+    {
+        $fromCost = static function (string $key) use ($cost): ?float {
+            return is_numeric($cost[$key] ?? null) ? (float) $cost[$key] : null;
+        };
+
+        return [
+            'general' => $fromCost('general_kwh_price'),
+            'day' => $fromCost('daytime_kwh_price'),
+            'night' => $fromCost('nighttime_kwh_price'),
+            'winter' => $fromCost('seasonal_winter_day_kwh_price'),
+            'other' => $fromCost('seasonal_other_kwh_price'),
+            'margin' => $fromCost('spot_price_margin'),
+            'fee' => $fromCost('monthly_fixed_fee'),
+        ];
+    }
+
+    /**
+     * Feature-off compatibility path. It keeps the old calculated-cost-first fallback chain.
+     *
+     * @param  array<string, mixed>  $cost
+     * @param  array<string, array{price: float|null, unit?: string|null}>  $prices
+     * @return array<string, float|null>
+     */
+    private function legacyRates(ElectricityContract $contract, array $cost, array $prices): array
     {
         if ($prices === [] && $contract->relationLoaded('priceComponents')) {
             $prices = $this->pricesFromRelation($contract);
@@ -224,23 +266,54 @@ class ContractCardPresenter
     }
 
     /**
-     * Promo savings worth stating. A rounded "Säästö 0 €/v" line reads as a broken promise,
-     * so anything under a few euros a year is dropped rather than displayed as zero.
+     * Promo values worth stating. A short fixed term uses its real customer benefit and normal
+     * total for that term. The annualized top-level values remain the comparison basis only.
      *
-     * @param array<string, mixed> $cost
+     * @param  array<string, mixed>  $cost
+     * @return array{saving: ?float, base_total: ?float, term_months: ?int}
      */
-    private function discountSavings(array $cost): ?float
+    private function discountDisplay(array $cost): array
     {
         if (($cost['includes_discounts'] ?? false) !== true) {
-            return null;
+            return ['saving' => null, 'base_total' => null, 'term_months' => null];
+        }
+
+        $term = is_array($cost['contract_term'] ?? null) ? $cost['contract_term'] : null;
+        $termSaving = $term['discount_savings_total'] ?? null;
+        $termBase = $term['base_total_cost'] ?? null;
+        $termMonths = $term['months'] ?? null;
+
+        if (is_numeric($termSaving) && is_numeric($termBase) && is_numeric($termMonths)
+            && (float) $termSaving >= self::MIN_DISPLAYED_SAVING_EUR) {
+            return [
+                'saving' => (float) $termSaving,
+                'base_total' => (float) $termBase,
+                'term_months' => (int) $termMonths,
+            ];
         }
 
         $savings = $cost['discount_savings_total'] ?? null;
         if (! is_numeric($savings) || (float) $savings < self::MIN_DISPLAYED_SAVING_EUR) {
-            return null;
+            return ['saving' => null, 'base_total' => null, 'term_months' => null];
         }
 
-        return (float) $savings;
+        $base = $cost['base_total_cost'] ?? null;
+
+        return [
+            'saving' => (float) $savings,
+            'base_total' => is_numeric($base) ? (float) $base : null,
+            'term_months' => null,
+        ];
+    }
+
+    private function discountExplanation(?int $termMonths): string
+    {
+        if ($termMonths !== null) {
+            return 'Säästö = tarjouksen tuoma alennus verrattuna saman sopimuksen normaalihintaan koko '
+                .$termMonths.' kuukauden sopimuskauden aikana.';
+        }
+
+        return 'Säästö = tarjouksen tuoma alennus verrattuna saman sopimuksen normaalihintaan ensimmäisen 12 kuukauden aikana.';
     }
 
     /**

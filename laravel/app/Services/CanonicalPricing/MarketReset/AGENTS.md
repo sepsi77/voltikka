@@ -233,16 +233,17 @@ current period price flat, and the estimator touches no market data at all.
 
 The flag **participates in the cache keys**, the same way the `c1`/`c0` canonical marker does:
 
-- `ContractListCacheService` → `contract_list_metrics:v{n}:c{0,1}r{0,1}:{consumption}`
-- `ContractRankingService` → `contract_rankings_5000kwh:c{0,1}:r{0,1}`
+- `ContractListCacheService` → `contract_list_metrics:v{n}:s{schema}:c{0,1}r{0,1}:{consumption}`
+- `CompanyListCacheService` → `company_list:v{n}:s{schema}:lv{list-version}:c{0,1}r{0,1}:{consumption}`
+- `ContractRankingService` → `contract_rankings_5000kwh:s{schema}:lv{list-version}:c{0,1}:r{0,1}`
 - `Caching/ContractPageCacheVersion` → `reset_forward_shift_enabled`
 
 Without this a stale hold-flat payload would survive the flip.
 
-**Caveat:** the cache version tracks the *flag*, not the *code*. Changing the estimator's maths while
-the flag is already on does **not** bust the page cache, because the version fingerprint is identical.
-Run `php artisan cache:clear` after any such deploy. (`contracts:fetch` already truncates the cache, so
-the next import would fix it anyway, but do not rely on that for a pricing change.)
+**Caveat:** the `c`/`r` markers track flags, not code. A code-only change to reset maths or aggregate
+membership must bump every affected payload schema marker (`ContractListCacheService`,
+`CompanyListCacheService`, `ContractRankingService`, and/or `ContractPageCacheVersion`). Otherwise an
+old payload can survive until its TTL or the next import-driven cache clear.
 
 Staging command:
 
@@ -273,8 +274,12 @@ snapshot with `php artisan futures:backfill-eex --area=FI` (throttled, several m
 `structuredOnlyTotal` drives the integrity label's euro impact. If only `totalCost` were shifted, a
 winter reset would show a **fabricated discount**, and a reset that does carry conflict codes would
 report an impact mixing the promo effect with the seasonal repricing. Both totals therefore get the
-same offsets, so their difference keeps measuring only the promotional effect. Pinned by
-`tests/Unit/CanonicalPricing/MarketResetForwardShiftTest.php`.
+same offsets, so their difference keeps measuring only the promotional effect. The promotion-free
+pass also replaces eligible canonical component amounts with `normal_amount` only after the one
+shared reset estimate is resolved; it never builds a second curve shift from the normal price. A
+fully covered Hybrid now costs all disclosed base-price phases and uses the normal segment-based
+reset path. Only an uncovered Hybrid still uses the one-phase held-forward fallback.
+Pinned by `tests/Unit/CanonicalPricing/MarketResetForwardShiftTest.php`.
 
 ## Tests
 
