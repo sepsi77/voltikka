@@ -158,6 +158,12 @@ php artisan test --filter="ContractsFilterTest"
 - **Contract cards state one of three pricing categories** (`Kiinteä hinta` / `Markkinahinta` / `Kulutusvaikutus`) in a single-purpose tinted band across the top of the card, followed by itemised receipt rows, the €/kk price stub, and a footer of coral warning pills plus quiet fact tags. An estimated 12-month total carries one `Arvio` popover that explains the estimate and links to `/tietoa#menetelma`. All of it is derived server-side by `laravel/app/Services/ContractCard/ContractCardPresenter`, shared by the normal and featured cards; see `laravel/app/Services/ContractCard/AGENTS.md`
 - Individual contract detail meta descriptions are generated from Voltikka ranking/pricing data instead of provider marketing descriptions
 
+### 1b. Company pages (`/sahkosopimus/sahkoyhtiot/{slug}`)
+- **Location**: `app/Livewire/CompanyDetail.php`, `app/Services/CompanyStatistics/`
+- Beyond the seller's contract list, the page answers three Search Console query clusters with generated sections: **`{yhtiö} tarjoukset`** (contracts with a live promotion; the heading always renders, with an empty state when the seller has none), **`{yhtiö}: hinnat markkinaan verrattuna`** (the seller's own price level against the market p20/median/p80 per contract type, as range rows plus a trailing-12-month trend chart), and **`{yhtiö} pörssisähkö`** (spot contracts with their margin in c/kWh). A generated FAQ feeds both the visible list and FAQPage schema
+- The comparison reads `contract_price_daily_statistics` and `contract_price_snapshots`, never a live price calculation, and uses the `annual_cost` metric because `energy_price` prices spot at that day's spot average and is not comparable with fixed contracts. See `laravel/app/Services/CompanyStatistics/AGENTS.md`
+- The page title and H1 still carry the old rank-first wording; rewriting them for the `hinta` cluster is an open decision, not an oversight
+
 ### 2. Contract Price Statistics
 - **Location**: `app/Livewire/ContractPriceStatistics.php`, `app/Services/ContractStatistics/ContractPriceStatisticsService.php`
 - **Route**: `/sahkosopimus/tilastot`
@@ -178,7 +184,7 @@ php artisan test --filter="ContractsFilterTest"
 - New contracts stay inactive until first validation; changed prices for interpreted contracts wait for the new version before relational publication
 - Versioned interpretation JSON is the validated pricing history
 - Relational price imports resolve duplicate null-UUID component-key collisions before upsert, so zero consumption-effect placeholders cannot overwrite a real energy price
-- The safe-publication gate distinguishes "unsafe source pricing" from "no 12-month total is derivable". A Hybrid's unquantifiable consumption effect is the second, not the first, so its base energy rate and monthly fee still publish. Conflating the two closed the gate permanently on all 49 Hybrid contracts on 2026-07-24 and blanked the `hybrid`/Joustosähkö line on `/sahkosopimus/tilastot`
+- The safe-publication gate trusts the structured API data as the baseline and blocks only on a **named reason** to doubt it: a detected deception, `conflicting` structured pricing, or an issue code not classified as harmless (unknown codes block). It never blocks merely because no 12-month total is derivable. Conflating the two closed the gate permanently on all 49 Hybrid contracts on 2026-07-24 — a Hybrid's consumption effect is never quantified by the seller — and blanked the `hybrid`/Joustosähkö line on `/sahkosopimus/tilastot`
 - `relational_pricing_published` is decided once at publication and read by every later import, so relaxing that gate reaches already-published contracts only through `php artisan contracts:republish-gated-pricing`
 - Commands: `php artisan contracts:interpret`, `php artisan contracts:republish-gated-pricing`
 
@@ -275,7 +281,7 @@ php artisan test --filter="ContractsFilterTest"
 | `ContractsList` | Main contracts listing with filters |
 | `SahkosopimusIndex` | SEO landing page for /sahkosopimus |
 | `ContractDetail` | Single contract view |
-| `CompanyDetail` | Company profile with their contracts |
+| `CompanyDetail` | Company profile with their contracts, offers, market comparison and FAQ |
 | `CompanyList` | List of all electricity companies |
 | `SpotPrice` | Spot price page with analytics |
 | `HeaderSpotPrice` | Compact spot price in header |

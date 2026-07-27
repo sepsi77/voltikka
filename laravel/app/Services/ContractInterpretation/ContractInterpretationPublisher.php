@@ -145,8 +145,26 @@ class ContractInterpretationPublisher
     }
 
     /**
-     * Only publish structured prices when interpretation found no known unsafe omission.
-     * Rich corrected phases remain in interpretation JSON until phase calculation exists.
+     * Decide whether this interpretation lets the source price components be published.
+     *
+     * The question is deliberately narrow: **can the structured components still be trusted
+     * as the contract's current disclosed price?** It is not "can Voltikka compute a
+     * 12-month total from them", and it is not "did the model agree with every source
+     * field". The structured API data is the baseline and is right in the large majority of
+     * cases; interpretation exists to catch the minority where the description or another
+     * field gives a concrete reason to doubt it. So the gate blocks on a *named reason*,
+     * not on the absence of a clean bill of health.
+     *
+     * This replaced an earlier rule that refused publication whenever `calculation.status`
+     * was `incomplete`/`unsupported` or `structured_pricing_status` was `incomplete`. Those
+     * describe derivability and completeness, not trustworthiness, and conflating them was
+     * severe: a Hybrid's consumption effect is *always* unquantifiable, so on 2026-07-24 the
+     * gate closed permanently on every Hybrid contract, froze 49 contracts' card prices at
+     * that day, and erased the `hybrid` segment from `/sahkosopimus/tilastot`. Later review
+     * found the remaining blocked Hybrids were held by `pricing_model_mismatch` corrections
+     * Voltikka had already accepted and published, and by `insufficient_evidence` meaning
+     * only that the seller published no prose to check against. None of it said the prices
+     * were wrong. See `tasks/hybrid-relational-pricing-gate/decisions.md`.
      *
      * Public because `contracts:republish-gated-pricing` re-runs this exact decision over
      * already-stored output when the rule is relaxed. `relational_pricing_published` is
@@ -159,82 +177,104 @@ class ContractInterpretationPublisher
      */
     public function canPublishSourcePricing(array $output): bool
     {
-        if ($this->isConsumptionEffectOnly($output)) {
-            return true;
-        }
-
-        return ! in_array(
-            $output['source_consistency']['structured_pricing_status'] ?? null,
-            ['incomplete', 'conflicting'],
-            true,
-        ) && ($output['source_consistency']['misleading_first_12_months'] ?? null) !== 'detected'
-            && ! in_array(
-                $output['calculation']['status'] ?? null,
-                ['incomplete', 'unsupported'],
-                true,
-            );
-    }
-
-    /**
-     * True when the only thing standing between the source components and publication
-     * is an unquantifiable consumption effect.
-     *
-     * A Hybrid ("joustosähkö"/"kulutusvaikutus") product prices a disclosed base energy
-     * rate plus a customer-specific consumption-profile adjustment whose amount the seller
-     * almost never publishes. Prompt v17 therefore requires exactly this shape for it:
-     * `unsupported_consumption_effect`, `structured_pricing_status = incomplete`, and
-     * `calculation.status = unsupported`. That is the *correct* reading of the source, and
-     * it means Voltikka cannot compute a 12-month total — but it says nothing bad about the
-     * base components themselves, which are complete, disclosed and identical to what the
-     * pre-interpretation importer wrote.
-     *
-     * Without this carve-out the general gate below blocked every Hybrid contract forever:
-     * production stopped writing `price_components` for all 49 active Hybrid contracts the
-     * day import-time interpretation went live (2026-07-24), which froze their card prices
-     * and erased the `hybrid` segment from `/sahkosopimus/tilastot` entirely. The
-     * consumption effect is disclosed to the visitor as its own pricing category and card
-     * warning, so publishing the base rate is honest; withholding it is what misled.
-     *
-     * This mirrors validator v4's `recurring_reset_requires_estimate` carve-out: an expected,
-     * product-defining reason for an estimate must not be read as unsafe source data. It stays
-     * narrow — any *other* issue code, a detected deception, or an `incomplete` calculation
-     * (which means facts beyond the effect are missing too) still blocks publication.
-     *
-     * @param  array<string, mixed>  $output
-     */
-    private function isConsumptionEffectOnly(array $output): bool
-    {
         $consistency = $output['source_consistency'] ?? [];
-        $issueCodes = $consistency['issue_codes'] ?? [];
 
-        if (! is_array($issueCodes) || ! in_array('unsupported_consumption_effect', $issueCodes, true)) {
-            return false;
-        }
-
-        // `structured_matches_description` only records that prose and structured data agree.
-        if (array_diff($issueCodes, ['unsupported_consumption_effect', 'structured_matches_description']) !== []) {
-            return false;
-        }
-
-        // `unsupported` is the effect itself. `incomplete` means other facts are missing too.
-        if (($output['calculation']['status'] ?? null) !== 'unsupported') {
-            return false;
-        }
-
-        // A conflict is a disagreement inside the source, not an unpriced adjustment.
-        if (($consistency['structured_pricing_status'] ?? null) === 'conflicting') {
-            return false;
-        }
-
-        // A deception found beside the effect is a separate, genuine reason to withhold.
+        // A hidden first-12-month increase is the deception the whole pipeline exists to
+        // catch. Never publish components that would present a promo price as the price.
         if (($consistency['misleading_first_12_months'] ?? null) === 'detected') {
             return false;
         }
 
-        $effect = $output['pricing']['consumption_effect'] ?? [];
+        // The source contradicting itself leaves no reading of it that can be trusted,
+        // whichever component the conflict is in.
+        if (($consistency['structured_pricing_status'] ?? null) === 'conflicting') {
+            return false;
+        }
 
-        return ($effect['present'] ?? false) === true
-            && in_array($effect['applies_to'] ?? null, ['base_contract', 'both'], true);
+        $issueCodes = $consistency['issue_codes'] ?? [];
+
+        if (! is_array($issueCodes)) {
+            return false;
+        }
+
+        foreach ($issueCodes as $code) {
+            if (! $this->issueCodeLeavesComponentsTrustworthy($code, $output)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Does one issue code leave the structured components usable as the current price?
+     *
+     * Unknown codes return false. The schema's code list grows, and a code nobody has
+     * classified here must not be silently treated as harmless.
+     *
+     * @param  array<string, mixed>  $output
+     */
+    private function issueCodeLeavesComponentsTrustworthy(string $code, array $output): bool
+    {
+        return match ($code) {
+            // The components are fine; these describe agreement, an expected estimate, or
+            // something outside the base price.
+            //   structured_matches_description    — prose and structured data agree
+            //   insufficient_evidence             — the seller published no prose to check
+            //                                       against; that is thin documentation, not
+            //                                       a defect in the numbers
+            //   unsupported_consumption_effect    — a joustosähkö product's ± adjustment is
+            //                                       never published; the base rate still is
+            //   recurring_reset_requires_estimate — the next period's market price cannot be
+            //                                       known yet (validator v4 already treats
+            //                                       this as expected, not unsafe)
+            //   future_price_unknown              — same shape: unknowable, not withheld
+            //   optional_fixing_not_in_base_price — applies only if the customer opts in
+            'structured_matches_description',
+            'insufficient_evidence',
+            'unsupported_consumption_effect',
+            'recurring_reset_requires_estimate',
+            'future_price_unknown',
+            'optional_fixing_not_in_base_price' => true,
+
+            // Classification corrections. Which product this is does not change what the
+            // seller charges, and a wrong component is reported by component_mismatch.
+            'contract_type_mismatch',
+            'metering_mismatch' => true,
+
+            // Except this one, because pricing_model decides how a component is *read*: on a
+            // Spot contract a 0.4 c/kWh General is the margin, on a FixedPrice contract it is
+            // the whole energy price. If the correction publishes, the calculator reads the
+            // components correctly and this is benign. If it does not publish (a mismatch
+            // below high confidence), the contract keeps a model the interpretation believes
+            // is wrong and the same rows would be priced as something they are not.
+            'pricing_model_mismatch' => $this->pricingModelCorrectionPublishes($output),
+
+            // Everything left names a concrete reason the components misstate the price:
+            // component_mismatch, structured_matches_intro_only, promotion_metadata_missing,
+            // future_price_omitted, other — plus any code added to the schema later.
+            default => false,
+        };
+    }
+
+    /**
+     * Would the pricing-model correction itself publish? Mirrors `canonicalClassification()`,
+     * so the two cannot disagree about whether the contract ends up carrying the corrected
+     * model.
+     *
+     * @param  array<string, mixed>  $output
+     */
+    private function pricingModelCorrectionPublishes(array $output): bool
+    {
+        $consistency = $output['source_consistency'] ?? [];
+
+        return $this->canPublishClassification(
+            $output['classification']['primary_pricing_model'] ?? 'Unknown',
+            $consistency['recommended_pricing_model'] ?? 'Unknown',
+            $consistency['pricing_model_status'] ?? 'uncertain',
+            $output['confidence']['classification'] ?? 'low',
+            ['Spot', 'FixedPrice', 'Hybrid'],
+        );
     }
 
     /**

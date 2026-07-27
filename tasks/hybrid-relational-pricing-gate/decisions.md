@@ -121,3 +121,58 @@ Adding `recurring_reset_requires_estimate` to the benign allowlist beside
 `structured_matches_description` would recover 3 of the 7 and is consistent with validator v4.
 It moves real published prices for named companies, so treat it as a reviewed change, not a
 tweak. Not done yet — awaiting a decision.
+
+## Resolved: the gate was inverted (2026-07-27, second change)
+
+Inspecting the four contracts held by `pricing_model_mismatch` and `insufficient_evidence`
+showed the earlier "keep blocked" judgment was wrong for all four:
+
+- **Kokkolan Aalto 6 kk** — upstream says `FixedPrice`; the description ("pörssihintaan
+  perustuva kulutusvaikutus") made the interpretation recommend `Hybrid` at high confidence.
+- **Vattenfall Helppo Pörssisähkö** — upstream says `Spot`; the description discloses a
+  350 kWh/kk limit with 0.50 snt/kWh above it. Recommended `Hybrid`, high confidence.
+
+In both, `published_fields` contains `pricing_model` and the contract row already carries the
+corrected value. `pricing_model_mismatch` was recording a correction Voltikka had **already
+accepted and applied**, not an open dispute.
+
+- **Lammaisten IISI-KULUTUSJOUSTO YLEISSÄHKÖ 12 kk / AIKASÄHKÖ 24 kk** — `model_status=match`,
+  summaries state the structured data is complete and correct, and the cited evidence is only
+  structured fields. `insufficient_evidence` meant the seller published no prose to verify
+  against. Thin documentation, not a defective price.
+
+So the allowlist framing was the wrong shape: it treated "we have no positive confirmation" as
+a reason to withhold. The owner's framing settled it — the LLM check exists to *validate* the
+structured data, which is correct in roughly 95% of cases; trust it unless the description or
+another field gives a reason not to.
+
+`canPublishSourcePricing()` is now inverted. It blocks on:
+
+1. `misleading_first_12_months = detected`;
+2. `structured_pricing_status = conflicting`;
+3. any issue code not classified harmless by `issueCodeLeavesComponentsTrustworthy()`, with
+   **unknown codes blocking** so a code added to the schema later is conservative by default.
+
+`calculation.status` no longer participates at all — derivability is not trustworthiness.
+
+Blocking codes: `component_mismatch`, `structured_matches_intro_only`,
+`promotion_metadata_missing`, `future_price_omitted`, `other`. Each names a concrete way the
+stored components would misstate what the customer pays.
+
+One conditional: **`pricing_model_mismatch`**. It is the only classification code that touches
+price safety, because `pricing_model` decides how a component is *read* — a 0.4 c/kWh `General`
+is the spot margin on a Spot contract and the entire energy price on a FixedPrice one. It is
+harmless only when the correction itself publishes (high confidence); below that the contract
+keeps a model the interpretation believes is wrong and the same rows would be priced as
+something they are not. `pricingModelCorrectionPublishes()` mirrors `canonicalClassification()`
+so the two cannot disagree.
+
+`contract_type_mismatch` and `metering_mismatch` are unconditionally harmless: which product
+this is does not change what the seller charges, and a genuinely wrong component is reported by
+`component_mismatch`.
+
+Two tests from the first change were deleted rather than kept, because they asserted the narrow
+rule itself: "an incomplete calculation still blocks" and "an optional_fixing effect does not
+open the gate". Both are false under the inverted rule by design. They were replaced by tests
+for what the new rule actually promises, including an unknown-code test guarding the
+conservative `default`.

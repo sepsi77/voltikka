@@ -1131,7 +1131,7 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertDatabaseHas('active_contracts', ['id' => $snapshot->contract_id]);
     }
 
-    public function test_a_second_issue_beside_the_consumption_effect_still_blocks_publication(): void
+    public function test_a_component_mismatch_beside_the_consumption_effect_blocks_publication(): void
     {
         $snapshot = $this->hybridSnapshot();
         $output = $this->consumptionEffectOnlyOutput($snapshot->contract_id);
@@ -1157,13 +1157,75 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertSame(0, PriceComponent::count());
     }
 
-    public function test_an_incomplete_calculation_beside_the_consumption_effect_still_blocks_publication(): void
+    public function test_calculation_status_alone_does_not_gate_the_source_components(): void
     {
-        // `incomplete` means facts beyond the effect are missing too, so the base
-        // components cannot be trusted to be the whole disclosed price.
+        // Derivability is not trustworthiness. `unsupported`/`incomplete` say Voltikka
+        // cannot total the year, not that the seller's published rate is wrong.
         $snapshot = $this->hybridSnapshot();
         $output = $this->consumptionEffectOnlyOutput($snapshot->contract_id);
         $output['calculation']['status'] = 'incomplete';
+        $interpretation = $this->createInterpretation($snapshot, $output);
+
+        app(ContractInterpretationPublisher::class)->publish($interpretation);
+
+        $this->assertTrue($interpretation->fresh()->relational_pricing_published);
+        $this->assertSame(6.9, PriceComponent::where('price_component_type', 'General')->sole()->price);
+    }
+
+    public function test_thin_source_documentation_does_not_block_complete_components(): void
+    {
+        // Lammaisten IISI-KULUTUSJOUSTO: the seller published no prose to check the
+        // structured data against. That is thin documentation, not a defective price.
+        $snapshot = $this->hybridSnapshot();
+        $output = $this->consumptionEffectOnlyOutput($snapshot->contract_id);
+        $output['source_consistency']['issue_codes'][] = 'insufficient_evidence';
+        $interpretation = $this->createInterpretation($snapshot, $output);
+
+        app(ContractInterpretationPublisher::class)->publish($interpretation);
+
+        $this->assertTrue($interpretation->fresh()->relational_pricing_published);
+    }
+
+    public function test_a_periodic_reset_beside_the_consumption_effect_does_not_block(): void
+    {
+        // A product can be both a consumption-effect Hybrid and a quarterly market reset
+        // (Korpela Kvartaali). Two expected reasons for an estimate are still not a defect.
+        $snapshot = $this->hybridSnapshot();
+        $output = $this->consumptionEffectOnlyOutput($snapshot->contract_id);
+        $output['source_consistency']['issue_codes'][] = 'recurring_reset_requires_estimate';
+        $interpretation = $this->createInterpretation($snapshot, $output);
+
+        app(ContractInterpretationPublisher::class)->publish($interpretation);
+
+        $this->assertTrue($interpretation->fresh()->relational_pricing_published);
+    }
+
+    public function test_a_published_pricing_model_correction_does_not_block_publication(): void
+    {
+        // Vattenfall Helppo Pörssisähkö: source says Spot, description discloses an
+        // excess-use charge, interpretation corrects to Hybrid at high confidence. The
+        // correction publishes, so the calculator reads the same components correctly.
+        $snapshot = $this->hybridSnapshot();
+        $output = $this->consumptionEffectOnlyOutput($snapshot->contract_id);
+        $output['source_consistency']['issue_codes'][] = 'pricing_model_mismatch';
+        $interpretation = $this->createInterpretation($snapshot, $output);
+
+        app(ContractInterpretationPublisher::class)->publish($interpretation);
+
+        $this->assertSame('mismatch', $output['source_consistency']['pricing_model_status']);
+        $this->assertTrue($interpretation->fresh()->relational_pricing_published);
+        $this->assertSame('Hybrid', ElectricityContract::findOrFail($snapshot->contract_id)->pricing_model);
+    }
+
+    public function test_an_unpublished_pricing_model_correction_blocks_publication(): void
+    {
+        // Below high confidence the correction does not publish, so the contract keeps a
+        // model the interpretation believes is wrong — and pricing_model decides how a
+        // component is read (a Spot 0.4 c/kWh General is a margin, not an energy price).
+        $snapshot = $this->hybridSnapshot();
+        $output = $this->consumptionEffectOnlyOutput($snapshot->contract_id);
+        $output['source_consistency']['issue_codes'][] = 'pricing_model_mismatch';
+        $output['confidence']['classification'] = 'medium';
         $interpretation = $this->createInterpretation($snapshot, $output);
 
         app(ContractInterpretationPublisher::class)->publish($interpretation);
@@ -1172,13 +1234,42 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertSame(0, PriceComponent::count());
     }
 
-    public function test_an_optional_fixing_consumption_effect_does_not_open_the_gate(): void
+    public function test_conflicting_structured_pricing_blocks_publication(): void
     {
-        // The effect only applies if the customer fixes the price, so it cannot be the
-        // reason a base contract is unsupported; something else is wrong.
         $snapshot = $this->hybridSnapshot();
         $output = $this->consumptionEffectOnlyOutput($snapshot->contract_id);
-        $output['pricing']['consumption_effect']['applies_to'] = 'optional_fixing';
+        $output['source_consistency']['structured_pricing_status'] = 'conflicting';
+        $interpretation = $this->createInterpretation($snapshot, $output);
+
+        app(ContractInterpretationPublisher::class)->publish($interpretation);
+
+        $this->assertFalse($interpretation->fresh()->relational_pricing_published);
+        $this->assertSame(0, PriceComponent::count());
+    }
+
+    public function test_an_unclassified_issue_code_blocks_publication(): void
+    {
+        // The schema's code list grows. A code nobody has classified in the publisher must
+        // not be treated as harmless by default.
+        $snapshot = $this->hybridSnapshot();
+        $output = $this->consumptionEffectOnlyOutput($snapshot->contract_id);
+        $output['source_consistency']['issue_codes'][] = 'other';
+        $interpretation = $this->createInterpretation($snapshot, $output);
+
+        app(ContractInterpretationPublisher::class)->publish($interpretation);
+
+        $this->assertFalse($interpretation->fresh()->relational_pricing_published);
+        $this->assertSame(0, PriceComponent::count());
+    }
+
+    public function test_an_intro_only_structured_price_blocks_publication(): void
+    {
+        // The classic deception shape: the structured components hold only the promo price
+        // and the ongoing one lives in prose. Publishing these rows would state the promo
+        // as the price.
+        $snapshot = $this->hybridSnapshot();
+        $output = $this->consumptionEffectOnlyOutput($snapshot->contract_id);
+        $output['source_consistency']['issue_codes'][] = 'structured_matches_intro_only';
         $interpretation = $this->createInterpretation($snapshot, $output);
 
         app(ContractInterpretationPublisher::class)->publish($interpretation);

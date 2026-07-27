@@ -38,7 +38,11 @@
       "status": "completed"
     },
     {
-      "name": "Decide whether recurring_reset_requires_estimate should join the benign issue-code allowlist (3 Hybrid contracts still frozen for a reason validator v4 already treats as expected)",
+      "name": "Invert the gate: block on a named reason instead of requiring a clean bill of health",
+      "status": "completed"
+    },
+    {
+      "name": "Deploy the inverted gate and republish the 7 remaining Hybrid contracts",
       "status": "pending"
     }
   ]
