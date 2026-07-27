@@ -114,6 +114,7 @@ php artisan serve              # Runs on http://127.0.0.1:8000
 php artisan contracts:fetch                # Fetch contracts from Azure API and auto-link high-confidence replacements
 php artisan contracts:detect-replacements  # Report likely replacements for inactive contracts
 php artisan contracts:link-replacements    # Persist high-confidence replacement links
+php artisan contracts:republish-gated-pricing  # Re-run the relational price publication gate over already-published interpretations and refill the days they lost (dry run without --apply)
 
 # Spot prices
 php artisan spot:fetch               # Fetch current spot prices from ENTSO-E; retries transient server/connection timeouts
@@ -177,7 +178,9 @@ php artisan test --filter="ContractsFilterTest"
 - New contracts stay inactive until first validation; changed prices for interpreted contracts wait for the new version before relational publication
 - Versioned interpretation JSON is the validated pricing history
 - Relational price imports resolve duplicate null-UUID component-key collisions before upsert, so zero consumption-effect placeholders cannot overwrite a real energy price
-- Command: `php artisan contracts:interpret`
+- The safe-publication gate distinguishes "unsafe source pricing" from "no 12-month total is derivable". A Hybrid's unquantifiable consumption effect is the second, not the first, so its base energy rate and monthly fee still publish. Conflating the two closed the gate permanently on all 49 Hybrid contracts on 2026-07-24 and blanked the `hybrid`/Joustosähkö line on `/sahkosopimus/tilastot`
+- `relational_pricing_published` is decided once at publication and read by every later import, so relaxing that gate reaches already-published contracts only through `php artisan contracts:republish-gated-pricing`
+- Commands: `php artisan contracts:interpret`, `php artisan contracts:republish-gated-pricing`
 
 ### Canonical phase-aware pricing (deceptive-pricing fix)
 - **Location**: `laravel/app/Services/CanonicalPricing/`

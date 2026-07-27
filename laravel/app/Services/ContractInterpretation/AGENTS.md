@@ -44,6 +44,9 @@ Important semantics:
 - For an interpreted contract, a changed raw source price does not replace relational prices before the new interpretation validates it.
 - `relational_pricing_published` records whether source components passed the safe-publication gate.
 - Unsafe incomplete/conflicting structured prices remain in canonical interpretation JSON but do not activate a new contract or replace relational `price_components`, including on later imports.
+- **The gate carves out an unquantifiable consumption effect** (`ContractInterpretationPublisher::isConsumptionEffectOnly()`). A Hybrid ("joustosähkö"/"kulutusvaikutus") product always interprets to `unsupported_consumption_effect` + `structured_pricing_status=incomplete` + `calculation.status=unsupported`, because sellers do not publish the amount of the customer-specific effect — that is the *correct* reading, and it says nothing bad about the base energy rate and monthly fee, which are complete and disclosed. Without the carve-out the general gate closed on **every** Hybrid contract the day import-time interpretation went live (2026-07-24): production stopped writing `price_components` for all 49 active Hybrid contracts, froze their card prices, and erased the `hybrid` segment from `/sahkosopimus/tilastot`. The carve-out is conjunctive and narrow — no other issue code (except `structured_matches_description`), `calculation.status` exactly `unsupported` (not `incomplete`, which means other facts are missing too), not `conflicting`, not `detected`, and `consumption_effect.present` with `applies_to` in `base_contract`/`both` (an `optional_fixing` effect can never be why a *base* contract is unsupported). It mirrors validator v4's `recurring_reset_requires_estimate` carve-out: an expected, product-defining reason for an estimate is not unsafe source data. Do not widen it into a general "publish anything unsupported" rule.
+- **Relaxing the gate does not reach already-published contracts.** `relational_pricing_published` is decided once at publication and read by every later import, so a contract published under a stricter rule stays blocked until a new source snapshot triggers a new interpretation — weeks, for a stable product. `php artisan contracts:republish-gated-pricing` (`Console/Commands/RepublishGatedRelationalPricing.php`) re-runs the current gate over stored output, lifts the flag where it now passes, and refills the days lost in between from the covering `contract_source_snapshots` payload. Dry run by default; `--apply` writes. It is why `canPublishSourcePricing()` is **public** — the command must ask the real gate, never restate it, for the same reason `CanonicalPriceComponentWriter::resolveRows()` is public.
+- A publication-semantics change like that carve-out **does not bump `prompt_version`/`validator_version`**. Those participate in the analysis fingerprint, and bumping either would force a paid re-interpretation of every contract to produce byte-identical output. Bump them when the *model's answer* should change; use the republish command when only the deterministic decision on top of it changed.
 - Evidence paths are relative to the flat prompt input. They must identify one scalar leaf; description quotes must match normalized prompt text exactly.
 - Structured discounted amounts can pass without a literal output number only when the validator independently recomputes the amount from separately cited structured discount operands and matching phase limits.
 - Validator v2 rejects fixed-fee taxonomy drift: `fixed` on Spot needs an actual fixed energy component, `flat_fee_or_package` must match a `flat_fee` component, and seasonal/time-of-use/consumption-effect mechanisms must match extracted pricing facts.
@@ -78,3 +81,14 @@ php artisan contracts:interpret --contract=LOCAL_CONTRACT_ID
 php artisan contracts:interpret --include-inactive
 php artisan contracts:interpret --retry-failed
 ```
+
+Repair command for a relaxed publication gate:
+
+```bash
+php artisan contracts:republish-gated-pricing                       # dry run, last 14 days
+php artisan contracts:republish-gated-pricing --from=2026-07-25 --apply
+php artisan contracts:republish-gated-pricing --contract=LOCAL_CONTRACT_ID --apply
+```
+
+It prints the `contracts:calculate-price-statistics --date=… --overwrite` calls needed
+afterwards, because filled price components do not rewrite the daily statistics themselves.

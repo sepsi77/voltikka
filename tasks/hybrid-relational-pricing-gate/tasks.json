@@ -1,0 +1,41 @@
+{
+  "task": "hybrid-relational-pricing-gate",
+  "tasks": [
+    {
+      "name": "Diagnose the missing joustosähkö series against production data",
+      "status": "completed"
+    },
+    {
+      "name": "Add the unsupported_consumption_effect carve-out to ContractInterpretationPublisher::canPublishSourcePricing()",
+      "status": "completed"
+    },
+    {
+      "name": "Make canPublishSourcePricing() public so the repair command cannot restate the rule",
+      "status": "completed"
+    },
+    {
+      "name": "Add contracts:republish-gated-pricing to lift stale flags and refill lost days from source snapshots",
+      "status": "completed"
+    },
+    {
+      "name": "Tests: carve-out opens, and each separate unsafe reason still blocks",
+      "status": "completed"
+    },
+    {
+      "name": "Tests: repair command dry-run, fill, skip existing days, skip uncovered days, do not reopen unsafe",
+      "status": "completed"
+    },
+    {
+      "name": "Update AGENTS.md files (ContractInterpretation, ContractStatistics, laravel, root)",
+      "status": "completed"
+    },
+    {
+      "name": "Deploy to production, run contracts:republish-gated-pricing --apply, recalculate 2026-07-25..27 statistics",
+      "status": "pending"
+    },
+    {
+      "name": "Verify the Joustosähkö line reaches the current day on /sahkosopimus/tilastot",
+      "status": "pending"
+    }
+  ]
+}

@@ -1115,6 +1115,235 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertSame(0, PriceComponent::count());
     }
 
+    public function test_hybrid_base_prices_publish_when_only_the_consumption_effect_is_unquantifiable(): void
+    {
+        $snapshot = $this->hybridSnapshot();
+        $interpretation = $this->createInterpretation(
+            $snapshot,
+            $this->consumptionEffectOnlyOutput($snapshot->contract_id),
+        );
+
+        $published = app(ContractInterpretationPublisher::class)->publish($interpretation);
+
+        $this->assertTrue($published);
+        $this->assertTrue($interpretation->fresh()->relational_pricing_published);
+        $this->assertSame(6.9, PriceComponent::where('price_component_type', 'General')->sole()->price);
+        $this->assertDatabaseHas('active_contracts', ['id' => $snapshot->contract_id]);
+    }
+
+    public function test_a_second_issue_beside_the_consumption_effect_still_blocks_publication(): void
+    {
+        $snapshot = $this->hybridSnapshot();
+        $output = $this->consumptionEffectOnlyOutput($snapshot->contract_id);
+        $output['source_consistency']['issue_codes'][] = 'component_mismatch';
+        $interpretation = $this->createInterpretation($snapshot, $output);
+
+        app(ContractInterpretationPublisher::class)->publish($interpretation);
+
+        $this->assertFalse($interpretation->fresh()->relational_pricing_published);
+        $this->assertSame(0, PriceComponent::count());
+    }
+
+    public function test_a_detected_deception_beside_the_consumption_effect_still_blocks_publication(): void
+    {
+        $snapshot = $this->hybridSnapshot();
+        $output = $this->consumptionEffectOnlyOutput($snapshot->contract_id);
+        $output['source_consistency']['misleading_first_12_months'] = 'detected';
+        $interpretation = $this->createInterpretation($snapshot, $output);
+
+        app(ContractInterpretationPublisher::class)->publish($interpretation);
+
+        $this->assertFalse($interpretation->fresh()->relational_pricing_published);
+        $this->assertSame(0, PriceComponent::count());
+    }
+
+    public function test_an_incomplete_calculation_beside_the_consumption_effect_still_blocks_publication(): void
+    {
+        // `incomplete` means facts beyond the effect are missing too, so the base
+        // components cannot be trusted to be the whole disclosed price.
+        $snapshot = $this->hybridSnapshot();
+        $output = $this->consumptionEffectOnlyOutput($snapshot->contract_id);
+        $output['calculation']['status'] = 'incomplete';
+        $interpretation = $this->createInterpretation($snapshot, $output);
+
+        app(ContractInterpretationPublisher::class)->publish($interpretation);
+
+        $this->assertFalse($interpretation->fresh()->relational_pricing_published);
+        $this->assertSame(0, PriceComponent::count());
+    }
+
+    public function test_an_optional_fixing_consumption_effect_does_not_open_the_gate(): void
+    {
+        // The effect only applies if the customer fixes the price, so it cannot be the
+        // reason a base contract is unsupported; something else is wrong.
+        $snapshot = $this->hybridSnapshot();
+        $output = $this->consumptionEffectOnlyOutput($snapshot->contract_id);
+        $output['pricing']['consumption_effect']['applies_to'] = 'optional_fixing';
+        $interpretation = $this->createInterpretation($snapshot, $output);
+
+        app(ContractInterpretationPublisher::class)->publish($interpretation);
+
+        $this->assertFalse($interpretation->fresh()->relational_pricing_published);
+        $this->assertSame(0, PriceComponent::count());
+    }
+
+    public function test_republish_command_lifts_the_stale_flag_and_fills_the_days_it_lost(): void
+    {
+        // The gate is decided once at publication time and read by every later import, so a
+        // contract published under the old rule stays blocked until this command re-asks.
+        $snapshot = $this->hybridSnapshot();
+        $snapshot->update([
+            'first_observed_at' => '2026-07-25 06:00:00',
+            'last_observed_at' => '2026-07-27 06:00:00',
+        ]);
+        $interpretation = $this->createInterpretation(
+            $snapshot,
+            $this->consumptionEffectOnlyOutput($snapshot->contract_id),
+        );
+        $interpretation->update([
+            'status' => ContractInterpretation::STATUS_PUBLISHED,
+            'relational_pricing_published' => false,
+        ]);
+        ElectricityContract::whereKey($snapshot->contract_id)
+            ->update(['published_interpretation_id' => $interpretation->id]);
+
+        $this->artisan('contracts:republish-gated-pricing', [
+            '--from' => '2026-07-25',
+            '--to' => '2026-07-27',
+        ])->assertExitCode(0);
+
+        $this->assertFalse($interpretation->fresh()->relational_pricing_published);
+        $this->assertSame(0, PriceComponent::count(), 'A dry run must not write.');
+
+        $this->artisan('contracts:republish-gated-pricing', [
+            '--from' => '2026-07-25',
+            '--to' => '2026-07-27',
+            '--apply' => true,
+        ])->assertExitCode(0);
+
+        $this->assertTrue($interpretation->fresh()->relational_pricing_published);
+        $this->assertEqualsCanonicalizing(
+            ['2026-07-25', '2026-07-27', '2026-07-26'],
+            PriceComponent::where('price_component_type', 'General')
+                ->pluck('price_date')
+                ->map(fn ($date) => $date->toDateString())
+                ->all(),
+        );
+    }
+
+    public function test_republish_command_leaves_days_that_already_have_rows_alone(): void
+    {
+        $snapshot = $this->hybridSnapshot();
+        $snapshot->update([
+            'first_observed_at' => '2026-07-25 06:00:00',
+            'last_observed_at' => '2026-07-26 06:00:00',
+        ]);
+        $interpretation = $this->createInterpretation(
+            $snapshot,
+            $this->consumptionEffectOnlyOutput($snapshot->contract_id),
+        );
+        $interpretation->update([
+            'status' => ContractInterpretation::STATUS_PUBLISHED,
+            'relational_pricing_published' => false,
+        ]);
+        ElectricityContract::whereKey($snapshot->contract_id)
+            ->update(['published_interpretation_id' => $interpretation->id]);
+
+        // A day the import already wrote. Its stored price is what the API served then.
+        PriceComponent::create([
+            'id' => 'hybrid-energy',
+            'price_date' => '2026-07-25',
+            'price_component_type' => 'General',
+            'electricity_contract_id' => $snapshot->contract_id,
+            'has_discount' => false,
+            'price' => 5.55,
+            'payment_unit' => 'CentPerKiwattHour',
+        ]);
+
+        $this->artisan('contracts:republish-gated-pricing', [
+            '--from' => '2026-07-25',
+            '--to' => '2026-07-26',
+            '--apply' => true,
+        ])->assertExitCode(0);
+
+        $this->assertSame(
+            5.55,
+            PriceComponent::whereDate('price_date', '2026-07-25')
+                ->where('price_component_type', 'General')
+                ->sole()
+                ->price,
+        );
+        $this->assertSame(
+            6.9,
+            PriceComponent::whereDate('price_date', '2026-07-26')
+                ->where('price_component_type', 'General')
+                ->sole()
+                ->price,
+        );
+    }
+
+    public function test_republish_command_leaves_a_day_with_no_covering_snapshot_missing(): void
+    {
+        // Evidence, never inference: a gap outside the snapshot's observation window
+        // stays a gap rather than borrowing a neighbouring day's price.
+        $snapshot = $this->hybridSnapshot();
+        $snapshot->update([
+            'first_observed_at' => '2026-07-26 06:00:00',
+            'last_observed_at' => '2026-07-27 06:00:00',
+        ]);
+        $interpretation = $this->createInterpretation(
+            $snapshot,
+            $this->consumptionEffectOnlyOutput($snapshot->contract_id),
+        );
+        $interpretation->update([
+            'status' => ContractInterpretation::STATUS_PUBLISHED,
+            'relational_pricing_published' => false,
+        ]);
+        ElectricityContract::whereKey($snapshot->contract_id)
+            ->update(['published_interpretation_id' => $interpretation->id]);
+
+        $this->artisan('contracts:republish-gated-pricing', [
+            '--from' => '2026-07-24',
+            '--to' => '2026-07-27',
+            '--apply' => true,
+        ])->assertExitCode(0);
+
+        $this->assertEqualsCanonicalizing(
+            ['2026-07-26', '2026-07-27'],
+            PriceComponent::where('price_component_type', 'General')
+                ->pluck('price_date')
+                ->map(fn ($date) => $date->toDateString())
+                ->all(),
+        );
+    }
+
+    public function test_republish_command_does_not_reopen_a_genuinely_unsafe_interpretation(): void
+    {
+        $snapshot = $this->hybridSnapshot();
+        $snapshot->update([
+            'first_observed_at' => '2026-07-25 06:00:00',
+            'last_observed_at' => '2026-07-27 06:00:00',
+        ]);
+        $output = $this->consumptionEffectOnlyOutput($snapshot->contract_id);
+        $output['source_consistency']['structured_pricing_status'] = 'conflicting';
+        $interpretation = $this->createInterpretation($snapshot, $output);
+        $interpretation->update([
+            'status' => ContractInterpretation::STATUS_PUBLISHED,
+            'relational_pricing_published' => false,
+        ]);
+        ElectricityContract::whereKey($snapshot->contract_id)
+            ->update(['published_interpretation_id' => $interpretation->id]);
+
+        $this->artisan('contracts:republish-gated-pricing', [
+            '--from' => '2026-07-25',
+            '--to' => '2026-07-27',
+            '--apply' => true,
+        ])->assertExitCode(0);
+
+        $this->assertFalse($interpretation->fresh()->relational_pricing_published);
+        $this->assertSame(0, PriceComponent::count());
+    }
+
     public function test_older_result_cannot_replace_a_newer_source_version(): void
     {
         $snapshot = $this->createSnapshot();
@@ -1166,6 +1395,75 @@ class ContractInterpretationPipelineTest extends TestCase
             'first_observed_at' => '2026-07-23 10:00:00',
             'last_observed_at' => '2026-07-23 10:00:00',
         ]);
+    }
+
+    /**
+     * A Hybrid ("joustosähkö") snapshot: a disclosed base energy rate and monthly fee,
+     * plus a consumption effect the seller does not quantify.
+     */
+    private function hybridSnapshot(): ContractSourceSnapshot
+    {
+        $snapshot = $this->createSnapshot();
+        ElectricityContract::whereKey($snapshot->contract_id)->update(['pricing_model' => 'Hybrid']);
+
+        $payload = $snapshot->source_payload;
+        $payload['Details']['PricingModel'] = 'Hybrid';
+        $payload['Details']['ExtraInformation']['FI'] =
+            'Energian hinta muodostuu kiinteästä hinnan osasta sekä asiakkaan kulutusvaikutuksesta.';
+        $payload['Details']['Pricing'] = [
+            'ElectricitySupplyProductId' => 'api-contract-1',
+            'PriceComponents' => [
+                [
+                    'Id' => 'hybrid-energy',
+                    'PriceComponentType' => 'General',
+                    'HasDiscount' => false,
+                    'OriginalPayment' => ['Price' => 6.9, 'PaymentUnit' => 'CentPerKiwattHour'],
+                ],
+                [
+                    'Id' => 'hybrid-monthly',
+                    'PriceComponentType' => 'Monthly',
+                    'HasDiscount' => false,
+                    'OriginalPayment' => ['Price' => 3.9, 'PaymentUnit' => 'EurPerMonth'],
+                ],
+            ],
+        ];
+        $snapshot->update(['source_payload' => $payload]);
+
+        return $snapshot->fresh();
+    }
+
+    /**
+     * The exact output shape prompt v17 requires for a Hybrid whose consumption effect
+     * the source never prices: incomplete + unsupported, with that one issue code.
+     *
+     * @return array<string, mixed>
+     */
+    private function consumptionEffectOnlyOutput(string $contractId): array
+    {
+        $output = $this->validOutput($contractId, [
+            'primary_pricing_model' => 'Hybrid',
+            'pricing_mechanisms' => ['fixed', 'consumption_effect'],
+        ]);
+        $output['pricing']['consumption_effect'] = [
+            'present' => true,
+            'applies_to' => 'base_contract',
+            'cadence' => 'monthly',
+            'expected_cents_per_kwh' => null,
+            'typical_min_cents_per_kwh' => null,
+            'typical_max_cents_per_kwh' => null,
+            'hard_min_cents_per_kwh' => null,
+            'hard_max_cents_per_kwh' => null,
+            'uncapped' => null,
+            'description' => 'The customer-specific consumption effect is not priced in the source.',
+            'evidence' => [],
+        ];
+        $output['source_consistency']['structured_pricing_status'] = 'incomplete';
+        $output['source_consistency']['misleading_first_12_months'] = 'uncertain';
+        $output['source_consistency']['issue_codes'] = ['unsupported_consumption_effect'];
+        $output['calculation']['status'] = 'unsupported';
+        $output['calculation']['missing_facts'] = ['The amount of the customer-specific consumption effect'];
+
+        return $output;
     }
 
     /**

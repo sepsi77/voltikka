@@ -17,6 +17,8 @@ Primary files:
 
 - Daily contract availability for historical backfills is inferred from `price_components.price_date`: if a contract has price rows for a date, include it for that date.
 - Do **not** carry prices forward for missing dates/contracts. Voltikka fetches all contracts daily; missing rows should simply be missing data.
+- Because of the rule above, **a whole segment can silently vanish from this page when something upstream stops writing `price_components`** — the aggregation has nothing to notice. This happened once: the contract-interpretation publication gate closed on every Hybrid contract on 2026-07-24, and the `hybrid`/Joustosähkö line on `/sahkosopimus/tilastot` simply ended while every other segment continued. When a segment's line stops, check `price_components` coverage per `pricing_model` first (`contract_price_snapshots` will be empty for that segment too), not this service. See `../ContractInterpretation/AGENTS.md` and `tasks/hybrid-relational-pricing-gate/`.
+- After `contracts:republish-gated-pricing` backfills lost price-component days, the daily statistics still hold the gap; rerun `contracts:calculate-price-statistics --date=… --overwrite` for each filled day.
 - Future daily calculation uses `active_contracts`, but still reads price components for the requested date so snapshots match that fetch day.
 - `contracts:fetch` must run daily statistics before optional percentile badge recalculation; otherwise a percentile memory failure can leave imported price rows without `/sahkosopimus/tilastot` aggregate rows.
 - Spot contracts track both margin and realistic total energy price (`stored spot average + margin`).
