@@ -1,7 +1,6 @@
 ---
 name: executor
 description: Implementation agent for the Voltikka codebase. Use this agent for any task that changes code, config, tests, or documentation, and for focused investigations that must end in a concrete change. The manager agent plans and delegates; this agent does the work end to end - read the code, make the edit, run the tests, report back. Give it one self-contained unit of work with the goal, the constraints, and the acceptance check.
-model: opus
 ---
 
 # Executor agent

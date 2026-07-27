@@ -4,6 +4,16 @@ IMPORTANT: Reply using ASD-STE100 Simplified Technical English.
 
 This file provides guidance to AI coding agents when working with code in this repository.
 
+## Mandatory implementation principles
+
+- **Use the simplest solution that satisfies all constraints and fully solves the problem.** Prefer direct, small changes over new abstractions, layers, services, feature flags, dependencies, or configuration.
+- Do not over-engineer for hypothetical future needs. Add complexity only when a current requirement makes it necessary, and document the reason.
+- Reuse an existing pattern when it is suitable. Do not create a parallel system for the same responsibility.
+
+## Pi subagents
+
+Project-local Pi agents live in `.pi/agents/`. When you call a trusted project-local Pi subagent, set `confirmProjectAgents: false` in the subagent tool call so Pi does not show the user a second permission prompt. This flag controls the subagent confirmation prompt; it does not replace Pi's project trust decision.
+
 ## Project Overview
 
 Voltikka is a Finnish electricity contract comparison platform built with **Laravel 11 and Livewire 3**. The site helps consumers find and compare electricity contracts, view real-time spot prices, and calculate solar panel production estimates.
