@@ -31,8 +31,10 @@ class ContractListCacheService
      * v6: canonical package outcomes carry typed monthly allowance and excess-rate data.
      * v7: cards use canonical-only current values and real-term offer copy in canonical mode.
      * v8: company and SEO offer surfaces use canonical measured membership and benefit copy.
+     * v9: canonical outcomes carry exact typed offer terms for controlled public promotion copy.
+     * v10: short BaseOnlyHybrid outcomes preserve real-term totals and offer savings.
      */
-    private const PAYLOAD_SCHEMA_VERSION = 8;
+    private const PAYLOAD_SCHEMA_VERSION = 10;
 
     private const CACHE_TTL_SECONDS = 60 * 60 * 48; // 48 hours
 

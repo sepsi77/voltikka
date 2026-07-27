@@ -166,7 +166,7 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
 
         $prompt = app(WeeklyOffersPromptFormatter::class)->formatPrompt($data);
 
-        $this->assertStringContainsString('Mitattu tarjousetu:** 30,00 € / 6 kk (koko 6 kk sopimuskausi)', $prompt);
+        $this->assertStringContainsString('Mitattu tarjousetu:** 30,00 € / 6 kk (6 kuukauden sopimuskaudella)', $prompt);
         $this->assertStringContainsString('Vuositasolle muunnettu vertailuhinta', $prompt);
         $this->assertStringContainsString('todellinen 6 kk sopimuskausi 230,00 €', $prompt);
         $this->assertStringNotContainsString('60,00 € / 12 kk', $prompt);
@@ -314,7 +314,7 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
             'label' => 'offer',
             'phase_kind' => 'introductory',
             'starts' => $this->boundary('contract_start'),
-            'ends' => $ends ?? $this->boundary('none'),
+            'ends' => $ends ?? $this->boundary('after_months', '12'),
             'components' => [
                 $this->canonicalComponent('energy_general', $energy, $normalEnergy),
                 $this->canonicalComponent('monthly_fee', $monthlyFee, $normalMonthlyFee, 'eur_per_month'),

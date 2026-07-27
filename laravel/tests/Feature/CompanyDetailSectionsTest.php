@@ -15,7 +15,7 @@ use Tests\TestCase;
 
 /**
  * The three sections added to the company page for the "[yhtiö] tarjoukset",
- * "[yhtiö] hinta" and "[yhtiö] pörssisähkö" query clusters, plus the FAQ.
+ * "[yhtiö] hinta" and "[yhtiö] pörssisähkö" query clusters.
  */
 class CompanyDetailSectionsTest extends TestCase
 {
@@ -129,8 +129,101 @@ class CompanyDetailSectionsTest extends TestCase
         $this->assertSame('Pörssi Sähkö', $spot->first()->name);
 
         $component
-            ->assertSee('Test Energy Oy pörssisähkö')
+            ->assertSee('Test Energy Oy: pörssisähkö, marginaali ja perusmaksu')
+            ->assertSee('Test Energy Oy myy pörssisähköä. Vertailussa on 1 pörssisähkösopimus.')
+            ->assertSee('Myyjän itse määrittämät kulut ovat marginaali ja kuukausittainen perusmaksu.')
+            ->assertSee('Nord Poolin markkinahinta on kaikille pörssisähkötuotteille yhteinen')
             ->assertSee('0,45 c/kWh');
+    }
+
+    public function test_spot_section_uses_the_correct_plural_contract_count(): void
+    {
+        $this->createContract('spot-one', 'Pörssi Yksi', 0.45, 3.90, pricingModel: 'Spot');
+        $this->createContract('spot-two', 'Pörssi Kaksi', 0.55, 4.20, pricingModel: 'Spot');
+
+        Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
+            ->assertSee('Vertailussa on 2 pörssisähkösopimusta.');
+    }
+
+    public function test_spot_charges_are_compared_with_same_date_and_basis_market_medians(): void
+    {
+        $this->createContract('spot', 'Pörssi Sähkö', 0.45, 4.00, pricingModel: 'Spot');
+        $this->seedMarket('spot', 500.0, 600.0, 700.0, 40, 'observed_seller_data', '2026-08-01');
+        $this->seedCompanySnapshot('spot', 610.0, 0.45, 'spot', 'observed_seller_data', '2026-08-01');
+        $this->seedSpotBenchmark('spot_margin', 0.50, 40, 'observed_seller_data', '2026-08-01');
+        $this->seedSpotBenchmark('monthly_fee', 3.50, 40, 'observed_seller_data', '2026-08-01');
+
+        // Neither a newer date nor the opposite basis can replace the selected
+        // company-comparison date and basis.
+        $this->seedSpotBenchmark('spot_margin', 0.10, 40, 'observed_seller_data', '2026-08-02');
+        $this->seedSpotBenchmark('monthly_fee', 9.00, 40, 'canonical_calculation', '2026-08-01');
+
+        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $benchmarks = $component->viewData('spotBenchmarks');
+
+        $this->assertSame('2026-08-01', $benchmarks['stat_date']);
+        $this->assertSame('observed_seller_data', $benchmarks['pricing_basis']);
+        $this->assertSame(0.5, $benchmarks['spot_margin']['median']);
+        $this->assertSame(3.5, $benchmarks['monthly_fee']['median']);
+
+        $component
+            ->assertSee('0,05 c/kWh alle markkinan mediaanin')
+            ->assertSee('0,50 €/kk yli markkinan mediaanin')
+            ->assertSee('Mediaanit perustuvat 1.8.2026')
+            ->assertSee('myyjiltä havaittuihin hintoihin');
+    }
+
+    public function test_canonical_spot_benchmarks_use_the_selected_current_date_and_basis(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        $this->createContract('spot', 'Pörssi Sähkö', 0.45, 3.90, pricingModel: 'Spot');
+        $this->seedMarket('spot', 500.0, 600.0, 700.0, 40, 'canonical_calculation', '2026-08-01');
+        $this->seedCompanySnapshot('spot', 610.0, null, 'spot', 'canonical_calculation', '2026-08-01');
+        $this->seedSpotBenchmark('spot_margin', 0.55, 40, 'canonical_calculation', '2026-08-01');
+        $this->seedSpotBenchmark('monthly_fee', 4.50, 40, 'canonical_calculation', '2026-08-01');
+        $this->seedSpotBenchmark('spot_margin', 0.10, 40, 'observed_seller_data', '2026-08-01');
+        $this->seedSpotBenchmark('monthly_fee', 1.00, 40, 'canonical_calculation', '2026-08-02');
+
+        $comparison = app(CompanyMarketComparisonService::class)->forCompany($this->company->name, 5000);
+        $benchmarks = $comparison['spot_benchmarks'];
+
+        $this->assertSame('current_canonical', $comparison['comparison_state']);
+        $this->assertSame('2026-08-01', $benchmarks['stat_date']);
+        $this->assertSame('canonical_calculation', $benchmarks['pricing_basis']);
+        $this->assertSame(0.55, $benchmarks['spot_margin']['median']);
+        $this->assertSame(4.5, $benchmarks['monthly_fee']['median']);
+    }
+
+    public function test_spot_charge_equal_to_the_market_median_is_stated_directly(): void
+    {
+        $this->createContract('spot', 'Pörssi Sähkö', 0.45, 3.90, pricingModel: 'Spot');
+        $this->seedMarket(segment: 'spot', p20: 500.0, median: 600.0, p80: 700.0, contractCount: 40);
+        $this->seedCompanySnapshot(segment: 'spot', annualCost: 610.0, energyPrice: 0.45, contractId: 'spot');
+        $this->seedSpotBenchmark('spot_margin', 0.45);
+        $this->seedSpotBenchmark('monthly_fee', 3.90);
+
+        $html = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])->html();
+
+        $this->assertSame(2, substr_count($html, 'Sama kuin markkinan mediaani'));
+    }
+
+    public function test_spot_benchmark_claim_is_omitted_when_market_metric_is_not_usable(): void
+    {
+        $this->createContract('spot', 'Pörssi Sähkö', 0.45, 3.90, pricingModel: 'Spot');
+        $this->seedMarket(segment: 'spot', p20: 500.0, median: 600.0, p80: 700.0, contractCount: 40);
+        $this->seedCompanySnapshot(segment: 'spot', annualCost: 610.0, energyPrice: 0.45, contractId: 'spot');
+        $this->seedSpotBenchmark('spot_margin', 0.50, CompanyMarketComparisonService::MIN_MARKET_CONTRACTS - 1);
+        $this->seedSpotBenchmark('monthly_fee', null);
+
+        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+
+        $this->assertNull($component->viewData('spotBenchmarks'));
+        $component
+            ->assertSee('0,45 c/kWh')
+            ->assertSee('3,90 €/kk')
+            ->assertDontSee('c/kWh alle markkinan mediaanin')
+            ->assertDontSee('€/kk yli markkinan mediaanin')
+            ->assertDontSee('Sama kuin markkinan mediaani');
     }
 
     public function test_spot_section_is_hidden_when_the_seller_has_no_spot_contract(): void
@@ -141,41 +234,22 @@ class CompanyDetailSectionsTest extends TestCase
             ->assertDontSee('Test Energy Oy pörssisähkö');
     }
 
-    // ------------------------------------------------------------------- FAQ
+    public function test_contract_list_heading_includes_the_company_name(): void
+    {
+        $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
 
-    /**
-     * One source for the visible list and the schema, the same rule as
-     * `ConsumptionCalculator` and `ContractDetail`.
-     */
-    public function test_faq_schema_is_built_from_the_rendered_faq_items(): void
+        Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
+            ->assertSee('Test Energy Oy: sähkösopimukset');
+    }
+
+    public function test_company_page_has_no_faq_section_or_schema(): void
     {
         $this->createContract('spot', 'Pörssi Sähkö', 0.45, 3.90, pricingModel: 'Spot');
 
         $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
 
-        $items = $component->viewData('faqItems');
-        $schema = collect($component->viewData('schemas'))->firstWhere('@type', 'FAQPage');
-
-        $this->assertNotEmpty($items);
-        $this->assertNotNull($schema);
-        $this->assertCount(count($items), $schema['mainEntity']);
-
-        foreach ($items as $index => $item) {
-            $this->assertSame($item['question'], $schema['mainEntity'][$index]['name']);
-            $this->assertSame($item['answer'], $schema['mainEntity'][$index]['acceptedAnswer']['text']);
-        }
-    }
-
-    public function test_faq_states_plainly_when_a_seller_has_no_promotions(): void
-    {
-        $this->createContract('plain', 'Tavallinen Sähkö', 5.0, 3.0);
-
-        $questions = collect(Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])->viewData('faqItems'));
-
-        $offerItem = $questions->firstWhere('question', 'Test Energy Oy: onko yhtiöllä voimassa olevia tarjouksia?');
-
-        $this->assertNotNull($offerItem);
-        $this->assertStringContainsString('ei tarjoa juuri nyt', $offerItem['answer']);
+        $component->assertDontSee('Usein kysyttyä');
+        $this->assertNull(collect($component->viewData('schemas'))->firstWhere('@type', 'FAQPage'));
     }
 
     // ----------------------------------------------------- market comparison
@@ -295,6 +369,8 @@ class CompanyDetailSectionsTest extends TestCase
 
         $this->assertSame('2026-07-27', $canonical['stat_date']);
         $this->assertSame('canonical_calculation', $canonical['pricing_basis']);
+        $this->assertSame('current_canonical', $canonical['comparison_state']);
+        $this->assertFalse($canonical['is_historical_fallback']);
         $this->assertSame(610.0, $canonical['rows'][0]['company_value']);
         $this->assertCount(1, $canonical['rows']);
 
@@ -371,6 +447,32 @@ class CompanyDetailSectionsTest extends TestCase
         $this->assertSame('fixed_term_12', $comparison['chart_segment_key']);
     }
 
+    public function test_canonical_chart_combines_older_observed_history_with_canonical_points(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
+
+        foreach (['2026-07-01', '2026-07-08', '2026-07-15'] as $index => $date) {
+            $this->seedMarket('fixed_term_12', 500.0, 600.0 + $index, 700.0, 40, 'observed_seller_data', $date);
+            $this->seedCompanySnapshot('fixed_term_12', 610.0 + $index, 8.0, 'fixed', 'observed_seller_data', $date);
+        }
+
+        foreach (['2026-07-22', '2026-07-29'] as $index => $date) {
+            $this->seedMarket('fixed_term_12', 510.0, 610.0 + $index, 710.0, 40, 'canonical_calculation', $date);
+            $this->seedCompanySnapshot('fixed_term_12', 620.0 + $index, null, 'fixed', 'canonical_calculation', $date);
+        }
+
+        $comparison = app(CompanyMarketComparisonService::class)->forCompany($this->company->name, 5000);
+        $chart = $comparison['chart'];
+
+        $this->assertSame('current_canonical', $comparison['comparison_state']);
+        $this->assertSame('2026-07-29', $comparison['stat_date']);
+        $this->assertSame('canonical_calculation', $chart['current_pricing_basis']);
+        $this->assertSame('2026-07-22', $chart['canonical_from']);
+        $this->assertCount(5, array_filter($chart['series'][0]['values'], fn ($value) => $value !== null));
+        $this->assertSame([610.0, 611.0, 612.0, 620.0, 621.0], $chart['series'][0]['values']);
+    }
+
     /**
      * A seller with fixed terms but no 12-month product keeps a fixed-term
      * reference rather than dropping to the widest segment on the market.
@@ -414,8 +516,80 @@ class CompanyDetailSectionsTest extends TestCase
         $this->seedCompanySnapshot(segment: 'open_ended', annualCost: 600.0);
 
         Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
-            ->assertSee('Test Energy Oy: hinnat markkinaan verrattuna')
+            ->assertSee('Test Energy Oy: sähkön hinta')
+            ->assertSee('Sähkön hinta riippuu sopimustyypistä ja vuosikulutuksesta.')
+            ->assertSee('saman sopimustyypin markkinamediaanin ja keskimmäisen 60 %:n hintahaarukan')
             ->assertSee('Toistaiseksi voimassa oleva');
+    }
+
+    public function test_canonical_mode_renders_a_dated_observed_fallback_with_the_trailing_chart(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
+
+        foreach (['2026-07-01', '2026-07-08', '2026-07-15', '2026-07-22'] as $index => $date) {
+            $this->seedMarket(
+                segment: 'fixed_term_12',
+                p20: 500.0 + $index,
+                median: 600.0 + $index,
+                p80: 700.0 + $index,
+                contractCount: 40,
+                pricingBasis: 'observed_seller_data',
+                date: $date,
+            );
+            $this->seedCompanySnapshot(
+                segment: 'fixed_term_12',
+                annualCost: 610.0 + $index,
+                pricingBasis: 'observed_seller_data',
+                date: $date,
+            );
+        }
+
+        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $comparison = $component->viewData('marketComparison');
+
+        $this->assertNotNull($comparison);
+        $this->assertSame('historical_observed_fallback', $comparison['comparison_state']);
+        $this->assertTrue($comparison['is_historical_fallback']);
+        $this->assertSame('observed_seller_data', $comparison['pricing_basis']);
+        $this->assertSame('2026-07-22', $comparison['stat_date']);
+        $this->assertSame('fixed_term_12', $comparison['chart_segment_key']);
+        $this->assertNotNull($comparison['chart']);
+        $this->assertGreaterThanOrEqual(3, count(array_filter($comparison['chart']['series'][0]['values'])));
+
+        $component
+            ->assertSee('viimeisin yhtenäinen historiallinen hintavertailu 22.7.2026')
+            ->assertSee('Se ei ole tämän päivän hintavertailu')
+            ->assertSee('Kaikki pisteet ovat päivättyjä myyjiltä havaittuja hintoja');
+
+        $service = app(CompanyMarketComparisonService::class);
+        $fingerprintMethod = new \ReflectionMethod($service, 'fingerprint');
+        $beforeRewrite = $fingerprintMethod->invoke($service);
+        ContractPriceSnapshot::query()
+            ->where('pricing_basis', 'observed_seller_data')
+            ->whereDate('snapshot_date', '2026-07-22')
+            ->update(['annual_cost_5000_kwh' => 620.0, 'updated_at' => now()->addMinute()]);
+
+        $this->assertNotSame($beforeRewrite, $fingerprintMethod->invoke($service));
+    }
+
+    public function test_historical_fallback_never_exposes_spot_benchmarks_for_current_contract_facts(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        $this->createContract('spot', 'Pörssi Sähkö', 0.45, 3.90, pricingModel: 'Spot');
+        $this->seedMarket('spot', 500.0, 600.0, 700.0, 40, 'observed_seller_data', '2026-07-22');
+        $this->seedCompanySnapshot('spot', 610.0, 0.45, 'spot', 'observed_seller_data', '2026-07-22');
+        $this->seedSpotBenchmark('spot_margin', 0.50, 40, 'observed_seller_data', '2026-07-22');
+        $this->seedSpotBenchmark('monthly_fee', 4.00, 40, 'observed_seller_data', '2026-07-22');
+        // Current-basis rows do not make the dated observed fallback compatible
+        // with current canonical contract facts either.
+        $this->seedSpotBenchmark('spot_margin', 0.60, 40, 'canonical_calculation', '2026-07-22');
+
+        $comparison = app(CompanyMarketComparisonService::class)->forCompany($this->company->name, 5000);
+
+        $this->assertSame('historical_observed_fallback', $comparison['comparison_state']);
+        $this->assertSame('observed_seller_data', $comparison['pricing_basis']);
+        $this->assertNull($comparison['spot_benchmarks']);
     }
 
     public function test_the_comparison_section_is_omitted_without_reference_data(): void
@@ -425,7 +599,7 @@ class CompanyDetailSectionsTest extends TestCase
         $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
 
         $this->assertNull($component->viewData('marketComparison'));
-        $component->assertDontSee('hinnat markkinaan verrattuna');
+        $component->assertDontSee('sähkön hinta riippuu sopimustyypistä');
     }
 
     // --------------------------------------------------------------- helpers
@@ -451,6 +625,29 @@ class CompanyDetailSectionsTest extends TestCase
             'median_value' => $median,
             'p80_value' => $p80,
             'max_value' => $p80 + 50,
+            'contract_count' => $contractCount,
+        ]);
+    }
+
+    private function seedSpotBenchmark(
+        string $metric,
+        ?float $median,
+        int $contractCount = 40,
+        string $pricingBasis = 'observed_seller_data',
+        ?string $date = null,
+    ): void {
+        ContractPriceDailyStatistic::create([
+            'stat_date' => $date ?? now()->toDateString(),
+            'segment_key' => 'spot',
+            'metric_key' => $metric,
+            'pricing_basis' => $pricingBasis,
+            'consumption_kwh' => null,
+            'min_value' => $median === null ? null : $median - 0.20,
+            'p20_value' => $median === null ? null : $median - 0.10,
+            'avg_value' => $median,
+            'median_value' => $median,
+            'p80_value' => $median === null ? null : $median + 0.10,
+            'max_value' => $median === null ? null : $median + 0.20,
             'contract_count' => $contractCount,
         ]);
     }

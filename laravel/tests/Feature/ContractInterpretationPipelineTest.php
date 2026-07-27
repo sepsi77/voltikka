@@ -968,10 +968,18 @@ class ContractInterpretationPipelineTest extends TestCase
             'pricing_model' => 'FixedPrice',
             'contract_type' => 'OpenEnded',
             'metering' => 'General',
-            'extra_information_fi' => 'Kuukausipaketti S sisältää 150 kWh sähköenergiaa kuukaudessa. Kuukausirajan ylittävästä energiasta laskutamme lisäenergian hinnalla 16,60 c/kWh.',
+            'extra_information_fi' => 'Kuukausipaketti S on kiinteähintainen sopimus joka sisältää 150 kWh sähköenergiaa kuukaudessa. Tuotteen hinta koostuu Kuukausipaketin kiinteästä hinnasta (21,00 €/kk) sekä mahdollisesta kulutetun lisäenergian hinnasta (16,60 c/kWh). Lisäenergian hintaa sovelletaan, kun asiakkaan energiankulutus kalenterikuukauden aikana ylittää tuotteen mukaisen energiamäärään.',
             'components' => [
-                ['price_component_type' => 'Monthly', 'price' => 21],
-                ['price_component_type' => 'General', 'price' => 16.6, 'has_discount' => true, 'discount_type' => 'NFirstKwh', 'discount_n_first_kwh' => 1800],
+                ['price_component_type' => 'Monthly', 'price' => 21, 'has_discount' => false, 'discount_type' => 'NoDiscount'],
+                [
+                    'price_component_type' => 'General',
+                    'price' => 16.6,
+                    'has_discount' => true,
+                    'discount_value' => 16.6,
+                    'discount_is_percentage' => false,
+                    'discount_type' => 'NFirstKwh',
+                    'discount_n_first_kwh' => 1800,
+                ],
             ],
         ];
         $output = $this->validOutput('contract-1', [
@@ -992,7 +1000,7 @@ class ContractInterpretationPipelineTest extends TestCase
                 'evidence' => [
                     ['source' => 'components[0].price', 'quote' => 'components[0].price=21'],
                     ['source' => 'components[1].price', 'quote' => 'components[1].price=16.6'],
-                    ['source' => 'extra_information_fi', 'quote' => 'Kuukausipaketti S sisältää 150 kWh sähköenergiaa kuukaudessa.'],
+                    ['source' => 'extra_information_fi', 'quote' => 'Kuukausipaketti S on kiinteähintainen sopimus joka sisältää 150 kWh sähköenergiaa kuukaudessa.'],
                 ],
             ],
             'evidence' => [],
@@ -1004,7 +1012,57 @@ class ContractInterpretationPipelineTest extends TestCase
         $output['source_consistency']['issue_codes'] = ['structured_matches_description'];
         $output['calculation']['status'] = 'exact';
 
-        $this->assertSame([], app(ContractInterpretationValidator::class)->validate($output, $input));
+        $validator = app(ContractInterpretationValidator::class);
+        $this->assertSame([], $validator->validate($output, $input));
+
+        foreach ([
+            ['XS', 10.5, 75, 900],
+            ['M', 35.0, 250, 3000],
+            ['L', 49.0, 350, 4200],
+        ] as [$size, $monthlyFee, $includedKwh, $annualIncludedKwh]) {
+            $variantInput = $input;
+            $variantInput['contract_name'] = "Kuukausipaketti {$size}";
+            $variantInput['pricing_name'] = "Kuukausipaketti {$size}";
+            $variantInput['extra_information_fi'] = "Kuukausipaketti {$size} on kiinteähintainen sopimus joka sisältää {$includedKwh} kWh sähköenergiaa kuukaudessa. Tuotteen hinta koostuu Kuukausipaketin kiinteästä hinnasta sekä mahdollisesta kulutetun lisäenergian hinnasta (16,60 c/kWh). Lisäenergian hintaa sovelletaan, kun asiakkaan energiankulutus kalenterikuukauden aikana ylittää tuotteen mukaisen energiamäärään.";
+            $variantInput['components'][0]['price'] = $monthlyFee;
+            $variantInput['components'][1]['discount_n_first_kwh'] = $annualIncludedKwh;
+
+            $variantOutput = $output;
+            $variantOutput['pricing']['phases'][0]['package']['monthly_fee_eur'] = $monthlyFee;
+            $variantOutput['pricing']['phases'][0]['package']['included_kwh'] = $includedKwh;
+            $variantOutput['pricing']['phases'][0]['package']['evidence'] = [
+                ['source' => 'components[0].price', 'quote' => "components[0].price={$monthlyFee}"],
+                ['source' => 'components[1].price', 'quote' => 'components[1].price=16.6'],
+                ['source' => 'extra_information_fi', 'quote' => "Kuukausipaketti {$size} on kiinteähintainen sopimus joka sisältää {$includedKwh} kWh sähköenergiaa kuukaudessa."],
+            ];
+
+            $this->assertSame([], $validator->validate($variantOutput, $variantInput), "Kuukausipaketti {$size}");
+        }
+
+        $ordinaryComponents = $output;
+        $ordinaryComponents['pricing']['phases'][0]['package'] = null;
+        $ordinaryComponents['pricing']['phases'][0]['components'] = [[
+            'component_type' => 'flat_fee',
+            'amount' => 21,
+            'normal_amount' => null,
+            'unit' => 'eur_per_month',
+            'vat_status' => 'unknown',
+            'price_role' => 'current',
+            'source_kind' => 'structured',
+            'evidence' => [['source' => 'components[0].price', 'quote' => 'components[0].price=21']],
+        ], [
+            'component_type' => 'energy_general',
+            'amount' => 16.6,
+            'normal_amount' => null,
+            'unit' => 'cents_per_kwh',
+            'vat_status' => 'unknown',
+            'price_role' => 'current',
+            'source_kind' => 'structured',
+            'evidence' => [['source' => 'components[1].price', 'quote' => 'components[1].price=16.6']],
+        ]];
+        $ordinaryErrors = app(ContractInterpretationValidator::class)->validate($ordinaryComponents, $input);
+        $this->assertContains('$.pricing.phases must contain exactly one package for a monthly included-energy package.', $ordinaryErrors);
+        $this->assertContains('$.pricing.phases must not duplicate a monthly package fee or excess rate as components.', $ordinaryErrors);
 
         $missingAllowance = $output;
         unset($missingAllowance['pricing']['phases'][0]['package']['included_kwh']);
@@ -1041,6 +1099,78 @@ class ContractInterpretationPipelineTest extends TestCase
         $duplicateErrors = app(ContractInterpretationValidator::class)->validate($duplicateFee, $input);
         $this->assertContains('$.pricing.phases[0] must not duplicate package charges as components.', $duplicateErrors);
         $this->assertContains('$.pricing.phases must not duplicate a monthly package fee or excess rate as components.', $duplicateErrors);
+
+        $wrongAnnualAllowance = $input;
+        $wrongAnnualAllowance['components'][1]['discount_n_first_kwh'] = 1700;
+        $wrongAllowanceErrors = $validator->validate($output, $wrongAnnualAllowance);
+        $this->assertContains(
+            'components[1] has an active structured discount with NFirstKwh timing that canonical phases cannot represent safely.',
+            $wrongAllowanceErrors,
+        );
+
+        $wrongDiscountShape = $input;
+        $wrongDiscountShape['components'][1]['discount_value'] = 8.3;
+        $wrongShapeErrors = $validator->validate($output, $wrongDiscountShape);
+        $this->assertContains(
+            'components[1] has an active structured discount with NFirstKwh timing that canonical phases cannot represent safely.',
+            $wrongShapeErrors,
+        );
+
+        $duplicateSourceFee = $input;
+        $duplicateSourceFee['components'][] = $duplicateSourceFee['components'][0];
+        $this->assertContains(
+            '$.pricing.phases must map the package Monthly charge to a flat_fee component.',
+            $validator->validate($output, $duplicateSourceFee),
+        );
+    }
+
+    public function test_validator_does_not_treat_an_ordinary_first_kwh_discount_as_a_monthly_package(): void
+    {
+        $input = [
+            'contract_id' => 'contract-1',
+            'contract_name' => 'Tavallinen kampanja',
+            'pricing_name' => 'Tavallinen kampanja',
+            'pricing_model' => 'FixedPrice',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'extra_information_fi' => 'Ensimmäiset 1 800 kWh ilman energiamaksua.',
+            'components' => [[
+                'price_component_type' => 'General',
+                'price' => 16.6,
+                'has_discount' => true,
+                'discount_value' => 16.6,
+                'discount_is_percentage' => false,
+                'discount_type' => 'NFirstKwh',
+                'discount_n_first_kwh' => 1800,
+            ]],
+        ];
+        $output = $this->validOutput('contract-1');
+        $output['pricing']['phases'] = [[
+            'label' => 'current',
+            'phase_kind' => 'current_structured',
+            'starts' => ['kind' => 'contract_start', 'value' => null],
+            'ends' => ['kind' => 'none', 'value' => null],
+            'components' => [[
+                'component_type' => 'energy_general',
+                'amount' => 16.6,
+                'normal_amount' => null,
+                'unit' => 'cents_per_kwh',
+                'vat_status' => 'unknown',
+                'price_role' => 'current',
+                'source_kind' => 'structured',
+                'evidence' => [['source' => 'components[0].price', 'quote' => 'components[0].price=16.6']],
+            ]],
+            'package' => null,
+            'evidence' => [],
+        ]];
+
+        $errors = app(ContractInterpretationValidator::class)->validate($output, $input);
+
+        $this->assertContains(
+            'components[0] has an active structured discount with NFirstKwh timing that canonical phases cannot represent safely.',
+            $errors,
+        );
+        $this->assertNotContains('$.pricing.phases must contain exactly one package for a monthly included-energy package.', $errors);
     }
 
     public function test_validator_retains_source_hybrid_without_explicit_contrary_evidence(): void

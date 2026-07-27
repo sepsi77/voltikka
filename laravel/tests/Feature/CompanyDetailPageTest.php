@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ActiveContract;
 use App\Models\Company;
+use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\PriceComponent;
@@ -144,7 +145,8 @@ class CompanyDetailPageTest extends TestCase
             ->assertSet('selectedPreset', 'large_apartment')
             ->call('selectPreset', 'small_apartment')
             ->assertSet('consumption', 2000)
-            ->assertSet('selectedPreset', 'small_apartment');
+            ->assertSet('selectedPreset', 'small_apartment')
+            ->assertSet('directConsumption', null);
     }
 
     /**
@@ -157,6 +159,31 @@ class CompanyDetailPageTest extends TestCase
         Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
             ->call('setConsumption', 15000)
             ->assertSet('consumption', 15000)
+            ->assertSet('directConsumption', 15000)
+            ->assertSet('selectedPreset', null);
+    }
+
+    public function test_direct_consumption_input_matches_the_main_listing_selector(): void
+    {
+        $this->createContract('test-contract-1', 'Test Sähkö', 4.0, 2.0);
+
+        Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
+            ->assertSee('Vuosikulutus')
+            ->assertSee('Tiedän kulutukseni')
+            ->assertSee('En tiedä – arvioi laskurilla')
+            ->set('directConsumption', 7200)
+            ->assertSet('consumption', 7200)
+            ->assertSet('selectedPreset', null);
+    }
+
+    public function test_custom_query_consumption_activates_the_direct_input(): void
+    {
+        $this->createContract('test-contract-1', 'Test Sähkö', 4.0, 2.0);
+
+        Livewire::withQueryParams(['consumption' => 7200])
+            ->test('company-detail', ['companySlug' => 'test-energy-oy'])
+            ->assertSet('consumption', 7200)
+            ->assertSet('directConsumption', 7200)
             ->assertSet('selectedPreset', null);
     }
 
@@ -332,7 +359,7 @@ class CompanyDetailPageTest extends TestCase
         $metaDescription = $component->instance()->metaDescription;
 
         $this->assertStringContainsString('Test Energy Oy', $metaDescription);
-        $this->assertStringContainsString('1 sopimusta', $metaDescription);
+        $this->assertStringContainsString('1 kotitalouksille sopiva sähkösopimus', $metaDescription);
     }
 
     /**
@@ -411,6 +438,116 @@ class CompanyDetailPageTest extends TestCase
         $this->assertGreaterThan($costDefault, $costHigher);
     }
 
+    public function test_household_and_business_contracts_are_partitioned_without_losing_both_or_legacy_null(): void
+    {
+        $household = $this->createContract('household', 'Kotitaloussopimus', 5.0, 2.0, targetGroup: 'Household');
+        $both = $this->createContract('both', 'Molemmille', 0.4, 3.0, 'Spot', targetGroup: 'Both');
+        $legacy = $this->createContract('legacy', 'Vanha kohderyhmä', 6.0, 2.0, targetGroup: null);
+        $business = $this->createContract('business', 'Yrityssopimus', 0.2, 1.0, 'Spot', targetGroup: 'Company');
+
+        PriceComponent::query()->where('electricity_contract_id', $household->id)->where('price_component_type', 'Monthly')->update([
+            'has_discount' => true,
+            'discount_value' => 1.0,
+            'discount_is_percentage' => false,
+        ]);
+        PriceComponent::query()->where('electricity_contract_id', $business->id)->where('price_component_type', 'Monthly')->update([
+            'has_discount' => true,
+            'discount_value' => 1.0,
+            'discount_is_percentage' => false,
+        ]);
+
+        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $householdContracts = $component->viewData('contracts');
+        $businessContracts = $component->viewData('businessContracts');
+
+        $this->assertEqualsCanonicalizing(
+            [$household->id, $both->id, $legacy->id],
+            $householdContracts->pluck('id')->all(),
+        );
+        $this->assertEqualsCanonicalizing(
+            [$both->id, $business->id],
+            $businessContracts->pluck('id')->all(),
+        );
+        $this->assertSame(3, $component->viewData('companyStats')['contract_count']);
+        $this->assertSame(['household'], $component->viewData('promotionContracts')->pluck('id')->all());
+        $this->assertSame(['both'], $component->viewData('spotContracts')->pluck('id')->all());
+
+        $html = $component->html();
+        $this->assertLessThan(strpos($html, 'Test Energy Oy sähkösopimukset yrityksille'), strpos($html, 'Test Energy Oy: sähkösopimukset'));
+        $this->assertLessThan(strpos($html, 'Takaisin sähköyhtiöihin'), strpos($html, 'Test Energy Oy sähkösopimukset yrityksille'));
+        $this->assertStringContainsString('3 kotitalouksille sopivaa sopimusta saatavilla', strip_tags($html));
+        $this->assertStringContainsString('2 yrityksille sopivaa sopimusta saatavilla', strip_tags($html));
+    }
+
+    public function test_title_and_h1_lead_with_the_company_price_intent_without_rank(): void
+    {
+        $this->createContract('title-contract', 'Test Sähkö', 5.0, 2.0);
+
+        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+
+        $this->assertSame('Test Energy Oy: sähkön hinta ja sähkösopimukset | Voltikka', $component->instance()->pageTitle);
+        $this->assertSame('Test Energy Oy: sähkön hinta ja sähkösopimukset', $component->instance()->h1);
+        $component
+            ->assertSee('Test Energy Oy: sähkön hinta ja sähkösopimukset')
+            ->assertDontSee('#1 halvin')
+            ->assertDontSee('Kaikki 1 sopimusta vertailussa');
+    }
+
+    public function test_update_date_prefers_the_latest_active_source_observation_and_updates_webpage_schema(): void
+    {
+        $older = $this->createContract('older-snapshot', 'Vanhempi', 5.0, 2.0);
+        $newer = $this->createContract('newer-snapshot', 'Uudempi', 6.0, 2.0, targetGroup: 'Company');
+
+        foreach ([[$older, '2026-08-01 09:00:00', 'a'], [$newer, '2026-08-04 15:30:00', 'b']] as [$contract, $observedAt, $fingerprint]) {
+            ContractSourceSnapshot::create([
+                'contract_id' => $contract->id,
+                'source_fingerprint' => str_repeat($fingerprint, 64),
+                'source_payload' => [],
+                'first_observed_at' => $observedAt,
+                'last_observed_at' => $observedAt,
+            ]);
+        }
+
+        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $webPage = collect($component->viewData('schemas'))->firstWhere('@type', 'WebPage');
+
+        $component->assertSee('Päivitetty 4.8.2026');
+        $this->assertStringStartsWith('2026-08-04T15:30:00', $webPage['dateModified']);
+    }
+
+    public function test_update_date_falls_back_to_the_latest_active_price_date(): void
+    {
+        $contract = $this->createContract('legacy-date', 'Vanha sopimus', 5.0, 2.0);
+        PriceComponent::query()->where('electricity_contract_id', $contract->id)->update(['price_date' => '2026-07-31']);
+
+        Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
+            ->assertSee('Päivitetty 31.7.2026');
+    }
+
+    public function test_organization_area_served_requires_an_explicit_national_contract(): void
+    {
+        $contract = $this->createContract('national', 'Valtakunnallinen', 5.0, 2.0, targetGroup: 'Household');
+
+        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $organization = collect($component->viewData('schemas'))->firstWhere('@type', 'Organization');
+        $this->assertSame('Finland', $organization['areaServed']['name']);
+
+        $contract->update(['availability_is_national' => false]);
+
+        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $organization = collect($component->viewData('schemas'))->firstWhere('@type', 'Organization');
+        $this->assertArrayNotHasKey('areaServed', $organization);
+        $component->assertDontSee('Missä Test Energy Oy myy sähköä?');
+    }
+
+    public function test_business_section_is_hidden_when_no_business_contract_exists(): void
+    {
+        $this->createContract('household-only', 'Kotitaloussopimus', 5.0, 2.0, targetGroup: 'Household');
+
+        Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
+            ->assertDontSee('Test Energy Oy sähkösopimukset yrityksille');
+    }
+
     /**
      * Test spot contract stats are tracked.
      */
@@ -465,7 +602,9 @@ class CompanyDetailPageTest extends TestCase
         string $name,
         float $generalPrice,
         float $monthlyFee,
-        ?string $pricingModel = null
+        ?string $pricingModel = null,
+        ?string $targetGroup = null,
+        bool $isNational = true,
     ): ElectricityContract {
         $contract = ElectricityContract::create([
             'id' => $id,
@@ -474,7 +613,8 @@ class CompanyDetailPageTest extends TestCase
             'contract_type' => 'OpenEnded',
             'pricing_model' => $pricingModel ?? 'FixedPrice',
             'metering' => 'General',
-            'availability_is_national' => true,
+            'target_group' => $targetGroup,
+            'availability_is_national' => $isNational,
         ]);
 
         PriceComponent::create([

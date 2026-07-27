@@ -609,13 +609,20 @@ class ContractInterpretationValidator
      */
     private function isMonthlyPackageAllowanceDiscount(array $sourceComponent, ?array $packageFacts): bool
     {
-        return $packageFacts !== null
-            && ($sourceComponent['price_component_type'] ?? null) === 'General'
-            && ($sourceComponent['discount_type'] ?? null) === 'NFirstKwh'
-            && is_numeric($sourceComponent['discount_n_first_kwh'] ?? null)
-            && abs(
-                (float) $sourceComponent['discount_n_first_kwh'] - ($packageFacts['included_kwh'] * 12),
-            ) < 0.000001;
+        if ($packageFacts === null
+            || ($sourceComponent['price_component_type'] ?? null) !== 'General'
+            || ($sourceComponent['has_discount'] ?? null) !== true
+            || ($sourceComponent['discount_type'] ?? null) !== 'NFirstKwh'
+            || ($sourceComponent['discount_is_percentage'] ?? null) !== false
+            || ! is_numeric($sourceComponent['price'] ?? null)
+            || ! is_numeric($sourceComponent['discount_value'] ?? null)
+            || ! is_numeric($sourceComponent['discount_n_first_kwh'] ?? null)) {
+            return false;
+        }
+
+        return abs((float) $sourceComponent['discount_n_first_kwh'] - ($packageFacts['included_kwh'] * 12)) < 0.000001
+            && abs((float) $sourceComponent['discount_value'] - (float) $sourceComponent['price']) < 0.000001
+            && abs((float) $sourceComponent['price'] - $packageFacts['excess_rate_cents_per_kwh']) < 0.000001;
     }
 
     /**
@@ -1191,41 +1198,60 @@ class ContractInterpretationValidator
     {
         $text = mb_strtolower($this->sourceText($input), 'UTF-8');
         if (preg_match('/(?<!\p{L})(?:\p{L}*paket\p{L}*|package)(?!\p{L})/u', $text) !== 1
-            || preg_match('/(?:ylittävästä|ylittavasta|ylimenevästä|ylimenevasta)[^.!?]{0,160}(?:energiasta|kulutuksesta)[^.!?]{0,160}(?:laskut|hinn)/u', $text) !== 1
+            || ! $this->hasExplicitMonthlyExcessUse($text)
             || preg_match('/(?:sisältää|sisaltaa)[^.!?]{0,80}?(\d+(?:[,.]\d+)?)\s*kwh[^.!?]{0,80}(?:kuukaudessa|\/\s*kk|per month)/u', $text, $allowanceMatch) !== 1) {
             return null;
         }
 
-        $monthlyFees = collect($input['components'] ?? [])
+        $monthlyComponents = collect($input['components'] ?? [])
             ->filter(fn (array $component): bool => ($component['price_component_type'] ?? null) === 'Monthly'
                 && is_numeric($component['price'] ?? null)
                 && (float) $component['price'] > 0)
-            ->pluck('price')
-            ->map(fn (mixed $value): float => (float) $value)
-            ->unique()
             ->values();
-        $excessRates = collect($input['components'] ?? [])
+        $generalComponents = collect($input['components'] ?? [])
             ->filter(fn (array $component): bool => ($component['price_component_type'] ?? null) === 'General'
                 && is_numeric($component['price'] ?? null)
                 && (float) $component['price'] > 0)
-            ->pluck('price')
-            ->map(fn (mixed $value): float => (float) $value)
-            ->unique()
             ->values();
+        $includedKwh = (float) str_replace(',', '.', $allowanceMatch[1]);
 
-        if ($monthlyFees->count() !== 1 || $excessRates->count() !== 1) {
+        if ($monthlyComponents->count() !== 1
+            || $generalComponents->count() !== 1
+            || $includedKwh <= 0) {
             return null;
         }
 
-        return [
-            'monthly_fee_eur' => $monthlyFees->first(),
-            'included_kwh' => (float) str_replace(',', '.', $allowanceMatch[1]),
-            'excess_rate_cents_per_kwh' => $excessRates->first(),
+        $facts = [
+            'monthly_fee_eur' => (float) $monthlyComponents->first()['price'],
+            'included_kwh' => $includedKwh,
+            'excess_rate_cents_per_kwh' => (float) $generalComponents->first()['price'],
         ];
+        $nFirstKwhComponents = $generalComponents
+            ->filter(fn (array $component): bool => ($component['discount_type'] ?? null) === 'NFirstKwh'
+                || (is_numeric($component['discount_n_first_kwh'] ?? null)
+                    && (float) $component['discount_n_first_kwh'] > 0));
+
+        if ($nFirstKwhComponents->isNotEmpty()
+            && ($nFirstKwhComponents->count() !== 1
+                || ! $this->isMonthlyPackageAllowanceDiscount($nFirstKwhComponents->first(), $facts))) {
+            return null;
+        }
+
+        return $facts;
+    }
+
+    private function hasExplicitMonthlyExcessUse(string $text): bool
+    {
+        return preg_match('/(?:ylittävästä|ylittavasta|ylimenevästä|ylimenevasta)[^.!?]{0,160}(?:energiasta|kulutuksesta)[^.!?]{0,160}(?:laskut|hinn)/u', $text) === 1
+            || preg_match('/lisäenergian\s+hinta\p{L}*\s+sovelletaan[^.!?]{0,240}kalenterikuukauden[^.!?]{0,160}ylittää[^.!?]{0,160}energiamäär/u', $text) === 1;
     }
 
     private function isFlatPackageSource(array $input): bool
     {
+        if ($this->monthlyExcessPackageFacts($input) !== null) {
+            return true;
+        }
+
         $text = mb_strtolower($this->sourceText($input), 'UTF-8');
         $hasPackageWording = preg_match('/(?<!\p{L})(?:\p{L}*paket\p{L}*|package)(?!\p{L})/u', $text) === 1;
         $maximumConsumption = data_get($input, 'consumption_limitation.MaxXKWhPerY');
@@ -1246,10 +1272,7 @@ class ContractInterpretationValidator
             '/(?:sisältää|sisaltaa)[^.!?]{0,160}(?:energiaa|sähköä|sahkoa)/u',
             $text,
         ) === 1;
-        $hasExplicitExcessUse = preg_match(
-            '/(?:ylittävästä|ylittavasta|ylimenevästä|ylimenevasta)[^.!?]{0,160}(?:energiasta|kulutuksesta)[^.!?]{0,160}(?:laskut|hinn)/u',
-            $text,
-        ) === 1;
+        $hasExplicitExcessUse = $this->hasExplicitMonthlyExcessUse($text);
         $hasIncludedEnergyPackage = is_numeric($maximumConsumption)
             && (float) $maximumConsumption > 0
             && $hasZeroGeneralPrice;

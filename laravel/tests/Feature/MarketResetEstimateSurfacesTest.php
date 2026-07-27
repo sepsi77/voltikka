@@ -33,7 +33,7 @@ class MarketResetEstimateSurfacesTest extends TestCase
         $version = app(ContractPageCacheVersion::class);
 
         config(['canonical_pricing.reset_forward_shift.enabled' => false]);
-        $this->assertSame(8, $version->version()['payload_schema_version']);
+        $this->assertSame(10, $version->version()['payload_schema_version']);
         $this->assertFalse($version->version()['reset_forward_shift_enabled']);
         $off = $version->hash();
 

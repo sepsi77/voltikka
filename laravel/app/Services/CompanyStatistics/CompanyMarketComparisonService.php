@@ -119,7 +119,7 @@ class CompanyMarketComparisonService
         }
 
         return Cache::remember(
-            'company-market-comparison:v3:'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis.':'.md5($companyName).':'.$referenceConsumption.':'.$fingerprint,
+            'company-market-comparison:v5:'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis.':'.md5($companyName).':'.$referenceConsumption.':'.$fingerprint,
             now()->addHours(self::CACHE_TTL_HOURS),
             fn () => $this->build($companyName, $referenceConsumption),
         );
@@ -149,20 +149,39 @@ class CompanyMarketComparisonService
      */
     private function build(string $companyName, int $referenceConsumption): ?array
     {
-        $pricingBasis = ContractPriceBasis::expectedCurrent()->value;
-        $statDate = ContractPriceDailyStatistic::query()
-            ->where('pricing_basis', $pricingBasis)
-            ->where('metric_key', 'annual_cost')
-            ->where('consumption_kwh', $referenceConsumption)
-            ->max('stat_date');
+        $expectedBasis = ContractPriceBasis::expectedCurrent()->value;
+        $current = $this->buildForBasis($companyName, $referenceConsumption, $expectedBasis);
 
+        if ($current !== null) {
+            return $current;
+        }
+
+        // Canonical current values never fall back contract by contract. If no
+        // internally consistent canonical market + company date exists, the
+        // page can still show one explicitly dated historical observation.
+        if ($expectedBasis === ContractPriceBasis::CanonicalCalculation->value) {
+            return $this->buildForBasis(
+                $companyName,
+                $referenceConsumption,
+                ContractPriceBasis::ObservedSellerData->value,
+                historicalFallback: true,
+            );
+        }
+
+        return null;
+    }
+
+    /** @return array<string,mixed>|null */
+    private function buildForBasis(
+        string $companyName,
+        int $referenceConsumption,
+        string $pricingBasis,
+        bool $historicalFallback = false,
+    ): ?array {
+        $statDate = $this->latestUsableDate($companyName, $referenceConsumption, $pricingBasis);
         if ($statDate === null) {
             return null;
         }
-
-        $statDate = Carbon::parse($statDate)
-            ->setTimezone((string) config('app.timezone'))
-            ->toDateString();
 
         $marketRows = ContractPriceDailyStatistic::query()
             ->whereDate('stat_date', $statDate)
@@ -181,17 +200,12 @@ class CompanyMarketComparisonService
             ->where('company_name', $companyName)
             ->whereDate('snapshot_date', $statDate)
             ->where('pricing_basis', $pricingBasis)
-            ->when($pricingBasis !== 'canonical_calculation', fn ($query) => $query
+            ->when($pricingBasis !== ContractPriceBasis::CanonicalCalculation->value, fn ($query) => $query
                 ->where('energy_price_cents_per_kwh', '>', 0)
                 ->where('energy_price_cents_per_kwh', '<=', self::MAX_PLAUSIBLE_ENERGY_PRICE_CENTS))
             ->get(['segment_key', 'annual_cost_'.$referenceConsumption.'_kwh as annual_cost']);
 
-        if ($companySnapshots->isEmpty()) {
-            return null;
-        }
-
         $rows = $this->buildRows($companySnapshots, $marketRows);
-
         if ($rows === []) {
             return null;
         }
@@ -203,10 +217,88 @@ class CompanyMarketComparisonService
             'reference_consumption' => $referenceConsumption,
             'rows' => $rows,
             'pricing_basis' => $pricingBasis,
+            'comparison_state' => $historicalFallback
+                ? 'historical_observed_fallback'
+                : ($pricingBasis === ContractPriceBasis::CanonicalCalculation->value ? 'current_canonical' : 'current_observed'),
+            'is_historical_fallback' => $historicalFallback,
+            'spot_benchmarks' => $historicalFallback ? null : $this->spotBenchmarks($statDate, $pricingBasis),
             'chart' => $this->buildChart($companyName, $primary['segment_key'], $referenceConsumption, $statDate, $pricingBasis),
             'chart_segment_key' => $primary['segment_key'],
             'chart_segment_label' => $primary['label'],
         ];
+    }
+
+    /**
+     * Current Spot supplier-charge medians from the exact date and pricing
+     * basis selected for the company comparison. Historical fallback payloads
+     * do not call this method because current contract facts must not be
+     * compared with dated observed rows.
+     *
+     * @return array{stat_date:string,pricing_basis:string,spot_margin?:array{median:float,contract_count:int},monthly_fee?:array{median:float,contract_count:int}}|null
+     */
+    private function spotBenchmarks(string $statDate, string $pricingBasis): ?array
+    {
+        $rows = ContractPriceDailyStatistic::query()
+            ->whereDate('stat_date', $statDate)
+            ->where('segment_key', 'spot')
+            ->where('pricing_basis', $pricingBasis)
+            ->whereNull('consumption_kwh')
+            ->whereIn('metric_key', ['spot_margin', 'monthly_fee'])
+            ->get()
+            ->keyBy('metric_key');
+
+        $benchmarks = [
+            'stat_date' => $statDate,
+            'pricing_basis' => $pricingBasis,
+        ];
+
+        foreach (['spot_margin', 'monthly_fee'] as $metric) {
+            $row = $rows->get($metric);
+
+            if ($row === null
+                || $row->contract_count < self::MIN_MARKET_CONTRACTS
+                || ! is_numeric($row->median_value)) {
+                continue;
+            }
+
+            $benchmarks[$metric] = [
+                'median' => (float) $row->median_value,
+                'contract_count' => (int) $row->contract_count,
+            ];
+        }
+
+        return count($benchmarks) > 2 ? $benchmarks : null;
+    }
+
+    private function latestUsableDate(string $companyName, int $referenceConsumption, string $pricingBasis): ?string
+    {
+        $annualCostColumn = 'snapshots.annual_cost_'.$referenceConsumption.'_kwh';
+
+        $date = ContractPriceSnapshot::query()
+            ->from('contract_price_snapshots as snapshots')
+            ->join('contract_price_daily_statistics as statistics', function ($join) {
+                $join->on('statistics.stat_date', '=', 'snapshots.snapshot_date')
+                    ->on('statistics.segment_key', '=', 'snapshots.segment_key')
+                    ->on('statistics.pricing_basis', '=', 'snapshots.pricing_basis');
+            })
+            ->where('snapshots.company_name', $companyName)
+            ->where('snapshots.pricing_basis', $pricingBasis)
+            ->where('statistics.metric_key', 'annual_cost')
+            ->where('statistics.consumption_kwh', $referenceConsumption)
+            ->where('statistics.contract_count', '>=', self::MIN_MARKET_CONTRACTS)
+            ->whereNotNull('statistics.p20_value')
+            ->whereNotNull('statistics.median_value')
+            ->whereNotNull('statistics.p80_value')
+            ->whereNotNull($annualCostColumn)
+            ->where($annualCostColumn, '>', 0)
+            ->when($pricingBasis !== ContractPriceBasis::CanonicalCalculation->value, fn ($query) => $query
+                ->where('snapshots.energy_price_cents_per_kwh', '>', 0)
+                ->where('snapshots.energy_price_cents_per_kwh', '<=', self::MAX_PLAUSIBLE_ENERGY_PRICE_CENTS))
+            ->max('snapshots.snapshot_date');
+
+        return $date === null
+            ? null
+            : Carbon::parse($date)->setTimezone((string) config('app.timezone'))->toDateString();
     }
 
     /**
@@ -547,21 +639,34 @@ class CompanyMarketComparisonService
     {
         $pricingBasis = ContractPriceBasis::expectedCurrent()->value;
         $canonicalEnabled = (bool) config('canonical_pricing.enabled', false);
-        $statistics = ContractPriceDailyStatistic::query()->where('pricing_basis', $pricingBasis);
-        $snapshots = ContractPriceSnapshot::query()->where('pricing_basis', $pricingBasis);
-        $statDate = $statistics->max('stat_date');
+        $bases = $canonicalEnabled
+            ? [ContractPriceBasis::CanonicalCalculation->value, ContractPriceBasis::ObservedSellerData->value]
+            : [$pricingBasis];
+        $sources = [];
+        $hasData = false;
 
-        if ($statDate === null) {
+        foreach ($bases as $basis) {
+            $statistics = ContractPriceDailyStatistic::query()->where('pricing_basis', $basis);
+            $snapshots = ContractPriceSnapshot::query()->where('pricing_basis', $basis);
+            $statDate = $statistics->max('stat_date');
+            $snapshotDate = $snapshots->max('snapshot_date');
+            $hasData = $hasData || $statDate !== null || $snapshotDate !== null;
+            $sources[$basis] = [
+                'statistics_latest_date' => $statDate,
+                'statistics_latest_updated' => $statistics->max('updated_at'),
+                'snapshots_latest_date' => $snapshotDate,
+                'snapshots_latest_updated' => $snapshots->max('updated_at'),
+            ];
+        }
+
+        if (! $hasData) {
             return null;
         }
 
         return md5(json_encode([
             'canonical_enabled' => $canonicalEnabled,
-            'pricing_basis' => $pricingBasis,
-            'statistics_latest_date' => $statDate,
-            'statistics_latest_updated' => $statistics->max('updated_at'),
-            'snapshots_latest_date' => $snapshots->max('snapshot_date'),
-            'snapshots_latest_updated' => $snapshots->max('updated_at'),
+            'expected_pricing_basis' => $pricingBasis,
+            'sources' => $sources,
         ]));
     }
 }

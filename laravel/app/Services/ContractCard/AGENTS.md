@@ -191,6 +191,8 @@ legacy calculated-cost-first relational fallback in a separate branch.
 Canonical phase rows come from `calculated_cost.phase_breakdown`; integrity rate fields are
 used only in the feature-off branch. Package facts come from `energy_package`, and offer
 membership comes from canonical `includes_discounts`, so a package is never called an offer.
+The shared receipt names its three facts `Kuukausipaketti`, `Sisältää`, and `Ylittävä kulutus`;
+the excess rate is not an ordinary energy price for every kWh.
 For `term_price_only`, card benefit copy uses the unannualized `contract_term` saving and normal
 total. Top-level annualized savings remain comparison data. Both templates render the same
 prepared strings from `ContractCardView`; do not add offer copy to Blade.
@@ -294,11 +296,12 @@ Two rules that must not be reverted, because both produced visible defects on a 
   and `Caching\ContractPageCacheVersion::PAYLOAD_SCHEMA_VERSION` must be bumped when the
   cached `calculated_cost` / `pricing_integrity` arrays gain or lose a field. Neither the
   import-driven version nor the feature-flag markers move on a code-only deploy, so without
-  a bump cards read a stale shape for up to 48 hours after release. Both are at **v8**: v6
+  a bump cards read a stale shape for up to 48 hours after release. Both are at **v10**: v6
   added package/real-term fields, v7 made card/detail current values canonical-only and
-  changed real-term offer copy, and v8 moved company/SEO offer surfaces to those canonical
-  facts. The detail page's own prepared-payload key is **v16** because
-  its cached `ContractCardView`, metadata, and Product JSON-LD changed with this boundary.
+  changed real-term offer copy, v8 moved company/SEO offer surfaces to those canonical
+  facts, v9 added exact typed offer terms, and v10 preserved short Hybrid real-term totals.
+  The detail page's own prepared-payload key is **v17** because package excess pricing now
+  keeps its typed label in metadata and Product JSON-LD.
 
 ## Tests
 

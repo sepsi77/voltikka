@@ -3,15 +3,18 @@
 namespace App\Livewire;
 
 use App\Models\Company;
+use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
+use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\CanonicalOfferFacts;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\CompanyStatistics\CompanyMarketComparisonService;
 use App\Services\ContractPriceCalculator;
-use App\Services\ContractRankingService;
 use App\Services\DTO\EnergyUsage;
+use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Url;
 use Livewire\Component;
@@ -25,6 +28,10 @@ class CompanyDetail extends Component
     protected ?Collection $contractsCache = null;
 
     protected ?array $companyStatsCache = null;
+
+    protected ?CarbonInterface $updatedAtCache = null;
+
+    protected bool $updatedAtResolved = false;
 
     /**
      * Market comparison payload. Protected, never public: it is a derived
@@ -46,6 +53,11 @@ class CompanyDetail extends Component
      */
     #[Url]
     public int $consumption = 5000;
+
+    /**
+     * Free annual-consumption input. Blank values are valid while editing.
+     */
+    public int|string|null $directConsumption = null;
 
     /**
      * Available consumption presets matching ContractsList pattern.
@@ -83,6 +95,11 @@ class CompanyDetail extends Component
     {
         $this->companySlug = $companySlug;
         $this->company = Company::where('name_slug', $companySlug)->first();
+
+        $matchingPreset = collect($this->presets)
+            ->search(fn (array $preset) => $preset['consumption'] === $this->consumption);
+        $this->selectedPreset = $matchingPreset === false ? null : $matchingPreset;
+        $this->directConsumption = $matchingPreset === false ? $this->consumption : null;
     }
 
     /**
@@ -94,6 +111,7 @@ class CompanyDetail extends Component
 
         if (isset($this->presets[$preset])) {
             $this->consumption = $this->presets[$preset]['consumption'];
+            $this->directConsumption = null;
             $this->clearComputedCaches();
         }
     }
@@ -104,6 +122,26 @@ class CompanyDetail extends Component
     public function setConsumption(int $value): void
     {
         $this->consumption = $value;
+        $this->directConsumption = $value;
+        $this->selectedPreset = null;
+        $this->clearComputedCaches();
+    }
+
+    /**
+     * Apply a positive free-text annual consumption value.
+     */
+    public function updatedDirectConsumption($value): void
+    {
+        if (! is_numeric($value)) {
+            return;
+        }
+
+        $consumption = max(0, (int) $value);
+        if ($consumption <= 0) {
+            return;
+        }
+
+        $this->consumption = $consumption;
         $this->selectedPreset = null;
         $this->clearComputedCaches();
     }
@@ -215,7 +253,27 @@ class CompanyDetail extends Component
     }
 
     /**
-     * Get company statistics aggregated from all contracts.
+     * Active contracts that are available to households.
+     */
+    public function getHouseholdContractsProperty(): Collection
+    {
+        return $this->contracts
+            ->filter(fn (ElectricityContract $contract) => in_array($contract->target_group, ['Household', 'Both', null], true))
+            ->values();
+    }
+
+    /**
+     * Active contracts that are available to businesses.
+     */
+    public function getBusinessContractsProperty(): Collection
+    {
+        return $this->contracts
+            ->filter(fn (ElectricityContract $contract) => in_array($contract->target_group, ['Company', 'Both'], true))
+            ->values();
+    }
+
+    /**
+     * Get company statistics aggregated from household contracts.
      */
     public function getCompanyStatsProperty(): array
     {
@@ -223,7 +281,7 @@ class CompanyDetail extends Component
             return $this->companyStatsCache;
         }
 
-        $contracts = $this->contracts;
+        $contracts = $this->householdContracts;
 
         if ($contracts->isEmpty()) {
             return $this->companyStatsCache = [
@@ -268,7 +326,7 @@ class CompanyDetail extends Component
     public function getPromotionContractsProperty(): Collection
     {
         if (app(CanonicalContractPricingService::class)->enabled()) {
-            return $this->contracts
+            return $this->householdContracts
                 ->map(function (ElectricityContract $contract) {
                     $contract->offer_fact = CanonicalOfferFacts::fromCalculatedCost(
                         is_array($contract->calculated_cost ?? null) ? $contract->calculated_cost : [],
@@ -280,7 +338,7 @@ class CompanyDetail extends Component
                 ->values();
         }
 
-        return $this->contracts
+        return $this->householdContracts
             ->filter(fn (ElectricityContract $contract) => $contract->hasActiveDiscounts())
             ->map(function (ElectricityContract $contract) {
                 $benefit = $contract->calculated_cost['discount_savings_total'] ?? null;
@@ -288,9 +346,9 @@ class CompanyDetail extends Component
                 $contract->offer_fact = [
                     'label' => $contract->formatActiveDiscountValue() ?? 'Kampanjahinta',
                     'benefit_eur' => $benefit,
-                    'benefit_text' => $benefit !== null ? number_format($benefit, 0, ',', ' ').' € / 12 kk' : null,
+                    'benefit_text' => $benefit !== null ? number_format($benefit, 0, ',', ' ').' €' : null,
                     'basis_months' => 12,
-                    'basis_label' => '12 kk vertailujakso',
+                    'basis_label' => '12 kuukauden vertailussa',
                 ];
 
                 return $contract;
@@ -304,7 +362,7 @@ class CompanyDetail extends Component
      */
     public function getSpotContractsProperty(): Collection
     {
-        return $this->contracts->where('pricing_model', 'Spot')->values();
+        return $this->householdContracts->where('pricing_model', 'Spot')->values();
     }
 
     /**
@@ -329,135 +387,35 @@ class CompanyDetail extends Component
     }
 
     /**
-     * FAQ items, generated from typed fields only.
-     *
-     * This is the single source for the visible list and for the FAQPage
-     * schema, the same rule as `ConsumptionCalculator` and `ContractDetail`.
-     * Do not hand-write a second FAQ block in the Blade.
-     *
-     * Questions use the colon form on purpose. Finnish inflection of arbitrary
-     * company names is unsafe, and many sellers are already named "... Sähkö"
-     * or "... Energia".
-     *
-     * @return list<array{question:string,answer:string}>
+     * The newest stored source observation for any active company contract.
+     * Falls back to a stored relational price date for legacy contracts.
      */
-    public function getFaqItemsProperty(): array
+    public function getUpdatedAtProperty(): ?CarbonInterface
     {
-        if (! $this->company) {
-            return [];
+        if ($this->updatedAtResolved) {
+            return $this->updatedAtCache;
         }
 
-        $name = $this->company->name;
-        $stats = $this->companyStats;
-        $consumption = number_format($this->consumption, 0, ',', ' ');
-        $items = [];
+        $this->updatedAtResolved = true;
+        $contractIds = $this->contracts->pluck('id')->all();
 
-        if ($stats['min_price'] !== null) {
-            $answer = "{$name} tarjoaa tällä hetkellä {$stats['contract_count']} sähkösopimusta. "
-                .'Halvin niistä maksaa noin '.$this->euros($stats['min_price'])." vuodessa {$consumption} kWh kulutuksella";
-
-            if ($stats['max_price'] !== null && $stats['max_price'] > $stats['min_price']) {
-                $answer .= ', ja kallein noin '.$this->euros($stats['max_price']).' vuodessa';
-            }
-
-            $answer .= '. Hinnat sisältävät sähköenergian ja perusmaksun sekä arvonlisäveron 25,5 %. '
-                .'Siirtomaksu ei sisälly, koska sen perii verkkoyhtiö.';
-
-            $items[] = [
-                'question' => "{$name}: paljonko sähkö maksaa?",
-                'answer' => $answer,
-            ];
+        if ($contractIds === []) {
+            return null;
         }
 
-        $spot = $this->spotContracts;
+        $lastObservedAt = ContractSourceSnapshot::query()
+            ->whereIn('contract_id', $contractIds)
+            ->max('last_observed_at');
 
-        if ($spot->isNotEmpty()) {
-            $margins = $spot
-                ->map(fn ($contract) => $contract->calculated_cost['spot_price_margin'] ?? null)
-                ->filter(fn ($value) => $value !== null)
-                ->map(fn ($value) => (float) $value);
-
-            $answer = "Kyllä. {$name} myy {$spot->count()} pörssisähkösopimusta";
-
-            if ($margins->isNotEmpty()) {
-                $answer .= ', ja pienin marginaali on '.$this->cents($margins->min()).' c/kWh';
-            }
-
-            $answer .= '. Pörssisähkössä maksat sähkön tuntikohtaisen markkinahinnan, '
-                .'yhtiön marginaalin ja kuukausittaisen perusmaksun.';
-
-            $items[] = [
-                'question' => "{$name}: onko yhtiöllä pörssisähköä?",
-                'answer' => $answer,
-            ];
+        if ($lastObservedAt !== null) {
+            return $this->updatedAtCache = Carbon::parse($lastObservedAt);
         }
 
-        $promotions = $this->promotionContracts;
+        $priceDate = PriceComponent::query()
+            ->whereIn('electricity_contract_id', $contractIds)
+            ->max('price_date');
 
-        $items[] = [
-            'question' => "{$name}: onko yhtiöllä voimassa olevia tarjouksia?",
-            'answer' => $promotions->isEmpty()
-                ? "{$name} ei tarjoa juuri nyt kampanjahintaisia sopimuksia. "
-                    .'Voltikka tarkistaa sopimukset päivittäin, joten uusi tarjous tulee tälle sivulle automaattisesti.'
-                : "Kyllä. {$name} tarjoaa juuri nyt {$promotions->count()} kampanjahintaista sopimusta. "
-                    .'Voltikka tarkistaa sopimukset päivittäin, joten tarjoukset pysyvät ajan tasalla.',
-        ];
-
-        $comparison = $this->marketComparison;
-
-        if ($comparison !== null && $comparison['rows'] !== []) {
-            $reference = number_format($comparison['reference_consumption'], 0, ',', ' ');
-            $sentences = [];
-
-            foreach (array_slice($comparison['rows'], 0, 3) as $row) {
-                $sentences[] = mb_strtolower($row['label']).': '.$this->euros($row['company_value']).' vuodessa, '
-                    .'kun markkinan mediaani on '.$this->euros($row['market_median']).'.';
-            }
-
-            $items[] = [
-                'question' => "{$name}: ovatko hinnat markkinan keskitasoa halvempia?",
-                'answer' => "Vertailu {$reference} kWh kulutuksella: ".implode(' ', $sentences)
-                    .' Mediaani tarkoittaa, että puolet markkinan sopimuksista on halvempia ja puolet kalliimpia.',
-            ];
-        }
-
-        return array_slice($items, 0, 5);
-    }
-
-    /**
-     * FAQPage schema built from the same items the page renders.
-     */
-    public function getFaqSchemaProperty(): array
-    {
-        $items = $this->faqItems;
-
-        if ($items === []) {
-            return [];
-        }
-
-        return [
-            '@context' => 'https://schema.org',
-            '@type' => 'FAQPage',
-            '@id' => $this->canonicalUrl.'#faq',
-            'mainEntity' => array_map(fn (array $item) => [
-                '@type' => 'Question',
-                'name' => $item['question'],
-                'acceptedAnswer' => [
-                    '@type' => 'Answer',
-                    'text' => $item['answer'],
-                ],
-            ], $items),
-        ];
-    }
-
-    private function euros(float $value): string
-    {
-        return number_format($value, 0, ',', ' ').' €';
-    }
-
-    private function cents(float $value): string
-    {
-        return number_format($value, 2, ',', ' ');
+        return $this->updatedAtCache = $priceDate !== null ? Carbon::parse($priceDate) : null;
     }
 
     /**
@@ -500,11 +458,12 @@ class CompanyDetail extends Component
             $schema['logo'] = $this->company->getLogoUrl();
         }
 
-        // Add area served (Finland)
-        $schema['areaServed'] = [
-            '@type' => 'Country',
-            'name' => 'Finland',
-        ];
+        if ($this->contracts->contains(fn (ElectricityContract $contract) => $contract->availability_is_national === true)) {
+            $schema['areaServed'] = [
+                '@type' => 'Country',
+                'name' => 'Finland',
+            ];
+        }
 
         return $schema;
     }
@@ -518,7 +477,7 @@ class CompanyDetail extends Component
             return [];
         }
 
-        return [
+        $schema = [
             '@context' => 'https://schema.org',
             '@type' => 'WebPage',
             '@id' => $this->canonicalUrl.'#webpage',
@@ -529,6 +488,12 @@ class CompanyDetail extends Component
                 '@id' => $this->canonicalUrl.'#organization',
             ],
         ];
+
+        if ($this->updatedAt !== null) {
+            $schema['dateModified'] = $this->updatedAt->toAtomString();
+        }
+
+        return $schema;
     }
 
     /**
@@ -536,7 +501,7 @@ class CompanyDetail extends Component
      */
     public function getItemListSchemaProperty(): array
     {
-        $contracts = $this->contracts;
+        $contracts = $this->householdContracts;
 
         if ($contracts->isEmpty() || ! $this->company) {
             return [];
@@ -620,26 +585,6 @@ class CompanyDetail extends Component
     }
 
     /**
-     * Get the company's price rank among all companies.
-     */
-    public function getCompanyRankProperty(): ?int
-    {
-        if (! $this->company) {
-            return null;
-        }
-
-        return app(ContractRankingService::class)->getCompanyRank($this->company->name);
-    }
-
-    /**
-     * Get total number of active household contracts across all companies.
-     */
-    public function getTotalContractsProperty(): int
-    {
-        return app(ContractRankingService::class)->getTotalActiveContracts();
-    }
-
-    /**
      * Get the meta description for this page.
      */
     public function getMetaDescriptionProperty(): string
@@ -648,10 +593,12 @@ class CompanyDetail extends Component
             return 'Vertaile sähkösopimuksia Voltikassa.';
         }
 
-        $stats = $this->companyStats;
-        $total = $this->totalContracts;
+        $count = $this->companyStats['contract_count'];
+        $contracts = $count === 1
+            ? '1 kotitalouksille sopiva sähkösopimus'
+            : "{$count} kotitalouksille sopivaa sähkösopimusta";
 
-        return "{$this->company->name}: {$stats['contract_count']} sopimusta vertailussa — katso hinnat ja CO₂-tiedot. Löydä yhtiön edullisin {$total} vaihtoehdosta.";
+        return "{$this->company->name}: {$contracts} vertailussa. Katso hinnat, sopimustyypit ja CO₂-tiedot.";
     }
 
     /**
@@ -663,14 +610,7 @@ class CompanyDetail extends Component
             return 'Sähkösopimukset | Voltikka';
         }
 
-        $stats = $this->companyStats;
-        $rank = $this->companyRank;
-
-        if ($rank && $stats['contract_count'] > 0) {
-            return "{$this->company->name} | #{$rank} halvin yhtiö — Vertaa {$stats['contract_count']} sopimusta | Voltikka";
-        }
-
-        return "{$this->company->name} sähkösopimukset | Voltikka";
+        return "{$this->company->name}: sähkön hinta ja sähkösopimukset | Voltikka";
     }
 
     /**
@@ -682,9 +622,7 @@ class CompanyDetail extends Component
             return 'Sähkösopimukset';
         }
 
-        $stats = $this->companyStats;
-
-        return "{$this->company->name} — Kaikki {$stats['contract_count']} sopimusta vertailussa";
+        return "{$this->company->name}: sähkön hinta ja sähkösopimukset";
     }
 
     /**
@@ -700,7 +638,9 @@ class CompanyDetail extends Component
         $parts = [];
 
         if ($stats['contract_count'] > 0) {
-            $parts[] = "Vertaile {$stats['contract_count']} sähkösopimusta";
+            $parts[] = $stats['contract_count'] === 1
+                ? 'Vertaile yhtä kotitalouksille sopivaa sähkösopimusta'
+                : "Vertaile {$stats['contract_count']} kotitalouksille sopivaa sähkösopimusta";
         }
 
         if ($stats['min_price'] !== null) {
@@ -719,7 +659,9 @@ class CompanyDetail extends Component
             $parts[] = "{$stats['spot_contract_count']} pörssisähkösopimusta";
         }
 
-        return implode('. ', $parts).'.';
+        return $parts === []
+            ? 'Yhtiöllä ei ole tällä hetkellä kotitalouksille sopivia sähkösopimuksia vertailussa.'
+            : implode('. ', $parts).'.';
     }
 
     public function render()
@@ -728,19 +670,22 @@ class CompanyDetail extends Component
             abort(404, 'Yritystä ei löytynyt');
         }
 
+        $marketComparison = $this->marketComparison;
+
         return view('livewire.company-detail', [
-            'contracts' => $this->contracts,
+            'contracts' => $this->householdContracts,
+            'businessContracts' => $this->businessContracts,
             'companyStats' => $this->companyStats,
+            'updatedAt' => $this->updatedAt,
             'promotionContracts' => $this->promotionContracts,
             'spotContracts' => $this->spotContracts,
-            'marketComparison' => $this->marketComparison,
-            'faqItems' => $this->faqItems,
+            'marketComparison' => $marketComparison,
+            'spotBenchmarks' => $marketComparison['spot_benchmarks'] ?? null,
             'schemas' => array_values(array_filter([
                 $this->webPageSchema,
                 $this->organizationSchema,
                 $this->itemListSchema,
                 $this->breadcrumbSchema,
-                $this->faqSchema,
             ])),
             'h1' => $this->h1,
             'heroDescription' => $this->heroDescription,

@@ -1,0 +1,8 @@
+[
+  {"name":"Audit company page structure, rank metadata, update-date sources, and delivery-area data","status":"completed"},
+  {"name":"Implement household/business sections, page date, title rewrite, and delivery-area content","status":"completed"},
+  {"name":"Add regressions, verify the rendered page, and update documentation","status":"completed"},
+  {"name":"Remove the delivery-area section and its unused query path","status":"completed"},
+  {"name":"Remove the visible company FAQ and its structured data","status":"completed"},
+  {"name":"Match the company consumption selector to the main comparison page","status":"completed"}
+]

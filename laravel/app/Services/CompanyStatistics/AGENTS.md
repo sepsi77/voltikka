@@ -19,11 +19,29 @@ own:
 - `contract_price_snapshots` — the same fields per contract, with `company_name`
 
 Both are written by `ContractPriceStatisticsService` on the same date by the same
-method. The current range selects the latest available date for
-`ContractPriceBasis::expectedCurrent()` and requires that basis on both tables, so
-the seller's figure and band cannot come from different calculations or from a
-newer wrong-basis date. **Do not swap either side for a live
-`ContractPriceCalculator` call.**
+method. The service selects the latest **usable joined date** for
+`ContractPriceBasis::expectedCurrent()`: market and seller rows must share date,
+segment, basis, consumption, and the minimum market count. Thus a newer
+wrong-basis or market-only date cannot replace a usable canonical pair. **Do not
+swap either side for a live `ContractPriceCalculator` call.**
+
+When canonical mode has no usable canonical joined date, the service can select
+the latest usable `observed_seller_data` joined date. This is an explicitly
+historical page fallback, not a current-price fallback: the payload sets
+`comparison_state=historical_observed_fallback` and
+`is_historical_fallback=true`, and the Blade states its date and that it is not
+today's comparison. Current canonical rows always win when usable. The FAQ does
+not answer a current-price question from the historical fallback.
+
+A non-historical payload can also carry the small typed `spot_benchmarks`
+payload. It reads only the `spot` segment's `spot_margin` and `monthly_fee`
+medians from the exact `stat_date` and `pricing_basis` selected above. Each
+metric independently requires a numeric median and at least
+`MIN_MARKET_CONTRACTS`; unusable metrics are absent. A historical observed
+fallback always sets this payload to null. This prevents current canonical
+contract charges from being compared with dated observed market rows. In
+feature-off mode, current observed contract charges use current observed rows on
+the same date.
 
 ### The metric is `annual_cost`, not `energy_price`
 
@@ -107,6 +125,10 @@ cheaper than p20 or dearer than p80 still has a visible marker.
 so this feature added no chart renderer. Weekly aggregation over a trailing 365
 days, matching `ArticleContractPriceComparisonChart`.
 
+The fallback chart uses only observed points through its dated endpoint. A
+canonical chart still combines older observed history with canonical points from
+the first canonical date. In both cases:
+
 - **The segment is chosen by `CHART_SEGMENT_PREFERENCE`, and
   `fixed_term_12` leads it.** Määräaikainen 12 kk is the type a visitor
   comparing sellers shops for: a known price for a known term. The ladder then
@@ -138,10 +160,12 @@ days, matching `ArticleContractPriceComparisonChart`.
 
 ### Caching
 
-Cached for 6 hours under a key of canonical flag + expected basis + company +
-snapped reference consumption + a fingerprint of the two source tables' newest
-dates and maximum `updated_at` for that basis. A same-day rewrite therefore
-creates a new key, and a flag flip cannot serve an opposite-basis payload.
+Cached for 6 hours under key schema v5: canonical flag + expected basis + company
++ snapped reference consumption + a fingerprint of the two source tables'
+newest dates and maximum `updated_at`. In canonical mode the fingerprint includes
+both canonical and observed bases because either can own the payload. A same-day
+rewrite therefore creates a new key, and a flag flip cannot serve an
+opposite-basis payload.
 Skipped under `runningUnitTests()`, like the page-level caches, to avoid
 array-driver pollution across tests.
 

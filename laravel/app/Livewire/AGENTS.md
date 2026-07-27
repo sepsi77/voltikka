@@ -288,17 +288,30 @@ Primary files:
 - `../Services/CompanyStatistics/AGENTS.md`
 
 Query guardrails:
-- `contracts` and `companyStats` are memoized per render because layout title/meta, JSON-LD, H1/hero text, and the visible list all read the same company contract set.
+- `contracts` is one memoized collection of all active company contracts. Household (`Household`, `Both`, or legacy null) and business (`Company` or `Both`) lists filter this collection in memory. Do not run a second contract query for the business section.
+- `companyStats` uses only the household list and is memoized per render because layout title/meta, JSON-LD, H1/hero text, and the visible list reuse it.
 - Keep company contract queries eager-loading `company` and `electricitySource`. Load `priceComponents` only in the explicit feature-off branch; canonical calculations, offers, cards, and current company facts must not require or query relational prices.
+- `updatedAt` uses aggregate maximum dates only. Do not load source snapshot JSON.
 - Clear the memoized contract/stat caches whenever the selected consumption changes. `marketComparison` is memoized with a separate `marketComparisonResolved` flag, because null is a valid result and must not be recomputed every render.
 
-### Query-cluster sections (2026-07)
+### Company page sections (2026-07)
+
+The page is household-first. The hero, summary, offers, Spot facts, and main
+card list use active `Household`, `Both`, and legacy null-target contracts. A
+`Company` contract cannot affect those facts. The business section at the bottom
+uses active `Company` and `Both` contracts, so `Both` appears in both lists. Both
+card lists keep the shared calculated outcomes and order from the one
+all-contract collection.
+
+Company pages have no delivery-area section. Do not add DSO or postcode queries
+to this page. The company address is labelled only as the address reported by
+the company. Organization JSON-LD includes Finland in `areaServed` only when at
+least one active contract has `availability_is_national=true`.
 
 Search Console showed three clusters on these pages that the page answered with
 nothing but a list of cards: `[yhtiö] tarjoukset`, `[yhtiö] hinta` /
-`sähkön hinta`, and `[yhtiö] pörssisähkö`. Four sections were added between the
-summary and the card list, in this order, and each is derived from data the page
-already loads or from precomputed statistics.
+`sähkön hinta`, and `[yhtiö] pörssisähkö`. The sections below use household
+contracts or precomputed household statistics.
 
 1. **`#tarjoukset` — "{yhtiö} tarjoukset".** In canonical mode,
    `getPromotionContractsProperty()` uses only the `calculated_cost` outcome
@@ -312,12 +325,20 @@ already loads or from precomputed statistics.
    2026-07-24, and an empty state that says the page updates itself is the
    product decision; do not hide the section when the list is empty.
 
-   `CanonicalOfferFacts` supplies the generic typed label and measured benefit.
-   Ordinary outcomes state the benefit over the 12-month comparison period. A
-   short fixed term states `contract_term.discount_savings_total` over the real
-   term and labels its month count; the annualized top-level saving is never
-   described as benefit received. A package, excluded outcome, missing benefit,
-   or zero benefit is not an offer. No seller or interpretation free text is used.
+   `CanonicalOfferFacts` supplies the specific typed term and measured saving.
+   The calculator's `offer_terms` records supported changed component types,
+   actual/normal amounts, and exact resolved duration/date. It can use either a
+   component `normal_amount` or an exact introductory-to-normal phase comparison;
+   recurring market resets are excluded from the latter so market movement is
+   not called an offer. Held-forward Hybrids keep the real known offer span and
+   still exclude the consumption effect. Controlled Finnish copy states facts
+   such as `Perusmaksu 0 €/kk ensimmäisen kuukauden`; raw phase labels, seller
+   text, and interpretation summaries are never rendered. Ordinary
+   outcomes state the saving over the 12-month comparison period. A short fixed
+   term states `contract_term.discount_savings_total` over the real term and
+   labels its month count; the annualized top-level saving is never described as
+   received. A package, excluded outcome, missing/zero benefit, or unsupported or
+   absent typed term is not an offer.
    Feature-off keeps `hasActiveDiscounts()` and
    `formatActiveDiscountValue()` in its separate legacy branch, including the
    dash for a relational promotion whose old calculator cannot measure a saving.
@@ -325,23 +346,41 @@ already loads or from precomputed statistics.
    contract-type segment plus a trailing-12-month trend chart, from
    `../Services/CompanyStatistics/CompanyMarketComparisonService`. **Read that
    `AGENTS.md` before changing the metric, the segment floor, or the geometry.**
-   The section is omitted when the service returns null.
-3. **`#porssisahko` — "{yhtiö} pörssisähkö".** The seller's `Spot` contracts with
-   their margin in c/kWh, which is the figure a visitor compares between sellers
-   and which no seller publishes beside a rival. Omitted when the seller has no
-   spot contract.
-4. **`#usein-kysyttya`.** `getFaqItemsProperty()` is the single source for the
-   visible `<details>` list and for `getFaqSchemaProperty()` (FAQPage), the same
-   rule as `ConsumptionCalculator` and `ContractDetail`. Do not hand-write a
-   second FAQ `<script>`. Items are generated from typed fields, capped at five,
-   and an item whose data is missing is dropped rather than answered "ei tietoa".
+   Current canonical rows always win when an internally consistent market+company
+   date exists. Otherwise, canonical mode may render the latest internally
+   consistent `observed_seller_data` date only as a payload-marked historical
+   fallback with explicit dated copy. It never calls that fallback today's price.
+   The section is omitted only when neither source has a usable same-date pair.
+3. **`#porssisahko` — "{yhtiö} pörssisähkö".** The seller's `Spot` contracts state
+   the count and show the two supplier-controlled charges: margin in c/kWh and
+   monthly base fee. Nord Pool's market price is common to Spot products and is
+   never presented as seller competitiveness. When the company comparison has a
+   non-historical current payload, each available charge is compared with the
+   `spot_benchmarks` market median from the same date and pricing basis. Missing
+   facts or unusable benchmark rows produce no comparison claim, and an observed
+   historical fallback never supplies a benchmark beside current contract facts.
+   The section is omitted when the seller has no spot contract.
 
-**FAQ questions use the colon form** (`Helen Oy: paljonko sähkö maksaa?`) on
-purpose. Finnish inflection of an arbitrary company name is unsafe, and many
-sellers are already named "... Sähkö" or "... Energia", so the plain form
-produces "Vaasan Sähkö sähkön hinta". The same constraint applies to the page
-title and H1, which are **deliberately unchanged** and still carry an em dash and
-a `| Voltikka` suffix; that rewrite is a separate open decision.
+Company pages deliberately have no visible FAQ and no FAQPage schema. Keep the
+schema aligned with visible content if this decision changes later.
+
+The title uses a colon before the search phrase because Finnish inflection of an
+arbitrary company name is unsafe. It is `{company}: sähkön hinta ja
+sähkösopimukset | Voltikka`, and the H1 uses the same phrase without the site
+suffix. Do not add the old price rank again.
+
+`Päivitetty` is the maximum `contract_source_snapshots.last_observed_at` for the
+company's active contracts. When no active contract has a snapshot, it falls
+back to maximum active `price_components.price_date`. It is hidden when neither
+stored date exists. The same date supplies WebPage `dateModified`; request time
+is never a fallback.
+
+The annual-consumption control uses the same compact segmented preset rail as
+the main comparison page. It includes the tolerant `directConsumption` input.
+A preset clears that input; a positive direct value clears the preset and
+recalculates both audience lists. The calculator action links to the standalone
+`/sahkosopimus/laskuri` because CompanyDetail does not host the inline listing
+calculator.
 
 The offers and spot sections render as compact tables inside `overflow-x-auto`
 wrappers rather than as contract cards, because Vaasan Sähkö has a promotion on
@@ -1020,7 +1059,10 @@ Rules to keep:
 - Current receipt rows, title price phrases, current-price meta text, and Product JSON-LD all read
   `currentDisplayValues()`. Canonical mode builds it only from `calculated_cost`; a missing unit
   stays absent, a canonical-only contract can show its available values, and an excluded outcome
-  has no current unit value or JSON-LD Offer. Feature-off mode keeps the relational values.
+  has no current unit value or JSON-LD Offer. A typed package suppresses `general_kwh_price` from
+  ordinary energy-price title/meta/JSON-LD surfaces: that number is the excess-use rate, so Product
+  JSON-LD names it `Ylittävä kulutus` beside the monthly fee and included kWh. The generated
+  qualifier and mechanism FAQ state the same package facts. Feature-off mode keeps the relational values.
 - `priceHistory`, `contractHistory`, the price-development chart, and the replacement timeline
   remain relational observed history. Do not use their newest observation as a canonical current
   price. The meta history sentence can describe the observed change, but its "maksaa nyt" rate and
@@ -1031,7 +1073,8 @@ Rules to keep:
 - The `ContractCardView` travels inside the prepared view payload, so
   `contractDetailViewDataCacheKey()` was bumped to **v11** with it, to **v15** for the Phase 4
   composition keys, and to **v16** for canonical-only current values, offer notes, metadata,
-  and Product JSON-LD. It no longer carries `latestPrices`, `discountedComponents` or
+  and Product JSON-LD, then to **v17** so a package excess-use rate cannot become an ordinary
+  energy price in title/meta/schema. It no longer carries `latestPrices`, `discountedComponents` or
   `priceChangeInfo`; no template read them after the editorial restructure, and
   `getDiscountedComponentsProperty()`, `getPriceChangeInfoProperty()` and
   `components/contract-price-row.blade.php` were deleted with them.

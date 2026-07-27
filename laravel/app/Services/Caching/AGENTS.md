@@ -15,4 +15,6 @@ Important semantics:
 - avoid adding expensive full-table hashes here; this method runs to decide whether cached page payloads can be reused
 - calculated-cost payload v6 adds typed monthly included-energy package data
 - payload v7 is the card/detail canonical-only current-value and real-term offer-copy boundary
-- payload v8 is the company/SEO canonical offer-membership and JSON-LD boundary; both `ContractPageCacheVersion` and `ContractListCacheService` are at v8
+- payload v8 is the company/SEO canonical offer-membership and JSON-LD boundary
+- payload v9 adds exact typed canonical offer terms
+- payload v10 adds real-term totals and offer savings for short BaseOnlyHybrid outcomes; both `ContractPageCacheVersion` and `ContractListCacheService` are at v10

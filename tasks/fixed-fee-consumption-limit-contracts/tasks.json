@@ -1,0 +1,5 @@
+[
+  {"name":"Audit source evidence and current canonical interpretation","status":"completed"},
+  {"name":"Correct canonical package calculation and presentation","status":"completed"},
+  {"name":"Add regression tests and update documentation","status":"completed"}
+]

@@ -104,7 +104,10 @@ Raw components remain valid for:
 5. cache fingerprints and import bookkeeping.
 
 A historical surface that uses raw observations must label them as observed
-seller data. It must not present them as the canonical current price.
+seller data. It must not present them as the canonical current price. A company
+market comparison can use an observed market+seller snapshot only when both
+sides share one usable date and the UI explicitly identifies it as the latest
+historical fallback.
 
 ## Required target architecture
 
@@ -136,6 +139,7 @@ when applicable:
 - first-year or annualized total;
 - normal-price total on the same comparison basis;
 - measured offer saving;
+- exact typed offer terms from changed component type, actual/normal amount, and resolved timing;
 - monthly costs and monthly offer savings;
 - current display rates;
 - phase timing and phase breakdown;
@@ -162,7 +166,9 @@ when applicable:
 
 Apply an offer to billed base components such as a monthly fee or base energy
 rate. Never apply an offer to an unknown consumption effect. Keep the existing
-base-only disclosure.
+base-only disclosure. When a Hybrid has an exact short structural term, preserve
+its unannualized real-term total and offer saving before annualizing the same
+base-only result for comparison.
 
 ### Short fixed terms
 
@@ -292,6 +298,7 @@ At minimum, add fixtures for:
   absent.
 - Canonical-excluded contracts are never shown with a guessed relational total.
 - Offer savings are measured from canonical actual and normal-price calculations.
+- Public canonical offer copy states supported typed prices and exact durations/dates; an unsupported or absent typed term is not shown as an offer.
 - A phase-modeled and component-modeled offer cannot be counted twice.
 - Included-energy packages use monthly allowance and excess-rate pricing and do
   not appear as promotions.

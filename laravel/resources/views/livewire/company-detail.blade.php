@@ -32,12 +32,19 @@
                         </h1>
 
                         {{-- Hero description with company-specific SEO content --}}
-                        <p class="text-lg text-slate-300 mb-4">
+                        <p class="text-lg text-slate-300 mb-3">
                             {{ $heroDescription }}
                         </p>
 
+                        @if ($updatedAt)
+                            <p class="mb-4 text-sm font-medium text-slate-300">
+                                Päivitetty {{ $updatedAt->translatedFormat('j.n.Y') }}
+                            </p>
+                        @endif
+
                         @if ($company->street_address || $company->postal_code || $company->postal_name)
                             <p class="text-slate-300 mb-2">
+                                <span class="block text-sm font-semibold text-slate-300">Yhtiön ilmoittama osoite</span>
                                 <svg class="w-5 h-5 inline-block mr-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -113,65 +120,74 @@
         </section>
     @endif
 
-    {{-- Consumption Selection Section --}}
-    <section x-data="{ panelOpen: false }" class="bg-transparent text-center mb-8">
-        <h3 class="max-w-2xl mb-4 mx-auto text-2xl font-extrabold tracking-tight leading-none text-slate-900">
-            Valitse kulutustaso
-        </h3>
-
-        {{-- Mobile-only toggle --}}
-        <button
-            type="button"
-            @click="panelOpen = !panelOpen"
-            class="lg:hidden inline-flex items-center gap-2 mx-auto mb-5 bg-white border border-slate-200 rounded-full px-5 py-2.5 text-sm font-semibold text-slate-700 hover:border-coral-400 transition-colors"
-            :aria-expanded="panelOpen ? 'true' : 'false'"
-        >
-            <span x-text="panelOpen ? 'Piilota vaihtoehdot' : 'Vaihda kulutusta'"></span>
-            <svg class="w-4 h-4 transition-transform" :class="panelOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
-        </button>
-
-        {{-- Consumption Presets Grid --}}
-        <div :class="panelOpen ? 'grid' : 'hidden lg:grid'" class="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-w-5xl mx-auto">
-            @foreach ($presets as $key => $preset)
-                <button
-                    wire:click="selectPreset('{{ $key }}')"
-                    class="p-4 border-2 rounded-xl transition-all text-left {{ $selectedPreset === $key ? 'bg-gradient-to-r from-coral-500 to-coral-600 border-coral-500 shadow-coral' : 'bg-white border-slate-200 hover:border-coral-400' }}"
+    {{-- Consumption selector matches the main comparison page. --}}
+    <section x-data="{ panelOpen: false }" class="mb-8 bg-transparent">
+        <div class="mb-3 flex items-center justify-between gap-3">
+            <h3 class="text-sm font-bold tracking-tight text-slate-700">Vuosikulutus</h3>
+            <div class="flex items-center gap-3">
+                <a
+                    href="/sahkosopimus/laskuri"
+                    class="hidden items-center gap-1.5 text-sm font-semibold text-slate-500 transition-colors hover:text-slate-700 lg:inline-flex"
                 >
-                    <div class="flex items-start">
-                        <span class="{{ $selectedPreset === $key ? 'bg-white/20' : 'bg-slate-100' }} p-1.5 rounded-lg mr-2 flex-shrink-0">
-                            @if ($preset['icon'] === 'apartment')
-                                <svg class="w-5 h-5 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                </svg>
-                            @else
-                                <svg class="w-5 h-5 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                                </svg>
-                            @endif
-                        </span>
-                        <div class="flex-1 min-w-0">
-                            <h5 class="font-semibold text-sm {{ $selectedPreset === $key ? 'text-white' : 'text-slate-900' }} truncate">{{ $preset['label'] }}</h5>
-                            <p class="text-xs {{ $selectedPreset === $key ? 'text-white/80' : 'text-slate-500' }}">{{ $preset['description'] }}</p>
-                        </div>
-                    </div>
-                    <div class="mt-2 text-right">
-                        <span class="text-lg font-bold {{ $selectedPreset === $key ? 'text-white' : 'text-slate-900' }}">{{ number_format($preset['consumption'], 0, ',', ' ') }}</span>
-                        <span class="{{ $selectedPreset === $key ? 'text-white/80' : 'text-slate-500' }} text-xs ml-1">kWh/v</span>
-                    </div>
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m-6 4h6m-6 4h4M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"></path>
+                    </svg>
+                    En tiedä – arvioi laskurilla
+                </a>
+                <button
+                    type="button"
+                    @click="panelOpen = !panelOpen"
+                    class="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 lg:hidden"
+                    :aria-expanded="panelOpen ? 'true' : 'false'"
+                >
+                    <span x-text="panelOpen ? 'Piilota' : 'Vaihda'"></span>
+                    <svg class="h-4 w-4 transition-transform" :class="panelOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
                 </button>
-            @endforeach
+            </div>
         </div>
 
-        {{-- Current Selection Display --}}
-        <div class="mt-6">
-            <div class="inline-flex items-center bg-coral-50 border border-coral-200 rounded-full px-6 py-3">
-                <svg class="w-5 h-5 text-coral-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                </svg>
-                <span class="text-coral-700 font-medium">Vertailu kulutuksella:</span>
-                <span class="text-coral-900 font-bold ml-2">{{ number_format($consumption, 0, ',', ' ') }} kWh/v</span>
+        <div :class="panelOpen ? 'block' : 'hidden lg:block'">
+            <a
+                href="/sahkosopimus/laskuri"
+                class="mb-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 lg:hidden"
+            >
+                En tiedä – arvioi laskurilla
+            </a>
+
+            <div class="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white divide-y divide-slate-200 sm:flex-row sm:divide-x sm:divide-y-0">
+                @foreach ($presets as $key => $preset)
+                    @php $isSelected = $selectedPreset === $key; @endphp
+                    <button
+                        type="button"
+                        wire:click="selectPreset('{{ $key }}')"
+                        aria-pressed="{{ $isSelected ? 'true' : 'false' }}"
+                        class="flex flex-1 flex-col items-start px-3 py-2.5 text-left transition-colors {{ $isSelected ? 'bg-gradient-to-br from-coral-500 to-coral-600' : 'hover:bg-coral-50/60' }}"
+                    >
+                        <span class="text-sm font-semibold leading-tight {{ $isSelected ? 'text-white' : 'text-slate-900' }}">{{ $preset['label'] }}</span>
+                        <span class="mt-0.5 text-xs leading-snug {{ $isSelected ? 'text-white/80' : 'text-slate-500' }}">{{ $preset['description'] }}</span>
+                        <span class="mt-1 text-sm font-bold tabular-nums {{ $isSelected ? 'text-white' : 'text-slate-900' }}">{{ number_format($preset['consumption'], 0, ',', ' ') }} kWh/v</span>
+                    </button>
+                @endforeach
+
+                @php $isDirect = $selectedPreset === null; @endphp
+                <div class="flex flex-1 flex-col justify-center px-3 py-2.5 transition-colors {{ $isDirect ? 'bg-coral-50' : '' }}">
+                    <label for="company-direct-consumption" class="text-xs leading-snug {{ $isDirect ? 'font-semibold text-coral-600' : 'font-medium text-slate-500' }}">Tiedän kulutukseni</label>
+                    <div class="mt-1 flex items-baseline gap-1">
+                        <input
+                            id="company-direct-consumption"
+                            type="number"
+                            min="0"
+                            step="100"
+                            inputmode="numeric"
+                            wire:model.blur="directConsumption"
+                            placeholder="esim. 7000"
+                            class="w-full min-w-0 bg-transparent text-sm font-bold tabular-nums text-slate-900 placeholder:font-normal placeholder:text-slate-500 focus:outline-none"
+                        >
+                        <span class="shrink-0 text-xs text-slate-500">kWh/v</span>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -263,9 +279,8 @@
         @else
             <p class="text-slate-600 mb-4 max-w-prose">
                 <span class="font-semibold">{{ $promotionContracts->count() }}</span> sopimusta kampanjahinnalla.
-                Vertailuhinta on laskettu {{ number_format($consumption, 0, ',', ' ') }} kWh kulutuksella ja se sisältää tarjouksen.
-                Mitattu etu vertaa laskettua hintaa saman sopimuksen normaalihintaan.
-                Tavallisen sopimuksen etu koskee 12 kuukauden vertailujaksoa. Lyhyen määräaikaisen sopimuksen rivillä näkyy todellinen etu ja sopimuskauden kesto.
+                Tarjous kertoo kampanjahinnan ja sen keston. Säästö vertaa kampanjahintaa saman sopimuksen normaalihintaan {{ number_format($consumption, 0, ',', ' ') }} kWh kulutuksella.
+                Lyhyessä määräaikaisessa sopimuksessa säästö koskee todellista sopimuskautta.
             </p>
 
             <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
@@ -274,8 +289,8 @@
                         <tr>
                             <th scope="col" class="px-4 py-3 font-semibold">Sopimus</th>
                             <th scope="col" class="px-4 py-3 font-semibold">Tarjous</th>
-                            <th scope="col" class="px-4 py-3 font-semibold text-right">Mitattu etu</th>
-                            <th scope="col" class="px-4 py-3 font-semibold text-right">Vertailuhinta (12 kk)</th>
+                            <th scope="col" class="px-4 py-3 font-semibold text-right">Säästö</th>
+                            <th scope="col" class="px-4 py-3 font-semibold text-right">12 kk:n vertailuhinta</th>
                             <th scope="col" class="px-4 py-3"><span class="sr-only">Tiedot</span></th>
                         </tr>
                     </thead>
@@ -316,7 +331,7 @@
             </div>
 
             <p class="mt-3 text-xs text-slate-500">
-                Viiva etusarakkeessa tarkoittaa, ettei kampanjan euromääräistä vaikutusta voi laskea luotettavasti tämän sopimuksen tiedoista.
+                Viiva säästösarakkeessa tarkoittaa, ettei säästöä voi laskea luotettavasti.
                 Hinnat sis. alv 25,5 %, siirtomaksu ei sisälly.
                 <a href="/sahkosopimus/sahkotarjous" class="font-medium text-coral-600 hover:text-coral-700">Vertaa kaikkia sähkötarjouksia &rarr;</a>
             </p>
@@ -333,12 +348,21 @@
 
     {{-- Spot contracts --}}
     @if ($spotContracts->isNotEmpty())
+        @php
+            $spotCount = $spotContracts->count();
+            $spotCountText = $spotCount === 1
+                ? '1 pörssisähkösopimus'
+                : $spotCount . ' pörssisähkösopimusta';
+            $spotMarginMedian = $spotBenchmarks['spot_margin']['median'] ?? null;
+            $spotMonthlyFeeMedian = $spotBenchmarks['monthly_fee']['median'] ?? null;
+        @endphp
         <section id="porssisahko" class="mb-10">
-            <h2 class="text-2xl font-bold text-slate-900 mb-2">{{ $company->name }} pörssisähkö</h2>
+            <h2 class="text-2xl font-bold text-slate-900 mb-2">{{ $company->name }}: pörssisähkö, marginaali ja perusmaksu</h2>
             <p class="text-slate-600 mb-4 max-w-prose">
-                Pörssisähkössä maksat sähkön tuntikohtaisen markkinahinnan, yhtiön marginaalin ja kuukausittaisen perusmaksun.
-                Marginaali on se osa hinnasta, jonka yhtiö itse päättää, joten vertaa sitä muihin myyjiin.
-                Vuosihinta on arvio ja perustuu edeltävän 12 kuukauden toteutuneeseen pörssihintaan.
+                {{ $company->name }} myy pörssisähköä. Vertailussa on {{ $spotCountText }}.
+                Myyjän itse määrittämät kulut ovat marginaali ja kuukausittainen perusmaksu.
+                Nord Poolin markkinahinta on kaikille pörssisähkötuotteille yhteinen, joten se ei kerro myyjän kilpailukyvystä.
+                Vuosihinta on arvio, joka perustuu edeltävän 12 kuukauden toteutuneeseen pörssihintaan.
             </p>
 
             <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
@@ -358,14 +382,38 @@
                                 $margin = $contract->calculated_cost['spot_price_margin'] ?? null;
                                 $fee = $contract->calculated_cost['monthly_fixed_fee'] ?? null;
                                 $total = $contract->calculated_cost['total_cost'] ?? null;
+                                $marginDelta = $margin !== null && $spotMarginMedian !== null
+                                    ? (float) $margin - (float) $spotMarginMedian
+                                    : null;
+                                $feeDelta = $fee !== null && $spotMonthlyFeeMedian !== null
+                                    ? (float) $fee - (float) $spotMonthlyFeeMedian
+                                    : null;
                             @endphp
                             <tr>
                                 <td class="px-4 py-3 font-medium text-slate-900">{{ $contract->name }}</td>
                                 <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap">
                                     {{ $margin !== null ? number_format($margin, 2, ',', ' ') . ' c/kWh' : '–' }}
+                                    @if ($marginDelta !== null)
+                                        <span class="block text-xs font-normal text-slate-500">
+                                            @if (abs($marginDelta) < 0.005)
+                                                Sama kuin markkinan mediaani
+                                            @else
+                                                {{ number_format(abs($marginDelta), 2, ',', ' ') }} c/kWh {{ $marginDelta < 0 ? 'alle' : 'yli' }} markkinan mediaanin
+                                            @endif
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-right tabular-nums whitespace-nowrap">
                                     {{ $fee !== null ? number_format($fee, 2, ',', ' ') . ' ' . "\u{20AC}" . '/kk' : '–' }}
+                                    @if ($feeDelta !== null)
+                                        <span class="block text-xs font-normal text-slate-500">
+                                            @if (abs($feeDelta) < 0.005)
+                                                Sama kuin markkinan mediaani
+                                            @else
+                                                {{ number_format(abs($feeDelta), 2, ',', ' ') }} {{ "\u{20AC}" }}/kk {{ $feeDelta < 0 ? 'alle' : 'yli' }} markkinan mediaanin
+                                            @endif
+                                        </span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-right font-semibold tabular-nums text-slate-900 whitespace-nowrap">
                                     {{ $total !== null ? number_format($total, 0, ',', ' ') . ' ' . "\u{20AC}" . '/v' : '–' }}
@@ -380,7 +428,12 @@
             </div>
 
             <p class="mt-3 text-xs text-slate-500">
-                Hinnat sis. alv 25,5 %, siirtomaksu ei sisälly. Vertailu {{ number_format($consumption, 0, ',', ' ') }} kWh vuosikulutuksella.
+                Hinnat sis. alv 25,5 %, siirtomaksu ei sisälly. Vuosihinta on laskettu {{ number_format($consumption, 0, ',', ' ') }} kWh vuosikulutuksella.
+                Markkinavertailu koskee vain myyjän marginaalia ja perusmaksua; Nord Poolin hinta ei ole myyjäkohtainen.
+                @if ($spotBenchmarks !== null)
+                    Mediaanit perustuvat {{ \Illuminate\Support\Carbon::parse($spotBenchmarks['stat_date'])->translatedFormat('j.n.Y') }}
+                    {{ $spotBenchmarks['pricing_basis'] === 'canonical_calculation' ? 'Voltikan laskemiin nykyhintoihin' : 'myyjiltä havaittuihin hintoihin' }}.
+                @endif
                 <a href="/sahkosopimus/porssisahko" class="font-medium text-coral-600 hover:text-coral-700">Vertaa kaikkia pörssisähkösopimuksia &rarr;</a>
             </p>
         </section>
@@ -388,11 +441,15 @@
 
     <!-- Contracts Section -->
     <h2 class="text-2xl font-bold text-slate-900 mb-4">
-        Sähkösopimukset
+        {{ $company->name }}: sähkösopimukset
     </h2>
 
     <p class="text-slate-600 mb-6">
-        <span class="font-semibold">{{ $contracts->count() }}</span> sopimusta saatavilla
+        @if ($contracts->count() === 1)
+            <span class="font-semibold">1</span> kotitalouksille sopiva sopimus saatavilla
+        @else
+            <span class="font-semibold">{{ $contracts->count() }}</span> kotitalouksille sopivaa sopimusta saatavilla
+        @endif
     </p>
 
     <div class="space-y-6">
@@ -414,22 +471,29 @@
         @endforelse
     </div>
 
-    {{-- FAQ. Items come from CompanyDetail::getFaqItemsProperty(), which also feeds the FAQPage schema. --}}
-    @if (! empty($faqItems))
-        <section id="usein-kysyttya" class="mt-12">
-            <h2 class="text-2xl font-bold text-slate-900 mb-4">Usein kysyttyä</h2>
+    @if ($businessContracts->isNotEmpty())
+        <section id="yrityksille" class="mt-12">
+            <h2 class="text-2xl font-bold text-slate-900 mb-2">{{ $company->name }} sähkösopimukset yrityksille</h2>
+            <p class="text-slate-600 mb-6">
+                @if ($businessContracts->count() === 1)
+                    <span class="font-semibold">1</span> yrityksille sopiva sopimus saatavilla
+                @else
+                    <span class="font-semibold">{{ $businessContracts->count() }}</span> yrityksille sopivaa sopimusta saatavilla
+                @endif
+            </p>
 
-            <div class="divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white">
-                @foreach ($faqItems as $item)
-                    <details class="group px-5 py-4">
-                        <summary class="flex cursor-pointer items-center justify-between gap-4 text-base font-semibold text-slate-900 marker:content-none">
-                            {{ $item['question'] }}
-                            <svg class="h-5 w-5 shrink-0 text-slate-400 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                        </summary>
-                        <p class="mt-3 text-slate-600 leading-relaxed">{{ $item['answer'] }}</p>
-                    </details>
+            <div class="space-y-6">
+                @foreach ($businessContracts as $index => $contract)
+                    <x-contract-card
+                        :contract="$contract"
+                        :rank="$index + 1"
+                        :featured="$index === 0"
+                        :consumption="$consumption"
+                        :showRank="true"
+                        :showEmissions="true"
+                        :showEnergyBadges="true"
+                        :showSpotBadge="true"
+                    />
                 @endforeach
             </div>
         </section>

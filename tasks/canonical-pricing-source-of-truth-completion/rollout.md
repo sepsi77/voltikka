@@ -64,7 +64,7 @@ After deploy, inspect migration status, both columns and defaults, deployment he
 These states are expected only between deploy and the related rebuild:
 
 - Current statistics consumers can show unavailable data because old rows default to `observed_seller_data`, while canonical mode requires `canonical_calculation`.
-- The statistics page, Consumption Calculator price table, company market comparison, homepage trend, spot article snapshot, and market-insight pills can be empty until a canonical statistics run owns the current date.
+- The statistics page, Consumption Calculator price table, homepage trend, spot article snapshot, and market-insight pills can be empty until a canonical statistics run owns the current date. The company market comparison can instead show its latest internally consistent observed snapshot, but it must be visibly dated and labelled as historical, not as the current canonical price.
 - Model-v2 forecasts can be unavailable until canonical-basis statistics exist and `forecasting:run-fixed-contracts` creates v2 rows.
 - Vaasan Sähkö package products keep their old published interpretation until schema-v4 reinterpretation. Surffari keeps its old phase output until prompt-v19/validator-v16 reinterpretation. Do not treat these temporary old outputs as reviewed new prices.
 

@@ -4,26 +4,30 @@
     $reference = number_format($marketComparison['reference_consumption'], 0, ',', ' ');
     $statDate = Carbon::parse($marketComparison['stat_date'])->translatedFormat('j.n.Y');
     $chart = $marketComparison['chart'] ?? null;
+    $historicalFallback = ($marketComparison['is_historical_fallback'] ?? false) === true;
 @endphp
 
 <section id="hintavertailu" class="mb-10">
-    <h2 class="text-2xl font-bold text-slate-900 mb-2">{{ $company->name }}: hinnat markkinaan verrattuna</h2>
+    <h2 class="text-2xl font-bold text-slate-900 mb-2">{{ $company->name }}: sähkön hinta</h2>
 
     <p class="text-slate-600 mb-1 max-w-prose">
-        Jokainen rivi vertaa yhtiön hintoja koko markkinaan samassa sopimustyypissä.
-        Harmaa palkki näyttää, mihin suurin osa markkinan sopimuksista osuu.
-        Palkin vasemmalle puolelle jää markkinan halvin 20 % ja oikealle kallein 20 %.
-        Pystyviiva on mediaani: puolet sopimuksista on sitä halvempia ja puolet kalliimpia.
-        Oranssi piste kertoo, missä tämä yhtiö on.
+        Sähkön hinta riippuu sopimustyypistä ja vuosikulutuksesta.
+        Jokainen rivi näyttää yhtiön {{ $historicalFallback ? 'päivätyn' : 'nykyisen' }} 12 kuukauden hinta-arvion sekä saman sopimustyypin markkinamediaanin ja keskimmäisen 60 %:n hintahaarukan.
+        Harmaa palkki näyttää hintahaarukan, pystyviiva mediaanin ja oranssi piste yhtiön hinnan.
     </p>
     <p class="text-slate-600 mb-6 max-w-prose">
-        Luvut ovat arvioituja 12 kuukauden kokonaishintoja {{ $reference }} kWh vuosikulutuksella, sis. alv 25,5 %.
-        Siirtomaksu ei sisälly.
-        @if ($marketComparison['is_snapped'])
-            Vertailuhinnat lasketaan kolmelle kulutustasolle, joten tässä käytetään lähintä eli {{ $reference }} kWh.
+        @if ($historicalFallback)
+            <span class="font-semibold text-slate-800">Nykyinen laskettu vertailu ei ole saatavilla.</span>
+            Alla on viimeisin yhtenäinen historiallinen hintavertailu {{ $statDate }} myyjiltä havaituista hinnoista. Se ei ole tämän päivän hintavertailu.
+        @elseif (($marketComparison['pricing_basis'] ?? null) === 'canonical_calculation')
+            Vertailu perustuu {{ $statDate }} Voltikan laskemiin nykyhintoihin.
+        @else
+            Vertailu perustuu {{ $statDate }} myyjiltä havaittuihin hintoihin.
         @endif
-        Markkinatiedot {{ $statDate }}.
-        {{ ($marketComparison['pricing_basis'] ?? null) === 'canonical_calculation' ? 'Nykyinen vertailupiste on kanoninen laskelma.' : 'Nykyinen vertailupiste perustuu havaittuun myyjädataan.' }}
+        Luvut ovat 12 kuukauden kokonaishintoja {{ $reference }} kWh vuosikulutuksella, sis. alv 25,5 %. Siirtomaksu ei sisälly.
+        @if ($marketComparison['is_snapped'])
+            Käytämme lähintä laskettua kulutustasoa, {{ $reference }} kWh.
+        @endif
     </p>
 
     <div class="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
@@ -121,9 +125,11 @@
                 Hintakehitys: {{ $marketComparison['chart_segment_label'] }}
             </h3>
             <p class="mt-1 text-sm text-slate-600 max-w-prose">
-                Viikoittainen vertailu edeltävältä 12 kuukaudelta. Varjostettu alue on markkinan tavanomainen haarukka.
-                @if (($chart['current_pricing_basis'] ?? null) === 'canonical_calculation')
-                    Vanhemmat pisteet ovat päivättyjä myyjähavaintoja ja {{ Carbon::parse($chart['canonical_from'])->translatedFormat('j.n.Y') }} alkaen kanonisia laskelmia.
+                Viikoittainen vertailu edeltävältä 12 kuukaudelta. Varjostettu alue näyttää markkinan keskimmäisen 60 %:n.
+                @if ($historicalFallback)
+                    Kaikki pisteet ovat päivättyjä myyjiltä havaittuja hintoja. Viimeisin piste on {{ $statDate }}.
+                @elseif (($chart['current_pricing_basis'] ?? null) === 'canonical_calculation' && ($chart['canonical_from'] ?? null) !== null)
+                    Vanhemmat pisteet ovat myyjiltä havaittuja hintoja. {{ Carbon::parse($chart['canonical_from'])->translatedFormat('j.n.Y') }} alkaen pisteet ovat Voltikan laskemia vertailuhintoja.
                 @endif
             </p>
 

@@ -1140,3 +1140,79 @@ was run with PHP `memory_limit=128M`. It returned HTTP 200 with a 140,778-byte r
 bytes. The production blocker is therefore **locally addressed but remains active** until a reviewed
 deploy and direct HTTP/log verification. The mixed working tree remains the second deploy blocker.
 No commit or push occurred.
+
+## 2026-07-27 — Company offers state exact typed terms and company comparison has an honest historical fallback
+
+The generic canonical offer label did not tell a visitor what the campaign was. The canonical
+calculator now derives `calculated_cost.offer_terms` from each governing resolved phase and exact
+changed billed components. It prefers `amount` plus a higher `normal_amount`; when those fields do
+not carry the complete offer, an `introductory` phase can be compared with its typed `normal` or
+`continuation` phase. Recurring market resets cannot use that phase-only fallback. A held-forward
+Hybrid uses only its known resolved phase spans for the term, so a first-month billed-base offer is
+not described as a year-long term and the unknown consumption effect stays excluded. A term carries
+the component type/unit, actual and normal amounts, resolved start/end dates, and an exact
+first-N-month, month-range, complete short-term, or absolute end-date basis. Multiple changed
+components share one timing. Raw phase labels are deliberately absent.
+
+`CanonicalOfferFacts` formats only controlled Finnish component names and exact prices. It supports
+monthly fees, fixed energy buckets, and Spot margins; one month, first-N-month, complete short-term,
+and absolute-date copy; and multiple changed components. It does not derive a percentage. Missing,
+unsupported, duplicate, or unresolved typed terms fail closed even when a separate measured saving
+exists. Packages, excluded outcomes, relational-only discounts, and zero savings stay out. A short
+fixed term still uses its unannualized real-term saving. Feature-off keeps the relational path.
+List and prepared-page payload schemas moved from v8 to v9.
+
+The company offer table now uses `Säästö`, natural basis labels, and the exact offer term. The nearby
+copy explains the comparison once and no longer uses `Mitattu etu`.
+
+`CompanyMarketComparisonService` now finds the latest usable joined market+company date, not only
+the latest market date. Canonical mode first requires a same-date canonical pair and ignores newer
+wrong-basis rows. If no canonical pair is usable, it can return the latest same-date
+`observed_seller_data` pair with `comparison_state=historical_observed_fallback` and
+`is_historical_fallback=true`. The Blade names the date and says that the result is historical, not
+today's comparison. Its chart uses observed history through that date. Canonical charts still join
+older observed history to canonical points, and `fixed_term_12` stays first in the chart preference.
+The six-hour cache key moved to v4 and fingerprints both canonical and observed sources in canonical
+mode.
+
+Focused tests cover exact monthly-fee and Spot-margin terms, multiple changed components, hostile
+phase-label isolation, real-term saving, no canonical component query, fail-closed offer membership,
+feature-off behavior, canonical basis preference, dated observed fallback rows/chart/copy,
+fixed-term chart preference, and fallback fingerprint invalidation. After the Hybrid and phase-only
+follow-up, the final Laravel suite passes with 1,568 tests and 5,364 assertions. Focused Pint, the Vite build, JSON validation,
+`git diff --check`, and the Impeccable detector all pass.
+
+For local page verification only, the pending `pricing_basis` migration was applied and the
+2026-07-27 canonical statistics command rebuilt 298 snapshots and 47 aggregate rows from 425 active
+contracts. The local HTTP server returned 200 for the Vaasan Sähkö company page. It rendered
+18 specific offer rows, the `Säästö` heading, the current comparison and chart, and no generic offer
+label. Example local output: `Perusmaksu 0 €/kk ensimmäiset 2 kk`, with its dated saving basis.
+A follow-up local audit initially found five real typed offers without terms: four Vaasan
+`Kiinteä Vaikuttaja` Hybrid rows and Vihreä Älyenergia's phase-only Vire/Verraton shapes. The
+held-forward and introductory-to-normal derivation above now covers all of them. The final audit over
+all active local canonical outcomes found one positive calculator delta without `offer_terms`:
+Kokkolan Energia Tyyni. It is an active recurring market-reset product whose current and future
+period prices differ, not a promotion, so its deliberate omission proves the false-offer guard.
+
+No production or Railway action ran.
+
+## 2026-07-27 — A short Hybrid keeps its real contract-term offer basis
+
+The company offer table exposed a remaining outcome-shape defect on Vaasan Sähkö's `Kiinteä
+Vaikuttaja 6 kk` products. Their relational structural context correctly said `FixedTerm` +
+`Fixed6`, but canonical calculation status `unsupported` entered the Hybrid branch before the
+ordinary short-term branch. The resulting `base_only_hybrid` outcome had no `term_months` or
+`contract_term`, so `CanonicalOfferFacts` correctly but undesirably selected its only available
+basis: `12 kuukauden vertailussa`.
+
+The calculator now detects an exact short structural term inside the Unsupported Hybrid branch. It
+costs the base-only actual and normal phase timelines through that real term, captures the
+unannualized term totals and saving, and then applies the same `12 / term_months` factor to the
+comparison totals. The outcome remains `base_only_hybrid` with `hybrid_base_only`; it still excludes
+the unknown consumption effect and now also records `term_price_annualized`. No presenter parses a
+name or reads relational prices. Fixed12 and Fixed24 Hybrids keep the ordinary 12-month offer basis.
+
+On the current local Vaasan business contract, the corrected payload has a 6-month term saving of
+EUR 4.70 and a 12-month annualized comparison saving of EUR 9.40. The public offer fact uses only
+the former and now says `6 kuukauden sopimuskaudella`. List and prepared-page payload schemas moved
+to v10 so stale v9 outcomes cannot keep the wrong basis after deploy.

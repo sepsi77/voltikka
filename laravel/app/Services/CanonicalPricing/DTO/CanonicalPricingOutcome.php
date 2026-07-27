@@ -20,6 +20,7 @@ readonly class CanonicalPricingOutcome
      * @param  array<int, float>  $baseMonthlyCosts
      * @param  array<int, float>  $monthlyDiscountSavings
      * @param  list<array<string, mixed>>  $phaseBreakdown
+     * @param  list<OfferTermData>  $offerTerms
      * @param  list<string>  $assumptions
      * @param  array<string, mixed>|null  $resetEstimate  Typed evidence for a market-reset tail
      *                                                    estimate (basis, reference kind, curve vintage, current-period price, estimated
@@ -51,6 +52,7 @@ readonly class CanonicalPricingOutcome
         public ?float $contractTermBaseTotalCost = null,
         public ?float $contractTermDiscountSavingsTotal = null,
         public array $phaseBreakdown = [],
+        public array $offerTerms = [],
         public ?ConsumptionEffectData $consumptionEffect = null,
         public array $assumptions = [],
         public ?array $resetEstimate = null,
@@ -124,6 +126,10 @@ readonly class CanonicalPricingOutcome
                     ]
                     : null,
             'phase_breakdown' => $this->phaseBreakdown,
+            'offer_terms' => array_map(
+                static fn (OfferTermData $term): array => $term->toArray(),
+                $this->offerTerms,
+            ),
             'structured_only_total' => $this->structuredOnlyTotal,
             'consumption_effect' => $this->consumptionEffect?->toArray(),
             'assumptions' => $this->assumptions,

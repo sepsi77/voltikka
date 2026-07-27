@@ -35,14 +35,36 @@ is billed, so a later normal phase is not counted twice. Phase-only promotions
 without `normal_amount` keep the existing latest-normal-phase fallback, now
 costed over the same window segments.
 
-A `term_price_only` outcome also has `calculated_cost.contract_term`. It contains
-`months`, `total_cost`, `base_total_cost`, and `discount_savings_total` for the
-complete real term before the `12 / term_months` comparison factor is applied.
-The term saving is the difference between the term base and actual totals. The
-field is null for all other outcomes and when the complete finite term was not
-costed. The existing top-level totals stay annualized for ranking and
-comparison. This is derived calculation output; it is not stored in the LLM
-interpretation JSON.
+A short `term_price_only` or `base_only_hybrid` outcome also has
+`calculated_cost.contract_term`. It contains `months`, `total_cost`,
+`base_total_cost`, and `discount_savings_total` for the complete real term before
+the `12 / term_months` comparison factor is applied. The term saving is the
+difference between the term base and actual totals. For a short Hybrid, both
+passes still exclude the unknown consumption effect and the annual outcome keeps
+`comparability=base_only_hybrid` plus `estimate_method=hybrid_base_only`; its
+assumptions also state `term_price_annualized`. This prevents the earlier
+Unsupported-first branch from erasing a structural `Fixed6` term and labelling
+its offer saving as a 12-month benefit. The field is null for non-short terms and
+when a finite term cannot be costed or estimated under the existing Hybrid hold
+rule. The existing top-level totals stay annualized for ranking and comparison.
+This is derived calculation output; it is not stored in the LLM interpretation
+JSON.
+
+The calculated outcome also carries `offer_terms`. Each term is derived inside
+the calculator from the resolved governing phase span plus billed component
+type, unit, and exact actual/normal amounts. A component `normal_amount` is the
+primary source. When it is absent, an `introductory` phase can be compared with
+its typed `normal` or `continuation` phase on the same resolved timeline. That
+fallback is disabled for recurring market resets, so a seasonal period change
+cannot become a false offer. Held-forward Hybrid outcomes use only their known
+phase spans for the term, so a first-month billed-base offer remains one month
+and the unknown consumption effect is still excluded. Exact first-N-month,
+month-range, complete short-term, and absolute-date timings are supported;
+multiple changed components share one timing. Only monthly fees and named
+per-kWh energy/Spot-margin types are public. An unsupported component, duplicate
+type, unresolved timing, or package produces no typed term. `CanonicalOfferFacts`
+then fails closed instead of showing generic or partial copy. It formats
+controlled Finnish text and never reads the phase label.
 
 This logic does **not** read relational `price_components` or copy the legacy
 calculator. The interpretation validator now rejects an active structured
@@ -285,11 +307,14 @@ Feature-off keeps the legacy calculator and historical monthly Spot basis. This 
 prepared result cache, so its migration required no cache payload version.
 
 Company offer sections and the SEO offer listing use `CanonicalOfferFacts` in canonical mode.
-It accepts only a listed canonical calculated outcome with a positive measured benefit and no
-package. Ordinary offers state the 12-month comparison-period benefit; a short fixed term uses
-its unannualized `contract_term` benefit and labels the real duration. The SEO candidate set is
-not prefiltered by relational rows, so canonical-only offers remain eligible. Product JSON-LD
-uses the same typed facts. Feature-off keeps the relational membership and label paths.
+It accepts only a listed canonical calculated outcome with a positive measured benefit, no
+package, and a complete supported `offer_terms` payload. It formats the actual component price
+and exact duration/date in controlled Finnish; raw phase labels, seller text, and interpretation
+summaries are never display fallbacks. Ordinary offers state the 12-month comparison-period
+benefit; a short fixed term uses its unannualized `contract_term` benefit and labels the real
+duration. The SEO candidate set is not prefiltered by relational rows, so canonical-only offers
+remain eligible when their typed term is complete. Product JSON-LD uses the same facts. Feature-off
+keeps the relational membership and label paths.
 
 The weekly-offers generated-data service also uses this boundary. In canonical mode it starts from
 all active household contracts and calls `metricsForContracts()` once for each of 2,000, 5,000, and
@@ -319,6 +344,15 @@ also include `ContractListCacheService::getVersion()`, so each published interpr
 company and ranking data instead of leaving it stale for 48 hours or one hour.
 `ContractPricingIntegrity` gained typed `promo_rate_cents` /
 `normal_rate_cents` for the dated receipt rows; that was schema v2.
+
+Schema **v10** extends `calculated_cost.contract_term` to short
+`base_only_hybrid` outcomes. Their real-term base-only total and saving are
+captured before annualization, while comparability and the Hybrid exclusion stay
+unchanged. This makes a six-month Hybrid offer state its six-month benefit.
+
+Schema **v9** adds `calculated_cost.offer_terms`: exact resolved timing plus typed actual and
+normal component amounts. Canonical public offer copy now requires this payload and fails closed
+for unsupported or untyped terms. List and prepared-page cache payload versions both moved to v9.
 
 Schema **v8** is the company/SEO offer boundary. Offer membership and Product JSON-LD now use
 canonical measured facts, including real-term benefit copy, instead of relational discount rows.

@@ -254,6 +254,50 @@ class ContractDetailPresenterTest extends TestCase
         $this->assertSame(4.2, $offers['Perusmaksu']['priceSpecification']['price']);
     }
 
+    public function test_a_canonical_package_labels_its_included_energy_and_excess_rate_without_an_ordinary_energy_price(): void
+    {
+        config(['canonical_pricing.enabled' => true]);
+
+        $phase = $this->phase(
+            'current_structured',
+            ['kind' => 'contract_start', 'value' => null],
+            ['kind' => 'none', 'value' => null],
+            [],
+        );
+        $phase['package'] = [
+            'monthly_fee_eur' => 21.0,
+            'included_kwh' => 150.0,
+            'allowance_cadence' => 'monthly',
+            'excess_rate_cents_per_kwh' => 16.6,
+            'evidence' => [],
+        ];
+        $contract = $this->contract(
+            'canonical-package',
+            $this->canonicalAttributes([$phase]),
+            ['General' => 1.11, 'Monthly' => 0.55],
+        );
+
+        $component = Livewire::test('contract-detail', ['contractId' => $contract->id])->instance();
+        $offers = collect($component->productSchema['offers'] ?? [])->keyBy('name');
+        $additional = collect($component->productSchema['additionalProperty'] ?? [])->keyBy('name');
+        $mechanism = collect($component->faqItems)->firstWhere('id', 'faq-miten');
+
+        $this->assertEqualsWithDelta(783.2, $component->calculatedCost['total_cost'], 0.001);
+        $this->assertSame(
+            ['Kuukausipaketti', 'Sisältää', 'Ylittävä kulutus'],
+            array_map(fn ($line) => $line->label, $component->card->receiptLines),
+        );
+        $this->assertStringNotContainsString('16,60 c/kWh', $component->pageTitle);
+        $this->assertStringNotContainsString('maksaa nyt 16,60 c/kWh', $component->metaDescription);
+        $this->assertFalse($offers->has('Energiahinta'));
+        $this->assertSame(16.6, $offers['Ylittävä kulutus']['priceSpecification']['price']);
+        $this->assertSame(21.0, $offers['Perusmaksu']['priceSpecification']['price']);
+        $this->assertSame(150.0, $additional['includedEnergyPerMonth']['value']);
+        $this->assertStringContainsString('Kuukausimaksu 21,00 €/kk sisältää 150 kWh', $component->priceQualifier);
+        $this->assertSame('Miten kuukausipaketin hinta muodostuu?', $mechanism['question']);
+        $this->assertStringContainsString('ylittävä kulutus maksaa 16,60 c/kWh', $mechanism['answer']);
+    }
+
     public function test_a_canonical_only_contract_emits_its_available_current_values(): void
     {
         config(['canonical_pricing.enabled' => true]);

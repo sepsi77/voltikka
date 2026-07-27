@@ -98,6 +98,14 @@
       "status": "completed"
     },
     {
+      "name": "Add exact typed canonical offer terms and restore company comparison with an honest dated observed fallback",
+      "status": "completed"
+    },
+    {
+      "name": "Preserve real-term offer totals and basis for short BaseOnlyHybrid outcomes",
+      "status": "completed"
+    },
+    {
       "name": "Reinterpret affected active snapshots and compare old and new canonical outputs on current production data",
       "status": "pending"
     },

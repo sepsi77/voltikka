@@ -647,6 +647,7 @@ class ContractDetail extends Component
 
         $cost = $this->calculatedCost;
         $facts = $this->pricingFacts();
+        $package = $this->energyPackageFacts($cost);
 
         // Division of labour with the hero's `Arvio` popover, which is built by
         // ContractCard\ContractCardCopy::estimate() from the same cost payload:
@@ -665,6 +666,9 @@ class ContractDetail extends Component
         $hasEstimateExplainer = $this->card?->estimate !== null;
 
         $qualifier = match (true) {
+            $package !== null => 'Kuukausimaksu '.$this->formatEurosPerMonth($package['monthly_fee'])
+                .' sisältää '.$this->formatKwh((int) round($package['included_kwh'])).' sähköä kalenterikuukaudessa. '
+                .'Ylittävä kulutus maksaa '.$this->formatCents($package['excess_rate']).' c/kWh.',
             $facts->isSpot => $this->spotPriceQualifier(),
             // Market wins over the consumption effect, exactly as the card
             // category does, so a reset contract that also has an effect is
@@ -2116,6 +2120,18 @@ class ContractDetail extends Component
         $margin = $this->qualifierCents($cost['spot_price_margin'] ?? null);
         $fee = is_numeric($cost['monthly_fixed_fee'] ?? null) ? (float) $cost['monthly_fixed_fee'] : null;
         $feeAmount = $fee !== null && $fee > 0 ? $this->formatEurosPerMonth($fee) : null;
+        $package = $this->energyPackageFacts($cost);
+
+        if ($package !== null) {
+            return [
+                'id' => 'faq-miten',
+                'question' => 'Miten kuukausipaketin hinta muodostuu?',
+                'answer' => 'Kuukausimaksu '.$this->formatEurosPerMonth($package['monthly_fee'])
+                    .' sisältää '.$this->formatKwh((int) round($package['included_kwh'])).' sähköä kalenterikuukaudessa. '
+                    .'Sen ylittävä kulutus maksaa '.$this->formatCents($package['excess_rate']).' c/kWh. '
+                    .'Käyttämätön osuus ei siirry seuraavaan kuukauteen.',
+            ];
+        }
 
         if ($facts->isSpot) {
             $marginPhrase = $margin !== null
@@ -2649,7 +2665,7 @@ class ContractDetail extends Component
      * when a relational observation exists. Feature-off mode keeps the old latest-component
      * behavior until the legacy path is retired.
      *
-     * @return array{general: ?float, day: ?float, night: ?float, winter: ?float, other: ?float, margin: ?float, fee: ?float, package_included_kwh: ?float}
+     * @return array{general: ?float, day: ?float, night: ?float, winter: ?float, other: ?float, margin: ?float, fee: ?float, package_included_kwh: ?float, package_excess_rate: ?float}
      */
     protected function currentDisplayValues(): array
     {
@@ -2669,6 +2685,7 @@ class ContractDetail extends Component
                     'margin' => null,
                     'fee' => null,
                     'package_included_kwh' => null,
+                    'package_excess_rate' => null,
                 ];
             }
 
@@ -2676,19 +2693,19 @@ class ContractDetail extends Component
             $number = static fn (string $key): ?float => is_numeric($cost[$key] ?? null)
                 ? (float) $cost[$key]
                 : null;
-            $package = is_array($cost['energy_package'] ?? null) ? $cost['energy_package'] : [];
+            $package = $this->energyPackageFacts($cost);
 
             return $this->computedValueCache[$memoKey] = [
-                'general' => $number('general_kwh_price'),
+                // A package's excess-use rate is not the ordinary price of every kWh.
+                'general' => $package === null ? $number('general_kwh_price') : null,
                 'day' => $number('daytime_kwh_price'),
                 'night' => $number('nighttime_kwh_price'),
                 'winter' => $number('seasonal_winter_day_kwh_price'),
                 'other' => $number('seasonal_other_kwh_price'),
                 'margin' => $number('spot_price_margin'),
                 'fee' => $number('monthly_fixed_fee'),
-                'package_included_kwh' => is_numeric($package['included_kwh'] ?? null)
-                    ? (float) $package['included_kwh']
-                    : null,
+                'package_included_kwh' => $package['included_kwh'] ?? null,
+                'package_excess_rate' => $package['excess_rate'] ?? null,
             ];
         }
 
@@ -2707,6 +2724,30 @@ class ContractDetail extends Component
             'margin' => $this->contract?->pricing_model === 'Spot' ? $general : null,
             'fee' => $price('Monthly'),
             'package_included_kwh' => null,
+            'package_excess_rate' => null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $cost
+     * @return array{monthly_fee:float,included_kwh:float,excess_rate:float}|null
+     */
+    protected function energyPackageFacts(array $cost): ?array
+    {
+        $package = $cost['energy_package'] ?? null;
+
+        if (! is_array($package)
+            || ! is_numeric($package['monthly_fee_eur'] ?? null)
+            || ! is_numeric($package['included_kwh'] ?? null)
+            || ! is_numeric($package['excess_rate_cents_per_kwh'] ?? null)
+            || ($package['allowance_cadence'] ?? null) !== 'monthly') {
+            return null;
+        }
+
+        return [
+            'monthly_fee' => (float) $package['monthly_fee_eur'],
+            'included_kwh' => (float) $package['included_kwh'],
+            'excess_rate' => (float) $package['excess_rate_cents_per_kwh'],
         ];
     }
 
@@ -3259,6 +3300,10 @@ class ContractDetail extends Component
             $offers[] = $buildOffer('energy-price', 'Energiahinta', $unitOffer($current['general'], 'KWH', 'c/kWh'));
         }
 
+        if ($current['package_excess_rate'] !== null) {
+            $offers[] = $buildOffer('package-excess', 'Ylittävä kulutus', $unitOffer($current['package_excess_rate'], 'KWH', 'c/kWh'));
+        }
+
         if ($current['day'] !== null) {
             $offers[] = $buildOffer('daytime', 'Päiväsähkö (07:00-22:00)', $unitOffer($current['day'], 'KWH', 'c/kWh'));
         }
@@ -3547,9 +3592,9 @@ class ContractDetail extends Component
 
     protected function contractDetailViewDataCacheKey(): string
     {
-        // v16: current receipt rows, title/meta price phrases, offer notes, and Product
-        // JSON-LD read only canonical calculated display values when canonical mode is on.
-        return 'contract-detail:view-data:v16:'.md5(json_encode([
+        // v17: a package excess-use rate is never exposed as the ordinary energy price
+        // in title/meta/Product JSON-LD; package facts keep their typed labels.
+        return 'contract-detail:view-data:v17:'.md5(json_encode([
             'contract_id' => $this->contractId,
             'consumption' => $this->consumption,
             'version' => $this->contractPageCacheVersionHash(),

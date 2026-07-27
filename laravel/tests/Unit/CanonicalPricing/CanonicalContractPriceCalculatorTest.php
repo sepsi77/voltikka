@@ -3,6 +3,7 @@
 namespace Tests\Unit\CanonicalPricing;
 
 use App\Services\CanonicalPricing\CanonicalContractPriceCalculator;
+use App\Services\CanonicalPricing\CanonicalOfferFacts;
 use App\Services\CanonicalPricing\CanonicalPricingParser;
 use App\Services\CanonicalPricing\DTO\ContractContext;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
@@ -447,6 +448,42 @@ class CanonicalContractPriceCalculatorTest extends TestCase
             $this->assertEqualsWithDelta($outcome->baseMonthlyCosts[$month] - $outcome->monthlyCosts[$month], $saving, 0.0001);
         }
         $this->assertEqualsWithDelta($outcome->baseTotalCost, array_sum($outcome->baseMonthlyCosts), 0.001);
+        $this->assertSame('after_months', $cost['offer_terms'][0]['end_kind']);
+        $this->assertSame(12, $cost['offer_terms'][0]['duration_months']);
+        $this->assertSame('monthly_fee', $cost['offer_terms'][0]['components'][0]['component_type']);
+        $this->assertSame(2.37, $cost['offer_terms'][0]['components'][0]['amount']);
+        $this->assertSame(4.74, $cost['offer_terms'][0]['components'][0]['normal_amount']);
+    }
+
+    public function test_11bb_multiple_changed_components_produce_one_controlled_offer_term(): void
+    {
+        $intro = $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '3'], [
+            $this->component('energy_general', 7.0, 'cents_per_kwh', 'introductory', 8.0),
+            $this->component('monthly_fee', 2.0, 'eur_per_month', 'introductory', 4.0),
+        ]);
+        $intro['label'] = 'HOSTILE RAW PHASE LABEL';
+
+        $pricing = $this->pricing([
+            $intro,
+            $this->phase('normal', ['kind' => 'after_months', 'value' => '3'], ['kind' => 'none', 'value' => null], [
+                $this->component('energy_general', 8.0, 'cents_per_kwh', 'normal'),
+                $this->component('monthly_fee', 4.0, 'eur_per_month', 'normal'),
+            ]),
+        ]);
+
+        $cost = $this->evaluate(
+            $pricing,
+            'exact',
+            $this->cs('not_detected'),
+            $this->context(),
+            start: CarbonImmutable::parse('2026-07-01', 'Europe/Helsinki'),
+        )->toCalculatedCostArray();
+        $facts = CanonicalOfferFacts::fromCalculatedCost($cost);
+
+        $this->assertCount(1, $cost['offer_terms']);
+        $this->assertCount(2, $cost['offer_terms'][0]['components']);
+        $this->assertSame('Energiahinta 7,00 c/kWh ja perusmaksu 2 €/kk ensimmäiset 3 kk', $facts['label']);
+        $this->assertStringNotContainsString('HOSTILE RAW PHASE LABEL', $facts['label']);
     }
 
     public function test_11c_short_offer_phase_uses_normal_amount_only_during_that_phase(): void
@@ -497,6 +534,168 @@ class CanonicalContractPriceCalculatorTest extends TestCase
         $this->assertEqualsWithDelta(498.0, $outcome->baseTotalCost, 0.01);
         $this->assertEqualsWithDelta(24.0, $outcome->discountSavingsTotal(), 0.01);
         $this->assertContains('excludes_consumption_effect', $outcome->assumptions);
+    }
+
+    public function test_11da_held_forward_hybrid_keeps_the_typed_first_month_base_offer(): void
+    {
+        $pricing = $this->pricing(
+            [
+                $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '1'], [
+                    $this->component('energy_general', 11.26),
+                    $this->component('monthly_fee', 0.0, 'eur_per_month', 'introductory', 5.9),
+                    $this->component('consumption_effect', null, 'unknown', 'unknown'),
+                ]),
+                $this->phase('continuation', ['kind' => 'after_months', 'value' => '1'], ['kind' => 'after_months', 'value' => '6'], [
+                    $this->component('energy_general', 11.26),
+                    $this->component('monthly_fee', 5.9, 'eur_per_month'),
+                    $this->component('consumption_effect', null, 'unknown', 'unknown'),
+                ]),
+            ],
+            [],
+            ['present' => true, 'applies_to' => 'base_contract', 'typical_min_cents_per_kwh' => -1.5, 'typical_max_cents_per_kwh' => 1.5],
+        );
+
+        $cost = $this->evaluate(
+            $pricing,
+            'unsupported',
+            $this->cs('uncertain', ['unsupported_consumption_effect']),
+            $this->context('Hybrid', 'FixedTerm', 'Fixed6'),
+            start: CarbonImmutable::parse('2026-07-01', 'Europe/Helsinki'),
+        )->toCalculatedCostArray();
+        $facts = CanonicalOfferFacts::fromCalculatedCost($cost);
+
+        $this->assertSame(ContractComparability::BaseOnlyHybrid->value, $cost['comparability']);
+        $this->assertSame(EstimateMethod::HybridBaseOnly->value, $cost['estimate_method']);
+        $this->assertSame(6, $cost['term_months']);
+        $this->assertSame(6, $cost['contract_term']['months']);
+        $this->assertEqualsWithDelta(5.9, $cost['contract_term']['discount_savings_total'], 0.001);
+        $this->assertEqualsWithDelta(11.8, $cost['discount_savings_total'], 0.001);
+        $this->assertCount(1, $cost['offer_terms']);
+        $this->assertSame('monthly_fee', $cost['offer_terms'][0]['components'][0]['component_type']);
+        $this->assertSame('Perusmaksu 0 €/kk ensimmäisen kuukauden', $facts['label']);
+        $this->assertSame('6 kuukauden sopimuskaudella', $facts['basis_label']);
+        $this->assertEqualsWithDelta(5.9, $facts['benefit_eur'], 0.001);
+        $this->assertContains('excludes_consumption_effect', $cost['assumptions']);
+        $this->assertContains('term_price_annualized', $cost['assumptions']);
+    }
+
+    public function test_11daa_fully_covered_short_hybrid_keeps_real_term_offer_totals(): void
+    {
+        $pricing = $this->pricing(
+            [$this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
+                $this->component('energy_general', 9.0),
+                $this->component('monthly_fee', 2.0, 'eur_per_month', 'introductory', 4.0),
+                $this->component('consumption_effect', null, 'unknown', 'unknown'),
+            ])],
+            [],
+            ['present' => true, 'applies_to' => 'base_contract', 'typical_min_cents_per_kwh' => -1.5, 'typical_max_cents_per_kwh' => 1.5],
+        );
+
+        $cost = $this->evaluate(
+            $pricing,
+            'unsupported',
+            $this->cs('uncertain', ['unsupported_consumption_effect']),
+            $this->context('Hybrid', 'FixedTerm', 'Fixed6'),
+            start: CarbonImmutable::parse('2026-07-01', 'Europe/Helsinki'),
+        )->toCalculatedCostArray();
+
+        $this->assertSame(ContractComparability::BaseOnlyHybrid->value, $cost['comparability']);
+        $this->assertSame(EstimateMethod::HybridBaseOnly->value, $cost['estimate_method']);
+        $this->assertSame(6, $cost['term_months']);
+        $this->assertEqualsWithDelta(12.0, $cost['contract_term']['discount_savings_total'], 0.001);
+        $this->assertEqualsWithDelta(24.0, $cost['discount_savings_total'], 0.001);
+        $this->assertContains('excludes_consumption_effect', $cost['assumptions']);
+        $this->assertContains('term_price_annualized', $cost['assumptions']);
+    }
+
+    public function test_11dab_twelve_and_twenty_four_month_hybrids_keep_the_twelve_month_offer_basis(): void
+    {
+        $pricing = $this->pricing(
+            [$this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '12'], [
+                $this->component('energy_general', 9.0),
+                $this->component('monthly_fee', 2.0, 'eur_per_month', 'introductory', 4.0),
+                $this->component('consumption_effect', null, 'unknown', 'unknown'),
+            ])],
+            [],
+            ['present' => true, 'applies_to' => 'base_contract', 'typical_min_cents_per_kwh' => -1.5, 'typical_max_cents_per_kwh' => 1.5],
+        );
+
+        foreach (['Fixed12', 'Fixed24'] as $fixedTimeRange) {
+            $cost = $this->evaluate(
+                $pricing,
+                'unsupported',
+                $this->cs('uncertain', ['unsupported_consumption_effect']),
+                $this->context('Hybrid', 'FixedTerm', $fixedTimeRange),
+                start: CarbonImmutable::parse('2026-07-01', 'Europe/Helsinki'),
+            )->toCalculatedCostArray();
+            $facts = CanonicalOfferFacts::fromCalculatedCost($cost);
+
+            $this->assertNull($cost['term_months']);
+            $this->assertNull($cost['contract_term']);
+            $this->assertSame('12 kuukauden vertailussa', $facts['basis_label']);
+            $this->assertNotContains('term_price_annualized', $cost['assumptions']);
+        }
+    }
+
+    public function test_11db_phase_only_spot_offer_compares_introductory_slices_with_the_typed_normal_phase(): void
+    {
+        $pricing = $this->pricing([
+            $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '1'], [
+                $this->component('spot_margin', 0.38),
+                $this->component('monthly_fee', 0.0, 'eur_per_month'),
+            ]),
+            $this->phase('introductory', ['kind' => 'after_months', 'value' => '1'], ['kind' => 'after_months', 'value' => '6'], [
+                $this->component('spot_margin', 0.38),
+                $this->component('monthly_fee', 2.99, 'eur_per_month'),
+            ]),
+            $this->phase('normal', ['kind' => 'after_months', 'value' => '6'], ['kind' => 'none', 'value' => null], [
+                $this->component('spot_margin', 0.59),
+                $this->component('monthly_fee', 4.99, 'eur_per_month'),
+            ]),
+        ]);
+
+        $cost = $this->evaluate(
+            $pricing,
+            'estimate_required',
+            $this->cs('not_detected'),
+            $this->context('Spot'),
+            new SpotAssumptions(7.0, 5.0),
+            CarbonImmutable::parse('2026-07-01', 'Europe/Helsinki'),
+        )->toCalculatedCostArray();
+        $facts = CanonicalOfferFacts::fromCalculatedCost($cost);
+
+        $this->assertCount(2, $cost['offer_terms']);
+        $this->assertStringContainsString('Marginaali 0,38 c/kWh ja perusmaksu 0 €/kk ensimmäisen kuukauden', $facts['label']);
+        $this->assertStringContainsString('Marginaali 0,38 c/kWh ja perusmaksu 2,99 €/kk kuukaudet 2–6', $facts['label']);
+    }
+
+    public function test_11dc_recurring_market_price_change_does_not_become_a_phase_only_offer(): void
+    {
+        $pricing = $this->pricing(
+            [
+                $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '1'], [
+                    $this->component('energy_general', 5.0),
+                    $this->component('monthly_fee', 3.0, 'eur_per_month'),
+                ]),
+                $this->phase('normal', ['kind' => 'after_months', 'value' => '1'], ['kind' => 'none', 'value' => null], [
+                    $this->component('energy_general', 8.0),
+                    $this->component('monthly_fee', 3.0, 'eur_per_month'),
+                ]),
+            ],
+            ['present' => true, 'cadence' => 'monthly', 'future_price_known' => false],
+        );
+
+        $cost = $this->evaluate(
+            $pricing,
+            'estimate_required',
+            $this->cs('not_detected', ['recurring_reset_requires_estimate']),
+            $this->context(),
+            start: CarbonImmutable::parse('2026-07-01', 'Europe/Helsinki'),
+        )->toCalculatedCostArray();
+
+        $this->assertGreaterThan(0, $cost['discount_savings_total']);
+        $this->assertSame([], $cost['offer_terms']);
+        $this->assertNull(CanonicalOfferFacts::fromCalculatedCost($cost));
     }
 
     public function test_11e_six_month_term_keeps_one_month_offer_benefit_before_annualization(): void
