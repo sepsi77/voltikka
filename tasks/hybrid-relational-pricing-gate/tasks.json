@@ -31,10 +31,14 @@
     },
     {
       "name": "Deploy to production, run contracts:republish-gated-pricing --apply, recalculate 2026-07-25..27 statistics",
-      "status": "pending"
+      "status": "completed"
     },
     {
       "name": "Verify the Joustosähkö line reaches the current day on /sahkosopimus/tilastot",
+      "status": "completed"
+    },
+    {
+      "name": "Decide whether recurring_reset_requires_estimate should join the benign issue-code allowlist (3 Hybrid contracts still frozen for a reason validator v4 already treats as expected)",
       "status": "pending"
     }
   ]

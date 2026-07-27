@@ -87,3 +87,37 @@ that day, and that import saw the live payload; the snapshot is at best a tie.
   a separate question about interpretation quality, not about this gate.
 - **Backfilling before 2026-07-25.** The gate only started blocking when interpretation went live
   on 2026-07-24, so there is nothing earlier to repair.
+
+## Production result, 2026-07-27
+
+Deployed as commit `1dbcccf`. `contracts:republish-gated-pricing --from=2026-07-25 --apply`
+reported 114 blocked published interpretations, of which **61 passed the relaxed gate — all 61
+Hybrid**. It lifted those flags and filled 142 contract-days / 306 component rows. The 53 that
+stayed blocked are FixedPrice and Spot contracts with genuine `conflicting` pricing,
+`misleading = detected`, or `incomplete` calculations; the carve-out correctly declined them.
+
+About 30 contract-days were skipped for lack of a covering source snapshot. Every one belongs to
+an **inactive** contract that left the market (Oomi Jousto 12/24 kk, Fortum Duo, some Helen
+Välkkysähkö Yritys); 437 contracts were observed normally on 2026-07-27, so this was the
+"evidence, never inference" rule working, not a fetch gap.
+
+Statistics recalculated for 2026-07-25…27 and caches cleared. The `hybrid` segment is back at
+avg ≈ 518 €/v for all three days, and the Joustosähkö line reaches the current day again.
+
+## Open: three Hybrids are still frozen for an already-benign reason
+
+The segment came back at **n=28**, not the pre-incident 39–41. Accounted for exactly:
+39 active Hybrid Household − 7 still missing rows − 4 with a null `annual_cost_5000_kwh` = 28.
+
+The 7 are blocked because the carve-out is conjunctive and they carry a **second** issue code:
+
+| second code | contracts | assessment |
+|---|---|---|
+| `recurring_reset_requires_estimate` | 3 (Vaasan Vaikuttaja, Kosken käyttöWoima 12 kk kulutusjousto, Korpela Kvartaali) | **arguably should publish** — validator v4 already declares this an expected, product-defining reason that is not unsafe source data. A product can legitimately be both a consumption-effect Hybrid and a periodic market reset. Its current structured components are still exactly what the customer pays now |
+| `pricing_model_mismatch` | 2 (Kokkolan Aalto 6 kk, Vattenfall Helppo Pörssisähkö) | keep blocked — the interpretation disputes the source classification, which is a real signal |
+| `insufficient_evidence` | 2 (both Lammaisten IISI-KULUTUSJOUSTO) | keep blocked — conservative default when the source gives nothing to check against |
+
+Adding `recurring_reset_requires_estimate` to the benign allowlist beside
+`structured_matches_description` would recover 3 of the 7 and is consistent with validator v4.
+It moves real published prices for named companies, so treat it as a reviewed change, not a
+tweak. Not done yet — awaiting a decision.
