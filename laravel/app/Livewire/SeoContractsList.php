@@ -227,6 +227,7 @@ class SeoContractsList extends ContractsList
         $this->targetGroup = $targetGroup;
         $this->contractDuration = $contractDuration;
         $this->consumptionLevel = $consumptionLevel;
+        $hasExplicitConsumption = array_key_exists('consumption', request()->query());
 
         // Set basePath from the current request so pagination stays on this page
         $this->basePath = '/'.ltrim(request()->path(), '/');
@@ -236,8 +237,12 @@ class SeoContractsList extends ContractsList
             // A household energy bill is not comparable to business contracts.
             $this->showBillComparison = false;
             $this->presets = $this->businessPresets;
-            $this->consumption = 20000;
-            $this->selectedPreset = 'small_office';
+
+            if (! $hasExplicitConsumption) {
+                $this->consumption = 20000;
+                $this->selectedPreset = 'small_office';
+            }
+
             $this->pricingModels = [
                 'FixedPrice' => 'Kiinteä hinta',
                 'Spot' => 'Pörssisähkö',
@@ -247,7 +252,7 @@ class SeoContractsList extends ContractsList
         }
 
         // Set consumption and preset based on housing type
-        if ($housingType && isset($this->housingTypeConsumption[$housingType])) {
+        if (! $hasExplicitConsumption && $housingType && isset($this->housingTypeConsumption[$housingType])) {
             $this->consumption = $this->housingTypeConsumption[$housingType];
 
             // Also select the appropriate preset
@@ -257,7 +262,7 @@ class SeoContractsList extends ContractsList
         }
 
         // Set consumption and preset based on consumption level
-        if ($consumptionLevel && isset($this->consumptionLevelNames[$consumptionLevel])) {
+        if (! $hasExplicitConsumption && $consumptionLevel && isset($this->consumptionLevelNames[$consumptionLevel])) {
             $this->consumption = (int) $consumptionLevel;
 
             if (isset($this->consumptionLevelPresets[$consumptionLevel])) {
@@ -266,6 +271,7 @@ class SeoContractsList extends ContractsList
         }
 
         $this->applyLegacyPricingModelFilter();
+        $this->syncExplicitConsumptionSelection();
 
         $this->normalizePageProperty();
     }
@@ -606,6 +612,7 @@ class SeoContractsList extends ContractsList
             [
                 'path' => url($this->basePath),
                 'pageName' => 'page',
+                'query' => $this->paginationQueryParameters(),
             ]
         );
     }

@@ -135,7 +135,12 @@ Important semantics:
   applies only a positive value to `$consumption` and clears `$selectedPreset`
   (blank/zero is ignored so a cleared field never zeroes consumption). It mirrors
   `$consumption` for display: seeded in `booted()` and kept in sync by
-  `selectPreset()` / `calculateFromInlineCalculator()`. User-initiated
+  `selectPreset()` / `calculateFromInlineCalculator()`. On initial mount,
+  `syncExplicitConsumptionSelection()` reconciles an explicit `?consumption=`
+  value after URL hydration: an exact value selects its current preset, while a
+  custom value clears the preset and fills the direct input. SEO housing,
+  consumption-level, and business defaults still apply only when that query
+  parameter is absent. User-initiated
   consumption changes dispatch the Plausible `Contracts Consumption Changed`
   event through `trackConsumptionChanged()` with the raw `consumption` prop and a
   `method` (`preset`, `direct`, or `calculator`); only fire it when the numeric
@@ -610,7 +615,7 @@ Important semantics:
 - city-page solar potential must stay in the lazy `CitySolarEstimate` child component; `SeoContractsList` must not call `CitySolarService`/PVGIS while building initial page HTML because a cache miss can add blocking time
 - `CitySolarEstimate` must not make uncached PVGIS requests for crawler user agents (Googlebot, generic bots/spiders); bot-triggered Livewire lazy updates should render cached data only or nothing, because PVGIS can hang long enough to hit PHP's request timeout
 - `SeoContractsList` validates city slugs against `municipalities` during mount and returns 404 for unknown `/sahkosopimus/paikkakunnat/{location}` slugs so SEO pricing/duration slugs cannot become fake location pages. It still memoizes the municipality lookup because city metadata is read by contracts filtering, title/meta generation, headings, JSON-LD, and local-contract sections during one render; do not revert to direct `Municipality::where('slug', ...)` calls from those accessors
-- `ContractsList::$page` is URL-bound and intentionally typed `int|string`; `normalizePageProperty()` coerces empty, malformed, or negative query values to page 1 before render/SEO pagination. Keep this tolerant because bots and browsers can request `?page=` before Livewire mount, and a strict `int` property causes typed-property hydration errors.
+- `ContractsList::$page` is URL-bound and intentionally typed `int|string`; `normalizePageProperty()` coerces empty, malformed, or negative query values to page 1 before render/SEO pagination. Keep this tolerant because bots and browsers can request `?page=` before Livewire mount, and a strict `int` property causes typed-property hydration errors. The listing paginators are built manually and render normal anchor links, so each constructor must pass `paginationQueryParameters()` to keep non-default `consumption` and comma-separated `hintatyyppi` state while only `page` changes; default values stay absent from canonical pagination links.
 - `ContractsList::calculateFromInlineCalculator()` reads calculator fields through safe typed helper methods. Keep this tolerant of blank mobile number inputs and stale/partially hydrated Livewire snapshots from SEO pages so user edits do not turn into `PropertyNotFoundException` / enum errors.
 - `CheapestContracts` calls `SeoContractsList::getContractsProperty()` through inheritance. Read consumption with `ContractsList::selectedConsumptionValue()` in inherited listing paths and cheapest-page render data so stale Livewire snapshots that miss the URL-bound `consumption` property fall back to 5 000 kWh instead of throwing `PropertyNotFoundException`.
 - Contract comparison hero market-insight pills are intentionally small and must not push results down. They use cached precomputed statistics/forecast payloads from `ContractMarketInsightService`; do not calculate contract prices or scan raw `price_components` for these pills during page requests. Their latest point uses the basis expected by the canonical flag. In canonical mode the 30-day comparison can use an older dated observed point, and its visible supporting copy identifies that provenance. Cache keys and fingerprints vary by flag and basis.

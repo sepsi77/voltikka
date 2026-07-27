@@ -144,6 +144,27 @@ class ContractsListPageTest extends TestCase
             ->assertSee('Suuri talo + sähkö');   // 18000 kWh
     }
 
+    public function test_query_consumption_selects_the_matching_preset_on_initial_load(): void
+    {
+        Livewire::withQueryParams([
+            'consumption' => 10000,
+            'hintatyyppi' => 'kulutusvaikutus',
+            'page' => 2,
+        ])->test('sahkosopimus-index')
+            ->assertSet('consumption', 10000)
+            ->assertSet('selectedPreset', 'row_house')
+            ->assertSet('directConsumption', null);
+    }
+
+    public function test_custom_query_consumption_uses_the_direct_input_on_initial_load(): void
+    {
+        Livewire::withQueryParams(['consumption' => 7500])
+            ->test('sahkosopimus-index')
+            ->assertSet('consumption', 7500)
+            ->assertSet('selectedPreset', null)
+            ->assertSet('directConsumption', 7500);
+    }
+
     /**
      * Test presets/calculator tabs are displayed.
      */

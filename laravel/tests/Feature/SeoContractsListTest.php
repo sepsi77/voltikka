@@ -255,6 +255,17 @@ class SeoContractsListTest extends TestCase
             ->assertSet('consumption', 10000);
     }
 
+    public function test_explicit_query_consumption_overrides_housing_default(): void
+    {
+        $this->createContract('c1', 'Test Energia Oy', 'Basic Electricity');
+
+        Livewire::withQueryParams(['consumption' => 7500])
+            ->test('seo-contracts-list', ['housingType' => 'omakotitalo'])
+            ->assertSet('consumption', 7500)
+            ->assertSet('selectedPreset', null)
+            ->assertSet('directConsumption', 7500);
+    }
+
     // ==================== Energy Source Filter Tests ====================
 
     /**

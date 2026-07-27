@@ -1,0 +1,9 @@
+[
+  {"name":"Inspect listing pagination and reproduce the query loss","status":"completed"},
+  {"name":"Implement the smallest query-preservation fix","status":"completed"},
+  {"name":"Add regression tests for single and multi-select hintatyyppi","status":"completed"},
+  {"name":"Run focused verification and review the diff","status":"completed"},
+  {"name":"Reproduce the follow-up consumption preset hydration mismatch","status":"completed"},
+  {"name":"Synchronize explicit query consumption with preset and direct-input state","status":"completed"},
+  {"name":"Add follow-up regression tests and run verification","status":"completed"}
+]

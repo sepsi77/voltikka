@@ -31,10 +31,10 @@ class ContractsListPaginationTest extends TestCase
     /**
      * Helper to create multiple contracts for pagination testing.
      */
-    private function createContracts(int $count): void
+    private function createContracts(int $count, array $attributes = []): void
     {
         for ($i = 1; $i <= $count; $i++) {
-            $contract = ElectricityContract::create([
+            $contract = ElectricityContract::create(array_merge([
                 'id' => "contract-{$i}",
                 'company_name' => 'Test Energia Oy',
                 'name' => "Test Sähkö {$i}",
@@ -42,7 +42,7 @@ class ContractsListPaginationTest extends TestCase
                 'contract_type' => 'FixedTerm',
                 'metering' => 'General',
                 'availability_is_national' => true,
-            ]);
+            ], $attributes));
 
             PriceComponent::create([
                 'id' => "pc-general-{$i}",
@@ -163,6 +163,50 @@ class ContractsListPaginationTest extends TestCase
         Livewire::test('contracts-list')
             ->assertSee('Sivu 1')
             ->assertSee('Seuraava'); // "Next" in Finnish
+    }
+
+    public function test_pagination_preserves_consumption_and_pricing_bucket_query_parameters(): void
+    {
+        $this->createContracts(30, [
+            'pricing_model' => 'Hybrid',
+            'canonical_pricing' => [
+                'recurring_schedule' => ['present' => false, 'cadence' => 'none'],
+                'consumption_effect' => ['present' => true, 'applies_to' => 'base_contract'],
+            ],
+        ]);
+
+        $component = Livewire::withQueryParams([
+            'page' => 1,
+            'consumption' => 2000,
+            'hintatyyppi' => 'kulutusvaikutus',
+        ])->test('sahkosopimus-index');
+
+        parse_str(parse_url($component->viewData('contracts')->nextPageUrl(), PHP_URL_QUERY), $query);
+
+        $this->assertSame('2', $query['page']);
+        $this->assertSame('2000', $query['consumption']);
+        $this->assertSame('kulutusvaikutus', $query['hintatyyppi']);
+    }
+
+    public function test_pagination_preserves_multi_select_pricing_bucket_values(): void
+    {
+        $this->createContracts(30, [
+            'pricing_model' => 'Hybrid',
+            'canonical_pricing' => [
+                'recurring_schedule' => ['present' => false, 'cadence' => 'none'],
+                'consumption_effect' => ['present' => true, 'applies_to' => 'base_contract'],
+            ],
+        ]);
+
+        $component = Livewire::withQueryParams([
+            'page' => 1,
+            'consumption' => 2000,
+            'hintatyyppi' => 'kulutusvaikutus,kiintea',
+        ])->test('sahkosopimus-index');
+
+        parse_str(parse_url($component->viewData('contracts')->nextPageUrl(), PHP_URL_QUERY), $query);
+
+        $this->assertSame('kulutusvaikutus,kiintea', $query['hintatyyppi']);
     }
 
     // ========================================

@@ -398,6 +398,7 @@ class ContractsList extends Component
     public function mount(): void
     {
         $this->applyLegacyPricingModelFilter();
+        $this->syncExplicitConsumptionSelection();
     }
 
     /**
@@ -516,6 +517,30 @@ class ContractsList extends Component
         }
 
         return max(0, (int) $this->consumption);
+    }
+
+    /**
+     * Match initial URL consumption to the visible preset or direct input.
+     * Route defaults stay unchanged when the query parameter is absent.
+     */
+    protected function syncExplicitConsumptionSelection(): void
+    {
+        if (! array_key_exists('consumption', request()->query())) {
+            return;
+        }
+
+        $consumption = $this->selectedConsumptionValue();
+        $matchingPreset = null;
+
+        foreach ($this->presets as $key => $preset) {
+            if ($preset['consumption'] === $consumption) {
+                $matchingPreset = $key;
+                break;
+            }
+        }
+
+        $this->selectedPreset = $matchingPreset;
+        $this->directConsumption = $matchingPreset === null ? $consumption : null;
     }
 
     // ===== Bill comparison ("Maksatko liikaa") in-listing mode =====
@@ -686,6 +711,7 @@ class ContractsList extends Component
             [
                 'path' => url($this->basePath),
                 'pageName' => 'page',
+                'query' => $this->paginationQueryParameters(),
             ]
         );
     }
@@ -1277,6 +1303,28 @@ class ContractsList extends Component
     }
 
     /**
+     * Keep the URL-bound listing state in normal anchor-based pagination links.
+     * Default values stay out so canonical pagination remains `?page=N`.
+     *
+     * @return array<string, int|string>
+     */
+    protected function paginationQueryParameters(): array
+    {
+        $query = [];
+        $consumption = $this->selectedConsumptionValue();
+
+        if ($consumption !== 5000) {
+            $query['consumption'] = $consumption;
+        }
+
+        if ($this->pricingBucketFilter !== '') {
+            $query['hintatyyppi'] = $this->pricingBucketFilter;
+        }
+
+        return $query;
+    }
+
+    /**
      * Get postcode suggestions based on search input.
      */
     public function getPostcodeSuggestionsProperty(): Collection
@@ -1723,6 +1771,7 @@ class ContractsList extends Component
             [
                 'path' => url($this->basePath),
                 'pageName' => 'page',
+                'query' => $this->paginationQueryParameters(),
             ]
         );
     }
