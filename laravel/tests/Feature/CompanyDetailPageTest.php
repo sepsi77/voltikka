@@ -358,8 +358,10 @@ class CompanyDetailPageTest extends TestCase
 
         $metaDescription = $component->instance()->metaDescription;
 
-        $this->assertStringContainsString('Test Energy Oy', $metaDescription);
-        $this->assertStringContainsString('1 kotitalouksille sopiva sähkösopimus', $metaDescription);
+        $this->assertSame(
+            'Test Energy Oy: vertaa yhtä kotitalouksille sopivaa sähkösopimusta. Katso hinnat, tarjoukset, markkinavertailu ja pörssisähkön kulut.',
+            $metaDescription,
+        );
     }
 
     /**
@@ -390,14 +392,22 @@ class CompanyDetailPageTest extends TestCase
     /**
      * Test company without contracts shows empty state.
      */
-    public function test_company_without_contracts_shows_stats(): void
+    public function test_company_without_contracts_shows_honest_empty_copy_and_metadata(): void
     {
-        // Company exists but has no contracts
         $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
         $stats = $component->viewData('companyStats');
 
         $this->assertEquals(0, $stats['contract_count']);
         $this->assertNull($stats['avg_price']);
+        $this->assertSame(
+            'Test Energy Oy: kotitalouksille sopivia sähkösopimuksia ei ole nyt vertailussa. Katso sopimustilanne, tarjoukset, markkinavertailu ja pörssisähkön kulut.',
+            $component->instance()->metaDescription,
+        );
+        $component
+            ->assertSee('Voltikan vertailussa ei ole tällä hetkellä yhtiön kotitalouksille sopivia sähkösopimuksia.')
+            ->assertDontSee('Tällä sivulla näet yhtiön sähkösopimukset, hinnat, tarjoukset ja pörssisähkön myyjäkohtaiset kulut.')
+            ->assertDontSee('Hinnat alkavat')
+            ->assertDontSee('eurosta vuodessa');
     }
 
     /**
@@ -473,7 +483,7 @@ class CompanyDetailPageTest extends TestCase
         $this->assertSame(['both'], $component->viewData('spotContracts')->pluck('id')->all());
 
         $html = $component->html();
-        $this->assertLessThan(strpos($html, 'Test Energy Oy sähkösopimukset yrityksille'), strpos($html, 'Test Energy Oy: sähkösopimukset'));
+        $this->assertLessThan(strpos($html, 'Test Energy Oy sähkösopimukset yrityksille'), strpos($html, 'Test Energy Oy sähkösopimukset'));
         $this->assertLessThan(strpos($html, 'Takaisin sähköyhtiöihin'), strpos($html, 'Test Energy Oy sähkösopimukset yrityksille'));
         $this->assertStringContainsString('3 kotitalouksille sopivaa sopimusta saatavilla', strip_tags($html));
         $this->assertStringContainsString('2 yrityksille sopivaa sopimusta saatavilla', strip_tags($html));
@@ -485,12 +495,53 @@ class CompanyDetailPageTest extends TestCase
 
         $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
 
-        $this->assertSame('Test Energy Oy: sähkön hinta ja sähkösopimukset | Voltikka', $component->instance()->pageTitle);
+        $this->assertSame('Test Energy Oy: sähkön hinta verrattuna markkinaan | Voltikka', $component->instance()->pageTitle);
         $this->assertSame('Test Energy Oy: sähkön hinta ja sähkösopimukset', $component->instance()->h1);
         $component
             ->assertSee('Test Energy Oy: sähkön hinta ja sähkösopimukset')
             ->assertDontSee('#1 halvin')
             ->assertDontSee('Kaikki 1 sopimusta vertailussa');
+
+        $response = $this->get('/sahkosopimus/sahkoyhtiot/test-energy-oy');
+        $response
+            ->assertSee('<title>Test Energy Oy: sähkön hinta verrattuna markkinaan | Voltikka</title>', false)
+            ->assertSee('<h1', false)
+            ->assertSee('Test Energy Oy: sähkön hinta ja sähkösopimukset');
+    }
+
+    public function test_hero_copy_uses_complete_sentences_and_selected_consumption(): void
+    {
+        $this->createContract('fixed-one', 'Kiinteä Sähkö', 5.0, 2.0);
+        $this->createContract('spot-one', 'Pörssi Sähkö', 0.45, 3.90, 'Spot');
+
+        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
+            ->call('setConsumption', 7200);
+        $description = $component->instance()->heroDescription;
+
+        $this->assertStringStartsWith('Voltikka vertaa 2 kotitalouksille sopivaa sähkösopimusta.', $description);
+        $this->assertSame(
+            'Test Energy Oy: vertaa 2 kotitalouksille sopivaa sähkösopimusta. Katso hinnat, tarjoukset, markkinavertailu ja pörssisähkön kulut.',
+            $component->instance()->metaDescription,
+        );
+        $minimum = $component->viewData('companyStats')['min_price'];
+        $this->assertStringContainsString(
+            'Hinnat alkavat '.number_format($minimum, 0, ',', ' ').' eurosta vuodessa 7 200 kWh:n kulutuksella.',
+            $description,
+        );
+        $this->assertStringContainsString('Mukana on 1 pörssisähkösopimus.', $description);
+        $this->assertStringNotContainsString('. hinnat', $description);
+        $component->assertSee('Tällä sivulla näet yhtiön sähkösopimukset, hinnat, tarjoukset ja pörssisähkön myyjäkohtaiset kulut.');
+    }
+
+    public function test_summary_and_consumption_control_use_the_approved_heading_semantics(): void
+    {
+        $this->createContract('spot-one', 'Pörssi Sähkö', 0.45, 3.90, 'Spot');
+        $html = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])->html();
+
+        $this->assertMatchesRegularExpression('/<h2[^>]*>\s*Test Energy Oy: hinnat lyhyesti\s*<\/h2>/', $html);
+        $this->assertStringContainsString('1 pörssisähkösopimus', strip_tags($html));
+        $this->assertDoesNotMatchRegularExpression('/<h3[^>]*>\s*Vuosikulutus\s*<\/h3>/', $html);
+        $this->assertMatchesRegularExpression('/<p[^>]*>Vuosikulutus<\/p>/', $html);
     }
 
     public function test_update_date_prefers_the_latest_active_source_observation_and_updates_webpage_schema(): void

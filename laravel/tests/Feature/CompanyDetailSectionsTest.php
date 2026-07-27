@@ -64,8 +64,9 @@ class CompanyDetailSectionsTest extends TestCase
 
         $component
             ->assertSee('Test Energy Oy tarjoukset')
-            ->assertSee('ei tarjoa juuri nyt kampanjahintaisia sopimuksia')
-            ->assertSee('ilmestyy tähän automaattisesti');
+            ->assertSee('Vertailussa ei ole nyt kampanjahintaista sopimusta. Voltikka päivittää sopimustiedot päivittäin.')
+            ->assertSee('Katso kaikki voimassa olevat sähkötarjoukset')
+            ->assertDontSee('ilmestyy tähän automaattisesti');
     }
 
     /**
@@ -226,12 +227,15 @@ class CompanyDetailSectionsTest extends TestCase
             ->assertDontSee('Sama kuin markkinan mediaani');
     }
 
-    public function test_spot_section_is_hidden_when_the_seller_has_no_spot_contract(): void
+    public function test_spot_section_renders_an_honest_fallback_when_the_seller_has_no_spot_contract(): void
     {
         $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
 
         Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
-            ->assertDontSee('Test Energy Oy pörssisähkö');
+            ->assertSee('Test Energy Oy: pörssisähkö, marginaali ja perusmaksu')
+            ->assertSee('Test Energy Oy ei tarjoa tällä hetkellä kotitalouksille pörssisähkösopimusta Voltikan vertailussa.')
+            ->assertSee('Vertaa kaikkia pörssisähkösopimuksia')
+            ->assertDontSee('Test Energy Oy myy pörssisähköä.');
     }
 
     public function test_contract_list_heading_includes_the_company_name(): void
@@ -239,7 +243,8 @@ class CompanyDetailSectionsTest extends TestCase
         $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
 
         Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
-            ->assertSee('Test Energy Oy: sähkösopimukset');
+            ->assertSee('Test Energy Oy sähkösopimukset')
+            ->assertDontSee('Test Energy Oy: sähkösopimukset');
     }
 
     public function test_company_page_has_no_faq_section_or_schema(): void
@@ -248,7 +253,10 @@ class CompanyDetailSectionsTest extends TestCase
 
         $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
 
-        $component->assertDontSee('Usein kysyttyä');
+        $component
+            ->assertDontSee('Usein kysyttyä')
+            ->assertDontSee('Toimitusalue')
+            ->assertDontSee('Missä Test Energy Oy myy sähköä?');
         $this->assertNull(collect($component->viewData('schemas'))->firstWhere('@type', 'FAQPage'));
     }
 
@@ -592,14 +600,18 @@ class CompanyDetailSectionsTest extends TestCase
         $this->assertNull($comparison['spot_benchmarks']);
     }
 
-    public function test_the_comparison_section_is_omitted_without_reference_data(): void
+    public function test_the_comparison_section_renders_an_honest_fallback_without_reference_data(): void
     {
         $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
 
         $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
 
         $this->assertNull($component->viewData('marketComparison'));
-        $component->assertDontSee('sähkön hinta riippuu sopimustyypistä');
+        $component
+            ->assertSee('Test Energy Oy: sähkön hinta')
+            ->assertSee('Yhtiön ja markkinan vertailukelpoista hintatietoa ei ole nyt saatavilla. Katso nykyiset sopimushinnat alta.')
+            ->assertDontSee('sähkön hinta riippuu sopimustyypistä')
+            ->assertDontSee('markkinan mediaani');
     }
 
     // --------------------------------------------------------------- helpers

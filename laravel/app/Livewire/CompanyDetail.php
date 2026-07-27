@@ -312,7 +312,7 @@ class CompanyDetail extends Component
             'avg_emission_factor' => $emissionFactors->isNotEmpty() ? $emissionFactors->avg() : null,
             'avg_renewable_percent' => $renewablePercents->isNotEmpty() ? $renewablePercents->avg() : null,
             'contract_count' => $contracts->count(),
-            'spot_contract_count' => $priceApplicableContracts->where('pricing_model', 'Spot')->count(),
+            'spot_contract_count' => $contracts->where('pricing_model', 'Spot')->count(),
             'fixed_price_contract_count' => $priceApplicableContracts->where('pricing_model', 'FixedPrice')->count(),
         ];
     }
@@ -594,11 +594,15 @@ class CompanyDetail extends Component
         }
 
         $count = $this->companyStats['contract_count'];
+        if ($count === 0) {
+            return "{$this->company->name}: kotitalouksille sopivia sähkösopimuksia ei ole nyt vertailussa. Katso sopimustilanne, tarjoukset, markkinavertailu ja pörssisähkön kulut.";
+        }
+
         $contracts = $count === 1
-            ? '1 kotitalouksille sopiva sähkösopimus'
+            ? 'yhtä kotitalouksille sopivaa sähkösopimusta'
             : "{$count} kotitalouksille sopivaa sähkösopimusta";
 
-        return "{$this->company->name}: {$contracts} vertailussa. Katso hinnat, sopimustyypit ja CO₂-tiedot.";
+        return "{$this->company->name}: vertaa {$contracts}. Katso hinnat, tarjoukset, markkinavertailu ja pörssisähkön kulut.";
     }
 
     /**
@@ -610,7 +614,7 @@ class CompanyDetail extends Component
             return 'Sähkösopimukset | Voltikka';
         }
 
-        return "{$this->company->name}: sähkön hinta ja sähkösopimukset | Voltikka";
+        return "{$this->company->name}: sähkön hinta verrattuna markkinaan | Voltikka";
     }
 
     /**
@@ -635,33 +639,33 @@ class CompanyDetail extends Component
         }
 
         $stats = $this->companyStats;
-        $parts = [];
 
-        if ($stats['contract_count'] > 0) {
-            $parts[] = $stats['contract_count'] === 1
-                ? 'Vertaile yhtä kotitalouksille sopivaa sähkösopimusta'
-                : "Vertaile {$stats['contract_count']} kotitalouksille sopivaa sähkösopimusta";
+        if ($stats['contract_count'] === 0) {
+            return 'Voltikan vertailussa ei ole tällä hetkellä yhtiön kotitalouksille sopivia sähkösopimuksia.';
         }
+
+        $parts = [
+            $stats['contract_count'] === 1
+                ? 'Voltikka vertaa yhtä kotitalouksille sopivaa sähkösopimusta.'
+                : "Voltikka vertaa {$stats['contract_count']} kotitalouksille sopivaa sähkösopimusta.",
+        ];
 
         if ($stats['min_price'] !== null) {
-            $parts[] = 'hinnat alkaen '.number_format($stats['min_price'], 0, ',', ' ').' €/vuosi';
-        }
-
-        if ($stats['avg_renewable_percent'] !== null) {
-            if ($stats['avg_renewable_percent'] >= 100) {
-                $parts[] = '100% uusiutuvaa energiaa';
-            } elseif ($stats['avg_renewable_percent'] >= 50) {
-                $parts[] = 'keskimäärin '.number_format($stats['avg_renewable_percent'], 0).'% uusiutuvaa';
-            }
+            $parts[] = 'Hinnat alkavat '
+                .number_format($stats['min_price'], 0, ',', ' ')
+                .' eurosta vuodessa '
+                .number_format($this->consumption, 0, ',', ' ')
+                .' kWh:n kulutuksella.';
         }
 
         if ($stats['spot_contract_count'] > 0) {
-            $parts[] = "{$stats['spot_contract_count']} pörssisähkösopimusta";
+            $spotContracts = $stats['spot_contract_count'] === 1
+                ? '1 pörssisähkösopimus'
+                : "{$stats['spot_contract_count']} pörssisähkösopimusta";
+            $parts[] = "Mukana on {$spotContracts}.";
         }
 
-        return $parts === []
-            ? 'Yhtiöllä ei ole tällä hetkellä kotitalouksille sopivia sähkösopimuksia vertailussa.'
-            : implode('. ', $parts).'.';
+        return implode(' ', $parts);
     }
 
     public function render()

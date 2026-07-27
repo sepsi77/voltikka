@@ -322,8 +322,9 @@ contracts or precomputed household statistics.
    full component-history relation in canonical mode; feature-off still eager-loads
    it and keeps the legacy behavior.
    **The heading always renders.** Only 13 of 35 sellers had a live promotion on
-   2026-07-24, and an empty state that says the page updates itself is the
-   product decision; do not hide the section when the list is empty.
+   2026-07-24. The empty state says that no campaign-price contract is in the
+   comparison and that Voltikka updates contract data each day. Do not hide the
+   section when the list is empty.
 
    `CanonicalOfferFacts` supplies the specific typed term and measured saving.
    The calculator's `offer_terms` records supported changed component types,
@@ -350,7 +351,9 @@ contracts or precomputed household statistics.
    date exists. Otherwise, canonical mode may render the latest internally
    consistent `observed_seller_data` date only as a payload-marked historical
    fallback with explicit dated copy. It never calls that fallback today's price.
-   The section is omitted only when neither source has a usable same-date pair.
+   **The heading always renders.** When neither source has a usable same-date pair,
+   the page states that comparable data is not available and points to the current
+   contract prices. It does not make a market claim.
 3. **`#porssisahko` — "{yhtiö} pörssisähkö".** The seller's `Spot` contracts state
    the count and show the two supplier-controlled charges: margin in c/kWh and
    monthly base fee. Nord Pool's market price is common to Spot products and is
@@ -359,15 +362,20 @@ contracts or precomputed household statistics.
    `spot_benchmarks` market median from the same date and pricing basis. Missing
    facts or unusable benchmark rows produce no comparison claim, and an observed
    historical fallback never supplies a benchmark beside current contract facts.
-   The section is omitted when the seller has no spot contract.
+   **The heading always renders.** When the seller has no household Spot contract,
+   the page states this and links to the market-wide Spot listing.
 
 Company pages deliberately have no visible FAQ and no FAQPage schema. Keep the
 schema aligned with visible content if this decision changes later.
 
 The title uses a colon before the search phrase because Finnish inflection of an
-arbitrary company name is unsafe. It is `{company}: sähkön hinta ja
-sähkösopimukset | Voltikka`, and the H1 uses the same phrase without the site
-suffix. Do not add the old price rank again.
+arbitrary company name is unsafe. The HTML title is `{company}: sähkön hinta
+verrattuna markkinaan | Voltikka`. The H1 is different on purpose:
+`{company}: sähkön hinta ja sähkösopimukset`. Do not add the old price rank again.
+The hero uses complete sentences for the household contract count, lowest annual
+price at the selected consumption, and Spot count. Its broad-intent sentence names
+contracts, prices, offers, market comparison, and seller-specific Spot charges.
+Zero-contract copy does not imply that a current price is available.
 
 `Päivitetty` is the maximum `contract_source_snapshots.last_observed_at` for the
 company's active contracts. When no active contract has a snapshot, it falls
@@ -376,7 +384,8 @@ stored date exists. The same date supplies WebPage `dateModified`; request time
 is never a fallback.
 
 The annual-consumption control uses the same compact segmented preset rail as
-the main comparison page. It includes the tolerant `directConsumption` input.
+the main comparison page. `Vuosikulutus` is a control label, not a content
+heading. It includes the tolerant `directConsumption` input.
 A preset clears that input; a positive direct value clears the preset and
 recalculates both audience lists. The calculator action links to the standalone
 `/sahkosopimus/laskuri` because CompanyDetail does not host the inline listing

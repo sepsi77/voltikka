@@ -32,9 +32,14 @@
                         </h1>
 
                         {{-- Hero description with company-specific SEO content --}}
-                        <p class="text-lg text-slate-300 mb-3">
+                        <p class="text-lg text-slate-300 mb-2">
                             {{ $heroDescription }}
                         </p>
+                        @if ($companyStats['contract_count'] > 0)
+                            <p class="mb-3 text-base text-slate-300">
+                                Tällä sivulla näet yhtiön sähkösopimukset, hinnat, tarjoukset ja pörssisähkön myyjäkohtaiset kulut.
+                            </p>
+                        @endif
 
                         @if ($updatedAt)
                             <p class="mb-4 text-sm font-medium text-slate-300">
@@ -123,7 +128,7 @@
     {{-- Consumption selector matches the main comparison page. --}}
     <section x-data="{ panelOpen: false }" class="mb-8 bg-transparent">
         <div class="mb-3 flex items-center justify-between gap-3">
-            <h3 class="text-sm font-bold tracking-tight text-slate-700">Vuosikulutus</h3>
+            <p class="text-sm font-bold tracking-tight text-slate-700">Vuosikulutus</p>
             <div class="flex items-center gap-3">
                 <a
                     href="/sahkosopimus/laskuri"
@@ -196,7 +201,7 @@
     @if ($companyStats['contract_count'] > 0)
         <section class="mb-8">
             <div class="bg-white rounded-2xl border border-slate-200 p-6">
-                <h3 class="text-lg font-bold text-slate-900 mb-4">{{ $company->name }} - yhteenveto</h3>
+                <h2 class="text-lg font-bold text-slate-900 mb-4">{{ $company->name }}: hinnat lyhyesti</h2>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
                     {{-- Average Price --}}
                     @if ($companyStats['avg_price'] !== null)
@@ -236,7 +241,7 @@
                         <div class="flex flex-wrap gap-2">
                             @if ($companyStats['spot_contract_count'] > 0)
                                 <span class="inline-flex items-center px-2 py-1 bg-coral-50 text-coral-700 text-xs font-medium rounded-lg">
-                                    {{ $companyStats['spot_contract_count'] }} pörssisopimus{{ $companyStats['spot_contract_count'] > 1 ? 'ta' : '' }}
+                                    {{ $companyStats['spot_contract_count'] }} pörssisähkösopimus{{ $companyStats['spot_contract_count'] > 1 ? 'ta' : '' }}
                                 </span>
                             @endif
                             @if ($companyStats['fixed_price_contract_count'] > 0)
@@ -269,9 +274,7 @@
 
         @if ($promotionContracts->isEmpty())
             <p class="text-slate-600 mb-4 max-w-prose">
-                {{ $company->name }} ei tarjoa juuri nyt kampanjahintaisia sopimuksia.
-                Voltikka tarkistaa sopimukset päivittäin. Kun yhtiö julkaisee tarjouksen, se ilmestyy tähän automaattisesti.
-                Käy siis katsomassa myöhemmin uudelleen.
+                Vertailussa ei ole nyt kampanjahintaista sopimusta. Voltikka päivittää sopimustiedot päivittäin.
             </p>
             <a href="/sahkosopimus/sahkotarjous" class="inline-flex items-center font-medium text-coral-600 hover:text-coral-700">
                 Katso kaikki voimassa olevat sähkötarjoukset &rarr;
@@ -344,20 +347,28 @@
             'company' => $company,
             'marketComparison' => $marketComparison,
         ])
+    @else
+        <section id="hintavertailu" class="mb-10">
+            <h2 class="text-2xl font-bold text-slate-900 mb-2">{{ $company->name }}: sähkön hinta</h2>
+            <p class="text-slate-600 max-w-prose">
+                Yhtiön ja markkinan vertailukelpoista hintatietoa ei ole nyt saatavilla. Katso nykyiset sopimushinnat alta.
+            </p>
+        </section>
     @endif
 
     {{-- Spot contracts --}}
-    @if ($spotContracts->isNotEmpty())
-        @php
-            $spotCount = $spotContracts->count();
-            $spotCountText = $spotCount === 1
-                ? '1 pörssisähkösopimus'
-                : $spotCount . ' pörssisähkösopimusta';
-            $spotMarginMedian = $spotBenchmarks['spot_margin']['median'] ?? null;
-            $spotMonthlyFeeMedian = $spotBenchmarks['monthly_fee']['median'] ?? null;
-        @endphp
-        <section id="porssisahko" class="mb-10">
-            <h2 class="text-2xl font-bold text-slate-900 mb-2">{{ $company->name }}: pörssisähkö, marginaali ja perusmaksu</h2>
+    <section id="porssisahko" class="mb-10">
+        <h2 class="text-2xl font-bold text-slate-900 mb-2">{{ $company->name }}: pörssisähkö, marginaali ja perusmaksu</h2>
+
+        @if ($spotContracts->isNotEmpty())
+            @php
+                $spotCount = $spotContracts->count();
+                $spotCountText = $spotCount === 1
+                    ? '1 pörssisähkösopimus'
+                    : $spotCount . ' pörssisähkösopimusta';
+                $spotMarginMedian = $spotBenchmarks['spot_margin']['median'] ?? null;
+                $spotMonthlyFeeMedian = $spotBenchmarks['monthly_fee']['median'] ?? null;
+            @endphp
             <p class="text-slate-600 mb-4 max-w-prose">
                 {{ $company->name }} myy pörssisähköä. Vertailussa on {{ $spotCountText }}.
                 Myyjän itse määrittämät kulut ovat marginaali ja kuukausittainen perusmaksu.
@@ -436,12 +447,19 @@
                 @endif
                 <a href="/sahkosopimus/porssisahko" class="font-medium text-coral-600 hover:text-coral-700">Vertaa kaikkia pörssisähkösopimuksia &rarr;</a>
             </p>
-        </section>
-    @endif
+        @else
+            <p class="text-slate-600 mb-4 max-w-prose">
+                {{ $company->name }} ei tarjoa tällä hetkellä kotitalouksille pörssisähkösopimusta Voltikan vertailussa.
+            </p>
+            <a href="/sahkosopimus/porssisahko" class="inline-flex items-center font-medium text-coral-600 hover:text-coral-700">
+                Vertaa kaikkia pörssisähkösopimuksia &rarr;
+            </a>
+        @endif
+    </section>
 
     <!-- Contracts Section -->
     <h2 class="text-2xl font-bold text-slate-900 mb-4">
-        {{ $company->name }}: sähkösopimukset
+        {{ $company->name }} sähkösopimukset
     </h2>
 
     <p class="text-slate-600 mb-6">
