@@ -262,3 +262,34 @@ Caveat for whoever implements it: a canonical-only snapshot has no relational co
 per-component c/kWh fields (`energy_price_cents_per_kwh`, `monthly_fee_eur`) stay null and only the
 `annual_cost` metric gains these contracts. `cleanValues()` already drops nulls, so the c/kWh series
 is unaffected. Historical backfill must still pass `useCanonical: false`.
+
+## Canonical pricing now drives the statistics page too (2026-07-27)
+
+Implemented. `ContractPriceStatisticsService::calculateForDate()` no longer skips a contract with
+no relational components when canonical pricing is enabled; it builds the snapshot from the
+canonical phases instead.
+
+The owner's framing decided the shape: **the raw API price is a seller-controlled input and is
+subject to manipulative presentation, which is the entire reason the LLM canonical layer exists.**
+So canonical pricing is the source of truth for every published price, and a surface that falls
+back to relational rows — or drops a contract for having none — re-exposes the manipulation the
+pipeline caught. That is recorded in the root `AGENTS.md` as a project-level rule, not just a note
+about this page.
+
+Two guards kept:
+
+- A contract canonical also refuses to total is still skipped, rather than written as an all-null
+  row. Vimpelin Voima's tariffs are the case: an undisclosed pre-discount price list leaves the
+  continuation phase with zero components.
+- The legacy non-canonical path still requires components, because it has nothing else to read, and
+  `BackfillContractPriceStatistics` always passes `useCanonical: false` — today's interpretation
+  must not be applied retroactively to a historical date.
+
+A canonical-only snapshot carries `annual_cost_*` only; `energy_price_cents_per_kwh` and
+`monthly_fee_eur` stay null because nothing relational exists to read them from, and `cleanValues()`
+already drops nulls, so the c/kWh series is unchanged.
+
+Note the accuracy direction. This is not only a count fix: the relational path had been recording
+Kokkolan Tyyni at 279 €/v and Aalto Tyyni Vakiohinta at 310 €/v — their promo prices, presented as
+the year's cost — against canonical figures of 555 and 748. The page was publishing the seller's
+framing until the gate withheld those rows.

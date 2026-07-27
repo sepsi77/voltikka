@@ -67,11 +67,32 @@ class ContractPriceStatisticsService
                         /** @var ElectricityContract $contract */
                         $components = $contract->getPriceComponentsForCalculationDate($dateString);
 
-                        if ($components === []) {
+                        // No relational components does not mean unpriceable. The interpretation
+                        // publication gate deliberately withholds source components whenever the
+                        // interpretation named a reason to distrust them — structured rows holding
+                        // only a promo price, a later price the source omits, a component conflict.
+                        // Those are precisely the contracts whose relational price would have been
+                        // wrong, and canonical pricing prices them correctly from the validated
+                        // phase structure instead. Skipping them dropped 14 active contracts from
+                        // this page, two of which had previously been recorded at their promo price
+                        // as if it were the year's cost: Kokkolan Tyyni at 279 €/v against a
+                        // canonical 555, Aalto Tyyni Vakiohinta at 310 against 748.
+                        //
+                        // Legacy (non-canonical) calculation still needs components, because it has
+                        // nothing else to read. Historical backfills always take that path.
+                        if ($components === [] && ! $useCanonical) {
                             continue;
                         }
 
                         $snapshot = $this->buildSnapshot($contract, $components, $date, $spotPrices, $useCanonical);
+
+                        // Canonical pricing declines to total a contract it cannot price honestly
+                        // (Vimpelin Voima's tariffs disclose no pre-discount price list, so their
+                        // continuation phase is empty). With no components either, such a row would
+                        // carry nothing but nulls, so do not create it.
+                        if ($components === [] && ! $this->hasAnyAnnualCost($snapshot)) {
+                            continue;
+                        }
 
                         ContractPriceSnapshot::updateOrCreate(
                             [
@@ -203,6 +224,20 @@ class ContractPriceStatisticsService
             'has_discount' => collect($components)->contains(fn ($component) => (bool) ($component['has_discount'] ?? false)),
             'includes_spot_price' => $isSpot && $spotPrices['avg'] !== null,
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $snapshot
+     */
+    private function hasAnyAnnualCost(array $snapshot): bool
+    {
+        foreach (self::CONSUMPTION_LEVELS as $consumption) {
+            if ($snapshot["annual_cost_{$consumption}_kwh"] !== null) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function calculateDailyStatistics(string $dateString): int

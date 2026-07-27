@@ -189,6 +189,7 @@ php artisan test --filter="ContractsFilterTest"
 - Commands: `php artisan contracts:interpret`, `php artisan contracts:republish-gated-pricing`
 
 ### Canonical phase-aware pricing (deceptive-pricing fix)
+- **Canonical pricing is the intended source of truth for every price Voltikka publishes.** The raw Azure API structured price is a seller-controlled input and is subject to manipulative presentation — a promo rate in the priced fields with the increase disclosed only in prose is the recurring case. The interpretation pipeline exists to detect exactly that, so where canonical pricing and the relational components disagree, canonical wins. A surface that silently falls back to relational rows, or drops a contract because it has none, is a bug: it re-exposes the manipulation the pipeline caught. `/sahkosopimus/tilastot` had this defect until 2026-07-27
 - **Location**: `laravel/app/Services/CanonicalPricing/`
 - Consumes the validated `canonical_pricing`/`canonical_source_consistency`/`canonical_calculation` JSON to calculate accurate 12-month prices across pricing phases, so a cheap promotional price that later increases (disclosed only in the description) no longer flatters a contract in rankings
 - Assigns a deterministic comparability verdict deciding list inclusion and sort key: open-ended promos with an undisclosed later price and broken/ambiguous pricing are hidden from listings (still reachable on the detail page with a warning); short fixed terms are annualized and labelled; Hybrids rank base-only with a disclosure
