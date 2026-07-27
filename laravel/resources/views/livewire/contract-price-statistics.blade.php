@@ -342,7 +342,7 @@
                             Hinnat sopimustyypeittäin
                         </h2>
                         <p class="mt-2 text-sm text-slate-600 leading-relaxed max-w-[68ch]">
-                            Taulukko näyttää viimeisimmän keräyspäivän tyypillisen energiahinnan sopimustyypeittäin sekä miten hinta on muuttunut aineiston aikana. Luvut perustuvat päiväkohtaisiin mediaaneihin, eli yksittäiset poikkeavat tarjoukset eivät ohjaa tulosta. Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois.
+                            Taulukko näyttää viimeisimmän keräyspäivän tyypillisen energiahinnan sopimustyypeittäin sekä miten hinta on muuttunut aineiston aikana. Luvut perustuvat päiväkohtaisiin mediaaneihin, eli yksittäiset poikkeavat tarjoukset eivät ohjaa tulosta. Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois. Sopimuksia-luku kertoo, monenko sopimuksen julkaistusta energiahinnasta rivin luvut on laskettu. Osalla sopimuksista ei ole yhtä julkaistua energiahintaa — esimerkiksi kun hinta muuttuu ensimmäisen vuoden aikana — jolloin ne ovat mukana vain vuosikustannustaulukossa.
                         </p>
                     </div>
                     <div class="text-sm text-slate-500 leading-relaxed lg:border-l lg:border-slate-200 lg:pl-6">
@@ -460,7 +460,7 @@
                             Halvempi&nbsp;20&nbsp;% on raja, jonka alle viidennes saman tyypin sopimuksista jää. Mediaani kuvaa tyypillistä sopimusta, ja kalliimpi&nbsp;20&nbsp;% on raja, jonka yli viidennes nousee.
                         </p>
                         <p class="mt-2">
-                            Pörssisähkössä vuosikustannus käyttää edeltävän 12 kuukauden pörssin keskihintaa + sopimuksen marginaalia. Kiinteissä ja muissa sopimuksissa käytetään sopimuksen julkaistua energiahintaa. Trendi näyttää vuosikustannuksen mediaanin kehityksen valitulla kulutuksella. Sopimusmäärä voi poiketa ylemmästä hintataulukosta, jos sopimus ei ole tarjolla valitulle kulutukselle tai vuosihintaa ei voi laskea.
+                            Pörssisähkössä vuosikustannus käyttää edeltävän 12 kuukauden pörssin keskihintaa + sopimuksen marginaalia. Kiinteissä ja muissa sopimuksissa käytetään sopimuksen julkaistua energiahintaa. Trendi näyttää vuosikustannuksen mediaanin kehityksen valitulla kulutuksella. Sopimusmäärä voi poiketa ylemmästä hintataulukosta kumpaankin suuntaan: sopimus jää pois, jos se ei ole tarjolla valitulle kulutukselle tai vuosihintaa ei voi laskea, ja mukana voi olla sopimuksia, joilla ei ole yhtä julkaistua energiahintaa mutta joiden koko vuoden hinta tiedetään.
                         </p>
                     </div>
                 </div>

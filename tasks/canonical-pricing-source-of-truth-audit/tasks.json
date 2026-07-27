@@ -1,0 +1,45 @@
+{
+  "task": "canonical-pricing-source-of-truth-audit",
+  "tasks": [
+    {
+      "name": "Trace the real data flow into ContractCardPresenter from ContractsList and ContractDetail: does the card receipt show canonical or relational prices?",
+      "status": "pending"
+    },
+    {
+      "name": "Audit CardFooterItems for promo-price leakage into warning/fact pills",
+      "status": "pending"
+    },
+    {
+      "name": "Audit Http/Resources/ContractResource (JSON API output)",
+      "status": "pending"
+    },
+    {
+      "name": "Audit ContractPriceHistory/PriceDevelopmentPresenter: does the detail-page chart present promo prices as the contract's price history?",
+      "status": "pending"
+    },
+    {
+      "name": "Confirm the canonical-referencing surfaces use it for the published price, not only for ranking or exclusion (BillComparison, ContractRanking, ContractListCache, LocalContracts, WeeklyOffersVideo, CompanyDetail, ContractTypeComparison, both API controllers)",
+      "status": "pending"
+    },
+    {
+      "name": "Check each surface for silently dropping contracts that have no relational components (18 active on 2026-07-27, 14 priceable by canonical)",
+      "status": "pending"
+    },
+    {
+      "name": "Confirm RetailPremiumHistoryBackfillService documents why it must stay relational",
+      "status": "pending"
+    },
+    {
+      "name": "Write the per-surface findings into decisions.md",
+      "status": "pending"
+    },
+    {
+      "name": "Fix the violations, each with a promo-shaped regression test",
+      "status": "pending"
+    },
+    {
+      "name": "Record the pricing source and reason in each surface's nearest AGENTS.md",
+      "status": "pending"
+    }
+  ]
+}
