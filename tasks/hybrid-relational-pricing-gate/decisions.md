@@ -176,3 +176,45 @@ rule itself: "an incomplete calculation still blocks" and "an optional_fixing ef
 open the gate". Both are false under the inverted rule by design. They were replaced by tests
 for what the new rule actually promises, including an unknown-code test guarding the
 conservative `default`.
+
+### Production result of the inverted gate
+
+Deployed as `1c70628`. Of 53 still-blocked published interpretations, **32 passed** and 21 did
+not. The split fell exactly along "is there a named reason to doubt the components":
+
+| passing | n | | blocked | n |
+|---|---|---|---|---|
+| `unsupported_consumption_effect` + `insufficient_evidence` | 7 | | `promotion_metadata_missing` + `structured_matches_intro_only` (± future codes) | 9 |
+| `insufficient_evidence` alone | 10 | | `component_mismatch` | 4 |
+| `recurring_reset_requires_estimate` + `insufficient_evidence` | 4 | | `future_price_omitted` | 4 |
+| `unsupported_consumption_effect` + `recurring_reset_requires_estimate` | 4 | | `other` | 3 |
+| `pricing_model_mismatch` + `unsupported_consumption_effect` | 2 | | benign codes but `misleading = detected` | 1 |
+| `structured_matches_description` / `future_price_unknown` / no codes | 5 | | | |
+
+Both guards demonstrably fired: the `other` default blocked 3, and the deception rule blocked one
+whose only issue code (`future_price_unknown`) was harmless.
+
+25 of the 32 were **not** Hybrid (Helen Helpposähkö XS/S/M/L, Turku Louna Helppo, Pohjois-Karjalan
+Optimi takuu, Vaasan Kuukausipaketti XS, Vihreä Älyenergia Verraton pörssisähkö). They had been
+blocked purely by the old `calculation.status`/`incomplete` rule. The joustosähkö report was the
+symptom that surfaced a gate-wide problem.
+
+32 flags lifted, 73 contract-days / 162 component rows filled, statistics recalculated for
+2026-07-25…27. Segment counts at 5 000 kWh, 07-24 → 07-27: hybrid 39 → 34, fixed_term_12 49 → 53,
+spot 59 → 52, open_ended 62 → 55.
+
+### Known residue: the open-ended average is biased upward
+
+`open_ended` moved from ~628 €/v on 07-24 to ~701 €/v on 07-25…27, and the visible line ticks up
+at the right edge of `/sahkosopimus/tilastot`. This is composition, not a price move: the 21
+contracts still withheld are mostly **promotional** open-ended products
+(`promotion_metadata_missing` + `structured_matches_intro_only`), i.e. the cheap end of that
+segment. Withholding them is correct — their structured components hold only the intro price, so
+publishing those rows would state a promo as the price — but their absence lifts the segment
+average.
+
+This predates the inverted gate (it was worse before, when more contracts were withheld) and it is
+not fixable by loosening the gate. The real fix is to let the statistics pipeline price those
+contracts from `canonical_pricing` phases, which already hold their true first-12-month cost and
+already drive the card-level deceptive-pricing label. Not attempted here; it is a change to
+`ContractPriceStatisticsService`, not to publication.
