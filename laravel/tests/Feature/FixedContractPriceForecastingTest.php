@@ -229,7 +229,14 @@ class FixedContractPriceForecastingTest extends TestCase
             ->assertDontSee('Ennusteita ei ole vielä saatavilla')
             ->assertSee('8,88')
             ->assertDontSee('9,99')
-            ->assertSee('Voltikan kanonisesta hintalaskennasta');
+            ->assertSeeText('Ennustejakso')
+            ->assertSeeText('Ennuste perustuu tämänhetkisiin sopimushintoihin ja aiempien päivien hintatilastoihin.')
+            ->assertSeeText('Lisäksi se käyttää Suomen sähkön futuurihintoja EEX-pörssistä.')
+            ->assertSeeText('Nykyinen hintataso lasketaan tämän päivän määräaikaisista sopimuksista.')
+            ->assertSeeText('Malli vertaa aiempia sopimushintoja saman ajan futuurihintoihin.')
+            ->assertDontSeeText('kanonis')
+            ->assertDontSeeText('Kolmas syöte')
+            ->assertDontSeeText('settlement-hinta');
 
         $insight = app(ContractMarketInsightService::class)->insight(null, 5000, true);
         $this->assertSame('2026-05-23', $insight['forecast']['forecast_date']);
@@ -257,6 +264,7 @@ class FixedContractPriceForecastingTest extends TestCase
             ->assertSee('7,10')
             ->assertSee('7,50')
             ->assertSeeText('Vanhemmat pisteet perustuvat kyseisinä päivinä myyjiltä havaittuihin hintoihin.')
+            ->assertSeeText('Uudemmat mediaanihinnat Voltikka laskee myyjiltä kerätyistä sopimus- ja hintatiedoista.')
             ->assertDontSee('6,66')
             ->assertDontSee('99,99');
     }
@@ -272,7 +280,7 @@ class FixedContractPriceForecastingTest extends TestCase
             ->assertOk()
             ->assertDontSee('Ennusteita ei ole vielä saatavilla')
             ->assertSee('7,66')
-            ->assertSee('kyseisen päivän myyjiltä havaitusta hintatilastosta');
+            ->assertSeeText('Nykyinen hintataso lasketaan tämän päivän määräaikaisista sopimuksista.');
     }
 
     private function retailStat(

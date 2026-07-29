@@ -110,7 +110,7 @@
                 Sähkön hintaennuste: kannattaako sähkösopimus lukita nyt?
             </h1>
             <p class="mt-5 max-w-[62ch] text-lg text-slate-600 leading-relaxed">
-                Voltikan sähkön hintaennuste seuraa päivittäin määräaikaisten sähkösopimusten hintakehitystä. Malli yhdistää suomalaiset EEX-pörssifutuurit, {{ $usesCanonicalCurrentRetailInput ? 'Voltikan kanonisella laskennalla muodostetun nykyisen sopimushinnan' : 'myyjiltä havaitun nykyisen sopimushinnan' }} ja aiempien päivien havaitut hintatilastot. Näiden perusteella se arvioi, onko hinta nyt poikkeuksellisen korkea, matala vai tavanomainen seuraavaa kuukautta varten.
+                Voltikan sähkön hintaennuste seuraa päivittäin määräaikaisten sähkösopimusten hintakehitystä. Ennuste perustuu tämänhetkisiin sopimushintoihin ja aiempien päivien hintatilastoihin. Lisäksi se käyttää Suomen sähkön futuurihintoja EEX-pörssistä. Näiden tietojen perusteella malli arvioi, onko tämänhetkinen hinta poikkeuksellisen korkea, matala vai tavanomainen ja miten se voi muuttua seuraavan kuukauden aikana.
             </p>
 
             {{-- Meta strip --}}
@@ -122,7 +122,7 @@
                     </dd>
                 </div>
                 <div>
-                    <dt class="{{ $colEyebrow }} text-slate-500">Tähtäin</dt>
+                    <dt class="{{ $colEyebrow }} text-slate-500">Ennustejakso</dt>
                     <dd class="mt-1 font-semibold text-slate-900 tabular-nums">
                         @if ($targetDate)
                             {{ $horizonDays }}&nbsp;pv ({{ $fiDate($targetDate) }})
@@ -470,9 +470,9 @@
                         @endif
                         Taulukko näyttää, miten määräaikaisten sopimusten mediaanihinta on muuttunut Voltikan hintahistorian aikana. Jokainen mittauspäivä on yksi piste oikealla näkyvässä trendiviivassa.
                         @if ($historyPricingBases->contains('observed_seller_data') && $historyPricingBases->contains('canonical_calculation'))
-                            Vanhemmat pisteet perustuvat kyseisinä päivinä myyjiltä havaittuihin hintoihin. Kanonisen hintalaskennan käyttöönoton jälkeiset pisteet ovat Voltikan samasta myyjäaineistosta laskemia mediaaneja.
+                            Vanhemmat pisteet perustuvat kyseisinä päivinä myyjiltä havaittuihin hintoihin. Uudemmat mediaanihinnat Voltikka laskee myyjiltä kerätyistä sopimus- ja hintatiedoista.
                         @elseif ($historyPricingBases->contains('canonical_calculation'))
-                            Pisteet ovat Voltikan myyjäaineistosta kanonisella hintalaskennalla laskemia mediaaneja.
+                            Pisteet on laskettu myyjiltä kerätyistä sopimus- ja hintatiedoista.
                         @else
                             Pisteet perustuvat kyseisinä päivinä myyjiltä havaittuihin hintoihin.
                         @endif
@@ -559,10 +559,16 @@
                             Malli on tarkoitettu yksinkertaiseksi kuluttajan apuvälineeksi, ei markkinaennusteeksi. Se vastaa kysymykseen: <em>onko tämänhetkinen tarjottu hinta poikkeuksellisen korkea, matala vai tavanomainen seuraavaa kuukautta varten?</em>
                         </p>
                         <p>
-                            Nykyinen mediaani-/p20-/p80-hinta tulee {{ $usesCanonicalCurrentRetailInput ? 'Voltikan kanonisesta hintalaskennasta' : 'kyseisen päivän myyjiltä havaitusta hintatilastosta' }}. Historiallinen vertailuaineisto koostuu aiempina päivinä myyjiltä havaituista hinnoista. Kolmas syöte on suomalaisten EEX Base -sähköfutuurien settlement-hinta, joka muunnetaan kuluttajan hintayksikköön (sentit/kWh sis. ALV) ja painotetaan sopimuksen toimitusjakson yli.
+                            Nykyinen hintataso lasketaan tämän päivän määräaikaisista sopimuksista. Malli tarkastelee tyypillisen hinnan lisäksi markkinoiden edullisempaa ja kalliimpaa hintatasoa. Historiallinen vertailuaineisto koostuu aiempina päivinä myyjiltä havaituista hinnoista.
                         </p>
                         <p>
-                            Malli arvioi sopimustyypin tavanomaisen vähittäishintalisän havaitun historiallisen hinnan ja futuurien välisestä erosta (eksponentiaalinen liukuva keskiarvo). Markkinatason hinta on futuurien hinta + tavanomainen vähittäishintalisä. Jos tarjottu hinta on tämän yläpuolella, malli odottaa tasaantumista alaspäin; jos alapuolella, ylöspäin. Yksi 30 päivän ennuste sulkee noin 30 % tästä erosta.
+                            Lisäksi malli käyttää Suomen sähkön futuurihintoja EEX-pörssistä. Futuurihinnat muunnetaan senteiksi kilowattitunnilta, niihin lisätään arvonlisävero ja ne painotetaan sopimuskauden mukaan.
+                        </p>
+                        <p>
+                            Malli vertaa aiempia sopimushintoja saman ajan futuurihintoihin. Näin se arvioi kullekin sopimustyypille tavallisen eron sopimus- ja futuurihinnan välillä. Uusimmat havainnot vaikuttavat arvioon eniten.
+                        </p>
+                        <p>
+                            Markkinatason hinta saadaan lisäämällä tämä tavanomainen hintaero futuurihintaan. Jos nykyinen sopimushinta on tätä korkeampi, malli odottaa hinnan laskevan. Jos sopimushinta on tätä matalampi, malli odottaa hinnan nousevan. Ennuste olettaa, että noin 30&nbsp;% erosta poistuu 30 päivän aikana.
                         </p>
                         <p>
                             Pieniin liikkeisiin (alle 0,15&nbsp;c/kWh) sovelletaan "lievästi nouseva" / "lievästi laskeva" -leimaa, joka kääntyy kuluttajan suosituksessa neutraaliksi. Vain selvä nouseva tai laskeva näkymä antaa "lukitse pian" tai "voit odottaa" -suosituksen.

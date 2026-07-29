@@ -72,7 +72,6 @@ class FixedContractPriceForecast extends Component
                 'rowsByDuration' => collect(),
                 'history' => collect(),
                 'overall' => null,
-                'usesCanonicalCurrentRetailInput' => (bool) config('canonical_pricing.enabled', false),
                 'citations' => $this->citations(null),
                 'jsonLd' => $this->jsonLd(null, null),
             ];
@@ -108,7 +107,6 @@ class FixedContractPriceForecast extends Component
             'rowsByDuration' => $rowsByDuration,
             'history' => $history,
             'overall' => $this->buildOverallSummary($rowsByDuration),
-            'usesCanonicalCurrentRetailInput' => (bool) config('canonical_pricing.enabled', false),
             'citations' => $this->citations($forecastDate),
             'jsonLd' => $this->jsonLd($forecastDate, $history),
         ];
