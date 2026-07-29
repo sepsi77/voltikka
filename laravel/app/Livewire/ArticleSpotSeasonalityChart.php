@@ -38,11 +38,11 @@ class ArticleSpotSeasonalityChart extends Component
                 $date = Carbon::parse($m->period_start);
                 $label = $this->finnishMonths[$date->month] . " '" . substr((string) $date->year, 2);
                 $labels[] = $label;
-                $dayPrices[] = round($m->day_avg_with_tax, 2);
-                $nightPrices[] = round($m->night_avg_with_tax, 2);
+                $dayPrices[] = $m->day_avg_with_tax === null ? null : round((float) $m->day_avg_with_tax, 2);
+                $nightPrices[] = $m->night_avg_with_tax === null ? null : round((float) $m->night_avg_with_tax, 2);
                 $entries[] = [
                     'label' => $label,
-                    'avg' => (float) $m->avg_price_with_tax,
+                    'avg' => $m->avg_price_with_tax === null ? null : (float) $m->avg_price_with_tax,
                 ];
             }
 
@@ -65,12 +65,20 @@ class ArticleSpotSeasonalityChart extends Component
             return [];
         }
 
-        $sorted = collect($data['entries'])->sortBy('avg')->values();
+        $sorted = collect($data['entries'])
+            ->filter(fn (array $entry) => is_numeric($entry['avg']))
+            ->sortBy('avg')
+            ->values();
+
+        if ($sorted->isEmpty()) {
+            return [];
+        }
+
         $cheapest = $sorted->first();
         $expensive = $sorted->last();
 
-        $avgDay = collect($data['day'])->avg();
-        $avgNight = collect($data['night'])->avg();
+        $avgDay = collect($data['day'])->filter(fn ($value) => is_numeric($value))->avg();
+        $avgNight = collect($data['night'])->filter(fn ($value) => is_numeric($value))->avg();
 
         return [
             'cheapestLabel' => $cheapest['label'],

@@ -4,6 +4,20 @@
     $hasData = ! empty($leadChartPayload['x']);
     $from = $dataWindow['from'] ? Carbon::parse($dataWindow['from'])->translatedFormat('j.n.Y') : null;
     $to = $dataWindow['to'] ? Carbon::parse($dataWindow['to'])->translatedFormat('j.n.Y') : null;
+    $latestMedians = [];
+
+    foreach ($leadChartPayload['series'] ?? [] as $series) {
+        for ($index = count($series['values']) - 1; $index >= 0; $index--) {
+            if ($series['values'][$index] !== null) {
+                $latestMedians[] = [
+                    'label' => $series['label'],
+                    'value' => $series['values'][$index],
+                    'date' => Carbon::createFromTimestamp((int) $leadChartPayload['x'][$index])->translatedFormat('j.n.Y'),
+                ];
+                break;
+            }
+        }
+    }
 @endphp
 
 <section class="not-prose" aria-labelledby="contract-price-comparison-heading">
@@ -26,6 +40,13 @@
             Hintatilastoa ei ole vielä saatavilla tälle vertailulle.
         </div>
     @else
+        <p id="contract-price-comparison-takeaway" class="mt-6 max-w-prose text-base leading-7 text-slate-700">
+            <strong>Uusin saatavilla oleva viikkotaso:</strong>
+            @foreach ($latestMedians as $median)
+                {{ $median['label'] }} {{ number_format($median['value'], 0, ',', ' ') }} €/v ({{ $median['date'] }}){{ $loop->last ? '.' : ',' }}
+            @endforeach
+        </p>
+
         <div class="relative mt-8">
             <div
                 wire:key="article-contract-price-chart-weekly-5000-{{ $dataWindow['to'] }}"
@@ -34,6 +55,7 @@
                 class="relative h-72 w-full select-none"
                 role="img"
                 aria-label="Sopimustyyppien vuosikustannus {{ $consumptionLabel }} kilowattitunnin kulutuksella."
+                aria-describedby="contract-price-comparison-takeaway"
             >
                 <script type="application/json">{!! json_encode($leadChartPayload, JSON_UNESCAPED_UNICODE) !!}</script>
             </div>
@@ -68,6 +90,35 @@
                 @endforeach
             </ul>
         </div>
+
+        <details class="mt-6 border-t border-slate-200 pt-4">
+            <summary class="cursor-pointer font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral-500">
+                Näytä tiedot taulukkona
+            </summary>
+            <div class="mt-4 overflow-x-auto">
+                <table class="min-w-full border-collapse text-left text-sm text-slate-700 tabular-nums">
+                    <caption class="sr-only">Sähkösopimustyyppien viikoittaiset mediaanivuosikustannukset 5 000 kilowattitunnin kulutuksella.</caption>
+                    <thead>
+                        <tr class="border-b border-slate-200">
+                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Viikko</th>
+                            @foreach ($leadChartPayload['series'] as $series)
+                                <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">{{ $series['label'] }} (€/v)</th>
+                            @endforeach
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($leadChartPayload['x'] as $index => $timestamp)
+                            <tr class="border-b border-slate-100">
+                                <th scope="row" class="whitespace-nowrap px-3 py-2 font-medium text-slate-900">{{ Carbon::createFromTimestamp((int) $timestamp)->translatedFormat('j.n.Y') }}</th>
+                                @foreach ($leadChartPayload['series'] as $series)
+                                    <td class="whitespace-nowrap px-3 py-2">{{ $series['values'][$index] === null ? '–' : number_format($series['values'][$index], 0, ',', ' ') }}</td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </details>
 
         <p class="mt-5 max-w-prose text-base leading-7 text-slate-600">
             Käyrät näyttävät, millä tasolla eri sopimustyyppejä on tyypillisesti ollut tarjolla. Oma sopimuksesi voi olla tätä halvempi tai kalliimpi.

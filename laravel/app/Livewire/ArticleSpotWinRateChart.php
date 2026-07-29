@@ -98,19 +98,24 @@ class ArticleSpotWinRateChart extends Component
                 }
 
                 $labels[] = Carbon::parse($date)->format('j.n.');
-                $spotValues[] = round($spot->p20_value, 0);
+                $spotValues[] = $spot->p20_value === null ? null : round((float) $spot->p20_value, 0);
                 $firstDate = $firstDate ?? $date;
                 $lastDate = $date;
                 $totalDays++;
 
                 foreach ($byComparison as $key => $rows) {
                     $row = $rows[$date] ?? null;
-                    if ($row === null) {
+                    if ($row === null || $row->p20_value === null) {
                         $series[$key][] = null;
 
                         continue;
                     }
-                    $series[$key][] = round($row->p20_value, 0);
+
+                    $series[$key][] = round((float) $row->p20_value, 0);
+                    if ($spot->p20_value === null) {
+                        continue;
+                    }
+
                     $perSegmentTotals[$key]++;
                     if ($spot->p20_value < $row->p20_value) {
                         $wins['spot']++;
@@ -134,7 +139,7 @@ class ArticleSpotWinRateChart extends Component
                     $segmentSpotWins = 0;
                     foreach ($spotRows as $date => $spot) {
                         $row = $byComparison[$key][$date] ?? null;
-                        if ($row === null) {
+                        if ($row === null || $row->p20_value === null || $spot->p20_value === null) {
                             continue;
                         }
                         if ($spot->p20_value < $row->p20_value) {

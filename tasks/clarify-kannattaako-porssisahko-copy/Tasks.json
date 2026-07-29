@@ -1,5 +1,12 @@
 [
   {"name":"Review page copy source files","status":"done"},
   {"name":"Apply clearer copy to article and embedded widgets","status":"done"},
-  {"name":"Run focused checks","status":"done"}
+  {"name":"Run focused checks","status":"done"},
+  {"name":"State the current Spot and fixed 12-month median finding directly","status":"done"},
+  {"name":"Remove the individual-contract calculator and explain the market median limit","status":"done"},
+  {"name":"Make the market conclusion follow the current median comparison","status":"done"},
+  {"name":"Put market evidence before the contents list","status":"done"},
+  {"name":"Separate plain method, market-data, and editorial review language","status":"done"},
+  {"name":"Add accessible takeaways and data tables to all evidence charts","status":"done"},
+  {"name":"Verify the approved article improvements","status":"done"}
 ]

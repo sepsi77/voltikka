@@ -31,6 +31,13 @@
             Vertailutietoa ei ole vielä saatavilla.
         </div>
     @else
+        <p id="win-rate-takeaway" class="mt-6 max-w-prose text-base leading-7 text-slate-700">
+            <strong>Pörssisähkön halvemmat vertailupäivät:</strong>
+            @foreach ($segmentRates as $rate)
+                {{ $rate['label'] }} {{ $fmt($rate['spot_win_pct']) }} %{{ $loop->last ? '.' : ',' }}
+            @endforeach
+        </p>
+
         {{-- Headline figures: pörssisähkön voitto-osuus jokaista vertailutyyppiä vastaan --}}
         <dl class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-6 border-t border-slate-200 pt-6">
             @foreach ($segmentRates as $key => $rate)
@@ -76,9 +83,43 @@
                 <canvas id="winRateChart"
                         data-chart="{{ json_encode($chartData) }}"
                         data-segment-colors="{{ json_encode($segmentColors) }}"
-                        data-segment-dash="{{ json_encode($segmentDash) }}"></canvas>
+                        data-segment-dash="{{ json_encode($segmentDash) }}"
+                        role="img"
+                        aria-label="Pörssisähkön ja muiden sopimustyyppien edullisen hintatason päiväkohtainen vertailu."
+                        aria-describedby="win-rate-takeaway"></canvas>
             </div>
         </div>
+
+        <details class="mt-6 border-t border-slate-200 pt-4">
+            <summary class="cursor-pointer font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral-500">
+                Näytä tiedot taulukkona
+            </summary>
+            <div class="mt-4 overflow-x-auto">
+                <table class="min-w-full border-collapse text-left text-sm text-slate-700 tabular-nums">
+                    <caption class="sr-only">Pörssisähkön ja muiden sopimustyyppien edullisen hintatason päiväkohtainen vertailu.</caption>
+                    <thead>
+                        <tr class="border-b border-slate-200">
+                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Päivä</th>
+                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Pörssisähkö (€/v)</th>
+                            @foreach ($segmentMeta as $label)
+                                <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">{{ $label }} (€/v)</th>
+                            @endforeach
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($chartData['labels'] as $index => $label)
+                            <tr class="border-b border-slate-100">
+                                <th scope="row" class="whitespace-nowrap px-3 py-2 font-medium text-slate-900">{{ $label }}</th>
+                                <td class="whitespace-nowrap px-3 py-2">{{ $chartData['spot'][$index] === null ? '–' : number_format($chartData['spot'][$index], 0, ',', ' ') }}</td>
+                                @foreach ($segmentMeta as $key => $segmentLabel)
+                                    <td class="whitespace-nowrap px-3 py-2">{{ ($chartData['series'][$key][$index] ?? null) === null ? '–' : number_format($chartData['series'][$key][$index], 0, ',', ' ') }}</td>
+                                @endforeach
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </details>
 
         <p class="mt-5 max-w-prose text-base leading-7 text-slate-600">
             Luvut eivät ota huomioon omaa kulutuksen ajoitustasi. Pörssisähkön hyöty voi kasvaa, jos pystyt käyttämään sähköä enemmän edullisina yö- ja viikonlopputunteina.

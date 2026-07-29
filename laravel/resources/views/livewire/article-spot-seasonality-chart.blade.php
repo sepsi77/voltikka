@@ -20,6 +20,10 @@
             Kausitilastoa ei ole vielä saatavilla.
         </div>
     @else
+        <p id="seasonality-takeaway" class="mt-6 max-w-prose text-base leading-7 text-slate-700">
+            <strong>Aineiston halvin kuukausi oli {{ $metrics['cheapestLabel'] }}</strong>, jolloin keskihinta oli {{ $fmt($metrics['cheapestPrice']) }} c/kWh. Kallein oli {{ $metrics['expensiveLabel'] }}, jolloin keskihinta oli {{ $fmt($metrics['expensivePrice']) }} c/kWh.
+        </p>
+
         {{-- Headline figures --}}
         <dl class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-6 border-t border-slate-200 pt-6">
             <div>
@@ -65,9 +69,42 @@
             </div>
 
             <div class="relative" style="height: 280px;">
-                <canvas id="seasonalityChart" data-chart="{{ json_encode($chartData) }}"></canvas>
+                <canvas
+                    id="seasonalityChart"
+                    data-chart="{{ json_encode($chartData) }}"
+                    role="img"
+                    aria-label="Pörssisähkön kuukausittaiset päivä- ja yöhinnat."
+                    aria-describedby="seasonality-takeaway"
+                ></canvas>
             </div>
         </div>
+
+        <details class="mt-6 border-t border-slate-200 pt-4">
+            <summary class="cursor-pointer font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral-500">
+                Näytä tiedot taulukkona
+            </summary>
+            <div class="mt-4 overflow-x-auto">
+                <table class="min-w-full border-collapse text-left text-sm text-slate-700 tabular-nums">
+                    <caption class="sr-only">Pörssisähkön kuukausittaiset päivä- ja yöhinnat.</caption>
+                    <thead>
+                        <tr class="border-b border-slate-200">
+                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Kuukausi</th>
+                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Päivä klo 7–22 (c/kWh)</th>
+                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Yö klo 22–7 (c/kWh)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($chartData['labels'] as $index => $label)
+                            <tr class="border-b border-slate-100">
+                                <th scope="row" class="whitespace-nowrap px-3 py-2 font-medium text-slate-900">{{ $label }}</th>
+                                <td class="whitespace-nowrap px-3 py-2">{{ $fmt($chartData['day'][$index]) }}</td>
+                                <td class="whitespace-nowrap px-3 py-2">{{ $fmt($chartData['night'][$index]) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </details>
 
         <p class="mt-5 max-w-prose text-base leading-7 text-slate-600">
             Talvipäivinä kysyntäpiikit nostavat hintaa merkittävästi, kun taas yöllä ja viikonloppuisin hinta

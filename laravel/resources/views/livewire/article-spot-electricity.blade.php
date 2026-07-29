@@ -1,4 +1,25 @@
 <div>
+    @php
+        $spotMedian = $marketSnapshot['spot'] ?? null;
+        $fixedMedian = $marketSnapshot['fixed'] ?? null;
+        $hasMedianComparison = is_numeric($spotMedian) && is_numeric($fixedMedian);
+        $marketResult = ! $hasMedianComparison
+            ? 'unavailable'
+            : ($spotMedian < $fixedMedian ? 'spot_lower' : ($fixedMedian < $spotMedian ? 'fixed_lower' : 'equal'));
+        $marketConclusion = match ($marketResult) {
+            'spot_lower' => 'Voltikan nykyisessä markkinavertailussa pörssisähkösopimusten vuosikustannuksen mediaani on 5 000 kWh kulutuksella pienempi kuin kiinteiden 12 kuukauden sopimusten.',
+            'fixed_lower' => 'Voltikan nykyisessä markkinavertailussa kiinteiden 12 kuukauden sopimusten vuosikustannuksen mediaani on 5 000 kWh kulutuksella pienempi kuin pörssisähkösopimusten.',
+            'equal' => 'Voltikan nykyisessä markkinavertailussa pörssisähkösopimusten ja kiinteiden 12 kuukauden sopimusten vuosikustannusten mediaanit ovat yhtä suuret 5 000 kWh kulutuksella.',
+            default => 'Nykyistä pörssisähkösopimusten ja kiinteiden 12 kuukauden sopimusten mediaanivertailua ei ole saatavilla.',
+        };
+        $marketSummaryHeading = match ($marketResult) {
+            'spot_lower' => 'Markkinan mediaani suosii nyt pörssisähköä.',
+            'fixed_lower' => 'Markkinan mediaani suosii nyt kiinteää 12 kuukauden sopimusta.',
+            'equal' => 'Markkinan mediaanit ovat nyt yhtä suuret.',
+            default => 'Nykyistä mediaanivertailua ei ole saatavilla.',
+        };
+    @endphp
+
     {{-- JSON-LD Structured Data --}}
     <script type="application/ld+json">
         {!! json_encode($jsonLdSchema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}
@@ -19,7 +40,7 @@
                         Kannattaako pörssisähkö?
                     </h1>
                     <p class="text-slate-300 text-lg md:text-xl max-w-2xl mx-auto">
-                        Pörssisähkö voi olla halpa, jos kestät hinnan vaihtelua ja voit ajoittaa kulutusta. Katso, milloin se on ollut edullinen ja milloin kiinteä hinta voi olla turvallisempi valinta.
+                        {{ $marketConclusion }} Pörssisähkön hinta vaihtelee silti tunneittain, joten sähkölasku voi muuttua paljon kuukaudesta toiseen.
                     </p>
                 </div>
             </div>
@@ -39,24 +60,11 @@
             </ol>
         </nav>
 
-        {{-- In-page TOC --}}
-        <nav class="mb-12 border-l-2 border-slate-200 pl-5" aria-label="Artikkelin sisältö">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 mb-3">Tässä artikkelissa</p>
-            <ol class="space-y-1.5 text-[15px] text-slate-700">
-                <li><a href="#mika-on" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Mikä on pörssisähkö?</a></li>
-                <li><a href="#sopimushinnat" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Miten pörssisähkö vertautuu muihin sopimuksiin?</a></li>
-                <li><a href="#hintavaihtelu" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Tuntihintojen vaihtelu ja riskit</a></li>
-                <li><a href="#vertailu" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Vertaile omalla kulutuksella</a></li>
-                <li><a href="#kenelle" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Kenelle pörssisähkö sopii</a></li>
-                <li><a href="#yhteenveto" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Yhteenveto</a></li>
-            </ol>
-        </nav>
-
         {{-- Market Snapshot --}}
-        @if(!empty($marketSnapshot['spot']))
+        @if($hasMedianComparison)
         @php
-            $diff = $marketSnapshot['diff'] ?? 0;
-            $diffPct = $marketSnapshot['diffPercent'] ?? 0;
+            $diff = $fixedMedian - $spotMedian;
+            $diffPct = $fixedMedian > 0 ? round(($diff / $fixedMedian) * 100, 1) : 0;
             $diffAbs = abs($diff);
             $diffPctAbs = abs($diffPct);
             $diffSign = $diff > 0 ? '−' : ($diff < 0 ? '+' : '');
@@ -85,7 +93,10 @@
             </div>
             <p class="mt-2 text-xs text-slate-500">
                 Tilanne {{ $marketSnapshot['date'] }}. Hinnat sisältävät ALV 25,5 %.
-                {{ ($marketSnapshot['pricing_basis'] ?? null) === 'canonical_calculation' ? 'Nykyhinnat ovat kanonisia laskelmia.' : 'Nykyhinnat perustuvat havaittuun myyjädataan.' }}
+                {{ ($marketSnapshot['pricing_basis'] ?? null) === 'canonical_calculation' ? 'Nykyiset vuosikustannukset on laskettu ajantasaisista sopimushintatiedoista samalla menetelmällä.' : 'Nykyhinnat perustuvat havaittuun myyjädataan.' }}
+            </p>
+            <p class="mt-3 max-w-prose text-sm leading-6 text-slate-600">
+                Yksittäinen sopimus voi poiketa oman sopimustyyppinsä mediaanista. Siksi mediaanivertailu ei ratkaise, kumpi on halvempi jokaisessa sopimusparissa.
             </p>
         </div>
         @endif
@@ -93,9 +104,21 @@
         {{-- Lead paragraph --}}
         <article class="prose prose-slate prose-lg max-w-prose">
             <p class="lead">
-                <strong>Lyhyt vastaus:</strong> pörssisähkö voi olla edullinen, jos pystyt siirtämään kulutusta halvoille tunneille ja hyväksyt hintavaihtelun. Kiinteä hinta voi olla parempi, jos haluat ennustettavan laskun tai et halua seurata sähkön tuntihintoja.
+                <strong>Lyhyt vastaus:</strong> {{ $marketConclusion }} Yksittäinen sopimus voi poiketa oman sopimustyyppinsä mediaanista. Siksi mediaanivertailu ei ratkaise jokaista sopimusparia.
             </p>
         </article>
+
+        {{-- In-page TOC --}}
+        <nav class="mt-10 mb-12 border-l-2 border-slate-200 pl-5" aria-label="Artikkelin sisältö">
+            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 mb-3">Tässä artikkelissa</p>
+            <ol class="space-y-1.5 text-[15px] text-slate-700">
+                <li><a href="#mika-on" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Mikä on pörssisähkö?</a></li>
+                <li><a href="#sopimushinnat" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Miten pörssisähkö vertautuu muihin sopimuksiin?</a></li>
+                <li><a href="#hintavaihtelu" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Tuntihintojen vaihtelu ja riskit</a></li>
+                <li><a href="#kenelle" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Kenelle pörssisähkö sopii</a></li>
+                <li><a href="#yhteenveto" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Yhteenveto</a></li>
+            </ol>
+        </nav>
 
         {{-- Section: Mikä on pörssisähkö? --}}
         <section class="mt-14 pt-10 border-t border-slate-100">
@@ -153,23 +176,6 @@
             <livewire:article-spot-volatility-chart />
         </section>
 
-        {{-- Section: Vertailulaskuri --}}
-        <section id="vertailu" class="not-prose mt-14 pt-10 border-t border-slate-100 scroll-mt-24">
-            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-coral-700">Kokeile omalla kulutuksellasi</p>
-            <h2 class="mt-2 text-2xl font-bold tracking-tight text-slate-900">Vertaile pörssisähköä omalla kulutuksellasi</h2>
-            <div class="mt-3 space-y-3 max-w-prose text-base leading-7 text-slate-600">
-                <p>
-                    Laskuri vertaa valitsemaasi pörssisopimusta toiseen sopimukseen samalla vuosikulutuksella. Voit vaihtaa vertailusopimuksen ja kulutusmäärän.
-                </p>
-                <p>
-                    Pörssisähkön arvio perustuu viime vuoden saman kuukauden toteutuneisiin spot-hintoihin. Se ei ennusta tulevaa hintaa.
-                </p>
-            </div>
-            <div class="mt-10">
-                <livewire:contract-type-comparison comparison-mode="pricing_model" comparison-context="spot_article" :show-mode-tabs="true" />
-            </div>
-        </section>
-
         {{-- Section: Kenelle pörssisähkö sopii --}}
         <section class="mt-14 pt-10 border-t border-slate-100">
             <article class="prose prose-slate max-w-prose">
@@ -213,15 +219,15 @@
                 <div class="space-y-3">
                     <div class="flex items-start gap-3">
                         <span class="text-coral-700 font-bold text-lg leading-none mt-0.5">1.</span>
-                        <span class="text-slate-700"><strong>Pörssisähkö voi kannattaa</strong>, jos voit siirtää kulutusta halvoille tunneille tai kulutuksesi on suuri. Aineisto näyttää, että edullisimmat pörssisopimukset ovat usein olleet halvempia kuin edullisimmat kiinteähintaiset vaihtoehdot.</span>
+                        <span class="text-slate-700"><strong>{{ $marketSummaryHeading }}</strong> {{ $marketConclusion }}</span>
                     </div>
                     <div class="flex items-start gap-3">
                         <span class="text-coral-700 font-bold text-lg leading-none mt-0.5">2.</span>
-                        <span class="text-slate-700"><strong>Kiinteä hinta voi olla parempi</strong>, jos haluat ennustettavan laskun, et voi ajoittaa kulutusta tai kulutuksesi on pieni.</span>
+                        <span class="text-slate-700"><strong>Yksittäinen sopimus voi poiketa mediaanista.</strong> Sopimus voi poiketa oman sopimustyyppinsä mediaanista, joten mediaanivertailu ei ratkaise jokaista sopimusparia.</span>
                     </div>
                     <div class="flex items-start gap-3">
                         <span class="text-coral-700 font-bold text-lg leading-none mt-0.5">3.</span>
-                        <span class="text-slate-700"><strong>Tarkista oma tilanteesi laskurilla.</strong> Pörssisähkön hyöty riippuu kulutuksen määrästä, ajoituksesta ja siitä, kuinka hyvin kestät hintapiikkejä.</span>
+                        <span class="text-slate-700"><strong>Vertaa nyt tarjolla olevat sopimukset.</strong> Tarkista hinnat ja sopimusehdot <a href="/sahkosopimus" class="font-semibold text-coral-700 underline decoration-coral-300 underline-offset-4 hover:text-coral-800">sähkösopimusvertailusta</a>.</span>
                     </div>
                 </div>
             </div>
@@ -258,7 +264,7 @@
             </div>
         </section>
 
-        <x-methodology-byline updated="29.5.2026" class="mt-12 pt-6 border-t border-slate-200" />
+        <x-methodology-byline updated="29.5.2026" date-label="Sisältö tarkistettu" class="mt-12 pt-6 border-t border-slate-200" />
 
     </div>
 </div>

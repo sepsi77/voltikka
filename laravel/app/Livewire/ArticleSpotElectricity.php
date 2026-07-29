@@ -37,8 +37,8 @@ class ArticleSpotElectricity extends Component
         return [
             '@context' => 'https://schema.org',
             '@type' => 'Article',
-            'headline' => 'Kannattaako pörssisähkö? Vertailu ja laskuri 2026',
-            'description' => 'Kannattaako pörssisähkö sinulle? Vertaile pörssisähköä ja kiinteähintaista sopimusta omalla kulutuksellasi.',
+            'headline' => 'Kannattaako pörssisähkö? Markkinavertailu 2026',
+            'description' => 'Kannattaako pörssisähkö? Katso pörssisähkön ja kiinteiden 12 kuukauden sopimusten mediaanivuosikustannukset 5 000 kWh kulutuksella sekä hintavaihtelun riskit.',
             'author' => [
                 '@type' => 'Organization',
                 'name' => 'Voltikka',
@@ -173,8 +173,8 @@ class ArticleSpotElectricity extends Component
             'marketSnapshot' => $this->marketSnapshot,
             'seasonalityData' => $this->seasonalityData,
         ])->layout('layouts.app', [
-            'title' => 'Kannattaako pörssisähkö? Vertailu ja laskuri 2026 | Voltikka',
-            'metaDescription' => 'Kannattaako pörssisähkö sinulle? Vertaile pörssisähköä ja kiinteähintaista sopimusta omalla kulutuksellasi. Näe todelliset säästöt ja riskit.',
+            'title' => 'Kannattaako pörssisähkö? Markkinavertailu 2026 | Voltikka',
+            'metaDescription' => 'Kannattaako pörssisähkö? Katso pörssisähkön ja kiinteiden 12 kuukauden sopimusten mediaanivuosikustannukset 5 000 kWh kulutuksella sekä hintavaihtelun riskit.',
             'canonical' => config('app.url').'/sahkosopimus/kannattaako-porssisahko',
         ]);
     }

@@ -20,6 +20,10 @@
             Volatiliteettitietoja ei ole vielä saatavilla.
         </div>
     @else
+        <p id="volatility-takeaway" class="mt-6 max-w-prose text-base leading-7 text-slate-700">
+            <strong>Viimeisen vuoden toteutuneet tuntihinnat:</strong> alin {{ $fmt($metrics['min']) }} c/kWh, ylin {{ $fmt($metrics['max']) }} c/kWh ja keskiarvo {{ $fmt($metrics['avg']) }} c/kWh.
+        </p>
+
         {{-- Headline figures --}}
         <dl class="mt-6 grid grid-cols-2 lg:grid-cols-5 gap-x-6 gap-y-6 border-t border-slate-200 pt-6">
             <div>
@@ -73,9 +77,48 @@
             </div>
 
             <div class="relative" style="height: 300px;">
-                <canvas id="volatilityChart" data-chart="{{ json_encode($chartData) }}"></canvas>
+                <canvas
+                    id="volatilityChart"
+                    data-chart="{{ json_encode($chartData) }}"
+                    role="img"
+                    aria-label="Pörssisähkön tuntihintojen viikoittainen vaihtelu."
+                    aria-describedby="volatility-takeaway"
+                ></canvas>
             </div>
         </div>
+
+        <details class="mt-6 border-t border-slate-200 pt-4">
+            <summary class="cursor-pointer font-semibold text-slate-700 underline decoration-slate-300 underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral-500">
+                Näytä tiedot taulukkona
+            </summary>
+            <div class="mt-4 overflow-x-auto">
+                <table class="min-w-full border-collapse text-left text-sm text-slate-700 tabular-nums">
+                    <caption class="sr-only">Pörssisähkön tuntihintojen viikoittainen vaihtelu.</caption>
+                    <thead>
+                        <tr class="border-b border-slate-200">
+                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Viikko</th>
+                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Alin (c/kWh)</th>
+                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">20 % alitti (c/kWh)</th>
+                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Mediaani (c/kWh)</th>
+                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">80 % alitti (c/kWh)</th>
+                            <th scope="col" class="whitespace-nowrap px-3 py-2 font-semibold text-slate-900">Ylin (c/kWh)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($chartData['labels'] as $index => $label)
+                            <tr class="border-b border-slate-100">
+                                <th scope="row" class="whitespace-nowrap px-3 py-2 font-medium text-slate-900">{{ $label }}</th>
+                                <td class="whitespace-nowrap px-3 py-2">{{ $fmt($chartData['min'][$index]) }}</td>
+                                <td class="whitespace-nowrap px-3 py-2">{{ $fmt($chartData['p20'][$index]) }}</td>
+                                <td class="whitespace-nowrap px-3 py-2">{{ $fmt($chartData['median'][$index]) }}</td>
+                                <td class="whitespace-nowrap px-3 py-2">{{ $fmt($chartData['p80'][$index]) }}</td>
+                                <td class="whitespace-nowrap px-3 py-2">{{ $fmt($chartData['max'][$index]) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </details>
 
         <p class="mt-5 max-w-prose text-base leading-7 text-slate-600">
             Mitä leveämpi värillinen alue on, sitä enemmän ajoituksella voi olla merkitystä. Yksittäiset hintapiikit voivat olla rajuja, mutta ne osuvat usein vain pieneen osaan vuorokaudesta.

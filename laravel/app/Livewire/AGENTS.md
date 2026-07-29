@@ -257,8 +257,14 @@ Important semantics:
 ## `ArticleSpotElectricity`
 
 - The `Markkinatilanne nyt` snapshot uses only `annual_cost` rows on the latest date for `ContractPriceBasis::expectedCurrent()`. Canonical mode cannot fall back to a newer observed date; feature-off uses observed rows.
+- Page order is hero, breadcrumb, current market snapshot when available, short answer, contents list, and article sections. Evidence comes before in-page navigation.
+- The short answer compares the current market median annual costs of Spot and fixed 12-month contracts at 5,000 kWh. Its conclusion follows the current snapshot. It names Spot or fixed 12-month contracts only when that median is lower. It gives a neutral result when the medians are equal or unavailable.
+- Public method copy uses plain Finnish and does not expose internal canonical terms. The snapshot date is the market-data date. The bottom byline labels 29.5.2026 as the editorial review date.
+- An individual contract can differ from the median for its contract type. The median result does not decide each contract pair.
+- The article does not embed `ContractTypeComparison`. An individual-contract calculator can give a different result from the market median and make the editorial answer unclear. The summary links to the normal contract comparison instead.
 - Its six-hour cache key includes canonical state, expected basis, latest relevant date, and maximum `updated_at`, so flag changes and same-day rewrites create a new payload.
 - The two contract-statistics article series end on the latest date for `ContractPriceBasis::expectedCurrent()`, keep older observed rows as historical evidence, and read only the trailing year. Their cold-cache reads select only date, segment, and the plotted value through the base query builder; they cache small prepared arrays, not unbounded Eloquent collections. The volatility widget streams its already date-bounded hourly rows with the same selective base-query pattern. These limits keep the eager article route below the 128 MB production PHP limit.
+- Each of the four evidence charts has a visible data-based takeaway and a native `details` disclosure with a semantic table of all plotted values. The chart refers to the takeaway with `aria-describedby`. Null values stay as a dash. Build these views only from the existing prepared payloads.
 
 ## `ArticleContractPriceComparisonChart`
 
