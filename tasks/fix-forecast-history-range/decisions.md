@@ -1,0 +1,13 @@
+# Decisions
+
+- The affected section describes the offered fixed-term median-price timeline, not the model's forecast-run history. Its source must match that meaning.
+- Current forecast rows must still pass the configured model-version and current-input-basis checks.
+- Root cause: `FixedContractPriceForecast::historySeries()` read persisted forecast rows through `eligibleForPublicDisplay()`. Thus, the offered-price section was limited to current-model canonical-input forecast runs, which started on 27.7.2026, instead of reading the longer daily offered-price statistics.
+- Read-only production validation found 186 observed-seller points per fixed-term segment from 21.1.2026 through 26.7.2026, followed by canonical-calculation points from 27.7.2026 onward. Reading observed rows alone would fix the start date but freeze `Tuorein` on 26.7.2026.
+- The section therefore reads both valid bases from `contract_price_daily_statistics`: older `observed_seller_data` evidence and canonical daily calculations after rollout. It filters to fixed-term 6/12/24-month `energy_price` rows with null consumption and non-null median values.
+- Each segment and date produces one point. If both bases exist for the same date, the canonical row wins so raw observed pricing cannot replace a validated canonical value.
+- The history payload retains each point's pricing basis. Page copy explains the provenance periods without a hardcoded rollout date.
+- The range uses the minimum and maximum dates across all duration series. Date-only values are converted through UTC before they become chart timestamps, so the displayed and JSON-LD dates do not move to the prior day in the Europe/Helsinki timezone.
+- Regression coverage uses an old forecast row, one eligible current forecast, older observed statistics, later canonical statistics, and duplicate-basis rows for the newest date. It verifies the full range, one point per date, canonical duplicate preference, and that forecast rows do not become history.
+- Verification: `cd laravel && php artisan test --filter='FixedContractPriceForecastingTest'` passed 10 tests with 67 assertions. Focused Pint passed for both changed PHP files. `python3 -m json.tool tasks/fix-forecast-history-range/tasks.json` and `git diff --check` passed.
+- The full Laravel run passed 1,594 tests and failed one unrelated existing strict-float assertion in `ContractDetailPresenterTest::test_six_month_detail_copy_uses_the_real_term_benefit_not_the_annualized_saving`: the calculation returned `29.999999999999943` while the test requires `30.0`. The isolated rerun reproduced it. No contract-detail or canonical-calculator file changed in this task.

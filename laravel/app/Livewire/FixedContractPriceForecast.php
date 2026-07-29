@@ -2,7 +2,9 @@
 
 namespace App\Livewire;
 
+use App\Models\ContractPriceDailyStatistic;
 use App\Models\FixedContractPriceForecast as ForecastModel;
+use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Livewire\Component;
@@ -274,38 +276,44 @@ class FixedContractPriceForecast extends Component
     }
 
     /**
-     * Historical median-forecast time series per duration, used for the trend chart.
+     * Historical offered-price medians per duration, used for the trend chart.
      *
      * @return Collection<int, array<string,mixed>>
      */
     private function historySeries(): Collection
     {
-        $rows = ForecastModel::query()
-            ->eligibleForPublicDisplay()
-            ->where('target_quantile', 'median')
-            ->orderBy('forecast_date')
-            ->get([
-                'forecast_date',
-                'duration_months',
-                'current_price_cents_per_kwh',
-                'forecast_price_cents_per_kwh',
-                'fair_price_cents_per_kwh',
-                'hedge_cost_cents_per_kwh',
-            ]);
+        $durationBySegment = array_flip(FixedTermPriceForecastService::SEGMENTS);
+        $rows = ContractPriceDailyStatistic::query()
+            ->whereIn('segment_key', array_keys($durationBySegment))
+            ->where('metric_key', 'energy_price')
+            ->whereIn('pricing_basis', [
+                FixedTermPriceForecastService::OBSERVED_PRICING_BASIS,
+                FixedTermPriceForecastService::CANONICAL_PRICING_BASIS,
+            ])
+            ->whereNull('consumption_kwh')
+            ->whereNotNull('median_value')
+            ->orderBy('stat_date')
+            ->get(['stat_date', 'segment_key', 'pricing_basis', 'median_value']);
 
-        return $rows->groupBy('duration_months')->map(function (Collection $group, $duration) {
-            $points = $group->sortBy('forecast_date')->values();
+        return $rows->groupBy('segment_key')->map(function (Collection $segmentRows, string $segment) use ($durationBySegment) {
+            $duration = (int) $durationBySegment[$segment];
+            $points = $segmentRows
+                ->groupBy(fn (ContractPriceDailyStatistic $stat) => $stat->stat_date->toDateString())
+                ->map(fn (Collection $sameDate) => $sameDate->firstWhere(
+                    'pricing_basis',
+                    FixedTermPriceForecastService::CANONICAL_PRICING_BASIS,
+                ) ?? $sameDate->first())
+                ->sortBy(fn (ContractPriceDailyStatistic $stat) => $stat->stat_date)
+                ->values();
 
             return [
-                'duration_months' => (int) $duration,
-                'label' => $this->durationShortLabels[(int) $duration] ?? ($duration.' kk'),
-                'x' => $points->map(fn ($r) => Carbon::parse($r->forecast_date)->getTimestamp())->all(),
-                'current' => $points->map(fn ($r) => (float) $r->current_price_cents_per_kwh)->all(),
-                'forecast' => $points->map(fn ($r) => (float) $r->forecast_price_cents_per_kwh)->all(),
-                'fair' => $points->map(fn ($r) => (float) $r->fair_price_cents_per_kwh)->all(),
-                'hedge' => $points->map(fn ($r) => (float) $r->hedge_cost_cents_per_kwh)->all(),
+                'duration_months' => $duration,
+                'label' => $this->durationShortLabels[$duration] ?? ($duration.' kk'),
+                'x' => $points->map(fn (ContractPriceDailyStatistic $stat) => Carbon::parse($stat->stat_date->toDateString(), 'UTC')->getTimestamp())->all(),
+                'current' => $points->map(fn (ContractPriceDailyStatistic $stat) => (float) $stat->median_value)->all(),
+                'pricing_bases' => $points->pluck('pricing_basis')->all(),
             ];
-        })->values();
+        })->sortBy('duration_months')->values();
     }
 
     private function pctChange(?float $base, ?float $change): ?float
@@ -359,7 +367,7 @@ class FixedContractPriceForecast extends Component
         $earliestTs = $historyDates->min();
         $latestTs = $historyDates->max();
         $temporalCoverage = $earliestTs && $latestTs
-            ? Carbon::createFromTimestamp($earliestTs)->toDateString().'/'.Carbon::createFromTimestamp($latestTs)->toDateString()
+            ? Carbon::createFromTimestampUTC($earliestTs)->toDateString().'/'.Carbon::createFromTimestampUTC($latestTs)->toDateString()
             : null;
 
         return [

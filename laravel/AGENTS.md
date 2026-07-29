@@ -168,6 +168,7 @@ Important semantics:
 - reruns skip existing same date/horizon/duration/quantile/model-version rows unless `--overwrite` is passed, preserving historical forecast records
 - evaluation keeps matured actuals as observed seller data and records that provenance in `source_metadata`
 - the public page and comparison-page teaser accept only the configured model version and expected current-input basis; old or missing-provenance rows are hidden
+- the public offered-price history is separate from forecast-run eligibility: it reads the complete non-null fixed-term `energy_price` median timeline from daily statistics, with older `observed_seller_data` evidence followed by canonical daily calculations. A model-version rollout cannot truncate the history, and a canonical rollout cannot freeze its latest point
 
 ### `electricity_contracts.replaced_by_contract_id`
 - Nullable FK to `electricity_contracts.id`

@@ -1,0 +1,16 @@
+{
+  "tasks": [
+    {
+      "name": "Find why the public history range starts on 27.7.2026",
+      "status": "completed"
+    },
+    {
+      "name": "Use the full valid historical median-price dataset",
+      "status": "completed"
+    },
+    {
+      "name": "Add focused regression tests and update documentation",
+      "status": "completed"
+    }
+  ]
+}

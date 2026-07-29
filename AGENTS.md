@@ -230,6 +230,7 @@ php artisan test --filter="ContractsFilterTest"
 - In canonical mode, the current retail input must be a `canonical_calculation` statistic; observed seller statistics remain separate historical EWMA evidence and matured actuals
 - Uses FI EEX futures-implied hedge costs plus EWMA retail premium / gap closure
 - Persists current and historical input provenance in `source_metadata`; old model or missing/wrong-basis rows are not shown as current forecasts
+- The public "Mediaanihinta viime kuukausina" section is not forecast-run history. It reads the complete fixed-term `energy_price` median timeline from `contract_price_daily_statistics`: older `observed_seller_data` evidence followed by canonical daily calculations after that rollout. Current forecast rows still require the configured model and current-input basis
 - Persists forecasts and later fills actual prices/errors so forecast quality can be tracked over time
 - See `laravel/app/Services/PriceForecasting/AGENTS.md` before changing model semantics
 

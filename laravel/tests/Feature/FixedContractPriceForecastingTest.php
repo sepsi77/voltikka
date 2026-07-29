@@ -235,6 +235,32 @@ class FixedContractPriceForecastingTest extends TestCase
         $this->assertSame('2026-05-23', $insight['forecast']['forecast_date']);
     }
 
+    public function test_public_history_uses_complete_daily_statistics_timeline_in_canonical_mode(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        config()->set('price_forecasting.fixed_term.model_version', 'current_model');
+
+        $this->forecastRow('2026-04-01', 'old_model', 'observed_seller_data', 6.66);
+        $this->forecastRow('2026-07-29', 'current_model', 'canonical_calculation', 18.83);
+
+        $this->retailStat('2026-05-01', 12, median: 7.10);
+        $this->retailStat('2026-06-15', 12, median: 7.20);
+        $this->retailStat('2026-07-26', 12, median: 7.30);
+        $this->retailStat('2026-07-27', 12, median: 7.40, pricingBasis: 'canonical_calculation');
+        $this->retailStat('2026-07-29', 12, median: 99.99);
+        $this->retailStat('2026-07-29', 12, median: 7.50, pricingBasis: 'canonical_calculation');
+
+        $this->get('/sahkosopimus/sahkon-hintaennuste')
+            ->assertOk()
+            ->assertSeeText('Aineisto on kerätty 1.5.2026–29.7.2026.')
+            ->assertSee('5 mittausta')
+            ->assertSee('7,10')
+            ->assertSee('7,50')
+            ->assertSeeText('Vanhemmat pisteet perustuvat kyseisinä päivinä myyjiltä havaittuihin hintoihin.')
+            ->assertDontSee('6,66')
+            ->assertDontSee('99,99');
+    }
+
     public function test_public_page_keeps_feature_off_observed_forecasts_functional(): void
     {
         config()->set('canonical_pricing.enabled', false);

@@ -180,12 +180,12 @@ Primary files:
 
 Purpose:
 - renders `/sahkosopimus/sahkon-hintaennuste`
-- presents the current 6/12/24-month fixed-term forecast and its eligible history
+- presents the current 6/12/24-month fixed-term forecast and the offered-price history
 
 Important semantics:
-- the page reads only `FixedContractPriceForecast::eligibleForPublicDisplay()`: configured model version plus canonical current-retail provenance in canonical mode, or observed current-retail provenance in feature-off mode
+- the page reads current forecasts only through `FixedContractPriceForecast::eligibleForPublicDisplay()`: configured model version plus canonical current-retail provenance in canonical mode, or observed current-retail provenance in feature-off mode
 - old-model, missing-provenance, and wrong-basis rows are not current forecasts; when no eligible rows exist, render the existing unavailable state
-- history uses the same eligibility scope, so the chart cannot silently mix old input semantics into the current model
+- the "Mediaanihinta viime kuukausina" history is not forecast-run history. It reads the complete non-null fixed-term median `energy_price` timeline from `contract_price_daily_statistics` with null consumption: older `observed_seller_data` evidence and canonical daily calculations after rollout. If both bases exist for one date, canonical wins, so each duration has one point per day. Model version and futures availability must not truncate it
 - page copy separates the current retail input, historical observed seller evidence, and EEX futures input without exposing metadata internals or claiming certainty
 - comparison-page forecast teasers use the same model scope through `ContractMarketInsightService`
 

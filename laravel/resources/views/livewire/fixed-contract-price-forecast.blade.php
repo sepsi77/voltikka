@@ -452,14 +452,13 @@
                 </div>
             </section>
 
-            {{-- Historical forecast trend --}}
+            {{-- Historical offered-price trend --}}
             @if ($history->isNotEmpty())
                 @php
-                    // Aineiston aikaväli intro-tekstiin. $history on koottu vain median-kvantiilista,
-                    // joten päivämäärät ovat samat sopimuspituuksien välillä; käytetään ensimmäistä sarjaa.
-                    $historyDates = $history->first()['x'] ?? [];
-                    $historyFirstDate = ! empty($historyDates) ? Cb::createFromTimestamp(min($historyDates))->translatedFormat('j.n.Y') : null;
-                    $historyLastDate = ! empty($historyDates) ? Cb::createFromTimestamp(max($historyDates))->translatedFormat('j.n.Y') : null;
+                    $historyDates = $history->flatMap(fn ($series) => $series['x'] ?? []);
+                    $historyPricingBases = $history->flatMap(fn ($series) => $series['pricing_bases'] ?? [])->unique();
+                    $historyFirstDate = $historyDates->isNotEmpty() ? Cb::createFromTimestampUTC($historyDates->min())->translatedFormat('j.n.Y') : null;
+                    $historyLastDate = $historyDates->isNotEmpty() ? Cb::createFromTimestampUTC($historyDates->max())->translatedFormat('j.n.Y') : null;
                 @endphp
                 <section class="mb-20" aria-labelledby="history-heading">
                     <h2 id="history-heading" class="text-2xl font-bold text-slate-900 tracking-tight mb-2">
@@ -469,7 +468,14 @@
                         @if ($historyFirstDate && $historyLastDate)
                             Aineisto on kerätty {{ $historyFirstDate }}–{{ $historyLastDate }}.
                         @endif
-                        Taulukko näyttää, miten tarjottujen määräaikaisten sopimusten mediaanihinta on muuttunut Voltikan ennustehistorian aikana. Jokainen mittauspäivä on yksi piste oikealla näkyvässä trendiviivassa.
+                        Taulukko näyttää, miten määräaikaisten sopimusten mediaanihinta on muuttunut Voltikan hintahistorian aikana. Jokainen mittauspäivä on yksi piste oikealla näkyvässä trendiviivassa.
+                        @if ($historyPricingBases->contains('observed_seller_data') && $historyPricingBases->contains('canonical_calculation'))
+                            Vanhemmat pisteet perustuvat kyseisinä päivinä myyjiltä havaittuihin hintoihin. Kanonisen hintalaskennan käyttöönoton jälkeiset pisteet ovat Voltikan samasta myyjäaineistosta laskemia mediaaneja.
+                        @elseif ($historyPricingBases->contains('canonical_calculation'))
+                            Pisteet ovat Voltikan myyjäaineistosta kanonisella hintalaskennalla laskemia mediaaneja.
+                        @else
+                            Pisteet perustuvat kyseisinä päivinä myyjiltä havaittuihin hintoihin.
+                        @endif
                     </p>
 
                     <div class="-mx-4 sm:mx-0 overflow-x-auto">

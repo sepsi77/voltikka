@@ -26,7 +26,8 @@ Model v2 conventions:
 - The model estimates normal retail premium with EWMA, then forecasts partial 30-day gap closure: `expected_change = lambda * (hedge_cost + normal_premium - current_retail_price)`.
 - Direction labels deliberately use a threshold; small moves are `slightly_rising` / `slightly_falling` and map to neutral consumer signal.
 - Matured actuals remain historical `observed_seller_data`; evaluation writes their basis/date/segment/metric into the existing `source_metadata` without changing evaluation meaning.
-- Public forecast queries require the configured current model version and the current-mode basis metadata. Canonical mode therefore hides old, missing-provenance, and observed-current rows and shows the existing unavailable state when no eligible row exists. Feature-off accepts current-model observed-basis rows.
+- Public current-forecast queries require the configured current model version and the current-mode basis metadata. Canonical mode therefore hides old, missing-provenance, and observed-current rows and shows the existing unavailable state when no eligible row exists. Feature-off accepts current-model observed-basis rows.
+- The public "Mediaanihinta viime kuukausina" section is the daily offered-price timeline, not persisted forecast-run history. `FixedContractPriceForecast::historySeries()` reads all non-null medians for the 6/12/24-month `energy_price` segments from `contract_price_daily_statistics` with null consumption. It keeps older `observed_seller_data` points and appends canonical daily calculations after rollout; canonical wins if both bases exist on one date. The payload keeps each point's basis so the page can explain the provenance change. Model-version and futures-coverage filters apply only to current forecasts and cannot truncate or freeze this history.
 
 Operational commands:
 ```bash
