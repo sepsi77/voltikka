@@ -96,7 +96,7 @@
                 {{ ($marketSnapshot['pricing_basis'] ?? null) === 'canonical_calculation' ? 'Nykyiset vuosikustannukset on laskettu ajantasaisista sopimushintatiedoista samalla menetelmällä.' : 'Nykyhinnat perustuvat havaittuun myyjädataan.' }}
             </p>
             <p class="mt-3 max-w-prose text-sm leading-6 text-slate-600">
-                Yksittäinen sopimus voi poiketa oman sopimustyyppinsä mediaanista. Siksi mediaanivertailu ei ratkaise, kumpi on halvempi jokaisessa sopimusparissa.
+                Mediaani kuvaa sopimustyypin keskitasoa, mutta yksittäinen sopimus voi olla sitä halvempi tai kalliimpi.
             </p>
         </div>
         @endif
@@ -104,7 +104,7 @@
         {{-- Lead paragraph --}}
         <article class="prose prose-slate prose-lg max-w-prose">
             <p class="lead">
-                <strong>Lyhyt vastaus:</strong> {{ $marketConclusion }} Yksittäinen sopimus voi poiketa oman sopimustyyppinsä mediaanista. Siksi mediaanivertailu ei ratkaise jokaista sopimusparia.
+                <strong>Lyhyt vastaus:</strong> {{ $marketConclusion }} Yksittäisten sopimusten hinnat vaihtelevat, joten markkinoilta voi löytyä mediaania halvempi kiinteä tai pörssisopimus.
             </p>
         </article>
 
@@ -223,7 +223,7 @@
                     </div>
                     <div class="flex items-start gap-3">
                         <span class="text-coral-700 font-bold text-lg leading-none mt-0.5">2.</span>
-                        <span class="text-slate-700"><strong>Yksittäinen sopimus voi poiketa mediaanista.</strong> Sopimus voi poiketa oman sopimustyyppinsä mediaanista, joten mediaanivertailu ei ratkaise jokaista sopimusparia.</span>
+                        <span class="text-slate-700"><strong>Vertaa yksittäisiä sopimuksia.</strong> Markkinoilta voi löytyä sopimustyyppinsä mediaania halvempi kiinteä tai pörssisopimus.</span>
                     </div>
                     <div class="flex items-start gap-3">
                         <span class="text-coral-700 font-bold text-lg leading-none mt-0.5">3.</span>

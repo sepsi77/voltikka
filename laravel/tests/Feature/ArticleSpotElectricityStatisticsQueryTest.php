@@ -91,8 +91,10 @@ class ArticleSpotElectricityStatisticsQueryTest extends TestCase
         $response->assertSee('Aineisto: 27.7.2025–27.7.2026');
         $response->assertSee('pörssisähkösopimusten vuosikustannuksen mediaani');
         $response->assertSee('Markkinan mediaani suosii nyt pörssisähköä.');
-        $response->assertSee('Yksittäinen sopimus voi poiketa oman sopimustyyppinsä mediaanista.');
-        $response->assertSee('Siksi mediaanivertailu ei ratkaise, kumpi on halvempi jokaisessa sopimusparissa.');
+        $response->assertSee('Mediaani kuvaa sopimustyypin keskitasoa, mutta yksittäinen sopimus voi olla sitä halvempi tai kalliimpi.');
+        $response->assertSee('Yksittäisten sopimusten hinnat vaihtelevat, joten markkinoilta voi löytyä mediaania halvempi kiinteä tai pörssisopimus.');
+        $response->assertSee('Markkinoilta voi löytyä sopimustyyppinsä mediaania halvempi kiinteä tai pörssisopimus.');
+        $response->assertDontSee('sopimuspari');
         $response->assertSee('Nykyiset vuosikustannukset on laskettu ajantasaisista sopimushintatiedoista samalla menetelmällä.');
         $response->assertSee('Sisältö tarkistettu 29.5.2026.');
         $response->assertDontSee('kanonisia laskelmia');
@@ -195,7 +197,8 @@ class ArticleSpotElectricityStatisticsQueryTest extends TestCase
         $response->assertSee('Markkinan mediaani suosii nyt kiinteää 12 kuukauden sopimusta.');
         $response->assertSee('kiinteiden 12 kuukauden sopimusten vuosikustannuksen mediaani');
         $response->assertDontSee('Markkinan mediaani suosii nyt pörssisähköä.');
-        $response->assertSee('Yksittäinen sopimus voi poiketa oman sopimustyyppinsä mediaanista.');
+        $response->assertSee('Yksittäisten sopimusten hinnat vaihtelevat, joten markkinoilta voi löytyä mediaania halvempi kiinteä tai pörssisopimus.');
+        $response->assertDontSee('sopimuspari');
         $response->assertDontSee('contract-type-comparison', false);
     }
 

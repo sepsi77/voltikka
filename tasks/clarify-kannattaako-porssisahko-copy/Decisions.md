@@ -11,3 +11,4 @@
 - Put the current snapshot and short answer before the contents list, but kept the breadcrumb directly after the hero.
 - Replaced the public canonical-method term with a plain sentence about current contract price data and one shared calculation method. The dynamic snapshot date remains the data date. The byline now calls 29.5.2026 the editorial review date.
 - Added one exact takeaway and one native details table to every evidence chart. Tables use only each chart's prepared payload, include semantic headers and units, and show null values as a dash.
+- Replaced the unnatural `sopimuspari` median caveat with plain Finnish. The short answer now says that prices vary and the market can include a fixed or Spot contract below its type median; the snapshot and summary use shorter supporting wording.
