@@ -3,6 +3,8 @@
 namespace App\Console\Commands;
 
 use App\Models\FixedContractPriceForecast;
+use App\Services\MorningFreshness\MorningFreshnessResult;
+use App\Services\MorningFreshness\MorningJobFreshnessService;
 use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
@@ -15,15 +17,26 @@ class RunFixedContractPriceForecasts extends Command
         {--duration=* : Duration months to forecast, e.g. 6, 12, 24. Defaults to config values.}
         {--quantile=* : Target quantile to forecast: median, p20, p80. Defaults to config values.}
         {--overwrite : Replace an existing forecast for the same date/horizon/duration/quantile/model version.}
-        {--dry-run : Calculate and print forecasts without writing to the database.}';
+        {--dry-run : Calculate and print forecasts without writing to the database.}
+        {--require-freshness : Require current morning import checkpoints before forecasting.}';
 
     protected $description = 'Calculate and persist fixed-term contract price forecasts';
 
-    public function handle(FixedTermPriceForecastService $forecastService): int
-    {
+    public function handle(
+        FixedTermPriceForecastService $forecastService,
+        MorningJobFreshnessService $freshness,
+    ): int {
         $asOf = $this->option('as-of')
-            ? CarbonImmutable::parse($this->option('as-of'))->startOfDay()
+            ? CarbonImmutable::parse($this->option('as-of'), 'Europe/Helsinki')->startOfDay()
             : CarbonImmutable::now('Europe/Helsinki')->startOfDay();
+
+        if ((bool) $this->option('require-freshness')) {
+            $result = $freshness->checkFixedTermForecast($asOf);
+
+            if (! $result->ready()) {
+                return $this->defer($freshness, $asOf, $result);
+            }
+        }
 
         $horizon = $this->option('horizon') !== null
             ? (int) $this->option('horizon')
@@ -36,6 +49,16 @@ class RunFixedContractPriceForecasts extends Command
 
         if ($forecasts->isEmpty()) {
             $this->warn('No forecasts were produced. Check retail statistics, futures coverage, and minimum history settings.');
+
+            if ((bool) $this->option('require-freshness')) {
+                return $this->defer(
+                    $freshness,
+                    $asOf,
+                    new MorningFreshnessResult([
+                        'forecast_output' => 'No current fixed-term forecasts were produced.',
+                    ]),
+                );
+            }
 
             return self::SUCCESS;
         }
@@ -89,5 +112,19 @@ class RunFixedContractPriceForecasts extends Command
         $this->info(sprintf('Done. Saved %d forecasts, skipped %d existing forecasts.', $saved, $skipped));
 
         return self::SUCCESS;
+    }
+
+    private function defer(
+        MorningJobFreshnessService $freshness,
+        CarbonImmutable $asOf,
+        MorningFreshnessResult $result,
+    ): int {
+        foreach ($result->messages() as $message) {
+            $this->error("Morning job deferred: {$message}");
+        }
+
+        $freshness->reportDeferred('forecasting:run-fixed-contracts', $asOf, $result);
+
+        return self::FAILURE;
     }
 }

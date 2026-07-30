@@ -73,7 +73,7 @@ Schedule::command('futures:fetch-eex')
     ->appendOutputTo(storage_path('logs/eex-futures-fetch.log'));
 
 // Collect per-contract retail premiums after the morning contract interpretations can publish.
-Schedule::command('retail-premiums:collect')
+Schedule::command('retail-premiums:collect --require-freshness')
     ->dailyAt('07:15')
     ->timezone('Europe/Helsinki')
     ->withoutOverlapping()
@@ -92,7 +92,7 @@ Schedule::command('retail-premiums:calibrate')
     ->appendOutputTo(storage_path('logs/retail-premium-calibration.log'));
 
 // Run fixed-term price forecasts after the morning contract import/statistics update.
-Schedule::command('forecasting:run-fixed-contracts')
+Schedule::command('forecasting:run-fixed-contracts --require-freshness')
     ->dailyAt('07:30')
     ->timezone('Europe/Helsinki')
     ->withoutOverlapping()
@@ -107,8 +107,13 @@ Schedule::command('forecasting:evaluate-fixed-contracts')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/fixed-contract-forecast-evaluation.log'));
 
-// Note: social:daily-video is triggered automatically by spot:fetch
-// when tomorrow's prices become available (typically around 13:00-14:00 Finnish time)
+// Check each hour and publish only after complete hourly data exists for today and tomorrow.
+Schedule::command('social:publish-daily-spot')
+    ->hourlyAt(15)
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/daily-spot-social.log'));
 
 // Schedule weekly offers video for Sunday at 13:00
 Schedule::command('social:weekly-offers-video')

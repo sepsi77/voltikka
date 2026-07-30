@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\DataFreshnessCheckpoint;
 use App\Models\ElectricityFuturesEodPrice;
+use App\Services\MorningFreshness\MorningJobFreshnessService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -17,6 +19,22 @@ class FetchEexFuturesCommandTest extends TestCase
     {
         Carbon::setTestNow();
         parent::tearDown();
+    }
+
+    public function test_full_scope_stops_before_range_and_network_work_when_initial_checkpoint_fails(): void
+    {
+        $freshness = $this->createMock(MorningJobFreshnessService::class);
+        $freshness->expects($this->once())
+            ->method('record')
+            ->willThrowException(new \RuntimeException('Checkpoint unavailable'));
+        $this->app->instance(MorningJobFreshnessService::class, $freshness);
+        Http::fake();
+
+        $this->artisan('futures:fetch-eex')
+            ->expectsOutput('Failed to record the EEX freshness checkpoint.')
+            ->assertExitCode(1);
+
+        Http::assertNothingSent();
     }
 
     public function test_command_fetches_eex_futures_and_saves_prices(): void
@@ -94,6 +112,86 @@ class FetchEexFuturesCommandTest extends TestCase
             'long_name' => 'EEX Finnish Power Base Year Future',
         ]);
         $this->assertSame(2, ElectricityFuturesEodPrice::count());
+        $this->assertDatabaseCount('data_freshness_checkpoints', 0);
+    }
+
+    public function test_full_scheduled_scope_records_ready_checkpoint(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 5, 22, 12, 0, 0, 'Europe/Helsinki'));
+        config()->set('eex_futures.instruments', [[
+            'market_region' => 'Nordics',
+            'area' => 'FI',
+            'area_name' => 'Finland',
+            'maturity_type' => 'year',
+            'short_code' => 'FNBY',
+        ]]);
+        config()->set('eex_futures.years_ahead', 1);
+        config()->set('eex_futures.retry_times', 0);
+
+        Http::fake(function (Request $request) {
+            if (str_contains($request->url(), 'price-ticker')) {
+                return Http::response(['data' => [['2026-05-21T19:00:00.000Z', 47.44]]]);
+            }
+
+            return Http::response([
+                'series' => [[
+                    'serieName' => 'settlPx',
+                    'timeAndValue' => [['2026-05-21', 47.44]],
+                ]],
+            ]);
+        });
+
+        $this->artisan('futures:fetch-eex')->assertExitCode(0);
+
+        $checkpoint = DataFreshnessCheckpoint::sole();
+        $this->assertSame(DataFreshnessCheckpoint::KEY_EEX_FUTURES, $checkpoint->key);
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_READY, $checkpoint->status);
+        $this->assertSame('2026-05-21', $checkpoint->metadata['current_run_latest_prior_fi_trade_date']);
+    }
+
+    public function test_full_scope_fails_when_current_run_fetches_only_non_fi_points_despite_old_fi_data(): void
+    {
+        Carbon::setTestNow(Carbon::create(2026, 5, 22, 12, 0, 0, 'Europe/Helsinki'));
+        ElectricityFuturesEodPrice::create([
+            'area' => 'FI',
+            'short_code' => 'FNBY',
+            'maturity' => '202701',
+            'maturity_type' => 'year',
+            'trade_date' => '2026-05-20',
+            'settlement_price' => 47.00,
+        ]);
+        config()->set('eex_futures.instruments', [[
+            'market_region' => 'Nordics',
+            'area' => 'SE3',
+            'area_name' => 'Sweden SE3',
+            'maturity_type' => 'year',
+            'short_code' => '3SBY',
+        ]]);
+        config()->set('eex_futures.years_ahead', 1);
+        config()->set('eex_futures.retry_times', 0);
+
+        Http::fake(function (Request $request) {
+            if (str_contains($request->url(), 'price-ticker')) {
+                return Http::response(['data' => [['2026-05-21T19:00:00.000Z', 45.00]]]);
+            }
+
+            return Http::response([
+                'series' => [[
+                    'serieName' => 'settlPx',
+                    'timeAndValue' => [['2026-05-21', 45.00]],
+                ]],
+            ]);
+        });
+
+        $this->artisan('futures:fetch-eex')->assertExitCode(1);
+
+        $checkpoint = DataFreshnessCheckpoint::sole();
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_FAILED, $checkpoint->status);
+        $this->assertNull($checkpoint->metadata['current_run_latest_prior_fi_trade_date']);
+        $this->assertDatabaseHas('electricity_futures_eod_prices', [
+            'area' => 'SE3',
+            'trade_date' => '2026-05-21',
+        ]);
     }
 
     public function test_command_fetches_month_quarter_and_year_maturities_for_selected_area(): void

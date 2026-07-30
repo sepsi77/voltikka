@@ -2,6 +2,31 @@
 
 Database/migration notes for Voltikka.
 
+## `spot_social_publications`
+
+Stores one durable daily Spot social publication identity per Helsinki `content_date`.
+
+Important semantics:
+- `content_date` is unique and is the date shown in the video
+- statuses are `processing`, `published`, and `failed`; each explicit claim increments `attempt_count`
+- the first claim stores exact `data_as_of`, and retries reuse it
+- normal runs never retry failed or processing rows; explicit retry permits failed rows or processing rows that are at least 30 minutes old
+- published rows are final; partial PostFast success stores `posted_count` and `skipped_platforms` as published metadata
+- PostFast timeouts can have uncertain external results, so failure is durable and operators must inspect PostFast before explicit retry
+
+## `data_freshness_checkpoints`
+
+Stores one latest operational fact per `key` and `effective_date` for the scheduled morning gates. This is not a general workflow engine and does not preserve run history.
+
+Important semantics:
+- keys are `contract_import` and `eex_futures`; statuses are `ready`, `incomplete`, and `failed`
+- the unique key is `(key, effective_date)`, and later full-scope runs replace that date's fact
+- each full-scope upstream command first overwrites the same-date fact with a failed start marker; a crash therefore cannot preserve an older ready fact
+- postcode-scoped contract runs and targeted/manual EEX runs never write global readiness
+- contract ready metadata contains observed snapshot IDs, active contract IDs, and exact statistics start and completion timestamps
+- EEX ready metadata contains the latest prior-date FI Base trade date extracted by that current run; database presence and age are checked separately
+- dependent jobs fail closed when required metadata is absent or malformed
+
 ## `contract_source_snapshots`
 
 Stores immutable, complete upstream contract payloads for auditability and later interpretation.

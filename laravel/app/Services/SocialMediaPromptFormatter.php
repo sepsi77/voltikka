@@ -2,14 +2,15 @@
 
 namespace App\Services;
 
-use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
 use Carbon\Carbon;
 
 class SocialMediaPromptFormatter
 {
     private const REGION = 'FI';
+
     private const TIMEZONE = 'Europe/Helsinki';
+
     private const VAT_MULTIPLIER = 1.255;
 
     private const FINNISH_WEEKDAYS = [
@@ -50,14 +51,14 @@ class SocialMediaPromptFormatter
 
     public function formatPrompt(array $videoData): string
     {
-        $helsinkiNow = Carbon::now(self::TIMEZONE);
+        $helsinkiNow = $this->dateContext($videoData);
 
         // Build the data markdown
         $dataMarkdown = $this->buildDataMarkdown($videoData, $helsinkiNow);
 
         // Load the prompt template
         $templatePath = resource_path(self::PROMPT_TEMPLATE_PATH);
-        if (!file_exists($templatePath)) {
+        if (! file_exists($templatePath)) {
             // Fallback to inline template if file doesn't exist
             return $this->buildFallbackPrompt($dataMarkdown);
         }
@@ -66,6 +67,17 @@ class SocialMediaPromptFormatter
 
         // Inject the data markdown
         return str_replace('{{DATA_MARKDOWN}}', $dataMarkdown, $template);
+    }
+
+    private function dateContext(array $videoData): Carbon
+    {
+        $asOf = $videoData['as_of'] ?? $videoData['date']['iso'] ?? null;
+
+        if (! is_string($asOf) || $asOf === '') {
+            throw new \InvalidArgumentException('Daily video data has no date context.');
+        }
+
+        return Carbon::parse($asOf)->setTimezone(self::TIMEZONE);
     }
 
     private function buildDataMarkdown(array $videoData, Carbon $helsinkiNow): string
@@ -118,14 +130,14 @@ PROMPT;
         $comparison = $videoData['comparison'] ?? [];
         $dayRating = $comparison['day_rating'] ?? null;
 
-        if (!$dayRating || $dayRating['code'] === 'unknown') {
+        if (! $dayRating || $dayRating['code'] === 'unknown') {
             return "## Päivän arvio\nEi riittävästi vertailutietoa.";
         }
 
         $label = self::DAY_RATING_LABELS[$dayRating['code']] ?? 'Normaali päivä';
         $description = $dayRating['description'] ?? '';
 
-        return "## Päivän arvio\n**{$label}**" . ($description ? " – {$description}." : '.');
+        return "## Päivän arvio\n**{$label}**".($description ? " – {$description}." : '.');
     }
 
     private function formatTodayPrices(array $videoData): string
@@ -136,7 +148,7 @@ PROMPT;
             return "## Tämän päivän tuntihinnat\nEi saatavilla.";
         }
 
-        return "## Tämän päivän tuntihinnat (c/kWh, sis. ALV)\n```\n" . $this->formatPriceTable($prices) . "\n```";
+        return "## Tämän päivän tuntihinnat (c/kWh, sis. ALV)\n```\n".$this->formatPriceTable($prices)."\n```";
     }
 
     private function formatTomorrowPrices(array $videoData): string
@@ -147,13 +159,13 @@ PROMPT;
             return "## Huomisen tuntihinnat\n*Ei vielä saatavilla.*";
         }
 
-        return "## Huomisen tuntihinnat (c/kWh, sis. ALV)\n```\n" . $this->formatPriceTable($prices) . "\n```";
+        return "## Huomisen tuntihinnat (c/kWh, sis. ALV)\n```\n".$this->formatPriceTable($prices)."\n```";
     }
 
     private function formatPriceTable(array $prices): string
     {
         // Sort by hour
-        usort($prices, fn($a, $b) => $a['hour'] <=> $b['hour']);
+        usort($prices, fn ($a, $b) => $a['hour'] <=> $b['hour']);
 
         // Format as 4-column table (6 hours per column)
         $lines = [];
@@ -178,6 +190,7 @@ PROMPT;
                 return $price['price'] ?? null;
             }
         }
+
         return null;
     }
 
@@ -238,7 +251,7 @@ PROMPT;
         }
 
         // Last week average
-        $weeklyAvg = $this->getWeeklyAverage();
+        $weeklyAvg = $this->getWeeklyAverage($helsinkiNow);
         if ($weeklyAvg !== null && $todayAvg !== null) {
             $change = $this->calculateChange($todayAvg, $weeklyAvg);
             $changeStr = $this->formatChangePercent($change);
@@ -387,6 +400,7 @@ PROMPT;
         if ($price === null) {
             return '-';
         }
+
         return number_format($price, 2, ',', '');
     }
 
@@ -401,6 +415,7 @@ PROMPT;
             return '';
         }
         $sign = $change >= 0 ? '+' : '';
+
         return sprintf(' (%s%.1f%%)', $sign, $change);
     }
 
@@ -409,12 +424,12 @@ PROMPT;
         if ($reference <= 0) {
             return null;
         }
+
         return (($current - $reference) / $reference) * 100;
     }
 
-    private function getWeeklyAverage(): ?float
+    private function getWeeklyAverage(Carbon $helsinkiNow): ?float
     {
-        $helsinkiNow = Carbon::now(self::TIMEZONE);
         $weekStart = $helsinkiNow->copy()->subDays(7)->startOfDay()->setTimezone('UTC');
         $yesterdayEnd = $helsinkiNow->copy()->subDay()->endOfDay()->setTimezone('UTC');
 
@@ -428,6 +443,7 @@ PROMPT;
         }
 
         $avgWithoutTax = array_sum($prices) / count($prices);
+
         return $avgWithoutTax * self::VAT_MULTIPLIER;
     }
 
@@ -451,6 +467,7 @@ PROMPT;
         }
 
         $avgWithoutTax = array_sum($prices) / count($prices);
+
         return $avgWithoutTax * self::VAT_MULTIPLIER;
     }
 }

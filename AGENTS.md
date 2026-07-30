@@ -190,8 +190,9 @@ php artisan test --filter="ContractsFilterTest"
 
 ### Automated Contract Interpretation
 - **Location**: `laravel/app/Services/ContractInterpretation/`, `laravel/app/Jobs/AnalyzeContractSourceSnapshot.php`
-- Every distinct upstream contract payload is stored during `contracts:fetch` as immutable evidence
-- Production import-time interpretation is enabled: each new semantic snapshot from `contracts:fetch` queues a fingerprint-idempotent post-commit job that requests strict LLM output and runs automatic validation; validation errors can cause at most two automatic model correction calls, and there is no human review workflow
+- Every distinct upstream contract payload is stored during the authoritative `contracts:fetch` database transaction as immutable evidence
+- `app/Services/ContractImport/` owns that transaction and the typed post-import workflow. Partial postcode acquisition imports available contracts with `complete=false`, preserves active rows absent from the partial response, and skips replacement linking; required statistics or cache-invalidation failures make the command fail
+- Production import-time interpretation is enabled: each new semantic snapshot from `contracts:fetch` queues a fingerprint-idempotent post-commit job in its own failure boundary. Unchanged snapshots update `last_observed_at` and revisit the idempotent dispatcher so a transient pre-dispatch failure can recover without creating duplicate jobs
 - Valid latest interpretations automatically publish compatible classifications and current canonical pricing JSON to `electricity_contracts`; invalid or stale results do not publish
 - New contracts stay inactive until first validation; changed prices for interpreted contracts wait for the new version before relational publication
 - Versioned interpretation JSON is the validated pricing history
@@ -218,14 +219,14 @@ php artisan test --filter="ContractsFilterTest"
 - Records per contract-lineage price period how far a retail price sits above the wholesale price the seller could have hedged at, against every candidate futures reference at the vintage the price was set. Call it **retail premium** or **spread over wholesale**, never margin or profit — it also pays for hedging, load shape, imbalance, credit risk, acquisition, billing, and service
 - Immediate purpose is calibrating the market-reset estimate above; longer term it supports pass-through asymmetry analysis and seller value profiling
 - Rows are immutable by default and `method_version` is part of row identity, so a method change inserts new rows beside the old ones. **Any analysis must filter to the current `method_version` pair**
-- Command `retail-premiums:collect` (daily at 07:15 Europe/Helsinki); read-only diagnostic `retail-premiums:cross-check`
+- Command `retail-premiums:collect` (daily at 07:15 Europe/Helsinki); the scheduled form uses `--require-freshness` and defers unless the same-day full contract and EEX checkpoints, exact one-snapshot coverage and current publication for every active contract, current-run prior-date FI Base proof, and recent FI Base database data are ready. Historical/manual collection remains opt-in and compatible. Read-only diagnostic: `retail-premiums:cross-check`
 - See `laravel/app/Services/RetailPremium/AGENTS.md`
 
 ### 3. Fixed-term Price Forecasting
 - **Location**: `app/Services/PriceForecasting/`, `app/Models/FixedContractPriceForecast.php`, `app/Livewire/FixedContractPriceForecast.php`
 - **Route**: `/sahkosopimus/sahkon-hintaennuste`
 - **Commands**: `forecasting:run-fixed-contracts`, `forecasting:evaluate-fixed-contracts`
-- **Schedule**: daily forecast run at 07:30 and evaluation at 07:45 Europe/Helsinki
+- **Schedule**: daily forecast run at 07:30 and evaluation at 07:45 Europe/Helsinki. The scheduled generation command uses `--require-freshness`; it defers on missing same-day full import checkpoints, incomplete active snapshot/publication coverage, statistics that started before a required publication, no current fixed-term 6/12/24 statistic in the expected pricing basis, missing current-run prior-date FI proof, or stale FI Base database data
 - Model v2 forecasts fixed-term 6/12/24 month market p20/median/p80 energy-price indices
 - In canonical mode, the current retail input must be a `canonical_calculation` statistic; observed seller statistics remain separate historical EWMA evidence and matured actuals
 - Uses FI EEX futures-implied hedge costs plus EWMA retail premium / gap closure
@@ -246,6 +247,13 @@ php artisan test --filter="ContractsFilterTest"
   - Historical comparisons (daily, weekly, monthly, year-over-year)
   - Price charts with signed zero baselines so negative hourly and 15-minute prices extend in the opposite direction from positive prices
   - CSV export
+
+### Daily spot social publication
+- `spot:fetch` has no social side effects. It only persists Spot data, calculates averages, and warms caches.
+- `social:publish-daily-spot` runs independently each hour at minute 15 and waits for complete hourly data for the Helsinki content date and next date.
+- External posting defaults off through `SPOT_SOCIAL_PUBLISHING_ENABLED=false`. A unique Helsinki `content_date` ledger prevents repeated normal publication.
+- Failed or active processing attempts never retry automatically. An operator can use `--retry --date=YYYY-MM-DD` only after inspecting PostFast; provider timeouts can be uncertain because external posts can exist even when Voltikka records failure.
+- See `laravel/app/Services/SpotSocial/AGENTS.md` for claim, retry, and partial-success rules.
 
 ### 5. Solar Panel Calculator
 - **Location**: `app/Livewire/SolarCalculator.php`

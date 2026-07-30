@@ -5,6 +5,8 @@ namespace App\Console\Commands;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
 use App\Models\RetailPremiumObservation;
+use App\Services\MorningFreshness\MorningFreshnessResult;
+use App\Services\MorningFreshness\MorningJobFreshnessService;
 use App\Services\RetailPremium\RetailPremiumHistoryBackfillService;
 use App\Services\RetailPremium\RetailPremiumObservationService;
 use Carbon\CarbonImmutable;
@@ -22,13 +24,15 @@ class CollectRetailPremiumObservations extends Command
         {--include-open : Include the current open period in a historical backfill.}
         {--only= : Backfill one group: spot, reset, fixed-term, or hybrid.}
         {--overwrite : Replace an existing observation with the same identity.}
-        {--dry-run : Build and print observations without writing to the database.}';
+        {--dry-run : Build and print observations without writing to the database.}
+        {--require-freshness : Require current morning import checkpoints before collection.}';
 
     protected $description = 'Collect per-contract retail premium observations';
 
     public function handle(
         RetailPremiumObservationService $service,
         RetailPremiumHistoryBackfillService $historyService,
+        MorningJobFreshnessService $freshness,
     ): int {
         $asOf = $this->option('as-of')
             ? CarbonImmutable::parse($this->option('as-of'), 'Europe/Helsinki')->startOfDay()
@@ -46,13 +50,21 @@ class CollectRetailPremiumObservations extends Command
             return self::INVALID;
         }
 
+        if (! $historicalMode && (bool) $this->option('require-freshness')) {
+            $result = $freshness->checkRetailPremium($asOf);
+
+            if (! $result->ready()) {
+                return $this->defer($freshness, $asOf, $result);
+            }
+        }
+
         $contracts = $this->activeLineageTips($contractIds, $historicalMode ? $this->option('only') : null);
 
         if ($historicalMode) {
             return $this->backfillHistory($contracts, $historyService, $asOf);
         }
 
-        return $this->collectCurrent($contracts, $service, $asOf);
+        return $this->collectCurrent($contracts, $service, $freshness, $asOf);
     }
 
     /**
@@ -100,6 +112,7 @@ class CollectRetailPremiumObservations extends Command
     private function collectCurrent(
         Collection $contracts,
         RetailPremiumObservationService $service,
+        MorningJobFreshnessService $freshness,
         CarbonImmutable $asOf,
     ): int {
         $saved = 0;
@@ -131,6 +144,16 @@ class CollectRetailPremiumObservations extends Command
             }
         }
 
+        if ((bool) $this->option('require-freshness') && $built === 0) {
+            return $this->defer(
+                $freshness,
+                $asOf,
+                new MorningFreshnessResult([
+                    'retail_output' => 'No current retail premium observations were built.',
+                ]),
+            );
+        }
+
         if ($this->option('dry-run')) {
             $this->info(sprintf(
                 'Dry run complete. Built %d retail premium observations from %d active contracts.',
@@ -149,6 +172,20 @@ class CollectRetailPremiumObservations extends Command
         ));
 
         return self::SUCCESS;
+    }
+
+    private function defer(
+        MorningJobFreshnessService $freshness,
+        CarbonImmutable $asOf,
+        MorningFreshnessResult $result,
+    ): int {
+        foreach ($result->messages() as $message) {
+            $this->error("Morning job deferred: {$message}");
+        }
+
+        $freshness->reportDeferred('retail-premiums:collect', $asOf, $result);
+
+        return self::FAILURE;
     }
 
     /**

@@ -38,7 +38,7 @@ php artisan forecasting:evaluate-fixed-contracts --as-of=today
 
 Schedule:
 - `routes/console.php` runs `futures:fetch-eex` at 04:00 Europe/Helsinki so previous trading-day FI settlements are available before forecasts; the full polite-throttled EEX import can take around 90-110 minutes.
-- `routes/console.php` runs `forecasting:run-fixed-contracts` daily at 07:30 Europe/Helsinki, after the 06:00 contract import/statistics job.
+- `routes/console.php` runs `forecasting:run-fixed-contracts --require-freshness` daily at 07:30 Europe/Helsinki, after the 06:00 contract import/statistics job. The opt-in gate runs before the forecast builder. It requires same-date ready full contract/EEX checkpoints, exactly one observed snapshot and a current publication for each active contract, at least one current 6/12/24 `energy_price` statistic in the configured pricing basis, statistics started after the newest required publication, current-run prior-date FI Base proof, and recent FI Base data in the database. Each duration is independent. A blocked or zero-output gated run fails and writes no forecasts. Manual runs without the flag keep their prior behavior.
 - `routes/console.php` runs `forecasting:evaluate-fixed-contracts` daily at 07:45 Europe/Helsinki.
 
 Stored forecasts are intentionally immutable-ish by default: `forecasting:run-fixed-contracts` skips an existing same date/horizon/duration/quantile/model-version row unless `--overwrite` is passed. This protects historical forecast/audit records.

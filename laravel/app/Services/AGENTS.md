@@ -73,6 +73,29 @@ Important pricing guardrails:
 - the public `/api/video/weekly-offers` payload carries `pricing_basis`; canonical offers use `consumptions`, while the explicit feature-off branch keeps the old `discount` / `costs` / `savings` shape
 - legacy mode still reads `price_components.price` as API `OriginalPayment.Price`; use the discounted component's unit/type and do not assume an absolute discount is always `c/kWh`
 
+### Morning scheduled-job freshness
+Directory:
+- `MorningFreshness/`
+
+Purpose:
+- record same-date full contract-import and EEX-fetch facts
+- fail closed before scheduled retail-premium and fixed-term forecast builders use incomplete, delayed, or stale inputs
+
+Read first:
+- `MorningFreshness/AGENTS.md`
+
+### Contract import workflow
+Directory:
+- `ContractImport/`
+
+Purpose:
+- own the authoritative transactional contract import
+- return typed acquisition/import results with completeness and changed snapshot IDs
+- run required and optional post-import stages with separate failure boundaries and no nested Artisan calls
+
+Read first:
+- `ContractImport/AGENTS.md`
+
 ### Contract interpretation
 Directory:
 - `ContractInterpretation/`
@@ -180,6 +203,7 @@ Related files outside services:
 - `../Livewire/ContractDetail.php`
 - `../Console/Commands/DetectReplacementContracts.php`
 - `../Console/Commands/LinkReplacementContracts.php`
+- `ContractImport/ContractImporter.php`
 - `../Console/Commands/FetchContracts.php`
 
 ### Electricity futures
@@ -201,6 +225,17 @@ Important semantics:
 - the header badge should prefer current 15-minute `spot_prices_quarter` data, but must fall back to the current hourly `spot_prices_hour` row when quarter data is absent; otherwise the menu indicator can stay in its inactive placeholder state even though hourly spot data exists
 - availability is based on whether a current row exists, never numeric truthiness; exactly zero and negative prices are valid active header values
 - the layout fetches the Blade fragment through one shared desktop/mobile JavaScript coordinator, retries failures, and refreshes every 60 seconds; do not add `wire:poll` to the fragment injected through `innerHTML`
+
+### Daily spot social publication
+Directory:
+- `SpotSocial/`
+
+Purpose:
+- verify complete hourly data for the Helsinki content date and next date
+- own the durable first claim and explicit retry rules for daily PostFast publication
+
+Read first:
+- `SpotSocial/AGENTS.md`
 
 ### Spot forecasts
 Directory:

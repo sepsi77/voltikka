@@ -2,6 +2,7 @@
 
 export type DailyVideoData = {
   generated_at: string;
+  as_of: string;
   date: {
     iso: string;
     weekday: string;

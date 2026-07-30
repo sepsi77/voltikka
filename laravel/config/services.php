@@ -76,6 +76,7 @@ return [
 
     'postfast' => [
         'api_key' => env('POSTFAST_API_KEY'),
+        'spot_social_publishing_enabled' => env('SPOT_SOCIAL_PUBLISHING_ENABLED', false),
     ],
 
     'remotion' => [

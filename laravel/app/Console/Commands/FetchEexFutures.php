@@ -2,13 +2,16 @@
 
 namespace App\Console\Commands;
 
+use App\Models\DataFreshnessCheckpoint;
 use App\Models\ElectricityFuturesEodPrice;
 use App\Services\ElectricityFutures\EexFuturesService;
+use App\Services\MorningFreshness\MorningJobFreshnessService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class FetchEexFutures extends Command
 {
@@ -37,8 +40,10 @@ class FetchEexFutures extends Command
      */
     protected $description = 'Fetch EEX electricity futures end-of-day settlement prices and save them to the database';
 
-    public function __construct(private readonly EexFuturesService $eexFuturesService)
-    {
+    public function __construct(
+        private readonly EexFuturesService $eexFuturesService,
+        private readonly MorningJobFreshnessService $freshness,
+    ) {
         parent::__construct();
     }
 
@@ -47,12 +52,25 @@ class FetchEexFutures extends Command
      */
     public function handle(): int
     {
+        $fullScope = $this->isFullScheduledScope();
+        $effectiveDate = Carbon::today('Europe/Helsinki')->toDateString();
+
+        if (! $this->recordFullScopeCheckpoint($fullScope, $effectiveDate, [
+            'stage' => 'started',
+        ])) {
+            return Command::FAILURE;
+        }
+
         [$startDate, $endDate] = $this->dateRange();
         $instruments = $this->selectedInstruments();
 
         if (empty($instruments)) {
             $this->warn('No EEX futures instruments selected.');
-            return Command::SUCCESS;
+            $this->recordFullScopeCheckpoint($fullScope, $effectiveDate, [
+                'reason' => 'no_instruments',
+            ]);
+
+            return $fullScope ? Command::FAILURE : Command::SUCCESS;
         }
 
         $failures = 0;
@@ -68,6 +86,7 @@ class FetchEexFutures extends Command
 
         $totalFetched = 0;
         $totalSaved = 0;
+        $latestCurrentRunPriorFiTradeDate = null;
 
         foreach ($requests as $request) {
             $instrument = $request['instrument'];
@@ -78,6 +97,19 @@ class FetchEexFutures extends Command
                 $points = $this->eexFuturesService->extractPricePoints($payload, $instrument, $maturity);
                 $totalFetched += count($points);
 
+                foreach ($points as $point) {
+                    $tradeDate = $point['trade_date'] ?? null;
+
+                    if (($point['exchange'] ?? null) === 'EEX'
+                        && ($point['area'] ?? null) === 'FI'
+                        && ($point['product'] ?? null) === 'Base'
+                        && is_string($tradeDate)
+                        && $tradeDate < $effectiveDate
+                        && ($latestCurrentRunPriorFiTradeDate === null || $tradeDate > $latestCurrentRunPriorFiTradeDate)) {
+                        $latestCurrentRunPriorFiTradeDate = $tradeDate;
+                    }
+                }
+
                 if ($this->option('dry-run')) {
                     $this->line(sprintf(
                         '[dry-run] %s %s %s %s: %d prices',
@@ -87,6 +119,7 @@ class FetchEexFutures extends Command
                         $maturity,
                         count($points)
                     ));
+
                     continue;
                 }
 
@@ -125,7 +158,80 @@ class FetchEexFutures extends Command
 
         $this->info("EEX futures fetch complete. Fetched {$totalFetched} price points, upserted {$totalSaved}. Failures: {$failures}.");
 
-        return $failures > 0 ? Command::FAILURE : Command::SUCCESS;
+        if (! $fullScope) {
+            return $failures > 0 ? Command::FAILURE : Command::SUCCESS;
+        }
+
+        $ready = $failures === 0
+            && $totalFetched > 0
+            && $latestCurrentRunPriorFiTradeDate !== null;
+        $recorded = $this->recordFullScopeCheckpoint($fullScope, $effectiveDate, [
+            'fetched_points' => $totalFetched,
+            'saved_points' => $totalSaved,
+            'failures' => $failures,
+            'current_run_latest_prior_fi_trade_date' => $latestCurrentRunPriorFiTradeDate,
+        ], $ready);
+
+        return $ready && $recorded ? Command::SUCCESS : Command::FAILURE;
+    }
+
+    private function isFullScheduledScope(): bool
+    {
+        if ((bool) $this->option('dry-run')) {
+            return false;
+        }
+
+        foreach ([
+            'start-date',
+            'end-date',
+            'months-back',
+            'months-ahead',
+            'quarters-ahead',
+            'years-ahead',
+            'history-window-days',
+        ] as $option) {
+            if ($this->option($option) !== null) {
+                return false;
+            }
+        }
+
+        foreach (['maturity', 'area', 'tenor'] as $option) {
+            if (array_filter((array) $this->option($option)) !== []) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** @param array<string, mixed> $metadata */
+    private function recordFullScopeCheckpoint(
+        bool $fullScope,
+        string $date,
+        array $metadata,
+        bool $ready = false,
+    ): bool {
+        if (! $fullScope) {
+            return true;
+        }
+
+        try {
+            $this->freshness->record(
+                DataFreshnessCheckpoint::KEY_EEX_FUTURES,
+                $date,
+                $ready ? DataFreshnessCheckpoint::STATUS_READY : DataFreshnessCheckpoint::STATUS_FAILED,
+                $metadata,
+            );
+
+            return true;
+        } catch (Throwable $exception) {
+            $this->error('Failed to record the EEX freshness checkpoint.');
+            Log::error('FetchEexFutures freshness checkpoint failed', [
+                'exception_class' => $exception::class,
+            ]);
+
+            return false;
+        }
     }
 
     /**
@@ -187,7 +293,7 @@ class FetchEexFutures extends Command
     }
 
     /**
-     * @param array<int, array<string, mixed>> $instruments
+     * @param  array<int, array<string, mixed>>  $instruments
      * @return array<int, array{instrument: array<string, mixed>, maturity: string}>
      */
     private function buildInstrumentMaturityRequests(array $instruments, Carbon $referenceDate, int &$failures): array
@@ -195,7 +301,7 @@ class FetchEexFutures extends Command
         $requests = [];
         $explicitMaturities = array_values(array_filter((array) $this->option('maturity')));
 
-        if (!empty($explicitMaturities)) {
+        if (! empty($explicitMaturities)) {
             $maturities = array_values(array_unique(array_map('strval', $explicitMaturities)));
 
             foreach ($instruments as $instrument) {
@@ -256,8 +362,9 @@ class FetchEexFutures extends Command
     }
 
     /**
-     * @param array<string, mixed> $instrument
+     * @param  array<string, mixed>  $instrument
      * @return array<int, string>
+     *
      * @throws RequestException|ConnectionException
      */
     private function discoverMaturitiesForInstrument(array $instrument, Carbon $referenceDate): array
@@ -278,9 +385,10 @@ class FetchEexFutures extends Command
      * first empty maturity after one or more valid maturities is treated as the max.
      * Leading empty maturities are skipped to tolerate recently expired months.
      *
-     * @param array<string, mixed> $instrument
-     * @param array<int, string> $candidates
+     * @param  array<string, mixed>  $instrument
+     * @param  array<int, string>  $candidates
      * @return array<int, string>
+     *
      * @throws RequestException|ConnectionException
      */
     private function discoverAvailableMaturities(array $instrument, array $candidates): array
@@ -292,6 +400,7 @@ class FetchEexFutures extends Command
             if ($this->eexFuturesService->maturityHasTickerData($instrument, $maturity)) {
                 $available[] = $maturity;
                 $foundFirstValid = true;
+
                 continue;
             }
 
@@ -364,7 +473,7 @@ class FetchEexFutures extends Command
     }
 
     /**
-     * @param array<int, array<string, mixed>> $points
+     * @param  array<int, array<string, mixed>>  $points
      */
     private function savePricePoints(array $points): int
     {

@@ -2,22 +2,26 @@
 
 namespace App\Console\Commands;
 
+use App\Models\SpotSocialPublication;
 use App\Services\PostFastService;
 use App\Services\SocialMediaPromptFormatter;
 use App\Services\SpotPriceVideoService;
+use App\Services\SpotSocial\SpotSocialPublicationService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Process;
 
-class RenderDailyVideo extends Command
+class PublishDailySpot extends Command
 {
-    protected $signature = 'social:daily-video
+    protected $signature = 'social:publish-daily-spot
                             {--skip-render : Skip video rendering (use existing video)}
                             {--skip-post : Skip social media posting}
                             {--draft : Create posts as drafts in PostFast (for testing)}
-                            {--dry-run : Show what would be done without executing}';
+                            {--dry-run : Show what would be done without executing}
+                            {--date= : Helsinki content date in YYYY-MM-DD format}
+                            {--retry : Retry a failed or stale processing publication}';
 
     protected $description = 'Render daily spot price video, generate social media text, and post via PostFast';
 
@@ -53,47 +57,93 @@ class RenderDailyVideo extends Command
         private SpotPriceVideoService $videoService,
         private SocialMediaPromptFormatter $promptFormatter,
         private PostFastService $postFastService,
+        private SpotSocialPublicationService $publicationService,
     ) {
         parent::__construct();
     }
 
     public function handle(): int
     {
-        $isDryRun = $this->option('dry-run');
-        $helsinkiNow = Carbon::now('Europe/Helsinki');
-        $dateStr = $helsinkiNow->format('Y-m-d');
+        $isDryRun = (bool) $this->option('dry-run');
+        $skipPost = (bool) $this->option('skip-post');
+        $asDraft = (bool) $this->option('draft');
+        $isRetry = (bool) $this->option('retry');
+        $dateOption = $this->option('date');
 
+        if ($isRetry && ($isDryRun || $skipPost || $asDraft)) {
+            $this->error('--retry cannot be used with --dry-run, --skip-post, or --draft.');
+
+            return Command::FAILURE;
+        }
+
+        if ($isRetry && empty($dateOption)) {
+            $this->error('--retry requires --date=YYYY-MM-DD.');
+
+            return Command::FAILURE;
+        }
+
+        $contentDate = $this->parseContentDate($dateOption);
+        if ($contentDate === null) {
+            return Command::FAILURE;
+        }
+
+        $dateStr = $contentDate->format('Y-m-d');
         $this->info("Starting daily video pipeline for {$dateStr}");
 
         if ($isDryRun) {
             $this->warn('DRY RUN MODE - No changes will be made');
         }
 
+        $callsPostFast = ! $isDryRun && ! $skipPost;
+        if (! $isDryRun && ($callsPostFast || $asDraft) && ! config('services.postfast.spot_social_publishing_enabled', false)) {
+            $this->warn('Spot social publishing is disabled. Set SPOT_SOCIAL_PUBLISHING_ENABLED=true in production to enable it.');
+
+            return Command::SUCCESS;
+        }
+
+        $readiness = $this->publicationService->readiness($contentDate);
+        if (! $readiness->ready) {
+            $this->info('Daily spot publication deferred. Complete hourly data is missing for: '.implode(', ', $readiness->incompleteDates));
+
+            return Command::SUCCESS;
+        }
+
+        $usesLedger = ! $isDryRun && ! $skipPost && ! $asDraft;
+        $publication = null;
+        $dataAsOf = $this->dataAsOfForFirstAttempt($contentDate);
+
+        if ($usesLedger) {
+            $claim = $this->publicationService->claim($contentDate, $dataAsOf, $isRetry);
+            if (! $claim->claimed) {
+                $this->info($this->claimSkipMessage($claim->reason));
+
+                return Command::SUCCESS;
+            }
+
+            $publication = $claim->publication;
+            $dataAsOf = $publication->data_as_of->copy()->setTimezone(SpotSocialPublicationService::TIMEZONE);
+        }
+
         try {
-            // Step 1: Render video
             $videoPath = null;
-            if (!$this->option('skip-render')) {
-                $videoPath = $this->renderVideo($dateStr, $isDryRun);
-                if ($videoPath === null && !$isDryRun) {
-                    return Command::FAILURE;
+            if (! $this->option('skip-render')) {
+                $videoPath = $this->renderVideo($dateStr, $dataAsOf, $isDryRun);
+                if ($videoPath === null && ! $isDryRun) {
+                    throw new \RuntimeException('Video rendering failed.');
                 }
             } else {
                 $this->info('Skipping video render');
-                $videoPath = $this->getOutputDir() . "/daily-{$dateStr}.mp4";
+                $videoPath = $this->getOutputDir()."/daily-{$dateStr}.mp4";
             }
 
-            // Step 2: Generate social media text
-            $videoData = $this->videoService->getDailyVideoData($helsinkiNow);
+            $videoData = $this->videoService->getDailyVideoData($dataAsOf);
             $socialTexts = $this->generateSocialMediaText($isDryRun, $videoData);
-            if ($socialTexts === null && !$isDryRun) {
+            if ($socialTexts === null && ! $isDryRun) {
                 $this->warn('Failed to generate social media text, using fallback');
-                $socialTexts = $this->getFallbackSocialTexts($helsinkiNow);
+                $socialTexts = $this->getFallbackSocialTexts($videoData);
             }
 
-            // Prepend deterministic opening based on day rating
             $socialTexts = $this->prependDayRatingOpening($socialTexts, $videoData);
-
-            // Append hashtags
             $socialTexts = $this->appendHashtags($socialTexts);
 
             $this->info('Social media texts:');
@@ -102,45 +152,116 @@ class RenderDailyVideo extends Command
                 $this->line("  [{$platform}] ({$length} chars): {$text}");
             }
 
-            // Step 3: Upload video and post to social media via PostFast
-            if (!$this->option('skip-post') && $videoPath && $socialTexts) {
-                $asDraft = $this->option('draft');
-                $this->postToSocialMedia($videoPath, $socialTexts, $isDryRun, $asDraft);
+            $postResult = null;
+            if (! $skipPost && $videoPath && $socialTexts) {
+                $postResult = $this->postToSocialMedia($videoPath, $socialTexts, $isDryRun, $asDraft);
             } else {
                 $this->info('Skipping social media posting');
+            }
+
+            if ($publication !== null && $postResult !== null) {
+                $markedPublished = $this->publicationService->markPublished(
+                    $publication,
+                    $postResult['video_key'],
+                    $postResult['posted_count'],
+                    $postResult['skipped_platforms'],
+                );
+
+                if (! $markedPublished) {
+                    $this->warn('Publication result was not stored because a newer attempt owns the ledger row. The newer state was not changed.');
+                    Log::warning('Daily spot publication result lost its ledger claim', [
+                        'date' => $dateStr,
+                        'attempt_count' => $publication->attempt_count,
+                    ]);
+                }
             }
 
             $this->info('Daily video pipeline completed successfully!');
             Log::info('Daily video pipeline completed', [
                 'date' => $dateStr,
+                'data_as_of' => $dataAsOf->toIso8601String(),
                 'video_path' => $videoPath,
                 'social_texts' => $socialTexts,
             ]);
 
             return Command::SUCCESS;
-        } catch (\Exception $e) {
-            $this->error('Pipeline failed: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            if ($publication !== null) {
+                $markedFailed = $this->publicationService->markFailed($publication, $e->getMessage());
+
+                if (! $markedFailed) {
+                    $this->warn('Failure was not stored because a newer attempt owns the ledger row. The newer state was not changed.');
+                }
+            }
+
+            $this->error('Pipeline failed: '.$e->getMessage());
             Log::error('Daily video pipeline failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return Command::FAILURE;
         }
     }
 
-    private function renderVideo(string $dateStr, bool $isDryRun): ?string
+    private function parseContentDate(mixed $dateOption): ?Carbon
+    {
+        if ($dateOption === null || $dateOption === '') {
+            return Carbon::today(SpotSocialPublicationService::TIMEZONE);
+        }
+
+        try {
+            $date = Carbon::createFromFormat('Y-m-d', (string) $dateOption, SpotSocialPublicationService::TIMEZONE);
+        } catch (\Throwable) {
+            $date = null;
+        }
+
+        if ($date === null || $date->format('Y-m-d') !== $dateOption) {
+            $this->error('Invalid --date. Use YYYY-MM-DD.');
+
+            return null;
+        }
+
+        return $date->startOfDay();
+    }
+
+    private function dataAsOfForFirstAttempt(Carbon $contentDate): Carbon
+    {
+        $now = Carbon::now(SpotSocialPublicationService::TIMEZONE);
+
+        return $contentDate->copy()->setTime(
+            $now->hour,
+            $now->minute,
+            $now->second,
+            $now->microsecond,
+        );
+    }
+
+    private function claimSkipMessage(string $reason): string
+    {
+        return match ($reason) {
+            SpotSocialPublication::STATUS_PUBLISHED => 'Daily spot publication skipped. This content date is already published and cannot be retried.',
+            SpotSocialPublication::STATUS_FAILED => 'Daily spot publication skipped. The prior attempt failed. Inspect PostFast, then use --retry --date=YYYY-MM-DD.',
+            SpotSocialPublication::STATUS_PROCESSING => 'Daily spot publication skipped. Another attempt is processing or is not stale.',
+            'not_found' => 'Daily spot publication retry skipped. No publication row exists for this content date.',
+            default => "Daily spot publication skipped ({$reason}).",
+        };
+    }
+
+    private function renderVideo(string $dateStr, Carbon $dataAsOf, bool $isDryRun): ?string
     {
         $this->info('Step 1: Rendering video...');
 
-        $outputPath = $this->getOutputDir() . "/daily-{$dateStr}.mp4";
+        $outputPath = $this->getOutputDir()."/daily-{$dateStr}.mp4";
 
         if ($isDryRun) {
             $this->line("Would render video to: {$outputPath}");
+
             return $outputPath;
         }
 
         // Ensure output directory exists
-        if (!is_dir($this->getOutputDir())) {
+        if (! is_dir($this->getOutputDir())) {
             mkdir($this->getOutputDir(), 0755, true);
         }
 
@@ -151,12 +272,13 @@ class RenderDailyVideo extends Command
         $this->line("Output path: {$outputPath}");
 
         // Run Remotion render command using local binary
-        $remotionBin = $this->getRemotionPath() . '/node_modules/.bin/remotion';
+        $remotionBin = $this->getRemotionPath().'/node_modules/.bin/remotion';
 
         $result = Process::path($this->getRemotionPath())
             ->timeout(600) // 10 minutes timeout
             ->env([
                 'VOLTIKKA_API_URL' => $apiUrl,
+                'VOLTIKKA_VIDEO_AS_OF' => $dataAsOf->toIso8601String(),
                 'PUPPETEER_EXECUTABLE_PATH' => env('PUPPETEER_EXECUTABLE_PATH', '/usr/bin/chromium'),
             ])
             ->run([
@@ -168,7 +290,7 @@ class RenderDailyVideo extends Command
                 '--log=verbose',
             ]);
 
-        if (!$result->successful()) {
+        if (! $result->successful()) {
             $this->error('Video rendering failed:');
             $this->line($result->errorOutput());
             Log::error('Remotion render failed', [
@@ -176,10 +298,12 @@ class RenderDailyVideo extends Command
                 'output' => $result->output(),
                 'error' => $result->errorOutput(),
             ]);
+
             return null;
         }
 
         $this->info("Video rendered successfully: {$outputPath}");
+
         return $outputPath;
     }
 
@@ -195,15 +319,17 @@ class RenderDailyVideo extends Command
         if ($isDryRun) {
             $this->line('Would call LLM with prompt (showing first 500 chars):');
             $this->line(str_repeat('-', 60));
-            $this->line(mb_substr($prompt, 0, 500) . '...');
+            $this->line(mb_substr($prompt, 0, 500).'...');
             $this->line(str_repeat('-', 60));
-            return $this->getFallbackSocialTexts(Carbon::now('Europe/Helsinki'));
+
+            return $this->getFallbackSocialTexts($videoData);
         }
 
         // Check if OpenRouter API key is configured
         $apiKey = config('services.openrouter.api_key');
         if (empty($apiKey)) {
             $this->warn('OpenRouter API key not configured, using fallback text');
+
             return null;
         }
 
@@ -211,7 +337,7 @@ class RenderDailyVideo extends Command
 
         // Retry loop for LLM calls
         for ($attempt = 1; $attempt <= self::MAX_LLM_RETRIES; $attempt++) {
-            $this->line("LLM attempt {$attempt}/" . self::MAX_LLM_RETRIES . " (model: {$model})");
+            $this->line("LLM attempt {$attempt}/".self::MAX_LLM_RETRIES." (model: {$model})");
 
             $result = $this->callLlmApi($prompt, $apiKey, $model);
 
@@ -225,7 +351,8 @@ class RenderDailyVideo extends Command
             }
         }
 
-        $this->warn("All {self::MAX_LLM_RETRIES} LLM attempts failed");
+        $this->warn('All {self::MAX_LLM_RETRIES} LLM attempts failed');
+
         return null;
     }
 
@@ -250,12 +377,13 @@ class RenderDailyVideo extends Command
                 ],
             ]);
 
-            if (!$response->successful()) {
-                $this->warn('LLM API call failed: ' . $response->body());
+            if (! $response->successful()) {
+                $this->warn('LLM API call failed: '.$response->body());
                 Log::error('OpenRouter API call failed', [
                     'status' => $response->status(),
                     'body' => $response->body(),
                 ]);
+
                 return null;
             }
 
@@ -276,14 +404,16 @@ class RenderDailyVideo extends Command
             $parsed = $this->parseAndValidateResponse($content);
             if ($parsed === null) {
                 $this->warn('Failed to parse LLM response as valid JSON');
-                $this->line('Raw response: ' . mb_substr($content, 0, 200));
+                $this->line('Raw response: '.mb_substr($content, 0, 200));
+
                 return null;
             }
 
             return $parsed;
         } catch (\Exception $e) {
-            $this->warn('LLM API exception: ' . $e->getMessage());
+            $this->warn('LLM API exception: '.$e->getMessage());
             Log::error('OpenRouter API exception', ['error' => $e->getMessage()]);
+
             return null;
         }
     }
@@ -308,6 +438,7 @@ class RenderDailyVideo extends Command
                 'error' => json_last_error_msg(),
                 'content' => $content,
             ]);
+
             return null;
         }
 
@@ -316,7 +447,7 @@ class RenderDailyVideo extends Command
         $validatedResponse = [];
 
         foreach ($requiredFields as $field) {
-            if (!isset($parsed[$field]) || !is_string($parsed[$field])) {
+            if (! isset($parsed[$field]) || ! is_string($parsed[$field])) {
                 Log::warning("Missing or invalid field in LLM response: {$field}", [
                     'parsed' => $parsed,
                 ]);
@@ -332,7 +463,7 @@ class RenderDailyVideo extends Command
             $length = mb_strlen($text);
             $maxLength = in_array($platform, ['tiktok', 'youtube']) ? 150 : 180;
             if ($length > $maxLength) {
-                Log::warning("Platform text exceeds limit", [
+                Log::warning('Platform text exceeds limit', [
                     'platform' => $platform,
                     'length' => $length,
                     'max' => $maxLength,
@@ -344,9 +475,8 @@ class RenderDailyVideo extends Command
         return $validatedResponse;
     }
 
-    private function getFallbackSocialTexts(Carbon $helsinkiNow): array
+    private function getFallbackSocialTexts(array $videoData): array
     {
-        $videoData = $this->videoService->getDailyVideoData($helsinkiNow);
         $stats = $videoData['statistics'];
         $cheapestHour = $stats['cheapest_hour']['label'] ?? '-';
         $cheapestPrice = $stats['cheapest_hour']['price'] ?? '-';
@@ -379,7 +509,7 @@ class RenderDailyVideo extends Command
         }
 
         foreach ($texts as $platform => $text) {
-            $texts[$platform] = $opening . ' ' . $text;
+            $texts[$platform] = $opening.' '.$text;
         }
 
         return $texts;
@@ -391,13 +521,16 @@ class RenderDailyVideo extends Command
     private function appendHashtags(array $texts): array
     {
         foreach ($texts as $platform => $text) {
-            $texts[$platform] = $text . "\n\n" . self::HASHTAGS;
+            $texts[$platform] = $text."\n\n".self::HASHTAGS;
         }
 
         return $texts;
     }
 
-    private function postToSocialMedia(string $videoPath, array $texts, bool $isDryRun, bool $asDraft = false): void
+    /**
+     * @return array{video_key: string, posted_count: int, skipped_platforms: list<string>}|null
+     */
+    private function postToSocialMedia(string $videoPath, array $texts, bool $isDryRun, bool $asDraft = false): ?array
     {
         $modeLabel = $asDraft ? 'as drafts' : 'scheduled';
         $this->info("Step 3: Uploading video and posting via PostFast ({$modeLabel})...");
@@ -408,64 +541,98 @@ class RenderDailyVideo extends Command
             foreach ($texts as $platform => $text) {
                 $this->line("  [{$platform}]: {$text}");
             }
-            return;
+
+            return null;
         }
 
-        // Check if PostFast is configured
-        if (!$this->postFastService->isConfigured()) {
-            $this->warn('PostFast API not configured, skipping post');
-            Log::warning('Social media posting skipped - PostFast API key not configured');
-            return;
+        if (! $this->postFastService->isConfigured()) {
+            throw new \RuntimeException('PostFast API is not configured.');
         }
 
         try {
-            // Upload video to PostFast's S3
             $this->line('Uploading video to PostFast...');
             $videoKey = $this->postFastService->uploadVideo($videoPath);
             $this->info("Video uploaded successfully (key: {$videoKey})");
 
-            // Schedule posts for immediate publishing (current time + 1 minute)
             $scheduledAt = Carbon::now()->addMinute();
 
             if ($asDraft) {
-                $this->line("Creating draft posts for review in PostFast dashboard...");
+                $this->line('Creating draft posts for review in PostFast dashboard...');
             } else {
                 $this->line("Scheduling posts for: {$scheduledAt->toIso8601String()}");
             }
 
             $result = $this->postFastService->schedulePosts($videoKey, $texts, $scheduledAt, $asDraft);
+            $postedCount = (int) ($result['posted_count'] ?? 0);
+            $skippedPlatforms = array_values($result['skipped_platforms'] ?? []);
+
+            if ($postedCount === 0) {
+                throw new \RuntimeException('PostFast returned zero created posts.');
+            }
 
             if ($asDraft) {
-                $this->info("Draft posts created successfully!");
-                $this->line("  Review them at https://postfa.st/dashboard");
+                $this->info('Draft posts created successfully!');
+                $this->line('  Review them at https://postfa.st/dashboard');
             } else {
-                $this->info("Posts scheduled successfully!");
+                $this->info('Posts scheduled successfully!');
             }
-            $this->line("  Created for {$result['posted_count']} platform(s)");
+            $this->line("  Created for {$postedCount} platform(s)");
 
-            if (!empty($result['skipped_platforms'])) {
-                $this->warn("  Skipped (not connected): " . implode(', ', $result['skipped_platforms']));
+            if ($skippedPlatforms !== []) {
+                $this->warn('  Skipped (not connected): '.implode(', ', $skippedPlatforms));
             }
 
             Log::info('Social media posts created via PostFast', [
                 'video_key' => $videoKey,
                 'status' => $asDraft ? 'DRAFT' : 'SCHEDULED',
                 'scheduled_at' => $asDraft ? null : $scheduledAt->toIso8601String(),
-                'posted_count' => $result['posted_count'],
-                'skipped_platforms' => $result['skipped_platforms'],
+                'posted_count' => $postedCount,
+                'skipped_platforms' => $skippedPlatforms,
             ]);
 
-            // Clean up local video file after successful upload
-            if (file_exists($videoPath)) {
-                unlink($videoPath);
-                $this->line("Local video file deleted: {$videoPath}");
-            }
-        } catch (\Exception $e) {
-            $this->error('PostFast posting failed: ' . $e->getMessage());
+            $this->deleteLocalVideo($videoPath);
+
+            return [
+                'video_key' => $videoKey,
+                'posted_count' => $postedCount,
+                'skipped_platforms' => $skippedPlatforms,
+            ];
+        } catch (\Throwable $e) {
             Log::error('PostFast posting failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
+            throw new \RuntimeException(
+                'PostFast posting failed. Inspect PostFast before explicit retry because some external posts can already exist. Cause: '
+                .$e->getMessage(),
+                previous: $e,
+            );
         }
+    }
+
+    private function deleteLocalVideo(string $videoPath): void
+    {
+        if (! file_exists($videoPath)) {
+            return;
+        }
+
+        try {
+            if (unlink($videoPath)) {
+                $this->line("Local video file deleted: {$videoPath}");
+
+                return;
+            }
+
+            $error = 'unlink returned false';
+        } catch (\Throwable $e) {
+            $error = $e->getMessage();
+        }
+
+        $this->warn("Could not delete local video file after successful PostFast publication: {$videoPath}");
+        Log::warning('Daily spot local video cleanup failed after successful PostFast publication', [
+            'video_path' => $videoPath,
+            'error' => $error,
+        ]);
     }
 }

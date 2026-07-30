@@ -18,6 +18,7 @@ const API_BASE_URL = typeof window !== 'undefined' && window.location.hostname =
 // Placeholder for defaultProps - actual data is fetched via calculateMetadata
 const placeholderData: DailyVideoData = {
   generated_at: "",
+  as_of: "",
   date: { iso: "", weekday: "", day: 0, month: "", formatted: "" },
   current_price: null,
   statistics: {
@@ -63,7 +64,9 @@ const calculateDailyMetadata = async ({
   props: DailySpotPriceProps;
   abortSignal: AbortSignal;
 }): Promise<{ props: DailySpotPriceProps }> => {
-  const response = await fetch(`${API_BASE_URL}/api/video/daily`, {
+  const asOf = process.env.VOLTIKKA_VIDEO_AS_OF;
+  const query = asOf ? `?date=${encodeURIComponent(asOf)}` : "";
+  const response = await fetch(`${API_BASE_URL}/api/video/daily${query}`, {
     signal: abortSignal,
   });
   const json = await response.json();

@@ -3,8 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\SpotPriceHour;
+use App\Models\SpotSocialPublication;
 use App\Services\EntsoeService;
+use App\Services\PostFastService;
 use App\Services\SpotPriceAverageService;
+use App\Services\SpotPriceVideoService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
@@ -401,6 +404,37 @@ class FetchSpotCommandTest extends TestCase
             ->assertExitCode(0);
 
         $this->assertEquals(24, SpotPriceHour::count());
+    }
+
+    public function test_repeated_fetches_never_start_social_publication(): void
+    {
+        $timestamp = Carbon::create(2026, 1, 19, 10, 0, 0, 'UTC')->timestamp;
+        $prices = [[
+            'region' => 'FI',
+            'timestamp' => $timestamp,
+            'utc_datetime' => Carbon::createFromTimestamp($timestamp, 'UTC'),
+            'price_without_tax' => 5.0,
+            'resolution_minutes' => 60,
+        ]];
+
+        $entsoe = Mockery::mock(EntsoeService::class);
+        $entsoe->shouldReceive('fetchDayAheadPrices')->twice()->andReturn($prices);
+        $this->app->instance(EntsoeService::class, $entsoe);
+
+        $videoService = Mockery::mock(SpotPriceVideoService::class);
+        $videoService->shouldNotReceive('getDailyVideoData');
+        $this->app->instance(SpotPriceVideoService::class, $videoService);
+
+        $postFast = Mockery::mock(PostFastService::class);
+        $postFast->shouldNotReceive('uploadVideo');
+        $postFast->shouldNotReceive('schedulePosts');
+        $this->app->instance(PostFastService::class, $postFast);
+
+        $this->artisan('spot:fetch')->assertExitCode(0);
+        $this->artisan('spot:fetch')->assertExitCode(0);
+
+        $this->assertSame(0, SpotSocialPublication::count());
+        $this->assertSame(1, SpotPriceHour::count());
     }
 
     /**

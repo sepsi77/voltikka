@@ -10,7 +10,6 @@ use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
 
 class FetchSpot extends Command
@@ -30,6 +29,7 @@ class FetchSpot extends Command
     protected $description = 'Fetch Nord Pool spot prices from ENTSO-E API and save to database';
 
     private EntsoeService $entsoeService;
+
     private SpotPriceAverageService $averageService;
 
     public function __construct(EntsoeService $entsoeService, SpotPriceAverageService $averageService)
@@ -46,9 +46,6 @@ class FetchSpot extends Command
     {
         $this->info('Fetching spot prices from ENTSO-E API...');
 
-        // Get the latest spot price timestamp before fetching
-        $latestBeforeFetch = $this->getLatestSpotPriceTimestamp();
-
         try {
             // Fetch today and tomorrow (using Helsinki timezone to ensure we get all Finnish hours)
             // Helsinki is UTC+2 in winter (UTC+3 in summer), so we need to start from yesterday 22:00 UTC
@@ -63,22 +60,21 @@ class FetchSpot extends Command
                 'exception_class' => $e::class,
                 'exception' => $this->sanitizeHttpExceptionMessage($e->getMessage()),
             ]);
+
             return Command::FAILURE;
         }
 
         if (empty($spotPrices)) {
             $this->warn('No spot prices fetched from API.');
+
             return Command::SUCCESS;
         }
 
-        // Find the latest timestamp from the API response
-        $latestFromApi = $this->getLatestTimestampFromApiResponse($spotPrices);
-
-        $this->info("Fetched " . count($spotPrices) . " hourly prices. Processing...");
+        $this->info('Fetched '.count($spotPrices).' hourly prices. Processing...');
 
         try {
             $this->saveSpotPrices($spotPrices);
-            $this->info('Spot prices fetched successfully! Processed ' . count($spotPrices) . ' records.');
+            $this->info('Spot prices fetched successfully! Processed '.count($spotPrices).' records.');
             Log::info('Successfully fetched spot prices', ['count' => count($spotPrices)]);
 
             // Calculate averages after fetching new data
@@ -92,19 +88,14 @@ class FetchSpot extends Command
                 '--consumption' => [5000],
             ]);
 
-            // Trigger social media pipeline if we got newer data than before
-            if ($latestFromApi && (!$latestBeforeFetch || $latestFromApi->gt($latestBeforeFetch))) {
-                $this->info("New spot price data available up to: {$latestFromApi->format('Y-m-d H:i')} UTC");
-                $this->triggerSocialMediaPipeline();
-            }
-
             return Command::SUCCESS;
         } catch (\Exception $e) {
-            $this->error('Error saving spot prices: ' . $e->getMessage());
+            $this->error('Error saving spot prices: '.$e->getMessage());
             Log::error('FetchSpot command failed during save', [
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return Command::FAILURE;
         }
     }
@@ -118,63 +109,12 @@ class FetchSpot extends Command
     }
 
     /**
-     * Get the latest spot price timestamp from the database (quarter-hour data).
-     */
-    private function getLatestSpotPriceTimestamp(): ?Carbon
-    {
-        $latest = SpotPriceQuarter::where('region', 'FI')
-            ->orderBy('utc_datetime', 'desc')
-            ->first();
-
-        return $latest?->utc_datetime;
-    }
-
-    /**
-     * Get the latest timestamp from the API response.
-     */
-    private function getLatestTimestampFromApiResponse(array $spotPrices): ?Carbon
-    {
-        $latestTimestamp = null;
-
-        foreach ($spotPrices as $item) {
-            $timestamp = $item['utc_datetime'];
-            if ($timestamp instanceof Carbon) {
-                if (!$latestTimestamp || $timestamp->gt($latestTimestamp)) {
-                    $latestTimestamp = $timestamp->copy();
-                }
-            }
-        }
-
-        return $latestTimestamp;
-    }
-
-    /**
-     * Trigger the social media pipeline when new spot price data is available.
-     */
-    private function triggerSocialMediaPipeline(): void
-    {
-        $this->info('New spot price data detected! Triggering social media pipeline...');
-
-        Log::info('New spot price data available, triggering social media pipeline');
-
-        try {
-            Artisan::call('social:daily-video', [], $this->output);
-            $this->info('Social media pipeline completed.');
-        } catch (\Exception $e) {
-            $this->error('Social media pipeline failed: ' . $e->getMessage());
-            Log::error('Social media pipeline failed after spot fetch', [
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    /**
      * Save spot prices to database.
      *
      * Stores 15-minute data in spot_prices_quarter table and
      * calculates hourly averages for spot_prices_hour table.
      *
-     * @param array $spotPrices Array of spot price data from EntsoeService
+     * @param  array  $spotPrices  Array of spot price data from EntsoeService
      */
     private function saveSpotPrices(array $spotPrices): void
     {
@@ -203,7 +143,7 @@ class FetchSpot extends Command
         }
 
         // Save 15-minute data to quarter table
-        if (!empty($quarterData)) {
+        if (! empty($quarterData)) {
             foreach (array_chunk($quarterData, 500) as $chunk) {
                 SpotPriceQuarter::insertOrIgnore($chunk);
             }
@@ -216,7 +156,7 @@ class FetchSpot extends Command
         }
 
         // Save any existing hourly data directly
-        if (!empty($hourlyData)) {
+        if (! empty($hourlyData)) {
             foreach (array_chunk($hourlyData, 500) as $chunk) {
                 SpotPriceHour::insertOrIgnore($chunk);
             }
@@ -226,7 +166,7 @@ class FetchSpot extends Command
     /**
      * Calculate hourly averages from 15-minute data.
      *
-     * @param array $quarterData Array of 15-minute price records
+     * @param  array  $quarterData  Array of 15-minute price records
      * @return array Array of hourly average records
      */
     private function calculateHourlyAverages(array $quarterData): array
@@ -242,7 +182,7 @@ class FetchSpot extends Command
                 $hourKey = Carbon::parse($utcDatetime)->startOfHour()->timestamp;
             }
 
-            if (!isset($hourGroups[$hourKey])) {
+            if (! isset($hourGroups[$hourKey])) {
                 $hourGroups[$hourKey] = [
                     'prices' => [],
                     'region' => $item['region'],
@@ -280,7 +220,7 @@ class FetchSpot extends Command
      * - May 1, 2023 to Aug 31, 2024: 24% (standard rate)
      * - Sep 1, 2024 onwards: 25.5% (increased rate)
      *
-     * @param Carbon $priceDate The date to get VAT rate for
+     * @param  Carbon  $priceDate  The date to get VAT rate for
      * @return float VAT rate (0.10, 0.24, or 0.255)
      */
     private function getVatRate(Carbon $priceDate): float

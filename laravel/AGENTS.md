@@ -39,7 +39,8 @@ Primary implementation:
 Important semantics:
 - contract listing and detail pages cache only canonical/default GET payloads, not arbitrary query/filter/Livewire states
 - cache entries expire at tomorrow and also bust through `ContractPageCacheVersion`, which includes the import-bumped `ContractListCacheService` version plus cheap source-table aggregates
-- after a successful data import, `contracts:fetch` clears stale application caches before bumping/warming fresh caches; for database cache this uses `TRUNCATE TABLE cache` so expired large page-data rows also release InnoDB disk space
+- after the authoritative data transaction commits, `app/Services/ContractImport/ContractPostImportCoordinator.php` clears stale application caches and bumps cache versions; for database cache this uses `TRUNCATE TABLE cache` so expired large page-data rows also release InnoDB disk space
+- cache invalidation and contract/company version bumps are required post-import stages; cache warming is optional and has a separate failure boundary
 - `contracts:fetch` bumps and warms `ContractListCacheService`; this is the main invalidation signal for contract-page prepared payloads
 - full response/HTML caching is intentionally not the first layer because Livewire snapshots/tokens should not be cached blindly
 - page-level prepared-data caching is disabled under `app()->runningUnitTests()` to avoid cross-test cache pollution
@@ -82,7 +83,7 @@ query rules.
 
 ### Contract source snapshots and automatic interpretation
 
-`contracts:fetch` stores each distinct complete upstream contract payload in `contract_source_snapshots` inside the import transaction. `CONTRACT_INTERPRETATION_ENABLED=true` is set in production, so each new semantic snapshot dispatches one versioned interpretation job after commit.
+`app/Services/ContractImport/ContractImporter.php` stores each distinct complete upstream contract payload in `contract_source_snapshots` inside one authoritative import transaction. `CONTRACT_INTERPRETATION_ENABLED=true` is set in production, so the post-import coordinator sends each observed current snapshot through the fingerprint-idempotent dispatcher after commit, with one failure boundary per snapshot. Unchanged snapshots update `last_observed_at`; revisiting the dispatcher lets a transient failure before interpretation creation recover without creating duplicate jobs.
 
 Primary implementation:
 - `app/Services/ContractInterpretation/AGENTS.md`
@@ -133,8 +134,8 @@ php artisan contracts:backfill-price-statistics --from=2025-01-01 --to=2026-04-2
 Important semantics:
 - future daily calculations are run during `contracts:fetch` and use `active_contracts`; in canonical mode all current numeric metrics and measured offer state come from batched typed canonical outcomes and no `price_components` query runs
 - `/sahkosopimus/tilastot` serves cached prepared view data per period + consumption and automatically busts that cache when statistics/snapshot/source spot-price fingerprints change
-- `contracts:fetch` calculates daily contract-price statistics before optional percentile badge thresholds so `/sahkosopimus/tilastot` continues to advance even if percentile recalculation fails
-- `contracts:warm-price-statistics-cache` queues `App\Jobs\WarmContractPriceStatisticsCache` by default; use `--sync` only for manual immediate warming/tests. `contracts:calculate-price-statistics` (including when called by `contracts:fetch`) and `spot:fetch` queue warming for the default weekly/5 000 kWh page state after their source data updates.
+- the contract post-import coordinator calls `ContractPriceStatisticsService::calculateForDate()` before optional percentile badge thresholds so `/sahkosopimus/tilastot` continues to advance even if percentile recalculation fails; it captures exact start and completion timestamps immediately around this call for the morning freshness checkpoint
+- `contracts:warm-price-statistics-cache` queues `App\Jobs\WarmContractPriceStatisticsCache` by default; use `--sync` only for manual immediate warming/tests. The contract post-import coordinator dispatches that job directly for weekly/5 000 after successful statistics; `spot:fetch` also queues it after source data updates.
 - Production containers start `php artisan queue:work --timeout=420 --tries=3` through root `supervisord.conf`; keep database queue `retry_after` at 450 seconds or more. Queued cache warmers and contract interpretation depend on that worker running.
 - historical backfills infer availability from `price_components.price_date` and always store observed seller evidence; `pricing_basis` distinguishes these rows from canonical forward calculations in the page and CSV
 - public current-statistics consumers use one shared rule: canonical flag on requires `canonical_calculation`, while feature-off requires `observed_seller_data`; they select the latest date for that basis and never fall back across bases
@@ -157,7 +158,7 @@ Commands:
 php artisan forecasting:run-fixed-contracts --as-of=today --horizon=30
 php artisan forecasting:evaluate-fixed-contracts --as-of=today
 ```
-Scheduled in `routes/console.php`: EEX futures fetch runs overnight at 04:00 Europe/Helsinki so previous trading-day FI settlements are available before the forecast run; forecast run daily at 07:30 Europe/Helsinki, evaluation daily at 07:45.
+Scheduled in `routes/console.php`: EEX futures fetch runs overnight at 04:00 Europe/Helsinki so previous trading-day FI settlements are available before the forecast run; forecast run daily at 07:30 Europe/Helsinki, evaluation daily at 07:45. Scheduled retail collection and forecast generation use `--require-freshness`; the shared `app/Services/MorningFreshness/` gate requires same-date full contract/EEX checkpoints, exactly one observed snapshot and a current publication for each active contract, current-run prior-date FI Base proof, and recent FI Base database data. Forecasts also require at least one current 6/12/24 statistic for the selected pricing basis and a statistics start after the newest required publication.
 
 Important semantics:
 - model v2 forecasts fixed-term 6/12/24 month market p20/median/p80 `energy_price` indices from `contract_price_daily_statistics`
@@ -323,6 +324,12 @@ Primary files:
 - `app/Console/Commands/FetchSpotForecast.php`
 
 Important semantics:
+- `spot:fetch` only persists spot prices, calculates averages, and warms the statistics cache. Manual or repeated imports never invoke social publication.
+- `social:publish-daily-spot` is scheduled independently at minute 15 each hour. It defers until exact hourly rows exist for both the Helsinki content date and next date.
+- Real PostFast publication is disabled by default through `SPOT_SOCIAL_PUBLISHING_ENABLED=false`. Dry-run, skip-post, and draft modes do not use the `spot_social_publications` ledger. Draft still requires the enable setting because it calls PostFast.
+- The durable ledger permits one first claim per Helsinki `content_date`. Normal calls never retry. `--retry --date=YYYY-MM-DD` permits only failed or processing attempts that are at least 30 minutes old. Published rows never retry.
+- A PostFast timeout has an uncertain external result. Some posts can already exist. The command records failure and tells the operator to inspect PostFast before an explicit retry. Partial success (`posted_count > 0`) is published and skipped platforms are metadata, not automatic retry work.
+- Detailed rules are in `app/Services/SpotSocial/AGENTS.md`.
 - ENTSO-E fetches retry transient server errors and connection failures/timeouts (`ConnectionException`, including cURL 28) before failing.
 - Spot fetch/backfill commands catch exhausted HTTP request/connection failures so scheduled jobs fail or continue gracefully instead of leaking raw exception stack traces.
 - Do not log raw ENTSO-E exception messages without redacting `securityToken`, because Guzzle/Laravel exception text can include the full query string.
@@ -341,6 +348,7 @@ Primary files:
 
 Important semantics:
 - `futures:fetch-eex` collects EEX electricity futures end-of-day settlement prices into `electricity_futures_eod_prices`.
+- Only the default non-dry scheduled scope writes the global `eex_futures` freshness checkpoint. Custom dates, maturities, areas, tenors, range counts, history windows, and dry runs never claim global readiness. A full run first writes a failed start marker, then becomes ready only with no fetch failures and at least one prior-date FI Base point extracted by that current run. An old database row cannot supply this proof; the dependent gate separately checks database presence and age.
 - The command defaults to EEX Nordic System Price and Nordic zonal Base Month, Quarter, and Year futures (DK1, DK2, FI, NO1-NO5, SE1-SE4).
 - EEX maturity strings are `YYYYMM`: month delivery month, quarter start month, and year January (`YYYY01`). The command probes the `price-ticker` endpoint first because out-of-bounds delivery dates return HTTP 200 with empty data; it discovers maturities once per tenor using a representative market, then fetches EOD data for those same maturity values across all configured markets.
 - The public EEX chart endpoint requires `Referer: https://www.eex.com/` and only returns about 45 days of history; `futures:backfill-eex` fetches all history available from that public endpoint, and normal fetches cap requested ranges and safely upsert reruns.
@@ -355,7 +363,7 @@ Important semantics:
 cd laravel
 php artisan contracts:fetch --skip-logos
 ```
-This imports current contracts, refreshes `active_contracts`, and runs high-confidence replacement linking.
+This uses `app/Services/ContractImport/` to import current contracts, refresh `active_contracts`, link high-confidence replacements, and run typed post-import work. Available contracts from a partial postcode acquisition are imported and the command reports the incomplete acquisition. Active rows absent from a partial response are preserved, and replacement linking waits for a complete acquisition. Only the default full scope writes the global `contract_import` freshness checkpoint; postcode-scoped runs never overwrite it. A full run first writes a failed start marker so a crash cannot preserve an old ready fact. Acquisition/import/required-stage failures are `failed`, partial acquisition is `incomplete`, and a complete successful post-import is `ready` with observed snapshot IDs, active IDs, and the exact statistics start and completion times.
 
 ### Inspect matcher output
 ```bash

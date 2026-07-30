@@ -7,9 +7,12 @@ use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ContractInterpretation;
 use App\Models\ContractSourceSnapshot;
+use App\Models\DataFreshnessCheckpoint;
 use App\Models\ElectricityContract;
 use App\Models\Postcode;
 use App\Models\PriceComponent;
+use App\Services\ContractStatistics\ContractPriceStatisticsService;
+use App\Services\MorningFreshness\MorningJobFreshnessService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -98,6 +101,7 @@ class FetchContractsCommandTest extends TestCase
         $this->assertDatabaseHas('active_contracts', [
             'id' => $contract->id,
         ]);
+        $this->assertDatabaseCount('data_freshness_checkpoints', 0);
     }
 
     /**
@@ -141,6 +145,30 @@ class FetchContractsCommandTest extends TestCase
 
         // Should have fetched from all default postcodes (30) plus retry attempt
         Http::assertSentCount(31);
+
+        $checkpoint = DataFreshnessCheckpoint::sole();
+        $this->assertSame(DataFreshnessCheckpoint::KEY_CONTRACT_IMPORT, $checkpoint->key);
+        $this->assertSame(DataFreshnessCheckpoint::STATUS_READY, $checkpoint->status);
+        $this->assertNotEmpty($checkpoint->metadata['observed_snapshot_ids']);
+        $this->assertNotEmpty($checkpoint->metadata['active_contract_ids']);
+        $this->assertNotNull($checkpoint->metadata['statistics_started_at']);
+        $this->assertNotNull($checkpoint->metadata['statistics_completed_at']);
+    }
+
+    public function test_full_scope_stops_before_acquisition_when_initial_checkpoint_fails(): void
+    {
+        $freshness = $this->createMock(MorningJobFreshnessService::class);
+        $freshness->expects($this->once())
+            ->method('record')
+            ->willThrowException(new \RuntimeException('Checkpoint unavailable'));
+        $this->app->instance(MorningJobFreshnessService::class, $freshness);
+        Http::fake();
+
+        $this->artisan('contracts:fetch')
+            ->expectsOutput('Failed to record the contract freshness checkpoint.')
+            ->assertExitCode(1);
+
+        Http::assertNothingSent();
     }
 
     /**
@@ -297,9 +325,11 @@ class FetchContractsCommandTest extends TestCase
     public function test_new_source_price_waits_for_validation_when_a_canonical_version_exists(): void
     {
         $firstResponse = $this->getSampleApiResponse();
-        Http::fake([
-            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response($firstResponse, 200),
-        ]);
+        $secondResponse = $this->getSampleApiResponse();
+        $secondResponse[0]['Details']['Pricing']['PriceComponents'][0]['OriginalPayment']['Price'] = 6.5;
+        Http::fakeSequence()
+            ->push($firstResponse, 200)
+            ->push($secondResponse, 200);
         $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
             ->assertExitCode(0);
 
@@ -319,14 +349,9 @@ class FetchContractsCommandTest extends TestCase
         ]);
         $contract->update(['published_interpretation_id' => $interpretation->id]);
 
-        $secondResponse = $this->getSampleApiResponse();
-        $secondResponse[0]['Details']['Pricing']['PriceComponents'][0]['OriginalPayment']['Price'] = 6.5;
         Queue::fake();
         config()->set('contract_interpretation.enabled', true);
         config()->set('services.openrouter.api_key', 'test-key');
-        Http::fake([
-            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response($secondResponse, 200),
-        ]);
 
         $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
             ->assertExitCode(0);
@@ -384,6 +409,33 @@ class FetchContractsCommandTest extends TestCase
         $this->assertSame(ContractInterpretation::STATUS_PENDING, $interpretation->status);
         $this->assertDatabaseHas('contract_source_snapshots', ['id' => $interpretation->source_snapshot_id]);
         $this->assertDatabaseMissing('active_contracts', ['id' => $interpretation->contract_id]);
+        Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 1);
+    }
+
+    public function test_unchanged_snapshot_retries_after_a_transient_pre_dispatch_failure(): void
+    {
+        Queue::fake();
+        config()->set('contract_interpretation.enabled', true);
+        config()->set('services.openrouter.api_key', null);
+        Http::fake([
+            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response(
+                $this->getSampleApiResponse(),
+                200,
+            ),
+        ]);
+
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+
+        $this->assertSame(1, ContractSourceSnapshot::count());
+        $this->assertSame(0, ContractInterpretation::count());
+
+        config()->set('services.openrouter.api_key', 'test-key');
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+
+        $this->assertSame(1, ContractSourceSnapshot::count());
+        $this->assertSame(1, ContractInterpretation::count());
         Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 1);
     }
 
@@ -570,6 +622,68 @@ class FetchContractsCommandTest extends TestCase
         $this->assertDatabaseHas('spot_futures', [
             'price' => 4.25,
         ]);
+    }
+
+    public function test_partial_postcode_failure_is_reported_as_incomplete_and_available_contracts_import(): void
+    {
+        Company::create([
+            'name' => 'Regional Energy Oy',
+            'name_slug' => 'regional-energy-oy',
+        ]);
+        $regionalContract = ElectricityContract::create([
+            'id' => 'regional-contract',
+            'api_id' => 'regional-api',
+            'name' => 'Regional Contract',
+            'company_name' => 'Regional Energy Oy',
+            'contract_type' => 'FixedTerm',
+            'metering' => 'General',
+            'availability_is_national' => false,
+        ]);
+        ActiveContract::create(['id' => $regionalContract->id]);
+
+        Http::fake([
+            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/00100' => Http::response(
+                $this->getSampleApiResponse(),
+                200,
+            ),
+            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/02230' => Http::response(
+                ['error' => 'Server Error'],
+                500,
+            ),
+        ]);
+
+        $this->artisan('contracts:fetch', [
+            '--postcodes' => '00100,02230',
+            '--skip-logos' => true,
+        ])
+            ->expectsOutput('Contract acquisition was incomplete. Failed postcodes: 02230.')
+            ->assertExitCode(0);
+
+        $this->assertDatabaseHas('electricity_contracts', ['api_id' => 'contract-12345']);
+        $this->assertDatabaseHas('active_contracts', ['id' => $regionalContract->id]);
+    }
+
+    public function test_required_statistics_failure_returns_exit_one_after_import(): void
+    {
+        Http::fake([
+            'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response(
+                $this->getSampleApiResponse(),
+                200,
+            ),
+        ]);
+        $statistics = $this->createMock(ContractPriceStatisticsService::class);
+        $statistics->method('calculateForDate')
+            ->willThrowException(new \RuntimeException('Required statistics failed'));
+        $this->app->instance(ContractPriceStatisticsService::class, $statistics);
+
+        $this->artisan('contracts:fetch', [
+            '--postcodes' => '00100',
+            '--skip-logos' => true,
+        ])
+            ->expectsOutput('Required post-import stage daily_statistics failed: Required statistics failed')
+            ->assertExitCode(1);
+
+        $this->assertDatabaseHas('electricity_contracts', ['api_id' => 'contract-12345']);
     }
 
     /**

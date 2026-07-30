@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
 use App\Models\SpotPriceQuarter;
-use App\Models\SpotPriceAverage;
 use Carbon\Carbon;
 
 /**
@@ -16,7 +16,9 @@ use Carbon\Carbon;
 class SpotPriceVideoService
 {
     private const REGION = 'FI';
+
     private const TIMEZONE = 'Europe/Helsinki';
+
     private const VAT_RATE = 0.255; // 25.5% VAT
 
     private const FINNISH_WEEKDAYS = [
@@ -77,6 +79,7 @@ class SpotPriceVideoService
 
         return [
             'generated_at' => Carbon::now()->toIso8601String(),
+            'as_of' => $helsinkiNow->toIso8601String(),
             'date' => [
                 'iso' => $helsinkiNow->format('Y-m-d'),
                 'weekday' => self::FINNISH_WEEKDAYS[$helsinkiNow->dayOfWeek],
@@ -124,7 +127,7 @@ class SpotPriceVideoService
             $helsinkiTime = Carbon::parse($price->utc_datetime)->shiftTimezone('UTC')->setTimezone(self::TIMEZONE);
             $date = $helsinkiTime->format('Y-m-d');
 
-            if (!isset($dailyData[$date])) {
+            if (! isset($dailyData[$date])) {
                 $dailyData[$date] = [
                     'prices' => [],
                     'min' => PHP_FLOAT_MAX,
@@ -154,13 +157,13 @@ class SpotPriceVideoService
 
         // Find best and worst days
         $sortedByAvg = $days;
-        usort($sortedByAvg, fn($a, $b) => $a['average'] <=> $b['average']);
+        usort($sortedByAvg, fn ($a, $b) => $a['average'] <=> $b['average']);
         $bestDay = $sortedByAvg[0] ?? null;
         $worstDay = $sortedByAvg[count($sortedByAvg) - 1] ?? null;
 
         // Overall statistics
         $allPrices = array_merge(...array_column($dailyData, 'prices'));
-        $weeklyAverage = !empty($allPrices) ? array_sum($allPrices) / count($allPrices) : null;
+        $weeklyAverage = ! empty($allPrices) ? array_sum($allPrices) / count($allPrices) : null;
 
         // Rolling averages for context
         $rolling30 = SpotPriceAverage::latestRolling30Days(self::REGION);
@@ -211,13 +214,15 @@ class SpotPriceVideoService
     private function filterTodayPrices(array $prices, Carbon $helsinkiNow): array
     {
         $todayDate = $helsinkiNow->format('Y-m-d');
-        return array_filter($prices, fn($p) => $p['helsinki_date'] === $todayDate);
+
+        return array_filter($prices, fn ($p) => $p['helsinki_date'] === $todayDate);
     }
 
     private function filterTomorrowPrices(array $prices, Carbon $helsinkiNow): array
     {
         $tomorrowDate = $helsinkiNow->copy()->addDay()->format('Y-m-d');
-        return array_filter($prices, fn($p) => $p['helsinki_date'] === $tomorrowDate);
+
+        return array_filter($prices, fn ($p) => $p['helsinki_date'] === $tomorrowDate);
     }
 
     private function getCurrentPrice(Carbon $helsinkiNow): ?array
@@ -235,6 +240,7 @@ class SpotPriceVideoService
 
         if ($quarterPrice) {
             $quarterEndMinute = $quarterMinute + 15;
+
             return [
                 'price_with_tax' => round($quarterPrice->price_with_tax, 2),
                 'price_without_tax' => round($quarterPrice->price_without_tax, 2),
@@ -291,7 +297,7 @@ class SpotPriceVideoService
 
         // Find cheapest and most expensive hours
         $sorted = $todayPrices;
-        usort($sorted, fn($a, $b) => $a['price_with_tax'] <=> $b['price_with_tax']);
+        usort($sorted, fn ($a, $b) => $a['price_with_tax'] <=> $b['price_with_tax']);
         $cheapest = reset($sorted);
         $expensive = end($sorted);
 
@@ -325,6 +331,7 @@ class SpotPriceVideoService
             if ($p['helsinki_date'] === $todayDate) {
                 return $p['helsinki_hour'] > $currentHour;
             }
+
             return true;
         });
 
@@ -346,6 +353,7 @@ class SpotPriceVideoService
             if ($p['helsinki_date'] === $todayDate) {
                 return $inWindow && $hour > $currentHour;
             }
+
             return $inWindow;
         });
 
@@ -354,7 +362,7 @@ class SpotPriceVideoService
         }
 
         // Use price_with_tax for consumer-facing recommendations
-        usort($eveningPrices, fn($a, $b) => $a['price_with_tax'] <=> $b['price_with_tax']);
+        usort($eveningPrices, fn ($a, $b) => $a['price_with_tax'] <=> $b['price_with_tax']);
         $cheapest = reset($eveningPrices);
         $expensive = end($eveningPrices);
 
@@ -398,7 +406,7 @@ class SpotPriceVideoService
         }
 
         // Use price_with_tax for consumer-facing recommendations
-        usort($futurePrices, fn($a, $b) => $a['price_with_tax'] <=> $b['price_with_tax']);
+        usort($futurePrices, fn ($a, $b) => $a['price_with_tax'] <=> $b['price_with_tax']);
         $cheapest = reset($futurePrices);
         $expensive = end($futurePrices);
 
@@ -443,6 +451,7 @@ class SpotPriceVideoService
             if ($crossesMidnight) {
                 return $hour >= $startHour || $hour < $endHour;
             }
+
             return $hour >= $startHour && $hour < $endHour;
         });
 
@@ -454,6 +463,7 @@ class SpotPriceVideoService
         $windowPrices = array_values($windowPrices);
         usort($windowPrices, function ($a, $b) {
             $dateCompare = strcmp($a['helsinki_date'], $b['helsinki_date']);
+
             return $dateCompare !== 0 ? $dateCompare : $a['helsinki_hour'] <=> $b['helsinki_hour'];
         });
 
@@ -475,13 +485,13 @@ class SpotPriceVideoService
                 $sameDayConsec = ($prevDate === $currDate && $currHour === $prevHour + 1);
                 $midnightCross = ($prevDate !== $currDate && $prevHour === 23 && $currHour === 0);
 
-                if (!$sameDayConsec && !$midnightCross) {
+                if (! $sameDayConsec && ! $midnightCross) {
                     $isConsecutive = false;
                     break;
                 }
             }
 
-            if (!$isConsecutive) {
+            if (! $isConsecutive) {
                 continue;
             }
 
@@ -534,6 +544,7 @@ class SpotPriceVideoService
             if ($p['helsinki_date'] === $todayDate) {
                 return $p['helsinki_hour'] > $currentHour;
             }
+
             return true;
         });
 
@@ -549,6 +560,7 @@ class SpotPriceVideoService
         $futurePrices = array_values($futurePrices);
         usort($futurePrices, function ($a, $b) {
             $dateCompare = strcmp($a['helsinki_date'], $b['helsinki_date']);
+
             return $dateCompare !== 0 ? $dateCompare : $a['helsinki_hour'] <=> $b['helsinki_hour'];
         });
 
@@ -570,13 +582,13 @@ class SpotPriceVideoService
                 $sameDayConsec = ($prevDate === $currDate && $currHour === $prevHour + 1);
                 $midnightCross = ($prevDate !== $currDate && $prevHour === 23 && $currHour === 0);
 
-                if (!$sameDayConsec && !$midnightCross) {
+                if (! $sameDayConsec && ! $midnightCross) {
                     $isConsecutive = false;
                     break;
                 }
             }
 
-            if (!$isConsecutive) {
+            if (! $isConsecutive) {
                 continue;
             }
 
@@ -632,7 +644,7 @@ class SpotPriceVideoService
         }
 
         // Sort by hour
-        usort($todayPrices, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
+        usort($todayPrices, fn ($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
 
         // Calculate median to define "cheap" (using price with VAT)
         $prices = array_column($todayPrices, 'price_with_tax');
@@ -676,7 +688,7 @@ class SpotPriceVideoService
             'duration_hours' => count($bestPeriod),
             'label' => sprintf('%02d:00-%02d:00', $startHour, $endHour),
             'average_price' => round($avgPrice, 2),
-            'hours' => array_map(fn($p) => $p['helsinki_hour'], $bestPeriod),
+            'hours' => array_map(fn ($p) => $p['helsinki_hour'], $bestPeriod),
         ];
     }
 
@@ -691,7 +703,7 @@ class SpotPriceVideoService
         }
 
         // Sort by hour
-        usort($todayPrices, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
+        usort($todayPrices, fn ($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
 
         // Calculate median to define "expensive" (using price with VAT)
         $prices = array_column($todayPrices, 'price_with_tax');
@@ -734,7 +746,7 @@ class SpotPriceVideoService
             'duration_hours' => count($worstPeriod),
             'label' => sprintf('%02d:00-%02d:00', $startHour, $endHour),
             'average_price' => round($avgPrice, 2),
-            'hours' => array_map(fn($p) => $p['helsinki_hour'], $worstPeriod),
+            'hours' => array_map(fn ($p) => $p['helsinki_hour'], $worstPeriod),
         ];
     }
 
@@ -748,7 +760,7 @@ class SpotPriceVideoService
             return null;
         }
 
-        usort($todayPrices, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
+        usort($todayPrices, fn ($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
 
         $bestWindow = null;
         $bestAverage = PHP_FLOAT_MAX;
@@ -765,7 +777,7 @@ class SpotPriceVideoService
                 }
             }
 
-            if (!$isConsecutive) {
+            if (! $isConsecutive) {
                 continue;
             }
 
@@ -789,7 +801,7 @@ class SpotPriceVideoService
             'duration_hours' => $windowSize,
             'label' => sprintf('%02d:00-%02d:00', $startHour, $endHour),
             'average_price' => round($bestAverage, 2),
-            'hours' => array_map(fn($p) => $p['helsinki_hour'], $bestWindow),
+            'hours' => array_map(fn ($p) => $p['helsinki_hour'], $bestWindow),
         ];
     }
 
@@ -799,7 +811,7 @@ class SpotPriceVideoService
             return ['hours' => [], 'prices' => [], 'colors' => []];
         }
 
-        usort($todayPrices, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
+        usort($todayPrices, fn ($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
 
         // Use price_with_tax for consumer-facing chart
         $prices = array_column($todayPrices, 'price_with_tax');
@@ -847,7 +859,7 @@ class SpotPriceVideoService
             ->pluck('price_with_tax')
             ->toArray();
 
-        $yesterdayAverage = !empty($yesterdayPrices)
+        $yesterdayAverage = ! empty($yesterdayPrices)
             ? array_sum($yesterdayPrices) / count($yesterdayPrices)
             : null;
 
@@ -959,10 +971,10 @@ class SpotPriceVideoService
 
     private function formatPricesForVideo(array $prices): array
     {
-        usort($prices, fn($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
+        usort($prices, fn ($a, $b) => $a['helsinki_hour'] <=> $b['helsinki_hour']);
 
         // Primary price is with VAT for consumer-facing display
-        return array_map(fn($p) => [
+        return array_map(fn ($p) => [
             'hour' => $p['helsinki_hour'],
             'label' => sprintf('%02d:00', $p['helsinki_hour']),
             'price' => round($p['price_with_tax'], 2),
