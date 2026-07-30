@@ -99,8 +99,9 @@ Monthly included-energy packages are typed and costed as described below.
 - `DTO/CanonicalPeriodPricingRequest` / `CanonicalPeriodPricingOutcome` — keep exact-period totals,
   measured period savings, relevant rates/margins, comparability, assumptions, and typed
   unavailable reasons separate from the 12-month payload.
-- `MarketReset/` — annualises monthly/quarterly/seasonal reset products with a shape-only
-  forward-curve shift instead of holding one seasonal price flat. Own flag, own `AGENTS.md`.
+- `MarketReset/` — annualises monthly/quarterly/seasonal/other reset products with a shape-only
+  forward-curve shift instead of holding one seasonal price flat. Cadence `other` uses the
+  quarterly calendar and reference proxy. Own flag, own `AGENTS.md`.
 - `ContractPricingIntegrityService` — the deterministic label state machine.
 - `CanonicalContractPricingService` — batch orchestrator + feature-flag gate. `metricsForContracts()`
   returns array-only metrics for cache/listings; `evaluate()` returns typed `{outcome, integrity}`
@@ -171,8 +172,8 @@ disclosed phases or they are excluded, **unless they are an active recurring res
 for recurring/spot → `exact`/`estimate_required` map to the two comparable verdicts.
 
 Domain rules layered on top (each with a regression test and a documented reason):
-- **Recurring market products** (monthly/quarterly/seasonal reset) are never excluded for `detected`
-  and get no deceptive label — they behave like Spot (current period known, future resets with the
+- **Recurring market products** (monthly/quarterly/seasonal/other reset) are never excluded for
+  `detected` and get no deceptive label — they behave like Spot (current period known, future resets with the
   market; a small first-period intro is not deception). The uncovered tail holds the most recent
   disclosed (recurring) price via `lastCoveredPhaseIndex`, not the phase at signup.
 - **Costable incomplete Spot** (`isCostableSpot`): a Spot contract with a disclosed `spot_margin` is a
@@ -345,6 +346,9 @@ company and ranking data instead of leaving it stale for 48 hours or one hour.
 `ContractPricingIntegrity` gained typed `promo_rate_cents` /
 `normal_rate_cents` for the dated receipt rows; that was schema v2.
 
+Schema **v11** invalidates cached list, ranking, company, and prepared-page membership after
+`other` became a listed recurring reset cadence. It adds no calculated-cost field.
+
 Schema **v10** extends `calculated_cost.contract_term` to short
 `base_only_hybrid` outcomes. Their real-term base-only total and saving are
 captured before annualization, while comparability and the Hybrid exclusion stay
@@ -390,7 +394,9 @@ notice first, then the amber integrity notice.
 ## Market-reset contracts: annualized with a shape-only forward-curve shift
 
 Market-reset products (`recurring_schedule.present` with cadence `monthly` / `quarterly` /
-`seasonal`) publish one price per period. Holding that seasonal price flat for twelve months was a
+`seasonal` / `other`) publish one price per period. Cadence `other` covers a validated recurring
+reset with no exact calendar boundaries and uses the quarterly calendar and reference proxy.
+Holding that seasonal price flat for twelve months was a
 **live defect**: too low in summer, too high in winter, on roughly 32 lineages, about two thirds of
 them quarterly. `config('canonical_pricing.enabled')` is **true in production** even though the
 config default is false, so do not read "default off" above as "inert".

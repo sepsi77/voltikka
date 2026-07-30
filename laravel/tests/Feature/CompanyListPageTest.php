@@ -1069,10 +1069,10 @@ class CompanyListPageTest extends TestCase
 
         $keys = $this->cacheKeysMatching('company_list:');
 
-        $this->assertContains('company_list:v1:s1:lv1:c0r0:5000', $keys);
-        $this->assertContains('company_list:v1:s1:lv1:c1r0:5000', $keys);
-        $this->assertContains('company_list:v1:s1:lv1:c1r1:5000', $keys);
-        $this->assertContains('company_list:v1:s1:lv2:c1r1:5000', $keys);
+        $this->assertContains('company_list:v1:s2:lv1:c0r0:5000', $keys);
+        $this->assertContains('company_list:v1:s2:lv1:c1r0:5000', $keys);
+        $this->assertContains('company_list:v1:s2:lv1:c1r1:5000', $keys);
+        $this->assertContains('company_list:v1:s2:lv2:c1r1:5000', $keys);
     }
 
     private function createCanonicalContract(

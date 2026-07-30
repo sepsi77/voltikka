@@ -31,8 +31,9 @@ class ContractPageCacheVersion
      * v8: company and SEO offer surfaces use canonical measured membership and benefit copy.
      * v9: canonical outcomes carry exact typed offer terms for controlled public promotion copy.
      * v10: short BaseOnlyHybrid outcomes preserve real-term totals and offer savings.
+     * v11: `other` cadence recurring resets become eligible canonical list estimates.
      */
-    private const PAYLOAD_SCHEMA_VERSION = 10;
+    private const PAYLOAD_SCHEMA_VERSION = 11;
 
     public function __construct(
         private readonly ContractListCacheService $contractListCache,

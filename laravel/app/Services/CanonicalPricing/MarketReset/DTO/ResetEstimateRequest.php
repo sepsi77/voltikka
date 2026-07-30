@@ -14,7 +14,7 @@ use Carbon\CarbonImmutable;
 readonly class ResetEstimateRequest
 {
     /**
-     * @param  string  $cadence  `monthly`, `quarterly`, or `seasonal`.
+     * @param  string  $cadence  `monthly`, `quarterly`, `seasonal`, or `other`.
      * @param  CarbonImmutable  $asOfDate  Window start. The vintage anchor for the forward months
      *                                     `F_m`: the latest `trade_date < asOfDate`.
      * @param  CarbonImmutable  $anchorPeriodMonth  A month inside the last contractually known
@@ -41,23 +41,23 @@ readonly class ResetEstimateRequest
         public array $tailMonthKeys,
         public float $anchorEnergyPriceCentsPerKwh,
         public array $monthWeights,
-    ) {
-    }
+    ) {}
 
     /**
      * Reference delivery-period kinds to try, in order, for this cadence.
      *
      * Monthly resets are priced from the front month (measured pass-through 0.90 / 1.01).
-     * Quarterly and seasonal resets are priced from the quarter; once the quarter has
-     * entered delivery EEX stops publishing it, so the day-weighted average of its three
-     * month contracts is the only quarter-shaped reference left.
+     * Quarterly, seasonal, and other resets are priced from the quarter; once the quarter
+     * has entered delivery EEX stops publishing it, so the day-weighted average of its
+     * three month contracts is the only quarter-shaped reference left. `other` uses this
+     * proxy because its exact phase boundaries are not published.
      *
      * @return list<string>
      */
     public function referenceKindPreference(): array
     {
         return match ($this->cadence) {
-            'quarterly', 'seasonal' => ['quarter', 'quarter_month_average'],
+            'quarterly', 'seasonal', 'other' => ['quarter', 'quarter_month_average'],
             default => ['month'],
         };
     }

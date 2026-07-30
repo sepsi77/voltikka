@@ -204,7 +204,7 @@ class CanonicalContractPriceCalculator
         }
 
         // 4. A flagged-deceptive contract must be fully covered by disclosed phases to rank —
-        //    UNLESS it is a legitimate recurring market product (monthly/quarterly/seasonal reset).
+        //    UNLESS it is a legitimate recurring market product (monthly/quarterly/seasonal/other reset).
         //    Those behave like Spot: the current period price is known, future periods reset with the
         //    market, and a small first-period intro is not deceptive. They are estimated, not hidden.
         if (! $fullyCovered && $data->misleadingState->value === 'detected' && ! $data->recurringSchedule->isActiveReset()) {
@@ -1901,8 +1901,9 @@ class CanonicalContractPriceCalculator
      *  - the end of the latest window coverage that comes from a phase with a *dated* end.
      *
      * A phase whose end is `none` is an open-ended claim, not a credible reset-period boundary:
-     * a product that resets quarterly does not have a known price for twelve months. Those are
-     * exactly the lineages the hold-flat defect hides in.
+     * a product that resets quarterly does not have a known price for twelve months. Cadence
+     * `other` uses the same quarterly calendar proxy because its exact boundaries are unknown.
+     * Those are exactly the lineages the hold-flat defect hides in.
      *
      * @param  list<WindowSegment>  $segments
      */
@@ -1944,7 +1945,8 @@ class CanonicalContractPriceCalculator
      *
      * Derived from the cadence calendar of the anchor period, and overridden by a disclosed
      * `current_period_start` when the source declares a non-calendar period that falls inside it.
-     * A declared date from an older period can never leak in through that check.
+     * Every non-monthly cadence, including `other`, uses the quarterly calendar proxy. A declared
+     * date from an older period can never leak in through that check.
      */
     private function resetPeriodStart(CanonicalContractData $data, CarbonImmutable $tailStart): CarbonImmutable
     {

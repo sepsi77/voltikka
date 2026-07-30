@@ -195,6 +195,32 @@ class MarketResetForwardShiftTest extends TestCase
         $this->assertEqualsWithDelta(10.25, $outcome->resetEstimate['annual_equivalent_energy_price'], 0.001);
     }
 
+    public function test_other_cadence_uses_the_quarterly_proxy_and_q3_to_q4_tail_boundary(): void
+    {
+        $pricing = $this->resetPricing(8.0, 'other');
+        $directQuarter = new FakeMarketCurve(
+            reference: ['month' => 2.0, 'quarter' => 5.0, 'quarter_month_average' => 6.0],
+            forward: $this->flatForward(9.0),
+        );
+
+        $direct = $this->evaluate($pricing, $this->estimator($directQuarter));
+
+        $this->assertSame(EstimateMethod::RecurringForwardCurveShift, $direct->estimateMethod);
+        $this->assertSame('quarter', $direct->resetEstimate['reference_kind']);
+        $this->assertSame('2026-Q3', $direct->resetEstimate['anchor_period']);
+        $this->assertSame('2026-10', $direct->resetEstimate['tail_starts']);
+        $this->assertEqualsWithDelta(11.0, $direct->resetEstimate['annual_equivalent_energy_price'], 0.001);
+
+        $quarterAverage = new FakeMarketCurve(
+            reference: ['month' => 2.0, 'quarter_month_average' => 6.0],
+            forward: $this->flatForward(9.0),
+        );
+        $fallback = $this->evaluate($pricing, $this->estimator($quarterAverage));
+
+        $this->assertSame('quarter_month_average', $fallback->resetEstimate['reference_kind']);
+        $this->assertEqualsWithDelta(10.25, $fallback->resetEstimate['annual_equivalent_energy_price'], 0.001);
+    }
+
     public function test_missing_curve_falls_back_to_the_spot_seasonal_index(): void
     {
         // No curve at all, but a usable multi-year seasonal index: July index 0,5 against 1,0

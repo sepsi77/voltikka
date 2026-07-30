@@ -52,7 +52,7 @@ class ContractPricingIntegrityService
         $promoCodes = array_values(array_intersect($data->issueCodes, self::PROMO_CODES));
         $conflictCodes = array_values(array_intersect($data->issueCodes, self::CONFLICT_CODES));
 
-        // A legitimate recurring market product (monthly/quarterly/seasonal reset) is not deceptive
+        // A legitimate recurring market product (monthly/quarterly/seasonal/other reset) is not deceptive
         // even with a small first-period intro. Its future periods reset with the market like Spot,
         // and the "Arvio" estimate marker already communicates that. Suppress the promo label unless
         // there is an actual structured data conflict.
@@ -76,7 +76,7 @@ class ContractPricingIntegrityService
     }
 
     /**
-     * @param list<string> $promoCodes
+     * @param  list<string>  $promoCodes
      */
     private function onlyContinuationCodes(array $promoCodes): bool
     {
@@ -84,7 +84,7 @@ class ContractPricingIntegrityService
     }
 
     /**
-     * @param list<string> $promoCodes
+     * @param  list<string>  $promoCodes
      */
     private function promoLabel(CanonicalContractData $data, CanonicalPricingOutcome $outcome, array $promoCodes): ContractPricingIntegrity
     {
@@ -157,7 +157,7 @@ class ContractPricingIntegrityService
     }
 
     /**
-     * @param list<string> $conflictCodes
+     * @param  list<string>  $conflictCodes
      */
     private function dataConflictLabel(array $conflictCodes): ContractPricingIntegrity
     {
@@ -172,7 +172,7 @@ class ContractPricingIntegrityService
     }
 
     /**
-     * @param list<PricingPhase> $phases
+     * @param  list<PricingPhase>  $phases
      */
     private function firstNormalPhase(array $phases): ?PricingPhase
     {
@@ -200,7 +200,7 @@ class ContractPricingIntegrityService
     /**
      * The date the promotional price ends / the later price begins, as an ISO string.
      *
-     * @param list<PricingPhase> $phases
+     * @param  list<PricingPhase>  $phases
      */
     private function changeDate(array $phases): ?string
     {

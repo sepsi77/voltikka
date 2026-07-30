@@ -1,8 +1,10 @@
 # Market-reset annualised price (forward-curve shift)
 
 This directory annualises **market-reset** contracts — `canonical_pricing.recurring_schedule.present
-= true` with cadence `monthly`, `quarterly`, or `seasonal`. Those products publish one price per
-period and follow the wholesale market between periods.
+= true` with cadence `monthly`, `quarterly`, `seasonal`, or `other`. Those products publish one price
+per period and follow the wholesale market between periods. Cadence `other` means that the source
+confirms recurring resets but does not publish exact calendar boundaries; it uses the quarterly
+calendar and reference proxy and remains an estimate.
 
 It fixes a live production defect: the calculator used to hold the current period price flat for
 twelve months. That price is a **seasonal** price, so the annual estimate was systematically too low
@@ -91,8 +93,9 @@ the window looked fully covered. Do not "simplify" this by trusting `ends: none`
 ### 3. Reference period by cadence
 
 - `monthly` → the **month** contract for the month containing the anchor period.
-- `quarterly` / `seasonal` → the **quarter** contract, falling back to `quarter_month_average` (the
-  day-weighted average of that quarter's three month contracts).
+- `quarterly` / `seasonal` / `other` → the **quarter** contract, falling back to
+  `quarter_month_average` (the day-weighted average of that quarter's three month contracts).
+  `other` also uses the Q3-to-Q4 calendar boundary, for example, because no exact boundary exists.
 
 `VintageAwareReferencePriceService::forResetPeriod()` supplies both candidates. Do not write a second
 lookup for them.
@@ -205,7 +208,8 @@ here; see the calibration section in `../AGENTS.md`.
 - `DTO/ResetEstimate.php` — offsets by `Y-m` plus the basis evidence, surfaced as
   `calculated_cost['reset_estimate']`.
 - `DTO/ResetEstimateRequest.php` — cadence, both vintage anchors (`asOfDate` for the forward months,
-  `currentPeriodStart` for the reference), tail months, anchor price, month weights.
+  `currentPeriodStart` for the reference), tail months, anchor price, month weights. It maps `other`
+  to the same quarter / quarter-month-average preference as quarterly and seasonal cadences.
 - `Enums/ResetEstimateBasis.php` — which rung was used.
 
 Caller: `../CanonicalContractPriceCalculator.php` (`resolveResetEstimate`, `resetTailStart`,
@@ -263,7 +267,7 @@ snapshot with `php artisan futures:backfill-eex --area=FI` (throttled, several m
 - The card shows two figures in the energy column: `{label} nyt` (the known current-period price) and
   a quieter `12 kk arvio {x} c/kWh` below it, with a tooltip stating the basis.
 - The detail page shows a **neutral** (not amber) notice after the hero: heading
-  "Hinta tarkistetaan {kuukausittain|neljännesvuosittain|kausittain}", then the current-period price,
+  "Hinta tarkistetaan {kuukausittain|neljännesvuosittain|kausittain|jaksoittain}", then the current-period price,
   the 12-month estimate, when the estimated part starts, and the basis with the curve date.
 - Never present the estimate as a contractual price, and never render it in amber — a published reset
   mechanism is not deceptive pricing.

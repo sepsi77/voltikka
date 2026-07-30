@@ -94,8 +94,9 @@ Purpose:
   12-month prices across pricing phases (so promotional prices do not flatter contracts)
 - assign a deterministic comparability verdict (list inclusion / sort key)
 - derive the deterministic deceptive-pricing label ("Hinta nousee …")
-- annualise monthly/quarterly/seasonal market-reset products with a shape-only forward-curve shift
-  instead of holding one seasonal price flat (`CanonicalPricing/MarketReset/`)
+- annualise monthly/quarterly/seasonal/other market-reset products with a shape-only forward-curve
+  shift instead of holding one seasonal price flat; `other` uses the quarterly proxy
+  (`CanonicalPricing/MarketReset/`)
 - gated behind `CANONICAL_PRICING_ENABLED`; when off, `ContractPriceCalculator` behavior is unchanged.
   The market-reset shift has its own separate flag, `RESET_FORWARD_SHIFT_ENABLED`
 

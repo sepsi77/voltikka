@@ -17,7 +17,7 @@ class CompanyListCacheService
      * The import version and pricing flags do not change on a code-only deploy. Bump this
      * value whenever company metric membership or payload fields change.
      */
-    private const PAYLOAD_SCHEMA_VERSION = 1;
+    private const PAYLOAD_SCHEMA_VERSION = 2;
 
     private const CACHE_TTL_SECONDS = 60 * 60 * 48; // 48 hours
 

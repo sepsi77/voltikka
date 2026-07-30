@@ -17,4 +17,5 @@ Important semantics:
 - payload v7 is the card/detail canonical-only current-value and real-term offer-copy boundary
 - payload v8 is the company/SEO canonical offer-membership and JSON-LD boundary
 - payload v9 adds exact typed canonical offer terms
-- payload v10 adds real-term totals and offer savings for short BaseOnlyHybrid outcomes; both `ContractPageCacheVersion` and `ContractListCacheService` are at v10
+- payload v10 adds real-term totals and offer savings for short BaseOnlyHybrid outcomes
+- payload v11 invalidates old prepared/list membership after `other` cadence recurring resets became listed estimates; both `ContractPageCacheVersion` and `ContractListCacheService` are at v11

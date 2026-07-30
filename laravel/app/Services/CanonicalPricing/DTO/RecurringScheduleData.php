@@ -17,6 +17,6 @@ readonly class RecurringScheduleData
 
     public function isActiveReset(): bool
     {
-        return $this->present && in_array($this->cadence, ['monthly', 'quarterly', 'seasonal'], true);
+        return $this->present && in_array($this->cadence, ['monthly', 'quarterly', 'seasonal', 'other'], true);
     }
 }

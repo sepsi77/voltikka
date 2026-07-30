@@ -18,7 +18,7 @@ class ContractRankingService
     private const CACHE_KEY_RANKINGS = 'contract_rankings_5000kwh';
 
     /** Bump when ranking eligibility, ordering, or the cached payload shape changes. */
-    private const PAYLOAD_SCHEMA_VERSION = 1;
+    private const PAYLOAD_SCHEMA_VERSION = 2;
 
     private const DEFAULT_CONSUMPTION = 5000;
 

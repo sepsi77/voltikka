@@ -884,6 +884,43 @@ class CanonicalContractPriceCalculatorTest extends TestCase
         $this->assertEqualsWithDelta(11.5, $outcome->generalKwhPrice, 0.001);
     }
 
+    public function test_15b_other_cadence_with_unknown_boundaries_is_a_listed_estimate(): void
+    {
+        // Lumme Energia Perussähkö shape: the current price and fee are complete, but the
+        // seller gives only a 2-4 times per year reset cadence and no exact phase boundaries.
+        $pricing = $this->pricing(
+            [$this->phase('recurring_period', ['kind' => 'unknown', 'value' => null], ['kind' => 'unknown', 'value' => null], [
+                $this->component('energy_general', 12.9),
+                $this->component('monthly_fee', 5.56, 'eur_per_month'),
+            ])],
+            ['present' => true, 'cadence' => 'other'],
+        );
+
+        $outcome = $this->evaluate($pricing, 'estimate_required', $this->cs('not_detected', ['recurring_reset_requires_estimate']), $this->context());
+
+        $this->assertSame(ContractComparability::ComparableEstimate, $outcome->comparability);
+        $this->assertTrue($outcome->isListed());
+        $this->assertTrue($outcome->isEstimate());
+        $this->assertEqualsWithDelta(5000 * 12.9 / 100 + 5.56 * 12, $outcome->totalCost, 0.5);
+    }
+
+    public function test_15c_incomplete_other_cadence_remains_excluded(): void
+    {
+        $pricing = $this->pricing(
+            [$this->phase('recurring_period', ['kind' => 'unknown', 'value' => null], ['kind' => 'unknown', 'value' => null], [
+                $this->component('energy_general', 12.9),
+                $this->component('monthly_fee', 5.56, 'eur_per_month'),
+            ])],
+            ['present' => true, 'cadence' => 'other'],
+        );
+
+        $outcome = $this->evaluate($pricing, 'incomplete', $this->cs('not_detected', ['component_mismatch']), $this->context());
+
+        $this->assertSame(ContractComparability::ExcludedIncomplete, $outcome->comparability);
+        $this->assertFalse($outcome->isListed());
+        $this->assertNull($outcome->totalCost);
+    }
+
     public function test_16_duplicate_zero_energy_component_does_not_win(): void
     {
         // A phase carrying a real 9.89 rate plus a spurious 0 duplicate of the same type.

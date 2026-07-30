@@ -28,9 +28,9 @@ class ContractRequestMemoizationTest extends TestCase
 
         Cache::shouldReceive('remember')
             ->once()
-            // v7 = import-driven data version, s10 = cached payload shape version,
+            // v7 = import-driven data version, s11 = cached payload shape version,
             // c0r0 = canonical pricing off, market-reset forward shift off.
-            ->with('contract_list_metrics:v7:s10:c0r0:5000', 60 * 60 * 48, \Mockery::type(\Closure::class))
+            ->with('contract_list_metrics:v7:s11:c0r0:5000', 60 * 60 * 48, \Mockery::type(\Closure::class))
             ->andReturn($metrics);
 
         $canonical = $this->createMock(CanonicalContractPricingService::class);
@@ -57,9 +57,9 @@ class ContractRequestMemoizationTest extends TestCase
 
         Cache::shouldReceive('remember')
             ->once()
-            // v4 = company import version, s1 = company payload schema,
+            // v4 = company import version, s2 = company payload schema,
             // lv7 = contract pricing data version, c1r0 = pricing flags.
-            ->with('company_list:v4:s1:lv7:c1r0:5000', 60 * 60 * 48, \Mockery::type(\Closure::class))
+            ->with('company_list:v4:s2:lv7:c1r0:5000', 60 * 60 * 48, \Mockery::type(\Closure::class))
             ->andReturn($companies);
 
         $listCache = $this->createMock(ContractListCacheService::class);
@@ -89,9 +89,9 @@ class ContractRequestMemoizationTest extends TestCase
 
         Cache::shouldReceive('remember')
             ->once()
-            // s1 = ranking payload schema; lv7 = contract pricing data version;
+            // s2 = ranking payload schema; lv7 = contract pricing data version;
             // c0/r0 = both pricing flags off.
-            ->with('contract_rankings_5000kwh:s1:lv7:c0:r0', 3600, \Mockery::type(\Closure::class))
+            ->with('contract_rankings_5000kwh:s2:lv7:c0:r0', 3600, \Mockery::type(\Closure::class))
             ->andReturn($rankings);
 
         $listCache = $this->createMock(ContractListCacheService::class);
