@@ -45,9 +45,16 @@ variant plots the market instead. This follows the approved
   day/night 15:9, else seasonal 5:7). A time-metered contract charted on
   `DayTime` alone would sit above a median that blends day and night, and the
   overlay would be a lie about the gap.
-- **`ContractPriceStatisticsService::segmentKey()` is the one classifier** and
-  `SEGMENT_LABELS` the one label map. Do not re-derive a segment here; the
-  overlay must describe the same market `/sahkosopimus/tilastot` aggregates.
+- **`ContractStatisticsSegmentClassifier` is the one classifier** and owns the one
+  `SEGMENT_LABELS` map. The presenter classifies with
+  `PricingMode::expectedContractPriceBasis()`: a current canonical reset overlays persisted
+  `market_reset` rows, while feature-off uses the observed text rule. Do not re-derive a
+  segment here.
+- **The median query uses the public statistics endpoint rule.** Older dates can keep their
+  stored historical basis. On the latest expected-basis date only that basis is accepted,
+  and newer opposite-basis rows are excluded. Segment keys are never translated: older
+  observed `quarterly` or `open_ended` rows do not become canonical `market_reset`; an
+  overlay for that segment starts with rows actually persisted under `market_reset`.
 - **A window shorter than `MIN_TRACKING_DAYS` (21) renders a message, not a
   chart**, and produces no behaviour tags at all. A flat line through two
   observations claims stability that has not been observed.

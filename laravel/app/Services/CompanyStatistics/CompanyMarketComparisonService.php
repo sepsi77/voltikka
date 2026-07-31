@@ -6,7 +6,7 @@ use App\Models\ContractPriceDailyStatistic;
 use App\Models\ContractPriceSnapshot;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractStatistics\ContractPriceBasis;
-use App\Services\ContractStatistics\ContractPriceStatisticsService;
+use App\Services\ContractStatistics\ContractStatisticsSegmentClassifier;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -122,7 +122,7 @@ class CompanyMarketComparisonService
         }
 
         return Cache::remember(
-            'company-market-comparison:v5:'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis.':'.md5($companyName).':'.$referenceConsumption.':'.$fingerprint,
+            'company-market-comparison:v6:'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis.':'.md5($companyName).':'.$referenceConsumption.':'.$fingerprint,
             now()->addHours(self::CACHE_TTL_HOURS),
             fn () => $this->build($companyName, $referenceConsumption),
         );
@@ -361,7 +361,7 @@ class CompanyMarketComparisonService
     {
         $rows = [];
 
-        foreach (ContractPriceStatisticsService::SEGMENT_LABELS as $segmentKey => $label) {
+        foreach (ContractStatisticsSegmentClassifier::SEGMENT_LABELS as $segmentKey => $label) {
             $market = $marketRows->get($segmentKey);
 
             if ($market === null || $market->contract_count < self::MIN_MARKET_CONTRACTS) {

@@ -398,6 +398,10 @@ class ConsumptionCalculator extends Component
                 'label' => 'Pörssisähkö',
                 'description' => 'Toteutuneeseen pörssihintaan ja tyypilliseen marginaaliin perustuva arvio.',
             ],
+            'market_reset' => [
+                'label' => 'Päivittyvä hinta',
+                'description' => 'Myyjän määräajoin markkinatilanteen mukaan päivittämä energiahinta.',
+            ],
             'fixed_term_12' => [
                 'label' => 'Määräaikainen 12 kk',
                 'description' => 'Vuodeksi lukittu kiinteä energiahinta.',

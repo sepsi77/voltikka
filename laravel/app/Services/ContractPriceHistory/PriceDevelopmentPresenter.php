@@ -5,7 +5,8 @@ namespace App\Services\ContractPriceHistory;
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
-use App\Services\ContractStatistics\ContractPriceStatisticsService;
+use App\Services\CanonicalPricing\PricingMode;
+use App\Services\ContractStatistics\ContractStatisticsSegmentClassifier;
 use Carbon\Carbon;
 
 /**
@@ -31,6 +32,11 @@ use Carbon\Carbon;
  */
 class PriceDevelopmentPresenter
 {
+    public function __construct(
+        private readonly PricingMode $pricingMode,
+        private readonly ContractStatisticsSegmentClassifier $segmentClassifier,
+    ) {}
+
     /** Below this many days of observations there is nothing honest to plot. */
     public const MIN_TRACKING_DAYS = 21;
 
@@ -44,14 +50,20 @@ class PriceDevelopmentPresenter
     private const SPOT_MONTHS = 12;
 
     private const INK = '#0f172a';        // slate-900, the contract series
+
     private const REFERENCE = '#64748b';  // slate-500, the dashed reference
 
     private const VIEW_WIDTH = 680;
+
     private const VIEW_HEIGHT = 230;
+
     private const PLOT_LEFT = 52;
+
     // Leaves room inside the 680-wide viewBox for the direct end labels.
     private const PLOT_RIGHT = 556;
+
     private const PLOT_TOP = 30;
+
     private const PLOT_BOTTOM = 190;
 
     private const MONTH_SHORT = [
@@ -67,7 +79,7 @@ class PriceDevelopmentPresenter
 
     /**
      * @param  array<string, array<int, array{date: string, price: float|int}>>  $priceHistory
-     *         `ContractDetail::$priceHistory`, keyed by `price_component_type`.
+     *                                                                                          `ContractDetail::$priceHistory`, keyed by `price_component_type`.
      * @param  array<string, mixed>  $calculatedCost
      * @return array{
      *     variant: string,
@@ -132,8 +144,9 @@ class PriceDevelopmentPresenter
         }
 
         $window = [$points[0]['date'], end($points)['date']];
-        $segmentKey = ContractPriceStatisticsService::segmentKey($contract);
-        $segmentLabel = mb_strtolower(ContractPriceStatisticsService::SEGMENT_LABELS[$segmentKey] ?? $segmentKey);
+        $expectedBasis = $this->pricingMode->expectedContractPriceBasis();
+        $segmentKey = $this->segmentClassifier->classify($contract, $expectedBasis);
+        $segmentLabel = mb_strtolower(ContractStatisticsSegmentClassifier::SEGMENT_LABELS[$segmentKey] ?? $segmentKey);
 
         $buckets = $this->buckets($window[0], $window[1]);
         $reference = $this->segmentMedianByBucket($segmentKey, $buckets);
@@ -144,7 +157,7 @@ class PriceDevelopmentPresenter
             referenceByBucket: $hasReference ? $reference : [],
             buckets: $buckets,
             seriesLabel: 'Tämän sopimuksen energianhinta',
-            referenceLabel: 'Mediaani, ' . $segmentLabel,
+            referenceLabel: 'Mediaani, '.$segmentLabel,
             referenceShortLabel: 'mediaani',
             tooltipSeriesLabel: 'Tämä sopimus',
             tooltipReferenceLabel: 'Vertailuryhmän mediaani',
@@ -158,7 +171,7 @@ class PriceDevelopmentPresenter
         return [
             'variant' => 'contract',
             'available' => true,
-            'subtitle' => 'Energianhinta c/kWh · ' . $this->trackedSinceSentence($trackedSince),
+            'subtitle' => 'Energianhinta c/kWh · '.$this->trackedSinceSentence($trackedSince),
             'message' => null,
             'note' => $note,
             'chart' => $chart,
@@ -190,8 +203,8 @@ class PriceDevelopmentPresenter
                 'variant' => 'spot',
                 'available' => false,
                 'subtitle' => $this->trackedSinceSentence($trackedSince),
-                'message' => 'Pörssin kuukausikeskiarvoja on tallessa vasta ' . count($months)
-                    . ' täydeltä kuukaudelta, joten hinnan vaihtelua ei vielä näytetä.',
+                'message' => 'Pörssin kuukausikeskiarvoja on tallessa vasta '.count($months)
+                    .' täydeltä kuukaudelta, joten hinnan vaihtelua ei vielä näytetä.',
                 'note' => null,
                 'chart' => null,
                 'facts' => [],
@@ -212,7 +225,7 @@ class PriceDevelopmentPresenter
                 'start' => $start->copy(),
                 'end' => $start->copy()->endOfMonth(),
                 'label' => self::MONTH_SHORT[$start->month],
-                'title' => ucfirst(self::MONTH_NAME[$start->month]) . ' ' . $start->year,
+                'title' => ucfirst(self::MONTH_NAME[$start->month]).' '.$start->year,
             ];
             $values[] = $month['avg'] + ($margin ?? 0.0);
         }
@@ -241,13 +254,13 @@ class PriceDevelopmentPresenter
 
         $note = $margin !== null
             ? 'Toteutunut pörssin kuukausikeskihinta, johon on lisätty tämän sopimuksen marginaali '
-                . $this->cents($margin) . ' c/kWh. Kuvaaja kertoo hinnan vaihtelusta, ei tämän sopimuksen toteutuneesta laskutuksesta.'
+                .$this->cents($margin).' c/kWh. Kuvaaja kertoo hinnan vaihtelusta, ei tämän sopimuksen toteutuneesta laskutuksesta.'
             : 'Tämän sopimuksen marginaali ei ole yksiselitteinen, joten kuvaajassa on pelkkä pörssin toteutunut kuukausikeskihinta.';
 
         return [
             'variant' => 'spot',
             'available' => true,
-            'subtitle' => 'Kuukauden keskihinta c/kWh · ' . $this->trackedSinceSentence($trackedSince),
+            'subtitle' => 'Kuukauden keskihinta c/kWh · '.$this->trackedSinceSentence($trackedSince),
             'message' => null,
             'note' => $note,
             'chart' => $chart,
@@ -287,10 +300,10 @@ class PriceDevelopmentPresenter
         $cheapest = array_keys($values, min($values), true)[0];
         $priciest = array_keys($values, max($values), true)[0];
 
-        $facts[] = 'Halvin kuukausi: ' . self::MONTH_NAME[$buckets[$cheapest]['start']->month]
-            . ' ' . $this->cents($values[$cheapest]) . ' c/kWh';
-        $facts[] = 'Kallein kuukausi: ' . self::MONTH_NAME[$buckets[$priciest]['start']->month]
-            . ' ' . $this->cents($values[$priciest]) . ' c/kWh';
+        $facts[] = 'Halvin kuukausi: '.self::MONTH_NAME[$buckets[$cheapest]['start']->month]
+            .' '.$this->cents($values[$cheapest]).' c/kWh';
+        $facts[] = 'Kallein kuukausi: '.self::MONTH_NAME[$buckets[$priciest]['start']->month]
+            .' '.$this->cents($values[$priciest]).' c/kWh';
 
         // Only claim something about "the margin" when the calculated payload
         // agrees that the tracked component really is the margin. On a
@@ -366,7 +379,7 @@ class PriceDevelopmentPresenter
         $previous = $points[count($points) - 2];
         $delta = $last['value'] - $previous['value'];
 
-        return 'Viimeisin muutos ' . $this->signedCents($delta) . ' c/kWh (' . $last['date']->format('j.n.Y') . ')';
+        return 'Viimeisin muutos '.$this->signedCents($delta).' c/kWh ('.$last['date']->format('j.n.Y').')';
     }
 
     /**
@@ -386,8 +399,8 @@ class PriceDevelopmentPresenter
 
         $changes = count($points) - 1;
 
-        return 'Perusmaksua muutettu ' . ($changes === 1 ? 'kerran' : $changes . ' kertaa') . ' (nyt '
-            . number_format(end($points)['value'], 2, ',', '') . ' €/kk)';
+        return 'Perusmaksua muutettu '.($changes === 1 ? 'kerran' : $changes.' kertaa').' (nyt '
+            .number_format(end($points)['value'], 2, ',', '').' €/kk)';
     }
 
     // ------------------------------------------------------------------
@@ -486,8 +499,8 @@ class PriceDevelopmentPresenter
         if ($flatReference) {
             $referenceValue = $referenceByBucket[0] ?? null;
             if ($referenceValue !== null) {
-                $referencePath = 'M' . self::PLOT_LEFT . ',' . $y($referenceValue)
-                    . ' L' . self::PLOT_RIGHT . ',' . $y($referenceValue);
+                $referencePath = 'M'.self::PLOT_LEFT.','.$y($referenceValue)
+                    .' L'.self::PLOT_RIGHT.','.$y($referenceValue);
             }
         } else {
             $started = false;
@@ -499,7 +512,7 @@ class PriceDevelopmentPresenter
                     continue;
                 }
                 $referenceValue = $value;
-                $referencePath .= ($started ? ' L' : 'M') . $x($this->bucketCentre($bucket)) . ',' . $y($value);
+                $referencePath .= ($started ? ' L' : 'M').$x($this->bucketCentre($bucket)).','.$y($value);
                 $started = true;
             }
         }
@@ -541,7 +554,7 @@ class PriceDevelopmentPresenter
         }
 
         return [
-            'view_box' => '0 0 ' . self::VIEW_WIDTH . ' ' . self::VIEW_HEIGHT,
+            'view_box' => '0 0 '.self::VIEW_WIDTH.' '.self::VIEW_HEIGHT,
             'plot' => [
                 'left' => self::PLOT_LEFT,
                 'right' => self::PLOT_RIGHT,
@@ -571,7 +584,7 @@ class PriceDevelopmentPresenter
             'reference_end_label' => $referenceValue === null ? null : [
                 'x' => self::PLOT_RIGHT + 8,
                 'y' => $referenceLabelY,
-                'text' => $referenceShortLabel . ' ' . $this->cents($referenceValue),
+                'text' => $referenceShortLabel.' '.$this->cents($referenceValue),
             ],
             'y_ticks' => array_map(fn (float $tick) => [
                 'y' => $y($tick),
@@ -675,8 +688,8 @@ class PriceDevelopmentPresenter
                 'end' => $end,
                 'label' => $weekly ? $cursor->format('j.n.') : self::MONTH_SHORT[$cursor->month],
                 'title' => $weekly
-                    ? 'Viikko ' . $cursor->format('j.n.') . '–' . $end->format('j.n.Y')
-                    : ucfirst(self::MONTH_NAME[$cursor->month]) . ' ' . $cursor->year,
+                    ? 'Viikko '.$cursor->format('j.n.').'–'.$end->format('j.n.Y')
+                    : ucfirst(self::MONTH_NAME[$cursor->month]).' '.$cursor->year,
             ];
             $cursor = $weekly ? $cursor->copy()->addWeek() : $cursor->copy()->addMonth();
         }
@@ -694,16 +707,34 @@ class PriceDevelopmentPresenter
      */
     private function segmentMedianByBucket(string $segmentKey, array $buckets): array
     {
+        $expectedBasis = $this->pricingMode->expectedContractPriceBasis()->value;
+        $latestExpectedDate = ContractPriceDailyStatistic::query()
+            ->where('pricing_basis', $expectedBasis)
+            ->max('stat_date');
+
+        if ($latestExpectedDate === null) {
+            return array_fill(0, count($buckets), null);
+        }
+
+        $latestExpectedDate = Carbon::parse($latestExpectedDate)->toDateString();
+        $queryEndDate = min($latestExpectedDate, end($buckets)['end']->toDateString());
         $rows = ContractPriceDailyStatistic::query()
             ->where('segment_key', $segmentKey)
             ->where('metric_key', 'energy_price')
             ->whereNull('consumption_kwh')
             ->whereBetween('stat_date', [
                 $buckets[0]['start']->toDateString(),
-                end($buckets)['end']->toDateString(),
+                $queryEndDate,
             ])
+            ->where(function ($query) use ($expectedBasis, $latestExpectedDate): void {
+                $query->whereDate('stat_date', '<', $latestExpectedDate)
+                    ->orWhere(function ($current) use ($expectedBasis, $latestExpectedDate): void {
+                        $current->whereDate('stat_date', $latestExpectedDate)
+                            ->where('pricing_basis', $expectedBasis);
+                    });
+            })
             ->orderBy('stat_date')
-            ->get(['stat_date', 'median_value']);
+            ->get(['stat_date', 'median_value', 'pricing_basis']);
 
         $byDate = [];
         foreach ($rows as $row) {
@@ -771,7 +802,7 @@ class PriceDevelopmentPresenter
 
     /**
      * @param  array<string, array<int, array{date: string, price: float|int}>>  $priceHistory
-     * @return array<string, array<string, float>>  date => type => price, oldest first
+     * @return array<string, array<string, float>> date => type => price, oldest first
      */
     private function componentsByDate(array $priceHistory): array
     {
@@ -997,18 +1028,18 @@ class PriceDevelopmentPresenter
 
         if ($span === 0) {
             return 'Voltikka on havainnut tämän sopimuksen hinnan vain kerran ('
-                . $points[0]['date']->format('j.n.Y') . '), joten hintakehitystä ei vielä näytetä.';
+                .$points[0]['date']->format('j.n.Y').'), joten hintakehitystä ei vielä näytetä.';
         }
 
-        return 'Hintaa on seurattu vasta ' . $span . ' päivän ajan (' . $points[0]['date']->format('j.n.Y')
-            . ' alkaen), joten hintakehitystä ei vielä näytetä.';
+        return 'Hintaa on seurattu vasta '.$span.' päivän ajan ('.$points[0]['date']->format('j.n.Y')
+            .' alkaen), joten hintakehitystä ei vielä näytetä.';
     }
 
     private function trackedSinceSentence(?Carbon $trackedSince): string
     {
         return $trackedSince === null
             ? 'Hintahistoriaa ei ole vielä kertynyt'
-            : 'seurattu ' . $trackedSince->format('j.n.Y') . ' alkaen';
+            : 'seurattu '.$trackedSince->format('j.n.Y').' alkaen';
     }
 
     /**
@@ -1026,7 +1057,7 @@ class PriceDevelopmentPresenter
 
     private function signedCents(float $value): string
     {
-        return ($value > 0 ? '+' : '') . number_format($value, 2, ',', '');
+        return ($value > 0 ? '+' : '').number_format($value, 2, ',', '');
     }
 
     private function tick(float $value): string

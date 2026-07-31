@@ -300,8 +300,8 @@ Two rules that must not be reverted, because both produced visible defects on a 
   reading stale calculated-cost data for up to 48 hours. Current calculated-cost schema **v11**
   includes package and real-term fields, canonical-only current facts, exact typed offer terms,
   short Hybrid real-term totals, and listed `other`-cadence reset estimates.
-  The detail page's own prepared-payload key is **v17** because package excess pricing now
-  keeps its typed label in metadata and Product JSON-LD.
+  The detail page's own prepared-payload key is **v18** because its price-development
+  overlay now uses the basis-aware statistics segment classifier.
 
 ## Tests
 

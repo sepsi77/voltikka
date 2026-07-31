@@ -126,8 +126,10 @@ so this feature added no chart renderer. Weekly aggregation over a trailing 365
 days, matching `ArticleContractPriceComparisonChart`.
 
 The fallback chart uses only observed points through its dated endpoint. A
-canonical chart still combines older observed history with canonical points from
-the first canonical date. In both cases:
+canonical chart combines older observed history with canonical points from the first
+canonical date only when the persisted segment key is unchanged. It never maps observed
+`quarterly` or `open_ended` rows into canonical `market_reset`; a reset chart starts with
+persisted `market_reset` points. In both cases:
 
 - **The segment is chosen by `CHART_SEGMENT_PREFERENCE`, and
   `fixed_term_12` leads it.** Määräaikainen 12 kk is the type a visitor
@@ -160,7 +162,7 @@ the first canonical date. In both cases:
 
 ### Caching
 
-Cached for 6 hours under key schema v5: request-scoped `PricingMode` canonical state + expected basis + company
+Cached for 6 hours under key schema v6: request-scoped `PricingMode` canonical state + expected basis + company
 + snapped reference consumption + a fingerprint of the two source tables'
 newest dates and maximum `updated_at`. In canonical mode the fingerprint includes
 both canonical and observed bases because either can own the payload. A same-day

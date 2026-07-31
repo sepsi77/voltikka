@@ -28,7 +28,7 @@ Primary files:
 - Spot `annual_cost` uses trailing-365-day spot average plus margin; use this annual-cost metric, not current/day-period `spot_total_energy_price`, when making contract-type cost comparisons against spot.
 - On `/sahkosopimus/tilastot`, the contract-type energy-price table, deep-dive spot chart, and top spot callout show spot as trailing-12-month realized daily spot average + latest typical margin, with p20–p80 calculated from daily spot prices over the same window. Do not switch those figures back to latest-day spot, because they are compared against longer-term contract prices.
 - Weekly/monthly UI aggregates should average daily statistics, not recompute from all contract-day rows, so trend lines are market-day weighted.
-- `/sahkosopimus/tilastot` caches its prepared Livewire view data per period + consumption until the next day, with cache keys versioned by the expected current basis and cheap source-table fingerprints. Current cache schema v10 keeps canonical and feature-off payloads separate. This prevents repeated request-time grouping of the full daily-statistics table while preserving Livewire controls.
+- `/sahkosopimus/tilastot` caches its prepared Livewire view data per period + consumption until the next day, with cache keys versioned by the expected current basis and cheap source-table fingerprints. Current cache schema v11 includes the generic market-reset segment and keeps canonical and feature-off payloads separate. This prevents repeated request-time grouping of the full daily-statistics table while preserving Livewire controls.
 - After `contracts:calculate-price-statistics` recalculates daily statistics, it queues `contracts:warm-price-statistics-cache` for the default weekly/5 000 kWh page state. The contract post-import coordinator does not call that command; after successful direct statistics it dispatches `WarmContractPriceStatisticsCache` directly for the same state. `spot:fetch` queues the same warmer after spot averages update because spot fingerprints also bust this page cache.
 - The warmer builds many segment/date summaries in one job. Keep `ContractPriceStatistics` request/job-scoped batching intact: one `dailyStats` collection, one daily spot-average load sliced in memory for rolling windows, and no per-segment latest-row SQL lookups.
 - One pricing basis owns each newly calculated date. Inside the calculation transaction, a run deletes opposite-basis snapshots for only its target date and replaces snapshots for its own contract set before aggregate calculation. This removes stale snapshots when a later canonical run excludes a contract. It never deletes another date. A feature-off/backfill run takes the same target-date ownership with observed basis.
@@ -45,13 +45,20 @@ today's interpretation must never be applied retroactively to a historical selle
 
 ## Segment classification
 
-`ContractPriceStatisticsService::segmentKey()` is **public and static**, and
-`SEGMENT_LABELS` beside it is the one label map (`ContractPriceStatistics::$segments`
-reads it). The contract detail page's price-development chart overlays a segment
-median and must name the same segment the daily aggregation wrote, so do not add
-a second classifier or a second label map anywhere.
+`ContractStatisticsSegmentClassifier` is the one basis-aware classifier and owns the one
+`SEGMENT_LABELS` map. `ContractPriceStatisticsService`, the detail-page overlay, the public
+statistics page, and company comparisons all use it. Do not add another label map or reset
+cadence list.
 
-Segment keys are intentionally mutually exclusive and order-dependent:
+For `canonical_calculation`, the classifier resolves the shared card facts through
+`PricingCategoryResolver` and `PricingBucket::fromFacts()`. It maps Spot to `spot`,
+MarketReset to the generic `market_reset`, ConsumptionEffect to `hybrid`, and Fixed to the
+contract-term segment without any text-quarterly fallback. Thus Spot wins over a reset
+schedule, and a reset wins over Hybrid, exactly as on cards and pricing filters. Monthly,
+quarterly, seasonal, and other reset schedules all use `market_reset`; the public label is
+`Päivittyvä hinta`.
+
+For `observed_seller_data`, the exact historical order stays unchanged:
 1. `spot` for `pricing_model = Spot`
 2. `hybrid` for `pricing_model = Hybrid`
 3. `quarterly` for names/texts containing quarterly indicators
@@ -62,4 +69,5 @@ Segment keys are intentionally mutually exclusive and order-dependent:
 Quarterly text matching uses `../ContractListing/ContractListingPipeline::matchesQuarterly()`.
 Statistics can inspect `name`, `extra_information_fi`, `short_description`, and
 `long_description`, while listing SQL inspects `name` and `extra_information_fi`.
-Do not add a private phrase copy or apply current canonical classifications to historical rows.
+The shared map retains `quarterly => Kvartaalisähkö` for persisted history and CSV. Never
+project today's canonical reset fact onto an observed row, and do not rewrite old rows.

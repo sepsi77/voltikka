@@ -7,7 +7,7 @@ use App\Models\ContractPriceSnapshot;
 use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
 use App\Services\CanonicalPricing\PricingMode;
-use App\Services\ContractStatistics\ContractPriceStatisticsService;
+use App\Services\ContractStatistics\ContractStatisticsSegmentClassifier;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -33,8 +33,8 @@ class ContractPriceStatistics extends Component
 
     public array $consumptionLevels = [2000, 5000, 18000];
 
-    /** @see ContractPriceStatisticsService::SEGMENT_LABELS — one map beside the classifier. */
-    public array $segments = ContractPriceStatisticsService::SEGMENT_LABELS;
+    /** @see ContractStatisticsSegmentClassifier::SEGMENT_LABELS */
+    public array $segments = ContractStatisticsSegmentClassifier::SEGMENT_LABELS;
 
     /** Segments that get a line in the lead chart and a callout. Order matters: index 0 is the coral lead. */
     public array $primarySegments = [
@@ -52,7 +52,7 @@ class ContractPriceStatistics extends Component
         'fixed_term_24',
         'hybrid',
         'open_ended',
-        'quarterly',
+        'market_reset',
     ];
 
     /**
@@ -90,7 +90,7 @@ class ContractPriceStatistics extends Component
      */
     public array $deepDiveHeadings = [
         'spot' => 'Pörssisähkösopimusten hintakehitys',
-        'quarterly' => 'Kvartaalisähkösopimusten hintakehitys',
+        'market_reset' => 'Päivittyvän hinnan sähkösopimusten hintakehitys',
         'fixed_term_6' => '6 kk määräaikaisten sähkösopimusten hintakehitys',
         'fixed_term_12' => '12 kk määräaikaisten sähkösopimusten hintakehitys',
         'fixed_term_24' => '24 kk määräaikaisten sähkösopimusten hintakehitys',
@@ -101,7 +101,7 @@ class ContractPriceStatistics extends Component
     /** URL-friendly anchor slugs for the deep-dive sections. */
     public array $deepDiveAnchors = [
         'spot' => 'porssisahko',
-        'quarterly' => 'kvartaalisahko',
+        'market_reset' => 'paivittyva-hinta',
         'fixed_term_6' => 'maaraaikainen-6-kk',
         'fixed_term_12' => 'maaraaikainen-12-kk',
         'fixed_term_24' => 'maaraaikainen-24-kk',
@@ -112,7 +112,7 @@ class ContractPriceStatistics extends Component
     /** Plain-Finnish 1–2 sentence intro per segment for the deep-dive blocks. */
     public array $deepDiveDescriptions = [
         'spot' => 'Pörssisopimuksissa energian hinta seuraa pörssin tuntihintaa, johon sopimustarjoaja lisää oman marginaalinsa. Hinta vaihtelee päivästä toiseen markkinatilanteen mukaan.',
-        'quarterly' => 'Kvartaalisähkössä energiahinta lukitaan kolmeksi kuukaudeksi kerrallaan ja päivittyy kalenterivuosineljänneksittäin markkinanäkymien mukaan. Hinta on tasaisempi kuin pörssissä, mutta seuraa markkinaa nopeammin kuin vuoden tai kahden vuoden määräaikaiset sopimukset.',
+        'market_reset' => 'Päivittyvän hinnan sopimuksissa myyjä vahvistaa energiahinnan määräajoin uudelleen markkinatilanteen mukaan. Päivitysväli vaihtelee sopimuksittain, joten hinta ei seuraa pörssiä tunneittain.',
         'fixed_term_6' => 'Lyhyen määräaikaisen sopimuksen energiahinta lukitaan kuudeksi kuukaudeksi. Suojaa lyhyellä aikavälillä, mutta jää alttiiksi pörssin liikkeille uusittaessa.',
         'fixed_term_12' => 'Vuoden mittainen kiinteähintainen sopimus lukitsee energiahinnan koko sopimuskaudeksi. Hinnat heijastavat pitkän aikavälin näkymiä, eivät päivittäistä pörssiä.',
         'fixed_term_24' => 'Kahden vuoden määräaikaisessa sopimuksessa hinta lukitaan pidemmäksi aikaa. Tarjoukset päivittyvät hitaammin, ja markkinoilla on usein vuoden sopimuksia harvempi valikoima.',
@@ -640,7 +640,7 @@ class ContractPriceStatistics extends Component
 
     private function statisticsViewDataCacheKey(): string
     {
-        return 'contract-price-statistics:view-data:v10:'.md5(json_encode([
+        return 'contract-price-statistics:view-data:v11:'.md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
             'pricing_basis' => app(PricingMode::class)->expectedContractPriceBasis()->value,
@@ -1124,7 +1124,7 @@ class ContractPriceStatistics extends Component
 
         $subjects = [
             'spot' => 'Pörssisähkösopimusten energiahinta',
-            'quarterly' => 'Kvartaalisähkösopimukset',
+            'market_reset' => 'Päivittyvän hinnan sopimukset',
             'fixed_term_6' => 'Lyhyet määräaikaiset (6 kk) sopimukset',
             'fixed_term_12' => 'Vuoden määräaikaiset sopimukset',
             'fixed_term_24' => 'Kahden vuoden määräaikaiset sopimukset',

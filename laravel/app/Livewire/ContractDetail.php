@@ -3593,9 +3593,8 @@ class ContractDetail extends Component
 
     protected function contractDetailViewDataCacheKey(): string
     {
-        // v17: a package excess-use rate is never exposed as the ordinary energy price
-        // in title/meta/Product JSON-LD; package facts keep their typed labels.
-        return 'contract-detail:view-data:v17:'.md5(json_encode([
+        // v18: the price-development overlay uses the basis-aware current statistics segment.
+        return 'contract-detail:view-data:v18:'.md5(json_encode([
             'contract_id' => $this->contractId,
             'consumption' => $this->consumption,
             'version' => $this->contractPageCacheVersionHash(),

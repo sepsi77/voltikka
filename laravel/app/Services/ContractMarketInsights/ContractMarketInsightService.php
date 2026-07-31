@@ -24,6 +24,7 @@ class ContractMarketInsightService
     private array $aggregateSegments = [
         'spot',
         'hybrid',
+        'market_reset',
         'quarterly',
         'fixed_term_below6',
         'fixed_term_6',
@@ -72,7 +73,7 @@ class ContractMarketInsightService
         $segmentKey = $segmentKey ?: 'aggregate';
 
         return Cache::remember(
-            'contract-market-insight:v5:'.md5(json_encode([
+            'contract-market-insight:v6:'.md5(json_encode([
                 $segmentKey,
                 $consumption,
                 $includeForecast,
@@ -122,9 +123,14 @@ class ContractMarketInsightService
     private function segmentTrend(string $segmentKey, int $consumption): ?array
     {
         $latestBasis = $this->pricingMode->expectedContractPriceBasis()->value;
-        $previousBasis = $latestBasis === ContractPriceBasis::CanonicalCalculation->value
-            ? ContractPriceBasis::ObservedSellerData->value
-            : $latestBasis;
+        // `market_reset` starts at canonical rollout. Observed history keeps its
+        // original quarterly/open-ended keys, so this segment can compare only
+        // with an earlier canonical point instead of relabelling old evidence.
+        $previousBasis = $segmentKey === 'market_reset'
+            ? $latestBasis
+            : ($latestBasis === ContractPriceBasis::CanonicalCalculation->value
+                ? ContractPriceBasis::ObservedSellerData->value
+                : $latestBasis);
         $latest = ContractPriceDailyStatistic::query()
             ->where('segment_key', $segmentKey)
             ->where('metric_key', self::TREND_METRIC)
@@ -317,9 +323,12 @@ class ContractMarketInsightService
             'eyebrow' => '30 päivän trendi',
             'change_label' => $changeLabel,
             'period_label' => '30 päivää',
-            'supporting' => $latestBasis === ContractPriceBasis::CanonicalCalculation->value
-                ? 'Kanoninen nykyarvio verrattuna 30 päivää aiemmin havaittuun myyjädataan'
-                : 'Havaitut myyjähinnat 30 päivän välein',
+            'supporting' => match (true) {
+                $latestBasis === ContractPriceBasis::CanonicalCalculation->value
+                    && $previousBasis === ContractPriceBasis::CanonicalCalculation->value => 'Kanoninen nykyarvio verrattuna 30 päivää aiempaan kanoniseen arvioon',
+                $latestBasis === ContractPriceBasis::CanonicalCalculation->value => 'Kanoninen nykyarvio verrattuna 30 päivää aiemmin havaittuun myyjädataan',
+                default => 'Havaitut myyjähinnat 30 päivän välein',
+            },
             'latest_value' => $latest,
             'previous_value' => $previous,
             'change_percent' => $changePct,

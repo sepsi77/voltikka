@@ -485,6 +485,31 @@ class CompanyDetailSectionsTest extends TestCase
         $this->assertSame([610.0, 611.0, 612.0, 620.0, 621.0], $chart['series'][0]['values']);
     }
 
+    public function test_canonical_market_reset_chart_does_not_include_observed_quarterly_history(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        $this->createContract('reset', 'Päivittyvä Sähkö', 8.0, 3.0);
+
+        foreach (['2026-07-01', '2026-07-08'] as $index => $date) {
+            $this->seedMarket('quarterly', 400.0, 410.0 + $index, 420.0, 40, 'observed_seller_data', $date);
+            $this->seedCompanySnapshot('quarterly', 411.0 + $index, 8.0, 'reset', 'observed_seller_data', $date);
+        }
+
+        foreach (['2026-07-15', '2026-07-22', '2026-07-29'] as $index => $date) {
+            $this->seedMarket('market_reset', 500.0, 600.0 + $index, 700.0, 40, 'canonical_calculation', $date);
+            $this->seedCompanySnapshot('market_reset', 610.0 + $index, null, 'reset', 'canonical_calculation', $date);
+        }
+
+        $comparison = app(CompanyMarketComparisonService::class)->forCompany($this->company->name, 5000);
+        $chart = $comparison['chart'];
+
+        $this->assertSame('market_reset', $comparison['chart_segment_key']);
+        $this->assertSame('Päivittyvä hinta', $comparison['chart_segment_label']);
+        $this->assertSame([610.0, 611.0, 612.0], $chart['series'][0]['values']);
+        $this->assertNotContains(411.0, $chart['series'][0]['values']);
+        $this->assertNotContains(412.0, $chart['series'][0]['values']);
+    }
+
     /**
      * A seller with fixed terms but no 12-month product keeps a fixed-term
      * reference rather than dropping to the widest segment on the market.

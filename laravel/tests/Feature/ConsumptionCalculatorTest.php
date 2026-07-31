@@ -354,6 +354,7 @@ class ConsumptionCalculatorTest extends TestCase
     public function test_current_estimates_use_only_the_basis_expected_by_the_canonical_flag(): void
     {
         $this->annualStat('2026-07-27', 'fixed_term_12', 910.0, 'canonical_calculation');
+        $this->annualStat('2026-07-27', 'market_reset', 700.0, 'canonical_calculation');
         $this->annualStat('2026-07-28', 'fixed_term_12', 111.0, 'observed_seller_data');
         $this->annualStat('2026-07-27', 'spot', 222.0, 'observed_seller_data');
 
@@ -363,6 +364,7 @@ class ConsumptionCalculatorTest extends TestCase
 
         $this->assertSame('2026-07-27', $canonical['date']);
         $this->assertSame(910.0, collect($canonical['rows'])->firstWhere('key', 'fixed_term_12')['costs']['median']['annual']);
+        $this->assertSame(700.0, collect($canonical['rows'])->firstWhere('key', 'market_reset')['costs']['median']['annual']);
         $this->assertNull(collect($canonical['rows'])->firstWhere('key', 'spot'));
 
         config()->set('canonical_pricing.enabled', false);
@@ -371,7 +373,7 @@ class ConsumptionCalculatorTest extends TestCase
 
         $this->assertSame('2026-07-28', $observed['date']);
         $this->assertSame(111.0, collect($observed['rows'])->firstWhere('key', 'fixed_term_12')['costs']['median']['annual']);
-        $this->assertSame(3, ContractPriceDailyStatistic::count(), 'Selecting the current basis must not delete historical evidence.');
+        $this->assertSame(4, ContractPriceDailyStatistic::count(), 'Selecting the current basis must not delete historical evidence.');
     }
 
     public function test_unit_statistics_without_an_annual_metric_are_unavailable(): void

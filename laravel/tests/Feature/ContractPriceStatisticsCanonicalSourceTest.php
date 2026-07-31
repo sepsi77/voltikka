@@ -11,7 +11,9 @@ use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
+use App\Services\ContractStatistics\ContractPriceBasis;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
+use App\Services\ContractStatistics\ContractStatisticsSegmentClassifier;
 use App\Services\DTO\EnergyUsage;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -35,8 +37,16 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Carbon::setTestNow(Carbon::parse(self::DATE.' 09:00:00', 'Europe/Helsinki'));
         config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
         Company::create(['name' => 'Tyyni Energia Oy', 'name_slug' => 'tyyni-energia-oy']);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
     }
 
     public function test_a_gated_contract_is_priced_from_canonical_phases_instead_of_being_dropped(): void
@@ -369,6 +379,94 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         $this->assertSame('observed_seller_data', $snapshot->pricing_basis);
     }
 
+    public function test_canonical_reset_cadences_share_the_market_reset_segment(): void
+    {
+        foreach (['monthly', 'quarterly', 'seasonal', 'other'] as $cadence) {
+            $this->createContract(
+                'reset-'.$cadence,
+                [$this->phase('Nykyinen', 'current_structured', 8.0, $this->boundary('contract_start'), $this->boundary('none'))],
+                calculationStatus: 'estimate_required',
+                recurringCadence: $cadence,
+            );
+        }
+
+        $this->calculate();
+
+        $this->assertSame(
+            ['market_reset'],
+            ContractPriceSnapshot::query()->distinct()->pluck('segment_key')->all(),
+        );
+        $this->assertSame(4, ContractPriceSnapshot::count());
+    }
+
+    public function test_canonical_segment_precedence_matches_the_shared_pricing_bucket(): void
+    {
+        $spot = $this->createContract(
+            'spot-reset',
+            [$this->phaseWithComponents([$this->canonicalComponent('spot_margin', 0.5)])],
+            calculationStatus: 'estimate_required',
+            pricingModel: 'Spot',
+            recurringCadence: 'quarterly',
+        );
+        $hybrid = $this->createContract(
+            'hybrid-reset',
+            [$this->phase('Nykyinen', 'current_structured', 8.0, $this->boundary('contract_start'), $this->boundary('none'))],
+            calculationStatus: 'unsupported',
+            pricingModel: 'Hybrid',
+            recurringCadence: 'seasonal',
+        );
+        $classifier = app(ContractStatisticsSegmentClassifier::class);
+
+        $this->assertSame('spot', $classifier->classify($spot, ContractPriceBasis::CanonicalCalculation));
+        $this->assertSame('market_reset', $classifier->classify($hybrid, ContractPriceBasis::CanonicalCalculation));
+    }
+
+    public function test_canonical_mode_does_not_use_observed_quarterly_text_without_a_reset_schedule(): void
+    {
+        $contract = $this->createContract(
+            'canonical-text-only-quarterly',
+            [$this->phase('Nykyinen', 'current_structured', 8.0, $this->boundary('contract_start'), $this->boundary('none'))],
+        );
+        $contract->update(['extra_information_fi' => 'Hinta muuttuu neljä kertaa vuodessa.']);
+        $classifier = app(ContractStatisticsSegmentClassifier::class);
+
+        $this->assertSame('open_ended', $classifier->classify($contract, ContractPriceBasis::CanonicalCalculation));
+        $this->assertSame('quarterly', $classifier->classify($contract, ContractPriceBasis::ObservedSellerData));
+    }
+
+    public function test_observed_mode_uses_only_the_old_text_classification(): void
+    {
+        $canonicalOnly = [];
+        foreach (['monthly', 'quarterly', 'seasonal', 'other'] as $cadence) {
+            $contract = $this->createContract(
+                'observed-canonical-'.$cadence,
+                [$this->phase('Nykyinen', 'current_structured', 8.0, $this->boundary('contract_start'), $this->boundary('none'))],
+                recurringCadence: $cadence,
+            );
+            $this->createRelationalComponent($contract, 'General', 8.0);
+            $canonicalOnly[] = $contract;
+        }
+
+        $textQuarterly = $this->createContract(
+            'observed-text-quarterly',
+            [$this->phase('Nykyinen', 'current_structured', 8.0, $this->boundary('contract_start'), $this->boundary('none'))],
+        );
+        $textQuarterly->update(['extra_information_fi' => 'Hinta muuttuu neljä kertaa vuodessa.']);
+        $this->createRelationalComponent($textQuarterly, 'General', 8.0);
+
+        app(ContractPriceStatisticsService::class)->calculateForDate(
+            self::DATE,
+            [...array_map(fn (ElectricityContract $contract) => $contract->id, $canonicalOnly), $textQuarterly->id],
+            useCanonical: false,
+        );
+
+        $segments = ContractPriceSnapshot::query()->pluck('segment_key', 'contract_id');
+        foreach ($canonicalOnly as $contract) {
+            $this->assertSame('open_ended', $segments[$contract->id]);
+        }
+        $this->assertSame('quarterly', $segments[$textQuarterly->id]);
+    }
+
     public function test_canonical_forward_collection_does_not_query_price_components(): void
     {
         $contract = $this->createContract('query-1', [
@@ -404,6 +502,7 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         string $calculationStatus = 'exact',
         string $pricingModel = 'FixedPrice',
         string $metering = 'General',
+        ?string $recurringCadence = null,
     ): ElectricityContract {
         $contract = ElectricityContract::create([
             'id' => $id,
@@ -417,8 +516,8 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
             'canonical_pricing' => [
                 'phases' => $phases,
                 'recurring_schedule' => [
-                    'present' => false, 'cadence' => 'none', 'current_period_start' => null,
-                    'current_period_end' => null, 'future_price_known' => null,
+                    'present' => $recurringCadence !== null, 'cadence' => $recurringCadence ?? 'none', 'current_period_start' => null,
+                    'current_period_end' => null, 'future_price_known' => $recurringCadence === null ? null : false,
                     'description' => null, 'evidence' => [],
                 ],
                 'consumption_effect' => [

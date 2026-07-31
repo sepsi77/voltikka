@@ -114,6 +114,40 @@ class ContractDetailPriceDevelopmentTest extends TestCase
         $this->assertStringContainsString('Vertailuryhmän mediaania ei ole vielä tallessa', (string) $development['note']);
     }
 
+    public function test_canonical_reset_overlay_uses_only_persisted_market_reset_history(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
+
+        $contract = $this->openEndedContract('history-reset', name: 'Historia Päivittyvä');
+        $contract->update(['canonical_pricing' => [
+            'recurring_schedule' => ['present' => true, 'cadence' => 'monthly'],
+            'consumption_effect' => ['present' => false],
+        ]]);
+        $this->generalPriceSeries($contract->id, [
+            '2026-06-01' => 7.20,
+            '2026-07-01' => 8.10,
+            '2026-07-25' => 8.10,
+        ]);
+
+        $this->segmentMedians('market_reset', '2026-06-01', '2026-06-29', 7.50, 'observed_seller_data');
+        $this->segmentMedians('quarterly', '2026-06-01', '2026-07-25', 99.0, 'observed_seller_data');
+        $this->segmentMedians('market_reset', '2026-07-06', '2026-07-20', 8.50, 'canonical_calculation');
+        // The expected basis must own its latest date even if an observed row
+        // with the unchanged key is also present on that date.
+        $this->segmentMedians('market_reset', '2026-07-20', '2026-07-20', 88.0, 'observed_seller_data');
+
+        $test = Livewire::test('contract-detail', ['contractId' => $contract->id]);
+        $chart = $test->viewData('priceDevelopment')['chart'];
+        $references = array_values(array_filter(array_column($chart['rows'], 'reference')));
+
+        $test->assertSee('Mediaani, päivittyvä hinta');
+        $this->assertContains('7,50', $references, 'Observed history with the unchanged key must remain continuous.');
+        $this->assertContains('8,50', $references, 'The canonical reset overlay must use persisted market_reset rows.');
+        $this->assertNotContains('88,00', $references, 'The expected basis must own the latest date.');
+        $this->assertNotContains('99,00', $references, 'Observed quarterly rows must not be relabelled as market_reset.');
+    }
+
     // ------------------------------------------------------------------
     // Spot variant
     // ------------------------------------------------------------------
@@ -517,7 +551,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
     {
         foreach ($pricesByDate as $date => $price) {
             PriceComponent::create([
-                'id' => 'pc-' . $contractId . '-general-' . $date,
+                'id' => 'pc-'.$contractId.'-general-'.$date,
                 'electricity_contract_id' => $contractId,
                 'price_component_type' => 'General',
                 'price_date' => $date,
@@ -530,7 +564,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
     private function monthlyFee(string $contractId, string $date, float $price): void
     {
         PriceComponent::create([
-            'id' => 'pc-' . $contractId . '-monthly-' . $date,
+            'id' => 'pc-'.$contractId.'-monthly-'.$date,
             'electricity_contract_id' => $contractId,
             'price_component_type' => 'Monthly',
             'price_date' => $date,
@@ -539,8 +573,13 @@ class ContractDetailPriceDevelopmentTest extends TestCase
         ]);
     }
 
-    private function segmentMedians(string $segmentKey, string $from, string $to, float $median): void
-    {
+    private function segmentMedians(
+        string $segmentKey,
+        string $from,
+        string $to,
+        float $median,
+        string $pricingBasis = 'observed_seller_data',
+    ): void {
         $cursor = Carbon::parse($from);
         $end = Carbon::parse($to);
 
@@ -549,6 +588,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
                 'stat_date' => $cursor->toDateString(),
                 'segment_key' => $segmentKey,
                 'metric_key' => 'energy_price',
+                'pricing_basis' => $pricingBasis,
                 'consumption_kwh' => null,
                 'median_value' => $median,
                 'avg_value' => $median,
@@ -564,7 +604,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
     private function monthlySpotAverages(array $averagesByMonth): void
     {
         foreach ($averagesByMonth as $month => $average) {
-            $start = Carbon::parse($month . '-01');
+            $start = Carbon::parse($month.'-01');
             SpotPriceAverage::create([
                 'region' => 'FI',
                 'period_type' => SpotPriceAverage::PERIOD_MONTHLY,

@@ -15,8 +15,8 @@ These insights are low-prominence brand/context signals on comparison pages. The
 - Read only precomputed aggregate tables:
   - `contract_price_daily_statistics` for 30-day annual-cost trends
   - `fixed_contract_price_forecasts` for fixed-term directional forecast teasers
-- Cache insight payloads until tomorrow and include a cheap source-data fingerprint in the key. The fingerprint and payload key use the canonical state and expected basis from request-scoped `PricingMode`; the statistics fingerprint reads dates and `updated_at` only for the relevant bases. The payload key also includes the configured forecast model version; bump the cache schema after changing public eligibility. Current schema is v5.
-- Public listing prepared-data cache keys include the same fingerprint, so cached page payloads can refresh after daily statistics/forecast updates without raw recalculation.
+- Cache insight payloads until tomorrow and include a cheap source-data fingerprint in the key. The fingerprint and payload key use the canonical state and expected basis from request-scoped `PricingMode`; the statistics fingerprint reads dates and `updated_at` only for the relevant bases. The payload key also includes the configured forecast model version; bump the cache schema after changing public eligibility. Current schema is v6; v6 adds canonical `market_reset` rows to aggregate and Quarterly-page trends.
+- Public listing prepared-data cache keys include the same fingerprint, so cached page payloads can refresh after daily statistics/forecast updates without raw recalculation. Their outer schemas are `contracts-list:view-data:v2` and `seo-contracts-list:view-data:v2`; bump them when a code-only insight membership change can leave the fingerprint unchanged.
 - The fingerprint itself is cached briefly and uses only `max(...)` aggregate queries.
 
 ## Product behavior
@@ -26,11 +26,11 @@ These insights are low-prominence brand/context signals on comparison pages. The
 - Use a matching segment when available:
   - pörssisähkö -> `spot`
   - joustosähkö -> `hybrid`
-  - kvartaalisähkö -> `quarterly`
+  - kvartaalisähkö -> `market_reset` in canonical mode and historical `quarterly` in feature-off mode
   - määräaikainen -> `fixed_term_12`
   - toistaiseksi -> `open_ended`
-- Use aggregate weighted-by-contract-count trend for the main and cheapest pages, and as fallback for pricing pages without their own segment.
-- The latest trend point must use the basis expected by the canonical flag. Canonical mode compares it with an older dated observed seller point and exposes both bases plus visible provenance copy. Feature-off uses observed basis for both. A newer or same-date wrong-basis row never becomes the current point.
+- Use aggregate weighted-by-contract-count trend for the main and cheapest pages, and as fallback for pricing pages without their own segment. The aggregate includes both current `market_reset` and persisted historical `quarterly` keys; each date still follows its stored basis and key.
+- The latest trend point must use the basis expected by the canonical flag. Canonical mode normally compares it with an older dated observed seller point and exposes both bases plus visible provenance copy. `market_reset` has no observed rows by design, so it waits for a 30-day-old canonical point and compares canonical with canonical instead of relabelling old quarterly/open-ended evidence. Feature-off uses observed basis for both. A newer or same-date wrong-basis row never becomes the current point.
 - Forecast teaser is fixed-term only, based on the latest eligible 12-month median forecast row, and is directional only. It uses the same public eligibility scope as the full forecast page: configured model version plus canonical current-input provenance in canonical mode, or observed current-input provenance in feature-off mode. Old and missing-provenance rows cannot become a current teaser.
 - Hide the component entirely when there is no relevant precomputed data.
 - Insights are informational only; never feed them into ranking, sorting, or filtering.

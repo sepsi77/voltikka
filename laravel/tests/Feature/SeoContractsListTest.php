@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\SeoContractsList;
 use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
@@ -890,6 +891,22 @@ class SeoContractsListTest extends TestCase
     /**
      * Test that the business page loads successfully.
      */
+    public function test_quarterly_page_market_insight_uses_the_segment_for_the_current_basis(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
+        $canonical = app(SeoContractsList::class);
+        $canonical->pricingType = 'Quarterly';
+        $method = new \ReflectionMethod($canonical, 'marketInsightSegmentKey');
+        $this->assertSame('market_reset', $method->invoke($canonical));
+
+        config()->set('canonical_pricing.enabled', false);
+        app()->forgetScopedInstances();
+        $observed = app(SeoContractsList::class);
+        $observed->pricingType = 'Quarterly';
+        $this->assertSame('quarterly', $method->invoke($observed));
+    }
+
     public function test_business_page_loads_successfully(): void
     {
         $this->createContract('biz-1', 'Test Energia Oy', 'Business Electricity', 5.0, 3.0, null, 'FixedPrice', 'OpenEnded', 'Company');

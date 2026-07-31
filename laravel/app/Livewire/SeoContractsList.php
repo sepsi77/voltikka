@@ -8,6 +8,7 @@ use App\Models\Municipality;
 use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\CanonicalOfferFacts;
+use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractCard\Enums\PricingCategory;
 use App\Services\ContractCard\PricingCategoryResolver;
 use App\Services\ContractListing\ContractListingPipeline;
@@ -1244,7 +1245,7 @@ class SeoContractsList extends ContractsList
 
         return match ($this->pricingType) {
             'Spot' => 'spot',
-            'Quarterly' => 'quarterly',
+            'Quarterly' => app(PricingMode::class)->enabled() ? 'market_reset' : 'quarterly',
             'Hybrid' => 'hybrid',
             'FixedPrice' => 'fixed_term_12',
             null => $this->consumptionLevel !== null ? null : 'aggregate',
@@ -1456,7 +1457,7 @@ class SeoContractsList extends ContractsList
 
     protected function seoContractsViewDataCacheKey(): string
     {
-        return 'seo-contracts-list:view-data:v1:'.md5(json_encode([
+        return 'seo-contracts-list:view-data:v2:'.md5(json_encode([
             'class' => static::class,
             'base_path' => $this->basePath,
             'housing_type' => $this->housingType,

@@ -10,7 +10,6 @@ use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
 use App\Services\CanonicalPricing\DTO\CanonicalPricingOutcome;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
-use App\Services\ContractListing\ContractListingPipeline;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
 use Carbon\Carbon;
@@ -25,6 +24,7 @@ class ContractPriceStatisticsService
     public function __construct(
         private readonly ContractPriceCalculator $calculator,
         private readonly \App\Services\CanonicalPricing\CanonicalContractPricingService $canonicalPricing,
+        private readonly ContractStatisticsSegmentClassifier $segmentClassifier,
     ) {}
 
     /**
@@ -191,7 +191,7 @@ class ContractPriceStatisticsService
         }
 
         return [
-            ...$this->snapshotIdentity($contract),
+            ...$this->snapshotIdentity($contract, ContractPriceBasis::CanonicalCalculation),
             'pricing_basis' => ContractPriceBasis::CanonicalCalculation->value,
             'energy_price_cents_per_kwh' => $energyPrice,
             'spot_margin_cents_per_kwh' => $spotMargin,
@@ -261,7 +261,7 @@ class ContractPriceStatisticsService
         }
 
         return [
-            ...$this->snapshotIdentity($contract),
+            ...$this->snapshotIdentity($contract, ContractPriceBasis::ObservedSellerData),
             'pricing_basis' => ContractPriceBasis::ObservedSellerData->value,
             'energy_price_cents_per_kwh' => $energyPrice,
             'spot_margin_cents_per_kwh' => $spotMargin,
@@ -276,7 +276,7 @@ class ContractPriceStatisticsService
     }
 
     /** @return array<string, mixed> */
-    private function snapshotIdentity(ElectricityContract $contract): array
+    private function snapshotIdentity(ElectricityContract $contract, ContractPriceBasis $basis): array
     {
         return [
             'company_name' => $contract->company_name,
@@ -285,7 +285,7 @@ class ContractPriceStatisticsService
             'contract_type' => $contract->contract_type,
             'fixed_time_range' => $contract->fixed_time_range,
             'metering' => $contract->metering,
-            'segment_key' => self::segmentKey($contract),
+            'segment_key' => $this->segmentClassifier->classify($contract, $basis),
         ];
     }
 
@@ -589,72 +589,5 @@ class ContractPriceStatisticsService
         }
 
         return null;
-    }
-
-    /**
-     * Consumer-facing labels for the segment keys below, in display order.
-     *
-     * This map is the single source for `/sahkosopimus/tilastot` and for the
-     * contract detail page's price-development chart, which names the segment
-     * whose median it overlays. Two copies drifted into disagreeing about the
-     * same segment once, so keep it here beside the classifier.
-     */
-    public const SEGMENT_LABELS = [
-        'spot' => 'Pörssisähkö',
-        'hybrid' => 'Joustosähkö',
-        'quarterly' => 'Kvartaalisähkö',
-        'fixed_term_below6' => 'Määräaikainen alle 6 kk',
-        'fixed_term_6' => 'Määräaikainen 6 kk',
-        'fixed_term_7_11' => 'Määräaikainen 7–11 kk',
-        'fixed_term_12' => 'Määräaikainen 12 kk',
-        'fixed_term_13_23' => 'Määräaikainen 13–23 kk',
-        'fixed_term_24' => 'Määräaikainen 24 kk',
-        'fixed_term_over24' => 'Määräaikainen yli 24 kk',
-        'fixed_term_other' => 'Määräaikainen muu',
-        'open_ended' => 'Toistaiseksi voimassa oleva',
-    ];
-
-    /**
-     * Static so any surface that needs the statistics segment of one contract
-     * (the detail page's median overlay) classifies it exactly like the daily
-     * aggregation did, without constructing the whole snapshot service.
-     */
-    public static function segmentKey(ElectricityContract $contract): string
-    {
-        if ($contract->pricing_model === 'Spot') {
-            return 'spot';
-        }
-
-        if ($contract->pricing_model === 'Hybrid') {
-            return 'hybrid';
-        }
-
-        if (ContractListingPipeline::matchesQuarterly(
-            $contract->name,
-            $contract->extra_information_fi,
-            $contract->short_description,
-            $contract->long_description,
-        )) {
-            return 'quarterly';
-        }
-
-        if ($contract->contract_type === 'FixedTerm') {
-            return 'fixed_term_'.match ($contract->fixed_time_range) {
-                'Below6' => 'below6',
-                'Fixed6' => '6',
-                'Between711' => '7_11',
-                'Fixed12' => '12',
-                'Between1323' => '13_23',
-                'Fixed24' => '24',
-                'Over24' => 'over24',
-                default => 'other',
-            };
-        }
-
-        if ($contract->contract_type === 'OpenEnded') {
-            return 'open_ended';
-        }
-
-        return 'other';
     }
 }

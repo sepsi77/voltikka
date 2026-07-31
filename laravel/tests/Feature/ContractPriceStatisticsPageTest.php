@@ -55,6 +55,20 @@ class ContractPriceStatisticsPageTest extends TestCase
         $response->assertSee('ALV 25,5 %');
     }
 
+    public function test_reset_deep_dive_uses_the_generic_market_reset_copy(): void
+    {
+        $this->seedSampleStatistics();
+
+        $response = $this->get('/sahkosopimus/tilastot');
+
+        $response
+            ->assertStatus(200)
+            ->assertSee('Päivittyvän hinnan sähkösopimusten hintakehitys')
+            ->assertSee('id="paivittyva-hinta"', false)
+            ->assertSee('Päivitysväli vaihtelee sopimuksittain')
+            ->assertDontSee('Kvartaalisähkösopimusten hintakehitys');
+    }
+
     public function test_period_switcher_has_loading_state(): void
     {
         $this->seedSampleStatistics();
@@ -323,8 +337,8 @@ class ContractPriceStatisticsPageTest extends TestCase
         app()->forgetScopedInstances();
         $canonicalKey = $method->invoke(app(ContractPriceStatistics::class));
 
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v10:', $legacyKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v10:', $canonicalKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v11:', $legacyKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v11:', $canonicalKey);
         $this->assertNotSame($legacyKey, $canonicalKey);
     }
 

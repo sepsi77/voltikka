@@ -8,7 +8,8 @@ use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\Postcode;
 use App\Models\PriceComponent;
-use App\Services\ContractStatistics\ContractPriceStatisticsService;
+use App\Services\ContractStatistics\ContractPriceBasis;
+use App\Services\ContractStatistics\ContractStatisticsSegmentClassifier;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -309,7 +310,8 @@ class ContractsFilterTest extends TestCase
         $this->assertSame(['quarterly-four-times', 'quarterly-fourfold'], $baseIds);
         $this->assertSame($baseIds, $seoIds);
         $this->assertTrue($contracts->every(
-            fn (ElectricityContract $contract) => ContractPriceStatisticsService::segmentKey($contract) === 'quarterly'
+            fn (ElectricityContract $contract) => app(ContractStatisticsSegmentClassifier::class)
+                ->classify($contract, ContractPriceBasis::ObservedSellerData) === 'quarterly'
         ));
     }
 

@@ -1995,7 +1995,7 @@ class ContractsList extends Component
 
     protected function contractsListViewDataCacheKey(): string
     {
-        return 'contracts-list:view-data:v1:'.md5(json_encode([
+        return 'contracts-list:view-data:v2:'.md5(json_encode([
             'class' => static::class,
             'base_path' => $this->basePath,
             'page' => $this->page,

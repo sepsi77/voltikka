@@ -92,6 +92,24 @@ class StatisticsBasisConsumersTest extends TestCase
         $this->assertSame(6, ContractPriceDailyStatistic::count());
     }
 
+    public function test_market_reset_insight_waits_for_same_segment_canonical_history(): void
+    {
+        $this->stat('2026-05-01', 'quarterly', 400.0, 'observed_seller_data');
+        $this->stat('2026-05-01', 'market_reset', 600.0, 'canonical_calculation');
+        $this->stat('2026-06-01', 'market_reset', 660.0, 'canonical_calculation');
+
+        config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
+        $trend = app(ContractMarketInsightService::class)->insight('market_reset', 5000)['trend'];
+
+        $this->assertSame(660.0, $trend['latest_value']);
+        $this->assertSame(600.0, $trend['previous_value']);
+        $this->assertSame('canonical_calculation', $trend['latest_pricing_basis']);
+        $this->assertSame('canonical_calculation', $trend['previous_pricing_basis']);
+        $this->assertStringContainsString('aiempaan kanoniseen arvioon', $trend['supporting']);
+        $this->assertNotSame(400.0, $trend['previous_value']);
+    }
+
     private function stat(
         string $date,
         string $segment,
