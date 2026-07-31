@@ -3,10 +3,11 @@
 namespace App\Services\MorningFreshness;
 
 use App\Models\ContractPriceDailyStatistic;
-use App\Models\ContractSourceSnapshot;
+use App\Models\ContractSourceObservation;
 use App\Models\DataFreshnessCheckpoint;
 use App\Models\ElectricityContract;
 use App\Models\ElectricityFuturesEodPrice;
+use App\Services\CanonicalPricing\PricingMode;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
@@ -25,6 +26,7 @@ class MorningJobFreshnessService
     public function __construct(
         private readonly ConfigRepository $config,
         private readonly LoggerInterface $logger,
+        private readonly PricingMode $pricingMode,
     ) {}
 
     /** @param array<string, mixed>|null $metadata */
@@ -98,7 +100,7 @@ class MorningJobFreshnessService
 
                 if ((bool) $this->config->get('contract_interpretation.enabled', false)) {
                     $publication = $this->checkInterpretations(
-                        $facts['observed_snapshot_ids'],
+                        $facts['observed_source_observation_ids'],
                         $facts['active_contract_ids'],
                     );
 
@@ -112,9 +114,7 @@ class MorningJobFreshnessService
         }
 
         if ($forecast) {
-            $basis = (bool) $this->config->get('canonical_pricing.enabled', false)
-                ? 'canonical_calculation'
-                : 'observed_seller_data';
+            $basis = $this->pricingMode->expectedContractPriceBasis()->value;
             $hasFixedTermStatistic = ContractPriceDailyStatistic::query()
                 ->whereDate('stat_date', $date)
                 ->where('metric_key', 'energy_price')
@@ -171,21 +171,21 @@ class MorningJobFreshnessService
 
     /**
      * @param  array<string, mixed>|null  $metadata
-     * @return array{observed_snapshot_ids:list<int>, active_contract_ids:list<string>, statistics_started_at:CarbonImmutable, statistics_completed_at:CarbonImmutable}|null
+     * @return array{observed_source_observation_ids:list<int>, active_contract_ids:list<string>, statistics_started_at:CarbonImmutable, statistics_completed_at:CarbonImmutable}|null
      */
     private function contractFacts(?array $metadata): ?array
     {
         if (! is_array($metadata)
             || ! isset(
-                $metadata['observed_snapshot_ids'],
+                $metadata['observed_source_observation_ids'],
                 $metadata['active_contract_ids'],
                 $metadata['statistics_started_at'],
                 $metadata['statistics_completed_at'],
             )
-            || ! is_array($metadata['observed_snapshot_ids'])
+            || ! is_array($metadata['observed_source_observation_ids'])
             || ! is_array($metadata['active_contract_ids'])
-            || $metadata['observed_snapshot_ids'] === []
-            || array_filter($metadata['observed_snapshot_ids'], fn (mixed $id) => ! is_int($id)) !== []
+            || $metadata['observed_source_observation_ids'] === []
+            || array_filter($metadata['observed_source_observation_ids'], fn (mixed $id) => ! is_int($id)) !== []
             || array_filter($metadata['active_contract_ids'], fn (mixed $id) => ! is_string($id) || $id === '') !== []
             || ! is_string($metadata['statistics_started_at'])
             || $metadata['statistics_started_at'] === ''
@@ -206,7 +206,7 @@ class MorningJobFreshnessService
         }
 
         return [
-            'observed_snapshot_ids' => array_values($metadata['observed_snapshot_ids']),
+            'observed_source_observation_ids' => array_values($metadata['observed_source_observation_ids']),
             'active_contract_ids' => array_values($metadata['active_contract_ids']),
             'statistics_started_at' => $startedAt,
             'statistics_completed_at' => $completedAt,
@@ -232,62 +232,65 @@ class MorningJobFreshnessService
     }
 
     /**
-     * @param  list<int>  $snapshotIds
+     * @param  list<int>  $observationIds
      * @param  list<string>  $activeContractIds
      * @return array{failure:string|null, latest_published_at:CarbonImmutable|null}
      */
-    private function checkInterpretations(array $snapshotIds, array $activeContractIds): array
+    private function checkInterpretations(array $observationIds, array $activeContractIds): array
     {
-        $snapshots = ContractSourceSnapshot::query()
-            ->whereIn('id', $snapshotIds)
-            ->get(['id', 'contract_id']);
+        $observations = ContractSourceObservation::query()
+            ->whereIn('id', $observationIds)
+            ->get(['id', 'contract_id', 'source_snapshot_id']);
 
-        if ($snapshots->count() !== count($snapshotIds)) {
+        if ($observations->count() !== count($observationIds)) {
             return [
-                'failure' => 'The current contract import facts reference unknown snapshots.',
+                'failure' => 'The current contract import facts reference unknown source observations.',
                 'latest_published_at' => null,
             ];
         }
 
         $activeIds = array_fill_keys($activeContractIds, true);
-        $activeSnapshotCounts = $snapshots
-            ->filter(fn (ContractSourceSnapshot $snapshot) => isset($activeIds[$snapshot->contract_id]))
+        $activeObservationCounts = $observations
+            ->filter(fn (ContractSourceObservation $observation) => isset($activeIds[$observation->contract_id]))
             ->countBy('contract_id');
         $coverageFailureIds = collect(array_keys($activeIds))
-            ->filter(fn (string $contractId) => $activeSnapshotCounts->get($contractId, 0) !== 1)
+            ->filter(fn (string $contractId) => $activeObservationCounts->get($contractId, 0) !== 1)
             ->sort(SORT_STRING)
             ->values()
             ->all();
 
         if ($coverageFailureIds !== []) {
             return [
-                'failure' => 'Active contracts do not have exactly one observed snapshot: '.implode(', ', $coverageFailureIds).'.',
+                'failure' => 'Active contracts do not have exactly one observed source episode: '.implode(', ', $coverageFailureIds).'.',
                 'latest_published_at' => null,
             ];
         }
 
-        $requiredSnapshots = $snapshots
-            ->filter(fn (ContractSourceSnapshot $snapshot) => isset($activeIds[$snapshot->contract_id]))
+        $requiredObservations = $observations
+            ->filter(fn (ContractSourceObservation $observation) => isset($activeIds[$observation->contract_id]))
             ->keyBy('contract_id');
 
-        if ($requiredSnapshots->isEmpty()) {
+        if ($requiredObservations->isEmpty()) {
             return ['failure' => null, 'latest_published_at' => null];
         }
 
         $contracts = ElectricityContract::query()
-            ->whereIn('id', $requiredSnapshots->keys())
+            ->whereIn('id', $requiredObservations->keys())
             ->with('publishedInterpretation:id,contract_id,source_snapshot_id,status,published_at')
-            ->get()
+            ->get(['id', 'current_source_observation_id', 'published_interpretation_id'])
             ->keyBy('id');
         $delayedIds = [];
         $latestPublishedAt = null;
 
-        foreach ($requiredSnapshots as $contractId => $snapshot) {
-            $interpretation = $contracts->get($contractId)?->publishedInterpretation;
+        foreach ($requiredObservations as $contractId => $observation) {
+            $contract = $contracts->get($contractId);
+            $interpretation = $contract?->publishedInterpretation;
 
-            if ($interpretation === null
+            if ($contract === null
+                || $contract->current_source_observation_id !== $observation->id
+                || $interpretation === null
                 || $interpretation->status !== 'published'
-                || $interpretation->source_snapshot_id !== $snapshot->id
+                || $interpretation->source_snapshot_id !== $observation->source_snapshot_id
                 || $interpretation->published_at === null) {
                 $delayedIds[] = $contractId;
 

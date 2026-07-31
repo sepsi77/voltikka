@@ -4,6 +4,7 @@ namespace App\Services\ContractMarketInsights;
 
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\FixedContractPriceForecast;
+use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractStatistics\ContractPriceBasis;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Cache;
 class ContractMarketInsightService
 {
     private const TREND_METRIC = 'annual_cost';
+
+    public function __construct(private readonly PricingMode $pricingMode) {}
 
     /**
      * Segments used for the broad comparison-page market summary.
@@ -35,8 +38,8 @@ class ContractMarketInsightService
 
     public function fingerprint(): string
     {
-        $pricingBasis = ContractPriceBasis::expectedCurrent()->value;
-        $canonicalEnabled = (bool) config('canonical_pricing.enabled', false);
+        $pricingBasis = $this->pricingMode->expectedContractPriceBasis()->value;
+        $canonicalEnabled = $this->pricingMode->enabled();
 
         return Cache::remember(
             'contract-market-insight:fingerprint:v3:'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis,
@@ -74,7 +77,7 @@ class ContractMarketInsightService
                 $consumption,
                 $includeForecast,
                 $this->fingerprint(),
-                (bool) config('canonical_pricing.enabled', false),
+                $this->pricingMode->enabled(),
                 (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_ewma_gap_v2'),
             ])),
             Carbon::tomorrow(),
@@ -118,7 +121,7 @@ class ContractMarketInsightService
      */
     private function segmentTrend(string $segmentKey, int $consumption): ?array
     {
-        $latestBasis = ContractPriceBasis::expectedCurrent()->value;
+        $latestBasis = $this->pricingMode->expectedContractPriceBasis()->value;
         $previousBasis = $latestBasis === ContractPriceBasis::CanonicalCalculation->value
             ? ContractPriceBasis::ObservedSellerData->value
             : $latestBasis;
@@ -165,7 +168,7 @@ class ContractMarketInsightService
      */
     private function aggregateTrend(int $consumption): ?array
     {
-        $latestBasis = ContractPriceBasis::expectedCurrent()->value;
+        $latestBasis = $this->pricingMode->expectedContractPriceBasis()->value;
         $previousBasis = $latestBasis === ContractPriceBasis::CanonicalCalculation->value
             ? ContractPriceBasis::ObservedSellerData->value
             : $latestBasis;
@@ -335,7 +338,7 @@ class ContractMarketInsightService
     private function fixedTermForecast(): ?array
     {
         $row = FixedContractPriceForecast::query()
-            ->eligibleForPublicDisplay()
+            ->eligibleForPublicDisplay($this->pricingMode->expectedContractPriceBasis())
             ->where('duration_months', 12)
             ->where('target_quantile', 'median')
             ->orderByDesc('forecast_date')

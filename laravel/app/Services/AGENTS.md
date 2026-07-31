@@ -34,10 +34,25 @@ The grouping unit should be a cohesive feature/domain, not an individual class u
 
 ## Current service subtrees
 
+### Contract listings
+Directory:
+- `ContractListing/`
+
+Purpose:
+- share pseudo-type constraints, interactive filters, annual metric enrichment, canonical exclusion, sorting, visible card loading, and manual pagination across base, SEO, bill-mode, and local listings
+
+Read first:
+- `ContractListing/AGENTS.md`
+
 ### Contract pricing / discounts
 Files currently living directly under this directory:
 - `ContractPriceCalculator.php`
 - `LocalContractsService.php`
+- `CalculatedCostPayloadSchema.php` — one schema version for every cache that depends on `calculated_cost`
+
+Mode boundary:
+- `CanonicalPricing/PricingMode.php` is the immutable request/command snapshot for canonical state, reset-shift state, expected statistics basis, and cache mode marker
+- normal services receive it through the container; tests that change pricing config in one process must start a new scoped boundary
 
 Important pricing guardrails:
 - structured discounts are attached to individual price components, not to the whole contract price
@@ -45,7 +60,7 @@ Important pricing guardrails:
 - use `ElectricityContract::getLatestPriceComponentsForCalculation()` for single-contract calculations and `ElectricityContract::getLatestPriceComponentsForCalculationByContractIds()` for listing/cache batches instead of rebuilding calculator arrays ad hoc
 - do not eagerly load full `priceComponents` history for contract-list/cache calculations; the active dataset has tens of thousands of historical price rows and can exceed PHP's 128M request memory limit
 - `ContractListCacheService` memoizes its version and per-consumption metrics per service instance to avoid repeated database-cache reads during one request; clear per-consumption memo entries inside cache-warming loops so workers do not retain every preset payload at once
-- `CompanyListCacheService` consumes those list metrics. In canonical mode it accepts only listed canonical outcomes with a finite total for company membership, counts, averages, displayed prices, and price rankings; canonical-only contracts work and excluded/missing outcomes do not become zero or sentinels. Its separate 48-hour cache key has its own payload schema, the shared contract-list data version, and `c`/`r` markers, and the service memoizes reads per instance. The shared version makes interpretation publication invalidate company output without waiting 48 hours. Feature-off keeps the legacy relational metrics.
+- `CompanyListCacheService` consumes those list metrics. In canonical mode it accepts only listed canonical outcomes with a finite total for company membership, counts, averages, displayed prices, and price rankings; canonical-only contracts work and excluded/missing outcomes do not become zero or sentinels. Its separate 48-hour cache key has its own outer payload schema, the shared calculated-cost schema and contract-list data version, and one `PricingMode` marker. The service memoizes reads per instance. The shared version makes interpretation publication invalidate company output without waiting 48 hours. Feature-off keeps the legacy relational metrics.
 - city/local contract sections do not load `priceComponents` in canonical mode. Feature-off must still avoid full history and attach only the latest normalized components needed by contract cards
 - city/local company-distance logic must bulk-load company postcodes; do not call `Postcode::find()` per company because crawler hits to city SEO pages otherwise trigger Sentry N+1 reports
 - first-year promo-aware pricing should return both discounted totals and base totals/savings so UI can explain the effect of the offer

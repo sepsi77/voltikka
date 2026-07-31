@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ActiveContract;
 use App\Models\Company;
+use App\Models\ContractSourceObservation;
 use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
@@ -550,13 +551,20 @@ class CompanyDetailPageTest extends TestCase
         $newer = $this->createContract('newer-snapshot', 'Uudempi', 6.0, 2.0, targetGroup: 'Company');
 
         foreach ([[$older, '2026-08-01 09:00:00', 'a'], [$newer, '2026-08-04 15:30:00', 'b']] as [$contract, $observedAt, $fingerprint]) {
-            ContractSourceSnapshot::create([
+            $snapshot = ContractSourceSnapshot::create([
                 'contract_id' => $contract->id,
                 'source_fingerprint' => str_repeat($fingerprint, 64),
                 'source_payload' => [],
                 'first_observed_at' => $observedAt,
                 'last_observed_at' => $observedAt,
             ]);
+            $observation = ContractSourceObservation::create([
+                'contract_id' => $contract->id,
+                'source_snapshot_id' => $snapshot->id,
+                'first_observed_at' => $observedAt,
+                'last_observed_at' => $observedAt,
+            ]);
+            $contract->update(['current_source_observation_id' => $observation->id]);
         }
 
         $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
@@ -573,6 +581,35 @@ class CompanyDetailPageTest extends TestCase
 
         Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
             ->assertSee('Päivitetty 31.7.2026');
+    }
+
+    public function test_update_date_compares_episode_and_mixed_legacy_contract_dates(): void
+    {
+        $episodeContract = $this->createContract('episode-date', 'Jakso', 5.0, 2.0);
+        $legacyContract = $this->createContract('mixed-legacy-date', 'Vanha', 6.0, 2.0);
+        $snapshot = ContractSourceSnapshot::create([
+            'contract_id' => $episodeContract->id,
+            'source_fingerprint' => str_repeat('a', 64),
+            'source_payload' => [],
+            'first_observed_at' => '2026-08-01 09:00:00',
+            'last_observed_at' => '2026-08-01 09:00:00',
+        ]);
+        $observation = ContractSourceObservation::create([
+            'contract_id' => $episodeContract->id,
+            'source_snapshot_id' => $snapshot->id,
+            'first_observed_at' => '2026-08-01 09:00:00',
+            'last_observed_at' => '2026-08-01 09:00:00',
+        ]);
+        $episodeContract->update(['current_source_observation_id' => $observation->id]);
+        PriceComponent::query()
+            ->where('electricity_contract_id', $legacyContract->id)
+            ->update(['price_date' => '2026-08-05']);
+        PriceComponent::query()
+            ->where('electricity_contract_id', $episodeContract->id)
+            ->update(['price_date' => '2026-08-09']);
+
+        Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
+            ->assertSee('Päivitetty 5.8.2026');
     }
 
     public function test_organization_area_served_requires_an_explicit_national_contract(): void

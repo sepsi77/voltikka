@@ -32,14 +32,19 @@ class CanonicalContractPricingService
     private ?SpotAssumptions $spotAssumptions = null;
 
     public function __construct(
+        private readonly CanonicalContractPriceCalculator $calculator,
+        private readonly PricingMode $mode,
         private readonly CanonicalPricingParser $parser = new CanonicalPricingParser,
-        private readonly CanonicalContractPriceCalculator $calculator = new CanonicalContractPriceCalculator,
         private readonly ContractPricingIntegrityService $integrityService = new ContractPricingIntegrityService,
-    ) {}
+    ) {
+        if ($calculator->resetForwardShiftEnabled() !== $mode->resetForwardShiftEnabled()) {
+            throw new \InvalidArgumentException('PricingMode and the reset estimator must use the same reset-shift state.');
+        }
+    }
 
     public function enabled(): bool
     {
-        return (bool) config('canonical_pricing.enabled', false);
+        return $this->mode->enabled();
     }
 
     /**
@@ -51,7 +56,7 @@ class CanonicalContractPricingService
      */
     public function resetForwardShiftEnabled(): bool
     {
-        return (bool) config('canonical_pricing.reset_forward_shift.enabled', false);
+        return $this->mode->resetForwardShiftEnabled();
     }
 
     /**

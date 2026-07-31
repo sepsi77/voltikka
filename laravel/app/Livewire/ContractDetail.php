@@ -7,6 +7,7 @@ use App\Livewire\Concerns\BillComparisonInputs;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
 use App\Services\Caching\ContractPageCacheVersion;
+use App\Services\CanonicalPricing\PricingMode;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractListCacheService;
 use App\Services\ContractPriceCalculator;
@@ -852,7 +853,7 @@ class ContractDetail extends Component
         return $this->computedValueCache[$cacheKey] = app(\App\Services\ContractCard\ContractCardPresenter::class)
             ->present(
                 contract: $contract,
-                prices: config('canonical_pricing.enabled', false) ? [] : $this->latestPrices,
+                prices: app(PricingMode::class)->enabled() ? [] : $this->latestPrices,
                 consumption: $this->consumption,
                 detailed: true,
             );
@@ -1767,7 +1768,7 @@ class ContractDetail extends Component
         $savings = $cost['discount_savings_total'] ?? null;
         $period = 'ensimmäisenä vuonna';
 
-        if (config('canonical_pricing.enabled', false) && is_array($cost['contract_term'] ?? null)) {
+        if (app(PricingMode::class)->enabled() && is_array($cost['contract_term'] ?? null)) {
             $term = $cost['contract_term'];
             if (is_numeric($term['discount_savings_total'] ?? null) && is_numeric($term['months'] ?? null)) {
                 $savings = (float) $term['discount_savings_total'];
@@ -2669,12 +2670,12 @@ class ContractDetail extends Component
      */
     protected function currentDisplayValues(): array
     {
-        $memoKey = 'currentDisplayValues:'.(config('canonical_pricing.enabled', false) ? 'canonical' : 'legacy');
+        $memoKey = 'currentDisplayValues:'.(app(PricingMode::class)->enabled() ? 'canonical' : 'legacy');
         if (array_key_exists($memoKey, $this->computedValueCache)) {
             return $this->computedValueCache[$memoKey];
         }
 
-        if (config('canonical_pricing.enabled', false)) {
+        if (app(PricingMode::class)->enabled()) {
             if ($this->isPricingExcluded) {
                 return $this->computedValueCache[$memoKey] = [
                     'general' => null,

@@ -6,9 +6,7 @@ use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\Municipality;
 use App\Models\Postcode;
-use App\Models\PriceComponent;
-use App\Models\SpotPriceAverage;
-use App\Services\DTO\EnergyUsage;
+use App\Services\ContractListing\ContractListingPipeline;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -20,9 +18,7 @@ class LocalContractsService
     private const MAX_DISTANCE_KM = 100;
 
     public function __construct(
-        private ContractPriceCalculator $calculator,
-        private CO2EmissionsCalculator $emissionsCalculator,
-        private \App\Services\CanonicalPricing\CanonicalContractPricingService $canonicalPricing,
+        private ContractListingPipeline $listingPipeline,
     ) {}
 
     /**
@@ -37,17 +33,12 @@ class LocalContractsService
      */
     public function getLocalContracts(Municipality $municipality, int $consumption = 5000): array
     {
-        // Get spot price averages for calculations
-        $spotPriceAvg = SpotPriceAverage::latestRolling365Days();
-        $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
-        $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
-
         // Tier 1: Get contracts from companies headquartered in this municipality
-        $localCompanyContracts = $this->getLocalCompanyContracts($municipality, $consumption, $spotPriceDay, $spotPriceNight);
+        $localCompanyContracts = $this->getLocalCompanyContracts($municipality, $consumption);
 
         // Tier 2: Get regional contracts available in this municipality (excluding local companies)
         $localCompanyNames = $localCompanyContracts->pluck('company_name')->unique()->toArray();
-        $regionalContracts = $this->getRegionalContracts($municipality, $consumption, $localCompanyNames, $spotPriceDay, $spotPriceNight);
+        $regionalContracts = $this->getRegionalContracts($municipality, $consumption, $localCompanyNames);
 
         return [
             'local_companies' => $localCompanyContracts,
@@ -62,8 +53,6 @@ class LocalContractsService
     private function getLocalCompanyContracts(
         Municipality $municipality,
         int $consumption,
-        ?float $spotPriceDay,
-        ?float $spotPriceNight
     ): Collection {
         // Find nearby companies using coordinates
         $nearbyCompanies = $this->findNearbyCompanies($municipality);
@@ -89,7 +78,7 @@ class LocalContractsService
         });
 
         // Filter by consumption range and calculate costs
-        return $this->processContracts($contracts, $consumption, $spotPriceDay, $spotPriceNight);
+        return $this->processContracts($contracts, $consumption);
     }
 
     /**
@@ -180,8 +169,6 @@ class LocalContractsService
         Municipality $municipality,
         int $consumption,
         array $excludeCompanyNames,
-        ?float $spotPriceDay,
-        ?float $spotPriceNight
     ): Collection {
         $cityName = $municipality->name;
 
@@ -205,71 +192,20 @@ class LocalContractsService
             ->get();
 
         // Filter by consumption range and calculate costs
-        return $this->processContracts($contracts, $consumption, $spotPriceDay, $spotPriceNight);
+        return $this->processContracts($contracts, $consumption);
     }
 
     /**
      * Filter contracts by consumption and calculate costs.
      */
-    private function processContracts(
-        Collection $contracts,
-        int $consumption,
-        ?float $spotPriceDay,
-        ?float $spotPriceNight
-    ): Collection {
-        // Filter by consumption range
-        $contracts = $contracts->filter(fn ($contract) => $contract->isConsumptionInRange($consumption));
+    private function processContracts(Collection $contracts, int $consumption): Collection
+    {
+        $contracts = $this->listingPipeline->filterForConsumption($contracts, $consumption);
 
-        $useCanonical = $this->canonicalPricing->enabled();
-        $priceComponentsByContractId = $useCanonical
-            ? []
-            : ElectricityContract::getLatestPriceComponentsForCalculationByContractIds($contracts->pluck('id'));
-
-        // Calculate cost for each contract
-        $mapped = $contracts->map(function ($contract) use ($consumption, $spotPriceDay, $spotPriceNight, $priceComponentsByContractId, $useCanonical) {
-            $priceComponents = $priceComponentsByContractId[$contract->id] ?? [];
-
-            if (! $useCanonical) {
-                $contract->setRelation('priceComponents', new \Illuminate\Database\Eloquent\Collection(
-                    array_map(fn (array $component) => new PriceComponent($component), $priceComponents)
-                ));
-            }
-
-            $usage = new EnergyUsage(
-                total: $consumption,
-                basicLiving: $consumption,
-            );
-
-            if ($useCanonical) {
-                $evaluation = $this->canonicalPricing->evaluate($contract, $usage);
-                $contract->calculated_cost = $evaluation['outcome']->toCalculatedCostArray();
-                $contract->pricing_integrity = $evaluation['integrity']->toArray();
-                $contract->comparability = $evaluation['outcome']->comparability->value;
-                $contract->is_listed = $evaluation['outcome']->isListed();
-            } else {
-                $contractData = [
-                    'contract_type' => $contract->contract_type,
-                    'pricing_model' => $contract->pricing_model,
-                    'metering' => $contract->metering,
-                ];
-
-                $result = $this->calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
-                $contract->calculated_cost = $result->toArray();
-                $contract->pricing_integrity = null;
-                $contract->comparability = null;
-                $contract->is_listed = true;
-            }
-
-            $contract->emission_factor = $this->emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
-
-            return $contract;
-        });
-
-        // Canonical mode drops contracts unfit for comparison from local listings.
-        if ($useCanonical) {
-            $mapped = $mapped->filter(fn ($c) => $c->is_listed);
-        }
-
-        return $mapped->sortBy(fn ($c) => $c->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX)->values();
+        return $this->listingPipeline->enrichAndSortAnnual(
+            $contracts,
+            $consumption,
+            loadLegacyCardPrices: true,
+        );
     }
 }

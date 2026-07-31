@@ -4,6 +4,7 @@ namespace App\Services\ContractImport;
 
 use App\Models\ActiveContract;
 use App\Models\Company;
+use App\Models\ContractSourceObservation;
 use App\Models\ContractSourceSnapshot;
 use App\Models\Dso;
 use App\Models\ElectricityContract;
@@ -13,17 +14,18 @@ use App\Services\ContractInterpretation\ContractSourceCanonicalizer;
 use App\Services\ContractReplacement\ContractReplacementLinker;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 class ContractImporter
 {
     /** @var list<int> */
-    private array $changedSnapshotIds = [];
+    private array $changedObservationIds = [];
 
     /** @var list<int> */
-    private array $observedSnapshotIds = [];
+    private array $observedObservationIds = [];
 
     /** @var array<string, int> */
-    private array $latestSnapshotIdsByContractId = [];
+    private array $currentSnapshotIdsByContractId = [];
 
     public function __construct(
         private readonly ContractSourceCanonicalizer $sourceCanonicalizer,
@@ -44,14 +46,16 @@ class ContractImporter
         $date = $importDate instanceof CarbonInterface
             ? $importDate->toDateString()
             : $importDate;
-        $this->changedSnapshotIds = [];
-        $this->observedSnapshotIds = [];
-        $this->latestSnapshotIdsByContractId = [];
+        $this->changedObservationIds = [];
+        $this->observedObservationIds = [];
+        $this->currentSnapshotIdsByContractId = [];
 
         return DB::transaction(function () use ($contracts, $validPostcodes, $date, $complete): ContractImportResult {
             $companyNames = $this->processCompanies($contracts);
-            $this->processContracts($contracts);
-            $this->processContractSourceSnapshots($contracts);
+            $existingContracts = $this->lockExistingImportedContracts($contracts);
+            $this->processContracts($contracts, $existingContracts);
+            $lockedContracts = $this->lockImportedContracts($contracts);
+            $this->processContractSourceSnapshots($contracts, $lockedContracts);
             $activeContractIds = $this->updateActiveContracts($contracts, $complete);
             $priceComponentCount = $this->processPriceComponents($contracts, $date);
             $this->processElectricitySources($contracts);
@@ -68,8 +72,8 @@ class ContractImporter
                 activeContractCount: count($activeContractIds),
                 priceComponentCount: $priceComponentCount,
                 replacementStats: $replacementStats,
-                changedSnapshotIds: $this->changedSnapshotIds,
-                observedSnapshotIds: $this->observedSnapshotIds,
+                changedObservationIds: $this->changedObservationIds,
+                observedObservationIds: $this->observedObservationIds,
                 activeContractIds: $activeContractIds,
                 companyNames: $companyNames,
             );
@@ -112,8 +116,10 @@ class ContractImporter
 
     /**
      * Process and upsert contracts.
+     *
+     * @param  array<string, ElectricityContract>  $existingContracts
      */
-    private function processContracts(array $contracts): void
+    private function processContracts(array $contracts, array $existingContracts): void
     {
         foreach ($contracts as $data) {
             $data = $this->trimDictValues($data);
@@ -169,8 +175,7 @@ class ContractImporter
                 $contractData['long_description'] = $details['LongDescription'];
             }
 
-            // Look up existing contract by API ID
-            $existingContract = ElectricityContract::where('api_id', $data['Id'])->first();
+            $existingContract = $existingContracts[$data['Id']] ?? null;
 
             if ($existingContract) {
                 // Preserve only fields that the published interpretation supplied.
@@ -192,44 +197,107 @@ class ContractImporter
     }
 
     /**
-     * Persist one immutable source snapshot for each distinct upstream payload.
+     * Lock existing rows before any contract update.
+     *
+     * @param  list<array<string, mixed>>  $contracts
+     * @return array<string, ElectricityContract>
      */
-    private function processContractSourceSnapshots(array $contracts): void
+    private function lockExistingImportedContracts(array $contracts): array
     {
-        $apiIds = array_column($contracts, 'Id');
-        $contractIdMap = ElectricityContract::whereIn('api_id', $apiIds)
-            ->pluck('id', 'api_id')
-            ->toArray();
+        $existing = ElectricityContract::query()
+            ->whereIn('api_id', array_column($contracts, 'Id'))
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+        $existing->load('publishedInterpretation:id,published_fields');
+
+        return $existing->keyBy('api_id')->all();
+    }
+
+    /**
+     * Lock all imported contract rows in stable order before source-episode mutation.
+     * New rows were not available for the earlier existing-row lock.
+     *
+     * @param  list<array<string, mixed>>  $contracts
+     * @return array<string, ElectricityContract>
+     */
+    private function lockImportedContracts(array $contracts): array
+    {
+        return ElectricityContract::query()
+            ->whereIn('api_id', array_column($contracts, 'Id'))
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get()
+            ->keyBy('api_id')
+            ->all();
+    }
+
+    /**
+     * Persist immutable payloads and mutate only the pointed observation episode.
+     *
+     * @param  list<array<string, mixed>>  $contracts
+     * @param  array<string, ElectricityContract>  $lockedContracts
+     */
+    private function processContractSourceSnapshots(array $contracts, array $lockedContracts): void
+    {
         $observedAt = now();
 
         foreach ($contracts as $sourcePayload) {
-            $contractId = $contractIdMap[$sourcePayload['Id']] ?? null;
+            $contract = $lockedContracts[$sourcePayload['Id']] ?? null;
 
-            if ($contractId === null) {
+            if ($contract === null) {
                 continue;
             }
 
             $fingerprint = $this->sourceCanonicalizer->fingerprint($sourcePayload);
             $snapshot = ContractSourceSnapshot::firstOrNew([
-                'contract_id' => $contractId,
+                'contract_id' => $contract->id,
                 'source_fingerprint' => $fingerprint,
             ]);
 
-            $isNew = ! $snapshot->exists;
-            if ($isNew) {
+            if (! $snapshot->exists) {
                 $snapshot->source_payload = $sourcePayload;
                 $snapshot->first_observed_at = $observedAt;
             }
 
             $snapshot->last_observed_at = $observedAt;
             $snapshot->save();
-            if ($isNew) {
-                $this->changedSnapshotIds[] = $snapshot->id;
-            }
-            $this->observedSnapshotIds[] = $snapshot->id;
-            $this->latestSnapshotIdsByContractId[$contractId] = $snapshot->id;
-        }
 
+            $observation = null;
+            if ($contract->current_source_observation_id !== null) {
+                $observation = ContractSourceObservation::query()
+                    ->lockForUpdate()
+                    ->find($contract->current_source_observation_id);
+
+                if ($observation === null || $observation->contract_id !== $contract->id) {
+                    throw new RuntimeException("Contract {$contract->id} has an invalid current source observation pointer.");
+                }
+            }
+
+            if ($observation !== null && $observation->source_snapshot_id === $snapshot->id) {
+                $observation->last_observed_at = $observedAt;
+                $observation->save();
+            } else {
+                $observation = ContractSourceObservation::create([
+                    'contract_id' => $contract->id,
+                    'source_snapshot_id' => $snapshot->id,
+                    'first_observed_at' => $observedAt,
+                    'last_observed_at' => $observedAt,
+                ]);
+                $contract->current_source_observation_id = $observation->id;
+                $contract->save();
+                $this->changedObservationIds[] = $observation->id;
+            }
+
+            if ($contract->current_source_observation_id === null
+                || $observation->contract_id !== $contract->id
+                || $contract->current_source_observation_id !== $observation->id) {
+                throw new RuntimeException("Contract {$contract->id} has no valid current source observation after import.");
+            }
+
+            $this->observedObservationIds[] = $observation->id;
+            $this->currentSnapshotIdsByContractId[$contract->id] = $observation->source_snapshot_id;
+        }
     }
 
     /**
@@ -321,11 +389,11 @@ class ContractImporter
         return $contractModels
             ->filter(function (ElectricityContract $contract): bool {
                 $publishedInterpretation = $contract->publishedInterpretation;
-                $latestSnapshotId = $this->latestSnapshotIdsByContractId[$contract->id] ?? null;
+                $currentSnapshotId = $this->currentSnapshotIdsByContractId[$contract->id] ?? null;
 
                 return $publishedInterpretation === null
                     || ($publishedInterpretation->relational_pricing_published
-                        && (int) $publishedInterpretation->source_snapshot_id === (int) $latestSnapshotId);
+                        && (int) $publishedInterpretation->source_snapshot_id === (int) $currentSnapshotId);
             })
             ->pluck('id')
             ->all();

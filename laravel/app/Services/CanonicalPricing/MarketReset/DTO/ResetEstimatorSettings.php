@@ -26,8 +26,7 @@ readonly class ResetEstimatorSettings
         public bool $seasonalIndexEnabled = true,
         public float $absurdityFloorCentsPerKwh = 0.0,
         public float $absurdityCeilingCentsPerKwh = 60.0,
-    ) {
-    }
+    ) {}
 
     /**
      * Force the flag on or off without touching global config. Used by the read-only
@@ -45,14 +44,14 @@ readonly class ResetEstimatorSettings
         );
     }
 
-    public static function fromConfig(): self
+    public static function fromConfig(bool $enabled): self
     {
         $config = (array) config('canonical_pricing.reset_forward_shift', []);
         $seasonal = (array) ($config['seasonal_index'] ?? []);
         $band = (array) ($config['absurdity_band'] ?? []);
 
         return new self(
-            enabled: (bool) ($config['enabled'] ?? false),
+            enabled: $enabled,
             beta: (float) ($config['beta'] ?? 1.0),
             maxCurveAgeDays: (int) ($config['max_curve_age_days'] ?? 14),
             seasonalIndexEnabled: (bool) ($seasonal['enabled'] ?? true),

@@ -20,6 +20,7 @@ class ContractInterpretation extends Model
     protected $fillable = [
         'contract_id',
         'source_snapshot_id',
+        'analysis_source_observation_id',
         'analysis_fingerprint',
         'status',
         'schema_version',

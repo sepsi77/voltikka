@@ -83,7 +83,7 @@ query rules.
 
 ### Contract source snapshots and automatic interpretation
 
-`app/Services/ContractImport/ContractImporter.php` stores each distinct complete upstream contract payload in `contract_source_snapshots` inside one authoritative import transaction. `CONTRACT_INTERPRETATION_ENABLED=true` is set in production, so the post-import coordinator sends each observed current snapshot through the fingerprint-idempotent dispatcher after commit, with one failure boundary per snapshot. Unchanged snapshots update `last_observed_at`; revisiting the dispatcher lets a transient failure before interpretation creation recover without creating duplicate jobs.
+`app/Services/ContractImport/ContractImporter.php` stores each distinct complete upstream contract payload in `contract_source_snapshots` and each contiguous observation episode in `contract_source_observations` inside one authoritative import transaction. `electricity_contracts.current_source_observation_id` is the only source-currentness rule. `CONTRACT_INTERPRETATION_ENABLED=true` is set in production, so the post-import coordinator sends each observed pointed episode through the fingerprint-idempotent dispatcher after commit, with one failure boundary per observation. An unchanged pointed episode extends. A transition, including A→B→A recurrence, creates a new point episode and atomically moves the pointer. Stored A output is revalidated at the recurrent episode date: valid output rematerializes without another LLM call, while date-sensitive invalid output is superseded and uses one date-scoped fallback fingerprint.
 
 Primary implementation:
 - `app/Services/ContractInterpretation/AGENTS.md`
@@ -92,7 +92,7 @@ Primary implementation:
 
 Important semantics:
 - the SHA-256 fingerprint ignores object-key order, harmless string whitespace, and shared SpotFutures market data, but preserves list order
-- unchanged payloads update `last_observed_at`; meaningful source changes create a new immutable snapshot
+- unchanged payloads update the snapshot's aggregate `last_observed_at` and extend only the pointed episode; meaningful source changes create a new immutable snapshot and a point episode. Snapshot first/last timestamps are legacy aggregate evidence and never select currentness or day coverage
 - each import refreshes existing relational contract fields from the current API payload without changing the local contract ID or replacement link
 - same-day price components are replaced from the complete current payload, so corrected, removed, and new components do not leave stale rows; source snapshots retain each complete payload version
 - before same-day `upsert()`, source components that resolve to the same relational key are collapsed deterministically: keep the first positive-price row, or the first row if none is positive. This prevents null-UUID duplicate placeholders from overwriting real prices while preserving valid zero-only package components
@@ -105,10 +105,11 @@ Important semantics:
 - new contracts stay inactive until first validation, and changed source prices for interpreted contracts wait for the new validation before relational publication
 - durable `relational_pricing_published` gates later activation and relational price writes, so unsafe pricing cannot appear on the next import
 - that gate asks only "can the structured components still be trusted as the current disclosed price?" — not "can we total the year from them". It blocks on a named reason: a detected deception, `conflicting` structured pricing, or an issue code not classified as harmless (unknown codes block). `calculation.status` does not gate at all. Conflating the two closed the gate permanently on all 49 Hybrid contracts on 2026-07-24 and blanked the `hybrid` segment of `/sahkosopimus/tilastot`, because a Hybrid's consumption effect is never quantified by the seller
-- because the flag is decided once at publication and read by every later import, relaxing the gate reaches already-published contracts only through `php artisan contracts:republish-gated-pricing` (dry run by default; `--apply` lifts the flags and refills the lost days from the covering source snapshots)
+- because the flag is decided once at publication and read by every later import, relaxing the gate reaches already-published contracts only through `php artisan contracts:republish-gated-pricing` (dry run by default; `--apply` lifts the flags and refills each lost day from its one covering source-observation episode; the selected snapshot must have its own stored valid safe interpretation, and unknown, ambiguous, absent-interpretation, or unsafe coverage stays empty)
 - versioned interpretation output is the LLM-validated pricing history; `app/Services/CanonicalPricing/` consumes the published `canonical_*` JSON for phase-aware pricing and the deceptive-pricing label behind `CANONICAL_PRICING_ENABLED` (default off, **true in production** — see `app/Services/CanonicalPricing/AGENTS.md`)
+- `CanonicalPricing/PricingMode` snapshots canonical and reset-shift flags once per request/command and owns the expected statistics basis and cache marker. All calculated-cost-dependent caches include `CalculatedCostPayloadSchema::VERSION`; their outer wrapper versions remain independent
 - market-reset products (monthly/quarterly/seasonal/other repricing) are annualised by `app/Services/CanonicalPricing/MarketReset/` with a shape-only FI forward-curve shift behind its own `RESET_FORWARD_SHIFT_ENABLED` flag (default off). Cadence `other` uses the quarterly calendar and reference proxy because exact phase boundaries are not published. It must stay a separate flag because `CANONICAL_PRICING_ENABLED` is already on in production; the flag also varies the list/ranking/page cache keys. See `app/Services/CanonicalPricing/MarketReset/AGENTS.md`
-- use `php artisan contracts:interpret` to queue the latest active snapshots; add `--retry-failed`, `--contract=`, or `--include-inactive` when needed
+- use `php artisan contracts:interpret` to dispatch active contracts' pointed observations; add `--retry-failed`, `--contract=`, or `--include-inactive` when needed. The command can reuse stored output without an OpenRouter key
 
 ### Contract price statistics
 
@@ -158,7 +159,7 @@ Commands:
 php artisan forecasting:run-fixed-contracts --as-of=today --horizon=30
 php artisan forecasting:evaluate-fixed-contracts --as-of=today
 ```
-Scheduled in `routes/console.php`: EEX futures fetch runs overnight at 04:00 Europe/Helsinki so previous trading-day FI settlements are available before the forecast run; forecast run daily at 07:30 Europe/Helsinki, evaluation daily at 07:45. Scheduled retail collection and forecast generation use `--require-freshness`; the shared `app/Services/MorningFreshness/` gate requires same-date full contract/EEX checkpoints, exactly one observed snapshot and a current publication for each active contract, current-run prior-date FI Base proof, and recent FI Base database data. Forecasts also require at least one current 6/12/24 statistic for the selected pricing basis and a statistics start after the newest required publication.
+Scheduled in `routes/console.php`: EEX futures fetch runs overnight at 04:00 Europe/Helsinki so previous trading-day FI settlements are available before the forecast run; forecast run daily at 07:30 Europe/Helsinki, evaluation daily at 07:45. Scheduled retail collection and forecast generation use `--require-freshness`; the shared `app/Services/MorningFreshness/` gate requires same-date full contract/EEX checkpoints, exactly one observed pointed episode and a current publication for each active contract, current-run prior-date FI Base proof, and recent FI Base database data. Forecasts also require at least one current 6/12/24 statistic for the selected pricing basis and a statistics start after the newest required publication.
 
 Important semantics:
 - model v2 forecasts fixed-term 6/12/24 month market p20/median/p80 `energy_price` indices from `contract_price_daily_statistics`
@@ -363,7 +364,7 @@ Important semantics:
 cd laravel
 php artisan contracts:fetch --skip-logos
 ```
-This uses `app/Services/ContractImport/` to import current contracts, refresh `active_contracts`, link high-confidence replacements, and run typed post-import work. Available contracts from a partial postcode acquisition are imported and the command reports the incomplete acquisition. Active rows absent from a partial response are preserved, and replacement linking waits for a complete acquisition. Only the default full scope writes the global `contract_import` freshness checkpoint; postcode-scoped runs never overwrite it. A full run first writes a failed start marker so a crash cannot preserve an old ready fact. Acquisition/import/required-stage failures are `failed`, partial acquisition is `incomplete`, and a complete successful post-import is `ready` with observed snapshot IDs, active IDs, and the exact statistics start and completion times.
+This uses `app/Services/ContractImport/` to import current contracts, refresh `active_contracts`, link high-confidence replacements, and run typed post-import work. Available contracts from a partial postcode acquisition are imported and the command reports the incomplete acquisition. Active rows absent from a partial response are preserved, and replacement linking waits for a complete acquisition. Only the default full scope writes the global `contract_import` freshness checkpoint; postcode-scoped runs never overwrite it. A full run first writes a failed start marker so a crash cannot preserve an old ready fact. Acquisition/import/required-stage failures are `failed`, partial acquisition is `incomplete`, and a complete successful post-import is `ready` with observed pointed-episode IDs, active IDs, and the exact statistics start and completion times.
 
 ### Inspect matcher output
 ```bash

@@ -98,8 +98,17 @@ class CollectRetailPremiumObservations extends Command
                 'publishedInterpretation.sourceSnapshot' => fn ($query) => $query->select([
                     'id',
                     'source_fingerprint',
+                ]),
+                'currentSourceObservation' => fn ($query) => $query->select([
+                    'id',
+                    'contract_id',
+                    'source_snapshot_id',
                     'first_observed_at',
                     'last_observed_at',
+                ]),
+                'currentSourceObservation.sourceSnapshot' => fn ($query) => $query->select([
+                    'id',
+                    'source_fingerprint',
                 ]),
             ])
             ->orderBy('id')
@@ -314,7 +323,8 @@ class CollectRetailPremiumObservations extends Command
             );
 
             if (! $this->option('overwrite')) {
-                if ($lastObserved->gt($existing->last_observed_date)) {
+                if ($lastObserved->gt($existing->last_observed_date)
+                    || $metadata !== ($existing->source_metadata ?? [])) {
                     $existing->update([
                         'last_observed_date' => $lastObserved->toDateString(),
                         'source_metadata' => $metadata,
@@ -378,7 +388,20 @@ class CollectRetailPremiumObservations extends Command
             ->orderByDesc('id')
             ->first();
 
-        if ($latest !== null && hash_equals($latest->price_signature, $observation['price_signature'])) {
+        if ($latest === null || ! hash_equals($latest->price_signature, $observation['price_signature'])) {
+            return $observation;
+        }
+
+        $currentObservationId = $observation['source_metadata']['source_observation_id'] ?? null;
+        $storedObservationId = $latest->source_metadata['source_observation_id'] ?? null;
+        $sameObservation = is_int($currentObservationId)
+            && is_int($storedObservationId)
+            && $storedObservationId === $currentObservationId;
+        $safeLegacyAdoption = $storedObservationId === null
+            && $latest->source_snapshot_id === ($observation['source_snapshot_id'] ?? null)
+            && $latest->first_observed_date->toDateString() === $observation['first_observed_date'];
+
+        if ($sameObservation || $safeLegacyAdoption) {
             $observation['observation_key'] = $latest->observation_key;
             $observation['first_observed_date'] = $latest->first_observed_date->toDateString();
         }

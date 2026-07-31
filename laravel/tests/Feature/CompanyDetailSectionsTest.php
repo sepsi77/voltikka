@@ -370,6 +370,7 @@ class CompanyDetailSectionsTest extends TestCase
         $this->seedMarket('spot', 200.0, 210.0, 220.0, 40, 'observed_seller_data', '2026-07-27');
 
         config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
         $service = app(CompanyMarketComparisonService::class);
         $canonical = $service->forCompany($this->company->name, 5000);
         $fingerprintMethod = new \ReflectionMethod($service, 'fingerprint');
@@ -389,6 +390,9 @@ class CompanyDetailSectionsTest extends TestCase
         $this->assertNotSame($canonicalFingerprint, $rewrittenFingerprint);
 
         config()->set('canonical_pricing.enabled', false);
+        app()->forgetScopedInstances();
+        $service = app(CompanyMarketComparisonService::class);
+        $fingerprintMethod = new \ReflectionMethod($service, 'fingerprint');
         $observedFingerprint = $fingerprintMethod->invoke($service);
         $observed = $service->forCompany($this->company->name, 5000);
 

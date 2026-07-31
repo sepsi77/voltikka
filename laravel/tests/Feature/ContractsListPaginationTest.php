@@ -139,6 +139,28 @@ class ContractsListPaginationTest extends TestCase
         $this->assertEquals(10, $contracts3->count()); // 60 - 50 = 10 remaining
     }
 
+    public function test_annual_price_order_is_applied_before_manual_pagination(): void
+    {
+        $this->createContracts(30);
+
+        $firstPageIds = Livewire::test('contracts-list')
+            ->set('page', 1)
+            ->viewData('contracts')
+            ->pluck('id')
+            ->values()
+            ->all();
+        $secondPageIds = Livewire::test('contracts-list')
+            ->set('page', 2)
+            ->viewData('contracts')
+            ->pluck('id')
+            ->values()
+            ->all();
+
+        $this->assertSame('contract-1', $firstPageIds[0]);
+        $this->assertSame('contract-25', $firstPageIds[24]);
+        $this->assertSame(['contract-26', 'contract-27', 'contract-28', 'contract-29', 'contract-30'], $secondPageIds);
+    }
+
     /**
      * Test that pagination total count is accurate.
      */

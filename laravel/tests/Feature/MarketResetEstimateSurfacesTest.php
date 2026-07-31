@@ -6,11 +6,19 @@ use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricityFuturesEodPrice;
 use App\Services\Caching\ContractPageCacheVersion;
+use App\Services\CalculatedCostPayloadSchema;
+use App\Services\CanonicalPricing\CanonicalContractPriceCalculator;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\Enums\EstimateMethod;
+use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimatorSettings;
+use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
+use App\Services\CanonicalPricing\MarketReset\MarketResetPriceEstimator;
 use App\Services\CanonicalPricing\MarketReset\ResetEstimateCopy;
+use App\Services\CanonicalPricing\PricingMode;
+use App\Services\CompanyListCacheService;
 use App\Services\ContractListCacheService;
 use App\Services\ContractRankingService;
+use App\Services\ContractStatistics\ContractPriceBasis;
 use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -30,15 +38,16 @@ class MarketResetEstimateSurfacesTest extends TestCase
 
     public function test_page_cache_version_changes_when_the_reset_shift_flag_flips(): void
     {
+        $this->beginPricingMode(['canonical_pricing.reset_forward_shift.enabled' => false]);
         $version = app(ContractPageCacheVersion::class);
-
-        config(['canonical_pricing.reset_forward_shift.enabled' => false]);
         $this->assertSame(11, $version->version()['payload_schema_version']);
-        $this->assertFalse($version->version()['reset_forward_shift_enabled']);
+        $this->assertSame(CalculatedCostPayloadSchema::cacheMarker(), $version->version()['calculated_cost_schema']);
+        $this->assertSame('c0r0', $version->version()['pricing_mode']);
         $off = $version->hash();
 
-        config(['canonical_pricing.reset_forward_shift.enabled' => true]);
-        $this->assertTrue($version->version()['reset_forward_shift_enabled']);
+        $this->beginPricingMode(['canonical_pricing.reset_forward_shift.enabled' => true]);
+        $version = app(ContractPageCacheVersion::class);
+        $this->assertSame('c0r1', $version->version()['pricing_mode']);
 
         $this->assertNotSame($off, $version->hash());
     }
@@ -47,17 +56,16 @@ class MarketResetEstimateSurfacesTest extends TestCase
     {
         Cache::flush();
 
-        config(['canonical_pricing.reset_forward_shift.enabled' => false]);
-        app()->forgetInstance(ContractListCacheService::class);
+        $this->beginPricingMode(['canonical_pricing.reset_forward_shift.enabled' => false]);
         app(ContractListCacheService::class)->getCachedMetrics(5000);
         $offKeys = $this->cacheKeysMatching('contract_list_metrics');
 
-        config(['canonical_pricing.reset_forward_shift.enabled' => true]);
-        app()->forgetInstance(ContractListCacheService::class);
+        $this->beginPricingMode(['canonical_pricing.reset_forward_shift.enabled' => true]);
         app(ContractListCacheService::class)->getCachedMetrics(5000);
         $allKeys = $this->cacheKeysMatching('contract_list_metrics');
 
         $this->assertNotEmpty($offKeys);
+        $this->assertNotEmpty(array_filter($allKeys, fn (string $key) => str_contains($key, ':s11:')));
         $this->assertGreaterThan(count($offKeys), count($allKeys), 'flipping the flag must create a new cache entry, not reuse the old one');
         $this->assertNotEmpty(array_filter($allKeys, fn (string $key) => str_contains($key, 'c0r1')));
         $this->assertNotEmpty(array_filter($allKeys, fn (string $key) => str_contains($key, 'c0r0')));
@@ -67,19 +75,81 @@ class MarketResetEstimateSurfacesTest extends TestCase
     {
         Cache::flush();
 
-        config(['canonical_pricing.reset_forward_shift.enabled' => false]);
-        app()->forgetInstance(ContractRankingService::class);
+        $this->beginPricingMode(['canonical_pricing.reset_forward_shift.enabled' => false]);
         app(ContractRankingService::class)->getTotalActiveContracts();
 
-        config(['canonical_pricing.reset_forward_shift.enabled' => true]);
-        app()->forgetInstance(ContractRankingService::class);
+        $this->beginPricingMode(['canonical_pricing.reset_forward_shift.enabled' => true]);
         app(ContractRankingService::class)->getTotalActiveContracts();
 
         $keys = $this->cacheKeysMatching('contract_rankings');
 
-        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':s2:')));
-        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_ends_with($key, ':r1')));
-        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_ends_with($key, ':r0')));
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':s2:cs11:')));
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_ends_with($key, ':c0r1')));
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_ends_with($key, ':c0r0')));
+    }
+
+    public function test_pricing_mode_is_an_immutable_scoped_snapshot(): void
+    {
+        $this->beginPricingMode([
+            'canonical_pricing.enabled' => false,
+            'canonical_pricing.reset_forward_shift.enabled' => true,
+        ]);
+
+        $mode = app(PricingMode::class);
+
+        $this->assertFalse($mode->enabled());
+        $this->assertTrue($mode->resetForwardShiftEnabled());
+        $this->assertSame(ContractPriceBasis::ObservedSellerData, $mode->expectedContractPriceBasis());
+        $this->assertSame('c0r1', $mode->cacheMarker());
+
+        config([
+            'canonical_pricing.enabled' => true,
+            'canonical_pricing.reset_forward_shift.enabled' => false,
+        ]);
+
+        $this->assertFalse($mode->enabled());
+        $this->assertTrue($mode->resetForwardShiftEnabled());
+        $this->assertSame('c0r1', $mode->cacheMarker());
+
+        app()->forgetScopedInstances();
+        $nextMode = app(PricingMode::class);
+
+        $this->assertTrue($nextMode->enabled());
+        $this->assertFalse($nextMode->resetForwardShiftEnabled());
+        $this->assertSame(ContractPriceBasis::CanonicalCalculation, $nextMode->expectedContractPriceBasis());
+        $this->assertSame('c1r0', $nextMode->cacheMarker());
+    }
+
+    public function test_direct_service_rejects_a_mode_that_disagrees_with_its_estimator(): void
+    {
+        $this->beginPricingMode([
+            'canonical_pricing.enabled' => false,
+            'canonical_pricing.reset_forward_shift.enabled' => false,
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('PricingMode and the reset estimator must use the same reset-shift state.');
+
+        new CanonicalContractPricingService(
+            calculator: app(CanonicalContractPriceCalculator::class),
+            mode: new PricingMode(canonicalPricingEnabled: false, resetForwardShiftEnabled: true),
+        );
+    }
+
+    public function test_company_cache_key_names_the_calculated_cost_schema_and_pricing_mode(): void
+    {
+        Cache::flush();
+        $this->beginPricingMode([
+            'canonical_pricing.enabled' => true,
+            'canonical_pricing.reset_forward_shift.enabled' => true,
+        ]);
+
+        app(CompanyListCacheService::class)->getCachedCompanies(5000);
+
+        $keys = $this->cacheKeysMatching('company_list:');
+
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':s2:cs11:')));
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':c1r1:')));
     }
 
     public function test_ranking_cache_key_varies_by_the_contract_list_data_version(): void
@@ -104,7 +174,7 @@ class MarketResetEstimateSurfacesTest extends TestCase
      */
     public function test_the_container_wires_the_estimator_into_the_canonical_calculator(): void
     {
-        config([
+        $this->beginPricingMode([
             'canonical_pricing.enabled' => true,
             'canonical_pricing.reset_forward_shift.enabled' => true,
             'price_forecasting.fixed_term.vat_multiplier' => 1.255,
@@ -160,14 +230,30 @@ class MarketResetEstimateSurfacesTest extends TestCase
             ],
         ]);
 
+        $usage = new EnergyUsage(total: 5000, basicLiving: 5000);
+        $start = CarbonImmutable::parse('2026-07-25', 'Europe/Helsinki');
         $outcome = app(CanonicalContractPricingService::class)->evaluate(
             $contract,
-            new EnergyUsage(total: 5000, basicLiving: 5000),
+            $usage,
             null,
-            CarbonImmutable::parse('2026-07-25', 'Europe/Helsinki'),
+            $start,
         )['outcome'];
 
+        $settings = app(ResetEstimatorSettings::class);
+        $directService = new CanonicalContractPricingService(
+            calculator: new CanonicalContractPriceCalculator(
+                resetEstimator: new MarketResetPriceEstimator(
+                    app(MarketReferenceCurveProvider::class),
+                    $settings,
+                ),
+            ),
+            mode: new PricingMode(canonicalPricingEnabled: true, resetForwardShiftEnabled: true),
+        );
+        $directOutcome = $directService->evaluate($contract, $usage, null, $start)['outcome'];
+
         $this->assertSame(EstimateMethod::RecurringForwardCurveShift, $outcome->estimateMethod);
+        $this->assertSame($outcome->estimateMethod, $directOutcome->estimateMethod);
+        $this->assertEqualsWithDelta($outcome->totalCost, $directOutcome->totalCost, 0.0001);
         $this->assertSame('quarter_month_average', $outcome->resetEstimate['reference_kind']);
         $this->assertSame('2026-Q3', $outcome->resetEstimate['anchor_period']);
         $this->assertSame('2026-10', $outcome->resetEstimate['tail_starts']);
@@ -223,6 +309,12 @@ class MarketResetEstimateSurfacesTest extends TestCase
         $this->assertNull(ResetEstimateCopy::cardTooltip(null));
         $this->assertNull(ResetEstimateCopy::receiptNote(null));
         $this->assertNull(ResetEstimateCopy::cardEquivalent(['annual_equivalent_energy_price' => null]));
+    }
+
+    private function beginPricingMode(array $config): void
+    {
+        config($config);
+        app()->forgetScopedInstances();
     }
 
     /**

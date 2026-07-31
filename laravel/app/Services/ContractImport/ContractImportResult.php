@@ -6,8 +6,8 @@ final readonly class ContractImportResult
 {
     /**
      * @param  array{linked:int, skipped_existing:int, skipped_no_match:int, skipped_not_high:int}  $replacementStats
-     * @param  list<int>  $changedSnapshotIds
-     * @param  list<int>  $observedSnapshotIds
+     * @param  list<int>  $changedObservationIds
+     * @param  list<int>  $observedObservationIds
      * @param  list<string>  $activeContractIds
      * @param  list<string>  $companyNames
      */
@@ -17,8 +17,8 @@ final readonly class ContractImportResult
         public int $activeContractCount,
         public int $priceComponentCount,
         public array $replacementStats,
-        public array $changedSnapshotIds,
-        public array $observedSnapshotIds,
+        public array $changedObservationIds,
+        public array $observedObservationIds,
         public array $activeContractIds,
         public array $companyNames,
     ) {}

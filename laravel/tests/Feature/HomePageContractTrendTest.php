@@ -14,6 +14,7 @@ class HomePageContractTrendTest extends TestCase
     public function test_home_trend_uses_expected_basis_and_separates_feature_mode_caches(): void
     {
         config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
         Cache::flush();
         $segments = ['spot', 'fixed_term_12', 'open_ended', 'hybrid'];
 
@@ -47,6 +48,7 @@ class HomePageContractTrendTest extends TestCase
         // A flag rollback has its own cache key and selects the latest observed
         // current point instead of serving the canonical payload.
         config()->set('canonical_pricing.enabled', false);
+        app()->forgetScopedInstances();
         $legacyResponse = $this->get('/');
         $legacyResponse->assertSee('1 050 €/v', false);
         $legacyResponse->assertSee('Pisteet perustuvat kyseisinä päivinä havaittuihin myyjähintoihin.');

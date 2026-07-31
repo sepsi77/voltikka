@@ -18,4 +18,6 @@ Important semantics:
 - payload v8 is the company/SEO canonical offer-membership and JSON-LD boundary
 - payload v9 adds exact typed canonical offer terms
 - payload v10 adds real-term totals and offer savings for short BaseOnlyHybrid outcomes
-- payload v11 invalidates old prepared/list membership after `other` cadence recurring resets became listed estimates; both `ContractPageCacheVersion` and `ContractListCacheService` are at v11
+- calculated-cost schema v11 invalidates old membership after `other` cadence recurring resets became listed estimates
+- `CalculatedCostPayloadSchema::VERSION` is the one calculated-cost shape version used by list, company, ranking, and prepared-page cache keys
+- `ContractPageCacheVersion` keeps its own prepared-view wrapper version and also includes the shared `cs{version}` marker plus `PricingMode::cacheMarker()`

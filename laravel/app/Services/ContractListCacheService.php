@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
+use App\Services\CanonicalPricing\PricingMode;
 use App\Services\DTO\EnergyUsage;
 use Illuminate\Support\Facades\Cache;
 
@@ -35,8 +36,6 @@ class ContractListCacheService
      * v10: short BaseOnlyHybrid outcomes preserve real-term totals and offer savings.
      * v11: `other` cadence recurring resets become eligible canonical list estimates.
      */
-    private const PAYLOAD_SCHEMA_VERSION = 11;
-
     private const CACHE_TTL_SECONDS = 60 * 60 * 48; // 48 hours
 
     /**
@@ -50,6 +49,7 @@ class ContractListCacheService
         private readonly ContractPriceCalculator $calculator,
         private readonly CO2EmissionsCalculator $emissionsCalculator,
         private readonly CanonicalContractPricingService $canonicalPricing,
+        private readonly PricingMode $pricingMode,
     ) {}
 
     /**
@@ -118,14 +118,11 @@ class ContractListCacheService
         // cache immediately instead of waiting for the next import version bump. The r1/r0
         // marker does the same for RESET_FORWARD_SHIFT_ENABLED, which changes market-reset
         // totals and therefore the sorted order.
-        $basis = ($this->canonicalPricing->enabled() ? 'c1' : 'c0')
-            .($this->canonicalPricing->resetForwardShiftEnabled() ? 'r1' : 'r0');
-
         return sprintf(
             'contract_list_metrics:v%d:s%d:%s:%d',
             $this->getVersion(),
-            self::PAYLOAD_SCHEMA_VERSION,
-            $basis,
+            CalculatedCostPayloadSchema::VERSION,
+            $this->pricingMode->cacheMarker(),
             $consumption,
         );
     }

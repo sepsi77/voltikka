@@ -10,24 +10,19 @@ use App\Enums\SupplementaryHeatingMethod;
 use App\Livewire\Concerns\BillComparisonInputs;
 use App\Models\ElectricityContract;
 use App\Models\Postcode;
-use App\Models\PriceComponent;
-use App\Models\SpotPriceAverage;
 use App\Services\BillComparison\BillComparisonService;
 use App\Services\Caching\ContractPageCacheVersion;
+use App\Services\CanonicalPricing\PricingMode;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractCard\Enums\PricingBucket;
-use App\Services\ContractCard\PricingCategoryResolver;
-use App\Services\ContractListCacheService;
+use App\Services\ContractListing\ContractListingPipeline;
 use App\Services\ContractMarketInsights\ContractMarketInsightService;
-use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyCalculatorRequest;
-use App\Services\DTO\EnergyUsage;
 use App\Services\EnergyCalculator;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -669,50 +664,39 @@ class ContractsList extends Component
 
         $this->allFilteredContractsCache = $sorted;
 
-        $total = $sorted->count();
-        $page = max(1, $this->page);
-        $perPage = $this->perPage;
-        $offset = ($page - 1) * $perPage;
-
-        $items = $this->loadVisibleContracts($sorted, $offset, $perPage);
-
         $emissionsCalculator = app(CO2EmissionsCalculator::class);
 
-        $items = $items->map(function (ElectricityContract $contract) use ($rows, $userTotal, $periodMonths, $emissionsCalculator) {
-            $row = $rows[$contract->id] ?? null;
+        return app(ContractListingPipeline::class)->paginate(
+            $sorted,
+            $this->currentPageNumber(),
+            $this->perPage,
+            url($this->basePath),
+            $this->paginationQueryParameters(),
+            function (Collection $items) use ($rows, $userTotal, $periodMonths, $emissionsCalculator) {
+                return $items->map(function (ElectricityContract $contract) use ($rows, $userTotal, $periodMonths, $emissionsCalculator) {
+                    $row = $rows[$contract->id] ?? null;
 
-            if ($row !== null) {
-                $periodCost = $row->periodCostEur;
-                $saving = $userTotal - $periodCost;
-                $contract->period_comparison = [
-                    'period_cost' => $periodCost,
-                    'period_monthly_cost' => $periodCost / $periodMonths,
-                    'period_saving' => $saving,
-                    'period_monthly_saving' => $saving / $periodMonths,
-                    'period_months' => $periodMonths,
-                    'is_spot' => $row->isSpot,
-                ];
-            }
+                    if ($row !== null) {
+                        $periodCost = $row->periodCostEur;
+                        $saving = $userTotal - $periodCost;
+                        $contract->period_comparison = [
+                            'period_cost' => $periodCost,
+                            'period_monthly_cost' => $periodCost / $periodMonths,
+                            'period_saving' => $saving,
+                            'period_monthly_saving' => $saving / $periodMonths,
+                            'period_months' => $periodMonths,
+                            'is_spot' => $row->isSpot,
+                        ];
+                    }
 
-            // loadVisibleContracts copies annual metrics from summaries that
-            // never received them in bill mode; recompute the emission factor so
-            // the card's CO2 stripe stays correct.
-            $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
-            $contract->exceeds_consumption_limit = false;
+                    // Bill summaries have no annual metrics. Recompute the card's
+                    // emissions stripe after the visible model reload.
+                    $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
+                    $contract->exceeds_consumption_limit = false;
 
-            return $contract;
-        })->values();
-
-        return new \Illuminate\Pagination\LengthAwarePaginator(
-            $items,
-            $total,
-            $perPage,
-            $page,
-            [
-                'path' => url($this->basePath),
-                'pageName' => 'page',
-                'query' => $this->paginationQueryParameters(),
-            ]
+                    return $contract;
+                })->values();
+            },
         );
     }
 
@@ -1142,31 +1126,6 @@ class ContractsList extends Component
     }
 
     /**
-     * Constrain a contract query to the selected pricing buckets (an OR union).
-     *
-     * The SQL always comes from `PricingCategoryResolver::scopeBucket()` so the filter
-     * cannot drift from the category the card band renders. Never hand-write it here.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder<ElectricityContract>  $query
-     */
-    protected function applyPricingBucketFilter($query): void
-    {
-        $buckets = $this->constrainingPricingBuckets();
-
-        if ($buckets === []) {
-            return;
-        }
-
-        $query->where(function ($outer) use ($buckets) {
-            foreach ($buckets as $bucket) {
-                $outer->orWhere(function ($inner) use ($bucket) {
-                    PricingCategoryResolver::scopeBucket($inner, $bucket);
-                });
-            }
-        });
-    }
-
-    /**
      * Set the metering type filter.
      */
     public function setMeteringFilter(string $type): void
@@ -1554,6 +1513,7 @@ class ContractsList extends Component
             return $this->contractsCache;
         }
 
+        $pipeline = app(ContractListingPipeline::class);
         $query = ElectricityContract::query()
             ->active()
             ->with(['electricitySource'])
@@ -1563,93 +1523,26 @@ class ContractsList extends Component
                     ->orWhereNull('target_group');
             });
 
-        // Apply contract type filter (FixedTerm, OpenEnded)
-        if ($this->contractTypeFilter !== '') {
-            $query->where('contract_type', $this->contractTypeFilter);
+        // Apply pricing model and shared pseudo-type filters.
+        if ($this->pricingModelFilter !== ''
+            && ! $pipeline->applySharedPricingTypeConstraint($query, $this->pricingModelFilter)) {
+            $query->where('pricing_model', $this->pricingModelFilter);
         }
 
-        // Apply pricing model filter (Spot, FixedPrice, Hybrid, Quarterly, TimeOfUse)
-        if ($this->pricingModelFilter !== '') {
-            if ($this->pricingModelFilter === 'Quarterly') {
-                // Quarterly contracts are identified by name or description patterns
-                $query->where(function ($q) {
-                    $q->where('name', 'LIKE', '%kvartaali%')
-                        ->orWhere('extra_information_fi', 'LIKE', '%kvartaali%')
-                        ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden jaksoissa%')
-                        ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden jaksolle%')
-                        ->orWhere('extra_information_fi', 'LIKE', '%kolmen kuukauden välein%');
-                });
-            } elseif ($this->pricingModelFilter === 'TimeOfUse') {
-                // Time-of-use (aikasähkö) contracts have day/night pricing
-                $query->where(function ($q) {
-                    $q->where('metering', 'Time')
-                        ->orWhere('name', 'LIKE', '%aikasähkö%')
-                        ->orWhere('name', 'LIKE', '%Aikasähkö%')
-                        ->orWhere('extra_information_fi', 'LIKE', '%aikasähkö%');
-                });
-            } elseif ($this->pricingModelFilter === 'Seasonal') {
-                // Seasonal (kausisähkö) contracts have seasonal pricing
-                $query->where(function ($q) {
-                    $q->where('metering', 'Season')
-                        ->orWhere('name', 'LIKE', '%kausisähkö%')
-                        ->orWhere('name', 'LIKE', '%Kausisähkö%')
-                        ->orWhere('extra_information_fi', 'LIKE', '%kausisähkö%');
-                });
-            } else {
-                $query->where('pricing_model', $this->pricingModelFilter);
-            }
-        }
+        $pipeline->applyInteractiveQueryConstraints(
+            $query,
+            $this->contractTypeFilter,
+            $this->constrainingPricingBuckets(),
+            $this->meteringFilter,
+            $this->postcodeFilter,
+        );
 
-        // Apply the pricing-type (bucket) filter. It sits with the other query filters
-        // so bill mode prices exactly the filtered set.
-        $this->applyPricingBucketFilter($query);
-
-        // Apply metering type filter
-        if ($this->meteringFilter !== '') {
-            $query->where('metering', $this->meteringFilter);
-        }
-
-        // Apply postcode filter at database level (memory optimization)
-        // This avoids loading all pivot records into memory
-        if ($this->postcodeFilter !== '') {
-            $postcode = $this->postcodeFilter;
-            $query->where(function ($q) use ($postcode) {
-                $q->where('availability_is_national', true)
-                    ->orWhereExists(function ($subquery) use ($postcode) {
-                        $subquery->select(DB::raw(1))
-                            ->from('contract_postcode')
-                            ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
-                            ->where('contract_postcode.postcode', $postcode);
-                    });
-            });
-        }
-
-        $contracts = $query->get();
-
-        // Apply energy source filters
-        if ($this->renewableFilter) {
-            $contracts = $contracts->filter(function ($contract) {
-                $source = $contract->electricitySource;
-
-                return $source && $source->renewable_total >= 50;
-            });
-        }
-
-        if ($this->nuclearFilter) {
-            $contracts = $contracts->filter(function ($contract) {
-                $source = $contract->electricitySource;
-
-                return $source && $source->hasNuclear();
-            });
-        }
-
-        if ($this->fossilFreeFilter) {
-            $contracts = $contracts->filter(function ($contract) {
-                $source = $contract->electricitySource;
-
-                return $source && $source->isFossilFree();
-            });
-        }
+        $contracts = $pipeline->filterInteractiveEnergySources(
+            $query->get(),
+            $this->renewableFilter,
+            $this->nuclearFilter,
+            $this->fossilFreeFilter,
+        );
 
         // Filter by consumption range - only show contracts where the selected
         // consumption falls within the contract's allowed range.
@@ -1661,10 +1554,8 @@ class ContractsList extends Component
         // annual consumption, so pre-filtering with the stale slider would only
         // wrongly drop/keep capped contracts on a mismatched basis.
         if (! $this->isBillModeActive()) {
-            $consumption = $this->consumption;
-            $contracts = $contracts->filter(function ($contract) use ($consumption) {
-                return $contract->isConsumptionInRange($consumption);
-            });
+            $consumption = $this->selectedConsumptionValue();
+            $contracts = $pipeline->filterForConsumption($contracts, $consumption);
         }
 
         // Bill ("Maksatko liikaa") mode: price the filtered set for the user's
@@ -1673,106 +1564,17 @@ class ContractsList extends Component
             return $this->contractsCache = $this->buildBillModePaginator($contracts);
         }
 
-        $consumption = $this->consumption;
-        $sorted = $this->applyCachedMetricsToContracts($contracts, $consumption);
+        $sorted = $pipeline->enrichAndSortAnnual($contracts, $consumption);
 
-        if ($sorted === null) {
-            $emissionsCalculator = app(CO2EmissionsCalculator::class);
-            $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
-            $useCanonical = $canonicalPricing->enabled();
-
-            $usage = new EnergyUsage(total: $consumption, basicLiving: $consumption);
-
-            // Do not eager load full price history here. Load only the latest
-            // calculation components in bulk, avoiding both N+1 queries and
-            // 50k+ historical price-component models in memory.
-            $canonicalMetrics = $useCanonical ? $canonicalPricing->metricsForContracts($contracts, $usage) : [];
-
-            $spotPriceAvg = $useCanonical ? null : SpotPriceAverage::latestRolling365Days();
-            $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
-            $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
-
-            $priceComponentsByContractId = $useCanonical
-                ? []
-                : ElectricityContract::getLatestPriceComponentsForCalculationByContractIds($contracts->pluck('id'));
-
-            $calculator = $useCanonical ? null : app(ContractPriceCalculator::class);
-
-            $contracts = $contracts->map(function ($contract) use ($calculator, $emissionsCalculator, $spotPriceDay, $spotPriceNight, $consumption, $usage, $priceComponentsByContractId, $useCanonical, $canonicalMetrics) {
-                $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
-                $maxConsumption = $contract->consumption_limitation_max_x_kwh_per_y;
-                $contract->exceeds_consumption_limit = $maxConsumption > 0 && $consumption > $maxConsumption;
-
-                if ($useCanonical) {
-                    $canonical = $canonicalMetrics[$contract->id] ?? null;
-                    $contract->calculated_cost = $canonical['calculated_cost'] ?? [];
-                    $contract->pricing_integrity = $canonical['integrity'] ?? null;
-                    $contract->comparability = $canonical['comparability'] ?? null;
-                    $contract->is_listed = $canonical['is_listed'] ?? false;
-                    $contract->sort_key = $canonical['sort_key'];
-
-                    return $contract;
-                }
-
-                $priceComponents = $priceComponentsByContractId[$contract->id] ?? [];
-                $contractData = [
-                    'contract_type' => $contract->contract_type,
-                    'pricing_model' => $contract->pricing_model,
-                    'metering' => $contract->metering,
-                ];
-
-                $result = $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
-                $contract->calculated_cost = $result->toArray();
-                $contract->pricing_integrity = null;
-                $contract->comparability = null;
-                $contract->is_listed = true;
-                $contract->sort_key = $result->totalCost;
-
-                return $contract;
-            });
-
-            // Canonical mode drops contracts not fit for comparison entirely.
-            if ($useCanonical) {
-                $contracts = $contracts->filter(fn ($contract) => $contract->is_listed)->values();
-            }
-
-            // Sort by total cost (ascending), but put contracts that exceed consumption limit at the end
-            $sorted = $contracts->sort(function ($a, $b) {
-                $aExceeds = $a->exceeds_consumption_limit ? 1 : 0;
-                $bExceeds = $b->exceeds_consumption_limit ? 1 : 0;
-                if ($aExceeds !== $bExceeds) {
-                    return $aExceeds - $bExceeds;
-                }
-                $aCost = $a->sort_key ?? $a->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
-                $bCost = $b->sort_key ?? $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
-
-                return $aCost <=> $bCost;
-            })->values();
-        }
-
-        // Cache the full sorted collection for metrics
+        // Cache the full sorted collection for metrics.
         $this->allFilteredContractsCache = $sorted;
 
-        // Create a manual paginator from the sorted collection
-        $total = $sorted->count();
-        $page = max(1, $this->page);
-        $perPage = $this->perPage;
-
-        // Calculate offset and get the slice for current page
-        $offset = ($page - 1) * $perPage;
-        $items = $this->loadVisibleContracts($sorted, $offset, $perPage);
-
-        // Create and return a LengthAwarePaginator
-        return $this->contractsCache = new \Illuminate\Pagination\LengthAwarePaginator(
-            $items,
-            $total,
-            $perPage,
-            $page,
-            [
-                'path' => url($this->basePath),
-                'pageName' => 'page',
-                'query' => $this->paginationQueryParameters(),
-            ]
+        return $this->contractsCache = $pipeline->paginate(
+            $sorted,
+            $this->currentPageNumber(),
+            $this->perPage,
+            url($this->basePath),
+            $this->paginationQueryParameters(),
         );
     }
 
@@ -1783,7 +1585,7 @@ class ContractsList extends Component
     {
         // Card presenters ignore relational rates in canonical mode. Return before
         // `loadMissing()` so a Blade call cannot recreate one query per visible card.
-        if (config('canonical_pricing.enabled', false)) {
+        if (app(PricingMode::class)->enabled()) {
             return [];
         }
 
@@ -1829,102 +1631,6 @@ class ContractsList extends Component
         }
 
         return $this->percentileCache;
-    }
-
-    /**
-     * Apply precomputed contract metrics when the selected consumption matches a preset cache.
-     */
-    protected function applyCachedMetricsToContracts(Collection $contracts, int $consumption): ?Collection
-    {
-        $cached = app(ContractListCacheService::class)->getCachedMetrics($consumption);
-
-        if ($cached === null) {
-            return null;
-        }
-
-        $metricsById = $cached['contracts'] ?? [];
-        $contractsById = $contracts->keyBy('id');
-
-        if ($contractsById->keys()->diff(array_keys($metricsById))->isNotEmpty()) {
-            return null;
-        }
-
-        $sortedContracts = [];
-
-        foreach ($cached['sorted_ids'] as $contractId) {
-            if (! $contractsById->has($contractId)) {
-                continue;
-            }
-
-            $contract = $contractsById->get($contractId);
-            $metrics = $metricsById[$contractId] ?? null;
-
-            if ($metrics === null) {
-                return null;
-            }
-
-            $this->applyCachedMetricsToContract($contract, $metrics);
-            $sortedContracts[] = $contract;
-        }
-
-        return new Collection($sortedContracts);
-    }
-
-    protected function applyCachedMetricsToContract(ElectricityContract $contract, array $metrics): ElectricityContract
-    {
-        $contract->calculated_cost = $metrics['calculated_cost'];
-        $contract->emission_factor = $metrics['emission_factor'];
-        $contract->exceeds_consumption_limit = $metrics['exceeds_consumption_limit'];
-        $contract->pricing_integrity = $metrics['pricing_integrity'] ?? null;
-        $contract->comparability = $metrics['comparability'] ?? null;
-
-        return $contract;
-    }
-
-    /**
-     * Load only the contracts visible on the current page with their full relations.
-     */
-    protected function loadVisibleContracts(Collection $sorted, int $offset, int $perPage): \Illuminate\Support\Collection
-    {
-        $visibleSummaries = $sorted->slice($offset, $perPage)->values();
-        $visibleIds = $visibleSummaries->pluck('id')->all();
-
-        if (empty($visibleIds)) {
-            return collect();
-        }
-
-        $contractsById = ElectricityContract::query()
-            ->with(['company', 'electricitySource'])
-            ->whereIn('id', $visibleIds)
-            ->get()
-            ->keyBy('id');
-
-        $useCanonical = (bool) config('canonical_pricing.enabled', false);
-        $priceComponentsByContractId = $useCanonical
-            ? []
-            : ElectricityContract::getLatestPriceComponentsForCalculationByContractIds($visibleIds);
-
-        return $visibleSummaries->map(function (ElectricityContract $summary) use ($contractsById, $priceComponentsByContractId, $useCanonical) {
-            /** @var ElectricityContract|null $contract */
-            $contract = $contractsById->get($summary->id);
-
-            if (! $contract) {
-                return null;
-            }
-
-            if (! $useCanonical) {
-                $contract->setRelation('priceComponents', new Collection(
-                    array_map(fn (array $component) => new PriceComponent($component), $priceComponentsByContractId[$contract->id] ?? [])
-                ));
-            }
-            $contract->calculated_cost = $summary->calculated_cost;
-            $contract->emission_factor = $summary->emission_factor;
-            $contract->exceeds_consumption_limit = $summary->exceeds_consumption_limit;
-            $contract->pricing_integrity = $summary->pricing_integrity ?? null;
-            $contract->comparability = $summary->comparability ?? null;
-
-            return $contract;
-        })->filter()->values();
     }
 
     /**

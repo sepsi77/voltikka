@@ -21,6 +21,7 @@ class CanonicalOfferSurfacesTest extends TestCase
     {
         parent::setUp();
 
+        app()->forgetScopedInstances();
         Cache::flush();
         Company::create([
             'name' => 'Offer Energy Oy',
@@ -83,8 +84,9 @@ class CanonicalOfferSurfacesTest extends TestCase
 
         $this->assertLessThanOrEqual(1, $priceComponentQueries->count());
         $this->assertTrue($priceComponentQueries->every(
-            fn (string $query) => str_contains($query, 'max("price_date")'),
-        ), 'Canonical mode can use only the bounded legacy update-date aggregate.');
+            fn (string $query) => str_contains($query, 'max("price_components"."price_date")')
+                && str_contains($query, '"current_source_observation_id" is null'),
+        ), 'Canonical mode can use only the bounded null-pointer legacy update-date aggregate.');
     }
 
     public function test_company_short_offer_uses_the_real_six_month_benefit(): void

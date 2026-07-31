@@ -3,6 +3,7 @@
 namespace App\Services\PriceForecasting;
 
 use App\Models\ContractPriceDailyStatistic;
+use App\Services\CanonicalPricing\PricingMode;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -27,7 +28,10 @@ class FixedTermPriceForecastService
         'p80' => 'p80_value',
     ];
 
-    public function __construct(private readonly FixedTermHedgeCostService $hedgeCostService) {}
+    public function __construct(
+        private readonly FixedTermHedgeCostService $hedgeCostService,
+        private readonly PricingMode $pricingMode,
+    ) {}
 
     public function buildForecasts(
         CarbonInterface $asOfDate,
@@ -268,9 +272,7 @@ class FixedTermPriceForecastService
 
     private function currentRetailPricingBasis(): string
     {
-        return (bool) config('canonical_pricing.enabled', false)
-            ? self::CANONICAL_PRICING_BASIS
-            : self::OBSERVED_PRICING_BASIS;
+        return $this->pricingMode->expectedContractPriceBasis()->value;
     }
 
     private function ewma(array $values, float $alpha): float

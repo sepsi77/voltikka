@@ -255,17 +255,19 @@ share the contract's VAT basis (business contracts stay ex-VAT). A component typ
    both are pinned to `false` with `force="true"` in `phpunit.xml` so the suite cannot inherit a
    developer's environment. Tests that exercise either flag opt in via `config()->set()`.
 
-   When verifying reset behaviour by hand, resolve the service through `app()`. A plain
-   `new CanonicalContractPricingService()` gets no `MarketResetPriceEstimator` (the calculator's
-   `$resetEstimator` defaults to null and the estimator is bound only in `AppServiceProvider`),
-   so it shows hold-flat behaviour whatever the flag says.
+   `PricingMode` snapshots both flags once per request or command. Resolve normal pricing services
+   through `app()`. Direct construction must supply both `PricingMode` and a
+   `CanonicalContractPriceCalculator`; the calculator requires a `MarketResetPriceEstimator`.
+   Explicit hold-flat calculations use `ResetEstimatorSettings(enabled: false)` and cannot occur
+   because an estimator dependency was silently absent. The service constructor rejects a
+   `PricingMode` whose reset state disagrees with the supplied estimator.
 2. `contracts:compare-canonical-pricing {--consumption=} {--start-date=} {--json=} {--resets} {--fail-on-parse-errors}`
    diffs legacy vs canonical totals across all active contracts and lists exclusions/labels. Run it on
    the synced local DB and on production (read-only) before flipping the flag. `--resets` switches to
    the hold-flat-vs-forward-shift review for market-reset lineages.
-3. Cache keys carry a `c1`/`c0` canonical basis marker **and** an `r1`/`r0` reset-shift marker
-   (`ContractListCacheService`, `ContractRankingService`, `ContractPageCacheVersion`) so toggling
-   either flag busts stale caches immediately.
+3. Cache keys use `PricingMode::cacheMarker()` (`c0r0` through `c1r1`) so canonical state,
+   reset-shift state, and the expected statistics basis come from one immutable value. Toggling
+   either flag at a new request or command boundary busts stale caches immediately.
 
 ## Consumers migrated
 
@@ -334,15 +336,14 @@ when consumption was requested, and omits relational `price_components`. Exclude
 explicit unavailable/comparability state and no current rates. Feature-off responses retain the
 legacy `PriceComponentResource` rows and calculator. See `../../Http/AGENTS.md`.
 
-**When you add or remove a field on these payloads, bump
-`ContractListCacheService::PAYLOAD_SCHEMA_VERSION` and
-`Caching\ContractPageCacheVersion::PAYLOAD_SCHEMA_VERSION`.** The import-driven version and the
-`c`/`r` flag markers do not move on a code-only deploy, so cards would otherwise read a stale
-cached shape for up to 48 hours. `CompanyListCacheService` and `ContractRankingService` have their
-own payload schema markers because their prepared aggregates can also survive a code-only deploy;
-bump the applicable marker when company membership/metrics or ranking behavior changes. Both keys
-also include `ContractListCacheService::getVersion()`, so each published interpretation invalidates
-company and ranking data instead of leaving it stale for 48 hours or one hour.
+**When you add or remove a field on `calculated_cost`, bump
+`CalculatedCostPayloadSchema::VERSION` once.** List, company, ranking, and prepared-page cache keys
+all include this shared dependency. Their service-specific outer payload versions remain separate;
+bump an outer version only when that wrapper's own membership, fields, or structure changes. The
+import-driven version and the pricing-mode marker do not move on a code-only deploy, so the shared
+schema marker prevents cards and aggregates from reading an old calculated-cost shape. Company and
+ranking keys also include `ContractListCacheService::getVersion()`, so each published interpretation
+invalidates their data instead of leaving it stale for 48 hours or one hour.
 `ContractPricingIntegrity` gained typed `promo_rate_cents` /
 `normal_rate_cents` for the dated receipt rows; that was schema v2.
 

@@ -8,7 +8,7 @@ use App\Enums\BuildingType;
 use App\Enums\HeatingMethod;
 use App\Enums\SupplementaryHeatingMethod;
 use App\Models\ContractPriceDailyStatistic;
-use App\Services\ContractStatistics\ContractPriceBasis;
+use App\Services\CanonicalPricing\PricingMode;
 use App\Services\DTO\EnergyCalculatorRequest;
 use App\Services\EnergyCalculator;
 use Carbon\Carbon;
@@ -489,7 +489,7 @@ class ConsumptionCalculator extends Component
             return $this->priceStatisticsRows === false ? null : $this->priceStatisticsRows;
         }
 
-        $pricingBasis = ContractPriceBasis::expectedCurrent()->value;
+        $pricingBasis = app(PricingMode::class)->expectedContractPriceBasis()->value;
         $latestDate = ContractPriceDailyStatistic::query()
             ->where('pricing_basis', $pricingBasis)
             ->where('metric_key', 'annual_cost')

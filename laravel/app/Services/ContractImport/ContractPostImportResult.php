@@ -9,12 +9,12 @@ final readonly class ContractPostImportResult
     /**
      * @param  array<string, string>  $requiredFailures
      * @param  array<string, string>  $optionalFailures
-     * @param  list<int>  $interpretationDispatchFailureSnapshotIds
+     * @param  list<int>  $interpretationDispatchFailureObservationIds
      */
     public function __construct(
         public array $requiredFailures,
         public array $optionalFailures,
-        public array $interpretationDispatchFailureSnapshotIds,
+        public array $interpretationDispatchFailureObservationIds,
         public ?CarbonImmutable $statisticsStartedAt,
         public ?CarbonImmutable $statisticsCompletedAt,
     ) {}

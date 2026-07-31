@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Jobs\AnalyzeContractSourceSnapshot;
 use App\Models\Company;
 use App\Models\ContractInterpretation;
+use App\Models\ContractSourceObservation;
 use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
@@ -32,10 +33,12 @@ class ContractInterpretationPipelineTest extends TestCase
         $snapshot = $this->createSnapshot();
         $dispatcher = app(ContractInterpretationDispatcher::class);
 
-        $first = $dispatcher->dispatch($snapshot);
-        $second = $dispatcher->dispatch($snapshot);
+        $observation = $snapshot->observations()->sole();
+        $first = $dispatcher->dispatch($observation);
+        $second = $dispatcher->dispatch($observation);
 
         $this->assertSame($first->id, $second->id);
+        $this->assertNull($first->analysis_source_observation_id);
         $this->assertSame(1, ContractInterpretation::count());
         Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 1);
     }
@@ -48,9 +51,10 @@ class ContractInterpretationPipelineTest extends TestCase
         $snapshot = $this->createSnapshot();
         $dispatcher = app(ContractInterpretationDispatcher::class);
 
-        $first = $dispatcher->dispatch($snapshot);
+        $observation = $snapshot->observations()->sole();
+        $first = $dispatcher->dispatch($observation);
         config()->set('contract_interpretation.validator_version', 'validator-next');
-        $second = $dispatcher->dispatch($snapshot);
+        $second = $dispatcher->dispatch($observation);
 
         $this->assertNotSame($first->id, $second->id);
         $this->assertSame(2, ContractInterpretation::count());
@@ -66,13 +70,296 @@ class ContractInterpretationPipelineTest extends TestCase
         $snapshot = $this->createSnapshot();
         $dispatcher = app(ContractInterpretationDispatcher::class);
 
-        $first = $dispatcher->dispatch($snapshot);
+        $observation = $snapshot->observations()->sole();
+        $first = $dispatcher->dispatch($observation);
         config()->set('contract_interpretation.reasoning_effort', 'medium');
-        $second = $dispatcher->dispatch($snapshot);
+        $second = $dispatcher->dispatch($observation);
 
         $this->assertNotSame($first->id, $second->id);
         $this->assertSame(2, ContractInterpretation::count());
         Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 2);
+    }
+
+    public function test_recurrent_snapshot_reuses_published_output_without_a_model_job(): void
+    {
+        Queue::fake();
+        config()->set('contract_interpretation.enabled', true);
+        config()->set('services.openrouter.api_key', null);
+        $snapshotA = $this->createSnapshot();
+        $observationA1 = $snapshotA->observations()->sole();
+        $interpretationA = $this->reusableInterpretation($snapshotA);
+
+        $this->travelTo('2026-08-01 10:00:00');
+        $this->assertTrue(app(ContractInterpretationPublisher::class)->publish($interpretationA));
+
+        $snapshotB = ContractSourceSnapshot::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_fingerprint' => str_repeat('b', 64),
+            'source_payload' => $snapshotA->source_payload + ['version' => 'b'],
+            'first_observed_at' => '2026-08-02 10:00:00',
+            'last_observed_at' => '2026-08-02 10:00:00',
+        ]);
+        $observationB = ContractSourceObservation::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_snapshot_id' => $snapshotB->id,
+            'first_observed_at' => '2026-08-02 10:00:00',
+            'last_observed_at' => '2026-08-02 10:00:00',
+        ]);
+        ElectricityContract::whereKey($snapshotA->contract_id)->update([
+            'current_source_observation_id' => $observationB->id,
+        ]);
+        $interpretationB = $this->reusableInterpretation($snapshotB);
+
+        $this->travelTo('2026-08-02 10:05:00');
+        $this->assertTrue(app(ContractInterpretationPublisher::class)->publish($interpretationB));
+
+        $observationA2 = ContractSourceObservation::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_snapshot_id' => $snapshotA->id,
+            'first_observed_at' => '2026-08-03 10:00:00',
+            'last_observed_at' => '2026-08-03 10:00:00',
+        ]);
+        ElectricityContract::whereKey($snapshotA->contract_id)->update([
+            'current_source_observation_id' => $observationA2->id,
+        ]);
+
+        $this->travelTo('2026-08-03 10:05:00');
+        $dispatcher = app(ContractInterpretationDispatcher::class);
+        $dispatcher->dispatch($observationA2);
+        $republishedAt = $interpretationA->fresh()->published_at->toDateTimeString();
+        $dispatcher->dispatch($observationA2);
+
+        $contract = ElectricityContract::findOrFail($snapshotA->contract_id);
+        $this->assertSame($interpretationA->id, $contract->published_interpretation_id);
+        $this->assertSame($republishedAt, $interpretationA->fresh()->published_at->toDateTimeString());
+        $this->assertFalse(app(ContractInterpretationPublisher::class)->publish($interpretationB));
+        $this->assertSame(ContractInterpretation::STATUS_SUPERSEDED, $interpretationB->fresh()->status);
+        $this->assertSame($interpretationA->id, $contract->fresh()->published_interpretation_id);
+        $this->assertSame($snapshotA->id, $observationA1->source_snapshot_id);
+        Queue::assertNothingPushed();
+    }
+
+    public function test_recurrent_snapshot_republishes_a_stale_superseded_pointer_without_a_model_job(): void
+    {
+        Queue::fake();
+        config()->set('contract_interpretation.enabled', true);
+        config()->set('services.openrouter.api_key', null);
+        $snapshotA = $this->createSnapshot();
+        $interpretationA = $this->reusableInterpretation($snapshotA);
+        $publisher = app(ContractInterpretationPublisher::class);
+
+        $this->travelTo('2026-08-01 10:00:00');
+        $this->assertTrue($publisher->publish($interpretationA));
+
+        $snapshotB = ContractSourceSnapshot::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_fingerprint' => str_repeat('b', 64),
+            'source_payload' => $snapshotA->source_payload + ['version' => 'b'],
+            'first_observed_at' => '2026-08-02 10:00:00',
+            'last_observed_at' => '2026-08-02 10:00:00',
+        ]);
+        $observationB = ContractSourceObservation::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_snapshot_id' => $snapshotB->id,
+            'first_observed_at' => '2026-08-02 10:00:00',
+            'last_observed_at' => '2026-08-02 10:00:00',
+        ]);
+        ElectricityContract::whereKey($snapshotA->contract_id)->update([
+            'current_source_observation_id' => $observationB->id,
+        ]);
+
+        $this->travelTo('2026-08-02 10:05:00');
+        $this->assertFalse($publisher->publish($interpretationA));
+        $this->assertSame(ContractInterpretation::STATUS_SUPERSEDED, $interpretationA->fresh()->status);
+        $this->assertSame(
+            $interpretationA->id,
+            ElectricityContract::findOrFail($snapshotA->contract_id)->published_interpretation_id,
+        );
+
+        $observationA2 = ContractSourceObservation::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_snapshot_id' => $snapshotA->id,
+            'first_observed_at' => '2026-08-03 10:00:00',
+            'last_observed_at' => '2026-08-03 10:00:00',
+        ]);
+        ElectricityContract::whereKey($snapshotA->contract_id)->update([
+            'current_source_observation_id' => $observationA2->id,
+        ]);
+
+        $this->travelTo('2026-08-03 10:05:00');
+        app(ContractInterpretationDispatcher::class)->dispatch($observationA2);
+
+        $this->assertSame(ContractInterpretation::STATUS_PUBLISHED, $interpretationA->fresh()->status);
+        $this->assertSame('2026-08-03 10:05:00', $interpretationA->fresh()->published_at->toDateTimeString());
+        $this->assertSame(
+            $interpretationA->id,
+            ElectricityContract::findOrFail($snapshotA->contract_id)->published_interpretation_id,
+        );
+        Queue::assertNothingPushed();
+    }
+
+    public function test_recurrent_snapshot_date_scoped_analysis_is_bound_to_the_exact_episode(): void
+    {
+        Queue::fake();
+        config()->set('contract_interpretation.enabled', true);
+        config()->set('services.openrouter.api_key', null);
+        $snapshotA = $this->createSnapshot();
+        $payload = $snapshotA->source_payload;
+        $payload['Details']['ExtraInformation']['FI'] = 'Promotion 0 € until 31.7.2026.';
+        $snapshotA->update(['source_payload' => $payload]);
+        $output = $this->validOutput($snapshotA->contract_id);
+        $output['pricing']['phases'] = [[
+            'label' => 'Promotion',
+            'phase_kind' => 'introductory',
+            'starts' => ['kind' => 'unknown', 'value' => null],
+            'ends' => ['kind' => 'date', 'value' => '2026-07-31'],
+            'package' => null,
+            'components' => [[
+                'component_type' => 'monthly_fee',
+                'amount' => 0,
+                'normal_amount' => null,
+                'unit' => 'eur_per_month',
+                'vat_status' => 'unknown',
+                'price_role' => 'introductory',
+                'source_kind' => 'description',
+                'evidence' => [[
+                    'source' => 'extra_information_fi',
+                    'quote' => 'Promotion 0 € until 31.7.2026.',
+                ]],
+            ]],
+            'evidence' => [],
+        ]];
+        $interpretationA = $this->reusableInterpretation($snapshotA->fresh());
+        $interpretationA->update(['output' => $output]);
+        $this->assertTrue(app(ContractInterpretationPublisher::class)->publish($interpretationA));
+
+        $snapshotB = ContractSourceSnapshot::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_fingerprint' => str_repeat('b', 64),
+            'source_payload' => $snapshotA->source_payload + ['version' => 'b'],
+            'first_observed_at' => '2026-08-01 10:00:00',
+            'last_observed_at' => '2026-08-01 10:00:00',
+        ]);
+        ContractSourceObservation::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_snapshot_id' => $snapshotB->id,
+            'first_observed_at' => '2026-08-01 10:00:00',
+            'last_observed_at' => '2026-08-01 10:00:00',
+        ]);
+        $observationA2 = ContractSourceObservation::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_snapshot_id' => $snapshotA->id,
+            'first_observed_at' => '2026-08-03 10:00:00',
+            'last_observed_at' => '2026-08-03 10:00:00',
+        ]);
+        ElectricityContract::whereKey($snapshotA->contract_id)->update([
+            'current_source_observation_id' => $observationA2->id,
+        ]);
+
+        $dispatcher = app(ContractInterpretationDispatcher::class);
+        $waiting = $dispatcher->dispatch($observationA2);
+        Queue::assertNothingPushed();
+        config()->set('services.openrouter.api_key', 'test-key');
+        $first = $dispatcher->dispatch($observationA2);
+        $second = $dispatcher->dispatch($observationA2);
+
+        $this->assertSame($waiting->id, $first->id);
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame($observationA2->id, $first->analysis_source_observation_id);
+        $this->assertSame(ContractInterpretation::STATUS_SUPERSEDED, $interpretationA->fresh()->status);
+        $this->assertSame($output, $interpretationA->fresh()->output);
+        $this->assertSame(
+            app(\App\Services\ContractInterpretation\ContractAnalysisFingerprint::class)
+                ->forObservation($snapshotA, $observationA2),
+            $first->analysis_fingerprint,
+        );
+        $this->assertSame(2, ContractInterpretation::count());
+        Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 1);
+
+        $observationB2 = ContractSourceObservation::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_snapshot_id' => $snapshotB->id,
+            'first_observed_at' => '2026-08-03 11:00:00',
+            'last_observed_at' => '2026-08-03 11:00:00',
+        ]);
+        ElectricityContract::whereKey($snapshotA->contract_id)->update([
+            'current_source_observation_id' => $observationB2->id,
+        ]);
+        $observationA3 = ContractSourceObservation::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_snapshot_id' => $snapshotA->id,
+            'first_observed_at' => '2026-08-03 12:00:00',
+            'last_observed_at' => '2026-08-03 12:00:00',
+        ]);
+        ElectricityContract::whereKey($snapshotA->contract_id)->update([
+            'current_source_observation_id' => $observationA3->id,
+        ]);
+
+        $third = $dispatcher->dispatch($observationA3);
+
+        $this->assertNotSame($first->id, $third->id);
+        $this->assertSame($observationA3->id, $third->analysis_source_observation_id);
+        $this->assertSame(
+            app(\App\Services\ContractInterpretation\ContractAnalysisFingerprint::class)
+                ->forObservation($snapshotA, $observationA3),
+            $third->analysis_fingerprint,
+        );
+        $this->assertSame(3, ContractInterpretation::count());
+        Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 2);
+
+        $this->mock(OpenRouterContractInterpretationClient::class)
+            ->shouldNotReceive('interpret');
+
+        app()->call([new AnalyzeContractSourceSnapshot($first->id), 'handle']);
+
+        $this->assertSame(ContractInterpretation::STATUS_SUPERSEDED, $first->fresh()->status);
+        $this->assertSame(ContractInterpretation::STATUS_PENDING, $third->fresh()->status);
+        $this->assertSame(0, PriceComponent::count());
+
+        $observationB3 = ContractSourceObservation::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_snapshot_id' => $snapshotB->id,
+            'first_observed_at' => '2026-08-05 11:00:00',
+            'last_observed_at' => '2026-08-05 11:00:00',
+        ]);
+        ElectricityContract::whereKey($snapshotA->contract_id)->update([
+            'current_source_observation_id' => $observationB3->id,
+        ]);
+        $observationA4 = ContractSourceObservation::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_snapshot_id' => $snapshotA->id,
+            'first_observed_at' => '2026-08-05 12:00:00',
+            'last_observed_at' => '2026-08-05 12:00:00',
+        ]);
+        ElectricityContract::whereKey($snapshotA->contract_id)->update([
+            'current_source_observation_id' => $observationA4->id,
+        ]);
+
+        $fourth = $dispatcher->dispatch($observationA4);
+
+        $this->assertNotSame($third->id, $fourth->id);
+        $this->assertSame($observationA4->id, $fourth->analysis_source_observation_id);
+        $this->assertSame(
+            app(\App\Services\ContractInterpretation\ContractAnalysisFingerprint::class)
+                ->forObservation($snapshotA, $observationA4),
+            $fourth->analysis_fingerprint,
+        );
+        $this->assertSame(4, ContractInterpretation::count());
+        Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 3);
+    }
+
+    public function test_dispatch_rejects_a_pointed_snapshot_owned_by_another_contract(): void
+    {
+        config()->set('contract_interpretation.enabled', true);
+        $snapshot = $this->createSnapshot();
+        $foreignSnapshot = $this->foreignSnapshot();
+        $observation = $snapshot->observations()->sole();
+        $observation->update(['source_snapshot_id' => $foreignSnapshot->id]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('The pointed source observation snapshot must belong to the current contract.');
+
+        app(ContractInterpretationDispatcher::class)->dispatch($observation->fresh());
     }
 
     public function test_client_requests_strict_structured_output(): void
@@ -1361,6 +1648,57 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertDatabaseHas('active_contracts', ['id' => $contract->id]);
     }
 
+    public function test_job_uses_the_pointed_episode_analysis_date(): void
+    {
+        config()->set('contract_interpretation.max_repair_attempts', 0);
+        $snapshot = $this->createSnapshot();
+        $observation = $snapshot->observations()->sole();
+        $observation->update([
+            'first_observed_at' => '2026-08-03 10:00:00',
+            'last_observed_at' => '2026-08-03 10:00:00',
+        ]);
+        $interpretation = $this->createInterpretation($snapshot);
+
+        $this->mock(OpenRouterContractInterpretationClient::class)
+            ->shouldReceive('interpret')
+            ->once()
+            ->withArgs(fn (array $input): bool => $input['analysis_date'] === '2026-08-03')
+            ->andReturn($this->llmResult($this->validOutput($snapshot->contract_id), 10));
+
+        app()->call([new AnalyzeContractSourceSnapshot($interpretation->id), 'handle']);
+
+        $this->assertSame(ContractInterpretation::STATUS_PUBLISHED, $interpretation->fresh()->status);
+    }
+
+    public function test_job_supersedes_after_pointer_movement_without_a_client_call(): void
+    {
+        $snapshot = $this->createSnapshot();
+        $interpretation = $this->createInterpretation($snapshot);
+        $newSnapshot = ContractSourceSnapshot::create([
+            'contract_id' => $snapshot->contract_id,
+            'source_fingerprint' => str_repeat('b', 64),
+            'source_payload' => $snapshot->source_payload,
+            'first_observed_at' => '2026-08-03 10:00:00',
+            'last_observed_at' => '2026-08-03 10:00:00',
+        ]);
+        $newObservation = ContractSourceObservation::create([
+            'contract_id' => $snapshot->contract_id,
+            'source_snapshot_id' => $newSnapshot->id,
+            'first_observed_at' => '2026-08-03 10:00:00',
+            'last_observed_at' => '2026-08-03 10:00:00',
+        ]);
+        ElectricityContract::whereKey($snapshot->contract_id)->update([
+            'current_source_observation_id' => $newObservation->id,
+        ]);
+        $this->mock(OpenRouterContractInterpretationClient::class)
+            ->shouldNotReceive('interpret');
+
+        app()->call([new AnalyzeContractSourceSnapshot($interpretation->id), 'handle']);
+
+        $this->assertSame(ContractInterpretation::STATUS_SUPERSEDED, $interpretation->fresh()->status);
+        $this->assertSame(0, PriceComponent::count());
+    }
+
     public function test_invalid_output_is_stored_but_not_published(): void
     {
         config()->set('contract_interpretation.max_repair_attempts', 0);
@@ -1695,6 +2033,10 @@ class ContractInterpretationPipelineTest extends TestCase
             'first_observed_at' => '2026-07-25 06:00:00',
             'last_observed_at' => '2026-07-27 06:00:00',
         ]);
+        $snapshot->observations()->update([
+            'first_observed_at' => '2026-07-25 06:00:00',
+            'last_observed_at' => '2026-07-27 06:00:00',
+        ]);
         $interpretation = $this->createInterpretation(
             $snapshot,
             $this->consumptionEffectOnlyOutput($snapshot->contract_id),
@@ -1730,10 +2072,172 @@ class ContractInterpretationPipelineTest extends TestCase
         );
     }
 
+    public function test_republish_command_selects_recurrent_a_b_a_payloads_by_episode(): void
+    {
+        $snapshotA = $this->hybridSnapshot();
+        $snapshotA->update([
+            'first_observed_at' => '2026-07-25 06:00:00',
+            'last_observed_at' => '2026-07-27 06:00:00',
+        ]);
+        $snapshotA->observations()->update([
+            'first_observed_at' => '2026-07-25 06:00:00',
+            'last_observed_at' => '2026-07-25 06:00:00',
+        ]);
+        $payloadB = $snapshotA->source_payload;
+        $payloadB['Details']['Pricing']['PriceComponents'][0]['OriginalPayment']['Price'] = 8.4;
+        $snapshotB = ContractSourceSnapshot::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_fingerprint' => str_repeat('b', 64),
+            'source_payload' => $payloadB,
+            'first_observed_at' => '2026-07-26 06:00:00',
+            'last_observed_at' => '2026-07-26 06:00:00',
+        ]);
+        ContractSourceObservation::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_snapshot_id' => $snapshotB->id,
+            'first_observed_at' => '2026-07-26 06:00:00',
+            'last_observed_at' => '2026-07-26 06:00:00',
+        ]);
+        $interpretationB = $this->createInterpretation(
+            $snapshotB,
+            $this->consumptionEffectOnlyOutput($snapshotA->contract_id),
+        );
+        $interpretationB->update([
+            'status' => ContractInterpretation::STATUS_SUPERSEDED,
+            'validation_errors' => [],
+        ]);
+        $observationA2 = ContractSourceObservation::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_snapshot_id' => $snapshotA->id,
+            'first_observed_at' => '2026-07-27 06:00:00',
+            'last_observed_at' => '2026-07-27 06:00:00',
+        ]);
+        $interpretation = $this->createInterpretation(
+            $snapshotA,
+            $this->consumptionEffectOnlyOutput($snapshotA->contract_id),
+        );
+        $interpretation->update([
+            'status' => ContractInterpretation::STATUS_PUBLISHED,
+            'relational_pricing_published' => false,
+        ]);
+        ElectricityContract::whereKey($snapshotA->contract_id)->update([
+            'current_source_observation_id' => $observationA2->id,
+            'published_interpretation_id' => $interpretation->id,
+        ]);
+
+        $this->artisan('contracts:republish-gated-pricing', [
+            '--from' => '2026-07-25',
+            '--to' => '2026-07-27',
+            '--apply' => true,
+        ])->assertSuccessful();
+
+        $prices = PriceComponent::query()
+            ->where('price_component_type', 'General')
+            ->orderBy('price_date')
+            ->pluck('price', 'price_date')
+            ->mapWithKeys(fn ($price, $date) => [substr((string) $date, 0, 10) => (float) $price])
+            ->all();
+        $this->assertSame([
+            '2026-07-25' => 6.9,
+            '2026-07-26' => 8.4,
+            '2026-07-27' => 6.9,
+        ], $prices);
+    }
+
+    public function test_republish_command_skips_historical_snapshots_without_a_safe_interpretation(): void
+    {
+        $snapshotA = $this->hybridSnapshot();
+        $snapshotA->update([
+            'first_observed_at' => '2026-07-25 06:00:00',
+            'last_observed_at' => '2026-07-28 06:00:00',
+        ]);
+        $snapshotA->observations()->update([
+            'first_observed_at' => '2026-07-25 06:00:00',
+            'last_observed_at' => '2026-07-25 06:00:00',
+        ]);
+        $payloadB = $snapshotA->source_payload;
+        $payloadB['Details']['Pricing']['PriceComponents'][0]['OriginalPayment']['Price'] = 8.4;
+        $snapshotB = ContractSourceSnapshot::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_fingerprint' => str_repeat('b', 64),
+            'source_payload' => $payloadB,
+            'first_observed_at' => '2026-07-26 06:00:00',
+            'last_observed_at' => '2026-07-26 06:00:00',
+        ]);
+        ContractSourceObservation::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_snapshot_id' => $snapshotB->id,
+            'first_observed_at' => '2026-07-26 06:00:00',
+            'last_observed_at' => '2026-07-26 06:00:00',
+        ]);
+        $payloadC = $payloadB;
+        $payloadC['Details']['Pricing']['PriceComponents'][0]['OriginalPayment']['Price'] = 9.4;
+        $snapshotC = ContractSourceSnapshot::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_fingerprint' => str_repeat('c', 64),
+            'source_payload' => $payloadC,
+            'first_observed_at' => '2026-07-27 06:00:00',
+            'last_observed_at' => '2026-07-27 06:00:00',
+        ]);
+        ContractSourceObservation::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_snapshot_id' => $snapshotC->id,
+            'first_observed_at' => '2026-07-27 06:00:00',
+            'last_observed_at' => '2026-07-27 06:00:00',
+        ]);
+        $unsafeOutput = $this->consumptionEffectOnlyOutput($snapshotA->contract_id);
+        $unsafeOutput['source_consistency']['structured_pricing_status'] = 'conflicting';
+        $unsafe = $this->createInterpretation($snapshotC, $unsafeOutput);
+        $unsafe->update([
+            'status' => ContractInterpretation::STATUS_SUPERSEDED,
+            'validation_errors' => [],
+        ]);
+        $observationA2 = ContractSourceObservation::create([
+            'contract_id' => $snapshotA->contract_id,
+            'source_snapshot_id' => $snapshotA->id,
+            'first_observed_at' => '2026-07-28 06:00:00',
+            'last_observed_at' => '2026-07-28 06:00:00',
+        ]);
+        $interpretationA = $this->createInterpretation(
+            $snapshotA,
+            $this->consumptionEffectOnlyOutput($snapshotA->contract_id),
+        );
+        $interpretationA->update([
+            'status' => ContractInterpretation::STATUS_PUBLISHED,
+            'relational_pricing_published' => false,
+        ]);
+        ElectricityContract::whereKey($snapshotA->contract_id)->update([
+            'current_source_observation_id' => $observationA2->id,
+            'published_interpretation_id' => $interpretationA->id,
+        ]);
+
+        $this->artisan('contracts:republish-gated-pricing', [
+            '--from' => '2026-07-25',
+            '--to' => '2026-07-28',
+            '--apply' => true,
+        ])
+            ->expectsOutputToContain('covering snapshot has no stored valid safe interpretation')
+            ->assertSuccessful();
+
+        $this->assertSame(
+            ['2026-07-25', '2026-07-28'],
+            PriceComponent::query()
+                ->where('price_component_type', 'General')
+                ->orderBy('price_date')
+                ->pluck('price_date')
+                ->map(fn ($date) => $date->toDateString())
+                ->all(),
+        );
+    }
+
     public function test_republish_command_leaves_days_that_already_have_rows_alone(): void
     {
         $snapshot = $this->hybridSnapshot();
         $snapshot->update([
+            'first_observed_at' => '2026-07-25 06:00:00',
+            'last_observed_at' => '2026-07-26 06:00:00',
+        ]);
+        $snapshot->observations()->update([
             'first_observed_at' => '2026-07-25 06:00:00',
             'last_observed_at' => '2026-07-26 06:00:00',
         ]);
@@ -1790,6 +2294,10 @@ class ContractInterpretationPipelineTest extends TestCase
             'first_observed_at' => '2026-07-26 06:00:00',
             'last_observed_at' => '2026-07-27 06:00:00',
         ]);
+        $snapshot->observations()->update([
+            'first_observed_at' => '2026-07-26 06:00:00',
+            'last_observed_at' => '2026-07-27 06:00:00',
+        ]);
         $interpretation = $this->createInterpretation(
             $snapshot,
             $this->consumptionEffectOnlyOutput($snapshot->contract_id),
@@ -1823,6 +2331,10 @@ class ContractInterpretationPipelineTest extends TestCase
             'first_observed_at' => '2026-07-25 06:00:00',
             'last_observed_at' => '2026-07-27 06:00:00',
         ]);
+        $snapshot->observations()->update([
+            'first_observed_at' => '2026-07-25 06:00:00',
+            'last_observed_at' => '2026-07-27 06:00:00',
+        ]);
         $output = $this->consumptionEffectOnlyOutput($snapshot->contract_id);
         $output['source_consistency']['structured_pricing_status'] = 'conflicting';
         $interpretation = $this->createInterpretation($snapshot, $output);
@@ -1843,16 +2355,42 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertSame(0, PriceComponent::count());
     }
 
+    public function test_publisher_rejects_a_pointed_snapshot_owned_by_another_contract(): void
+    {
+        $snapshot = $this->createSnapshot();
+        $foreignSnapshot = $this->foreignSnapshot();
+        $observation = $snapshot->observations()->sole();
+        $observation->update(['source_snapshot_id' => $foreignSnapshot->id]);
+        $interpretation = $this->createInterpretation($snapshot, $this->validOutput($snapshot->contract_id));
+        $interpretation->update(['source_snapshot_id' => $foreignSnapshot->id]);
+
+        $published = app(ContractInterpretationPublisher::class)->publish($interpretation->fresh());
+
+        $this->assertFalse($published);
+        $this->assertSame(ContractInterpretation::STATUS_SUPERSEDED, $interpretation->fresh()->status);
+        $this->assertNull(ElectricityContract::findOrFail($snapshot->contract_id)->published_interpretation_id);
+        $this->assertSame(0, PriceComponent::count());
+    }
+
     public function test_older_result_cannot_replace_a_newer_source_version(): void
     {
         $snapshot = $this->createSnapshot();
         $interpretation = $this->createInterpretation($snapshot, $this->validOutput($snapshot->contract_id));
-        ContractSourceSnapshot::create([
+        $newSnapshot = ContractSourceSnapshot::create([
             'contract_id' => $snapshot->contract_id,
             'source_fingerprint' => str_repeat('b', 64),
             'source_payload' => $snapshot->source_payload,
             'first_observed_at' => '2026-07-24 10:00:00',
             'last_observed_at' => '2026-07-24 10:00:00',
+        ]);
+        $newObservation = ContractSourceObservation::create([
+            'contract_id' => $snapshot->contract_id,
+            'source_snapshot_id' => $newSnapshot->id,
+            'first_observed_at' => '2026-07-24 10:00:00',
+            'last_observed_at' => '2026-07-24 10:00:00',
+        ]);
+        ElectricityContract::whereKey($snapshot->contract_id)->update([
+            'current_source_observation_id' => $newObservation->id,
         ]);
 
         $published = app(ContractInterpretationPublisher::class)->publish($interpretation);
@@ -1876,7 +2414,7 @@ class ContractInterpretationPipelineTest extends TestCase
             'availability_is_national' => true,
         ]);
 
-        return ContractSourceSnapshot::create([
+        $snapshot = ContractSourceSnapshot::create([
             'contract_id' => 'contract-1',
             'source_fingerprint' => str_repeat('a', 64),
             'source_payload' => [
@@ -1890,6 +2428,42 @@ class ContractInterpretationPipelineTest extends TestCase
                     'Pricing' => ['PriceComponents' => []],
                     'ExtraInformation' => ['FI' => 'Test contract source text.'],
                 ],
+            ],
+            'first_observed_at' => '2026-07-23 10:00:00',
+            'last_observed_at' => '2026-07-23 10:00:00',
+        ]);
+        $observation = ContractSourceObservation::create([
+            'contract_id' => 'contract-1',
+            'source_snapshot_id' => $snapshot->id,
+            'first_observed_at' => '2026-07-23 10:00:00',
+            'last_observed_at' => '2026-07-23 10:00:00',
+        ]);
+        ElectricityContract::whereKey('contract-1')->update([
+            'current_source_observation_id' => $observation->id,
+        ]);
+
+        return $snapshot;
+    }
+
+    private function foreignSnapshot(): ContractSourceSnapshot
+    {
+        ElectricityContract::create([
+            'id' => 'contract-2',
+            'api_id' => 'api-contract-2',
+            'company_name' => 'Test Energy',
+            'name' => 'Other contract',
+            'contract_type' => 'OpenEnded',
+            'metering' => 'General',
+            'pricing_model' => 'Spot',
+            'availability_is_national' => true,
+        ]);
+
+        return ContractSourceSnapshot::create([
+            'contract_id' => 'contract-2',
+            'source_fingerprint' => str_repeat('f', 64),
+            'source_payload' => [
+                'Id' => 'api-contract-2',
+                'Details' => ['Pricing' => ['PriceComponents' => []]],
             ],
             'first_observed_at' => '2026-07-23 10:00:00',
             'last_observed_at' => '2026-07-23 10:00:00',
@@ -1963,6 +2537,24 @@ class ContractInterpretationPipelineTest extends TestCase
         $output['calculation']['missing_facts'] = ['The amount of the customer-specific consumption effect'];
 
         return $output;
+    }
+
+    private function reusableInterpretation(ContractSourceSnapshot $snapshot): ContractInterpretation
+    {
+        return ContractInterpretation::create([
+            'contract_id' => $snapshot->contract_id,
+            'source_snapshot_id' => $snapshot->id,
+            'analysis_fingerprint' => app(\App\Services\ContractInterpretation\ContractAnalysisFingerprint::class)
+                ->forSnapshot($snapshot),
+            'status' => ContractInterpretation::STATUS_PENDING,
+            'schema_version' => config('contract_interpretation.schema_version'),
+            'prompt_version' => config('contract_interpretation.prompt_version'),
+            'validator_version' => config('contract_interpretation.validator_version'),
+            'provider' => config('contract_interpretation.provider'),
+            'model' => config('contract_interpretation.model'),
+            'output' => $this->validOutput($snapshot->contract_id),
+            'validation_errors' => [],
+        ]);
     }
 
     /**

@@ -1,0 +1,24 @@
+# Contract listing pipeline
+
+`ContractListingPipeline.php` owns the shared mechanics for the main and SEO contract lists.
+
+## Responsibilities
+
+- Apply shared interactive contract-type, pricing-bucket, metering, and postcode constraints.
+- Apply the Quarterly, TimeOfUse, and Seasonal query constraints.
+- Keep the six quarterly text fragments in `QUARTERLY_PHRASES`.
+- Match the same quarterly fragments in memory for historical statistics.
+- Apply interactive energy-source filters and the normal-mode consumption range.
+- Attach cached annual metrics or calculate the same metrics on a cache miss.
+- Exclude canonical outcomes that are not listable and sort annual totals.
+- Load only visible contract cards with their required relations.
+- In legacy mode, load only the latest normalized price components.
+- Build the manual paginator with the path and query state from the component.
+
+## Boundaries
+
+Livewire components still own audience selection, SEO route constraints, URL state, actions, city exclusions, and canonical offer timing. Bill mode still uses `BillComparisonService` for period pricing and sorting. It uses this pipeline only for visible loading and pagination.
+
+`LocalContractsService` keeps location discovery, company distance data, and consumption filtering. It uses the cold annual enrichment path so legacy card relations use the same latest-component batch as the calculation.
+
+Historical statistics can inspect `name`, `extra_information_fi`, `short_description`, and `long_description` with `matchesQuarterly()`. Do not apply current canonical classifications to old statistics rows.

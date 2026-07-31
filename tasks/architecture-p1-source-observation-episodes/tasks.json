@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Confirm current behavior with focused tests",
+    "status": "completed"
+  },
+  {
+    "name": "Design the smallest compatible change",
+    "status": "completed"
+  },
+  {
+    "name": "Implement the change",
+    "status": "completed"
+  },
+  {
+    "name": "Run focused and regression tests",
+    "status": "completed"
+  },
+  {
+    "name": "Update applicable AGENTS.md documentation",
+    "status": "completed"
+  },
+  {
+    "name": "Bind date-scoped fallback analyses to exact observation episodes",
+    "status": "completed"
+  }
+]

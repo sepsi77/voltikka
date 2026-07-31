@@ -12,6 +12,7 @@ use App\Services\CanonicalPricing\Enums\PeriodPricingUnavailableReason;
 use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonImmutable;
 use PHPUnit\Framework\TestCase;
+use Tests\Unit\CanonicalPricing\Support\HoldFlatCanonicalCalculator;
 
 class CanonicalPeriodPricingTest extends TestCase
 {
@@ -23,7 +24,7 @@ class CanonicalPeriodPricingTest extends TestCase
     {
         parent::setUp();
         $this->parser = new CanonicalPricingParser;
-        $this->calculator = new CanonicalContractPriceCalculator;
+        $this->calculator = HoldFlatCanonicalCalculator::make();
     }
 
     public function test_fixed_general_time_seasonal_and_monthly_fee_period_conventions(): void

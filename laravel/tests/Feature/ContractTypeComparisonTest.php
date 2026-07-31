@@ -12,6 +12,7 @@ use App\Services\CanonicalPricing\CanonicalContractPriceCalculator;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\CanonicalPricingParser;
 use App\Services\CanonicalPricing\ContractPricingIntegrityService;
+use App\Services\CanonicalPricing\PricingMode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
@@ -25,6 +26,7 @@ class ContractTypeComparisonTest extends TestCase
     {
         parent::setUp();
 
+        app()->forgetScopedInstances();
         Company::create([
             'name' => 'Test Energia Oy',
             'name_slug' => 'test-energia-oy',
@@ -295,8 +297,9 @@ class ContractTypeComparisonTest extends TestCase
         $this->createRelationalPrice($openEnded, 'General', 2.0);
 
         $service = \Mockery::mock(CanonicalContractPricingService::class, [
-            app(CanonicalPricingParser::class),
             app(CanonicalContractPriceCalculator::class),
+            app(PricingMode::class),
+            app(CanonicalPricingParser::class),
             app(ContractPricingIntegrityService::class),
         ])->makePartial();
         $service->shouldReceive('evaluate')->twice()->passthru();

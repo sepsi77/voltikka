@@ -3,7 +3,6 @@
 namespace App\Services\RetailPremium;
 
 use App\Models\ElectricityContract;
-use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
@@ -34,7 +33,10 @@ class RetailPremiumObservationService
             return collect();
         }
 
-        $contract->loadMissing('publishedInterpretation.sourceSnapshot');
+        $contract->loadMissing([
+            'currentSourceObservation.sourceSnapshot',
+            'publishedInterpretation.sourceSnapshot',
+        ]);
         $pricing = $contract->canonical_pricing;
 
         if (($pricing['recurring_schedule']['present'] ?? false) === true) {
@@ -61,19 +63,26 @@ class RetailPremiumObservationService
             return collect();
         }
 
-        $contract->loadMissing('publishedInterpretation.sourceSnapshot');
+        $contract->loadMissing([
+            'currentSourceObservation.sourceSnapshot',
+            'publishedInterpretation.sourceSnapshot',
+        ]);
         $interpretation = $contract->publishedInterpretation;
+        $observation = $contract->currentSourceObservation;
         $snapshot = $interpretation?->sourceSnapshot;
 
-        if ($interpretation === null || $snapshot === null || $interpretation->status !== 'published') {
+        if ($interpretation === null
+            || $observation === null
+            || $snapshot === null
+            || $interpretation->status !== 'published'
+            || $observation->source_snapshot_id !== $snapshot->id) {
             return collect();
         }
 
         $pricing = $contract->canonical_pricing;
         $phases = is_array($pricing['phases'] ?? null) ? $pricing['phases'] : [];
-        $asOf = CarbonImmutable::instance($asOfDate)->startOfDay();
-        $firstObserved = $snapshot->first_observed_at?->toImmutable()->startOfDay() ?? $asOf;
-        $lastObserved = $snapshot->last_observed_at?->toImmutable()->startOfDay() ?? $asOf;
+        $firstObserved = $observation->first_observed_at->toImmutable()->startOfDay();
+        $lastObserved = $observation->last_observed_at->toImmutable()->startOfDay();
         $lineage = $this->getLineageIdentity($contract);
 
         return collect($phases)
@@ -82,6 +91,7 @@ class RetailPremiumObservationService
                 $contract,
                 $interpretation,
                 $snapshot,
+                $observation,
                 $pricing,
                 $firstObserved,
                 $lastObserved,
@@ -138,6 +148,7 @@ class RetailPremiumObservationService
                     $priceSignature,
                     $firstObserved->toDateString(),
                     (string) $interpretation->id,
+                    (string) $observation->id,
                 ]));
                 $premiumWithFee = $monthlyFee === null || $feeVatBasis !== $vatBasis
                     ? null
@@ -199,6 +210,8 @@ class RetailPremiumObservationService
                         'schema_version' => $interpretation->schema_version,
                         'prompt_version' => $interpretation->prompt_version,
                         'validator_version' => $interpretation->validator_version,
+                        'source_observation_id' => $observation->id,
+                        'source_snapshot_id' => $snapshot->id,
                         'source_fingerprint' => $snapshot->source_fingerprint,
                     ],
                 ]];
@@ -279,22 +292,29 @@ class RetailPremiumObservationService
             return null;
         }
 
-        $contract->loadMissing('publishedInterpretation.sourceSnapshot');
+        $contract->loadMissing([
+            'currentSourceObservation.sourceSnapshot',
+            'publishedInterpretation.sourceSnapshot',
+        ]);
         $interpretation = $contract->publishedInterpretation;
+        $observation = $contract->currentSourceObservation;
         $snapshot = $interpretation?->sourceSnapshot;
 
-        if ($interpretation === null || $snapshot === null || $interpretation->status !== 'published') {
+        if ($interpretation === null
+            || $observation === null
+            || $snapshot === null
+            || $interpretation->status !== 'published'
+            || $observation->source_snapshot_id !== $snapshot->id) {
             return null;
         }
 
-        $asOf = CarbonImmutable::instance($asOfDate)->startOfDay();
-
         return [
             'interpretation' => $interpretation,
+            'observation' => $observation,
             'snapshot' => $snapshot,
             'pricing' => $contract->canonical_pricing,
-            'first_observed' => $snapshot->first_observed_at?->toImmutable()->startOfDay() ?? $asOf,
-            'last_observed' => $snapshot->last_observed_at?->toImmutable()->startOfDay() ?? $asOf,
+            'first_observed' => $observation->first_observed_at->toImmutable()->startOfDay(),
+            'last_observed' => $observation->last_observed_at->toImmutable()->startOfDay(),
             'lineage' => $this->getLineageIdentity($contract),
         ];
     }
@@ -402,6 +422,7 @@ class RetailPremiumObservationService
                     $priceSignature,
                     $context['first_observed']->toDateString(),
                     (string) $context['interpretation']->id,
+                    (string) $context['observation']->id,
                 ]));
 
                 return $references->map(function (array $reference) use (
@@ -490,6 +511,8 @@ class RetailPremiumObservationService
                             'schema_version' => $context['interpretation']->schema_version,
                             'prompt_version' => $context['interpretation']->prompt_version,
                             'validator_version' => $context['interpretation']->validator_version,
+                            'source_observation_id' => $context['observation']->id,
+                            'source_snapshot_id' => $context['snapshot']->id,
                             'source_fingerprint' => $context['snapshot']->source_fingerprint,
                             'duration_months' => $context['duration_months'] ?? null,
                             'reference' => $reference['metadata'] ?? null,

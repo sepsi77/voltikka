@@ -358,6 +358,7 @@ class ConsumptionCalculatorTest extends TestCase
         $this->annualStat('2026-07-27', 'spot', 222.0, 'observed_seller_data');
 
         config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
         $canonical = Livewire::test('consumption-calculator')->get('contractTypePriceEstimates');
 
         $this->assertSame('2026-07-27', $canonical['date']);
@@ -365,6 +366,7 @@ class ConsumptionCalculatorTest extends TestCase
         $this->assertNull(collect($canonical['rows'])->firstWhere('key', 'spot'));
 
         config()->set('canonical_pricing.enabled', false);
+        app()->forgetScopedInstances();
         $observed = Livewire::test('consumption-calculator')->get('contractTypePriceEstimates');
 
         $this->assertSame('2026-07-28', $observed['date']);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\CanonicalPricing\PricingMode;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,7 +15,7 @@ class ContractResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $canonicalMode = (bool) config('canonical_pricing.enabled', false);
+        $canonicalMode = app(PricingMode::class)->enabled();
 
         $data = [
             'id' => $this->id,

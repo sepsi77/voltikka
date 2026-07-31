@@ -4,6 +4,7 @@ namespace App\Services\CompanyStatistics;
 
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\ContractPriceSnapshot;
+use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractStatistics\ContractPriceBasis;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
 use Carbon\Carbon;
@@ -77,6 +78,8 @@ class CompanyMarketComparisonService
 
     private const CACHE_TTL_HOURS = 6;
 
+    public function __construct(private readonly PricingMode $pricingMode) {}
+
     /**
      * @return array<string,mixed>|null Null when the market has no usable reference for this seller.
      */
@@ -110,8 +113,8 @@ class CompanyMarketComparisonService
             return $this->build($companyName, $referenceConsumption);
         }
 
-        $pricingBasis = ContractPriceBasis::expectedCurrent()->value;
-        $canonicalEnabled = (bool) config('canonical_pricing.enabled', false);
+        $pricingBasis = $this->pricingMode->expectedContractPriceBasis()->value;
+        $canonicalEnabled = $this->pricingMode->enabled();
         $fingerprint = $this->fingerprint();
 
         if ($fingerprint === null) {
@@ -149,7 +152,7 @@ class CompanyMarketComparisonService
      */
     private function build(string $companyName, int $referenceConsumption): ?array
     {
-        $expectedBasis = ContractPriceBasis::expectedCurrent()->value;
+        $expectedBasis = $this->pricingMode->expectedContractPriceBasis()->value;
         $current = $this->buildForBasis($companyName, $referenceConsumption, $expectedBasis);
 
         if ($current !== null) {
@@ -637,8 +640,8 @@ class CompanyMarketComparisonService
 
     private function fingerprint(): ?string
     {
-        $pricingBasis = ContractPriceBasis::expectedCurrent()->value;
-        $canonicalEnabled = (bool) config('canonical_pricing.enabled', false);
+        $pricingBasis = $this->pricingMode->expectedContractPriceBasis()->value;
+        $canonicalEnabled = $this->pricingMode->enabled();
         $bases = $canonicalEnabled
             ? [ContractPriceBasis::CanonicalCalculation->value, ContractPriceBasis::ObservedSellerData->value]
             : [$pricingBasis];

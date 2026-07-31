@@ -4,6 +4,7 @@ namespace App\Services\ContractCard;
 
 use App\Models\Company;
 use App\Models\ElectricityContract;
+use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractCard\DTO\CardSellerCta;
 use App\Services\ContractCard\DTO\ContractCardView;
 use App\Support\ContractContentSanitizer;
@@ -30,6 +31,7 @@ class ContractCardPresenter
     private const MIN_DISPLAYED_SAVING_EUR = 5.0;
 
     public function __construct(
+        private readonly PricingMode $pricingMode,
         private readonly PricingCategoryResolver $categories = new PricingCategoryResolver,
         private readonly CardReceiptLines $receiptLines = new CardReceiptLines,
         private readonly CardFooterItems $footerItems = new CardFooterItems,
@@ -56,7 +58,7 @@ class ContractCardPresenter
     ): ContractCardView {
         $rawCost = is_array($contract->calculated_cost ?? null) ? $contract->calculated_cost : [];
         $integrity = is_array($contract->pricing_integrity ?? null) ? $contract->pricing_integrity : null;
-        $useCanonical = (bool) config('canonical_pricing.enabled', false);
+        $useCanonical = $this->pricingMode->enabled();
 
         // In canonical mode, accept only a payload that identifies the canonical calculator as
         // its source. This prevents a legacy result left on a model from becoming a second

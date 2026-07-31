@@ -3,7 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\ContractPriceDailyStatistic;
-use App\Services\ContractStatistics\ContractPriceBasis;
+use App\Services\CanonicalPricing\PricingMode;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
@@ -23,7 +23,7 @@ class ArticleSpotWinRateChart extends Component
     public function getChartDataProperty(): array
     {
         $segments = array_merge(['spot'], array_keys($this->comparisonSegments));
-        $pricingBasis = ContractPriceBasis::expectedCurrent()->value;
+        $pricingBasis = app(PricingMode::class)->expectedContractPriceBasis()->value;
         $latestDate = ContractPriceDailyStatistic::query()
             ->where('metric_key', 'annual_cost')
             ->where('pricing_basis', $pricingBasis)

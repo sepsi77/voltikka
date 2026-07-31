@@ -20,7 +20,7 @@ own:
 
 Both are written by `ContractPriceStatisticsService` on the same date by the same
 method. The service selects the latest **usable joined date** for
-`ContractPriceBasis::expectedCurrent()`: market and seller rows must share date,
+request-scoped `PricingMode::expectedContractPriceBasis()`: market and seller rows must share date,
 segment, basis, consumption, and the minimum market count. Thus a newer
 wrong-basis or market-only date cannot replace a usable canonical pair. **Do not
 swap either side for a live `ContractPriceCalculator` call.**
@@ -160,7 +160,7 @@ the first canonical date. In both cases:
 
 ### Caching
 
-Cached for 6 hours under key schema v5: canonical flag + expected basis + company
+Cached for 6 hours under key schema v5: request-scoped `PricingMode` canonical state + expected basis + company
 + snapped reference consumption + a fingerprint of the two source tables'
 newest dates and maximum `updated_at`. In canonical mode the fingerprint includes
 both canonical and observed bases because either can own the payload. A same-day

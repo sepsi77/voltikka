@@ -32,6 +32,11 @@ class ContractSourceSnapshot extends Model
         return $this->belongsTo(ElectricityContract::class, 'contract_id', 'id');
     }
 
+    public function observations(): HasMany
+    {
+        return $this->hasMany(ContractSourceObservation::class, 'source_snapshot_id');
+    }
+
     public function interpretations(): HasMany
     {
         return $this->hasMany(ContractInterpretation::class, 'source_snapshot_id');

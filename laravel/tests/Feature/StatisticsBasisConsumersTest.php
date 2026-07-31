@@ -30,6 +30,7 @@ class StatisticsBasisConsumersTest extends TestCase
         }
 
         config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
         $canonical = app(ArticleSpotElectricity::class)->marketSnapshot;
 
         $this->assertSame('canonical_calculation', $canonical['pricing_basis']);
@@ -46,6 +47,7 @@ class StatisticsBasisConsumersTest extends TestCase
         $this->assertSame(650.0, $rewritten['spot']);
 
         config()->set('canonical_pricing.enabled', false);
+        app()->forgetScopedInstances();
         $observed = app(ArticleSpotElectricity::class)->marketSnapshot;
 
         $this->assertSame('observed_seller_data', $observed['pricing_basis']);
@@ -68,6 +70,7 @@ class StatisticsBasisConsumersTest extends TestCase
         }
 
         config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
         $service = app(ContractMarketInsightService::class);
         $segment = $service->insight('spot', 5000)['trend'];
         $aggregate = $service->insight(null, 5000)['trend'];
@@ -81,7 +84,8 @@ class StatisticsBasisConsumersTest extends TestCase
         $this->assertSame(600.0, $aggregate['previous_value']);
 
         config()->set('canonical_pricing.enabled', false);
-        $observed = $service->insight('spot', 5000)['trend'];
+        app()->forgetScopedInstances();
+        $observed = app(ContractMarketInsightService::class)->insight('spot', 5000)['trend'];
 
         $this->assertSame(100.0, $observed['latest_value']);
         $this->assertSame('observed_seller_data', $observed['latest_pricing_basis']);

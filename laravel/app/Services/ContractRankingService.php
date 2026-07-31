@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
+use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractCard\Enums\PricingBucket;
 use App\Services\ContractCard\PricingCategoryResolver;
 use App\Services\DTO\EnergyUsage;
@@ -26,6 +27,7 @@ class ContractRankingService
         private ContractPriceCalculator $calculator,
         private ContractListCacheService $listCache,
         private CanonicalContractPricingService $canonicalPricing,
+        private PricingMode $pricingMode,
     ) {}
 
     /**
@@ -427,9 +429,9 @@ class ContractRankingService
         // Vary the cache key by pricing basis so toggling either flag does not serve stale ranks.
         $cacheKey = self::CACHE_KEY_RANKINGS
             .':s'.self::PAYLOAD_SCHEMA_VERSION
+            .':'.CalculatedCostPayloadSchema::cacheMarker()
             .':lv'.$this->listCache->getVersion()
-            .($this->canonicalPricing->enabled() ? ':c1' : ':c0')
-            .($this->canonicalPricing->resetForwardShiftEnabled() ? ':r1' : ':r0');
+            .':'.$this->pricingMode->cacheMarker();
 
         return $this->rankingsMemo = Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () {
             return $this->calculateRankings();

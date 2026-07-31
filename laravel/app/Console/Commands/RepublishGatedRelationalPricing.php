@@ -30,7 +30,7 @@ use Illuminate\Support\Facades\DB;
  * generally so the next relaxation can reuse it.
  *
  * Evidence, never inference. A missing day is rebuilt only from the immutable
- * `contract_source_snapshots` payload that was in observation on that day, through
+ * source snapshot payload selected through its observation episode for that day, through
  * `CanonicalPriceComponentWriter::resolveRows()`, so a filled row is identical to
  * what a correct import would have written. A day with no covering snapshot stays
  * missing; nothing is carried forward from a neighbouring day, which is the same
@@ -108,10 +108,18 @@ class RepublishGatedRelationalPricing extends Command
 
         $plan = [];
         $skipped = [];
+        $snapshotCache = [];
 
         foreach ($reopened as $interpretation) {
             foreach ($this->missingDates($interpretation->contract_id, $from, $to) as $date) {
-                $rows = $this->resolveFromSnapshot($writer, $interpretation->contract_id, $date, $skipped);
+                $rows = $this->resolveFromSnapshot(
+                    $writer,
+                    $publisher,
+                    $interpretation->contract_id,
+                    $date,
+                    $skipped,
+                    $snapshotCache,
+                );
 
                 if ($rows !== []) {
                     $plan[] = ['contract_id' => $interpretation->contract_id, 'date' => $date, 'rows' => $rows];
@@ -233,23 +241,70 @@ class RepublishGatedRelationalPricing extends Command
      * The rows a correct import would have written for one contract-day.
      *
      * @param  list<string>  $skipped
+     * @param  array<int, array{snapshot: object|null, safe: bool, reason: string}>  $snapshotCache
      * @return array<string, array<string, mixed>>
      */
     private function resolveFromSnapshot(
         CanonicalPriceComponentWriter $writer,
+        ContractInterpretationPublisher $publisher,
         string $contractId,
         string $date,
         array &$skipped,
+        array &$snapshotCache,
     ): array {
-        $snapshot = DB::table('contract_source_snapshots')
-            ->where('contract_id', $contractId)
-            ->whereDate('first_observed_at', '<=', $date)
-            ->whereDate('last_observed_at', '>=', $date)
-            ->orderByDesc('last_observed_at')
-            ->first(['id', 'source_payload']);
+        $dayStart = Carbon::parse($date)->startOfDay()->toDateTimeString();
+        $dayEnd = Carbon::parse($date)->endOfDay()->toDateTimeString();
+        $snapshotIds = DB::table('contract_source_observations as observations')
+            ->where('observations.contract_id', $contractId)
+            ->where('observations.first_observed_at', '<=', $dayEnd)
+            ->where('observations.last_observed_at', '>=', $dayStart)
+            ->distinct()
+            ->pluck('observations.source_snapshot_id');
 
+        if ($snapshotIds->count() !== 1) {
+            $reason = $snapshotIds->isEmpty() ? 'no covering source episode' : 'ambiguous source episode coverage';
+            $skipped[] = $reason.': '.substr($contractId, 0, 46)." {$date}";
+
+            return [];
+        }
+
+        $snapshotId = (int) $snapshotIds->first();
+        if (! array_key_exists($snapshotId, $snapshotCache)) {
+            $snapshot = DB::table('contract_source_snapshots')
+                ->where('id', $snapshotId)
+                ->first(['id', 'source_payload']);
+            $safeInterpretation = ContractInterpretation::query()
+                ->where('source_snapshot_id', $snapshotId)
+                ->whereIn('status', [
+                    ContractInterpretation::STATUS_PUBLISHED,
+                    ContractInterpretation::STATUS_SUPERSEDED,
+                ])
+                ->orderByDesc('id')
+                ->get(['id', 'output', 'validation_errors'])
+                ->first(fn (ContractInterpretation $candidate): bool => is_array($candidate->output)
+                    && $candidate->output !== []
+                    && empty($candidate->validation_errors)
+                    && $publisher->canPublishSourcePricing($candidate->output));
+
+            $snapshotCache[$snapshotId] = [
+                'snapshot' => $snapshot,
+                'safe' => $safeInterpretation !== null,
+                'reason' => $safeInterpretation === null
+                    ? 'covering snapshot has no stored valid safe interpretation'
+                    : '',
+            ];
+        }
+
+        $cached = $snapshotCache[$snapshotId];
+        $snapshot = $cached['snapshot'];
         if ($snapshot === null) {
-            $skipped[] = 'no covering source snapshot: '.substr($contractId, 0, 46)." {$date}";
+            $skipped[] = 'covering source snapshot is missing: '.substr($contractId, 0, 46)." {$date}";
+
+            return [];
+        }
+
+        if (! $cached['safe']) {
+            $skipped[] = $cached['reason']." {$snapshotId}: ".substr($contractId, 0, 46)." {$date}";
 
             return [];
         }

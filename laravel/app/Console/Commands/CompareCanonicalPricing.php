@@ -11,6 +11,7 @@ use App\Services\CanonicalPricing\Exceptions\CanonicalPricingParseException;
 use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimatorSettings;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketResetPriceEstimator;
+use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonImmutable;
@@ -168,18 +169,20 @@ class CompareCanonicalPricing extends Command
      */
     private function compareResets(EnergyUsage $usage, int $consumption, CarbonImmutable $startDate): int
     {
-        $settings = ResetEstimatorSettings::fromConfig();
+        $settings = app(ResetEstimatorSettings::class);
         $provider = app(MarketReferenceCurveProvider::class);
 
         $holdFlat = new CanonicalContractPricingService(
             calculator: new CanonicalContractPriceCalculator(
                 resetEstimator: new MarketResetPriceEstimator($provider, $settings->withEnabled(false)),
             ),
+            mode: new PricingMode(canonicalPricingEnabled: true, resetForwardShiftEnabled: false),
         );
         $shifted = new CanonicalContractPricingService(
             calculator: new CanonicalContractPriceCalculator(
                 resetEstimator: new MarketResetPriceEstimator($provider, $settings->withEnabled(true)),
             ),
+            mode: new PricingMode(canonicalPricingEnabled: true, resetForwardShiftEnabled: true),
         );
 
         $tradeDate = $provider->tradeDate($startDate);

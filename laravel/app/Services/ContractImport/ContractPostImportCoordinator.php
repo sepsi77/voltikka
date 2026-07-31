@@ -3,7 +3,7 @@
 namespace App\Services\ContractImport;
 
 use App\Jobs\WarmContractPriceStatisticsCache;
-use App\Models\ContractSourceSnapshot;
+use App\Models\ContractSourceObservation;
 use App\Services\CompanyListCacheService;
 use App\Services\ContractInterpretation\ContractInterpretationDispatcher;
 use App\Services\ContractListCacheService;
@@ -34,15 +34,17 @@ class ContractPostImportCoordinator
         $optionalFailures = [];
         $dispatchFailureIds = [];
 
-        // The dispatcher is fingerprint-idempotent. Revisit every snapshot observed in
+        // The dispatcher is fingerprint-idempotent. Revisit every observation from
         // this import so a transient pre-dispatch failure can recover on the next run.
-        foreach ($import->observedSnapshotIds as $snapshotId) {
+        foreach ($import->observedObservationIds as $observationId) {
             try {
-                $snapshot = ContractSourceSnapshot::findOrFail($snapshotId);
-                $this->interpretationDispatcher->dispatch($snapshot);
+                $observation = ContractSourceObservation::query()
+                    ->with('sourceSnapshot')
+                    ->findOrFail($observationId);
+                $this->interpretationDispatcher->dispatch($observation);
             } catch (Throwable $exception) {
-                $dispatchFailureIds[] = $snapshotId;
-                $optionalFailures["interpretation:{$snapshotId}"] = $exception->getMessage();
+                $dispatchFailureIds[] = $observationId;
+                $optionalFailures["interpretation:{$observationId}"] = $exception->getMessage();
             }
         }
 
@@ -117,7 +119,7 @@ class ContractPostImportCoordinator
         return new ContractPostImportResult(
             requiredFailures: $requiredFailures,
             optionalFailures: $optionalFailures,
-            interpretationDispatchFailureSnapshotIds: $dispatchFailureIds,
+            interpretationDispatchFailureObservationIds: $dispatchFailureIds,
             statisticsStartedAt: $statisticsStartedAt,
             statisticsCompletedAt: $statisticsCompletedAt,
         );

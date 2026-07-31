@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Company;
 use App\Models\ContractInterpretation;
 use App\Models\ContractPriceDailyStatistic;
+use App\Models\ContractSourceObservation;
 use App\Models\ContractSourceSnapshot;
 use App\Models\DataFreshnessCheckpoint;
 use App\Models\ElectricityContract;
@@ -115,7 +116,7 @@ class MorningJobFreshnessGateTest extends TestCase
             '--as-of' => self::DATE,
             '--require-freshness' => true,
         ])
-            ->expectsOutput("Morning job deferred: Active contracts do not have exactly one observed snapshot: {$missingContract->id}.")
+            ->expectsOutput("Morning job deferred: Active contracts do not have exactly one observed source episode: {$missingContract->id}.")
             ->assertExitCode(1);
     }
 
@@ -132,7 +133,7 @@ class MorningJobFreshnessGateTest extends TestCase
 
         $this->assertFalse($result->ready());
         $this->assertSame(
-            "Active contracts do not have exactly one observed snapshot: {$contract->id}.",
+            "Active contracts do not have exactly one observed source episode: {$contract->id}.",
             $result->failures['contract_interpretations'],
         );
     }
@@ -340,13 +341,22 @@ class MorningJobFreshnessGateTest extends TestCase
 
     private function snapshot(ElectricityContract $contract, string $version): ContractSourceSnapshot
     {
-        return ContractSourceSnapshot::create([
+        $snapshot = ContractSourceSnapshot::create([
             'contract_id' => $contract->id,
             'source_fingerprint' => hash('sha256', $version),
             'source_payload' => ['version' => $version],
             'first_observed_at' => '2026-08-01 06:00:00',
             'last_observed_at' => '2026-08-01 06:00:00',
         ]);
+        $observation = ContractSourceObservation::create([
+            'contract_id' => $contract->id,
+            'source_snapshot_id' => $snapshot->id,
+            'first_observed_at' => '2026-08-01 06:00:00',
+            'last_observed_at' => '2026-08-01 06:00:00',
+        ]);
+        $contract->update(['current_source_observation_id' => $observation->id]);
+
+        return $snapshot;
     }
 
     /** @param list<int> $snapshotIds @param list<string> $activeIds */
@@ -356,8 +366,13 @@ class MorningJobFreshnessGateTest extends TestCase
         string $statisticsStartedAt = '2026-08-01T06:20:00+03:00',
         string $statisticsCompletedAt = '2026-08-01T06:20:30+03:00',
     ): void {
+        $observationIds = ContractSourceObservation::query()
+            ->whereIn('source_snapshot_id', $snapshotIds)
+            ->pluck('id')
+            ->all();
+
         $this->checkpoint(DataFreshnessCheckpoint::KEY_CONTRACT_IMPORT, DataFreshnessCheckpoint::STATUS_READY, [
-            'observed_snapshot_ids' => $snapshotIds,
+            'observed_source_observation_ids' => $observationIds !== [] ? $observationIds : $snapshotIds,
             'active_contract_ids' => $activeIds,
             'statistics_started_at' => $statisticsStartedAt,
             'statistics_completed_at' => $statisticsCompletedAt,

@@ -12,6 +12,7 @@ use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonImmutable;
 use PHPUnit\Framework\TestCase;
+use Tests\Unit\CanonicalPricing\Support\HoldFlatCanonicalCalculator;
 
 class CanonicalContractPriceCalculatorTest extends TestCase
 {
@@ -27,7 +28,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
     {
         parent::setUp();
         $this->parser = new CanonicalPricingParser;
-        $this->calculator = new CanonicalContractPriceCalculator;
+        $this->calculator = HoldFlatCanonicalCalculator::make();
         $this->start = CarbonImmutable::parse('2026-07-24', 'Europe/Helsinki');
         $this->usage = new EnergyUsage(total: 5000, basicLiving: 5000);
     }

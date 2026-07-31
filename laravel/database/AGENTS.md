@@ -23,19 +23,24 @@ Important semantics:
 - the unique key is `(key, effective_date)`, and later full-scope runs replace that date's fact
 - each full-scope upstream command first overwrites the same-date fact with a failed start marker; a crash therefore cannot preserve an older ready fact
 - postcode-scoped contract runs and targeted/manual EEX runs never write global readiness
-- contract ready metadata contains observed snapshot IDs, active contract IDs, and exact statistics start and completion timestamps
+- contract ready metadata contains pointed source-observation IDs, active contract IDs, and exact statistics start and completion timestamps; the obsolete snapshot-ID shape fails closed
 - EEX ready metadata contains the latest prior-date FI Base trade date extracted by that current run; database presence and age are checked separately
 - dependent jobs fail closed when required metadata is absent or malformed
 
-## `contract_source_snapshots`
+## `contract_source_snapshots` and `contract_source_observations`
 
-Stores immutable, complete upstream contract payloads for auditability and later interpretation.
+Snapshots store immutable, complete upstream payloads. Observations store contiguous chronology episodes for those payloads.
 
 Important semantics:
-- unique rows are keyed by contract and canonical SHA-256 source fingerprint
-- unchanged imports update only `last_observed_at`
-- snapshots are deleted with their contract
-- the source payload is evidence only and does not directly affect calculations or public behavior
+- snapshot rows are unique by contract and canonical SHA-256 source fingerprint; A can recur without a duplicate snapshot
+- `electricity_contracts.current_source_observation_id` is the only current-source rule. It is indexed without a foreign key because observations already cascade from contracts and a pointer FK would create a circular delete path
+- an unchanged import updates the snapshot's aggregate `last_observed_at` and extends only the pointed episode. A payload transition creates a new point episode and moves the pointer atomically
+- no `(contract_id, source_snapshot_id)` uniqueness exists because A→B→A requires two A episodes
+- observation coverage indexes support exact day selection. Consumers select covering episodes and proceed only when those episodes resolve to one distinct snapshot; they never order and pick an overlap
+- snapshot first/last timestamps remain aggregate legacy evidence for audit and snapshot-based interpretation input. They do not select currentness or historical day coverage
+- migration `2026_07_30_000002` uses full legacy ranges only when distinct ranges do not overlap. Overlap means hidden recurrence chronology is irrecoverable, so it stores first/last event points only and fails closed between them. Plan reads and writes run in one transaction: it locks contract rows in stable ID order, then locks snapshots and completes all preflight checks before inserts
+- deploy operations must stop old import and interpretation workers while these two migrations run. The table/pointer DDL is a separate migration, and SQLite tests accept `lockForUpdate()` but cannot prove MySQL row-lock behavior
+- rollback removes observation rows and pointers but does not modify immutable snapshots
 
 ## `contract_interpretations`
 
@@ -45,6 +50,8 @@ Important semantics:
 - statuses are `pending`, `processing`, `published`, `failed`, and race-protection `superseded`
 - output and validation errors are JSON; model/prompt/schema/validator metadata and execution metrics provide provenance
 - `validator_version` participates in the analysis fingerprint so a stricter deterministic validator can create a new interpretation for the same source and model output contract
+- `analysis_source_observation_id` is nullable and indexed. It is set only for date-scoped fallback analyses and binds them to the exact episode whose date produced the fingerprint; reusable base fingerprint rows remain null
+- this binding has no foreign key because existence does not enforce exact current-episode identity. The dispatcher rejects reuse for a different observation, and the queued job verifies the exact pointed observation before a client call
 - `llm_attempts` retains the initial call and up to two model correction calls, including each complete output, validation errors, usage, provider response ID, and latency
 - there are no reviewer, approval, or manual-override columns
 - `electricity_contracts.published_interpretation_id` points to the current version, and each interpretation stores its exact `published_fields`

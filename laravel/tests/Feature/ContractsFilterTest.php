@@ -8,6 +8,7 @@ use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\Postcode;
 use App\Models\PriceComponent;
+use App\Services\ContractStatistics\ContractPriceStatisticsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -42,7 +43,7 @@ class ContractsFilterTest extends TestCase
     private function createContract(array $attributes = []): ElectricityContract
     {
         $defaults = [
-            'id' => 'contract-' . uniqid(),
+            'id' => 'contract-'.uniqid(),
             'company_name' => 'Test Energia Oy',
             'name' => 'Test Sähkö',
             'contract_type' => 'Fixed',
@@ -54,7 +55,7 @@ class ContractsFilterTest extends TestCase
 
         // Add basic price components
         PriceComponent::create([
-            'id' => 'pc-general-' . $contract->id,
+            'id' => 'pc-general-'.$contract->id,
             'electricity_contract_id' => $contract->id,
             'price_component_type' => 'General',
             'price_date' => now()->format('Y-m-d'),
@@ -63,7 +64,7 @@ class ContractsFilterTest extends TestCase
         ]);
 
         PriceComponent::create([
-            'id' => 'pc-monthly-' . $contract->id,
+            'id' => 'pc-monthly-'.$contract->id,
             'electricity_contract_id' => $contract->id,
             'price_component_type' => 'Monthly',
             'price_date' => now()->format('Y-m-d'),
@@ -229,6 +230,87 @@ class ContractsFilterTest extends TestCase
 
         $this->assertTrue($contracts->contains('id', 'fixed-contract'));
         $this->assertTrue($contracts->contains('id', 'spot-contract'));
+    }
+
+    public function test_base_and_seo_interactive_pseudo_types_have_the_same_membership(): void
+    {
+        $this->createContract([
+            'id' => 'quarterly-contract',
+            'name' => 'Kvartaalisähkö',
+        ]);
+        $this->createContract([
+            'id' => 'time-contract',
+            'name' => 'Perussähkö',
+            'metering' => 'Time',
+        ]);
+        $this->createContract([
+            'id' => 'seasonal-contract',
+            'name' => 'Perussähkö',
+            'metering' => 'Season',
+        ]);
+        $this->createContract([
+            'id' => 'other-contract',
+            'name' => 'Perussähkö',
+        ]);
+
+        foreach ([
+            'Quarterly' => ['quarterly-contract'],
+            'TimeOfUse' => ['time-contract'],
+            'Seasonal' => ['seasonal-contract'],
+        ] as $filter => $expectedIds) {
+            $baseIds = Livewire::test('contracts-list')
+                ->set('pricingModelFilter', $filter)
+                ->viewData('contracts')
+                ->pluck('id')
+                ->sort()
+                ->values()
+                ->all();
+            $seoIds = Livewire::test('seo-contracts-list')
+                ->set('pricingModelFilter', $filter)
+                ->viewData('contracts')
+                ->pluck('id')
+                ->sort()
+                ->values()
+                ->all();
+
+            $this->assertSame($expectedIds, $baseIds);
+            $this->assertSame($baseIds, $seoIds);
+        }
+    }
+
+    public function test_four_times_per_year_phrases_are_quarterly_in_both_listings_and_statistics(): void
+    {
+        $contracts = collect([
+            $this->createContract([
+                'id' => 'quarterly-fourfold',
+                'extra_information_fi' => 'Hinta muuttuu neljästi vuodessa.',
+            ]),
+            $this->createContract([
+                'id' => 'quarterly-four-times',
+                'extra_information_fi' => 'Hinta muuttuu neljä kertaa vuodessa.',
+            ]),
+        ]);
+
+        $baseIds = Livewire::test('contracts-list')
+            ->set('pricingModelFilter', 'Quarterly')
+            ->viewData('contracts')
+            ->pluck('id')
+            ->sort()
+            ->values()
+            ->all();
+        $seoIds = Livewire::test('seo-contracts-list')
+            ->set('pricingModelFilter', 'Quarterly')
+            ->viewData('contracts')
+            ->pluck('id')
+            ->sort()
+            ->values()
+            ->all();
+
+        $this->assertSame(['quarterly-four-times', 'quarterly-fourfold'], $baseIds);
+        $this->assertSame($baseIds, $seoIds);
+        $this->assertTrue($contracts->every(
+            fn (ElectricityContract $contract) => ContractPriceStatisticsService::segmentKey($contract) === 'quarterly'
+        ));
     }
 
     // ========================================

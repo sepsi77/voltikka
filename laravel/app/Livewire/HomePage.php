@@ -7,7 +7,7 @@ use App\Models\ContractPriceDailyStatistic;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceHour;
 use App\Models\SpotPriceQuarter;
-use App\Services\ContractStatistics\ContractPriceBasis;
+use App\Services\CanonicalPricing\PricingMode;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
@@ -169,7 +169,7 @@ class HomePage extends Component
             'hybrid' => 'Joustosähkö',
         ];
         $start = Carbon::now()->subDays(180)->toDateString();
-        $expectedBasis = ContractPriceBasis::expectedCurrent()->value;
+        $expectedBasis = app(PricingMode::class)->expectedContractPriceBasis()->value;
         $sourceQuery = ContractPriceDailyStatistic::query()
             ->whereIn('segment_key', array_keys($segments))
             ->where('metric_key', 'annual_cost')

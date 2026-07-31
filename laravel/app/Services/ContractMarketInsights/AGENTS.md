@@ -15,7 +15,7 @@ These insights are low-prominence brand/context signals on comparison pages. The
 - Read only precomputed aggregate tables:
   - `contract_price_daily_statistics` for 30-day annual-cost trends
   - `fixed_contract_price_forecasts` for fixed-term directional forecast teasers
-- Cache insight payloads until tomorrow and include a cheap source-data fingerprint in the key. The fingerprint and payload key include the canonical flag and `ContractPriceBasis::expectedCurrent()`; the statistics fingerprint reads dates and `updated_at` only for the relevant bases. The payload key also includes the configured forecast model version; bump the cache schema after changing public eligibility. Current schema is v5.
+- Cache insight payloads until tomorrow and include a cheap source-data fingerprint in the key. The fingerprint and payload key use the canonical state and expected basis from request-scoped `PricingMode`; the statistics fingerprint reads dates and `updated_at` only for the relevant bases. The payload key also includes the configured forecast model version; bump the cache schema after changing public eligibility. Current schema is v5.
 - Public listing prepared-data cache keys include the same fingerprint, so cached page payloads can refresh after daily statistics/forecast updates without raw recalculation.
 - The fingerprint itself is cached briefly and uses only `max(...)` aggregate queries.
 

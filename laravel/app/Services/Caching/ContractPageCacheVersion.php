@@ -7,6 +7,8 @@ use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
+use App\Services\CalculatedCostPayloadSchema;
+use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractListCacheService;
 use Illuminate\Support\Facades\DB;
 
@@ -33,10 +35,11 @@ class ContractPageCacheVersion
      * v10: short BaseOnlyHybrid outcomes preserve real-term totals and offer savings.
      * v11: `other` cadence recurring resets become eligible canonical list estimates.
      */
-    private const PAYLOAD_SCHEMA_VERSION = 11;
+    private const PREPARED_VIEW_SCHEMA_VERSION = 11;
 
     public function __construct(
         private readonly ContractListCacheService $contractListCache,
+        private readonly PricingMode $pricingMode,
     ) {}
 
     /**
@@ -61,12 +64,10 @@ class ContractPageCacheVersion
             ->first();
 
         return [
-            'payload_schema_version' => self::PAYLOAD_SCHEMA_VERSION,
+            'payload_schema_version' => self::PREPARED_VIEW_SCHEMA_VERSION,
+            'calculated_cost_schema' => CalculatedCostPayloadSchema::cacheMarker(),
             'contract_list_cache_version' => $this->contractListCache->getVersion(),
-            // Toggling canonical pricing changes rendered totals, exclusions, and labels.
-            'canonical_pricing_enabled' => (bool) config('canonical_pricing.enabled', false),
-            // Toggling the market-reset forward shift changes reset totals and their ordering.
-            'reset_forward_shift_enabled' => (bool) config('canonical_pricing.reset_forward_shift.enabled', false),
+            'pricing_mode' => $this->pricingMode->cacheMarker(),
             'active_contract_count' => DB::table('active_contracts')->count(),
             'contract_count' => ElectricityContract::query()->count(),
             'latest_contract_id' => ElectricityContract::query()->max('id'),

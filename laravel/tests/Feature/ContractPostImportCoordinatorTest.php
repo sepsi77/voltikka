@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\WarmContractPriceStatisticsCache;
 use App\Models\Company;
+use App\Models\ContractSourceObservation;
 use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
 use App\Services\CompanyListCacheService;
@@ -27,15 +28,15 @@ class ContractPostImportCoordinatorTest extends TestCase
     public function test_dispatch_failure_is_isolated_and_cache_warm_failure_does_not_block_statistics(): void
     {
         Queue::fake();
-        [$firstSnapshot, $secondSnapshot] = $this->snapshots();
+        [$firstObservation, $secondObservation] = $this->observations();
         $events = [];
 
         $interpretations = $this->createMock(ContractInterpretationDispatcher::class);
         $interpretations->expects($this->exactly(2))
             ->method('dispatch')
-            ->willReturnCallback(function (ContractSourceSnapshot $snapshot) use ($firstSnapshot, &$events) {
-                $events[] = 'interpretation:'.$snapshot->id;
-                if ($snapshot->is($firstSnapshot)) {
+            ->willReturnCallback(function (ContractSourceObservation $observation) use ($firstObservation, &$events) {
+                $events[] = 'interpretation:'.$observation->id;
+                if ($observation->is($firstObservation)) {
                     throw new RuntimeException('First dispatch failed');
                 }
 
@@ -82,17 +83,17 @@ class ContractPostImportCoordinatorTest extends TestCase
 
         $this->travelTo(CarbonImmutable::parse('2026-08-01 06:12:34', 'Europe/Helsinki'));
         $result = $coordinator->run($this->importResult([
-            $firstSnapshot->id,
-            $secondSnapshot->id,
+            $firstObservation->id,
+            $secondObservation->id,
         ]), '2026-08-01');
 
         $this->assertTrue($result->succeeded());
         $this->assertSame('2026-08-01T06:12:34+03:00', $result->statisticsStartedAt?->toIso8601String());
         $this->assertSame('2026-08-01T06:12:39+03:00', $result->statisticsCompletedAt?->toIso8601String());
-        $this->assertSame([$firstSnapshot->id], $result->interpretationDispatchFailureSnapshotIds);
-        $this->assertArrayHasKey('interpretation:'.$firstSnapshot->id, $result->optionalFailures);
+        $this->assertSame([$firstObservation->id], $result->interpretationDispatchFailureObservationIds);
+        $this->assertArrayHasKey('interpretation:'.$firstObservation->id, $result->optionalFailures);
         $this->assertArrayHasKey('contract_cache_warm', $result->optionalFailures);
-        $this->assertContains('interpretation:'.$secondSnapshot->id, $events);
+        $this->assertContains('interpretation:'.$secondObservation->id, $events);
         Queue::assertPushed(WarmContractPriceStatisticsCache::class, 1);
         $this->assertLessThan(
             array_search('contract_warm', $events, true),
@@ -100,8 +101,8 @@ class ContractPostImportCoordinatorTest extends TestCase
         );
     }
 
-    /** @return array{ContractSourceSnapshot, ContractSourceSnapshot} */
-    private function snapshots(): array
+    /** @return array{ContractSourceObservation, ContractSourceObservation} */
+    private function observations(): array
     {
         Company::create(['name' => 'Coordinator Oy', 'name_slug' => 'coordinator-oy']);
         $contract = ElectricityContract::create([
@@ -114,26 +115,39 @@ class ContractPostImportCoordinatorTest extends TestCase
             'availability_is_national' => true,
         ]);
 
+        $firstSnapshot = ContractSourceSnapshot::create([
+            'contract_id' => $contract->id,
+            'source_fingerprint' => str_repeat('a', 64),
+            'source_payload' => ['Id' => 'coordinator-api', 'version' => 1],
+            'first_observed_at' => now(),
+            'last_observed_at' => now(),
+        ]);
+        $secondSnapshot = ContractSourceSnapshot::create([
+            'contract_id' => $contract->id,
+            'source_fingerprint' => str_repeat('b', 64),
+            'source_payload' => ['Id' => 'coordinator-api', 'version' => 2],
+            'first_observed_at' => now(),
+            'last_observed_at' => now(),
+        ]);
+
         return [
-            ContractSourceSnapshot::create([
+            ContractSourceObservation::create([
                 'contract_id' => $contract->id,
-                'source_fingerprint' => str_repeat('a', 64),
-                'source_payload' => ['Id' => 'coordinator-api', 'version' => 1],
+                'source_snapshot_id' => $firstSnapshot->id,
                 'first_observed_at' => now(),
                 'last_observed_at' => now(),
             ]),
-            ContractSourceSnapshot::create([
+            ContractSourceObservation::create([
                 'contract_id' => $contract->id,
-                'source_fingerprint' => str_repeat('b', 64),
-                'source_payload' => ['Id' => 'coordinator-api', 'version' => 2],
+                'source_snapshot_id' => $secondSnapshot->id,
                 'first_observed_at' => now(),
                 'last_observed_at' => now(),
             ]),
         ];
     }
 
-    /** @param list<int> $snapshotIds */
-    private function importResult(array $snapshotIds): ContractImportResult
+    /** @param list<int> $observationIds */
+    private function importResult(array $observationIds): ContractImportResult
     {
         return new ContractImportResult(
             complete: true,
@@ -146,8 +160,8 @@ class ContractPostImportCoordinatorTest extends TestCase
                 'skipped_no_match' => 0,
                 'skipped_not_high' => 0,
             ],
-            changedSnapshotIds: $snapshotIds,
-            observedSnapshotIds: $snapshotIds,
+            changedObservationIds: $observationIds,
+            observedObservationIds: $observationIds,
             activeContractIds: ['coordinator-contract'],
             companyNames: ['Coordinator Oy'],
         );

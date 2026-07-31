@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ContractInterpretation;
+use App\Models\ContractSourceObservation;
 use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
 use App\Models\RetailPremiumObservation;
@@ -60,7 +61,7 @@ class RetailPremiumCollectionTest extends TestCase
         $this->assertEqualsWithDelta(0.50, $observation->fresh()->retail_premium_cents_per_kwh, 0.0001);
     }
 
-    public function test_unchanged_semantic_price_reuses_the_open_period_across_source_versions(): void
+    public function test_same_price_in_a_new_source_episode_starts_a_new_period(): void
     {
         $contract = $this->publishedSpotContract('versioned-spot', margin: 0.55, monthlyFee: 3.50);
         $this->artisan('retail-premiums:collect')->assertExitCode(0);
@@ -69,10 +70,49 @@ class RetailPremiumCollectionTest extends TestCase
         $this->publishVersion($contract, margin: 0.55, monthlyFee: 3.50, firstObserved: '2026-07-26');
         $this->artisan('retail-premiums:collect')->assertExitCode(0);
 
-        $this->assertSame(1, RetailPremiumObservation::count());
-        $continued = RetailPremiumObservation::sole();
-        $this->assertSame($first->observation_key, $continued->observation_key);
-        $this->assertSame('2026-07-26', $continued->last_observed_date->toDateString());
+        $this->assertSame(2, RetailPremiumObservation::count());
+        $recurrent = RetailPremiumObservation::query()->orderByDesc('first_observed_date')->firstOrFail();
+        $this->assertNotSame($first->observation_key, $recurrent->observation_key);
+        $this->assertSame('2026-07-26', $recurrent->first_observed_date->toDateString());
+        $this->assertNotSame(
+            $first->source_metadata['source_observation_id'],
+            $recurrent->source_metadata['source_observation_id'],
+        );
+    }
+
+    public function test_same_day_a_b_a_recurrence_keeps_two_a_records(): void
+    {
+        $contract = $this->publishedSpotContract('same-day-spot', margin: 0.55, monthlyFee: 3.50);
+        $this->artisan('retail-premiums:collect')->assertExitCode(0);
+        $first = RetailPremiumObservation::sole();
+        $contract->refresh();
+        $snapshotA = $contract->currentSourceObservation->sourceSnapshot;
+        $interpretationA = $contract->publishedInterpretation;
+        $pricingA = $contract->canonical_pricing;
+
+        $this->publishVersion($contract, margin: 0.75, monthlyFee: 3.50, firstObserved: '2026-07-25');
+        $observationA2 = ContractSourceObservation::create([
+            'contract_id' => $contract->id,
+            'source_snapshot_id' => $snapshotA->id,
+            'first_observed_at' => '2026-07-25 18:00:00',
+            'last_observed_at' => '2026-07-25 18:00:00',
+        ]);
+        $contract->update([
+            'current_source_observation_id' => $observationA2->id,
+            'published_interpretation_id' => $interpretationA->id,
+            'canonical_pricing' => $pricingA,
+        ]);
+
+        $this->artisan('retail-premiums:collect')->assertExitCode(0);
+
+        $this->assertSame(2, RetailPremiumObservation::count());
+        $recurrent = RetailPremiumObservation::query()->orderByDesc('id')->firstOrFail();
+        $this->assertSame($first->first_observed_date->toDateString(), $recurrent->first_observed_date->toDateString());
+        $this->assertNotSame($first->observation_key, $recurrent->observation_key);
+        $this->assertNotSame(
+            $first->source_metadata['source_observation_id'],
+            $recurrent->source_metadata['source_observation_id'],
+        );
     }
 
     public function test_a_changed_spot_price_starts_a_new_observation_period(): void
@@ -154,6 +194,12 @@ class RetailPremiumCollectionTest extends TestCase
             'first_observed_at' => $firstObserved.' 06:00:00',
             'last_observed_at' => $firstObserved.' 06:00:00',
         ]);
+        $observation = ContractSourceObservation::create([
+            'contract_id' => $contract->id,
+            'source_snapshot_id' => $snapshot->id,
+            'first_observed_at' => $firstObserved.' 06:00:00',
+            'last_observed_at' => $firstObserved.' 06:00:00',
+        ]);
         // Deliberately preserve pre-rollout interpretation provenance. Retail-premium
         // collection must continue to read a currently published legacy version while
         // the schema-v4 reinterpretation stage is pending.
@@ -175,6 +221,7 @@ class RetailPremiumCollectionTest extends TestCase
         ]);
 
         $contract->update([
+            'current_source_observation_id' => $observation->id,
             'published_interpretation_id' => $interpretation->id,
             'canonical_pricing' => $pricing,
             'canonical_source_consistency' => ['structured_pricing_status' => 'complete'],

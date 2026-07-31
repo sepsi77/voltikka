@@ -3,6 +3,8 @@
 namespace App\Jobs;
 
 use App\Models\ContractInterpretation;
+use App\Models\ContractSourceObservation;
+use App\Models\ElectricityContract;
 use App\Services\ContractInterpretation\ContractInterpretationInputBuilder;
 use App\Services\ContractInterpretation\ContractInterpretationPublisher;
 use App\Services\ContractInterpretation\ContractInterpretationValidator;
@@ -54,6 +56,34 @@ class AnalyzeContractSourceSnapshot implements ShouldBeUnique, ShouldQueue
             return;
         }
 
+        $contract = ElectricityContract::query()->find($interpretation->contract_id);
+        $observation = $contract?->current_source_observation_id === null
+            ? null
+            : ContractSourceObservation::query()->find($contract->current_source_observation_id);
+        $matchesPointedObservation = $contract !== null
+            && $observation !== null
+            && $observation->contract_id === $contract->id
+            && $interpretation->sourceSnapshot !== null
+            && $interpretation->sourceSnapshot->contract_id === $contract->id
+            && $observation->source_snapshot_id === $interpretation->source_snapshot_id
+            && ($interpretation->analysis_source_observation_id === null
+                || (int) $interpretation->analysis_source_observation_id === (int) $observation->id);
+
+        if (! $matchesPointedObservation) {
+            $interpretation->update([
+                'status' => ContractInterpretation::STATUS_SUPERSEDED,
+                'completed_at' => now(),
+                'error' => 'The interpretation does not match the pointed source observation.',
+            ]);
+
+            return;
+        }
+
+        $input = $inputBuilder->build(
+            $interpretation->sourceSnapshot,
+            $observation->first_observed_at,
+        );
+
         $interpretation->update([
             'status' => ContractInterpretation::STATUS_PROCESSING,
             'started_at' => now(),
@@ -62,7 +92,6 @@ class AnalyzeContractSourceSnapshot implements ShouldBeUnique, ShouldQueue
         ]);
 
         try {
-            $input = $inputBuilder->build($interpretation->sourceSnapshot);
             $result = $client->interpret($input);
             $attempts = [];
             $maxRepairAttempts = min(2, max(0, (int) config('contract_interpretation.max_repair_attempts')));

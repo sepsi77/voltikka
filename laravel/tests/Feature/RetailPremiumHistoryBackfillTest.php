@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ContractInterpretation;
+use App\Models\ContractSourceObservation;
 use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
 use App\Models\ElectricityFuturesEodPrice;
@@ -450,6 +451,12 @@ class RetailPremiumHistoryBackfillTest extends TestCase
             'first_observed_at' => $firstObserved.' 06:00:00',
             'last_observed_at' => $firstObserved.' 06:00:00',
         ]);
+        $observation = ContractSourceObservation::create([
+            'contract_id' => $tip->id,
+            'source_snapshot_id' => $snapshot->id,
+            'first_observed_at' => $firstObserved.' 06:00:00',
+            'last_observed_at' => $firstObserved.' 06:00:00',
+        ]);
         // Deliberately preserve the historical interpretation version that supplied
         // this lineage template. Backfill must not rewrite old provenance as schema v4.
         $interpretation = ContractInterpretation::create([
@@ -469,6 +476,7 @@ class RetailPremiumHistoryBackfillTest extends TestCase
             ],
         ]);
         $tip->update([
+            'current_source_observation_id' => $observation->id,
             'published_interpretation_id' => $interpretation->id,
             'canonical_pricing' => $pricing,
             'canonical_source_consistency' => ['structured_pricing_status' => 'complete'],

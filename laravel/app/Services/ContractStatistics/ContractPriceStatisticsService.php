@@ -10,6 +10,7 @@ use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
 use App\Services\CanonicalPricing\DTO\CanonicalPricingOutcome;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
+use App\Services\ContractListing\ContractListingPipeline;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
 use Carbon\Carbon;
@@ -628,7 +629,12 @@ class ContractPriceStatisticsService
             return 'hybrid';
         }
 
-        if (self::isQuarterly($contract)) {
+        if (ContractListingPipeline::matchesQuarterly(
+            $contract->name,
+            $contract->extra_information_fi,
+            $contract->short_description,
+            $contract->long_description,
+        )) {
             return 'quarterly';
         }
 
@@ -650,20 +656,5 @@ class ContractPriceStatisticsService
         }
 
         return 'other';
-    }
-
-    private static function isQuarterly(ElectricityContract $contract): bool
-    {
-        $haystack = mb_strtolower(implode(' ', array_filter([
-            $contract->name,
-            $contract->extra_information_fi,
-            $contract->short_description,
-            $contract->long_description,
-        ])));
-
-        return str_contains($haystack, 'kvartaali')
-            || str_contains($haystack, 'kolmen kuukauden jaksoissa')
-            || str_contains($haystack, 'kolmen kuukauden jaksolle')
-            || str_contains($haystack, 'kolmen kuukauden välein');
     }
 }

@@ -48,11 +48,19 @@ class RetailPremiumHistoryBackfillService
         $stats = $this->emptyStats();
         $from = CarbonImmutable::instance($fromDate)->startOfDay();
         $to = CarbonImmutable::instance($toDate)->startOfDay();
-        $lineageTip->loadMissing('publishedInterpretation.sourceSnapshot');
+        $lineageTip->loadMissing([
+            'currentSourceObservation.sourceSnapshot',
+            'publishedInterpretation.sourceSnapshot',
+        ]);
         $templateInterpretation = $lineageTip->publishedInterpretation;
+        $currentObservation = $lineageTip->currentSourceObservation;
         $templateSnapshot = $templateInterpretation?->sourceSnapshot;
 
-        if ($templateInterpretation === null || $templateSnapshot === null || $to->lt($from)) {
+        if ($templateInterpretation === null
+            || $currentObservation === null
+            || $templateSnapshot === null
+            || $currentObservation->source_snapshot_id !== $templateSnapshot->id
+            || $to->lt($from)) {
             return ['observations' => collect(), 'stats' => $stats];
         }
 
@@ -62,8 +70,8 @@ class RetailPremiumHistoryBackfillService
             return ['observations' => collect(), 'stats' => $stats];
         }
 
-        if (! $includeOpenPeriod && $templateSnapshot->first_observed_at !== null) {
-            $to = $to->min($templateSnapshot->first_observed_at->toImmutable()->startOfDay()->subDay());
+        if (! $includeOpenPeriod) {
+            $to = $to->min($currentObservation->first_observed_at->toImmutable()->startOfDay()->subDay());
         }
 
         if ($to->lt($from)) {

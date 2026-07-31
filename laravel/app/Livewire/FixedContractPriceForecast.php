@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\FixedContractPriceForecast as ForecastModel;
+use App\Services\CanonicalPricing\PricingMode;
 use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -57,8 +58,9 @@ class FixedContractPriceForecast extends Component
      */
     private function buildViewData(): array
     {
+        $expectedBasis = app(PricingMode::class)->expectedContractPriceBasis();
         $latestForecastDate = ForecastModel::query()
-            ->eligibleForPublicDisplay()
+            ->eligibleForPublicDisplay($expectedBasis)
             ->max('forecast_date');
         $latestForecastDate = $latestForecastDate ? Carbon::parse($latestForecastDate)->toDateString() : null;
 
@@ -78,7 +80,7 @@ class FixedContractPriceForecast extends Component
         }
 
         $latestRows = ForecastModel::query()
-            ->eligibleForPublicDisplay()
+            ->eligibleForPublicDisplay($expectedBasis)
             ->whereDate('forecast_date', $latestForecastDate)
             ->orderBy('duration_months')
             ->get();

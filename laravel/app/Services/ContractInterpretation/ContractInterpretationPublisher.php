@@ -4,6 +4,7 @@ namespace App\Services\ContractInterpretation;
 
 use App\Models\ActiveContract;
 use App\Models\ContractInterpretation;
+use App\Models\ContractSourceObservation;
 use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
 use App\Services\ContractListCacheService;
@@ -16,26 +17,39 @@ class ContractInterpretationPublisher
     public function publish(ContractInterpretation $interpretation): bool
     {
         $published = DB::transaction(function () use ($interpretation): bool {
+            // Lock order is contract, pointed observation, pointed snapshot, then
+            // interpretation. Every path uses the pointer as the only currentness rule.
+            /** @var ElectricityContract $contract */
+            $contract = ElectricityContract::query()
+                ->lockForUpdate()
+                ->findOrFail($interpretation->contract_id);
+            $currentObservation = $contract->current_source_observation_id === null
+                ? null
+                : ContractSourceObservation::query()
+                    ->lockForUpdate()
+                    ->find($contract->current_source_observation_id);
+            $currentSnapshot = $currentObservation === null
+                ? null
+                : ContractSourceSnapshot::query()
+                    ->lockForUpdate()
+                    ->find($currentObservation->source_snapshot_id);
             /** @var ContractInterpretation $lockedInterpretation */
             $lockedInterpretation = ContractInterpretation::query()
                 ->lockForUpdate()
                 ->findOrFail($interpretation->id);
-            /** @var ElectricityContract $contract */
-            $contract = ElectricityContract::query()
-                ->lockForUpdate()
-                ->findOrFail($lockedInterpretation->contract_id);
 
-            $latestSnapshotId = ContractSourceSnapshot::query()
-                ->where('contract_id', $contract->id)
-                ->orderByDesc('first_observed_at')
-                ->orderByDesc('id')
-                ->value('id');
+            $isCurrent = $currentObservation !== null
+                && $currentSnapshot !== null
+                && $currentObservation->contract_id === $contract->id
+                && $currentSnapshot->contract_id === $contract->id
+                && $lockedInterpretation->contract_id === $contract->id
+                && $currentSnapshot->id === $lockedInterpretation->source_snapshot_id;
 
-            if ((int) $latestSnapshotId !== (int) $lockedInterpretation->source_snapshot_id) {
+            if (! $isCurrent) {
                 $lockedInterpretation->update([
                     'status' => ContractInterpretation::STATUS_SUPERSEDED,
                     'completed_at' => now(),
-                    'error' => 'A newer source snapshot exists.',
+                    'error' => 'The interpretation does not match the pointed source observation.',
                 ]);
 
                 return false;
@@ -52,20 +66,20 @@ class ContractInterpretationPublisher
             $contract->fill($updates);
             $contract->save();
 
-            /** @var ContractSourceSnapshot $sourceSnapshot */
-            $sourceSnapshot = $lockedInterpretation->sourceSnapshot()->firstOrFail();
             $canPublishPricing = $this->canPublishSourcePricing($output);
             if ($canPublishPricing) {
                 $this->priceComponentWriter->write(
-                    [$sourceSnapshot->source_payload],
-                    $sourceSnapshot->first_observed_at->toDateString(),
+                    [$currentSnapshot->source_payload],
+                    $currentObservation->first_observed_at->toDateString(),
                     [$contract->id],
                 );
             }
 
-            $latestObservation = ContractSourceSnapshot::max('last_observed_at');
+            // This only detects that the episode came from the freshest import run.
+            // It does not select source currentness; the contract pointer does that.
+            $freshestImportObservation = ContractSourceObservation::max('last_observed_at');
             if ($canPublishPricing
-                && $sourceSnapshot->last_observed_at->toDateTimeString() === $latestObservation) {
+                && $currentObservation->last_observed_at->toDateTimeString() === $freshestImportObservation) {
                 ActiveContract::firstOrCreate(['id' => $contract->id]);
             }
 

@@ -134,8 +134,8 @@ class FetchContracts extends Command
 
         $postImport = $this->postImportCoordinator->run($import, $today);
 
-        foreach ($postImport->interpretationDispatchFailureSnapshotIds as $snapshotId) {
-            $this->warn("Contracts were updated, but interpretation dispatch failed for snapshot {$snapshotId}.");
+        foreach ($postImport->interpretationDispatchFailureObservationIds as $observationId) {
+            $this->warn("Contracts were updated, but interpretation dispatch failed for observation {$observationId}.");
         }
         foreach ($postImport->optionalFailures as $stage => $message) {
             if (! str_starts_with($stage, 'interpretation:')) {
@@ -164,7 +164,7 @@ class FetchContracts extends Command
                 ? DataFreshnessCheckpoint::STATUS_READY
                 : DataFreshnessCheckpoint::STATUS_INCOMPLETE,
             [
-                'observed_snapshot_ids' => $import->observedSnapshotIds,
+                'observed_source_observation_ids' => $import->observedObservationIds,
                 'active_contract_ids' => $import->activeContractIds,
                 'statistics_started_at' => $postImport->statisticsStartedAt?->toIso8601String(),
                 'statistics_completed_at' => $postImport->statisticsCompletedAt?->toIso8601String(),

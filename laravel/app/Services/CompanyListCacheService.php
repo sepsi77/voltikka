@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ElectricityContract;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
+use App\Services\CanonicalPricing\PricingMode;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
@@ -31,6 +32,7 @@ class CompanyListCacheService
     public function __construct(
         private readonly ContractListCacheService $contractListCache,
         private readonly CanonicalContractPricingService $canonicalPricing,
+        private readonly PricingMode $pricingMode,
     ) {}
 
     public function getCachedCompanies(int $consumption = self::DEFAULT_CONSUMPTION): Collection
@@ -68,15 +70,13 @@ class CompanyListCacheService
 
     private function getCacheKey(int $consumption): string
     {
-        $basis = ($this->canonicalPricing->enabled() ? 'c1' : 'c0')
-            .($this->canonicalPricing->resetForwardShiftEnabled() ? 'r1' : 'r0');
-
         return sprintf(
-            'company_list:v%d:s%d:lv%d:%s:%d',
+            'company_list:v%d:s%d:%s:lv%d:%s:%d',
             $this->getVersion(),
             self::PAYLOAD_SCHEMA_VERSION,
+            CalculatedCostPayloadSchema::cacheMarker(),
             $this->contractListCache->getVersion(),
-            $basis,
+            $this->pricingMode->cacheMarker(),
             $consumption,
         );
     }

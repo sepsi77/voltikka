@@ -4,7 +4,7 @@ namespace App\Livewire;
 
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\SpotPriceAverage;
-use App\Services\ContractStatistics\ContractPriceBasis;
+use App\Services\CanonicalPricing\PricingMode;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
@@ -63,8 +63,9 @@ class ArticleSpotElectricity extends Component
      */
     public function getMarketSnapshotProperty(): array
     {
-        $pricingBasis = ContractPriceBasis::expectedCurrent()->value;
-        $canonicalEnabled = (bool) config('canonical_pricing.enabled', false);
+        $mode = app(PricingMode::class);
+        $pricingBasis = $mode->expectedContractPriceBasis()->value;
+        $canonicalEnabled = $mode->enabled();
         $source = ContractPriceDailyStatistic::query()
             ->where('metric_key', 'annual_cost')
             ->where('pricing_basis', $pricingBasis)

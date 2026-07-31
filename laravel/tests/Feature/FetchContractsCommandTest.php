@@ -149,7 +149,7 @@ class FetchContractsCommandTest extends TestCase
         $checkpoint = DataFreshnessCheckpoint::sole();
         $this->assertSame(DataFreshnessCheckpoint::KEY_CONTRACT_IMPORT, $checkpoint->key);
         $this->assertSame(DataFreshnessCheckpoint::STATUS_READY, $checkpoint->status);
-        $this->assertNotEmpty($checkpoint->metadata['observed_snapshot_ids']);
+        $this->assertNotEmpty($checkpoint->metadata['observed_source_observation_ids']);
         $this->assertNotEmpty($checkpoint->metadata['active_contract_ids']);
         $this->assertNotNull($checkpoint->metadata['statistics_started_at']);
         $this->assertNotNull($checkpoint->metadata['statistics_completed_at']);

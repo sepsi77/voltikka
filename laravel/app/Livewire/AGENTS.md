@@ -52,6 +52,7 @@ Primary files:
 - `Concerns/BillComparisonInputs.php` (the shared bill inputs + actions)
 - `ContractsList.php` (rollout switch, `recomputeBill()`, `buildBillModePaginator()`)
 - `SeoContractsList.php` / `SahkosopimusIndex.php` (the latter sets `$showBillComparison = true`)
+- `../Services/ContractListing/ContractListingPipeline.php` (visible loading and manual pagination)
 - `../../resources/views/partials/bill-comparison-form.blade.php` (the shared form fields)
 - `../../resources/views/livewire/seo-contracts-list.blade.php` (disclosure + anchor + period-mode card loop)
 - `../../resources/views/components/contract-card.blade.php` (`billMode` / `periodComparison` props)
@@ -96,11 +97,12 @@ Important semantics:
 - `getContractsProperty()` (in both `ContractsList` and `SeoContractsList`)
   branches to `buildBillModePaginator()` after applying the page's filters, so
   filters still apply in bill mode (period costs are computed for the filtered set).
-- `buildBillModePaginator()` reuses `loadVisibleContracts()` then attaches a
-  `period_comparison` array per visible contract and recomputes `emission_factor`
-  (the visible reload has no annual metrics in bill mode, so the CO2 stripe would
-  otherwise default wrong). `$billSummary` (rank, monthly cost, cheapest saving)
-  is filled here for the dark "Sinun sopimuksesi" anchor.
+- `buildBillModePaginator()` keeps period calculation and sorting in Livewire. It uses
+  `ContractListingPipeline::paginate()` for visible loading and paginator construction,
+  then attaches a `period_comparison` array per visible contract and recomputes
+  `emission_factor` (the visible reload has no annual metrics in bill mode, so the CO2
+  stripe would otherwise default wrong). `$billSummary` (rank, monthly cost, cheapest
+  saving) is filled here for the dark "Sinun sopimuksesi" anchor.
 - Card period block: €/kk from `period cost ÷ months`, a period-scoped secondary
   line (`X € / laskutusjakso`, never an annual `€/v`), and a neutral-slate
   "Säästö €/kk" delta (green/red reserved for CO2 per `../../../DESIGN.md`).
@@ -210,7 +212,7 @@ Important semantics:
 - cache invalidation is automatic through cheap `contract_price_daily_statistics` / `contract_price_snapshots` / spot-price max-date/update fingerprints, so daily imports/backfills should not need manual page-cache clearing
 - run `contracts:backfill-price-statistics` before expecting historical data
 - spot metrics are split between `spot_margin` and `spot_total_energy_price`
-- forward rows store `pricing_basis=canonical_calculation`; historical backfill and feature-off rows store `observed_seller_data`. Current unit panels and latest points require `ContractPriceBasis::expectedCurrent()` and do not fall back to a newer opposite-mode date. Historical rows stay date-scoped evidence and are not described as today's canonical interpretation. The page explains this split, CSV exports `pricing_basis`, and prepared view-data cache schema is v10; its key includes the expected basis
+- forward rows store `pricing_basis=canonical_calculation`; historical backfill and feature-off rows store `observed_seller_data`. Current unit panels and latest points require request-scoped `PricingMode::expectedContractPriceBasis()` and do not fall back to a newer opposite-mode date. Historical rows stay date-scoped evidence and are not described as today's canonical interpretation. The page explains this split, CSV exports `pricing_basis`, and prepared view-data cache schema is v10; its key includes the expected basis
 - a package can contribute an annual total and package fee, but its excess-use rate is not an all-in energy price and stays out of unit-price panels
 - `ContractPriceStatistics::$segments` is `ContractPriceStatisticsService::SEGMENT_LABELS`; the classifier and its labels live beside each other in the service because the contract detail page's price-development chart names the same segments
 - the “Hinnat sopimustyypeittäin” spot row must display a trailing-12-month realized spot daily average + latest typical margin, not the latest daily spot price; show p20–p80 daily-price variation under the value without adding a column
@@ -256,14 +258,14 @@ Important semantics:
 
 ## `ArticleSpotElectricity`
 
-- The `Markkinatilanne nyt` snapshot uses only `annual_cost` rows on the latest date for `ContractPriceBasis::expectedCurrent()`. Canonical mode cannot fall back to a newer observed date; feature-off uses observed rows.
+- The `Markkinatilanne nyt` snapshot uses only `annual_cost` rows on the latest date for `PricingMode::expectedContractPriceBasis()`. Canonical mode cannot fall back to a newer observed date; feature-off uses observed rows.
 - Page order is hero, breadcrumb, current market snapshot when available, short answer, contents list, and article sections. Evidence comes before in-page navigation.
 - The short answer compares the current market median annual costs of Spot and fixed 12-month contracts at 5,000 kWh. Its conclusion follows the current snapshot. It names Spot or fixed 12-month contracts only when that median is lower. It gives a neutral result when the medians are equal or unavailable.
 - Public method copy uses plain Finnish and does not expose internal canonical terms. The snapshot date is the market-data date. The bottom byline labels 29.5.2026 as the editorial review date.
 - An individual contract can differ from the median for its contract type. The median result does not decide each contract pair.
 - The article does not embed `ContractTypeComparison`. An individual-contract calculator can give a different result from the market median and make the editorial answer unclear. The summary links to the normal contract comparison instead.
 - Its six-hour cache key includes canonical state, expected basis, latest relevant date, and maximum `updated_at`, so flag changes and same-day rewrites create a new payload.
-- The two contract-statistics article series end on the latest date for `ContractPriceBasis::expectedCurrent()`, keep older observed rows as historical evidence, and read only the trailing year. Their cold-cache reads select only date, segment, and the plotted value through the base query builder; they cache small prepared arrays, not unbounded Eloquent collections. The volatility widget streams its already date-bounded hourly rows with the same selective base-query pattern. These limits keep the eager article route below the 128 MB production PHP limit.
+- The two contract-statistics article series end on the latest date for `PricingMode::expectedContractPriceBasis()`, keep older observed rows as historical evidence, and read only the trailing year. Their cold-cache reads select only date, segment, and the plotted value through the base query builder; they cache small prepared arrays, not unbounded Eloquent collections. The volatility widget streams its already date-bounded hourly rows with the same selective base-query pattern. These limits keep the eager article route below the 128 MB production PHP limit.
 - Each of the four evidence charts has a visible data-based takeaway and a native `details` disclosure with a semantic table of all plotted values. The chart refers to the takeaway with `aria-describedby`. Null values stay as a dash. Build these views only from the existing prepared payloads.
 
 ## `ArticleContractPriceComparisonChart`
@@ -383,11 +385,13 @@ price at the selected consumption, and Spot count. Its broad-intent sentence nam
 contracts, prices, offers, market comparison, and seller-specific Spot charges.
 Zero-contract copy does not imply that a current price is available.
 
-`Päivitetty` is the maximum `contract_source_snapshots.last_observed_at` for the
-company's active contracts. When no active contract has a snapshot, it falls
-back to maximum active `price_components.price_date`. It is hidden when neither
-stored date exists. The same date supplies WebPage `dateModified`; request time
-is never a fallback.
+`Päivitetty` compares two active-contract groups: maximum pointed-episode
+`last_observed_at` for episode-backed contracts, and maximum relational
+`price_components.price_date` only for legacy contracts with a null observation
+pointer. It returns the later value, so a mixed company does not hide a newer
+legacy date. Snapshot aggregates and relational dates from episode-backed
+contracts do not select it. It is hidden when neither stored date exists. The same
+date supplies WebPage `dateModified`; request time is never a fallback.
 
 The annual-consumption control uses the same compact segmented preset rail as
 the main comparison page. `Vuosikulutus` is a control label, not a content
@@ -480,7 +484,7 @@ Important semantics:
 - `calculate()` must read public inputs through safe helper methods and use enum `tryFrom()` fallbacks so blank/stale browser state does not become `PropertyNotFoundException` or enum `ValueError`.
 - blank/too-small numeric inputs are normalized back onto the component so the UI displays minimum allowed values: 20 m² living area, 1 resident, and 0 for optional numeric extras.
 - fallback select defaults are apartment, electric heating, central region, and 2000-era energy rating.
-- the page also renders a `sähkön hinta laskuri` section when `contract_price_daily_statistics` data exists. Every contract type uses stored `annual_cost` p20/median/p80 rows with the existing interpolation/nearest-reference behavior. The current date and rows use `ContractPriceBasis::expectedCurrent()`: canonical mode requires `canonical_calculation`, and feature-off requires `observed_seller_data`, with no newer wrong-basis fallback. It never rebuilds a public annual total from unit price + monthly fee. If annual rows are missing, that type is unavailable; this keeps canonical-only and package totals while preventing relational fallback.
+- the page also renders a `sähkön hinta laskuri` section when `contract_price_daily_statistics` data exists. Every contract type uses stored `annual_cost` p20/median/p80 rows with the existing interpolation/nearest-reference behavior. The current date and rows use `PricingMode::expectedContractPriceBasis()`: canonical mode requires `canonical_calculation`, and feature-off requires `observed_seller_data`, with no newer wrong-basis fallback. It never rebuilds a public annual total from unit price + monthly fee. If annual rows are missing, that type is unavailable; this keeps canonical-only and package totals while preventing relational fallback.
 - `priceEstimatesFor(int $consumption)` holds that estimate logic; `contractTypePriceEstimates` is just the visitor's own consumption. `priceStatisticsRows()` memoizes `[statDate, groupedRows]` for the request, so the FAQ can price extra fixed levels at **no extra query** (measured: 2 statistics queries per render, unchanged). Keep that memo `protected` — as a public property the grouped Eloquent collection would be dehydrated into the Livewire snapshot for nothing.
 - `priceSegments()` is the single source of truth for which contract types are quoted; `priceStatisticsRows()` derives its `segment_key` filter from `array_keys()` of it. Do not add a parallel key constant — a segment present in the config but missing from the query is silently dropped from the table instead of failing.
 
@@ -521,7 +525,7 @@ Consequences to preserve:
 
 ## `HomePage`
 
-- The homepage contract trend uses stored `annual_cost` at 5,000 kWh, not `energy_price` / `spot_total_energy_price`. Its current endpoint requires `ContractPriceBasis::expectedCurrent()` and excludes newer opposite-mode rows; older points keep their own stored date basis. The chart and caption use €/year and identify the current basis. Cache key schema is `home-page:contract-price-trend:v6`, with the expected basis, latest expected date, and source fingerprint in the key so a flag flip or same-day rewrite cannot serve stale output.
+- The homepage contract trend uses stored `annual_cost` at 5,000 kWh, not `energy_price` / `spot_total_energy_price`. Its current endpoint requires `PricingMode::expectedContractPriceBasis()` and excludes newer opposite-mode rows; older points keep their own stored date basis. The chart and caption use €/year and identify the current basis. Cache key schema is `home-page:contract-price-trend:v6`, with the expected basis, latest expected date, and source fingerprint in the key so a flag flip or same-day rewrite cannot serve stale output.
 
 ## `ContractTypeComparison`
 
@@ -546,8 +550,8 @@ Important semantics:
 ## Pricing-type filter (`?hintatyyppi=`)
 
 Primary files:
-- `ContractsList.php` (state, toggle action, legacy mapping, `applyPricingBucketFilter()`)
-- `SeoContractsList.php` (`mount()` legacy mapping call, `getContractsProperty()` filter call)
+- `ContractsList.php` (state, toggle action, legacy mapping, parsed bucket selection)
+- `SeoContractsList.php` (`mount()` legacy mapping call, route constraints)
 - `../Services/ContractCard/Enums/PricingBucket.php` + `../Services/ContractCard/AGENTS.md`
   ("The four filter buckets")
 - `../../resources/views/partials/pricing-bucket-pills.blade.php` (the visible pill row)
@@ -573,12 +577,12 @@ State:
   `resetFilters()` clears it.
 
 Query:
-- `applyPricingBucketFilter($query)` adds an OR-union of
+- `ContractListingPipeline::applyInteractiveQueryConstraints()` adds an OR-union of
   `PricingCategoryResolver::scopeBucket()` calls. **Never hand-write this SQL in a
   component** — the shared scope is what keeps the filter, the SEO pages and the card band
   from drifting.
-- It is called from `getContractsProperty()` in both `ContractsList` and `SeoContractsList`,
-  beside the other query filters, so bill mode (`buildBillModePaginator()`) automatically
+- Both `ContractsList` and `SeoContractsList` pass parsed bucket state to the pipeline beside
+  the other interactive query filters, so bill mode (`buildBillModePaginator()`) automatically
   prices exactly the filtered set. `CheapestContracts` inherits it.
 - On an SEO page whose route already fixes a pricing type (`/sahkosopimus/porssisahko`) the
   interactive filter composes on top (AND). It can narrow such a page, never widen it.
@@ -588,8 +592,9 @@ Legacy `?pricingModelFilter=`:
   `SeoContractsList::mount()`) and maps `Spot → porssisahko`, `FixedPrice → kiintea`,
   `Hybrid → kulutusvaikutus`, then **clears `pricingModelFilter`** so the two filters cannot
   double-apply. It does nothing when `hintatyyppi` is already present.
-- `Quarterly` / `TimeOfUse` / `Seasonal` keep their legacy name/metering matching untouched:
-  they are pseudo-types, not risk-transfer buckets, and have no bucket equivalent.
+- `Quarterly` / `TimeOfUse` / `Seasonal` are pseudo-types, not risk-transfer buckets,
+  and have no bucket equivalent. Their shared SQL rules live in
+  `ContractListingPipeline`; both base and SEO interactive filters call that service.
 - One behaviour change is intended: legacy `Hybrid` listed a Hybrid contract that also has a
   quarterly reset; the mapped bucket does not, because market wins over consumption effect
   and that contract's card band says Markkinahinta.

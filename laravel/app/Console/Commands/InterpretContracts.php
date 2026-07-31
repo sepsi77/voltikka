@@ -13,17 +13,11 @@ class InterpretContracts extends Command
         {--include-inactive : Include contracts that are not currently active}
         {--retry-failed : Queue failed interpretations again}';
 
-    protected $description = 'Queue automatic LLM interpretation for the latest contract source snapshots';
+    protected $description = 'Interpret the source snapshot from each pointed contract observation';
 
     public function handle(ContractInterpretationDispatcher $dispatcher): int
     {
-        if (! config('services.openrouter.api_key')) {
-            $this->error('OPENROUTER_API_KEY is not configured.');
-
-            return self::FAILURE;
-        }
-
-        $query = ElectricityContract::query()->with('latestSourceSnapshot');
+        $query = ElectricityContract::query()->with('currentSourceObservation.sourceSnapshot');
 
         if ($contractId = $this->option('contract')) {
             $query->whereKey($contractId);
@@ -36,15 +30,15 @@ class InterpretContracts extends Command
 
         $query->chunkById(100, function ($contracts) use ($dispatcher, &$queued, &$skipped): void {
             foreach ($contracts as $contract) {
-                $snapshot = $contract->latestSourceSnapshot;
-                if ($snapshot === null) {
+                $observation = $contract->currentSourceObservation;
+                if ($observation === null || $observation->sourceSnapshot === null) {
                     $skipped++;
 
                     continue;
                 }
 
                 $interpretation = $dispatcher->dispatch(
-                    $snapshot,
+                    $observation,
                     runWhenDisabled: true,
                     retryFailed: (bool) $this->option('retry-failed'),
                 );

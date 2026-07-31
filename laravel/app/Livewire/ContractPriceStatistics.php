@@ -6,7 +6,7 @@ use App\Models\ContractPriceDailyStatistic;
 use App\Models\ContractPriceSnapshot;
 use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
-use App\Services\ContractStatistics\ContractPriceBasis;
+use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -159,7 +159,7 @@ class ContractPriceStatistics extends Component
             ->orderBy('stat_date')
             ->get();
 
-        $expectedBasis = ContractPriceBasis::expectedCurrent()->value;
+        $expectedBasis = app(PricingMode::class)->expectedContractPriceBasis()->value;
         $latestExpectedDate = $rows
             ->where('pricing_basis', $expectedBasis)
             ->max(fn (ContractPriceDailyStatistic $row) => $row->stat_date->toDateString());
@@ -222,7 +222,7 @@ class ContractPriceStatistics extends Component
 
     public function getLatestPricingBasisProperty(): string
     {
-        return ContractPriceBasis::expectedCurrent()->value;
+        return app(PricingMode::class)->expectedContractPriceBasis()->value;
     }
 
     /**
@@ -643,7 +643,7 @@ class ContractPriceStatistics extends Component
         return 'contract-price-statistics:view-data:v10:'.md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
-            'pricing_basis' => ContractPriceBasis::expectedCurrent()->value,
+            'pricing_basis' => app(PricingMode::class)->expectedContractPriceBasis()->value,
             'version' => $this->statisticsDataVersion(),
         ]));
     }
@@ -659,7 +659,7 @@ class ContractPriceStatistics extends Component
             ->first();
 
         $snapshots = ContractPriceSnapshot::query()
-            ->where('pricing_basis', ContractPriceBasis::expectedCurrent()->value)
+            ->where('pricing_basis', app(PricingMode::class)->expectedContractPriceBasis()->value)
             ->selectRaw('MAX(snapshot_date) as latest_date, MAX(updated_at) as latest_update')
             ->first();
         $this->latestSnapshotDateLoaded = true;
@@ -1249,7 +1249,7 @@ class ContractPriceStatistics extends Component
         return $this->dailyStats
             ->where('segment_key', $segmentKey)
             ->where('metric_key', $metricKey)
-            ->where('pricing_basis', ContractPriceBasis::expectedCurrent()->value)
+            ->where('pricing_basis', app(PricingMode::class)->expectedContractPriceBasis()->value)
             ->filter(fn ($row) => $row->consumption_kwh === $consumption)
             ->sortByDesc('stat_date')
             ->first();
@@ -1259,7 +1259,7 @@ class ContractPriceStatistics extends Component
     {
         if (! $this->latestSnapshotDateLoaded) {
             $this->latestSnapshotDateCache = ContractPriceSnapshot::query()
-                ->where('pricing_basis', ContractPriceBasis::expectedCurrent()->value)
+                ->where('pricing_basis', app(PricingMode::class)->expectedContractPriceBasis()->value)
                 ->max('snapshot_date');
             $this->latestSnapshotDateLoaded = true;
         }

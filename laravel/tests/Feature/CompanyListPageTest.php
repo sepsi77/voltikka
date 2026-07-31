@@ -1061,6 +1061,7 @@ class CompanyListPageTest extends TestCase
                 'canonical_pricing.enabled' => $canonical,
                 'canonical_pricing.reset_forward_shift.enabled' => $reset,
             ]);
+            app()->forgetScopedInstances();
             app(CompanyListCacheService::class)->getCachedCompanies(5000);
         }
 
@@ -1069,10 +1070,10 @@ class CompanyListPageTest extends TestCase
 
         $keys = $this->cacheKeysMatching('company_list:');
 
-        $this->assertContains('company_list:v1:s2:lv1:c0r0:5000', $keys);
-        $this->assertContains('company_list:v1:s2:lv1:c1r0:5000', $keys);
-        $this->assertContains('company_list:v1:s2:lv1:c1r1:5000', $keys);
-        $this->assertContains('company_list:v1:s2:lv2:c1r1:5000', $keys);
+        $this->assertContains('company_list:v1:s2:cs11:lv1:c0r0:5000', $keys);
+        $this->assertContains('company_list:v1:s2:cs11:lv1:c1r0:5000', $keys);
+        $this->assertContains('company_list:v1:s2:cs11:lv1:c1r1:5000', $keys);
+        $this->assertContains('company_list:v1:s2:cs11:lv2:c1r1:5000', $keys);
     }
 
     private function createCanonicalContract(

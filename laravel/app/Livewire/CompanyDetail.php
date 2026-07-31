@@ -3,7 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\Company;
-use App\Models\ContractSourceSnapshot;
+use App\Models\ContractSourceObservation;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
@@ -387,8 +387,7 @@ class CompanyDetail extends Component
     }
 
     /**
-     * The newest stored source observation for any active company contract.
-     * Falls back to a stored relational price date for legacy contracts.
+     * Compare episode-backed observation time with legacy relational price time.
      */
     public function getUpdatedAtProperty(): ?CarbonInterface
     {
@@ -403,19 +402,33 @@ class CompanyDetail extends Component
             return null;
         }
 
-        $lastObservedAt = ContractSourceSnapshot::query()
-            ->whereIn('contract_id', $contractIds)
-            ->max('last_observed_at');
+        $lastObservedAt = ContractSourceObservation::query()
+            ->join('electricity_contracts', function ($join): void {
+                $join->on('electricity_contracts.current_source_observation_id', '=', 'contract_source_observations.id')
+                    ->on('electricity_contracts.id', '=', 'contract_source_observations.contract_id');
+            })
+            ->whereIn('electricity_contracts.id', $contractIds)
+            ->max('contract_source_observations.last_observed_at');
 
-        if ($lastObservedAt !== null) {
-            return $this->updatedAtCache = Carbon::parse($lastObservedAt);
+        $legacyPriceDate = PriceComponent::query()
+            ->join('electricity_contracts', 'electricity_contracts.id', '=', 'price_components.electricity_contract_id')
+            ->whereIn('electricity_contracts.id', $contractIds)
+            ->whereNull('electricity_contracts.current_source_observation_id')
+            ->max('price_components.price_date');
+        $episodeDate = $lastObservedAt !== null ? Carbon::parse($lastObservedAt) : null;
+        $legacyDate = $legacyPriceDate !== null ? Carbon::parse($legacyPriceDate) : null;
+
+        if ($episodeDate === null) {
+            return $this->updatedAtCache = $legacyDate;
         }
 
-        $priceDate = PriceComponent::query()
-            ->whereIn('electricity_contract_id', $contractIds)
-            ->max('price_date');
+        if ($legacyDate === null) {
+            return $this->updatedAtCache = $episodeDate;
+        }
 
-        return $this->updatedAtCache = $priceDate !== null ? Carbon::parse($priceDate) : null;
+        return $this->updatedAtCache = $episodeDate->greaterThan($legacyDate)
+            ? $episodeDate
+            : $legacyDate;
     }
 
     /**

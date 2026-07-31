@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Company;
+use App\Models\ContractSourceObservation;
 use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
@@ -66,9 +67,9 @@ class RepairPriceComponentCollisionsTest extends TestCase
      *
      * @param  list<float>  $prices
      */
-    private function snapshot(string $contractId, array $prices, string $from, string $until): void
+    private function snapshot(string $contractId, array $prices, string $from, string $until): ContractSourceSnapshot
     {
-        ContractSourceSnapshot::create([
+        $snapshot = ContractSourceSnapshot::create([
             'contract_id' => $contractId,
             'source_fingerprint' => hash('sha256', $contractId.$from),
             'source_payload' => [
@@ -87,6 +88,17 @@ class RepairPriceComponentCollisionsTest extends TestCase
             'first_observed_at' => $from.' 06:00:00',
             'last_observed_at' => $until.' 06:00:00',
         ]);
+        $observation = ContractSourceObservation::create([
+            'contract_id' => $contractId,
+            'source_snapshot_id' => $snapshot->id,
+            'first_observed_at' => $from.' 06:00:00',
+            'last_observed_at' => $until.' 06:00:00',
+        ]);
+        ElectricityContract::whereKey($contractId)->update([
+            'current_source_observation_id' => $observation->id,
+        ]);
+
+        return $snapshot;
     }
 
     private function priceRow(string $contractId, string $date, float $price): void
@@ -125,6 +137,32 @@ class RepairPriceComponentCollisionsTest extends TestCase
         $this->assertSame(7.88, $this->storedPrice($id, '2026-07-23'));
         $this->assertSame(7.88, $this->storedPrice($id, '2026-07-24'));
         $this->assertSame(7.88, $this->storedPrice($id, '2026-07-22'), 'An untouched day must not move.');
+    }
+
+    public function test_recurrent_a_b_a_episodes_select_the_exact_payload_for_each_day(): void
+    {
+        $id = 'recurrent-collision-contract';
+        $this->contract($id);
+        $snapshotA = $this->snapshot($id, [7.0, 0.0], '2026-07-21', '2026-07-21');
+        $this->snapshot($id, [8.0, 0.0], '2026-07-22', '2026-07-22');
+        $recurrentA = ContractSourceObservation::create([
+            'contract_id' => $id,
+            'source_snapshot_id' => $snapshotA->id,
+            'first_observed_at' => '2026-07-23 06:00:00',
+            'last_observed_at' => '2026-07-23 06:00:00',
+        ]);
+        ElectricityContract::whereKey($id)->update(['current_source_observation_id' => $recurrentA->id]);
+        $this->priceRow($id, '2026-07-20', 7.0);
+        $this->priceRow($id, '2026-07-21', 0.0);
+        $this->priceRow($id, '2026-07-22', 0.0);
+        $this->priceRow($id, '2026-07-23', 0.0);
+
+        $this->artisan('contracts:repair-price-component-collisions', ['--apply' => true])
+            ->assertSuccessful();
+
+        $this->assertSame(7.0, $this->storedPrice($id, '2026-07-21'));
+        $this->assertSame(8.0, $this->storedPrice($id, '2026-07-22'));
+        $this->assertSame(7.0, $this->storedPrice($id, '2026-07-23'));
     }
 
     public function test_a_dry_run_writes_nothing(): void
@@ -188,7 +226,7 @@ class RepairPriceComponentCollisionsTest extends TestCase
         $this->priceRow($id, '2026-07-23', 0.0);
 
         $this->artisan('contracts:repair-price-component-collisions', ['--apply' => true])
-            ->expectsOutputToContain('no covering source snapshot')
+            ->expectsOutputToContain('no covering source episode')
             ->assertSuccessful();
 
         $this->assertSame(0.0, $this->storedPrice($id, '2026-07-23'));

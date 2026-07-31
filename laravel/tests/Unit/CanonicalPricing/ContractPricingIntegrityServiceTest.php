@@ -11,21 +11,26 @@ use App\Services\CanonicalPricing\Enums\IntegrityReasonFamily;
 use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonImmutable;
 use PHPUnit\Framework\TestCase;
+use Tests\Unit\CanonicalPricing\Support\HoldFlatCanonicalCalculator;
 
 class ContractPricingIntegrityServiceTest extends TestCase
 {
     private CanonicalPricingParser $parser;
+
     private CanonicalContractPriceCalculator $calculator;
+
     private ContractPricingIntegrityService $integrity;
+
     private CarbonImmutable $start;
+
     private EnergyUsage $usage;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->parser = new CanonicalPricingParser();
-        $this->calculator = new CanonicalContractPriceCalculator();
-        $this->integrity = new ContractPricingIntegrityService();
+        $this->parser = new CanonicalPricingParser;
+        $this->calculator = HoldFlatCanonicalCalculator::make();
+        $this->integrity = new ContractPricingIntegrityService;
         $this->start = CarbonImmutable::parse('2026-07-24', 'Europe/Helsinki');
         $this->usage = new EnergyUsage(total: 5000, basicLiving: 5000);
     }

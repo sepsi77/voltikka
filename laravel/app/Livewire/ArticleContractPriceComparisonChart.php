@@ -3,7 +3,7 @@
 namespace App\Livewire;
 
 use App\Models\ContractPriceDailyStatistic;
-use App\Services\ContractStatistics\ContractPriceBasis;
+use App\Services\CanonicalPricing\PricingMode;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Cache;
@@ -29,7 +29,7 @@ class ArticleContractPriceComparisonChart extends Component
 
     public function getPreparedDataProperty(): array
     {
-        $pricingBasis = ContractPriceBasis::expectedCurrent()->value;
+        $pricingBasis = app(PricingMode::class)->expectedContractPriceBasis()->value;
         $latestDate = ContractPriceDailyStatistic::query()
             ->where('metric_key', 'annual_cost')
             ->where('pricing_basis', $pricingBasis)

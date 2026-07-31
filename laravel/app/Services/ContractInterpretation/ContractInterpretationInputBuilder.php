@@ -3,6 +3,8 @@
 namespace App\Services\ContractInterpretation;
 
 use App\Models\ContractSourceSnapshot;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 
 class ContractInterpretationInputBuilder
 {
@@ -11,15 +13,20 @@ class ContractInterpretationInputBuilder
      *
      * @return array<string, mixed>
      */
-    public function build(ContractSourceSnapshot $snapshot): array
-    {
+    public function build(
+        ContractSourceSnapshot $snapshot,
+        CarbonInterface|string|null $analysisDate = null,
+    ): array {
         $source = $snapshot->source_payload;
+        $analysisDate = $analysisDate instanceof CarbonInterface
+            ? $analysisDate
+            : CarbonImmutable::parse($analysisDate ?? $snapshot->first_observed_at);
         $details = $source['Details'] ?? [];
         $pricing = $details['Pricing'] ?? [];
         $extra = $details['ExtraInformation'] ?? [];
 
         return [
-            'analysis_date' => $snapshot->first_observed_at->toDateString(),
+            'analysis_date' => $analysisDate->toDateString(),
             'contract_id' => $snapshot->contract_id,
             'api_id' => $source['Id'] ?? null,
             'company_name' => $source['Company']['Name'] ?? null,

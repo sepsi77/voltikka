@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
  * Ingestion is fixed. This repairs the rows written before that.
  *
  * Evidence, never inference. Each row is rebuilt from the immutable
- * `contract_source_snapshots` payload that was in observation on that date, and
+ * source snapshot payload selected through its observation episode for that date, and
  * through `CanonicalPriceComponentWriter::resolveRows()` so a repaired row is
  * byte-identical to what a correct import would have written. A row whose
  * snapshot is missing, whose payload holds no positive candidate, or whose
@@ -171,15 +171,28 @@ class RepairPriceComponentCollisions extends Command
     ): ?array {
         $label = substr($stored->electricity_contract_id, 0, 46)." {$date} {$stored->price_component_type}";
 
+        $dayStart = \Carbon\Carbon::parse($date)->startOfDay()->toDateTimeString();
+        $dayEnd = \Carbon\Carbon::parse($date)->endOfDay()->toDateTimeString();
+        $snapshotIds = DB::table('contract_source_observations as observations')
+            ->where('observations.contract_id', $stored->electricity_contract_id)
+            ->where('observations.first_observed_at', '<=', $dayEnd)
+            ->where('observations.last_observed_at', '>=', $dayStart)
+            ->distinct()
+            ->pluck('observations.source_snapshot_id');
+
+        if ($snapshotIds->count() !== 1) {
+            $reason = $snapshotIds->isEmpty() ? 'no covering source episode' : 'ambiguous source episode coverage';
+            $skipped[] = "{$reason}: {$label}";
+
+            return null;
+        }
+
         $snapshot = DB::table('contract_source_snapshots')
-            ->where('contract_id', $stored->electricity_contract_id)
-            ->whereDate('first_observed_at', '<=', $date)
-            ->whereDate('last_observed_at', '>=', $date)
-            ->orderByDesc('last_observed_at')
+            ->where('id', $snapshotIds->first())
             ->first(['id', 'source_payload']);
 
         if ($snapshot === null) {
-            $skipped[] = "no covering source snapshot: {$label}";
+            $skipped[] = "covering source snapshot is missing: {$label}";
 
             return null;
         }

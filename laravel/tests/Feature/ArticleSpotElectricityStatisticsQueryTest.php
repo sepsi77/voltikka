@@ -26,6 +26,7 @@ class ArticleSpotElectricityStatisticsQueryTest extends TestCase
         Carbon::setTestNow('2026-07-27 12:00:00');
         Cache::flush();
         config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
     }
 
     protected function tearDown(): void
@@ -71,6 +72,7 @@ class ArticleSpotElectricityStatisticsQueryTest extends TestCase
         $this->assertNotContains(9999.0, $winRate['spot']);
 
         config()->set('canonical_pricing.enabled', false);
+        app()->forgetScopedInstances();
         Cache::flush();
         $observedComparison = app(ArticleContractPriceComparisonChart::class)->preparedData;
 

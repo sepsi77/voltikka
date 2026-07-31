@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Confirm current behavior with focused tests",
+    "status": "pending"
+  },
+  {
+    "name": "Design the smallest compatible change",
+    "status": "pending"
+  },
+  {
+    "name": "Implement the change",
+    "status": "pending"
+  },
+  {
+    "name": "Run focused and regression tests",
+    "status": "pending"
+  },
+  {
+    "name": "Update applicable AGENTS.md documentation",
+    "status": "pending"
+  }
+]

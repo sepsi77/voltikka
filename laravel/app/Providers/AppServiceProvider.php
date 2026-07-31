@@ -2,10 +2,13 @@
 
 namespace App\Providers;
 
+use App\Services\CanonicalPricing\CanonicalContractPriceCalculator;
+use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimatorSettings;
 use App\Services\CanonicalPricing\MarketReset\EexMarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketResetPriceEstimator;
+use App\Services\CanonicalPricing\PricingMode;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -23,16 +26,28 @@ class AppServiceProvider extends ServiceProvider
         // every reset contract and would otherwise issue hundreds of queries.
         $this->app->singleton(MarketReferenceCurveProvider::class, EexMarketReferenceCurveProvider::class);
 
-        // Settings come from config, never from autowired defaults, otherwise the feature flag
-        // would silently read as false.
-        $this->app->bind(ResetEstimatorSettings::class, fn () => ResetEstimatorSettings::fromConfig());
+        // One scoped value snapshots both flags. All pricing and statistics dependencies in the
+        // same request or command therefore use one stable mode.
+        $this->app->scoped(PricingMode::class, fn () => PricingMode::fromConfig());
 
-        // Deliberately NOT a singleton: the settings are a config snapshot, and a singleton would
-        // keep a stale feature-flag value if config changed after first resolution. The expensive
-        // per-vintage memoization lives in the shared provider above, so rebuilding is cheap.
-        $this->app->bind(MarketResetPriceEstimator::class, fn ($app) => new MarketResetPriceEstimator(
+        $this->app->scoped(ResetEstimatorSettings::class, fn ($app) => ResetEstimatorSettings::fromConfig(
+            $app->make(PricingMode::class)->resetForwardShiftEnabled(),
+        ));
+
+        $this->app->scoped(MarketResetPriceEstimator::class, fn ($app) => new MarketResetPriceEstimator(
             $app->make(MarketReferenceCurveProvider::class),
-            ResetEstimatorSettings::fromConfig(),
+            $app->make(ResetEstimatorSettings::class),
+        ));
+
+        $this->app->scoped(CanonicalContractPriceCalculator::class, fn ($app) => new CanonicalContractPriceCalculator(
+            resetEstimator: $app->make(MarketResetPriceEstimator::class),
+        ));
+
+        // Keep the orchestrator transient because withSpotAssumptions() stores caller-specific
+        // state. Only its immutable mode and calculator dependencies are request-scoped.
+        $this->app->bind(CanonicalContractPricingService::class, fn ($app) => new CanonicalContractPricingService(
+            calculator: $app->make(CanonicalContractPriceCalculator::class),
+            mode: $app->make(PricingMode::class),
         ));
     }
 

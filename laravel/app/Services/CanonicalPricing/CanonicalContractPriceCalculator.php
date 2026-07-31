@@ -55,17 +55,16 @@ class CanonicalContractPriceCalculator
      */
     private const SPOT_MARGIN_CEILING_CENTS = 2.0;
 
-    /**
-     * @param  MarketResetPriceEstimator|null  $resetEstimator  Reprices the held-forward tail of a
-     *                                                          market-reset product. Null (the plain
-     *                                                          `new` default used by pure unit tests)
-     *                                                          keeps the hold-flat behaviour.
-     */
     public function __construct(
+        private readonly MarketResetPriceEstimator $resetEstimator,
         private readonly PhaseTimelineBuilder $timelineBuilder = new PhaseTimelineBuilder,
         private readonly MonthlyUsageProfileBuilder $usageProfileBuilder = new MonthlyUsageProfileBuilder,
-        private readonly ?MarketResetPriceEstimator $resetEstimator = null,
     ) {}
+
+    public function resetForwardShiftEnabled(): bool
+    {
+        return $this->resetEstimator->enabled();
+    }
 
     public function calculate(
         CanonicalContractData $data,
@@ -1834,7 +1833,7 @@ class CanonicalContractPriceCalculator
         ?int $currentPhaseIndex,
         bool $heldForward,
     ): ?ResetEstimate {
-        if ($this->resetEstimator === null || ! $this->resetEstimator->enabled()) {
+        if (! $this->resetEstimator->enabled()) {
             return null;
         }
 

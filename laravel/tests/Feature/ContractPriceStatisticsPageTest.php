@@ -313,11 +313,14 @@ class ContractPriceStatisticsPageTest extends TestCase
 
     public function test_prepared_cache_key_uses_the_new_provenance_schema_and_basis(): void
     {
+        config()->set('canonical_pricing.enabled', false);
+        app()->forgetScopedInstances();
         $component = app(ContractPriceStatistics::class);
         $method = new \ReflectionMethod($component, 'statisticsViewDataCacheKey');
         $legacyKey = $method->invoke($component);
 
         config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
         $canonicalKey = $method->invoke(app(ContractPriceStatistics::class));
 
         $this->assertStringStartsWith('contract-price-statistics:view-data:v10:', $legacyKey);

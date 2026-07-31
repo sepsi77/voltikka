@@ -215,9 +215,10 @@ here; see the calibration section in `../AGENTS.md`.
 Caller: `../CanonicalContractPriceCalculator.php` (`resolveResetEstimate`, `resetTailStart`,
 `resetPeriodStart`, `segmentMonthWeights`, `heldForwardMonthWeights`, `weightedEnergyPrice`).
 
-Bindings: `app/Providers/AppServiceProvider.php`. The provider is a **singleton** (shared
-memoization); the estimator is **not** (its settings are a config snapshot and a singleton would keep
-a stale flag value).
+Bindings: `app/Providers/AppServiceProvider.php`. The curve provider is a **singleton** for shared
+memoization. `PricingMode`, reset settings, the estimator, and the calculator are scoped to one
+request or command, so they use one immutable flag snapshot. `CanonicalContractPricingService`
+remains transient because `withSpotAssumptions()` stores caller-specific state.
 
 ## Flag and rollout
 
@@ -235,19 +236,18 @@ It is a **separate** flag from `CANONICAL_PRICING_ENABLED`, which is already tru
 therefore could not stage this change. With the flag off, behaviour is byte-identical to holding the
 current period price flat, and the estimator touches no market data at all.
 
-The flag **participates in the cache keys**, the same way the `c1`/`c0` canonical marker does:
+The flag participates in `PricingMode::cacheMarker()` together with canonical state:
 
-- `ContractListCacheService` → `contract_list_metrics:v{n}:s{schema}:c{0,1}r{0,1}:{consumption}`
-- `CompanyListCacheService` → `company_list:v{n}:s{schema}:lv{list-version}:c{0,1}r{0,1}:{consumption}`
-- `ContractRankingService` → `contract_rankings_5000kwh:s{schema}:lv{list-version}:c{0,1}:r{0,1}`
-- `Caching/ContractPageCacheVersion` → `reset_forward_shift_enabled`
+- `ContractListCacheService` → `contract_list_metrics:v{n}:s{calculated-cost-schema}:c{0,1}r{0,1}:{consumption}`
+- `CompanyListCacheService` → `company_list:v{n}:s{outer-schema}:cs{calculated-cost-schema}:lv{list-version}:c{0,1}r{0,1}:{consumption}`
+- `ContractRankingService` → `contract_rankings_5000kwh:s{outer-schema}:cs{calculated-cost-schema}:lv{list-version}:c{0,1}r{0,1}`
+- `Caching/ContractPageCacheVersion` → `pricing_mode` and `calculated_cost_schema`
 
 Without this a stale hold-flat payload would survive the flip.
 
-**Caveat:** the `c`/`r` markers track flags, not code. A code-only change to reset maths or aggregate
-membership must bump every affected payload schema marker (`ContractListCacheService`,
-`CompanyListCacheService`, `ContractRankingService`, and/or `ContractPageCacheVersion`). Otherwise an
-old payload can survive until its TTL or the next import-driven cache clear.
+**Caveat:** the pricing-mode marker tracks flags, not code. A code-only calculated-cost shape change
+must bump `CalculatedCostPayloadSchema::VERSION` once. Service-specific wrapper versions stay
+separate and move only when their own membership or fields change.
 
 Staging command:
 

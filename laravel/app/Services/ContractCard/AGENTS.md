@@ -99,7 +99,7 @@ pricing-type filter (`?hintatyyppi=`, comma-separated). It is the three categori
 `ContractCardPresenterTest::test_the_bucket_scope_agrees_with_the_resolver_and_partitions_the_set`
 pins the parity, the partition, and the spot-plus-reset case.
 
-The consumer is `ContractsList::$pricingBucketFilter` / `applyPricingBucketFilter()`, which
+The consumer state is `ContractsList::$pricingBucketFilter`; `ContractListingPipeline`
 unions the selected buckets' scopes; see `../../Livewire/AGENTS.md` ("Pricing-type filter")
 for the URL state, the legacy `?pricingModelFilter=` mapping and the caching rules.
 
@@ -292,14 +292,14 @@ Two rules that must not be reverted, because both produced visible defects on a 
   current-price boundary.
 - **All copy from typed fields.** No interpretation `summary` string, and no seller free
   text, reaches a card. Same rule as `../CanonicalPricing/MarketReset/ResetEstimateCopy.php`.
-- **Cached payload shape is versioned.** `ContractListCacheService::PAYLOAD_SCHEMA_VERSION`
-  and `Caching\ContractPageCacheVersion::PAYLOAD_SCHEMA_VERSION` must be bumped when the
-  cached `calculated_cost` / `pricing_integrity` arrays gain or lose a field. Neither the
-  import-driven version nor the feature-flag markers move on a code-only deploy, so without
-  a bump cards read a stale shape for up to 48 hours after release. Both are at **v10**: v6
-  added package/real-term fields, v7 made card/detail current values canonical-only and
-  changed real-term offer copy, v8 moved company/SEO offer surfaces to those canonical
-  facts, v9 added exact typed offer terms, and v10 preserved short Hybrid real-term totals.
+- **Cached calculated-cost shape has one version.** Bump
+  `CalculatedCostPayloadSchema::VERSION` when `calculated_cost` gains or loses a field. List,
+  company, ranking, and prepared-page cache keys all include its `cs{version}` dependency.
+  Service-specific outer wrapper versions remain separate. Neither the import-driven version nor
+  `PricingMode::cacheMarker()` moves on a code-only deploy, so the shared marker prevents cards from
+  reading stale calculated-cost data for up to 48 hours. Current calculated-cost schema **v11**
+  includes package and real-term fields, canonical-only current facts, exact typed offer terms,
+  short Hybrid real-term totals, and listed `other`-cadence reset estimates.
   The detail page's own prepared-payload key is **v17** because package excess pricing now
   keeps its typed label in metadata and Product JSON-LD.
 

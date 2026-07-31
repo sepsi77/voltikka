@@ -82,7 +82,7 @@ class MarketResetForwardShiftTest extends TestCase
         ];
     }
 
-    private function calculator(?MarketResetPriceEstimator $estimator): CanonicalContractPriceCalculator
+    private function calculator(MarketResetPriceEstimator $estimator): CanonicalContractPriceCalculator
     {
         return new CanonicalContractPriceCalculator(resetEstimator: $estimator);
     }
@@ -99,7 +99,7 @@ class MarketResetForwardShiftTest extends TestCase
         ));
     }
 
-    private function evaluate(array $pricing, ?MarketResetPriceEstimator $estimator, string $start = '2026-07-01', string $status = 'estimate_required', string $model = 'FixedPrice')
+    private function evaluate(array $pricing, MarketResetPriceEstimator $estimator, string $start = '2026-07-01', string $status = 'estimate_required', string $model = 'FixedPrice')
     {
         $data = $this->parser->parse(
             $pricing,
@@ -117,6 +117,17 @@ class MarketResetForwardShiftTest extends TestCase
     }
 
     // ---------------------------------------------------------------- tests
+
+    public function test_calculator_constructor_requires_a_non_nullable_estimator(): void
+    {
+        $constructor = (new \ReflectionClass(CanonicalContractPriceCalculator::class))->getConstructor();
+        $estimator = $constructor?->getParameters()[0] ?? null;
+
+        $this->assertNotNull($estimator);
+        $this->assertSame('resetEstimator', $estimator->getName());
+        $this->assertFalse($estimator->isDefaultValueAvailable());
+        $this->assertFalse($estimator->allowsNull());
+    }
 
     public function test_monthly_reset_in_summer_raises_the_annual_estimate(): void
     {
@@ -262,7 +273,7 @@ class MarketResetForwardShiftTest extends TestCase
         $pricing = $this->resetPricing(7.0, 'monthly');
 
         $withEstimator = $this->evaluate($pricing, $this->estimator($curve));
-        $withoutEstimator = $this->evaluate($pricing, null);
+        $withoutEstimator = $this->evaluate($pricing, $this->estimator(new FakeMarketCurve, ['enabled' => false]));
 
         $this->assertSame(EstimateMethod::HoldCurrentRecurringPrice, $withEstimator->estimateMethod);
         $this->assertNull($withEstimator->resetEstimate);
@@ -279,7 +290,7 @@ class MarketResetForwardShiftTest extends TestCase
         $pricing = $this->resetPricing(7.0, 'monthly');
 
         $off = $this->evaluate($pricing, $this->estimator($curve, ['enabled' => false]));
-        $none = $this->evaluate($pricing, null);
+        $none = $this->evaluate($pricing, $this->estimator(new FakeMarketCurve, ['enabled' => false]));
 
         $this->assertSame($none->totalCost, $off->totalCost);
         $this->assertSame($none->baseTotalCost, $off->baseTotalCost);
@@ -484,7 +495,7 @@ class MarketResetForwardShiftTest extends TestCase
             ends: ['kind' => 'none', 'value' => null],
         );
 
-        $holdFlat = $this->evaluate($pricing, null);
+        $holdFlat = $this->evaluate($pricing, $this->estimator(new FakeMarketCurve, ['enabled' => false]));
         $shifted = $this->evaluate($pricing, $this->estimator($curve));
 
         $this->assertEqualsWithDelta(400.0, $holdFlat->totalCost, 0.05);

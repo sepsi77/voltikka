@@ -140,7 +140,13 @@ class CanonicalPricingListingTest extends TestCase
         );
 
         $component = Livewire::test(SahkosopimusIndex::class)->set('consumption', 5000);
+        $contracts = $component->viewData('contracts');
 
+        $this->assertSame(2, $contracts->total());
+        $this->assertEqualsCanonicalizing(
+            ['honest-1', 'deceptive-1'],
+            $contracts->pluck('id')->all(),
+        );
         $component->assertSee('Reilu Perussähkö');
         $component->assertSee('Viekas Tarjoushinta');
         // Excluded contract must not appear in the listing.

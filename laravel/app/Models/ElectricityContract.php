@@ -50,6 +50,7 @@ class ElectricityContract extends Model
         'id',
         'api_id',
         'replaced_by_contract_id',
+        'current_source_observation_id',
         'published_interpretation_id',
         'canonical_pricing',
         'canonical_source_consistency',
@@ -192,11 +193,19 @@ class ElectricityContract extends Model
     }
 
     /**
-     * Get the newest upstream source payload.
+     * Get the chronological source-observation episodes for the contract.
      */
-    public function latestSourceSnapshot(): HasOne
+    public function sourceObservations(): HasMany
     {
-        return $this->hasOne(ContractSourceSnapshot::class, 'contract_id', 'id')->latestOfMany();
+        return $this->hasMany(ContractSourceObservation::class, 'contract_id', 'id');
+    }
+
+    /**
+     * Get the one source observation that defines currentness.
+     */
+    public function currentSourceObservation(): BelongsTo
+    {
+        return $this->belongsTo(ContractSourceObservation::class, 'current_source_observation_id');
     }
 
     /**
