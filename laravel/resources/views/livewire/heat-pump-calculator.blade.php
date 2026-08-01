@@ -36,7 +36,7 @@
                         <label class="block text-sm font-medium text-slate-700 mb-1">Pinta-ala (m²)</label>
                         <input
                             type="number"
-                            wire:model.live.debounce.500ms="livingArea"
+                            wire:model.blur="livingArea"
                             min="20"
                             max="500"
                             class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
@@ -46,7 +46,7 @@
                         <label class="block text-sm font-medium text-slate-700 mb-1">Huonekorkeus (m)</label>
                         <input
                             type="number"
-                            wire:model.live.debounce.500ms="roomHeight"
+                            wire:model.blur="roomHeight"
                             min="2.0"
                             max="4.0"
                             step="0.1"
@@ -79,7 +79,7 @@
                         <label class="block text-sm font-medium text-slate-700 mb-1">Asukkaiden määrä</label>
                         <input
                             type="number"
-                            wire:model.live.debounce.500ms="numPeople"
+                            wire:model.blur="numPeople"
                             min="1"
                             max="10"
                             class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
@@ -146,7 +146,7 @@
                             <label class="block text-sm font-medium text-slate-700 mb-1">Öljynkulutus (litraa/vuosi)</label>
                             <input
                                 type="number"
-                                wire:model.live.debounce.500ms="oilLitersPerYear"
+                                wire:model.blur="oilLitersPerYear"
                                 min="0"
                                 max="10000"
                                 placeholder="esim. 2000"
@@ -157,7 +157,7 @@
                             <label class="block text-sm font-medium text-slate-700 mb-1">Sähkönkulutus (kWh/vuosi)</label>
                             <input
                                 type="number"
-                                wire:model.live.debounce.500ms="electricityKwhPerYear"
+                                wire:model.blur="electricityKwhPerYear"
                                 min="0"
                                 max="100000"
                                 placeholder="esim. 20000"
@@ -168,7 +168,7 @@
                             <label class="block text-sm font-medium text-slate-700 mb-1">Kaukolämpölasku (euroa/vuosi)</label>
                             <input
                                 type="number"
-                                wire:model.live.debounce.500ms="districtHeatingEurosPerYear"
+                                wire:model.blur="districtHeatingEurosPerYear"
                                 min="0"
                                 max="20000"
                                 placeholder="esim. 1500"
@@ -202,7 +202,7 @@
                                     <label class="block text-sm text-slate-600 mb-1">Sähkön hinta (c/kWh)</label>
                                     <input
                                         type="number"
-                                        wire:model.live.debounce.500ms="electricityPrice"
+                                        wire:model.blur="electricityPrice"
                                         min="1"
                                         max="50"
                                         step="0.1"
@@ -213,7 +213,7 @@
                                     <label class="block text-sm text-slate-600 mb-1">Öljyn hinta (€/litra)</label>
                                     <input
                                         type="number"
-                                        wire:model.live.debounce.500ms="oilPrice"
+                                        wire:model.blur="oilPrice"
                                         min="0.5"
                                         max="3"
                                         step="0.01"
@@ -224,7 +224,7 @@
                                     <label class="block text-sm text-slate-600 mb-1">Kaukolämmön hinta (c/kWh)</label>
                                     <input
                                         type="number"
-                                        wire:model.live.debounce.500ms="districtHeatingPrice"
+                                        wire:model.blur="districtHeatingPrice"
                                         min="1"
                                         max="30"
                                         step="0.1"
@@ -235,7 +235,7 @@
                                     <label class="block text-sm text-slate-600 mb-1">Pelletin hinta (€/tonni)</label>
                                     <input
                                         type="number"
-                                        wire:model.live.debounce.500ms="pelletPrice"
+                                        wire:model.blur="pelletPrice"
                                         min="100"
                                         max="1000"
                                         step="10"
@@ -265,7 +265,7 @@
                                         <label class="block text-sm text-slate-600 mb-1">{{ $label }}</label>
                                         <input
                                             type="number"
-                                            wire:model.live.debounce.500ms="investments.{{ $key }}"
+                                            wire:model.blur="investments.{{ $key }}"
                                             min="0"
                                             max="50000"
                                             step="100"
@@ -284,7 +284,7 @@
                                     <label class="block text-sm text-slate-600 mb-1">Laskentakorko (%)</label>
                                     <input
                                         type="number"
-                                        wire:model.live.debounce.500ms="interestRate"
+                                        wire:model.blur="interestRate"
                                         min="0"
                                         max="10"
                                         step="0.1"
@@ -295,7 +295,7 @@
                                     <label class="block text-sm text-slate-600 mb-1">Laskentajakso (vuotta)</label>
                                     <input
                                         type="number"
-                                        wire:model.live.debounce.500ms="calculationPeriod"
+                                        wire:model.blur="calculationPeriod"
                                         min="5"
                                         max="30"
                                         class="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"

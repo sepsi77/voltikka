@@ -2,6 +2,7 @@
 
 namespace App\Services\RetailPremium;
 
+use App\Enums\PricingModel;
 use App\Models\FixedContractPriceForecast;
 use App\Models\RetailPremiumObservation;
 use Carbon\CarbonImmutable;
@@ -27,7 +28,7 @@ class RetailPremiumCrossCheckService
                 RetailPremiumObservationService::METHOD_VERSION,
                 RetailPremiumHistoryBackfillService::METHOD_VERSION,
             ])
-            ->where('pricing_model', 'FixedPrice')
+            ->where('pricing_model', PricingModel::FixedPrice->value)
             ->where('reference_kind', 'term_strip')
             ->where('quality', 'inferred')
             ->where('vat_basis', 'included')

@@ -146,7 +146,7 @@
                     :aria-expanded="panelOpen ? 'true' : 'false'"
                 >
                     <span x-text="panelOpen ? 'Piilota' : 'Vaihda'"></span>
-                    <svg class="h-4 w-4 transition-transform" :class="panelOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24" aria-hidden="true">
+                    <svg class="h-4 w-4 transition-transform" :class="panelOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </button>
@@ -188,10 +188,14 @@
                             inputmode="numeric"
                             wire:model.blur="directConsumption"
                             placeholder="esim. 7000"
+                            @if ($directConsumptionNotice) aria-invalid="true" aria-describedby="company-direct-consumption-notice" @endif
                             class="w-full min-w-0 bg-transparent text-sm font-bold tabular-nums text-slate-900 placeholder:font-normal placeholder:text-slate-500 focus:outline-none"
                         >
                         <span class="shrink-0 text-xs text-slate-500">kWh/v</span>
                     </div>
+                    @if ($directConsumptionNotice)
+                        <p id="company-direct-consumption-notice" role="alert" class="mt-1 text-xs text-red-600">{{ $directConsumptionNotice }}</p>
+                    @endif
                 </div>
             </div>
         </div>

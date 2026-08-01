@@ -2,6 +2,7 @@
 
 namespace App\Services\ContractReplacement;
 
+use App\Enums\ContractType;
 use App\Models\ElectricityContract;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -114,6 +115,9 @@ class ContractReplacementMatcher
                     return false;
                 }
 
+                // Keep exact source equality as a hard rule. The tolerant accessors are
+                // used for known-value decisions, but two different unknown raw values
+                // must never become equivalent only because both parse as unknown.
                 if ($candidate->contract_type !== $inactive->contract_type) {
                     return false;
                 }
@@ -130,7 +134,7 @@ class ContractReplacementMatcher
                     return false;
                 }
 
-                if ($inactive->contract_type === 'FixedTerm'
+                if ($inactive->contractTypeValue() === ContractType::FixedTerm
                     && ($candidate->fixed_time_range ?? null) !== ($inactive->fixed_time_range ?? null)) {
                     return false;
                 }
@@ -178,7 +182,7 @@ class ContractReplacementMatcher
         $score += 5;
         $signals[] = 'same_target_group';
 
-        if ($inactive->contract_type === 'FixedTerm') {
+        if ($inactive->contractTypeValue() === ContractType::FixedTerm) {
             $score += 5;
             $signals[] = 'same_fixed_time_range';
         }
@@ -308,11 +312,11 @@ class ContractReplacementMatcher
 
             if (preg_match('/^\d+$/', $token)) {
                 // Fixed-term duration is already guarded structurally.
-                return $contract->contract_type !== 'FixedTerm';
+                return $contract->contractTypeValue() !== ContractType::FixedTerm;
             }
 
             if (preg_match('/^\d+kk$/', $token)) {
-                return $contract->contract_type !== 'FixedTerm';
+                return $contract->contractTypeValue() !== ContractType::FixedTerm;
             }
 
             return true;
@@ -350,8 +354,8 @@ class ContractReplacementMatcher
     }
 
     /**
-     * @param array<int, string> $a
-     * @param array<int, string> $b
+     * @param  array<int, string>  $a
+     * @param  array<int, string>  $b
      */
     protected function jaccard(array $a, array $b): float
     {
@@ -381,7 +385,7 @@ class ContractReplacementMatcher
 
     protected function looksLikePromoVariant(ElectricityContract $inactive, ElectricityContract $candidate): bool
     {
-        if ($inactive->contract_type === 'FixedTerm') {
+        if ($inactive->contractTypeValue() === ContractType::FixedTerm) {
             return false;
         }
 

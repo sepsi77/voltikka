@@ -4,7 +4,6 @@ namespace Tests\Unit;
 
 use App\Models\Company;
 use App\Services\CompanyLogoService;
-use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -16,7 +15,7 @@ class CompanyLogoServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new CompanyLogoService();
+        $this->service = new CompanyLogoService;
         Storage::fake('public');
     }
 
@@ -231,6 +230,20 @@ class CompanyLogoServiceTest extends TestCase
         $path = $this->service->getLocalPath($company);
 
         $this->assertEquals('logos/test-company.webp', $path);
+    }
+
+    public function test_get_local_path_prefers_optimized_version_of_recorded_logo(): void
+    {
+        Storage::disk('public')->put('legacy/company-logo.png', 'original content');
+        Storage::disk('public')->put('legacy/company-logo.webp', 'optimized content');
+
+        $company = new Company([
+            'name' => 'Test Company',
+            'name_slug' => 'different-slug',
+            'local_logo_path' => 'legacy/company-logo.png',
+        ]);
+
+        $this->assertSame('legacy/company-logo.webp', $this->service->getLocalPath($company));
     }
 
     /**

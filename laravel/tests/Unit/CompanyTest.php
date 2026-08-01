@@ -61,7 +61,7 @@ class CompanyTest extends TestCase
      */
     public function test_model_has_correct_table_name(): void
     {
-        $company = new Company();
+        $company = new Company;
         $this->assertEquals('companies', $company->getTable());
     }
 
@@ -70,7 +70,7 @@ class CompanyTest extends TestCase
      */
     public function test_model_has_string_primary_key(): void
     {
-        $company = new Company();
+        $company = new Company;
         $this->assertEquals('name', $company->getKeyName());
         $this->assertEquals('string', $company->getKeyType());
         $this->assertFalse($company->getIncrementing());
@@ -81,17 +81,18 @@ class CompanyTest extends TestCase
      */
     public function test_model_has_no_timestamps(): void
     {
-        $company = new Company();
+        $company = new Company;
         $this->assertFalse($company->usesTimestamps());
     }
 
     /**
-     * Test getLogoUrl returns local logo path when available.
+     * Test getLogoUrl prefers an optimized local logo over the source URL.
      */
-    public function test_get_logo_url_returns_local_path_when_available(): void
+    public function test_get_logo_url_prefers_optimized_local_logo(): void
     {
         Storage::fake('public');
-        Storage::disk('public')->put('logos/test-company.png', 'fake content');
+        Storage::disk('public')->put('logos/test-company.png', 'original content');
+        Storage::disk('public')->put('logos/test-company.webp', 'optimized content');
 
         $company = new Company([
             'name' => 'Test Company',
@@ -102,7 +103,8 @@ class CompanyTest extends TestCase
 
         $url = $company->getLogoUrl();
 
-        $this->assertStringContainsString('logos/test-company.png', $url);
+        $this->assertStringContainsString('logos/test-company.webp', $url);
+        $this->assertSame($url, $company->getLocalLogoUrl());
         $this->assertStringNotContainsString('example.com', $url);
     }
 
@@ -121,6 +123,22 @@ class CompanyTest extends TestCase
         $url = $company->getLogoUrl();
 
         $this->assertEquals('https://example.com/logo.png', $url);
+        $this->assertNull($company->getLocalLogoUrl());
+    }
+
+    public function test_missing_recorded_local_logo_falls_back_to_external_url(): void
+    {
+        Storage::fake('public');
+
+        $company = new Company([
+            'name' => 'Test Company',
+            'name_slug' => 'test-company',
+            'local_logo_path' => 'logos/missing.png',
+            'logo_url' => 'https://example.com/logo.png',
+        ]);
+
+        $this->assertNull($company->getLocalLogoUrl());
+        $this->assertSame('https://example.com/logo.png', $company->getLogoUrl());
     }
 
     /**

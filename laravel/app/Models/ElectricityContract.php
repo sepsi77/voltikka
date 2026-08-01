@@ -2,8 +2,13 @@
 
 namespace App\Models;
 
+use App\Enums\ContractType;
+use App\Enums\MeteringType;
+use App\Enums\PricingModel;
+use App\Enums\TargetGroup;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -15,6 +20,8 @@ use Illuminate\Support\Str;
 
 class ElectricityContract extends Model
 {
+    use HasFactory;
+
     /**
      * The table associated with the model.
      */
@@ -260,6 +267,38 @@ class ElectricityContract extends Model
             'id',
             'id'
         );
+    }
+
+    /**
+     * Get the tolerant typed pricing-model fact without changing the scalar attribute.
+     */
+    public function pricingModelType(): PricingModel
+    {
+        return PricingModel::fromSource($this->pricing_model);
+    }
+
+    /**
+     * Get the tolerant typed contract-type fact without changing the scalar attribute.
+     */
+    public function contractTypeValue(): ContractType
+    {
+        return ContractType::fromSource($this->contract_type);
+    }
+
+    /**
+     * Get the tolerant typed target-group fact without changing the scalar attribute.
+     */
+    public function targetGroupType(): TargetGroup
+    {
+        return TargetGroup::fromSource($this->target_group);
+    }
+
+    /**
+     * Get the tolerant typed metering fact without changing the scalar attribute.
+     */
+    public function meteringType(): ?MeteringType
+    {
+        return MeteringType::fromSource($this->metering);
     }
 
     /**

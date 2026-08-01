@@ -2,6 +2,7 @@
 
 namespace App\Services\ContractPriceHistory;
 
+use App\Enums\PricingModel;
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
@@ -94,7 +95,7 @@ class PriceDevelopmentPresenter
      */
     public function present(ElectricityContract $contract, array $priceHistory, array $calculatedCost = []): array
     {
-        $isSpot = $contract->pricing_model === 'Spot';
+        $isSpot = $contract->pricingModelType() === PricingModel::Spot;
         $byDate = $this->componentsByDate($priceHistory);
 
         if (! $isSpot) {

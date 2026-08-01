@@ -2,6 +2,8 @@
 
 namespace App\Services\ContractStatistics;
 
+use App\Enums\PricingModel;
+use App\Enums\TargetGroup;
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\ContractPriceSnapshot;
 use App\Models\ElectricityContract;
@@ -73,7 +75,7 @@ class ContractPriceStatisticsService
             ElectricityContract::query()
                 ->whereIn('id', $contractIds)
                 ->where(function ($q) {
-                    $q->whereIn('target_group', ['Household', 'Both'])
+                    $q->whereIn('target_group', [TargetGroup::Household->value, TargetGroup::Both->value])
                         ->orWhereNull('target_group');
                 })
                 ->orderBy('id')
@@ -221,7 +223,7 @@ class ContractPriceStatisticsService
     private function buildRelationalSnapshot(ElectricityContract $contract, array $components, CarbonInterface $date, array $spotPrices): array
     {
         $byType = collect($components)->keyBy('price_component_type');
-        $isSpot = $contract->pricing_model === 'Spot';
+        $isSpot = $contract->pricingModelType() === PricingModel::Spot;
         $monthlyFee = $byType->has('Monthly') ? (float) $byType['Monthly']['price'] : null;
         $spotMargin = $isSpot ? $this->firstEnergyComponentPrice($components) : null;
         $energyPrice = $this->representativeEnergyPrice($contract, $components, $spotPrices['avg']);
@@ -550,7 +552,7 @@ class ContractPriceStatisticsService
     {
         $byType = collect($components)->keyBy('price_component_type');
 
-        if ($contract->pricing_model === 'Spot') {
+        if ($contract->pricingModelType() === PricingModel::Spot) {
             $margin = $this->firstEnergyComponentPrice($components);
 
             return $margin !== null && $spotAverage !== null ? $spotAverage + $margin : null;

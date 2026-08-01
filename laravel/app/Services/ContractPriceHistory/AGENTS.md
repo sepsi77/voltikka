@@ -18,6 +18,30 @@ describes the contract's own observed c/kWh prices and the market around them.
 That is why it is safe inside the detail page's prepared view-data cache, and
 why the section needs no "5 000 kWh:lla" scope sentence.
 
+## Relational history boundary
+
+`ContractHistoryPresenter::present(ElectricityContract)` owns the relational
+backward replacement chain and returns the four prepared detail-page values:
+`priceHistory`, `contractHistory`, `priceTypeLabels`, and `priceTypeOrder`.
+It uses one recursive predecessor CTE with a depth limit of 25, then one bulk
+eager load of `company`, `priceComponents`, and `activeContract`.
+
+Keep these semantics in the presenter:
+- sort contract versions by their latest observed relational price date
+- retain every relational row in `priceHistory`
+- choose the latest positive row per component type for a version summary, or
+  the latest row when no positive row exists
+- derive `last_seen_on_sale_date` from all rows, including zero-price rows
+- preserve the Spot `General` margin label, both winter spellings, unknown type
+  passthrough and the current historical promotion copy
+- do not add a canonical history fallback
+
+`ContractDetail` keeps only computed compatibility methods over one
+request-local cached presenter payload. Forward replacement redirects, current
+pricing, the price-development adapter and Livewire state stay in the component.
+These four prepared payload keys are cache compatibility requirements; this
+extraction does not require a cache schema change.
+
 ## Two variants, because the honest question differs
 
 | `pricing_model` | Ink line | Dashed reference |

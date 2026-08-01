@@ -104,7 +104,7 @@ Monthly included-energy packages are typed and costed as described below.
   quarterly calendar and reference proxy. Own flag, own `AGENTS.md`.
 - `ContractPricingIntegrityService` — the deterministic label state machine.
 - `CanonicalContractPricingService` — batch orchestrator + feature-flag gate. `metricsForContracts()`
-  returns array-only metrics for cache/listings; `evaluate()` returns typed `{outcome, integrity}`
+  returns `ContractPricing\CanonicalContractMetric` objects; `evaluate()` returns typed `{outcome, integrity}`
   for single-contract callers. `outcomesForContractsAtConsumptions()` parses each contract once for
   forward statistics that need several reference consumptions without loading relational rows.
 
@@ -280,8 +280,8 @@ Listings (`ContractsList`/`SeoContractsList`/`CheapestContracts`/`SahkosopimusIn
 always pass `useCanonical: false`** because historical seller observations must never be
 reinterpreted with today's canonical data).
 
-Cards no longer read these payloads directly. `../ContractCard/ContractCardPresenter` turns
-`calculated_cost` / `pricing_integrity` / `comparability` into one view model that both card
+Cards hydrate existing Eloquent transport attributes immediately. `../ContractCard/ContractCardPresenter` turns
+one `ContractPricingViewData` plus typed `ContractPricingIntegrity` into one view model that both card
 templates render. In canonical mode, current rates, fees, package facts, phase rows, offer
 membership, totals, and savings come only from a payload with `pricing_basis = canonical`; no
 passed price or loaded relation can fill a gap. Excluded outcomes have no current rates. Short
@@ -310,7 +310,7 @@ Feature-off keeps the legacy calculator and historical monthly Spot basis. This 
 prepared result cache, so its migration required no cache payload version.
 
 Company offer sections and the SEO offer listing use `CanonicalOfferFacts` in canonical mode.
-It accepts only a listed canonical calculated outcome with a positive measured benefit, no
+It accepts `ContractPricingViewData` and only a listed canonical outcome with a positive measured benefit, no
 package, and a complete supported `offer_terms` payload. It formats the actual component price
 and exact duration/date in controlled Finnish; raw phase labels, seller text, and interpretation
 summaries are never display fallbacks. Ordinary offers state the 12-month comparison-period

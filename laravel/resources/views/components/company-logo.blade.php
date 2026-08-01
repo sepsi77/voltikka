@@ -18,8 +18,11 @@
     2. It sent every visitor's browser to a third-party host on page load, on a site that
        deliberately uses privacy-friendly analytics and controls its own asset hosting.
 
-    The logo starts at `opacity:0` and is revealed by its own `onload`, but only when it
-    actually decoded (`naturalWidth` is non-zero). That covers every state with no blank tile:
+    Public pages use only `Company::getLocalLogoUrl()` here. An external-only company stays
+    on initials instead of sending the visitor to an unverified host that can return 404 or be
+    blocked by the browser. The logo starts at `opacity:0` and is revealed by its own `onload`,
+    but only when it actually decoded (`naturalWidth` is non-zero). That covers every local-file
+    state with no blank tile:
 
     - request in flight: the initials show through, however long the host takes
     - network error: `onerror` removes the image, initials stay
@@ -38,7 +41,7 @@
 --}}
 @php
     $label = $name ?? $company?->name ?? '';
-    $logoUrl = $company?->getLogoUrl();
+    $logoUrl = $company?->getLocalLogoUrl();
 @endphp
 <span {{ $attributes->class(['relative flex flex-shrink-0 items-center justify-center overflow-hidden']) }}>
     <span aria-hidden="true">{{ mb_substr($label ?: '?', 0, 3) }}</span>

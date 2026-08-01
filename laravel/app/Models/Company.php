@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class Company extends Model
 {
@@ -79,6 +78,7 @@ class Company extends Model
         $slug = preg_replace('/[\s_]+/', '-', $slug);
         // Remove consecutive hyphens
         $slug = preg_replace('/-+/', '-', $slug);
+
         return trim($slug, '-');
     }
 
@@ -105,38 +105,54 @@ class Company extends Model
     protected function logoUrlResolved(): Attribute
     {
         return Attribute::make(
-            get: function () {
-                if ($this->local_logo_path) {
-                    return Storage::disk('public')->url($this->local_logo_path);
-                }
-
-                return $this->logo_url;
-            },
+            get: fn () => $this->getLogoUrl(),
         );
     }
 
     /**
-     * Get the logo URL for display (method style for easier use in views).
-     * Prefers optimized WebP version if available.
+     * Get the locally controlled logo path, preferring an optimized WebP file.
+     */
+    public function getLocalLogoPath(): ?string
+    {
+        $localPath = trim((string) $this->local_logo_path);
+
+        if ($localPath === '') {
+            return null;
+        }
+
+        $extension = strtolower(pathinfo($localPath, PATHINFO_EXTENSION));
+        if (in_array($extension, ['png', 'jpg', 'jpeg', 'gif'], true)) {
+            $webpPath = substr($localPath, 0, -strlen($extension)).'webp';
+
+            if (Storage::disk('public')->exists($webpPath)) {
+                return $webpPath;
+            }
+        }
+
+        return Storage::disk('public')->exists($localPath) ? $localPath : null;
+    }
+
+    /**
+     * Get the public URL for a locally controlled logo.
+     */
+    public function getLocalLogoUrl(): ?string
+    {
+        $path = $this->getLocalLogoPath();
+
+        return $path === null ? null : Storage::disk('public')->url($path);
+    }
+
+    /**
+     * Get the logo URL for display, with an external URL as the final fallback.
      */
     public function getLogoUrl(): ?string
     {
-        // Check local storage first
-        if ($this->local_logo_path) {
-            // Check if optimized WebP version exists
-            $webpPath = preg_replace('/\.(jpg|jpeg|png)$/i', '.webp', $this->local_logo_path);
-            if ($webpPath !== $this->local_logo_path && Storage::disk('public')->exists($webpPath)) {
-                return Storage::disk('public')->url($webpPath);
-            }
-
-            return Storage::disk('public')->url($this->local_logo_path);
+        if ($localUrl = $this->getLocalLogoUrl()) {
+            return $localUrl;
         }
 
-        // Fall back to external URL if not empty
-        if ($this->logo_url && trim($this->logo_url) !== '') {
-            return $this->logo_url;
-        }
+        $externalUrl = trim((string) $this->logo_url);
 
-        return null;
+        return $externalUrl === '' ? null : $externalUrl;
     }
 }

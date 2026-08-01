@@ -65,105 +65,10 @@
         </ol>
     </nav>
 
-    {{-- Consumption Preset Selector --}}
-    <section class="bg-transparent text-center mb-8">
-        <h3 class="max-w-2xl mb-4 mx-auto text-3xl font-extrabold tracking-tight leading-none">
-            Valitse kulutustaso
-        </h3>
-
-        {{-- Tab Toggle --}}
-        <div class="flex justify-center mb-6">
-            <div class="inline-flex rounded-full bg-slate-100 p-1">
-                <button
-                    wire:click="setActiveTab('presets')"
-                    class="px-6 py-2 text-sm font-medium rounded-full transition-colors {{ $activeTab === 'presets' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-700' }}"
-                >
-                    Valmiit profiilit
-                </button>
-                <button
-                    wire:click="setActiveTab('calculator')"
-                    class="px-6 py-2 text-sm font-medium rounded-full transition-colors {{ $activeTab === 'calculator' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-700' }}"
-                >
-                    Laskuri
-                </button>
-            </div>
-        </div>
-
-        {{-- Presets Tab --}}
-        @if ($activeTab === 'presets')
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-w-6xl mx-auto">
-                @foreach ($presets as $key => $preset)
-                    <button
-                        wire:click="selectPreset('{{ $key }}')"
-                        class="p-5 border-2 rounded-2xl transition-all text-left {{ $selectedPreset === $key ? 'bg-gradient-to-r from-coral-500 to-coral-600 border-coral-500 shadow-coral' : 'bg-white border-slate-200 hover:border-coral-400' }}"
-                    >
-                        <div class="flex items-start">
-                            <span class="{{ $selectedPreset === $key ? 'bg-white/20' : 'bg-slate-100' }} p-2 rounded-xl mr-3 flex-shrink-0">
-                                @if ($preset['icon'] === 'apartment')
-                                    <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                    </svg>
-                                @else
-                                    <svg class="w-6 h-6 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-600' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                                    </svg>
-                                @endif
-                            </span>
-                            <div class="flex-1 min-w-0">
-                                <h5 class="font-semibold {{ $selectedPreset === $key ? 'text-white' : 'text-slate-900' }} truncate">{{ $preset['label'] }}</h5>
-                                <p class="text-sm {{ $selectedPreset === $key ? 'text-white/80' : 'text-slate-500' }}">{{ $preset['description'] }}</p>
-                            </div>
-                            <svg class="w-6 h-6 flex-shrink-0 ml-2 {{ $selectedPreset === $key ? 'text-white' : 'text-slate-300' }}" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                            </svg>
-                        </div>
-                        <div class="mt-3 text-right">
-                            <span class="text-xl font-bold {{ $selectedPreset === $key ? 'text-white' : 'text-slate-900' }}">{{ number_format($preset['consumption'], 0, ',', ' ') }}</span>
-                            <span class="{{ $selectedPreset === $key ? 'text-white/80' : 'text-slate-500' }} text-sm ml-1">kWh/v</span>
-                        </div>
-                    </button>
-                @endforeach
-            </div>
-        @endif
-
-        {{-- Calculator Tab (simplified for this page) --}}
-        @if ($activeTab === 'calculator')
-            <div class="max-w-md mx-auto">
-                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 text-left">
-                    <label for="custom-consumption" class="block text-sm font-medium text-slate-700 mb-2">
-                        Syötä vuosikulutus (kWh)
-                    </label>
-                    <input
-                        type="number"
-                        id="custom-consumption"
-                        wire:model.live.debounce.500ms="consumption"
-                        min="500"
-                        max="50000"
-                        step="500"
-                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500 text-2xl font-bold text-center"
-                    >
-                    <p class="text-sm text-slate-500 mt-2 text-center">
-                        Löydät kulutustiedon sähkölaskustasi
-                    </p>
-                </div>
-            </div>
-        @endif
-
-        {{-- Current Selection Display --}}
-        <div class="mt-6">
-            <div class="inline-flex items-center bg-coral-50 border border-coral-200 rounded-full px-6 py-3">
-                <svg class="w-5 h-5 text-coral-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                </svg>
-                <span class="text-coral-700 font-medium">Vertailu kulutuksella:</span>
-                <span class="text-coral-900 font-bold ml-2">{{ number_format($consumption, 0, ',', ' ') }} kWh/v</span>
-            </div>
-            <p class="mt-4 text-sm text-slate-500 max-w-2xl mx-auto">
-                Edullisuus perustuu Voltikan riippumattomaan vertailuun: arvioidut 12 kk kulut valitulla kulutuksella, sisältäen tarjoukset, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
-                <a href="/tietoa#menetelma" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Näin laskemme &rarr;</a>
-            </p>
-        </div>
-    </section>
+    @include('partials.contract-consumption-selector', [
+        'isBusinessPage' => false,
+        'showCalculatorTab' => true,
+    ])
 
     {{-- Pricing-type pills. This page has its own template (it is not the shared
          seo-contracts-list view) and carries no filter accordion, so the pill row is

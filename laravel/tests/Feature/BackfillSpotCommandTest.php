@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\SpotPriceHour;
 use App\Services\EntsoeService;
+use App\Services\SpotPriceAverageService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\RequestException;
@@ -118,6 +119,7 @@ class BackfillSpotCommandTest extends TestCase
 
                 // Verify chunk sizes are roughly monthly
                 $days = $start->diffInDays($end);
+
                 return $days >= 28 && $days <= 32; // Approximately one month
             })
             ->andReturn([]);
@@ -169,12 +171,8 @@ class BackfillSpotCommandTest extends TestCase
         ]);
     }
 
-    /**
-     * Test command skips dates that already have data.
-     */
-    public function test_command_skips_existing_data_by_default(): void
+    public function test_one_existing_row_does_not_skip_a_month(): void
     {
-        // Create existing data for December 2025
         $existingTimestamp = Carbon::create(2025, 12, 15, 10, 0, 0, 'UTC')->timestamp;
         SpotPriceHour::create([
             'region' => 'FI',
@@ -185,20 +183,39 @@ class BackfillSpotCommandTest extends TestCase
         ]);
 
         $mockService = Mockery::mock(EntsoeService::class);
-
-        // When a month already has data, the command should skip fetching it
-        // We're fetching December only, and it has data, so should be skipped
         $mockService->shouldReceive('fetchDayAheadPrices')
-            ->never();
-
+            ->once()
+            ->andReturn([]);
         $this->app->instance(EntsoeService::class, $mockService);
 
         $this->artisan('spot:backfill --start-date=2025-12-01 --end-date=2025-12-31')
             ->assertExitCode(0);
+    }
 
-        // Original record should remain unchanged
-        $spotPrice = SpotPriceHour::where('timestamp', $existingTimestamp)->first();
-        $this->assertEquals(4.0, $spotPrice->price_without_tax);
+    public function test_full_exact_chunk_is_skipped_by_default(): void
+    {
+        $start = Carbon::create(2025, 12, 1, 0, 0, 0, 'UTC');
+        $end = Carbon::create(2026, 1, 1, 0, 0, 0, 'UTC');
+        $records = [];
+
+        for ($hour = $start->copy(); $hour->lessThan($end); $hour->addHour()) {
+            $records[] = [
+                'region' => 'FI',
+                'timestamp' => $hour->timestamp,
+                'utc_datetime' => $hour->copy(),
+                'price_without_tax' => 4.0,
+                'vat_rate' => 0.255,
+            ];
+        }
+
+        SpotPriceHour::insert($records);
+
+        $mockService = Mockery::mock(EntsoeService::class);
+        $mockService->shouldNotReceive('fetchDayAheadPrices');
+        $this->app->instance(EntsoeService::class, $mockService);
+
+        $this->artisan('spot:backfill --start-date=2025-12-01 --end-date=2025-12-31')
+            ->assertExitCode(0);
     }
 
     /**
@@ -276,10 +293,9 @@ class BackfillSpotCommandTest extends TestCase
 
         $this->app->instance(EntsoeService::class, $mockService);
 
-        // Should continue and report error but not crash
         $this->artisan('spot:backfill --start-date=2026-01-01 --end-date=2026-01-15')
             ->expectsOutputToContain('Error')
-            ->assertExitCode(0); // Still exit 0 as it processes what it can
+            ->assertExitCode(1);
     }
 
     /**
@@ -291,18 +307,18 @@ class BackfillSpotCommandTest extends TestCase
 
         $mockService = Mockery::mock(EntsoeService::class);
 
-        // First chunk fails
         $mockService->shouldReceive('fetchDayAheadPrices')
             ->once()
+            ->ordered()
             ->andThrow(new RequestException(
                 new \Illuminate\Http\Client\Response(
                     new \GuzzleHttp\Psr7\Response(500, [], 'Server Error')
                 )
             ));
 
-        // Second chunk succeeds
         $mockService->shouldReceive('fetchDayAheadPrices')
             ->once()
+            ->ordered()
             ->andReturn([
                 [
                     'region' => 'FI',
@@ -314,8 +330,12 @@ class BackfillSpotCommandTest extends TestCase
 
         $this->app->instance(EntsoeService::class, $mockService);
 
+        $averageService = Mockery::mock(SpotPriceAverageService::class);
+        $averageService->shouldReceive('calculateAllAverages')->once();
+        $this->app->instance(SpotPriceAverageService::class, $averageService);
+
         $this->artisan('spot:backfill --start-date=2025-11-01 --end-date=2025-12-31')
-            ->assertExitCode(0);
+            ->assertExitCode(1);
 
         // Second chunk data should be saved
         $this->assertDatabaseHas('spot_prices_hour', [
@@ -457,6 +477,7 @@ class BackfillSpotCommandTest extends TestCase
             ->times(2)
             ->andReturnUsing(function () use (&$callTimes) {
                 $callTimes[] = microtime(true);
+
                 return [];
             });
 

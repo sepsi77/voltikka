@@ -13,6 +13,8 @@ use App\Services\ContractCard\Enums\PricingCategory;
 use App\Services\ContractCard\PricingCategoryResolver;
 use App\Services\ContractListing\ContractListingPipeline;
 use App\Services\ContractMarketInsights\ContractMarketInsightService;
+use App\Services\ContractPricing\CanonicalContractMetric;
+use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\DTO\EnergyUsage;
 use App\Services\LocalContractsService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -437,14 +439,17 @@ class SeoContractsList extends ContractsList
 
         if ($this->offerType === 'promotion' && $useCanonical) {
             $sorted = $sorted
-                ->filter(fn (ElectricityContract $contract) => CanonicalOfferFacts::fromCalculatedCost(
-                    is_array($contract->calculated_cost ?? null) ? $contract->calculated_cost : [],
+                ->filter(fn (ElectricityContract $contract) => CanonicalOfferFacts::fromPricing(
+                    ContractPricingViewData::fromArray($contract->calculated_cost),
                 ) !== null)
                 ->values();
         }
 
         // Store cheapest total cost for SEO titles
-        $this->cheapestTotalCost = $sorted->first()?->calculated_cost['total_cost'] ?? null;
+        $firstPricing = $sorted->first()?->calculated_cost;
+        $this->cheapestTotalCost = is_array($firstPricing)
+            ? ContractPricingViewData::fromArray($firstPricing)->total()
+            : null;
 
         // For city pages, exclude contracts already shown in local/regional sections
         if ($this->city) {
@@ -479,15 +484,18 @@ class SeoContractsList extends ContractsList
         return $contracts
             ->map(function (ElectricityContract $contract) use ($metrics) {
                 $canonical = $metrics[$contract->id] ?? null;
-                $contract->calculated_cost = $canonical['calculated_cost'] ?? [];
-                $contract->pricing_integrity = $canonical['integrity'] ?? null;
-                $contract->comparability = $canonical['comparability'] ?? null;
-                $contract->is_listed = $canonical['is_listed'] ?? false;
+                if (! $canonical instanceof CanonicalContractMetric) {
+                    throw new \InvalidArgumentException('Canonical metrics are missing contract '.$contract->id.'.');
+                }
+                $contract->calculated_cost = $canonical->pricing()->toArray();
+                $contract->pricing_integrity = $canonical->integrity()->toArray();
+                $contract->comparability = $canonical->comparability()->value;
+                $contract->is_listed = $canonical->isListed();
 
                 return $contract;
             })
             ->filter(fn (ElectricityContract $contract) => $contract->is_listed
-                && CanonicalOfferFacts::fromCalculatedCost($contract->calculated_cost) !== null)
+                && CanonicalOfferFacts::fromPricing(ContractPricingViewData::fromArray($contract->calculated_cost)) !== null)
             ->values();
     }
 
@@ -818,8 +826,8 @@ class SeoContractsList extends ContractsList
                     // The seller description can contain stale campaign arithmetic.
                     // Offer-page JSON-LD uses only the generic identity and typed fact.
                     $description = $genericDescription;
-                    $offerFact = CanonicalOfferFacts::fromCalculatedCost(
-                        is_array($contract->calculated_cost ?? null) ? $contract->calculated_cost : [],
+                    $offerFact = CanonicalOfferFacts::fromPricing(
+                        ContractPricingViewData::fromArray($contract->calculated_cost),
                     );
                     if ($offerFact !== null) {
                         $description .= ' '.$offerFact['description'];

@@ -479,7 +479,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
             $this->context(),
             start: CarbonImmutable::parse('2026-07-01', 'Europe/Helsinki'),
         )->toCalculatedCostArray();
-        $facts = CanonicalOfferFacts::fromCalculatedCost($cost);
+        $facts = CanonicalOfferFacts::fromArray($cost);
 
         $this->assertCount(1, $cost['offer_terms']);
         $this->assertCount(2, $cost['offer_terms'][0]['components']);
@@ -563,7 +563,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
             $this->context('Hybrid', 'FixedTerm', 'Fixed6'),
             start: CarbonImmutable::parse('2026-07-01', 'Europe/Helsinki'),
         )->toCalculatedCostArray();
-        $facts = CanonicalOfferFacts::fromCalculatedCost($cost);
+        $facts = CanonicalOfferFacts::fromArray($cost);
 
         $this->assertSame(ContractComparability::BaseOnlyHybrid->value, $cost['comparability']);
         $this->assertSame(EstimateMethod::HybridBaseOnly->value, $cost['estimate_method']);
@@ -629,7 +629,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
                 $this->context('Hybrid', 'FixedTerm', $fixedTimeRange),
                 start: CarbonImmutable::parse('2026-07-01', 'Europe/Helsinki'),
             )->toCalculatedCostArray();
-            $facts = CanonicalOfferFacts::fromCalculatedCost($cost);
+            $facts = CanonicalOfferFacts::fromArray($cost);
 
             $this->assertNull($cost['term_months']);
             $this->assertNull($cost['contract_term']);
@@ -663,7 +663,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
             new SpotAssumptions(7.0, 5.0),
             CarbonImmutable::parse('2026-07-01', 'Europe/Helsinki'),
         )->toCalculatedCostArray();
-        $facts = CanonicalOfferFacts::fromCalculatedCost($cost);
+        $facts = CanonicalOfferFacts::fromArray($cost);
 
         $this->assertCount(2, $cost['offer_terms']);
         $this->assertStringContainsString('Marginaali 0,38 c/kWh ja perusmaksu 0 €/kk ensimmäisen kuukauden', $facts['label']);
@@ -696,7 +696,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
 
         $this->assertGreaterThan(0, $cost['discount_savings_total']);
         $this->assertSame([], $cost['offer_terms']);
-        $this->assertNull(CanonicalOfferFacts::fromCalculatedCost($cost));
+        $this->assertNull(CanonicalOfferFacts::fromArray($cost));
     }
 
     public function test_11e_six_month_term_keeps_one_month_offer_benefit_before_annualization(): void

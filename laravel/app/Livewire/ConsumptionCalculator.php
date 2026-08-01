@@ -64,6 +64,9 @@ class ConsumptionCalculator extends Component
     // Results (stored as array for Livewire serialization)
     public array $calculationResult = [];
 
+    /** @var array<string, string> Field-specific notices for corrected negative values. */
+    public array $numericNotices = [];
+
     // Presets for quick selection
     #[Url]
     public ?string $selectedPreset = null;
@@ -359,10 +362,30 @@ class ConsumptionCalculator extends Component
 
     protected function normalizeIntProperty(string $property, int $minimum): int
     {
+        $rawValue = $this->safeRawValue($property, $minimum);
         $value = max($minimum, $this->safeIntValue($property, $minimum));
+
+        if (is_numeric($rawValue) && (float) $rawValue < $minimum) {
+            $this->numericNotices[$property] = $this->numericMinimumNotice($property, $minimum);
+        } else {
+            unset($this->numericNotices[$property]);
+        }
+
         $this->{$property} = $value;
 
         return $value;
+    }
+
+    protected function numericMinimumNotice(string $property, int $minimum): string
+    {
+        return match ($property) {
+            'livingArea' => "Asuinpinta-ala ei voi olla alle {$minimum} m². Käytämme arvoa {$minimum} m².",
+            'numPeople' => "Asukkaiden määrä ei voi olla alle {$minimum}. Käytämme arvoa {$minimum}.",
+            'bathroomHeatingArea' => 'Lattialämmityksen pinta-ala ei voi olla negatiivinen. Käytämme arvoa 0 m².',
+            'saunaUsagePerWeek' => 'Saunan käyttökerrat eivät voi olla negatiivisia. Käytämme arvoa 0.',
+            'electricVehicleKmsPerMonth' => 'Sähköauton ajokilometrit eivät voi olla negatiivisia. Käytämme arvoa 0 km/kk.',
+            default => "Arvo ei voi olla alle {$minimum}. Käytämme arvoa {$minimum}.",
+        };
     }
 
     #[Computed]

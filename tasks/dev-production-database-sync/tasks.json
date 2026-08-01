@@ -1,0 +1,9 @@
+[
+  {"name":"Design safe Railway MySQL to local SQLite workflow","status":"completed"},
+  {"name":"Implement reusable sync command and wrapper script","status":"completed"},
+  {"name":"Add safety and copy regression tests","status":"completed"},
+  {"name":"Harden cached-config isolation, target verification, and schema-drift guards","status":"completed"},
+  {"name":"Support production lag for the local-derived source-observation table","status":"completed"},
+  {"name":"Run a real production-to-local sync and validate the result","status":"completed"},
+  {"name":"Document usage and decisions","status":"completed"}
+]

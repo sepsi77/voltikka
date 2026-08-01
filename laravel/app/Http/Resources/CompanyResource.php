@@ -17,7 +17,7 @@ class CompanyResource extends JsonResource
         return [
             'name' => $this->name,
             'name_slug' => $this->name_slug,
-            'logo_url' => $this->logo_url,
+            'logo_url' => $this->getLogoUrl(),
             'company_url' => $this->company_url,
         ];
     }

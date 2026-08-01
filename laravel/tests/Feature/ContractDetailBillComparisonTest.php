@@ -34,6 +34,19 @@ class ContractDetailBillComparisonTest extends TestCase
         ]);
     }
 
+    public function test_negative_shared_bill_inputs_are_rejected_with_visible_notices(): void
+    {
+        $contract = $this->createContract('negative-bill-inputs', 'Negatiivinen lasku', 5.0, 3.0);
+
+        Livewire::test('contract-detail', ['contractId' => $contract->id])
+            ->set('billKwh', -10)
+            ->assertSet('billKwh', null)
+            ->assertSee('Kulutuksen pitää olla suurempi kuin 0 kWh.')
+            ->set('billTotalEur', -20)
+            ->assertSet('billTotalEur', null)
+            ->assertSee('Laskun summan pitää olla suurempi kuin 0 €.');
+    }
+
     /**
      * General 5,00 c/kWh + 3,00 €/kk. For a 30-day period with 300 kWh the
      * period cost is exactly 5,00 c x 300 kWh + 3,00 € = 18,00 €.

@@ -7,6 +7,7 @@ use App\Services\DTO\BillComparisonRequest;
 use App\Services\DTO\BillComparisonResult;
 use Carbon\Carbon;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
@@ -36,11 +37,21 @@ class BillComparison extends Component
     public string $periodPreset = 'last_month';
 
     public string $startDate = '';
+
     public string $endDate = '';
 
     public float|string|null $kwh = null;
+
     public float|string|null $totalEur = null;
+
+    #[Locked]
+    public float $acceptedKwh = 400.0;
+
+    #[Locked]
+    public float $acceptedTotalEur = 35.0;
+
     public bool $includesVat = true;
+
     public bool $includesHeating = false;
 
     // Optional: if the visitor knows their annual consumption, use it directly
@@ -63,7 +74,9 @@ class BillComparison extends Component
      * result is rebuilt each request and handed to the view from `render()`.
      */
     protected bool $calculated = false;
+
     protected ?array $resultArray = null;
+
     protected ?string $errorMessage = null;
 
     public function mount(): void
@@ -80,6 +93,9 @@ class BillComparison extends Component
         if ($this->totalEur === null || $this->totalEur === '') {
             $this->totalEur = 35.00;
         }
+
+        $this->acceptedKwh = (float) $this->kwh;
+        $this->acceptedTotalEur = (float) $this->totalEur;
 
         $this->calculate();
     }
@@ -125,11 +141,37 @@ class BillComparison extends Component
 
     public function updatedKwh(): void
     {
+        $kwh = $this->nullableFloat($this->kwh);
+        if ($kwh !== null && $kwh < 1) {
+            $this->kwh = $this->acceptedKwh;
+            $this->calculate();
+            $this->addError('kwh', 'Syötä kulutukseksi vähintään 1 kWh.');
+
+            return;
+        }
+
+        if ($kwh !== null) {
+            $this->acceptedKwh = $kwh;
+        }
+
         $this->calculate();
     }
 
     public function updatedTotalEur(): void
     {
+        $totalEur = $this->nullableFloat($this->totalEur);
+        if ($totalEur !== null && $totalEur <= 0) {
+            $this->totalEur = $this->acceptedTotalEur;
+            $this->calculate();
+            $this->addError('totalEur', 'Syötä sähkösopimuksen hinnaksi yli 0 euroa.');
+
+            return;
+        }
+
+        if ($totalEur !== null) {
+            $this->acceptedTotalEur = $totalEur;
+        }
+
         $this->calculate();
     }
 
@@ -145,25 +187,42 @@ class BillComparison extends Component
 
     public function updatedAnnualKwh(): void
     {
+        $annualKwh = $this->nullableFloat($this->annualKwh);
+        if ($annualKwh !== null && $annualKwh < 0) {
+            $this->annualKwh = null;
+            $this->calculate();
+            $this->addError('annualKwh', 'Vuosikulutus ei voi olla negatiivinen.');
+
+            return;
+        }
+
+        $this->resetValidation('annualKwh');
         $this->calculate();
     }
 
     public function calculate(): void
     {
         $this->errorMessage = null;
+        $this->resetValidation(['kwh', 'totalEur']);
 
         $kwh = $this->nullableFloat($this->kwh);
         $totalEur = $this->nullableFloat($this->totalEur);
+        $hasInvalidRequiredValue = false;
 
-        if ($kwh === null || $kwh <= 0) {
-            $this->calculated = false;
-            $this->resultArray = null;
-            return;
+        if ($kwh !== null && $kwh < 1) {
+            $this->addError('kwh', 'Syötä kulutukseksi vähintään 1 kWh.');
+            $hasInvalidRequiredValue = true;
         }
 
-        if ($totalEur === null || $totalEur <= 0) {
+        if ($totalEur !== null && $totalEur <= 0) {
+            $this->addError('totalEur', 'Syötä sähkösopimuksen hinnaksi yli 0 euroa.');
+            $hasInvalidRequiredValue = true;
+        }
+
+        if ($hasInvalidRequiredValue || $kwh === null || $totalEur === null) {
             $this->calculated = false;
             $this->resultArray = null;
+
             return;
         }
 
@@ -174,6 +233,7 @@ class BillComparison extends Component
             $this->errorMessage = 'Tarkista laskutusjakson päivämäärät.';
             $this->calculated = false;
             $this->resultArray = null;
+
             return;
         }
 
@@ -307,7 +367,7 @@ class BillComparison extends Component
             'errorMessage' => $this->errorMessage,
         ])->layout('layouts.app', [
             'title' => "Maksatko sähköstä liikaa? Vertaa laskuasi markkinoihin {$year} | Voltikka",
-            'metaDescription' => "Syötä sähkölaskusi tiedot ja näe heti, säästäisitko vaihtamalla. Voltikka vertaa laskuasi markkinoiden sähkösopimuksiin, et tarvitse vuosikulutusta. Ilmainen laskuri.",
+            'metaDescription' => 'Syötä sähkölaskusi tiedot ja näe heti, säästäisitko vaihtamalla. Voltikka vertaa laskuasi markkinoiden sähkösopimuksiin, et tarvitse vuosikulutusta. Ilmainen laskuri.',
             'canonical' => route('bill.comparison'),
         ]);
     }
@@ -394,7 +454,7 @@ class BillComparison extends Component
     {
         $userPeriodCost = $result->userRow()?->periodCostEur ?? 0.0;
 
-        $rows = array_map(function ($row) use ($result, $userPeriodCost) {
+        $rows = array_map(function ($row) use ($userPeriodCost) {
             $periodSaving = $row->isUser ? null : ($userPeriodCost - $row->periodCostEur);
 
             return [

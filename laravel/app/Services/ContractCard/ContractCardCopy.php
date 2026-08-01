@@ -2,10 +2,12 @@
 
 namespace App\Services\ContractCard;
 
+use App\Enums\ContractType;
 use App\Services\ContractCard\DTO\CardEstimate;
 use App\Services\ContractCard\DTO\CardTypeBand;
 use App\Services\ContractCard\DTO\PricingCategoryFacts;
 use App\Services\ContractCard\Enums\PricingCategory;
+use App\Services\ContractPricing\ContractPricingViewData;
 use Carbon\CarbonImmutable;
 
 /**
@@ -24,9 +26,9 @@ class ContractCardCopy
     /**
      * The type band. Single purpose: it states the pricing category and nothing else.
      *
-     * @param bool $hasScheduledPublishedChange True when the contract is fixed but has a
-     *        pre-published later price (the integrity payload produced a card label). The
-     *        band stays a truthful fixed-category statement; the increase is a footer warning.
+     * @param  bool  $hasScheduledPublishedChange  True when the contract is fixed but has a
+     *                                             pre-published later price (the integrity payload produced a card label). The
+     *                                             band stays a truthful fixed-category statement; the increase is a footer warning.
      */
     public static function band(
         PricingCategoryFacts $facts,
@@ -88,11 +90,13 @@ class ContractCardCopy
      */
     public static function durationLabel(?string $contractType, ?string $fixedTimeRange): ?string
     {
-        if ($contractType === 'OpenEnded') {
+        $type = ContractType::fromSource($contractType);
+
+        if ($type === ContractType::OpenEnded) {
             return 'Toistaiseksi voimassa';
         }
 
-        if ($contractType !== 'FixedTerm') {
+        if ($type !== ContractType::FixedTerm) {
             return null;
         }
 
@@ -110,17 +114,15 @@ class ContractCardCopy
 
     /**
      * The Arvio popover. One of four typed reasons.
-     *
-     * @param array<string, mixed> $cost The `calculated_cost` payload.
      */
-    public static function estimate(array $cost, PricingCategoryFacts $facts): ?CardEstimate
+    public static function estimate(?ContractPricingViewData $pricing, PricingCategoryFacts $facts): ?CardEstimate
     {
-        $method = is_string($cost['estimate_method'] ?? null) ? $cost['estimate_method'] : null;
+        $method = $pricing?->estimateMethod()?->value;
 
         // Legacy pricing (CANONICAL_PRICING_ENABLED off) has no estimate_method, but a spot
         // total is still an estimate and must say so.
         if ($method === null || $method === 'none') {
-            $method = ($cost['is_spot_contract'] ?? false) === true ? 'rolling_365_spot' : null;
+            $method = $pricing?->isSpotContract() === true ? 'rolling_365_spot' : null;
         }
 
         // These reasons COMPOSE; they are not alternatives, and `estimate_method` reports only
@@ -132,10 +134,10 @@ class ContractCardCopy
         // c/kWh here, a 134 EUR/yr difference) and the receipt rows said so. Read the price
         // LEVEL from the mechanism, and treat hybrid_base_only as what it is: an exclusion.
         $level = match (true) {
-            $facts->isReset => self::resetBody($cost, $facts),
-            $method === 'rolling_365_spot' => self::spotBody($cost),
-            $method === 'term_price_annualized' => self::termBody($cost),
-            $method === 'hybrid_base_only' => self::hybridBody($cost),
+            $facts->isReset => self::resetBody($pricing, $facts),
+            $method === 'rolling_365_spot' => self::spotBody($pricing),
+            $method === 'term_price_annualized' => self::termBody($pricing),
+            $method === 'hybrid_base_only' => self::hybridBody($pricing),
             default => null,
         };
 
@@ -154,14 +156,11 @@ class ContractCardCopy
         );
     }
 
-    /**
-     * @param array<string, mixed> $cost
-     */
-    private static function spotBody(array $cost): string
+    private static function spotBody(?ContractPricingViewData $pricing): string
     {
-        $day = self::price($cost['spot_price_day_avg'] ?? null);
-        $night = self::price($cost['spot_price_night_avg'] ?? null);
-        $margin = self::price($cost['spot_price_margin'] ?? null);
+        $day = self::price($pricing?->spotPriceDayAverage());
+        $night = self::price($pricing?->spotPriceNightAverage());
+        $margin = self::price($pricing?->spotPriceMargin());
 
         $body = 'Vuosihinta perustuu 12 kuukauden toteutuneeseen pörssikeskihintaan';
         if ($day !== null && $night !== null) {
@@ -183,12 +182,12 @@ class ContractCardCopy
      * payload is the record of what actually happened to the numbers. A missing payload means
      * the tail held flat, which is what `RESET_FORWARD_SHIFT_ENABLED=false` produces.
      *
-     * @param array<string, mixed> $cost
+     * @param  array<string, mixed>  $cost
      */
-    private static function resetBody(array $cost, PricingCategoryFacts $facts): string
+    private static function resetBody(?ContractPricingViewData $pricing, PricingCategoryFacts $facts): string
     {
-        $reset = is_array($cost['reset_estimate'] ?? null) ? $cost['reset_estimate'] : [];
-        $current = self::price($reset['current_period_energy_price'] ?? $cost['general_kwh_price'] ?? null);
+        $reset = $pricing?->resetEstimate();
+        $current = self::price($reset?->number('current_period_energy_price') ?? $pricing?->generalKwhPrice());
         $until = $facts->nextReset?->subDay();
 
         $body = $current !== null
@@ -196,8 +195,8 @@ class ContractCardCopy
             : 'Nykyisen jakson hinta on tiedossa';
         $body .= $until !== null ? ' '.self::dayMonth($until).' asti.' : '.';
 
-        $annual = self::price($reset['annual_equivalent_energy_price'] ?? null);
-        $body .= match ($reset['basis'] ?? null) {
+        $annual = self::price($reset?->number('annual_equivalent_energy_price'));
+        $body .= match ($reset?->string('basis')) {
             'forward_curve_shift' => ' Loppuvuoden hinnat on arvioitu sähköjohdannaisten markkinahinnoista'
                 .($annual !== null ? ', jolloin koko vuoden keskihinnaksi tulee '.$annual.' c/kWh.' : '.'),
             'spot_seasonal_index' => ' Loppuvuoden hinnat on arvioitu pörssisähkön usean vuoden kausivaihtelusta, koska johdannaishintoja ei ollut saatavilla'
@@ -208,12 +207,9 @@ class ContractCardCopy
         return $body.' Myyjä julkaisee todelliset hinnat '.self::cadenceAdverb($facts->cadence).'.';
     }
 
-    /**
-     * @param array<string, mixed> $cost
-     */
-    private static function termBody(array $cost): string
+    private static function termBody(?ContractPricingViewData $pricing): string
     {
-        $months = is_numeric($cost['term_months'] ?? null) ? (int) $cost['term_months'] : null;
+        $months = $pricing?->termMonths();
 
         $body = $months !== null
             ? 'Sopimus on kiinteä '.$months.' kuukautta.'
@@ -223,12 +219,13 @@ class ContractCardCopy
             .' Myyjä ei ole ilmoittanut hintaa jakson jälkeen.';
     }
 
-    /**
-     * @param array<string, mixed> $cost
-     */
-    private static function hybridBody(array $cost): string
+    private static function hybridBody(?ContractPricingViewData $pricing): string
     {
-        $base = self::price($cost['general_kwh_price'] ?? $cost['daytime_kwh_price'] ?? $cost['seasonal_winter_day_kwh_price'] ?? null);
+        $base = self::price(
+            $pricing?->generalKwhPrice()
+            ?? $pricing?->daytimeKwhPrice()
+            ?? $pricing?->seasonalWinterDayKwhPrice(),
+        );
 
         $body = $base !== null
             ? 'Vuosihinta on laskettu kiinteällä perushinnalla '.$base.' c/kWh.'
@@ -250,7 +247,7 @@ class ContractCardCopy
 
     private static function durationDetail(?string $contractType, ?string $fixedTimeRange): ?string
     {
-        if ($contractType === 'OpenEnded') {
+        if (ContractType::fromSource($contractType) === ContractType::OpenEnded) {
             return 'Voimassa toistaiseksi';
         }
 

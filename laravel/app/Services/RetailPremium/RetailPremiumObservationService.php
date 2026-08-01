@@ -2,6 +2,8 @@
 
 namespace App\Services\RetailPremium;
 
+use App\Enums\ContractType;
+use App\Enums\PricingModel;
 use App\Models\ElectricityContract;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -21,15 +23,15 @@ class RetailPremiumObservationService
      */
     public function buildObservations(ElectricityContract $contract, CarbonInterface $asOfDate): Collection
     {
-        if ($contract->pricing_model === 'Spot') {
+        if ($contract->pricingModelType() === PricingModel::Spot) {
             return $this->buildSpotObservations($contract, $asOfDate);
         }
 
-        if ($contract->pricing_model === 'Hybrid') {
+        if ($contract->pricingModelType() === PricingModel::Hybrid) {
             return $this->buildHybridObservations($contract, $asOfDate);
         }
 
-        if ($contract->pricing_model !== 'FixedPrice') {
+        if ($contract->pricingModelType() !== PricingModel::FixedPrice) {
             return collect();
         }
 
@@ -45,7 +47,7 @@ class RetailPremiumObservationService
 
         $durationMonths = $contract->publishedInterpretation?->output['classification']['fixed_duration_months'] ?? null;
 
-        if ($contract->contract_type === 'FixedTerm' && is_int($durationMonths) && $durationMonths > 0) {
+        if ($contract->contractTypeValue() === ContractType::FixedTerm && is_int($durationMonths) && $durationMonths > 0) {
             return $this->buildFixedTermObservations($contract, $asOfDate, $durationMonths);
         }
 
@@ -59,7 +61,7 @@ class RetailPremiumObservationService
      */
     public function buildSpotObservations(ElectricityContract $contract, CarbonInterface $asOfDate): Collection
     {
-        if ($contract->pricing_model !== 'Spot' || $contract->published_interpretation_id === null) {
+        if ($contract->pricingModelType() !== PricingModel::Spot || $contract->published_interpretation_id === null) {
             return collect();
         }
 

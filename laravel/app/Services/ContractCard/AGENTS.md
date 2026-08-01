@@ -159,7 +159,7 @@ metering (every active spot contract) the calculator prices the whole bucket at
 
 ## Dated rows for a mid-window mechanism switch
 
-`CardReceiptLines::mechanismSwitchPhases()` reads `calculated_cost['phase_breakdown']` and,
+`CardReceiptLines::mechanismSwitchPhases()` reads validated `ContractPricingViewData::phases()` records and,
 when two adjacent phases price the same kWh by **different mechanisms** (a flat energy rate
 then a spot margin, or the reverse), replaces the ordinary rows with two dated ones:
 "Energia 25.8. asti 6,99 c/kWh" and "Marginaali 26.8. alkaen 1,29 c/kWh".
@@ -225,6 +225,11 @@ pins one assertion per defect.
 
 The page keeps what the cards do not have: the full component history, the version timeline,
 the VAT note, the market-reset notice and the integrity notice.
+
+`ContractListCacheService` now returns a typed `ContractPricing\ContractMetricSet`. Listing and
+detail callers intentionally serialize `metric->pricing()->toArray()` when they attach the existing
+`calculated_cost` Eloquent presentation attribute. The card presenter input remains the same array in
+this slice; do not add a second untyped cache API for it.
 
 ## The seller CTA
 
@@ -300,6 +305,7 @@ Two rules that must not be reverted, because both produced visible defects on a 
   reading stale calculated-cost data for up to 48 hours. Current calculated-cost schema **v11**
   includes package and real-term fields, canonical-only current facts, exact typed offer terms,
   short Hybrid real-term totals, and listed `other`-cadence reset estimates.
+  The presenter strictly hydrates the existing Eloquent `calculated_cost` transport attribute into one `ContractPricingViewData`; receipt, footer, copy, package, Hybrid, reset, phase, term, discount, estimate, and total decisions use typed access. `pricing_integrity` is hydrated into the existing typed `ContractPricingIntegrity`. Arrays do not continue inside card derivation.
   The detail page's own prepared-payload key is **v18** because its price-development
   overlay now uses the basis-aware statistics segment classifier.
 

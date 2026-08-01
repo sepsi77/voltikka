@@ -33,9 +33,13 @@ class HeatPumpCalculator extends Component
     // Building info. Numeric inputs accept temporary string/null states because
     // Livewire/mobile browsers can send an empty string while a number field is cleared.
     public int|string|null $livingArea = 150;
+
     public float|string|null $roomHeight = 2.5;
+
     public string $buildingRegion = 'central';
+
     public string $buildingEnergyEfficiency = '2000';
+
     public int|string|null $numPeople = 4;
 
     // Input mode: 'model_based' or 'bill_based'
@@ -46,13 +50,18 @@ class HeatPumpCalculator extends Component
 
     // Bill-based inputs (used when inputMode = 'bill_based')
     public float|string|null $oilLitersPerYear = null;
+
     public float|string|null $electricityKwhPerYear = null;
+
     public float|string|null $districtHeatingEurosPerYear = null;
 
     // Prices
     public float|string|null $electricityPrice = 15.0; // c/kWh including VAT and transfer
+
     public float|string|null $oilPrice = 1.40; // €/liter
+
     public float|string|null $districtHeatingPrice = 10.8; // c/kWh
+
     public float|string|null $pelletPrice = 480.0; // €/ton
 
     // Investment costs (user-adjustable)
@@ -60,10 +69,12 @@ class HeatPumpCalculator extends Component
 
     // Financial parameters
     public float|string|null $interestRate = 2.0; // percent
+
     public int|string|null $calculationPeriod = 15; // years
 
     // Results (stored as array for Livewire serialization)
     public array $calculationResult = [];
+
     public ?string $errorMessage = null;
 
     // Show/hide advanced settings
@@ -209,31 +220,43 @@ class HeatPumpCalculator extends Component
 
     public function toggleAdvancedSettings(): void
     {
-        $this->showAdvancedSettings = !$this->showAdvancedSettings;
+        $this->showAdvancedSettings = ! $this->showAdvancedSettings;
     }
 
     private function normalizeNumericInputs(): void
     {
-        // Blank number inputs are normalized to safe defaults. Numeric out-of-range
-        // values are left intact where the UI already shows an explicit validation
-        // error (for example living area), preserving existing behaviour.
+        // Blank number inputs use safe defaults. Values below the HTML minimum are
+        // also corrected here because browser constraints do not protect Livewire
+        // requests. Living area and active bill quantities keep their specific
+        // validation errors below.
+        $correctedMinimum = false;
+
         $this->livingArea = $this->intOrDefault($this->livingArea, 20);
-        $this->roomHeight = $this->floatOrDefault($this->roomHeight, 2.0);
-        $this->numPeople = $this->intOrDefault($this->numPeople, 1);
+        $this->roomHeight = $this->floatAtLeast($this->roomHeight, 2.0, 2.0, $correctedMinimum);
+        $this->numPeople = $this->intAtLeast($this->numPeople, 1, 1, $correctedMinimum);
 
         $this->oilLitersPerYear = $this->nullableFloat($this->oilLitersPerYear);
         $this->electricityKwhPerYear = $this->nullableFloat($this->electricityKwhPerYear);
         $this->districtHeatingEurosPerYear = $this->nullableFloat($this->districtHeatingEurosPerYear);
 
-        $this->electricityPrice = $this->floatOrDefault($this->electricityPrice, 1.0);
-        $this->oilPrice = $this->floatOrDefault($this->oilPrice, 0.5);
-        $this->districtHeatingPrice = $this->floatOrDefault($this->districtHeatingPrice, 1.0);
-        $this->pelletPrice = $this->floatOrDefault($this->pelletPrice, 100.0);
-        $this->interestRate = $this->floatOrDefault($this->interestRate, 0.0);
-        $this->calculationPeriod = $this->intOrDefault($this->calculationPeriod, 5);
+        $this->electricityPrice = $this->floatAtLeast($this->electricityPrice, 1.0, 1.0, $correctedMinimum);
+        $this->oilPrice = $this->floatAtLeast($this->oilPrice, 0.5, 0.5, $correctedMinimum);
+        $this->districtHeatingPrice = $this->floatAtLeast($this->districtHeatingPrice, 1.0, 1.0, $correctedMinimum);
+        $this->pelletPrice = $this->floatAtLeast($this->pelletPrice, 100.0, 100.0, $correctedMinimum);
+        $this->interestRate = $this->floatAtLeast($this->interestRate, 0.0, 0.0, $correctedMinimum);
+        $this->calculationPeriod = $this->intAtLeast($this->calculationPeriod, 5, 5, $correctedMinimum);
 
         foreach (self::DEFAULT_INVESTMENTS as $key => $default) {
-            $this->investments[$key] = $this->floatOrDefault($this->investments[$key] ?? null, (float) $default);
+            $this->investments[$key] = $this->floatAtLeast(
+                $this->investments[$key] ?? null,
+                (float) $default,
+                0.0,
+                $correctedMinimum,
+            );
+        }
+
+        if ($correctedMinimum) {
+            $this->errorMessage = 'Korjasimme liian pienen arvon kentän sallittuun vähimmäisarvoon.';
         }
     }
 
@@ -252,6 +275,28 @@ class HeatPumpCalculator extends Component
         return is_numeric($value) ? (float) $value : null;
     }
 
+    private function intAtLeast(mixed $value, int $default, int $minimum, bool &$corrected): int
+    {
+        $normalized = $this->intOrDefault($value, $default);
+
+        if (is_numeric($value) && $normalized < $minimum) {
+            $corrected = true;
+        }
+
+        return max($minimum, $normalized);
+    }
+
+    private function floatAtLeast(mixed $value, float $default, float $minimum, bool &$corrected): float
+    {
+        $normalized = $this->floatOrDefault($value, $default);
+
+        if (is_numeric($value) && $normalized < $minimum) {
+            $corrected = true;
+        }
+
+        return max($minimum, $normalized);
+    }
+
     public function calculate(): void
     {
         $this->errorMessage = null;
@@ -261,20 +306,24 @@ class HeatPumpCalculator extends Component
             // Validate inputs
             if ($this->livingArea < 20 || $this->livingArea > 500) {
                 $this->errorMessage = 'Pinta-ala pitää olla välillä 20-500 m².';
+
                 return;
             }
 
             if ($this->inputMode === 'bill_based') {
-                if ($this->currentHeatingMethod === 'oil' && (!$this->oilLitersPerYear || $this->oilLitersPerYear <= 0)) {
+                if ($this->currentHeatingMethod === 'oil' && (! $this->oilLitersPerYear || $this->oilLitersPerYear <= 0)) {
                     $this->errorMessage = 'Syötä öljynkulutus litroina.';
+
                     return;
                 }
-                if ($this->currentHeatingMethod === 'electricity' && (!$this->electricityKwhPerYear || $this->electricityKwhPerYear <= 0)) {
+                if ($this->currentHeatingMethod === 'electricity' && (! $this->electricityKwhPerYear || $this->electricityKwhPerYear <= 0)) {
                     $this->errorMessage = 'Syötä sähkönkulutus kWh.';
+
                     return;
                 }
-                if ($this->currentHeatingMethod === 'district_heating' && (!$this->districtHeatingEurosPerYear || $this->districtHeatingEurosPerYear <= 0)) {
+                if ($this->currentHeatingMethod === 'district_heating' && (! $this->districtHeatingEurosPerYear || $this->districtHeatingEurosPerYear <= 0)) {
                     $this->errorMessage = 'Syötä kaukolämpölasku euroina.';
+
                     return;
                 }
             }
@@ -323,7 +372,7 @@ class HeatPumpCalculator extends Component
     #[Computed]
     public function hasResults(): bool
     {
-        return !empty($this->calculationResult) && isset($this->calculationResult['currentSystem']);
+        return ! empty($this->calculationResult) && isset($this->calculationResult['currentSystem']);
     }
 
     #[Computed]
@@ -483,10 +532,10 @@ class HeatPumpCalculator extends Component
         $year = date('Y');
 
         return view('livewire.heat-pump-calculator', [
-                // Rendered in the view via <x-schema-markup>; the shared layout does not output $jsonLd.
-                'jsonLd' => $this->getJsonLdSchema(),
-                'faqJsonLd' => $this->buildFaqJsonLd(),
-            ])
+            // Rendered in the view via <x-schema-markup>; the shared layout does not output $jsonLd.
+            'jsonLd' => $this->getJsonLdSchema(),
+            'faqJsonLd' => $this->buildFaqJsonLd(),
+        ])
             ->layout('layouts.app', [
                 'title' => "Kannattaako lämpöpumppu? Vertailu ja laskuri {$year} | Voltikka",
                 'metaDescription' => "Kannattaako lämpöpumppu juuri sinun talossasi? Ilmainen laskuri vertailee, kannattaako maalämpö vai ilma-vesilämpöpumppu, ja arvioi säästöt ja takaisinmaksuajan {$year}.",

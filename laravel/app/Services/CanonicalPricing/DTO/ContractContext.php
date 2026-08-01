@@ -2,6 +2,8 @@
 
 namespace App\Services\CanonicalPricing\DTO;
 
+use App\Enums\ContractType;
+use App\Enums\PricingModel;
 use App\Models\ElectricityContract;
 
 /**
@@ -16,8 +18,7 @@ readonly class ContractContext
         public ?string $metering,
         public ?string $fixedTimeRange,
         public ?string $targetGroup,
-    ) {
-    }
+    ) {}
 
     public static function fromContract(ElectricityContract $contract): self
     {
@@ -32,12 +33,12 @@ readonly class ContractContext
 
     public function isSpot(): bool
     {
-        return $this->pricingModel === 'Spot';
+        return PricingModel::fromSource($this->pricingModel) === PricingModel::Spot;
     }
 
     public function isFixedTerm(): bool
     {
-        return $this->contractType === 'FixedTerm';
+        return ContractType::fromSource($this->contractType) === ContractType::FixedTerm;
     }
 
     /**

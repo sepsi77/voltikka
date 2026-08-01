@@ -63,12 +63,12 @@ class FetchContractsCommandTest extends TestCase
             'name' => 'Energia Oy',
         ]);
 
-        // Verify contract was created with api_id preserving the original API ID
+        // Verify the API ID is preserved and the source alias is normalized.
         $this->assertDatabaseHas('electricity_contracts', [
             'api_id' => 'contract-12345',
             'name' => 'Sähkösopimus Perus',
             'company_name' => 'Energia Oy',
-            'contract_type' => 'Fixed',
+            'contract_type' => 'FixedTerm',
             'metering' => 'General',
         ]);
 

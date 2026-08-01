@@ -9,9 +9,13 @@ use App\Models\SpotPriceAverage;
 use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\CO2EmissionsCalculator;
+use App\Services\ContractDetail\ContractDetailPresentationInput;
+use App\Services\ContractDetail\ContractDetailSeoPresenter;
 use App\Services\ContractListCacheService;
 use App\Services\ContractPriceCalculator;
+use App\Services\ContractPriceHistory\ContractHistoryPresenter;
 use App\Services\ContractPriceHistory\PriceDevelopmentPresenter;
+use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\ContractRankingService;
 use App\Services\DTO\EnergyUsage;
 use App\Support\ContractContentSanitizer;
@@ -36,15 +40,16 @@ class ContractDetail extends Component
 
     protected ?array $latestPricesCache = null;
 
-    protected ?array $priceHistoryCache = null;
+    protected ?array $historyPresentationCache = null;
 
-    protected ?array $contractHistoryCache = null;
-
-    protected ?\Illuminate\Support\Collection $historyContractsCache = null;
+    protected ?array $seoPresentationCache = null;
 
     protected ?ContractRankingService $rankingServiceCache = null;
 
     protected ?string $contractPageCacheVersionHashCache = null;
+
+    /** @var array<int, ContractPricingViewData|null> */
+    protected array $pricingViewDataCache = [];
 
     /**
      * Request-scoped computed value cache. Livewire computed properties can be
@@ -646,9 +651,9 @@ class ContractDetail extends Component
             return $this->computedValueCache['priceQualifier'];
         }
 
-        $cost = $this->calculatedCost;
+        $pricing = $this->pricingViewDataFor($this->consumption);
         $facts = $this->pricingFacts();
-        $package = $this->energyPackageFacts($cost);
+        $package = $pricing?->energyPackage();
 
         // Division of labour with the hero's `Arvio` popover, which is built by
         // ContractCard\ContractCardCopy::estimate() from the same cost payload:
@@ -667,24 +672,21 @@ class ContractDetail extends Component
         $hasEstimateExplainer = $this->card?->estimate !== null;
 
         $qualifier = match (true) {
-            $package !== null => 'Kuukausimaksu '.$this->formatEurosPerMonth($package['monthly_fee'])
-                .' sisältää '.$this->formatKwh((int) round($package['included_kwh'])).' sähköä kalenterikuukaudessa. '
-                .'Ylittävä kulutus maksaa '.$this->formatCents($package['excess_rate']).' c/kWh.',
+            $package !== null => 'Kuukausimaksu '.$this->formatEurosPerMonth((float) $package->number('monthly_fee_eur'))
+                .' sisältää '.$this->formatKwh((int) round((float) $package->number('included_kwh'))).' sähköä kalenterikuukaudessa. '
+                .'Ylittävä kulutus maksaa '.$this->formatCents((float) $package->number('excess_rate_cents_per_kwh')).' c/kWh.',
             $facts->isSpot => $this->spotPriceQualifier(),
             // Market wins over the consumption effect, exactly as the card
             // category does, so a reset contract that also has an effect is
             // described by its reset mechanism.
-            $facts->isReset => $hasEstimateExplainer ? null : $this->resetPriceQualifier($cost, $facts),
-            $facts->hasConsumptionEffect => $hasEstimateExplainer ? null : $this->consumptionEffectPriceQualifier($cost),
-            default => $this->fixedPriceQualifier($cost, $contract, $hasEstimateExplainer),
+            $facts->isReset => $hasEstimateExplainer ? null : $this->resetPriceQualifier($pricing, $facts),
+            $facts->hasConsumptionEffect => $hasEstimateExplainer ? null : $this->consumptionEffectPriceQualifier($pricing),
+            default => $this->fixedPriceQualifier($pricing, $contract, $hasEstimateExplainer),
         };
 
         return $this->computedValueCache['priceQualifier'] = $qualifier;
     }
 
-    /**
-     * @param  array<string, mixed>  $cost
-     */
     /**
      * The mechanism, and only the mechanism.
      *
@@ -705,14 +707,11 @@ class ContractDetail extends Component
         return 'Pörssisähkössä maksat sähkön tuntihinnan, joten vuosihinta on arvio.';
     }
 
-    /**
-     * @param  array<string, mixed>  $cost
-     */
-    protected function resetPriceQualifier(array $cost, \App\Services\ContractCard\DTO\PricingCategoryFacts $facts): string
+    protected function resetPriceQualifier(?ContractPricingViewData $pricing, \App\Services\ContractCard\DTO\PricingCategoryFacts $facts): string
     {
-        $reset = is_array($cost['reset_estimate'] ?? null) ? $cost['reset_estimate'] : [];
-        $current = $this->qualifierCents($reset['current_period_energy_price'] ?? $cost['general_kwh_price'] ?? null);
-        $annual = $this->qualifierCents($reset['annual_equivalent_energy_price'] ?? null);
+        $reset = $pricing?->resetEstimate();
+        $current = $this->qualifierCents($reset?->number('current_period_energy_price') ?? $pricing?->generalKwhPrice());
+        $annual = $this->qualifierCents($reset?->number('annual_equivalent_energy_price'));
         $until = $facts->nextReset?->subDay();
 
         $head = $current !== null
@@ -723,7 +722,7 @@ class ContractDetail extends Component
             : ' on tiedossa';
 
         // "Sähköfutuurit" never appears without its plain-language gloss.
-        $basis = match ($reset['basis'] ?? null) {
+        $basis = match ($reset?->string('basis')) {
             'forward_curve_shift' => 'tukkumarkkinan ennakkohinnoista eli sähköfutuureista',
             'spot_seasonal_index' => 'pörssisähkön usean vuoden kausivaihtelusta',
             default => null,
@@ -744,13 +743,10 @@ class ContractDetail extends Component
         return "{$head}. Seuraavat jaksot ovat arvio {$basis}{$estimate}.";
     }
 
-    /**
-     * @param  array<string, mixed>  $cost
-     */
-    protected function consumptionEffectPriceQualifier(array $cost): string
+    protected function consumptionEffectPriceQualifier(?ContractPricingViewData $pricing): string
     {
         $base = $this->qualifierCents(
-            $cost['general_kwh_price'] ?? $cost['daytime_kwh_price'] ?? $cost['seasonal_winter_day_kwh_price'] ?? null
+            $pricing?->generalKwhPrice() ?? $pricing?->daytimeKwhPrice() ?? $pricing?->seasonalWinterDayKwhPrice()
         );
 
         $head = $base !== null
@@ -760,15 +756,12 @@ class ContractDetail extends Component
         return "{$head}, ja lopullista hintaa nostaa tai laskee kulutusvaikutus, jonka suuruutta myyjä ei julkaise etukäteen.";
     }
 
-    /**
-     * @param  array<string, mixed>  $cost
-     */
-    protected function fixedPriceQualifier(array $cost, ElectricityContract $contract, bool $hasEstimateExplainer = false): string
+    protected function fixedPriceQualifier(?ContractPricingViewData $pricing, ElectricityContract $contract, bool $hasEstimateExplainer = false): string
     {
-        $price = $this->qualifierCents($cost['general_kwh_price'] ?? null);
+        $price = $this->qualifierCents($pricing?->generalKwhPrice());
         $subject = $price !== null ? "Energian hinta {$price} c/kWh" : 'Energian hinta';
 
-        $termMonths = is_numeric($cost['term_months'] ?? null) ? (int) $cost['term_months'] : null;
+        $termMonths = $pricing?->termMonths();
 
         // A term shorter than the compared year is fixed only for that term, so
         // the 12-month figure is an estimate and has to say so. The popover's
@@ -890,144 +883,19 @@ class ContractDetail extends Component
     }
 
     /**
-     * Truncate a contract name to fit within title limits.
-     * Cuts at word boundary and appends ellipsis if truncated.
-     */
-    protected function truncateName(string $name, int $maxLength = 40): string
-    {
-        if (mb_strlen($name) <= $maxLength) {
-            return $name;
-        }
-
-        $cut = mb_substr($name, 0, $maxLength);
-        $lastSpace = mb_strrpos($cut, ' ');
-        if ($lastSpace > 20) {
-            $cut = mb_substr($cut, 0, $lastSpace);
-        }
-
-        return rtrim($cut, ' -').'…';
-    }
-
-    /**
      * Get SEO page title.
      */
     public function getPageTitleProperty(): string
     {
-        $contract = $this->contract;
-        if (! $contract) {
-            return 'Sähkösopimus | Voltikka';
-        }
-
-        $name = $this->truncateName($this->displayName);
-
-        if (! $this->isActive) {
-            return "{$name} ei ole enää saatavilla | Voltikka";
-        }
-
-        $rank = $this->priceRank;
-        $total = $this->totalContracts;
-
-        $comparisonTitle = $this->comparisonPageTitle($contract, $name, $rank, $total);
-        if ($comparisonTitle !== null) {
-            return $comparisonTitle;
-        }
-
-        // Fallback for company-only contracts without ranking
-        $companyName = $contract->company?->name ?? '';
-
-        return "{$name} — {$companyName} | Voltikka";
-    }
-
-    protected function comparisonPageTitle(ElectricityContract $contract, string $fallbackName, ?int $rank, int $total): ?string
-    {
-        if (! $rank || ! $total) {
-            return null;
-        }
-
-        $pricePhrase = $this->titlePricePhrase($contract);
-        $savings = $this->metaCheapestSavings();
-
-        if ($rank > 25 && $savings !== null && $savings > 0) {
-            return $this->buildBudgetedTitle($this->formatEuro($savings).' kalliimpi kuin halvin', $this->displayName);
-        }
-
-        if ($pricePhrase === null) {
-            return null;
-        }
-
-        $change = $this->generalPriceHistoryChange();
-        if ($change !== null && abs($change['percent']) >= 25 && $rank > 25) {
-            $subject = $contract->pricing_model === 'Spot' ? 'Marginaali' : 'Hinta';
-            $direction = $change['percent'] < 0 ? 'laskenut' : 'noussut';
-            $percent = number_format(abs($change['percent']), 0, ',', ' ').' %';
-
-            return $this->buildBudgetedTitle("{$subject} {$direction} {$percent}", $this->displayName);
-        }
-
-        return $this->buildBudgetedTitle("Sija {$rank}/{$total} · {$pricePhrase}", $this->displayName);
-    }
-
-    protected function titlePricePhrase(ElectricityContract $contract): ?string
-    {
-        $current = $this->currentDisplayValues();
-
-        if ($current['margin'] !== null) {
-            return 'Marg. '.$this->formatCents($current['margin']).' c/kWh';
-        }
-
-        if ($current['general'] !== null) {
-            return $this->formatCents($current['general']).' c/kWh';
-        }
-
-        if ($current['day'] !== null) {
-            return 'Päivä '.$this->formatCents($current['day']).' c/kWh';
-        }
-
-        if ($current['winter'] !== null) {
-            return 'Talvi '.$this->formatCents($current['winter']).' c/kWh';
-        }
-
-        return null;
-    }
-
-    protected function buildBudgetedTitle(string $prefix, string $name): string
-    {
-        $suffix = ' | Voltikka';
-        $separator = ' | ';
-        $targetLength = 75;
-        $minimumNameBudget = 24;
-        $availableNameLength = $targetLength - mb_strlen($prefix) - mb_strlen($separator) - mb_strlen($suffix);
-        $nameBudget = max($minimumNameBudget, $availableNameLength);
-        $titleName = $this->truncateName($name, $nameBudget);
-
-        return "{$prefix}{$separator}{$titleName}{$suffix}";
+        return $this->seoPresentation()['pageTitle'];
     }
 
     /**
-     * Get OG title (shorter version for social sharing).
+     * Get OG title for social sharing.
      */
     public function getOgTitleProperty(): string
     {
-        $contract = $this->contract;
-        if (! $contract) {
-            return 'Sähkösopimus | Voltikka';
-        }
-
-        $name = $this->truncateName($this->displayName);
-
-        if (! $this->isActive) {
-            return "{$name} ei ole enää saatavilla | Voltikka";
-        }
-
-        $rank = $this->priceRank;
-
-        if ($rank) {
-            return "{$name} | #{$rank} halvin | Voltikka";
-        }
-
-        $companyName = $contract->company?->name ?? '';
-
-        return "{$name} — {$companyName} | Voltikka";
+        return $this->seoPresentation()['ogTitle'];
     }
 
     /**
@@ -1035,197 +903,7 @@ class ContractDetail extends Component
      */
     public function getMetaDescriptionProperty(): string
     {
-        $contract = $this->contract;
-        if (! $contract) {
-            return '';
-        }
-
-        if (! $this->isActive) {
-            return "{$this->displayName} ei ole enää tarjolla. Katso ajantasaiset sähkösopimukset ja vaihtoehdot Voltikasta.";
-        }
-
-        $intro = $this->contractMetaIntro($contract);
-        $rank = $this->priceRank;
-        $total = $this->totalContracts;
-        $consumption = $this->formatKwh($this->consumption);
-
-        $historyDescription = $this->priceHistoryMetaDescription($contract, $rank, $total, $consumption);
-        if ($historyDescription !== null) {
-            return $historyDescription;
-        }
-
-        $totalCost = $this->metaAnnualCost();
-        $cheapestSavings = $this->metaCheapestSavings();
-
-        if ($contract->pricing_model !== 'Spot' && $totalCost !== null && $cheapestSavings !== null && $cheapestSavings > 0) {
-            return $this->limitMetaDescription(
-                "{$intro}. Voltikan vertailussa sen arvioitu hinta on {$this->formatEuro($totalCost)} ensimmäisen 12 kk aikana {$consumption} kulutuksella, ja se on {$this->formatEuro($cheapestSavings)} kalliimpi kuin halvin vaihtoehto."
-            );
-        }
-
-        if ($rank && $total) {
-            return $this->limitMetaDescription(
-                "{$intro}. Voltikan vertailussa se on sijalla {$rank} / {$total}, kun vuosikulutus on {$consumption}. Katso hinta, sijoitus ja halvemmat vaihtoehdot."
-            );
-        }
-
-        if ($totalCost !== null) {
-            return $this->limitMetaDescription(
-                "{$intro}. Arvioitu hinta on {$this->formatEuro($totalCost)} ensimmäisen 12 kk aikana {$consumption} kulutuksella. Katso hinta, ehdot ja vaihtoehdot Voltikassa."
-            );
-        }
-
-        return $this->limitMetaDescription(
-            "{$intro}. Katso hinta, ehdot, sijoitus ja halvemmat vaihtoehdot Voltikassa."
-        );
-    }
-
-    protected function contractMetaIntro(ElectricityContract $contract): string
-    {
-        $phrase = $this->contractTypePhrase($contract);
-        $company = trim((string) ($contract->company?->name ?? $contract->company_name ?? ''));
-
-        if ($company !== '') {
-            return "{$this->displayName} on {$phrase} yhtiöltä {$company}";
-        }
-
-        return "{$this->displayName} on {$phrase}";
-    }
-
-    protected function contractTypePhrase(ElectricityContract $contract): string
-    {
-        $duration = $this->durationMonthsPhrase($contract);
-        $prefix = $duration ? $duration.' ' : '';
-
-        return match ($contract->pricing_model) {
-            'Spot' => 'pörssisähkösopimus',
-            'Hybrid' => $prefix.'hybridisähkösopimus',
-            'FixedPrice' => $prefix.'kiinteähintainen sähkösopimus',
-            default => match ($contract->metering) {
-                'Time' => $prefix.'aikasähkösopimus',
-                'Season' => $prefix.'kausisähkösopimus',
-                default => $prefix.'sähkösopimus',
-            },
-        };
-    }
-
-    protected function durationMonthsPhrase(ElectricityContract $contract): ?string
-    {
-        if (! in_array($contract->contract_type, ['FixedTerm', 'Fixed'], true)) {
-            return null;
-        }
-
-        $value = (string) ($contract->fixed_time_range ?? '');
-        $months = match ($value) {
-            'Fixed6' => 6,
-            'Fixed12' => 12,
-            'Fixed24' => 24,
-            default => null,
-        };
-
-        if ($months === null && preg_match('/(?<!\d)(6|12|24)(?!\d)/', $value, $matches)) {
-            $months = (int) $matches[1];
-        }
-
-        return $months ? "{$months} kuukauden" : null;
-    }
-
-    protected function priceHistoryMetaDescription(ElectricityContract $contract, ?int $rank, int $total, string $consumption): ?string
-    {
-        if (! $rank || ! $total) {
-            return null;
-        }
-
-        $change = $this->generalPriceHistoryChange();
-        if ($change === null || abs($change['percent']) < 3) {
-            return null;
-        }
-
-        $current = $this->currentDisplayValues();
-        $currentUnitPrice = $current['margin'] ?? $current['general'];
-        if ($currentUnitPrice === null) {
-            return null;
-        }
-
-        $currentPrice = $this->formatCents($currentUnitPrice);
-        $monthlyFee = $this->metaMonthlyFeePhrase();
-        $priceNow = $monthlyFee
-            ? "{$this->displayName} maksaa nyt {$currentPrice} c/kWh + {$monthlyFee}"
-            : "{$this->displayName} maksaa nyt {$currentPrice} c/kWh";
-
-        $subject = $current['margin'] !== null ? 'Marginaali' : 'Energiahinta';
-        $direction = $change['percent'] < 0 ? 'laskenut' : 'noussut';
-        $percent = number_format(abs($change['percent']), 0, ',', ' ');
-        $rankConnector = $rank > 25 ? 'mutta sopimus on silti' : 'ja sopimus on';
-
-        return $this->limitMetaDescription(
-            "{$priceNow}. {$subject} on {$direction} {$percent} % Voltikan seurannassa, {$rankConnector} sijalla {$rank} / {$total} vertailussa {$consumption} vuosikulutuksella."
-        );
-    }
-
-    /**
-     * @return array{latest: float, earliest: float, percent: float}|null
-     */
-    protected function generalPriceHistoryChange(): ?array
-    {
-        $rows = collect($this->priceHistory['General'] ?? [])
-            ->filter(fn (array $row) => is_numeric($row['price'] ?? null) && (float) $row['price'] > 0 && ! empty($row['date']))
-            ->sortBy(fn (array $row) => $row['date'])
-            ->values();
-
-        if ($rows->count() < 2) {
-            return null;
-        }
-
-        $earliest = $rows->first();
-        $latest = $rows->last();
-
-        if (($earliest['date'] ?? null) === ($latest['date'] ?? null)) {
-            return null;
-        }
-
-        $earliestPrice = (float) $earliest['price'];
-        $latestPrice = (float) $latest['price'];
-
-        if ($earliestPrice <= 0 || $latestPrice <= 0 || abs($latestPrice - $earliestPrice) < 0.0001) {
-            return null;
-        }
-
-        return [
-            'latest' => $latestPrice,
-            'earliest' => $earliestPrice,
-            'percent' => (($latestPrice - $earliestPrice) / $earliestPrice) * 100,
-        ];
-    }
-
-    protected function metaMonthlyFeePhrase(): ?string
-    {
-        $monthly = $this->currentDisplayValues()['fee'];
-
-        if ($monthly === null || $monthly < 0) {
-            return null;
-        }
-
-        return $this->formatEurosPerMonth($monthly);
-    }
-
-    protected function metaAnnualCost(): ?float
-    {
-        $cost = $this->calculatedCost['total_cost'] ?? null;
-
-        return is_numeric($cost) && is_finite((float) $cost) ? (float) $cost : null;
-    }
-
-    protected function metaCheapestSavings(): ?float
-    {
-        $cheaperContracts = $this->cheaperContracts;
-        if ($cheaperContracts->isEmpty()) {
-            return null;
-        }
-
-        $savings = $cheaperContracts->first()['savings'] ?? null;
-
-        return is_numeric($savings) ? (float) $savings : null;
+        return $this->seoPresentation()['metaDescription'];
     }
 
     protected function formatEuro(float $value): string
@@ -1248,29 +926,12 @@ class ContractDetail extends Component
         return number_format($value, 0, ',', ' ').' kWh';
     }
 
-    protected function limitMetaDescription(string $description, int $maxLength = 260): string
-    {
-        $description = trim(preg_replace('/\s+/', ' ', $description) ?? $description);
-
-        if (mb_strlen($description) <= $maxLength) {
-            return $description;
-        }
-
-        $cut = mb_substr($description, 0, $maxLength - 1);
-        $lastSpace = mb_strrpos($cut, ' ');
-        if ($lastSpace !== false && $lastSpace > 80) {
-            $cut = mb_substr($cut, 0, $lastSpace);
-        }
-
-        return rtrim($cut, ' .,;:-').'…';
-    }
-
     /**
      * Get the calculated cost for the contract.
      */
     public function getCalculatedCostProperty(): array
     {
-        return $this->calculatedCostFor($this->consumption);
+        return $this->pricingViewDataFor($this->consumption)?->toArray() ?? [];
     }
 
     /**
@@ -1278,37 +939,36 @@ class ContractDetail extends Component
      *
      * The static per-consumption cost table reads it for 2 000 / 5 000 / 10 000 /
      * 18 000 kWh, so the table can never disagree with the figure above it.
+     * This compatibility adapter keeps the existing public array shape.
      *
      * @return array<string, mixed>
      */
     protected function calculatedCostFor(int $consumption): array
     {
-        $contract = $this->contract;
-
-        if (! $contract) {
-            return [];
-        }
-
-        $memoKey = 'calculatedCost:'.$consumption;
-        if (array_key_exists($memoKey, $this->computedValueCache)) {
-            return $this->computedValueCache[$memoKey];
-        }
-
-        return $this->computedValueCache[$memoKey] = $this->buildCalculatedCost($contract, $consumption);
+        return $this->pricingViewDataFor($consumption)?->toArray() ?? [];
     }
 
     /**
-     * @return array<string, mixed>
+     * Resolve one typed pricing view per consumption for this request.
      */
-    protected function buildCalculatedCost(ElectricityContract $contract, int $consumption): array
+    protected function pricingViewDataFor(int $consumption): ?ContractPricingViewData
     {
+        if (array_key_exists($consumption, $this->pricingViewDataCache)) {
+            return $this->pricingViewDataCache[$consumption];
+        }
+
+        $contract = $this->contract;
+
+        if (! $contract) {
+            return $this->pricingViewDataCache[$consumption] = null;
+        }
+
         /** @var ContractListCacheService $contractListCache */
         $contractListCache = app(ContractListCacheService::class);
-        $cachedMetrics = $contractListCache->getCachedMetrics($consumption);
-        $cachedContract = $cachedMetrics['contracts'][$contract->id] ?? null;
+        $cachedMetric = $contractListCache->getCachedMetrics($consumption)?->metric($contract->id);
 
-        if ($cachedContract) {
-            return $cachedContract['calculated_cost'];
+        if ($cachedMetric !== null) {
+            return $this->pricingViewDataCache[$consumption] = $cachedMetric->pricing();
         }
 
         $usage = new EnergyUsage(
@@ -1318,7 +978,9 @@ class ContractDetail extends Component
 
         $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
         if ($canonicalPricing->enabled()) {
-            return $canonicalPricing->evaluate($contract, $usage)['outcome']->toCalculatedCostArray();
+            return $this->pricingViewDataCache[$consumption] = ContractPricingViewData::fromCanonicalOutcome(
+                $canonicalPricing->evaluate($contract, $usage)['outcome'],
+            );
         }
 
         $calculator = app(ContractPriceCalculator::class);
@@ -1334,7 +996,9 @@ class ContractDetail extends Component
         $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
         $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
 
-        return $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight)->toArray();
+        return $this->pricingViewDataCache[$consumption] = ContractPricingViewData::fromLegacyResult(
+            $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight),
+        );
     }
 
     /**
@@ -1353,9 +1017,9 @@ class ContractDetail extends Component
         }
 
         $cachedMetrics = app(ContractListCacheService::class)->getCachedMetrics($this->consumption);
-        $cachedContract = $cachedMetrics['contracts'][$contract->id] ?? null;
-        if ($cachedContract !== null && array_key_exists('pricing_integrity', $cachedContract)) {
-            return $cachedContract['pricing_integrity'];
+        $cachedMetric = $cachedMetrics?->metric($contract->id);
+        if ($cachedMetric !== null) {
+            return $cachedMetric->integrity()?->toArray();
         }
 
         $usage = new EnergyUsage(total: $this->consumption, basicLiving: $this->consumption);
@@ -1377,12 +1041,12 @@ class ContractDetail extends Component
         }
 
         $cachedMetrics = app(ContractListCacheService::class)->getCachedMetrics($this->consumption);
-        $cachedContract = $cachedMetrics['contracts'][$contract->id] ?? null;
-        if ($cachedContract !== null && array_key_exists('comparability', $cachedContract)) {
-            return $cachedContract['comparability'];
+        $cachedMetric = $cachedMetrics?->metric($contract->id);
+        if ($cachedMetric !== null) {
+            return $cachedMetric->comparability();
         }
 
-        return $this->getCalculatedCostProperty()['comparability'] ?? null;
+        return $this->pricingViewDataFor($this->consumption)?->comparability()?->value;
     }
 
     /**
@@ -1424,8 +1088,7 @@ class ContractDetail extends Component
             $total = null;
 
             if ($inRange) {
-                $cost = $this->calculatedCostFor($consumption)['total_cost'] ?? null;
-                $total = is_numeric($cost) && is_finite((float) $cost) ? (float) $cost : null;
+                $total = $this->pricingViewDataFor($consumption)?->total();
             }
 
             $rows[] = [
@@ -1478,13 +1141,11 @@ class ContractDetail extends Component
      */
     protected function buildSpotCounterfactual(ElectricityContract $contract, int $basis): ?array
     {
-        $selfCost = $this->calculatedCostFor($basis)['total_cost'] ?? null;
+        $selfCost = $this->pricingViewDataFor($basis)?->total();
 
-        if (! is_numeric($selfCost) || ! is_finite((float) $selfCost)) {
+        if ($selfCost === null) {
             return null;
         }
-
-        $selfCost = (float) $selfCost;
         $bucket = \App\Services\ContractCard\Enums\PricingBucket::fromFacts($this->pricingFacts());
         $isSpot = $bucket === \App\Services\ContractCard\Enums\PricingBucket::Spot;
 
@@ -1583,12 +1244,12 @@ class ContractDetail extends Component
             return $this->computedValueCache[$memoKey] = null;
         }
 
-        $selfCost = $this->calculatedCostFor($basis)['total_cost'] ?? null;
+        $selfCost = $this->pricingViewDataFor($basis)?->total();
 
         return $this->computedValueCache[$memoKey] = [
             'contract' => $alternative,
             'total_cost' => (float) $alternativeCost,
-            'savings' => is_numeric($selfCost) ? (float) $selfCost - (float) $alternativeCost : 0.0,
+            'savings' => $selfCost !== null ? $selfCost - (float) $alternativeCost : 0.0,
             'label' => $facts->category->label(),
         ];
     }
@@ -1754,31 +1415,33 @@ class ContractDetail extends Component
             return [];
         }
 
-        $cost = $this->calculatedCost;
+        $pricing = $this->pricingViewDataFor($this->consumption);
         $notes = [];
 
         $reset = \App\Services\CanonicalPricing\MarketReset\ResetEstimateCopy::receiptNote(
-            is_array($cost['reset_estimate'] ?? null) ? $cost['reset_estimate'] : null
+            $pricing?->resetEstimate()?->toArray()
         );
 
         if ($reset !== null) {
             $notes[] = $reset;
         }
 
-        $savings = $cost['discount_savings_total'] ?? null;
+        $savings = $pricing?->discountSaving();
         $period = 'ensimmäisenä vuonna';
 
-        if (app(PricingMode::class)->enabled() && is_array($cost['contract_term'] ?? null)) {
-            $term = $cost['contract_term'];
-            if (is_numeric($term['discount_savings_total'] ?? null) && is_numeric($term['months'] ?? null)) {
-                $savings = (float) $term['discount_savings_total'];
-                $period = (int) $term['months'].' kuukauden sopimuskauden aikana';
+        $term = $pricing?->contractTerm();
+        if (app(PricingMode::class)->enabled() && $term !== null) {
+            $termSavings = $term->number('discount_savings_total');
+            $termMonths = $term->integer('months');
+            if ($termSavings !== null && $termMonths !== null) {
+                $savings = $termSavings;
+                $period = $termMonths.' kuukauden sopimuskauden aikana';
             }
         }
 
-        if (($cost['includes_discounts'] ?? false) && is_numeric($savings) && (float) $savings > 0) {
+        if ($pricing?->includesDiscounts() && $savings !== null && $savings > 0) {
             $notes[] = 'Tarjous on huomioitu arviossa vain voimassaoloajaltaan: säästät noin '
-                .$this->formatEuro((float) $savings).' '.$period.' verrattuna normaalihintaan.';
+                .$this->formatEuro($savings).' '.$period.' verrattuna normaalihintaan.';
         }
 
         return $notes;
@@ -1931,10 +1594,10 @@ class ContractDetail extends Component
      */
     protected function termMonths(): ?int
     {
-        $months = $this->calculatedCost['term_months'] ?? null;
+        $months = $this->pricingViewDataFor($this->consumption)?->termMonths();
 
-        if (is_numeric($months) && (int) $months > 0) {
-            return (int) $months;
+        if ($months !== null && $months > 0) {
+            return $months;
         }
 
         return match ($this->contract?->fixed_time_range) {
@@ -2007,78 +1670,42 @@ class ContractDetail extends Component
         }
 
         $facts = $this->pricingFacts();
-        $cost = $this->calculatedCost;
+        $pricing = $this->pricingViewDataFor($this->consumption);
 
         return $this->computedValueCache[$memoKey] = array_values(array_filter([
-            $this->faqCostItem($cost, $facts),
-            $this->faqMechanismItem($contract, $cost, $facts),
-            $facts->isSpot ? $this->faqSpotVariationItem($cost) : null,
+            $this->faqCostItem($pricing, $facts),
+            $this->faqMechanismItem($contract, $pricing, $facts),
+            $facts->isSpot ? $this->faqSpotVariationItem($pricing) : null,
             $this->faqCancellationItem($contract),
             $this->faqMethodItem(),
         ]));
     }
 
     /**
-     * FAQPage JSON-LD carrying exactly the rendered question/answer pairs.
-     */
-    public function getFaqSchemaProperty(): array
-    {
-        if (! $this->contract || ! $this->isActive) {
-            return [];
-        }
-
-        $items = $this->faqItems;
-
-        if (empty($items)) {
-            return [];
-        }
-
-        return [
-            '@context' => 'https://schema.org',
-            '@type' => 'FAQPage',
-            '@id' => $this->canonicalUrl.'#faq',
-            'mainEntity' => array_map(fn (array $item): array => [
-                '@type' => 'Question',
-                'name' => $item['question'],
-                'acceptedAnswer' => [
-                    '@type' => 'Answer',
-                    'text' => $item['answer'],
-                ],
-            ], $items),
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $cost
      * @return array{id: string, question: string, answer: string}|null
      */
-    protected function faqCostItem(array $cost, \App\Services\ContractCard\DTO\PricingCategoryFacts $facts): ?array
+    protected function faqCostItem(?ContractPricingViewData $pricing, \App\Services\ContractCard\DTO\PricingCategoryFacts $facts): ?array
     {
         if ($this->isPricingExcluded) {
             return null;
         }
 
-        $total = $cost['total_cost'] ?? null;
+        $total = $pricing?->total();
 
-        if (! is_numeric($total) || ! is_finite((float) $total)) {
+        if ($total === null) {
             return null;
         }
-
-        $total = (float) $total;
 
         return [
             'id' => 'faq-hinta',
             'question' => 'Paljonko '.$this->displayName.' maksaa '.$this->formatKwh($this->consumption).' vuosikulutuksella?',
             'answer' => 'Arviolta '.$this->formatEurosPerMonth($total / 12).' eli '.$this->formatEuro($total)
                 .' vuodessa. Luku on sähköenergian hinta, joka sisältää arvonlisäveron 25,5 % mutta ei sähkön siirtoa. '
-                .$this->faqCostBasisSentence($cost, $facts),
+                .$this->faqCostBasisSentence($pricing, $facts),
         ];
     }
 
-    /**
-     * @param  array<string, mixed>  $cost
-     */
-    protected function faqCostBasisSentence(array $cost, \App\Services\ContractCard\DTO\PricingCategoryFacts $facts): string
+    protected function faqCostBasisSentence(?ContractPricingViewData $pricing, \App\Services\ContractCard\DTO\PricingCategoryFacts $facts): string
     {
         if ($facts->isSpot) {
             return 'Arvio perustuu viimeisen 12 kuukauden toteutuneeseen pörssikeskihintaan ja sopimuksen marginaaliin, '
@@ -2096,7 +1723,7 @@ class ContractDetail extends Component
             return 'Arviossa ei ole mukana kulutusvaikutusta, jonka suuruutta myyjä ei julkaise etukäteen.';
         }
 
-        $termMonths = is_numeric($cost['term_months'] ?? null) ? (int) $cost['term_months'] : null;
+        $termMonths = $pricing?->termMonths();
 
         if ($termMonths !== null && $termMonths > 0 && $termMonths < 12) {
             return "Energian hinta on kiinteä {$termMonths} kuukauden ajan, joten loppuvuoden osuus luvusta on arvio.";
@@ -2110,26 +1737,25 @@ class ContractDetail extends Component
      * hero's pricing-category label links here: the mechanism is the single most
      * important thing a visitor needs explained, and it used to be a dead label.
      *
-     * @param  array<string, mixed>  $cost
      * @return array{id: string, question: string, answer: string}|null
      */
     protected function faqMechanismItem(
         ElectricityContract $contract,
-        array $cost,
+        ?ContractPricingViewData $pricing,
         \App\Services\ContractCard\DTO\PricingCategoryFacts $facts,
     ): ?array {
-        $margin = $this->qualifierCents($cost['spot_price_margin'] ?? null);
-        $fee = is_numeric($cost['monthly_fixed_fee'] ?? null) ? (float) $cost['monthly_fixed_fee'] : null;
+        $margin = $this->qualifierCents($pricing?->spotPriceMargin());
+        $fee = $pricing?->monthlyFixedFee();
         $feeAmount = $fee !== null && $fee > 0 ? $this->formatEurosPerMonth($fee) : null;
-        $package = $this->energyPackageFacts($cost);
+        $package = $pricing?->energyPackage();
 
         if ($package !== null) {
             return [
                 'id' => 'faq-miten',
                 'question' => 'Miten kuukausipaketin hinta muodostuu?',
-                'answer' => 'Kuukausimaksu '.$this->formatEurosPerMonth($package['monthly_fee'])
-                    .' sisältää '.$this->formatKwh((int) round($package['included_kwh'])).' sähköä kalenterikuukaudessa. '
-                    .'Sen ylittävä kulutus maksaa '.$this->formatCents($package['excess_rate']).' c/kWh. '
+                'answer' => 'Kuukausimaksu '.$this->formatEurosPerMonth((float) $package->number('monthly_fee_eur'))
+                    .' sisältää '.$this->formatKwh((int) round((float) $package->number('included_kwh'))).' sähköä kalenterikuukaudessa. '
+                    .'Sen ylittävä kulutus maksaa '.$this->formatCents((float) $package->number('excess_rate_cents_per_kwh')).' c/kWh. '
                     .'Käyttämätön osuus ei siirry seuraavaan kuukauteen.',
             ];
         }
@@ -2168,7 +1794,7 @@ class ContractDetail extends Component
 
         if ($facts->hasConsumptionEffect) {
             $base = $this->qualifierCents(
-                $cost['general_kwh_price'] ?? $cost['daytime_kwh_price'] ?? $cost['seasonal_winter_day_kwh_price'] ?? null
+                $pricing?->generalKwhPrice() ?? $pricing?->daytimeKwhPrice() ?? $pricing?->seasonalWinterDayKwhPrice()
             );
             $basePhrase = $base !== null ? " {$base} c/kWh" : '';
 
@@ -2182,7 +1808,7 @@ class ContractDetail extends Component
             ];
         }
 
-        $price = $this->qualifierCents($cost['general_kwh_price'] ?? null);
+        $price = $this->qualifierCents($pricing?->generalKwhPrice());
         $pricePhrase = $price !== null ? " {$price} c/kWh" : '';
         $termMonths = $this->termMonths();
 
@@ -2204,10 +1830,9 @@ class ContractDetail extends Component
      * How much a spot price actually moves. The realized monthly averages are
      * the honest answer; without them the item is dropped rather than guessed.
      *
-     * @param  array<string, mixed>  $cost
      * @return array{id: string, question: string, answer: string}|null
      */
-    protected function faqSpotVariationItem(array $cost): ?array
+    protected function faqSpotVariationItem(?ContractPricingViewData $pricing): ?array
     {
         $range = $this->spotMonthlyPriceRange();
 
@@ -2215,7 +1840,7 @@ class ContractDetail extends Component
             return null;
         }
 
-        $margin = $this->qualifierCents($cost['spot_price_margin'] ?? null);
+        $margin = $this->qualifierCents($pricing?->spotPriceMargin());
         $marginSentence = $margin !== null
             ? " Näiden päälle tulee sopimuksen marginaali {$margin} c/kWh."
             : '';
@@ -2690,23 +2315,20 @@ class ContractDetail extends Component
                 ];
             }
 
-            $cost = $this->calculatedCost;
-            $number = static fn (string $key): ?float => is_numeric($cost[$key] ?? null)
-                ? (float) $cost[$key]
-                : null;
-            $package = $this->energyPackageFacts($cost);
+            $pricing = $this->pricingViewDataFor($this->consumption);
+            $package = $pricing?->energyPackage();
 
             return $this->computedValueCache[$memoKey] = [
                 // A package's excess-use rate is not the ordinary price of every kWh.
-                'general' => $package === null ? $number('general_kwh_price') : null,
-                'day' => $number('daytime_kwh_price'),
-                'night' => $number('nighttime_kwh_price'),
-                'winter' => $number('seasonal_winter_day_kwh_price'),
-                'other' => $number('seasonal_other_kwh_price'),
-                'margin' => $number('spot_price_margin'),
-                'fee' => $number('monthly_fixed_fee'),
-                'package_included_kwh' => $package['included_kwh'] ?? null,
-                'package_excess_rate' => $package['excess_rate'] ?? null,
+                'general' => $package === null ? $pricing?->generalKwhPrice() : null,
+                'day' => $pricing?->daytimeKwhPrice(),
+                'night' => $pricing?->nighttimeKwhPrice(),
+                'winter' => $pricing?->seasonalWinterDayKwhPrice(),
+                'other' => $pricing?->seasonalOtherKwhPrice(),
+                'margin' => $pricing?->spotPriceMargin(),
+                'fee' => $pricing?->monthlyFixedFee(),
+                'package_included_kwh' => $package?->number('included_kwh'),
+                'package_excess_rate' => $package?->number('excess_rate_cents_per_kwh'),
             ];
         }
 
@@ -2726,29 +2348,6 @@ class ContractDetail extends Component
             'fee' => $price('Monthly'),
             'package_included_kwh' => null,
             'package_excess_rate' => null,
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $cost
-     * @return array{monthly_fee:float,included_kwh:float,excess_rate:float}|null
-     */
-    protected function energyPackageFacts(array $cost): ?array
-    {
-        $package = $cost['energy_package'] ?? null;
-
-        if (! is_array($package)
-            || ! is_numeric($package['monthly_fee_eur'] ?? null)
-            || ! is_numeric($package['included_kwh'] ?? null)
-            || ! is_numeric($package['excess_rate_cents_per_kwh'] ?? null)
-            || ($package['allowance_cadence'] ?? null) !== 'monthly') {
-            return null;
-        }
-
-        return [
-            'monthly_fee' => (float) $package['monthly_fee_eur'],
-            'included_kwh' => (float) $package['included_kwh'],
-            'excess_rate' => (float) $package['excess_rate_cents_per_kwh'],
         ];
     }
 
@@ -2793,39 +2392,7 @@ class ContractDetail extends Component
      */
     public function getPriceHistoryProperty(): array
     {
-        if ($this->priceHistoryCache !== null) {
-            return $this->priceHistoryCache;
-        }
-
-        $contract = $this->contract;
-
-        if (! $contract) {
-            return [];
-        }
-
-        $history = [];
-
-        foreach ($this->getHistoryContracts($contract) as $historyContract) {
-            foreach ($historyContract->priceComponents->sortByDesc('price_date')->groupBy('price_component_type') as $type => $components) {
-                foreach ($components as $pc) {
-                    $history[$type][] = [
-                        'date' => $pc->price_date->format('Y-m-d'),
-                        'price' => $pc->price,
-                        'contract_id' => $historyContract->id,
-                        'contract_name' => ContractContentSanitizer::displayName($historyContract->name),
-                    ];
-                }
-            }
-        }
-
-        foreach ($history as $type => $rows) {
-            $history[$type] = collect($rows)
-                ->sortByDesc(fn (array $row) => $row['date'])
-                ->values()
-                ->toArray();
-        }
-
-        return $this->priceHistoryCache = $history;
+        return $this->historyPresentation()['priceHistory'] ?? [];
     }
 
     /**
@@ -2845,8 +2412,28 @@ class ContractDetail extends Component
      */
     public function getContractHistoryProperty(): array
     {
-        if ($this->contractHistoryCache !== null) {
-            return $this->contractHistoryCache;
+        return $this->historyPresentation()['contractHistory'] ?? [];
+    }
+
+    /**
+     * Display labels per price component type for the rendered contract.
+     *
+     * @return array<string, string>
+     */
+    public function getPriceTypeLabelsProperty(): array
+    {
+        return $this->historyPresentation()['priceTypeLabels'] ?? [];
+    }
+
+    /**
+     * Resolve the relational history presenter once per component request.
+     *
+     * @return array<string, mixed>
+     */
+    protected function historyPresentation(): array
+    {
+        if ($this->historyPresentationCache !== null) {
+            return $this->historyPresentationCache;
         }
 
         $contract = $this->contract;
@@ -2855,43 +2442,7 @@ class ContractDetail extends Component
             return [];
         }
 
-        $history = $this->getHistoryContracts($contract)
-            ->map(function (ElectricityContract $historyContract): array {
-                $latestPriceComponents = $historyContract->priceComponents
-                    ->sortByDesc('price_date')
-                    ->groupBy('price_component_type')
-                    ->map(fn ($group) => $group->sortByDesc('price_date')->first(fn ($item) => $item->price > 0) ?? $group->sortByDesc('price_date')->first());
-
-                $latestPriceDate = $latestPriceComponents
-                    ->pluck('price_date')
-                    ->filter()
-                    ->sortByDesc(fn ($date) => $date instanceof \Carbon\Carbon ? $date->timestamp : \Carbon\Carbon::parse($date)->timestamp)
-                    ->first();
-
-                // This is the last import date on which Voltikka observed this
-                // exact contract. It is not an exact removal/expiry date.
-                $lastSeenOnSaleDate = $historyContract->priceComponents
-                    ->pluck('price_date')
-                    ->filter()
-                    ->sortByDesc(fn ($date) => $date instanceof \Carbon\Carbon ? $date->timestamp : \Carbon\Carbon::parse($date)->timestamp)
-                    ->first();
-
-                return [
-                    'id' => $historyContract->id,
-                    'name' => ContractContentSanitizer::displayName($historyContract->name),
-                    'company' => $historyContract->company?->name,
-                    'is_current' => $historyContract->id === $this->contractId,
-                    'is_active' => $historyContract->isActive(),
-                    'latest_price_date' => $latestPriceDate,
-                    'last_seen_on_sale_date' => $lastSeenOnSaleDate,
-                    'prices' => $this->formatContractHistoryPrices($historyContract, $latestPriceComponents->all()),
-                    'promotion' => $this->formatHistoricalPromotionText($historyContract, $latestPriceComponents->all()),
-                ];
-            })
-            ->values()
-            ->toArray();
-
-        return $this->contractHistoryCache = $history;
+        return $this->historyPresentationCache = app(ContractHistoryPresenter::class)->present($contract);
     }
 
     /**
@@ -2956,68 +2507,6 @@ class ContractDetail extends Component
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, ElectricityContract>
-     */
-    protected function getHistoryContracts(ElectricityContract $contract): \Illuminate\Support\Collection
-    {
-        if ($this->historyContractsCache !== null) {
-            return $this->historyContractsCache;
-        }
-
-        $historyContractIds = $this->getBackwardReplacementChainIds($contract->id)
-            ->pluck('id')
-            ->push($contract->id)
-            ->unique()
-            ->values();
-
-        $historyContracts = ElectricityContract::query()
-            ->with(['company', 'priceComponents', 'activeContract'])
-            ->whereIn('id', $historyContractIds)
-            ->get()
-            ->sortByDesc(function (ElectricityContract $historyContract) {
-                $latestPriceDate = $historyContract->priceComponents
-                    ->pluck('price_date')
-                    ->filter()
-                    ->sortByDesc(fn ($date) => $date instanceof \Carbon\Carbon ? $date->timestamp : \Carbon\Carbon::parse($date)->timestamp)
-                    ->first();
-
-                return $latestPriceDate instanceof \Carbon\Carbon
-                    ? $latestPriceDate->timestamp
-                    : ($latestPriceDate ? \Carbon\Carbon::parse($latestPriceDate)->timestamp : 0);
-            })
-            ->values();
-
-        return $this->historyContractsCache = $historyContracts;
-    }
-
-    /**
-     * Return predecessor contract IDs for the replacement history in one
-     * recursive query instead of querying each replacement depth and then
-     * re-querying all versions. Depth is capped defensively in case bad data
-     * creates a cycle.
-     *
-     * @return \Illuminate\Support\Collection<int, object{id: string, depth: int}>
-     */
-    protected function getBackwardReplacementChainIds(string $contractId): \Illuminate\Support\Collection
-    {
-        return collect(DB::select(<<<'SQL'
-            WITH RECURSIVE replacement_chain(id, replaced_by_contract_id, depth) AS (
-                SELECT id, replaced_by_contract_id, 1
-                FROM electricity_contracts
-                WHERE replaced_by_contract_id = ?
-
-                UNION ALL
-
-                SELECT ec.id, ec.replaced_by_contract_id, replacement_chain.depth + 1
-                FROM electricity_contracts ec
-                INNER JOIN replacement_chain ON ec.replaced_by_contract_id = replacement_chain.id
-                WHERE replacement_chain.depth < 25
-            )
-            SELECT id, depth FROM replacement_chain
-        SQL, [$contractId]));
-    }
-
-    /**
      * Return forward replacement IDs in chain order using one recursive query.
      *
      * @return \Illuminate\Support\Collection<int, object{id: string, depth: int}>
@@ -3043,150 +2532,11 @@ class ContractDetail extends Component
     }
 
     /**
-     * Display order for price component types in the history timeline and its
-     * trend chart. Earlier entries are also preferred as the charted series.
-     *
-     * `price_component_type` is written verbatim from the upstream API payload
-     * (`CanonicalPriceComponentWriter`), so this list can never be exhaustive by
-     * construction. Types outside it are appended under their raw name rather
-     * than dropped — the old hardcoded whitelist silently hid the `Spot` margin
-     * component from the history of the Hybrid contract that carries it.
-     */
-    public const PRICE_TYPE_ORDER = [
-        'General',
-        'Spot',
-        'DayTime',
-        'NightTime',
-        'SeasonalWinter',
-        'SeasonalWinterDay',
-        'SeasonalOther',
-        'Monthly',
-    ];
-
-    /**
-     * Display labels per price component type for the rendered contract.
-     *
-     * @return array<string, string>
-     */
-    public function getPriceTypeLabelsProperty(): array
-    {
-        return $this->priceTypeLabelsFor($this->contract);
-    }
-
-    /**
-     * A spot contract stores the supplier margin in its `General` component, not
-     * the energy price the customer pays. The hero pricing block already calls
-     * that row "Marginaali", so the history and its trend chart must agree;
-     * calling it "Energiahinta" claimed a 0,60 c/kWh margin was the whole price.
-     *
-     * A `Spot` component is a margin whatever the contract's pricing model is,
-     * so it does not depend on the model the way `General` does. Both winter
-     * spellings are mapped because upstream has used both.
-     *
-     * @return array<string, string>
-     */
-    protected function priceTypeLabelsFor(?ElectricityContract $contract): array
-    {
-        return [
-            'General' => $contract?->pricing_model === 'Spot' ? 'Marginaali' : 'Energiahinta',
-            'Spot' => 'Marginaali',
-            'Monthly' => 'Perusmaksu',
-            'DayTime' => 'Päiväsähkö',
-            'NightTime' => 'Yösähkö',
-            'SeasonalWinter' => 'Talvihinta',
-            'SeasonalWinterDay' => 'Talvihinta',
-            'SeasonalOther' => 'Muu aika',
-        ];
-    }
-
-    /**
-     * @param  array<string, \App\Models\PriceComponent>  $latestPriceComponents
-     * @return array<int, array{type: string, label: string, price: float, unit: string}>
-     */
-    protected function formatContractHistoryPrices(ElectricityContract $contract, array $latestPriceComponents): array
-    {
-        $priceTypeLabels = $this->priceTypeLabelsFor($contract);
-
-        return collect($this->orderPriceTypes(array_keys($latestPriceComponents)))
-            ->map(function (string $type) use ($latestPriceComponents, $priceTypeLabels) {
-                $component = $latestPriceComponents[$type] ?? null;
-
-                if (! $component) {
-                    return null;
-                }
-
-                return [
-                    'type' => $type,
-                    'label' => $priceTypeLabels[$type] ?? $type,
-                    'price' => (float) $component->price,
-                    'unit' => $type === 'Monthly' ? 'EUR/kk' : 'c/kWh',
-                ];
-            })
-            ->filter()
-            ->values()
-            ->toArray();
-    }
-
-    /**
-     * Known types in display order, then any unrecognized upstream type.
-     *
-     * @param  array<int, string>  $types
-     * @return array<int, string>
-     */
-    public function orderPriceTypes(array $types): array
-    {
-        return array_values(array_merge(
-            array_intersect(self::PRICE_TYPE_ORDER, $types),
-            array_diff($types, self::PRICE_TYPE_ORDER),
-        ));
-    }
-
-    /**
-     * @param  array<string, \App\Models\PriceComponent>  $latestPriceComponents
-     */
-    protected function formatHistoricalPromotionText(ElectricityContract $contract, array $latestPriceComponents): ?string
-    {
-        $discountedComponent = collect($latestPriceComponents)
-            ->filter(fn ($component) => $component?->has_discount)
-            ->sortByDesc('price_date')
-            ->first();
-
-        if (! $discountedComponent) {
-            return $contract->pricing_has_discounts ? 'Tarjoussopimus' : null;
-        }
-
-        $parts = [];
-
-        if ($discountedComponent->discount_discount_n_first_months) {
-            $parts[] = $discountedComponent->discount_discount_n_first_months.' ensimmäistä kuukautta';
-        }
-
-        if ($discountedComponent->discount_value) {
-            $parts[] = $contract->formatActiveDiscountValue([
-                'value' => $discountedComponent->discount_value,
-                'is_percentage' => $discountedComponent->discount_is_percentage,
-                'price_component_type' => $discountedComponent->price_component_type,
-                'payment_unit' => $discountedComponent->payment_unit,
-            ]);
-        }
-
-        if ($discountedComponent->discount_discount_until_date) {
-            $parts[] = 'voimassa '.$discountedComponent->discount_discount_until_date->format('d.m.Y').' asti';
-        }
-
-        if (empty($parts)) {
-            return 'Tarjoussopimus';
-        }
-
-        return implode(' · ', $parts);
-    }
-
-    /**
      * Get the canonical URL for this page.
      */
     public function getCanonicalUrlProperty(): string
     {
-        return route('contract.detail', ['contractId' => $this->contractId]);
+        return $this->seoPresentation()['canonicalUrl'];
     }
 
     /**
@@ -3194,23 +2544,7 @@ class ContractDetail extends Component
      */
     public function getWebPageSchemaProperty(): array
     {
-        $contract = $this->contract;
-
-        if (! $contract || ! $this->isActive) {
-            return [];
-        }
-
-        return [
-            '@context' => 'https://schema.org',
-            '@type' => 'WebPage',
-            '@id' => $this->canonicalUrl.'#webpage',
-            'url' => $this->canonicalUrl,
-            'name' => $this->pageTitle,
-            'description' => $this->metaDescription,
-            'mainEntity' => [
-                '@id' => $this->canonicalUrl.'#product',
-            ],
-        ];
+        return $this->seoPresentation()['webPageSchema'];
     }
 
     /**
@@ -3218,226 +2552,7 @@ class ContractDetail extends Component
      */
     public function getProductSchemaProperty(): array
     {
-        $contract = $this->contract;
-
-        if (! $contract || ! $this->isActive) {
-            return [];
-        }
-
-        $providerId = $this->canonicalUrl.'#provider';
-        $offerUrl = $contract->order_link ?: $contract->product_link;
-
-        $schema = [
-            '@context' => 'https://schema.org',
-            '@type' => 'Product',
-            '@id' => $this->canonicalUrl.'#product',
-            'name' => $this->displayName,
-            'description' => $this->metaDescription,
-            'url' => $this->canonicalUrl,
-            'category' => 'Electricity Contract',
-        ];
-
-        if ($contract->company) {
-            $brand = [
-                '@type' => 'Organization',
-                '@id' => $providerId,
-                'name' => $contract->company->name,
-            ];
-
-            if ($contract->company->getLogoUrl()) {
-                $brand['logo'] = $contract->company->getLogoUrl();
-            }
-
-            if ($contract->company->company_url) {
-                $brand['url'] = $contract->company->company_url;
-            }
-
-            $schema['brand'] = $brand;
-        }
-
-        $offers = [];
-        $current = $this->currentDisplayValues();
-
-        $buildOffer = function (string $suffix, string $name, array $priceSpecification) use ($contract, $providerId, $offerUrl): array {
-            $offer = [
-                '@type' => 'Offer',
-                '@id' => $this->canonicalUrl.'#offer-'.$suffix,
-                'name' => $name,
-                'priceSpecification' => $priceSpecification,
-            ];
-
-            if ($offerUrl) {
-                $offer['url'] = $offerUrl;
-            }
-
-            if ($contract->company) {
-                $provider = [
-                    '@id' => $providerId,
-                ];
-                $offer['offeredBy'] = $provider;
-                $offer['seller'] = $provider;
-            }
-
-            return $offer;
-        };
-
-        $unitOffer = static fn (float $price, string $unitCode, string $unitText): array => [
-            '@type' => 'UnitPriceSpecification',
-            'price' => $price,
-            'priceCurrency' => 'EUR',
-            'unitCode' => $unitCode,
-            'unitText' => $unitText,
-        ];
-
-        if ($current['margin'] !== null) {
-            $offers[] = $buildOffer('spot-margin', 'Spot-marginaali', $unitOffer($current['margin'], 'KWH', 'c/kWh'));
-        }
-
-        if ($current['fee'] !== null) {
-            $offers[] = $buildOffer('monthly-fee', 'Perusmaksu', $unitOffer($current['fee'], 'MON', 'EUR/kk'));
-        }
-
-        if ($current['general'] !== null) {
-            $offers[] = $buildOffer('energy-price', 'Energiahinta', $unitOffer($current['general'], 'KWH', 'c/kWh'));
-        }
-
-        if ($current['package_excess_rate'] !== null) {
-            $offers[] = $buildOffer('package-excess', 'Ylittävä kulutus', $unitOffer($current['package_excess_rate'], 'KWH', 'c/kWh'));
-        }
-
-        if ($current['day'] !== null) {
-            $offers[] = $buildOffer('daytime', 'Päiväsähkö (07:00-22:00)', $unitOffer($current['day'], 'KWH', 'c/kWh'));
-        }
-
-        if ($current['night'] !== null) {
-            $offers[] = $buildOffer('nighttime', 'Yösähkö (22:00-07:00)', $unitOffer($current['night'], 'KWH', 'c/kWh'));
-        }
-
-        if ($current['winter'] !== null) {
-            $offers[] = $buildOffer('seasonal-winter', 'Talvihinta (marras-maaliskuu)', $unitOffer($current['winter'], 'KWH', 'c/kWh'));
-        }
-
-        if ($current['other'] !== null) {
-            $offers[] = $buildOffer('seasonal-other', 'Muu aika', $unitOffer($current['other'], 'KWH', 'c/kWh'));
-        }
-
-        // Do not advertise price offers for contracts whose pricing we cannot verify/compute.
-        if (! empty($offers) && ! $this->isPricingExcluded) {
-            $schema['offers'] = $offers;
-        }
-
-        $additionalProperties = [];
-
-        $pricingModelLabels = [
-            'Spot' => 'Pörssisähkö',
-            'FixedPrice' => 'Kiinteä hinta',
-            'Hybrid' => 'Hybridisähkö',
-        ];
-        $additionalProperties[] = [
-            '@type' => 'PropertyValue',
-            'name' => 'pricingModel',
-            'value' => $pricingModelLabels[$contract->pricing_model] ?? $contract->pricing_model,
-        ];
-
-        $contractTypeLabels = [
-            'OpenEnded' => 'Toistaiseksi voimassa',
-            'FixedTerm' => 'Määräaikainen',
-        ];
-        $additionalProperties[] = [
-            '@type' => 'PropertyValue',
-            'name' => 'contractType',
-            'value' => $contractTypeLabels[$contract->contract_type] ?? $contract->contract_type,
-        ];
-
-        $meteringLabels = [
-            'General' => 'Yleissähkö',
-            'Time' => 'Aikasähkö',
-            'Season' => 'Kausisähkö',
-        ];
-        $additionalProperties[] = [
-            '@type' => 'PropertyValue',
-            'name' => 'meteringType',
-            'value' => $meteringLabels[$contract->metering] ?? $contract->metering,
-        ];
-
-        if ($current['package_included_kwh'] !== null && ! $this->isPricingExcluded) {
-            $additionalProperties[] = [
-                '@type' => 'PropertyValue',
-                'name' => 'includedEnergyPerMonth',
-                'value' => $current['package_included_kwh'],
-                'unitText' => 'kWh/kk',
-            ];
-        }
-
-        $source = $contract->electricitySource;
-        if ($source) {
-            if ($source->renewable_total !== null) {
-                $additionalProperties[] = [
-                    '@type' => 'PropertyValue',
-                    'name' => 'renewablePercentage',
-                    'value' => $source->renewable_total,
-                    'unitCode' => 'P1',
-                    'unitText' => '%',
-                ];
-            }
-
-            if ($source->nuclear_total !== null) {
-                $additionalProperties[] = [
-                    '@type' => 'PropertyValue',
-                    'name' => 'nuclearPercentage',
-                    'value' => $source->nuclear_total,
-                    'unitCode' => 'P1',
-                    'unitText' => '%',
-                ];
-            }
-
-            if ($source->fossil_total !== null) {
-                $additionalProperties[] = [
-                    '@type' => 'PropertyValue',
-                    'name' => 'fossilPercentage',
-                    'value' => $source->fossil_total,
-                    'unitCode' => 'P1',
-                    'unitText' => '%',
-                ];
-            }
-
-            if ($source->renewable_wind !== null && $source->renewable_wind > 0) {
-                $additionalProperties[] = [
-                    '@type' => 'PropertyValue',
-                    'name' => 'windPowerPercentage',
-                    'value' => $source->renewable_wind,
-                    'unitCode' => 'P1',
-                    'unitText' => '%',
-                ];
-            }
-
-            if ($source->renewable_hydro !== null && $source->renewable_hydro > 0) {
-                $additionalProperties[] = [
-                    '@type' => 'PropertyValue',
-                    'name' => 'hydroPowerPercentage',
-                    'value' => $source->renewable_hydro,
-                    'unitCode' => 'P1',
-                    'unitText' => '%',
-                ];
-            }
-        }
-
-        $co2Emissions = $this->co2Emissions;
-        if (! empty($co2Emissions) && isset($co2Emissions['emission_factor_g_per_kwh'])) {
-            $additionalProperties[] = [
-                '@type' => 'PropertyValue',
-                'name' => 'emissionFactor',
-                'value' => $co2Emissions['emission_factor_g_per_kwh'],
-                'unitCode' => 'GRM',
-                'unitText' => 'gCO2/kWh',
-            ];
-        }
-
-        if (! empty($additionalProperties)) {
-            $schema['additionalProperty'] = $additionalProperties;
-        }
-
-        return $schema;
+        return $this->seoPresentation()['productSchema'];
     }
 
     /**
@@ -3445,55 +2560,49 @@ class ContractDetail extends Component
      */
     public function getBreadcrumbSchemaProperty(): array
     {
-        $contract = $this->contract;
+        return $this->seoPresentation()['breadcrumbSchema'];
+    }
 
-        if (! $contract || ! $this->isActive) {
-            return [];
+    /**
+     * Generate FAQPage JSON-LD schema from the visible FAQ items.
+     */
+    public function getFaqSchemaProperty(): array
+    {
+        return $this->seoPresentation()['faqSchema'];
+    }
+
+    /**
+     * Resolve SEO metadata and schemas once from already-derived page facts.
+     *
+     * @return array<string, mixed>
+     */
+    protected function seoPresentation(): array
+    {
+        if ($this->seoPresentationCache !== null) {
+            return $this->seoPresentationCache;
         }
 
-        $breadcrumbs = [
-            [
-                '@type' => 'ListItem',
-                'position' => 1,
-                'name' => 'Etusivu',
-                'item' => config('app.url'),
-            ],
-            [
-                '@type' => 'ListItem',
-                'position' => 2,
-                'name' => 'Sähkösopimukset',
-                'item' => config('app.url').'/sahkosopimus',
-            ],
-        ];
+        $cheaperContractSummary = $this->cheaperContracts->first();
 
-        // Add company if available
-        if ($contract->company) {
-            $breadcrumbs[] = [
-                '@type' => 'ListItem',
-                'position' => 3,
-                'name' => $contract->company->name,
-                'item' => config('app.url').'/sahkosopimus/sahkoyhtiot/'.$contract->company->name_slug,
-            ];
-            $breadcrumbs[] = [
-                '@type' => 'ListItem',
-                'position' => 4,
-                'name' => $this->displayName,
-                'item' => $this->canonicalUrl,
-            ];
-        } else {
-            $breadcrumbs[] = [
-                '@type' => 'ListItem',
-                'position' => 3,
-                'name' => $this->displayName,
-                'item' => $this->canonicalUrl,
-            ];
-        }
-
-        return [
-            '@context' => 'https://schema.org',
-            '@type' => 'BreadcrumbList',
-            'itemListElement' => $breadcrumbs,
-        ];
+        return $this->seoPresentationCache = app(ContractDetailSeoPresenter::class)->present(
+            new ContractDetailPresentationInput(
+                contract: $this->contract,
+                isActive: $this->isActive,
+                displayName: $this->displayName,
+                priceRank: $this->priceRank,
+                totalContracts: $this->totalContracts,
+                consumption: $this->consumption,
+                currentDisplayValues: $this->currentDisplayValues(),
+                calculatedCost: $this->calculatedCost,
+                relationalPriceHistory: $this->priceHistory,
+                cheaperContractSummary: is_array($cheaperContractSummary) ? $cheaperContractSummary : null,
+                isPricingExcluded: $this->isPricingExcluded,
+                co2Facts: $this->co2Emissions,
+                canonicalUrl: route('contract.detail', ['contractId' => $this->contractId]),
+                applicationUrl: config('app.url'),
+                faqItems: $this->faqItems,
+            )
+        );
     }
 
     /**
@@ -3519,6 +2628,7 @@ class ContractDetail extends Component
     {
         $contract = $this->contract;
         $isActive = $this->isActive;
+        $historyPresentation = $this->historyPresentation();
 
         return [
             'view' => [
@@ -3537,11 +2647,11 @@ class ContractDetail extends Component
                 'pricingIntegrity' => $this->pricingIntegrity,
                 'pricingComparability' => $this->pricingComparability,
                 'isPricingExcluded' => $this->isPricingExcluded,
-                'priceHistory' => $this->priceHistory,
-                'contractHistory' => $this->contractHistory,
+                'priceHistory' => $historyPresentation['priceHistory'],
+                'contractHistory' => $historyPresentation['contractHistory'],
                 'priceDevelopment' => $this->priceDevelopment,
-                'priceTypeLabels' => $this->priceTypeLabels,
-                'priceTypeOrder' => $this->orderPriceTypes(array_keys($this->priceHistory)),
+                'priceTypeLabels' => $historyPresentation['priceTypeLabels'],
+                'priceTypeOrder' => $historyPresentation['priceTypeOrder'],
                 'isActive' => $isActive,
                 'presets' => $this->presets,
                 'presetNotice' => $this->presetNotice,

@@ -20,6 +20,7 @@
                 <input
                     type="text"
                     wire:model.live.debounce.300ms="search"
+                    data-search-input
                     placeholder="Hae paikkakuntaa..."
                     class="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                 >

@@ -2,6 +2,7 @@
 
 namespace App\Services\ContractStatistics;
 
+use App\Enums\PricingModel;
 use App\Models\ActiveContract;
 use App\Models\ContractPercentile;
 use App\Models\ElectricityContract;
@@ -53,18 +54,14 @@ class ContractPercentileService
                         $metrics['monthly_fee'][] = (float) $byType['Monthly']['price'];
                     }
 
-                    switch ($contract->pricing_model) {
-                        case 'Spot':
+                    switch ($contract->pricingModelType()) {
+                        case PricingModel::Spot:
                             $this->appendMetric($metrics['spot_margin'], $byType, 'General');
                             break;
-                        case 'FixedPrice':
+                        case PricingModel::FixedPrice:
                             $this->appendMetric($metrics['fixed_energy'], $byType, 'General');
                             break;
-                        case 'Seasonal':
-                            $this->appendSeasonalMetrics($metrics, $byType);
-                            break;
-                        case 'TimeOfUse':
-                            $this->appendTimeMetrics($metrics, $byType);
+                        default:
                             break;
                     }
                 }

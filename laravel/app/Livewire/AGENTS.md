@@ -8,6 +8,16 @@ See also:
 - `../AGENTS.md` for Laravel-level behavior
 - `../Services/ContractReplacement/AGENTS.md` for replacement matching/linking rules
 
+## Permanent form input rule
+
+- A control in which a visitor enters a value normally uses `wire:model.blur`. This includes text, number, email, password, telephone, URL, date, month, week, time, datetime-local, and textarea controls.
+- Never use `wire:model.live`, debounce, `wire:input`, or `wire:change` for those ordinary editable values. Processing while the value is incomplete causes requests, normalization, validation, and calculations to interrupt typing. This has caused repeated broken calculator behavior.
+- Search and autocomplete controls are the deliberate exception. Mark each one with `data-search-input` and use `wire:model.live.debounce.Nms`. A search that waits for blur is broken because its result list appears only after the visitor leaves the field.
+- Checkboxes, radio buttons, selects, range sliders, file inputs, and explicit buttons are complete discrete choices and can stay immediate. This distinction is intentional, not an exception for one component.
+- If an Enter shortcut commits a typed value, it must blur the field. Do not create a second processing path.
+- Numeric fields that represent consumption, dimensions, people, prices, costs, usage, capacity, or periods define a non-negative HTML `min`. Browser constraints are not trusted: the component must normalize or reject an invalid value before it reaches a service or calculation, write any corrected value back to the field, and show an adjacent or form-level accessible notice. Use `data-allow-negative` only for a genuinely signed domain value and document it here.
+- `tests/Unit/FormInputBlurPolicyTest.php` scans all Blade views, including views that are not on a current route. A dormant template must not bring the defect back when reused.
+
 ## `BillComparison`
 
 Primary files:
@@ -34,9 +44,10 @@ Important semantics:
   seasonal-profile annualization for the savings estimate. `includesHeating`
   selects the seasonal annualization profile (see `ConsumptionProfile`);
   annualized savings are labelled "arvio".
-- numeric inputs are `float|string|null` tolerant (mobile blank states); `nullableFloat()` is public so the view can guard optional-input logic.
+- numeric inputs are `float|string|null` tolerant (mobile blank states); `nullableFloat()` is public so the view can guard optional-input logic. Required kWh and price fields restore the last accepted positive value with an accessible error. The optional annual-kWh field rejects a negative value, clears it, and shows its own error.
+- zero is not accepted for either required number. A numeric consumption below 1 kWh or bill price at or below 0 € is replaced with that field's locked last-accepted value, is never sent to `BillComparisonService`, and shows an accessible Finnish validation error. Existing results stay consistent with the restored valid inputs. The inputs also use HTML `min=1` and `min=0.01`, but the Livewire guard is authoritative because native number inputs can still submit an invalid value. A later valid value becomes the new accepted value, clears the error, and recalculates.
 - **Derived result state (`$resultArray`, `$calculated`, `$errorMessage`) is intentionally `protected`, never `public`. Do not make it public/synced.** As a public property the 300+ row DB-derived `$resultArray` made Livewire's deep-array dehydration produce a snapshot whose own checksum could not be reproduced on verify, raising `CorruptComponentPayloadException` on every update so the page silently froze on stale numbers (snapshot was ~168 KB). It is recomputed from the inputs each request by `calculate()`, so syncing it bought nothing. `render()` passes `resultArray`/`errorMessage` to the view and runs a cheap `calculate()` guard so every render path has results. Tests read the result via `->viewData('resultArray')`, not a public property. `test_result_is_not_synced_into_the_livewire_snapshot` pins this invariant.
-- `updatedStartDate()` / `updatedEndDate()` call `calculate()` (the comparison period drives the counterfactual, and the result is no longer persisted, so a manual date edit must recompute).
+- `updatedStartDate()` / `updatedEndDate()` call `calculate()` after their date inputs blur (the comparison period drives the counterfactual, and the result is no longer persisted, so a manual date edit must recompute). The shared in-listing/detail bill fields use the same blur boundary for dates, kWh, and total price.
 - this is a per-user calculator: no public prepared-data caching and it is intentionally not in `SetPublicCacheHeaders` (matches the heat-pump / solar calculators).
 - loading feedback uses the shared `<x-spinner>` Blade component (`resources/views/components/spinner.blade.php`) inside a `wire:loading.delay` fixed bottom-right pill plus a `wire:loading.delay.class="opacity-50"` dim on the results region. Reuse `<x-spinner>` for any new loading indicator rather than re-inlining the SVG, so the coral spinner stays visually consistent across calculators.
 - both WebApplication + FAQPage schemas render in the view via `<x-schema-markup :schemas="[$jsonLd, $faqJsonLd]" />`; `getFaqItemsProperty()` is the single source of truth for the FAQ.
@@ -120,11 +131,14 @@ Important semantics:
   and prepared-cache bypasses on any query string, so `?kulutus=` variants are
   non-indexable. Tests: `ContractDetailPageTest::test_kulutus_*`.
 - **Compact layout (vertical space).** Goal: contracts sit near the top on every
-  comparison page. The hero is slimmed; the consumption selector is a compact
-  single-row grid of preset info-cards (label + description + kWh, so they keep
-  their meaning) plus a free-text "Tiedän kulutukseni" input tile; the full
-  calculator is behind a header toggle ("En tiedä – arvioi laskurilla", desktop)
-  / an in-panel toggle (mobile) rather than an always-visible tab. The bill entry
+  comparison page. `resources/views/partials/contract-consumption-selector.blade.php`
+  is the one source for the selector markup in `ContractsList`, `SeoContractsList`,
+  and `CheapestContracts`; each listing view includes it instead of copying the UI.
+  The hero is slimmed; the consumption selector is a compact single-row grid of
+  preset info-cards (label + description + kWh, so they keep their meaning) plus a
+  free-text "Tiedän kulutukseni" input tile; the full calculator is behind a header
+  toggle ("En tiedä – arvioi laskurilla", desktop) / an in-panel toggle (mobile)
+  rather than an always-visible tab. The bill entry
   and the **filters** (`partials/contract-filters.blade.php`) are collapsed Alpine
   disclosures (`x-collapse` + `x-cloak`). Filters now collapse on **all** sizes
   (previously desktop-always-open); the "Rajaa hakua" trigger shows an active-filter
@@ -166,9 +180,9 @@ Important semantics:
 - The recommended option gets the page's single dark `slate-950` focus moment with the savings as the one coral number; the current system is a quiet light baseline. Mirrors the `SolarCalculator` result treatment. Do not turn the energy-need summary back into a three-up hero-metric grid, and keep coral to the recommendation/CTA only.
 - The answer card states the selection rule in plain Finnish (cheapest total cost = running costs + investment annuity, among saving full-replacement options) so the recommendation logic is transparent to the user.
 - Savings/“lisäkustannus” deltas are neutral tabular slate, not green/red. Green/red is reserved for the CO₂ delta only (measured-emissions semantic, see `../../DESIGN.md`). Payback chart draws the baseline in slate-400 and the evaluated option in coral; do not use green for the alternative line.
-- Recalculation feedback is a non-blocking bottom-right status pill plus a dim of the results region (`wire:loading.delay`). Do not reintroduce a `fixed inset-0` full-screen overlay; it flashed on every debounced keystroke.
+- Recalculation feedback is a non-blocking bottom-right status pill plus a dim of the results region (`wire:loading.delay`). Do not reintroduce a `fixed inset-0` full-screen overlay. The old debounced inputs made it flash while a visitor typed; all editable numeric inputs now recalculate only on blur under the permanent form rule above.
 - All seven investment costs (including `ilp_fireplace`, `exhaust_air_hp_fireplace`) are editable in advanced settings so the editable set matches what the service actually computes.
-- Numeric inputs are intentionally `int|float|string|null` tolerant because Livewire/mobile browsers can send empty strings while fields are cleared. Keep `normalizeNumericInputs()` as the gate before validation/DTO construction so blank numeric fields normalize to safe defaults or nullable bill-input validation errors instead of typed-property hydration exceptions.
+- Numeric inputs are intentionally `int|float|string|null` tolerant because Livewire/mobile browsers can send empty strings while fields are cleared. Keep `normalizeNumericInputs()` as the gate before validation/DTO construction so blank numeric fields normalize to safe defaults or nullable bill-input validation errors instead of typed-property hydration exceptions. Room height, people, prices, investments, interest, and period are clamped to their non-negative/positive HTML minima before DTO construction and show the shared visible correction notice. Active bill quantities and living area keep their more specific validation errors.
 - The page is SEO-targeted at the query "kannattaako lämpöpumppu" (sub-queries "kannattaako maalämpö", "kannattaako ilma-vesilämpöpumppu"): question-first title + H1, and an H2/H3 content section using those exact questions. Keep the calculator intent; do not turn it into hype.
 - `getFaqItemsProperty()` is the single source of truth for the FAQ; it drives both the visible `<details>` loop and `buildFaqJsonLd()` (FAQPage). Do not hand-write a separate FAQ `<script>` again, that previously drifted from the visible list.
 - Both schemas render in the **view** via `<x-schema-markup :schemas="[$jsonLd, $faqJsonLd]" />` (WebApplication + FAQPage). The shared `layouts.app` does NOT output a passed `$jsonLd`, so schemas must be passed to `view(...)` and rendered by the component, not via the layout array.
@@ -230,8 +244,9 @@ Primary files:
 - `../../resources/views/livewire/solar-calculator.blade.php`
 
 Important semantics:
-- `systemKwp` is intentionally `float|string|null` tolerant because Livewire/mobile browsers can send an empty string while the visitor clears the number input. `updatedSystemKwp($value)` must normalize from the hook argument instead of reading the public property before normalization; otherwise Livewire can unset a non-nullable typed property and trigger `PropertyNotFoundException`.
-- Use `normalizedSystemKwp()` for PVGIS requests, static example scaling, and analytics payloads so stale or blank snapshots are clamped to the supported 0.5–20 kWp range before calculation.
+- Address autocomplete is a marked search field and uses live debounce so suggestions appear while the visitor types. System size and electricity price use `wire:model.blur`. In particular, savings must not recalculate while the visitor is still replacing the electricity-price value. A negative electricity price is corrected to the supported 0 c/kWh minimum with an accessible notice; this calculator intentionally models the household contract price as non-negative even though wholesale Spot hours can be negative.
+- `systemKwp` is intentionally `float|string|null` tolerant because Livewire/mobile browsers can send an empty string when the visitor leaves a cleared number input. `updatedSystemKwp($value)` must normalize from the hook argument instead of reading the public property before normalization; otherwise Livewire can unset a non-nullable typed property and trigger `PropertyNotFoundException`.
+- Use `normalizedSystemKwp()` for PVGIS requests, static example scaling, analytics payloads, and the shared result heading so stale or blank snapshots are clamped to the supported 0.5–20 kWp range before calculation. Both the live result and Helsinki example receive `effectiveSystemKwp`; do not render the raw input or a fixed `5 kWp` label beside a recalculated result.
 
 ## `SpotPrice`
 
@@ -297,6 +312,7 @@ Primary files:
 
 Query guardrails:
 - `contracts` is one memoized collection of all active company contracts. Household (`Household`, `Both`, or legacy null) and business (`Company` or `Both`) lists filter this collection in memory. Do not run a second contract query for the business section.
+- Direct canonical and legacy evaluations are adapted into `ContractPricingViewData` before sorting, statistics, offer membership, or other decisions. Both canonical and feature-off promotion branches read the request-local typed map, including measured legacy savings. Only the existing `calculated_cost` Eloquent presentation attribute is serialized for Blade transport. Listed statistics use finite typed totals; exclusions stay null and sort last.
 - `companyStats` uses only the household list and is memoized per render because layout title/meta, JSON-LD, H1/hero text, and the visible list reuse it.
 - Keep company contract queries eager-loading `company` and `electricitySource`. Load `priceComponents` only in the explicit feature-off branch; canonical calculations, offers, cards, and current company facts must not require or query relational prices.
 - `updatedAt` uses aggregate maximum dates only. Do not load source snapshot JSON.
@@ -334,7 +350,7 @@ contracts or precomputed household statistics.
    comparison and that Voltikka updates contract data each day. Do not hide the
    section when the list is empty.
 
-   `CanonicalOfferFacts` supplies the specific typed term and measured saving.
+   `CanonicalOfferFacts` receives the contract's `ContractPricingViewData` and supplies the specific typed term and measured saving.
    The calculator's `offer_terms` records supported changed component types,
    actual/normal amounts, and exact resolved duration/date. It can use either a
    component `normal_amount` or an exact introductory-to-normal phase comparison;
@@ -482,7 +498,7 @@ Primary files:
 Important semantics:
 - calculator inputs are deliberately nullable/string-tolerant because Livewire can send blank strings/nulls when users clear number/select fields before tabbing away.
 - `calculate()` must read public inputs through safe helper methods and use enum `tryFrom()` fallbacks so blank/stale browser state does not become `PropertyNotFoundException` or enum `ValueError`.
-- blank/too-small numeric inputs are normalized back onto the component so the UI displays minimum allowed values: 20 m² living area, 1 resident, and 0 for optional numeric extras.
+- blank/too-small numeric inputs are normalized back onto the component so the UI displays minimum allowed values: 20 m² living area, 1 resident, and 0 for optional numeric extras. A numeric value below its minimum also writes a field-specific accessible notice to `numericNotices`; do not return to silent correction.
 - fallback select defaults are apartment, electric heating, central region, and 2000-era energy rating.
 - the page also renders a `sähkön hinta laskuri` section when `contract_price_daily_statistics` data exists. Every contract type uses stored `annual_cost` p20/median/p80 rows with the existing interpolation/nearest-reference behavior. The current date and rows use `PricingMode::expectedContractPriceBasis()`: canonical mode requires `canonical_calculation`, and feature-off requires `observed_seller_data`, with no newer wrong-basis fallback. It never rebuilds a public annual total from unit price + monthly fee. If annual rows are missing, that type is unavailable; this keeps canonical-only and package totals while preventing relational fallback.
 - `priceEstimatesFor(int $consumption)` holds that estimate logic; `contractTypePriceEstimates` is just the visitor's own consumption. `priceStatisticsRows()` memoizes `[statDate, groupedRows]` for the request, so the FAQ can price extra fixed levels at **no extra query** (measured: 2 statistics queries per render, unchanged). Keep that memo `protected` — as a public property the grouped Eloquent collection would be dehydrated into the Livewire snapshot for nothing.
@@ -539,7 +555,7 @@ Purpose:
 Important semantics:
 - widget actions can be slow because contract candidates are recalculated; keep visible `wire:loading` feedback on mode, consumption, and contract-selector updates
 - do not server-render every available contract as `<option>` elements; the editorial article embed must avoid dumping all contract names into the initial DOM for crawler quality and UX
-- contract selection is interaction-gated: the default view shows only auto-selected/explicit contracts, and searchable async results render only after the user opens a selector and types at least 2 characters
+- contract selection is interaction-gated: the default view shows only auto-selected/explicit contracts, and searchable async results render after the user opens a selector and types at least 2 characters; the marked search input uses live debounce so results appear without leaving the field and without one request per keystroke
 - default `contract_term` mode compares määräaikainen vs toistaiseksi voimassa oleva for the määräaikainen article
 - `comparisonContext="spot_article"` keeps pörssisähkö as the left-side anchor in both tabs: pörssisähkö vs kiinteähintainen and pörssisähkö vs määräaikainen
 - in canonical mode, candidate selection, the monthly chart, annual and average-monthly totals, winner/savings, current rates/fees, package facts, offer fact, and estimate labels all read one memoized `CanonicalPricingOutcome` per contract and consumption basis. The chart renders `monthlyCosts` directly; it must not reconstruct monthly prices from unit rates.
@@ -688,8 +704,20 @@ Primary files:
 - `ContractDetail.php`
 - `../../resources/views/livewire/contract-detail.blade.php`
 - `../Models/ElectricityContract.php`
+- `../Services/ContractDetail/AGENTS.md`
 - `../Services/Caching/ContractPageCacheVersion.php`
 - `../../../../tasks/contract-detail-overhaul/` (spec, decisions, approved mockups)
+
+SEO responsibility boundary:
+- `ContractDetailSeoPresenter` owns page/OG titles, meta description, and WebPage, Product, BreadcrumbList, and FAQPage JSON-LD policy.
+- The component keeps thin computed compatibility adapters and supplies one immutable input of already-derived facts. It still owns queries, ranking, calculations, visible FAQ generation, and interactive state.
+- Product offers receive the same canonical-only current display values as the receipt. Missing values stay absent, excluded contracts emit no offers, and structured brand logos stay local-only.
+- This extraction does not change the prepared detail cache payload, so its schema stays v18.
+
+Pricing cache boundary:
+- `pricingViewDataFor()` is the one request-local pricing accessor for each consumption. It returns a cached metric's `ContractPricingViewData` directly, or adapts the canonical or legacy calculator result once, and memoizes the typed object by consumption.
+- Generated qualifier, receipt-note, term, FAQ, current-display, package, cost-table, and counterfactual policy reads typed pricing accessors and `PricingFact`. Only `getCalculatedCostProperty()` / `calculatedCostFor()` serialize the unchanged compatibility array. The card, SEO presenter input, price-development input, and prepared payload keep that existing transport shape; detail cache schema stays v18.
+- Integrity and comparability stay typed in the cache path. An excluded metric stays available to the detail page but is absent from ranking. A missing listed total fails cache hydration and cannot become a zero-price cheaper alternative.
 
 ### Page composition (the approved editorial structure)
 
@@ -1277,10 +1305,18 @@ cleanup rules there, never in `contract-detail.blade.php`.**
 
 The hero tile and the alternative-contract tiles use `<x-company-logo>`
 (`../../resources/views/components/company-logo.blade.php`), the same component as the cards,
-the company list and the company page. It paints initials first and reveals the logo only when
-it actually decoded, so a 404 or an HTML error page leaves initials instead of a broken image or
-a blank gap. **Do not hand-roll an `@if (getLogoUrl())` / `@else` pair here again** — that is the
-pattern the component replaced, and its `onerror` used to point at a third-party placeholder host.
+the company list, company page, and editorial contract-type comparison. It paints initials first
+and reveals the logo only when it actually decoded, so a 404 or an HTML error page leaves initials
+instead of a broken image or a blank gap. **Do not hand-roll an `@if (getLogoUrl())` / `@else` pair
+again** — that is the pattern the component replaced, and its `onerror` used to point at a
+third-party placeholder host.
+
+Visible public tiles and Product, ItemList, and Organization schemas all call
+`Company::getLocalLogoUrl()`. An external-only company stays on initials, so a visitor never sends
+an image request to an unverified seller host and a dead URL cannot enter JSON-LD. Local resolution
+prefers an existing optimized WebP beside the recorded source file. `Company::getLogoUrl()` retains
+an external fallback only for non-browser consumers such as the API/video paths. Do not add
+request-time external health checks or put external seller image URLs back into public HTML.
 
 ### Prepared view-data caching
 
@@ -1308,7 +1344,7 @@ Use broad existing SEO pages for duration badges instead of creating exact-durat
 
 ### Query optimization guardrails
 
-`ContractDetail` loads `activeContract` beside `company`, `priceComponents`, and `electricitySource`. Keep `ElectricityContract::isActive()` relation-aware so detail history rows do not issue one `active_contracts` query per version. Discount helpers on `ElectricityContract` are also relation-aware; when `priceComponents` is already eager-loaded for cards or JSON-LD, do not re-query `price_components` just to check active discounts.
+`ContractDetail` loads `activeContract` beside `company`, `priceComponents`, and `electricitySource`. `ContractHistoryPresenter` separately bulk eager-loads `company`, `priceComponents`, and `activeContract` for the full backward chain. Keep `ElectricityContract::isActive()` relation-aware so history rows do not issue one `active_contracts` query per version. Discount helpers on `ElectricityContract` are also relation-aware; when `priceComponents` is already eager-loaded for cards or JSON-LD, do not re-query `price_components` just to check active discounts.
 
 `ContractDetail` also memoizes rank-related computed values and keeps one request-scoped `ContractRankingService` instance. Do not replace `rankingService()` with repeated `app(ContractRankingService::class)` calls in `liveRank`, `liveTotalContracts`, or `cheaperContracts`; those methods share the same eligible target-group lookup and otherwise repeat large `electricity_contracts` queries during one render.
 
@@ -1369,8 +1405,9 @@ Current intended behavior:
 - an inactive rendered contract's timeline starts with a synthetic “Sopimus ei ole enää myynnissä” status node, and the inactive version itself must not keep the `Nykyinen` badge
 - availability transitions have no persisted timestamp; use the rendered contract's maximum `price_components.price_date` only as “Viimeksi havaittu myynnissä”, never as an exact removal/expiry date, and show the unknown-date fallback when it has no price rows
 - start from the currently rendered contract
-- walk backward with `ContractDetail::getBackwardReplacementChainIds()` using a recursive CTE, then eager-load all history contracts with `company`, `priceComponents`, and `activeContract`; do not replace this with per-version relation walking
-- inactive replacement redirects use `ContractDetail::getForwardReplacementChainIds()` plus a bulk `activeContract` load so old bot-hit URLs do not lazy-load `replacedBy` / `activeContract` one link at a time
+- `ContractHistoryPresenter` walks backward with a recursive CTE capped at depth 25, then eager-loads all history contracts with `company`, `priceComponents`, and `activeContract`; do not replace this with per-version relation walking
+- `ContractDetail` keeps only thin computed history compatibility methods over one request-local cached `historyPresentation()` payload; it does not own predecessor loading, relational history mapping, labels, order, or historical promotion copy
+- inactive replacement redirects stay in `ContractDetail` and use `getForwardReplacementChainIds()` plus a bulk `activeContract` load so old bot-hit URLs do not lazy-load `replacedBy` / `activeContract` one link at a time
 - include the current contract itself as the newest history entry
 - sort versions in reverse chronological order using each version's latest known `price_date`
 - show, for each version:
@@ -1381,10 +1418,10 @@ Current intended behavior:
 ### Price component label guardrail
 
 Component labels and display order for the version timeline and its delta chips
-come from `ContractDetail::priceTypeLabelsFor()` / `ContractDetail::PRICE_TYPE_ORDER`
-and reach the view as `$priceTypeLabels` / `$priceTypeOrder`. **Do not hardcode
-either map in `contract-detail.blade.php` again.** (The chart above the timeline
-does not read this map at all; it builds one representative energy series in
+come from `ContractHistoryPresenter` and reach the view as `$priceTypeLabels` /
+`$priceTypeOrder`. **Do not hardcode either map in `ContractDetail` or
+`contract-detail.blade.php` again.** (The chart above the timeline does not read
+this map at all; it builds one representative energy series in
 `PriceDevelopmentPresenter`.)
 
 - A spot contract's `General` component is usually the supplier **margin**, not the
@@ -1400,7 +1437,7 @@ does not read this map at all; it builds one representative energy series in
   map back over the current-price rows.
 - **`price_component_type` is written verbatim from the upstream API payload**
   (`Services/ContractInterpretation/CanonicalPriceComponentWriter`), so any
-  whitelist of types is incomplete by construction. `orderPriceTypes()` appends
+  whitelist of types is incomplete by construction. The presenter's ordering appends
   unrecognized types under their raw name instead of dropping them; the previous
   hardcoded order silently hid the `Spot` margin component from Turku Energia
   Louna Nero's history entirely. Both winter spellings (`SeasonalWinter`,
@@ -1428,7 +1465,7 @@ Reason:
 
 ### Price-change summary semantics
 
-`ContractDetail` also merges `priceComponents` across the backward chain for the price-change teaser/details table.
+`ContractHistoryPresenter` merges relational `priceComponents` across the backward chain. `ContractDetail` reads that prepared `priceHistory` for the price-change teaser/details table and the price-development adapter.
 
 That means:
 - change counts are computed across all linked versions, not only the current row

@@ -1,0 +1,6 @@
+[
+  {"name":"Extract the compact consumption selector into one shared partial","status":"completed"},
+  {"name":"Use the shared selector on all contract listing views","status":"completed"},
+  {"name":"Add regression coverage and run targeted checks","status":"completed"},
+  {"name":"Document the shared selector decision","status":"completed"}
+]

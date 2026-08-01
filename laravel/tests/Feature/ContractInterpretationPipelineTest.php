@@ -1648,6 +1648,29 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertDatabaseHas('active_contracts', ['id' => $contract->id]);
     }
 
+    public function test_unknown_classifications_do_not_publish_to_relational_columns(): void
+    {
+        $snapshot = $this->createSnapshot();
+        $output = $this->validOutput($snapshot->contract_id, [
+            'term_type' => 'Unknown',
+            'primary_pricing_model' => 'Unknown',
+            'metering' => 'Unknown',
+        ]);
+        $interpretation = $this->createInterpretation($snapshot, $output);
+
+        $this->assertTrue(app(ContractInterpretationPublisher::class)->publish($interpretation));
+
+        $contract = ElectricityContract::findOrFail($snapshot->contract_id);
+        $this->assertSame('Spot', $contract->pricing_model);
+        $this->assertSame('OpenEnded', $contract->contract_type);
+        $this->assertSame('General', $contract->metering);
+        $this->assertSame($interpretation->id, $contract->published_interpretation_id);
+        $publishedFields = $interpretation->fresh()->published_fields;
+        $this->assertNotContains('pricing_model', $publishedFields);
+        $this->assertNotContains('contract_type', $publishedFields);
+        $this->assertNotContains('metering', $publishedFields);
+    }
+
     public function test_job_uses_the_pointed_episode_analysis_date(): void
     {
         config()->set('contract_interpretation.max_repair_attempts', 0);

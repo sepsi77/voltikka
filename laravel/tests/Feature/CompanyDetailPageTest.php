@@ -11,6 +11,7 @@ use App\Models\ElectricitySource;
 use App\Models\PriceComponent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -177,6 +178,17 @@ class CompanyDetailPageTest extends TestCase
             ->assertSet('selectedPreset', null);
     }
 
+    public function test_negative_direct_consumption_is_corrected_with_a_visible_notice(): void
+    {
+        $this->createContract('test-contract-1', 'Test Sähkö', 4.0, 2.0);
+
+        Livewire::test('company-detail', ['companySlug' => 'test-energy-oy'])
+            ->set('directConsumption', -500)
+            ->assertSet('directConsumption', 0)
+            ->assertSet('consumption', 5000)
+            ->assertSee('Vuosikulutus ei voi olla negatiivinen. Käytämme arvoa 0 kWh.');
+    }
+
     public function test_custom_query_consumption_activates_the_direct_input(): void
     {
         $this->createContract('test-contract-1', 'Test Sähkö', 4.0, 2.0);
@@ -294,6 +306,22 @@ class CompanyDetailPageTest extends TestCase
         $this->assertEquals('Organization', $jsonLd['@type']);
         $this->assertEquals('Test Energy Oy', $jsonLd['name']);
         $this->assertEquals('https://testenergy.fi', $jsonLd['url']);
+        $this->assertArrayNotHasKey('logo', $jsonLd);
+    }
+
+    public function test_json_ld_organization_includes_only_an_optimized_local_logo(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('logos/test-energy.png', 'original content');
+        Storage::disk('public')->put('logos/test-energy.webp', 'optimized content');
+        $this->company->update(['local_logo_path' => 'logos/test-energy.png']);
+        $this->createContract('test-contract', 'Test Sähkö', 5.0, 2.0);
+
+        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $organization = collect($component->viewData('schemas'))->firstWhere('@type', 'Organization');
+
+        $this->assertStringContainsString('logos/test-energy.webp', $organization['logo']);
+        $this->assertStringNotContainsString('storage.example.com', $organization['logo']);
     }
 
     /**
@@ -543,6 +571,8 @@ class CompanyDetailPageTest extends TestCase
         $this->assertStringContainsString('1 pörssisähkösopimus', strip_tags($html));
         $this->assertDoesNotMatchRegularExpression('/<h3[^>]*>\s*Vuosikulutus\s*<\/h3>/', $html);
         $this->assertMatchesRegularExpression('/<p[^>]*>Vuosikulutus<\/p>/', $html);
+        $this->assertStringContainsString('viewBox="0 0 24 24"', $html);
+        $this->assertStringNotContainsString('viewBox="0 0 24"', $html);
     }
 
     public function test_update_date_prefers_the_latest_active_source_observation_and_updates_webpage_schema(): void

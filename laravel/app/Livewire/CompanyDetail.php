@@ -12,6 +12,7 @@ use App\Services\CanonicalPricing\CanonicalOfferFacts;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\CompanyStatistics\CompanyMarketComparisonService;
 use App\Services\ContractPriceCalculator;
+use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\DTO\EnergyUsage;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -26,6 +27,9 @@ class CompanyDetail extends Component
     public string $companySlug;
 
     protected ?Collection $contractsCache = null;
+
+    /** @var array<string, ContractPricingViewData> */
+    protected array $pricingViewData = [];
 
     protected ?array $companyStatsCache = null;
 
@@ -58,6 +62,8 @@ class CompanyDetail extends Component
      * Free annual-consumption input. Blank values are valid while editing.
      */
     public int|string|null $directConsumption = null;
+
+    public ?string $directConsumptionNotice = null;
 
     /**
      * Available consumption presets matching ContractsList pattern.
@@ -136,7 +142,13 @@ class CompanyDetail extends Component
             return;
         }
 
-        $consumption = max(0, (int) $value);
+        $raw = (int) $value;
+        $consumption = max(0, $raw);
+        $this->directConsumption = $consumption;
+        $this->directConsumptionNotice = $raw < 0
+            ? 'Vuosikulutus ei voi olla negatiivinen. Käytämme arvoa 0 kWh.'
+            : null;
+
         if ($consumption <= 0) {
             return;
         }
@@ -149,6 +161,7 @@ class CompanyDetail extends Component
     protected function clearComputedCaches(): void
     {
         $this->contractsCache = null;
+        $this->pricingViewData = [];
         $this->companyStatsCache = null;
         $this->marketComparisonCache = null;
         $this->marketComparisonResolved = false;
@@ -198,7 +211,8 @@ class CompanyDetail extends Component
 
             if ($useCanonical) {
                 $evaluation = $canonicalPricing->evaluate($contract, $usage);
-                $contract->calculated_cost = $evaluation['outcome']->toCalculatedCostArray();
+                $pricing = ContractPricingViewData::fromCanonicalOutcome($evaluation['outcome']);
+                $contract->calculated_cost = $pricing->toArray();
                 $contract->pricing_integrity = $evaluation['integrity']->toArray();
                 $contract->comparability = $evaluation['outcome']->comparability->value;
                 $contract->is_listed = $evaluation['outcome']->isListed();
@@ -211,11 +225,14 @@ class CompanyDetail extends Component
                 ];
 
                 $result = $calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
-                $contract->calculated_cost = $result->toArray();
+                $pricing = ContractPricingViewData::fromLegacyResult($result);
+                $contract->calculated_cost = $pricing->toArray();
                 $contract->pricing_integrity = null;
                 $contract->comparability = null;
                 $contract->is_listed = true;
             }
+
+            $this->pricingViewData[$contract->id] = $pricing;
 
             // Calculate emission factor for this contract
             $contract->emission_factor = $emissionsCalculator->calculateEmissionFactor($contract->electricitySource);
@@ -245,8 +262,11 @@ class CompanyDetail extends Component
                 return $aExceeds - $bExceeds;
             }
 
-            $aCost = $a->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
-            $bCost = $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
+            $aCost = $this->pricingViewData[$a->id]->total();
+            $bCost = $this->pricingViewData[$b->id]->total();
+            if ($aCost === null || $bCost === null) {
+                return $aCost === $bCost ? 0 : ($aCost === null ? 1 : -1);
+            }
 
             return $aCost <=> $bCost;
         })->values();
@@ -297,9 +317,11 @@ class CompanyDetail extends Component
         }
 
         // Filter contracts that are applicable for pricing (consumption within limits)
-        $priceApplicableContracts = $contracts->filter(fn ($c) => ! $c->exceeds_consumption_limit);
+        $priceApplicableContracts = $contracts->filter(fn ($c) => ! $c->exceeds_consumption_limit && ($c->is_listed ?? true));
 
-        $prices = $priceApplicableContracts->pluck('calculated_cost.total_cost')->filter();
+        $prices = $priceApplicableContracts
+            ->map(fn (ElectricityContract $contract) => $this->pricingViewData[$contract->id]->total())
+            ->filter(fn (?float $total) => $total !== null);
         // Keep 0 emission factors (100% renewable), only exclude null (missing data uses residual mix)
         $emissionFactors = $contracts->pluck('emission_factor')->filter(fn ($v) => $v !== null);
         // Contracts without source data are treated as 0% renewable (unverified source)
@@ -328,8 +350,8 @@ class CompanyDetail extends Component
         if (app(CanonicalContractPricingService::class)->enabled()) {
             return $this->householdContracts
                 ->map(function (ElectricityContract $contract) {
-                    $contract->offer_fact = CanonicalOfferFacts::fromCalculatedCost(
-                        is_array($contract->calculated_cost ?? null) ? $contract->calculated_cost : [],
+                    $contract->offer_fact = CanonicalOfferFacts::fromPricing(
+                        $this->pricingViewData[$contract->id],
                     );
 
                     return $contract;
@@ -341,8 +363,8 @@ class CompanyDetail extends Component
         return $this->householdContracts
             ->filter(fn (ElectricityContract $contract) => $contract->hasActiveDiscounts())
             ->map(function (ElectricityContract $contract) {
-                $benefit = $contract->calculated_cost['discount_savings_total'] ?? null;
-                $benefit = is_numeric($benefit) && (float) $benefit > 0.005 ? (float) $benefit : null;
+                $saving = $this->pricingViewData[$contract->id]->discountSaving();
+                $benefit = $saving > 0.005 ? $saving : null;
                 $contract->offer_fact = [
                     'label' => $contract->formatActiveDiscountValue() ?? 'Kampanjahinta',
                     'benefit_eur' => $benefit,
@@ -466,9 +488,8 @@ class CompanyDetail extends Component
             }
         }
 
-        // Add logo if available
-        if ($this->company->getLogoUrl()) {
-            $schema['logo'] = $this->company->getLogoUrl();
+        if ($logoUrl = $this->company->getLocalLogoUrl()) {
+            $schema['logo'] = $logoUrl;
         }
 
         if ($this->contracts->contains(fn (ElectricityContract $contract) => $contract->availability_is_national === true)) {

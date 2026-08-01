@@ -8,6 +8,10 @@ See root `../AGENTS.md` for project overview and architecture. Keep implementati
 
 Research/planning documents live in `data-investigation/`; read `data-investigation/AGENTS.md` first. The fixed-term contract price forecasting plan is `data-investigation/price-forecasting-plan.md`; local-only Python model exploration lives under `data-investigation/price-forecasting/`. The production implementation lives under `app/Services/PriceForecasting/`, persists forecasts, and serves `/sahkosopimus/sahkon-hintaennuste` through `app/Livewire/FixedContractPriceForecast.php`.
 
+## Livewire form input boundary
+
+Editable text, number, email, telephone, URL, date/time, and textarea controls use `wire:model.blur`. They must not send requests, validate, recalculate, or normalize on each keystroke. Search and autocomplete controls are marked `data-search-input` and use `wire:model.live.debounce.Nms`; results must update while the visitor types. Discrete controls such as checkboxes, radio buttons, selects, ranges, files, and explicit preset/action buttons can react immediately. Numeric inputs define a non-negative `min` unless the domain is explicitly signed, and Livewire must reject or normalize invalid values before calculation with visible feedback. `tests/Unit/FormInputBlurPolicyTest.php` scans every Blade template and prevents accidental live editable bindings, non-live search bindings, and missing numeric minima. See `app/Livewire/AGENTS.md` for the detailed rule.
+
 ## Contract replacement system
 
 Voltikka keeps inactive contracts in `electricity_contracts` for historical continuity, SEO cleanup, and long-term price-history stitching.
@@ -110,6 +114,10 @@ Important semantics:
 - `CanonicalPricing/PricingMode` snapshots canonical and reset-shift flags once per request/command and owns the expected statistics basis and cache marker. All calculated-cost-dependent caches include `CalculatedCostPayloadSchema::VERSION`; their outer wrapper versions remain independent
 - market-reset products (monthly/quarterly/seasonal/other repricing) are annualised by `app/Services/CanonicalPricing/MarketReset/` with a shape-only FI forward-curve shift behind its own `RESET_FORWARD_SHIFT_ENABLED` flag (default off). Cadence `other` uses the quarterly calendar and reference proxy because exact phase boundaries are not published. It must stay a separate flag because `CANONICAL_PRICING_ENABLED` is already on in production; the flag also varies the list/ranking/page cache keys. See `app/Services/CanonicalPricing/MarketReset/AGENTS.md`
 - use `php artisan contracts:interpret` to dispatch active contracts' pointed observations; add `--retry-failed`, `--contract=`, or `--include-inactive` when needed. The command can reuse stored output without an OpenRouter key
+
+### Legacy contract pricing
+
+`app/Services/ContractPriceCalculator.php` owns both feature-off annual pricing and the typed exact-period path used by all bill-comparison surfaces. Both paths resolve rates, legacy Spot detection and the first non-monthly margin, component-scoped discount amounts, supported normalized/upstream units, and inclusive `UntilDate` timing in one place. Exact periods use flat local-day kWh, 85/15 Time and winter-day splits, actual winter dates, realized with-VAT Spot averages, and day/30 ordinary fees. `BillComparisonService` keeps queries, consumption-cap policy, annualization, and canonical fail-closed behavior, but does not calculate relational rates itself. Its legacy annual estimate anchors promotion timing at the bill start.
 
 ### Contract price statistics
 
@@ -229,6 +237,10 @@ It should **not** blindly collapse materially different product variants when va
 
 ## Frontend behavior
 
+### Asset loading
+
+`resources/views/layouts/app.blade.php` relies on Laravel Vite's generated CSS preload/modulepreload tags and Livewire's own versioned script tag. Do not add a manual `as="script"` preload for the Vite module: its request mode differs from the module request and can cause a duplicate download. Do not preload an unversioned `/vendor/livewire/livewire.min.js`; Livewire emits the versioned file it actually executes. `tests/Feature/LayoutAssetLoadingTest.php` guards both rules.
+
 ### Global page navigation feedback
 
 `resources/views/layouts/app.blade.php` shows an immediate page-loading indicator for normal same-origin link navigation. Same-document hash links (for example `/sahkosopimus/tilastot?kulutus=5000#viittaa`) must not start or leave this indicator active, because no page or Livewire request is expected. Keep the hash-only `click`/`popstate`/`hashchange` guards in sync if changing navigation feedback.
@@ -257,6 +269,21 @@ already caused a visible defect once:
   the binding does not re-run afterwards if the coordinates are unchanged. Both components
   write `style.top` / `style.left` imperatively each time the panel opens, and re-resolve the
   trigger at that moment instead of trusting a node cached at init.
+
+## Local production database sync
+
+Use the repository wrapper from the root:
+
+```bash
+scripts/sync-production-database.sh
+scripts/sync-production-database.sh --yes
+```
+
+The wrapper creates a `.production-sync-*` temporary SQLite file in `laravel/database`. Each Artisan child uses a unique nonexistent config-cache path, local environment, an empty `DB_URL`, and the explicit SQLite target. A verification-only command proves the effective target before migration. The Railway child receives these local-target values after variable injection while it keeps injected MySQL source values. The MySQL read uses one read-only consistent transaction and unbuffered PDO. The copy excludes local authentication and runtime tables, preserves the fresh target `migrations` table, and validates row counts, foreign keys, and SQLite integrity. Application-table drift fails in both directions, with one temporary production-schema-lag exception: if production lacks the local-derived `contract_source_observations` table, the fresh target reconstructs its rows and contract pointers with the unchanged `2026_07_30_000002` migration logic before final validation. If production has that table, the sync copies it normally.
+
+The wrapper stops if `database/database.sqlite` or one of its WAL/shared-memory/journal sidecars is in use. It does not open or change the active database until the fresh target passes sync validation. It then uses `sqlite3` backup for a consistent timestamped backup in `/tmp`, validates that backup, checkpoints the active database, removes every old sidecar, makes the final possible `lsof` check, and atomically replaces the main file. `lsof` cannot prevent a process from opening the file after a check, so all local processes must stay stopped for the full operation. A migration, connection, copy, validation, backup, checkpoint, or lock failure stops replacement. See `app/Services/DevelopmentDatabase/AGENTS.md` for copy rules. Do not run the Artisan command directly; its target guards accept only the wrapper-shaped temporary file and reject an inode alias of the active database. Never print Railway database variables.
+
+Prerequisites are PHP with `pdo_sqlite` and `pdo_mysql`, Railway CLI authentication, `sqlite3`, and `lsof`. Stop Laravel, queue workers, and database tools before you run the wrapper. Restart them after replacement.
 
 ## Backups and disaster recovery
 
@@ -319,6 +346,8 @@ When using `tinker --execute` from a single-quoted shell string, PHP namespace s
 
 Primary files:
 - `app/Services/EntsoeService.php`
+- `app/Services/SpotPriceImport/SpotPriceImporter.php`
+- `app/Services/SpotPriceImport/AGENTS.md`
 - `app/Console/Commands/FetchSpot.php`
 - `app/Console/Commands/BackfillSpot.php`
 - `app/Models/SpotPriceForecast.php`
@@ -326,6 +355,8 @@ Primary files:
 - `app/Console/Commands/FetchSpotForecast.php`
 
 Important semantics:
+- `SpotPriceImporter` is the source of truth for official record normalization, Helsinki-local historical VAT, direct hourly persistence, and region+UTC-hour arithmetic aggregation from quarter-hour records. It uses insert-only `insertOrIgnore()` chunks of 500.
+- Backfill skips a half-open UTC chunk only when every exact expected FI hourly timestamp exists. Partial data and off-hour rows do not satisfy coverage. Exhausted request/connection failures do not stop later chunks, but any failed chunk makes the command return failure after averages are calculated for records imported by other chunks.
 - `spot:fetch` only persists spot prices, calculates averages, and warms the statistics cache. Manual or repeated imports never invoke social publication.
 - `social:publish-daily-spot` is scheduled independently at minute 15 each hour. It defers until exact hourly rows exist for both the Helsinki content date and next date.
 - Real PostFast publication is disabled by default through `SPOT_SOCIAL_PUBLISHING_ENABLED=false`. Dry-run, skip-post, and draft modes do not use the `spot_social_publications` ledger. Draft still requires the enable setting because it calls PostFast.

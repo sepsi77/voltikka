@@ -45,7 +45,7 @@
         <div class="mb-5 flex flex-wrap items-baseline gap-x-2 gap-y-1 border-b border-white/10 pb-4">
             <span class="inline-block bg-coral-500/20 text-coral-200 border border-coral-500/30 text-xs font-semibold uppercase tracking-wide rounded-md px-2 py-1">Esimerkki</span>
             <p class="text-slate-300 text-sm">
-                5 kWp:n järjestelmä Helsingissä. <span class="font-semibold text-coral-400">Syötä osoitteesi yllä</span> nähdäksesi arvion omalle katollesi.
+                {{ number_format($systemKwp, 1, ',', ' ') }} kWp:n järjestelmä Helsingissä. <span class="font-semibold text-coral-400">Syötä osoitteesi yllä</span> nähdäksesi arvion omalle katollesi.
             </p>
         </div>
     @endif

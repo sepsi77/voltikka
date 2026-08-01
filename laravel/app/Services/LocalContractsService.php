@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\TargetGroup;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\Municipality;
@@ -66,7 +67,7 @@ class LocalContractsService
             ->with(['company', 'electricitySource'])
             ->whereIn('company_name', $nearbyCompanies->pluck('name')->toArray())
             ->where(function ($q) {
-                $q->whereIn('target_group', ['Household', 'Both'])
+                $q->whereIn('target_group', [TargetGroup::Household->value, TargetGroup::Both->value])
                     ->orWhereNull('target_group');
             })
             ->get();
@@ -178,7 +179,7 @@ class LocalContractsService
             ->where('availability_is_national', false)
             ->whereNotIn('company_name', $excludeCompanyNames)
             ->where(function ($q) {
-                $q->whereIn('target_group', ['Household', 'Both'])
+                $q->whereIn('target_group', [TargetGroup::Household->value, TargetGroup::Both->value])
                     ->orWhereNull('target_group');
             })
             // Available in the city (has postcodes in this municipality)

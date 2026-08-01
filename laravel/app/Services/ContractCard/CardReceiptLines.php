@@ -2,9 +2,13 @@
 
 namespace App\Services\ContractCard;
 
+use App\Enums\MeteringType;
+use App\Services\CanonicalPricing\DTO\ContractPricingIntegrity;
 use App\Services\ContractCard\DTO\CardReceiptLine;
 use App\Services\ContractCard\DTO\PricingCategoryFacts;
 use App\Services\ContractCard\Enums\PricingCategory;
+use App\Services\ContractPricing\ContractPricingViewData;
+use App\Services\ContractPricing\PricingFact;
 use Carbon\CarbonImmutable;
 
 /**
@@ -39,23 +43,23 @@ class CardReceiptLines
      */
     public function build(
         array $rates,
-        array $cost,
-        ?array $integrity,
+        ?ContractPricingViewData $pricing,
+        ?ContractPricingIntegrity $integrity,
         PricingCategoryFacts $facts,
         ?string $metering,
         bool $detailed = false,
         bool $useCanonical = false,
     ): array {
-        $package = $this->packageLines($cost);
+        $package = $this->packageLines($pricing);
         if ($package !== []) {
             return $package;
         }
 
-        $switch = $this->mechanismSwitchPhases($cost);
+        $switch = $this->mechanismSwitchPhases($pricing);
 
         $lines = $switch !== null
-            ? $this->mechanismSwitchLines($switch, $cost, $detailed)
-            : $this->energyLines($rates, $cost, $integrity, $facts, $metering, $useCanonical);
+            ? $this->mechanismSwitchLines($switch, $pricing, $detailed)
+            : $this->energyLines($rates, $pricing, $integrity, $facts, $metering, $useCanonical);
 
         $lines = [...$lines, ...$this->feeLines($rates, $switch, $detailed)];
 
@@ -69,22 +73,18 @@ class CardReceiptLines
      * @param  array<string, mixed>  $cost
      * @return list<CardReceiptLine>
      */
-    private function packageLines(array $cost): array
+    private function packageLines(?ContractPricingViewData $pricing): array
     {
-        $package = is_array($cost['energy_package'] ?? null) ? $cost['energy_package'] : null;
+        $package = $pricing?->energyPackage();
 
-        if ($package === null
-            || ! is_numeric($package['monthly_fee_eur'] ?? null)
-            || ! is_numeric($package['included_kwh'] ?? null)
-            || ! is_numeric($package['excess_rate_cents_per_kwh'] ?? null)
-            || ($package['allowance_cadence'] ?? null) !== 'monthly') {
+        if ($package === null) {
             return [];
         }
 
         return [
-            new CardReceiptLine('Kuukausipaketti', $this->amount((float) $package['monthly_fee_eur']), '€/kk'),
-            new CardReceiptLine('Sisältää', number_format((float) $package['included_kwh'], 0, ',', ' '), 'kWh/kk'),
-            new CardReceiptLine('Ylittävä kulutus', $this->amount((float) $package['excess_rate_cents_per_kwh']), 'c/kWh'),
+            new CardReceiptLine('Kuukausipaketti', $this->amount((float) $package->number('monthly_fee_eur')), '€/kk'),
+            new CardReceiptLine('Sisältää', number_format((float) $package->number('included_kwh'), 0, ',', ' '), 'kWh/kk'),
+            new CardReceiptLine('Ylittävä kulutus', $this->amount((float) $package->number('excess_rate_cents_per_kwh')), 'c/kWh'),
         ];
     }
 
@@ -102,19 +102,15 @@ class CardReceiptLines
      * @param  array<string, mixed>  $cost
      * @return array{0: array<string, mixed>, 1: array<string, mixed>}|null
      */
-    private function mechanismSwitchPhases(array $cost): ?array
+    private function mechanismSwitchPhases(?ContractPricingViewData $pricing): ?array
     {
-        $phases = is_array($cost['phase_breakdown'] ?? null) ? array_values($cost['phase_breakdown']) : [];
+        $phases = $pricing?->phases() ?? [];
 
         for ($i = 0; $i < count($phases) - 1; $i++) {
             $first = $phases[$i];
             $second = $phases[$i + 1];
 
-            if (! is_array($first) || ! is_array($second)) {
-                continue;
-            }
-
-            if (($first['uses_spot'] ?? null) === ($second['uses_spot'] ?? null)) {
+            if ($first->boolean('uses_spot') === $second->boolean('uses_spot')) {
                 continue;
             }
 
@@ -122,7 +118,7 @@ class CardReceiptLines
                 continue;
             }
 
-            if (! is_string($first['window_end'] ?? null) || ! is_string($second['window_start'] ?? null)) {
+            if ($first->string('window_end') === null || $second->string('window_start') === null) {
                 continue;
             }
 
@@ -137,12 +133,12 @@ class CardReceiptLines
      * @param  array<string, mixed>  $cost
      * @return list<CardReceiptLine>
      */
-    private function mechanismSwitchLines(array $switch, array $cost, bool $detailed): array
+    private function mechanismSwitchLines(array $switch, ?ContractPricingViewData $pricing, bool $detailed): array
     {
         [$first, $second] = $switch;
 
-        $until = $this->date($first['window_end']);
-        $from = $this->date($second['window_start']);
+        $until = $this->date($first->string('window_end'));
+        $from = $this->date($second->string('window_start'));
 
         if ($until === null || $from === null) {
             return [];
@@ -153,9 +149,9 @@ class CardReceiptLines
         // The margin alone does not state the price, so on the detail page the market
         // baseline the total was built on sits between the two dated rows. The card has no
         // room for it; its Arvio popover carries the same figure.
-        $baseline = $cost['spot_price_day_avg'] ?? null;
-        if ($detailed && is_numeric($baseline) && (($first['uses_spot'] ?? false) || ($second['uses_spot'] ?? false))) {
-            $lines[] = new CardReceiptLine('Pörssin keskihinta 12 kk', $this->amount((float) $baseline), 'c/kWh', soft: true);
+        $baseline = $pricing?->spotPriceDayAverage();
+        if ($detailed && $baseline !== null && ($first->boolean('uses_spot') || $second->boolean('uses_spot'))) {
+            $lines[] = new CardReceiptLine('Pörssin keskihinta 12 kk', $this->amount($baseline), 'c/kWh', soft: true);
         }
 
         $lines[] = $this->mechanismLine($second, ContractCardCopy::dayMonth($from).' alkaen');
@@ -166,11 +162,11 @@ class CardReceiptLines
     /**
      * @param  array<string, mixed>  $phase
      */
-    private function mechanismLine(array $phase, string $when): CardReceiptLine
+    private function mechanismLine(PricingFact $phase, string $when): CardReceiptLine
     {
-        $label = ($phase['uses_spot'] ?? false) ? 'Marginaali ' : 'Energia ';
+        $label = $phase->boolean('uses_spot') ? 'Marginaali ' : 'Energia ';
 
-        return new CardReceiptLine($label.$when, $this->amount($this->mechanismRate($phase)), 'c/kWh');
+        return new CardReceiptLine($label.$when, $this->amount((float) $this->mechanismRate($phase)), 'c/kWh');
     }
 
     /**
@@ -179,11 +175,11 @@ class CardReceiptLines
      *
      * @param  array<string, mixed>  $phase
      */
-    private function mechanismRate(array $phase): ?float
+    private function mechanismRate(PricingFact $phase): ?float
     {
-        $value = ($phase['uses_spot'] ?? false) ? ($phase['spot_margin_cents'] ?? null) : ($phase['energy_cents'] ?? null);
-
-        return is_numeric($value) ? (float) $value : null;
+        return $phase->boolean('uses_spot')
+            ? $phase->number('spot_margin_cents')
+            : $phase->number('energy_cents');
     }
 
     /**
@@ -198,16 +194,16 @@ class CardReceiptLines
     {
         if ($detailed && $switch !== null) {
             [$first, $second] = $switch;
-            $before = $first['monthly_fee'] ?? null;
-            $after = $second['monthly_fee'] ?? null;
-            $until = $this->date($first['window_end']);
-            $from = $this->date($second['window_start']);
+            $before = $first->number('monthly_fee');
+            $after = $second->number('monthly_fee');
+            $until = $this->date($first->string('window_end'));
+            $from = $this->date($second->string('window_start'));
 
-            if (is_numeric($before) && is_numeric($after) && abs((float) $before - (float) $after) > 0.005
+            if ($before !== null && $after !== null && abs($before - $after) > 0.005
                 && $until !== null && $from !== null) {
                 return [
-                    new CardReceiptLine('Perusmaksu '.ContractCardCopy::dayMonth($until).' asti', $this->amount((float) $before), '€/kk'),
-                    new CardReceiptLine('Perusmaksu '.ContractCardCopy::dayMonth($from).' alkaen', $this->amount((float) $after), '€/kk'),
+                    new CardReceiptLine('Perusmaksu '.ContractCardCopy::dayMonth($until).' asti', $this->amount($before), '€/kk'),
+                    new CardReceiptLine('Perusmaksu '.ContractCardCopy::dayMonth($from).' alkaen', $this->amount($after), '€/kk'),
                 ];
             }
         }
@@ -240,8 +236,8 @@ class CardReceiptLines
      */
     private function energyLines(
         array $rates,
-        array $cost,
-        ?array $integrity,
+        ?ContractPricingViewData $pricing,
+        ?ContractPricingIntegrity $integrity,
         PricingCategoryFacts $facts,
         ?string $metering,
         bool $useCanonical,
@@ -251,18 +247,18 @@ class CardReceiptLines
         // reads the calculator's resolved phase record. The integrity payload stays only in
         // the explicit legacy branch.
         $scheduled = $useCanonical
-            ? $this->canonicalScheduledChangeLines($cost)
+            ? $this->canonicalScheduledChangeLines($pricing)
             : $this->legacyScheduledChangeLines($integrity);
         if ($scheduled !== []) {
             return $scheduled;
         }
 
         if ($facts->isReset) {
-            return $this->resetLines($rates, $cost, $facts, $metering);
+            return $this->resetLines($rates, $pricing, $facts, $metering);
         }
 
         if ($facts->isSpot) {
-            return $this->spotLines($rates, $cost);
+            return $this->spotLines($rates, $pricing);
         }
 
         if ($facts->category === PricingCategory::ConsumptionEffect) {
@@ -279,13 +275,13 @@ class CardReceiptLines
      * @param  array<string, mixed>|null  $integrity
      * @return list<CardReceiptLine>
      */
-    private function legacyScheduledChangeLines(?array $integrity): array
+    private function legacyScheduledChangeLines(?ContractPricingIntegrity $integrity): array
     {
-        $promo = $integrity['promo_rate_cents'] ?? null;
-        $normal = $integrity['normal_rate_cents'] ?? null;
-        $changeDate = $integrity['change_date'] ?? null;
+        $promo = $integrity?->promoRateCents;
+        $normal = $integrity?->normalRateCents;
+        $changeDate = $integrity?->changeDate;
 
-        if (! is_numeric($promo) || ! is_numeric($normal) || ! is_string($changeDate)) {
+        if ($promo === null || $normal === null || $changeDate === null) {
             return [];
         }
 
@@ -298,12 +294,12 @@ class CardReceiptLines
         return [
             new CardReceiptLine(
                 'Energia '.ContractCardCopy::dayMonth($change->subDay()).' asti',
-                $this->amount((float) $promo),
+                $this->amount($promo),
                 'c/kWh',
             ),
             new CardReceiptLine(
                 'Energia '.ContractCardCopy::dayMonth($change).' alkaen',
-                $this->amount((float) $normal),
+                $this->amount($normal),
                 'c/kWh',
             ),
         ];
@@ -315,32 +311,29 @@ class CardReceiptLines
      * @param  array<string, mixed>  $cost
      * @return list<CardReceiptLine>
      */
-    private function canonicalScheduledChangeLines(array $cost): array
+    private function canonicalScheduledChangeLines(?ContractPricingViewData $pricing): array
     {
-        $phases = is_array($cost['phase_breakdown'] ?? null)
-            ? array_values($cost['phase_breakdown'])
-            : [];
+        $phases = $pricing?->phases() ?? [];
 
         for ($index = 0; $index < count($phases) - 1; $index++) {
             $first = $phases[$index];
             $second = $phases[$index + 1];
 
-            if (! is_array($first) || ! is_array($second)
-                || ($first['uses_spot'] ?? null) !== ($second['uses_spot'] ?? null)) {
+            if ($first->boolean('uses_spot') !== $second->boolean('uses_spot')) {
                 continue;
             }
 
             $firstRate = $this->mechanismRate($first);
             $secondRate = $this->mechanismRate($second);
-            $until = $this->date($first['window_end'] ?? null);
-            $from = $this->date($second['window_start'] ?? null);
+            $until = $this->date($first->string('window_end'));
+            $from = $this->date($second->string('window_start'));
 
             if ($firstRate === null || $secondRate === null || $until === null || $from === null
                 || abs($firstRate - $secondRate) < 0.0001) {
                 continue;
             }
 
-            $label = ($first['uses_spot'] ?? false) ? 'Marginaali ' : 'Energia ';
+            $label = $first->boolean('uses_spot') ? 'Marginaali ' : 'Energia ';
 
             return [
                 new CardReceiptLine($label.ContractCardCopy::dayMonth($until).' asti', $this->amount($firstRate), 'c/kWh'),
@@ -356,13 +349,16 @@ class CardReceiptLines
      * @param  array<string, mixed>  $cost
      * @return list<CardReceiptLine>
      */
-    private function resetLines(array $rates, array $cost, PricingCategoryFacts $facts, ?string $metering): array
+    private function resetLines(array $rates, ?ContractPricingViewData $pricing, PricingCategoryFacts $facts, ?string $metering): array
     {
-        $reset = is_array($cost['reset_estimate'] ?? null) ? $cost['reset_estimate'] : [];
+        $reset = $pricing?->resetEstimate();
 
-        $current = is_numeric($reset['current_period_energy_price'] ?? null)
-            ? (float) $reset['current_period_energy_price']
-            : $this->baseRate($rates, $metering);
+        $current = $reset?->number('current_period_energy_price')
+            ?? $this->baseRate($rates, $metering);
+
+        if ($current === null) {
+            return [];
+        }
 
         $until = $facts->nextReset?->subDay();
         $label = $until !== null
@@ -373,10 +369,10 @@ class CardReceiptLines
 
         // Only present when RESET_FORWARD_SHIFT_ENABLED produced a forward-shifted tail.
         // With the flag off the tail holds flat, and there is no second figure to show.
-        if (is_numeric($reset['annual_equivalent_energy_price'] ?? null)) {
+        if ($reset?->number('annual_equivalent_energy_price') !== null) {
             $lines[] = new CardReceiptLine(
                 'Loppuvuosi, arvio',
-                $this->amount((float) $reset['annual_equivalent_energy_price']),
+                $this->amount((float) $reset->number('annual_equivalent_energy_price')),
                 'c/kWh',
                 soft: true,
             );
@@ -390,18 +386,18 @@ class CardReceiptLines
      * @param  array<string, mixed>  $cost
      * @return list<CardReceiptLine>
      */
-    private function spotLines(array $rates, array $cost): array
+    private function spotLines(array $rates, ?ContractPricingViewData $pricing): array
     {
         $lines = [];
 
         // The day average is the exact figure the total is built on: for General metering
         // (every active spot contract) the calculator prices the whole bucket at
         // `spot_price_day_avg + margin`. The night average appears in the Arvio popover.
-        $baseline = $cost['spot_price_day_avg'] ?? null;
-        if (is_numeric($baseline)) {
+        $baseline = $pricing?->spotPriceDayAverage();
+        if ($baseline !== null) {
             $lines[] = new CardReceiptLine(
                 'Pörssin keskihinta 12 kk',
-                $this->amount((float) $baseline),
+                $this->amount($baseline),
                 'c/kWh',
                 soft: true,
             );
@@ -423,21 +419,23 @@ class CardReceiptLines
      */
     private function meteringLines(array $rates, ?string $metering): array
     {
-        if ($metering === 'Time' && $rates['day'] !== null && $rates['night'] !== null) {
+        $meteringType = MeteringType::fromSource($metering);
+
+        if ($meteringType === MeteringType::Time && $rates['day'] !== null && $rates['night'] !== null) {
             return [
                 new CardReceiptLine('Päivä', $this->amount($rates['day']), 'c/kWh'),
                 new CardReceiptLine('Yö', $this->amount($rates['night']), 'c/kWh'),
             ];
         }
 
-        if ($metering === 'Season' && $rates['winter'] !== null && $rates['other'] !== null) {
+        if ($meteringType === MeteringType::Season && $rates['winter'] !== null && $rates['other'] !== null) {
             return [
                 new CardReceiptLine('Talvi', $this->amount($rates['winter']), 'c/kWh'),
                 new CardReceiptLine('Muu aika', $this->amount($rates['other']), 'c/kWh'),
             ];
         }
 
-        $rate = $this->baseRate($rates, $metering);
+        $rate = $this->baseRate($rates, $meteringType);
         if ($rate === null) {
             return [];
         }
@@ -450,17 +448,19 @@ class CardReceiptLines
      *
      * @param  array<string, float|null>  $rates
      */
-    private function baseRate(array $rates, ?string $metering): ?float
+    private function baseRate(array $rates, MeteringType|string|null $metering): ?float
     {
-        return match ($metering) {
-            'Time' => $rates['day'] ?? $rates['general'],
-            'Season' => $rates['winter'] ?? $rates['general'],
+        $meteringType = is_string($metering) ? MeteringType::fromSource($metering) : $metering;
+
+        return match ($meteringType) {
+            MeteringType::Time => $rates['day'] ?? $rates['general'],
+            MeteringType::Season => $rates['winter'] ?? $rates['general'],
             default => $rates['general'] ?? $rates['day'] ?? $rates['winter'],
         };
     }
 
-    private function amount(?float $value): string
+    private function amount(float $value): string
     {
-        return number_format($value ?? 0.0, 2, ',', ' ');
+        return number_format($value, 2, ',', ' ');
     }
 }

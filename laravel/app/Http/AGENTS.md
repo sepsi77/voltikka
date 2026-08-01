@@ -24,7 +24,9 @@ When `CANONICAL_PRICING_ENABLED=true`:
   calculation was requested. Its integrity object keeps only the typed detected/reason/issue state;
   price-bearing integrity fields and generated fact text are not returned.
 - The list controller must use `CanonicalContractPricingService::metricsForContracts()` once for
-  the page. Do not evaluate each row through a query-producing fallback.
+  the page. That batch returns typed `CanonicalContractMetric` objects. Current-pricing decisions and
+  sorting use typed metric/pricing access, and serialization occurs only when existing resource
+  attributes are assigned. Do not evaluate each row through a query-producing fallback.
 - `pricing_has_discounts` is derived from the canonical outcome. Package allowance pricing is not
   a promotion.
 
@@ -35,12 +37,21 @@ feature flag is retired by a separate decision.
 There is no contract API response cache. A change to this shape does not require an application
 cache-version bump.
 
+## Company resource logos
+
+`Resources/CompanyResource` returns `Company::getLogoUrl()` instead of the raw upstream
+`logo_url`, so a locally stored and optimized logo wins. External-only URLs can remain a visible
+API fallback, but public Product, ItemList, and Organization JSON-LD accepts only
+`Company::getLocalLogoUrl()` and omits unverified external images.
+
 ## Calculation API pricing
 
 `POST /api/calculate-price` loads only the contract row before it selects its pricing source. In
-canonical mode it evaluates the published canonical JSON and must not eager-load or query
+canonical mode it evaluates the published canonical JSON, adapts the outcome through
+`ContractPricingViewData::fromCanonicalOutcome()`, and must not eager-load or query
 `price_components`. In feature-off mode, the existing model helper loads the latest relational
-components for the legacy calculator. Keep this branch boundary explicit.
+components and adapts the legacy result through `fromLegacyResult()` before it serializes the
+unchanged response. Keep this branch boundary explicit.
 
 ## Weekly-offers video API pricing
 

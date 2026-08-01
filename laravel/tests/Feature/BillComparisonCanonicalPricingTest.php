@@ -24,6 +24,7 @@ class BillComparisonCanonicalPricingTest extends TestCase
     {
         parent::setUp();
         config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
 
         Company::create([
             'name' => 'Canonical Energia Oy',
@@ -120,6 +121,7 @@ class BillComparisonCanonicalPricingTest extends TestCase
     public function test_feature_off_keeps_the_relational_period_calculation(): void
     {
         config()->set('canonical_pricing.enabled', false);
+        app()->forgetScopedInstances();
         $contract = $this->createContract('legacy-bill', [
             $this->phase([
                 $this->canonicalComponent('energy_general', 5),
@@ -132,6 +134,35 @@ class BillComparisonCanonicalPricingTest extends TestCase
 
         $this->assertEqualsWithDelta(33.0, $data['rows'][$contract->id]->periodCostEur, 0.001);
         $this->assertSame('legacy', $data['rows'][$contract->id]->pricingBasis);
+    }
+
+    public function test_feature_off_row_uses_measured_period_discount_and_bill_start_for_annual_price(): void
+    {
+        config()->set('canonical_pricing.enabled', false);
+        app()->forgetScopedInstances();
+        $contract = $this->createContract('legacy-period-offer', []);
+        $this->addRelationalPrices($contract, 9, 6);
+        PriceComponent::query()
+            ->where('electricity_contract_id', $contract->id)
+            ->where('price_component_type', 'General')
+            ->update([
+                'has_discount' => true,
+                'discount_value' => 3,
+                'discount_is_percentage' => false,
+                'discount_type' => 'UntilDate',
+                'discount_discount_until_date' => '2026-05-15',
+            ]);
+
+        $data = app(BillComparisonService::class)->periodRowsForContracts(
+            [$contract->load('company')],
+            $this->request(annualKwh: 1200),
+        );
+        $row = $data['rows'][$contract->id];
+
+        $this->assertEqualsWithDelta(28.5, $row->periodCostEur, 0.0001);
+        $this->assertEqualsWithDelta(180 - (3 * 100 / 100 * 15 / 31), $row->annualCostEur, 0.0001);
+        $this->assertTrue($row->hasPromo);
+        $this->assertSame('legacy', $row->pricingBasis);
     }
 
     public function test_canonical_period_batch_does_not_query_price_components_and_has_bounded_queries(): void

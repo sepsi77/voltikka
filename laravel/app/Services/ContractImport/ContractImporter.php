@@ -2,6 +2,9 @@
 
 namespace App\Services\ContractImport;
 
+use App\Enums\ContractType;
+use App\Enums\PricingModel;
+use App\Enums\TargetGroup;
 use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ContractSourceObservation;
@@ -136,12 +139,12 @@ class ContractImporter
                 'api_id' => $data['Id'],
                 'name' => $contractName,
                 'company_name' => $companyName,
-                'contract_type' => $details['ContractType'] ?? null,
+                'contract_type' => ContractType::fromSource($details['ContractType'] ?? null)->value,
                 'spot_price_selection' => $details['SpotPriceSelection'] ?? null,
                 'fixed_time_range' => $details['FixedTimeRange'] ?? null,
                 'metering' => $details['Metering'] ?? null,
-                'pricing_model' => $details['PricingModel'] ?? null,
-                'target_group' => $details['TargetGroup'] ?? null,
+                'pricing_model' => PricingModel::fromSource($details['PricingModel'] ?? null)->value,
+                'target_group' => TargetGroup::fromSource($details['TargetGroup'] ?? null)->value,
                 'pricing_name' => $pricing['Name'] ?? null,
                 'pricing_has_discounts' => $pricing['HasDiscount'] ?? false,
                 'consumption_control' => $details['ConsumptionControl'] ?? false,

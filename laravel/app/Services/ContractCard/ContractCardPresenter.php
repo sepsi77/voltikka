@@ -4,9 +4,11 @@ namespace App\Services\ContractCard;
 
 use App\Models\Company;
 use App\Models\ElectricityContract;
+use App\Services\CanonicalPricing\DTO\ContractPricingIntegrity;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractCard\DTO\CardSellerCta;
 use App\Services\ContractCard\DTO\ContractCardView;
+use App\Services\ContractPricing\ContractPricingViewData;
 use App\Support\ContractContentSanitizer;
 use App\Support\ContractInternalLinks;
 use Carbon\CarbonImmutable;
@@ -56,36 +58,36 @@ class ContractCardPresenter
         ?CarbonImmutable $today = null,
         bool $detailed = false,
     ): ContractCardView {
-        $rawCost = is_array($contract->calculated_cost ?? null) ? $contract->calculated_cost : [];
-        $integrity = is_array($contract->pricing_integrity ?? null) ? $contract->pricing_integrity : null;
+        $rawCost = $contract->calculated_cost ?? null;
+        $pricing = is_array($rawCost) && $rawCost !== []
+            ? ContractPricingViewData::fromArray($rawCost)
+            : null;
+        $rawIntegrity = $contract->pricing_integrity ?? null;
+        $integrity = is_array($rawIntegrity) ? ContractPricingIntegrity::fromArray($rawIntegrity) : null;
         $useCanonical = $this->pricingMode->enabled();
 
-        // In canonical mode, accept only a payload that identifies the canonical calculator as
-        // its source. This prevents a legacy result left on a model from becoming a second
-        // current-price source after the feature flag changes.
-        $canonicalComparability = $rawCost['comparability'] ?? $contract->comparability ?? null;
-        $canonicalExcluded = in_array($canonicalComparability, ['excluded_unknown_future', 'excluded_incomplete'], true);
-        $cost = $useCanonical
-            && (($rawCost['pricing_basis'] ?? null) !== 'canonical' || $canonicalExcluded)
-                ? []
-                : $rawCost;
+        // In canonical mode, accept only a listed payload that identifies the canonical
+        // calculator as its source. A legacy payload can remain attached for transport, but it
+        // cannot become a second current-price source after the feature flag changes.
+        $publicPricing = ! $useCanonical
+            || ($pricing?->pricingBasis() === 'canonical' && $pricing->comparability()?->isListed() === true);
 
         $facts = $this->categories->resolve($contract, $today)
-            ->withNextReset($this->tailStart($cost));
+            ->withNextReset($this->tailStart($publicPricing ? $pricing : null));
         $rates = $useCanonical
-            ? $this->canonicalRates($cost)
-            : $this->legacyRates($contract, $cost, $prices);
+            ? $this->canonicalRates($publicPricing ? $pricing : null)
+            : $this->legacyRates($contract, $pricing, $prices);
 
-        $totalCost = is_numeric($cost['total_cost'] ?? null) ? (float) $cost['total_cost'] : null;
+        $totalCost = $publicPricing ? $pricing?->total() : null;
         $exceeds = (bool) ($contract->exceeds_consumption_limit ?? false);
 
         // A fixed contract with a pre-published later price keeps a truthful fixed band; the
         // increase is a footer warning and two dated receipt rows, never a band warning.
-        $hasScheduledChange = is_string($integrity['card_label'] ?? null)
-            && is_numeric($integrity['normal_rate_cents'] ?? null);
+        $hasScheduledChange = $integrity?->cardLabel !== null
+            && $integrity->normalRateCents !== null;
 
-        $footer = $this->footerItems->build($contract, $cost, $integrity, $facts, $exceeds, $useCanonical);
-        $discount = $this->discountDisplay($cost);
+        $footer = $this->footerItems->build($contract, $publicPricing ? $pricing : null, $integrity, $facts, $exceeds, $useCanonical);
+        $discount = $this->discountDisplay($publicPricing ? $pricing : null);
 
         $company = $contract->relationLoaded('company') ? $contract->company : null;
 
@@ -101,10 +103,10 @@ class ContractCardPresenter
             // page it links to. The stored `name` is never rewritten.
             contractName: ContractContentSanitizer::displayName($contract->name) ?: (string) ($contract->name ?? ''),
             metaParts: $this->metaParts($contract, $company),
-            receiptLines: $this->receiptLines->build($rates, $cost, $integrity, $facts, $contract->metering, $detailed, $useCanonical),
+            receiptLines: $this->receiptLines->build($rates, $publicPricing ? $pricing : null, $integrity, $facts, $contract->metering, $detailed, $useCanonical),
             totalCost: $totalCost,
             monthlyCost: $totalCost !== null ? $totalCost / 12 : null,
-            estimate: $billMode ? null : ContractCardCopy::estimate($cost, $facts),
+            estimate: $billMode ? null : ContractCardCopy::estimate($publicPricing ? $pricing : null, $facts),
             warnings: $footer['warnings'],
             facts: $footer['facts'],
             discountSavings: $discount['saving'],
@@ -147,12 +149,10 @@ class ContractCardPresenter
     /**
      * The first day of the estimated tail, as the market-reset estimator derived it from the
      * cadence calendar. Used only when the seller disclosed no period end of their own.
-     *
-     * @param  array<string, mixed>  $cost
      */
-    private function tailStart(array $cost): ?CarbonImmutable
+    private function tailStart(?ContractPricingViewData $pricing): ?CarbonImmutable
     {
-        $tail = $cost['reset_estimate']['tail_starts'] ?? null;
+        $tail = $pricing?->resetEstimate()?->string('tail_starts');
 
         if (! is_string($tail) || ! preg_match('/^\d{4}-\d{2}$/', $tail)) {
             return null;
@@ -198,34 +198,28 @@ class ContractCardPresenter
      * Current canonical display rates. Missing means unavailable. This branch does not inspect
      * relational prices, even when the relation is already loaded for a historical surface.
      *
-     * @param  array<string, mixed>  $cost
      * @return array<string, float|null>
      */
-    private function canonicalRates(array $cost): array
+    private function canonicalRates(?ContractPricingViewData $pricing): array
     {
-        $fromCost = static function (string $key) use ($cost): ?float {
-            return is_numeric($cost[$key] ?? null) ? (float) $cost[$key] : null;
-        };
-
         return [
-            'general' => $fromCost('general_kwh_price'),
-            'day' => $fromCost('daytime_kwh_price'),
-            'night' => $fromCost('nighttime_kwh_price'),
-            'winter' => $fromCost('seasonal_winter_day_kwh_price'),
-            'other' => $fromCost('seasonal_other_kwh_price'),
-            'margin' => $fromCost('spot_price_margin'),
-            'fee' => $fromCost('monthly_fixed_fee'),
+            'general' => $pricing?->generalKwhPrice(),
+            'day' => $pricing?->daytimeKwhPrice(),
+            'night' => $pricing?->nighttimeKwhPrice(),
+            'winter' => $pricing?->seasonalWinterDayKwhPrice(),
+            'other' => $pricing?->seasonalOtherKwhPrice(),
+            'margin' => $pricing?->spotPriceMargin(),
+            'fee' => $pricing?->monthlyFixedFee(),
         ];
     }
 
     /**
      * Feature-off compatibility path. It keeps the old calculated-cost-first fallback chain.
      *
-     * @param  array<string, mixed>  $cost
      * @param  array<string, array{price: float|null, unit?: string|null}>  $prices
      * @return array<string, float|null>
      */
-    private function legacyRates(ElectricityContract $contract, array $cost, array $prices): array
+    private function legacyRates(ElectricityContract $contract, ?ContractPricingViewData $pricing, array $prices): array
     {
         if ($prices === [] && $contract->relationLoaded('priceComponents')) {
             $prices = $this->pricesFromRelation($contract);
@@ -236,18 +230,15 @@ class ContractCardPresenter
 
             return is_numeric($price) ? (float) $price : null;
         };
-        $fromCost = static function (string $key) use ($cost): ?float {
-            return is_numeric($cost[$key] ?? null) ? (float) $cost[$key] : null;
-        };
 
         return [
-            'general' => $fromCost('general_kwh_price') ?? $fromPrices('General'),
-            'day' => $fromCost('daytime_kwh_price') ?? $fromPrices('DayTime'),
-            'night' => $fromCost('nighttime_kwh_price') ?? $fromPrices('NightTime'),
-            'winter' => $fromCost('seasonal_winter_day_kwh_price') ?? $fromPrices('SeasonalWinterDay'),
-            'other' => $fromCost('seasonal_other_kwh_price') ?? $fromPrices('SeasonalOther'),
-            'margin' => $fromCost('spot_price_margin'),
-            'fee' => $fromCost('monthly_fixed_fee') ?? $fromPrices('Monthly') ?? 0.0,
+            'general' => $pricing?->generalKwhPrice() ?? $fromPrices('General'),
+            'day' => $pricing?->daytimeKwhPrice() ?? $fromPrices('DayTime'),
+            'night' => $pricing?->nighttimeKwhPrice() ?? $fromPrices('NightTime'),
+            'winter' => $pricing?->seasonalWinterDayKwhPrice() ?? $fromPrices('SeasonalWinterDay'),
+            'other' => $pricing?->seasonalOtherKwhPrice() ?? $fromPrices('SeasonalOther'),
+            'margin' => $pricing?->spotPriceMargin(),
+            'fee' => $pricing?->monthlyFixedFee() ?? $fromPrices('Monthly') ?? 0.0,
         ];
     }
 
@@ -271,39 +262,36 @@ class ContractCardPresenter
      * Promo values worth stating. A short fixed term uses its real customer benefit and normal
      * total for that term. The annualized top-level values remain the comparison basis only.
      *
-     * @param  array<string, mixed>  $cost
      * @return array{saving: ?float, base_total: ?float, term_months: ?int}
      */
-    private function discountDisplay(array $cost): array
+    private function discountDisplay(?ContractPricingViewData $pricing): array
     {
-        if (($cost['includes_discounts'] ?? false) !== true) {
+        if ($pricing === null || ! $pricing->includesDiscounts()) {
             return ['saving' => null, 'base_total' => null, 'term_months' => null];
         }
 
-        $term = is_array($cost['contract_term'] ?? null) ? $cost['contract_term'] : null;
-        $termSaving = $term['discount_savings_total'] ?? null;
-        $termBase = $term['base_total_cost'] ?? null;
-        $termMonths = $term['months'] ?? null;
+        $term = $pricing->contractTerm();
+        $termSaving = $term?->number('discount_savings_total');
+        $termBase = $term?->number('base_total_cost');
+        $termMonths = $term?->integer('months');
 
-        if (is_numeric($termSaving) && is_numeric($termBase) && is_numeric($termMonths)
-            && (float) $termSaving >= self::MIN_DISPLAYED_SAVING_EUR) {
+        if ($termSaving !== null && $termBase !== null && $termMonths !== null
+            && $termSaving >= self::MIN_DISPLAYED_SAVING_EUR) {
             return [
-                'saving' => (float) $termSaving,
-                'base_total' => (float) $termBase,
-                'term_months' => (int) $termMonths,
+                'saving' => $termSaving,
+                'base_total' => $termBase,
+                'term_months' => $termMonths,
             ];
         }
 
-        $savings = $cost['discount_savings_total'] ?? null;
-        if (! is_numeric($savings) || (float) $savings < self::MIN_DISPLAYED_SAVING_EUR) {
+        $savings = $pricing->discountSaving();
+        if ($savings < self::MIN_DISPLAYED_SAVING_EUR) {
             return ['saving' => null, 'base_total' => null, 'term_months' => null];
         }
 
-        $base = $cost['base_total_cost'] ?? null;
-
         return [
-            'saving' => (float) $savings,
-            'base_total' => is_numeric($base) ? (float) $base : null,
+            'saving' => $savings,
+            'base_total' => $pricing->baseTotal(),
             'term_months' => null,
         ];
     }

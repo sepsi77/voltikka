@@ -51,6 +51,9 @@ trait BillComparisonInputs
 
     public float|string|null $billTotalEur = null;
 
+    /** @var array<string, string> */
+    public array $billInputNotices = [];
+
     public bool $billIncludesVat = true;
 
     public bool $billIncludesHeating = false;
@@ -106,11 +109,19 @@ trait BillComparisonInputs
 
     public function updatedBillKwh(): void
     {
+        $this->normalizePositiveBillInput(
+            'billKwh',
+            'Kulutuksen pitää olla suurempi kuin 0 kWh.',
+        );
         $this->recomputeBill();
     }
 
     public function updatedBillTotalEur(): void
     {
+        $this->normalizePositiveBillInput(
+            'billTotalEur',
+            'Laskun summan pitää olla suurempi kuin 0 €.',
+        );
         $this->recomputeBill();
     }
 
@@ -144,6 +155,20 @@ trait BillComparisonInputs
     protected function billFloat(mixed $value): ?float
     {
         return is_numeric($value) ? (float) $value : null;
+    }
+
+    protected function normalizePositiveBillInput(string $property, string $message): void
+    {
+        $value = $this->billFloat($this->{$property});
+
+        if ($value !== null && $value <= 0) {
+            $this->{$property} = null;
+            $this->billInputNotices[$property] = $message;
+
+            return;
+        }
+
+        unset($this->billInputNotices[$property]);
     }
 
     protected function billKwhValue(): float

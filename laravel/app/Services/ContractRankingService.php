@@ -2,15 +2,18 @@
 
 namespace App\Services;
 
+use App\Enums\TargetGroup;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractCard\Enums\PricingBucket;
 use App\Services\ContractCard\PricingCategoryResolver;
+use App\Services\ContractPricing\CanonicalContractMetric;
 use App\Services\DTO\EnergyUsage;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use InvalidArgumentException;
 
 class ContractRankingService
 {
@@ -102,7 +105,11 @@ class ContractRankingService
                 if (! $contract) {
                     return null;
                 }
-                $cost = (float) ($metrics['contracts'][$id]['total_cost'] ?? 0);
+                $metric = $metrics?->metric($id);
+                $cost = $metric?->pricing()->total();
+                if ($cost === null) {
+                    throw new InvalidArgumentException('A ranked contract requires a finite pricing total.');
+                }
 
                 return [
                     'contract' => $contract,
@@ -147,7 +154,10 @@ class ContractRankingService
         }
 
         $metrics = $this->listCache->getCachedMetrics($consumption);
-        $cost = (float) ($metrics['contracts'][$nextId]['total_cost'] ?? 0);
+        $cost = $metrics?->metric($nextId)?->pricing()->total();
+        if ($cost === null) {
+            throw new InvalidArgumentException('A ranked contract requires a finite pricing total.');
+        }
 
         return [
             'contract' => $contract,
@@ -247,12 +257,12 @@ class ContractRankingService
                 continue;
             }
 
-            $cost = $metrics['contracts'][$id]['total_cost'] ?? null;
-            if (! is_numeric($cost) || ! is_finite((float) $cost)) {
-                continue;
+            $cost = $metrics?->metric($id)?->pricing()->total();
+            if ($cost === null) {
+                throw new InvalidArgumentException('A ranked contract requires a finite pricing total.');
             }
 
-            $costs[] = (float) $cost;
+            $costs[] = $cost;
             $cheapestId ??= $id;
         }
 
@@ -306,12 +316,13 @@ class ContractRankingService
         }
 
         $metrics = $this->listCache->getCachedMetrics($consumption);
-        if ($metrics === null || ! isset($metrics['contracts'][$viewedContractId])) {
+        $viewedMetric = $metrics?->metric($viewedContractId);
+        if ($viewedMetric === null || ! $viewedMetric->isListed() || $viewedMetric->pricing()->total() === null) {
             return $this->eligibleSortedIdsMemo[$memoKey] = null;
         }
 
         $candidates = ElectricityContract::query()
-            ->whereIn('id', $metrics['sorted_ids'])
+            ->whereIn('id', $metrics->sortedIds())
             ->get([
                 'id',
                 'target_group',
@@ -321,13 +332,13 @@ class ContractRankingService
             ->keyBy('id');
 
         $viewed = ElectricityContract::find($viewedContractId);
-        $eligibleTargets = $this->eligibleTargetGroups($viewed?->target_group);
+        $eligibleTargets = $this->eligibleTargetGroups($viewed);
 
         $filtered = [];
-        foreach ($metrics['sorted_ids'] as $id) {
+        foreach ($metrics->sortedIds() as $id) {
             $candidate = $candidates->get($id);
 
-            if (! $this->matchesTargetGroup($candidate?->target_group, $eligibleTargets)) {
+            if (! $this->matchesTargetGroup($candidate, $eligibleTargets)) {
                 continue;
             }
 
@@ -342,35 +353,42 @@ class ContractRankingService
 
         return $this->eligibleSortedIdsMemo[$memoKey] = [
             'sortedIds' => $filtered,
-            'selfCost' => (float) $metrics['contracts'][$viewedContractId]['total_cost'],
+            'selfCost' => $viewedMetric->pricing()->total(),
         ];
     }
 
     /**
      * @return array<int, string>
      */
-    private function eligibleTargetGroups(?string $viewedTargetGroup): array
+    private function eligibleTargetGroups(?ElectricityContract $viewed): array
     {
-        // Company-only viewed contract → recommend business-eligible.
-        // Anything else (Household, Both, null) → household-eligible is the safe default.
-        if ($viewedTargetGroup === 'Company') {
-            return ['Company', 'Both'];
+        // Keep the legacy null fallback, but do not classify an explicit unknown
+        // source value as household-eligible.
+        if ($viewed === null || $viewed->target_group === null) {
+            return [TargetGroup::Household->value, TargetGroup::Both->value];
         }
 
-        return ['Household', 'Both'];
+        return match ($viewed->targetGroupType()) {
+            TargetGroup::Company => [TargetGroup::Company->value, TargetGroup::Both->value],
+            TargetGroup::Household, TargetGroup::Both => [TargetGroup::Household->value, TargetGroup::Both->value],
+            TargetGroup::Unknown => [],
+        };
     }
 
     /**
      * @param  array<int, string>  $eligible
      */
-    private function matchesTargetGroup(?string $candidate, array $eligible): bool
+    private function matchesTargetGroup(?ElectricityContract $candidate, array $eligible): bool
     {
-        if ($candidate === null) {
+        if ($candidate === null || $candidate->target_group === null) {
             // Treat unset target group as household-eligible (matches existing ranking logic).
-            return in_array('Household', $eligible, true);
+            return in_array(TargetGroup::Household->value, $eligible, true);
         }
 
-        return in_array($candidate, $eligible, true);
+        $targetGroup = $candidate->targetGroupType();
+
+        return $targetGroup !== TargetGroup::Unknown
+            && in_array($targetGroup->value, $eligible, true);
     }
 
     /**
@@ -446,7 +464,7 @@ class ContractRankingService
         $contracts = ElectricityContract::query()
             ->active()
             ->where(function ($q) {
-                $q->whereIn('target_group', ['Household', 'Both'])
+                $q->whereIn('target_group', [TargetGroup::Household->value, TargetGroup::Both->value])
                     ->orWhereNull('target_group');
             })
             ->get();
@@ -474,15 +492,18 @@ class ContractRankingService
 
             if ($useCanonical) {
                 $canonical = $canonicalMetrics[$contract->id] ?? null;
+                if (! $canonical instanceof CanonicalContractMetric) {
+                    throw new InvalidArgumentException('Canonical metrics are missing contract '.$contract->id.'.');
+                }
                 // Contracts unfit for comparison are excluded from rankings entirely.
-                if ($canonical === null || ! ($canonical['is_listed'] ?? false)) {
+                if (! $canonical->isListed()) {
                     continue;
                 }
 
                 $contractCosts[] = [
                     'id' => $contract->id,
                     'company_name' => $contract->company_name,
-                    'total_cost' => $canonical['sort_key'] ?? PHP_FLOAT_MAX,
+                    'total_cost' => $canonical->sortKey(),
                 ];
 
                 continue;
@@ -497,7 +518,7 @@ class ContractRankingService
             ];
 
             $result = $this->calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
-            $totalCost = $result->toArray()['total_cost'] ?? PHP_FLOAT_MAX;
+            $totalCost = $result->totalCost;
 
             $contractCosts[] = [
                 'id' => $contract->id,

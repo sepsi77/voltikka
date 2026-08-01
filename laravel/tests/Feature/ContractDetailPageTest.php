@@ -2,17 +2,19 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\ContractDetail;
 use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
-use App\Livewire\ContractDetail;
 use App\Services\Caching\ContractPageCacheVersion;
+use App\Services\ContractPriceHistory\ContractHistoryPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -211,13 +213,11 @@ class ContractDetailPageTest extends TestCase
             ->assertDontSeeHtml('href="/sahkosopimus/yleissahko"');
     }
 
-    /**
-     * Test that the company logo is displayed.
-     */
-    public function test_company_logo_is_displayed(): void
+    public function test_external_only_company_logo_is_not_requested(): void
     {
         Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
-            ->assertSeeHtml('https://storage.example.com/logos/test-energia.png');
+            ->assertSee('Tes')
+            ->assertDontSeeHtml('https://storage.example.com/logos/test-energia.png');
     }
 
     /**
@@ -694,9 +694,8 @@ class ContractDetailPageTest extends TestCase
 
     public function test_both_winter_component_spellings_are_labelled_as_winter_price(): void
     {
-        $component = Livewire::test('contract-detail', ['contractId' => $this->contract->id])->instance();
-
-        $labels = (fn () => $this->priceTypeLabelsFor($this->contract))->call($component);
+        $labels = app(ContractHistoryPresenter::class)
+            ->present($this->contract)['priceTypeLabels'];
 
         $this->assertSame('Talvihinta', $labels['SeasonalWinter']);
         $this->assertSame('Talvihinta', $labels['SeasonalWinterDay']);
@@ -850,7 +849,7 @@ class ContractDetailPageTest extends TestCase
 
         foreach ([$previousContract, $oldestContract] as $index => $historyContract) {
             PriceComponent::create([
-                'id' => 'pc-query-history-' . $historyContract->id,
+                'id' => 'pc-query-history-'.$historyContract->id,
                 'electricity_contract_id' => $historyContract->id,
                 'price_component_type' => 'General',
                 'price_date' => now()->subMonths($index + 1)->format('Y-m-d'),
@@ -916,7 +915,7 @@ class ContractDetailPageTest extends TestCase
 
         DB::enableQueryLog();
 
-        $this->get('/sahkosopimus/sopimus/' . $old->id)
+        $this->get('/sahkosopimus/sopimus/'.$old->id)
             ->assertRedirect(route('contract.detail', ['contractId' => $replacement->id]));
 
         $queries = collect(DB::getQueryLog())->pluck('query');
@@ -1464,13 +1463,29 @@ class ContractDetailPageTest extends TestCase
     /**
      * A dead logo URL must leave initials, never a broken image or a blank tile.
      */
-    public function test_company_logo_falls_back_to_initials_when_the_image_fails(): void
+    public function test_external_only_company_logo_uses_initials_without_a_remote_request(): void
     {
-        $html = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])->html();
+        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test']);
+        $html = $component->html();
 
-        $this->assertStringContainsString('https://storage.example.com/logos/test-energia.png', $html);
-        $this->assertStringContainsString('onerror="this.remove()"', $html);
+        $this->assertStringNotContainsString('https://storage.example.com/logos/test-energia.png', $html);
         $this->assertStringContainsString('Tes', $html);
+        $this->assertArrayNotHasKey('logo', $component->instance()->productSchema['brand']);
+    }
+
+    public function test_product_schema_and_visible_logo_prefer_optimized_local_logo(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('logos/test-energia.png', 'original content');
+        Storage::disk('public')->put('logos/test-energia.webp', 'optimized content');
+        $this->company->update(['local_logo_path' => 'logos/test-energia.png']);
+
+        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test']);
+        $logoUrl = $component->instance()->productSchema['brand']['logo'];
+
+        $this->assertStringContainsString('logos/test-energia.webp', $logoUrl);
+        $this->assertStringContainsString($logoUrl, $component->html());
+        $this->assertStringNotContainsString('storage.example.com', $component->html());
     }
 
     public function test_company_without_a_logo_still_renders_initials(): void

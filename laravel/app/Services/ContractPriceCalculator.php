@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Enums\MeteringType;
+use App\Enums\PricingModel;
 use App\Services\CanonicalPricing\Support\MonthlyUsageProfileBuilder;
+use App\Services\DTO\ContractPeriodPricingResult;
 use App\Services\DTO\ContractPricingResult;
 use App\Services\DTO\EnergyUsage;
 use Carbon\Carbon;
@@ -33,20 +35,19 @@ class ContractPriceCalculator
     public const NIGHT_TIME_SHARES = MonthlyUsageProfileBuilder::NIGHT_TIME_SHARES;
 
     public function __construct(
-        private readonly MonthlyUsageProfileBuilder $usageProfileBuilder = new MonthlyUsageProfileBuilder(),
-    ) {
-    }
+        private readonly MonthlyUsageProfileBuilder $usageProfileBuilder = new MonthlyUsageProfileBuilder,
+    ) {}
 
     /**
      * Calculate monthly and annual costs for a given electricity contract and usage.
      *
-     * @param array $priceComponents Array of price component data with 'price_component_type' and 'price' keys.
-     *                               Discount metadata is optional but used when available.
-     * @param array $contractData Contract data with 'contract_type', 'pricing_model' and 'metering' keys
-     * @param EnergyUsage $usage Energy usage data
-     * @param float|null $spotPriceDay Average spot price for day hours (for spot contracts)
-     * @param float|null $spotPriceNight Average spot price for night hours (for spot contracts)
-     * @param CarbonInterface|null $calculationStartDate Start date for promo-aware first-year estimates. Defaults to now.
+     * @param  array  $priceComponents  Array of price component data with 'price_component_type' and 'price' keys.
+     *                                  Discount metadata is optional but used when available.
+     * @param  array  $contractData  Contract data with 'contract_type', 'pricing_model' and 'metering' keys
+     * @param  EnergyUsage  $usage  Energy usage data
+     * @param  float|null  $spotPriceDay  Average spot price for day hours (for spot contracts)
+     * @param  float|null  $spotPriceNight  Average spot price for night hours (for spot contracts)
+     * @param  CarbonInterface|null  $calculationStartDate  Start date for promo-aware first-year estimates. Defaults to now.
      */
     public function calculate(
         array $priceComponents,
@@ -58,42 +59,18 @@ class ContractPriceCalculator
     ): ContractPricingResult {
         $calculationStartDate ??= Carbon::now('Europe/Helsinki');
 
-        // Extract pricing from components
-        $fixedMonthlyFee = 0.0;
-        $seasonalOtherRate = 0.0;
-        $seasonalWinterDayRate = 0.0;
-        $generalRate = 0.0;
-        $nightTimeRate = 0.0;
-        $dayTimeRate = 0.0;
-        $spotPriceMargin = 0.0;
-
-        foreach ($priceComponents as $comp) {
-            $type = $comp['price_component_type'] ?? '';
-            $price = (float) ($comp['price'] ?? 0);
-
-            match ($type) {
-                'Monthly' => $fixedMonthlyFee = $price,
-                'SeasonalOther' => $seasonalOtherRate = $price,
-                'SeasonalWinterDay' => $seasonalWinterDayRate = $price,
-                'NightTime' => $nightTimeRate = $price,
-                'DayTime' => $dayTimeRate = $price,
-                'General' => $generalRate = $price,
-                default => null,
-            };
-        }
-
-        // Detect spot contracts FIRST - check pricing_model
-        $pricingModel = $contractData['pricing_model'] ?? '';
-        $isSpotContract = $pricingModel === 'Spot';
-
-        // Also detect spot contracts by abnormally low prices (< 0.8 c/kWh)
-        // These are margins added on top of spot prices
-        if (! $isSpotContract && $generalRate > 0 && $generalRate < 0.8) {
-            $isSpotContract = true;
-        }
+        $pricing = $this->resolvePricing($priceComponents, $contractData);
+        $fixedMonthlyFee = $pricing['monthlyFee'];
+        $seasonalOtherRate = $pricing['seasonalOtherRate'];
+        $seasonalWinterDayRate = $pricing['seasonalWinterDayRate'];
+        $generalRate = $pricing['generalRate'];
+        $nightTimeRate = $pricing['nightTimeRate'];
+        $dayTimeRate = $pricing['dayTimeRate'];
+        $spotPriceMargin = $pricing['spotMargin'];
+        $isSpotContract = $pricing['isSpot'];
 
         // If no per-kWh rates are set AND it's not a spot contract, return fixed monthly fee only
-        $hasPerKwhRates = $seasonalOtherRate || $seasonalWinterDayRate || $generalRate || $nightTimeRate || $dayTimeRate;
+        $hasPerKwhRates = $pricing['hasPerKwhRates'];
         if (! $hasPerKwhRates && ! $isSpotContract) {
             $baseMonthlyCosts = array_fill(0, 12, $fixedMonthlyFee);
             $monthlyDiscountSavings = $this->calculateMonthlyDiscountSavings(
@@ -120,39 +97,17 @@ class ContractPriceCalculator
             );
         }
 
-        // Determine metering type and pricing rates
-        $metering = MeteringType::General;
-        $regularPrice = 0.0;
-        $discountPrice = 0.0;
+        // Determine metering type and pricing rates.
+        $metering = $pricing['metering'];
+        $regularPrice = $pricing['regularRate'];
+        $discountPrice = $pricing['secondaryRate'];
 
-        if ($generalRate > 0) {
-            $metering = MeteringType::General;
-            $regularPrice = $generalRate;
-            $discountPrice = 0.0;
-        } elseif ($nightTimeRate > 0) {
-            $metering = MeteringType::Time;
-            $regularPrice = $dayTimeRate;
-            $discountPrice = $nightTimeRate;
-        } elseif ($seasonalWinterDayRate > 0) {
-            $metering = MeteringType::Season;
-            $regularPrice = $seasonalWinterDayRate;
-            $discountPrice = $seasonalOtherRate;
-        }
-
-        // Handle spot price contracts - use spot price + margin
+        // Handle spot price contracts - use spot price + margin.
         if ($isSpotContract) {
-            // Find the margin from the first non-monthly price component
-            foreach ($priceComponents as $comp) {
-                if (($comp['price_component_type'] ?? '') !== 'Monthly') {
-                    $spotPriceMargin = (float) ($comp['price'] ?? 0);
-                    break;
-                }
-            }
-
             $metering = MeteringType::Time;
             $regularPrice = ($spotPriceDay ?? 0) + $spotPriceMargin;
             $discountPrice = ($spotPriceNight ?? 0) + $spotPriceMargin;
-            $generalRate = 0; // Reset since info is in spot_price_margin
+            $generalRate = 0; // Reset since info is in spot_price_margin.
         }
 
         // Calculate base energy costs for each usage component (in cents before fixed fee)
@@ -304,6 +259,12 @@ class ContractPriceCalculator
         }
 
         $componentUsageTimeline = $this->usageProfileBuilder->build($metering, $usage, $isSpotContract);
+        if ($isSpotContract) {
+            $componentUsageTimeline = $this->remapSpotUsageTimeline(
+                $componentUsageTimeline,
+                $pricing['spotComponentType'],
+            );
+        }
         $monthlyDiscountSavings = $this->calculateMonthlyDiscountSavings(
             $priceComponents,
             $componentUsageTimeline,
@@ -338,6 +299,195 @@ class ContractPriceCalculator
             monthlyDiscountSavings: $monthlyDiscountSavings,
             includesDiscounts: array_sum($monthlyDiscountSavings) > 0,
         );
+    }
+
+    /**
+     * Calculate one exact billing period using normalized legacy components.
+     *
+     * Dates are inclusive Helsinki-local dates. Realized Spot prices are in c/kWh
+     * including VAT.
+     *
+     * @param  array<int, array<string, mixed>>  $priceComponents
+     * @param  array<string, mixed>  $contractData
+     * @param  list<float|int>  $realizedSpotPrices
+     */
+    public function calculatePeriod(
+        array $priceComponents,
+        array $contractData,
+        CarbonInterface $startDate,
+        CarbonInterface $endDate,
+        float $periodKwh,
+        array $realizedSpotPrices = [],
+    ): ContractPeriodPricingResult {
+        $start = Carbon::parse($startDate, 'Europe/Helsinki')->startOfDay();
+        $end = Carbon::parse($endDate, 'Europe/Helsinki')->startOfDay();
+
+        if ($end < $start) {
+            return ContractPeriodPricingResult::unavailable('no_pricing');
+        }
+
+        $pricing = $this->resolvePricing($priceComponents, $contractData);
+        if (! $pricing['isSpot'] && ! $pricing['hasPerKwhRates'] && $pricing['monthlyFee'] <= 0) {
+            return ContractPeriodPricingResult::unavailable('no_pricing');
+        }
+
+        if ($pricing['isSpot'] && $realizedSpotPrices === []) {
+            return ContractPeriodPricingResult::unavailable('no_spot_history', true);
+        }
+
+        $totalDays = $start->diffInDays($end) + 1;
+        $dailyKwh = $totalDays > 0 ? max(0.0, $periodKwh) / $totalDays : 0.0;
+        $dailyUsage = [];
+        $cursor = $start->copy();
+
+        while ($cursor <= $end) {
+            $usage = [];
+
+            if ($pricing['isSpot']) {
+                $usage[$pricing['spotComponentType']] = $dailyKwh;
+            } elseif ($pricing['metering'] === MeteringType::Time) {
+                $usage['DayTime'] = $dailyKwh * (1 - self::NIGHT_TIME_SHARES['default']);
+                $usage['NightTime'] = $dailyKwh * self::NIGHT_TIME_SHARES['default'];
+            } elseif ($pricing['metering'] === MeteringType::Season) {
+                $isWinter = in_array((int) $cursor->format('n'), [1, 2, 3, 11, 12], true);
+                if ($isWinter) {
+                    $usage['SeasonalWinterDay'] = $dailyKwh * (1 - self::NIGHT_TIME_SHARES['default']);
+                    $usage['SeasonalOther'] = $dailyKwh * self::NIGHT_TIME_SHARES['default'];
+                } else {
+                    $usage['SeasonalOther'] = $dailyKwh;
+                }
+            } else {
+                $usage['General'] = $dailyKwh;
+            }
+
+            $dailyUsage[] = ['date' => $cursor->copy(), 'usage' => $usage];
+            $cursor->addDay();
+        }
+
+        $energyCents = 0.0;
+        foreach ($dailyUsage as $day) {
+            foreach ($day['usage'] as $componentType => $usageKwh) {
+                $energyCents += $usageKwh * $this->rateForComponentType($pricing, $componentType);
+            }
+        }
+
+        $spotAverage = null;
+        if ($pricing['isSpot']) {
+            $spotAverage = array_sum($realizedSpotPrices) / count($realizedSpotPrices);
+            $energyCents += max(0.0, $periodKwh) * $spotAverage;
+        }
+
+        $basePeriodTotal = ($energyCents / 100) + ($pricing['monthlyFee'] * ($totalDays / 30));
+        $rawSavings = $this->calculatePeriodDiscountSavings(
+            $priceComponents,
+            $dailyUsage,
+            $start,
+        );
+        $periodTotal = $basePeriodTotal - $rawSavings;
+        $measuredSavings = max(0.0, $rawSavings);
+
+        return new ContractPeriodPricingResult(
+            available: true,
+            unavailableReason: null,
+            periodTotal: $periodTotal,
+            basePeriodTotal: $basePeriodTotal,
+            discountSavings: $measuredSavings,
+            hasPromotion: $measuredSavings > 0,
+            isSpotContract: $pricing['isSpot'],
+            spotPriceMargin: $pricing['isSpot'] && $pricing['spotMargin'] > 0 ? $pricing['spotMargin'] : null,
+            spotPriceAverage: $spotAverage,
+            monthlyFixedFee: $pricing['monthlyFee'],
+            generalKwhPrice: $pricing['generalRate'] > 0 ? $pricing['generalRate'] : null,
+            daytimeKwhPrice: $pricing['dayTimeRate'] > 0 ? $pricing['dayTimeRate'] : null,
+            nighttimeKwhPrice: $pricing['nightTimeRate'] > 0 ? $pricing['nightTimeRate'] : null,
+            seasonalWinterDayKwhPrice: $pricing['seasonalWinterDayRate'] > 0 ? $pricing['seasonalWinterDayRate'] : null,
+            seasonalOtherKwhPrice: $pricing['seasonalOtherRate'] > 0 ? $pricing['seasonalOtherRate'] : null,
+        );
+    }
+
+    /**
+     * Resolve component rates, Spot state and the selected Spot margin once for
+     * annual and exact-period calculations.
+     *
+     * @param  array<int, array<string, mixed>>  $priceComponents
+     * @param  array<string, mixed>  $contractData
+     * @return array<string, mixed>
+     */
+    private function resolvePricing(array $priceComponents, array $contractData): array
+    {
+        $rates = [
+            'monthlyFee' => 0.0,
+            'seasonalOtherRate' => 0.0,
+            'seasonalWinterDayRate' => 0.0,
+            'generalRate' => 0.0,
+            'nightTimeRate' => 0.0,
+            'dayTimeRate' => 0.0,
+        ];
+
+        foreach ($priceComponents as $component) {
+            $type = $component['price_component_type'] ?? '';
+            $price = (float) ($component['price'] ?? 0);
+
+            match ($type) {
+                'Monthly' => $rates['monthlyFee'] = $price,
+                'SeasonalOther' => $rates['seasonalOtherRate'] = $price,
+                'SeasonalWinter', 'SeasonalWinterDay' => $rates['seasonalWinterDayRate'] = $price,
+                'NightTime' => $rates['nightTimeRate'] = $price,
+                'DayTime' => $rates['dayTimeRate'] = $price,
+                'General' => $rates['generalRate'] = $price,
+                default => null,
+            };
+        }
+
+        $rawPricingModel = $contractData['pricing_model'] ?? null;
+        $pricingModel = PricingModel::fromSource($rawPricingModel);
+        $hasExplicitUnknownModel = is_string($rawPricingModel)
+            ? trim($rawPricingModel) !== '' && $pricingModel === PricingModel::Unknown
+            : $rawPricingModel !== null;
+        $isSpot = $pricingModel === PricingModel::Spot;
+        if (! $hasExplicitUnknownModel
+            && ! $isSpot
+            && $rates['generalRate'] > 0
+            && $rates['generalRate'] < 0.8) {
+            $isSpot = true;
+        }
+
+        $spotMargin = 0.0;
+        $spotComponentType = 'General';
+        if ($isSpot) {
+            foreach ($priceComponents as $component) {
+                if (($component['price_component_type'] ?? '') !== 'Monthly') {
+                    $spotMargin = (float) ($component['price'] ?? 0);
+                    $spotComponentType = (string) ($component['price_component_type'] ?? 'General');
+                    break;
+                }
+            }
+        }
+
+        $metering = MeteringType::General;
+        $regularRate = 0.0;
+        $secondaryRate = 0.0;
+        if ($rates['generalRate'] > 0) {
+            $regularRate = $rates['generalRate'];
+        } elseif ($rates['nightTimeRate'] > 0 || $rates['dayTimeRate'] > 0) {
+            $metering = MeteringType::Time;
+            $regularRate = $rates['dayTimeRate'];
+            $secondaryRate = $rates['nightTimeRate'];
+        } elseif ($rates['seasonalWinterDayRate'] > 0 || $rates['seasonalOtherRate'] > 0) {
+            $metering = MeteringType::Season;
+            $regularRate = $rates['seasonalWinterDayRate'];
+            $secondaryRate = $rates['seasonalOtherRate'];
+        }
+
+        return $rates + [
+            'isSpot' => $isSpot,
+            'spotMargin' => $spotMargin,
+            'spotComponentType' => $spotComponentType,
+            'metering' => $metering,
+            'regularRate' => $regularRate,
+            'secondaryRate' => $secondaryRate,
+            'hasPerKwhRates' => (bool) ($rates['seasonalOtherRate'] || $rates['seasonalWinterDayRate'] || $rates['generalRate'] || $rates['nightTimeRate'] || $rates['dayTimeRate']),
+        ];
     }
 
     /**
@@ -388,7 +538,7 @@ class ContractPriceCalculator
      * Applies both seasonal pricing AND seasonal consumption weighting.
      * Winter months have 30% higher consumption than summer months.
      *
-     * @param float $electricityUse Monthly average electricity use (annual / 12)
+     * @param  float  $electricityUse  Monthly average electricity use (annual / 12)
      * @return array Array of 12 monthly costs in cents
      */
     private function calculateSeasonalCosts(
@@ -440,10 +590,169 @@ class ContractPriceCalculator
     }
 
     /**
+     * @param  array<int, array{date: CarbonInterface, usage: array<string, float>}>  $dailyUsage
+     */
+    private function calculatePeriodDiscountSavings(
+        array $priceComponents,
+        array $dailyUsage,
+        CarbonInterface $periodStart,
+    ): float {
+        $savings = 0.0;
+
+        foreach ($priceComponents as $component) {
+            if (! ($component['has_discount'] ?? false)) {
+                continue;
+            }
+
+            $discountValue = (float) ($component['discount_value'] ?? 0);
+            if ($discountValue <= 0) {
+                continue;
+            }
+
+            $componentType = $component['price_component_type'] ?? null;
+            $paymentUnit = $component['payment_unit'] ?? null;
+            $discountAmount = $this->resolveComponentDiscountAmount(
+                (float) ($component['price'] ?? 0),
+                $discountValue,
+                (bool) ($component['discount_is_percentage'] ?? false),
+            );
+            if ($discountAmount <= 0) {
+                continue;
+            }
+
+            $discountType = $component['discount_type'] ?? null;
+            $nFirstMonths = (int) ($component['discount_discount_n_first_months'] ?? 0);
+            $untilDate = $component['discount_discount_until_date'] ?? null;
+
+            if ($this->isMonthlyPaymentUnit($paymentUnit) || $componentType === 'Monthly') {
+                $coveredDays = 0;
+                foreach ($dailyUsage as $day) {
+                    if ($this->periodDiscountAppliesOnDate($day['date'], $periodStart, $discountType, $nFirstMonths, $untilDate)) {
+                        $coveredDays++;
+                    }
+                }
+                $savings += $discountAmount * ($coveredDays / 30);
+
+                continue;
+            }
+
+            if (! $this->isEnergyPaymentUnit($paymentUnit) || ! is_string($componentType)) {
+                continue;
+            }
+
+            $remainingFirstKwh = (float) ($component['discount_discount_n_first_kwh'] ?? 0);
+            foreach ($dailyUsage as $day) {
+                if (! $this->periodDiscountAppliesOnDate($day['date'], $periodStart, $discountType, $nFirstMonths, $untilDate)) {
+                    continue;
+                }
+
+                $usageType = $componentType === 'SeasonalWinter' ? 'SeasonalWinterDay' : $componentType;
+                $componentUsage = (float) ($day['usage'][$usageType] ?? 0.0);
+                if ($componentUsage <= 0) {
+                    continue;
+                }
+
+                $coveredUsage = $discountType === 'NFirstKwh'
+                    ? min($componentUsage, $remainingFirstKwh)
+                    : $componentUsage;
+                $savings += ($coveredUsage * $discountAmount) / 100;
+
+                if ($discountType === 'NFirstKwh') {
+                    $remainingFirstKwh -= $coveredUsage;
+                    if ($remainingFirstKwh <= 0) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        return $savings;
+    }
+
+    private function periodDiscountAppliesOnDate(
+        CarbonInterface $date,
+        CarbonInterface $periodStart,
+        ?string $discountType,
+        int $nFirstMonths,
+        mixed $untilDate,
+    ): bool {
+        return match ($discountType) {
+            'NFirstMonth' => $nFirstMonths > 0 && $date < $periodStart->copy()->addMonths($nFirstMonths),
+            'UntilDate' => $this->dateIsOnOrBefore($date, $untilDate),
+            'NFirstKwh' => true,
+            default => $nFirstMonths > 0 ? $date < $periodStart->copy()->addMonths($nFirstMonths) : true,
+        };
+    }
+
+    private function dateIsOnOrBefore(CarbonInterface $date, mixed $untilDate): bool
+    {
+        if (! $untilDate) {
+            return false;
+        }
+
+        $until = $untilDate instanceof CarbonInterface
+            ? $untilDate->copy()->timezone($date->getTimezone())->startOfDay()
+            : Carbon::parse($untilDate, $date->getTimezone())->startOfDay();
+
+        return $date->copy()->startOfDay() <= $until;
+    }
+
+    /**
+     * @param  array<string, mixed>  $pricing
+     */
+    private function rateForComponentType(array $pricing, string $componentType): float
+    {
+        return match ($componentType) {
+            'General' => $pricing['isSpot'] ? $pricing['spotMargin'] : $pricing['generalRate'],
+            'DayTime' => $pricing['dayTimeRate'],
+            'NightTime' => $pricing['nightTimeRate'],
+            'SeasonalWinter', 'SeasonalWinterDay' => $pricing['seasonalWinterDayRate'],
+            'SeasonalOther' => $pricing['seasonalOtherRate'],
+            default => $pricing['isSpot'] && $componentType === $pricing['spotComponentType']
+                ? $pricing['spotMargin']
+                : 0.0,
+        };
+    }
+
+    /**
+     * @param  array<int, array<string, float>>  $timeline
+     * @return array<int, array<string, float>>
+     */
+    private function remapSpotUsageTimeline(array $timeline, string $spotComponentType): array
+    {
+        if ($spotComponentType === 'General') {
+            return $timeline;
+        }
+
+        foreach ($timeline as &$month) {
+            $month[$spotComponentType] = ($month[$spotComponentType] ?? 0.0) + ($month['General'] ?? 0.0);
+            $month['General'] = 0.0;
+        }
+        unset($month);
+
+        return $timeline;
+    }
+
+    private function isMonthlyPaymentUnit(mixed $paymentUnit): bool
+    {
+        return in_array($paymentUnit, ['EurPerMonth', 'EUR/month'], true);
+    }
+
+    private function isEnergyPaymentUnit(mixed $paymentUnit): bool
+    {
+        return $paymentUnit === null || in_array($paymentUnit, [
+            'CentPerKilowattHour',
+            'CentPerKiwattHour',
+            'CentPerKiloWattHour',
+            'c/kWh',
+        ], true);
+    }
+
+    /**
      * Calculate monthly discount savings in euros for the first 12 months.
      *
-     * @param array<int, array<string, mixed>> $priceComponents
-     * @param array<int, array<string, float>> $componentUsageTimeline
+     * @param  array<int, array<string, mixed>>  $priceComponents
+     * @param  array<int, array<string, float>>  $componentUsageTimeline
      * @return array<int, float>
      */
     private function calculateMonthlyDiscountSavings(
@@ -478,7 +787,7 @@ class ContractPriceCalculator
                 continue;
             }
 
-            if ($paymentUnit === 'EurPerMonth' || $componentType === 'Monthly') {
+            if ($this->isMonthlyPaymentUnit($paymentUnit) || $componentType === 'Monthly') {
                 for ($monthIndex = 0; $monthIndex < 12; $monthIndex++) {
                     $coverage = $this->resolveMonthlyDiscountCoverage(
                         $monthIndex,
@@ -498,7 +807,7 @@ class ContractPriceCalculator
                 continue;
             }
 
-            if (($paymentUnit !== 'CentPerKiwattHour' && $paymentUnit !== null) || ! is_string($componentType)) {
+            if (! $this->isEnergyPaymentUnit($paymentUnit) || ! is_string($componentType)) {
                 continue;
             }
 
@@ -515,7 +824,8 @@ class ContractPriceCalculator
                     continue;
                 }
 
-                $monthlyUsage = (float) ($componentUsageTimeline[$monthIndex][$componentType] ?? 0.0);
+                $usageType = $componentType === 'SeasonalWinter' ? 'SeasonalWinterDay' : $componentType;
+                $monthlyUsage = (float) ($componentUsageTimeline[$monthIndex][$usageType] ?? 0.0);
                 if ($monthlyUsage <= 0) {
                     continue;
                 }
@@ -575,27 +885,29 @@ class ContractPriceCalculator
 
         $monthStart = $calculationStartDate->copy()->startOfDay()->addMonths($monthIndex);
         $monthEnd = $monthStart->copy()->addMonth();
-        $until = $untilDate instanceof CarbonInterface
-            ? $untilDate->copy()->timezone($monthStart->getTimezone())
-            : Carbon::parse($untilDate, $monthStart->getTimezone());
+        $untilExclusive = $untilDate instanceof CarbonInterface
+            ? $untilDate->copy()->timezone($monthStart->getTimezone())->startOfDay()->addDay()
+            : Carbon::parse($untilDate, $monthStart->getTimezone())->startOfDay()->addDay();
 
-        if ($until <= $monthStart) {
+        if ($untilExclusive <= $monthStart) {
             return 0.0;
         }
 
-        if ($until >= $monthEnd) {
+        if ($untilExclusive >= $monthEnd) {
             return 1.0;
         }
 
-        $coveredSeconds = $until->diffInSeconds($monthStart, false);
-        $monthSeconds = max(1, $monthEnd->diffInSeconds($monthStart, false));
+        $coveredDays = Carbon::parse($monthStart->toDateString(), 'UTC')
+            ->diffInDays(Carbon::parse($untilExclusive->toDateString(), 'UTC'));
+        $monthDays = max(1, Carbon::parse($monthStart->toDateString(), 'UTC')
+            ->diffInDays(Carbon::parse($monthEnd->toDateString(), 'UTC')));
 
-        return max(0.0, min(1.0, $coveredSeconds / $monthSeconds));
+        return max(0.0, min(1.0, $coveredDays / $monthDays));
     }
 
     /**
-     * @param array<int, float> $baseMonthlyCosts
-     * @param array<int, float> $monthlyDiscountSavings
+     * @param  array<int, float>  $baseMonthlyCosts
+     * @param  array<int, float>  $monthlyDiscountSavings
      * @return array<int, float>
      */
     private function applyDiscountSavingsToMonthlyCosts(array $baseMonthlyCosts, array $monthlyDiscountSavings): array

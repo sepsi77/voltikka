@@ -9,7 +9,6 @@ use App\Services\DTO\SolarEstimateResult;
 use App\Services\SolarCalculatorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
-use Mockery;
 use Tests\TestCase;
 
 class SolarCalculatorLivewireTest extends TestCase
@@ -44,6 +43,30 @@ class SolarCalculatorLivewireTest extends TestCase
             ->assertSet('addressQuery', '')
             ->assertSet('selectedLat', null)
             ->assertSet('selectedLon', null);
+    }
+
+    public function test_example_heading_uses_default_system_size(): void
+    {
+        $this->mock(SolarCalculatorService::class)
+            ->shouldReceive('calculate')
+            ->once()
+            ->andReturn(new SolarEstimateResult(4500.0, array_fill(0, 12, 375), []));
+
+        Livewire::test(SolarCalculator::class)
+            ->assertSee('5,0 kWp:n järjestelmä Helsingissä.');
+    }
+
+    public function test_example_heading_updates_with_changed_system_size(): void
+    {
+        $this->mock(SolarCalculatorService::class)
+            ->shouldReceive('calculate')
+            ->twice()
+            ->andReturn(new SolarEstimateResult(7200.0, array_fill(0, 12, 600), []));
+
+        Livewire::test(SolarCalculator::class)
+            ->set('systemKwp', 8.0)
+            ->assertSee('8,0 kWp:n järjestelmä Helsingissä.')
+            ->assertDontSee('5,0 kWp:n järjestelmä Helsingissä.');
     }
 
     public function test_address_search_shows_suggestions(): void
@@ -195,7 +218,9 @@ class SolarCalculatorLivewireTest extends TestCase
         Livewire::test(SolarCalculator::class)
             ->set('systemKwp', 30.0)
             ->assertSet('systemKwp', 20.0)
-            ->assertNotSet('systemKwpNotice', null);
+            ->assertNotSet('systemKwpNotice', null)
+            ->assertSee('20,0 kWp:n järjestelmä Helsingissä.')
+            ->assertDontSee('30,0 kWp:n järjestelmä Helsingissä.');
     }
 
     public function test_blank_system_size_is_normalized_instead_of_throwing(): void

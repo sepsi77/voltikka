@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\TargetGroup;
 use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
@@ -32,6 +33,7 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
     public function test_canonical_api_uses_only_safe_measured_offers_and_canonical_values_in_a_bounded_batch(): void
     {
         config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
 
         $conflict = $this->createContract(
             'canonical-conflict',
@@ -133,9 +135,29 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
         )));
     }
 
+    public function test_unknown_target_group_is_not_household_eligible(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
+
+        $contract = $this->createContract(
+            'unknown-audience',
+            'Alpha Energy Oy',
+            'Unknown audience offer',
+            $this->offerPhase(),
+        );
+        $contract->update(['target_group' => TargetGroup::Unknown->value]);
+
+        $data = app(WeeklyOffersVideoService::class)->getWeeklyOffersData();
+
+        $this->assertSame(0, $data['offers_count']);
+        $this->assertSame([], $data['offers']);
+    }
+
     public function test_short_fixed_term_payload_and_prompt_use_the_real_term_benefit(): void
     {
         config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
 
         $contract = $this->createContract(
             'six-month',
@@ -177,6 +199,7 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
     public function test_feature_off_keeps_the_legacy_relational_weekly_offer_payload(): void
     {
         config()->set('canonical_pricing.enabled', false);
+        app()->forgetScopedInstances();
 
         $this->createContract(
             'canonical-only',

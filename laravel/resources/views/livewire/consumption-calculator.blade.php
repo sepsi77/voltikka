@@ -103,8 +103,12 @@
                         wire:model.blur="livingArea"
                         min="20"
                         max="500"
+                        @if (isset($numericNotices['livingArea'])) aria-invalid="true" aria-describedby="living-area-notice" @endif
                         class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                     >
+                    @if (isset($numericNotices['livingArea']))
+                        <p id="living-area-notice" role="alert" class="mt-1 text-sm text-red-600">{{ $numericNotices['livingArea'] }}</p>
+                    @endif
                 </div>
                 <div>
                     <label for="num-people" class="block text-sm font-medium text-slate-700 mb-2">
@@ -116,8 +120,12 @@
                         wire:model.blur="numPeople"
                         min="1"
                         max="10"
+                        @if (isset($numericNotices['numPeople'])) aria-invalid="true" aria-describedby="num-people-notice" @endif
                         class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                     >
+                    @if (isset($numericNotices['numPeople']))
+                        <p id="num-people-notice" role="alert" class="mt-1 text-sm text-red-600">{{ $numericNotices['numPeople'] }}</p>
+                    @endif
                 </div>
             </div>
 
@@ -230,10 +238,14 @@
                                     min="0"
                                     max="50"
                                     placeholder="0"
+                                    @if (isset($numericNotices['bathroomHeatingArea'])) aria-invalid="true" aria-describedby="bathroom-area-notice" @endif
                                     class="w-20 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500"
                                 >
                                 <span class="ml-2 text-sm text-slate-500">m²</span>
                             </div>
+                            @if (isset($numericNotices['bathroomHeatingArea']))
+                                <p id="bathroom-area-notice" role="alert" class="mt-1 text-sm text-red-600">{{ $numericNotices['bathroomHeatingArea'] }}</p>
+                            @endif
                         </div>
                     </div>
 
@@ -252,10 +264,14 @@
                                     min="0"
                                     max="14"
                                     placeholder="0"
+                                    @if (isset($numericNotices['saunaUsagePerWeek'])) aria-invalid="true" aria-describedby="sauna-usage-notice" @endif
                                     class="w-20 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500"
                                 >
                                 <span class="ml-2 text-sm text-slate-500">krt/viikko</span>
                             </div>
+                            @if (isset($numericNotices['saunaUsagePerWeek']))
+                                <p id="sauna-usage-notice" role="alert" class="mt-1 text-sm text-red-600">{{ $numericNotices['saunaUsagePerWeek'] }}</p>
+                            @endif
                         </div>
                     </div>
 
@@ -274,10 +290,14 @@
                                     min="0"
                                     max="5000"
                                     placeholder="0"
+                                    @if (isset($numericNotices['electricVehicleKmsPerMonth'])) aria-invalid="true" aria-describedby="ev-kms-notice" @endif
                                     class="w-24 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500"
                                 >
                                 <span class="ml-2 text-sm text-slate-500">km/kk</span>
                             </div>
+                            @if (isset($numericNotices['electricVehicleKmsPerMonth']))
+                                <p id="ev-kms-notice" role="alert" class="mt-1 text-sm text-red-600">{{ $numericNotices['electricVehicleKmsPerMonth'] }}</p>
+                            @endif
                         </div>
                     </div>
 

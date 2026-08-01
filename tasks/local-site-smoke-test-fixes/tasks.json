@@ -1,0 +1,10 @@
+[
+  {"name":"Fix local origin and public storage setup","status":"completed"},
+  {"name":"Fix Vite and Livewire preload configuration","status":"completed"},
+  {"name":"Add visible zero-consumption bill validation","status":"completed"},
+  {"name":"Make solar example heading use selected system size","status":"completed"},
+  {"name":"Harden external logo and structured-data fallback","status":"completed"},
+  {"name":"Run focused tests and browser smoke tests","status":"completed"},
+  {"name":"Update context documentation","status":"completed"},
+  {"name":"Reject zero bill inputs and restore valid values","status":"completed"}
+]

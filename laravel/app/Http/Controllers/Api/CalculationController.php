@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ElectricityContract;
 use App\Services\ContractPriceCalculator;
+use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\DTO\EnergyCalculatorRequest;
 use App\Services\DTO\EnergyUsage;
 use App\Services\EnergyCalculator;
@@ -69,8 +70,10 @@ class CalculationController extends Controller
         if ($canonicalPricing->enabled()) {
             $evaluation = $canonicalPricing->evaluate($contract, $usage);
 
+            $pricing = ContractPricingViewData::fromCanonicalOutcome($evaluation['outcome']);
+
             return response()->json([
-                'data' => $evaluation['outcome']->toCalculatedCostArray()
+                'data' => $pricing->toArray()
                     + ['pricing_integrity' => $evaluation['integrity']->toArray()],
             ]);
         }
@@ -96,7 +99,7 @@ class CalculationController extends Controller
         );
 
         return response()->json([
-            'data' => $result->toArray(),
+            'data' => ContractPricingViewData::fromLegacyResult($result)->toArray(),
         ]);
     }
 

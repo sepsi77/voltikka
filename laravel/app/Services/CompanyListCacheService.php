@@ -2,11 +2,14 @@
 
 namespace App\Services;
 
+use App\Enums\PricingModel;
 use App\Models\ElectricityContract;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\PricingMode;
+use App\Services\ContractPricing\ContractMetric;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use InvalidArgumentException;
 
 class CompanyListCacheService
 {
@@ -84,6 +87,9 @@ class CompanyListCacheService
     private function buildCachedCompanies(int $consumption): Collection
     {
         $cachedMetrics = $this->contractListCache->getCachedMetrics($consumption);
+        if ($cachedMetrics === null) {
+            throw new InvalidArgumentException('Company pricing requires a supported cached consumption.');
+        }
 
         $contracts = ElectricityContract::query()
             ->active()
@@ -98,14 +104,11 @@ class CompanyListCacheService
         foreach ($contractsByCompany as $allCompanyContracts) {
             $companyContracts = $useCanonical
                 ? $allCompanyContracts->filter(function (ElectricityContract $contract) use ($cachedMetrics): bool {
-                    $metric = $cachedMetrics['contracts'][$contract->id] ?? null;
-                    $total = $metric['calculated_cost']['total_cost'] ?? null;
+                    $metric = $cachedMetrics->metric($contract->id);
 
-                    return is_array($metric)
-                        && ($metric['is_listed'] ?? false) === true
-                        && ($metric['calculated_cost']['pricing_basis'] ?? null) === 'canonical'
-                        && is_numeric($total)
-                        && is_finite((float) $total);
+                    return $metric !== null
+                        && $metric->isListed()
+                        && $metric->pricing()->pricingBasis() === 'canonical';
                 })
                 : $allCompanyContracts;
 
@@ -116,38 +119,48 @@ class CompanyListCacheService
             }
 
             $applicableContracts = $companyContracts->filter(function (ElectricityContract $contract) use ($cachedMetrics) {
-                return ! ($cachedMetrics['contracts'][$contract->id]['exceeds_consumption_limit'] ?? false);
+                $metric = $cachedMetrics->metric($contract->id);
+                if ($metric === null) {
+                    throw new InvalidArgumentException('Company contract is missing its cached metric.');
+                }
+
+                return ! $metric->exceedsConsumptionLimit();
             });
 
             $priceMetrics = $applicableContracts
                 ->mapWithKeys(function (ElectricityContract $contract) use ($cachedMetrics) {
-                    return [$contract->id => $cachedMetrics['contracts'][$contract->id]];
+                    $metric = $cachedMetrics->metric($contract->id);
+                    if ($metric === null) {
+                        throw new InvalidArgumentException('Company contract is missing its cached metric.');
+                    }
+
+                    return [$contract->id => $metric];
                 });
 
-            $spotContracts = $applicableContracts->filter(fn (ElectricityContract $contract) => $contract->pricing_model === 'Spot');
+            $spotContracts = $applicableContracts->filter(
+                fn (ElectricityContract $contract) => $contract->pricingModelType() === PricingModel::Spot
+            );
 
             $companies->push([
                 'company' => $company,
                 'contractCount' => $companyContracts->count(),
                 'avgPrice' => $priceMetrics->isNotEmpty()
-                    ? $priceMetrics->avg(fn (array $metric) => (float) $metric['calculated_cost']['total_cost'])
+                    ? $priceMetrics->avg(fn (ContractMetric $metric) => $metric->pricing()->total())
                     : null,
                 'lowestPrice' => $priceMetrics->isNotEmpty()
-                    ? $priceMetrics->min(fn (array $metric) => (float) $metric['calculated_cost']['total_cost'])
+                    ? $priceMetrics->min(fn (ContractMetric $metric) => $metric->pricing()->total())
                     : null,
-                'avgEmissions' => $companyContracts->avg(fn (ElectricityContract $contract) => $cachedMetrics['contracts'][$contract->id]['emission_factor'] ?? 0),
-                'lowestEmissions' => $companyContracts->min(fn (ElectricityContract $contract) => $cachedMetrics['contracts'][$contract->id]['emission_factor'] ?? PHP_FLOAT_MAX),
+                'avgEmissions' => $companyContracts->avg(fn (ElectricityContract $contract) => $cachedMetrics->metric($contract->id)?->emissionFactor() ?? 0),
+                'lowestEmissions' => $companyContracts->min(fn (ElectricityContract $contract) => $cachedMetrics->metric($contract->id)?->emissionFactor() ?? PHP_FLOAT_MAX),
                 'avgRenewable' => $companyContracts->avg(fn (ElectricityContract $contract) => $contract->electricitySource?->renewable_total ?? 0),
                 'maxRenewable' => $companyContracts->max(fn (ElectricityContract $contract) => $contract->electricitySource?->renewable_total ?? 0),
                 'lowestMonthlyFee' => $priceMetrics
-                    ->map(fn (array $metric) => $metric['calculated_cost']['monthly_fixed_fee'] ?? null)
-                    ->filter(fn ($fee) => is_numeric($fee) && is_finite((float) $fee))
-                    ->map(fn ($fee) => (float) $fee)
+                    ->map(fn (ContractMetric $metric) => $metric->pricing()->monthlyFixedFee())
+                    ->filter(fn (?float $fee) => $fee !== null)
                     ->min(),
                 'lowestSpotMargin' => $spotContracts
-                    ->map(fn (ElectricityContract $contract) => $cachedMetrics['contracts'][$contract->id]['calculated_cost']['spot_price_margin'] ?? null)
-                    ->filter(fn ($margin) => is_numeric($margin) && is_finite((float) $margin))
-                    ->map(fn ($margin) => (float) $margin)
+                    ->map(fn (ElectricityContract $contract) => $cachedMetrics->metric($contract->id)?->pricing()->spotPriceMargin())
+                    ->filter(fn (?float $margin) => $margin !== null)
                     ->min(),
                 'hasSpotContracts' => $spotContracts->isNotEmpty(),
                 'hasFullyRenewable' => $companyContracts->contains(fn (ElectricityContract $contract) => $contract->electricitySource && $contract->electricitySource->isFullyRenewable()

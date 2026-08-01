@@ -10,17 +10,18 @@ use Illuminate\Support\Facades\Storage;
 class CompanyLogoService
 {
     private const LOGO_DIRECTORY = 'logos';
+
     private const TIMEOUT_SECONDS = 30;
 
     /**
      * Download and store a company's logo locally.
      *
-     * @param Company $company The company whose logo to download
+     * @param  Company  $company  The company whose logo to download
      * @return string|null The relative storage path if successful, null otherwise
      */
     public function downloadAndStore(Company $company): ?string
     {
-        if (!$company->logo_url) {
+        if (! $company->logo_url) {
             return null;
         }
 
@@ -32,12 +33,13 @@ class CompanyLogoService
                     'url' => $company->logo_url,
                     'status' => $response->status(),
                 ]);
+
                 return null;
             }
 
             $extension = $this->getExtensionFromResponse($response, $company->logo_url);
-            $filename = $company->name_slug . '.' . $extension;
-            $path = self::LOGO_DIRECTORY . '/' . $filename;
+            $filename = $company->name_slug.'.'.$extension;
+            $path = self::LOGO_DIRECTORY.'/'.$filename;
 
             Storage::disk('public')->put($path, $response->body());
 
@@ -49,6 +51,7 @@ class CompanyLogoService
                 'url' => $company->logo_url,
                 'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -56,13 +59,18 @@ class CompanyLogoService
     /**
      * Get the local storage path for a company's logo.
      *
-     * @param Company $company The company to check
+     * @param  Company  $company  The company to check
      * @return string|null The relative storage path if exists, null otherwise
      */
     public function getLocalPath(Company $company): ?string
     {
-        foreach (['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp'] as $extension) {
-            $path = self::LOGO_DIRECTORY . '/' . $company->name_slug . '.' . $extension;
+        $recordedPath = $company->getLocalLogoPath();
+        if ($recordedPath !== null && Storage::disk('public')->exists($recordedPath)) {
+            return $recordedPath;
+        }
+
+        foreach (['webp', 'png', 'jpg', 'jpeg', 'gif', 'svg'] as $extension) {
+            $path = self::LOGO_DIRECTORY.'/'.$company->name_slug.'.'.$extension;
             if (Storage::disk('public')->exists($path)) {
                 return $path;
             }
@@ -74,7 +82,7 @@ class CompanyLogoService
     /**
      * Check if a company has a locally stored logo.
      *
-     * @param Company $company The company to check
+     * @param  Company  $company  The company to check
      * @return bool True if local logo exists
      */
     public function hasLocalLogo(Company $company): bool
@@ -85,7 +93,7 @@ class CompanyLogoService
     /**
      * Get the public URL for a locally stored logo.
      *
-     * @param Company $company The company to get URL for
+     * @param  Company  $company  The company to get URL for
      * @return string|null The public URL if local logo exists, null otherwise
      */
     public function getPublicUrl(Company $company): ?string

@@ -275,6 +275,7 @@
                     <input
                         type="text"
                         wire:model.live.debounce.300ms="search"
+                        data-search-input
                         placeholder="Hae yhtiötä..."
                         class="w-full sm:w-64 pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                     >

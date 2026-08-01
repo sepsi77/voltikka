@@ -93,6 +93,8 @@ class ContractsList extends Component
      */
     public int|string|null $directConsumption = null;
 
+    public ?string $directConsumptionNotice = null;
+
     /**
      * Available consumption presets matching ConsumptionCalculator.
      *
@@ -229,6 +231,8 @@ class ContractsList extends Component
      * Electric vehicle kilometers driven per week.
      */
     public int $calcElectricVehicleKmsPerWeek = 0;
+
+    public ?string $calculatorInputNotice = null;
 
     /**
      * Available building types with labels.
@@ -462,7 +466,13 @@ class ContractsList extends Component
             return;
         }
 
-        $clean = max(0, (int) $value);
+        $raw = (int) $value;
+        $clean = max(0, $raw);
+        $this->directConsumption = $clean;
+        $this->directConsumptionNotice = $raw < 0
+            ? 'Vuosikulutus ei voi olla negatiivinen. Käytämme arvoa 0 kWh.'
+            : null;
+
         if ($clean <= 0) {
             return;
         }
@@ -722,20 +732,40 @@ class ContractsList extends Component
         $buildingRegion = BuildingRegion::tryFrom($this->calculatorStringValue('calcBuildingRegion', BuildingRegion::South->value))
             ?? BuildingRegion::South;
 
+        $rawLivingArea = $this->calculatorIntValue('calcLivingArea', 80);
+        $rawNumPeople = $this->calculatorIntValue('calcNumPeople', 2);
+        $rawBathroomArea = $this->calculatorIntValue('calcBathroomHeatingArea', 0);
+        $rawSaunaUsage = $this->calculatorIntValue('calcSaunaUsagePerWeek', 0);
+        $rawEvKmsPerWeek = $this->calculatorIntValue('calcElectricVehicleKmsPerWeek', 0);
+
+        $this->calcLivingArea = max(10, $rawLivingArea);
+        $this->calcNumPeople = max(1, $rawNumPeople);
+        $this->calcBathroomHeatingArea = max(0, $rawBathroomArea);
+        $this->calcSaunaUsagePerWeek = max(0, $rawSaunaUsage);
+        $this->calcElectricVehicleKmsPerWeek = max(0, $rawEvKmsPerWeek);
+
+        $this->calculatorInputNotice = $rawLivingArea < 10
+            || $rawNumPeople < 1
+            || $rawBathroomArea < 0
+            || $rawSaunaUsage < 0
+            || $rawEvKmsPerWeek < 0
+                ? 'Korjasimme liian pienen arvon kentän sallittuun vähimmäisarvoon.'
+                : null;
+
         // Convert weekly EV kms to monthly (roughly 4.33 weeks per month)
-        $evKmsPerMonth = (int) round($this->calculatorIntValue('calcElectricVehicleKmsPerWeek', 0) * 4.33);
+        $evKmsPerMonth = (int) round($this->calcElectricVehicleKmsPerWeek * 4.33);
 
         $request = new EnergyCalculatorRequest(
-            livingArea: max(10, $this->calculatorIntValue('calcLivingArea', 80)),
-            numPeople: max(1, $this->calculatorIntValue('calcNumPeople', 2)),
+            livingArea: $this->calcLivingArea,
+            numPeople: $this->calcNumPeople,
             buildingType: $buildingType,
             heatingMethod: $includeHeating ? $heatingMethod : null,
             supplementaryHeating: $includeHeating ? $supplementaryHeating : null,
             buildingEnergyEfficiency: $includeHeating ? $buildingEnergyEfficiency : null,
             buildingRegion: $includeHeating ? $buildingRegion : null,
             electricVehicleKmsPerMonth: $electricVehicleEnabled ? $evKmsPerMonth : 0,
-            bathroomHeatingArea: $underfloorHeatingEnabled ? $this->calculatorIntValue('calcBathroomHeatingArea', 0) : 0,
-            saunaUsagePerWeek: $saunaEnabled ? $this->calculatorIntValue('calcSaunaUsagePerWeek', 0) : 0,
+            bathroomHeatingArea: $underfloorHeatingEnabled ? $this->calcBathroomHeatingArea : 0,
+            saunaUsagePerWeek: $saunaEnabled ? $this->calcSaunaUsagePerWeek : 0,
             externalHeating: ! $includeHeating,
             externalHeatingWater: ! $includeHeating,
             cooling: $this->calculatorBoolValue('calcCooling', false),
@@ -1760,8 +1790,8 @@ class ContractsList extends Component
                     'name' => $contract->company->name,
                 ];
 
-                if ($contract->company->getLogoUrl()) {
-                    $brand['logo'] = $contract->company->getLogoUrl();
+                if ($logoUrl = $contract->company->getLocalLogoUrl()) {
+                    $brand['logo'] = $logoUrl;
                 }
 
                 $productItem['brand'] = $brand;

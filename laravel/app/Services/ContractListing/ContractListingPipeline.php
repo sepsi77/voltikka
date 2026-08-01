@@ -2,6 +2,7 @@
 
 namespace App\Services\ContractListing;
 
+use App\Enums\MeteringType;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
@@ -11,11 +12,14 @@ use App\Services\ContractCard\Enums\PricingBucket;
 use App\Services\ContractCard\PricingCategoryResolver;
 use App\Services\ContractListCacheService;
 use App\Services\ContractPriceCalculator;
+use App\Services\ContractPricing\CanonicalContractMetric;
+use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\DTO\EnergyUsage;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 class ContractListingPipeline
 {
@@ -100,7 +104,7 @@ class ContractListingPipeline
 
         if ($pricingType === 'TimeOfUse') {
             $query->where(function (Builder $query) {
-                $query->where('metering', 'Time')
+                $query->where('metering', MeteringType::Time->value)
                     ->orWhere('name', 'LIKE', '%aikasähkö%')
                     ->orWhere('name', 'LIKE', '%Aikasähkö%')
                     ->orWhere('extra_information_fi', 'LIKE', '%aikasähkö%');
@@ -111,7 +115,7 @@ class ContractListingPipeline
 
         if ($pricingType === 'Seasonal') {
             $query->where(function (Builder $query) {
-                $query->where('metering', 'Season')
+                $query->where('metering', MeteringType::Season->value)
                     ->orWhere('name', 'LIKE', '%kausisähkö%')
                     ->orWhere('name', 'LIKE', '%Kausisähkö%')
                     ->orWhere('extra_information_fi', 'LIKE', '%kausisähkö%');
@@ -223,11 +227,15 @@ class ContractListingPipeline
 
             if ($useCanonical) {
                 $canonical = $canonicalMetrics[$contract->id] ?? null;
-                $contract->calculated_cost = $canonical['calculated_cost'] ?? [];
-                $contract->pricing_integrity = $canonical['integrity'] ?? null;
-                $contract->comparability = $canonical['comparability'] ?? null;
-                $contract->is_listed = $canonical['is_listed'] ?? false;
-                $contract->sort_key = $canonical['sort_key'] ?? null;
+                if (! $canonical instanceof CanonicalContractMetric) {
+                    throw new InvalidArgumentException('Canonical metrics are missing contract '.$contract->id.'.');
+                }
+
+                $contract->calculated_cost = $canonical->pricing()->toArray();
+                $contract->pricing_integrity = $canonical->integrity()->toArray();
+                $contract->comparability = $canonical->comparability()->value;
+                $contract->is_listed = $canonical->isListed();
+                $contract->sort_key = $canonical->sortKey();
 
                 return $contract;
             }
@@ -249,7 +257,7 @@ class ContractListingPipeline
                 $spotPriceNight,
             );
 
-            $contract->calculated_cost = $result->toArray();
+            $contract->calculated_cost = ContractPricingViewData::fromLegacyResult($result)->toArray();
             $contract->pricing_integrity = null;
             $contract->comparability = null;
             $contract->is_listed = true;
@@ -350,32 +358,31 @@ class ContractListingPipeline
             return null;
         }
 
-        $metricsById = $cached['contracts'] ?? [];
         $contractsById = $contracts->keyBy('id');
 
-        if ($contractsById->keys()->diff(array_keys($metricsById))->isNotEmpty()) {
+        if ($contractsById->keys()->diff(array_keys($cached->metrics()))->isNotEmpty()) {
             return null;
         }
 
         $sortedContracts = [];
 
-        foreach ($cached['sorted_ids'] as $contractId) {
+        foreach ($cached->sortedIds() as $contractId) {
             if (! $contractsById->has($contractId)) {
                 continue;
             }
 
             $contract = $contractsById->get($contractId);
-            $metrics = $metricsById[$contractId] ?? null;
+            $metric = $cached->metric($contractId);
 
-            if ($metrics === null) {
+            if ($metric === null) {
                 return null;
             }
 
-            $contract->calculated_cost = $metrics['calculated_cost'];
-            $contract->emission_factor = $metrics['emission_factor'];
-            $contract->exceeds_consumption_limit = $metrics['exceeds_consumption_limit'];
-            $contract->pricing_integrity = $metrics['pricing_integrity'] ?? null;
-            $contract->comparability = $metrics['comparability'] ?? null;
+            $contract->calculated_cost = $metric->pricing()->toArray();
+            $contract->emission_factor = $metric->emissionFactor();
+            $contract->exceeds_consumption_limit = $metric->exceedsConsumptionLimit();
+            $contract->pricing_integrity = $metric->integrity()?->toArray();
+            $contract->comparability = $metric->comparability();
             $sortedContracts[] = $contract;
         }
 
@@ -392,10 +399,14 @@ class ContractListingPipeline
                 return $aExceeds <=> $bExceeds;
             }
 
-            $aCost = $a->sort_key ?? $a->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
-            $bCost = $b->sort_key ?? $b->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
+            if ((! is_int($a->sort_key) && ! is_float($a->sort_key)) || ! is_finite((float) $a->sort_key)) {
+                throw new InvalidArgumentException('A listed contract requires a finite sort key.');
+            }
+            if ((! is_int($b->sort_key) && ! is_float($b->sort_key)) || ! is_finite((float) $b->sort_key)) {
+                throw new InvalidArgumentException('A listed contract requires a finite sort key.');
+            }
 
-            return $aCost <=> $bCost;
+            return $a->sort_key <=> $b->sort_key;
         })->values();
     }
 

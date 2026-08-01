@@ -84,6 +84,7 @@
                             <input
                                 type="text"
                                 wire:model.live.debounce.300ms="addressQuery"
+                                data-search-input
                                 wire:keydown.escape="hideSuggestions"
                                 placeholder="Kirjoita osoite..."
                                 aria-label="Osoitteesi"
@@ -187,7 +188,7 @@
                     <div class="flex items-center border border-slate-200 rounded-lg overflow-hidden">
                         <input
                             type="number"
-                            wire:model.live.debounce.500ms="systemKwp"
+                            wire:model.blur="systemKwp"
                             min="0.5"
                             max="20"
                             step="0.5"
@@ -256,12 +257,16 @@
                     <input
                         id="solar-price"
                         type="number"
-                        wire:model.live.debounce.300ms="manualPrice"
+                        wire:model.blur="manualPrice"
                         min="0"
                         max="50"
                         step="0.1"
+                        @if ($manualPriceNotice) aria-invalid="true" aria-describedby="solar-price-notice" @endif
                         class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                     >
+                    @if ($manualPriceNotice)
+                        <p id="solar-price-notice" role="alert" class="mt-1 text-sm text-red-600">{{ $manualPriceNotice }}</p>
+                    @endif
                     <p class="mt-1 text-sm text-slate-500">
                         Oletusarvo on viimeisen vuoden spot-hinnan keskiarvo (sis. ALV). Voit muuttaa hinnan sähkösopimuksesi mukaiseksi.
                     </p>
@@ -324,7 +329,7 @@
             @include('livewire.partials.solar-result', [
                 'annualKwh' => $this->annualKwh,
                 'monthlyKwh' => $this->monthlyKwh,
-                'systemKwp' => $systemKwp,
+                'systemKwp' => $this->effectiveSystemKwp,
                 'monthNamesFull' => $monthNamesFull,
                 'assumptions' => $calculationResult['assumptions'] ?? [],
                 'showSavings' => $this->hasSavings,
@@ -348,7 +353,7 @@
             @include('livewire.partials.solar-result', [
                 'annualKwh' => $this->exampleAnnualKwh,
                 'monthlyKwh' => $this->exampleMonthlyKwh,
-                'systemKwp' => $systemKwp,
+                'systemKwp' => $this->effectiveSystemKwp,
                 'monthNamesFull' => $monthNamesFull,
                 'assumptions' => $exampleResult['assumptions'] ?? [],
                 'showSavings' => $this->effectivePrice !== null && $this->effectivePrice > 0,

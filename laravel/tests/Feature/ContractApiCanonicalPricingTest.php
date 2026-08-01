@@ -4,7 +4,15 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\ElectricityContract;
-use App\Models\PriceComponent;
+use App\Services\CanonicalPricing\Enums\AllowanceCadence;
+use App\Services\CanonicalPricing\Enums\BoundaryKind;
+use App\Services\CanonicalPricing\Enums\CalculationStatus;
+use App\Services\CanonicalPricing\Enums\ComponentType;
+use App\Services\CanonicalPricing\Enums\ComponentUnit;
+use App\Services\CanonicalPricing\Enums\MisleadingState;
+use App\Services\CanonicalPricing\Enums\PhaseKind;
+use App\Services\CanonicalPricing\Enums\PriceRole;
+use Database\Factories\Support\CanonicalPricingFixture;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -13,12 +21,15 @@ class ContractApiCanonicalPricingTest extends TestCase
 {
     use RefreshDatabase;
 
+    private Company $company;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         config()->set('canonical_pricing.enabled', true);
-        Company::create([
+        app()->forgetScopedInstances();
+        $this->company = Company::create([
             'name' => 'Canonical Energy Oy',
             'name_slug' => 'canonical-energy-oy',
             'company_url' => 'https://example.test',
@@ -27,14 +38,35 @@ class ContractApiCanonicalPricingTest extends TestCase
 
     public function test_list_and_show_publish_corrected_canonical_prices_without_relational_rows(): void
     {
-        $contract = $this->createCanonicalContract('corrected-api', [
-            $this->phase([
-                $this->canonicalComponent('energy_general', 9.0),
-                $this->canonicalComponent('monthly_fee', 4.0, 'eur_per_month'),
-            ]),
-        ]);
-        $this->createRelationalPrice($contract, 'General', 1.0);
-        $this->createRelationalPrice($contract, 'Monthly', 99.0, 'EUR/month');
+        $this->createCanonicalContract(
+            'corrected-api',
+            [CanonicalPricingFixture::phase(
+                label: 'current',
+                kind: PhaseKind::CurrentStructured,
+                starts: CanonicalPricingFixture::boundary(BoundaryKind::ContractStart),
+                ends: CanonicalPricingFixture::boundary(BoundaryKind::None),
+                components: [
+                    CanonicalPricingFixture::component(ComponentType::EnergyGeneral, 9.0, ComponentUnit::CentsPerKwh),
+                    CanonicalPricingFixture::component(ComponentType::MonthlyFee, 4.0, ComponentUnit::EurPerMonth),
+                ],
+            )],
+            relationalPrices: [
+                [
+                    'id' => 'pc-corrected-api-General',
+                    'price_component_type' => 'General',
+                    'price_date' => now()->toDateString(),
+                    'price' => 1.0,
+                    'payment_unit' => 'c/kWh',
+                ],
+                [
+                    'id' => 'pc-corrected-api-Monthly',
+                    'price_component_type' => 'Monthly',
+                    'price_date' => now()->toDateString(),
+                    'price' => 99.0,
+                    'payment_unit' => 'EUR/month',
+                ],
+            ],
+        );
 
         $list = $this->getJson('/api/contracts?consumption=5000');
         $list->assertOk()
@@ -55,10 +87,25 @@ class ContractApiCanonicalPricingTest extends TestCase
 
     public function test_canonical_missing_rate_is_not_filled_from_a_relational_row(): void
     {
-        $contract = $this->createCanonicalContract('missing-rate-api', [
-            $this->phase([$this->canonicalComponent('monthly_fee', 3.0, 'eur_per_month')]),
-        ]);
-        $this->createRelationalPrice($contract, 'General', 2.0);
+        $this->createCanonicalContract(
+            'missing-rate-api',
+            [CanonicalPricingFixture::phase(
+                label: 'current',
+                kind: PhaseKind::CurrentStructured,
+                starts: CanonicalPricingFixture::boundary(BoundaryKind::ContractStart),
+                ends: CanonicalPricingFixture::boundary(BoundaryKind::None),
+                components: [
+                    CanonicalPricingFixture::component(ComponentType::MonthlyFee, 3.0, ComponentUnit::EurPerMonth),
+                ],
+            )],
+            relationalPrices: [[
+                'id' => 'pc-missing-rate-api-General',
+                'price_component_type' => 'General',
+                'price_date' => now()->toDateString(),
+                'price' => 2.0,
+                'payment_unit' => 'c/kWh',
+            ]],
+        );
 
         $response = $this->getJson('/api/contracts/missing-rate-api?consumption=5000');
 
@@ -73,7 +120,15 @@ class ContractApiCanonicalPricingTest extends TestCase
     public function test_canonical_only_contract_exposes_unit_price_and_total_in_the_list(): void
     {
         $this->createCanonicalContract('canonical-only-api', [
-            $this->phase([$this->canonicalComponent('energy_general', 7.5)]),
+            CanonicalPricingFixture::phase(
+                label: 'current',
+                kind: PhaseKind::CurrentStructured,
+                starts: CanonicalPricingFixture::boundary(BoundaryKind::ContractStart),
+                ends: CanonicalPricingFixture::boundary(BoundaryKind::None),
+                components: [
+                    CanonicalPricingFixture::component(ComponentType::EnergyGeneral, 7.5, ComponentUnit::CentsPerKwh),
+                ],
+            ),
         ]);
 
         $withoutCalculation = $this->getJson('/api/contracts');
@@ -91,22 +146,28 @@ class ContractApiCanonicalPricingTest extends TestCase
 
     public function test_excluded_contract_has_typed_unavailable_state_and_no_raw_price_in_list_or_show(): void
     {
-        $contract = $this->createCanonicalContract(
+        $this->createCanonicalContract(
             'excluded-api',
-            [[
-                'label' => 'intro',
-                'phase_kind' => 'introductory',
-                'starts' => $this->boundary('contract_start'),
-                'ends' => $this->boundary('after_months', '1'),
-                'components' => [$this->canonicalComponent('energy_general', 2.0)],
-                'package' => null,
-                'evidence' => [],
-            ]],
-            calculationStatus: 'estimate_required',
-            misleading: 'detected',
+            [CanonicalPricingFixture::phase(
+                label: 'intro',
+                kind: PhaseKind::Introductory,
+                starts: CanonicalPricingFixture::boundary(BoundaryKind::ContractStart),
+                ends: CanonicalPricingFixture::boundary(BoundaryKind::AfterMonths, '1'),
+                components: [
+                    CanonicalPricingFixture::component(ComponentType::EnergyGeneral, 2.0, ComponentUnit::CentsPerKwh),
+                ],
+            )],
+            calculationStatus: CalculationStatus::EstimateRequired,
+            misleading: MisleadingState::Detected,
             issues: ['future_price_unknown'],
+            relationalPrices: [[
+                'id' => 'pc-excluded-api-General',
+                'price_component_type' => 'General',
+                'price_date' => now()->toDateString(),
+                'price' => 0.5,
+                'payment_unit' => 'c/kWh',
+            ]],
         );
-        $this->createRelationalPrice($contract, 'General', 0.5);
 
         foreach (['/api/contracts?consumption=5000' => 'data.0', '/api/contracts/excluded-api?consumption=5000' => 'data'] as $url => $path) {
             $response = $this->getJson($url);
@@ -125,12 +186,16 @@ class ContractApiCanonicalPricingTest extends TestCase
     public function test_package_exposes_typed_facts_without_promotion_state(): void
     {
         $this->createCanonicalContract('package-api', [
-            $this->phase([], [
-                'monthly_fee_eur' => 21.0,
-                'included_kwh' => 150.0,
-                'allowance_cadence' => 'monthly',
-                'excess_rate_cents_per_kwh' => 16.6,
-            ]),
+            CanonicalPricingFixture::packagePhase(
+                label: 'current',
+                kind: PhaseKind::CurrentStructured,
+                starts: CanonicalPricingFixture::boundary(BoundaryKind::ContractStart),
+                ends: CanonicalPricingFixture::boundary(BoundaryKind::None),
+                monthlyFeeEur: 21.0,
+                includedKwh: 150.0,
+                allowanceCadence: AllowanceCadence::Monthly,
+                excessRateCentsPerKwh: 16.6,
+            ),
         ]);
 
         $response = $this->getJson('/api/contracts?consumption=5000');
@@ -149,20 +214,24 @@ class ContractApiCanonicalPricingTest extends TestCase
     {
         $this->createCanonicalContract(
             'short-term-api',
-            [[
-                'label' => 'term',
-                'phase_kind' => 'introductory',
-                'starts' => $this->boundary('contract_start'),
-                'ends' => $this->boundary('after_months', '6'),
-                'components' => [
-                    $this->canonicalComponent('energy_general', 5.0),
-                    $this->canonicalComponent('monthly_fee', 0.0, 'eur_per_month', normalAmount: 5.0),
+            [CanonicalPricingFixture::phase(
+                label: 'term',
+                kind: PhaseKind::Introductory,
+                starts: CanonicalPricingFixture::boundary(BoundaryKind::ContractStart),
+                ends: CanonicalPricingFixture::boundary(BoundaryKind::AfterMonths, '6'),
+                components: [
+                    CanonicalPricingFixture::component(ComponentType::EnergyGeneral, 5.0, ComponentUnit::CentsPerKwh),
+                    CanonicalPricingFixture::component(
+                        ComponentType::MonthlyFee,
+                        0.0,
+                        ComponentUnit::EurPerMonth,
+                        PriceRole::Current,
+                        normalAmount: 5.0,
+                    ),
                 ],
-                'package' => null,
-                'evidence' => [],
-            ]],
-            calculationStatus: 'incomplete',
-            misleading: 'detected',
+            )],
+            calculationStatus: CalculationStatus::Incomplete,
+            misleading: MisleadingState::Detected,
             issues: ['future_price_omitted', 'future_price_unknown'],
             attributes: [
                 'contract_type' => 'FixedTerm',
@@ -186,10 +255,21 @@ class ContractApiCanonicalPricingTest extends TestCase
     public function test_feature_off_keeps_relational_component_resources_and_legacy_cost(): void
     {
         config()->set('canonical_pricing.enabled', false);
-        $contract = $this->createCanonicalContract('legacy-api', [
-            $this->phase([$this->canonicalComponent('energy_general', 9.0)]),
-        ]);
-        $this->createRelationalPrice($contract, 'General', 4.0);
+        ElectricityContract::factory()
+            ->forCompany($this->company)
+            ->active()
+            ->legacy()
+            ->withRelationalPrices([[
+                'id' => 'pc-legacy-api-General',
+                'price_component_type' => 'General',
+                'price_date' => now()->toDateString(),
+                'price' => 4.0,
+                'payment_unit' => 'c/kWh',
+            ]])
+            ->create([
+                'id' => 'legacy-api',
+                'name' => 'Contract legacy-api',
+            ]);
 
         $response = $this->getJson('/api/contracts/legacy-api?consumption=5000');
 
@@ -204,7 +284,19 @@ class ContractApiCanonicalPricingTest extends TestCase
     {
         for ($i = 1; $i <= 8; $i++) {
             $this->createCanonicalContract('bounded-api-'.$i, [
-                $this->phase([$this->canonicalComponent('energy_general', 5.0 + $i)]),
+                CanonicalPricingFixture::phase(
+                    label: 'current',
+                    kind: PhaseKind::CurrentStructured,
+                    starts: CanonicalPricingFixture::boundary(BoundaryKind::ContractStart),
+                    ends: CanonicalPricingFixture::boundary(BoundaryKind::None),
+                    components: [
+                        CanonicalPricingFixture::component(
+                            ComponentType::EnergyGeneral,
+                            5.0 + $i,
+                            ComponentUnit::CentsPerKwh,
+                        ),
+                    ],
+                ),
             ]);
         }
 
@@ -226,118 +318,36 @@ class ContractApiCanonicalPricingTest extends TestCase
      * @param  list<array<string, mixed>>  $phases
      * @param  list<string>  $issues
      * @param  array<string, mixed>  $attributes
+     * @param  list<array<string, mixed>>  $relationalPrices
      */
     private function createCanonicalContract(
         string $id,
         array $phases,
-        string $calculationStatus = 'exact',
-        string $misleading = 'not_detected',
+        CalculationStatus $calculationStatus = CalculationStatus::Exact,
+        MisleadingState $misleading = MisleadingState::NotDetected,
         array $issues = [],
         array $attributes = [],
+        array $relationalPrices = [],
     ): ElectricityContract {
-        return ElectricityContract::create(array_merge([
+        $factory = ElectricityContract::factory()
+            ->forCompany($this->company)
+            ->active()
+            ->canonicalOnly();
+
+        if ($relationalPrices !== []) {
+            $factory = $factory->withRelationalPrices($relationalPrices);
+        }
+
+        return $factory->create([
             'id' => $id,
-            'company_name' => 'Canonical Energy Oy',
             'name' => 'Contract '.$id,
-            'contract_type' => 'OpenEnded',
-            'pricing_model' => 'FixedPrice',
-            'metering' => 'General',
-            'target_group' => 'Household',
-            'availability_is_national' => true,
-            'canonical_pricing' => [
-                'phases' => $phases,
-                'recurring_schedule' => [
-                    'present' => false,
-                    'cadence' => 'none',
-                    'current_period_start' => null,
-                    'current_period_end' => null,
-                    'future_price_known' => null,
-                    'description' => null,
-                    'evidence' => [],
-                ],
-                'consumption_effect' => [
-                    'present' => false,
-                    'applies_to' => 'unknown',
-                    'cadence' => 'none',
-                    'expected_cents_per_kwh' => null,
-                    'typical_min_cents_per_kwh' => null,
-                    'typical_max_cents_per_kwh' => null,
-                    'hard_min_cents_per_kwh' => null,
-                    'hard_max_cents_per_kwh' => null,
-                    'uncapped' => null,
-                    'description' => null,
-                    'evidence' => [],
-                ],
-            ],
-            'canonical_calculation' => [
-                'status' => $calculationStatus,
-                'missing_facts' => [],
-                'required_assumptions' => [],
-            ],
-            'canonical_source_consistency' => [
-                'misleading_first_12_months' => $misleading,
-                'structured_pricing_status' => 'complete',
-                'issue_codes' => $issues,
-            ],
-        ], $attributes));
-    }
-
-    /**
-     * @param  list<array<string, mixed>>  $components
-     * @param  array<string, mixed>|null  $package
-     * @return array<string, mixed>
-     */
-    private function phase(array $components, ?array $package = null): array
-    {
-        return [
-            'label' => 'current',
-            'phase_kind' => 'current_structured',
-            'starts' => $this->boundary('contract_start'),
-            'ends' => $this->boundary('none'),
-            'components' => $components,
-            'package' => $package,
-            'evidence' => [],
-        ];
-    }
-
-    /** @return array<string, mixed> */
-    private function canonicalComponent(
-        string $type,
-        ?float $amount,
-        string $unit = 'cents_per_kwh',
-        ?float $normalAmount = null,
-    ): array {
-        return [
-            'component_type' => $type,
-            'amount' => $amount,
-            'normal_amount' => $normalAmount,
-            'unit' => $unit,
-            'vat_status' => 'included',
-            'price_role' => 'current',
-            'source_kind' => 'both',
-            'evidence' => [],
-        ];
-    }
-
-    /** @return array{kind: string, value: string|null} */
-    private function boundary(string $kind, ?string $value = null): array
-    {
-        return ['kind' => $kind, 'value' => $value];
-    }
-
-    private function createRelationalPrice(
-        ElectricityContract $contract,
-        string $type,
-        float $price,
-        string $paymentUnit = 'c/kWh',
-    ): void {
-        PriceComponent::create([
-            'id' => 'pc-'.$contract->id.'-'.$type,
-            'electricity_contract_id' => $contract->id,
-            'price_component_type' => $type,
-            'price_date' => now()->toDateString(),
-            'price' => $price,
-            'payment_unit' => $paymentUnit,
+            ...CanonicalPricingFixture::attributes(
+                phases: $phases,
+                calculationStatus: $calculationStatus,
+                misleading: $misleading,
+                issueCodes: $issues,
+            ),
+            ...$attributes,
         ]);
     }
 }

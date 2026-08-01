@@ -3,9 +3,11 @@
 namespace App\Services\ContractCard;
 
 use App\Models\ElectricityContract;
+use App\Services\CanonicalPricing\DTO\ContractPricingIntegrity;
 use App\Services\ContractCard\DTO\CardFooterItem;
 use App\Services\ContractCard\DTO\PricingCategoryFacts;
 use App\Services\ContractCard\Enums\PricingCategory;
+use App\Services\ContractPricing\ContractPricingViewData;
 
 /**
  * Builds the card footer: warnings first, then quiet facts.
@@ -32,42 +34,38 @@ class CardFooterItems
     private const CAP_RELEVANCE_THRESHOLD_KWH = 30000;
 
     /**
-     * @param  array<string, mixed>|null  $integrity  The `pricing_integrity` payload.
-     * @param  array<string, mixed>  $cost  The `calculated_cost` payload.
      * @return array{warnings: list<CardFooterItem>, facts: list<CardFooterItem>}
      */
     public function build(
         ElectricityContract $contract,
-        array $cost,
-        ?array $integrity,
+        ?ContractPricingViewData $pricing,
+        ?ContractPricingIntegrity $integrity,
         PricingCategoryFacts $facts,
         bool $exceedsConsumptionLimit,
         bool $useCanonical,
     ): array {
         return [
-            'warnings' => array_slice($this->warnings($contract, $cost, $integrity, $facts, $exceedsConsumptionLimit), 0, self::MAX_WARNINGS),
-            'facts' => $this->facts($contract, $cost, $useCanonical),
+            'warnings' => array_slice($this->warnings($contract, $pricing, $integrity, $facts, $exceedsConsumptionLimit), 0, self::MAX_WARNINGS),
+            'facts' => $this->facts($contract, $pricing, $useCanonical),
         ];
     }
 
     /**
      * Priority order. The first two survive.
      *
-     * @param  array<string, mixed>  $cost
-     * @param  array<string, mixed>|null  $integrity
      * @return list<CardFooterItem>
      */
     private function warnings(
         ElectricityContract $contract,
-        array $cost,
-        ?array $integrity,
+        ?ContractPricingViewData $pricing,
+        ?ContractPricingIntegrity $integrity,
         PricingCategoryFacts $facts,
         bool $exceedsConsumptionLimit,
     ): array {
         $warnings = [];
 
         // 1. The price rises during the compared year.
-        $label = $integrity['card_label'] ?? null;
+        $label = $integrity?->cardLabel;
         if (is_string($label) && $label !== '') {
             $warnings[] = CardFooterItem::warning($label);
         }
@@ -79,9 +77,9 @@ class CardFooterItems
         }
 
         // 3. A fixed term shorter than the compared year, with no published continuation.
-        $comparability = $contract->comparability ?? null;
-        $termMonths = $cost['term_months'] ?? null;
-        if ($comparability === 'term_price_only' && is_numeric($termMonths)) {
+        $comparability = $pricing?->comparability()?->value ?? $contract->comparability ?? null;
+        $termMonths = $pricing?->termMonths();
+        if ($comparability === 'term_price_only' && $termMonths !== null) {
             $warnings[] = CardFooterItem::warning($termMonths.' kk sopimus, jatkohinta ei tiedossa');
         }
 
@@ -116,15 +114,14 @@ class CardFooterItems
     }
 
     /**
-     * @param  array<string, mixed>  $cost
      * @return list<CardFooterItem>
      */
-    private function facts(ElectricityContract $contract, array $cost, bool $useCanonical): array
+    private function facts(ElectricityContract $contract, ?ContractPricingViewData $pricing, bool $useCanonical): array
     {
         $facts = [];
 
         $discount = $useCanonical
-            ? (($cost['includes_discounts'] ?? false) === true ? 'Tarjous' : null)
+            ? ($pricing?->includesDiscounts() === true ? 'Tarjous' : null)
             : $this->legacyDiscountText($contract);
         if ($discount !== null) {
             $facts[] = CardFooterItem::fact($discount, 'tag');

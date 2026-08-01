@@ -34,11 +34,11 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
             <label for="{{ $idPrefix }}-start" class="block text-sm font-medium text-slate-700 mb-1.5">Laskutusjakson alku</label>
-            <input type="date" id="{{ $idPrefix }}-start" wire:model.live="billStartDate" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500">
+            <input type="date" id="{{ $idPrefix }}-start" wire:model.blur="billStartDate" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500">
         </div>
         <div>
             <label for="{{ $idPrefix }}-end" class="block text-sm font-medium text-slate-700 mb-1.5">Laskutusjakson loppu</label>
-            <input type="date" id="{{ $idPrefix }}-end" wire:model.live="billEndDate" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500">
+            <input type="date" id="{{ $idPrefix }}-end" wire:model.blur="billEndDate" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500">
         </div>
     </div>
 @endif
@@ -47,11 +47,17 @@
 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
     <div>
         <label for="{{ $idPrefix }}-kwh" class="block text-sm font-medium text-slate-700 mb-1.5">Kulutus jaksolla (kWh)</label>
-        <input type="number" id="{{ $idPrefix }}-kwh" min="0" step="any" inputmode="decimal" wire:model.live.debounce.500ms="billKwh" placeholder="esim. 400" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500 tabular-nums">
+        <input type="number" id="{{ $idPrefix }}-kwh" min="1" step="any" inputmode="decimal" wire:model.blur="billKwh" placeholder="esim. 400" @if (isset($billInputNotices['billKwh'])) aria-invalid="true" aria-describedby="{{ $idPrefix }}-kwh-notice" @endif class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500 tabular-nums">
+        @if (isset($billInputNotices['billKwh']))
+            <p id="{{ $idPrefix }}-kwh-notice" role="alert" class="mt-1 text-sm text-red-600">{{ $billInputNotices['billKwh'] }}</p>
+        @endif
     </div>
     <div>
         <label for="{{ $idPrefix }}-total" class="block text-sm font-medium text-slate-700 mb-1.5">{{ $totalLabel }}</label>
-        <input type="number" id="{{ $idPrefix }}-total" min="0" step="any" inputmode="decimal" wire:model.live.debounce.500ms="billTotalEur" placeholder="esim. 35" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500 tabular-nums">
+        <input type="number" id="{{ $idPrefix }}-total" min="0.01" step="any" inputmode="decimal" wire:model.blur="billTotalEur" placeholder="esim. 35" @if (isset($billInputNotices['billTotalEur'])) aria-invalid="true" aria-describedby="{{ $idPrefix }}-total-notice" @endif class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500 tabular-nums">
+        @if (isset($billInputNotices['billTotalEur']))
+            <p id="{{ $idPrefix }}-total-notice" role="alert" class="mt-1 text-sm text-red-600">{{ $billInputNotices['billTotalEur'] }}</p>
+        @endif
         <p class="text-xs text-slate-500 mt-1">Vain sähkösopimuksen osuus, ei sähkön siirtoa.</p>
     </div>
 </div>

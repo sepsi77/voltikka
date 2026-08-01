@@ -77,28 +77,40 @@
             {{-- Required numbers --}}
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Kulutus (kWh)</label>
+                    <label for="bill-kwh" class="block text-sm font-medium text-slate-700 mb-1">Kulutus (kWh)</label>
                     <input
+                        id="bill-kwh"
                         type="number"
                         wire:model.blur="kwh"
                         min="1"
                         step="1"
                         placeholder="esim. 400"
-                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
+                        aria-invalid="{{ $errors->has('kwh') ? 'true' : 'false' }}"
+                        aria-describedby="bill-kwh-help{{ $errors->has('kwh') ? ' bill-kwh-error' : '' }}"
+                        class="w-full px-4 py-3 border {{ $errors->has('kwh') ? 'border-red-400' : 'border-slate-300' }} rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                     >
-                    <p class="text-xs text-slate-500 mt-1">Kulutus laskun ajalta.</p>
+                    <p id="bill-kwh-help" class="text-xs text-slate-500 mt-1">Kulutus laskun ajalta.</p>
+                    @error('kwh')
+                        <p id="bill-kwh-error" role="alert" class="text-sm text-red-700 mt-1">{{ $message }}</p>
+                    @enderror
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1">Sähkösopimuksen hinta (€)</label>
+                    <label for="bill-total-eur" class="block text-sm font-medium text-slate-700 mb-1">Sähkösopimuksen hinta (€)</label>
                     <input
+                        id="bill-total-eur"
                         type="number"
                         wire:model.blur="totalEur"
-                        min="0"
+                        min="0.01"
                         step="0.01"
                         placeholder="esim. 35,00"
-                        class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
+                        aria-invalid="{{ $errors->has('totalEur') ? 'true' : 'false' }}"
+                        aria-describedby="bill-total-eur-help{{ $errors->has('totalEur') ? ' bill-total-eur-error' : '' }}"
+                        class="w-full px-4 py-3 border {{ $errors->has('totalEur') ? 'border-red-400' : 'border-slate-300' }} rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                     >
-                    <p class="text-xs text-slate-500 mt-1">Syötä sähköenergian osuus ilman sähkön siirtoa.</p>
+                    <p id="bill-total-eur-help" class="text-xs text-slate-500 mt-1">Syötä sähköenergian osuus ilman sähkön siirtoa.</p>
+                    @error('totalEur')
+                        <p id="bill-total-eur-error" role="alert" class="text-sm text-red-700 mt-1">{{ $message }}</p>
+                    @enderror
                 </div>
             </div>
 
@@ -136,11 +148,8 @@
             </div>
 
             {{-- Optional input that sharpens the annual estimate (the page's
-                 hero number). A native <details> keeps its open state only in the
-                 DOM, which a Livewire morph (fired by the live input inside it)
-                 resets to closed on every keystroke. Hold the open state in Alpine
-                 so it survives morphs: x-on:toggle syncs the state on user toggle
-                 and x-bind:open reasserts it after each re-render. --}}
+                 hero number). Hold the native <details> open state in Alpine so
+                 it survives the Livewire morph after the input blurs. --}}
             <details x-data="{ open: false }" x-bind:open="open" x-on:toggle="open = $event.target.open" class="group">
                 <summary class="cursor-pointer text-sm font-medium text-slate-700 hover:text-slate-900 flex items-center gap-2">
                     <svg class="w-4 h-4 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
@@ -154,8 +163,12 @@
                         min="0"
                         step="1"
                         placeholder="esim. 18000"
+                        @error('annualKwh') aria-invalid="true" aria-describedby="annual-kwh-error" @enderror
                         class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-coral-500"
                     >
+                    @error('annualKwh')
+                        <p id="annual-kwh-error" role="alert" class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
                     <p class="text-xs text-slate-500 mt-1">Jos tiedät vuosikulutuksesi, vuosisäästö arvioidaan sen perusteella kausivaihtelun sijaan.</p>
                 </div>
             </details>

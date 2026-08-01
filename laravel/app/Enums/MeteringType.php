@@ -8,13 +8,22 @@ enum MeteringType: string
     case Time = 'Time';
     case Season = 'Season';
 
-    public static function fromString(?string $value): self
+    public static function fromSource(mixed $value): ?self
     {
-        return match (strtolower($value ?? '')) {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        return match (strtolower(trim($value))) {
             'general' => self::General,
             'time' => self::Time,
             'season', 'seasonal' => self::Season,
-            default => self::General,
+            default => null,
         };
+    }
+
+    public static function fromString(?string $value): self
+    {
+        return self::fromSource($value) ?? self::General;
     }
 }

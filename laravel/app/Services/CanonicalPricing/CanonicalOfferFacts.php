@@ -4,7 +4,8 @@ namespace App\Services\CanonicalPricing;
 
 use App\Services\CanonicalPricing\Enums\ComponentType;
 use App\Services\CanonicalPricing\Enums\ComponentUnit;
-use App\Services\CanonicalPricing\Enums\ContractComparability;
+use App\Services\ContractPricing\ContractPricingViewData;
+use App\Services\ContractPricing\PricingFact;
 use Carbon\CarbonImmutable;
 
 final class CanonicalOfferFacts
@@ -14,42 +15,36 @@ final class CanonicalOfferFacts
     /**
      * Build public offer facts only from one canonical calculated outcome.
      *
-     * @param  array<string, mixed>  $calculatedCost
      * @return array{label: string, benefit_eur: float, benefit_text: string, basis_months: int, basis_label: string, description: string}|null
      */
-    public static function fromCalculatedCost(array $calculatedCost): ?array
+    public static function fromPricing(ContractPricingViewData $pricing): ?array
     {
-        if (($calculatedCost['pricing_basis'] ?? null) !== 'canonical'
-            || ($calculatedCost['includes_discounts'] ?? false) !== true
-            || ($calculatedCost['energy_package'] ?? null) !== null) {
+        $comparability = $pricing->comparability();
+        if ($pricing->pricingBasis() !== 'canonical'
+            || ! $pricing->includesDiscounts()
+            || $pricing->energyPackage() !== null
+            || $comparability === null
+            || ! $comparability->isListed()) {
             return null;
         }
 
-        $comparability = ContractComparability::tryFrom((string) ($calculatedCost['comparability'] ?? ''));
-        if ($comparability === null || ! $comparability->isListed()) {
-            return null;
-        }
+        $termMonths = $pricing->termMonths();
+        $term = $pricing->contractTerm();
 
-        $termMonths = $calculatedCost['term_months'] ?? null;
-        $term = $calculatedCost['contract_term'] ?? null;
-
-        if (is_numeric($termMonths) && (int) $termMonths < 12) {
-            if (! is_array($term)
-                || ! is_numeric($term['months'] ?? null)
-                || ! is_numeric($term['discount_savings_total'] ?? null)) {
+        if ($termMonths !== null && $termMonths < 12) {
+            if ($term === null) {
                 return null;
             }
 
-            $months = (int) $term['months'];
-            $benefit = (float) $term['discount_savings_total'];
+            $months = $term->integer('months');
+            $benefit = $term->number('discount_savings_total');
+            if ($months === null || $benefit === null) {
+                return null;
+            }
             $basisLabel = "{$months} kuukauden sopimuskaudella";
         } else {
-            if (! is_numeric($calculatedCost['discount_savings_total'] ?? null)) {
-                return null;
-            }
-
             $months = 12;
-            $benefit = (float) $calculatedCost['discount_savings_total'];
+            $benefit = $pricing->discountSaving();
             $basisLabel = '12 kuukauden vertailussa';
         }
 
@@ -57,7 +52,7 @@ final class CanonicalOfferFacts
             return null;
         }
 
-        $label = self::offerLabel($calculatedCost['offer_terms'] ?? null, $months);
+        $label = self::offerLabel($pricing->offerTerms(), $months);
         if ($label === null) {
             return null;
         }
@@ -74,20 +69,23 @@ final class CanonicalOfferFacts
         ];
     }
 
-    private static function offerLabel(mixed $rawTerms, int $contractBasisMonths): ?string
+    /** @param array<string, mixed> $payload */
+    public static function fromArray(array $payload): ?array
     {
-        if (! is_array($rawTerms) || $rawTerms === [] || ! array_is_list($rawTerms)) {
+        return self::fromPricing(ContractPricingViewData::fromArray($payload));
+    }
+
+    /** @param list<PricingFact> $rawTerms */
+    private static function offerLabel(array $rawTerms, int $contractBasisMonths): ?string
+    {
+        if ($rawTerms === []) {
             return null;
         }
 
         $terms = [];
 
         foreach ($rawTerms as $rawTerm) {
-            if (! is_array($rawTerm)) {
-                return null;
-            }
-
-            $components = self::componentPhrases($rawTerm['components'] ?? null);
+            $components = self::componentPhrases($rawTerm->records('components'));
             $timing = self::timingPhrase($rawTerm, $contractBasisMonths);
 
             if ($components === null || $timing === null) {
@@ -101,9 +99,9 @@ final class CanonicalOfferFacts
     }
 
     /** @return list<string>|null */
-    private static function componentPhrases(mixed $rawComponents): ?array
+    private static function componentPhrases(?array $rawComponents): ?array
     {
-        if (! is_array($rawComponents) || $rawComponents === [] || ! array_is_list($rawComponents)) {
+        if ($rawComponents === null || $rawComponents === []) {
             return null;
         }
 
@@ -111,16 +109,14 @@ final class CanonicalOfferFacts
         $seenTypes = [];
 
         foreach ($rawComponents as $component) {
-            if (! is_array($component)
-                || ! is_numeric($component['amount'] ?? null)
-                || ! is_numeric($component['normal_amount'] ?? null)) {
+            $type = ComponentType::tryFrom($component->string('component_type') ?? '');
+            $unit = ComponentUnit::tryFrom($component->string('unit') ?? '');
+            $amount = $component->number('amount');
+            $normalAmount = $component->number('normal_amount');
+
+            if ($amount === null || $normalAmount === null) {
                 return null;
             }
-
-            $type = ComponentType::tryFrom((string) ($component['component_type'] ?? ''));
-            $unit = ComponentUnit::tryFrom((string) ($component['unit'] ?? ''));
-            $amount = (float) $component['amount'];
-            $normalAmount = (float) $component['normal_amount'];
 
             if ($type === null
                 || $unit === null
@@ -158,20 +154,17 @@ final class CanonicalOfferFacts
         return $phrases;
     }
 
-    private static function timingPhrase(array $term, int $contractBasisMonths): ?string
+    private static function timingPhrase(PricingFact $term, int $contractBasisMonths): ?string
     {
-        $endKind = $term['end_kind'] ?? null;
+        $endKind = $term->string('end_kind');
 
         if ($endKind === 'after_months') {
-            if (! is_numeric($term['duration_months'] ?? null)
-                || ! is_numeric($term['starts_after_months'] ?? null)
-                || ! is_numeric($term['ends_after_months'] ?? null)) {
+            $months = $term->integer('duration_months');
+            $startsAfter = $term->integer('starts_after_months');
+            $endsAfter = $term->integer('ends_after_months');
+            if ($months === null || $startsAfter === null || $endsAfter === null) {
                 return null;
             }
-
-            $months = (int) $term['duration_months'];
-            $startsAfter = (int) $term['starts_after_months'];
-            $endsAfter = (int) $term['ends_after_months'];
             if ($months <= 0 || $startsAfter < 0 || $endsAfter <= $startsAfter || $endsAfter - $startsAfter !== $months) {
                 return null;
             }
@@ -197,14 +190,14 @@ final class CanonicalOfferFacts
             return null;
         }
 
-        $start = self::exactDate($term['starts_on'] ?? null);
-        $end = self::exactDate($term['ends_on'] ?? null);
+        $start = self::exactDate($term->string('starts_on'));
+        $end = self::exactDate($term->string('ends_on'));
 
         if ($start === null || $end === null || $end->lessThan($start)) {
             return null;
         }
 
-        if (($term['starts_at_window_start'] ?? null) === true) {
+        if ($term->boolean('starts_at_window_start') === true) {
             return $end->format('j.n.Y').' asti';
         }
 

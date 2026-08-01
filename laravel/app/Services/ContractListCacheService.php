@@ -6,8 +6,12 @@ use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\PricingMode;
+use App\Services\ContractPricing\CanonicalContractMetric;
+use App\Services\ContractPricing\ContractMetricSet;
+use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\DTO\EnergyUsage;
 use Illuminate\Support\Facades\Cache;
+use InvalidArgumentException;
 
 class ContractListCacheService
 {
@@ -58,7 +62,7 @@ class ContractListCacheService
      * single detail render otherwise show up as repeated identical cache SQL
      * spans in Sentry.
      *
-     * @var array<int, array{contracts: array<string, array{calculated_cost: array<string, mixed>, emission_factor: float|null, exceeds_consumption_limit: bool, total_cost: float}>, sorted_ids: list<string>, consumption: int}>
+     * @var array<int, ContractMetricSet>
      */
     private array $cachedMetricsMemo = [];
 
@@ -69,10 +73,7 @@ class ContractListCacheService
         return in_array($consumption, self::PRESET_CONSUMPTIONS, true);
     }
 
-    /**
-     * @return array{contracts: array<string, array{calculated_cost: array<string, mixed>, emission_factor: float|null, exceeds_consumption_limit: bool, total_cost: float}>, sorted_ids: list<string>, consumption: int}|null
-     */
-    public function getCachedMetrics(int $consumption): ?array
+    public function getCachedMetrics(int $consumption): ?ContractMetricSet
     {
         if (! $this->supportsConsumption($consumption)) {
             return null;
@@ -82,11 +83,17 @@ class ContractListCacheService
             return $this->cachedMetricsMemo[$consumption];
         }
 
-        return $this->cachedMetricsMemo[$consumption] = Cache::remember(
+        $payload = Cache::remember(
             $this->getCacheKey($consumption),
             self::CACHE_TTL_SECONDS,
-            fn () => $this->buildCachedMetrics($consumption)
+            fn (): array => $this->buildCachedMetrics($consumption)->toArray(),
         );
+
+        if (! is_array($payload)) {
+            throw new InvalidArgumentException('Cached contract metrics must be an array payload.');
+        }
+
+        return $this->cachedMetricsMemo[$consumption] = ContractMetricSet::fromArray($payload);
     }
 
     public function warmPresetCaches(): void
@@ -127,10 +134,7 @@ class ContractListCacheService
         );
     }
 
-    /**
-     * @return array{contracts: array<string, array{calculated_cost: array<string, mixed>, emission_factor: float|null, exceeds_consumption_limit: bool, total_cost: float}>, sorted_ids: list<string>, consumption: int}
-     */
-    private function buildCachedMetrics(int $consumption): array
+    private function buildCachedMetrics(int $consumption): ContractMetricSet
     {
         $contracts = ElectricityContract::query()
             ->active()
@@ -165,17 +169,22 @@ class ContractListCacheService
 
             if ($useCanonical) {
                 $canonical = $canonicalMetrics[$contract->id] ?? null;
-                $calculatedCost = $canonical['calculated_cost'] ?? [];
+                if (! $canonical instanceof CanonicalContractMetric) {
+                    throw new InvalidArgumentException('Canonical metrics are missing contract '.$contract->id.'.');
+                }
 
+                $pricing = $canonical->pricing();
                 $metrics[$contract->id] = [
-                    'calculated_cost' => $calculatedCost,
+                    'calculated_cost' => $pricing->toArray(),
                     'emission_factor' => $emissionFactor,
                     'exceeds_consumption_limit' => $exceedsLimit,
-                    'total_cost' => $calculatedCost['total_cost'] ?? PHP_FLOAT_MAX,
-                    'comparability' => $canonical['comparability'] ?? null,
-                    'is_listed' => $canonical['is_listed'] ?? false,
-                    'sort_key' => $canonical['sort_key'],
-                    'pricing_integrity' => $canonical['integrity'] ?? null,
+                    // Keep the historical excluded-row sentinel in stored payloads. Typed
+                    // consumers use pricing()->total(), which stays null for exclusions.
+                    'total_cost' => $pricing->total() ?? PHP_FLOAT_MAX,
+                    'comparability' => $canonical->comparability()->value,
+                    'is_listed' => $canonical->isListed(),
+                    'sort_key' => $canonical->sortKey(),
+                    'pricing_integrity' => $canonical->integrity()->toArray(),
                 ];
 
                 continue;
@@ -189,16 +198,16 @@ class ContractListCacheService
             ];
 
             $result = $this->calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
-            $calculatedCost = $result->toArray();
+            $calculatedCost = ContractPricingViewData::fromLegacyResult($result)->toArray();
 
             $metrics[$contract->id] = [
                 'calculated_cost' => $calculatedCost,
                 'emission_factor' => $emissionFactor,
                 'exceeds_consumption_limit' => $exceedsLimit,
-                'total_cost' => $calculatedCost['total_cost'] ?? PHP_FLOAT_MAX,
+                'total_cost' => $result->totalCost,
                 'comparability' => null,
                 'is_listed' => true,
-                'sort_key' => $calculatedCost['total_cost'] ?? PHP_FLOAT_MAX,
+                'sort_key' => $result->totalCost,
                 'pricing_integrity' => null,
             ];
         }
@@ -214,7 +223,14 @@ class ContractListCacheService
                     return $aExceeds <=> $bExceeds;
                 }
 
-                return ($a['sort_key'] ?? PHP_FLOAT_MAX) <=> ($b['sort_key'] ?? PHP_FLOAT_MAX);
+                if (! is_float($a['sort_key']) && ! is_int($a['sort_key'])) {
+                    throw new InvalidArgumentException('A listed contract metric requires a numeric sort key.');
+                }
+                if (! is_float($b['sort_key']) && ! is_int($b['sort_key'])) {
+                    throw new InvalidArgumentException('A listed contract metric requires a numeric sort key.');
+                }
+
+                return $a['sort_key'] <=> $b['sort_key'];
             })
             ->keys()
             ->values()
@@ -226,11 +242,11 @@ class ContractListCacheService
             ->values()
             ->all();
 
-        return [
+        return ContractMetricSet::fromArray([
             'contracts' => $metrics,
             'sorted_ids' => $sortedIds,
             'excluded_ids' => $excludedIds,
             'consumption' => $consumption,
-        ];
+        ]);
     }
 }

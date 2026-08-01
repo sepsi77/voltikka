@@ -54,15 +54,101 @@ class ContractCardPresenterTest extends TestCase
             'canonical_pricing' => $this->canonicalPricing(),
         ], $attributes));
 
-        $contract->calculated_cost = array_merge([
+        $usesCanonicalFacts = ($cost['pricing_basis'] ?? null) === 'canonical'
+            || array_key_exists('phase_breakdown', $cost)
+            || array_key_exists('reset_estimate', $cost)
+            || array_key_exists('energy_package', $cost)
+            || array_key_exists('contract_term', $cost)
+            || (($cost['estimate_method'] ?? 'none') !== 'none');
+        if ($usesCanonicalFacts) {
+            $cost['pricing_basis'] = 'canonical';
+        }
+
+        $payload = array_merge([
             'total_cost' => 600.0,
+            'avg_monthly_cost' => 50.0,
+            'monthly_costs' => array_fill(0, 12, 50.0),
             'monthly_fixed_fee' => 4.0,
+            'spot_price_margin' => null,
             'general_kwh_price' => 7.2,
+            'nighttime_kwh_price' => null,
+            'daytime_kwh_price' => null,
+            'seasonal_winter_day_kwh_price' => null,
+            'seasonal_other_kwh_price' => null,
+            'spot_price_day_avg' => null,
+            'spot_price_night_avg' => null,
             'is_spot_contract' => false,
-            'is_estimate' => false,
-            'estimate_method' => 'none',
+            'base_total_cost' => 600.0,
+            'base_avg_monthly_cost' => 50.0,
+            'base_monthly_costs' => array_fill(0, 12, 50.0),
+            'discount_savings_total' => 0.0,
+            'monthly_discount_savings' => array_fill(0, 12, 0.0),
+            'includes_discounts' => false,
         ], $cost);
-        $contract->pricing_integrity = $integrity;
+
+        if (($payload['pricing_basis'] ?? null) === 'canonical') {
+            $payload = array_merge([
+                'comparability' => 'comparable_exact',
+                'is_estimate' => false,
+                'estimate_method' => 'none',
+                'term_months' => null,
+                'energy_package' => null,
+                'contract_term' => null,
+                'phase_breakdown' => [],
+                'offer_terms' => [],
+                'structured_only_total' => 600.0,
+                'consumption_effect' => null,
+                'assumptions' => [],
+                'reset_estimate' => null,
+            ], $payload);
+            if (($payload['estimate_method'] ?? 'none') !== 'none') {
+                $payload['is_estimate'] = true;
+                $payload['comparability'] = 'comparable_estimate';
+            }
+            $payload['phase_breakdown'] = array_map(fn (array $phase): array => array_merge([
+                'label' => 'Test phase',
+                'phase_kind' => 'current_structured',
+                'starts' => 'contract_start',
+                'ends' => 'date',
+                'ends_value' => null,
+                'uses_spot' => false,
+                'energy_cents' => null,
+                'spot_margin_cents' => null,
+                'monthly_fee' => null,
+                'energy_package' => null,
+            ], $phase), $payload['phase_breakdown']);
+            if (is_array($payload['reset_estimate'])) {
+                $payload['reset_estimate'] = array_merge([
+                    'basis' => 'forward_curve_shift',
+                    'beta' => 1.0,
+                    'cadence' => 'quarterly',
+                    'current_period_energy_price' => 7.0,
+                    'annual_equivalent_energy_price' => null,
+                    'reference_kind' => null,
+                    'reference_price' => null,
+                    'curve_trade_date' => null,
+                    'reference_trade_date' => null,
+                    'anchor_period' => null,
+                    'tail_starts' => null,
+                    'higher_confidence' => false,
+                    'flags' => [],
+                ], $payload['reset_estimate']);
+            }
+        }
+
+        $contract->calculated_cost = $payload;
+        $contract->pricing_integrity = $integrity === null ? null : array_merge([
+            'detected' => true,
+            'reason_family' => 'promo',
+            'issue_codes' => [],
+            'card_label' => null,
+            'detail_heading' => null,
+            'detail_facts' => [],
+            'change_date' => null,
+            'first_year_impact_eur' => null,
+            'promo_rate_cents' => null,
+            'normal_rate_cents' => null,
+        ], $integrity);
         $contract->exceeds_consumption_limit = $attributes['exceeds_consumption_limit'] ?? false;
 
         return $contract;

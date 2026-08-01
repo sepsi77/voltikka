@@ -2,6 +2,7 @@
 
 namespace App\Services\ContractCard;
 
+use App\Enums\PricingModel;
 use App\Models\ElectricityContract;
 use App\Services\ContractCard\DTO\PricingCategoryFacts;
 use App\Services\ContractCard\Enums\PricingBucket;
@@ -35,7 +36,7 @@ class PricingCategoryResolver
         $schedule = is_array($pricing['recurring_schedule'] ?? null) ? $pricing['recurring_schedule'] : [];
         $effect = is_array($pricing['consumption_effect'] ?? null) ? $pricing['consumption_effect'] : [];
 
-        $isSpot = $contract->pricing_model === 'Spot';
+        $isSpot = $contract->pricingModelType() === PricingModel::Spot;
 
         $cadence = is_string($schedule['cadence'] ?? null) ? $schedule['cadence'] : null;
         $isReset = ($schedule['present'] ?? null) === true
@@ -44,7 +45,7 @@ class PricingCategoryResolver
 
         // The Hybrid fallback is required: one active contract (Helen Välkkysähkö Yritys) is
         // classified Hybrid with no consumption_effect block at all.
-        $hasConsumptionEffect = $contract->pricing_model === 'Hybrid'
+        $hasConsumptionEffect = $contract->pricingModelType() === PricingModel::Hybrid
             || (($effect['present'] ?? null) === true
                 && in_array($effect['applies_to'] ?? null, self::BASE_CONTRACT_EFFECT, true));
 
@@ -75,7 +76,7 @@ class PricingCategoryResolver
      * category did not match the band its card renders. Keep this method and resolve() in
      * step; a divergence is a user-visible contradiction, not an internal detail.
      *
-     * @param \Illuminate\Database\Eloquent\Builder<ElectricityContract> $query
+     * @param  \Illuminate\Database\Eloquent\Builder<ElectricityContract>  $query
      */
     public static function scopeCategory($query, PricingCategory $category): void
     {
@@ -98,7 +99,7 @@ class PricingCategoryResolver
      * card band cannot drift apart. The buckets partition the contract set, so the four scopes
      * are disjoint and their union is every contract.
      *
-     * @param \Illuminate\Database\Eloquent\Builder<ElectricityContract> $query
+     * @param  \Illuminate\Database\Eloquent\Builder<ElectricityContract>  $query
      */
     public static function scopeBucket($query, PricingBucket $bucket): void
     {
@@ -119,7 +120,7 @@ class PricingCategoryResolver
     private static function spotConstraint(): \Closure
     {
         return static function ($q): void {
-            $q->where('pricing_model', 'Spot');
+            $q->where('pricing_model', PricingModel::Spot->value);
         };
     }
 
@@ -139,7 +140,7 @@ class PricingCategoryResolver
     private static function effectConstraint(): \Closure
     {
         return static function ($q): void {
-            $q->where('pricing_model', 'Hybrid')
+            $q->where('pricing_model', PricingModel::Hybrid->value)
                 ->orWhere(function ($disclosed): void {
                     $disclosed->where('canonical_pricing->consumption_effect->present', true)
                         ->whereIn('canonical_pricing->consumption_effect->applies_to', self::BASE_CONTRACT_EFFECT);
@@ -152,7 +153,7 @@ class PricingCategoryResolver
      * next period starts the day after. A boundary that has already passed is stale data
      * from an interpretation that predates the reset, and is dropped rather than shown.
      *
-     * @param array<string, mixed> $schedule
+     * @param  array<string, mixed>  $schedule
      */
     private function nextReset(array $schedule, CarbonImmutable $today): ?CarbonImmutable
     {

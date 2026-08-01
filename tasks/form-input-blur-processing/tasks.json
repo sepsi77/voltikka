@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Audit active form bindings",
+    "status": "completed"
+  },
+  {
+    "name": "Define and document the blur policy",
+    "status": "completed"
+  },
+  {
+    "name": "Update active form bindings",
+    "status": "completed"
+  },
+  {
+    "name": "Add regression tests",
+    "status": "completed"
+  },
+  {
+    "name": "Audit and harden non-negative numeric fields",
+    "status": "completed"
+  },
+  {
+    "name": "Run focused and regression tests",
+    "status": "completed"
+  }
+]

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\MeteringType;
 use App\Models\ContractSourceObservation;
 use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
@@ -47,6 +48,50 @@ class ContractImporterTest extends TestCase
             '2026-08-02 10:00:00',
             ContractSourceSnapshot::sole()->last_observed_at->toDateTimeString(),
         );
+    }
+
+    public function test_import_normalizes_classification_aliases_and_preserves_exact_source_values(): void
+    {
+        $importer = $this->app->make(ContractImporter::class);
+        $payload = $this->contractPayload();
+        $payload['Details']['PricingModel'] = '  fIxEd  ';
+        $payload['Details']['ContractType'] = "\tFIXED\n";
+        $payload['Details']['TargetGroup'] = ' Consumer ';
+        $payload['Details']['Metering'] = ' Seasonal ';
+
+        $importer->import([$payload], [], '2026-08-01', true);
+
+        $contract = ElectricityContract::where('api_id', 'direct-import-contract')->firstOrFail();
+        $snapshot = ContractSourceSnapshot::sole();
+        $this->assertSame('FixedPrice', $contract->pricing_model);
+        $this->assertSame('FixedTerm', $contract->contract_type);
+        $this->assertSame('Household', $contract->target_group);
+        $this->assertSame('Seasonal', $contract->metering);
+        $this->assertSame(MeteringType::Season, $contract->meteringType());
+        $this->assertSame('  fIxEd  ', $snapshot->source_payload['Details']['PricingModel']);
+        $this->assertSame("\tFIXED\n", $snapshot->source_payload['Details']['ContractType']);
+        $this->assertSame(' Consumer ', $snapshot->source_payload['Details']['TargetGroup']);
+        $this->assertSame(' Seasonal ', $snapshot->source_payload['Details']['Metering']);
+    }
+
+    public function test_import_stores_unknown_classifications_and_preserves_unsupported_source_values(): void
+    {
+        $importer = $this->app->make(ContractImporter::class);
+        $payload = $this->contractPayload();
+        $payload['Details']['PricingModel'] = ' Future Model ';
+        $payload['Details']['ContractType'] = ['malformed'];
+        $payload['Details']['TargetGroup'] = null;
+
+        $importer->import([$payload], [], '2026-08-01', true);
+
+        $contract = ElectricityContract::where('api_id', 'direct-import-contract')->firstOrFail();
+        $snapshot = ContractSourceSnapshot::sole();
+        $this->assertSame('Unknown', $contract->pricing_model);
+        $this->assertSame('Unknown', $contract->contract_type);
+        $this->assertSame('Unknown', $contract->target_group);
+        $this->assertSame(' Future Model ', $snapshot->source_payload['Details']['PricingModel']);
+        $this->assertSame(['malformed'], $snapshot->source_payload['Details']['ContractType']);
+        $this->assertNull($snapshot->source_payload['Details']['TargetGroup']);
     }
 
     public function test_recurrent_payload_creates_three_episodes_and_extends_only_the_pointed_episode(): void

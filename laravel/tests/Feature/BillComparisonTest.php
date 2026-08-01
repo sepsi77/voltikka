@@ -78,6 +78,74 @@ class BillComparisonTest extends TestCase
         $response->assertSee('Maksatko sähköstä');
     }
 
+    public function test_zero_consumption_is_not_accepted(): void
+    {
+        $component = Livewire::test('bill-comparison')
+            ->set('kwh', 0)
+            ->assertHasErrors('kwh')
+            ->assertSee('Syötä kulutukseksi vähintään 1 kWh.')
+            ->assertSeeHtml('aria-invalid="true"')
+            ->assertSeeHtml('role="alert"');
+
+        $this->assertSame(400.0, $component->get('kwh'));
+        $this->assertNotNull($component->viewData('resultArray'));
+    }
+
+    public function test_valid_consumption_clears_validation_and_calculates_results(): void
+    {
+        $component = Livewire::test('bill-comparison')
+            ->set('kwh', 0)
+            ->assertHasErrors('kwh')
+            ->set('kwh', 500)
+            ->assertHasNoErrors('kwh')
+            ->assertDontSee('Syötä kulutukseksi vähintään 1 kWh.')
+            ->assertSee('Markkinoiden halvimmat tällä kulutuksella');
+
+        $this->assertSame(500.0, $component->get('kwh'));
+        $this->assertNotNull($component->viewData('resultArray'));
+    }
+
+    public function test_zero_price_is_not_accepted(): void
+    {
+        $component = Livewire::test('bill-comparison')
+            ->set('totalEur', 0)
+            ->assertHasErrors('totalEur')
+            ->assertSee('Syötä sähkösopimuksen hinnaksi yli 0 euroa.')
+            ->assertSeeHtml('id="bill-total-eur-error"')
+            ->assertSeeHtml('aria-invalid="true"')
+            ->assertSeeHtml('role="alert"');
+
+        $this->assertSame(35.0, $component->get('totalEur'));
+        $this->assertNotNull($component->viewData('resultArray'));
+    }
+
+    public function test_valid_price_after_rejected_zero_calculates_results(): void
+    {
+        $component = Livewire::test('bill-comparison')
+            ->set('totalEur', 0)
+            ->assertHasErrors('totalEur')
+            ->set('totalEur', 40)
+            ->assertHasNoErrors('totalEur')
+            ->assertDontSee('Syötä sähkösopimuksen hinnaksi yli 0 euroa.')
+            ->assertSee('Markkinoiden halvimmat tällä kulutuksella');
+
+        $this->assertSame(40.0, $component->get('totalEur'));
+        $this->assertNotNull($component->viewData('resultArray'));
+    }
+
+    public function test_negative_price_is_not_accepted(): void
+    {
+        $component = Livewire::test('bill-comparison')
+            ->set('totalEur', -1)
+            ->assertHasErrors('totalEur')
+            ->assertSee('Syötä sähkösopimuksen hinnaksi yli 0 euroa.')
+            ->assertSeeHtml('id="bill-total-eur-error"')
+            ->assertSeeHtml('aria-invalid="true"');
+
+        $this->assertSame(35.0, $component->get('totalEur'));
+        $this->assertNotNull($component->viewData('resultArray'));
+    }
+
     public function test_overpaying_user_is_ranked_last_and_sees_savings(): void
     {
         $this->createFixedContract('cheap-contract', 'Halpa Kiinteä', 'Halpa Energia Oy', 5.0, 3.00);
@@ -305,6 +373,15 @@ class BillComparisonTest extends TestCase
 
         $lowNames = array_column($low['rows'], 'name');
         $this->assertContains('Litteä Tariffi', $lowNames, 'Capped flat-fee tier must be eligible within its annual cap.');
+    }
+
+    public function test_negative_annual_kwh_is_rejected_with_a_visible_error(): void
+    {
+        Livewire::test('bill-comparison')
+            ->set('annualKwh', -1000)
+            ->assertSet('annualKwh', null)
+            ->assertHasErrors(['annualKwh'])
+            ->assertSee('Vuosikulutus ei voi olla negatiivinen.');
     }
 
     public function test_annual_kwh_override_replaces_seasonal_annualization(): void

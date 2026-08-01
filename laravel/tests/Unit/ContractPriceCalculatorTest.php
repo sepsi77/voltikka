@@ -3,9 +3,9 @@
 namespace Tests\Unit;
 
 use App\Services\ContractPriceCalculator;
-use App\Services\DTO\EnergyUsage;
 use App\Services\DTO\ContractPricingResult;
-use App\Enums\MeteringType;
+use App\Services\DTO\EnergyUsage;
+use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
 
 class ContractPriceCalculatorTest extends TestCase
@@ -15,7 +15,7 @@ class ContractPriceCalculatorTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->calculator = new ContractPriceCalculator();
+        $this->calculator = new ContractPriceCalculator;
     }
 
     /**
@@ -681,5 +681,181 @@ class ContractPriceCalculatorTest extends TestCase
         $this->assertEqualsWithDelta(480.0, $result->totalCost, 0.01);
         $this->assertEqualsWithDelta(33.33, $result->monthlyCosts[0], 0.01);
         $this->assertEqualsWithDelta(38.33, $result->monthlyCosts[2], 0.01);
+    }
+
+    public function test_exact_period_general_price_and_fee(): void
+    {
+        $result = $this->period([
+            ['price_component_type' => 'General', 'payment_unit' => 'c/kWh', 'price' => 5.0],
+            ['price_component_type' => 'Monthly', 'payment_unit' => 'EUR/month', 'price' => 3.0],
+        ], '2026-05-01', '2026-05-30', 300);
+
+        $this->assertTrue($result->available);
+        $this->assertEqualsWithDelta(18.0, $result->periodTotal, 0.0001);
+        $this->assertEqualsWithDelta(18.0, $result->basePeriodTotal, 0.0001);
+        $this->assertFalse($result->hasPromotion);
+    }
+
+    public function test_exact_period_until_date_discount_is_inclusive(): void
+    {
+        $result = $this->period([
+            $this->discountedComponent('General', 10.0, 2.0, 'UntilDate', untilDate: '2026-05-15'),
+        ], '2026-05-01', '2026-05-30', 300);
+
+        $this->assertEqualsWithDelta(30.0, $result->basePeriodTotal, 0.0001);
+        $this->assertEqualsWithDelta(3.0, $result->discountSavings, 0.0001);
+        $this->assertEqualsWithDelta(27.0, $result->periodTotal, 0.0001);
+        $this->assertTrue($result->hasPromotion);
+    }
+
+    public function test_exact_period_monthly_fee_until_date_discount_is_prorated_by_days(): void
+    {
+        $result = $this->period([
+            $this->discountedComponent('Monthly', 6.0, 6.0, 'UntilDate', 'EUR/month', '2026-05-15'),
+        ], '2026-05-01', '2026-05-30', 0);
+
+        $this->assertEqualsWithDelta(6.0, $result->basePeriodTotal, 0.0001);
+        $this->assertEqualsWithDelta(3.0, $result->discountSavings, 0.0001);
+        $this->assertEqualsWithDelta(3.0, $result->periodTotal, 0.0001);
+    }
+
+    public function test_exact_period_daytime_discount_only_applies_to_time_day_bucket(): void
+    {
+        $result = $this->period([
+            $this->discountedComponent('DayTime', 10.0, 2.0),
+            ['price_component_type' => 'NightTime', 'payment_unit' => 'c/kWh', 'price' => 5.0],
+        ], '2026-05-01', '2026-05-10', 100);
+
+        $this->assertEqualsWithDelta(9.25, $result->basePeriodTotal, 0.0001);
+        $this->assertEqualsWithDelta(1.70, $result->discountSavings, 0.0001);
+        $this->assertEqualsWithDelta(7.55, $result->periodTotal, 0.0001);
+    }
+
+    public function test_exact_period_seasonal_discounts_are_scoped_across_month_boundary(): void
+    {
+        $result = $this->period([
+            $this->discountedComponent('SeasonalWinterDay', 10.0, 2.0),
+            $this->discountedComponent('SeasonalOther', 5.0, 1.0),
+        ], '2026-03-31', '2026-04-01', 200);
+
+        $this->assertEqualsWithDelta(14.25, $result->basePeriodTotal, 0.0001);
+        $this->assertEqualsWithDelta(2.85, $result->discountSavings, 0.0001);
+        $this->assertEqualsWithDelta(11.40, $result->periodTotal, 0.0001);
+    }
+
+    public function test_exact_period_spot_margin_discount_uses_realized_prices(): void
+    {
+        $result = $this->period([
+            $this->discountedComponent('General', 1.0, 0.5),
+        ], '2026-05-01', '2026-05-02', 100, ['pricing_model' => 'Spot'], [4.0, 6.0]);
+
+        $this->assertTrue($result->isSpotContract);
+        $this->assertEqualsWithDelta(5.0, $result->spotPriceAverage, 0.0001);
+        $this->assertEqualsWithDelta(1.0, $result->spotPriceMargin, 0.0001);
+        $this->assertEqualsWithDelta(6.0, $result->basePeriodTotal, 0.0001);
+        $this->assertEqualsWithDelta(0.5, $result->discountSavings, 0.0001);
+        $this->assertEqualsWithDelta(5.5, $result->periodTotal, 0.0001);
+    }
+
+    public function test_exact_period_spot_preserves_negative_total_and_null_zero_margin(): void
+    {
+        $result = $this->period([
+            ['price_component_type' => 'General', 'payment_unit' => 'c/kWh', 'price' => 0.0],
+        ], '2026-05-01', '2026-05-01', 100, ['pricing_model' => 'Spot'], [-5.0]);
+
+        $this->assertTrue($result->available);
+        $this->assertEqualsWithDelta(-5.0, $result->periodTotal, 0.0001);
+        $this->assertEqualsWithDelta(-5.0, $result->basePeriodTotal, 0.0001);
+        $this->assertNull($result->spotPriceMargin);
+    }
+
+    public function test_exact_period_first_kwh_discount_uses_exact_covered_usage(): void
+    {
+        $component = $this->discountedComponent('General', 10.0, 2.0, 'NFirstKwh', 'CentPerKilowattHour');
+        $component['discount_discount_n_first_kwh'] = 100;
+
+        $result = $this->period([$component], '2026-05-01', '2026-05-30', 300);
+
+        $this->assertEqualsWithDelta(30.0, $result->basePeriodTotal, 0.0001);
+        $this->assertEqualsWithDelta(2.0, $result->discountSavings, 0.0001);
+        $this->assertEqualsWithDelta(28.0, $result->periodTotal, 0.0001);
+    }
+
+    public function test_exact_period_spot_without_history_is_unavailable(): void
+    {
+        $result = $this->period([
+            ['price_component_type' => 'General', 'payment_unit' => 'c/kWh', 'price' => 0.5],
+        ], '2026-05-01', '2026-05-02', 100, ['pricing_model' => 'Spot']);
+
+        $this->assertFalse($result->available);
+        $this->assertSame('no_spot_history', $result->unavailableReason);
+    }
+
+    public function test_unknown_pricing_model_does_not_become_spot_from_the_legacy_margin_heuristic(): void
+    {
+        $result = $this->period([
+            ['price_component_type' => 'General', 'payment_unit' => 'c/kWh', 'price' => 0.5],
+        ], '2026-05-01', '2026-05-01', 100, ['pricing_model' => 'FuturePricing']);
+
+        $this->assertTrue($result->available);
+        $this->assertFalse($result->isSpotContract);
+        $this->assertEqualsWithDelta(0.5, $result->periodTotal, 0.0001);
+    }
+
+    public function test_annual_and_period_until_date_general_savings_agree_across_dst(): void
+    {
+        $components = [
+            $this->discountedComponent('General', 10.0, 2.0, 'UntilDate', untilDate: '2026-03-15'),
+        ];
+        $contract = ['contract_type' => 'Fixed', 'pricing_model' => 'FixedPrice', 'metering' => 'General'];
+
+        $period = $this->period($components, '2026-03-01', '2026-03-31', 100, $contract);
+        $annual = $this->calculator->calculate(
+            $components,
+            $contract,
+            new EnergyUsage(total: 1200, basicLiving: 1200),
+            calculationStartDate: Carbon::parse('2026-03-01', 'Europe/Helsinki'),
+        );
+
+        $this->assertEqualsWithDelta(2.0 * 100 / 100 * 15 / 31, $period->discountSavings, 0.0001);
+        $this->assertEqualsWithDelta($period->discountSavings, $annual->discountSavingsTotal, 0.0001);
+    }
+
+    private function period(
+        array $components,
+        string $start,
+        string $end,
+        float $kwh,
+        array $contract = ['pricing_model' => 'FixedPrice'],
+        array $spotPrices = [],
+    ): \App\Services\DTO\ContractPeriodPricingResult {
+        return $this->calculator->calculatePeriod(
+            $components,
+            $contract,
+            Carbon::parse($start, 'Europe/Helsinki'),
+            Carbon::parse($end, 'Europe/Helsinki'),
+            $kwh,
+            $spotPrices,
+        );
+    }
+
+    private function discountedComponent(
+        string $type,
+        float $price,
+        float $discount,
+        ?string $discountType = null,
+        string $paymentUnit = 'c/kWh',
+        ?string $untilDate = null,
+    ): array {
+        return [
+            'price_component_type' => $type,
+            'payment_unit' => $paymentUnit,
+            'price' => $price,
+            'has_discount' => true,
+            'discount_value' => $discount,
+            'discount_is_percentage' => false,
+            'discount_type' => $discountType,
+            'discount_discount_until_date' => $untilDate,
+        ];
     }
 }

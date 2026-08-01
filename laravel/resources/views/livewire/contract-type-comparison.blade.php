@@ -78,13 +78,10 @@
                     <div class="space-y-3">
                         {{-- Company Logo and Name --}}
                         <div class="flex items-center gap-3">
-                            @if ($contractA->company && $contractA->company->getLogoUrl())
-                                <img
-                                    src="{{ $contractA->company->getLogoUrl() }}"
-                                    alt="{{ $contractA->company->name }}"
-                                    class="h-8 w-auto object-contain"
-                                >
-                            @endif
+                            <x-company-logo
+                                :company="$contractA->company"
+                                class="h-8 w-12 rounded bg-slate-100 text-[10px] font-bold uppercase text-slate-500"
+                            />
                             <div>
                                 <p class="font-medium text-slate-900 text-sm">{{ $contractA->name }}</p>
                                 <p class="text-xs text-slate-500">{{ $contractA->company?->name }}</p>
@@ -194,6 +191,7 @@
                                             id="contract-search-a"
                                             type="search"
                                             wire:model.live.debounce.300ms="contractSearchA"
+                                            data-search-input
                                             wire:loading.attr="disabled"
                                             wire:target="selectContractA,setComparisonMode,setConsumption"
                                             placeholder="Hae yhtiön tai sopimuksen nimellä"
@@ -274,13 +272,10 @@
                     <div class="space-y-3">
                         {{-- Company Logo and Name --}}
                         <div class="flex items-center gap-3">
-                            @if ($contractB->company && $contractB->company->getLogoUrl())
-                                <img
-                                    src="{{ $contractB->company->getLogoUrl() }}"
-                                    alt="{{ $contractB->company->name }}"
-                                    class="h-8 w-auto object-contain"
-                                >
-                            @endif
+                            <x-company-logo
+                                :company="$contractB->company"
+                                class="h-8 w-12 rounded bg-slate-100 text-[10px] font-bold uppercase text-slate-500"
+                            />
                             <div>
                                 <p class="font-medium text-slate-900 text-sm">{{ $contractB->name }}</p>
                                 <p class="text-xs text-slate-500">{{ $contractB->company?->name }}</p>
@@ -390,6 +385,7 @@
                                             id="contract-search-b"
                                             type="search"
                                             wire:model.live.debounce.300ms="contractSearchB"
+                                            data-search-input
                                             wire:loading.attr="disabled"
                                             wire:target="selectContractB,setComparisonMode,setConsumption"
                                             placeholder="Hae yhtiön tai sopimuksen nimellä"

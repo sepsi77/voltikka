@@ -2,10 +2,14 @@
 
 namespace App\Services;
 
+use App\Enums\TargetGroup;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\CanonicalOfferFacts;
+use App\Services\CanonicalPricing\Enums\ContractComparability;
+use App\Services\ContractPricing\CanonicalContractMetric;
+use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\DTO\EnergyUsage;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -106,7 +110,7 @@ class WeeklyOffersVideoService
     {
         $contracts = ElectricityContract::query()
             ->active()
-            ->where('target_group', 'Household')
+            ->where('target_group', TargetGroup::Household->value)
             ->with(['company', 'electricitySource'])
             ->get();
 
@@ -146,7 +150,7 @@ class WeeklyOffersVideoService
     }
 
     /**
-     * @param  array<string, array<string, array<string, mixed>>>  $metricsByProfile
+     * @param  array<string, array<string, CanonicalContractMetric>>  $metricsByProfile
      * @return array<string, mixed>|null
      */
     private function transformCanonicalContractToOffer(
@@ -154,26 +158,25 @@ class WeeklyOffersVideoService
         array $metricsByProfile,
     ): ?array {
         $selectionMetric = $metricsByProfile[self::SELECTION_PROFILE][$contract->id] ?? null;
-        $selectionCost = is_array($selectionMetric['calculated_cost'] ?? null)
-            ? $selectionMetric['calculated_cost']
-            : null;
-        $offerFacts = $selectionCost !== null
-            ? CanonicalOfferFacts::fromCalculatedCost($selectionCost)
-            : null;
+        if (! $selectionMetric instanceof CanonicalContractMetric) {
+            return null;
+        }
+        $selectionPricing = $selectionMetric->pricing();
+        $offerFacts = CanonicalOfferFacts::fromPricing($selectionPricing);
 
         if ($offerFacts === null
-            || ($selectionMetric['is_listed'] ?? false) !== true
-            || ($selectionMetric['integrity']['detected'] ?? true) !== false
-            || ! is_numeric($selectionMetric['sort_key'] ?? null)) {
+            || ! $selectionMetric->isListed()
+            || $selectionMetric->integrity()->detected
+            || $selectionMetric->sortKey() === null) {
             return null;
         }
 
         $consumptions = [];
         foreach (self::CONSUMPTIONS as $profile => $consumption) {
             $metric = $metricsByProfile[$profile][$contract->id] ?? null;
-            if (! is_array($metric)
-                || ($metric['is_listed'] ?? false) !== true
-                || ($metric['integrity']['detected'] ?? true) !== false) {
+            if (! $metric instanceof CanonicalContractMetric
+                || ! $metric->isListed()
+                || $metric->integrity()->detected) {
                 return null;
             }
 
@@ -190,83 +193,81 @@ class WeeklyOffersVideoService
             ],
             'pricing_model' => $contract->pricing_model,
             'pricing_basis' => 'canonical',
-            'comparability' => $selectionMetric['comparability'],
+            'comparability' => $selectionMetric->comparability()->value,
             'offer' => [
                 ...$offerFacts,
                 'benefit_eur' => $this->money($offerFacts['benefit_eur']),
             ],
             'pricing_integrity' => [
                 'detected' => false,
-                'reason_family' => $selectionMetric['integrity']['reason_family'] ?? 'none',
-                'issue_codes' => $selectionMetric['integrity']['issue_codes'] ?? [],
+                'reason_family' => $selectionMetric->integrity()->reasonFamily->value,
+                'issue_codes' => $selectionMetric->integrity()->issueCodes,
             ],
-            'pricing' => $this->canonicalCurrentPricing($selectionCost),
+            'pricing' => $this->canonicalCurrentPricing($selectionPricing),
             'consumptions' => $consumptions,
             'selection' => [
                 'metric' => 'measured_customer_benefit',
                 'consumption_kwh' => self::TOWNHOUSE_CONSUMPTION,
                 'measured_customer_benefit_eur' => $this->money($offerFacts['benefit_eur']),
                 'benefit_basis_months' => $offerFacts['basis_months'],
-                'canonical_total_cost' => (float) $selectionMetric['sort_key'],
+                'canonical_total_cost' => $selectionMetric->sortKey(),
                 'tie_break' => 'canonical_total_cost_ascending_then_contract_id',
             ],
         ];
     }
 
     /**
-     * @param  array<string, mixed>  $metric
      * @return array<string, mixed>
      */
-    private function canonicalConsumptionOutput(array $metric, int $consumption): array
+    private function canonicalConsumptionOutput(CanonicalContractMetric $metric, int $consumption): array
     {
-        $cost = is_array($metric['calculated_cost'] ?? null) ? $metric['calculated_cost'] : [];
-        $offer = CanonicalOfferFacts::fromCalculatedCost($cost);
-        $term = is_array($cost['contract_term'] ?? null) ? $cost['contract_term'] : null;
-        $isShortTerm = ($cost['comparability'] ?? null) === 'term_price_only';
+        $pricing = $metric->pricing();
+        $offer = CanonicalOfferFacts::fromPricing($pricing);
+        $term = $pricing->contractTerm();
+        $isShortTerm = $pricing->comparability() === ContractComparability::TermPriceOnly;
 
         return [
             'annual_consumption_kwh' => $consumption,
             'pricing_basis' => 'canonical',
-            'availability' => ($metric['is_listed'] ?? false) ? 'available' : 'unavailable',
-            'comparability' => $metric['comparability'] ?? null,
-            'total_cost' => $this->money($cost['total_cost'] ?? null),
-            'normal_total_cost' => $this->money($cost['base_total_cost'] ?? null),
-            'avg_monthly_cost' => $this->money($cost['avg_monthly_cost'] ?? null),
-            'normal_avg_monthly_cost' => $this->money($cost['base_avg_monthly_cost'] ?? null),
-            'comparison_measured_saving' => $this->money($cost['discount_savings_total'] ?? null),
+            'availability' => $metric->isListed() ? 'available' : 'unavailable',
+            'comparability' => $metric->comparability()->value,
+            'total_cost' => $this->money($pricing->total()),
+            'normal_total_cost' => $this->money($pricing->baseTotal()),
+            'avg_monthly_cost' => $this->money($pricing->averageMonthlyCost()),
+            'normal_avg_monthly_cost' => $this->money($pricing->baseAverageMonthlyCost()),
+            'comparison_measured_saving' => $this->money($pricing->discountSaving()),
             'total_basis' => $isShortTerm ? 'annualized_contract_term' : 'first_12_months',
             'total_basis_label' => $isShortTerm
                 ? 'Vuositasolle muunnettu vertailuhinta'
                 : 'Ensimmäisen 12 kuukauden hinta',
-            'is_estimate' => (bool) ($cost['is_estimate'] ?? false),
-            'estimate_method' => $cost['estimate_method'] ?? null,
+            'is_estimate' => $pricing->isEstimate(),
+            'estimate_method' => $pricing->estimateMethod()?->value,
             'customer_benefit_eur' => $offer !== null ? $this->money($offer['benefit_eur']) : null,
             'customer_benefit_basis_months' => $offer['basis_months'] ?? null,
             'customer_benefit_basis_label' => $offer['basis_label'] ?? null,
             'contract_term' => $term === null ? null : [
-                'months' => $term['months'] ?? null,
-                'total_cost' => $this->money($term['total_cost'] ?? null),
-                'normal_total_cost' => $this->money($term['base_total_cost'] ?? null),
-                'measured_saving' => $this->money($term['discount_savings_total'] ?? null),
+                'months' => $term->integer('months'),
+                'total_cost' => $this->money($term->number('total_cost')),
+                'normal_total_cost' => $this->money($term->number('base_total_cost')),
+                'measured_saving' => $this->money($term->number('discount_savings_total')),
             ],
         ];
     }
 
     /**
-     * @param  array<string, mixed>  $cost
      * @return array<string, mixed>
      */
-    private function canonicalCurrentPricing(array $cost): array
+    private function canonicalCurrentPricing(ContractPricingViewData $pricing): array
     {
         return [
-            'monthly_fee' => $this->number($cost['monthly_fixed_fee'] ?? null),
-            'general_kwh_price' => $this->number($cost['general_kwh_price'] ?? null),
-            'daytime_kwh_price' => $this->number($cost['daytime_kwh_price'] ?? null),
-            'nighttime_kwh_price' => $this->number($cost['nighttime_kwh_price'] ?? null),
-            'seasonal_winter_day_kwh_price' => $this->number($cost['seasonal_winter_day_kwh_price'] ?? null),
-            'seasonal_other_kwh_price' => $this->number($cost['seasonal_other_kwh_price'] ?? null),
-            'spot_price_margin' => $this->number($cost['spot_price_margin'] ?? null),
-            'energy_package' => $cost['energy_package'] ?? null,
+            'monthly_fee' => $this->number($pricing->monthlyFixedFee()),
+            'general_kwh_price' => $this->number($pricing->generalKwhPrice()),
+            'daytime_kwh_price' => $this->number($pricing->daytimeKwhPrice()),
+            'nighttime_kwh_price' => $this->number($pricing->nighttimeKwhPrice()),
+            'seasonal_winter_day_kwh_price' => $this->number($pricing->seasonalWinterDayKwhPrice()),
+            'seasonal_other_kwh_price' => $this->number($pricing->seasonalOtherKwhPrice()),
+            'spot_price_margin' => $this->number($pricing->spotPriceMargin()),
+            'energy_package' => $pricing->energyPackage()?->toArray(),
         ];
     }
 
@@ -307,7 +308,7 @@ class WeeklyOffersVideoService
         // Fetch all contracts with active discounts
         $allContracts = ElectricityContract::query()
             ->active()
-            ->where('target_group', 'Household')
+            ->where('target_group', TargetGroup::Household->value)
             ->whereHas('priceComponents', function ($query) use ($now) {
                 $query->where('has_discount', true)
                     ->where(function ($q) use ($now) {

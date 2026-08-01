@@ -8,6 +8,7 @@ use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\PriceComponent;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -107,8 +108,14 @@ class ContractsListPageTest extends TestCase
     /**
      * Test that the page displays company logos.
      */
-    public function test_company_logos_are_displayed(): void
+    public function test_locally_controlled_company_logos_are_displayed(): void
     {
+        Storage::fake('public');
+        Storage::disk('public')->put('logos/test-energia.webp', 'logo content');
+        Company::where('name', 'Test Energia Oy')->update([
+            'local_logo_path' => 'logos/test-energia.webp',
+        ]);
+
         ElectricityContract::create([
             'id' => 'contract-1',
             'company_name' => 'Test Energia Oy',
@@ -129,7 +136,62 @@ class ContractsListPageTest extends TestCase
         ]);
 
         Livewire::test('contracts-list')
-            ->assertSeeHtml('https://storage.example.com/logos/test-energia.png');
+            ->assertSeeHtml('logos/test-energia.webp')
+            ->assertDontSeeHtml('https://storage.example.com/logos/test-energia.png');
+    }
+
+    public function test_external_only_company_logo_uses_initials_without_a_remote_request(): void
+    {
+        ElectricityContract::create([
+            'id' => 'external-logo-contract',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Ulkoinen Sähkö',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'availability_is_national' => true,
+        ]);
+        $this->markAsActive('external-logo-contract');
+
+        PriceComponent::create([
+            'id' => 'pc-external-logo-contract',
+            'electricity_contract_id' => 'external-logo-contract',
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 5.5,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        Livewire::test('contracts-list')
+            ->assertSee('Tes')
+            ->assertDontSeeHtml('https://storage.example.com/logos/test-energia.png');
+    }
+
+    public function test_item_list_schema_omits_an_external_company_logo(): void
+    {
+        ElectricityContract::create([
+            'id' => 'schema-contract',
+            'company_name' => 'Test Energia Oy',
+            'name' => 'Schema Sähkö',
+            'contract_type' => 'Fixed',
+            'metering' => 'General',
+            'availability_is_national' => true,
+        ]);
+        $this->markAsActive('schema-contract');
+
+        PriceComponent::create([
+            'id' => 'pc-schema-contract',
+            'electricity_contract_id' => 'schema-contract',
+            'price_component_type' => 'General',
+            'price_date' => now()->format('Y-m-d'),
+            'price' => 5.5,
+            'payment_unit' => 'c/kWh',
+        ]);
+
+        $schema = Livewire::test('contracts-list')->instance()->itemListSchema;
+        $brand = $schema['itemListElement'][0]['item']['brand'];
+
+        $this->assertSame('Test Energia Oy', $brand['name']);
+        $this->assertArrayNotHasKey('logo', $brand);
     }
 
     /**
@@ -165,14 +227,25 @@ class ContractsListPageTest extends TestCase
             ->assertSet('directConsumption', 7500);
     }
 
-    /**
-     * Test presets/calculator tabs are displayed.
-     */
-    public function test_presets_calculator_tabs_are_displayed(): void
+    public function test_contract_listing_uses_the_compact_consumption_selector(): void
     {
         Livewire::test('contracts-list')
-            ->assertSee('Valmiit profiilit')
-            ->assertSee('Laskuri');
+            ->assertSee('Vuosikulutus')
+            ->assertSee('Tiedän kulutukseni')
+            ->assertSeeHtml('wire:model.blur="directConsumption"')
+            ->assertDontSee('Valitse kulutustaso')
+            ->assertDontSee('Valmiit profiilit');
+    }
+
+    public function test_cheapest_contracts_uses_the_compact_consumption_selector(): void
+    {
+        Livewire::test('cheapest-contracts')
+            ->assertSee('Vuosikulutus')
+            ->assertSee('En tiedä – arvioi laskurilla')
+            ->assertSee('Tiedän kulutukseni')
+            ->assertSeeHtml('wire:model.blur="directConsumption"')
+            ->assertDontSee('Valitse kulutustaso')
+            ->assertDontSee('Valmiit profiilit');
     }
 
     /**
@@ -234,7 +307,12 @@ class ContractsListPageTest extends TestCase
             ->assertSet('consumption', 7000)
             // zero is ignored too
             ->set('directConsumption', 0)
-            ->assertSet('consumption', 7000);
+            ->assertSet('consumption', 7000)
+            // negative input is corrected visibly and does not replace the result basis
+            ->set('directConsumption', -500)
+            ->assertSet('directConsumption', 0)
+            ->assertSet('consumption', 7000)
+            ->assertSee('Vuosikulutus ei voi olla negatiivinen. Käytämme arvoa 0 kWh.');
     }
 
     /**
@@ -745,6 +823,19 @@ class ContractsListPageTest extends TestCase
             ->assertSet('calcHeatingMethod', 'electricity')
             ->assertSet('calcBuildingRegion', 'south')
             ->assertSet('calcBuildingEnergyEfficiency', '2000');
+    }
+
+    public function test_inline_calculator_corrects_negative_values_with_a_visible_notice(): void
+    {
+        Livewire::test('contracts-list')
+            ->set('activeTab', 'calculator')
+            ->set('calcLivingArea', -20)
+            ->assertSet('calcLivingArea', 10)
+            ->assertSet('calculatorInputNotice', 'Korjasimme liian pienen arvon kentän sallittuun vähimmäisarvoon.')
+            ->assertSee('Korjasimme liian pienen arvon kentän sallittuun vähimmäisarvoon.')
+            ->set('calcElectricVehicleEnabled', true)
+            ->set('calcElectricVehicleKmsPerWeek', -100)
+            ->assertSet('calcElectricVehicleKmsPerWeek', 0);
     }
 
     /**

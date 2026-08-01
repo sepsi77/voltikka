@@ -2,12 +2,19 @@
 
 namespace Tests\Feature;
 
-use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricityFuturesEodPrice;
-use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
+use App\Services\CanonicalPricing\Enums\AllowanceCadence;
+use App\Services\CanonicalPricing\Enums\BoundaryKind;
+use App\Services\CanonicalPricing\Enums\CalculationStatus;
+use App\Services\CanonicalPricing\Enums\ComponentType;
+use App\Services\CanonicalPricing\Enums\ComponentUnit;
+use App\Services\CanonicalPricing\Enums\MisleadingState;
+use App\Services\CanonicalPricing\Enums\PhaseKind;
+use App\Services\CanonicalPricing\Enums\PriceRole;
+use Database\Factories\Support\CanonicalPricingFixture;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Livewire;
@@ -27,12 +34,14 @@ class ContractDetailPresenterTest extends TestCase
 {
     use RefreshDatabase;
 
+    private Company $company;
+
     protected function setUp(): void
     {
         parent::setUp();
         Cache::flush();
 
-        Company::create([
+        $this->company = Company::create([
             'name' => 'Testi Energia Oy',
             'name_slug' => 'testi-energia-oy',
             'company_url' => 'https://testienergia.fi',
@@ -54,101 +63,104 @@ class ContractDetailPresenterTest extends TestCase
     /**
      * @param  array<string, mixed>  $attributes
      * @param  array<string, float>  $components
+     * @param  list<array<string, mixed>>  $additionalComponents
      */
-    private function contract(string $id, array $attributes = [], array $components = ['General' => 7.2, 'Monthly' => 3.9]): ElectricityContract
-    {
-        $contract = ElectricityContract::create(array_merge([
+    private function contract(
+        string $id,
+        array $attributes = [],
+        array $components = ['General' => 7.2, 'Monthly' => 3.9],
+        array $additionalComponents = [],
+    ): ElectricityContract {
+        $relationalComponents = [];
+
+        foreach ($components as $type => $price) {
+            $relationalComponents[] = [
+                'id' => $id.'-'.strtolower($type),
+                'price_component_type' => $type,
+                'price_date' => now()->format('Y-m-d'),
+                'price' => $price,
+                'payment_unit' => $type === 'Monthly' ? 'EUR/month' : 'c/kWh',
+            ];
+        }
+
+        $factory = ElectricityContract::factory()
+            ->forCompany($this->company)
+            ->legacy()
+            ->active();
+
+        if ($relationalComponents !== [] || $additionalComponents !== []) {
+            $factory = $factory->withRelationalPrices([
+                ...$relationalComponents,
+                ...$additionalComponents,
+            ]);
+        }
+
+        return $factory->create([
             'id' => $id,
-            'company_name' => 'Testi Energia Oy',
             'name' => 'Testisopimus '.$id,
-            'name_slug' => $id,
             'contract_type' => 'OpenEnded',
             'pricing_model' => 'FixedPrice',
             'metering' => 'General',
             'target_group' => 'Household',
             'availability_is_national' => true,
             'order_link' => 'https://testienergia.fi/tilaa',
-        ], $attributes));
-
-        ActiveContract::create(['id' => $contract->id]);
-
-        foreach ($components as $type => $price) {
-            PriceComponent::create([
-                'id' => $id.'-'.strtolower($type),
-                'electricity_contract_id' => $contract->id,
-                'price_component_type' => $type,
-                'price_date' => now()->format('Y-m-d'),
-                'price' => $price,
-                'payment_unit' => $type === 'Monthly' ? 'EUR/month' : 'c/kWh',
-            ]);
-        }
-
-        return $contract;
+            ...$attributes,
+        ]);
     }
 
     /**
-     * @param  array<string, mixed>  $schedule
-     * @param  array<string, mixed>  $effect
-     * @param  list<array<string, mixed>>  $phases
+     * @param  list<array{0: ComponentType, 1: float|null, 2?: ComponentUnit, 3?: float|null, 4?: PriceRole}>  $components
      * @return array<string, mixed>
      */
-    private function canonicalPricing(array $phases = [], array $schedule = [], array $effect = []): array
-    {
-        return [
-            'phases' => $phases,
-            'recurring_schedule' => array_merge([
-                'present' => false, 'cadence' => 'none', 'current_period_start' => null,
-                'current_period_end' => null, 'future_price_known' => null, 'description' => null, 'evidence' => [],
-            ], $schedule),
-            'consumption_effect' => array_merge([
-                'present' => false, 'applies_to' => 'unknown', 'cadence' => 'none',
-                'expected_cents_per_kwh' => null, 'typical_min_cents_per_kwh' => null,
-                'typical_max_cents_per_kwh' => null, 'hard_min_cents_per_kwh' => null,
-                'hard_max_cents_per_kwh' => null, 'uncapped' => null, 'description' => null, 'evidence' => [],
-            ], $effect),
-        ];
-    }
-
-    /**
-     * @param  list<array{0: string, 1: float|null, 2?: string, 3?: float|null, 4?: string}>  $components
-     * @return array<string, mixed>
-     */
-    private function phase(string $kind, array $starts, array $ends, array $components): array
-    {
-        return [
-            'label' => $kind,
-            'phase_kind' => $kind,
-            'starts' => $starts,
-            'ends' => $ends,
-            'components' => array_map(fn (array $c) => [
-                'component_type' => $c[0],
-                'amount' => $c[1],
-                'normal_amount' => $c[3] ?? null,
-                'unit' => $c[2] ?? 'cents_per_kwh',
-                'vat_status' => 'included',
-                'price_role' => $c[4] ?? 'current',
-                'source_kind' => 'both',
-                'evidence' => [],
-            ], $components),
-            'evidence' => [],
-        ];
+    private function phase(
+        PhaseKind $kind,
+        BoundaryKind $starts,
+        BoundaryKind $ends,
+        array $components,
+        ?string $startsValue = null,
+        ?string $endsValue = null,
+    ): array {
+        return CanonicalPricingFixture::phase(
+            label: $kind->value,
+            kind: $kind,
+            starts: CanonicalPricingFixture::boundary($starts, $startsValue),
+            ends: CanonicalPricingFixture::boundary($ends, $endsValue),
+            components: array_map(
+                fn (array $component): array => CanonicalPricingFixture::component(
+                    type: $component[0],
+                    amount: $component[1],
+                    unit: $component[2] ?? ComponentUnit::CentsPerKwh,
+                    priceRole: $component[4] ?? PriceRole::Current,
+                    normalAmount: $component[3] ?? null,
+                ),
+                $components,
+            ),
+        );
     }
 
     /**
      * @param  list<array<string, mixed>>  $phases
+     * @param  list<string>  $issueCodes
      * @return array<string, mixed>
      */
-    private function canonicalAttributes(array $phases, string $status = 'exact'): array
-    {
-        return [
-            'canonical_pricing' => $this->canonicalPricing($phases),
-            'canonical_calculation' => ['status' => $status, 'missing_facts' => [], 'required_assumptions' => []],
-            'canonical_source_consistency' => [
-                'misleading_first_12_months' => 'not_detected',
-                'structured_pricing_status' => 'complete',
-                'issue_codes' => [],
-            ],
-        ];
+    private function canonicalAttributes(
+        array $phases,
+        CalculationStatus $status = CalculationStatus::Exact,
+        ?array $recurringSchedule = null,
+        ?array $consumptionEffect = null,
+        MisleadingState $misleading = MisleadingState::NotDetected,
+        string $structuredPricingStatus = 'complete',
+        array $issueCodes = [],
+    ): array {
+        return CanonicalPricingFixture::attributes(
+            phases: $phases,
+            calculationStatus: $status,
+            recurringSchedule: $recurringSchedule,
+            consumptionEffect: $consumptionEffect,
+            misleading: $misleading,
+            structuredPricingStatus: $structuredPricingStatus,
+            issueCodes: $issueCodes,
+        );
     }
 
     // ------------------------------------------------------------------- category band
@@ -179,7 +191,20 @@ class ContractDetailPresenterTest extends TestCase
         // The page used to print "Energiahinta 0,00 c/kWh" here, with no effect row at all.
         $contract = $this->contract('effect-contract', [
             'pricing_model' => 'Hybrid',
-            'canonical_pricing' => $this->canonicalPricing([], [], ['present' => true, 'applies_to' => 'base_contract']),
+            ...$this->canonicalAttributes(
+                phases: [],
+                status: CalculationStatus::Unsupported,
+                consumptionEffect: CanonicalPricingFixture::consumptionEffect(
+                    appliesTo: 'base_contract',
+                    cadence: 'none',
+                    expectedCentsPerKwh: null,
+                    typicalMinCentsPerKwh: null,
+                    typicalMaxCentsPerKwh: null,
+                    hardMinCentsPerKwh: null,
+                    hardMaxCentsPerKwh: null,
+                    uncapped: null,
+                ),
+            ),
         ], ['General' => 8.59, 'Monthly' => 0.0]);
 
         Livewire::test('contract-detail', ['contractId' => $contract->id])
@@ -204,20 +229,17 @@ class ContractDetailPresenterTest extends TestCase
         config(['canonical_pricing.enabled' => true]);
 
         $contract = $this->contract('canonical-conflict', $this->canonicalAttributes([
-            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
-                ['energy_general', 8.4],
-                ['monthly_fee', 4.2, 'eur_per_month'],
+            $this->phase(PhaseKind::CurrentStructured, BoundaryKind::ContractStart, BoundaryKind::None, [
+                [ComponentType::EnergyGeneral, 8.4],
+                [ComponentType::MonthlyFee, 4.2, ComponentUnit::EurPerMonth],
             ]),
-        ]), ['General' => 1.11, 'Monthly' => 0.55]);
-
-        PriceComponent::create([
+        ]), ['General' => 1.11, 'Monthly' => 0.55], [[
             'id' => 'canonical-conflict-general-old',
-            'electricity_contract_id' => $contract->id,
             'price_component_type' => 'General',
             'price_date' => now()->subMonth()->format('Y-m-d'),
             'price' => 2.22,
             'payment_unit' => 'c/kWh',
-        ]);
+        ]]);
 
         $component = Livewire::test('contract-detail', ['contractId' => $contract->id])->instance();
         $receiptValues = array_map(fn ($line) => $line->value, $component->card->receiptLines);
@@ -239,8 +261,8 @@ class ContractDetailPresenterTest extends TestCase
         config(['canonical_pricing.enabled' => true]);
 
         $contract = $this->contract('canonical-missing-unit', $this->canonicalAttributes([
-            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
-                ['monthly_fee', 4.2, 'eur_per_month'],
+            $this->phase(PhaseKind::CurrentStructured, BoundaryKind::ContractStart, BoundaryKind::None, [
+                [ComponentType::MonthlyFee, 4.2, ComponentUnit::EurPerMonth],
             ]),
         ]), ['General' => 1.11, 'Monthly' => 0.55]);
 
@@ -258,19 +280,16 @@ class ContractDetailPresenterTest extends TestCase
     {
         config(['canonical_pricing.enabled' => true]);
 
-        $phase = $this->phase(
-            'current_structured',
-            ['kind' => 'contract_start', 'value' => null],
-            ['kind' => 'none', 'value' => null],
-            [],
+        $phase = CanonicalPricingFixture::packagePhase(
+            label: PhaseKind::CurrentStructured->value,
+            kind: PhaseKind::CurrentStructured,
+            starts: CanonicalPricingFixture::boundary(BoundaryKind::ContractStart),
+            ends: CanonicalPricingFixture::boundary(BoundaryKind::None),
+            monthlyFeeEur: 21.0,
+            includedKwh: 150.0,
+            allowanceCadence: AllowanceCadence::Monthly,
+            excessRateCentsPerKwh: 16.6,
         );
-        $phase['package'] = [
-            'monthly_fee_eur' => 21.0,
-            'included_kwh' => 150.0,
-            'allowance_cadence' => 'monthly',
-            'excess_rate_cents_per_kwh' => 16.6,
-            'evidence' => [],
-        ];
         $contract = $this->contract(
             'canonical-package',
             $this->canonicalAttributes([$phase]),
@@ -303,9 +322,9 @@ class ContractDetailPresenterTest extends TestCase
         config(['canonical_pricing.enabled' => true]);
 
         $contract = $this->contract('canonical-only', $this->canonicalAttributes([
-            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
-                ['energy_general', 7.35],
-                ['monthly_fee', 3.25, 'eur_per_month'],
+            $this->phase(PhaseKind::CurrentStructured, BoundaryKind::ContractStart, BoundaryKind::None, [
+                [ComponentType::EnergyGeneral, 7.35],
+                [ComponentType::MonthlyFee, 3.25, ComponentUnit::EurPerMonth],
             ]),
         ]), []);
 
@@ -322,7 +341,10 @@ class ContractDetailPresenterTest extends TestCase
     {
         config(['canonical_pricing.enabled' => true]);
 
-        $contract = $this->contract('canonical-excluded', $this->canonicalAttributes([], 'incomplete'), [
+        $contract = $this->contract('canonical-excluded', $this->canonicalAttributes(
+            phases: [],
+            status: CalculationStatus::Incomplete,
+        ), [
             'General' => 1.11,
             'Monthly' => 0.55,
         ]);
@@ -341,9 +363,9 @@ class ContractDetailPresenterTest extends TestCase
         config(['canonical_pricing.enabled' => false]);
 
         $contract = $this->contract('legacy-current-value', $this->canonicalAttributes([
-            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
-                ['energy_general', 8.4],
-                ['monthly_fee', 4.2, 'eur_per_month'],
+            $this->phase(PhaseKind::CurrentStructured, BoundaryKind::ContractStart, BoundaryKind::None, [
+                [ComponentType::EnergyGeneral, 8.4],
+                [ComponentType::MonthlyFee, 4.2, ComponentUnit::EurPerMonth],
             ]),
         ]), ['General' => 1.11, 'Monthly' => 0.55]);
 
@@ -365,10 +387,16 @@ class ContractDetailPresenterTest extends TestCase
                 'fixed_time_range' => 'Fixed6',
             ],
             $this->canonicalAttributes([
-                $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '6'], [
-                    ['energy_general', 7.0],
-                    ['monthly_fee', 5.0, 'eur_per_month', 10.0, 'introductory'],
-                ]),
+                $this->phase(
+                    PhaseKind::Introductory,
+                    BoundaryKind::ContractStart,
+                    BoundaryKind::AfterMonths,
+                    [
+                        [ComponentType::EnergyGeneral, 7.0],
+                        [ComponentType::MonthlyFee, 5.0, ComponentUnit::EurPerMonth, 10.0, PriceRole::Introductory],
+                    ],
+                    endsValue: '6',
+                ),
             ]),
         ), ['General' => 1.11, 'Monthly' => 0.55]);
 
@@ -391,20 +419,31 @@ class ContractDetailPresenterTest extends TestCase
 
         $contract = $this->contract('promo-then-spot', [
             'pricing_model' => 'Spot',
-            'canonical_pricing' => $this->canonicalPricing([
-                $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '1'], [
-                    ['energy_general', 6.99],
-                    ['monthly_fee', 0.0, 'eur_per_month'],
-                ]),
-                $this->phase('continuation', ['kind' => 'after_months', 'value' => '1'], ['kind' => 'none', 'value' => null], [
-                    ['spot_margin', 1.29],
-                    ['monthly_fee', 4.99, 'eur_per_month'],
-                ]),
-            ]),
-            'canonical_calculation' => ['status' => 'estimate_required', 'missing_facts' => [], 'required_assumptions' => []],
-            'canonical_source_consistency' => [
-                'misleading_first_12_months' => 'not_detected', 'structured_pricing_status' => 'complete', 'issue_codes' => [],
-            ],
+            ...$this->canonicalAttributes(
+                phases: [
+                    $this->phase(
+                        PhaseKind::Introductory,
+                        BoundaryKind::ContractStart,
+                        BoundaryKind::AfterMonths,
+                        [
+                            [ComponentType::EnergyGeneral, 6.99],
+                            [ComponentType::MonthlyFee, 0.0, ComponentUnit::EurPerMonth],
+                        ],
+                        endsValue: '1',
+                    ),
+                    $this->phase(
+                        PhaseKind::Continuation,
+                        BoundaryKind::AfterMonths,
+                        BoundaryKind::None,
+                        [
+                            [ComponentType::SpotMargin, 1.29],
+                            [ComponentType::MonthlyFee, 4.99, ComponentUnit::EurPerMonth],
+                        ],
+                        startsValue: '1',
+                    ),
+                ],
+                status: CalculationStatus::EstimateRequired,
+            ),
         ], ['General' => 6.99, 'Monthly' => 0.0]);
 
         $switchDay = now('Europe/Helsinki')->startOfDay()->addMonth();
@@ -462,25 +501,22 @@ class ContractDetailPresenterTest extends TestCase
         }
 
         $contract = $this->contract('reset-contract', [
-            'canonical_pricing' => $this->canonicalPricing(
-                [
-                    $this->phase('recurring_period', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
-                        ['energy_general', 8.0],
-                        ['monthly_fee', 2.53, 'eur_per_month'],
+            ...$this->canonicalAttributes(
+                phases: [
+                    $this->phase(PhaseKind::RecurringPeriod, BoundaryKind::ContractStart, BoundaryKind::None, [
+                        [ComponentType::EnergyGeneral, 8.0],
+                        [ComponentType::MonthlyFee, 2.53, ComponentUnit::EurPerMonth],
                     ]),
                 ],
-                [
-                    'present' => true, 'cadence' => 'quarterly',
-                    'current_period_start' => now('Europe/Helsinki')->startOfQuarter()->format('Y-m-d'),
-                    'current_period_end' => $periodEnd->format('Y-m-d'),
-                    'future_price_known' => false,
-                ],
+                status: CalculationStatus::EstimateRequired,
+                recurringSchedule: CanonicalPricingFixture::recurringSchedule(
+                    cadence: 'quarterly',
+                    currentPeriodStart: now('Europe/Helsinki')->startOfQuarter()->format('Y-m-d'),
+                    currentPeriodEnd: $periodEnd->format('Y-m-d'),
+                    futurePriceKnown: false,
+                ),
+                issueCodes: ['recurring_reset_requires_estimate'],
             ),
-            'canonical_calculation' => ['status' => 'estimate_required', 'missing_facts' => [], 'required_assumptions' => []],
-            'canonical_source_consistency' => [
-                'misleading_first_12_months' => 'not_detected', 'structured_pricing_status' => 'complete',
-                'issue_codes' => ['recurring_reset_requires_estimate'],
-            ],
         ], ['General' => 8.0, 'Monthly' => 2.53]);
 
         Livewire::test('contract-detail', ['contractId' => $contract->id])
@@ -508,21 +544,32 @@ class ContractDetailPresenterTest extends TestCase
         $change = now('Europe/Helsinki')->startOfDay()->addMonths(3);
 
         $contract = $this->contract('rising-contract', [
-            'canonical_pricing' => $this->canonicalPricing([
-                $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'date', 'value' => $change->copy()->subDay()->format('Y-m-d')], [
-                    ['energy_general', 5.49],
-                    ['monthly_fee', 2.99, 'eur_per_month'],
-                ]),
-                $this->phase('normal', ['kind' => 'date', 'value' => $change->format('Y-m-d')], ['kind' => 'none', 'value' => null], [
-                    ['energy_general', 13.65],
-                    ['monthly_fee', 2.99, 'eur_per_month'],
-                ]),
-            ]),
-            'canonical_calculation' => ['status' => 'exact', 'missing_facts' => [], 'required_assumptions' => []],
-            'canonical_source_consistency' => [
-                'misleading_first_12_months' => 'detected', 'structured_pricing_status' => 'complete',
-                'issue_codes' => ['structured_matches_intro_only'],
-            ],
+            ...$this->canonicalAttributes(
+                phases: [
+                    $this->phase(
+                        PhaseKind::Introductory,
+                        BoundaryKind::ContractStart,
+                        BoundaryKind::Date,
+                        [
+                            [ComponentType::EnergyGeneral, 5.49],
+                            [ComponentType::MonthlyFee, 2.99, ComponentUnit::EurPerMonth],
+                        ],
+                        endsValue: $change->copy()->subDay()->format('Y-m-d'),
+                    ),
+                    $this->phase(
+                        PhaseKind::Normal,
+                        BoundaryKind::Date,
+                        BoundaryKind::None,
+                        [
+                            [ComponentType::EnergyGeneral, 13.65],
+                            [ComponentType::MonthlyFee, 2.99, ComponentUnit::EurPerMonth],
+                        ],
+                        startsValue: $change->format('Y-m-d'),
+                    ),
+                ],
+                misleading: MisleadingState::Detected,
+                issueCodes: ['structured_matches_intro_only'],
+            ),
         ], ['General' => 5.49, 'Monthly' => 2.99]);
 
         Livewire::test('contract-detail', ['contractId' => $contract->id])

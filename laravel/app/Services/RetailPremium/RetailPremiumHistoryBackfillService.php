@@ -2,6 +2,8 @@
 
 namespace App\Services\RetailPremium;
 
+use App\Enums\ContractType;
+use App\Enums\PricingModel;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
 use Carbon\CarbonImmutable;
@@ -252,11 +254,11 @@ class RetailPremiumHistoryBackfillService
 
     private function isSupportedHistoricalModel(ElectricityContract $tip): bool
     {
-        if (in_array($tip->pricing_model, ['Spot', 'Hybrid'], true)) {
+        if (in_array($tip->pricingModelType(), [PricingModel::Spot, PricingModel::Hybrid], true)) {
             return true;
         }
 
-        if ($tip->pricing_model !== 'FixedPrice') {
+        if ($tip->pricingModelType() !== PricingModel::FixedPrice) {
             return false;
         }
 
@@ -269,7 +271,7 @@ class RetailPremiumHistoryBackfillService
 
     private function fixedTermDuration(ElectricityContract $tip): ?int
     {
-        if ($tip->contract_type !== 'FixedTerm') {
+        if ($tip->contractTypeValue() !== ContractType::FixedTerm) {
             return null;
         }
 
@@ -286,13 +288,15 @@ class RetailPremiumHistoryBackfillService
 
     private function isCompatibleAncestor(ElectricityContract $tip, ElectricityContract $candidate): bool
     {
+        // Historical carriers must retain exact source equality. In particular,
+        // different unknown classifications cannot become compatible ancestors.
         foreach (['company_name', 'pricing_model', 'contract_type', 'metering', 'target_group'] as $field) {
             if ($tip->{$field} !== $candidate->{$field}) {
                 return false;
             }
         }
 
-        return $tip->contract_type !== 'FixedTerm'
+        return $tip->contractTypeValue() !== ContractType::FixedTerm
             || $tip->fixed_time_range === $candidate->fixed_time_range;
     }
 
@@ -386,7 +390,7 @@ class RetailPremiumHistoryBackfillService
 
     private function roleForRawType(ElectricityContract $tip, string $rawType): ?string
     {
-        if ($tip->pricing_model === 'Spot'
+        if ($tip->pricingModelType() === PricingModel::Spot
             && in_array($rawType, ['Spot', 'General', 'DayTime', 'NightTime', 'SeasonalWinter', 'SeasonalWinterDay', 'SeasonalOther'], true)) {
             return 'spot_margin';
         }
@@ -639,7 +643,7 @@ class RetailPremiumHistoryBackfillService
         $quality = 'inferred';
         $references = collect();
 
-        if ($tip->pricing_model === 'Spot') {
+        if ($tip->pricingModelType() === PricingModel::Spot) {
             $quality = 'exact';
             $references = collect(['spot_disclosed' => [
                 'reference_kind' => 'spot_disclosed',
@@ -648,7 +652,7 @@ class RetailPremiumHistoryBackfillService
                 'price_cents_per_kwh_excluding_vat' => null,
                 'metadata' => ['source' => 'historical_relational_component'],
             ]]);
-        } elseif ($tip->pricing_model === 'Hybrid') {
+        } elseif ($tip->pricingModelType() === PricingModel::Hybrid) {
             $quality = 'not_comparable';
             $references = collect(['hybrid_base' => [
                 'reference_kind' => 'hybrid_base',

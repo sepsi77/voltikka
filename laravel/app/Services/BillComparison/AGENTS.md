@@ -105,8 +105,10 @@ is too seasonal, especially with electric heating.
 - Canonical period Spot cost uses flat consumption over the period's real UTC
   hours and the realized `SpotPriceHour::price_with_tax` for every hour governed
   by a Spot phase. Missing required history returns `no_spot_history`, never zero.
-- Feature-off keeps the legacy detection (`pricing_model === 'Spot'` or a General
-  rate below 0.8 c/kWh) and the first non-Monthly component margin.
+- Feature-off delegates all period pricing to `ContractPriceCalculator::calculatePeriod()`. That
+  calculator keeps the legacy detection (`pricing_model === 'Spot'` or a General rate below
+  0.8 c/kWh), selects the first non-Monthly component as the margin, averages the supplied
+  realized with-VAT prices, and applies discounts to that selected source component.
 - When a Spot contract appears in the top 3, the view shows a caveat with the
   period's realized average spot c/kWh. Annualized Spot savings are always
   labelled "arvio" because future Spot differs from past Spot.
@@ -220,10 +222,12 @@ Period rules:
 - unavailable reasons are stable: `consumption_cap`, `not_comparable`, `no_spot_history`, and
   `no_pricing`.
 
-Canonical mode never calls the latest-component loader, `extractRates()`, `spotPeriodCost()`,
-`seasonalPeriodCost()`, or `ContractPriceCalculator` for a market row. Canonical-only contracts can
-be costed. Missing, excluded, incomplete, or unsafe canonical pricing never falls back to relational
-rates. Feature-off keeps the prior component calculation unchanged.
+Canonical mode never calls the latest-component loader or `ContractPriceCalculator` for a market
+row. Canonical-only contracts can be costed. Missing, excluded, incomplete, or unsafe canonical
+pricing never falls back to relational rates. Feature-off loads normalized relational components
+once, passes realized `SpotPriceHour::price_with_tax` values to
+`ContractPriceCalculator::calculatePeriod()`, and maps its typed availability, measured savings,
+Spot facts, and totals to the row. The legacy annual call uses the bill start as its promotion start.
 
 ## Query guardrails
 

@@ -5,11 +5,11 @@ namespace Tests\Feature;
 use App\Livewire\ContractsList;
 use App\Livewire\SahkosopimusIndex;
 use App\Livewire\SeoContractsList;
-use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
-use App\Models\PriceComponent;
+use App\Services\CanonicalPricing\Enums\CalculationStatus;
 use App\Services\ContractCard\Enums\PricingBucket;
+use Database\Factories\Support\CanonicalPricingFixture;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -27,11 +27,13 @@ class PricingBucketFilterTest extends TestCase
 {
     use RefreshDatabase;
 
+    private Company $company;
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        Company::create([
+        $this->company = Company::create([
             'name' => 'Testi Energia Oy',
             'name_slug' => 'testi-energia-oy',
             'company_url' => 'https://testi.fi',
@@ -39,25 +41,20 @@ class PricingBucketFilterTest extends TestCase
     }
 
     /**
-     * @param  array<string, mixed>  $schedule
-     * @param  array<string, mixed>  $effect
+     * @param  array<string, mixed>|null  $recurringSchedule
+     * @param  array<string, mixed>|null  $consumptionEffect
      * @return array<string, mixed>
      */
-    private function canonicalPricing(array $schedule = [], array $effect = []): array
-    {
-        return [
-            'phases' => [],
-            'recurring_schedule' => array_merge([
-                'present' => false, 'cadence' => 'none', 'current_period_start' => null,
-                'current_period_end' => null, 'future_price_known' => null, 'description' => null, 'evidence' => [],
-            ], $schedule),
-            'consumption_effect' => array_merge([
-                'present' => false, 'applies_to' => 'unknown', 'cadence' => 'none',
-                'expected_cents_per_kwh' => null, 'typical_min_cents_per_kwh' => null,
-                'typical_max_cents_per_kwh' => null, 'hard_min_cents_per_kwh' => null,
-                'hard_max_cents_per_kwh' => null, 'uncapped' => null, 'description' => null, 'evidence' => [],
-            ], $effect),
-        ];
+    private function canonicalAttributes(
+        ?array $recurringSchedule = null,
+        ?array $consumptionEffect = null,
+    ): array {
+        return CanonicalPricingFixture::attributes(
+            phases: [],
+            calculationStatus: CalculationStatus::Exact,
+            recurringSchedule: $recurringSchedule,
+            consumptionEffect: $consumptionEffect,
+        );
     }
 
     /**
@@ -65,39 +62,46 @@ class PricingBucketFilterTest extends TestCase
      */
     private function createContract(string $id, array $attributes = [], float $generalCents = 6.0): ElectricityContract
     {
-        $contract = ElectricityContract::create(array_merge([
-            'id' => $id,
-            'company_name' => 'Testi Energia Oy',
-            'name' => 'Sopimus '.$id,
-            'contract_type' => 'OpenEnded',
-            'pricing_model' => 'FixedPrice',
-            'metering' => 'General',
-            'target_group' => 'Household',
-            'availability_is_national' => true,
-            'canonical_pricing' => $this->canonicalPricing(),
-        ], $attributes));
-
-        PriceComponent::create([
-            'id' => 'pc-gen-'.$id,
-            'electricity_contract_id' => $id,
-            'price_component_type' => 'General',
-            'price_date' => now()->format('Y-m-d'),
-            'price' => $generalCents,
-            'payment_unit' => 'c/kWh',
-        ]);
-
-        PriceComponent::create([
-            'id' => 'pc-mon-'.$id,
-            'electricity_contract_id' => $id,
-            'price_component_type' => 'Monthly',
-            'price_date' => now()->format('Y-m-d'),
-            'price' => 3.0,
-            'payment_unit' => 'EUR/month',
-        ]);
-
-        ActiveContract::create(['id' => $id]);
-
-        return $contract;
+        return ElectricityContract::factory()
+            ->forCompany($this->company)
+            ->active()
+            ->withRelationalPrices([
+                [
+                    'id' => 'pc-gen-'.$id,
+                    'price_component_type' => 'General',
+                    'price_date' => now()->format('Y-m-d'),
+                    'price' => $generalCents,
+                    'payment_unit' => 'c/kWh',
+                ],
+                [
+                    'id' => 'pc-mon-'.$id,
+                    'price_component_type' => 'Monthly',
+                    'price_date' => now()->format('Y-m-d'),
+                    'price' => 3.0,
+                    'payment_unit' => 'EUR/month',
+                ],
+            ])
+            ->create([
+                'id' => $id,
+                'name' => 'Sopimus '.$id,
+                'contract_type' => 'OpenEnded',
+                'pricing_model' => 'FixedPrice',
+                'metering' => 'General',
+                'target_group' => 'Household',
+                'short_description' => null,
+                'pricing_name' => null,
+                'pricing_has_discounts' => null,
+                'consumption_control' => null,
+                'pre_billing' => null,
+                'available_for_existing_users' => null,
+                'delivery_responsibility_product' => null,
+                'order_link' => null,
+                'product_link' => null,
+                'availability_is_national' => true,
+                'microproduction_buys' => null,
+                ...$this->canonicalAttributes(),
+                ...$attributes,
+            ]);
     }
 
     /**
@@ -107,10 +111,28 @@ class PricingBucketFilterTest extends TestCase
     {
         $this->createContract('c-spot', ['pricing_model' => 'Spot']);
         $this->createContract('c-reset', [
-            'canonical_pricing' => $this->canonicalPricing(['present' => true, 'cadence' => 'quarterly']),
+            ...$this->canonicalAttributes(
+                recurringSchedule: CanonicalPricingFixture::recurringSchedule(
+                    cadence: 'quarterly',
+                    currentPeriodStart: null,
+                    currentPeriodEnd: null,
+                    futurePriceKnown: null,
+                ),
+            ),
         ]);
         $this->createContract('c-effect', [
-            'canonical_pricing' => $this->canonicalPricing([], ['present' => true, 'applies_to' => 'base_contract']),
+            ...$this->canonicalAttributes(
+                consumptionEffect: CanonicalPricingFixture::consumptionEffect(
+                    appliesTo: 'base_contract',
+                    cadence: 'none',
+                    expectedCentsPerKwh: null,
+                    typicalMinCentsPerKwh: null,
+                    typicalMaxCentsPerKwh: null,
+                    hardMinCentsPerKwh: null,
+                    hardMaxCentsPerKwh: null,
+                    uncapped: null,
+                ),
+            ),
         ]);
         $this->createContract('c-fixed');
     }
@@ -254,7 +276,14 @@ class PricingBucketFilterTest extends TestCase
         // must not, otherwise the card band would contradict the filter that listed it.
         $this->createContract('c-hybrid-reset', [
             'pricing_model' => 'Hybrid',
-            'canonical_pricing' => $this->canonicalPricing(['present' => true, 'cadence' => 'quarterly']),
+            ...$this->canonicalAttributes(
+                recurringSchedule: CanonicalPricingFixture::recurringSchedule(
+                    cadence: 'quarterly',
+                    currentPeriodStart: null,
+                    currentPeriodEnd: null,
+                    futurePriceKnown: null,
+                ),
+            ),
         ]);
         $this->createContract('c-hybrid-plain', ['pricing_model' => 'Hybrid']);
 
@@ -354,7 +383,14 @@ class PricingBucketFilterTest extends TestCase
     {
         $this->createContract('c-fixed', [], 5.0);
         $this->createContract('c-reset', [
-            'canonical_pricing' => $this->canonicalPricing(['present' => true, 'cadence' => 'quarterly']),
+            ...$this->canonicalAttributes(
+                recurringSchedule: CanonicalPricingFixture::recurringSchedule(
+                    cadence: 'quarterly',
+                    currentPeriodStart: null,
+                    currentPeriodEnd: null,
+                    futurePriceKnown: null,
+                ),
+            ),
         ], 12.0);
 
         $component = Livewire::test(SahkosopimusIndex::class)

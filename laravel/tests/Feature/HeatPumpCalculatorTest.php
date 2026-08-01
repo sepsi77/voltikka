@@ -226,6 +226,29 @@ class HeatPumpCalculatorTest extends TestCase
             ->assertSet('investments.ground_source_hp', 20000.0);
     }
 
+    public function test_numeric_values_below_the_minimum_are_corrected_with_a_visible_notice(): void
+    {
+        $cases = [
+            'roomHeight' => [-1, 2.0],
+            'numPeople' => [-1, 1],
+            'electricityPrice' => [-1, 1.0],
+            'oilPrice' => [-1, 0.5],
+            'districtHeatingPrice' => [-1, 1.0],
+            'pelletPrice' => [-1, 100.0],
+            'interestRate' => [-1, 0.0],
+            'calculationPeriod' => [-1, 5],
+            'investments.ground_source_hp' => [-1, 0.0],
+        ];
+
+        foreach ($cases as $property => [$invalid, $minimum]) {
+            Livewire::test(HeatPumpCalculator::class)
+                ->set($property, $invalid)
+                ->assertSet($property, $minimum)
+                ->assertSet('errorMessage', 'Korjasimme liian pienen arvon kentän sallittuun vähimmäisarvoon.')
+                ->assertSee('Korjasimme liian pienen arvon kentän sallittuun vähimmäisarvoon.');
+        }
+    }
+
     public function test_blank_bill_based_consumption_inputs_remain_validation_errors_not_exceptions(): void
     {
         Livewire::test(HeatPumpCalculator::class)

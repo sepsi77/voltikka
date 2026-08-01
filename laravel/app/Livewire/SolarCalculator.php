@@ -16,33 +16,47 @@ class SolarCalculator extends Component
     // Default-location worked example (Helsinki) shown before any address is entered,
     // so first-time visitors see the payoff shape instead of an empty box.
     private const EXAMPLE_LAT = 60.1699;
+
     private const EXAMPLE_LON = 24.9384;
+
     // Bounds the PVGIS estimate is meaningful within.
     private const MIN_KWP = 0.5;
+
     private const MAX_KWP = 20.0;
+
     private const MAX_PRICE_CENTS = 50.0;
 
     // Address input
     public string $addressQuery = '';
+
     public array $addressSuggestions = [];
+
     public bool $showSuggestions = false;
+
     public ?string $addressNotice = null;
 
     // Validation notices for the optional adjustments.
     public ?string $systemKwpNotice = null;
 
+    public ?string $manualPriceNotice = null;
+
     // Selected address
     public ?string $selectedLabel = null;
+
     public ?float $selectedLat = null;
+
     public ?float $selectedLon = null;
 
     // System settings
     public float|string|null $systemKwp = 5.0;
+
     public string $shadingLevel = 'none';
 
     // Results (stored as array for Livewire serialization)
     public array $calculationResult = [];
+
     public bool $isCalculating = false;
+
     public ?string $errorMessage = null;
 
     // Default-location example shown until the visitor enters their own address.
@@ -50,6 +64,7 @@ class SolarCalculator extends Component
 
     // Savings calculation - only manual price input
     public ?float $manualPrice = null;
+
     public string $selfConsumptionScenario = 'with_battery';
 
     // Shading level labels
@@ -169,6 +184,7 @@ class SolarCalculator extends Component
             $this->addressSuggestions = [];
             $this->showSuggestions = false;
             $this->addressNotice = null;
+
             return;
         }
 
@@ -182,7 +198,7 @@ class SolarCalculator extends Component
             $results = $service->search($this->addressQuery);
 
             $this->addressSuggestions = array_map(
-                fn(GeocodingResult $result) => [
+                fn (GeocodingResult $result) => [
                     'label' => $result->label,
                     'lat' => $result->lat,
                     'lon' => $result->lon,
@@ -194,7 +210,7 @@ class SolarCalculator extends Component
 
             // Tell the user a search ran but matched nothing, rather than silently
             // showing an empty dropdown that looks broken.
-            $this->addressNotice = ($this->selectedLabel === null && !$this->showSuggestions)
+            $this->addressNotice = ($this->selectedLabel === null && ! $this->showSuggestions)
                 ? 'Osoitetta ei löytynyt. Tarkista kirjoitusasu, esim. "Mannerheimintie 1, Helsinki".'
                 : null;
         } catch (\Exception $e) {
@@ -271,9 +287,17 @@ class SolarCalculator extends Component
 
     public function updatedManualPrice(): void
     {
-        if ($this->manualPrice !== null) {
-            $this->manualPrice = max(0.0, min(self::MAX_PRICE_CENTS, (float) $this->manualPrice));
+        if ($this->manualPrice === null) {
+            $this->manualPriceNotice = null;
+
+            return;
         }
+
+        $price = (float) $this->manualPrice;
+        $this->manualPrice = max(0.0, min(self::MAX_PRICE_CENTS, $price));
+        $this->manualPriceNotice = $this->manualPrice !== $price
+            ? 'Sähkön hinnan pitää olla välillä 0–50 c/kWh. Käytämme lähintä sallittua arvoa.'
+            : null;
     }
 
     public function updatedShadingLevel(): void
@@ -289,6 +313,7 @@ class SolarCalculator extends Component
     {
         if ($this->selectedLat === null || $this->selectedLon === null) {
             $this->errorMessage = 'Valitse ensin osoite.';
+
             return;
         }
 
@@ -328,7 +353,7 @@ class SolarCalculator extends Component
     #[Computed]
     public function hasResults(): bool
     {
-        return !empty($this->calculationResult) && isset($this->calculationResult['annual_kwh']);
+        return ! empty($this->calculationResult) && isset($this->calculationResult['annual_kwh']);
     }
 
     #[Computed]
@@ -347,7 +372,14 @@ class SolarCalculator extends Component
     public function maxMonthlyKwh(): float
     {
         $monthly = $this->monthlyKwh;
+
         return count($monthly) > 0 ? max($monthly) : 0;
+    }
+
+    #[Computed]
+    public function effectiveSystemKwp(): float
+    {
+        return $this->normalizedSystemKwp();
     }
 
     #[Computed]
@@ -371,7 +403,7 @@ class SolarCalculator extends Component
     #[Computed]
     public function annualSavings(): float
     {
-        if (!$this->hasResults || $this->effectivePrice === null) {
+        if (! $this->hasResults || $this->effectivePrice === null) {
             return 0;
         }
 
@@ -388,7 +420,7 @@ class SolarCalculator extends Component
     #[Computed]
     public function hasExample(): bool
     {
-        return !empty($this->exampleResult) && isset($this->exampleResult['annual_kwh']);
+        return ! empty($this->exampleResult) && isset($this->exampleResult['annual_kwh']);
     }
 
     #[Computed]
@@ -406,7 +438,7 @@ class SolarCalculator extends Component
     #[Computed]
     public function exampleAnnualSavings(): float
     {
-        if (!$this->hasExample || $this->effectivePrice === null) {
+        if (! $this->hasExample || $this->effectivePrice === null) {
             return 0;
         }
 

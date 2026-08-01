@@ -8,6 +8,8 @@ use App\Http\Resources\ContractResource;
 use App\Models\ElectricityContract;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\ContractPriceCalculator;
+use App\Services\ContractPricing\CanonicalContractMetric;
+use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\DTO\EnergyUsage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -103,8 +105,15 @@ class ContractController extends Controller
 
         // Sort by calculated cost if requested
         if ($request->input('sort') === 'cost' && $shouldCalculateCosts) {
-            $sortedCollection = $contracts->getCollection()->sortBy(function ($contract) {
-                return $contract->calculated_cost['total_cost'] ?? PHP_FLOAT_MAX;
+            $sortedCollection = $contracts->getCollection()->sort(function (ElectricityContract $left, ElectricityContract $right): int {
+                $leftTotal = ContractPricingViewData::fromArray($left->calculated_cost)->total();
+                $rightTotal = ContractPricingViewData::fromArray($right->calculated_cost)->total();
+
+                if ($leftTotal === null || $rightTotal === null) {
+                    return $leftTotal === $rightTotal ? 0 : ($leftTotal === null ? 1 : -1);
+                }
+
+                return $leftTotal <=> $rightTotal;
             })->values();
             $contracts->setCollection($sortedCollection);
         }
@@ -159,19 +168,17 @@ class ContractController extends Controller
         $metrics = $this->canonicalPricing->metricsForContracts($contracts, $usage);
 
         $contracts->each(function (ElectricityContract $contract) use ($metrics, $includeCalculatedCost) {
-            $metric = $metrics[$contract->id];
-            $calculatedCost = $metric['calculated_cost'];
+            $metric = $metrics[$contract->id] ?? null;
+            if (! $metric instanceof CanonicalContractMetric) {
+                throw new \InvalidArgumentException('Canonical metrics are missing contract '.$contract->id.'.');
+            }
+            $pricing = $metric->pricing();
 
-            $contract->current_pricing = $this->canonicalCurrentPricing(
-                $calculatedCost,
-                $metric['comparability'],
-                $metric['is_listed'],
-                $metric['integrity'],
-            );
-            $contract->canonical_pricing_has_discounts = (bool) $calculatedCost['includes_discounts'];
+            $contract->current_pricing = $this->canonicalCurrentPricing($metric);
+            $contract->canonical_pricing_has_discounts = $pricing->includesDiscounts();
 
             if ($includeCalculatedCost) {
-                $contract->calculated_cost = $calculatedCost;
+                $contract->calculated_cost = $pricing->toArray();
             }
         });
     }
@@ -179,40 +186,41 @@ class ContractController extends Controller
     /**
      * Keep canonical current rates explicit instead of synthesizing relational component rows.
      *
-     * @param  array<string, mixed>  $calculatedCost
-     * @param  array<string, mixed>  $integrity
      * @return array<string, mixed>
      */
-    private function canonicalCurrentPricing(array $calculatedCost, string $comparability, bool $isListed, array $integrity): array
+    private function canonicalCurrentPricing(CanonicalContractMetric $metric): array
     {
-        $isAvailable = $isListed && $calculatedCost['total_cost'] !== null;
+        $pricing = $metric->pricing();
+        $integrity = $metric->integrity();
+        $isAvailable = $metric->isListed() && $pricing->total() !== null;
+        $comparability = $metric->comparability()->value;
 
         return [
             'pricing_basis' => 'canonical',
             'availability' => $isAvailable ? 'available' : 'unavailable',
-            'is_listed' => $isListed,
+            'is_listed' => $metric->isListed(),
             'comparability' => $comparability,
-            'exclusion_reason' => $isListed ? null : $comparability,
-            'is_estimate' => (bool) $calculatedCost['is_estimate'],
-            'estimate_method' => $calculatedCost['estimate_method'],
-            'includes_discounts' => $isAvailable && (bool) $calculatedCost['includes_discounts'],
-            'monthly_fixed_fee' => $isAvailable ? $calculatedCost['monthly_fixed_fee'] : null,
-            'spot_price_margin' => $isAvailable ? $calculatedCost['spot_price_margin'] : null,
-            'general_kwh_price' => $isAvailable ? $calculatedCost['general_kwh_price'] : null,
-            'nighttime_kwh_price' => $isAvailable ? $calculatedCost['nighttime_kwh_price'] : null,
-            'daytime_kwh_price' => $isAvailable ? $calculatedCost['daytime_kwh_price'] : null,
-            'seasonal_winter_day_kwh_price' => $isAvailable ? $calculatedCost['seasonal_winter_day_kwh_price'] : null,
-            'seasonal_other_kwh_price' => $isAvailable ? $calculatedCost['seasonal_other_kwh_price'] : null,
-            'term_months' => $isAvailable ? $calculatedCost['term_months'] : null,
-            'energy_package' => $isAvailable ? $calculatedCost['energy_package'] : null,
-            'phase_breakdown' => $isAvailable ? $calculatedCost['phase_breakdown'] : [],
-            'consumption_effect' => $isAvailable ? $calculatedCost['consumption_effect'] : null,
-            'assumptions' => $isAvailable ? $calculatedCost['assumptions'] : [],
-            'reset_estimate' => $isAvailable ? $calculatedCost['reset_estimate'] : null,
-            'integrity' => $isAvailable ? $integrity : [
-                'detected' => (bool) ($integrity['detected'] ?? false),
-                'reason_family' => $integrity['reason_family'] ?? 'none',
-                'issue_codes' => $integrity['issue_codes'] ?? [],
+            'exclusion_reason' => $metric->isListed() ? null : $comparability,
+            'is_estimate' => $pricing->isEstimate(),
+            'estimate_method' => $pricing->estimateMethod()?->value,
+            'includes_discounts' => $isAvailable && $pricing->includesDiscounts(),
+            'monthly_fixed_fee' => $isAvailable ? $pricing->monthlyFixedFee() : null,
+            'spot_price_margin' => $isAvailable ? $pricing->spotPriceMargin() : null,
+            'general_kwh_price' => $isAvailable ? $pricing->generalKwhPrice() : null,
+            'nighttime_kwh_price' => $isAvailable ? $pricing->nighttimeKwhPrice() : null,
+            'daytime_kwh_price' => $isAvailable ? $pricing->daytimeKwhPrice() : null,
+            'seasonal_winter_day_kwh_price' => $isAvailable ? $pricing->seasonalWinterDayKwhPrice() : null,
+            'seasonal_other_kwh_price' => $isAvailable ? $pricing->seasonalOtherKwhPrice() : null,
+            'term_months' => $isAvailable ? $pricing->termMonths() : null,
+            'energy_package' => $isAvailable ? $pricing->energyPackage()?->toArray() : null,
+            'phase_breakdown' => $isAvailable ? array_map(fn ($phase) => $phase->toArray(), $pricing->phases()) : [],
+            'consumption_effect' => $isAvailable ? $pricing->consumptionEffect()?->toArray() : null,
+            'assumptions' => $isAvailable ? $pricing->assumptions() : [],
+            'reset_estimate' => $isAvailable ? $pricing->resetEstimate()?->toArray() : null,
+            'integrity' => $isAvailable ? $integrity->toArray() : [
+                'detected' => $integrity->detected,
+                'reason_family' => $integrity->reasonFamily->value,
+                'issue_codes' => $integrity->issueCodes,
             ],
         ];
     }
@@ -233,6 +241,6 @@ class ContractController extends Controller
 
         $result = $this->priceCalculator->calculate($priceComponents, $contractData, $usage);
 
-        return $result->toArray();
+        return ContractPricingViewData::fromLegacyResult($result)->toArray();
     }
 }

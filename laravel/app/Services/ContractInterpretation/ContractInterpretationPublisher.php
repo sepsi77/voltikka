@@ -2,6 +2,9 @@
 
 namespace App\Services\ContractInterpretation;
 
+use App\Enums\ContractType;
+use App\Enums\MeteringType;
+use App\Enums\PricingModel;
 use App\Models\ActiveContract;
 use App\Models\ContractInterpretation;
 use App\Models\ContractSourceObservation;
@@ -113,24 +116,24 @@ class ContractInterpretationPublisher
         $confidence = $output['confidence']['classification'] ?? 'low';
         $updates = [];
 
-        $pricingModel = $classification['primary_pricing_model'] ?? 'Unknown';
+        $pricingModel = $classification['primary_pricing_model'] ?? PricingModel::Unknown->value;
         if ($this->canPublishClassification(
             $pricingModel,
-            $consistency['recommended_pricing_model'] ?? 'Unknown',
+            $consistency['recommended_pricing_model'] ?? PricingModel::Unknown->value,
             $consistency['pricing_model_status'] ?? 'uncertain',
             $confidence,
-            ['Spot', 'FixedPrice', 'Hybrid'],
+            PricingModel::publishableValues(),
         )) {
             $updates['pricing_model'] = $pricingModel;
         }
 
-        $termType = $classification['term_type'] ?? 'Unknown';
+        $termType = $classification['term_type'] ?? ContractType::Unknown->value;
         if ($this->canPublishClassification(
             $termType,
-            $consistency['recommended_contract_type'] ?? 'Unknown',
+            $consistency['recommended_contract_type'] ?? ContractType::Unknown->value,
             $consistency['contract_type_status'] ?? 'uncertain',
             $confidence,
-            ['OpenEnded', 'FixedTerm'],
+            ContractType::publishableValues(),
         )) {
             $updates['contract_type'] = $termType;
         }
@@ -141,16 +144,16 @@ class ContractInterpretationPublisher
             $consistency['recommended_metering'] ?? 'Unknown',
             $consistency['metering_status'] ?? 'uncertain',
             $confidence,
-            ['General', 'Time', 'Season'],
+            array_map(fn (MeteringType $type): string => $type->value, MeteringType::cases()),
         )) {
             $updates['metering'] = $metering;
         }
 
         $duration = $classification['fixed_duration_months'] ?? null;
         if (isset($updates['contract_type'])) {
-            if ($termType === 'FixedTerm' && is_int($duration)) {
+            if ($termType === ContractType::FixedTerm->value && is_int($duration)) {
                 $updates['fixed_time_range'] = $this->fixedTimeRange($duration);
-            } elseif ($termType === 'OpenEnded') {
+            } elseif ($termType === ContractType::OpenEnded->value) {
                 $updates['fixed_time_range'] = null;
             }
         }
@@ -283,11 +286,11 @@ class ContractInterpretationPublisher
         $consistency = $output['source_consistency'] ?? [];
 
         return $this->canPublishClassification(
-            $output['classification']['primary_pricing_model'] ?? 'Unknown',
-            $consistency['recommended_pricing_model'] ?? 'Unknown',
+            $output['classification']['primary_pricing_model'] ?? PricingModel::Unknown->value,
+            $consistency['recommended_pricing_model'] ?? PricingModel::Unknown->value,
             $consistency['pricing_model_status'] ?? 'uncertain',
             $output['confidence']['classification'] ?? 'low',
-            ['Spot', 'FixedPrice', 'Hybrid'],
+            PricingModel::publishableValues(),
         );
     }
 

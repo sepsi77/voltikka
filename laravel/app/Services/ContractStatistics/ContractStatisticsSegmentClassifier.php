@@ -2,6 +2,8 @@
 
 namespace App\Services\ContractStatistics;
 
+use App\Enums\ContractType;
+use App\Enums\PricingModel;
 use App\Models\ElectricityContract;
 use App\Services\ContractCard\Enums\PricingBucket;
 use App\Services\ContractCard\PricingCategoryResolver;
@@ -44,11 +46,11 @@ class ContractStatisticsSegmentClassifier
 
     private function observedSegment(ElectricityContract $contract): string
     {
-        if ($contract->pricing_model === 'Spot') {
+        if ($contract->pricingModelType() === PricingModel::Spot) {
             return 'spot';
         }
 
-        if ($contract->pricing_model === 'Hybrid') {
+        if ($contract->pricingModelType() === PricingModel::Hybrid) {
             return 'hybrid';
         }
 
@@ -66,7 +68,7 @@ class ContractStatisticsSegmentClassifier
 
     private function structuralSegment(ElectricityContract $contract): string
     {
-        if ($contract->contract_type === 'FixedTerm') {
+        if ($contract->contractTypeValue() === ContractType::FixedTerm) {
             return 'fixed_term_'.match ($contract->fixed_time_range) {
                 'Below6' => 'below6',
                 'Fixed6' => '6',
@@ -79,7 +81,7 @@ class ContractStatisticsSegmentClassifier
             };
         }
 
-        if ($contract->contract_type === 'OpenEnded') {
+        if ($contract->contractTypeValue() === ContractType::OpenEnded) {
             return 'open_ended';
         }
 

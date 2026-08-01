@@ -34,6 +34,17 @@ The grouping unit should be a cohesive feature/domain, not an individual class u
 
 ## Current service subtrees
 
+### Development database sync
+Directory:
+- `DevelopmentDatabase/`
+
+Purpose:
+- copy production MySQL application data into a fresh local SQLite target through a read-only consistent transaction
+- validate the temporary database before the shell wrapper backs up and replaces the active local file
+
+Read first:
+- `DevelopmentDatabase/AGENTS.md`
+
 ### Contract listings
 Directory:
 - `ContractListing/`
@@ -50,6 +61,11 @@ Files currently living directly under this directory:
 - `LocalContractsService.php`
 - `CalculatedCostPayloadSchema.php` — one schema version for every cache that depends on `calculated_cost`
 
+Consumer read-model directory:
+- `ContractPricing/`
+
+Read `ContractPricing/AGENTS.md` before changing pricing producers or presentation consumers. `CanonicalContractPricingService::metricsForContracts()` returns typed `CanonicalContractMetric` objects. `ContractListCacheService` keeps arrays in Laravel cache, then returns one strict `ContractMetricSet` per consumption. Existing Eloquent, cache, and HTTP boundaries serialize `pricing()->toArray()` intentionally to keep public calculated-cost shapes unchanged.
+
 Mode boundary:
 - `CanonicalPricing/PricingMode.php` is the immutable request/command snapshot for canonical state, reset-shift state, expected statistics basis, and cache mode marker
 - normal services receive it through the container; tests that change pricing config in one process must start a new scoped boundary
@@ -59,12 +75,32 @@ Important pricing guardrails:
 - calculation inputs should preserve component discount metadata (`has_discount`, value/type/months/kWh/until-date, `payment_unit`)
 - use `ElectricityContract::getLatestPriceComponentsForCalculation()` for single-contract calculations and `ElectricityContract::getLatestPriceComponentsForCalculationByContractIds()` for listing/cache batches instead of rebuilding calculator arrays ad hoc
 - do not eagerly load full `priceComponents` history for contract-list/cache calculations; the active dataset has tens of thousands of historical price rows and can exceed PHP's 128M request memory limit
-- `ContractListCacheService` memoizes its version and per-consumption metrics per service instance to avoid repeated database-cache reads during one request; clear per-consumption memo entries inside cache-warming loops so workers do not retain every preset payload at once
+- `ContractListCacheService` memoizes its version and one hydrated `ContractMetricSet` per consumption per service instance to avoid repeated database-cache reads and hydration during one request; clear per-consumption memo entries inside cache-warming loops so workers do not retain every preset payload at once
 - `CompanyListCacheService` consumes those list metrics. In canonical mode it accepts only listed canonical outcomes with a finite total for company membership, counts, averages, displayed prices, and price rankings; canonical-only contracts work and excluded/missing outcomes do not become zero or sentinels. Its separate 48-hour cache key has its own outer payload schema, the shared calculated-cost schema and contract-list data version, and one `PricingMode` marker. The service memoizes reads per instance. The shared version makes interpretation publication invalidate company output without waiting 48 hours. Feature-off keeps the legacy relational metrics.
 - city/local contract sections do not load `priceComponents` in canonical mode. Feature-off must still avoid full history and attach only the latest normalized components needed by contract cards
 - city/local company-distance logic must bulk-load company postcodes; do not call `Postcode::find()` per company because crawler hits to city SEO pages otherwise trigger Sentry N+1 reports
 - first-year promo-aware pricing should return both discounted totals and base totals/savings so UI can explain the effect of the offer
+- `ContractPriceCalculator::calculatePeriod()` is the one feature-off exact-period pricing path. It returns a typed result with availability, actual/base totals, measured savings, Spot facts, and display rates; bill comparison must not duplicate raw component arithmetic
+- annual and exact-period pricing share component/rate resolution, Spot margin selection, discount amount rules, and inclusive `UntilDate` semantics. Normalized `c/kWh` / `EUR/month` and upstream enum-like units are valid discount units
 - do not assume `monthly_costs` represent calendar Jan-Dec once promo timing matters; they are the calculator's 12-month estimate timeline
+
+### Contract classification boundaries
+
+- SQL queries and public/request boundaries stay scalar. Use a supported enum case's `->value` for built-in query rules, but preserve caller-provided filter strings at the request/query boundary.
+- In-memory domain decisions use the tolerant typed accessors on `ElectricityContract`. Unsupported source values become `Unknown` (or `null` for `MeteringType`) and must not gain Spot, Hybrid, or household eligibility.
+- Replacement and lineage-ancestor compatibility must compare exact raw classification attributes before typed decisions. Two different unknown raw values must not match because both parse as unknown.
+
+### Company logos
+Files:
+- `CompanyLogoService.php`
+- `../Models/Company.php`
+- `../../resources/views/components/company-logo.blade.php`
+
+Important guardrails:
+- `Company::getLocalLogoPath()` prefers an existing optimized WebP beside the recorded local image; `getLocalLogoUrl()` is the locally controlled URL used by public structured data
+- public browser surfaces and Product, ItemList, and Organization JSON-LD use only `getLocalLogoUrl()`; external-only companies render initials and do not trigger remote image requests
+- `getLogoUrl()` retains the seller's external URL only for non-browser API/video consumers; do not add request-time external HTTP health checks
+- `CompanyLogoService::getLocalPath()` checks the recorded local path first, then the company-slug filename variants with WebP first
 
 ### Solar estimates
 Files currently living directly under this directory:
@@ -84,7 +120,7 @@ Important pricing guardrails:
 - in canonical mode, query the broad active household set and evaluate the three consumption levels with one batch call per level; do not prefilter or load `price_components`
 - canonical membership requires a positive `CanonicalOfferFacts` benefit and no package at 5,000 kWh, plus a listed outcome and no detected integrity state at every requested consumption level
 - canonical order is measured customer benefit at 5,000 kWh descending, then canonical comparison total ascending, then contract ID; keep at most one contract per company after sorting
-- canonical records and prompt text use typed totals, normal totals, rates, comparability, estimate state, and benefit basis only; a short fixed term uses its real `contract_term` benefit while its annualized total is labelled as a comparison value
+- canonical records and prompt text consume `CanonicalContractMetric`, `ContractPricingViewData`, validated `PricingFact` records, and typed integrity; a short fixed term uses its real `contract_term` benefit while its annualized total is labelled as a comparison value
 - the public `/api/video/weekly-offers` payload carries `pricing_basis`; canonical offers use `consumptions`, while the explicit feature-off branch keeps the old `discount` / `costs` / `savings` shape
 - legacy mode still reads `price_components.price` as API `OriginalPayment.Price`; use the discounted component's unit/type and do not assume an absolute discount is always `c/kWh`
 
@@ -157,6 +193,17 @@ Purpose:
 Read first:
 - `ContractCard/AGENTS.md`
 - `../../../tasks/contract-card-redesign/spec.md`
+
+### Contract detail SEO presentation
+Directory:
+- `ContractDetail/`
+
+Purpose:
+- present ContractDetail metadata and WebPage, Product, BreadcrumbList, and FAQPage JSON-LD from an immutable set of already-derived page facts
+- keep ranking, calculations, queries, visible FAQ generation, and interactive state outside the presenter
+
+Read first:
+- `ContractDetail/AGENTS.md`
 
 ### Contract price development ("Näin hinta on kehittynyt")
 Directory:
@@ -240,6 +287,17 @@ Important semantics:
 - the header badge should prefer current 15-minute `spot_prices_quarter` data, but must fall back to the current hourly `spot_prices_hour` row when quarter data is absent; otherwise the menu indicator can stay in its inactive placeholder state even though hourly spot data exists
 - availability is based on whether a current row exists, never numeric truthiness; exactly zero and negative prices are valid active header values
 - the layout fetches the Blade fragment through one shared desktop/mobile JavaScript coordinator, retries failures, and refreshes every 60 seconds; do not add `wire:poll` to the fragment injected through `innerHTML`
+
+### Official Spot price import
+Directory:
+- `SpotPriceImport/`
+
+Purpose:
+- normalize and persist official hourly and quarter-hour ENTSO-E prices
+- provide exact hourly coverage checks for backfills
+
+Read first:
+- `SpotPriceImport/AGENTS.md`
 
 ### Daily spot social publication
 Directory:

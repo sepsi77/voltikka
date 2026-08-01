@@ -239,6 +239,26 @@ class ConsumptionCalculatorTest extends TestCase
             ->assertSet('electricVehicleKmsPerMonth', 0);
     }
 
+    public function test_corrected_negative_values_show_field_specific_notices(): void
+    {
+        $cases = [
+            'livingArea' => [-5, 20, 'Asuinpinta-ala ei voi olla alle 20 m². Käytämme arvoa 20 m².'],
+            'numPeople' => [-2, 1, 'Asukkaiden määrä ei voi olla alle 1. Käytämme arvoa 1.'],
+            'bathroomHeatingArea' => [-5, 0, 'Lattialämmityksen pinta-ala ei voi olla negatiivinen. Käytämme arvoa 0 m².'],
+            'saunaUsagePerWeek' => [-2, 0, 'Saunan käyttökerrat eivät voi olla negatiivisia. Käytämme arvoa 0.'],
+            'electricVehicleKmsPerMonth' => [-100, 0, 'Sähköauton ajokilometrit eivät voi olla negatiivisia. Käytämme arvoa 0 km/kk.'],
+        ];
+
+        foreach ($cases as $property => [$invalid, $minimum, $notice]) {
+            $component = Livewire::test('consumption-calculator')
+                ->set($property, $invalid)
+                ->assertSet($property, $minimum)
+                ->assertSee($notice);
+
+            $this->assertSame($notice, $component->get('numericNotices')[$property] ?? null);
+        }
+    }
+
     public function test_blank_or_invalid_select_values_fall_back_to_safe_defaults(): void
     {
         $component = Livewire::test('consumption-calculator')

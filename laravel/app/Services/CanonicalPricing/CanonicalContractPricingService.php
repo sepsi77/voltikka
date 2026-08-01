@@ -14,6 +14,7 @@ use App\Services\CanonicalPricing\Enums\ContractComparability;
 use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\CanonicalPricing\Enums\PeriodPricingUnavailableReason;
 use App\Services\CanonicalPricing\Exceptions\CanonicalPricingParseException;
+use App\Services\ContractPricing\CanonicalContractMetric;
 use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -60,10 +61,10 @@ class CanonicalContractPricingService
     }
 
     /**
-     * Array-only metrics for cache building and listings.
+     * Typed metrics for cache building and presentation consumers.
      *
      * @param  Collection<int, ElectricityContract>  $contracts
-     * @return array<string, array{calculated_cost: array<string, mixed>, comparability: string, is_listed: bool, sort_key: float|null, integrity: array<string, mixed>}>
+     * @return array<string, CanonicalContractMetric>
      */
     public function metricsForContracts(Collection $contracts, EnergyUsage $usage, ?CarbonInterface $startDate = null): array
     {
@@ -72,15 +73,10 @@ class CanonicalContractPricingService
 
         foreach ($contracts as $contract) {
             $evaluation = $this->evaluate($contract, $usage, $spot, $startDate);
-            $outcome = $evaluation['outcome'];
-
-            $metrics[$contract->id] = [
-                'calculated_cost' => $outcome->toCalculatedCostArray(),
-                'comparability' => $outcome->comparability->value,
-                'is_listed' => $outcome->isListed(),
-                'sort_key' => $outcome->isListed() ? $outcome->totalCost : null,
-                'integrity' => $evaluation['integrity']->toArray(),
-            ];
+            $metrics[$contract->id] = CanonicalContractMetric::fromEvaluation(
+                $evaluation['outcome'],
+                $evaluation['integrity'],
+            );
         }
 
         return $metrics;

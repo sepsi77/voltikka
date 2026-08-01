@@ -8,6 +8,7 @@ use App\Services\CO2EmissionsCalculator;
 use App\Services\CompanyListCacheService;
 use App\Services\ContractListCacheService;
 use App\Services\ContractPriceCalculator;
+use App\Services\ContractPricing\ContractMetricSet;
 use App\Services\ContractRankingService;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
@@ -19,6 +20,7 @@ class ContractRequestMemoizationTest extends TestCase
         $metrics = [
             'contracts' => [],
             'sorted_ids' => [],
+            'excluded_ids' => [],
             'consumption' => 5000,
         ];
 
@@ -44,8 +46,12 @@ class ContractRequestMemoizationTest extends TestCase
             new PricingMode(canonicalPricingEnabled: false, resetForwardShiftEnabled: false),
         );
 
-        $this->assertSame($metrics, $service->getCachedMetrics(5000));
-        $this->assertSame($metrics, $service->getCachedMetrics(5000));
+        $first = $service->getCachedMetrics(5000);
+        $second = $service->getCachedMetrics(5000);
+
+        $this->assertInstanceOf(ContractMetricSet::class, $first);
+        $this->assertSame($metrics, $first->toArray());
+        $this->assertSame($first, $second);
     }
 
     public function test_company_list_cache_reads_are_memoized_per_service_instance(): void

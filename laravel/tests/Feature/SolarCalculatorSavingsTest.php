@@ -105,6 +105,15 @@ class SolarCalculatorSavingsTest extends TestCase
             ->assertSet('manualPrice', 12.5);
     }
 
+    public function test_negative_manual_price_is_corrected_with_a_visible_notice(): void
+    {
+        Livewire::test(SolarCalculator::class)
+            ->set('manualPrice', -5)
+            ->assertSet('manualPrice', 0.0)
+            ->assertSet('manualPriceNotice', 'Sähkön hinnan pitää olla välillä 0–50 c/kWh. Käytämme lähintä sallittua arvoa.')
+            ->assertSee('Sähkön hinnan pitää olla välillä 0–50 c/kWh. Käytämme lähintä sallittua arvoa.');
+    }
+
     public function test_effective_price_returns_manual_price(): void
     {
         $component = Livewire::test(SolarCalculator::class)

@@ -2,6 +2,31 @@
 
 Database/migration notes for Voltikka.
 
+## Electricity contract consumption ranges
+
+- `consumption_limitation_min_x_kwh_per_y` and `consumption_limitation_max_x_kwh_per_y` are nullable, but each stored value must be non-negative and a present minimum must not exceed a present maximum.
+- Migration `2026_07_31_000001` fails before DDL if an existing row violates these rules. It does not clean or infer data.
+- MySQL uses one named CHECK constraint. SQLite uses named BEFORE INSERT and BEFORE UPDATE triggers without rebuilding `electricity_contracts`. Other database drivers fail clearly.
+
+## Contract test factories
+
+- `ElectricityContract::factory()` requires an existing company through `forCompany()`; it never creates a company implicitly.
+- The default contract is inactive, household, fixed-price, canonical-only, and has no consumption limits. Use named states for activation, other pricing classifications, legacy canonical nulls, limits, and relational price rows.
+- `factories/Support/CanonicalPricingFixture.php` contains only parser-valid canonical scenarios and strict public builders for complete canonical attributes, boundaries, components, phases, schedules, consumption effects, and monthly packages. Builders use canonical enums where the domain has them and do not deep-merge overrides. Keep malformed payloads local to the test that needs them.
+- `withRelationalPrices()` takes explicit component facts and creates deterministic `PriceComponent` rows after the contract exists. Do not make relational rows a default side effect. `withConsumptionLimits()` rejects negative bounds and inverted ranges.
+
+## Local production-data snapshot
+
+`database.sqlite` is ignored local development data. Refresh it from production only through the repository wrapper:
+
+```bash
+scripts/sync-production-database.sh
+```
+
+Run this command from the repository root. Stop all local Laravel, queue, SQLite, and database-tool processes first. The wrapper builds and migrates a separate `.production-sync-*` SQLite file, reads production MySQL in one read-only consistent transaction, validates row counts, foreign keys, and integrity, creates a timestamped SQLite backup in `/tmp`, removes stale sidecars, and atomically replaces the local file. A failure before replacement leaves the active local database unchanged.
+
+Authentication and operational runtime tables remain empty. If production temporarily lacks the local-derived `contract_source_observations` table, the fresh target reconstructs observations and current pointers with migration `2026_07_30_000002`; all other application-table drift fails closed. Detailed implementation rules are in `../app/Services/DevelopmentDatabase/AGENTS.md` and `../../scripts/AGENTS.md`. Never run the internal Artisan adapter directly against `database.sqlite`, print Railway database variables, or change this workflow into a production write.
+
 ## `spot_social_publications`
 
 Stores one durable daily Spot social publication identity per Helsinki `content_date`.
