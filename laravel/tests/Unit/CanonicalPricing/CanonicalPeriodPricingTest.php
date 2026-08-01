@@ -69,6 +69,7 @@ class CanonicalPeriodPricingTest extends TestCase
         ], 'General', '2026-05-01', '2026-05-01', 240, 'Spot', $this->spotHistory('2026-05-01', '2026-05-01', 5));
         $this->assertEqualsWithDelta(14.4, $spot->periodTotal, 0.0001);
         $this->assertSame([1.0], $spot->spotMargins);
+        $this->assertNotContains('missing_spot_hours_filled_with_observed_average', $spot->assumptions);
 
         $changingMargin = $this->evaluate([
             $this->phase('contract_start', null, 'date', '2026-05-01', [$this->component('spot_margin', 1)]),
@@ -118,6 +119,51 @@ class CanonicalPeriodPricingTest extends TestCase
         $this->assertTrue($outcome->isAvailable());
         $this->assertEqualsWithDelta(48.0, $outcome->periodTotal, 0.0001);
         $this->assertContains('held_current_price_forward', $outcome->assumptions);
+    }
+
+    public function test_one_missing_spot_hour_uses_the_same_helsinki_day_average(): void
+    {
+        $history = array_merge(
+            $this->spotHistory('2026-05-01', '2026-05-01', 5),
+            $this->spotHistory('2026-05-02', '2026-05-02', 10),
+        );
+        array_splice($history, 12, 1);
+
+        $outcome = $this->evaluate([
+            $this->phase('contract_start', null, 'none', null, [$this->component('spot_margin', 1)]),
+        ], 'General', '2026-05-01', '2026-05-02', 480, 'Spot', $history);
+
+        $this->assertTrue($outcome->isAvailable());
+        $this->assertEqualsWithDelta(40.8, $outcome->periodTotal, 0.0001);
+        $this->assertContains('actual_hourly_spot_prices', $outcome->assumptions);
+        $this->assertContains('missing_spot_hours_filled_with_observed_average', $outcome->assumptions);
+    }
+
+    public function test_whole_missing_helsinki_day_uses_the_observed_period_average(): void
+    {
+        $outcome = $this->evaluate([
+            $this->phase('contract_start', null, 'none', null, [$this->component('spot_margin', 1)]),
+        ], 'General', '2026-05-01', '2026-05-02', 480, 'Spot', $this->spotHistory('2026-05-01', '2026-05-01', 5));
+
+        $this->assertTrue($outcome->isAvailable());
+        $this->assertEqualsWithDelta(28.8, $outcome->periodTotal, 0.0001);
+        $this->assertContains('missing_spot_hours_filled_with_observed_average', $outcome->assumptions);
+    }
+
+    public function test_completed_spot_map_is_used_by_the_normal_price_pass(): void
+    {
+        $history = $this->spotHistory('2026-05-01', '2026-05-02', 5);
+        array_splice($history, 12, 1);
+
+        $outcome = $this->evaluate([
+            $this->phase('contract_start', null, 'date', '2026-05-01', [$this->component('energy_general', 10)]),
+            $this->phase('date', '2026-05-02', 'none', null, [$this->component('spot_margin', 1)]),
+        ], 'General', '2026-05-01', '2026-05-02', 480, 'Spot', $history);
+
+        $this->assertTrue($outcome->isAvailable());
+        $this->assertEqualsWithDelta(38.4, $outcome->periodTotal, 0.0001);
+        $this->assertEqualsWithDelta(28.8, $outcome->normalPeriodTotal, 0.0001);
+        $this->assertContains('missing_spot_hours_filled_with_observed_average', $outcome->assumptions);
     }
 
     public function test_missing_spot_history_has_a_stable_unavailable_reason(): void

@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Make consumption-effect receipt lines null-safe",
+    "status": "completed"
+  },
+  {
+    "name": "Add presenter and detail-page regression coverage",
+    "status": "completed"
+  },
+  {
+    "name": "Update documentation and run regressions",
+    "status": "completed"
+  }
+]

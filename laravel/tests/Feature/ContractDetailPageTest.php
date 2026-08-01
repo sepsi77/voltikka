@@ -758,6 +758,28 @@ class ContractDetailPageTest extends TestCase
             ->assertSee('Viimeinen havainto myynnissä ei ole tiedossa.');
     }
 
+    public function test_inactive_hybrid_without_canonical_pricing_renders_historical_noindex_page(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
+
+        ActiveContract::query()->whereKey($this->contract->id)->delete();
+        $this->contract->update([
+            'pricing_model' => 'Hybrid',
+            'canonical_pricing' => null,
+            'canonical_source_consistency' => null,
+            'canonical_calculation' => null,
+        ]);
+
+        $this->get(route('contract.detail', ['contractId' => $this->contract->id]))
+            ->assertOk()
+            ->assertSeeLivewire('contract-detail')
+            ->assertSee('<meta name="robots" content="noindex, follow">', false)
+            ->assertSee('Sopimus ei ole enää myynnissä')
+            ->assertSee('Kulutusvaikutus')
+            ->assertDontSee('Perushinta');
+    }
+
     public function test_active_contract_history_does_not_show_not_for_sale_node(): void
     {
         Livewire::test('contract-detail', ['contractId' => $this->contract->id])

@@ -262,10 +262,16 @@ class CardReceiptLines
         }
 
         if ($facts->category === PricingCategory::ConsumptionEffect) {
-            return [
-                new CardReceiptLine('Perushinta', $this->amount($this->baseRate($rates, $metering)), 'c/kWh'),
-                new CardReceiptLine('Kulutusvaikutus', '± käyttöajan mukaan', null, soft: true),
-            ];
+            $baseRate = $this->baseRate($rates, $metering);
+            $lines = [];
+
+            if ($baseRate !== null) {
+                $lines[] = new CardReceiptLine('Perushinta', $this->amount($baseRate), 'c/kWh');
+            }
+
+            $lines[] = new CardReceiptLine('Kulutusvaikutus', '± käyttöajan mukaan', null, soft: true);
+
+            return $lines;
         }
 
         return $this->meteringLines($rates, $metering);

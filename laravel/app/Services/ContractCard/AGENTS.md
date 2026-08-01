@@ -189,8 +189,16 @@ all receipt rates and totals even if a stale payload contains them. Feature-off 
 legacy calculated-cost-first relational fallback in a separate branch.
 
 Canonical phase rows come from `calculated_cost.phase_breakdown`; integrity rate fields are
-used only in the feature-off branch. Package facts come from `energy_package`, and offer
-membership comes from canonical `includes_discounts`, so a package is never called an offer.
+used only in the feature-off branch. A consumption-effect receipt resolves its optional base
+rate once and adds `Perushinta` only when that rate exists; `Kulutusvaikutus` stays visible when
+the rate is missing. The strict `amount(float)` formatter is unchanged because null omission
+belongs at this optional-fact boundary. This is a broad historical-detail safety rule, not one
+contract exception: the 2026-08-01 production snapshot has 896 inactive Hybrid contracts with
+null `canonical_pricing`, and zero active Hybrids in that state. Canonical mode must not repair
+those historical receipts from relational current prices.
+
+Package facts come from `energy_package`, and offer membership comes from canonical
+`includes_discounts`, so a package is never called an offer.
 The shared receipt names its three facts `Kuukausipaketti`, `Sisältää`, and `Ylittävä kulutus`;
 the excess rate is not an ordinary energy price for every kWh.
 For `term_price_only`, card benefit copy uses the unannualized `contract_term` saving and normal

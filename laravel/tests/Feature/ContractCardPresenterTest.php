@@ -415,6 +415,27 @@ class ContractCardPresenterTest extends TestCase
         $this->assertTrue($card->receiptLines[1]->soft);
     }
 
+    public function test_consumption_effect_without_a_canonical_base_rate_omits_the_optional_base_row(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
+
+        $contract = $this->contract([
+            'pricing_model' => 'Hybrid',
+            'canonical_pricing' => null,
+        ]);
+        $contract->calculated_cost = [];
+
+        $card = $this->present($contract, prices: [
+            'General' => ['price' => 8.59],
+            'Monthly' => ['price' => 3.9],
+        ]);
+
+        $this->assertSame(['Kulutusvaikutus'], array_map(fn ($line) => $line->label, $card->receiptLines));
+        $this->assertSame('± käyttöajan mukaan', $card->receiptLines[0]->value);
+        $this->assertTrue($card->receiptLines[0]->soft);
+    }
+
     public function test_a_scheduled_increase_shows_both_dated_prices(): void
     {
         $card = $this->present($this->contract(

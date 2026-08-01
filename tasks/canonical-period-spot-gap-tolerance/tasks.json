@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Implement deterministic canonical Spot gap filling",
+    "status": "completed"
+  },
+  {
+    "name": "Add unit and bill-surface regression coverage",
+    "status": "completed"
+  },
+  {
+    "name": "Update canonical and bill-comparison documentation",
+    "status": "completed"
+  },
+  {
+    "name": "Run focused and full regression tests",
+    "status": "completed"
+  }
+]

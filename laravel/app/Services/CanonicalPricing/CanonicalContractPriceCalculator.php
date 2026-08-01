@@ -304,7 +304,40 @@ class CanonicalContractPriceCalculator
             $spotMap[$price->startsAtUtc->utc()->getTimestamp()] = $price->centsPerKwhWithTax;
         }
 
-        if (($usesSpot || $context->isSpot()) && ! $this->hasRequiredSpotHistory($resolved, $spotMap)) {
+        $hasComponentDiscount = $this->hasNormalPriceDiscount($data);
+        $hasPackage = $this->hasEnergyPackage($data);
+        $normalFallbackRates = null;
+
+        if (! $hasComponentDiscount && ! $hasPackage && $lastCoveredPhaseIndex !== null) {
+            $normalFallbackRates = $this->resolvePhaseRates(
+                $data->phases[$lastCoveredPhaseIndex],
+                $data->phases,
+                $metering,
+                $periodSpot,
+                $context->isSpot(),
+            );
+        }
+
+        foreach ($resolved as $index => $item) {
+            $phaseIndex = $item['phase_index'];
+            $resolved[$index]['normal_rates'] = match (true) {
+                $hasComponentDiscount => $this->resolvePhaseRates(
+                    $data->phases[$phaseIndex],
+                    $data->phases,
+                    $metering,
+                    $periodSpot,
+                    $context->isSpot(),
+                    normalPrice: true,
+                ),
+                $hasPackage => $item['rates'],
+                default => $normalFallbackRates ?? $item['rates'],
+            };
+        }
+
+        $completedSpot = $this->completeRequiredSpotHistory($resolved, $spotMap);
+        $spotMap = $completedSpot['map'];
+
+        if (! $completedSpot['available']) {
             return $this->unavailablePeriod(
                 $annualOutcome->comparability,
                 PeriodPricingUnavailableReason::NoSpotHistory,
@@ -338,20 +371,6 @@ class CanonicalContractPriceCalculator
         $normalTotal = 0.0;
         $actualFlatApplied = [];
         $normalFlatApplied = [];
-        $hasComponentDiscount = $this->hasNormalPriceDiscount($data);
-        $hasPackage = $this->hasEnergyPackage($data);
-        $normalFallbackRates = null;
-
-        if (! $hasComponentDiscount && ! $hasPackage && $lastCoveredPhaseIndex !== null) {
-            $normalFallbackRates = $this->resolvePhaseRates(
-                $data->phases[$lastCoveredPhaseIndex],
-                $data->phases,
-                $metering,
-                $periodSpot,
-                $context->isSpot(),
-            );
-        }
-
         $breakdown = [];
         $spotMargins = [];
         $firstRates = null;
@@ -374,28 +393,13 @@ class CanonicalContractPriceCalculator
                 $reset,
             );
 
-            $normalRates = match (true) {
-                $hasComponentDiscount => $this->resolvePhaseRates(
-                    $data->phases[$phaseIndex],
-                    $data->phases,
-                    $metering,
-                    $periodSpot,
-                    $context->isSpot(),
-                    normalPrice: true,
-                ),
-                $hasPackage => $rates,
-                default => $normalFallbackRates ?? $rates,
-            };
+            $normalRates = $item['normal_rates'];
 
-            if ($normalRates === null || ($normalRates['uses_spot'] && ! $this->hasRequiredSpotHistory([
-                ['segment' => $segment, 'rates' => $normalRates],
-            ], $spotMap))) {
+            if ($normalRates === null) {
                 return $this->unavailablePeriod(
                     $annualOutcome->comparability,
-                    $normalRates !== null && $normalRates['uses_spot']
-                        ? PeriodPricingUnavailableReason::NoSpotHistory
-                        : PeriodPricingUnavailableReason::NoPricing,
-                    $usesSpot || ($normalRates['uses_spot'] ?? false),
+                    PeriodPricingUnavailableReason::NoPricing,
+                    $usesSpot,
                 );
             }
 
@@ -435,7 +439,9 @@ class CanonicalContractPriceCalculator
             'absolute_phase_dates_preserved',
             'period_consumption_flat_by_actual_hour',
             'monthly_fee_prorated_by_days_over_30',
-        ], $usesSpot ? ['actual_hourly_spot_prices'] : [], $hasPackage ? [
+        ], $usesSpot ? ['actual_hourly_spot_prices'] : [], $completedSpot['filled'] ? [
+            'missing_spot_hours_filled_with_observed_average',
+        ] : [], $hasPackage ? [
             'package_allowance_resets_each_calendar_month',
             'partial_package_fee_and_allowance_prorated_by_calendar_month_fraction',
         ] : [])));
@@ -750,24 +756,71 @@ class CanonicalContractPriceCalculator
     }
 
     /**
-     * @param  list<array{segment: WindowSegment, rates: array<string, mixed>}>  $resolved
+     * Complete partial realized Spot history for every hour used by the actual or
+     * normal-price pass. Same-Helsinki-day observations are preferred; a day with
+     * no observation uses the mean of all observed required hours in the period.
+     *
+     * @param  list<array{segment: WindowSegment, rates: array<string, mixed>, normal_rates: array<string, mixed>|null}>  $resolved
      * @param  array<int, float>  $spotMap
+     * @return array{map: array<int, float>, available: bool, filled: bool}
      */
-    private function hasRequiredSpotHistory(array $resolved, array $spotMap): bool
+    private function completeRequiredSpotHistory(array $resolved, array $spotMap): array
     {
-        foreach ($resolved as $item) {
-            if (! ($item['rates']['uses_spot'] ?? false)) {
-                continue;
-            }
+        $required = [];
 
-            foreach ($this->segmentHourStarts($item['segment']) as $hourStart) {
-                if (! array_key_exists($hourStart->getTimestamp(), $spotMap)) {
-                    return false;
+        foreach ($resolved as $item) {
+            foreach ([$item['rates'], $item['normal_rates']] as $rates) {
+                if (! ($rates['uses_spot'] ?? false)) {
+                    continue;
+                }
+
+                foreach ($this->segmentHourStarts($item['segment']) as $hourStart) {
+                    $required[$hourStart->getTimestamp()] = $hourStart;
                 }
             }
         }
 
-        return true;
+        if ($required === []) {
+            return ['map' => $spotMap, 'available' => true, 'filled' => false];
+        }
+
+        ksort($required);
+        $observed = [];
+        $dailyValues = [];
+
+        foreach ($required as $timestamp => $hourStart) {
+            if (! array_key_exists($timestamp, $spotMap)) {
+                continue;
+            }
+
+            $value = $spotMap[$timestamp];
+            $observed[] = $value;
+            $day = $hourStart->setTimezone('Europe/Helsinki')->toDateString();
+            $dailyValues[$day][] = $value;
+        }
+
+        if ($observed === []) {
+            return ['map' => $spotMap, 'available' => false, 'filled' => false];
+        }
+
+        $periodMean = array_sum($observed) / count($observed);
+        $dailyMeans = [];
+        foreach ($dailyValues as $day => $values) {
+            $dailyMeans[$day] = array_sum($values) / count($values);
+        }
+
+        $filled = false;
+        foreach ($required as $timestamp => $hourStart) {
+            if (array_key_exists($timestamp, $spotMap)) {
+                continue;
+            }
+
+            $day = $hourStart->setTimezone('Europe/Helsinki')->toDateString();
+            $spotMap[$timestamp] = $dailyMeans[$day] ?? $periodMean;
+            $filled = true;
+        }
+
+        return ['map' => $spotMap, 'available' => true, 'filled' => $filled];
     }
 
     /**

@@ -7,6 +7,8 @@ use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
+use App\Models\SpotPriceAverage;
+use App\Models\SpotPriceHour;
 use App\Services\BillComparison\BillComparisonService;
 use App\Services\DTO\BillComparisonRequest;
 use Carbon\Carbon;
@@ -77,6 +79,68 @@ class BillComparisonCanonicalPricingTest extends TestCase
             ->billComparison;
         $this->assertTrue($detail['available']);
         $this->assertEqualsWithDelta(18.0, $detail['contract_cost'], 0.001);
+    }
+
+    public function test_partial_spot_history_remains_available_in_the_service_and_contract_detail(): void
+    {
+        $contract = $this->createContract('canonical-spot-gap', [
+            $this->phase([$this->canonicalComponent('spot_margin', 1)]),
+        ], status: 'estimate_required', pricingModel: 'Spot');
+
+        SpotPriceAverage::create([
+            'region' => 'FI',
+            'period_type' => SpotPriceAverage::PERIOD_ROLLING_365D,
+            'period_start' => '2025-05-01',
+            'period_end' => '2026-04-30',
+            'avg_price_without_tax' => 5,
+            'avg_price_with_tax' => 5,
+            'day_avg_with_tax' => 5,
+            'night_avg_with_tax' => 5,
+            'hours_count' => 8760,
+        ]);
+
+        $cursor = Carbon::parse('2026-05-01', 'Europe/Helsinki')->startOfDay()->utc();
+        $periodEnd = Carbon::parse('2026-05-02', 'Europe/Helsinki')->startOfDay()->utc();
+        $missingHour = $cursor->copy()->addHours(12)->timestamp;
+
+        while ($cursor->lt($periodEnd)) {
+            if ($cursor->timestamp !== $missingHour) {
+                SpotPriceHour::create([
+                    'region' => 'FI',
+                    'timestamp' => $cursor->timestamp,
+                    'utc_datetime' => $cursor->copy(),
+                    'price_without_tax' => 5,
+                    'vat_rate' => 0,
+                ]);
+            }
+            $cursor->addHour();
+        }
+
+        $request = new BillComparisonRequest(
+            startDate: Carbon::parse('2026-05-01', 'Europe/Helsinki'),
+            endDate: Carbon::parse('2026-05-01', 'Europe/Helsinki'),
+            kwh: 240,
+            userTotalEur: 20,
+            annualKwhOverride: 5000,
+        );
+        $serviceData = app(BillComparisonService::class)->periodRowsForContracts([$contract->load('company')], $request);
+        $row = $serviceData['rows'][$contract->id];
+
+        $this->assertEqualsWithDelta(14.4, $row->periodCostEur, 0.001);
+        $this->assertContains('actual_hourly_spot_prices', $row->assumptions);
+        $this->assertContains('missing_spot_hours_filled_with_observed_average', $row->assumptions);
+
+        $detail = Livewire::test('contract-detail', ['contractId' => $contract->id])
+            ->set('billPeriodPreset', 'custom')
+            ->set('billStartDate', '2026-05-01')
+            ->set('billEndDate', '2026-05-01')
+            ->set('billKwh', 240)
+            ->set('billTotalEur', 20)
+            ->instance()
+            ->billComparison;
+
+        $this->assertTrue($detail['available']);
+        $this->assertEqualsWithDelta(14.4, $detail['contract_cost'], 0.001);
     }
 
     public function test_canonical_only_missing_excluded_and_consumption_capped_contracts_fail_or_price_honestly(): void
@@ -208,6 +272,7 @@ class BillComparisonCanonicalPricingTest extends TestCase
         ?string $status = 'exact',
         string $misleading = 'not_detected',
         ?int $maxKwh = null,
+        string $pricingModel = 'FixedPrice',
     ): ElectricityContract {
         $pricing = $canonicalPricing === null ? null : [
             'phases' => $phases,
@@ -241,7 +306,7 @@ class BillComparisonCanonicalPricingTest extends TestCase
             'name' => $id,
             'name_slug' => $id,
             'contract_type' => 'OpenEnded',
-            'pricing_model' => 'FixedPrice',
+            'pricing_model' => $pricingModel,
             'metering' => 'General',
             'target_group' => 'Household',
             'availability_is_national' => true,

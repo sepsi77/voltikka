@@ -296,10 +296,16 @@ version/replacement timeline remain relational observed evidence and are not cur
 All three bill-comparison surfaces use one batched canonical period path. Relative phases anchor at
 that counterfactual signup date; absolute dates stay absolute. General consumption is flat, Time is
 85/15, Season uses actual winter dates, and Spot phases use each matching realized hour, including a
-mid-period fixed/Spot or margin switch. Ordinary fees use the existing days/30 convention. Package
-fee and allowance are both prorated by calendar-month fraction, reset separately per month, and do
-not create promo status. The period promotion flag is the measured normal-minus-actual period
-saving. Canonical mode loads no relational components; feature-off keeps the old period calculator.
+mid-period fixed/Spot or margin switch. Zero matching realized observations for required Spot hours
+remain unavailable. A partial gap is filled per UTC hour with the observed arithmetic mean for that
+Europe/Helsinki calendar date, or with the requested period's observed required-hour mean when the
+whole Helsinki day is absent. The completed map is shared by actual and normal-price passes and the
+outcome records `missing_spot_hours_filled_with_observed_average`. This keeps nearly complete factual
+bill periods available without inventing a market level when all evidence is absent. Ordinary fees use
+the existing days/30 convention. Package fee and allowance are both prorated by calendar-month
+fraction, reset separately per month, and do not create promo status. The period promotion flag is the
+measured normal-minus-actual period saving. Canonical mode loads no relational components;
+feature-off keeps the old period calculator.
 
 `ContractTypeComparison` also uses one request-memoized typed annual outcome per candidate and
 consumption basis in canonical mode. Auto-selection, the monthly chart, current unit/package facts,

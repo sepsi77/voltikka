@@ -104,7 +104,14 @@ is too seasonal, especially with electric heating.
   current-margin fallback runs in this branch.
 - Canonical period Spot cost uses flat consumption over the period's real UTC
   hours and the realized `SpotPriceHour::price_with_tax` for every hour governed
-  by a Spot phase. Missing required history returns `no_spot_history`, never zero.
+  by a Spot phase. Zero matching observations for the required Spot hours return
+  `no_spot_history`, never zero. A partial gap stays available: each absent UTC
+  hour uses the observed mean for its Europe/Helsinki calendar date, or the mean
+  of all observed required hours in the requested period when that whole day is
+  absent. The same completed map costs actual and normal-price passes. The typed
+  assumption `missing_spot_hours_filled_with_observed_average` makes the fallback
+  visible. This tolerates small source-history gaps but keeps no-evidence periods
+  fail-closed.
 - Feature-off delegates all period pricing to `ContractPriceCalculator::calculatePeriod()`. That
   calculator keeps the legacy detection (`pricing_model === 'Spot'` or a General rate below
   0.8 c/kWh), selects the first non-Monthly component as the margin, averages the supplied
