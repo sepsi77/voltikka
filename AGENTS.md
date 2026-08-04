@@ -36,11 +36,25 @@ Voltikka runs on Railway in the **Breezily** workspace.
 | Database service | MySQL | `beb2ba12-4a7b-416b-b4b1-596434dc3215` |
 | Backup bucket | voltikka-backups | `460e1b25-73fc-45e3-a43a-0473d2d2b86d` |
 
-Use explicit Railway IDs instead of relying on whichever project is currently linked in the local shell. Prefer Railway MCP for read-only platform inspection when available, and use the Railway CLI for workflows that need local repository state such as deploys, `railway run`, SSH, or database shells.
+Use explicit Railway IDs instead of relying on whichever project is currently linked in the local shell. Prefer Railway MCP for read-only platform inspection when available, and use the Railway CLI for workflows such as `railway run`, SSH, or database shells that need local repository state.
+
+### Production code deployment
+
+The `voltikka` app service is connected to the GitHub repository and automatically deploys each push to `origin/main`. Use the Git-based deployment path for normal code releases:
+
+1. Run the relevant tests and production asset build.
+2. Check `git diff --check` and `git status --short`.
+3. Stage only the intended files and commit them with a clear release message.
+4. Push the commit with `git push origin main`. Do **not** use `railway up`, `railway redeploy`, or a dashboard redeploy for a normal code release. These paths bypass or duplicate the configured Git release flow.
+5. Use Railway MCP to find the deployment whose commit hash matches the pushed commit.
+6. Poll that exact deployment with `scripts/railway-poll-deployment.sh` and the explicit project, environment, service, and deployment IDs. A successful `git push` does not prove a successful production deployment.
+7. After Railway reports `SUCCESS`, verify the relevant production page or asset. For a failure, read bounded build/deploy logs before taking further action.
+
+A push to `origin/main` is a production mutation because it starts an automatic deployment. State the branch, command, target project/environment/service, and expected effect, and get explicit user confirmation before pushing.
 
 Safe-operation rules for agents:
 
-- **Never run destructive or production-mutating Railway commands without explicit user confirmation.** This includes deploys, restarts, redeploys, rollbacks, service/domain changes, variable writes/deletes, database writes, migrations, queue restarts, SSH commands that mutate state, and any command that could affect production traffic or data.
+- **Never run destructive or production-mutating Railway commands without explicit user confirmation.** This includes Git pushes that trigger deploys, direct deploys, restarts, redeploys, rollbacks, service/domain changes, variable writes/deletes, database writes, migrations, queue restarts, SSH commands that mutate state, and any command that could affect production traffic or data.
 - Before any production mutation, state the exact project, environment, service, command, and expected effect, then wait for an affirmative confirmation from the user.
 - Read-only commands are allowed for investigation: listing projects/services, checking status, reading bounded logs, viewing variables metadata, checking domains, and inspecting deployment status.
 - Do not paste or expose secrets from Railway variables or database connection strings in chat. If a secret must be changed, describe the variable name and action without revealing values.
