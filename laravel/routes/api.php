@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AnalyticsEventController;
 use App\Http\Controllers\Api\CalculationController;
 use App\Http\Controllers\Api\ContractController;
 use App\Http\Controllers\Api\SolarController;
@@ -25,6 +26,10 @@ Route::get('/header-spot-price', function (HeaderSpotPriceService $spotPriceServ
         ])
         ->header('Cache-Control', 'public, max-age=60, s-maxage=60, stale-while-revalidate=300');
 });
+
+Route::post('/analytics/events', AnalyticsEventController::class)
+    ->middleware('throttle:analytics-events')
+    ->name('analytics.events.store');
 
 // Contract routes
 Route::get('/contracts', [ContractController::class, 'index']);

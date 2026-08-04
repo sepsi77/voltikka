@@ -913,7 +913,13 @@ budget below.
 
 ### Seller outbound analytics
 
-The primary “Siirry myyjän sivuille” CTA emits the Plausible custom event `Contract Order Clicked`. Keep its contract ID, company, and pricing model nested under Plausible's `props` option, and encode Blade values with `@js` so string/UUID IDs and seller names remain valid JavaScript.
+Both the hero and mobile sticky seller CTAs use the shared first-party path `window.voltikkaAnalytics.trackContractOrderClick()`. The hero placement is `hero`; the mobile bar placement is `sticky`. Keep the direct seller URL as the anchor `href`, keep normal link activation, and do not add a tracking redirect or `preventDefault`.
+
+`getContractOrderClickContextProperty()` signs the exact displayed `calculatedCost.total_cost`, selected `consumption`, `liveRank`, `liveTotalContracts`, and `rankConsumption()`. Do not use the fixed 5,000 kWh SEO `priceRank`. The signed token has a 96-hour lifetime so cached and stale edge HTML stays valid. A custom consumption can differ from its rank basis, and both values must stay in the context. Missing values stay null.
+
+The existing Plausible custom event `Contract Order Clicked` remains a separate call. Keep its contract ID, company, and pricing model nested under Plausible's `props` option. Encode Blade values with `@js` so string/UUID IDs and seller names remain valid JavaScript. A failure in either analytics path must not affect the other path or seller navigation.
+
+Read `../Services/Analytics/AGENTS.md` before changing attribution, delivery, signing, or event storage.
 
 ### SEO metadata
 

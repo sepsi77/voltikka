@@ -356,13 +356,29 @@
                     <a
                         href="{{ $sellerCta->url }}"
                         @if ($sellerCta->external) target="_blank" rel="noopener noreferrer" @endif
-                        @click="$track('Contract Order Clicked', {
-                            props: {
-                                contract_id: @js($contract->id),
-                                company: @js($companyName),
-                                pricing_model: @js($contract->pricing_model)
+                        data-first-party-analytics="contract_order_click"
+                        data-analytics-placement="hero"
+                        @auxclick="
+                            if ($event.button === 1 && window.voltikkaAnalytics) {
+                                window.voltikkaAnalytics.trackContractOrderClick({
+                                    context: @js($contractOrderClickContext),
+                                    placement: 'hero'
+                                });
                             }
-                        })"
+                        "
+                        @click="
+                            window.voltikkaAnalytics && window.voltikkaAnalytics.trackContractOrderClick({
+                                context: @js($contractOrderClickContext),
+                                placement: 'hero'
+                            });
+                            $track('Contract Order Clicked', {
+                                props: {
+                                    contract_id: @js($contract->id),
+                                    company: @js($companyName),
+                                    pricing_model: @js($contract->pricing_model)
+                                }
+                            });
+                        "
                         class="inline-flex min-h-[52px] items-center justify-center gap-2.5 rounded-xl bg-coral-600 px-7 py-3.5 text-[19px] font-bold text-white transition-colors hover:bg-coral-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                     >
                         {{ $sellerCta->label }}
@@ -1448,13 +1464,29 @@
             <a
                 href="{{ $sellerCta->url }}"
                 @if ($sellerCta->external) target="_blank" rel="noopener noreferrer" @endif
-                @click="$track('Contract Order Clicked', {
-                    props: {
-                        contract_id: @js($contract->id),
-                        company: @js($companyName),
-                        pricing_model: @js($contract->pricing_model)
+                data-first-party-analytics="contract_order_click"
+                data-analytics-placement="sticky"
+                @auxclick="
+                    if ($event.button === 1 && window.voltikkaAnalytics) {
+                        window.voltikkaAnalytics.trackContractOrderClick({
+                            context: @js($contractOrderClickContext),
+                            placement: 'sticky'
+                        });
                     }
-                })"
+                "
+                @click="
+                    window.voltikkaAnalytics && window.voltikkaAnalytics.trackContractOrderClick({
+                        context: @js($contractOrderClickContext),
+                        placement: 'sticky'
+                    });
+                    $track('Contract Order Clicked', {
+                        props: {
+                            contract_id: @js($contract->id),
+                            company: @js($companyName),
+                            pricing_model: @js($contract->pricing_model)
+                        }
+                    });
+                "
                 class="ml-auto inline-flex min-h-[48px] shrink-0 items-center rounded-xl bg-coral-600 px-5 py-3 text-[17px] font-bold text-white hover:bg-coral-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral-600"
             >
                 Myyjän sivuille

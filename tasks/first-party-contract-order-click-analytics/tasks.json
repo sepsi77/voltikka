@@ -1,0 +1,68 @@
+{
+  "tasks": [
+    {
+      "name": "Agree and document the durable contract-order-click retention period",
+      "status": "completed"
+    },
+    {
+      "name": "Create the typed contract_order_clicks migration and model with UUID idempotency and reporting indexes",
+      "status": "completed"
+    },
+    {
+      "name": "Implement the versioned server-signed ContractDetail click context with a cache-safe lifetime",
+      "status": "completed"
+    },
+    {
+      "name": "Implement the localStorage attribution module with first-touch rules, a 30-minute timeout, UTM/search/referral/direct classification, and safe in-memory fallback",
+      "status": "completed"
+    },
+    {
+      "name": "Implement shared Beacon delivery with keepalive fetch fallback and no seller-navigation dependency",
+      "status": "completed"
+    },
+    {
+      "name": "Add the generic stateless rate-limited analytics event endpoint with a closed event registry and unknown-event rejection",
+      "status": "completed"
+    },
+    {
+      "name": "Implement the contract_order_click event handler with signature verification, validation, normalization, and synchronous idempotent insertion",
+      "status": "completed"
+    },
+    {
+      "name": "Connect the hero and sticky ContractDetail seller CTAs to the shared first-party event path with distinct CTA locations and live price/rank facts",
+      "status": "completed"
+    },
+    {
+      "name": "Add JavaScript tests for attribution resolution, session behavior, storage failures, Beacon delivery, and fetch fallback",
+      "status": "completed"
+    },
+    {
+      "name": "Add Laravel tests for the generic event envelope, unknown-event rejection, signed context integrity, event insertion, idempotency, nullable facts, and CTA integration",
+      "status": "completed"
+    },
+    {
+      "name": "Confirm Laravel and Livewire compatibility and install the minimal maintained Filament packages for one /admin panel",
+      "status": "completed"
+    },
+    {
+      "name": "Add users.is_admin authorization, disable public registration, and document explicit admin-user provisioning without mutating production",
+      "status": "completed"
+    },
+    {
+      "name": "Create a read-only Filament ContractOrderClick resource with useful columns, search, date/company/contract/acquisition/placement filters, newest-first order, and pagination",
+      "status": "completed"
+    },
+    {
+      "name": "Add admin feature tests for unauthenticated and non-admin denial, admin access, read-only actions, filters, ordering, and pagination",
+      "status": "completed"
+    },
+    {
+      "name": "Update the privacy policy and nearby AGENTS.md context files to describe first-party cookieless click analytics, generic ingestion, and admin access rules",
+      "status": "completed"
+    },
+    {
+      "name": "Run focused PHP and JavaScript tests, the production asset build, git diff --check, and final status review",
+      "status": "completed"
+    }
+  ]
+}

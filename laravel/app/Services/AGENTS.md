@@ -34,6 +34,18 @@ The grouping unit should be a cohesive feature/domain, not an individual class u
 
 ## Current service subtrees
 
+### First-party analytics
+Directory:
+- `Analytics/`
+
+Purpose:
+- accept a closed set of stateless first-party events
+- verify signed server facts and persist typed contract-order-click rows
+- keep browser attribution and delivery data-minimal and independent from Plausible
+
+Read first:
+- `Analytics/AGENTS.md`
+
 ### Development database sync
 Directory:
 - `DevelopmentDatabase/`

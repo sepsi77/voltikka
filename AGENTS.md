@@ -16,7 +16,7 @@ Project-local Pi agents live in `.pi/agents/`. When you call a trusted project-l
 
 ## Project Overview
 
-Voltikka is a Finnish electricity contract comparison platform built with **Laravel 11 and Livewire 3**. The site helps consumers find and compare electricity contracts, view real-time spot prices, and calculate solar panel production estimates.
+Voltikka is a Finnish electricity contract comparison platform built with **Laravel 11 and Livewire 4**. The site helps consumers find and compare electricity contracts, view real-time spot prices, and calculate solar panel production estimates.
 
 ## Production site
 
@@ -200,6 +200,15 @@ php artisan test --filter="ContractsFilterTest"
 - **Contract cards state one of three pricing categories** (`Kiinteä hinta` / `Markkinahinta` / `Kulutusvaikutus`) in a single-purpose tinted band across the top of the card, followed by itemised receipt rows, the €/kk price stub, and a footer of coral warning pills plus quiet fact tags. An estimated 12-month total carries one `Arvio` popover that explains the estimate and links to `/tietoa#menetelma`. All of it is derived server-side by `laravel/app/Services/ContractCard/ContractCardPresenter`, shared by the normal and featured cards; see `laravel/app/Services/ContractCard/AGENTS.md`
 - Individual contract detail meta descriptions are generated from Voltikka ranking/pricing data instead of provider marketing descriptions
 
+### 1a. First-party seller-click analytics
+- **Location**: `laravel/app/Services/Analytics/`, `laravel/resources/js/attribution.js`, `laravel/resources/js/first-party-analytics.js`
+- Both seller CTAs on ContractDetail send one signed `contract_order_click` event to the stateless `POST /api/analytics/events` endpoint without delaying or replacing the direct seller link. The independent Plausible event remains
+- Attribution uses `voltikka_attribution_v1` in `localStorage`, a strict 30-minute inactivity rule, first touch, and no visitor or session ID. Only source, medium, campaign, and landing pathname reach durable storage
+- Server-signed facts use the displayed annual total and selected consumption plus the live rank, live universe size, and separate rank-consumption basis. Missing price and rank facts stay null
+- Typed `contract_order_clicks` rows have indefinite retention at the initial release. There is no cleanup job. Rows do not contain IP addresses, user agents, full referrers, query strings, full URLs, visitor IDs, or session IDs
+- Filament 5 provides a private read-only `/admin` resource. Existing users need `is_admin=true`; valid credentials alone are insufficient, and there is no public registration or deployment-time user creation
+- See `laravel/app/Services/Analytics/AGENTS.md` and `laravel/app/Filament/AGENTS.md`
+
 ### 1b. Company pages (`/sahkosopimus/sahkoyhtiot/{slug}`)
 - **Location**: `app/Livewire/CompanyDetail.php`, `app/Services/CompanyStatistics/`
 - The page is household-first. Household facts and the main cards use active `Household`, `Both`, and legacy null targets. A separate section at the bottom shows active `Company` and `Both` contracts. Thus, a `Both` contract appears in both audience sections.
@@ -331,6 +340,7 @@ php artisan test --filter="ContractsFilterTest"
 | `SpotPriceAverage` | Calculated averages (daily, monthly, yearly, rolling) |
 | `SpotPriceForecast` | Third-party hourly spot-price forecasts, stored separately from official actual prices |
 | `FixedContractPriceForecast` | Stored fixed-term price forecasts plus realized actual/error metrics |
+| `ContractOrderClick` | Durable typed seller-CTA event with signed price/rank facts and indefinite retention |
 | `Postcode` | Finnish postcodes with municipality data |
 
 ### Key Livewire Components (`app/Livewire/`)
@@ -708,7 +718,8 @@ For pricing type pages, the `getContractsProperty()` method determines which con
 
 ## Analytics and Observability
 
-- **Plausible Analytics**: Privacy-friendly analytics script in `layouts/app.blade.php`
+- **First-party seller-click analytics**: Signed, typed, rate-limited `contract_order_click` events with data-minimal browser attribution; see `laravel/app/Services/Analytics/AGENTS.md`
+- **Plausible Analytics**: Privacy-friendly analytics script in `layouts/app.blade.php`; it stays independent from first-party event delivery
 - **Sentry**: Laravel exception capture, optional Sentry log forwarding, and tracing/profiling configuration are configured in `laravel/bootstrap/app.php`, `laravel/config/sentry.php`, and `laravel/config/logging.php`. Performance spans/profiles are disabled by default to preserve span quota; see `laravel/AGENTS.md` for env variables and verification commands.
 
 ## Navigation Structure

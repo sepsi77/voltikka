@@ -7,9 +7,9 @@ use Livewire\Component;
 /**
  * /tietosuoja — privacy & cookie statement.
  *
- * Voltikka collects no personal data in normal use: no accounts, no forms, no purchases.
- * Analytics is cookieless Plausible; only ordinary server/log data may arise. This page
- * documents that and is the reason the site shows no cookie-consent banner.
+ * The public site has no user registration, contact form, or purchase processing.
+ * Analytics uses cookieless Plausible and first-party seller-link events without visitor
+ * or session IDs. Ordinary server and error logs can also exist.
  *
  * Contact email reuses AboutPage::CONTACT_EMAIL via the click-to-reveal <x-obfuscated-email>
  * so the address is not harvested from the HTML source.
@@ -21,7 +21,7 @@ class PrivacyPolicy extends Component
      * "Päivitetty viimeksi" stamp and the sitemap <lastmod>. Bump only when the policy
      * text actually changes — not on every deploy.
      */
-    public const LAST_UPDATED = '2026-05-30';
+    public const LAST_UPDATED = '2026-08-05';
 
     public function render()
     {
@@ -29,7 +29,7 @@ class PrivacyPolicy extends Component
             'lastUpdated' => \Illuminate\Support\Carbon::parse(self::LAST_UPDATED)->format('j.n.Y'),
         ])->layout('layouts.app', [
             'title' => 'Tietosuoja ja evästeet | Voltikka',
-            'metaDescription' => 'Miten Voltikka käsittelee kävijöiden tietoja ja käyttää evästeitä. Voltikka ei kerää henkilötietoja, käyttää evästeetöntä Plausible-analytiikkaa eikä näytä evästebanneria.',
+            'metaDescription' => 'Miten Voltikka käsittelee kävijätietoja. Käytämme evästeetöntä Plausible-analytiikkaa ja mittaamme sähköyhtiön tilaussivulle siirtymisiä ilman kävijätunnistetta.',
             'canonical' => config('app.url') . '/tietosuoja',
         ]);
     }

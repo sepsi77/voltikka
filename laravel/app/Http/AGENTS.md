@@ -3,6 +3,18 @@
 This directory contains public controllers and JSON resources. Read `../../AGENTS.md` and
 `../../../AGENTS.md` first.
 
+## First-party analytics event API
+
+Primary files:
+
+- `Controllers/Api/AnalyticsEventController.php`
+- `../Services/Analytics/AGENTS.md`
+- `../../routes/api.php`
+
+`POST /api/analytics/events` is a stateless, named-rate-limited ingestion route. It does not use a Laravel session or CSRF token. The generic envelope accepts only event names in `AnalyticsEventName`; each event then uses its own validator and handler. The only current event is `contract_order_click`. Accepted and duplicate UUID events return 204.
+
+Do not make this a schema-free event sink. Do not log request payloads. The client attribution is untrusted input. The handler normalizes it and uses only the server-signed contract, company, price, rank, estimate, and pricing-basis facts. See the Analytics context file for signature, retention, privacy, and data-minimization rules.
+
 ## Contract list and show API pricing
 
 Primary files:

@@ -9,6 +9,7 @@ use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
+use App\Services\Analytics\ContractOrderClickContextSigner;
 use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\ContractPriceHistory\ContractHistoryPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -115,13 +116,26 @@ class ContractDetailPageTest extends TestCase
         $response->assertSeeLivewire('contract-detail');
     }
 
-    public function test_seller_cta_tracks_plausible_outbound_click(): void
+    public function test_both_seller_ctas_use_the_shared_first_party_path_and_keep_plausible(): void
     {
-        Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
+        $component = Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
             ->assertSeeHtml("\$track('Contract Order Clicked', {")
             ->assertSeeHtml('props: {')
             ->assertSeeHtml("contract_id: 'contract-detail-test'")
-            ->assertSeeHtml("company: 'Test Energia Oy'");
+            ->assertSeeHtml("company: 'Test Energia Oy'")
+            ->assertSeeHtml('data-first-party-analytics="contract_order_click"')
+            ->assertSeeHtml('data-analytics-placement="hero"')
+            ->assertSeeHtml('data-analytics-placement="sticky"');
+
+        $this->assertSame(4, substr_count(
+            $component->html(),
+            'window.voltikkaAnalytics.trackContractOrderClick',
+        ));
+        $this->assertSame(2, substr_count($component->html(), '@auxclick='));
+        $this->assertSame(2, substr_count(
+            $component->html(),
+            'href="https://testenergia.fi/order/perus-sahko?utm_source=voltikka.fi&amp;utm_medium=referral&amp;utm_campaign=voltikka_sahkovertailu"',
+        ));
     }
 
     /**
@@ -1852,11 +1866,24 @@ class ContractDetailPageTest extends TestCase
             ->assertSee('1 025 € vuodessa')
             ->assertSee('Perusmaksupainotteinen');
 
+        $this->assertSame(1, $component->instance()->priceRank);
         $this->assertSame(2, $component->instance()->liveRank);
         $this->assertSame(
             305,
             (int) round($component->instance()->cheaperContracts->first()['savings']),
         );
+
+        $signedContext = app(ContractOrderClickContextSigner::class)
+            ->verify($component->instance()->contractOrderClickContext);
+
+        $this->assertSame('contract-detail-test', $signedContext->contractId);
+        $this->assertSame('Perus Sähkö 24kk', $signedContext->contractName);
+        $this->assertSame('Test Energia Oy', $signedContext->companyName);
+        $this->assertEqualsWithDelta(1025.4, $signedContext->annualPriceEur, 0.001);
+        $this->assertSame(18000, $signedContext->consumptionKwh);
+        $this->assertSame(2, $signedContext->priceRank);
+        $this->assertSame(2, $signedContext->rankTotal);
+        $this->assertSame(18000, $signedContext->rankConsumptionKwh);
     }
 
     /**
@@ -1883,6 +1910,11 @@ class ContractDetailPageTest extends TestCase
             ->assertSet('consumption', 7000)
             ->assertSeeHtml('data-consumption-preset="5000"')
             ->assertSee('Sijoitus ja vaihtoehtojen hinnat on laskettu lähimmällä vertailukulutuksella 8 000 kWh/v');
+
+        $signedContext = app(ContractOrderClickContextSigner::class)
+            ->verify($component->instance()->contractOrderClickContext);
+        $this->assertSame(7000, $signedContext->consumptionKwh);
+        $this->assertSame(8000, $signedContext->rankConsumptionKwh);
 
         $this->assertDoesNotMatchRegularExpression(
             '/data-consumption-preset="\d+"[^>]*aria-pressed="true"/',

@@ -75,6 +75,22 @@ docker run --rm -v "$PWD/Caddyfile:/etc/caddy/Caddyfile:ro" dunglas/frankenphp:1
   frankenphp validate --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
 
+## First-party analytics and private admin
+
+Primary files:
+
+- `app/Services/Analytics/AGENTS.md`
+- `app/Filament/AGENTS.md`
+- `app/Http/Controllers/Api/AnalyticsEventController.php`
+- `database/migrations/2026_08_05_000001_create_contract_order_clicks_table.php`
+- `database/migrations/2026_08_05_000002_add_is_admin_to_users_table.php`
+
+ContractDetail has two direct seller CTAs. Both send the closed `contract_order_click` event through Beacon with a keepalive fetch fallback and keep the separate Plausible event. Browser attribution has a strict 30-minute inactivity rule and no visitor or session ID. Server-derived contract, price, and live-rank facts use a versioned signed context with a 96-hour lifetime.
+
+The typed event rows have indefinite retention at the initial release. There is no cleanup job. The private Filament panel is at `/admin`; `users.is_admin` defaults to false, and non-admin credentials cannot enter. The analytics resource is read-only and paginated. Production admin provisioning is an explicit data mutation and never runs as part of deployment.
+
+The installed compatible dependency set is Filament 5.7.5 and Livewire 4.3.5 on Laravel 11. Composer publishes Filament assets during the Docker build through `filament:upgrade`. Generated Filament public assets are not tracked source files.
+
 ## Public contract API
 
 `GET /api/contracts` and `GET /api/contracts/{id}` use canonical-only current pricing when

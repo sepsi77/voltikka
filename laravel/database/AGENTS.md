@@ -2,6 +2,25 @@
 
 Database/migration notes for Voltikka.
 
+## `contract_order_clicks`
+
+Stores one durable first-party event for an accepted contract-detail seller CTA activation.
+
+Important semantics:
+
+- `event_uuid` is unique and makes Beacon or fetch retries idempotent
+- contract and company fields are event-time snapshots; `contract_id` has no cascading foreign key
+- annual price, price rank, rank total, rank consumption, and pricing basis are nullable and stay null when unavailable
+- the table uses typed columns and indexes for time, company, contract identity/name, source, medium, campaign, and CTA location
+- it does not store raw IP addresses, user agents, full referrers, full URLs, query strings, visitor IDs, session IDs, or generic event-property JSON
+- durable rows have indefinite retention at the initial release; there is no analytics cleanup command, job, or schedule
+
+The short-lived browser attribution period is separate. Its logical inactivity limit is 30 minutes. See `../app/Services/Analytics/AGENTS.md`.
+
+## `users.is_admin`
+
+The boolean defaults to false. Filament panel access requires it to be true. Valid credentials alone do not grant access. Admin-user creation and role changes are explicit operational data mutations; they do not run in migrations, seeders, or deployment code.
+
 ## Electricity contract consumption ranges
 
 - `consumption_limitation_min_x_kwh_per_y` and `consumption_limitation_max_x_kwh_per_y` are nullable, but each stored value must be non-negative and a present minimum must not exceed a present maximum.

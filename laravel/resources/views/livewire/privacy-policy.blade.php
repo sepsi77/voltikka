@@ -42,7 +42,7 @@
             <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 mb-3">Tällä sivulla</p>
             <ol class="space-y-1.5 text-[15px] text-slate-700">
                 <li><a href="#tiedot" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Mitä tietoja keräämme</a></li>
-                <li><a href="#analytiikka" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Käytämme Plausible Analyticsia</a></li>
+                <li><a href="#analytiikka" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Analytiikka</a></li>
                 <li><a href="#evasteet" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Evästeet</a></li>
                 <li><a href="#kaytto" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Mihin tietoja käytetään</a></li>
                 <li><a href="#sailytys" class="hover:text-coral-600 hover:underline underline-offset-4 decoration-coral-300">Tietojen säilytys</a></li>
@@ -62,10 +62,15 @@
                     käyttäjätilejä, kirjautumista, yhteydenottolomakkeita tai ostotapahtumia.
                 </p>
                 <p class="mb-4">
-                    Käytämme sivuston kävijämäärien ja käytön seuraamiseen Plausible Analytics -palvelua. Plausible toimii
-                    ilman evästeitä eikä sitä käytetä yksittäisten kävijöiden tunnistamiseen tai seuraamiseen. Analytiikkaa
-                    käytetään vain yleisellä tasolla, esimerkiksi sen ymmärtämiseen, mitä sivuja käytetään eniten ja miten
-                    sivustoa kannattaisi kehittää.
+                    Käytämme sivuston käytön mittaamiseen Plausible Analytics -palvelua. Lisäksi tallennamme tiedon siitä,
+                    kun kävijä siirtyy sopimussivulta sähköyhtiön tilaussivulle. Mittaus ei vahvista, että tilaussivu avautui
+                    tai että kävijä teki sopimuksen.
+                </p>
+                <p class="mb-4">
+                    Tilaussivulle siirtymisestä tallennamme sopimuksen ja yhtiön, sivulla näytetyn vuosihinnan ja kulutuksen,
+                    sopimuksen sijoituksen vertailussa, painikkeen sijainnin sekä liikenteen lähteen, median, kampanjan ja
+                    ensimmäisen laskeutumissivun polun. Emme tallenna tähän analytiikkatietoon IP-osoitetta, selaimen
+                    käyttäjätunnistetta, koko viittaavaa osoitetta, sivun kyselyä, kävijätunnistetta tai istuntotunnistetta.
                 </p>
                 <p>
                     Sivuston teknisestä toiminnasta voi lisäksi syntyä tavanomaisia palvelin- ja lokitietoja. Näitä voivat
@@ -75,18 +80,25 @@
                 </p>
             </section>
 
-            {{-- Plausible Analytics --}}
+            {{-- Analytics --}}
             <section id="analytiikka" class="scroll-mt-24">
-                <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight mb-4">Käytämme Plausible Analyticsia</h2>
+                <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight mb-4">Analytiikka</h2>
                 <p class="mb-4">
-                    Voltikka käyttää Plausible Analyticsia sivuston yleisen käytön mittaamiseen. Plausible ei käytä
-                    evästeitä, eikä se luo yksittäisistä kävijöistä profiileja.
+                    Voltikka käyttää evästeetöntä Plausible Analyticsia sivuston yleisen käytön mittaamiseen. Plausible ei
+                    luo yksittäisistä kävijöistä profiileja.
+                </p>
+                <p class="mb-4">
+                    Voltikkan oma analytiikka mittaa sopimussivujen tilaussivulinkkien käyttöä. Selain säilyttää liikenteen
+                    ensimmäisen lähteen paikallisesti 30 minuutin aktiivisuusjakson ajan. Uusi ulkoinen UTM-kampanja aloittaa
+                    uuden jakson. Tieto ei sisällä kävijä- tai istuntotunnistetta. Kun kävijä käyttää tilaussivulinkkiä,
+                    lähdetiedot kopioidaan tapahtumariville yhdessä sivulla näytettyjen sopimustietojen kanssa.
                 </p>
                 <p class="mb-3">Analytiikan avulla näemme esimerkiksi:</p>
                 <ul class="list-disc pl-5 space-y-1.5 mb-4">
                     <li>kuinka paljon sivustolla on käyntejä</li>
                     <li>mitkä sivut ovat suosituimpia</li>
                     <li>mistä lähteistä kävijöitä tulee</li>
+                    <li>miltä sopimussivuilta kävijät siirtyvät sähköyhtiöiden tilaussivuille</li>
                     <li>millaisilla laitteilla ja selaimilla sivustoa käytetään yleisellä tasolla</li>
                 </ul>
                 <p>
@@ -99,12 +111,14 @@
             <section id="evasteet" class="scroll-mt-24">
                 <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight mb-4">Evästeet</h2>
                 <p class="mb-4">
-                    Voltikka ei tällä hetkellä käytä analytiikkaevästeitä, mainosevästeitä, uudelleenmarkkinointipikseleitä
-                    tai kumppanuusmarkkinoinnin seurantatunnisteita.
+                    Voltikka ei käytä analytiikkaevästeitä, mainosevästeitä, uudelleenmarkkinointipikseleitä tai
+                    kumppanuusmarkkinoinnin seurantatunnisteita. Ensimmäisen liikenteen lähteen tiedot tallennetaan selaimen
+                    paikalliseen tallennustilaan avaimella <code>voltikka_attribution_v1</code>. Tieto vanhenee 30 minuutin
+                    käyttämättömyyden jälkeen, vaikka vanha tieto voi säilyä selaimessa seuraavaan Voltikka-sivun avaukseen.
                 </p>
                 <p class="mb-4">
-                    Koska emme käytä ei-välttämättömiä evästeitä tai vastaavia seurantatekniikoita, sivustolla ei näytetä
-                    erillistä evästesuostumusbanneria.
+                    Paikallinen tieto ei sisällä kävijä- tai istuntotunnistetta. Sivustolla ei näytetä erillistä
+                    evästesuostumusbanneria.
                 </p>
                 <p>
                     Jos sivustolle lisätään myöhemmin evästeitä tai muuta sellaista seurantaa, joka edellyttää käyttäjän
@@ -137,6 +151,11 @@
                 <p class="mb-4">
                     Plausible Analyticsin kautta saatavia sivuston käyttötilastoja säilytetään palvelun kehittämistä ja
                     pidemmän aikavälin seurantaa varten.
+                </p>
+                <p class="mb-4">
+                    Sähköyhtiön tilaussivulle siirtymisen tapahtumariveillä on aluksi toistaiseksi voimassa oleva säilytys.
+                    Automaattista poistopäivää ei ole. Säilytystarve arvioidaan uudelleen, jos analytiikan käyttötarkoitus tai
+                    kerättävät tiedot muuttuvat.
                 </p>
                 <p>
                     Teknisiä palvelin- ja lokitietoja säilytetään vain niin kauan kuin se on tarpeen sivuston toiminnan,

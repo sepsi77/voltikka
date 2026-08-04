@@ -6,6 +6,7 @@ use App\Http\Middleware\SetPublicCacheHeaders;
 use App\Livewire\Concerns\BillComparisonInputs;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
+use App\Services\Analytics\ContractOrderClickContextSigner;
 use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\CO2EmissionsCalculator;
@@ -932,6 +933,34 @@ class ContractDetail extends Component
     public function getCalculatedCostProperty(): array
     {
         return $this->pricingViewDataFor($this->consumption)?->toArray() ?? [];
+    }
+
+    /**
+     * Signed server facts for the two seller-order CTA events.
+     *
+     * The displayed annual price uses the exact selected consumption. The live
+     * rank can use the nearest supported comparison consumption. Keep both
+     * bases in the context and do not use the fixed 5,000 kWh SEO rank.
+     */
+    public function getContractOrderClickContextProperty(): string
+    {
+        $contract = $this->contract;
+        $calculatedCost = $this->calculatedCost;
+        $annualPrice = $calculatedCost['total_cost'] ?? null;
+        $pricingBasis = $calculatedCost['pricing_basis'] ?? null;
+
+        return app(ContractOrderClickContextSigner::class)->sign(
+            contractId: (string) $contract->id,
+            contractName: (string) $contract->name,
+            companyName: (string) ($contract->company?->name ?? $contract->company_name),
+            annualPriceEur: is_numeric($annualPrice) ? (float) $annualPrice : null,
+            consumptionKwh: $this->consumption,
+            priceRank: $this->liveRank,
+            rankTotal: $this->liveTotalContracts,
+            rankConsumptionKwh: $this->rankConsumption(),
+            isEstimate: ($calculatedCost['is_estimate'] ?? false) === true,
+            pricingBasis: is_string($pricingBasis) && $pricingBasis !== '' ? $pricingBasis : null,
+        );
     }
 
     /**
@@ -2673,6 +2702,7 @@ class ContractDetail extends Component
                 'priceQualifier' => $this->priceQualifier,
                 'liveRank' => $this->liveRank,
                 'liveTotalContracts' => $this->liveTotalContracts,
+                'contractOrderClickContext' => $this->contractOrderClickContext,
                 'companyInternalUrl' => ContractInternalLinks::companyUrl($contract?->company),
                 'heroBadgeLinks' => $contract ? ContractInternalLinks::heroBadgeLinks($contract) : [],
             ],
@@ -2703,8 +2733,8 @@ class ContractDetail extends Component
 
     protected function contractDetailViewDataCacheKey(): string
     {
-        // v18: the price-development overlay uses the basis-aware current statistics segment.
-        return 'contract-detail:view-data:v18:'.md5(json_encode([
+        // v19: the payload contains a versioned signed seller-click context.
+        return 'contract-detail:view-data:v19:'.md5(json_encode([
             'contract_id' => $this->contractId,
             'consumption' => $this->consumption,
             'version' => $this->contractPageCacheVersionHash(),
