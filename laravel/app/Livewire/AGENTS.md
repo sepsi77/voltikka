@@ -104,7 +104,10 @@ Important semantics:
   When bill mode first becomes active, `ContractsList::recomputeBill()` dispatches
   the existing Plausible `Bill Comparison Completed` tracking event with
   `source=contract_listing`; keep it on the inactive→active transition so valid
-  follow-up edits do not spam duplicate events.
+  follow-up edits do not spam duplicate events. The installed Livewire 3 passes
+  the named dispatch detail to the browser bridge as an object, not `data[0]`;
+  `tests/JavaScript/plausible-tracking.test.js` executes the real bridge and guards
+  the event name and nested `props` forwarding.
 - `getContractsProperty()` (in both `ContractsList` and `SeoContractsList`)
   branches to `buildBillModePaginator()` after applying the page's filters, so
   filters still apply in bill mode (period costs are computed for the filtered set).

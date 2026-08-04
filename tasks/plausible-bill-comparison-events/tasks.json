@@ -1,5 +1,8 @@
 [
   {"name":"Locate in-listing bill comparison UI and existing Plausible setup","status":"completed"},
   {"name":"Implement guarded custom event when feature is used","status":"completed"},
-  {"name":"Run targeted checks/tests","status":"completed"}
+  {"name":"Run targeted checks/tests","status":"completed"},
+  {"name":"Verify the browser bridge against the installed Livewire payload shape","status":"completed"},
+  {"name":"Fix the browser bridge and add a JavaScript regression test","status":"completed"},
+  {"name":"Run PHP, JavaScript, and production-bundle verification","status":"completed"}
 ]

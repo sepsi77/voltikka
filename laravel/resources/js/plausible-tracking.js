@@ -15,10 +15,10 @@ document.addEventListener('alpine:init', () => {
 });
 
 // Livewire event listener for PHP-dispatched tracking
-// Usage in PHP: $this->dispatch('track', eventName: 'Event Name', options: ['props' => ['key' => 'value']])
+// Usage in PHP: $this->dispatch('track', eventName: 'Event Name', props: ['key' => 'value'])
 document.addEventListener('livewire:init', () => {
     Livewire.on('track', (data) => {
-        const payload = data[0] || {};
+        const payload = (Array.isArray(data) ? data[0] : data) || {};
         const options = payload.options || (payload.props ? { props: payload.props } : {});
 
         if (payload.eventName) {
