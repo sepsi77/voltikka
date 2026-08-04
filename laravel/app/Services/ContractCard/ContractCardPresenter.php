@@ -135,7 +135,7 @@ class ContractCardPresenter
     {
         foreach ([$contract->order_link, $contract->product_link, $company?->company_url] as $url) {
             if (is_string($url) && trim($url) !== '') {
-                return new CardSellerCta(trim($url), 'Siirry myyjän sivuille', external: true);
+                return new CardSellerCta($this->withSellerUtm(trim($url)), 'Siirry myyjän sivuille', external: true);
             }
         }
 
@@ -144,6 +144,33 @@ class ContractCardPresenter
         return $companyPage !== null
             ? new CardSellerCta($companyPage, 'Katso myyjän tiedot', external: false)
             : null;
+    }
+
+    /**
+     * Add deterministic attribution without changing seller parameters or the fragment.
+     */
+    private function withSellerUtm(string $url): string
+    {
+        [$destination, $fragment] = array_pad(explode('#', $url, 2), 2, null);
+        [$base, $query] = array_pad(explode('?', $destination, 2), 2, null);
+        $utm = [
+            'utm_source' => 'voltikka.fi',
+            'utm_medium' => 'referral',
+            'utm_campaign' => 'voltikka_sahkovertailu',
+        ];
+
+        $parameters = $query === null || $query === '' ? [] : explode('&', $query);
+        $parameters = array_values(array_filter($parameters, static function (string $parameter) use ($utm): bool {
+            $key = explode('=', $parameter, 2)[0];
+
+            return ! array_key_exists(urldecode($key), $utm);
+        }));
+
+        foreach ($utm as $key => $value) {
+            $parameters[] = rawurlencode($key).'='.rawurlencode($value);
+        }
+
+        return $base.'?'.implode('&', $parameters).($fragment !== null ? '#'.$fragment : '');
     }
 
     /**

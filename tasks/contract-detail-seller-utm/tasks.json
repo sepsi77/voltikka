@@ -1,0 +1,16 @@
+{
+  "tasks": [
+    {
+      "name": "Add UTM parameters to contract detail seller links",
+      "status": "completed"
+    },
+    {
+      "name": "Add regression tests",
+      "status": "completed"
+    },
+    {
+      "name": "Run focused tests",
+      "status": "completed"
+    }
+  ]
+}

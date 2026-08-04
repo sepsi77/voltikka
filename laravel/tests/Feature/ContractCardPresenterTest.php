@@ -1095,19 +1095,31 @@ class ContractCardPresenterTest extends TestCase
             'company_url' => 'https://testi.fi',
         ]);
 
-        $withOrderLink = $this->contract(['order_link' => 'https://testi.fi/tilaa', 'product_link' => 'https://testi.fi/tuote']);
+        $withOrderLink = $this->contract([
+            'order_link' => 'https://testi.fi/tilaa?offer=green&utm_source=old&utm_medium=email#checkout',
+            'product_link' => 'https://testi.fi/tuote',
+        ]);
         $withOrderLink->setRelation('company', $company);
-        $this->assertSame('https://testi.fi/tilaa', $this->present($withOrderLink)->sellerCta->url);
+        $this->assertSame(
+            'https://testi.fi/tilaa?offer=green&utm_source=voltikka.fi&utm_medium=referral&utm_campaign=voltikka_sahkovertailu#checkout',
+            $this->present($withOrderLink)->sellerCta->url,
+        );
         $this->assertSame('Siirry myyjän sivuille', $this->present($withOrderLink)->sellerCta->label);
 
         $withProductLink = $this->contract(['product_link' => 'https://testi.fi/tuote']);
         $withProductLink->setRelation('company', $company);
-        $this->assertSame('https://testi.fi/tuote', $this->present($withProductLink)->sellerCta->url);
+        $this->assertSame(
+            'https://testi.fi/tuote?utm_source=voltikka.fi&utm_medium=referral&utm_campaign=voltikka_sahkovertailu',
+            $this->present($withProductLink)->sellerCta->url,
+        );
 
         // One live contract carried neither link and its detail page rendered no action at all.
         $withNeither = $this->contract();
         $withNeither->setRelation('company', $company);
-        $this->assertSame('https://testi.fi', $this->present($withNeither)->sellerCta->url);
+        $this->assertSame(
+            'https://testi.fi?utm_source=voltikka.fi&utm_medium=referral&utm_campaign=voltikka_sahkovertailu',
+            $this->present($withNeither)->sellerCta->url,
+        );
         $this->assertTrue($this->present($withNeither)->sellerCta->external);
 
         // No seller site either: the label must stop promising the seller's own pages.

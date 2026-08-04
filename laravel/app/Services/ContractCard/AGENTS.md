@@ -243,9 +243,13 @@ this slice; do not add a second untyped cache API for it.
 
 `ContractCardPresenter::sellerCta()` resolves `order_link` → `product_link` →
 `company.company_url` → the company's Voltikka page. Cards do not use it (they link to the
-detail page); the detail page does. **The label follows the destination**: the company-page
-fallback says "Katso myyjän tiedot", never "Siirry myyjän sivuille", so the button cannot
-promise an order form it does not have.
+detail page); the detail page does. Every external CTA labelled "Siirry myyjän sivuille"
+gets deterministic seller attribution: `utm_source=voltikka.fi`, `utm_medium=referral`, and
+`utm_campaign=voltikka_sahkovertailu`. Existing seller query parameters and URL fragments
+stay in place, and incoming values for these three keys are overwritten. The internal
+Voltikka company-page fallback gets no UTM parameters. **The label follows the destination**:
+the company-page fallback says "Katso myyjän tiedot", never "Siirry myyjän sivuille", so the
+button cannot promise an order form it does not have.
 
 ## Contract names
 

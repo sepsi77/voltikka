@@ -581,10 +581,12 @@ class ContractDetailPresenterTest extends TestCase
 
     public function test_every_active_contract_offers_a_way_to_the_seller(): void
     {
-        $withOrderLink = $this->contract('cta-order');
+        $withOrderLink = $this->contract('cta-order', [
+            'order_link' => 'https://testienergia.fi/tilaa?offer=green&utm_campaign=old#checkout',
+        ]);
         Livewire::test('contract-detail', ['contractId' => $withOrderLink->id])
             ->assertSee('Siirry myyjän sivuille')
-            ->assertSeeHtml('href="https://testienergia.fi/tilaa"')
+            ->assertSeeHtml('href="https://testienergia.fi/tilaa?offer=green&amp;utm_source=voltikka.fi&amp;utm_medium=referral&amp;utm_campaign=voltikka_sahkovertailu#checkout"')
             ->assertSee('Tilaus tehdään suoraan sähköyhtiön sivuilla');
 
         // One live contract carried neither an order link nor a product link, and its page
@@ -592,7 +594,14 @@ class ContractDetailPresenterTest extends TestCase
         $withNeither = $this->contract('cta-none', ['order_link' => null, 'product_link' => null]);
         Livewire::test('contract-detail', ['contractId' => $withNeither->id])
             ->assertSee('Siirry myyjän sivuille')
-            ->assertSeeHtml('href="https://testienergia.fi"');
+            ->assertSeeHtml('href="https://testienergia.fi?utm_source=voltikka.fi&amp;utm_medium=referral&amp;utm_campaign=voltikka_sahkovertailu"');
+
+        $this->company->update(['company_url' => null]);
+        $internalFallback = $this->contract('cta-internal', ['order_link' => null, 'product_link' => null]);
+        Livewire::test('contract-detail', ['contractId' => $internalFallback->id])
+            ->assertSee('Katso myyjän tiedot')
+            ->assertSeeHtml('href="/sahkosopimus/sahkoyhtiot/testi-energia-oy"')
+            ->assertDontSee('utm_source');
     }
 
     // ------------------------------------------------------------------- name normalization
