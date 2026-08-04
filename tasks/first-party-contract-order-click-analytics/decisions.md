@@ -144,3 +144,10 @@
 - `composer validate --no-check-publish`: passed.
 - Focused Pint check, route checks, and `git diff --check`: passed.
 - The full Laravel run completed 1,877 tests: 1,870 passed and 7 failed in pre-existing canonical short-term/date-weighted pricing assertions. The failures were in `CanonicalOfferSurfacesTest`, `ContractApiCanonicalPricingTest`, `ContractDetailPresenterTest`, `ContractTypeComparisonTest`, and `WeeklyOffersCanonicalPricingTest`. This task did not change those pricing services or assertions. All analytics, admin, JavaScript, and affected ContractDetail tests pass.
+
+## 2026-08-05 — First production build failure and repair
+
+- Git push `c3c5e4b` started Railway deployment `dc83d4b2-f6a8-4483-a827-d69c1559049a`.
+- The build failed before application deployment because Filament 5 requires PHP `ext-intl`, which the production Docker image did not contain.
+- The repair adds Debian `libicu-dev` and compiles PHP `intl` in `Dockerfile`. Do not use Composer's `--ignore-platform-req=ext-intl`; Filament needs the extension at runtime.
+- A complete local `docker build --progress=plain -t voltikka:analytics-intl .` passed. Composer installed Filament, `filament:upgrade` published its assets, and the Vite build completed inside the image.

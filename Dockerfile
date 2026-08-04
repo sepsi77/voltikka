@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     libpng-dev \
     libjpeg62-turbo-dev \
+    libicu-dev \
     libonig-dev \
     libxml2-dev \
     libpq-dev \
@@ -23,7 +24,7 @@ RUN apt-get update && apt-get install -y \
     default-mysql-client \
     $PHPIZE_DEPS \
     && docker-php-ext-configure gd --with-jpeg --with-webp \
-    && docker-php-ext-install pdo pdo_pgsql pdo_mysql mbstring exif pcntl bcmath gd zip \
+    && docker-php-ext-install pdo pdo_pgsql pdo_mysql mbstring exif pcntl bcmath gd zip intl \
     && pecl install excimer \
     && docker-php-ext-enable excimer \
     && apt-get clean && rm -rf /var/lib/apt/lists/*

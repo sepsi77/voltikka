@@ -207,6 +207,7 @@ php artisan test --filter="ContractsFilterTest"
 - Server-signed facts use the displayed annual total and selected consumption plus the live rank, live universe size, and separate rank-consumption basis. Missing price and rank facts stay null
 - Typed `contract_order_clicks` rows have indefinite retention at the initial release. There is no cleanup job. Rows do not contain IP addresses, user agents, full referrers, query strings, full URLs, visitor IDs, or session IDs
 - Filament 5 provides a private read-only `/admin` resource. Existing users need `is_admin=true`; valid credentials alone are insufficient, and there is no public registration or deployment-time user creation
+- Filament requires PHP `ext-intl`; the production Docker image installs `libicu-dev` and compiles `intl`. Keep this extension when changing the base image
 - See `laravel/app/Services/Analytics/AGENTS.md` and `laravel/app/Filament/AGENTS.md`
 
 ### 1b. Company pages (`/sahkosopimus/sahkoyhtiot/{slug}`)
