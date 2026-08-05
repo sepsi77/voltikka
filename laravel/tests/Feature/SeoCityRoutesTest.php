@@ -13,6 +13,7 @@ use App\Services\CitySolarService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class SeoCityRoutesTest extends TestCase
@@ -395,12 +396,16 @@ class SeoCityRoutesTest extends TestCase
     }
 
     /**
-     * Test that city-specific contracts are shown on the correct city page.
+     * A city URL alone does not prove the visitor's exact delivery area.
      */
-    public function test_city_specific_contracts_shown_on_correct_city(): void
+    public function test_city_specific_contracts_require_an_exact_selected_postcode(): void
     {
-        $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
-        $response->assertSee('Helsinki Sähkö');
+        $this->get('/sahkosopimus/paikkakunnat/helsinki')
+            ->assertDontSee('Helsinki Sähkö');
+
+        Livewire::test('seo-contracts-list', ['location' => 'helsinki'])
+            ->call('selectPostcode', '00100')
+            ->assertSee('Helsinki Sähkö');
     }
 
     /**
@@ -413,12 +418,12 @@ class SeoCityRoutesTest extends TestCase
     }
 
     /**
-     * Test that Tampere-specific contracts are shown on Tampere page.
+     * A different city URL also stays nationwide-only without a postcode.
      */
-    public function test_tampere_contracts_shown_on_tampere_page(): void
+    public function test_tampere_contracts_are_hidden_without_a_selected_postcode(): void
     {
-        $response = $this->get('/sahkosopimus/paikkakunnat/tampere');
-        $response->assertSee('Tampere Sähkö');
+        $this->get('/sahkosopimus/paikkakunnat/tampere')
+            ->assertDontSee('Tampere Sähkö');
     }
 
     // ==================== Breadcrumb Navigation Tests ====================
@@ -625,7 +630,7 @@ class SeoCityRoutesTest extends TestCase
         $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
 
         $response->assertSee('sopimusta');
-        $response->assertSee('vertailussa');
+        $response->assertSee('12 kk arvio sisältää tarjoukset');
     }
 
     // ==================== Top Cities List Tests ====================

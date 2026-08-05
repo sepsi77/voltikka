@@ -1,0 +1,11 @@
+[
+  { "name": "Reorder bill disclosure below postcode row in seo-contracts-list", "status": "done" },
+  { "name": "Compact postcode selector to one availability row", "status": "done" },
+  { "name": "Unify control labels and disclosure trigger typography", "status": "done" },
+  { "name": "Move clear-filters link inside the collapsible panel", "status": "done" },
+  { "name": "Update SeoCityRoutesTest caption assertion to new copy", "status": "done" },
+  { "name": "Collapse postcode form into an availability disclosure (user request)", "status": "done" },
+  { "name": "Run listing test suites and impeccable detector", "status": "done" },
+  { "name": "Verify desktop states in browser", "status": "done" },
+  { "name": "Verify mobile layout in browser", "status": "blocked: Chrome window refuses programmatic resize (fullscreen)" }
+]

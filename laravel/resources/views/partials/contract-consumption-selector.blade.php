@@ -1,10 +1,12 @@
 {{-- Consumption Preset Selector --}}
-    <section x-data="{ panelOpen: false }" class="bg-transparent mb-6">
-        {{-- Compact header: label + calculator toggle (desktop) + collapse (mobile) --}}
-        <div class="flex items-center justify-between gap-3 mb-3">
-            <h3 class="text-sm font-bold text-slate-700 tracking-tight">
+    <section x-data="{ panelOpen: false }" class="bg-transparent mb-5">
+        {{-- Compact header: label + calculator toggle (desktop) + collapse (mobile).
+             The label is a control label, not a content heading, and shares one
+             style with the pricing-pill row label. --}}
+        <div class="flex items-center justify-between gap-3 mb-2">
+            <p class="text-sm font-semibold text-slate-600">
                 {{ $isBusinessPage ? 'Yrityksen vuosikulutus' : 'Vuosikulutus' }}
-            </h3>
+            </p>
             <div class="flex items-center gap-3">
                 @if($showCalculatorTab ?? true)
                     <button
@@ -15,7 +17,7 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m-6 4h6m-6 4h4M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"></path>
                         </svg>
-                        {{ $activeTab === 'calculator' ? 'Sulje laskuri' : 'En tiedä – arvioi laskurilla' }}
+                        {{ $activeTab === 'calculator' ? 'Sulje laskuri' : 'Arvioi kulutus laskurilla' }}
                     </button>
                 @endif
                 {{-- Mobile collapse toggle --}}
@@ -43,7 +45,7 @@
                 wire:click="setActiveTab('{{ $activeTab === 'calculator' ? 'presets' : 'calculator' }}')"
                 class="lg:hidden w-full mb-3 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold {{ $activeTab === 'calculator' ? 'text-coral-600 border-coral-300' : 'text-slate-600' }}"
             >
-                {{ $activeTab === 'calculator' ? 'Sulje laskuri ja valitse profiili' : 'En tiedä – arvioi laskurilla' }}
+                {{ $activeTab === 'calculator' ? 'Sulje laskuri ja valitse profiili' : 'Arvioi kulutus laskurilla' }}
             </button>
         @endif
 

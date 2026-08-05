@@ -342,6 +342,11 @@ class ContractsList extends Component
     public string $postcodeSearch = '';
 
     /**
+     * Accessible validation error for the exact-postcode selector.
+     */
+    public ?string $postcodeError = null;
+
+    /**
      * Filter for renewable energy (>= 50%).
      */
     #[Url]
@@ -396,6 +401,7 @@ class ContractsList extends Component
 
     public function mount(): void
     {
+        $this->normalizeUrlPostcodeFilter();
         $this->applyLegacyPricingModelFilter();
         $this->syncExplicitConsumptionSelection();
     }
@@ -1165,23 +1171,117 @@ class ContractsList extends Component
     }
 
     /**
-     * Set the postcode filter and clear search.
+     * Select an exact postcode from the autocomplete list.
      */
     public function selectPostcode(string $postcode): void
     {
-        $this->postcodeFilter = $postcode;
-        $this->postcodeSearch = '';
-        $this->resetPage();
+        $this->applyValidatedPostcode($postcode, resetPage: true);
     }
 
     /**
-     * Clear the postcode filter.
+     * Clear a previous validation message while the visitor edits the search.
+     */
+    public function updatedPostcodeSearch(): void
+    {
+        $this->postcodeError = null;
+    }
+
+    /**
+     * Apply the exact value entered in the postcode search field.
+     */
+    public function applyPostcodeSearch(): void
+    {
+        $this->applyValidatedPostcode($this->postcodeSearch, resetPage: true);
+    }
+
+    /**
+     * Restore the browser preference without moving an existing listing page.
+     */
+    public function restorePostcode(string $postcode): void
+    {
+        $this->applyValidatedPostcode($postcode, resetPage: false);
+    }
+
+    /**
+     * Clear the postcode selection and return to proven national contracts.
      */
     public function clearPostcodeFilter(): void
     {
         $this->postcodeFilter = '';
         $this->postcodeSearch = '';
+        $this->postcodeError = null;
+        $this->invalidatePostcodeListingState();
         $this->resetPage();
+        $this->dispatch('postcode-preference-removed');
+    }
+
+    protected function applyValidatedPostcode(string $postcode, bool $resetPage): void
+    {
+        $postcode = trim($postcode);
+        $selected = preg_match('/^\d{5}$/', $postcode) === 1
+            ? Postcode::query()->find($postcode)
+            : null;
+
+        if (! $selected) {
+            $this->postcodeFilter = '';
+            $this->postcodeError = $this->postcodeValidationMessage($postcode);
+            $this->invalidatePostcodeListingState();
+
+            if ($resetPage) {
+                $this->resetPage();
+            }
+
+            $this->dispatch('postcode-preference-removed');
+
+            return;
+        }
+
+        $this->postcodeFilter = $selected->postcode;
+        $this->postcodeSearch = '';
+        $this->postcodeError = null;
+        $this->invalidatePostcodeListingState();
+
+        if ($resetPage) {
+            $this->resetPage();
+        }
+
+        $this->dispatch('postcode-preference-stored', postcode: $selected->postcode);
+    }
+
+    protected function normalizeUrlPostcodeFilter(): void
+    {
+        if ($this->postcodeFilter === '') {
+            return;
+        }
+
+        $postcode = trim($this->postcodeFilter);
+        if (preg_match('/^\d{5}$/', $postcode) === 1 && Postcode::query()->whereKey($postcode)->exists()) {
+            $this->postcodeFilter = $postcode;
+
+            return;
+        }
+
+        $this->postcodeFilter = '';
+        $this->postcodeError = $this->postcodeValidationMessage($postcode);
+    }
+
+    protected function postcodeValidationMessage(string $postcode): string
+    {
+        if ($postcode === '') {
+            return 'Syötä viisinumeroinen postinumero.';
+        }
+
+        if (preg_match('/^\d{5}$/', $postcode) !== 1) {
+            return 'Postinumeron pitää olla viisi numeroa.';
+        }
+
+        return 'Postinumeroa ei löytynyt. Tarkista numero ja yritä uudelleen.';
+    }
+
+    protected function invalidatePostcodeListingState(): void
+    {
+        $this->contractsCache = null;
+        $this->allFilteredContractsCache = null;
     }
 
     /**
@@ -1238,16 +1338,24 @@ class ContractsList extends Component
      */
     public function resetFilters(): void
     {
+        $clearsPostcode = $this->postcodeFilter !== '';
+
         $this->contractTypeFilter = '';
         $this->pricingModelFilter = '';
         $this->pricingBucketFilter = '';
         $this->meteringFilter = '';
         $this->postcodeFilter = '';
         $this->postcodeSearch = '';
+        $this->postcodeError = null;
         $this->renewableFilter = false;
         $this->nuclearFilter = false;
         $this->fossilFreeFilter = false;
+        $this->invalidatePostcodeListingState();
         $this->resetPage();
+
+        if ($clearsPostcode) {
+            $this->dispatch('postcode-preference-removed');
+        }
     }
 
     /**
@@ -1318,14 +1426,25 @@ class ContractsList extends Component
      */
     public function getPostcodeSuggestionsProperty(): Collection
     {
-        if (strlen($this->postcodeSearch) < 2) {
+        $search = trim($this->postcodeSearch);
+
+        if (mb_strlen($search) < 2) {
             return new Collection;
         }
 
         return Postcode::query()
-            ->search($this->postcodeSearch)
+            ->search($search)
             ->limit(10)
             ->get();
+    }
+
+    public function getSelectedPostcodeProperty(): ?Postcode
+    {
+        if ($this->postcodeFilter === '') {
+            return null;
+        }
+
+        return Postcode::query()->find($this->postcodeFilter);
     }
 
     /**
@@ -1349,10 +1468,10 @@ class ContractsList extends Component
     /**
      * How many of the filters hosted inside the "Rajaa hakua" accordion are active.
      *
-     * The pricing-type pills deliberately sit OUTSIDE that accordion, so they must not
-     * open it or inflate its badge. `hasActiveFilters()` still counts them, because it
-     * gates "Tyhjennä suodattimet" and the default-listing cache; this is the narrower
-     * question the accordion asks. Keep it in step with
+     * The pricing-type pills and postcode selector deliberately sit OUTSIDE that accordion,
+     * so they must not open it or inflate its badge. `hasActiveFilters()` still counts them,
+     * because it gates "Tyhjennä suodattimet" and the default-listing cache; this is the
+     * narrower question the accordion asks. Keep it in step with
      * `resources/views/partials/contract-filters.blade.php`.
      *
      * Legacy `pricingModelFilter` is counted even though its buttons are gone: an inbound
@@ -1364,7 +1483,6 @@ class ContractsList extends Component
         return count(array_filter([
             $this->contractTypeFilter !== '',
             $this->pricingModelFilter !== '',
-            $this->postcodeFilter !== '',
             $this->fossilFreeFilter,
             $this->renewableFilter,
             $this->nuclearFilter,
@@ -2025,7 +2143,7 @@ class ContractsList extends Component
 
     protected function contractsListViewDataCacheKey(): string
     {
-        return 'contracts-list:view-data:v2:'.md5(json_encode([
+        return 'contracts-list:view-data:v3:'.md5(json_encode([
             'class' => static::class,
             'base_path' => $this->basePath,
             'page' => $this->page,

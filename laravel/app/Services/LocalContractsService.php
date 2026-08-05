@@ -9,7 +9,6 @@ use App\Models\Municipality;
 use App\Models\Postcode;
 use App\Services\ContractListing\ContractListingPipeline;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 class LocalContractsService
 {
@@ -27,19 +26,28 @@ class LocalContractsService
      *
      * Returns structured result with:
      * - Tier 1: Contracts from companies headquartered in the municipality
-     * - Tier 2: Regional contracts (availability_is_national = false) available in the city
+     * - Tier 2: Regional contracts linked to the visitor's exact selected postcode
      *
      * @param  int  $consumption  Annual consumption in kWh
      * @return array{local_companies: Collection, regional_contracts: Collection, has_content: bool}
      */
-    public function getLocalContracts(Municipality $municipality, int $consumption = 5000): array
-    {
-        // Tier 1: Get contracts from companies headquartered in this municipality
-        $localCompanyContracts = $this->getLocalCompanyContracts($municipality, $consumption);
+    public function getLocalContracts(
+        Municipality $municipality,
+        int $consumption = 5000,
+        string $postcode = '',
+    ): array {
+        $postcode = trim($postcode);
 
-        // Tier 2: Get regional contracts available in this municipality (excluding local companies)
+        // Tier 1: Keep nearby-company contracts eligible for the visitor's actual postcode.
+        $localCompanyContracts = $this->getLocalCompanyContracts($municipality, $consumption, $postcode);
+
+        // Tier 2 belongs to this city page, so an exact postcode from another
+        // municipality must not add contracts to the city's regional section.
+        $regionalPostcode = $this->postcodeBelongsToMunicipality($postcode, $municipality)
+            ? $postcode
+            : '';
         $localCompanyNames = $localCompanyContracts->pluck('company_name')->unique()->toArray();
-        $regionalContracts = $this->getRegionalContracts($municipality, $consumption, $localCompanyNames);
+        $regionalContracts = $this->getRegionalContracts($consumption, $localCompanyNames, $regionalPostcode);
 
         return [
             'local_companies' => $localCompanyContracts,
@@ -54,6 +62,7 @@ class LocalContractsService
     private function getLocalCompanyContracts(
         Municipality $municipality,
         int $consumption,
+        string $postcode,
     ): Collection {
         // Find nearby companies using coordinates
         $nearbyCompanies = $this->findNearbyCompanies($municipality);
@@ -62,15 +71,17 @@ class LocalContractsService
             return collect();
         }
 
-        $contracts = ElectricityContract::query()
+        $query = ElectricityContract::query()
             ->active()
             ->with(['company', 'electricitySource'])
             ->whereIn('company_name', $nearbyCompanies->pluck('name')->toArray())
             ->where(function ($q) {
                 $q->whereIn('target_group', [TargetGroup::Household->value, TargetGroup::Both->value])
                     ->orWhereNull('target_group');
-            })
-            ->get();
+            });
+
+        $this->listingPipeline->applyAvailabilityConstraint($query, $postcode);
+        $contracts = $query->get();
 
         // Add distance info to contracts for display
         $companyDistances = $nearbyCompanies->pluck('distance_km', 'name')->toArray();
@@ -163,17 +174,34 @@ class LocalContractsService
         return $earthRadiusKm * $c;
     }
 
+    private function postcodeBelongsToMunicipality(string $postcode, Municipality $municipality): bool
+    {
+        if (preg_match('/^\d{5}$/', $postcode) !== 1) {
+            return false;
+        }
+
+        $selected = Postcode::query()->find($postcode);
+        if (! $selected) {
+            return false;
+        }
+
+        if ($selected->municipal_code && $municipality->code) {
+            return (string) $selected->municipal_code === (string) $municipality->code;
+        }
+
+        return mb_strtolower(trim((string) $selected->municipal_name_fi))
+            === mb_strtolower(trim((string) $municipality->name));
+    }
+
     /**
-     * Get regional (non-national) contracts available in the municipality.
+     * Get non-national contracts linked to the exact selected postcode.
      */
     private function getRegionalContracts(
-        Municipality $municipality,
         int $consumption,
         array $excludeCompanyNames,
+        string $postcode,
     ): Collection {
-        $cityName = $municipality->name;
-
-        $contracts = ElectricityContract::query()
+        $query = ElectricityContract::query()
             ->active()
             ->with(['company', 'electricitySource'])
             ->where('availability_is_national', false)
@@ -181,16 +209,10 @@ class LocalContractsService
             ->where(function ($q) {
                 $q->whereIn('target_group', [TargetGroup::Household->value, TargetGroup::Both->value])
                     ->orWhereNull('target_group');
-            })
-            // Available in the city (has postcodes in this municipality)
-            ->whereExists(function ($subquery) use ($cityName) {
-                $subquery->select(DB::raw(1))
-                    ->from('contract_postcode')
-                    ->join('postcodes', 'contract_postcode.postcode', '=', 'postcodes.postcode')
-                    ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
-                    ->where('postcodes.municipal_name_fi', $cityName);
-            })
-            ->get();
+            });
+
+        $this->listingPipeline->applyAvailabilityConstraint($query, $postcode);
+        $contracts = $query->get();
 
         // Filter by consumption range and calculate costs
         return $this->processContracts($contracts, $consumption);

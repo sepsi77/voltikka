@@ -89,6 +89,85 @@ class LocalContractsServiceTest extends TestCase
         $this->assertSame(0, $perContractPriceComponentQueries);
     }
 
+    public function test_local_and_regional_sections_require_the_same_exact_postcode_eligibility(): void
+    {
+        $municipality = Municipality::create([
+            'code' => '091',
+            'slug' => 'helsinki',
+            'name' => 'Helsinki',
+            'name_locative' => 'Helsingissä',
+            'name_genitive' => 'Helsingin',
+        ]);
+
+        Postcode::create([
+            'postcode' => '00100',
+            'postcode_fi_name' => 'Helsinki',
+            'postcode_fi_name_slug' => 'helsinki',
+            'municipal_code' => '091',
+            'municipal_name_fi' => 'Helsinki',
+            'municipal_name_fi_slug' => 'helsinki',
+        ]);
+        Postcode::create([
+            'postcode' => '00101',
+            'postcode_fi_name' => 'Helsinki',
+            'postcode_fi_name_slug' => 'helsinki',
+            'municipal_name_fi' => 'Helsinki',
+            'municipal_name_fi_slug' => 'helsinki',
+        ]);
+        Postcode::create([
+            'postcode' => '33100',
+            'postcode_fi_name' => 'Tampere',
+            'postcode_fi_name_slug' => 'tampere',
+            'municipal_code' => '837',
+            'municipal_name_fi' => 'Tampere',
+            'municipal_name_fi_slug' => 'tampere',
+        ]);
+
+        Company::create([
+            'name' => 'Local Energia Oy',
+            'name_slug' => 'local-energia-oy',
+            'postal_name' => 'Helsinki',
+        ]);
+        Company::create([
+            'name' => 'Regional Energia Oy',
+            'name_slug' => 'regional-energia-oy',
+            'postal_name' => 'Tampere',
+        ]);
+
+        $this->createContract('local-national', 'Local Energia Oy');
+        $localRegional = $this->createContract('local-regional', 'Local Energia Oy', false);
+        $otherRegional = $this->createContract('other-regional', 'Regional Energia Oy', false);
+        $localRegional->availabilityPostcodes()->attach(['00100', '00101', '33100']);
+        $otherRegional->availabilityPostcodes()->attach(['00100', '00101', '33100']);
+
+        $service = app(LocalContractsService::class);
+        $nationalOnly = $service->getLocalContracts($municipality, 5000);
+
+        $this->assertSame(['local-national'], $nationalOnly['local_companies']->pluck('id')->all());
+        $this->assertTrue($nationalOnly['regional_contracts']->isEmpty());
+
+        $exact = $service->getLocalContracts($municipality, 5000, '00100');
+
+        $this->assertEqualsCanonicalizing(
+            ['local-national', 'local-regional'],
+            $exact['local_companies']->pluck('id')->all(),
+        );
+        $this->assertSame(['other-regional'], $exact['regional_contracts']->pluck('id')->all());
+
+        $nameFallback = $service->getLocalContracts($municipality, 5000, '00101');
+        $this->assertSame(['other-regional'], $nameFallback['regional_contracts']->pluck('id')->all());
+
+        $otherMunicipality = $service->getLocalContracts($municipality, 5000, '33100');
+        $this->assertEqualsCanonicalizing(
+            ['local-national', 'local-regional'],
+            $otherMunicipality['local_companies']->pluck('id')->all(),
+        );
+        $this->assertTrue($otherMunicipality['regional_contracts']->isEmpty());
+
+        $invalid = $service->getLocalContracts($municipality, 5000, '99999');
+        $this->assertTrue($invalid['regional_contracts']->isEmpty());
+    }
+
     public function test_bulk_latest_price_component_loader_prefers_latest_non_zero_component_per_type(): void
     {
         Company::create([
@@ -115,9 +194,12 @@ class LocalContractsServiceTest extends TestCase
         $this->assertSame(6.0, (float) $general['price']);
     }
 
-    private function createContract(string $id, string $companyName): void
-    {
-        ElectricityContract::create([
+    private function createContract(
+        string $id,
+        string $companyName,
+        ?bool $isNational = true,
+    ): ElectricityContract {
+        $contract = ElectricityContract::create([
             'id' => $id,
             'company_name' => $companyName,
             'name' => "Sopimus {$id}",
@@ -126,7 +208,7 @@ class LocalContractsServiceTest extends TestCase
             'metering' => 'General',
             'pricing_model' => 'FixedPrice',
             'target_group' => 'Household',
-            'availability_is_national' => true,
+            'availability_is_national' => $isNational,
         ]);
 
         PriceComponent::create([
@@ -148,5 +230,7 @@ class LocalContractsServiceTest extends TestCase
         ]);
 
         ActiveContract::create(['id' => $id]);
+
+        return $contract;
     }
 }

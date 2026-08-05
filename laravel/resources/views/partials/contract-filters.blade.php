@@ -2,22 +2,23 @@
 {{-- Used by both contracts-list.blade.php and seo-contracts-list.blade.php --}}
 
 @php
-    // Count only the filters this accordion actually hosts. The pricing-type pills live
-    // above the list (partials/pricing-bucket-pills.blade.php), so a pill selection must
-    // neither open this panel nor inflate its badge, even though `hasActiveFilters()`
-    // counts it for "Tyhjennä suodattimet" and the default-listing cache guard.
+    // Count only the filters this accordion hosts. The pricing-type pills and postcode
+    // selector live above it, so those selections do not open the panel or inflate its
+    // badge. `hasActiveFilters()` still counts both for the clear action and cache guard.
     $activeFilterCount = $this->activeAccordionFilterCount();
 @endphp
-<div class="rounded-xl border border-slate-200 mb-6 overflow-hidden transition-colors" :class="filtersOpen ? 'border-slate-300' : ''" x-data="{ filtersOpen: @js($this->hasActiveAccordionFilters()) }">
+<div class="mb-6 overflow-hidden rounded-xl border border-slate-200 transition-colors" :class="filtersOpen ? 'border-slate-300' : ''" x-data="{ filtersOpen: @js($this->hasActiveAccordionFilters()) }">
     {{-- Accordion trigger (all sizes): filters are collapsed by default so the
-         contract list stays high on the page. --}}
+         contract list stays high on the page. The trigger anatomy (icon + 14px
+         bold title + chevron) matches the bill-comparison disclosure so the two
+         collapsed tools read as one cluster. --}}
     <button
         type="button"
         @click="filtersOpen = !filtersOpen"
         :aria-expanded="filtersOpen ? 'true' : 'false'"
-        class="w-full px-4 py-2.5 flex items-center justify-between text-left font-semibold text-slate-900"
+        class="w-full px-4 py-2.5 flex items-center justify-between gap-2.5 text-left text-sm font-bold text-slate-900"
     >
-        <span class="flex items-center gap-2">
+        <span class="flex items-center gap-2.5">
             <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L14 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 018 21v-7.586L3.293 6.707A1 1 0 013 6V4z"></path>
             </svg>
@@ -26,7 +27,7 @@
                 <span class="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-coral-600 text-white text-xs font-bold tabular-nums">{{ $activeFilterCount }}</span>
             @endif
         </span>
-        <svg class="w-5 h-5 transform transition-transform" :class="{ 'rotate-180': filtersOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-5 h-5 shrink-0 text-slate-500 transform transition-transform" :class="{ 'rotate-180': filtersOpen }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
         </svg>
     </button>
@@ -68,7 +69,7 @@
         </div>
 
         {{-- Energy Source Filters --}}
-        <div class="flex flex-col border-t lg:border-t-0 lg:border-l border-slate-200 px-4 mt-4 pt-4 lg:pt-4">
+        <div class="mt-4 flex flex-col border-t border-slate-200 px-4 pt-4 lg:mt-0 lg:border-l lg:border-t-0 lg:pt-0">
             <h4 class="font-semibold text-slate-900 mb-2">Energialähde</h4>
             <div class="flex flex-col lg:flex-row gap-2">
                 <button
@@ -100,17 +101,19 @@
                 </button>
             </div>
         </div>
+        {{-- Clear Filters. Inside the collapsible panel on purpose: when the
+             accordion holds an active filter, the panel opens by default, and a
+             pill or postcode selection already has its own inline clear action.
+             Outside the panel this link floated inside the collapsed box. --}}
+        @if ($this->hasActiveFilters())
+            <div class="w-full px-4 pt-4">
+                <button
+                    wire:click="resetFilters"
+                    class="text-sm text-coral-600 hover:text-coral-700 font-medium"
+                >
+                    Tyhjennä suodattimet
+                </button>
+            </div>
+        @endif
     </div>
-
-    {{-- Clear Filters --}}
-    @if ($this->hasActiveFilters())
-        <div class="px-4 mt-4 pb-5">
-            <button
-                wire:click="resetFilters"
-                class="text-sm text-coral-600 hover:text-coral-700 font-medium"
-            >
-                Tyhjennä suodattimet
-            </button>
-        </div>
-    @endif
 </div>

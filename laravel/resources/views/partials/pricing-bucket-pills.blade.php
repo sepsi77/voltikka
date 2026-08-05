@@ -80,9 +80,10 @@
     // Links only on an opted-in page in the clean, unfiltered state.
     $useSeoPillLinks = ($this->showSeoFilterLinks ?? false) && ! $this->hasActiveFilters();
 @endphp
-{{-- `mb-4`: on the listing pages the "Rajaa hakua" accordion follows, on the cheapest page the
-     first contract card does. 12px binds the rail to the accordion but crowds the card. --}}
-<div class="mb-4">
+{{-- Keep the rail close to the availability row so the primary comparison choices
+     (consumption, price behavior, availability) read as one sequence before the
+     secondary tools (bill comparison, filters). --}}
+<div class="mb-5">
     <p id="pricing-bucket-filter-label" class="mb-2 text-sm font-semibold text-slate-600">
         Miten hinta käyttäytyy?
     </p>

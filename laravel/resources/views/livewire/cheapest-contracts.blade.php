@@ -75,9 +75,11 @@
          included on its own; it narrows the cheapest ranking to one pricing type. --}}
     @include('partials.pricing-bucket-pills')
 
+    @include('partials.contract-postcode-selector')
+
     {{-- Featured Contract (#1 Cheapest) --}}
     @if ($featuredContract)
-        <section class="mb-8">
+        <section class="mt-6 mb-8">
             <x-featured-contract-card
                 :contract="$featuredContract"
                 :consumption="$consumption"
@@ -87,7 +89,7 @@
     @endif
 
     {{-- Remaining Contracts (#2-11) --}}
-    <section>
+    <section class="mt-6">
         <h2 class="text-2xl font-bold text-slate-900 mb-4">Seuraavaksi edullisimmat</h2>
         <div class="space-y-6">
             @forelse ($contracts as $index => $contract)

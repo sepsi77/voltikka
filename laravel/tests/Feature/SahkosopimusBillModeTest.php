@@ -124,7 +124,7 @@ class SahkosopimusBillModeTest extends TestCase
     {
         $this->get('/sahkosopimus')
             ->assertStatus(200)
-            ->assertSee('Maksatko nykyisestä sopimuksestasi liikaa?');
+            ->assertSee('Vertaa nykyistä sähkölaskuasi');
     }
 
     public function test_entering_a_bill_activates_period_mode_and_ranks_the_user(): void
@@ -253,10 +253,10 @@ class SahkosopimusBillModeTest extends TestCase
 
         $this->get('/sahkosopimus/porssisahko')
             ->assertStatus(200)
-            ->assertSee('Maksatko nykyisestä sopimuksestasi liikaa?');
+            ->assertSee('Vertaa nykyistä sähkölaskuasi');
 
         $this->get('/sahkosopimus/yritykselle')
             ->assertStatus(200)
-            ->assertDontSee('Maksatko nykyisestä sopimuksestasi liikaa?');
+            ->assertDontSee('Vertaa nykyistä sähkölaskuasi');
     }
 }

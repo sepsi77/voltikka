@@ -70,17 +70,29 @@ class ContractListingPipeline
             $query->where('metering', $metering);
         }
 
-        if ($postcode !== '') {
-            $query->where(function (Builder $query) use ($postcode) {
-                $query->where('availability_is_national', true)
-                    ->orWhereExists(function ($query) use ($postcode) {
-                        $query->select(DB::raw(1))
-                            ->from('contract_postcode')
-                            ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
-                            ->where('contract_postcode.postcode', $postcode);
-                    });
-            });
-        }
+        $this->applyAvailabilityConstraint($query, $postcode);
+    }
+
+    /**
+     * Show proven national contracts by default. An exact selected postcode adds
+     * only regional contracts linked to that postcode.
+     *
+     * @param  Builder<ElectricityContract>  $query
+     */
+    public function applyAvailabilityConstraint(Builder $query, string $postcode): void
+    {
+        $query->where(function (Builder $query) use ($postcode) {
+            $query->where('availability_is_national', true);
+
+            if ($postcode !== '') {
+                $query->orWhereExists(function ($query) use ($postcode) {
+                    $query->select(DB::raw(1))
+                        ->from('contract_postcode')
+                        ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
+                        ->where('contract_postcode.postcode', $postcode);
+                });
+            }
+        });
     }
 
     /**

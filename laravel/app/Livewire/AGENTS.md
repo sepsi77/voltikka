@@ -76,6 +76,14 @@ Important semantics:
   in field set, VAT normalization or period presets. Each component keeps only
   what is genuinely its own: `recomputeBill()` (invalidation + its own Plausible
   `source`) and `billInputsEnabled()`. Do not add a field to one template.
+- **Postcode eligibility is shared listing state.** An empty postcode shows only
+  contracts with `availability_is_national = true`. A valid exact Finnish postcode
+  adds contracts linked through `contract_postcode`. The selector is outside the
+  advanced-filter disclosure and stores the validated selection in browser
+  `localStorage`; an explicit URL/Livewire selection wins over stored state. Invalid
+  or stale values clear the selection and fail closed. City-page regional sections
+  accept the selection only when its municipality matches the page, while nearby
+  local-company contracts still use the visitor's actual selected eligibility.
 - **Period basis only (facts).** When a valid bill is entered, the listing
   reranks by each contract's *exact billing-period* cost (`periodCostEur`) via
   `BillComparisonService::periodRowsForContracts()`, not the annual estimate.
@@ -137,15 +145,36 @@ Important semantics:
   comparison page. `resources/views/partials/contract-consumption-selector.blade.php`
   is the one source for the selector markup in `ContractsList`, `SeoContractsList`,
   and `CheapestContracts`; each listing view includes it instead of copying the UI.
-  The hero is slimmed; the consumption selector is a compact single-row grid of
-  preset info-cards (label + description + kWh, so they keep their meaning) plus a
-  free-text "Tiedän kulutukseni" input tile; the full calculator is behind a header
-  toggle ("En tiedä – arvioi laskurilla", desktop) / an in-panel toggle (mobile)
-  rather than an always-visible tab. The bill entry
-  and the **filters** (`partials/contract-filters.blade.php`) are collapsed Alpine
-  disclosures (`x-collapse` + `x-cloak`). Filters now collapse on **all** sizes
-  (previously desktop-always-open); the "Rajaa hakua" trigger shows an active-filter
-  count badge and defaults open only when `hasActiveFilters()`. The "Vertailu
+  The hero is slimmed; the consumption selector is one compact segmented rail of
+  presets (label + description + kWh, so they keep their meaning) plus a free-text
+  "Tiedän kulutukseni" segment. The full calculator is behind a header toggle
+  ("Arvioi kulutus laskurilla", desktop) or an in-panel toggle (mobile), rather
+  than an always-visible tab. The bill entry uses the factual label "Vertaa
+  nykyistä sähkölaskuasi" and the **filters** (`partials/contract-filters.blade.php`)
+  are collapsed Alpine disclosures (`x-collapse` + `x-cloak`). Filters collapse on
+  **all** sizes; the "Rajaa hakua" trigger shows an active-filter count and opens
+  by default only for filters inside that disclosure. Pricing behavior stays
+  visible as the primary path.
+  **The control stack has one fixed order** (2026-08 cleanup): the primary
+  choices first (consumption rail, pricing-behavior rail), then the collapsed
+  tools cluster (availability disclosure, bill disclosure, filters accordion,
+  8px apart so they read as one group). Do not put the bill disclosure back
+  between the consumption selector and the pills; it split the primary sequence.
+  The consumption and pills labels share one style (`text-sm font-semibold
+  text-slate-600`, rendered as `<p>`, not headings), and all three disclosure
+  triggers share one anatomy (slate-500 icon, 14px bold slate-900 title,
+  slate-500 chevron).
+  **The postcode form is collapsed on purpose** (explicit user decision,
+  2026-08): most visitors never enter a postcode and the always-open form drew
+  the most attention in the stack. The disclosure trigger itself states the
+  current availability ("Saatavuus: koko Suomi" or the selected postcode, plus
+  the helper sentence), so the fail-closed national-only scope stays glanceable
+  without opening anything; the input, suggestions, and "Poista postinumero"
+  live inside the panel. The "Postinumero (5 numeroa)" label is `sr-only`
+  because the trigger sentence and placeholder already name the field. "Tyhjennä suodattimet" lives **inside** the
+  filters panel (outside it, the link floated inside the collapsed box whenever a
+  pill or postcode selection made `hasActiveFilters()` true). The
+  results caption is a plain divider, not another bordered card. The "Vertailu
   kulutuksella" pill is `lg:hidden` in presets mode (the cards confirm the value
   on desktop) but shows on mobile (cards collapse behind "Vaihda") and in
   calculator mode.
@@ -681,7 +710,7 @@ Purpose:
 Important semantics:
 - only cache canonical default GET states: page 1, no query string, no interactive filters/search input
 - do not cache arbitrary filter/query combinations because they can explode cache cardinality and are less important for search-landing TTFB
-- cache keys include route/filter context plus `ContractPageCacheVersion::hash()` so contract imports and source-table changes bust stale payloads. The current outer schemas are `contracts-list:view-data:v2` and `seo-contracts-list:view-data:v2`; both moved for the basis-aware reset insight change because the source fingerprint alone cannot invalidate code-only membership changes
+- cache keys include route/filter context plus `ContractPageCacheVersion::hash()` so contract imports and source-table changes bust stale payloads. The current outer schemas are `contracts-list:view-data:v3` and `seo-contracts-list:view-data:v3`; v3 invalidates prepared membership after national-by-default postcode eligibility changed
 - this is prepared-data caching, not full HTML caching; Livewire actions still recompute/serve their interactive state normally
 - page-level caching is disabled when `app()->runningUnitTests()` to avoid cross-test cache pollution from Laravel's array cache driver
 - listing metric rebuilds should use `ElectricityContract::getLatestPriceComponentsForCalculationByContractIds()` so crawler hits do not produce one `price_components` query per contract while still avoiding eager-loading full price history

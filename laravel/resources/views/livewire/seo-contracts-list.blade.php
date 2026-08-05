@@ -140,30 +140,36 @@
         'showCalculatorTab' => $showCalculatorTab ?? true,
     ])
 
-    {{-- Bill comparison ("Maksatko liikaa") entry — proven on /sahkosopimus first. --}}
+    {{-- Pricing-type pills: always visible, above the list and outside the accordion. --}}
+    @include('partials.pricing-bucket-pills')
+
+    @include('partials.contract-postcode-selector')
+
+    {{-- Bill comparison ("Maksatko liikaa") entry — proven on /sahkosopimus first.
+         It sits below the primary sequence (consumption, price behavior,
+         availability) beside the filters accordion, so the two collapsed tools
+         read as one quiet cluster instead of splitting the primary controls. --}}
     @if ($showBillComparison)
         {{-- Bill comparison is a collapsed disclosure so it does not push the
              contract list down for everyone; opens automatically once a bill is
              entered (bill mode active). --}}
-        <section class="mb-3" x-data="{ billOpen: @js($this->isBillModeActive()) }">
+        <section class="mb-2" x-data="{ billOpen: @js($this->isBillModeActive()) }">
             <div class="rounded-xl border overflow-hidden transition-colors" :class="billOpen ? 'border-coral-300' : 'border-slate-200'">
                 <button
                     type="button"
                     @click="billOpen = !billOpen"
                     :aria-expanded="billOpen ? 'true' : 'false'"
-                    class="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
+                    class="flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition-colors"
                     :class="billOpen ? 'bg-coral-50/60' : 'hover:bg-slate-50'"
                 >
-                    <span class="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-lg bg-coral-50">
-                        <svg class="w-5 h-5 text-coral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                        </svg>
+                    <svg class="h-5 w-5 shrink-0 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <span class="min-w-0 flex-1 sm:flex sm:items-baseline sm:gap-2">
+                        <span class="block text-sm font-bold text-slate-900">Vertaa nykyistä sähkölaskuasi</span>
+                        <span class="mt-0.5 block text-sm text-slate-600 sm:mt-0">Katso hintaero samalla ajalla ja kulutuksella.</span>
                     </span>
-                    <span class="min-w-0 flex-1">
-                        <span class="block text-base font-bold text-slate-900">Maksatko nykyisestä sopimuksestasi liikaa?</span>
-                        <span class="block text-sm text-slate-600 mt-0.5">Syötä yhden laskusi tiedot, niin näet säästösi.</span>
-                    </span>
-                    <svg class="w-5 h-5 flex-shrink-0 text-slate-400 transition-transform" :class="billOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="h-5 w-5 shrink-0 text-slate-500 transition-transform" :class="billOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </button>
@@ -185,9 +191,6 @@
         </section>
     @endif
 
-    {{-- Pricing-type pills: always visible, above the list and outside the accordion. --}}
-    @include('partials.pricing-bucket-pills')
-
     {{-- Filter Section (shared partial) --}}
     @include('partials.contract-filters')
 
@@ -199,7 +202,7 @@
             :consumption="$consumption"
             :local-company-contracts="$localContractsData['local_companies']"
             :regional-contracts="$localContractsData['regional_contracts']"
-            wire:key="local-contracts-{{ $citySlug }}-{{ $consumption }}"
+            wire:key="local-contracts-{{ $citySlug }}-{{ $consumption }}-{{ $postcodeFilter ?: 'national' }}"
         />
     @endif
 
@@ -249,8 +252,9 @@
              list header, not another stacked card. Lets the contracts lead. --}}
         <div class="mb-5 flex flex-col gap-2 border-b border-slate-200 pb-4 lg:flex-row lg:items-baseline lg:justify-between">
             <p class="text-sm text-slate-600">
-                <span class="font-bold text-slate-900">{{ $contracts->total() }} sopimusta</span> vertailussa. Lasketut 12 kk kulut sisältäen tarjoukset, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
-                <a href="/tietoa#menetelma" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Näin laskemme &rarr;</a>
+                <span class="font-bold text-slate-900">{{ $contracts->total() }} sopimusta.</span>
+                12 kk arvio sisältää tarjoukset ja ALV 25,5 %. Siirtomaksu ei sisälly.
+                <a href="/tietoa#menetelma" class="whitespace-nowrap font-medium text-coral-600 underline underline-offset-2 hover:text-coral-700">Näin laskemme &rarr;</a>
             </p>
             {{-- Type-band legend; replaced the emissions legend when the card's emissions
                  left stripe was removed. See resources/views/components/card/legend.blade.php. --}}

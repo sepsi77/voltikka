@@ -63,24 +63,20 @@
     {{-- Pricing-type pills: always visible, above the list and outside the accordion. --}}
     @include('partials.pricing-bucket-pills')
 
+    @include('partials.contract-postcode-selector')
+
     {{-- Filter Section (shared partial) --}}
     @include('partials.contract-filters')
 
-    <!-- Results Credibility Bar -->
-    <div class="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-6">
-        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div class="flex items-center gap-3">
-                <svg class="w-5 h-5 text-coral-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <p class="text-sm text-slate-700">
-                    <span class="font-semibold">{{ $contracts->total() }} sopimusta</span> vertailussa: lasketut 12 kk kulut sisältäen tarjoukset, hinnat sis. alv 25,5 % (siirtomaksu ei sisälly).
-                    <a href="/tietoa#menetelma" class="text-coral-600 hover:text-coral-700 underline underline-offset-2 font-medium whitespace-nowrap">Näin laskemme &rarr;</a>
-                </p>
-            </div>
-            {{-- Legend for the card type bands. It replaced the emissions-colour legend when the
-                 emissions left stripe was removed; the energy source now appears as a data tag in
-                 each card footer, with its real percentage instead of a colour tier. --}}
+    {{-- Plain list caption. Avoid one more bordered card in the control stack. --}}
+    <div class="mb-5 flex flex-col gap-2 border-b border-slate-200 pb-4 lg:flex-row lg:items-baseline lg:justify-between">
+        <p class="text-sm text-slate-600">
+            <span class="font-bold text-slate-900">{{ $contracts->total() }} sopimusta.</span>
+            12 kk arvio sisältää tarjoukset ja ALV 25,5 %. Siirtomaksu ei sisälly.
+            <a href="/tietoa#menetelma" class="whitespace-nowrap font-medium text-coral-600 underline underline-offset-2 hover:text-coral-700">Näin laskemme &rarr;</a>
+        </p>
+        {{-- The legend explains the pricing-category bands on the cards below. --}}
+        <div class="shrink-0">
             <x-card.legend />
         </div>
     </div>

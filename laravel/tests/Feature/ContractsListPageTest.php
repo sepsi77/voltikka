@@ -241,7 +241,7 @@ class ContractsListPageTest extends TestCase
     {
         Livewire::test('cheapest-contracts')
             ->assertSee('Vuosikulutus')
-            ->assertSee('En tiedä – arvioi laskurilla')
+            ->assertSee('Arvioi kulutus laskurilla')
             ->assertSee('Tiedän kulutukseni')
             ->assertSeeHtml('wire:model.blur="directConsumption"')
             ->assertDontSee('Valitse kulutustaso')
@@ -729,7 +729,8 @@ class ContractsListPageTest extends TestCase
 
         // The component should load without issues and the contract should NOT have
         // availabilityPostcodes relationship loaded (to save memory)
-        $component = Livewire::test('contracts-list');
+        $component = Livewire::test('contracts-list')
+            ->call('selectPostcode', '00000');
         $contracts = $component->viewData('contracts');
 
         $this->assertCount(1, $contracts);

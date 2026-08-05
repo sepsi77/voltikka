@@ -270,6 +270,7 @@ class SeoContractsList extends ContractsList
             }
         }
 
+        $this->normalizeUrlPostcodeFilter();
         $this->applyLegacyPricingModelFilter();
         $this->syncExplicitConsumptionSelection();
 
@@ -361,24 +362,6 @@ class SeoContractsList extends ContractsList
             $this->meteringFilter,
             $this->postcodeFilter,
         );
-
-        // Apply city filter at database level (memory optimization)
-        // This avoids loading all pivot records into memory
-        if ($this->city) {
-            $cityData = $this->getCityData($this->city);
-            $cityName = $cityData['name'];
-
-            $query->where(function ($q) use ($cityName) {
-                $q->where('availability_is_national', true)
-                    ->orWhereExists(function ($subquery) use ($cityName) {
-                        $subquery->select(DB::raw(1))
-                            ->from('contract_postcode')
-                            ->join('postcodes', 'contract_postcode.postcode', '=', 'postcodes.postcode')
-                            ->whereColumn('contract_postcode.contract_id', 'electricity_contracts.id')
-                            ->where('postcodes.municipal_name_fi', $cityName);
-                    });
-            });
-        }
 
         // Feature-off keeps the relational promotion candidate filter. Canonical
         // mode must evaluate the broad candidate set first because canonical-only
@@ -1174,7 +1157,7 @@ class SeoContractsList extends ContractsList
         }
 
         $service = app(LocalContractsService::class);
-        $data = $service->getLocalContracts($municipality, $this->consumption);
+        $data = $service->getLocalContracts($municipality, $this->consumption, $this->postcodeFilter);
 
         // Collect IDs to exclude from main listing
         $excludedIds = $data['local_companies']->pluck('id')
@@ -1188,6 +1171,12 @@ class SeoContractsList extends ContractsList
             'has_content' => $data['has_content'],
             'excluded_ids' => $excludedIds,
         ];
+    }
+
+    protected function invalidatePostcodeListingState(): void
+    {
+        parent::invalidatePostcodeListingState();
+        $this->localContractsDataCache = null;
     }
 
     /**
@@ -1465,7 +1454,7 @@ class SeoContractsList extends ContractsList
 
     protected function seoContractsViewDataCacheKey(): string
     {
-        return 'seo-contracts-list:view-data:v2:'.md5(json_encode([
+        return 'seo-contracts-list:view-data:v3:'.md5(json_encode([
             'class' => static::class,
             'base_path' => $this->basePath,
             'housing_type' => $this->housingType,
