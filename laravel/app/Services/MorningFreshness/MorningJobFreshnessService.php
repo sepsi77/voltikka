@@ -65,9 +65,11 @@ class MorningJobFreshnessService
         return $this->check($asOf, false);
     }
 
-    public function checkFixedTermForecast(CarbonInterface $asOf): MorningFreshnessResult
-    {
-        return $this->check($asOf, true);
+    public function checkFixedTermForecast(
+        CarbonInterface $asOf,
+        ?CarbonInterface $statisticsStartedAtOverride = null,
+    ): MorningFreshnessResult {
+        return $this->check($asOf, true, $statisticsStartedAtOverride);
     }
 
     public function reportDeferred(string $job, CarbonInterface $asOf, MorningFreshnessResult $result): void
@@ -79,8 +81,11 @@ class MorningJobFreshnessService
         ]);
     }
 
-    private function check(CarbonInterface $asOf, bool $forecast): MorningFreshnessResult
-    {
+    private function check(
+        CarbonInterface $asOf,
+        bool $forecast,
+        ?CarbonInterface $statisticsStartedAtOverride = null,
+    ): MorningFreshnessResult {
         $date = $asOf->toDateString();
         $failures = [];
         $statisticsStartedAt = null;
@@ -150,9 +155,11 @@ class MorningJobFreshnessService
                 $failures['forecast_statistics'] = 'No current fixed-term 6/12/24 energy-price statistic is available in the expected pricing basis.';
             }
 
+            $publicationOrderBoundary = $statisticsStartedAtOverride ?? $statisticsStartedAt;
+
             if ($latestRequiredPublication !== null
-                && $statisticsStartedAt !== null
-                && $latestRequiredPublication->gt($statisticsStartedAt)) {
+                && $publicationOrderBoundary !== null
+                && $latestRequiredPublication->gt($publicationOrderBoundary)) {
                 $failures['statistics_publication_order'] = 'Contract statistics started before the current interpretation was published.';
             }
         }

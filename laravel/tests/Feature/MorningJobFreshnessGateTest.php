@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\WarmContractPriceStatisticsCache;
+use App\Models\ActiveContract;
 use App\Models\Company;
 use App\Models\ContractInterpretation;
 use App\Models\ContractPriceDailyStatistic;
@@ -12,11 +14,13 @@ use App\Models\ElectricityContract;
 use App\Models\ElectricityFuturesEodPrice;
 use App\Models\FixedContractPriceForecast;
 use App\Models\RetailPremiumObservation;
+use App\Services\ContractStatistics\ContractPriceStatisticsService;
 use App\Services\MorningFreshness\MorningJobFreshnessService;
 use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use App\Services\RetailPremium\RetailPremiumObservationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class MorningJobFreshnessGateTest extends TestCase
@@ -24,6 +28,13 @@ class MorningJobFreshnessGateTest extends TestCase
     use RefreshDatabase;
 
     private const DATE = '2026-08-01';
+
+    protected function tearDown(): void
+    {
+        CarbonImmutable::setTestNow();
+
+        parent::tearDown();
+    }
 
     public function test_incomplete_contract_checkpoint_blocks_retail_collection_without_writes(): void
     {
@@ -65,7 +76,7 @@ class MorningJobFreshnessGateTest extends TestCase
         $this->assertDatabaseCount('retail_premium_observations', 0);
     }
 
-    public function test_interpretation_published_during_statistics_calculation_blocks_forecast(): void
+    public function test_interpretation_published_during_statistics_calculation_fails_initial_forecast_check(): void
     {
         config()->set('contract_interpretation.enabled', true);
         [$contract, $snapshot] = $this->contractWithPublishedSnapshot('published-during-statistics', '2026-08-01 06:15:00');
@@ -83,6 +94,92 @@ class MorningJobFreshnessGateTest extends TestCase
         $this->assertTrue($publishedAt->gt($statisticsStartedAt));
         $this->assertTrue($publishedAt->lt($statisticsCompletedAt));
 
+        $result = app(MorningJobFreshnessService::class)
+            ->checkFixedTermForecast(CarbonImmutable::parse(self::DATE, 'Europe/Helsinki'));
+
+        $this->assertFalse($result->ready());
+        $this->assertSame(
+            'Contract statistics started before the current interpretation was published.',
+            $result->failures['statistics_publication_order'],
+        );
+    }
+
+    public function test_sole_publication_order_failure_refreshes_statistics_and_builds_forecast(): void
+    {
+        config()->set('contract_interpretation.enabled', true);
+        CarbonImmutable::setTestNow('2026-08-01 07:00:00 Europe/Helsinki');
+        Queue::fake();
+
+        [$contract, $snapshot] = $this->contractWithPublishedSnapshot(
+            'recoverable-fixed-contract',
+            '2026-08-01 06:15:00',
+        );
+        ActiveContract::create(['id' => $contract->id]);
+        $this->readyContractCheckpoint(
+            [$snapshot->id],
+            [$contract->id],
+            '2026-08-01T06:10:00+03:00',
+            '2026-08-01T06:20:00+03:00',
+        );
+        $this->readyEexInputs();
+        $this->forecastStatistics([6]);
+
+        $statistics = $this->createMock(ContractPriceStatisticsService::class);
+        $statistics->expects($this->once())
+            ->method('calculateForDate')
+            ->with(
+                $this->callback(fn ($date) => $date->toDateString() === self::DATE),
+                [$contract->id],
+                true,
+            )
+            ->willReturn(['snapshots' => 1, 'statistics' => 1]);
+        $this->app->instance(ContractPriceStatisticsService::class, $statistics);
+
+        $builder = $this->createMock(FixedTermPriceForecastService::class);
+        $builder->expects($this->once())
+            ->method('buildForecasts')
+            ->willReturn(collect([$this->forecastPayload()]));
+        $this->app->instance(FixedTermPriceForecastService::class, $builder);
+
+        $this->artisan('forecasting:run-fixed-contracts', [
+            '--as-of' => self::DATE,
+            '--require-freshness' => true,
+        ])->assertExitCode(0);
+
+        Queue::assertPushed(
+            WarmContractPriceStatisticsCache::class,
+            fn (WarmContractPriceStatisticsCache $job) => $job->period === 'weekly'
+                && $job->consumption === 5000,
+        );
+        $this->assertDatabaseCount('fixed_contract_price_forecasts', 1);
+    }
+
+    public function test_refresh_recheck_blocks_publication_after_refresh_started(): void
+    {
+        config()->set('contract_interpretation.enabled', true);
+        CarbonImmutable::setTestNow('2026-08-01 07:00:00 Europe/Helsinki');
+        Queue::fake();
+
+        [$contract, $snapshot] = $this->contractWithPublishedSnapshot(
+            'still-late-fixed-contract',
+            '2026-08-01 07:05:00',
+        );
+        ActiveContract::create(['id' => $contract->id]);
+        $this->readyContractCheckpoint(
+            [$snapshot->id],
+            [$contract->id],
+            '2026-08-01T06:10:00+03:00',
+            '2026-08-01T06:20:00+03:00',
+        );
+        $this->readyEexInputs();
+        $this->forecastStatistics([6]);
+
+        $statistics = $this->createMock(ContractPriceStatisticsService::class);
+        $statistics->expects($this->once())
+            ->method('calculateForDate')
+            ->willReturn(['snapshots' => 1, 'statistics' => 1]);
+        $this->app->instance(ContractPriceStatisticsService::class, $statistics);
+
         $builder = $this->createMock(FixedTermPriceForecastService::class);
         $builder->expects($this->never())->method('buildForecasts');
         $this->app->instance(FixedTermPriceForecastService::class, $builder);
@@ -94,6 +191,84 @@ class MorningJobFreshnessGateTest extends TestCase
             ->expectsOutput('Morning job deferred: Contract statistics started before the current interpretation was published.')
             ->assertExitCode(1);
 
+        Queue::assertNotPushed(WarmContractPriceStatisticsCache::class);
+        $this->assertDatabaseCount('fixed_contract_price_forecasts', 0);
+    }
+
+    public function test_publication_order_failure_does_not_refresh_with_another_failure(): void
+    {
+        config()->set('contract_interpretation.enabled', true);
+        Queue::fake();
+
+        [$contract, $snapshot] = $this->contractWithPublishedSnapshot(
+            'late-contract-with-missing-eex',
+            '2026-08-01 06:15:00',
+        );
+        ActiveContract::create(['id' => $contract->id]);
+        $this->readyContractCheckpoint(
+            [$snapshot->id],
+            [$contract->id],
+            '2026-08-01T06:10:00+03:00',
+            '2026-08-01T06:20:00+03:00',
+        );
+        $this->forecastStatistics([6]);
+        $this->future('2026-07-31');
+
+        $statistics = $this->createMock(ContractPriceStatisticsService::class);
+        $statistics->expects($this->never())->method('calculateForDate');
+        $this->app->instance(ContractPriceStatisticsService::class, $statistics);
+
+        $builder = $this->createMock(FixedTermPriceForecastService::class);
+        $builder->expects($this->never())->method('buildForecasts');
+        $this->app->instance(FixedTermPriceForecastService::class, $builder);
+
+        $this->artisan('forecasting:run-fixed-contracts', [
+            '--as-of' => self::DATE,
+            '--require-freshness' => true,
+        ])
+            ->expectsOutput('Morning job deferred: Contract statistics started before the current interpretation was published.')
+            ->expectsOutput('Morning job deferred: The current EEX futures checkpoint is missing.')
+            ->assertExitCode(1);
+
+        Queue::assertNotPushed(WarmContractPriceStatisticsCache::class);
+    }
+
+    public function test_dry_run_does_not_refresh_stale_statistics(): void
+    {
+        config()->set('contract_interpretation.enabled', true);
+        Queue::fake();
+
+        [$contract, $snapshot] = $this->contractWithPublishedSnapshot(
+            'dry-run-late-contract',
+            '2026-08-01 06:15:00',
+        );
+        ActiveContract::create(['id' => $contract->id]);
+        $this->readyContractCheckpoint(
+            [$snapshot->id],
+            [$contract->id],
+            '2026-08-01T06:10:00+03:00',
+            '2026-08-01T06:20:00+03:00',
+        );
+        $this->readyEexInputs();
+        $this->forecastStatistics([6]);
+
+        $statistics = $this->createMock(ContractPriceStatisticsService::class);
+        $statistics->expects($this->never())->method('calculateForDate');
+        $this->app->instance(ContractPriceStatisticsService::class, $statistics);
+
+        $builder = $this->createMock(FixedTermPriceForecastService::class);
+        $builder->expects($this->never())->method('buildForecasts');
+        $this->app->instance(FixedTermPriceForecastService::class, $builder);
+
+        $this->artisan('forecasting:run-fixed-contracts', [
+            '--as-of' => self::DATE,
+            '--require-freshness' => true,
+            '--dry-run' => true,
+        ])
+            ->expectsOutput('Morning job deferred: Contract statistics started before the current interpretation was published.')
+            ->assertExitCode(1);
+
+        Queue::assertNotPushed(WarmContractPriceStatisticsCache::class);
         $this->assertDatabaseCount('fixed_contract_price_forecasts', 0);
     }
 
@@ -193,6 +368,10 @@ class MorningJobFreshnessGateTest extends TestCase
         ]);
         $this->forecastStatistics();
         $this->future('2026-07-20');
+
+        $statistics = $this->createMock(ContractPriceStatisticsService::class);
+        $statistics->expects($this->never())->method('calculateForDate');
+        $this->app->instance(ContractPriceStatisticsService::class, $statistics);
 
         $builder = $this->createMock(FixedTermPriceForecastService::class);
         $builder->expects($this->never())->method('buildForecasts');
@@ -459,6 +638,34 @@ class MorningJobFreshnessGateTest extends TestCase
             'trade_date' => $tradeDate,
             'settlement_price' => 50,
         ]);
+    }
+
+    /** @return array<string, mixed> */
+    private function forecastPayload(): array
+    {
+        return [
+            'forecast_date' => self::DATE,
+            'target_date' => '2026-08-31',
+            'horizon_days' => 30,
+            'duration_months' => 6,
+            'target_quantile' => 'median',
+            'current_price_cents_per_kwh' => 9.50,
+            'forecast_price_cents_per_kwh' => 9.60,
+            'expected_change_cents_per_kwh' => 0.10,
+            'hedge_cost_cents_per_kwh' => 7.00,
+            'retail_premium_cents_per_kwh' => 2.50,
+            'normal_retail_premium_cents_per_kwh' => 2.60,
+            'fair_price_cents_per_kwh' => 9.60,
+            'gap_cents_per_kwh' => 0.10,
+            'futures_trade_date' => '2026-07-31',
+            'coverage_quality' => 'all_monthly',
+            'confidence' => 'low',
+            'direction' => 'slightly_rising',
+            'consumer_signal' => 'neutral',
+            'contract_count' => 1,
+            'model_version' => 'test-model',
+            'source_metadata' => ['current_retail_pricing_basis' => 'observed_seller_data'],
+        ];
     }
 
     /** @param list<int> $durations */

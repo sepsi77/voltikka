@@ -2,7 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Jobs\WarmContractPriceStatisticsCache;
+use App\Models\ActiveContract;
 use App\Models\FixedContractPriceForecast;
+use App\Services\ContractStatistics\ContractPriceStatisticsService;
 use App\Services\MorningFreshness\MorningFreshnessResult;
 use App\Services\MorningFreshness\MorningJobFreshnessService;
 use App\Services\PriceForecasting\FixedTermPriceForecastService;
@@ -25,6 +28,7 @@ class RunFixedContractPriceForecasts extends Command
     public function handle(
         FixedTermPriceForecastService $forecastService,
         MorningJobFreshnessService $freshness,
+        ContractPriceStatisticsService $statistics,
     ): int {
         $asOf = $this->option('as-of')
             ? CarbonImmutable::parse($this->option('as-of'), 'Europe/Helsinki')->startOfDay()
@@ -34,7 +38,35 @@ class RunFixedContractPriceForecasts extends Command
             $result = $freshness->checkFixedTermForecast($asOf);
 
             if (! $result->ready()) {
-                return $this->defer($freshness, $asOf, $result);
+                $canRefreshStatistics = ! (bool) $this->option('dry-run')
+                    && array_keys($result->failures) === ['statistics_publication_order'];
+
+                if (! $canRefreshStatistics) {
+                    return $this->defer($freshness, $asOf, $result);
+                }
+
+                $activeContractIds = ActiveContract::query()->orderBy('id')->pluck('id')->all();
+
+                if ($activeContractIds === []) {
+                    return $this->defer(
+                        $freshness,
+                        $asOf,
+                        new MorningFreshnessResult([
+                            'statistics_refresh' => 'No active contracts are available for the statistics refresh.',
+                        ]),
+                    );
+                }
+
+                $statisticsStartedAt = CarbonImmutable::now('Europe/Helsinki');
+                $statistics->calculateForDate($asOf, $activeContractIds, overwrite: true);
+
+                $result = $freshness->checkFixedTermForecast($asOf, $statisticsStartedAt);
+
+                if (! $result->ready()) {
+                    return $this->defer($freshness, $asOf, $result);
+                }
+
+                WarmContractPriceStatisticsCache::dispatch('weekly', 5000);
             }
         }
 

@@ -5,7 +5,11 @@
       "status": "completed"
     },
     {
-      "name": "Identify root cause and verify a correction",
+      "name": "Scope forecast freshness to relevant fixed-term contracts",
+      "status": "completed"
+    },
+    {
+      "name": "Refresh statistics after relevant late publications",
       "status": "completed"
     }
   ]
