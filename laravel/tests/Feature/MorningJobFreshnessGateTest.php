@@ -97,6 +97,52 @@ class MorningJobFreshnessGateTest extends TestCase
         $this->assertDatabaseCount('fixed_contract_price_forecasts', 0);
     }
 
+    public function test_irrelevant_pending_spot_and_late_hybrid_publication_do_not_block_forecast(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        config()->set('contract_interpretation.enabled', true);
+
+        [$fixedContract, $fixedSnapshot] = $this->contractWithPublishedSnapshot('fixed-six-month');
+        [$spotContract, $spotSnapshot] = $this->contractWithChangedUnpublishedSnapshot();
+        $spotContract->update([
+            'contract_type' => 'OpenEnded',
+            'fixed_time_range' => null,
+            'pricing_model' => 'Spot',
+        ]);
+        [$hybridContract, $hybridSnapshot] = $this->contractWithPublishedSnapshot(
+            'late-hybrid-open-ended',
+            '2026-08-01 06:15:00',
+        );
+        $hybridContract->update([
+            'contract_type' => 'OpenEnded',
+            'fixed_time_range' => null,
+            'pricing_model' => 'Hybrid',
+        ]);
+        $this->readyContractCheckpoint(
+            [$fixedSnapshot->id, $spotSnapshot->id, $hybridSnapshot->id],
+            [$fixedContract->id, $spotContract->id, $hybridContract->id],
+            '2026-08-01T06:10:00+03:00',
+            '2026-08-01T06:20:00+03:00',
+        );
+        $this->readyEexInputs();
+        $this->forecastStatistics([6], 'canonical_calculation');
+
+        $freshness = app(MorningJobFreshnessService::class);
+        $forecastResult = $freshness->checkFixedTermForecast(
+            CarbonImmutable::parse(self::DATE, 'Europe/Helsinki'),
+        );
+        $retailResult = $freshness->checkRetailPremium(
+            CarbonImmutable::parse(self::DATE, 'Europe/Helsinki'),
+        );
+
+        $this->assertTrue($forecastResult->ready(), $forecastResult->summary());
+        $this->assertFalse($retailResult->ready());
+        $this->assertSame(
+            "Current interpretations are not published for active contracts: {$spotContract->id}.",
+            $retailResult->failures['contract_interpretations'],
+        );
+    }
+
     public function test_missing_active_snapshot_coverage_blocks_interpretation_gate(): void
     {
         config()->set('contract_interpretation.enabled', true);
@@ -280,8 +326,10 @@ class MorningJobFreshnessGateTest extends TestCase
             'name' => 'Changed active contract',
             'company_name' => 'Freshness Energy',
             'contract_type' => 'FixedTerm',
+            'fixed_time_range' => 'Fixed6',
             'metering' => 'General',
             'pricing_model' => 'FixedPrice',
+            'target_group' => 'Household',
             'availability_is_national' => true,
         ]);
         $oldSnapshot = $this->snapshot($contract, 'old');
@@ -318,8 +366,10 @@ class MorningJobFreshnessGateTest extends TestCase
             'name' => $contractId,
             'company_name' => $companyName,
             'contract_type' => 'FixedTerm',
+            'fixed_time_range' => 'Fixed6',
             'metering' => 'General',
             'pricing_model' => 'FixedPrice',
+            'target_group' => 'Household',
             'availability_is_national' => true,
         ]);
         $snapshot = $this->snapshot($contract, 'current');
@@ -412,14 +462,16 @@ class MorningJobFreshnessGateTest extends TestCase
     }
 
     /** @param list<int> $durations */
-    private function forecastStatistics(array $durations = [6, 12, 24]): void
-    {
+    private function forecastStatistics(
+        array $durations = [6, 12, 24],
+        string $basis = 'observed_seller_data',
+    ): void {
         foreach ($durations as $duration) {
             ContractPriceDailyStatistic::create([
                 'stat_date' => self::DATE,
                 'segment_key' => "fixed_term_{$duration}",
                 'metric_key' => 'energy_price',
-                'pricing_basis' => 'observed_seller_data',
+                'pricing_basis' => $basis,
                 'consumption_kwh' => null,
                 'median_value' => 9.5,
                 'contract_count' => 1,

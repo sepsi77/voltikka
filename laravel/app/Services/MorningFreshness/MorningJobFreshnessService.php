@@ -2,12 +2,15 @@
 
 namespace App\Services\MorningFreshness;
 
+use App\Enums\TargetGroup;
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\ContractSourceObservation;
 use App\Models\DataFreshnessCheckpoint;
 use App\Models\ElectricityContract;
 use App\Models\ElectricityFuturesEodPrice;
 use App\Services\CanonicalPricing\PricingMode;
+use App\Services\ContractStatistics\ContractPriceBasis;
+use App\Services\ContractStatistics\ContractStatisticsSegmentClassifier;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Config\Repository as ConfigRepository;
@@ -27,6 +30,7 @@ class MorningJobFreshnessService
         private readonly ConfigRepository $config,
         private readonly LoggerInterface $logger,
         private readonly PricingMode $pricingMode,
+        private readonly ContractStatisticsSegmentClassifier $segmentClassifier,
     ) {}
 
     /** @param array<string, mixed>|null $metadata */
@@ -99,16 +103,35 @@ class MorningJobFreshnessService
                 $statisticsStartedAt = $facts['statistics_started_at'];
 
                 if ((bool) $this->config->get('contract_interpretation.enabled', false)) {
-                    $publication = $this->checkInterpretations(
-                        $facts['observed_source_observation_ids'],
-                        $facts['active_contract_ids'],
-                    );
+                    $requiredContractIds = $facts['active_contract_ids'];
+                    $scopeObservations = false;
 
-                    if ($publication['failure'] !== null) {
-                        $failures['contract_interpretations'] = $publication['failure'];
+                    if ($forecast) {
+                        $scope = $this->fixedTermForecastInterpretationScope(
+                            $requiredContractIds,
+                            $this->pricingMode->expectedContractPriceBasis(),
+                        );
+                        $requiredContractIds = $scope['contract_ids'];
+                        $scopeObservations = true;
+
+                        if ($scope['failure'] !== null) {
+                            $failures['contract_interpretations'] = $scope['failure'];
+                        }
                     }
 
-                    $latestRequiredPublication = $publication['latest_published_at'];
+                    if (! isset($failures['contract_interpretations'])) {
+                        $publication = $this->checkInterpretations(
+                            $facts['observed_source_observation_ids'],
+                            $requiredContractIds,
+                            $scopeObservations,
+                        );
+
+                        if ($publication['failure'] !== null) {
+                            $failures['contract_interpretations'] = $publication['failure'];
+                        }
+
+                        $latestRequiredPublication = $publication['latest_published_at'];
+                    }
                 }
             }
         }
@@ -232,17 +255,62 @@ class MorningJobFreshnessService
     }
 
     /**
+     * @param  list<string>  $activeContractIds
+     * @return array{contract_ids:list<string>, failure:string|null}
+     */
+    private function fixedTermForecastInterpretationScope(
+        array $activeContractIds,
+        ContractPriceBasis $basis,
+    ): array {
+        $activeContractIds = array_values(array_unique($activeContractIds));
+        sort($activeContractIds, SORT_STRING);
+
+        $contracts = ElectricityContract::query()
+            ->whereIn('id', $activeContractIds)
+            ->orderBy('id')
+            ->get();
+        $missingIds = array_values(array_diff($activeContractIds, $contracts->pluck('id')->all()));
+
+        if ($missingIds !== []) {
+            return [
+                'contract_ids' => [],
+                'failure' => 'Current contract facts are unavailable for active contracts: '.implode(', ', $missingIds).'.',
+            ];
+        }
+
+        $contractIds = $contracts
+            ->filter(fn (ElectricityContract $contract) => $contract->target_group === null
+                || in_array($contract->target_group, [TargetGroup::Household->value, TargetGroup::Both->value], true))
+            ->filter(fn (ElectricityContract $contract) => in_array(
+                $this->segmentClassifier->classify($contract, $basis),
+                self::FORECAST_SEGMENTS,
+                true,
+            ))
+            ->pluck('id')
+            ->all();
+
+        return ['contract_ids' => $contractIds, 'failure' => null];
+    }
+
+    /**
      * @param  list<int>  $observationIds
      * @param  list<string>  $activeContractIds
      * @return array{failure:string|null, latest_published_at:CarbonImmutable|null}
      */
-    private function checkInterpretations(array $observationIds, array $activeContractIds): array
-    {
-        $observations = ContractSourceObservation::query()
-            ->whereIn('id', $observationIds)
-            ->get(['id', 'contract_id', 'source_snapshot_id']);
+    private function checkInterpretations(
+        array $observationIds,
+        array $activeContractIds,
+        bool $scopeObservations = false,
+    ): array {
+        $observationsQuery = ContractSourceObservation::query()->whereIn('id', $observationIds);
 
-        if ($observations->count() !== count($observationIds)) {
+        if ($scopeObservations) {
+            $observationsQuery->whereIn('contract_id', $activeContractIds);
+        }
+
+        $observations = $observationsQuery->get(['id', 'contract_id', 'source_snapshot_id']);
+
+        if (! $scopeObservations && $observations->count() !== count($observationIds)) {
             return [
                 'failure' => 'The current contract import facts reference unknown source observations.',
                 'latest_published_at' => null,
