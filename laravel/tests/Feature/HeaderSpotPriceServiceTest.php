@@ -109,7 +109,7 @@ class HeaderSpotPriceServiceTest extends TestCase
             ->assertOk()
             ->assertSee('data-header-spot-price-state="available"', false)
             ->assertSee('-2,51 c/kWh')
-            ->assertDontSee('Spot-hinta ei saatavilla');
+            ->assertDontSee('Spot-hintaa ei ole saatavilla');
     }
 
     public function test_zero_hourly_price_is_returned_and_rendered_as_available(): void
@@ -134,7 +134,7 @@ class HeaderSpotPriceServiceTest extends TestCase
             ->assertOk()
             ->assertSee('data-header-spot-price-state="available"', false)
             ->assertSee('0,00 c/kWh')
-            ->assertDontSee('Spot-hinta ei saatavilla');
+            ->assertDontSee('Spot-hintaa ei ole saatavilla');
     }
 
     public function test_header_api_renders_explicit_unavailable_state_without_fake_polling(): void
@@ -146,10 +146,17 @@ class HeaderSpotPriceServiceTest extends TestCase
         $response
             ->assertOk()
             ->assertSee('data-header-spot-price-state="unavailable"', false)
-            ->assertSee('Spot-hinta ei saatavilla')
+            ->assertSee('Spot-hintaa ei ole saatavilla')
             ->assertDontSee('wire:poll', false);
 
         $this->assertStringContainsString('max-age=60', (string) $response->headers->get('Cache-Control'));
         $this->assertStringContainsString('stale-while-revalidate=300', (string) $response->headers->get('Cache-Control'));
+    }
+
+    public function test_header_shell_uses_same_unavailable_copy(): void
+    {
+        $html = view('components.header-spot-price-shell')->render();
+
+        $this->assertStringContainsString('Spot-hintaa ei ole saatavilla', $html);
     }
 }

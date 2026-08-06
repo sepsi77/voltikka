@@ -1,0 +1,7 @@
+[
+  {"name":"Inspect production Spot data and scheduled import logs","status":"done"},
+  {"name":"Fix header unavailable-state Finnish copy and tests","status":"done"},
+  {"name":"Limit the hourly overlap mutex and ENTSO-E request duration","status":"done"},
+  {"name":"Add schedule and request-timeout regression coverage","status":"done"},
+  {"name":"Run focused tests and record findings","status":"done"}
+]

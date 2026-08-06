@@ -299,6 +299,29 @@ XML;
         });
     }
 
+    public function test_applies_configured_request_timeouts(): void
+    {
+        config([
+            'services.entsoe.connect_timeout' => 7,
+            'services.entsoe.timeout' => 42,
+        ]);
+
+        $requestOptions = [];
+        Http::fake(function ($request, $options) use (&$requestOptions) {
+            $requestOptions = $options;
+
+            return Http::response($this->getSampleXmlResponse([50.0]), 200);
+        });
+
+        $this->service->fetchDayAheadPrices(
+            Carbon::parse('2024-01-20'),
+            Carbon::parse('2024-01-21')
+        );
+
+        $this->assertSame(7, $requestOptions['connect_timeout']);
+        $this->assertSame(42, $requestOptions['timeout']);
+    }
+
     /**
      * Test service uses config for Finland EIC code.
      */

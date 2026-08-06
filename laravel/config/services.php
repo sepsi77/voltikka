@@ -39,6 +39,8 @@ return [
         'api_key' => env('ENTSOE_API_KEY'),
         'base_url' => 'https://web-api.tp.entsoe.eu/api',
         'finland_eic' => '10YFI-1--------U',
+        'connect_timeout' => env('ENTSOE_CONNECT_TIMEOUT', 5),
+        'timeout' => env('ENTSOE_TIMEOUT', 30),
     ],
 
     'spot_forecasts' => [

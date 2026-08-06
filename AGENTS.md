@@ -283,6 +283,7 @@ php artisan test --filter="ContractsFilterTest"
 - **Location**: `app/Livewire/SpotPrice.php`, `HeaderSpotPrice.php`
 - **Route**: `/spot-price`
 - **Data source**: ENTSO-E API via `EntsoeService` for official actual prices; optional third-party forecast feed from `vividfog/nordpool-predict-fi` for hours after official prices end
+- **Import safety**: ENTSO-E requests default to a 5-second connection timeout and 30-second total timeout. The hourly Europe/Helsinki import runs on one server and expires its overlap mutex after 60 minutes.
 - Features:
   - Hourly and 15-minute price granularity
   - Third-party forecast section clearly separated from official prices with source citation

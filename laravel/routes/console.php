@@ -20,7 +20,7 @@ Schedule::command('contracts:fetch')
 Schedule::command('spot:fetch')
     ->hourly()
     ->timezone('Europe/Helsinki')
-    ->withoutOverlapping()
+    ->withoutOverlapping(60)
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/spot-fetch.log'));
 

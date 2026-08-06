@@ -9,6 +9,7 @@ use App\Services\PostFastService;
 use App\Services\SpotPriceAverageService;
 use App\Services\SpotPriceVideoService;
 use Carbon\Carbon;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -379,6 +380,23 @@ class FetchSpotCommandTest extends TestCase
         // Verify command is registered and callable
         $this->artisan('spot:fetch')
             ->assertExitCode(0);
+    }
+
+    public function test_hourly_schedule_limits_orphaned_overlap_lock_to_sixty_minutes(): void
+    {
+        $events = collect(app(Schedule::class)->events())
+            ->filter(fn ($event) => str_contains((string) $event->command, 'spot:fetch'))
+            ->reject(fn ($event) => str_contains((string) $event->command, 'spot:fetch-forecast'));
+
+        $this->assertCount(1, $events);
+
+        $event = $events->first();
+
+        $this->assertSame('0 * * * *', $event->expression);
+        $this->assertSame('Europe/Helsinki', $event->timezone);
+        $this->assertTrue($event->withoutOverlapping);
+        $this->assertSame(60, $event->expiresAt);
+        $this->assertTrue($event->onOneServer);
     }
 
     /**

@@ -43,11 +43,13 @@ class EntsoeService
 
         $url = $baseUrl . '?' . http_build_query($params);
 
-        $response = Http::retry(self::MAX_RETRIES, self::RETRY_DELAY_MS, function ($exception, $request) {
-            return $exception instanceof ConnectionException
-                || ($exception instanceof RequestException
-                    && ($exception->response?->serverError() || $exception->response === null));
-        })->get($url);
+        $response = Http::connectTimeout((int) config('services.entsoe.connect_timeout', 5))
+            ->timeout((int) config('services.entsoe.timeout', 30))
+            ->retry(self::MAX_RETRIES, self::RETRY_DELAY_MS, function ($exception, $request) {
+                return $exception instanceof ConnectionException
+                    || ($exception instanceof RequestException
+                        && ($exception->response?->serverError() || $exception->response === null));
+            })->get($url);
 
         if ($response->failed()) {
             Log::error('Failed to fetch spot prices from ENTSO-E API', [

@@ -373,13 +373,13 @@ Primary files:
 Important semantics:
 - `SpotPriceImporter` is the source of truth for official record normalization, Helsinki-local historical VAT, direct hourly persistence, and region+UTC-hour arithmetic aggregation from quarter-hour records. It uses insert-only `insertOrIgnore()` chunks of 500.
 - Backfill skips a half-open UTC chunk only when every exact expected FI hourly timestamp exists. Partial data and off-hour rows do not satisfy coverage. Exhausted request/connection failures do not stop later chunks, but any failed chunk makes the command return failure after averages are calculated for records imported by other chunks.
-- `spot:fetch` only persists spot prices, calculates averages, and warms the statistics cache. Manual or repeated imports never invoke social publication.
+- `spot:fetch` only persists spot prices, calculates averages, and warms the statistics cache. Manual or repeated imports never invoke social publication. Its hourly Europe/Helsinki schedule uses one-server execution and a 60-minute overlap-lock expiry so an interrupted run does not block the next day of imports.
 - `social:publish-daily-spot` is scheduled independently at minute 15 each hour. It defers until exact hourly rows exist for both the Helsinki content date and next date.
 - Real PostFast publication is disabled by default through `SPOT_SOCIAL_PUBLISHING_ENABLED=false`. Dry-run, skip-post, and draft modes do not use the `spot_social_publications` ledger. Draft still requires the enable setting because it calls PostFast.
 - The durable ledger permits one first claim per Helsinki `content_date`. Normal calls never retry. `--retry --date=YYYY-MM-DD` permits only failed or processing attempts that are at least 30 minutes old. Published rows never retry.
 - A PostFast timeout has an uncertain external result. Some posts can already exist. The command records failure and tells the operator to inspect PostFast before an explicit retry. Partial success (`posted_count > 0`) is published and skipped platforms are metadata, not automatic retry work.
 - Detailed rules are in `app/Services/SpotSocial/AGENTS.md`.
-- ENTSO-E fetches retry transient server errors and connection failures/timeouts (`ConnectionException`, including cURL 28) before failing.
+- ENTSO-E fetches use an explicit 5-second connection timeout and 30-second total request timeout by default, configurable under `services.entsoe`, then retry transient server errors and connection failures/timeouts (`ConnectionException`, including cURL 28) before failing.
 - Spot fetch/backfill commands catch exhausted HTTP request/connection failures so scheduled jobs fail or continue gracefully instead of leaking raw exception stack traces.
 - Do not log raw ENTSO-E exception messages without redacting `securityToken`, because Guzzle/Laravel exception text can include the full query string.
 - Third-party spot forecasts are stored in `spot_price_forecasts`, never in `spot_prices_hour` or `spot_prices_quarter`, so forecasts cannot block later official ENTSO-E rows that use `insertOrIgnore()`.
