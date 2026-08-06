@@ -346,18 +346,21 @@ when consumption was requested, and omits relational `price_components`. Exclude
 explicit unavailable/comparability state and no current rates. Feature-off responses retain the
 legacy `PriceComponentResource` rows and calculator. See `../../Http/AGENTS.md`.
 
-**When you add or remove a field on `calculated_cost`, bump
-`CalculatedCostPayloadSchema::VERSION` once.** List, company, ranking, and prepared-page cache keys
-all include this shared dependency. Their service-specific outer payload versions remain separate;
-bump an outer version only when that wrapper's own membership, fields, or structure changes. The
-import-driven version and the pricing-mode marker do not move on a code-only deploy, so the shared
-schema marker prevents cards and aggregates from reading an old calculated-cost shape. Company and
+**When you add or remove a field on `calculated_cost`, or change which contracts receive a materially
+different calculated outcome, bump `CalculatedCostPayloadSchema::VERSION` once.** List, company,
+ranking, and prepared-page cache keys all include this shared dependency. Their service-specific
+outer payload versions remain separate; bump an outer version only when that wrapper's own
+membership, fields, or structure changes. The import-driven version and the pricing-mode marker do
+not move on a code-only deploy, so the shared schema marker prevents cards and aggregates from
+reading an old calculated-cost shape or pricing verdict. Company and
 ranking keys also include `ContractListCacheService::getVersion()`, so each published interpretation
 invalidates their data instead of leaving it stale for 48 hours or one hour.
 `ContractPricingIntegrity` gained typed `promo_rate_cents` /
 `normal_rate_cents` for the dated receipt rows; that was schema v2.
 
-Schema **v12** adds `calculated_cost.supplier_adjusted_estimate`. The strict consumer boundary and
+Schema **v12** adds `calculated_cost.supplier_adjusted_estimate`. Schema **v13** expands the same
+payload from General-only `contract_start`/`none` cases to eligible General, Time, and Season tariffs
+whose one current phase can also start at `unknown` or a date. The strict consumer boundary and
 public contract API carry the typed basis, episode evidence, market vintages, current rate,
 12-month equivalent, flat-fee assumption, and fallback flags. Three supplier-adjusted estimate
 methods distinguish forward-curve, Spot-seasonal-index, and hold-current rungs.
@@ -403,20 +406,24 @@ the two per-kWh mechanisms as two dated rows ("Energia 25.8. asti 6,99" / "Margi
 alkaen 1,29"). **Keep the record here rather than re-deriving boundaries in a presenter** —
 `Support/PhaseTimelineBuilder` is the only implementation of that algorithm and must stay so.
 
-Eligible adjustable open-ended fixed General tariffs use the separate `SupplierAdjusted/` path.
-Only the current calendar-month remainder stays exact. Later months use
+Eligible adjustable open-ended fixed General, Time, and Season tariffs use the separate
+`SupplierAdjusted/` path. Only the current calendar-month remainder stays exact. Later months use
 `P_m = P_current + beta * (F_m(today) - F_reference)`, where the reference is the FI month contract
 for the observed current-price episode's start month at the latest vintage before that episode
-start. Forward curve, Spot seasonal index, and hold-flat are all typed estimates. Duplicate
-identical monthly fees are allowed and resolve to the conservative maximum; conflicting duplicates
-are excluded. Exact-period pricing never applies this annual projection.
+start. Time and Season tariffs apply the same additive shift to each exact rate. Their stable
+representative rate uses the same weights as statistics snapshots only for episode matching and the
+12-month equivalent. Forward curve, Spot seasonal index, and hold-flat are all typed estimates.
+Multiple monthly-fee variants resolve to the same conservative maximum as the calculator. This
+keeps supplier-adjusted eligibility aligned with the exact current fee already used for ranking. Exact-period pricing never applies this annual projection.
 
 Public card and contract-detail copy reads only the typed `supplier_adjusted_estimate` payload.
 Every forward-curve, Spot-seasonal-index, and hold-current result gets the shared `Arvio` popover.
-The receipt separates `Energia nyt` from `12 kk keskihinta, arvio`, while the fixed category band
-states that only the current price is fixed and the seller can change it with notice. ContractDetail
-adds one quiet basis note and a short qualifier that separates the published current fact from the
-annual estimate. No surface presents this path as a disclosed cadence or a future contractual rate.
+General receipts separate `Energia nyt` from `12 kk keskihinta, arvio`. Time and Season cards keep
+their two exact tariff rows and fee, while ContractDetail also shows the estimated equivalent. The
+fixed category band states that only the current prices are fixed and the seller can change them
+with notice. ContractDetail adds one quiet basis note and a short qualifier that separates the
+published current facts from the annual estimate. No surface presents this path as a disclosed
+cadence or a future contractual rate.
 
 The detail-page notices live
 in `resources/views/livewire/contract-detail.blade.php` (after the hero): the neutral market-reset

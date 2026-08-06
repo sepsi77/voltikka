@@ -17,7 +17,7 @@ class ContractRankingTypedMetricsTest extends TestCase
     public function test_a_cached_metric_without_a_total_fails_before_it_can_become_a_zero_euro_recommendation(): void
     {
         Cache::flush();
-        Cache::put('contract_list_metrics:v1:s12:c0r0:5000', [
+        Cache::put('contract_list_metrics:v1:s13:c0r0:5000', [
             'contracts' => [
                 'cheap' => [
                     'calculated_cost' => $this->legacyPricingWithoutTotal(),

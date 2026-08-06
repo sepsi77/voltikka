@@ -15,7 +15,7 @@
 
 - The new `CanonicalPricing/SupplierAdjusted/` path is separate from recurring market resets. It never creates a cadence and never writes `reset_estimate`.
 - Eligibility is exact `OpenEnded` + `FixedPrice` + `General` with one complete current structured phase, no recurring schedule, no consumption effect, no package, and no promotion, future phase, Spot margin, or mechanism switch.
-- Duplicate identical monthly fees are one explicit eligibility exception. Sulaketariffi has five identical €4.20 canonical fee components. They resolve through the existing conservative maximum rule. Conflicting fee amounts remain ineligible.
+- The first release accepted duplicate identical monthly fees as an explicit eligibility exception. Sulaketariffi has five identical €4.20 canonical fee components. The later coverage correction aligns all monthly-fee variants with the calculator's existing conservative maximum rule.
 - The current calendar-month remainder stays exact. The estimated tail starts on the first day of the next calendar month.
 - The forward reference is the FI month contract for the episode-start month at the latest curve vintage before that episode start. Later delivery months use today's curve. The existing reset beta, staleness, seasonal-index, negative-floor, and absolute-plausibility settings are reused.
 - All three rungs are `comparable_estimate`: supplier forward shift, supplier Spot seasonal index, and hold current supplier price. Every rung writes `supplier_adjusted_estimate` and states that the monthly fee is held flat.
@@ -32,3 +32,13 @@
 - General-tariff receipts use the three-row set `Energia nyt`, soft `12 kk keskihinta, arvio`, and `Perusmaksu`. No row labels the estimate as a contractual future rate.
 - ContractDetail keeps one hero `Arvio` marker, adds one quiet supplier-adjusted receipt note, and uses a short qualifier that separates the current fact from the annual estimate without copying the full popover.
 - `/tietoa#menetelma` and the statistics annual-cost methodology now state how adjustable open-ended estimates work and where uncertainty remains.
+
+## 2026-08-06 — Metering and phase-start coverage corrected
+
+- Production review showed an artificial difference between otherwise equivalent open-ended tariffs. Q-Valo was excluded because its current phase start is `unknown`. Parikkalan Valo Time and Season variants were excluded because the first release accepted only General metering.
+- A missing or dated phase start is not proof of a 12-month price guarantee. One exact current phase ending at `none` is eligible when it starts at `contract_start`, `none`, `unknown`, or a date.
+- The same supplier-adjusted estimate now covers General, Time, and Season tariffs. Time uses `(day × 15 + night × 9) / 24`; Season uses `(winter × 5 + other × 7) / 12`. These existing statistics weights supply the representative rate for episode matching and the displayed equivalent only. Calculation keeps each exact current tariff rate and adds the same monthly market offset to every rate.
+- Cards keep the three-row limit. Time and Season cards show two exact current rates and the fee; the shared `Arvio` pill explains that the total is estimated. ContractDetail has more space and also shows the 12-month equivalent.
+- Public copy must never call the weighted representative rate a seller-published single rate. It describes the exact current tariff rates as seller-published facts and the equivalent as Voltikka's estimate.
+- Multiple current monthly-fee variants use the calculator's existing conservative maximum. Fee variants do not make an otherwise ordinary per-kWh price exact for 12 months, and the candidate must match the fee already used in the current annual outcome and canonical snapshot.
+- `CalculatedCostPayloadSchema` moved from v12 to v13. The payload shape is compatible, but its eligibility semantics changed. The bump prevents persistent v12 list, company, ranking, and prepared-page caches from keeping these contracts as exact after deployment.

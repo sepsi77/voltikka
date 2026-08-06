@@ -163,12 +163,13 @@ metering (every active spot contract) the calculator prices the whole bucket at
 
 ## Supplier-adjusted fixed-category presentation
 
-A supplier-adjusted General tariff stays in `Kiinteä hinta` with the lock icon. Its band must not
-say `Energian hinta ei muutu`, because only the current published price is fixed. It says
-`Nykyinen energianhinta on kiinteä · Myyjä voi muuttaa hintaa ilmoittamalla siitä`. Its three-row
-receipt is `Energia nyt`, soft `12 kk keskihinta, arvio`, and `Perusmaksu`. The current and annual
-figures come from the typed supplier payload, not from phases, relational prices, or a future
-contractual rate.
+A supplier-adjusted General, Time, or Season tariff stays in `Kiinteä hinta` with the lock icon. Its
+band must not say `Energian hinta ei muutu`, because only the current published rates are fixed. It
+says `Nykyinen energianhinta on kiinteä · Myyjä voi muuttaa hintaa ilmoittamalla siitä`. A General
+receipt is `Energia nyt`, soft `12 kk keskihinta, arvio`, and `Perusmaksu`. Time and Season cards
+keep their two exact current tariff rows plus the fee; the detail receipt can also show the soft
+12-month equivalent. Current tariff rows come from typed current rates. The equivalent comes from
+the typed supplier payload, not from a future contractual rate.
 
 ## Dated rows for a mid-window mechanism switch
 
@@ -327,7 +328,7 @@ Two rules that must not be reverted, because both produced visible defects on a 
   company, ranking, and prepared-page cache keys all include its `cs{version}` dependency.
   Service-specific outer wrapper versions remain separate. Neither the import-driven version nor
   `PricingMode::cacheMarker()` moves on a code-only deploy, so the shared marker prevents cards from
-  reading stale calculated-cost data for up to 48 hours. Current calculated-cost schema **v12**
+  reading stale calculated-cost data for up to 48 hours. Current calculated-cost schema **v13**
   includes package and real-term fields, canonical-only current facts, exact typed offer terms,
   short Hybrid real-term totals, listed `other`-cadence reset estimates, and the separate typed
   `supplier_adjusted_estimate` payload.

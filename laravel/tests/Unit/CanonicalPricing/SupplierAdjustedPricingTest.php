@@ -146,7 +146,7 @@ class SupplierAdjustedPricingTest extends TestCase
         $this->assertNotContains('supplier_adjusted_tail_shifted_on_forward_curve', $period->assumptions);
     }
 
-    public function test_sulaketariffi_fixture_accepts_five_identical_fees_and_rejects_conflicts(): void
+    public function test_multiple_monthly_fee_variants_use_the_same_conservative_maximum_as_the_calculator(): void
     {
         $data = $this->data($this->fixture);
         $candidate = (new SupplierAdjustedEligibility)->candidate('sulake', $data, $this->context());
@@ -155,13 +155,150 @@ class SupplierAdjustedPricingTest extends TestCase
         $this->assertSame(7.4, $candidate->currentEnergyPriceCentsPerKwh);
         $this->assertSame(4.2, $candidate->monthlyFeeEur);
 
-        $conflicting = $this->fixture;
-        $conflicting['pricing']['phases'][0]['components'][5]['amount'] = 5.2;
-        $this->assertNull((new SupplierAdjustedEligibility)->candidate(
-            'conflict',
-            $this->data($conflicting),
+        $feeVariants = $this->fixture;
+        $feeVariants['pricing']['phases'][0]['components'][5]['amount'] = 5.2;
+        $variantCandidate = (new SupplierAdjustedEligibility)->candidate(
+            'fee-variants',
+            $this->data($feeVariants),
             $this->context(),
-        ));
+        );
+
+        $this->assertNotNull($variantCandidate);
+        $this->assertSame(5.2, $variantCandidate->monthlyFeeEur);
+    }
+
+    public function test_named_production_shapes_are_eligible_with_stable_representative_rates(): void
+    {
+        $examples = [
+            [
+                'akhbwv-parikkalan-valo-oy-q-valo',
+                $this->tariffFixture('unknown', ['energy_general' => 7.53], 4.65),
+                new ContractContext('FixedPrice', 'OpenEnded', 'General', null, 'Household'),
+                7.53,
+            ],
+            [
+                'gxeryx-parikkalan-valo-oy-kesto-valo-kanta-asiakas',
+                $this->tariffFixture('contract_start', ['energy_day' => 8.0, 'energy_night' => 4.0], 4.65),
+                new ContractContext('FixedPrice', 'OpenEnded', 'Time', null, 'Household'),
+                6.5,
+            ],
+            [
+                'jrrlvh-parikkalan-valo-oy-kesto-valo-kanta-asiakas',
+                $this->tariffFixture('date', ['energy_seasonal_winter' => 12.0, 'energy_seasonal_other' => 4.0], 4.65),
+                new ContractContext('FixedPrice', 'OpenEnded', 'Season', null, 'Household'),
+                22 / 3,
+            ],
+        ];
+
+        foreach ($examples as [$id, $fixture, $context, $expectedRate]) {
+            $candidate = (new SupplierAdjustedEligibility)->candidate($id, $this->data($fixture), $context);
+
+            $this->assertNotNull($candidate, $id);
+            $this->assertSame($id, $candidate->contractId);
+            $this->assertEqualsWithDelta($expectedRate, $candidate->currentEnergyPriceCentsPerKwh, 0.0001);
+            $this->assertSame(4.65, $candidate->monthlyFeeEur);
+        }
+    }
+
+    public function test_time_and_season_offsets_are_additive_and_exact_rates_stay_unchanged(): void
+    {
+        $anchor = new PriceEpisodeAnchor(
+            CarbonImmutable::parse('2026-06-01', 'Europe/Helsinki'),
+            PriceEpisodeEvidenceBasis::ObservedSellerSnapshotRun,
+        );
+        $shiftedCurve = new SupplierAdjustedFakeCurve(
+            reference: ['month' => 5.0],
+            forward: $this->flatForward(9.0),
+        );
+
+        $cases = [
+            [
+                $this->tariffFixture('contract_start', ['energy_day' => 8.0, 'energy_night' => 4.0], 4.65),
+                new ContractContext('FixedPrice', 'OpenEnded', 'Time', null, 'Household'),
+                6.5,
+                5000 - (5000 / 12),
+            ],
+            [
+                $this->tariffFixture('contract_start', ['energy_seasonal_winter' => 12.0, 'energy_seasonal_other' => 4.0], 4.65),
+                new ContractContext('FixedPrice', 'OpenEnded', 'Season', null, 'Household'),
+                22 / 3,
+                5000 - ((5000 / 12) * (12 / 13.5)),
+            ],
+        ];
+
+        foreach ($cases as [$fixture, $context, $representative, $tailKwh]) {
+            $shifted = $this->calculateFixture($fixture, $context, $shiftedCurve, $anchor);
+            $held = $this->calculateFixture($fixture, $context, new SupplierAdjustedFakeCurve(tradeDate: null), $anchor);
+
+            $this->assertSame(ContractComparability::ComparableEstimate, $shifted->comparability);
+            $this->assertEqualsWithDelta($representative + (4 * $tailKwh / 5000), $shifted->supplierAdjustedEstimate['annual_equivalent_energy_price'], 0.001);
+            $this->assertEqualsWithDelta($tailKwh * 4 / 100, $shifted->totalCost - $held->totalCost, 0.001);
+            $this->assertEqualsWithDelta($held->monthlyCosts[0], $shifted->monthlyCosts[0], 0.001);
+            $this->assertEqualsWithDelta($shifted->totalCost, $shifted->baseTotalCost, 0.001);
+            $this->assertEqualsWithDelta($shifted->totalCost, $shifted->structuredOnlyTotal, 0.001);
+        }
+
+        $time = $this->calculateFixture($cases[0][0], $cases[0][1], $shiftedCurve, $anchor);
+        $this->assertSame(8.0, $time->daytimeKwhPrice);
+        $this->assertSame(4.0, $time->nighttimeKwhPrice);
+
+        $season = $this->calculateFixture($cases[1][0], $cases[1][1], $shiftedCurve, $anchor);
+        $this->assertSame(12.0, $season->seasonalWinterDayKwhPrice);
+        $this->assertSame(4.0, $season->seasonalOtherKwhPrice);
+    }
+
+    public function test_exact_period_time_and_season_prices_stay_factual(): void
+    {
+        $cases = [
+            [
+                $this->tariffFixture('contract_start', ['energy_day' => 8.0, 'energy_night' => 4.0], 4.65),
+                new ContractContext('FixedPrice', 'OpenEnded', 'Time', null, 'Household'),
+                78.805,
+            ],
+            [
+                $this->tariffFixture('contract_start', ['energy_seasonal_winter' => 12.0, 'energy_seasonal_other' => 4.0], 4.65),
+                new ContractContext('FixedPrice', 'OpenEnded', 'Season', null, 'Household'),
+                44.805,
+            ],
+        ];
+        $anchor = new PriceEpisodeAnchor(
+            CarbonImmutable::parse('2026-06-01', 'Europe/Helsinki'),
+            PriceEpisodeEvidenceBasis::ObservedSellerSnapshotRun,
+        );
+        $curve = new SupplierAdjustedFakeCurve(reference: ['month' => 5.0], forward: $this->flatForward(9.0));
+
+        foreach ($cases as [$fixture, $context, $expectedPeriodTotal]) {
+            $data = $this->data($fixture);
+            $annual = $this->calculateFixture($fixture, $context, $curve, $anchor);
+            $period = $this->calculator($curve)->calculatePeriod(
+                $data,
+                $context,
+                new CanonicalPeriodPricingRequest(
+                    startDate: CarbonImmutable::parse('2026-07-01', 'Europe/Helsinki'),
+                    endDate: CarbonImmutable::parse('2026-07-31', 'Europe/Helsinki'),
+                    periodKwh: 1000,
+                    annualizedKwh: 12000,
+                    historicalSpotPrices: [],
+                ),
+                new SpotAssumptions(null, null),
+                $annual,
+            );
+
+            $this->assertEqualsWithDelta($expectedPeriodTotal, $period->periodTotal, 0.001);
+            $this->assertNotContains('supplier_adjusted_tail_shifted_on_forward_curve', $period->assumptions);
+        }
+    }
+
+    public function test_identical_duplicate_energy_values_are_allowed_but_conflicts_are_excluded(): void
+    {
+        $fixture = $this->tariffFixture('contract_start', ['energy_day' => 8.0, 'energy_night' => 4.0], 4.65);
+        $fixture['pricing']['phases'][0]['components'][] = $fixture['pricing']['phases'][0]['components'][0];
+        $context = new ContractContext('FixedPrice', 'OpenEnded', 'Time', null, 'Household');
+
+        $this->assertNotNull((new SupplierAdjustedEligibility)->candidate('duplicate', $this->data($fixture), $context));
+
+        $fixture['pricing']['phases'][0]['components'][3]['amount'] = 8.5;
+        $this->assertNull((new SupplierAdjustedEligibility)->candidate('conflict', $this->data($fixture), $context));
     }
 
     public function test_eligibility_excludes_other_contract_semantics(): void
@@ -208,14 +345,49 @@ class SupplierAdjustedPricingTest extends TestCase
 
     private function calculate(SupplierAdjustedFakeCurve $curve, PriceEpisodeAnchor $anchor)
     {
+        return $this->calculateFixture($this->fixture, $this->context(), $curve, $anchor);
+    }
+
+    private function calculateFixture(
+        array $fixture,
+        ContractContext $context,
+        SupplierAdjustedFakeCurve $curve,
+        PriceEpisodeAnchor $anchor,
+    ) {
         return $this->calculator($curve)->calculate(
-            $this->data($this->fixture),
-            $this->context(),
+            $this->data($fixture),
+            $context,
             new EnergyUsage(total: 5000, basicLiving: 5000),
             new SpotAssumptions(null, null),
             CarbonImmutable::parse('2026-07-01', 'Europe/Helsinki'),
             $anchor,
         );
+    }
+
+    /** @param array<string, float> $energyRates */
+    private function tariffFixture(string $startsKind, array $energyRates, float $monthlyFee): array
+    {
+        $fixture = $this->fixture;
+        $phase = &$fixture['pricing']['phases'][0];
+        $phase['starts'] = [
+            'kind' => $startsKind,
+            'value' => $startsKind === 'date' ? '2026-06-01' : null,
+        ];
+
+        $energyTemplate = $phase['components'][0];
+        $feeTemplate = $phase['components'][1];
+        $components = [];
+        foreach ($energyRates as $type => $amount) {
+            $component = $energyTemplate;
+            $component['component_type'] = $type;
+            $component['amount'] = $amount;
+            $components[] = $component;
+        }
+        $feeTemplate['amount'] = $monthlyFee;
+        $components[] = $feeTemplate;
+        $phase['components'] = $components;
+
+        return $fixture;
     }
 
     private function calculator(MarketReferenceCurveProvider $curve): CanonicalContractPriceCalculator

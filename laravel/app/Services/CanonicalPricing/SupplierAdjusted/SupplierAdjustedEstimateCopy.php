@@ -18,12 +18,9 @@ class SupplierAdjustedEstimateCopy
             return null;
         }
 
-        $current = self::price($estimate->number('current_energy_price'));
         $annual = self::price($estimate->number('annual_equivalent_energy_price'));
 
-        $body = $current !== null
-            ? 'Nykyinen energianhinta '.$current.' c/kWh on myyjän julkaisema hinta.'
-            : 'Nykyinen energianhinta on myyjän julkaisema hinta.';
+        $body = 'Nykyiset energiahinnat ovat myyjän julkaisemia hintoja.';
         $body .= $annual !== null
             ? ' 12 kuukauden vastaava keskihinta '.$annual.' c/kWh on Voltikan arvio, joka perustuu '.self::basisPhrase($estimate).'.'
             : ' 12 kuukauden vastaava hinta on Voltikan arvio, joka perustuu '.self::basisPhrase($estimate).'.';
@@ -49,9 +46,9 @@ class SupplierAdjustedEstimateCopy
     private static function basisPhrase(PricingFact $estimate): string
     {
         return match ($estimate->string('basis')) {
-            'forward_curve_shift' => 'nykyiseen julkaistuun hintaan ja tukkumarkkinan ennakkohintoihin eli sähköfutuureihin',
-            'spot_seasonal_index' => 'nykyiseen julkaistuun hintaan ja pörssisähkön usean vuoden kausivaihteluun, koska tukkumarkkinan ennakkohintoja ei ollut saatavilla',
-            default => 'nykyiseen julkaistuun hintaan, koska käyttökelpoista markkinatietoa ei ollut saatavilla',
+            'forward_curve_shift' => 'nykyisiin julkaistuihin hintoihin ja tukkumarkkinan ennakkohintoihin eli sähköfutuureihin',
+            'spot_seasonal_index' => 'nykyisiin julkaistuihin hintoihin ja pörssisähkön usean vuoden kausivaihteluun, koska tukkumarkkinan ennakkohintoja ei ollut saatavilla',
+            default => 'nykyisiin julkaistuihin hintoihin, koska käyttökelpoista markkinatietoa ei ollut saatavilla',
         };
     }
 

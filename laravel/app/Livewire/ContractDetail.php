@@ -683,7 +683,7 @@ class ContractDetail extends Component
             // described by its reset mechanism.
             $facts->isReset => $hasEstimateExplainer ? null : $this->resetPriceQualifier($pricing, $facts),
             $facts->hasConsumptionEffect => $hasEstimateExplainer ? null : $this->consumptionEffectPriceQualifier($pricing),
-            $pricing?->supplierAdjustedEstimate() !== null => $this->supplierAdjustedPriceQualifier($pricing),
+            $pricing?->supplierAdjustedEstimate() !== null => $this->supplierAdjustedPriceQualifier($pricing, $contract),
             default => $this->fixedPriceQualifier($pricing, $contract, $hasEstimateExplainer),
         };
 
@@ -759,20 +759,44 @@ class ContractDetail extends Component
         return "{$head}, ja lopullista hintaa nostaa tai laskee kulutusvaikutus, jonka suuruutta myyjä ei julkaise etukäteen.";
     }
 
-    protected function supplierAdjustedPriceQualifier(ContractPricingViewData $pricing): string
-    {
+    protected function supplierAdjustedPriceQualifier(
+        ContractPricingViewData $pricing,
+        ElectricityContract $contract,
+    ): string {
         $estimate = $pricing->supplierAdjustedEstimate();
         $current = $this->qualifierCents($estimate?->number('current_energy_price'));
         $annual = $this->qualifierCents($estimate?->number('annual_equivalent_energy_price'));
 
-        $fact = $current !== null
-            ? "Nykyinen energianhinta {$current} c/kWh on myyjän julkaisema hinta."
-            : 'Nykyinen energianhinta on myyjän julkaisema hinta.';
+        $fact = match ($contract->metering) {
+            'Time' => $this->publishedTariffQualifier(
+                'Nykyiset päivä- ja yöhinnat',
+                $pricing->daytimeKwhPrice(),
+                $pricing->nighttimeKwhPrice(),
+            ),
+            'Season' => $this->publishedTariffQualifier(
+                'Nykyiset talvi- ja muun ajan hinnat',
+                $pricing->seasonalWinterDayKwhPrice(),
+                $pricing->seasonalOtherKwhPrice(),
+            ),
+            default => $current !== null
+                ? "Nykyinen energianhinta {$current} c/kWh on myyjän julkaisema hinta."
+                : 'Nykyinen energianhinta on myyjän julkaisema hinta.',
+        };
         $comparison = $annual !== null
-            ? " Vertailun 12 kuukauden keskihinta {$annual} c/kWh on arvio."
-            : ' Vertailun 12 kuukauden hinta on arvio.';
+            ? " Vertailun 12 kuukauden vastaava keskihinta {$annual} c/kWh on Voltikan arvio."
+            : ' Vertailun 12 kuukauden vastaava hinta on Voltikan arvio.';
 
         return $fact.$comparison;
+    }
+
+    protected function publishedTariffQualifier(string $label, ?float $first, ?float $second): string
+    {
+        $firstPrice = $this->qualifierCents($first);
+        $secondPrice = $this->qualifierCents($second);
+
+        return $firstPrice !== null && $secondPrice !== null
+            ? "{$label} {$firstPrice} ja {$secondPrice} c/kWh ovat myyjän julkaisemia hintoja."
+            : "{$label} ovat myyjän julkaisemia hintoja.";
     }
 
     protected function fixedPriceQualifier(?ContractPricingViewData $pricing, ElectricityContract $contract, bool $hasEstimateExplainer = false): string

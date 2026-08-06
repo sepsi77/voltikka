@@ -555,7 +555,7 @@ class ContractDetailPresenterTest extends TestCase
             array_map(fn ($line) => $line->label, $component->card->receiptLines),
         );
         $this->assertStringContainsString('Nykyinen energianhinta 7,40 c/kWh on myyjän julkaisema hinta.', $component->priceQualifier);
-        $this->assertStringContainsString('Vertailun 12 kuukauden keskihinta 7,40 c/kWh on arvio.', $component->priceQualifier);
+        $this->assertStringContainsString('Vertailun 12 kuukauden vastaava keskihinta 7,40 c/kWh on Voltikan arvio.', $component->priceQualifier);
         $this->assertCount(1, $component->receiptNotes);
         $this->assertStringContainsString('Tulevia energiahintoja tai niiden muutosaikataulua ei tiedetä', $component->receiptNotes[0]);
 
@@ -567,6 +567,76 @@ class ContractDetailPresenterTest extends TestCase
             ...$component->receiptNotes,
         ]);
         $this->assertDoesNotMatchRegularExpression('/kuukausittain|neljännesvuosittain|kausittain|hinta tarkistetaan/ui', $publicCopy);
+    }
+
+    public function test_named_supplier_adjusted_examples_show_the_correct_band_arvio_and_exact_tariffs(): void
+    {
+        config(['canonical_pricing.enabled' => true]);
+        app()->forgetScopedInstances();
+
+        $examples = [
+            [
+                'akhbwv-parikkalan-valo-oy-q-valo',
+                'Q-Valo',
+                'General',
+                BoundaryKind::Unknown,
+                [
+                    [ComponentType::EnergyGeneral, 7.53],
+                    [ComponentType::MonthlyFee, 4.65, ComponentUnit::EurPerMonth],
+                ],
+                ['Energia nyt', '12 kk keskihinta, arvio', 'Perusmaksu'],
+                'Nykyinen energianhinta 7,53 c/kWh on myyjän julkaisema hinta.',
+            ],
+            [
+                'gxeryx-parikkalan-valo-oy-kesto-valo-kanta-asiakas',
+                'Kesto Valo kanta-asiakas',
+                'Time',
+                BoundaryKind::ContractStart,
+                [
+                    [ComponentType::EnergyDay, 8.0],
+                    [ComponentType::EnergyNight, 4.0],
+                    [ComponentType::MonthlyFee, 4.65, ComponentUnit::EurPerMonth],
+                ],
+                ['Päivä', 'Yö', '12 kk keskihinta, arvio', 'Perusmaksu'],
+                'Nykyiset päivä- ja yöhinnat 8,00 ja 4,00 c/kWh ovat myyjän julkaisemia hintoja.',
+            ],
+            [
+                'jrrlvh-parikkalan-valo-oy-kesto-valo-kanta-asiakas',
+                'Kesto Valo kanta-asiakas',
+                'Season',
+                BoundaryKind::ContractStart,
+                [
+                    [ComponentType::EnergySeasonalWinter, 12.0],
+                    [ComponentType::EnergySeasonalOther, 4.0],
+                    [ComponentType::MonthlyFee, 4.65, ComponentUnit::EurPerMonth],
+                ],
+                ['Talvi', 'Muu aika', '12 kk keskihinta, arvio', 'Perusmaksu'],
+                'Nykyiset talvi- ja muun ajan hinnat 12,00 ja 4,00 c/kWh ovat myyjän julkaisemia hintoja.',
+            ],
+        ];
+
+        foreach ($examples as [$id, $name, $metering, $starts, $components, $receiptLabels, $qualifier]) {
+            $contract = $this->contract($id, [
+                'name' => $name,
+                'metering' => $metering,
+                ...$this->canonicalAttributes([
+                    $this->phase(PhaseKind::CurrentStructured, $starts, BoundaryKind::None, $components),
+                ]),
+            ]);
+
+            $test = Livewire::test('contract-detail', ['contractId' => $contract->id])
+                ->assertSee('Arvio')
+                ->assertSee('Nykyinen energianhinta on kiinteä')
+                ->assertSee('Myyjä voi muuttaa hintaa ilmoittamalla siitä')
+                ->assertDontSee('Energian hinta ei muutu');
+            $component = $test->instance();
+
+            $this->assertSame('comparable_estimate', $component->calculatedCost['comparability'], $id);
+            $this->assertNotNull($component->calculatedCost['supplier_adjusted_estimate'], $id);
+            $this->assertSame($receiptLabels, array_map(fn ($line) => $line->label, $component->card->receiptLines), $id);
+            $this->assertStringContainsString($qualifier, $component->priceQualifier, $id);
+            $this->assertStringContainsString('Voltikan arvio', $component->priceQualifier, $id);
+        }
     }
 
     // ------------------------------------------------------------------- warnings and CTA

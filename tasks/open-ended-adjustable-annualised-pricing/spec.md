@@ -14,7 +14,7 @@ Give adjustable open-ended fixed-price contracts an honest, market-aware 12-mont
 
 ## Requirements
 
-- Apply the new behavior consistently to eligible open-ended fixed-price contracts, not only to contracts with a known observed change.
+- Apply the new behavior consistently to eligible open-ended fixed-price contracts, not only to contracts with a known observed change. General, Time, and Season metering use the same model when their current canonical tariff is complete.
 - Do not apply it to fixed-term contracts, Spot contracts, Hybrid contracts, disclosed recurring market-reset contracts, or contracts with a supported explicit price-guarantee horizon that covers the comparison window.
 - Keep the current published energy price and monthly fee as current-price facts.
 - Change the annual outcome from exact to an estimate for eligible contracts.
@@ -35,6 +35,7 @@ Start with the smallest defensible implementation. Use the existing market-refer
 ## Acceptance examples
 
 - Sulaketariffi no longer returns `comparable_exact` with `estimate_method = none` for its annual outcome.
+- Q-Valo remains eligible when its current phase start is unknown. Parikkalan Valo Time and Season variants remain eligible and keep their exact current tariff rates.
 - Its current receipt still shows 7.40 c/kWh and €4.20/month.
 - Its annual estimate uses market-aware future prices when the required FI curve and price-episode reference are available.
 - A guaranteed fixed-term contract remains unchanged.

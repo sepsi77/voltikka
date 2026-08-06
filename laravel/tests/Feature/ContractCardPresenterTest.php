@@ -401,6 +401,60 @@ class ContractCardPresenterTest extends TestCase
         $this->assertStringNotContainsString('Energian hinta ei muutu', $card->band->headline.' '.$card->band->detail);
     }
 
+    public function test_supplier_adjusted_time_and_season_cards_keep_exact_tariffs_and_detail_adds_the_estimate(): void
+    {
+        $cases = [
+            [
+                ['metering' => 'Time'],
+                [
+                    'daytime_kwh_price' => 8.0,
+                    'nighttime_kwh_price' => 4.0,
+                    'general_kwh_price' => null,
+                ],
+                ['Päivä', 'Yö', 'Perusmaksu'],
+                ['Päivä', 'Yö', '12 kk keskihinta, arvio', 'Perusmaksu'],
+                ['8,00', '4,00'],
+                6.5,
+            ],
+            [
+                ['metering' => 'Season'],
+                [
+                    'seasonal_winter_day_kwh_price' => 12.0,
+                    'seasonal_other_kwh_price' => 4.0,
+                    'general_kwh_price' => null,
+                ],
+                ['Talvi', 'Muu aika', 'Perusmaksu'],
+                ['Talvi', 'Muu aika', '12 kk keskihinta, arvio', 'Perusmaksu'],
+                ['12,00', '4,00'],
+                22 / 3,
+            ],
+        ];
+
+        foreach ($cases as [$attributes, $rates, $cardLabels, $detailLabels, $exactValues, $representative]) {
+            $estimate = array_replace($this->supplierAdjustedEstimate(), [
+                'current_energy_price' => $representative,
+                'annual_equivalent_energy_price' => $representative + 3.5,
+            ]);
+            $contract = $this->contract($attributes, [
+                ...$rates,
+                'estimate_method' => 'supplier_adjusted_forward_curve_shift',
+                'monthly_fixed_fee' => 4.65,
+                'supplier_adjusted_estimate' => $estimate,
+            ]);
+
+            $card = $this->present($contract);
+            $this->assertSame($cardLabels, array_map(fn ($line) => $line->label, $card->receiptLines));
+            $this->assertSame($exactValues, array_map(fn ($line) => $line->value, array_slice($card->receiptLines, 0, 2)));
+            $this->assertNotNull($card->estimate);
+            $this->assertSame('Nykyinen energianhinta on kiinteä', $card->band->headline);
+
+            $detail = $this->present($contract, detailed: true);
+            $this->assertSame($detailLabels, array_map(fn ($line) => $line->label, $detail->receiptLines));
+            $this->assertSame($exactValues, array_map(fn ($line) => $line->value, array_slice($detail->receiptLines, 0, 2)));
+            $this->assertTrue($detail->receiptLines[2]->soft);
+        }
+    }
+
     public function test_market_reset_shows_the_known_period_price_above_the_estimated_tail(): void
     {
         $card = $this->present($this->contract([
@@ -783,7 +837,7 @@ class ContractCardPresenterTest extends TestCase
         $cases = [
             ['forward_curve_shift', 'supplier_adjusted_forward_curve_shift', 'tukkumarkkinan ennakkohintoihin eli sähköfutuureihin'],
             ['spot_seasonal_index', 'supplier_adjusted_spot_seasonal_index', 'pörssisähkön usean vuoden kausivaihteluun'],
-            ['hold_flat', 'hold_current_supplier_price', 'nykyiseen julkaistuun hintaan'],
+            ['hold_flat', 'hold_current_supplier_price', 'nykyisiin julkaistuihin hintoihin'],
         ];
 
         foreach ($cases as [$basis, $method, $basisCopy]) {
@@ -794,7 +848,7 @@ class ContractCardPresenterTest extends TestCase
 
             $this->assertNotNull($card->estimate, $method.' must show Arvio.');
             $this->assertNotSame('', trim($card->estimate->body));
-            $this->assertStringContainsString('myyjän julkaisema hinta', $card->estimate->body);
+            $this->assertStringContainsString('myyjän julkaisemia hintoja', $card->estimate->body);
             $this->assertStringContainsString('Voltikan arvio', $card->estimate->body);
             $this->assertStringContainsString($basisCopy, $card->estimate->body);
             $this->assertStringContainsString('muuttaa hintaa ilmoittamalla siitä etukäteen', $card->estimate->body);

@@ -31,7 +31,7 @@ This is a consumer read model. It is not a pricing calculator and must not dupli
 
 ## Cache compatibility
 
-The supplier-adjusted payload is calculated-cost schema v12. Outer cache versions did not move because their wrapper shape did not change. A future field-shape change must follow the existing schema-version rules in `../CanonicalPricing/AGENTS.md`.
+The supplier-adjusted payload was added in calculated-cost schema v12. Schema v13 expands its eligible metering and phase-start semantics, so persistent list, company, ranking, and prepared-page caches cannot retain v12 exact outcomes for those contracts. Outer cache versions did not move because their wrapper shape did not change. A future field-shape or pricing-semantics change must follow the existing schema-version rules in `../CanonicalPricing/AGENTS.md`.
 
 ## Presentation consumers
 

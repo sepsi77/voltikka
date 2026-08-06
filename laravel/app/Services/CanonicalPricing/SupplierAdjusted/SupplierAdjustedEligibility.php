@@ -15,14 +15,15 @@ use App\Services\CanonicalPricing\Enums\PhaseKind;
 use App\Services\CanonicalPricing\Enums\PriceRole;
 use App\Services\CanonicalPricing\SupplierAdjusted\DTO\SupplierAdjustedCandidate;
 
-/** Narrow first-release eligibility for one ordinary adjustable open-ended General tariff. */
+/** Eligibility for one ordinary adjustable open-ended tariff. */
 class SupplierAdjustedEligibility
 {
     public function candidate(string $contractId, CanonicalContractData $data, ContractContext $context): ?SupplierAdjustedCandidate
     {
+        $metering = MeteringType::fromSource($context->metering);
         if (ContractType::fromSource($context->contractType) !== ContractType::OpenEnded
             || PricingModel::fromSource($context->pricingModel) !== PricingModel::FixedPrice
-            || MeteringType::fromSource($context->metering) !== MeteringType::General
+            || ! in_array($metering, [MeteringType::General, MeteringType::Time, MeteringType::Season], true)
             || $data->calculationStatus !== CalculationStatus::Exact
             || $data->structuredPricingStatus !== 'complete'
             || $data->recurringSchedule->present
@@ -33,13 +34,23 @@ class SupplierAdjustedEligibility
 
         $phase = $data->phases[0];
         if ($phase->phaseKind !== PhaseKind::CurrentStructured
-            || ! in_array($phase->starts->kind, [BoundaryKind::ContractStart, BoundaryKind::None], true)
+            || ! in_array($phase->starts->kind, [
+                BoundaryKind::ContractStart,
+                BoundaryKind::None,
+                BoundaryKind::Unknown,
+                BoundaryKind::Date,
+            ], true)
             || $phase->ends->kind !== BoundaryKind::None
             || $phase->package !== null) {
             return null;
         }
 
-        $general = null;
+        $expectedEnergyTypes = match ($metering) {
+            MeteringType::General => [ComponentType::EnergyGeneral],
+            MeteringType::Time => [ComponentType::EnergyDay, ComponentType::EnergyNight],
+            MeteringType::Season => [ComponentType::EnergySeasonalWinter, ComponentType::EnergySeasonalOther],
+        };
+        $energyAmounts = [];
         $monthlyFees = [];
 
         foreach ($phase->components as $component) {
@@ -49,33 +60,74 @@ class SupplierAdjustedEligibility
                 return null;
             }
 
-            if ($component->type === ComponentType::EnergyGeneral
-                && $component->unit === ComponentUnit::CentsPerKwh
-                && $general === null) {
-                $general = $component->amount;
+            if (in_array($component->type, $expectedEnergyTypes, true)
+                && $component->unit === ComponentUnit::CentsPerKwh) {
+                $energyAmounts[$component->type->value][] = (float) $component->amount;
+
                 continue;
             }
 
             if ($component->type === ComponentType::MonthlyFee
                 && $component->unit === ComponentUnit::EurPerMonth) {
                 $monthlyFees[] = (float) $component->amount;
+
                 continue;
             }
 
             return null;
         }
 
-        $monthlyFee = $monthlyFees === [] ? 0.0 : max($monthlyFees);
+        $energyRates = [];
+        foreach ($expectedEnergyTypes as $type) {
+            $amounts = $energyAmounts[$type->value] ?? [];
+            $rate = $this->identicalNonNegativeValue($amounts);
+            if ($rate === null) {
+                return null;
+            }
+            $energyRates[$type->value] = $rate;
+        }
+
+        $monthlyFee = 0.0;
         foreach ($monthlyFees as $fee) {
-            if (abs($fee - $monthlyFee) > 0.0001) {
+            if (! is_finite($fee) || $fee < 0) {
+                return null;
+            }
+            $monthlyFee = max($monthlyFee, $fee);
+        }
+
+        $representativeRate = match ($metering) {
+            MeteringType::General => $energyRates[ComponentType::EnergyGeneral->value],
+            MeteringType::Time => (
+                $energyRates[ComponentType::EnergyDay->value] * 15
+                + $energyRates[ComponentType::EnergyNight->value] * 9
+            ) / 24,
+            MeteringType::Season => (
+                $energyRates[ComponentType::EnergySeasonalWinter->value] * 5
+                + $energyRates[ComponentType::EnergySeasonalOther->value] * 7
+            ) / 12,
+        };
+
+        return new SupplierAdjustedCandidate($contractId, $representativeRate, $monthlyFee);
+    }
+
+    /** @param list<float> $values */
+    private function identicalNonNegativeValue(array $values): ?float
+    {
+        if ($values === []) {
+            return null;
+        }
+
+        $value = max($values);
+        if (! is_finite($value) || $value < 0) {
+            return null;
+        }
+
+        foreach ($values as $candidate) {
+            if (! is_finite($candidate) || abs($candidate - $value) > 0.0001) {
                 return null;
             }
         }
 
-        if ($general === null || ! is_finite($general) || $general < 0 || ! is_finite($monthlyFee) || $monthlyFee < 0) {
-            return null;
-        }
-
-        return new SupplierAdjustedCandidate($contractId, $general, $monthlyFee);
+        return $value;
     }
 }

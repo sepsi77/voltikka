@@ -14,8 +14,8 @@ use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimatorSettings;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketResetPriceEstimator;
 use App\Services\CanonicalPricing\MarketReset\ResetEstimateCopy;
-use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedPriceEstimator;
 use App\Services\CanonicalPricing\PricingMode;
+use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedPriceEstimator;
 use App\Services\CompanyListCacheService;
 use App\Services\ContractListCacheService;
 use App\Services\ContractRankingService;
@@ -66,7 +66,7 @@ class MarketResetEstimateSurfacesTest extends TestCase
         $allKeys = $this->cacheKeysMatching('contract_list_metrics');
 
         $this->assertNotEmpty($offKeys);
-        $this->assertNotEmpty(array_filter($allKeys, fn (string $key) => str_contains($key, ':s12:')));
+        $this->assertNotEmpty(array_filter($allKeys, fn (string $key) => str_contains($key, ':s13:')));
         $this->assertGreaterThan(count($offKeys), count($allKeys), 'flipping the flag must create a new cache entry, not reuse the old one');
         $this->assertNotEmpty(array_filter($allKeys, fn (string $key) => str_contains($key, 'c0r1')));
         $this->assertNotEmpty(array_filter($allKeys, fn (string $key) => str_contains($key, 'c0r0')));
@@ -84,7 +84,7 @@ class MarketResetEstimateSurfacesTest extends TestCase
 
         $keys = $this->cacheKeysMatching('contract_rankings');
 
-        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':s2:cs12:')));
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':s2:cs13:')));
         $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_ends_with($key, ':c0r1')));
         $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_ends_with($key, ':c0r0')));
     }
@@ -149,7 +149,7 @@ class MarketResetEstimateSurfacesTest extends TestCase
 
         $keys = $this->cacheKeysMatching('company_list:');
 
-        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':s2:cs12:')));
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':s2:cs13:')));
         $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':c1r1:')));
     }
 

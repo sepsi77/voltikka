@@ -59,7 +59,7 @@ class CardReceiptLines
 
         $lines = $switch !== null
             ? $this->mechanismSwitchLines($switch, $pricing, $detailed)
-            : $this->energyLines($rates, $pricing, $integrity, $facts, $metering, $useCanonical);
+            : $this->energyLines($rates, $pricing, $integrity, $facts, $metering, $detailed, $useCanonical);
 
         $lines = [...$lines, ...$this->feeLines($rates, $switch, $detailed)];
 
@@ -240,6 +240,7 @@ class CardReceiptLines
         ?ContractPricingIntegrity $integrity,
         PricingCategoryFacts $facts,
         ?string $metering,
+        bool $detailed,
         bool $useCanonical,
     ): array {
         // A pre-published later price is the most useful thing the rows can say: both dates
@@ -254,7 +255,7 @@ class CardReceiptLines
         }
 
         if ($pricing?->supplierAdjustedEstimate() !== null) {
-            return $this->supplierAdjustedLines($pricing);
+            return $this->supplierAdjustedLines($rates, $pricing, $metering, $detailed);
         }
 
         if ($facts->isReset) {
@@ -354,19 +355,33 @@ class CardReceiptLines
         return [];
     }
 
-    /** @return list<CardReceiptLine> */
-    private function supplierAdjustedLines(ContractPricingViewData $pricing): array
-    {
-        $estimate = $pricing->supplierAdjustedEstimate();
-        $current = $estimate?->number('current_energy_price');
-        $annual = $estimate?->number('annual_equivalent_energy_price');
-
-        if ($current === null) {
-            return [];
+    /**
+     * Cards keep at most two exact tariff rows. Detail mode can add the estimated equivalent.
+     *
+     * @param  array<string, float|null>  $rates
+     * @return list<CardReceiptLine>
+     */
+    private function supplierAdjustedLines(
+        array $rates,
+        ContractPricingViewData $pricing,
+        ?string $metering,
+        bool $detailed,
+    ): array {
+        $meteringType = MeteringType::fromSource($metering);
+        if ($meteringType !== MeteringType::General) {
+            $lines = $this->meteringLines($rates, $metering);
+            if (! $detailed) {
+                return $lines;
+            }
+        } else {
+            $current = $pricing->supplierAdjustedEstimate()?->number('current_energy_price');
+            if ($current === null) {
+                return [];
+            }
+            $lines = [new CardReceiptLine('Energia nyt', $this->amount($current), 'c/kWh')];
         }
 
-        $lines = [new CardReceiptLine('Energia nyt', $this->amount($current), 'c/kWh')];
-
+        $annual = $pricing->supplierAdjustedEstimate()?->number('annual_equivalent_energy_price');
         if ($annual !== null) {
             $lines[] = new CardReceiptLine(
                 '12 kk keskihinta, arvio',

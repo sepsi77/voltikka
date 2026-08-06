@@ -23,6 +23,10 @@
     {
       "name": "Update context documentation and complete verification",
       "status": "completed"
+    },
+    {
+      "name": "Correct General, Time, Season, and phase-start coverage",
+      "status": "completed"
     }
   ]
 }

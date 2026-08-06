@@ -59,6 +59,24 @@ class CurrentPriceEpisodeResolverTest extends TestCase
         $this->assertSame(PriceEpisodeEvidenceBasis::CanonicalSnapshotRun, $anchors['episode-b']->evidenceBasis);
     }
 
+    public function test_weighted_time_and_season_representatives_match_snapshot_metrics(): void
+    {
+        $this->contract('time-rate');
+        $this->contract('season-rate');
+        $this->snapshot('time-rate', '2026-06-01', 'observed_seller_data', (8 * 15 + 4 * 9) / 24, 4.65);
+        $this->snapshot('season-rate', '2026-05-01', 'observed_seller_data', (12 * 5 + 4 * 7) / 12, 4.65);
+
+        $anchors = (new CurrentPriceEpisodeResolver)->resolve([
+            'time-rate' => new SupplierAdjustedCandidate('time-rate', 6.5, 4.65),
+            'season-rate' => new SupplierAdjustedCandidate('season-rate', 22 / 3, 4.65),
+        ]);
+
+        $this->assertSame('2026-06-01', $anchors['time-rate']->startedAt?->toDateString());
+        $this->assertSame('2026-05-01', $anchors['season-rate']->startedAt?->toDateString());
+        $this->assertSame(PriceEpisodeEvidenceBasis::ObservedSellerSnapshotRun, $anchors['time-rate']->evidenceBasis);
+        $this->assertSame(PriceEpisodeEvidenceBasis::ObservedSellerSnapshotRun, $anchors['season-rate']->evidenceBasis);
+    }
+
     public function test_source_observation_fallback_requires_the_published_snapshot_to_match(): void
     {
         $matching = $this->contract('source-match');
