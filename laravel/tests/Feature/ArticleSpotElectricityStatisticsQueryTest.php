@@ -97,7 +97,7 @@ class ArticleSpotElectricityStatisticsQueryTest extends TestCase
         $response->assertSee('Yksittäisten sopimusten hinnat vaihtelevat, joten markkinoilta voi löytyä mediaania halvempi kiinteä tai pörssisopimus.');
         $response->assertSee('Markkinoilta voi löytyä sopimustyyppinsä mediaania halvempi kiinteä tai pörssisopimus.');
         $response->assertDontSee('sopimuspari');
-        $response->assertSee('Nykyiset vuosikustannukset on laskettu ajantasaisista sopimushintatiedoista samalla menetelmällä.');
+        $response->assertSee('Spot-vuosikustannus käyttää tulevan 12 kuukauden tukkumarkkinan ennakkohintoja');
         $response->assertSee('Sisältö tarkistettu 29.5.2026.');
         $response->assertDontSee('kanonisia laskelmia');
         $response->assertDontSee('contract-type-comparison', false);

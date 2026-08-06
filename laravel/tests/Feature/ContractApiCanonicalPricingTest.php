@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Company;
 use App\Models\ElectricityContract;
+use App\Models\SpotPriceAverage;
+use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\CanonicalPricing\Enums\AllowanceCadence;
 use App\Services\CanonicalPricing\Enums\BoundaryKind;
 use App\Services\CanonicalPricing\Enums\CalculationStatus;
@@ -12,6 +14,8 @@ use App\Services\CanonicalPricing\Enums\ComponentUnit;
 use App\Services\CanonicalPricing\Enums\MisleadingState;
 use App\Services\CanonicalPricing\Enums\PhaseKind;
 use App\Services\CanonicalPricing\Enums\PriceRole;
+use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
+use Carbon\CarbonImmutable;
 use Database\Factories\Support\CanonicalPricingFixture;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -286,6 +290,97 @@ class ContractApiCanonicalPricingTest extends TestCase
         $this->assertEqualsWithDelta(200.0, $response->json('data.calculated_cost.total_cost'), 0.01);
     }
 
+    public function test_spot_api_exposes_the_forward_estimate_in_current_and_calculated_pricing(): void
+    {
+        $this->travelTo('2026-08-06 12:00:00');
+        $this->app->singleton(MarketReferenceCurveProvider::class, fn () => new ApiSpotCurve);
+        app()->forgetScopedInstances();
+        $this->createRollingSpotAverage();
+        $this->createCanonicalContract('spot-forward-api', [
+            CanonicalPricingFixture::phase(
+                label: 'current',
+                kind: PhaseKind::CurrentStructured,
+                starts: CanonicalPricingFixture::boundary(BoundaryKind::ContractStart),
+                ends: CanonicalPricingFixture::boundary(BoundaryKind::None),
+                components: [
+                    CanonicalPricingFixture::component(ComponentType::SpotMargin, 0.5, ComponentUnit::CentsPerKwh),
+                ],
+            ),
+        ], CalculationStatus::EstimateRequired, attributes: ['pricing_model' => 'Spot']);
+
+        $response = $this->getJson('/api/contracts/spot-forward-api?consumption=5000');
+
+        $response->assertOk()
+            ->assertJsonPath('data.current_pricing.estimate_method', 'forward_curve_spot')
+            ->assertJsonPath('data.current_pricing.spot_estimate.basis', 'forward_curve')
+            ->assertJsonCount(13, 'data.current_pricing.spot_estimate.months')
+            ->assertJsonPath('data.calculated_cost.spot_estimate.basis', 'forward_curve');
+    }
+
+    public function test_spot_api_exposes_the_typed_rolling_fallback(): void
+    {
+        $this->travelTo('2026-08-06 12:00:00');
+        $this->app->singleton(MarketReferenceCurveProvider::class, fn () => new ApiSpotCurve(missing: true));
+        app()->forgetScopedInstances();
+        $this->createRollingSpotAverage();
+        $this->createCanonicalContract('spot-fallback-api', [
+            CanonicalPricingFixture::phase(
+                label: 'current',
+                kind: PhaseKind::CurrentStructured,
+                starts: CanonicalPricingFixture::boundary(BoundaryKind::ContractStart),
+                ends: CanonicalPricingFixture::boundary(BoundaryKind::None),
+                components: [
+                    CanonicalPricingFixture::component(ComponentType::SpotMargin, 0.5, ComponentUnit::CentsPerKwh),
+                ],
+            ),
+        ], CalculationStatus::EstimateRequired, attributes: ['pricing_model' => 'Spot']);
+
+        $response = $this->getJson('/api/contracts/spot-fallback-api?consumption=5000');
+
+        $response->assertOk()
+            ->assertJsonPath('data.current_pricing.estimate_method', 'rolling_365_spot')
+            ->assertJsonPath('data.current_pricing.spot_estimate.basis', 'rolling_365_fallback')
+            ->assertJsonCount(0, 'data.current_pricing.spot_estimate.months')
+            ->assertJsonPath('data.current_pricing.spot_estimate.confidence', 'fallback')
+            ->assertJsonPath('data.calculated_cost.spot_estimate.basis', 'rolling_365_fallback');
+    }
+
+    public function test_many_spot_contracts_and_consumptions_resolve_one_market_strip(): void
+    {
+        $this->travelTo('2026-08-06 12:00:00');
+        $curve = new ApiSpotCurve;
+        $this->app->singleton(MarketReferenceCurveProvider::class, fn () => $curve);
+        app()->forgetScopedInstances();
+        $contracts = collect();
+        for ($index = 1; $index <= 8; $index++) {
+            $contracts->push($this->createCanonicalContract('spot-batch-'.$index, [
+                CanonicalPricingFixture::phase(
+                    label: 'current',
+                    kind: PhaseKind::CurrentStructured,
+                    starts: CanonicalPricingFixture::boundary(BoundaryKind::ContractStart),
+                    ends: CanonicalPricingFixture::boundary(BoundaryKind::None),
+                    components: [
+                        CanonicalPricingFixture::component(ComponentType::SpotMargin, 0.1 * $index, ComponentUnit::CentsPerKwh),
+                    ],
+                ),
+            ], CalculationStatus::EstimateRequired, attributes: ['pricing_model' => 'Spot']));
+        }
+        $spot = new SpotAssumptions(
+            7.0,
+            3.0,
+            5.0,
+            CarbonImmutable::parse('2025-08-07'),
+            CarbonImmutable::parse('2026-08-06'),
+        );
+
+        $outcomes = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class)
+            ->outcomesForContractsAtConsumptions($contracts, [2000, 5000, 18000], $spot, CarbonImmutable::parse('2026-08-06'));
+
+        $this->assertCount(8, $outcomes);
+        $this->assertSame(2, $curve->tradeDateCallCount);
+        $this->assertSame(13, $curve->forwardCallCount);
+    }
+
     public function test_canonical_list_uses_a_bounded_number_of_queries(): void
     {
         for ($i = 1; $i <= 8; $i++) {
@@ -318,6 +413,25 @@ class ContractApiCanonicalPricingTest extends TestCase
             $queries,
             fn (string $sql): bool => str_contains($sql, 'price_components'),
         )));
+    }
+
+    private function createRollingSpotAverage(): void
+    {
+        SpotPriceAverage::create([
+            'region' => 'FI',
+            'period_type' => SpotPriceAverage::PERIOD_ROLLING_365D,
+            'period_start' => '2025-08-07',
+            'period_end' => '2026-08-06',
+            'avg_price_without_tax' => 4.0,
+            'avg_price_with_tax' => 5.0,
+            'day_avg_without_tax' => 5.6,
+            'day_avg_with_tax' => 7.0,
+            'night_avg_without_tax' => 2.4,
+            'night_avg_with_tax' => 3.0,
+            'min_price_without_tax' => -1.0,
+            'max_price_without_tax' => 20.0,
+            'hours_count' => 8760,
+        ]);
     }
 
     /**
@@ -355,5 +469,48 @@ class ContractApiCanonicalPricingTest extends TestCase
             ),
             ...$attributes,
         ]);
+    }
+}
+
+class ApiSpotCurve implements MarketReferenceCurveProvider
+{
+    public int $tradeDateCallCount = 0;
+
+    public int $forwardCallCount = 0;
+
+    public function __construct(private readonly bool $missing = false) {}
+
+    public function tradeDate(CarbonImmutable $asOfDate): ?CarbonImmutable
+    {
+        $this->tradeDateCallCount++;
+        if ($this->missing) {
+            return null;
+        }
+
+        return $asOfDate->toDateString() === '2026-08-01'
+            ? CarbonImmutable::parse('2026-07-31')
+            : CarbonImmutable::parse('2026-08-05');
+    }
+
+    public function referencePrice(CarbonImmutable $asOfDate, CarbonImmutable $anchorMonth, array $kindPreference): ?array
+    {
+        return null;
+    }
+
+    public function forwardPriceForMonth(CarbonImmutable $asOfDate, CarbonImmutable $deliveryMonth): ?array
+    {
+        $this->forwardCallCount++;
+
+        return ['kind' => 'month', 'price_cents_per_kwh' => 10.0];
+    }
+
+    public function spotSeasonalIndex(): ?array
+    {
+        return null;
+    }
+
+    public function fixedTermMedianEnergyPrice(): ?float
+    {
+        return null;
     }
 }

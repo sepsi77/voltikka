@@ -10,6 +10,7 @@ use App\Services\CanonicalPricing\Enums\ContractComparability;
 use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\CanonicalPricing\Enums\PhaseKind;
 use App\Services\CanonicalPricing\MarketReset\Enums\ResetEstimateBasis;
+use App\Services\CanonicalPricing\SpotForward\Enums\SpotEstimateBasis;
 use App\Services\CanonicalPricing\SupplierAdjusted\Enums\PriceEpisodeEvidenceBasis;
 use App\Services\CanonicalPricing\SupplierAdjusted\Enums\SupplierAdjustedEstimateBasis;
 use App\Services\DTO\ContractPricingResult;
@@ -51,6 +52,7 @@ final readonly class ContractPricingViewData
         private ?PricingFact $consumptionEffect,
         private ?PricingFact $resetEstimate,
         private ?PricingFact $supplierAdjustedEstimate,
+        private ?PricingFact $spotEstimate,
         private array $phases,
         private array $offerTerms,
     ) {}
@@ -111,6 +113,7 @@ final readonly class ContractPricingViewData
         $consumptionEffect = null;
         $resetEstimate = null;
         $supplierAdjustedEstimate = null;
+        $spotEstimate = null;
         $phases = [];
         $offerTerms = [];
 
@@ -119,7 +122,7 @@ final readonly class ContractPricingViewData
                 'comparability', 'is_estimate', 'estimate_method', 'term_months',
                 'energy_package', 'contract_term', 'phase_breakdown', 'offer_terms',
                 'structured_only_total', 'consumption_effect', 'assumptions', 'reset_estimate',
-                'supplier_adjusted_estimate',
+                'supplier_adjusted_estimate', 'spot_estimate',
             ] as $key) {
                 self::requireKey($payload, $key, 'canonical calculated_cost');
             }
@@ -160,6 +163,11 @@ final readonly class ContractPricingViewData
                 $payload['supplier_adjusted_estimate'],
                 'calculated_cost.supplier_adjusted_estimate',
                 self::validateSupplierAdjustedEstimate(...),
+            );
+            $spotEstimate = self::optionalRecord(
+                $payload['spot_estimate'],
+                'calculated_cost.spot_estimate',
+                self::validateSpotEstimate(...),
             );
             $phases = self::recordList($payload['phase_breakdown'], 'calculated_cost.phase_breakdown', self::validatePhase(...));
             $offerTerms = self::recordList($payload['offer_terms'], 'calculated_cost.offer_terms', self::validateOfferTerm(...));
@@ -222,6 +230,7 @@ final readonly class ContractPricingViewData
             consumptionEffect: $consumptionEffect,
             resetEstimate: $resetEstimate,
             supplierAdjustedEstimate: $supplierAdjustedEstimate,
+            spotEstimate: $spotEstimate,
             phases: $phases,
             offerTerms: $offerTerms,
         );
@@ -400,6 +409,11 @@ final readonly class ContractPricingViewData
         return $this->supplierAdjustedEstimate;
     }
 
+    public function spotEstimate(): ?PricingFact
+    {
+        return $this->spotEstimate;
+    }
+
     /** @return list<PricingFact> */
     public function phases(): array
     {
@@ -483,6 +497,75 @@ final readonly class ContractPricingViewData
         }
         self::boolean($record['higher_confidence'], $path.'.higher_confidence');
         self::stringList($record['flags'], $path.'.flags');
+    }
+
+    private static function validateSpotEstimate(array $record, string $path): void
+    {
+        foreach (['basis', 'shape', 'current_curve_trade_date', 'future_curve_trade_date', 'months', 'annual_equivalent_base_price', 'annual_equivalent_day_price', 'annual_equivalent_night_price', 'confidence', 'higher_confidence', 'flags'] as $key) {
+            self::requireKey($record, $key, $path);
+        }
+        $basis = SpotEstimateBasis::tryFrom(self::nonEmptyString($record['basis'], $path.'.basis'));
+        if ($basis === null) {
+            throw new InvalidArgumentException($path.'.basis is not supported.');
+        }
+        if (! is_array($record['shape'])) {
+            throw new InvalidArgumentException($path.'.shape must be an array.');
+        }
+        foreach (['overall_price', 'day_price', 'night_price', 'day_offset', 'night_offset', 'period_start', 'period_end'] as $key) {
+            self::requireKey($record['shape'], $key, $path.'.shape');
+        }
+        foreach (['overall_price', 'day_price', 'night_price', 'day_offset', 'night_offset'] as $key) {
+            self::nullableFiniteNumber($record['shape'][$key], $path.'.shape.'.$key);
+        }
+        foreach (['period_start', 'period_end'] as $key) {
+            $date = self::nullableNonEmptyString($record['shape'][$key], $path.'.shape.'.$key);
+            if ($date !== null) {
+                self::date($date, $path.'.shape.'.$key);
+            }
+        }
+        foreach (['current_curve_trade_date', 'future_curve_trade_date'] as $key) {
+            $date = self::nullableNonEmptyString($record[$key], $path.'.'.$key);
+            if ($date !== null) {
+                self::date($date, $path.'.'.$key);
+            }
+        }
+        self::recordList($record['months'], $path.'.months', function (array $month, string $monthPath): void {
+            foreach (['month', 'base_price', 'day_price', 'night_price', 'source_kind', 'trade_date'] as $key) {
+                self::requireKey($month, $key, $monthPath);
+            }
+            $monthKey = self::nonEmptyString($month['month'], $monthPath.'.month');
+            if (! preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $monthKey)) {
+                throw new InvalidArgumentException($monthPath.'.month must be a calendar month.');
+            }
+            foreach (['base_price', 'day_price', 'night_price'] as $key) {
+                self::finiteNumber($month[$key], $monthPath.'.'.$key);
+            }
+            $sourceKind = self::nonEmptyString($month['source_kind'], $monthPath.'.source_kind');
+            if (! in_array($sourceKind, ['month', 'quarter', 'year'], true)) {
+                throw new InvalidArgumentException($monthPath.'.source_kind is not supported.');
+            }
+            self::date(self::nonEmptyString($month['trade_date'], $monthPath.'.trade_date'), $monthPath.'.trade_date');
+        });
+        foreach (['annual_equivalent_base_price', 'annual_equivalent_day_price', 'annual_equivalent_night_price'] as $key) {
+            self::nullableFiniteNumber($record[$key], $path.'.'.$key);
+        }
+        $confidence = self::nonEmptyString($record['confidence'], $path.'.confidence');
+        if (! in_array($confidence, ['higher', 'fallback'], true)) {
+            throw new InvalidArgumentException($path.'.confidence is not supported.');
+        }
+        $higherConfidence = self::boolean($record['higher_confidence'], $path.'.higher_confidence');
+        self::stringList($record['flags'], $path.'.flags');
+
+        if ($basis === SpotEstimateBasis::ForwardCurve) {
+            if ($record['current_curve_trade_date'] === null || $record['future_curve_trade_date'] === null
+                || $record['shape']['period_start'] === null || $record['shape']['period_end'] === null
+                || $record['months'] === [] || $confidence !== 'higher' || ! $higherConfidence) {
+                throw new InvalidArgumentException($path.' has incoherent forward-curve evidence.');
+            }
+        } elseif ($record['months'] !== [] || $confidence !== 'fallback' || $higherConfidence
+            || $record['current_curve_trade_date'] !== null || $record['future_curve_trade_date'] !== null) {
+            throw new InvalidArgumentException($path.' has incoherent rolling fallback evidence.');
+        }
     }
 
     private static function validateSupplierAdjustedEstimate(array $record, string $path): void

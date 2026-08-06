@@ -175,6 +175,24 @@ class ContractPricingReadModelTest extends TestCase
         $this->assertCount(1, $pricing->offerTerms());
     }
 
+    public function test_valid_forward_and_fallback_spot_payloads_round_trip_exactly(): void
+    {
+        foreach ([self::forwardSpotEstimateFixture(), self::fallbackSpotEstimateFixture()] as $estimate) {
+            $payload = $this->canonicalPricing([
+                'comparability' => 'comparable_estimate',
+                'is_estimate' => true,
+                'estimate_method' => $estimate['basis'] === 'forward_curve' ? 'forward_curve_spot' : 'rolling_365_spot',
+                'is_spot_contract' => true,
+                'spot_estimate' => $estimate,
+            ]);
+
+            $pricing = ContractPricingViewData::fromArray($payload);
+
+            $this->assertSame($payload, $pricing->toArray());
+            $this->assertSame($estimate['basis'], $pricing->spotEstimate()?->string('basis'));
+        }
+    }
+
     public function test_valid_supplier_adjusted_payload_round_trips_exactly(): void
     {
         $payload = $this->canonicalPricing([
@@ -294,6 +312,22 @@ class ContractPricingReadModelTest extends TestCase
                 self::supplierAdjustedEstimateFixture(),
                 ['price_episode_evidence_basis' => 'unsupported'],
             )]],
+            'forward spot has no months' => [['spot_estimate' => array_replace(
+                self::forwardSpotEstimateFixture(),
+                ['months' => []],
+            )]],
+            'forward spot has no curve dates' => [['spot_estimate' => array_replace(
+                self::forwardSpotEstimateFixture(),
+                ['current_curve_trade_date' => null],
+            )]],
+            'rolling spot fallback has projected months' => [['spot_estimate' => array_replace(
+                self::fallbackSpotEstimateFixture(),
+                ['months' => self::forwardSpotEstimateFixture()['months']],
+            )]],
+            'rolling spot fallback claims higher confidence' => [['spot_estimate' => array_replace(
+                self::fallbackSpotEstimateFixture(),
+                ['confidence' => 'higher', 'higher_confidence' => true],
+            )]],
             'phase has malformed date' => [['phase_breakdown' => [[
                 'label' => 'Current',
                 'phase_kind' => 'current_structured',
@@ -372,6 +406,7 @@ class ContractPricingReadModelTest extends TestCase
             'assumptions' => [],
             'reset_estimate' => null,
             'supplier_adjusted_estimate' => null,
+            'spot_estimate' => null,
         ], $changes);
     }
 
@@ -473,6 +508,55 @@ class ContractPricingReadModelTest extends TestCase
             'higher_confidence' => true,
             'flags' => ['price_snapshot_episode_proxy'],
         ];
+    }
+
+    private static function forwardSpotEstimateFixture(): array
+    {
+        return [
+            'basis' => 'forward_curve',
+            'shape' => [
+                'overall_price' => 5.0,
+                'day_price' => 7.0,
+                'night_price' => 3.0,
+                'day_offset' => 2.0,
+                'night_offset' => -2.0,
+                'period_start' => '2025-08-07',
+                'period_end' => '2026-08-06',
+            ],
+            'current_curve_trade_date' => '2026-07-31',
+            'future_curve_trade_date' => '2026-08-05',
+            'months' => [[
+                'month' => '2026-08',
+                'base_price' => 10.0,
+                'day_price' => 12.0,
+                'night_price' => 8.0,
+                'source_kind' => 'month',
+                'trade_date' => '2026-07-31',
+            ]],
+            'annual_equivalent_base_price' => 10.0,
+            'annual_equivalent_day_price' => 12.0,
+            'annual_equivalent_night_price' => 8.0,
+            'confidence' => 'higher',
+            'higher_confidence' => true,
+            'flags' => [],
+        ];
+    }
+
+    private static function fallbackSpotEstimateFixture(): array
+    {
+        $estimate = self::forwardSpotEstimateFixture();
+        $estimate['basis'] = 'rolling_365_fallback';
+        $estimate['current_curve_trade_date'] = null;
+        $estimate['future_curve_trade_date'] = null;
+        $estimate['months'] = [];
+        $estimate['annual_equivalent_base_price'] = 5.0;
+        $estimate['annual_equivalent_day_price'] = 7.0;
+        $estimate['annual_equivalent_night_price'] = 3.0;
+        $estimate['confidence'] = 'fallback';
+        $estimate['higher_confidence'] = false;
+        $estimate['flags'] = ['rolling_365_fallback'];
+
+        return $estimate;
     }
 
     private function phase(): array

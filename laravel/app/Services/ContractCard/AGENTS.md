@@ -133,8 +133,8 @@ cadence or reads seller/LLM text.
 `ContractCardCopy::estimate()` builds the sentence in two parts:
 
 1. **Price level** — where the annual number came from. Read from the MECHANISM, in this
-   order: an active reset (`facts->isReset`) → `rolling_365_spot` → `term_price_annualized` →
-   `hybrid_base_only`.
+   order: an active reset (`facts->isReset`) → `forward_curve_spot` / `rolling_365_spot` →
+   `term_price_annualized` → `hybrid_base_only`.
 2. **Exclusion** — appended when `hybrid_base_only` applies on top of a reset: "Arvio ei
    sisällä kulutusvaikutusta…".
 
@@ -226,8 +226,9 @@ still batch-load them in feature-off mode. `ContractsList::getLatestPrices()` re
 ## Detail mode
 
 `present(detailed: true)` raises the receipt cap from three rows to five and lets a mechanism
-switch keep two things the card has no room for: the soft "Pörssin keskihinta 12 kk" baseline
-between the dated rows (a margin alone does not state a price), and a dated monthly-fee pair
+switch keep two things the card has no room for: the soft Spot baseline between the dated rows
+(`Pörssin päiväarvio 12 kk` for forward pricing or the explicitly realized day-average fallback), and a
+dated monthly-fee pair
 when the phases disagree on the fee. The card's three-row cap is unchanged — a longer receipt
 turns a scannable list back into a metric strip.
 
@@ -328,7 +329,7 @@ Two rules that must not be reverted, because both produced visible defects on a 
   company, ranking, and prepared-page cache keys all include its `cs{version}` dependency.
   Service-specific outer wrapper versions remain separate. Neither the import-driven version nor
   `PricingMode::cacheMarker()` moves on a code-only deploy, so the shared marker prevents cards from
-  reading stale calculated-cost data for up to 48 hours. Current calculated-cost schema **v13**
+  reading stale calculated-cost data for up to 48 hours. Current calculated-cost schema **v14**
   includes package and real-term fields, canonical-only current facts, exact typed offer terms,
   short Hybrid real-term totals, listed `other`-cadence reset estimates, and the separate typed
   `supplier_adjusted_estimate` payload.

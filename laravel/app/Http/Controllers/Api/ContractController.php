@@ -218,6 +218,7 @@ class ContractController extends Controller
             'assumptions' => $isAvailable ? $pricing->assumptions() : [],
             'reset_estimate' => $isAvailable ? $pricing->resetEstimate()?->toArray() : null,
             'supplier_adjusted_estimate' => $isAvailable ? $pricing->supplierAdjustedEstimate()?->toArray() : null,
+            'spot_estimate' => $isAvailable ? $pricing->spotEstimate()?->toArray() : null,
             'integrity' => $isAvailable ? $integrity->toArray() : [
                 'detected' => $integrity->detected,
                 'reason_family' => $integrity->reasonFamily->value,

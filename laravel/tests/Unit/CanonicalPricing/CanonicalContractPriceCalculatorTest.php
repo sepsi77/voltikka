@@ -9,6 +9,8 @@ use App\Services\CanonicalPricing\DTO\ContractContext;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\CanonicalPricing\Enums\ContractComparability;
 use App\Services\CanonicalPricing\Enums\EstimateMethod;
+use App\Services\CanonicalPricing\SpotForward\DTO\SpotEstimate;
+use App\Services\CanonicalPricing\SpotForward\Enums\SpotEstimateBasis;
 use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonImmutable;
 use PHPUnit\Framework\TestCase;
@@ -88,7 +90,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
         ];
     }
 
-    private function evaluate(array $pricing, string $status, array $sourceConsistency, ContractContext $context, ?SpotAssumptions $spot = null, ?CarbonImmutable $start = null, ?EnergyUsage $usage = null)
+    private function evaluate(array $pricing, string $status, array $sourceConsistency, ContractContext $context, ?SpotAssumptions $spot = null, ?CarbonImmutable $start = null, ?EnergyUsage $usage = null, ?SpotEstimate $spotEstimate = null)
     {
         $data = $this->parser->parse($pricing, ['status' => $status, 'missing_facts' => [], 'required_assumptions' => []], $sourceConsistency);
 
@@ -98,6 +100,7 @@ class CanonicalContractPriceCalculatorTest extends TestCase
             $usage ?? $this->usage,
             $spot ?? new SpotAssumptions(null, null),
             $start ?? $this->start,
+            spotEstimate: $spotEstimate,
         );
     }
 
@@ -1154,6 +1157,106 @@ class CanonicalContractPriceCalculatorTest extends TestCase
         $this->assertEqualsWithDelta(4.99, $breakdown[1]['monthly_fee'], 0.001);
     }
 
+    public function test_forward_spot_uses_projected_wholesale_before_exact_margin_fee_and_discount_arithmetic(): void
+    {
+        $pricing = $this->pricing([
+            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
+                $this->component('spot_margin', 0.4, normalAmount: 0.8),
+                $this->component('monthly_fee', 3.0, 'eur_per_month'),
+            ]),
+        ]);
+        $estimate = $this->flatSpotEstimate(10.0, 8.0);
+
+        $outcome = $this->evaluate(
+            $pricing,
+            'estimate_required',
+            $this->cs(),
+            $this->context('Spot'),
+            new SpotAssumptions(7.0, 5.0),
+            spotEstimate: $estimate,
+        );
+
+        $this->assertSame(EstimateMethod::ForwardCurveSpot, $outcome->estimateMethod);
+        $this->assertEqualsWithDelta(541.0, $outcome->totalCost, 0.01);
+        $this->assertEqualsWithDelta(561.0, $outcome->baseTotalCost, 0.01);
+        $this->assertEqualsWithDelta(20.0, $outcome->discountSavingsTotal(), 0.01);
+        $this->assertEqualsWithDelta($outcome->totalCost, $outcome->structuredOnlyTotal, 0.01);
+        $this->assertSame(10.0, $outcome->spotPriceDayAvg);
+        $this->assertSame(8.0, $outcome->spotPriceNightAvg);
+        $this->assertNotNull($outcome->spotEstimate);
+    }
+
+    public function test_forward_spot_is_applied_only_after_a_fixed_to_spot_phase_switch(): void
+    {
+        $pricing = $this->pricing([
+            $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '6'], [
+                $this->component('energy_general', 5.0),
+            ]),
+            $this->phase('continuation', ['kind' => 'after_months', 'value' => '6'], ['kind' => 'none', 'value' => null], [
+                $this->component('spot_margin', 0.5),
+            ]),
+        ]);
+
+        $outcome = $this->evaluate(
+            $pricing,
+            'estimate_required',
+            $this->cs(),
+            $this->context('Spot'),
+            new SpotAssumptions(7.0, 5.0),
+            CarbonImmutable::parse('2026-08-01', 'Europe/Helsinki'),
+            spotEstimate: $this->flatSpotEstimate(10.0, 8.0),
+        );
+
+        $this->assertEqualsWithDelta(380.0, $outcome->totalCost, 0.05);
+        $this->assertFalse($outcome->phaseBreakdown[0]['uses_spot']);
+        $this->assertTrue($outcome->phaseBreakdown[1]['uses_spot']);
+        $this->assertEqualsWithDelta(510.0, $outcome->baseTotalCost, 0.01);
+        $this->assertEqualsWithDelta(130.0, $outcome->discountSavingsTotal(), 0.01);
+    }
+
+    public function test_direct_spot_calculation_without_an_estimate_keeps_the_rolling_compatibility_path(): void
+    {
+        $pricing = $this->pricing([
+            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
+                $this->component('spot_margin', 0.5),
+            ]),
+        ]);
+
+        $outcome = $this->evaluate(
+            $pricing,
+            'estimate_required',
+            $this->cs(),
+            $this->context('Spot'),
+            new SpotAssumptions(6.0, 4.0),
+        );
+
+        $this->assertSame(EstimateMethod::Rolling365Spot, $outcome->estimateMethod);
+        $this->assertEqualsWithDelta(310.0, $outcome->totalCost, 0.01);
+        $this->assertNull($outcome->spotEstimate);
+    }
+
+    public function test_company_only_spot_contract_does_not_mix_the_vat_inclusive_forward_strip_with_business_components(): void
+    {
+        $pricing = $this->pricing([
+            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
+                $this->component('spot_margin', 0.5),
+            ]),
+        ]);
+
+        $outcome = $this->evaluate(
+            $pricing,
+            'estimate_required',
+            $this->cs(),
+            new ContractContext('Spot', 'OpenEnded', 'General', null, 'Company'),
+            new SpotAssumptions(6.0, 4.0),
+            spotEstimate: $this->flatSpotEstimate(10.0, 8.0),
+        );
+
+        $this->assertSame(EstimateMethod::Rolling365Spot, $outcome->estimateMethod);
+        $this->assertEqualsWithDelta(310.0, $outcome->totalCost, 0.01);
+        $this->assertNull($outcome->spotEstimate);
+    }
+
     public function test_24_fixed_term_phase_still_inherits_within_the_same_energy_mechanism(): void
     {
         // The mechanism guard must not break ordinary inheritance: a Time-metered phase that
@@ -1176,5 +1279,39 @@ class CanonicalContractPriceCalculatorTest extends TestCase
         // The second phase keeps night 6,0 and fee 4,0 by inheritance; only the day rate changes.
         $this->assertEqualsWithDelta(6.0, $outcome->nighttimeKwhPrice, 0.001);
         $this->assertEqualsWithDelta(4.0, $outcome->monthlyFixedFee, 0.001);
+    }
+
+    private function flatSpotEstimate(float $day, float $night): SpotEstimate
+    {
+        $months = [];
+        $month = $this->start->startOfMonth();
+        for ($index = 0; $index < 13; $index++) {
+            $months[$month->format('Y-m')] = [
+                'base_price' => ($day + $night) / 2,
+                'day_price' => $day,
+                'night_price' => $night,
+                'source_kind' => 'month',
+                'trade_date' => '2026-07-23',
+            ];
+            $month = $month->addMonth();
+        }
+
+        return new SpotEstimate(
+            basis: SpotEstimateBasis::ForwardCurve,
+            shapeOverallCentsPerKwh: 6.0,
+            shapeDayCentsPerKwh: 7.0,
+            shapeNightCentsPerKwh: 5.0,
+            dayOffsetCentsPerKwh: 1.0,
+            nightOffsetCentsPerKwh: -1.0,
+            shapePeriodStart: '2025-07-25',
+            shapePeriodEnd: '2026-07-24',
+            currentCurveTradeDate: '2026-06-30',
+            futureCurveTradeDate: '2026-07-23',
+            months: $months,
+            annualEquivalentBaseCentsPerKwh: ($day + $night) / 2,
+            annualEquivalentDayCentsPerKwh: $day,
+            annualEquivalentNightCentsPerKwh: $night,
+            confidence: 'higher',
+        );
     }
 }

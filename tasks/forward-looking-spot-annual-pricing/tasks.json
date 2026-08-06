@@ -1,0 +1,28 @@
+{
+  "tasks": [
+    {
+      "name": "Define forward Spot curve and load-shape semantics",
+      "status": "completed"
+    },
+    {
+      "name": "Implement typed forward Spot annual estimator",
+      "status": "completed"
+    },
+    {
+      "name": "Integrate ranking, API, caches, and statistics",
+      "status": "completed"
+    },
+    {
+      "name": "Update card, detail, and methodology copy",
+      "status": "completed"
+    },
+    {
+      "name": "Add regression and exact-period tests",
+      "status": "completed"
+    },
+    {
+      "name": "Complete full verification and documentation",
+      "status": "completed"
+    }
+  ]
+}

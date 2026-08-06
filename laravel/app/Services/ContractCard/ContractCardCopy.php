@@ -149,6 +149,7 @@ class ContractCardCopy
         $level = match (true) {
             $pricing?->supplierAdjustedEstimate() !== null => SupplierAdjustedEstimateCopy::popoverBody($pricing->supplierAdjustedEstimate()),
             $facts->isReset => self::resetBody($pricing, $facts),
+            $method === 'forward_curve_spot' => self::forwardSpotBody($pricing),
             $method === 'rolling_365_spot' => self::spotBody($pricing),
             $method === 'term_price_annualized' => self::termBody($pricing),
             $method === 'hybrid_base_only' => self::hybridBody($pricing),
@@ -168,6 +169,23 @@ class ContractCardCopy
             heading: 'Miten arvio on laskettu?',
             body: trim($level.($exclusion !== null ? ' '.$exclusion : '')),
         );
+    }
+
+    private static function forwardSpotBody(?ContractPricingViewData $pricing): string
+    {
+        $day = self::price($pricing?->spotPriceDayAverage());
+        $night = self::price($pricing?->spotPriceNightAverage());
+        $margin = self::price($pricing?->spotPriceMargin());
+
+        $body = 'Vuosihinta perustuu seuraavan 12 kuukauden Suomen tukkumarkkinan ennakkohintoihin eli sähköfutuureihin. Viimeisen 365 päivän toteutuneiden päivä- ja yöhintojen ero säilytetään arviossa';
+        if ($day !== null && $night !== null) {
+            $body .= ' (päivä '.$day.' c, yö '.$night.' c, sis. alv)';
+        }
+        $body .= $margin !== null
+            ? ', ja hintaan lisätään sopimuksen marginaali '.$margin.' c/kWh.'
+            : '.';
+
+        return $body.' Toteutunut hinta vaihtelee tunneittain, joten vuosihinta ei ole hintalupaus.';
     }
 
     private static function spotBody(?ContractPricingViewData $pricing): string

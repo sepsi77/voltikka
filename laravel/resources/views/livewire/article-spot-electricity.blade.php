@@ -93,7 +93,7 @@
             </div>
             <p class="mt-2 text-xs text-slate-500">
                 Tilanne {{ $marketSnapshot['date'] }}. Hinnat sisältävät ALV 25,5 %.
-                {{ ($marketSnapshot['pricing_basis'] ?? null) === 'canonical_calculation' ? 'Nykyiset vuosikustannukset on laskettu ajantasaisista sopimushintatiedoista samalla menetelmällä.' : 'Nykyhinnat perustuvat havaittuun myyjädataan.' }}
+                {{ ($marketSnapshot['pricing_basis'] ?? null) === 'canonical_calculation' ? 'Spot-vuosikustannus käyttää tulevan 12 kuukauden tukkumarkkinan ennakkohintoja ja sopimusten tarkkoja kuluja; alempien historiallisten kuvaajien Spot-luvut ovat toteutuneita liukuvia hintoja.' : 'Nykyhinnat perustuvat havaittuun myyjädataan.' }}
             </p>
             <p class="mt-3 max-w-prose text-sm leading-6 text-slate-600">
                 Mediaani kuvaa sopimustyypin keskitasoa, mutta yksittäinen sopimus voi olla sitä halvempi tai kalliimpi.

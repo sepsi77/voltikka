@@ -45,10 +45,10 @@ class ContractPriceStatisticsPageTest extends TestCase
         $response->assertSee('Taulukko näyttää viimeisimmän keräyspäivän vuosikustannusten jakauman');
         $response->assertDontSee('Halvin');
         $response->assertSee('sisältää energiahinnan sekä perusmaksut 12 kuukaudelta');
-        $response->assertSee('Pörssisähkössä vuosikustannus käyttää edeltävän 12 kuukauden pörssin keskihintaa');
+        $response->assertSee('Pörssisähkön nykyinen vuosikustannus käyttää tulevan 12 kuukauden tukkumarkkinan ennakkohintoja');
         $response->assertSee('Vuosihinnan trendi');
         $response->assertSee('Sopimusmäärä voi poiketa ylemmästä hintataulukosta');
-        $response->assertSee('Sopimustyyppien c/kWh-taulukossa pörssisähkö näytetään viimeisen 12 kuukauden toteutuneena päiväkeskiarvona');
+        $response->assertSee('Sopimustyyppien c/kWh-taulukko ja historialliset kuvaajat näyttävät viimeisen 12 kuukauden toteutuneen päiväkeskiarvon');
         $response->assertSee('Mistä luvut tulevat');
         $response->assertSee('Viittaa tähän');
         $response->assertSee('CC&nbsp;BY&nbsp;4.0', false);

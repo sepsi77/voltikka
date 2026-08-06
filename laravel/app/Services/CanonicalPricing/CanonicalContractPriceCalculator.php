@@ -27,6 +27,8 @@ use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimate;
 use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimateRequest;
 use App\Services\CanonicalPricing\MarketReset\Enums\ResetEstimateBasis;
 use App\Services\CanonicalPricing\MarketReset\MarketResetPriceEstimator;
+use App\Services\CanonicalPricing\SpotForward\DTO\SpotEstimate;
+use App\Services\CanonicalPricing\SpotForward\Enums\SpotEstimateBasis;
 use App\Services\CanonicalPricing\SupplierAdjusted\DTO\PriceEpisodeAnchor;
 use App\Services\CanonicalPricing\SupplierAdjusted\DTO\SupplierAdjustedCandidate;
 use App\Services\CanonicalPricing\SupplierAdjusted\DTO\SupplierAdjustedEstimate;
@@ -83,6 +85,23 @@ class CanonicalContractPriceCalculator
         return $this->supplierAdjustedEligibility->candidate($contractId, $data, $context);
     }
 
+    public function usesSpotPricing(CanonicalContractData $data, ContractContext $context): bool
+    {
+        if ($context->isSpot()) {
+            return true;
+        }
+
+        foreach ($data->phases as $phase) {
+            foreach ($phase->billedComponents() as $component) {
+                if ($component->type === ComponentType::SpotMargin) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     public function calculate(
         CanonicalContractData $data,
         ContractContext $context,
@@ -90,8 +109,17 @@ class CanonicalContractPriceCalculator
         SpotAssumptions $spot,
         ?CarbonInterface $startDate = null,
         ?PriceEpisodeAnchor $priceEpisodeAnchor = null,
+        ?SpotEstimate $spotEstimate = null,
     ): CanonicalPricingOutcome {
         $windowStart = CarbonImmutable::parse(($startDate ?? CarbonImmutable::now('Europe/Helsinki'))->toDateString(), 'Europe/Helsinki')->startOfDay();
+
+        // The shared curve and shape inputs are VAT-inclusive. Business canonical components can
+        // be VAT-excluded or unknown, and the parser does not yet normalize that basis. Keep the
+        // existing rolling path for Company-only contracts instead of mixing tax bases in a new
+        // forward outcome. Household and Both prices use the consumer VAT-inclusive basis.
+        if (strcasecmp((string) $context->targetGroup, 'Company') === 0) {
+            $spotEstimate = null;
+        }
 
         $metering = $this->deriveMetering($data->phases, $context->metering);
         $profile = $this->usageProfileBuilder->build($metering, $usage, isSpotContract: false);
@@ -138,6 +166,7 @@ class CanonicalContractPriceCalculator
                     EstimateMethod::HybridBaseOnly,
                     12 / $termMonths,
                     $termMonths,
+                    spotEstimate: $spotEstimate,
                 );
             }
 
@@ -167,6 +196,7 @@ class CanonicalContractPriceCalculator
                     false,
                     $reset,
                     EstimateMethod::HybridBaseOnly,
+                    spotEstimate: $spotEstimate,
                 );
             }
 
@@ -182,6 +212,7 @@ class CanonicalContractPriceCalculator
                 ContractComparability::BaseOnlyHybrid,
                 EstimateMethod::HybridBaseOnly,
                 reset: $reset,
+                spotEstimate: $spotEstimate,
             );
         }
 
@@ -205,6 +236,7 @@ class CanonicalContractPriceCalculator
                 EstimateMethod::TermPriceAnnualized,
                 12 / $termMonths,
                 $termMonths,
+                spotEstimate: $spotEstimate,
             );
         }
 
@@ -267,6 +299,7 @@ class CanonicalContractPriceCalculator
             $estimateFill,
             $this->resolveResetEstimate($data, $context, $metering, $profile, $spot, $windowStart, $segments, $currentPhaseIndex, heldForward: false),
             supplierAdjusted: $supplierAdjusted,
+            spotEstimate: $spotEstimate,
         );
     }
 
@@ -466,7 +499,8 @@ class CanonicalContractPriceCalculator
         $saving = max(0.0, $normalTotal - $actualTotal);
         $factualAnnualAssumptions = array_values(array_filter(
             $annualOutcome->assumptions,
-            static fn (string $assumption): bool => ! str_starts_with($assumption, 'supplier_adjusted_'),
+            static fn (string $assumption): bool => ! str_starts_with($assumption, 'supplier_adjusted_')
+                && $assumption !== 'spot_forward_curve_with_rolling_365_intraday_shape',
         ));
         $assumptions = array_values(array_unique(array_merge($factualAnnualAssumptions, [
             'contract_offer_available_at_period_start',
@@ -523,6 +557,7 @@ class CanonicalContractPriceCalculator
         float $annualizationFactor = 1.0,
         ?int $termMonths = null,
         ?SupplierAdjustedEstimate $supplierAdjusted = null,
+        ?SpotEstimate $spotEstimate = null,
     ): CanonicalPricingOutcome {
         $usesSpot = false;
         $monthly = array_fill(0, 12, 0.0);
@@ -564,7 +599,7 @@ class CanonicalContractPriceCalculator
             ];
 
             $monthIndex = $this->elapsedMonth($windowStart, $segment->start);
-            $monthly[$monthIndex] += $this->costSegment($segment, $profile, $rates, $flatApplied, $phaseIndex, $reset, $supplierAdjusted);
+            $monthly[$monthIndex] += $this->costSegment($segment, $profile, $rates, $flatApplied, $phaseIndex, $reset, $supplierAdjusted, $spotEstimate);
 
             if ($hasComponentDiscount) {
                 $normalRates = $this->resolvePhaseRates($data->phases[$phaseIndex], $data->phases, $metering, $spot, $context->isSpot(), normalPrice: true);
@@ -572,7 +607,7 @@ class CanonicalContractPriceCalculator
                     return $this->excluded(ContractComparability::ExcludedIncomplete, $context, $data);
                 }
 
-                $normalMonthly[$monthIndex] += $this->costSegment($segment, $profile, $normalRates, $normalFlatApplied, $phaseIndex, $reset, $supplierAdjusted);
+                $normalMonthly[$monthIndex] += $this->costSegment($segment, $profile, $normalRates, $normalFlatApplied, $phaseIndex, $reset, $supplierAdjusted, $spotEstimate);
             }
         }
 
@@ -584,7 +619,7 @@ class CanonicalContractPriceCalculator
         // between them keeps measuring only the promotional effect (which is what the integrity
         // label's euro impact reports) instead of mixing in the seasonal repricing.
         $structuredOnly = $currentPhaseIndex !== null
-            ? $this->holdForwardTotal($data->phases[$currentPhaseIndex], $data->phases, $metering, $profile, $spot, $context->isSpot(), $reset, $monthKeys, supplierAdjusted: $supplierAdjusted)
+            ? $this->holdForwardTotal($data->phases[$currentPhaseIndex], $data->phases, $metering, $profile, $spot, $context->isSpot(), $reset, $monthKeys, supplierAdjusted: $supplierAdjusted, spotEstimate: $spotEstimate)
             : null;
 
         if (! $hasComponentDiscount) {
@@ -593,7 +628,7 @@ class CanonicalContractPriceCalculator
             // timeline with the last package and call the difference an offer saving.
             $normalMonthly = $this->hasEnergyPackage($data)
                 ? $monthly
-                : $this->normalHoldMonthlyCosts($data, $context, $metering, $profile, $spot, $segments, $windowStart, $reset, $supplierAdjusted);
+                : $this->normalHoldMonthlyCosts($data, $context, $metering, $profile, $spot, $segments, $windowStart, $reset, $supplierAdjusted, $spotEstimate);
             if ($normalMonthly === null) {
                 $normalMonthly = $monthly;
             }
@@ -631,7 +666,9 @@ class CanonicalContractPriceCalculator
         return new CanonicalPricingOutcome(
             comparability: $comparability,
             estimateMethod: $usesSpot
-                ? EstimateMethod::Rolling365Spot
+                ? ($spotEstimate?->basis === SpotEstimateBasis::ForwardCurve
+                    ? EstimateMethod::ForwardCurveSpot
+                    : EstimateMethod::Rolling365Spot)
                 : ($this->resetEstimateMethod($reset)
                     ?? $this->supplierAdjustedEstimateMethod($supplierAdjusted)
                     ?? ($estimateFill && $defaultEstimateMethod !== EstimateMethod::HybridBaseOnly
@@ -652,8 +689,8 @@ class CanonicalContractPriceCalculator
             nighttimeKwhPrice: $currentRates['display']['night'] ?? null,
             seasonalWinterDayKwhPrice: $currentRates['display']['seasonal_winter'] ?? null,
             seasonalOtherKwhPrice: $currentRates['display']['seasonal_other'] ?? null,
-            spotPriceDayAvg: $usesSpot ? $spot->dayAvgWithTax : null,
-            spotPriceNightAvg: $usesSpot ? $spot->nightAvgWithTax : null,
+            spotPriceDayAvg: $usesSpot ? ($spotEstimate?->annualEquivalentDayCentsPerKwh ?? $spot->dayAvgWithTax) : null,
+            spotPriceNightAvg: $usesSpot ? ($spotEstimate?->annualEquivalentNightCentsPerKwh ?? $spot->nightAvgWithTax) : null,
             termMonths: $termMonths,
             energyPackage: $currentRates['package'] ?? null,
             contractTermTotalCost: $contractTermTotal,
@@ -671,9 +708,11 @@ class CanonicalContractPriceCalculator
                 $reset,
                 termAnnualized: $termMonths !== null && $annualizationFactor !== 1.0,
                 supplierAdjusted: $supplierAdjusted,
+                spotEstimate: $spotEstimate,
             ),
             resetEstimate: $reset?->shiftsPrices() ? $reset->toArray() : null,
             supplierAdjustedEstimate: $supplierAdjusted?->toArray(),
+            spotEstimate: $usesSpot ? $spotEstimate?->toArray() : null,
         );
     }
 
@@ -695,6 +734,7 @@ class CanonicalContractPriceCalculator
         ContractComparability $comparability,
         EstimateMethod $estimateMethod,
         ?ResetEstimate $reset = null,
+        ?SpotEstimate $spotEstimate = null,
     ): CanonicalPricingOutcome {
         if ($currentPhaseIndex === null) {
             return $this->excluded(ContractComparability::ExcludedIncomplete, $context, $data);
@@ -706,13 +746,13 @@ class CanonicalContractPriceCalculator
         }
 
         $monthKeys = $this->windowMonthKeys($windowStart);
-        $total = $this->holdForwardTotal($data->phases[$currentPhaseIndex], $data->phases, $metering, $profile, $spot, $context->isSpot(), $reset, $monthKeys);
+        $total = $this->holdForwardTotal($data->phases[$currentPhaseIndex], $data->phases, $metering, $profile, $spot, $context->isSpot(), $reset, $monthKeys, spotEstimate: $spotEstimate);
         if ($total === null) {
             return $this->excluded(ContractComparability::ExcludedIncomplete, $context, $data);
         }
 
         $base = $this->hasNormalPriceDiscount($data)
-            ? $this->holdForwardTotal($data->phases[$currentPhaseIndex], $data->phases, $metering, $profile, $spot, $context->isSpot(), $reset, $monthKeys, normalPrice: true)
+            ? $this->holdForwardTotal($data->phases[$currentPhaseIndex], $data->phases, $metering, $profile, $spot, $context->isSpot(), $reset, $monthKeys, normalPrice: true, spotEstimate: $spotEstimate)
             : $total;
         if ($base === null) {
             return $this->excluded(ContractComparability::ExcludedIncomplete, $context, $data);
@@ -765,16 +805,17 @@ class CanonicalContractPriceCalculator
             nighttimeKwhPrice: $rates['display']['night'] ?? null,
             seasonalWinterDayKwhPrice: $rates['display']['seasonal_winter'] ?? null,
             seasonalOtherKwhPrice: $rates['display']['seasonal_other'] ?? null,
-            spotPriceDayAvg: $rates['uses_spot'] ? $spot->dayAvgWithTax : null,
-            spotPriceNightAvg: $rates['uses_spot'] ? $spot->nightAvgWithTax : null,
+            spotPriceDayAvg: $rates['uses_spot'] ? ($spotEstimate?->annualEquivalentDayCentsPerKwh ?? $spot->dayAvgWithTax) : null,
+            spotPriceNightAvg: $rates['uses_spot'] ? ($spotEstimate?->annualEquivalentNightCentsPerKwh ?? $spot->nightAvgWithTax) : null,
             energyPackage: $rates['package'] ?? null,
             phaseBreakdown: [],
             offerTerms: $this->buildOfferTerms($data, $offerSpans, $windowStart),
             consumptionEffect: $comparability === ContractComparability::BaseOnlyHybrid && $data->consumptionEffect->present
                 ? $data->consumptionEffect
                 : null,
-            assumptions: $this->assumptions($comparability, $rates['uses_spot'], false, $reset),
+            assumptions: $this->assumptions($comparability, $rates['uses_spot'], false, $reset, spotEstimate: $spotEstimate),
             resetEstimate: $reset?->shiftsPrices() ? $reset->toArray() : null,
+            spotEstimate: $rates['uses_spot'] ? $spotEstimate?->toArray() : null,
         );
     }
 
@@ -1008,12 +1049,15 @@ class CanonicalContractPriceCalculator
         int $phaseIndex,
         ?ResetEstimate $reset = null,
         ?SupplierAdjustedEstimate $supplierAdjusted = null,
+        ?SpotEstimate $spotEstimate = null,
     ): float {
         $fraction = $segment->monthFraction();
         $monthBuckets = $profile[$segment->monthIndex] ?? [];
         $monthKey = $segment->start->format('Y-m');
-        $offset = ($reset?->offsetForMonthKey($monthKey) ?? 0.0)
-            + ($supplierAdjusted?->offsetForMonthKey($monthKey) ?? 0.0);
+        $offset = $rates['uses_spot']
+            ? 0.0
+            : ($reset?->offsetForMonthKey($monthKey) ?? 0.0)
+                + ($supplierAdjusted?->offsetForMonthKey($monthKey) ?? 0.0);
 
         $package = $rates['package'] ?? null;
         if ($package instanceof IncludedEnergyPackageData) {
@@ -1031,7 +1075,14 @@ class CanonicalContractPriceCalculator
 
         $energyCents = 0.0;
         foreach ($rates['buckets'] as $bucket => $rate) {
-            $energyCents += ($monthBuckets[$bucket] ?? 0.0) * $fraction * max(0.0, $rate + $offset);
+            $effectiveRate = $rate;
+            if ($rates['uses_spot'] && $spotEstimate !== null) {
+                $wholesale = $spotEstimate->wholesaleForBucket($monthKey, $bucket);
+                if ($wholesale !== null) {
+                    $effectiveRate = max(0.0, $wholesale) + (float) ($rates['spot_margin'] ?? 0.0);
+                }
+            }
+            $energyCents += ($monthBuckets[$bucket] ?? 0.0) * $fraction * max(0.0, $effectiveRate + $offset);
         }
 
         $cost = $energyCents / 100 + $rates['monthly_fee'] * $fraction;
@@ -1051,7 +1102,7 @@ class CanonicalContractPriceCalculator
      * @param  array<int, string>  $monthKeys  calendar-month index (0-11) => the `Y-m` that month
      *                                         occupies inside this window
      */
-    private function holdForwardTotal(PricingPhase $phase, array $allPhases, MeteringType $metering, array $profile, SpotAssumptions $spot, bool $isSpot = false, ?ResetEstimate $reset = null, array $monthKeys = [], bool $normalPrice = false, ?SupplierAdjustedEstimate $supplierAdjusted = null): ?float
+    private function holdForwardTotal(PricingPhase $phase, array $allPhases, MeteringType $metering, array $profile, SpotAssumptions $spot, bool $isSpot = false, ?ResetEstimate $reset = null, array $monthKeys = [], bool $normalPrice = false, ?SupplierAdjustedEstimate $supplierAdjusted = null, ?SpotEstimate $spotEstimate = null): ?float
     {
         $rates = $this->resolvePhaseRates($phase, $allPhases, $metering, $spot, $isSpot, $normalPrice);
         if ($rates === null) {
@@ -1073,13 +1124,20 @@ class CanonicalContractPriceCalculator
         $total = $rates['flat_once'] + $rates['monthly_fee'] * 12;
         foreach ($profile as $monthIndex => $monthBuckets) {
             $monthKey = $monthKeys[$monthIndex] ?? null;
-            $offset = $monthKey !== null
+            $offset = $monthKey !== null && ! $rates['uses_spot']
                 ? ($reset?->offsetForMonthKey($monthKey) ?? 0.0)
                     + ($supplierAdjusted?->offsetForMonthKey($monthKey) ?? 0.0)
                 : 0.0;
 
             foreach ($rates['buckets'] as $bucket => $rate) {
-                $total += (($monthBuckets[$bucket] ?? 0.0) * max(0.0, $rate + $offset)) / 100;
+                $effectiveRate = $rate;
+                if ($rates['uses_spot'] && $spotEstimate !== null && $monthKey !== null) {
+                    $wholesale = $spotEstimate->wholesaleForBucket($monthKey, $bucket);
+                    if ($wholesale !== null) {
+                        $effectiveRate = max(0.0, $wholesale) + (float) ($rates['spot_margin'] ?? 0.0);
+                    }
+                }
+                $total += (($monthBuckets[$bucket] ?? 0.0) * max(0.0, $effectiveRate + $offset)) / 100;
             }
         }
 
@@ -1108,6 +1166,7 @@ class CanonicalContractPriceCalculator
         CarbonImmutable $windowStart,
         ?ResetEstimate $reset = null,
         ?SupplierAdjustedEstimate $supplierAdjusted = null,
+        ?SpotEstimate $spotEstimate = null,
     ): ?array {
         $lastIndex = $this->lastCoveredPhaseIndex($segments);
         if ($lastIndex === null) {
@@ -1124,7 +1183,7 @@ class CanonicalContractPriceCalculator
 
         foreach ($segments as $segment) {
             $monthIndex = $this->elapsedMonth($windowStart, $segment->start);
-            $monthly[$monthIndex] += $this->costSegment($segment, $profile, $rates, $flatApplied, $lastIndex, $reset, $supplierAdjusted);
+            $monthly[$monthIndex] += $this->costSegment($segment, $profile, $rates, $flatApplied, $lastIndex, $reset, $supplierAdjusted, $spotEstimate);
         }
 
         return $monthly;
@@ -1881,10 +1940,13 @@ class CanonicalContractPriceCalculator
         ?ResetEstimate $reset = null,
         bool $termAnnualized = false,
         ?SupplierAdjustedEstimate $supplierAdjusted = null,
+        ?SpotEstimate $spotEstimate = null,
     ): array {
         $assumptions = [];
         if ($usesSpot) {
-            $assumptions[] = 'spot_rolling_365_day_night_average';
+            $assumptions[] = $spotEstimate?->basis === SpotEstimateBasis::ForwardCurve
+                ? 'spot_forward_curve_with_rolling_365_intraday_shape'
+                : 'spot_rolling_365_day_night_average';
         }
         if ($reset !== null && $reset->shiftsPrices()) {
             $assumptions[] = $reset->basis === ResetEstimateBasis::ForwardCurveShift
@@ -1935,8 +1997,8 @@ class CanonicalContractPriceCalculator
     }
 
     /**
-     * @param array<int, array<string, float>> $profile
-     * @param list<WindowSegment> $segments
+     * @param  array<int, array<string, float>>  $profile
+     * @param  list<WindowSegment>  $segments
      */
     private function resolveSupplierAdjustedEstimate(
         SupplierAdjustedCandidate $candidate,
@@ -1988,8 +2050,8 @@ class CanonicalContractPriceCalculator
             return null;
         }
 
-        // Spot contracts keep their rolling-365 basis; moving them to a per-month vector is
-        // separate deferred work with a much smaller payoff.
+        // Spot prices use their own direct wholesale forward strip. A supplier-reset shift would
+        // add a second market adjustment to the same kWh.
         if ($context->isSpot()) {
             return null;
         }

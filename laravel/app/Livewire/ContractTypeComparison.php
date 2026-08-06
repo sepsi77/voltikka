@@ -91,6 +91,8 @@ class ContractTypeComparison extends Component
      */
     protected array $canonicalOutcomeMemo = [];
 
+    private ?CanonicalContractPricingService $canonicalPricingServiceInstance = null;
+
     /**
      * Monthly heating need distribution (Jan-Dec).
      * Source: https://www.ilmatieteenlaitos.fi/lammitystarveluvut (Jyväskylä 2021)
@@ -917,6 +919,7 @@ class ContractTypeComparison extends Component
             ContractComparability::TermPriceOnly => 'Arvio – '.$outcome->termMonths.' kk sopimushinta on muunnettu vuositasolle',
             ContractComparability::BaseOnlyHybrid => 'Arvio – ei sisällä kulutusvaikutusta',
             ContractComparability::ComparableEstimate => match ($outcome->estimateMethod) {
+                EstimateMethod::ForwardCurveSpot => 'Arvio – pörssihinta perustuu seuraavan 12 kuukauden markkina-arvioon',
                 EstimateMethod::Rolling365Spot => 'Arvio – pörssihinta perustuu 365 päivän keskiarvoon',
                 EstimateMethod::RecurringForwardCurveShift,
                 EstimateMethod::RecurringSpotSeasonalIndex,
@@ -936,7 +939,7 @@ class ContractTypeComparison extends Component
 
     protected function canonicalPricingService(): CanonicalContractPricingService
     {
-        return app(CanonicalContractPricingService::class);
+        return $this->canonicalPricingServiceInstance ??= app(CanonicalContractPricingService::class);
     }
 
     protected function canonicalOutcome(ElectricityContract $contract): CanonicalPricingOutcome

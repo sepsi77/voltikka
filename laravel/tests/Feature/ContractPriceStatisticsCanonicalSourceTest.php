@@ -7,10 +7,10 @@ use App\Models\Company;
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\ContractPriceSnapshot;
 use App\Models\ElectricityContract;
+use App\Models\ElectricityFuturesEodPrice;
 use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
-use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\ContractStatistics\ContractPriceBasis;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
 use App\Services\ContractStatistics\ContractStatisticsSegmentClassifier;
@@ -183,14 +183,18 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         SpotPriceAverage::create([
             'region' => 'FI',
             'period_type' => SpotPriceAverage::PERIOD_ROLLING_365D,
-            'period_start' => '2026-07-26',
-            'period_end' => '2026-07-26',
+            'period_start' => '2025-07-28',
+            'period_end' => '2026-07-27',
             'avg_price_without_tax' => 6.0,
             'avg_price_with_tax' => 6.0,
-            'day_avg_with_tax' => 6.0,
-            'night_avg_with_tax' => 6.0,
+            'day_avg_with_tax' => 7.0,
+            'night_avg_with_tax' => 3.0,
             'hours_count' => 8760,
         ]);
+        $this->future('month', '202607', '2026-06-30', 80.0);
+        $this->future('year', '202601', '2026-07-26', 80.0);
+        $this->future('year', '202701', '2026-07-26', 80.0);
+
         $contract = $this->createContract('spot-1', [
             $this->phaseWithComponents([
                 $this->canonicalComponent('spot_margin', 0.7),
@@ -202,20 +206,33 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         $outcome = app(CanonicalContractPricingService::class)->evaluate(
             $contract,
             new EnergyUsage(total: 5000, basicLiving: 5000),
-            new SpotAssumptions(dayAvgWithTax: 6.0, nightAvgWithTax: 6.0),
-            Carbon::parse(self::DATE),
+            startDate: Carbon::parse(self::DATE),
         )['outcome'];
         $this->assertTrue($outcome->isListed(), $outcome->comparability->value);
+        $this->assertSame('forward_curve_spot', $outcome->estimateMethod->value);
         $statistics = app(ContractPriceStatisticsService::class);
+        $spotEvidenceQueries = 0;
+        DB::listen(function ($query) use (&$spotEvidenceQueries): void {
+            if (str_contains($query->sql, 'spot_price_averages')) {
+                $spotEvidenceQueries++;
+            }
+        });
         $spotMethod = new \ReflectionMethod($statistics, 'canonicalSpotAssumptions');
-        $this->assertSame(6.0, $spotMethod->invoke($statistics, self::DATE)->dayAvgWithTax);
+        $assumptions = $spotMethod->invoke($statistics, self::DATE);
+        $spotMethod->invoke($statistics, self::DATE);
+        $this->assertSame(1, $spotEvidenceQueries, 'Rolling evidence must be memoized for all contracts and consumptions.');
+        $this->assertSame(7.0, $assumptions->dayAvgWithTax);
+        $this->assertSame(3.0, $assumptions->nightAvgWithTax);
+        $this->assertSame(6.0, $assumptions->overallAvgWithTax);
+        $this->assertSame('2025-07-28', $assumptions->periodStart?->toDateString());
+        $this->assertSame('2026-07-27', $assumptions->periodEnd?->toDateString());
 
         $statistics->calculateForDate(self::DATE, ActiveContract::query()->pluck('id'));
 
         $snapshot = ContractPriceSnapshot::sole();
         $this->assertSame(0.7, (float) $snapshot->spot_margin_cents_per_kwh);
-        $this->assertSame(6.7, (float) $snapshot->spot_total_energy_price_cents_per_kwh);
-        $this->assertSame(6.7, (float) $snapshot->energy_price_cents_per_kwh);
+        $this->assertSame(10.24, (float) $snapshot->spot_total_energy_price_cents_per_kwh);
+        $this->assertSame(10.24, (float) $snapshot->energy_price_cents_per_kwh);
         $this->assertTrue($snapshot->includes_spot_price);
     }
 
@@ -608,6 +625,26 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
             'price_date' => self::DATE,
             'price' => $price,
             'payment_unit' => $type === 'Monthly' ? 'EurPerMonth' : 'c/kWh',
+        ]);
+    }
+
+    private function future(string $maturityType, string $maturity, string $tradeDate, float $settlementPrice): void
+    {
+        ElectricityFuturesEodPrice::create([
+            'exchange' => 'EEX',
+            'commodity' => 'POWER',
+            'pricing' => 'F',
+            'product' => 'Base',
+            'area' => 'FI',
+            'short_code' => match ($maturityType) {
+                'month' => 'FNBM',
+                'quarter' => 'FNBQ',
+                'year' => 'FNBY',
+            },
+            'maturity' => $maturity,
+            'maturity_type' => $maturityType,
+            'trade_date' => $tradeDate,
+            'settlement_price' => $settlementPrice,
         ]);
     }
 

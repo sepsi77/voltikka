@@ -1004,7 +1004,7 @@ So the qualifier is now conditional on `$this->card?->estimate !== null`:
 
 | category | popover | qualifier |
 |---|---|---|
-| Pörssisähkö | always | `Pörssisähkössä maksat sähkön tuntihinnan, joten vuosihinta on arvio.` — mechanism only. The popover carries the spot average and the margin, split day/night, and the receipt rows carry them again |
+| Pörssisähkö | always | `Pörssisähkössä maksat sähkön tuntihinnan, joten vuosihinta on arvio.` — mechanism only. The popover carries either the forward FI market strip plus historical day/night shape or the explicit rolling fallback, together with the exact margin. The receipt labels distinguish forward and realized bases |
 | Markkinahinta (reset) | yes | **null** |
 | Kulutusvaikutus | yes | **null** |
 | Kiinteä, term < 12 kk | yes (`termBody`) | price sentence only; the popover owns the annualisation and the unknown continuation |
@@ -1094,10 +1094,10 @@ disappears, which is how this was found.
   `rankConsumption()`, so the quoted figure and the figure it is compared against are
   always priced at the same consumption, and the sentence names that consumption itself.
 - Both read `ContractRankingService::getBucketCostSummary()`, which filters the eligible
-  sorted ids through `PricingCategoryResolver::scopeBucket()`. Every spot total in it
-  comes from the same trailing-12-month realized spot average plus that contract's own
-  margin as `/sahkosopimus/tilastot` uses, so the median embodies a typical margin
-  without a second market-wide calculation.
+  sorted ids through `PricingCategoryResolver::scopeBucket()`. Every current canonical Spot total
+  in it shares one 12-month FI forward strip and historical intraday shape, or one typed rolling
+  fallback, plus that contract's own margin. The summary returns the shared estimate method so the
+  sentence names the correct basis without a second market-wide calculation.
 - The counterfactual sentence lives in PHP, generated from typed fields, for the same
   reason as `getPriceQualifierProperty()`.
 - **Fixtures must set `canonical_pricing`.** The bucket scope's negations rely on

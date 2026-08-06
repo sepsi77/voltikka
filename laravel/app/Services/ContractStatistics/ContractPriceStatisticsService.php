@@ -476,8 +476,16 @@ class ContractPriceStatisticsService
      */
     private function spotRolling365ForDate(string $dateString): ?float
     {
-        if (isset($this->rolling365Cache[$dateString])) {
-            return $this->rolling365Cache[$dateString];
+        return $this->rolling365EvidenceForDate($dateString)->overallAvgWithTax;
+    }
+
+    /** @var array<string, SpotAssumptions> */
+    private array $rolling365EvidenceCache = [];
+
+    private function rolling365EvidenceForDate(string $dateString): SpotAssumptions
+    {
+        if (isset($this->rolling365EvidenceCache[$dateString])) {
+            return $this->rolling365EvidenceCache[$dateString];
         }
 
         $stored = SpotPriceAverage::forRegion('FI')
@@ -486,37 +494,50 @@ class ContractPriceStatisticsService
             ->orderByDesc('period_start')
             ->first();
 
-        if ($stored && $stored->avg_price_with_tax !== null) {
-            return $this->rolling365Cache[$dateString] = (float) $stored->avg_price_with_tax;
+        if ($stored !== null) {
+            $periodEnd = $stored->period_end !== null
+                ? Carbon::parse($stored->period_end, 'Europe/Helsinki')->startOfDay()->toImmutable()
+                : null;
+
+            return $this->rolling365EvidenceCache[$dateString] = new SpotAssumptions(
+                dayAvgWithTax: $stored->day_avg_with_tax,
+                nightAvgWithTax: $stored->night_avg_with_tax,
+                overallAvgWithTax: $stored->avg_price_with_tax,
+                periodStart: $periodEnd?->subDays(364),
+                periodEnd: $periodEnd,
+            );
         }
 
         $end = Carbon::parse($dateString)->endOfDay();
         $start = $end->copy()->subDays(365)->startOfDay();
-
         $rows = SpotPriceHour::forRegion('FI')
             ->whereBetween('utc_datetime', [$start, $end])
-            ->get(['price_without_tax', 'vat_rate']);
+            ->get(['utc_datetime', 'price_without_tax', 'vat_rate']);
 
         if ($rows->isEmpty()) {
-            return $this->rolling365Cache[$dateString] = null;
+            return $this->rolling365EvidenceCache[$dateString] = new SpotAssumptions(null, null);
         }
 
-        $avg = (float) $rows->avg(fn ($hour) => $hour->price_with_tax);
+        $overall = (float) $rows->avg(fn ($hour) => $hour->price_with_tax);
+        $day = $rows->filter(function ($hour): bool {
+            $localHour = $hour->utc_datetime->copy()->setTimezone('Europe/Helsinki')->hour;
 
-        return $this->rolling365Cache[$dateString] = $avg;
+            return $localHour >= 7 && $localHour < 22;
+        });
+        $night = $rows->diff($day);
+
+        return $this->rolling365EvidenceCache[$dateString] = new SpotAssumptions(
+            dayAvgWithTax: $day->isNotEmpty() ? (float) $day->avg(fn ($hour) => $hour->price_with_tax) : $overall,
+            nightAvgWithTax: $night->isNotEmpty() ? (float) $night->avg(fn ($hour) => $hour->price_with_tax) : $overall,
+            overallAvgWithTax: $overall,
+            periodStart: $start->toImmutable(),
+            periodEnd: $end->toImmutable(),
+        );
     }
-
-    /** @var array<string, ?float> */
-    private array $rolling365Cache = [];
 
     private function canonicalSpotAssumptions(string $dateString): SpotAssumptions
     {
-        $rollingAverage = $this->spotRolling365ForDate($dateString);
-
-        return new SpotAssumptions(
-            dayAvgWithTax: $rollingAverage,
-            nightAvgWithTax: $rollingAverage,
-        );
+        return $this->rolling365EvidenceForDate($dateString);
     }
 
     /**

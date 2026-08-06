@@ -122,8 +122,10 @@ Monthly included-energy packages are typed and costed as described below.
    already-running current price and covers from `S`** — do not treat it as unresolved.
 3. Segment `W` at phase and calendar-month boundaries; latest-starting phase wins on overlap.
 4. Cost known segments by applying the governing phase's rates to the day-fraction of that month's
-   usage. Spot phases use `spot_margin` + rolling-365 day/night averages. Uncovered tails are filled
-   by holding the current phase forward only for active recurring resets or Spot; otherwise the
+   usage. Spot phases use `spot_margin` plus the `SpotForward/` monthly wholesale estimate. The
+   rolling-365 overall/day/night evidence supplies the intraday shape only; it is the complete level
+   only for the typed fallback. Uncovered tails are filled by holding the current phase forward only
+   for active recurring resets or Spot; otherwise the
    contract is excluded. A short fixed term is the explicit exception: cost all covered segments
    up to the real term end and annualize that complete term, without filling the unknown tail. For
    an **active recurring reset** the filled tail (and any tail a phase only claims with `ends: none`)
@@ -358,6 +360,12 @@ invalidates their data instead of leaving it stale for 48 hours or one hour.
 `ContractPricingIntegrity` gained typed `promo_rate_cents` /
 `normal_rate_cents` for the dated receipt rows; that was schema v2.
 
+Schema **v14** adds `calculated_cost.spot_estimate` and changes canonical Spot annual-cost semantics
+from a flat trailing-365 level to a monthly FI forward strip with trailing intraday shape. Persistent
+list, company, ranking, and prepared-page caches must not retain v13 Spot sort values. The payload
+carries both curve vintages, every touched month, source kinds, annual equivalents, shape evidence,
+confidence, and fallback flags.
+
 Schema **v12** adds `calculated_cost.supplier_adjusted_estimate`. Schema **v13** expands the same
 payload from General-only `contract_start`/`none` cases to eligible General, Time, and Season tariffs
 whose one current phase can also start at `unknown` or a date. The strict consumer boundary and
@@ -507,10 +515,30 @@ When it becomes possible:
 The observation dataset that will feed the calibration already exists and collects daily — see
 `../RetailPremium/AGENTS.md`. **Any analysis must filter to the current `method_version` pair.**
 
+## Forward-looking Spot annual estimate
+
+`SpotForward/SpotForwardPriceEstimator` reads one complete FI Base forward strip for every calendar
+month touched by `[window start, window start + 1 year)`. A mid-month start touches 13 calendar
+months. The current in-delivery month uses the latest curve strictly before that month began; later
+months use the latest curve strictly before the comparison date. The shared provider returns
+VAT-inclusive c/kWh and falls from month to quarter to year contracts. The forward strip applies to
+`Household` and `Both` contracts. Company-only components can use a VAT-excluded or unknown basis;
+they keep the rolling path until VAT status survives parsing and can normalize the full bill.
+
+Futures are baseload prices. The estimator preserves the trailing-365 intraday shape as additive
+`day - overall` and `night - overall` offsets. It does not apply historical monthly seasonality on
+top of futures because the forward strip already contains that shape. Each projected wholesale
+bucket is floored at zero before the exact contract margin is added. Fees, phases, and measured
+discounts stay contractual facts.
+
+Missing, stale, or incomplete curve/shape evidence rejects the full strip and produces one typed
+rolling-365 fallback. Forward and rolling months are never mixed. `CanonicalContractPricingService`
+memoizes one estimate per window and shape evidence set after parsed contracts prove that Spot is
+needed. `calculatePeriod()` never receives this estimate and keeps using realized hourly Spot data.
+
 ## Deferred / known limitations
 
-- **Spot** contracts still use one flat rolling-365 average for all twelve months. The same per-month
-  price vector should eventually replace it (level anchored on rolling-365, shape from the curve), but
-  the gain is small: the measured profile cost ranges from −0.3 % to +8.2 % across 2022-2025, and it is
-  exactly **zero** for the flat default usage profile, because `MonthlyUsageProfileBuilder` applies the
-  winter weighting only when `metering === MeteringType::Season`.
+- FI Base futures are market prices for baseload delivery, not an hourly customer-price forecast.
+  The rolling-365 day/night offset is a coarse household load-shape proxy. Quarter and year fallback
+  instruments also flatten the monthly shape inside their delivery period. Public copy must keep the
+  result labelled as an estimate, not a price promise.

@@ -1258,7 +1258,10 @@ class ContractDetail extends Component
             ];
         }
 
-        $head = "Vertailun vuoksi: tyypillinen pörssisähkösopimus maksaisi samalla {$consumptionLabel} kulutuksella arviolta {$referenceEuro} vuodessa, kun laskennassa käytetään viimeisen 12 kuukauden toteutunutta pörssikeskihintaa.";
+        $spotBasis = ($summary['estimate_method'] ?? null) === 'forward_curve_spot'
+            ? 'seuraavan 12 kuukauden tukkumarkkinan ennakkohintoja sekä toteutuneiden päivä- ja yöhintojen eroa'
+            : 'viimeisen 12 kuukauden toteutunutta pörssikeskihintaa';
+        $head = "Vertailun vuoksi: tyypillinen pörssisähkösopimus maksaisi samalla {$consumptionLabel} kulutuksella arviolta {$referenceEuro} vuodessa, kun laskennassa käytetään {$spotBasis}.";
 
         $tail = match (true) {
             $difference < 1 => 'Ero tämän sopimuksen 12 kuukauden arvioon on alle euron vuodessa.',
@@ -1784,6 +1787,12 @@ class ContractDetail extends Component
     protected function faqCostBasisSentence(?ContractPricingViewData $pricing, \App\Services\ContractCard\DTO\PricingCategoryFacts $facts): string
     {
         if ($facts->isSpot) {
+            if ($pricing?->estimateMethod()?->value === 'forward_curve_spot') {
+                return 'Arvio perustuu seuraavan 12 kuukauden tukkumarkkinan ennakkohintoihin, toteutuneiden päivä- ja '
+                    .'yöhintojen eroon sekä sopimuksen tarkkaan marginaaliin. Hinnat sisältävät arvonlisäveron 25,5 %, '
+                    .'mutta toteutunut vuosihinta voi poiketa arviosta.';
+            }
+
             return 'Arvio perustuu viimeisen 12 kuukauden toteutuneeseen pörssikeskihintaan ja sopimuksen marginaaliin, '
                 .'joten toteutunut vuosihinta voi poiketa arviosta.';
         }

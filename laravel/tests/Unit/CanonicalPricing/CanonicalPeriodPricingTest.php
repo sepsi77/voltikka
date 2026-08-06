@@ -9,6 +9,8 @@ use App\Services\CanonicalPricing\DTO\ContractContext;
 use App\Services\CanonicalPricing\DTO\HistoricalSpotPrice;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\CanonicalPricing\Enums\PeriodPricingUnavailableReason;
+use App\Services\CanonicalPricing\SpotForward\DTO\SpotEstimate;
+use App\Services\CanonicalPricing\SpotForward\Enums\SpotEstimateBasis;
 use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonImmutable;
 use PHPUnit\Framework\TestCase;
@@ -83,6 +85,62 @@ class CanonicalPeriodPricingTest extends TestCase
             $this->phase('date', '2026-05-02', 'none', null, [$this->component('spot_margin', 1)]),
         ], 'General', '2026-05-01', '2026-05-02', 480, 'Spot', $this->spotHistory('2026-05-01', '2026-05-02', 5));
         $this->assertEqualsWithDelta(38.4, $fixedToSpot->periodTotal, 0.0001);
+    }
+
+    public function test_exact_period_spot_never_receives_or_uses_the_forward_assumption(): void
+    {
+        $data = $this->parser->parse(
+            $this->pricing([
+                $this->phase('contract_start', null, 'none', null, [$this->component('spot_margin', 1)]),
+            ]),
+            ['status' => 'estimate_required', 'missing_facts' => [], 'required_assumptions' => []],
+            ['misleading_first_12_months' => 'not_detected', 'structured_pricing_status' => 'complete', 'issue_codes' => []],
+        );
+        $context = new ContractContext('Spot', 'OpenEnded', 'General', null, 'Household');
+        $start = CarbonImmutable::parse('2026-05-01', 'Europe/Helsinki');
+        $annual = $this->calculator->calculate(
+            $data,
+            $context,
+            new EnergyUsage(5000, 5000),
+            new SpotAssumptions(5, 5),
+            $start,
+            spotEstimate: new SpotEstimate(
+                basis: SpotEstimateBasis::ForwardCurve,
+                shapeOverallCentsPerKwh: 5,
+                shapeDayCentsPerKwh: 5,
+                shapeNightCentsPerKwh: 5,
+                dayOffsetCentsPerKwh: 0,
+                nightOffsetCentsPerKwh: 0,
+                shapePeriodStart: '2025-05-02',
+                shapePeriodEnd: '2026-05-01',
+                currentCurveTradeDate: '2026-04-30',
+                futureCurveTradeDate: '2026-04-30',
+                months: [],
+                annualEquivalentBaseCentsPerKwh: 50,
+                annualEquivalentDayCentsPerKwh: 50,
+                annualEquivalentNightCentsPerKwh: 50,
+                confidence: 'higher',
+            ),
+        );
+
+        $period = $this->calculator->calculatePeriod(
+            $data,
+            $context,
+            new CanonicalPeriodPricingRequest(
+                $start,
+                $start,
+                240,
+                5000,
+                $this->spotHistory('2026-05-01', '2026-05-01', 5),
+            ),
+            new SpotAssumptions(5, 5),
+            $annual,
+        );
+
+        $this->assertGreaterThan(2500, $annual->totalCost);
+        $this->assertEqualsWithDelta(14.4, $period->periodTotal, 0.0001);
+        $this->assertNotContains('spot_forward_curve_with_rolling_365_intraday_shape', $period->assumptions);
+        $this->assertContains('actual_hourly_spot_prices', $period->assumptions);
     }
 
     public function test_hybrid_period_keeps_the_annual_base_only_disclosure(): void

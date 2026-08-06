@@ -14,9 +14,12 @@ use App\Services\CanonicalPricing\Enums\ContractComparability;
 use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\CanonicalPricing\Enums\PeriodPricingUnavailableReason;
 use App\Services\CanonicalPricing\Exceptions\CanonicalPricingParseException;
+use App\Services\CanonicalPricing\SpotForward\DTO\SpotEstimate;
+use App\Services\CanonicalPricing\SpotForward\SpotForwardPriceEstimator;
 use App\Services\CanonicalPricing\SupplierAdjusted\CurrentPriceEpisodeResolver;
 use App\Services\ContractPricing\CanonicalContractMetric;
 use App\Services\DTO\EnergyUsage;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -36,12 +39,16 @@ class CanonicalContractPricingService
     /** @var array<string, array{energy: float, fee: float, anchor: \App\Services\CanonicalPricing\SupplierAdjusted\DTO\PriceEpisodeAnchor}> */
     private array $priceEpisodeAnchors = [];
 
+    /** @var array<string, SpotEstimate> */
+    private array $spotEstimates = [];
+
     public function __construct(
         private readonly CanonicalContractPriceCalculator $calculator,
         private readonly PricingMode $mode,
         private readonly CanonicalPricingParser $parser = new CanonicalPricingParser,
         private readonly ContractPricingIntegrityService $integrityService = new ContractPricingIntegrityService,
         private readonly CurrentPriceEpisodeResolver $priceEpisodeResolver = new CurrentPriceEpisodeResolver,
+        private readonly ?SpotForwardPriceEstimator $spotEstimator = null,
     ) {
         if ($calculator->resetForwardShiftEnabled() !== $mode->resetForwardShiftEnabled()) {
             throw new \InvalidArgumentException('PricingMode and the reset estimator must use the same reset-shift state.');
@@ -75,6 +82,7 @@ class CanonicalContractPricingService
     {
         $spot = $this->spotAssumptions();
         [$parsed, $anchors] = $this->parseAndResolveAnchors($contracts);
+        $spotEstimate = $this->spotEstimateForParsed($parsed, $spot, $startDate);
         $metrics = [];
 
         foreach ($parsed as $contractId => $record) {
@@ -89,6 +97,7 @@ class CanonicalContractPricingService
                     $spot,
                     $startDate,
                     $anchors[$contractId] ?? null,
+                    $spotEstimate,
                 );
                 $integrity = $this->integrityService->assess($record['data'], $outcome, $record['context']);
             }
@@ -116,6 +125,7 @@ class CanonicalContractPricingService
     ): array {
         $outcomes = [];
         [$parsed, $anchors] = $this->parseAndResolveAnchors($contracts);
+        $spotEstimate = $this->spotEstimateForParsed($parsed, $spot, $startDate);
 
         foreach ($parsed as $contractId => $record) {
             foreach ($consumptions as $consumption) {
@@ -128,6 +138,7 @@ class CanonicalContractPricingService
                         $spot,
                         $startDate,
                         $anchors[$contractId] ?? null,
+                        $spotEstimate,
                     );
             }
         }
@@ -151,6 +162,7 @@ class CanonicalContractPricingService
         $spot ??= $this->spotAssumptions();
         $evaluations = [];
         [$parsed, $anchors] = $this->parseAndResolveAnchors($contracts);
+        $spotEstimate = $this->spotEstimateForParsed($parsed, $spot, $request->startDate);
 
         foreach ($parsed as $contractId => $record) {
             if ($record['data'] === null) {
@@ -159,6 +171,7 @@ class CanonicalContractPricingService
                     'annual' => $annual,
                     'period' => $this->unavailablePeriodOutcome($annual, PeriodPricingUnavailableReason::NotComparable),
                 ];
+
                 continue;
             }
 
@@ -169,6 +182,7 @@ class CanonicalContractPricingService
                 $spot,
                 $request->startDate,
                 $anchors[$contractId] ?? null,
+                $spotEstimate,
             );
 
             $evaluations[$contractId] = [
@@ -209,6 +223,9 @@ class CanonicalContractPricingService
         $anchors = $candidate !== null
             ? $this->priceEpisodeResolver->resolve([(string) $contract->id => $candidate])
             : [];
+        $spotEstimate = $this->calculator->usesSpotPricing($data, $context)
+            ? $this->resolveSpotEstimate($spot, $startDate)
+            : null;
         $outcome = $this->calculator->calculate(
             $data,
             $context,
@@ -216,6 +233,7 @@ class CanonicalContractPricingService
             $spot,
             $startDate,
             $anchors[(string) $contract->id] ?? null,
+            $spotEstimate,
         );
         $integrity = $this->integrityService->assess($data, $outcome, $context);
 
@@ -226,7 +244,7 @@ class CanonicalContractPricingService
      * Parse all contracts first, identify supplier-adjusted candidates, then resolve their
      * episode anchors in one batch before any outcome is calculated.
      *
-     * @param Collection<int, ElectricityContract> $contracts
+     * @param  Collection<int, ElectricityContract>  $contracts
      * @return array{0: array<string, array{data: \App\Services\CanonicalPricing\DTO\CanonicalContractData|null, context: ContractContext}>, 1: array<string, \App\Services\CanonicalPricing\SupplierAdjusted\DTO\PriceEpisodeAnchor>}
      */
     private function parseAndResolveAnchors(Collection $contracts): array
@@ -246,6 +264,7 @@ class CanonicalContractPricingService
             } catch (CanonicalPricingParseException $e) {
                 Log::warning('Canonical pricing parse failed', ['contract_id' => $contractId, 'error' => $e->getMessage()]);
                 $parsed[$contractId] = ['data' => null, 'context' => $context];
+
                 continue;
             }
 
@@ -264,6 +283,7 @@ class CanonicalContractPricingService
                 && abs($cached['energy'] - $candidate->currentEnergyPriceCentsPerKwh) <= 0.0001
                 && abs($cached['fee'] - $candidate->monthlyFeeEur) <= 0.0001) {
                 $anchors[$contractId] = $cached['anchor'];
+
                 continue;
             }
             $unresolved[$contractId] = $candidate;
@@ -282,6 +302,39 @@ class CanonicalContractPricingService
         return [$parsed, $anchors];
     }
 
+    /**
+     * @param  array<string, array{data: \App\Services\CanonicalPricing\DTO\CanonicalContractData|null, context: ContractContext}>  $parsed
+     */
+    private function spotEstimateForParsed(array $parsed, SpotAssumptions $spot, ?CarbonInterface $startDate): ?SpotEstimate
+    {
+        foreach ($parsed as $record) {
+            if ($record['data'] !== null && $this->calculator->usesSpotPricing($record['data'], $record['context'])) {
+                return $this->resolveSpotEstimate($spot, $startDate);
+            }
+        }
+
+        return null;
+    }
+
+    private function resolveSpotEstimate(SpotAssumptions $spot, ?CarbonInterface $startDate): SpotEstimate
+    {
+        $windowStart = CarbonImmutable::parse(
+            ($startDate ?? CarbonImmutable::now('Europe/Helsinki'))->toDateString(),
+            'Europe/Helsinki',
+        )->startOfDay();
+        $key = implode('|', [
+            $windowStart->toDateString(),
+            $spot->overallAvgWithTax ?? 'null',
+            $spot->dayAvgWithTax ?? 'null',
+            $spot->nightAvgWithTax ?? 'null',
+            $spot->periodStart?->toDateString() ?? 'null',
+            $spot->periodEnd?->toDateString() ?? 'null',
+        ]);
+
+        return $this->spotEstimates[$key] ??= ($this->spotEstimator ?? app(SpotForwardPriceEstimator::class))
+            ->estimate($windowStart, $spot);
+    }
+
     public function spotAssumptions(): SpotAssumptions
     {
         if ($this->spotAssumptions !== null) {
@@ -290,9 +343,16 @@ class CanonicalContractPricingService
 
         $avg = SpotPriceAverage::latestRolling365Days();
 
+        $periodEnd = $avg?->period_end !== null
+            ? CarbonImmutable::parse($avg->period_end, 'Europe/Helsinki')->startOfDay()
+            : null;
+
         return $this->spotAssumptions = new SpotAssumptions(
             dayAvgWithTax: $avg?->day_avg_with_tax,
             nightAvgWithTax: $avg?->night_avg_with_tax,
+            overallAvgWithTax: $avg?->avg_price_with_tax,
+            periodStart: $periodEnd?->subDays(364),
+            periodEnd: $periodEnd,
         );
     }
 

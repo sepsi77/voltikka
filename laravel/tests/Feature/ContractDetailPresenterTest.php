@@ -218,7 +218,7 @@ class ContractDetailPresenterTest extends TestCase
         $contract = $this->contract('spot-contract', ['pricing_model' => 'Spot'], ['General' => 0.45, 'Monthly' => 4.99]);
 
         Livewire::test('contract-detail', ['contractId' => $contract->id])
-            ->assertSee('Pörssin keskihinta 12 kk')
+            ->assertSee('Pörssin toteutunut päiväkeskiarvo 12 kk')
             ->assertSee('Marginaali')
             // The old block computed "Energiahinta (arvio) (spot + marginaali)" here.
             ->assertDontSee('spot + marginaali');

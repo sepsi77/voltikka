@@ -189,7 +189,7 @@
                         </h2>
                         <p class="mt-1 text-sm text-slate-500 max-w-[68ch]">
                             Sähkösopimusten hintakehitys eri sopimustyypeissä — eri sopimustyyppien tyypillinen vuosikustannus, jos sopimus tehtäisiin tämän jakson aikana.
-                            Pörssipohjaisille sopimuksille luku perustuu edeltävän 12 kuukauden pörssin keskihintaan, ei yksittäisten päivien hintaan.
+                            Nykyinen pörssisopimusten vuosiarvio käyttää tulevan 12 kuukauden tukkumarkkinan ennakkohintoja; vanhemmat pisteet käyttävät kustakin päivästä taaksepäin laskettua 12 kuukauden toteutunutta pörssikeskihintaa.
                             Jakso&nbsp;= <span class="font-semibold text-slate-900">{{ $periods[$period] ?? $period }}</span>.
                         </p>
                     </div>
@@ -282,7 +282,7 @@
                             <span class="block">{{ $sentence }}</span>
                         @endforeach
                         <span class="block mt-3 text-sm text-slate-500">
-                            Spot-sopimusten vuosikustannus heijastaa edeltävän 12 kuukauden pörssin keskihintaa kustakin jaksosta taaksepäin laskettuna. Yksittäisten päivien hintapiikit eivät siten vääristä lukua.
+                            Sarjan uusin kanoninen Spot-piste on tulevan 12 kuukauden arvio tukkumarkkinan ennakkohinnoista. Historialliset pisteet kuvaavat edeltävän 12 kuukauden toteutunutta pörssikeskihintaa kustakin jaksosta taaksepäin laskettuna.
                         </span>
                         <span class="block mt-2 text-xs text-slate-400">
                             Lähde: Voltikka, päivittäin kerätyt sähkösopimukset. Sis. ALV 25,5 %.
@@ -468,7 +468,7 @@
                             Halvempi&nbsp;20&nbsp;% on raja, jonka alle viidennes saman tyypin sopimuksista jää. Mediaani kuvaa tyypillistä sopimusta, ja kalliimpi&nbsp;20&nbsp;% on raja, jonka yli viidennes nousee.
                         </p>
                         <p class="mt-2">
-                            Pörssisähkössä vuosikustannus käyttää edeltävän 12 kuukauden pörssin keskihintaa + sopimuksen marginaalia. Kuukausi- ja kvartaalihinnoissa sekä hinnaltaan muutettavissa toistaiseksi voimassa olevissa yleissähkösopimuksissa tulevat kuukaudet ovat arvioita. Muissa kiinteissä sopimuksissa käytetään julkaistuja hintoja. Trendi näyttää vuosikustannuksen mediaanin kehityksen valitulla kulutuksella. Sopimusmäärä voi poiketa ylemmästä hintataulukosta kumpaankin suuntaan: sopimus jää pois, jos se ei ole tarjolla valitulle kulutukselle tai vuosihintaa ei voi laskea, ja mukana on myös sopimuksia, joiden ilmoitettua yksikköhintaa ei voi julkaista energiahintana mutta joiden koko vuoden hinta voidaan laskea hintajaksoista.
+                            Pörssisähkön nykyinen vuosikustannus käyttää tulevan 12 kuukauden tukkumarkkinan ennakkohintoja, historiallista päivä–yö-eroa ja sopimuksen marginaalia. Historialliset Spot-vuosikustannukset käyttävät kyseisestä päivästä taaksepäin laskettua 12 kuukauden toteutunutta pörssitasoa. Kuukausi- ja kvartaalihinnoissa sekä hinnaltaan muutettavissa toistaiseksi voimassa olevissa yleissähkösopimuksissa tulevat kuukaudet ovat arvioita. Muissa kiinteissä sopimuksissa käytetään julkaistuja hintoja. Trendi näyttää vuosikustannuksen mediaanin kehityksen valitulla kulutuksella. Sopimusmäärä voi poiketa ylemmästä hintataulukosta kumpaankin suuntaan: sopimus jää pois, jos se ei ole tarjolla valitulle kulutukselle tai vuosihintaa ei voi laskea, ja mukana on myös sopimuksia, joiden ilmoitettua yksikköhintaa ei voi julkaista energiahintana mutta joiden koko vuoden hinta voidaan laskea hintajaksoista.
                         </p>
                     </div>
                 </div>
@@ -730,7 +730,7 @@
                             Historiallinen takaisin täyttö käyttää kyseisenä päivänä havaittuja myyjän hintakomponentteja. Tämän päivän kanonista tulkintaa ei käytetä vanhan havainnon muuttamiseen. CSV-tiedoston <code>pricing_basis</code>-sarake erottaa kanonisen laskelman ja havaitun myyjäaineiston. Hinnat sisältävät arvonlisäveron 25,5 %.
                         </p>
                         <p>
-                            Pörssipohjaisille sopimuksille käytetään kahta eri laskentatapaa. Sopimustyyppien c/kWh-taulukossa pörssisähkö näytetään viimeisen 12 kuukauden toteutuneena päiväkeskiarvona + tyypillisenä marginaalina, jotta sitä voi verrata pitkäkestoisempiin sopimushintoihin. P20–P80-väli lasketaan saman 12 kuukauden päivähinnoista ja kertoo, missä haarukassa tavanomaiset spot-päivät liikkuivat. Vuosikustannukset lasketaan samalla edeltävän 12 kuukauden pörssitasolla plus marginaali, jolloin yksittäiset hintapiikit eivät vääristä vertailua.
+                            Pörssipohjaisille sopimuksille käytetään kahta eri aikaperustaa. Sopimustyyppien c/kWh-taulukko ja historialliset kuvaajat näyttävät viimeisen 12 kuukauden toteutuneen päiväkeskiarvon + tyypillisen marginaalin. P20–P80-väli lasketaan saman jakson päivähinnoista. Nykyinen kanoninen vuosikustannus käyttää sen sijaan tulevan 12 kuukauden tukkumarkkinan ennakkohintoja, toteutunutta päivä–yö-eroa ja sopimuksen tarkkaa marginaalia sekä perusmaksua. Jos koko ennakkohintajaksoa ei voi käyttää, vuosikustannus palaa erikseen merkittyyn toteutuneen 12 kuukauden tasoon.
                         </p>
                         <p>
                             Nykyiset vuosikustannukset tulevat samasta kanonisesta 12 kuukauden laskelmasta kuin Voltikan sopimusvertailussa. Laskelma huomioi hinnoitteluvaiheet, tarjoukset, aika- ja kausihinnat, pörssimarginaalit, markkinahinnan päivitykset ja kuukausittaiset energiapaketit silloin, kun ne koskevat sopimusta.

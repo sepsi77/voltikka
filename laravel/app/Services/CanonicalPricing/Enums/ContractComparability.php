@@ -14,7 +14,7 @@ enum ContractComparability: string
     /** Full 12-month window covered with no estimated segments. */
     case ComparableExact = 'comparable_exact';
 
-    /** 12-month window completed via recurring-hold or rolling spot averages; total is an estimate. */
+    /** 12-month window contains a market, Spot, supplier-adjusted, or held-price estimate. */
     case ComparableEstimate = 'comparable_estimate';
 
     /** Fixed-term whose only gap is post-term pricing; ranked by the term price annualized. */

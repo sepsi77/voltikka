@@ -4,7 +4,7 @@ This directory owns the typed calculated-pricing boundary from canonical or lega
 
 ## Purpose
 
-- `ContractPricingViewData` validates one existing `calculated_cost` array and gives typed access to totals, monthly values, rates, Spot state, discount state, pricing basis, comparability, and estimate facts, including separate market-reset and supplier-adjusted payloads.
+- `ContractPricingViewData` validates one existing `calculated_cost` array and gives typed access to totals, monthly values, rates, Spot state, discount state, pricing basis, comparability, and estimate facts, including separate market-reset, supplier-adjusted, and forward-Spot payloads.
 - `PricingFact` wraps validated optional package, contract-term, consumption-effect, reset, phase, and offer-term records. It keeps unknown harmless auxiliary keys.
 - `CanonicalContractMetric` combines one canonical pricing view with typed `ContractPricingIntegrity`, comparability, listability, and the finite nullable sort key returned by the canonical batch producer.
 - `ContractMetric` combines one cached contract ID with pricing, emissions, consumption-limit state, comparability, listability, sort key, and typed integrity.
@@ -31,7 +31,7 @@ This is a consumer read model. It is not a pricing calculator and must not dupli
 
 ## Cache compatibility
 
-The supplier-adjusted payload was added in calculated-cost schema v12. Schema v13 expands its eligible metering and phase-start semantics, so persistent list, company, ranking, and prepared-page caches cannot retain v12 exact outcomes for those contracts. Outer cache versions did not move because their wrapper shape did not change. A future field-shape or pricing-semantics change must follow the existing schema-version rules in `../CanonicalPricing/AGENTS.md`.
+The supplier-adjusted payload was added in calculated-cost schema v12. Schema v13 expands its eligible metering and phase-start semantics. Schema v14 adds `spot_estimate` and changes canonical Spot annual sort values to the forward strip, so persistent list, company, ranking, and prepared-page caches cannot retain v13 rolling values. Outer cache versions did not move because their wrapper shape did not change. A future field-shape or pricing-semantics change must follow the existing schema-version rules in `../CanonicalPricing/AGENTS.md`.
 
 ## Presentation consumers
 

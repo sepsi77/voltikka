@@ -26,8 +26,8 @@ Primary files:
 When `CANONICAL_PRICING_ENABLED=true`:
 
 - `GET /api/contracts` and `GET /api/contracts/{id}` expose typed canonical unit, package,
-  comparability, estimate, exclusion, and integrity facts in `current_pricing`. Market-reset and
-  supplier-adjusted estimates remain separate typed payloads.
+  comparability, estimate, exclusion, and integrity facts in `current_pricing`. Market-reset,
+  supplier-adjusted, and forward-Spot estimates remain separate typed payloads.
 - They omit `price_components`. Do not synthesize `PriceComponentResource` rows from canonical
   phases and do not fill a missing canonical field from a relational row.
 - A valid numeric `consumption` still controls whether top-level `calculated_cost` is returned.

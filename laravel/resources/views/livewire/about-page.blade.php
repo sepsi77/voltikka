@@ -154,11 +154,14 @@
                         <h3 class="font-bold text-slate-900 mb-2">Pörssisähkön arviot (· arvio)</h3>
                         <p>
                             Pörssisopimuksilla todellinen hinta vaihtelee tunneittain, joten vuosikustannus on aina arvio.
-                            Arviossa käytetään viimeisen 12 kuukauden toteutunutta pörssikeskihintaa
+                            Nykyinen arvio käyttää ensisijaisesti seuraavan 12 kuukauden Suomen tukkumarkkinan ennakkohintoja eli sähköfutuureja kuukausi kerrallaan. Viimeisen 365 päivän toteutuneista hinnoista säilytetään päivä- ja yöhintojen ero. Sen jälkeen lisätään sopimuksen tarkka marginaali ja perusmaksu; hinnat sisältävät arvonlisäveron.
+                        </p>
+                        <p class="mt-3">
+                            Jos koko futuurijaksoa ei ole saatavilla tai tiedot ovat vanhentuneet, käytämme erikseen merkittynä varamenetelmänä edeltävän 12 kuukauden toteutunutta pörssihintaa
                             @if($spotAvg !== null)
                                 (tällä hetkellä <span class="font-semibold text-slate-900 tabular-nums">{{ number_format($spotAvg, 2, ',', ' ') }} c/kWh</span>, sis. alv)
-                            @endif
-                            ja lisätään sen päälle sopimuksen oma marginaali. Toteutunut hinta voi olla tätä korkeampi tai matalampi.
+                            @endif.
+                            Toteutunut hinta voi kummassakin tapauksessa olla arviota korkeampi tai matalampi.
                         </p>
                     </div>
 

@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\DataFreshnessCheckpoint;
 use App\Models\ElectricityFuturesEodPrice;
+use App\Services\ContractListCacheService;
 use App\Services\ElectricityFutures\EexFuturesService;
 use App\Services\MorningFreshness\MorningJobFreshnessService;
 use Carbon\Carbon;
@@ -43,6 +44,7 @@ class FetchEexFutures extends Command
     public function __construct(
         private readonly EexFuturesService $eexFuturesService,
         private readonly MorningJobFreshnessService $freshness,
+        private readonly ContractListCacheService $contractListCache,
     ) {
         parent::__construct();
     }
@@ -157,6 +159,13 @@ class FetchEexFutures extends Command
         }
 
         $this->info("EEX futures fetch complete. Fetched {$totalFetched} price points, upserted {$totalSaved}. Failures: {$failures}.");
+
+        // FI Base futures are a direct input to canonical Spot, market-reset, and supplier-adjusted
+        // annual prices. Invalidate every calculated-cost-dependent cache after a real FI write.
+        // Downstream company, ranking, and prepared-page keys include this shared list version.
+        if (! $this->option('dry-run') && $totalSaved > 0 && $latestCurrentRunPriorFiTradeDate !== null) {
+            $this->contractListCache->bumpVersion();
+        }
 
         if (! $fullScope) {
             return $failures > 0 ? Command::FAILURE : Command::SUCCESS;

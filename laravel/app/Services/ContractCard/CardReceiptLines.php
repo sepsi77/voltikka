@@ -151,7 +151,7 @@ class CardReceiptLines
         // room for it; its Arvio popover carries the same figure.
         $baseline = $pricing?->spotPriceDayAverage();
         if ($detailed && $baseline !== null && ($first->boolean('uses_spot') || $second->boolean('uses_spot'))) {
-            $lines[] = new CardReceiptLine('Pörssin keskihinta 12 kk', $this->amount($baseline), 'c/kWh', soft: true);
+            $lines[] = new CardReceiptLine($this->spotBaselineLabel($pricing), $this->amount($baseline), 'c/kWh', soft: true);
         }
 
         $lines[] = $this->mechanismLine($second, ContractCardCopy::dayMonth($from).' alkaen');
@@ -440,13 +440,13 @@ class CardReceiptLines
     {
         $lines = [];
 
-        // The day average is the exact figure the total is built on: for General metering
-        // (every active spot contract) the calculator prices the whole bucket at
-        // `spot_price_day_avg + margin`. The night average appears in the Arvio popover.
+        // This is the annual wholesale value used by the calculation. It is not an
+        // exact day price: forward outcomes retain only the historical day/night shape,
+        // while the fallback is an explicitly trailing realized average.
         $baseline = $pricing?->spotPriceDayAverage();
         if ($baseline !== null) {
             $lines[] = new CardReceiptLine(
-                'Pörssin keskihinta 12 kk',
+                $this->spotBaselineLabel($pricing),
                 $this->amount($baseline),
                 'c/kWh',
                 soft: true,
@@ -461,6 +461,13 @@ class CardReceiptLines
         }
 
         return $lines;
+    }
+
+    private function spotBaselineLabel(?ContractPricingViewData $pricing): string
+    {
+        return $pricing?->estimateMethod()?->value === 'forward_curve_spot'
+            ? 'Pörssin päiväarvio 12 kk'
+            : 'Pörssin toteutunut päiväkeskiarvo 12 kk';
     }
 
     /**

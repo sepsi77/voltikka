@@ -377,7 +377,7 @@
                 {{ $company->name }} myy pörssisähköä. Vertailussa on {{ $spotCountText }}.
                 Myyjän itse määrittämät kulut ovat marginaali ja kuukausittainen perusmaksu.
                 Nord Poolin markkinahinta on kaikille pörssisähkötuotteille yhteinen, joten se ei kerro myyjän kilpailukyvystä.
-                Vuosihinta on arvio, joka perustuu edeltävän 12 kuukauden toteutuneeseen pörssihintaan.
+                Nykyinen vuosihinta arvioidaan ensisijaisesti seuraavan 12 kuukauden tukkumarkkinan ennakkohinnoista ja historiallisesta päivä–yö-erosta. Jos ennakkohintoja ei voi käyttää, laskelma näyttää erikseen merkityn edeltävän 12 kuukauden toteutuneeseen pörssihintaan perustuvan arvion.
             </p>
 
             <div class="overflow-x-auto rounded-2xl border border-slate-200 bg-white">

@@ -657,7 +657,7 @@
             <p>
                 @if ($canonicalPricingEnabled)
                     Kuukausipalkit käyttävät samaa sopimuksen 12 kuukauden vertailuarviota kuin voittaja ja säästö.
-                    Pörssisähkön arvio perustuu viimeisen 365 päivän päivä- ja yöhintoihin. Päivittyvien sopimusten tulevat hinnat ja kulutusvaikutussopimusten kulutusvaikutus eivät ole tarkkoja ennusteita.
+                    Pörssisähkön arvio käyttää seuraavan 12 kuukauden tukkumarkkinan ennakkohintoja ja viimeisen 365 päivän toteutunutta päivä–yö-eroa. Jos koko ennakkohintajaksoa ei ole saatavilla, käytetään erikseen merkittyä 365 päivän toteutunutta varatasoa. Päivittyvien sopimusten tulevat hinnat ja kulutusvaikutussopimusten kulutusvaikutus eivät ole tarkkoja ennusteita.
                 @else
                     Pörssisähkön arvio perustuu viime vuoden saman kuukauden keskihintoihin.
                     @if($consumption > 4000)

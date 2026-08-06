@@ -101,6 +101,7 @@ class ContractCardPresenterTest extends TestCase
                 'assumptions' => [],
                 'reset_estimate' => null,
                 'supplier_adjusted_estimate' => null,
+                'spot_estimate' => null,
             ], $payload);
             if (($payload['estimate_method'] ?? 'none') !== 'none') {
                 $payload['is_estimate'] = true;
@@ -176,6 +177,38 @@ class ContractCardPresenterTest extends TestCase
             'tail_starts' => '2026-08',
             'monthly_fee_assumption' => 'held_flat',
             'higher_confidence' => $basis === 'forward_curve_shift',
+            'flags' => [],
+        ];
+    }
+
+    private function forwardSpotEstimate(): array
+    {
+        return [
+            'basis' => 'forward_curve',
+            'shape' => [
+                'overall_price' => 7.0,
+                'day_price' => 8.0,
+                'night_price' => 5.0,
+                'day_offset' => 1.0,
+                'night_offset' => -2.0,
+                'period_start' => '2025-08-07',
+                'period_end' => '2026-08-06',
+            ],
+            'current_curve_trade_date' => '2026-07-31',
+            'future_curve_trade_date' => '2026-08-05',
+            'months' => [[
+                'month' => '2026-08',
+                'base_price' => 9.0,
+                'day_price' => 10.0,
+                'night_price' => 7.0,
+                'source_kind' => 'month',
+                'trade_date' => '2026-07-31',
+            ]],
+            'annual_equivalent_base_price' => 9.0,
+            'annual_equivalent_day_price' => 10.0,
+            'annual_equivalent_night_price' => 7.0,
+            'confidence' => 'higher',
+            'higher_confidence' => true,
             'flags' => [],
         ];
     }
@@ -372,11 +405,31 @@ class ContractCardPresenterTest extends TestCase
             'monthly_fixed_fee' => 0.0,
         ]));
 
-        $this->assertSame(['Pörssin keskihinta 12 kk', 'Marginaali', 'Perusmaksu'], array_map(fn ($l) => $l->label, $card->receiptLines));
+        $this->assertSame(['Pörssin toteutunut päiväkeskiarvo 12 kk', 'Marginaali', 'Perusmaksu'], array_map(fn ($l) => $l->label, $card->receiptLines));
         // The baseline is the estimated part, the margin is contractual.
         $this->assertTrue($card->receiptLines[0]->soft);
         $this->assertFalse($card->receiptLines[1]->soft);
         $this->assertSame('7,77', $card->receiptLines[0]->value);
+    }
+
+    public function test_forward_spot_card_labels_the_future_market_estimate(): void
+    {
+        $card = $this->present($this->contract(['pricing_model' => 'Spot'], [
+            'is_spot_contract' => true,
+            'estimate_method' => 'forward_curve_spot',
+            'general_kwh_price' => null,
+            'spot_price_margin' => 0.39,
+            'spot_price_day_avg' => 10.0,
+            'spot_price_night_avg' => 7.0,
+            'monthly_fixed_fee' => 0.0,
+            'spot_estimate' => $this->forwardSpotEstimate(),
+        ]));
+
+        $this->assertSame(['Pörssin päiväarvio 12 kk', 'Marginaali', 'Perusmaksu'], array_map(fn ($line) => $line->label, $card->receiptLines));
+        $this->assertNotNull($card->estimate);
+        $this->assertStringContainsString('sähköfutuureihin', $card->estimate->body);
+        $this->assertStringContainsString('päivä- ja yöhintojen ero', $card->estimate->body);
+        $this->assertStringContainsString('marginaali 0,39 c/kWh', $card->estimate->body);
     }
 
     public function test_supplier_adjusted_general_tariff_separates_current_and_estimated_prices(): void
@@ -607,7 +660,7 @@ class ContractCardPresenterTest extends TestCase
         ]), detailed: true);
 
         $this->assertSame(
-            ['Energia 25.8. asti', 'Pörssin keskihinta 12 kk', 'Marginaali 26.8. alkaen', 'Perusmaksu 25.8. asti', 'Perusmaksu 26.8. alkaen'],
+            ['Energia 25.8. asti', 'Pörssin toteutunut päiväkeskiarvo 12 kk', 'Marginaali 26.8. alkaen', 'Perusmaksu 25.8. asti', 'Perusmaksu 26.8. alkaen'],
             array_map(fn ($l) => $l->label, $card->receiptLines),
         );
         $this->assertTrue($card->receiptLines[1]->soft, 'the market baseline is the estimated part');
@@ -631,7 +684,7 @@ class ContractCardPresenterTest extends TestCase
             ],
         ]));
 
-        $this->assertSame(['Pörssin keskihinta 12 kk', 'Marginaali', 'Perusmaksu'], array_map(fn ($l) => $l->label, $card->receiptLines));
+        $this->assertSame(['Pörssin toteutunut päiväkeskiarvo 12 kk', 'Marginaali', 'Perusmaksu'], array_map(fn ($l) => $l->label, $card->receiptLines));
     }
 
     public function test_a_spot_contract_without_a_margin_never_prints_the_bare_spot_average_as_energy(): void
@@ -649,7 +702,7 @@ class ContractCardPresenterTest extends TestCase
         ]));
 
         $labels = array_map(fn ($l) => $l->label, $card->receiptLines);
-        $this->assertSame(['Pörssin keskihinta 12 kk', 'Perusmaksu'], $labels);
+        $this->assertSame(['Pörssin toteutunut päiväkeskiarvo 12 kk', 'Perusmaksu'], $labels);
         $this->assertTrue($card->receiptLines[0]->soft);
         $this->assertNotContains('Marginaali', $labels);
         $this->assertNotContains('Energiahinta', $labels);
@@ -1126,7 +1179,7 @@ class ContractCardPresenterTest extends TestCase
         $html = $this->blade('<x-contract-card :contract="$contract" :consumption="5000" />', ['contract' => $contract]);
 
         $html->assertSee('Hinta seuraa pörssin tuntihintaa');
-        $html->assertSee('Pörssin keskihinta 12 kk');
+        $html->assertSee('Pörssin toteutunut päiväkeskiarvo 12 kk');
         $html->assertSee('Max 20 000 kWh/v');
         // The Arvio chip has to be a real button with the methodology link inside it.
         $html->assertSee('Arvio');
@@ -1192,7 +1245,7 @@ class ContractCardPresenterTest extends TestCase
         // The band still states the category; the annual receipt and Arvio chip do not belong
         // beside a billing-period figure.
         $html->assertSee('Hinta seuraa pörssin tuntihintaa');
-        $html->assertDontSee('Pörssin keskihinta 12 kk');
+        $html->assertDontSee('Pörssin toteutunut päiväkeskiarvo 12 kk');
     }
 
     public function test_the_card_no_longer_renders_percentile_callouts(): void

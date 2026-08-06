@@ -35,7 +35,10 @@ enum EstimateMethod: string
     /** Adjustable supplier price held current because no usable market shape exists. */
     case HoldCurrentSupplierPrice = 'hold_current_supplier_price';
 
-    /** Spot: rolling-365-day day/night averages plus the phase spot margin. */
+    /** Spot: FI Base forward curve plus the rolling-365 intraday shape and exact margin. */
+    case ForwardCurveSpot = 'forward_curve_spot';
+
+    /** Spot fallback: rolling-365-day day/night averages plus the phase spot margin. */
     case Rolling365Spot = 'rolling_365_spot';
 
     /** Fixed-term: only the term price is known; it is annualized for ranking. */

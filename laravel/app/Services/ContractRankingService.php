@@ -196,7 +196,9 @@ class ContractRankingService
     /**
      * Cost summary for one pricing bucket inside the same eligible universe the
      * viewed contract is ranked in, at the given consumption. The viewed
-     * contract itself is excluded.
+     * contract itself is excluded. `estimate_method` comes from the same first
+     * ranked bucket metric and describes the shared market basis used by the
+     * bucket totals.
      *
      * The detail page reads it twice: for the counterfactual line ("what would a
      * typical pörssisähkö contract cost instead?") and for the same-type
@@ -205,12 +207,10 @@ class ContractRankingService
      * the target-group and consumption-limit filtering.
      *
      * `median_cost` is the median annual total inside the bucket, which is what
-     * "typical" means here. Every spot total in it comes from the same
-     * trailing-12-month realized spot average plus that contract's own margin as
-     * the statistics page uses, so the median embodies a typical margin without
-     * a second market-wide calculation.
+     * "typical" means here. Spot totals share one forward estimate, or one typed
+     * trailing-365 fallback, and then add each contract's own margin.
      *
-     * @return array{count: int, cheapest_id: ?string, cheapest_cost: ?float, median_cost: ?float}|null
+     * @return array{count: int, cheapest_id: ?string, cheapest_cost: ?float, median_cost: ?float, estimate_method: ?string}|null
      */
     public function getBucketCostSummary(string $contractId, int $consumption, PricingBucket $bucket): ?array
     {
@@ -235,6 +235,7 @@ class ContractRankingService
                 'cheapest_id' => null,
                 'cheapest_cost' => null,
                 'median_cost' => null,
+                'estimate_method' => null,
             ];
         }
 
@@ -252,6 +253,7 @@ class ContractRankingService
 
         $costs = [];
         $cheapestId = null;
+        $estimateMethod = null;
         foreach ($candidateIds as $id) {
             if (! $bucketIds->has($id)) {
                 continue;
@@ -264,6 +266,7 @@ class ContractRankingService
 
             $costs[] = $cost;
             $cheapestId ??= $id;
+            $estimateMethod ??= $metrics?->metric($id)?->pricing()->estimateMethod()?->value;
         }
 
         if (empty($costs)) {
@@ -272,6 +275,7 @@ class ContractRankingService
                 'cheapest_id' => null,
                 'cheapest_cost' => null,
                 'median_cost' => null,
+                'estimate_method' => null,
             ];
         }
 
@@ -287,6 +291,7 @@ class ContractRankingService
             'cheapest_id' => $cheapestId,
             'cheapest_cost' => $sorted[0],
             'median_cost' => $median,
+            'estimate_method' => $estimateMethod,
         ];
     }
 

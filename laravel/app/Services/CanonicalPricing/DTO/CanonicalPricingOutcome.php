@@ -24,7 +24,8 @@ readonly class CanonicalPricingOutcome
      * @param  list<string>  $assumptions
      * @param  array<string, mixed>|null  $resetEstimate  Typed evidence for a market-reset tail.
      * @param  array<string, mixed>|null  $supplierAdjustedEstimate  Typed evidence for an adjustable
-     *                                                              supplier-price estimate.
+     *                                                               supplier-price estimate.
+     * @param  array<string, mixed>|null  $spotEstimate  Typed evidence for the annual Spot market estimate.
      */
     public function __construct(
         public ContractComparability $comparability,
@@ -57,6 +58,7 @@ readonly class CanonicalPricingOutcome
         public array $assumptions = [],
         public ?array $resetEstimate = null,
         public ?array $supplierAdjustedEstimate = null,
+        public ?array $spotEstimate = null,
     ) {}
 
     public function isListed(): bool
@@ -136,6 +138,7 @@ readonly class CanonicalPricingOutcome
             'assumptions' => $this->assumptions,
             'reset_estimate' => $this->resetEstimate,
             'supplier_adjusted_estimate' => $this->supplierAdjustedEstimate,
+            'spot_estimate' => $this->spotEstimate,
         ];
     }
 }

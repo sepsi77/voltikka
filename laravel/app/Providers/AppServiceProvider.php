@@ -9,6 +9,7 @@ use App\Services\CanonicalPricing\MarketReset\EexMarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketResetPriceEstimator;
 use App\Services\CanonicalPricing\PricingMode;
+use App\Services\CanonicalPricing\SpotForward\SpotForwardPriceEstimator;
 use App\Services\CanonicalPricing\SupplierAdjusted\CurrentPriceEpisodeResolver;
 use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedPriceEstimator;
 use DateTimeZone;
@@ -53,6 +54,11 @@ class AppServiceProvider extends ServiceProvider
             $app->make(ResetEstimatorSettings::class),
         ));
 
+        $this->app->scoped(SpotForwardPriceEstimator::class, fn ($app) => new SpotForwardPriceEstimator(
+            $app->make(MarketReferenceCurveProvider::class),
+            $app->make(ResetEstimatorSettings::class),
+        ));
+
         $this->app->scoped(CanonicalContractPriceCalculator::class, fn ($app) => new CanonicalContractPriceCalculator(
             resetEstimator: $app->make(MarketResetPriceEstimator::class),
             supplierAdjustedEstimator: $app->make(SupplierAdjustedPriceEstimator::class),
@@ -64,6 +70,7 @@ class AppServiceProvider extends ServiceProvider
             calculator: $app->make(CanonicalContractPriceCalculator::class),
             mode: $app->make(PricingMode::class),
             priceEpisodeResolver: $app->make(CurrentPriceEpisodeResolver::class),
+            spotEstimator: $app->make(SpotForwardPriceEstimator::class),
         ));
     }
 
