@@ -217,6 +217,7 @@ class ContractController extends Controller
             'consumption_effect' => $isAvailable ? $pricing->consumptionEffect()?->toArray() : null,
             'assumptions' => $isAvailable ? $pricing->assumptions() : [],
             'reset_estimate' => $isAvailable ? $pricing->resetEstimate()?->toArray() : null,
+            'supplier_adjusted_estimate' => $isAvailable ? $pricing->supplierAdjustedEstimate()?->toArray() : null,
             'integrity' => $isAvailable ? $integrity->toArray() : [
                 'detected' => $integrity->detected,
                 'reason_family' => $integrity->reasonFamily->value,

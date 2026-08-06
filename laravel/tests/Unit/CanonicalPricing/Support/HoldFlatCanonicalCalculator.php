@@ -3,21 +3,36 @@
 namespace Tests\Unit\CanonicalPricing\Support;
 
 use App\Services\CanonicalPricing\CanonicalContractPriceCalculator;
+use App\Services\CanonicalPricing\DTO\CanonicalContractData;
+use App\Services\CanonicalPricing\DTO\ContractContext;
 use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimatorSettings;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketResetPriceEstimator;
+use App\Services\CanonicalPricing\SupplierAdjusted\DTO\SupplierAdjustedCandidate;
+use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedEligibility;
+use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedPriceEstimator;
 use Carbon\CarbonImmutable;
 
 final class HoldFlatCanonicalCalculator
 {
     public static function make(): CanonicalContractPriceCalculator
     {
+        $provider = new DisabledMarketReferenceCurveProvider;
+        $settings = new ResetEstimatorSettings(enabled: false);
+
         return new CanonicalContractPriceCalculator(
-            new MarketResetPriceEstimator(
-                new DisabledMarketReferenceCurveProvider,
-                new ResetEstimatorSettings(enabled: false),
-            ),
+            new MarketResetPriceEstimator($provider, $settings),
+            new SupplierAdjustedPriceEstimator($provider, $settings),
+            new DisabledSupplierAdjustedEligibility,
         );
+    }
+}
+
+final class DisabledSupplierAdjustedEligibility extends SupplierAdjustedEligibility
+{
+    public function candidate(string $contractId, CanonicalContractData $data, ContractContext $context): ?SupplierAdjustedCandidate
+    {
+        return null;
     }
 }
 

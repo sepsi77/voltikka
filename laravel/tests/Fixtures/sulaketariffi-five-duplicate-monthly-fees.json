@@ -1,0 +1,57 @@
+{
+  "contract": {
+    "id": "vimpelin-voima-sulaketariffi",
+    "pricing_model": "FixedPrice",
+    "contract_type": "OpenEnded",
+    "metering": "General",
+    "target_group": "Household"
+  },
+  "pricing": {
+    "phases": [
+      {
+        "label": "Nykyinen hinta",
+        "phase_kind": "current_structured",
+        "starts": {"kind": "contract_start", "value": null},
+        "ends": {"kind": "none", "value": null},
+        "components": [
+          {"component_type": "energy_general", "amount": 7.4, "normal_amount": null, "unit": "cents_per_kwh", "vat_status": "included", "price_role": "current", "source_kind": "structured", "evidence": []},
+          {"component_type": "monthly_fee", "amount": 4.2, "normal_amount": null, "unit": "eur_per_month", "vat_status": "included", "price_role": "current", "source_kind": "structured", "evidence": []},
+          {"component_type": "monthly_fee", "amount": 4.2, "normal_amount": null, "unit": "eur_per_month", "vat_status": "included", "price_role": "current", "source_kind": "structured", "evidence": []},
+          {"component_type": "monthly_fee", "amount": 4.2, "normal_amount": null, "unit": "eur_per_month", "vat_status": "included", "price_role": "current", "source_kind": "structured", "evidence": []},
+          {"component_type": "monthly_fee", "amount": 4.2, "normal_amount": null, "unit": "eur_per_month", "vat_status": "included", "price_role": "current", "source_kind": "structured", "evidence": []},
+          {"component_type": "monthly_fee", "amount": 4.2, "normal_amount": null, "unit": "eur_per_month", "vat_status": "included", "price_role": "current", "source_kind": "structured", "evidence": []}
+        ],
+        "package": null,
+        "evidence": []
+      }
+    ],
+    "recurring_schedule": {
+      "present": false,
+      "cadence": "none",
+      "current_period_start": null,
+      "current_period_end": null,
+      "future_price_known": null,
+      "description": null,
+      "evidence": []
+    },
+    "consumption_effect": {
+      "present": false,
+      "applies_to": "unknown",
+      "cadence": "none",
+      "expected_cents_per_kwh": null,
+      "typical_min_cents_per_kwh": null,
+      "typical_max_cents_per_kwh": null,
+      "hard_min_cents_per_kwh": null,
+      "hard_max_cents_per_kwh": null,
+      "uncapped": null,
+      "description": null,
+      "evidence": []
+    }
+  },
+  "calculation": {"status": "exact", "missing_facts": [], "required_assumptions": []},
+  "source_consistency": {
+    "misleading_first_12_months": "not_detected",
+    "structured_pricing_status": "complete",
+    "issue_codes": []
+  }
+}

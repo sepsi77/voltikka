@@ -128,8 +128,9 @@
                             <li>Sähkön <span class="font-medium">siirtomaksu ei sisälly</span> — se maksetaan paikalliselle
                                 verkkoyhtiölle erikseen eikä riipu sähkösopimuksesta.</li>
                             <li>Kulutus jaetaan kuukausille realistisesti: talvikuukausina kulutus on suurempi kuin kesällä.</li>
-                            <li>Kaikkien sopimusten hinta ei pysy samana koko vuotta. Pörssisähkön sekä kuukausi- ja
-                                kvartaalisähkön kohdalla laskemme kuukaudet erikseen — katso omat kohtansa alempana.</li>
+                            <li>Kaikkien sopimusten hinta ei pysy samana koko vuotta. Pörssisähkön, kuukausi- ja
+                                kvartaalisähkön sekä hinnaltaan muutettavien toistaiseksi voimassa olevien sopimusten
+                                kohdalla laskemme kuukaudet erikseen. Katso omat kohtansa alempana.</li>
                         </ul>
                     </div>
 
@@ -186,6 +187,22 @@
                     </div>
 
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                        <h3 class="font-bold text-slate-900 mb-2">Muutettavan toistaiseksi voimassa olevan hinnan arvio (· arvio)</h3>
+                        <p class="mb-3">
+                            Toistaiseksi voimassa olevan sopimuksen nykyinen energianhinta on myyjän julkaisema hinta,
+                            mutta myyjä voi muuttaa sitä ilmoittamalla muutoksesta etukäteen. Tulevia hintoja tai
+                            muutosaikataulua ei tiedetä, joten nykyistä hintaa ei käsitellä koko vuoden hintalupauksena.
+                        </p>
+                        <p>
+                            Nykyinen kalenterikuukausi lasketaan julkaistulla hinnalla. Myöhemmät kuukaudet arvioidaan
+                            ensisijaisesti tukkumarkkinan ennakkohintojen eli sähköfutuurien avulla. Jos niitä ei voi
+                            käyttää, arvio perustuu pörssisähkön usean vuoden kausivaihteluun tai viimeisenä vaihtoehtona
+                            nykyisen hinnan jatkumiseen. Näytämme nykyisen hinnan erillään 12 kuukauden keskihinta-arviosta.
+                            Toteutunut hinta voi olla korkeampi tai matalampi, eikä arvio ole hintalupaus.
+                        </p>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
                         <h3 class="font-bold text-slate-900 mb-2">"Säästö €/v" -merkinnät</h3>
                         <p>
                             Kun sopimuksessa on tarjous, näytämme arvioidun ensimmäisen vuoden säästön. Säästö tarkoittaa
@@ -203,8 +220,9 @@
                             ja ne erotetaan sivustolla selkeästi toteutuneista hinnoista.
                         </p>
                         <p>
-                            Tulevien kuukausien markkinahinnat, joita käytämme kuukausi- ja kvartaalisähkön
-                            arvioissa, ovat Suomen hinta-alueen julkisia futuurien päätöshintoja
+                            Tulevien kuukausien markkinahinnat, joita käytämme kuukausi- ja kvartaalisähkön sekä
+                            muutettavien toistaiseksi voimassa olevien hintojen arvioissa, ovat Suomen hinta-alueen
+                            julkisia futuurien päätöshintoja
                             <a href="https://www.eex.com/en/market-data" rel="nofollow noopener" target="_blank" class="text-coral-600 font-medium hover:text-coral-700 underline underline-offset-2">EEX-sähköpörssistä</a>.
                             Ne päivittyvät jokaisena pörssipäivänä.
                         </p>

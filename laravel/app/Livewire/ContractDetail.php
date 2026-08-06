@@ -9,6 +9,7 @@ use App\Models\SpotPriceAverage;
 use App\Services\Analytics\ContractOrderClickContextSigner;
 use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\CanonicalPricing\PricingMode;
+use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedEstimateCopy;
 use App\Services\CO2EmissionsCalculator;
 use App\Services\ContractDetail\ContractDetailPresentationInput;
 use App\Services\ContractDetail\ContractDetailSeoPresenter;
@@ -682,6 +683,7 @@ class ContractDetail extends Component
             // described by its reset mechanism.
             $facts->isReset => $hasEstimateExplainer ? null : $this->resetPriceQualifier($pricing, $facts),
             $facts->hasConsumptionEffect => $hasEstimateExplainer ? null : $this->consumptionEffectPriceQualifier($pricing),
+            $pricing?->supplierAdjustedEstimate() !== null => $this->supplierAdjustedPriceQualifier($pricing),
             default => $this->fixedPriceQualifier($pricing, $contract, $hasEstimateExplainer),
         };
 
@@ -755,6 +757,22 @@ class ContractDetail extends Component
             : 'Arvio on laskettu sopimuksen kiinteällä perushinnalla';
 
         return "{$head}, ja lopullista hintaa nostaa tai laskee kulutusvaikutus, jonka suuruutta myyjä ei julkaise etukäteen.";
+    }
+
+    protected function supplierAdjustedPriceQualifier(ContractPricingViewData $pricing): string
+    {
+        $estimate = $pricing->supplierAdjustedEstimate();
+        $current = $this->qualifierCents($estimate?->number('current_energy_price'));
+        $annual = $this->qualifierCents($estimate?->number('annual_equivalent_energy_price'));
+
+        $fact = $current !== null
+            ? "Nykyinen energianhinta {$current} c/kWh on myyjän julkaisema hinta."
+            : 'Nykyinen energianhinta on myyjän julkaisema hinta.';
+        $comparison = $annual !== null
+            ? " Vertailun 12 kuukauden keskihinta {$annual} c/kWh on arvio."
+            : ' Vertailun 12 kuukauden hinta on arvio.';
+
+        return $fact.$comparison;
     }
 
     protected function fixedPriceQualifier(?ContractPricingViewData $pricing, ElectricityContract $contract, bool $hasEstimateExplainer = false): string
@@ -1453,6 +1471,11 @@ class ContractDetail extends Component
 
         if ($reset !== null) {
             $notes[] = $reset;
+        }
+
+        $supplierAdjusted = SupplierAdjustedEstimateCopy::receiptNote($pricing?->supplierAdjustedEstimate());
+        if ($supplierAdjusted !== null) {
+            $notes[] = $supplierAdjusted;
         }
 
         $savings = $pricing?->discountSaving();

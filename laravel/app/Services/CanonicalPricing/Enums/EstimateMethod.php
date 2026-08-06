@@ -26,6 +26,15 @@ enum EstimateMethod: string
      */
     case RecurringSpotSeasonalIndex = 'recurring_spot_seasonal_index';
 
+    /** Adjustable open-ended supplier price shifted on the FI forward curve. */
+    case SupplierAdjustedForwardCurveShift = 'supplier_adjusted_forward_curve_shift';
+
+    /** Adjustable supplier-price fallback shaped by the realized Spot seasonal index. */
+    case SupplierAdjustedSpotSeasonalIndex = 'supplier_adjusted_spot_seasonal_index';
+
+    /** Adjustable supplier price held current because no usable market shape exists. */
+    case HoldCurrentSupplierPrice = 'hold_current_supplier_price';
+
     /** Spot: rolling-365-day day/night averages plus the phase spot margin. */
     case Rolling365Spot = 'rolling_365_spot';
 

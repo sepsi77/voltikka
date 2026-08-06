@@ -22,9 +22,9 @@ readonly class CanonicalPricingOutcome
      * @param  list<array<string, mixed>>  $phaseBreakdown
      * @param  list<OfferTermData>  $offerTerms
      * @param  list<string>  $assumptions
-     * @param  array<string, mixed>|null  $resetEstimate  Typed evidence for a market-reset tail
-     *                                                    estimate (basis, reference kind, curve vintage, current-period price, estimated
-     *                                                    12-month equivalent). Null when no shift was applied.
+     * @param  array<string, mixed>|null  $resetEstimate  Typed evidence for a market-reset tail.
+     * @param  array<string, mixed>|null  $supplierAdjustedEstimate  Typed evidence for an adjustable
+     *                                                              supplier-price estimate.
      */
     public function __construct(
         public ContractComparability $comparability,
@@ -56,6 +56,7 @@ readonly class CanonicalPricingOutcome
         public ?ConsumptionEffectData $consumptionEffect = null,
         public array $assumptions = [],
         public ?array $resetEstimate = null,
+        public ?array $supplierAdjustedEstimate = null,
     ) {}
 
     public function isListed(): bool
@@ -134,6 +135,7 @@ readonly class CanonicalPricingOutcome
             'consumption_effect' => $this->consumptionEffect?->toArray(),
             'assumptions' => $this->assumptions,
             'reset_estimate' => $this->resetEstimate,
+            'supplier_adjusted_estimate' => $this->supplierAdjustedEstimate,
         ];
     }
 }

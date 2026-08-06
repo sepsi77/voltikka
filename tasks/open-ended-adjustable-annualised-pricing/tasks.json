@@ -1,0 +1,28 @@
+{
+  "tasks": [
+    {
+      "name": "Define eligibility and price-episode reference semantics",
+      "status": "completed"
+    },
+    {
+      "name": "Implement typed adjustable open-ended annual estimator",
+      "status": "completed"
+    },
+    {
+      "name": "Integrate calculation output with ranking, API, caches, and statistics",
+      "status": "completed"
+    },
+    {
+      "name": "Add card and contract-detail explanation",
+      "status": "completed"
+    },
+    {
+      "name": "Add focused regression and surface tests",
+      "status": "completed"
+    },
+    {
+      "name": "Update context documentation and complete verification",
+      "status": "completed"
+    }
+  ]
+}

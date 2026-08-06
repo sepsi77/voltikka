@@ -245,7 +245,7 @@ class ContractDetailPresenterTest extends TestCase
         $receiptValues = array_map(fn ($line) => $line->value, $component->card->receiptLines);
         $offers = collect($component->productSchema['offers'] ?? [])->keyBy('name');
 
-        $this->assertSame(['8,40', '4,20'], $receiptValues);
+        $this->assertSame(['8,40', '8,40', '4,20'], $receiptValues);
         $this->assertStringContainsString('8,40 c/kWh', $component->pageTitle);
         $this->assertStringContainsString('maksaa nyt 8,40 c/kWh + 4,20 €/kk', $component->metaDescription);
         $this->assertSame(8.4, $offers['Energiahinta']['priceSpecification']['price']);
@@ -331,7 +331,7 @@ class ContractDetailPresenterTest extends TestCase
         $component = Livewire::test('contract-detail', ['contractId' => $contract->id])->instance();
         $offers = collect($component->productSchema['offers'] ?? [])->keyBy('name');
 
-        $this->assertSame(['7,35', '3,25'], array_map(fn ($line) => $line->value, $component->card->receiptLines));
+        $this->assertSame(['7,35', '7,35', '3,25'], array_map(fn ($line) => $line->value, $component->card->receiptLines));
         $this->assertStringContainsString('7,35 c/kWh', $component->pageTitle);
         $this->assertSame(7.35, $offers['Energiahinta']['priceSpecification']['price']);
         $this->assertSame(3.25, $offers['Perusmaksu']['priceSpecification']['price']);
@@ -379,6 +379,7 @@ class ContractDetailPresenterTest extends TestCase
 
     public function test_six_month_detail_copy_uses_the_real_term_benefit_not_the_annualized_saving(): void
     {
+        $this->travelTo('2026-08-01 12:00:00');
         config(['canonical_pricing.enabled' => true]);
 
         $contract = $this->contract('canonical-six-month', array_merge(
@@ -523,6 +524,49 @@ class ContractDetailPresenterTest extends TestCase
             ->assertSee('Energia nyt, '.$periodEnd->format('j.n.').' asti')
             ->assertSee('Loppuvuosi, arvio')
             ->assertSee('Hinta tarkistetaan neljännesvuosittain');
+    }
+
+    public function test_supplier_adjusted_detail_keeps_current_facts_separate_and_shows_arvio_on_hold_flat(): void
+    {
+        config(['canonical_pricing.enabled' => true]);
+        app()->forgetScopedInstances();
+
+        $contract = $this->contract('supplier-adjusted-detail', $this->canonicalAttributes([
+            $this->phase(PhaseKind::CurrentStructured, BoundaryKind::ContractStart, BoundaryKind::None, [
+                [ComponentType::EnergyGeneral, 7.4],
+                [ComponentType::MonthlyFee, 4.2, ComponentUnit::EurPerMonth],
+            ]),
+        ]), ['General' => 1.11, 'Monthly' => 0.55]);
+
+        $test = Livewire::test('contract-detail', ['contractId' => $contract->id])
+            ->assertSee('Arvio')
+            ->assertSee('Energia nyt')
+            ->assertSee('12 kk keskihinta, arvio')
+            ->assertSee('Nykyinen energianhinta on kiinteä')
+            ->assertDontSee('Energian hinta ei muutu');
+        $component = $test->instance();
+
+        $this->assertSame('hold_current_supplier_price', $component->calculatedCost['estimate_method']);
+        $this->assertSame('hold_flat', $component->calculatedCost['supplier_adjusted_estimate']['basis']);
+        $this->assertNotNull($component->card->estimate);
+        $this->assertNotSame('', trim($component->card->estimate->body));
+        $this->assertSame(
+            ['Energia nyt', '12 kk keskihinta, arvio', 'Perusmaksu'],
+            array_map(fn ($line) => $line->label, $component->card->receiptLines),
+        );
+        $this->assertStringContainsString('Nykyinen energianhinta 7,40 c/kWh on myyjän julkaisema hinta.', $component->priceQualifier);
+        $this->assertStringContainsString('Vertailun 12 kuukauden keskihinta 7,40 c/kWh on arvio.', $component->priceQualifier);
+        $this->assertCount(1, $component->receiptNotes);
+        $this->assertStringContainsString('Tulevia energiahintoja tai niiden muutosaikataulua ei tiedetä', $component->receiptNotes[0]);
+
+        $publicCopy = implode(' ', [
+            $component->card->estimate->body,
+            $component->card->band->headline,
+            $component->card->band->detail,
+            $component->priceQualifier,
+            ...$component->receiptNotes,
+        ]);
+        $this->assertDoesNotMatchRegularExpression('/kuukausittain|neljännesvuosittain|kausittain|hinta tarkistetaan/ui', $publicCopy);
     }
 
     // ------------------------------------------------------------------- warnings and CTA

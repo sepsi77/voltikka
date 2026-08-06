@@ -27,6 +27,13 @@ use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimate;
 use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimateRequest;
 use App\Services\CanonicalPricing\MarketReset\Enums\ResetEstimateBasis;
 use App\Services\CanonicalPricing\MarketReset\MarketResetPriceEstimator;
+use App\Services\CanonicalPricing\SupplierAdjusted\DTO\PriceEpisodeAnchor;
+use App\Services\CanonicalPricing\SupplierAdjusted\DTO\SupplierAdjustedCandidate;
+use App\Services\CanonicalPricing\SupplierAdjusted\DTO\SupplierAdjustedEstimate;
+use App\Services\CanonicalPricing\SupplierAdjusted\DTO\SupplierAdjustedEstimateRequest;
+use App\Services\CanonicalPricing\SupplierAdjusted\Enums\SupplierAdjustedEstimateBasis;
+use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedEligibility;
+use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedPriceEstimator;
 use App\Services\CanonicalPricing\Support\MonthlyUsageProfileBuilder;
 use App\Services\CanonicalPricing\Support\PhaseTimelineBuilder;
 use App\Services\DTO\EnergyUsage;
@@ -57,6 +64,8 @@ class CanonicalContractPriceCalculator
 
     public function __construct(
         private readonly MarketResetPriceEstimator $resetEstimator,
+        private readonly SupplierAdjustedPriceEstimator $supplierAdjustedEstimator,
+        private readonly SupplierAdjustedEligibility $supplierAdjustedEligibility = new SupplierAdjustedEligibility,
         private readonly PhaseTimelineBuilder $timelineBuilder = new PhaseTimelineBuilder,
         private readonly MonthlyUsageProfileBuilder $usageProfileBuilder = new MonthlyUsageProfileBuilder,
     ) {}
@@ -66,12 +75,21 @@ class CanonicalContractPriceCalculator
         return $this->resetEstimator->enabled();
     }
 
+    public function supplierAdjustedCandidate(
+        string $contractId,
+        CanonicalContractData $data,
+        ContractContext $context,
+    ): ?SupplierAdjustedCandidate {
+        return $this->supplierAdjustedEligibility->candidate($contractId, $data, $context);
+    }
+
     public function calculate(
         CanonicalContractData $data,
         ContractContext $context,
         EnergyUsage $usage,
         SpotAssumptions $spot,
         ?CarbonInterface $startDate = null,
+        ?PriceEpisodeAnchor $priceEpisodeAnchor = null,
     ): CanonicalPricingOutcome {
         $windowStart = CarbonImmutable::parse(($startDate ?? CarbonImmutable::now('Europe/Helsinki'))->toDateString(), 'Europe/Helsinki')->startOfDay();
 
@@ -220,9 +238,21 @@ class CanonicalContractPriceCalculator
             }
         }
 
-        $comparability = $data->calculationStatus === CalculationStatus::Exact
-            ? ContractComparability::ComparableExact
-            : ContractComparability::ComparableEstimate;
+        $supplierCandidate = $this->supplierAdjustedCandidate('', $data, $context);
+        $supplierAdjusted = $supplierCandidate !== null
+            ? $this->resolveSupplierAdjustedEstimate(
+                $supplierCandidate,
+                $profile,
+                $windowStart,
+                $segments,
+                $priceEpisodeAnchor ?? PriceEpisodeAnchor::missing(),
+            )
+            : null;
+        $comparability = $supplierAdjusted !== null
+            ? ContractComparability::ComparableEstimate
+            : ($data->calculationStatus === CalculationStatus::Exact
+                ? ContractComparability::ComparableExact
+                : ContractComparability::ComparableEstimate);
 
         return $this->costWindow(
             $data,
@@ -236,6 +266,7 @@ class CanonicalContractPriceCalculator
             $comparability,
             $estimateFill,
             $this->resolveResetEstimate($data, $context, $metering, $profile, $spot, $windowStart, $segments, $currentPhaseIndex, heldForward: false),
+            supplierAdjusted: $supplierAdjusted,
         );
     }
 
@@ -433,7 +464,11 @@ class CanonicalContractPriceCalculator
         }
 
         $saving = max(0.0, $normalTotal - $actualTotal);
-        $assumptions = array_values(array_unique(array_merge($annualOutcome->assumptions, [
+        $factualAnnualAssumptions = array_values(array_filter(
+            $annualOutcome->assumptions,
+            static fn (string $assumption): bool => ! str_starts_with($assumption, 'supplier_adjusted_'),
+        ));
+        $assumptions = array_values(array_unique(array_merge($factualAnnualAssumptions, [
             'contract_offer_available_at_period_start',
             'relative_phases_anchor_at_period_start',
             'absolute_phase_dates_preserved',
@@ -487,6 +522,7 @@ class CanonicalContractPriceCalculator
         EstimateMethod $defaultEstimateMethod = EstimateMethod::None,
         float $annualizationFactor = 1.0,
         ?int $termMonths = null,
+        ?SupplierAdjustedEstimate $supplierAdjusted = null,
     ): CanonicalPricingOutcome {
         $usesSpot = false;
         $monthly = array_fill(0, 12, 0.0);
@@ -528,7 +564,7 @@ class CanonicalContractPriceCalculator
             ];
 
             $monthIndex = $this->elapsedMonth($windowStart, $segment->start);
-            $monthly[$monthIndex] += $this->costSegment($segment, $profile, $rates, $flatApplied, $phaseIndex, $reset);
+            $monthly[$monthIndex] += $this->costSegment($segment, $profile, $rates, $flatApplied, $phaseIndex, $reset, $supplierAdjusted);
 
             if ($hasComponentDiscount) {
                 $normalRates = $this->resolvePhaseRates($data->phases[$phaseIndex], $data->phases, $metering, $spot, $context->isSpot(), normalPrice: true);
@@ -536,7 +572,7 @@ class CanonicalContractPriceCalculator
                     return $this->excluded(ContractComparability::ExcludedIncomplete, $context, $data);
                 }
 
-                $normalMonthly[$monthIndex] += $this->costSegment($segment, $profile, $normalRates, $normalFlatApplied, $phaseIndex, $reset);
+                $normalMonthly[$monthIndex] += $this->costSegment($segment, $profile, $normalRates, $normalFlatApplied, $phaseIndex, $reset, $supplierAdjusted);
             }
         }
 
@@ -548,7 +584,7 @@ class CanonicalContractPriceCalculator
         // between them keeps measuring only the promotional effect (which is what the integrity
         // label's euro impact reports) instead of mixing in the seasonal repricing.
         $structuredOnly = $currentPhaseIndex !== null
-            ? $this->holdForwardTotal($data->phases[$currentPhaseIndex], $data->phases, $metering, $profile, $spot, $context->isSpot(), $reset, $monthKeys)
+            ? $this->holdForwardTotal($data->phases[$currentPhaseIndex], $data->phases, $metering, $profile, $spot, $context->isSpot(), $reset, $monthKeys, supplierAdjusted: $supplierAdjusted)
             : null;
 
         if (! $hasComponentDiscount) {
@@ -557,7 +593,7 @@ class CanonicalContractPriceCalculator
             // timeline with the last package and call the difference an offer saving.
             $normalMonthly = $this->hasEnergyPackage($data)
                 ? $monthly
-                : $this->normalHoldMonthlyCosts($data, $context, $metering, $profile, $spot, $segments, $windowStart, $reset);
+                : $this->normalHoldMonthlyCosts($data, $context, $metering, $profile, $spot, $segments, $windowStart, $reset, $supplierAdjusted);
             if ($normalMonthly === null) {
                 $normalMonthly = $monthly;
             }
@@ -597,6 +633,7 @@ class CanonicalContractPriceCalculator
             estimateMethod: $usesSpot
                 ? EstimateMethod::Rolling365Spot
                 : ($this->resetEstimateMethod($reset)
+                    ?? $this->supplierAdjustedEstimateMethod($supplierAdjusted)
                     ?? ($estimateFill && $defaultEstimateMethod !== EstimateMethod::HybridBaseOnly
                         ? EstimateMethod::HoldCurrentRecurringPrice
                         : $defaultEstimateMethod)),
@@ -633,8 +670,10 @@ class CanonicalContractPriceCalculator
                 $estimateFill,
                 $reset,
                 termAnnualized: $termMonths !== null && $annualizationFactor !== 1.0,
+                supplierAdjusted: $supplierAdjusted,
             ),
             resetEstimate: $reset?->shiftsPrices() ? $reset->toArray() : null,
+            supplierAdjustedEstimate: $supplierAdjusted?->toArray(),
         );
     }
 
@@ -961,11 +1000,20 @@ class CanonicalContractPriceCalculator
      * @param  array<string, mixed>  $rates
      * @param  array<int, bool>  $flatApplied
      */
-    private function costSegment(WindowSegment $segment, array $profile, array $rates, array &$flatApplied, int $phaseIndex, ?ResetEstimate $reset = null): float
-    {
+    private function costSegment(
+        WindowSegment $segment,
+        array $profile,
+        array $rates,
+        array &$flatApplied,
+        int $phaseIndex,
+        ?ResetEstimate $reset = null,
+        ?SupplierAdjustedEstimate $supplierAdjusted = null,
+    ): float {
         $fraction = $segment->monthFraction();
         $monthBuckets = $profile[$segment->monthIndex] ?? [];
-        $offset = $reset?->offsetForMonthKey($segment->start->format('Y-m')) ?? 0.0;
+        $monthKey = $segment->start->format('Y-m');
+        $offset = ($reset?->offsetForMonthKey($monthKey) ?? 0.0)
+            + ($supplierAdjusted?->offsetForMonthKey($monthKey) ?? 0.0);
 
         $package = $rates['package'] ?? null;
         if ($package instanceof IncludedEnergyPackageData) {
@@ -1003,7 +1051,7 @@ class CanonicalContractPriceCalculator
      * @param  array<int, string>  $monthKeys  calendar-month index (0-11) => the `Y-m` that month
      *                                         occupies inside this window
      */
-    private function holdForwardTotal(PricingPhase $phase, array $allPhases, MeteringType $metering, array $profile, SpotAssumptions $spot, bool $isSpot = false, ?ResetEstimate $reset = null, array $monthKeys = [], bool $normalPrice = false): ?float
+    private function holdForwardTotal(PricingPhase $phase, array $allPhases, MeteringType $metering, array $profile, SpotAssumptions $spot, bool $isSpot = false, ?ResetEstimate $reset = null, array $monthKeys = [], bool $normalPrice = false, ?SupplierAdjustedEstimate $supplierAdjusted = null): ?float
     {
         $rates = $this->resolvePhaseRates($phase, $allPhases, $metering, $spot, $isSpot, $normalPrice);
         if ($rates === null) {
@@ -1024,8 +1072,10 @@ class CanonicalContractPriceCalculator
 
         $total = $rates['flat_once'] + $rates['monthly_fee'] * 12;
         foreach ($profile as $monthIndex => $monthBuckets) {
-            $offset = ($reset !== null && isset($monthKeys[$monthIndex]))
-                ? $reset->offsetForMonthKey($monthKeys[$monthIndex])
+            $monthKey = $monthKeys[$monthIndex] ?? null;
+            $offset = $monthKey !== null
+                ? ($reset?->offsetForMonthKey($monthKey) ?? 0.0)
+                    + ($supplierAdjusted?->offsetForMonthKey($monthKey) ?? 0.0)
                 : 0.0;
 
             foreach ($rates['buckets'] as $bucket => $rate) {
@@ -1057,6 +1107,7 @@ class CanonicalContractPriceCalculator
         array $segments,
         CarbonImmutable $windowStart,
         ?ResetEstimate $reset = null,
+        ?SupplierAdjustedEstimate $supplierAdjusted = null,
     ): ?array {
         $lastIndex = $this->lastCoveredPhaseIndex($segments);
         if ($lastIndex === null) {
@@ -1073,7 +1124,7 @@ class CanonicalContractPriceCalculator
 
         foreach ($segments as $segment) {
             $monthIndex = $this->elapsedMonth($windowStart, $segment->start);
-            $monthly[$monthIndex] += $this->costSegment($segment, $profile, $rates, $flatApplied, $lastIndex, $reset);
+            $monthly[$monthIndex] += $this->costSegment($segment, $profile, $rates, $flatApplied, $lastIndex, $reset, $supplierAdjusted);
         }
 
         return $monthly;
@@ -1829,6 +1880,7 @@ class CanonicalContractPriceCalculator
         bool $estimateFill,
         ?ResetEstimate $reset = null,
         bool $termAnnualized = false,
+        ?SupplierAdjustedEstimate $supplierAdjusted = null,
     ): array {
         $assumptions = [];
         if ($usesSpot) {
@@ -1840,6 +1892,14 @@ class CanonicalContractPriceCalculator
                 : 'reset_tail_shifted_on_spot_seasonal_index';
         } elseif ($estimateFill && ! $usesSpot) {
             $assumptions[] = 'held_current_price_forward';
+        }
+        if ($supplierAdjusted !== null) {
+            $assumptions[] = match ($supplierAdjusted->basis) {
+                SupplierAdjustedEstimateBasis::ForwardCurveShift => 'supplier_adjusted_tail_shifted_on_forward_curve',
+                SupplierAdjustedEstimateBasis::SpotSeasonalIndex => 'supplier_adjusted_tail_shifted_on_spot_seasonal_index',
+                SupplierAdjustedEstimateBasis::HoldFlat => 'supplier_adjusted_tail_held_current',
+            };
+            $assumptions[] = 'supplier_adjusted_monthly_fee_held_flat';
         }
         if ($comparability === ContractComparability::TermPriceOnly || $termAnnualized) {
             $assumptions[] = 'term_price_annualized';
@@ -1862,6 +1922,40 @@ class CanonicalContractPriceCalculator
             ResetEstimateBasis::SpotSeasonalIndex => EstimateMethod::RecurringSpotSeasonalIndex,
             ResetEstimateBasis::HoldFlat => null,
         };
+    }
+
+    private function supplierAdjustedEstimateMethod(?SupplierAdjustedEstimate $estimate): ?EstimateMethod
+    {
+        return match ($estimate?->basis) {
+            SupplierAdjustedEstimateBasis::ForwardCurveShift => EstimateMethod::SupplierAdjustedForwardCurveShift,
+            SupplierAdjustedEstimateBasis::SpotSeasonalIndex => EstimateMethod::SupplierAdjustedSpotSeasonalIndex,
+            SupplierAdjustedEstimateBasis::HoldFlat => EstimateMethod::HoldCurrentSupplierPrice,
+            null => null,
+        };
+    }
+
+    /**
+     * @param array<int, array<string, float>> $profile
+     * @param list<WindowSegment> $segments
+     */
+    private function resolveSupplierAdjustedEstimate(
+        SupplierAdjustedCandidate $candidate,
+        array $profile,
+        CarbonImmutable $windowStart,
+        array $segments,
+        PriceEpisodeAnchor $anchor,
+    ): SupplierAdjustedEstimate {
+        $tailStart = $windowStart->addMonthNoOverflow()->startOfMonth();
+        [$monthWeights, $tailMonthKeys] = $this->segmentMonthWeights($profile, $segments, $tailStart);
+
+        return $this->supplierAdjustedEstimator->estimate(new SupplierAdjustedEstimateRequest(
+            asOfDate: $windowStart,
+            priceEpisodeAnchor: $anchor,
+            tailMonthKeys: $tailMonthKeys,
+            currentEnergyPriceCentsPerKwh: $candidate->currentEnergyPriceCentsPerKwh,
+            monthlyFeeEur: $candidate->monthlyFeeEur,
+            monthWeights: $monthWeights,
+        ));
     }
 
     /**

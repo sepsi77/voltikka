@@ -11,6 +11,7 @@ use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimatorSettings;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketResetPriceEstimator;
+use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedPriceEstimator;
 use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonImmutable;
 use PHPUnit\Framework\TestCase;
@@ -84,7 +85,10 @@ class MarketResetForwardShiftTest extends TestCase
 
     private function calculator(MarketResetPriceEstimator $estimator): CanonicalContractPriceCalculator
     {
-        return new CanonicalContractPriceCalculator(resetEstimator: $estimator);
+        return new CanonicalContractPriceCalculator(
+            resetEstimator: $estimator,
+            supplierAdjustedEstimator: new SupplierAdjustedPriceEstimator(new MarketResetDisabledSupplierCurve),
+        );
     }
 
     private function estimator(FakeMarketCurve $curve, array $settingOverrides = []): MarketResetPriceEstimator
@@ -608,6 +612,34 @@ class MarketResetForwardShiftTest extends TestCase
  * It also records whether it was consulted at all, so the flag-off test can prove the disabled
  * path does no market work.
  */
+class MarketResetDisabledSupplierCurve implements MarketReferenceCurveProvider
+{
+    public function tradeDate(CarbonImmutable $asOfDate): ?CarbonImmutable
+    {
+        return null;
+    }
+
+    public function referencePrice(CarbonImmutable $asOfDate, CarbonImmutable $anchorMonth, array $kindPreference): ?array
+    {
+        return null;
+    }
+
+    public function forwardPriceForMonth(CarbonImmutable $asOfDate, CarbonImmutable $deliveryMonth): ?array
+    {
+        return null;
+    }
+
+    public function spotSeasonalIndex(): ?array
+    {
+        return null;
+    }
+
+    public function fixedTermMedianEnergyPrice(): ?float
+    {
+        return null;
+    }
+}
+
 class FakeMarketCurve implements MarketReferenceCurveProvider
 {
     public int $calls = 0;

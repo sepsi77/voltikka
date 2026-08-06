@@ -14,6 +14,7 @@ use App\Services\CanonicalPricing\Enums\ContractComparability;
 use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\CanonicalPricing\Enums\PeriodPricingUnavailableReason;
 use App\Services\CanonicalPricing\Exceptions\CanonicalPricingParseException;
+use App\Services\CanonicalPricing\SupplierAdjusted\CurrentPriceEpisodeResolver;
 use App\Services\ContractPricing\CanonicalContractMetric;
 use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonInterface;
@@ -32,11 +33,15 @@ class CanonicalContractPricingService
 {
     private ?SpotAssumptions $spotAssumptions = null;
 
+    /** @var array<string, array{energy: float, fee: float, anchor: \App\Services\CanonicalPricing\SupplierAdjusted\DTO\PriceEpisodeAnchor}> */
+    private array $priceEpisodeAnchors = [];
+
     public function __construct(
         private readonly CanonicalContractPriceCalculator $calculator,
         private readonly PricingMode $mode,
         private readonly CanonicalPricingParser $parser = new CanonicalPricingParser,
         private readonly ContractPricingIntegrityService $integrityService = new ContractPricingIntegrityService,
+        private readonly CurrentPriceEpisodeResolver $priceEpisodeResolver = new CurrentPriceEpisodeResolver,
     ) {
         if ($calculator->resetForwardShiftEnabled() !== $mode->resetForwardShiftEnabled()) {
             throw new \InvalidArgumentException('PricingMode and the reset estimator must use the same reset-shift state.');
@@ -69,14 +74,26 @@ class CanonicalContractPricingService
     public function metricsForContracts(Collection $contracts, EnergyUsage $usage, ?CarbonInterface $startDate = null): array
     {
         $spot = $this->spotAssumptions();
+        [$parsed, $anchors] = $this->parseAndResolveAnchors($contracts);
         $metrics = [];
 
-        foreach ($contracts as $contract) {
-            $evaluation = $this->evaluate($contract, $usage, $spot, $startDate);
-            $metrics[$contract->id] = CanonicalContractMetric::fromEvaluation(
-                $evaluation['outcome'],
-                $evaluation['integrity'],
-            );
+        foreach ($parsed as $contractId => $record) {
+            if ($record['data'] === null) {
+                $outcome = $this->excludedOutcome($record['context']);
+                $integrity = ContractPricingIntegrity::none();
+            } else {
+                $outcome = $this->calculator->calculate(
+                    $record['data'],
+                    $record['context'],
+                    $usage,
+                    $spot,
+                    $startDate,
+                    $anchors[$contractId] ?? null,
+                );
+                $integrity = $this->integrityService->assess($record['data'], $outcome, $record['context']);
+            }
+
+            $metrics[$contractId] = CanonicalContractMetric::fromEvaluation($outcome, $integrity);
         }
 
         return $metrics;
@@ -98,34 +115,20 @@ class CanonicalContractPricingService
         ?CarbonInterface $startDate = null,
     ): array {
         $outcomes = [];
+        [$parsed, $anchors] = $this->parseAndResolveAnchors($contracts);
 
-        foreach ($contracts as $contract) {
-            $context = ContractContext::fromContract($contract);
-
-            try {
-                $data = $this->parser->parse(
-                    $contract->canonical_pricing,
-                    $contract->canonical_calculation,
-                    $contract->canonical_source_consistency,
-                );
-            } catch (CanonicalPricingParseException $e) {
-                Log::warning('Canonical pricing parse failed', ['contract_id' => $contract->id, 'error' => $e->getMessage()]);
-
-                foreach ($consumptions as $consumption) {
-                    $outcomes[$contract->id][$consumption] = $this->excludedOutcome($context);
-                }
-
-                continue;
-            }
-
+        foreach ($parsed as $contractId => $record) {
             foreach ($consumptions as $consumption) {
-                $outcomes[$contract->id][$consumption] = $this->calculator->calculate(
-                    $data,
-                    $context,
-                    new EnergyUsage(total: $consumption, basicLiving: $consumption),
-                    $spot,
-                    $startDate,
-                );
+                $outcomes[$contractId][$consumption] = $record['data'] === null
+                    ? $this->excludedOutcome($record['context'])
+                    : $this->calculator->calculate(
+                        $record['data'],
+                        $record['context'],
+                        new EnergyUsage(total: $consumption, basicLiving: $consumption),
+                        $spot,
+                        $startDate,
+                        $anchors[$contractId] ?? null,
+                    );
             }
         }
 
@@ -147,39 +150,30 @@ class CanonicalContractPricingService
     ): array {
         $spot ??= $this->spotAssumptions();
         $evaluations = [];
+        [$parsed, $anchors] = $this->parseAndResolveAnchors($contracts);
 
-        foreach ($contracts as $contract) {
-            $context = ContractContext::fromContract($contract);
-
-            try {
-                $data = $this->parser->parse(
-                    $contract->canonical_pricing,
-                    $contract->canonical_calculation,
-                    $contract->canonical_source_consistency,
-                );
-            } catch (CanonicalPricingParseException $e) {
-                Log::warning('Canonical pricing parse failed', ['contract_id' => $contract->id, 'error' => $e->getMessage()]);
-
-                $annual = $this->excludedOutcome($context);
-                $evaluations[$contract->id] = [
+        foreach ($parsed as $contractId => $record) {
+            if ($record['data'] === null) {
+                $annual = $this->excludedOutcome($record['context']);
+                $evaluations[$contractId] = [
                     'annual' => $annual,
                     'period' => $this->unavailablePeriodOutcome($annual, PeriodPricingUnavailableReason::NotComparable),
                 ];
-
                 continue;
             }
 
             $annual = $this->calculator->calculate(
-                $data,
-                $context,
+                $record['data'],
+                $record['context'],
                 new EnergyUsage(total: $request->annualizedKwh, basicLiving: $request->annualizedKwh),
                 $spot,
                 $request->startDate,
+                $anchors[$contractId] ?? null,
             );
 
-            $evaluations[$contract->id] = [
+            $evaluations[$contractId] = [
                 'annual' => $annual,
-                'period' => $this->calculator->calculatePeriod($data, $context, $request, $spot, $annual),
+                'period' => $this->calculator->calculatePeriod($record['data'], $record['context'], $request, $spot, $annual),
             ];
         }
 
@@ -211,10 +205,81 @@ class CanonicalContractPricingService
             ];
         }
 
-        $outcome = $this->calculator->calculate($data, $context, $usage, $spot, $startDate);
+        $candidate = $this->calculator->supplierAdjustedCandidate((string) $contract->id, $data, $context);
+        $anchors = $candidate !== null
+            ? $this->priceEpisodeResolver->resolve([(string) $contract->id => $candidate])
+            : [];
+        $outcome = $this->calculator->calculate(
+            $data,
+            $context,
+            $usage,
+            $spot,
+            $startDate,
+            $anchors[(string) $contract->id] ?? null,
+        );
         $integrity = $this->integrityService->assess($data, $outcome, $context);
 
         return ['outcome' => $outcome, 'integrity' => $integrity];
+    }
+
+    /**
+     * Parse all contracts first, identify supplier-adjusted candidates, then resolve their
+     * episode anchors in one batch before any outcome is calculated.
+     *
+     * @param Collection<int, ElectricityContract> $contracts
+     * @return array{0: array<string, array{data: \App\Services\CanonicalPricing\DTO\CanonicalContractData|null, context: ContractContext}>, 1: array<string, \App\Services\CanonicalPricing\SupplierAdjusted\DTO\PriceEpisodeAnchor>}
+     */
+    private function parseAndResolveAnchors(Collection $contracts): array
+    {
+        $parsed = [];
+        $candidates = [];
+
+        foreach ($contracts as $contract) {
+            $contractId = (string) $contract->id;
+            $context = ContractContext::fromContract($contract);
+            try {
+                $data = $this->parser->parse(
+                    $contract->canonical_pricing,
+                    $contract->canonical_calculation,
+                    $contract->canonical_source_consistency,
+                );
+            } catch (CanonicalPricingParseException $e) {
+                Log::warning('Canonical pricing parse failed', ['contract_id' => $contractId, 'error' => $e->getMessage()]);
+                $parsed[$contractId] = ['data' => null, 'context' => $context];
+                continue;
+            }
+
+            $parsed[$contractId] = ['data' => $data, 'context' => $context];
+            $candidate = $this->calculator->supplierAdjustedCandidate($contractId, $data, $context);
+            if ($candidate !== null) {
+                $candidates[$contractId] = $candidate;
+            }
+        }
+
+        $anchors = [];
+        $unresolved = [];
+        foreach ($candidates as $contractId => $candidate) {
+            $cached = $this->priceEpisodeAnchors[$contractId] ?? null;
+            if ($cached !== null
+                && abs($cached['energy'] - $candidate->currentEnergyPriceCentsPerKwh) <= 0.0001
+                && abs($cached['fee'] - $candidate->monthlyFeeEur) <= 0.0001) {
+                $anchors[$contractId] = $cached['anchor'];
+                continue;
+            }
+            $unresolved[$contractId] = $candidate;
+        }
+
+        foreach ($this->priceEpisodeResolver->resolve($unresolved) as $contractId => $anchor) {
+            $candidate = $unresolved[$contractId];
+            $this->priceEpisodeAnchors[$contractId] = [
+                'energy' => $candidate->currentEnergyPriceCentsPerKwh,
+                'fee' => $candidate->monthlyFeeEur,
+                'anchor' => $anchor,
+            ];
+            $anchors[$contractId] = $anchor;
+        }
+
+        return [$parsed, $anchors];
     }
 
     public function spotAssumptions(): SpotAssumptions

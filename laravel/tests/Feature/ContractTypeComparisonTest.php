@@ -64,6 +64,7 @@ class ContractTypeComparisonTest extends TestCase
 
     public function test_canonical_chart_winner_savings_and_display_rates_use_the_same_corrected_outcomes(): void
     {
+        $this->travelTo('2026-08-01 12:00:00');
         config()->set('canonical_pricing.enabled', true);
 
         $fixedTerm = $this->createCanonicalContract('canonical-varying', 'FixedTerm', 'FixedPrice', [

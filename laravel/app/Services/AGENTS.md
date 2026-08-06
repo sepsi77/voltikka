@@ -183,12 +183,15 @@ Purpose:
 - annualise monthly/quarterly/seasonal/other market-reset products with a shape-only forward-curve
   shift instead of holding one seasonal price flat; `other` uses the quarterly proxy
   (`CanonicalPricing/MarketReset/`)
+- annualise narrowly eligible ordinary adjustable open-ended fixed General tariffs through a
+  separate observed-price-episode path (`CanonicalPricing/SupplierAdjusted/`)
 - gated behind `CANONICAL_PRICING_ENABLED`; when off, `ContractPriceCalculator` behavior is unchanged.
   The market-reset shift has its own separate flag, `RESET_FORWARD_SHIFT_ENABLED`
 
 Read first:
 - `CanonicalPricing/AGENTS.md`
 - `CanonicalPricing/MarketReset/AGENTS.md` before touching the market-reset estimator
+- `CanonicalPricing/SupplierAdjusted/AGENTS.md` before touching adjustable open-ended estimates
 
 ### Contract card derivation
 Directory:

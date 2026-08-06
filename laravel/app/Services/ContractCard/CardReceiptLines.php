@@ -253,6 +253,10 @@ class CardReceiptLines
             return $scheduled;
         }
 
+        if ($pricing?->supplierAdjustedEstimate() !== null) {
+            return $this->supplierAdjustedLines($pricing);
+        }
+
         if ($facts->isReset) {
             return $this->resetLines($rates, $pricing, $facts, $metering);
         }
@@ -348,6 +352,31 @@ class CardReceiptLines
         }
 
         return [];
+    }
+
+    /** @return list<CardReceiptLine> */
+    private function supplierAdjustedLines(ContractPricingViewData $pricing): array
+    {
+        $estimate = $pricing->supplierAdjustedEstimate();
+        $current = $estimate?->number('current_energy_price');
+        $annual = $estimate?->number('annual_equivalent_energy_price');
+
+        if ($current === null) {
+            return [];
+        }
+
+        $lines = [new CardReceiptLine('Energia nyt', $this->amount($current), 'c/kWh')];
+
+        if ($annual !== null) {
+            $lines[] = new CardReceiptLine(
+                '12 kk keskihinta, arvio',
+                $this->amount($annual),
+                'c/kWh',
+                soft: true,
+            );
+        }
+
+        return $lines;
     }
 
     /**

@@ -12,6 +12,7 @@ use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimatorSettings;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketResetPriceEstimator;
 use App\Services\CanonicalPricing\PricingMode;
+use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedPriceEstimator;
 use App\Services\ContractPriceCalculator;
 use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonImmutable;
@@ -175,12 +176,14 @@ class CompareCanonicalPricing extends Command
         $holdFlat = new CanonicalContractPricingService(
             calculator: new CanonicalContractPriceCalculator(
                 resetEstimator: new MarketResetPriceEstimator($provider, $settings->withEnabled(false)),
+                supplierAdjustedEstimator: new SupplierAdjustedPriceEstimator($provider, $settings),
             ),
             mode: new PricingMode(canonicalPricingEnabled: true, resetForwardShiftEnabled: false),
         );
         $shifted = new CanonicalContractPricingService(
             calculator: new CanonicalContractPriceCalculator(
                 resetEstimator: new MarketResetPriceEstimator($provider, $settings->withEnabled(true)),
+                supplierAdjustedEstimator: new SupplierAdjustedPriceEstimator($provider, $settings),
             ),
             mode: new PricingMode(canonicalPricingEnabled: true, resetForwardShiftEnabled: true),
         );

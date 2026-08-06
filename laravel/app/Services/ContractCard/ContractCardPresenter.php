@@ -93,7 +93,13 @@ class ContractCardPresenter
 
         return new ContractCardView(
             category: $facts->category,
-            band: ContractCardCopy::band($facts, $contract->contract_type, $contract->fixed_time_range, $hasScheduledChange),
+            band: ContractCardCopy::band(
+                $facts,
+                $contract->contract_type,
+                $contract->fixed_time_range,
+                $hasScheduledChange,
+                $publicPricing && $pricing?->supplierAdjustedEstimate() !== null,
+            ),
             detailUrl: $this->detailUrl($contract, $consumption, $detailConsumption),
             company: $company,
             companyName: $company?->name ?? $contract->company_name ?? '',

@@ -156,6 +156,7 @@ class WeeklyOffersCanonicalPricingTest extends TestCase
 
     public function test_short_fixed_term_payload_and_prompt_use_the_real_term_benefit(): void
     {
+        $this->travelTo('2026-08-01 12:00:00');
         config()->set('canonical_pricing.enabled', true);
         app()->forgetScopedInstances();
 

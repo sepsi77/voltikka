@@ -9,6 +9,8 @@ use App\Services\CanonicalPricing\MarketReset\EexMarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketResetPriceEstimator;
 use App\Services\CanonicalPricing\PricingMode;
+use App\Services\CanonicalPricing\SupplierAdjusted\CurrentPriceEpisodeResolver;
+use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedPriceEstimator;
 use DateTimeZone;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Events\ScheduledTaskFailed;
@@ -46,8 +48,14 @@ class AppServiceProvider extends ServiceProvider
             $app->make(ResetEstimatorSettings::class),
         ));
 
+        $this->app->scoped(SupplierAdjustedPriceEstimator::class, fn ($app) => new SupplierAdjustedPriceEstimator(
+            $app->make(MarketReferenceCurveProvider::class),
+            $app->make(ResetEstimatorSettings::class),
+        ));
+
         $this->app->scoped(CanonicalContractPriceCalculator::class, fn ($app) => new CanonicalContractPriceCalculator(
             resetEstimator: $app->make(MarketResetPriceEstimator::class),
+            supplierAdjustedEstimator: $app->make(SupplierAdjustedPriceEstimator::class),
         ));
 
         // Keep the orchestrator transient because withSpotAssumptions() stores caller-specific
@@ -55,6 +63,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(CanonicalContractPricingService::class, fn ($app) => new CanonicalContractPricingService(
             calculator: $app->make(CanonicalContractPriceCalculator::class),
             mode: $app->make(PricingMode::class),
+            priceEpisodeResolver: $app->make(CurrentPriceEpisodeResolver::class),
         ));
     }
 

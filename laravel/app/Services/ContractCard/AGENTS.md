@@ -123,7 +123,11 @@ an explicit user decision after a first version put the warning in the band.
 ## Estimate disclosure
 
 Any estimated 12-month total shows one Arvio chip at the band's right end, opening a popover
-that states the typed reason and links to `/tietoa#menetelma`.
+that states the typed reason and links to `/tietoa#menetelma`. Supplier-adjusted open-ended
+estimates are a price-level reason before the ordinary fixed fallback: forward-curve,
+Spot-seasonal-index, and hold-current payloads all get the same shared chip. Their copy comes only
+from `supplier_adjusted_estimate` through `SupplierAdjustedEstimateCopy`; it never claims a reset
+cadence or reads seller/LLM text.
 
 **The reasons compose; they are not alternatives, and `estimate_method` reports only one.**
 `ContractCardCopy::estimate()` builds the sentence in two parts:
@@ -156,6 +160,15 @@ carries its own "laskutusjaksollasi" disclosure.
 The spot receipt row shows `spot_price_day_avg`, not a blend. That is exact: for General
 metering (every active spot contract) the calculator prices the whole bucket at
 `spot_price_day_avg + margin`. The night average appears in the popover.
+
+## Supplier-adjusted fixed-category presentation
+
+A supplier-adjusted General tariff stays in `Kiinteä hinta` with the lock icon. Its band must not
+say `Energian hinta ei muutu`, because only the current published price is fixed. It says
+`Nykyinen energianhinta on kiinteä · Myyjä voi muuttaa hintaa ilmoittamalla siitä`. Its three-row
+receipt is `Energia nyt`, soft `12 kk keskihinta, arvio`, and `Perusmaksu`. The current and annual
+figures come from the typed supplier payload, not from phases, relational prices, or a future
+contractual rate.
 
 ## Dated rows for a mid-window mechanism switch
 
@@ -314,9 +327,10 @@ Two rules that must not be reverted, because both produced visible defects on a 
   company, ranking, and prepared-page cache keys all include its `cs{version}` dependency.
   Service-specific outer wrapper versions remain separate. Neither the import-driven version nor
   `PricingMode::cacheMarker()` moves on a code-only deploy, so the shared marker prevents cards from
-  reading stale calculated-cost data for up to 48 hours. Current calculated-cost schema **v11**
+  reading stale calculated-cost data for up to 48 hours. Current calculated-cost schema **v12**
   includes package and real-term fields, canonical-only current facts, exact typed offer terms,
-  short Hybrid real-term totals, and listed `other`-cadence reset estimates.
+  short Hybrid real-term totals, listed `other`-cadence reset estimates, and the separate typed
+  `supplier_adjusted_estimate` payload.
   The presenter strictly hydrates the existing Eloquent `calculated_cost` transport attribute into one `ContractPricingViewData`; receipt, footer, copy, package, Hybrid, reset, phase, term, discount, estimate, and total decisions use typed access. `pricing_integrity` is hydrated into the existing typed `ContractPricingIntegrity`. Arrays do not continue inside card derivation.
   The detail page's own prepared-payload key is **v18** because its price-development
   overlay now uses the basis-aware statistics segment classifier.

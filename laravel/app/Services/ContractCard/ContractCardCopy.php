@@ -3,6 +3,7 @@
 namespace App\Services\ContractCard;
 
 use App\Enums\ContractType;
+use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedEstimateCopy;
 use App\Services\ContractCard\DTO\CardEstimate;
 use App\Services\ContractCard\DTO\CardTypeBand;
 use App\Services\ContractCard\DTO\PricingCategoryFacts;
@@ -35,6 +36,7 @@ class ContractCardCopy
         ?string $contractType,
         ?string $fixedTimeRange,
         bool $hasScheduledPublishedChange = false,
+        bool $hasSupplierAdjustedEstimate = false,
     ): CardTypeBand {
         if ($facts->category === PricingCategory::Market) {
             // Spot first: when a contract is both hourly and reset-scheduled, the hourly
@@ -72,6 +74,15 @@ class ContractCardCopy
                 category: PricingCategory::Fixed,
                 headline: 'Kiinteät hinnat',
                 detail: 'Julkaistu etukäteen, ei sidottu markkinaan',
+                icon: 'lock',
+            );
+        }
+
+        if ($hasSupplierAdjustedEstimate) {
+            return new CardTypeBand(
+                category: PricingCategory::Fixed,
+                headline: 'Nykyinen energianhinta on kiinteä',
+                detail: 'Myyjä voi muuttaa hintaa ilmoittamalla siitä',
                 icon: 'lock',
             );
         }
@@ -133,7 +144,10 @@ class ContractCardCopy
         // rate while the market-reset estimator had in fact repriced the tail (6,60 -> 9,28
         // c/kWh here, a 134 EUR/yr difference) and the receipt rows said so. Read the price
         // LEVEL from the mechanism, and treat hybrid_base_only as what it is: an exclusion.
+        // Supplier-adjusted is also a price-level reason. Its separate payload wins before the
+        // ordinary fixed fallback because all three supplier methods are estimates.
         $level = match (true) {
+            $pricing?->supplierAdjustedEstimate() !== null => SupplierAdjustedEstimateCopy::popoverBody($pricing->supplierAdjustedEstimate()),
             $facts->isReset => self::resetBody($pricing, $facts),
             $method === 'rolling_365_spot' => self::spotBody($pricing),
             $method === 'term_price_annualized' => self::termBody($pricing),

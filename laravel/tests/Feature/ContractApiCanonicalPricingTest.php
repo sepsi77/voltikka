@@ -74,7 +74,11 @@ class ContractApiCanonicalPricingTest extends TestCase
             ->assertJsonPath('data.0.current_pricing.pricing_basis', 'canonical')
             ->assertJsonPath('data.0.current_pricing.general_kwh_price', 9)
             ->assertJsonPath('data.0.current_pricing.monthly_fixed_fee', 4)
-            ->assertJsonPath('data.0.calculated_cost.pricing_basis', 'canonical');
+            ->assertJsonPath('data.0.current_pricing.is_estimate', true)
+            ->assertJsonPath('data.0.current_pricing.estimate_method', 'hold_current_supplier_price')
+            ->assertJsonPath('data.0.current_pricing.supplier_adjusted_estimate.basis', 'hold_flat')
+            ->assertJsonPath('data.0.calculated_cost.pricing_basis', 'canonical')
+            ->assertJsonPath('data.0.calculated_cost.supplier_adjusted_estimate.monthly_fee_assumption', 'held_flat');
         $this->assertEqualsWithDelta(498.0, $list->json('data.0.calculated_cost.total_cost'), 0.01);
 
         $show = $this->getJson('/api/contracts/corrected-api?consumption=5000');
@@ -212,6 +216,8 @@ class ContractApiCanonicalPricingTest extends TestCase
 
     public function test_short_fixed_term_exposes_annualized_and_real_term_benefits(): void
     {
+        $this->travelTo('2026-08-01 12:00:00');
+
         $this->createCanonicalContract(
             'short-term-api',
             [CanonicalPricingFixture::phase(
@@ -307,7 +313,7 @@ class ContractApiCanonicalPricingTest extends TestCase
 
         $this->getJson('/api/contracts?consumption=5000&per_page=100')->assertOk()->assertJsonCount(8, 'data');
 
-        $this->assertLessThanOrEqual(6, count($queries), implode("\n", $queries));
+        $this->assertLessThanOrEqual(7, count($queries), implode("\n", $queries));
         $this->assertSame([], array_values(array_filter(
             $queries,
             fn (string $sql): bool => str_contains($sql, 'price_components'),

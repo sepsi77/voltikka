@@ -102,6 +102,10 @@ Monthly included-energy packages are typed and costed as described below.
 - `MarketReset/` — annualises monthly/quarterly/seasonal/other reset products with a shape-only
   forward-curve shift instead of holding one seasonal price flat. Cadence `other` uses the
   quarterly calendar and reference proxy. Own flag, own `AGENTS.md`.
+- `SupplierAdjusted/` — annualises narrowly eligible ordinary adjustable open-ended fixed General
+  tariffs without inventing a recurring cadence. It keeps the current calendar-month remainder
+  exact, then shifts later months from the observed current-price episode anchor. It has its own
+  typed payload and `AGENTS.md`; it does not reuse `reset_estimate`.
 - `ContractPricingIntegrityService` — the deterministic label state machine.
 - `CanonicalContractPricingService` — batch orchestrator + feature-flag gate. `metricsForContracts()`
   returns `ContractPricing\CanonicalContractMetric` objects; `evaluate()` returns typed `{outcome, integrity}`
@@ -159,7 +163,7 @@ not read relational `price_components` to fill missing package facts.
 | Verdict | Listed? | Meaning |
 |---|---|---|
 | `comparable_exact` | yes | full window covered, `calculation.status = exact` |
-| `comparable_estimate` | yes | `estimate_required` (Spot / recurring hold); total labelled "Arvio" |
+| `comparable_estimate` | yes | `estimate_required` (Spot / recurring hold / eligible supplier-adjusted open-ended price); total labelled "Arvio" |
 | `term_price_only` | yes | fixed-term < 12 mo, unknown continuation; ranked by term price annualized |
 | `base_only_hybrid` | yes | Hybrid (`unsupported`); base-only total + "Ei sisällä kulutusvaikutusta" |
 | `excluded_unknown_future` | no | open-ended promo with an undisclosed later price; detail page only |
@@ -353,6 +357,11 @@ invalidates their data instead of leaving it stale for 48 hours or one hour.
 `ContractPricingIntegrity` gained typed `promo_rate_cents` /
 `normal_rate_cents` for the dated receipt rows; that was schema v2.
 
+Schema **v12** adds `calculated_cost.supplier_adjusted_estimate`. The strict consumer boundary and
+public contract API carry the typed basis, episode evidence, market vintages, current rate,
+12-month equivalent, flat-fee assumption, and fallback flags. Three supplier-adjusted estimate
+methods distinguish forward-curve, Spot-seasonal-index, and hold-current rungs.
+
 Schema **v11** invalidates cached list, ranking, company, and prepared-page membership after
 `other` became a listed recurring reset cadence. It adds no calculated-cost field.
 
@@ -393,6 +402,21 @@ inclusive) and the rates it was costed at (`uses_spot`, `energy_cents`, `spot_ma
 the two per-kWh mechanisms as two dated rows ("Energia 25.8. asti 6,99" / "Marginaali 26.8.
 alkaen 1,29"). **Keep the record here rather than re-deriving boundaries in a presenter** —
 `Support/PhaseTimelineBuilder` is the only implementation of that algorithm and must stay so.
+
+Eligible adjustable open-ended fixed General tariffs use the separate `SupplierAdjusted/` path.
+Only the current calendar-month remainder stays exact. Later months use
+`P_m = P_current + beta * (F_m(today) - F_reference)`, where the reference is the FI month contract
+for the observed current-price episode's start month at the latest vintage before that episode
+start. Forward curve, Spot seasonal index, and hold-flat are all typed estimates. Duplicate
+identical monthly fees are allowed and resolve to the conservative maximum; conflicting duplicates
+are excluded. Exact-period pricing never applies this annual projection.
+
+Public card and contract-detail copy reads only the typed `supplier_adjusted_estimate` payload.
+Every forward-curve, Spot-seasonal-index, and hold-current result gets the shared `Arvio` popover.
+The receipt separates `Energia nyt` from `12 kk keskihinta, arvio`, while the fixed category band
+states that only the current price is fixed and the seller can change it with notice. ContractDetail
+adds one quiet basis note and a short qualifier that separates the published current fact from the
+annual estimate. No surface presents this path as a disclosed cadence or a future contractual rate.
 
 The detail-page notices live
 in `resources/views/livewire/contract-detail.blade.php` (after the hero): the neutral market-reset

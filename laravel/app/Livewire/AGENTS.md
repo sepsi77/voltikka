@@ -1008,7 +1008,8 @@ So the qualifier is now conditional on `$this->card?->estimate !== null`:
 | Markkinahinta (reset) | yes | **null** |
 | Kulutusvaikutus | yes | **null** |
 | Kiinteä, term < 12 kk | yes (`termBody`) | price sentence only; the popover owns the annualisation and the unknown continuation |
-| Kiinteä, 12 kk+ / toistaiseksi | **none** — not an estimate | full sentence, sole carrier |
+| Kiinteä, supplier-adjusted open-ended | yes | two short sentences: the seller's published current price is a fact, and the 12-month equivalent is an estimate. The popover owns the basis and uncertainty |
+| Kiinteä, 12 kk+ / other toistaiseksi | **none** — not an estimate | full sentence, sole carrier |
 
 **Do not make the qualifier unconditional again**, and do not delete the no-popover branches: a
 fully fixed contract has no popover to defer to, so deleting them would leave its hero with no
@@ -1169,6 +1170,10 @@ Rules to keep:
   notice is gone**: it repeated the hero qualifier's figures. What it uniquely said now lives in
   one receipt note from `CanonicalPricing\MarketReset\ResetEstimateCopy::receiptNote()` (future
   period prices are unknown, when the estimated tail starts, which forward vintage it reads).
+  Supplier-adjusted pricing similarly gets one quiet note from
+  `CanonicalPricing\SupplierAdjusted\SupplierAdjustedEstimateCopy::receiptNote()`. Its qualifier
+  separates the published current-price fact from the annual estimate without restating the
+  popover's market basis, notice rule, unknown schedule, or no-price-promise warning.
   `detailNotice()` was removed with it.
 - `ContractDetail::displayNameFor()` gives the alternative-contract tiles and the named runner-up
   the same name normalization as the H1 and the cards.

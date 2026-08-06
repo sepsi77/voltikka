@@ -91,6 +91,7 @@ class CanonicalOfferSurfacesTest extends TestCase
 
     public function test_company_short_offer_uses_the_real_six_month_benefit(): void
     {
+        $this->travelTo('2026-08-01 12:00:00');
         config()->set('canonical_pricing.enabled', true);
 
         $this->createContract(
@@ -116,6 +117,7 @@ class CanonicalOfferSurfacesTest extends TestCase
 
     public function test_company_short_hybrid_offer_uses_the_real_six_month_benefit(): void
     {
+        $this->travelTo('2026-08-01 12:00:00');
         config()->set('canonical_pricing.enabled', true);
 
         $this->createContract(
@@ -210,6 +212,7 @@ class CanonicalOfferSurfacesTest extends TestCase
 
     public function test_seo_short_offer_json_ld_uses_actual_term_benefit(): void
     {
+        $this->travelTo('2026-08-01 12:00:00');
         config()->set('canonical_pricing.enabled', true);
 
         $this->createContract(

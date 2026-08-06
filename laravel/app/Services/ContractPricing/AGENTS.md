@@ -4,7 +4,7 @@ This directory owns the typed calculated-pricing boundary from canonical or lega
 
 ## Purpose
 
-- `ContractPricingViewData` validates one existing `calculated_cost` array and gives typed access to totals, monthly values, rates, Spot state, discount state, pricing basis, comparability, and estimate facts.
+- `ContractPricingViewData` validates one existing `calculated_cost` array and gives typed access to totals, monthly values, rates, Spot state, discount state, pricing basis, comparability, and estimate facts, including separate market-reset and supplier-adjusted payloads.
 - `PricingFact` wraps validated optional package, contract-term, consumption-effect, reset, phase, and offer-term records. It keeps unknown harmless auxiliary keys.
 - `CanonicalContractMetric` combines one canonical pricing view with typed `ContractPricingIntegrity`, comparability, listability, and the finite nullable sort key returned by the canonical batch producer.
 - `ContractMetric` combines one cached contract ID with pricing, emissions, consumption-limit state, comparability, listability, sort key, and typed integrity.
@@ -25,12 +25,13 @@ This is a consumer read model. It is not a pricing calculator and must not dupli
 - Canonical excluded pricing has no public current rates, package, or offer terms. Legitimate non-public metadata can remain.
 - `base_only_hybrid` can compose with a recurring-reset estimate method. Do not require `hybrid_base_only` when the calculator reports hold-current, forward-shift, or seasonal-index reset pricing. A consumption-effect record can be absent for source-enum Hybrid fallback; when supplied, it must state `present=true`.
 - Reset `beta=0` and empty phase labels are valid calculator output. The coefficient is non-negative, and labels are not costing facts.
+- Supplier-adjusted estimates require their own basis, price-episode evidence basis, market vintages, current rate, annual equivalent, flat monthly-fee assumption, and flags. They must not be read as a recurring reset.
 - Legacy payloads are explicit: `pricing_basis` can be absent. Do not infer canonical facts from legacy payloads or merge the calculators.
 - Keep unknown harmless keys in optional records so old cache rows round-trip without data loss.
 
 ## Cache compatibility
 
-This boundary does not change the calculated-cost fields or the outer cache payload. It therefore does not change `CalculatedCostPayloadSchema::VERSION` or any outer cache version. A future field-shape change must follow the existing schema-version rules in `../CanonicalPricing/AGENTS.md`.
+The supplier-adjusted payload is calculated-cost schema v12. Outer cache versions did not move because their wrapper shape did not change. A future field-shape change must follow the existing schema-version rules in `../CanonicalPricing/AGENTS.md`.
 
 ## Presentation consumers
 

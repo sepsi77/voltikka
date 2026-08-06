@@ -175,6 +175,21 @@ class ContractPricingReadModelTest extends TestCase
         $this->assertCount(1, $pricing->offerTerms());
     }
 
+    public function test_valid_supplier_adjusted_payload_round_trips_exactly(): void
+    {
+        $payload = $this->canonicalPricing([
+            'comparability' => 'comparable_estimate',
+            'is_estimate' => true,
+            'estimate_method' => 'supplier_adjusted_forward_curve_shift',
+            'supplier_adjusted_estimate' => $this->supplierAdjustedEstimate(),
+        ]);
+
+        $pricing = ContractPricingViewData::fromArray($payload);
+
+        $this->assertSame($payload, $pricing->toArray());
+        $this->assertSame('forward_curve_shift', $pricing->supplierAdjustedEstimate()?->string('basis'));
+    }
+
     public function test_valid_reset_hybrid_zero_beta_and_empty_phase_label_are_supported(): void
     {
         $reset = $this->resetEstimate();
@@ -275,6 +290,10 @@ class ContractPricingReadModelTest extends TestCase
             'reset misses required basis' => [['reset_estimate' => [
                 'beta' => 1.0,
             ]]],
+            'supplier estimate has unsupported evidence' => [['supplier_adjusted_estimate' => array_replace(
+                self::supplierAdjustedEstimateFixture(),
+                ['price_episode_evidence_basis' => 'unsupported'],
+            )]],
             'phase has malformed date' => [['phase_breakdown' => [[
                 'label' => 'Current',
                 'phase_kind' => 'current_structured',
@@ -352,6 +371,7 @@ class ContractPricingReadModelTest extends TestCase
             'consumption_effect' => null,
             'assumptions' => [],
             'reset_estimate' => null,
+            'supplier_adjusted_estimate' => null,
         ], $changes);
     }
 
@@ -426,6 +446,32 @@ class ContractPricingReadModelTest extends TestCase
             'higher_confidence' => true,
             'flags' => [],
             'auxiliary' => ['kept' => true],
+        ];
+    }
+
+    private function supplierAdjustedEstimate(): array
+    {
+        return self::supplierAdjustedEstimateFixture();
+    }
+
+    private static function supplierAdjustedEstimateFixture(): array
+    {
+        return [
+            'basis' => 'forward_curve_shift',
+            'beta' => 1.0,
+            'current_energy_price' => 7.4,
+            'monthly_fee' => 4.2,
+            'annual_equivalent_energy_price' => 10.2,
+            'reference_kind' => 'month',
+            'reference_price' => 4.5,
+            'curve_trade_date' => '2026-07-30',
+            'reference_trade_date' => '2026-05-29',
+            'price_episode_started_at' => '2026-06-01',
+            'price_episode_evidence_basis' => 'observed_seller_snapshot_run',
+            'tail_starts' => '2026-09',
+            'monthly_fee_assumption' => 'held_flat',
+            'higher_confidence' => true,
+            'flags' => ['price_snapshot_episode_proxy'],
         ];
     }
 

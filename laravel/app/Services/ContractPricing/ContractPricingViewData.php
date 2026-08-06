@@ -10,6 +10,8 @@ use App\Services\CanonicalPricing\Enums\ContractComparability;
 use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\CanonicalPricing\Enums\PhaseKind;
 use App\Services\CanonicalPricing\MarketReset\Enums\ResetEstimateBasis;
+use App\Services\CanonicalPricing\SupplierAdjusted\Enums\PriceEpisodeEvidenceBasis;
+use App\Services\CanonicalPricing\SupplierAdjusted\Enums\SupplierAdjustedEstimateBasis;
 use App\Services\DTO\ContractPricingResult;
 use DateTimeImmutable;
 use InvalidArgumentException;
@@ -48,6 +50,7 @@ final readonly class ContractPricingViewData
         private ?PricingFact $contractTerm,
         private ?PricingFact $consumptionEffect,
         private ?PricingFact $resetEstimate,
+        private ?PricingFact $supplierAdjustedEstimate,
         private array $phases,
         private array $offerTerms,
     ) {}
@@ -107,6 +110,7 @@ final readonly class ContractPricingViewData
         $contractTerm = null;
         $consumptionEffect = null;
         $resetEstimate = null;
+        $supplierAdjustedEstimate = null;
         $phases = [];
         $offerTerms = [];
 
@@ -115,6 +119,7 @@ final readonly class ContractPricingViewData
                 'comparability', 'is_estimate', 'estimate_method', 'term_months',
                 'energy_package', 'contract_term', 'phase_breakdown', 'offer_terms',
                 'structured_only_total', 'consumption_effect', 'assumptions', 'reset_estimate',
+                'supplier_adjusted_estimate',
             ] as $key) {
                 self::requireKey($payload, $key, 'canonical calculated_cost');
             }
@@ -150,6 +155,11 @@ final readonly class ContractPricingViewData
                 $payload['reset_estimate'],
                 'calculated_cost.reset_estimate',
                 self::validateResetEstimate(...),
+            );
+            $supplierAdjustedEstimate = self::optionalRecord(
+                $payload['supplier_adjusted_estimate'],
+                'calculated_cost.supplier_adjusted_estimate',
+                self::validateSupplierAdjustedEstimate(...),
             );
             $phases = self::recordList($payload['phase_breakdown'], 'calculated_cost.phase_breakdown', self::validatePhase(...));
             $offerTerms = self::recordList($payload['offer_terms'], 'calculated_cost.offer_terms', self::validateOfferTerm(...));
@@ -211,6 +221,7 @@ final readonly class ContractPricingViewData
             contractTerm: $contractTerm,
             consumptionEffect: $consumptionEffect,
             resetEstimate: $resetEstimate,
+            supplierAdjustedEstimate: $supplierAdjustedEstimate,
             phases: $phases,
             offerTerms: $offerTerms,
         );
@@ -384,6 +395,11 @@ final readonly class ContractPricingViewData
         return $this->resetEstimate;
     }
 
+    public function supplierAdjustedEstimate(): ?PricingFact
+    {
+        return $this->supplierAdjustedEstimate;
+    }
+
     /** @return list<PricingFact> */
     public function phases(): array
     {
@@ -464,6 +480,40 @@ final readonly class ContractPricingViewData
             if ($date !== null) {
                 self::date($date, $path.'.'.$key);
             }
+        }
+        self::boolean($record['higher_confidence'], $path.'.higher_confidence');
+        self::stringList($record['flags'], $path.'.flags');
+    }
+
+    private static function validateSupplierAdjustedEstimate(array $record, string $path): void
+    {
+        foreach (['basis', 'beta', 'current_energy_price', 'monthly_fee', 'annual_equivalent_energy_price', 'reference_kind', 'reference_price', 'curve_trade_date', 'reference_trade_date', 'price_episode_started_at', 'price_episode_evidence_basis', 'tail_starts', 'monthly_fee_assumption', 'higher_confidence', 'flags'] as $key) {
+            self::requireKey($record, $key, $path);
+        }
+        if (SupplierAdjustedEstimateBasis::tryFrom(self::nonEmptyString($record['basis'], $path.'.basis')) === null) {
+            throw new InvalidArgumentException($path.'.basis is not supported.');
+        }
+        if (self::finiteNumber($record['beta'], $path.'.beta') < 0
+            || self::finiteNumber($record['current_energy_price'], $path.'.current_energy_price') < 0
+            || self::finiteNumber($record['monthly_fee'], $path.'.monthly_fee') < 0) {
+            throw new InvalidArgumentException($path.' contains a negative price or coefficient.');
+        }
+        foreach (['annual_equivalent_energy_price', 'reference_price'] as $key) {
+            self::nullableFiniteNumber($record[$key], $path.'.'.$key);
+        }
+        self::nullableNonEmptyString($record['reference_kind'], $path.'.reference_kind');
+        foreach (['curve_trade_date', 'reference_trade_date', 'price_episode_started_at'] as $key) {
+            $date = self::nullableNonEmptyString($record[$key], $path.'.'.$key);
+            if ($date !== null) {
+                self::date($date, $path.'.'.$key);
+            }
+        }
+        if (PriceEpisodeEvidenceBasis::tryFrom(self::nonEmptyString($record['price_episode_evidence_basis'], $path.'.price_episode_evidence_basis')) === null) {
+            throw new InvalidArgumentException($path.'.price_episode_evidence_basis is not supported.');
+        }
+        self::nullableNonEmptyString($record['tail_starts'], $path.'.tail_starts');
+        if (self::nonEmptyString($record['monthly_fee_assumption'], $path.'.monthly_fee_assumption') !== 'held_flat') {
+            throw new InvalidArgumentException($path.'.monthly_fee_assumption is not supported.');
         }
         self::boolean($record['higher_confidence'], $path.'.higher_confidence');
         self::stringList($record['flags'], $path.'.flags');

@@ -100,6 +100,7 @@ class ContractCardPresenterTest extends TestCase
                 'consumption_effect' => null,
                 'assumptions' => [],
                 'reset_estimate' => null,
+                'supplier_adjusted_estimate' => null,
             ], $payload);
             if (($payload['estimate_method'] ?? 'none') !== 'none') {
                 $payload['is_estimate'] = true;
@@ -158,6 +159,27 @@ class ContractCardPresenterTest extends TestCase
      * @param  array<string, mixed>  $schedule
      * @param  array<string, mixed>  $effect
      */
+    private function supplierAdjustedEstimate(string $basis = 'forward_curve_shift'): array
+    {
+        return [
+            'basis' => $basis,
+            'beta' => 1.0,
+            'current_energy_price' => 7.4,
+            'monthly_fee' => 4.2,
+            'annual_equivalent_energy_price' => $basis === 'hold_flat' ? 7.4 : 10.2,
+            'reference_kind' => $basis === 'forward_curve_shift' ? 'month' : null,
+            'reference_price' => $basis === 'forward_curve_shift' ? 4.5 : null,
+            'curve_trade_date' => $basis === 'forward_curve_shift' ? '2026-07-30' : null,
+            'reference_trade_date' => $basis === 'forward_curve_shift' ? '2026-05-29' : null,
+            'price_episode_started_at' => '2026-06-01',
+            'price_episode_evidence_basis' => 'observed_seller_snapshot_run',
+            'tail_starts' => '2026-08',
+            'monthly_fee_assumption' => 'held_flat',
+            'higher_confidence' => $basis === 'forward_curve_shift',
+            'flags' => [],
+        ];
+    }
+
     private function canonicalPricing(array $schedule = [], array $effect = []): array
     {
         return [
@@ -355,6 +377,28 @@ class ContractCardPresenterTest extends TestCase
         $this->assertTrue($card->receiptLines[0]->soft);
         $this->assertFalse($card->receiptLines[1]->soft);
         $this->assertSame('7,77', $card->receiptLines[0]->value);
+    }
+
+    public function test_supplier_adjusted_general_tariff_separates_current_and_estimated_prices(): void
+    {
+        $card = $this->present($this->contract(cost: [
+            'estimate_method' => 'supplier_adjusted_forward_curve_shift',
+            'general_kwh_price' => 7.4,
+            'monthly_fixed_fee' => 4.2,
+            'supplier_adjusted_estimate' => $this->supplierAdjustedEstimate(),
+        ]));
+
+        $this->assertSame(
+            ['Energia nyt', '12 kk keskihinta, arvio', 'Perusmaksu'],
+            array_map(fn ($line) => $line->label, $card->receiptLines),
+        );
+        $this->assertFalse($card->receiptLines[0]->soft);
+        $this->assertTrue($card->receiptLines[1]->soft);
+        $this->assertSame('7,40', $card->receiptLines[0]->value);
+        $this->assertSame('10,20', $card->receiptLines[1]->value);
+        $this->assertSame('Nykyinen energianhinta on kiinteä', $card->band->headline);
+        $this->assertSame('Myyjä voi muuttaa hintaa ilmoittamalla siitä', $card->band->detail);
+        $this->assertStringNotContainsString('Energian hinta ei muutu', $card->band->headline.' '.$card->band->detail);
     }
 
     public function test_market_reset_shows_the_known_period_price_above_the_estimated_tail(): void
@@ -734,6 +778,32 @@ class ContractCardPresenterTest extends TestCase
         $this->assertStringContainsString('kuukausittain', $held->body);
     }
 
+    public function test_all_supplier_adjusted_methods_have_an_estimate_explanation_without_a_reset_cadence(): void
+    {
+        $cases = [
+            ['forward_curve_shift', 'supplier_adjusted_forward_curve_shift', 'tukkumarkkinan ennakkohintoihin eli sähköfutuureihin'],
+            ['spot_seasonal_index', 'supplier_adjusted_spot_seasonal_index', 'pörssisähkön usean vuoden kausivaihteluun'],
+            ['hold_flat', 'hold_current_supplier_price', 'nykyiseen julkaistuun hintaan'],
+        ];
+
+        foreach ($cases as [$basis, $method, $basisCopy]) {
+            $card = $this->present($this->contract(cost: [
+                'estimate_method' => $method,
+                'supplier_adjusted_estimate' => $this->supplierAdjustedEstimate($basis),
+            ]));
+
+            $this->assertNotNull($card->estimate, $method.' must show Arvio.');
+            $this->assertNotSame('', trim($card->estimate->body));
+            $this->assertStringContainsString('myyjän julkaisema hinta', $card->estimate->body);
+            $this->assertStringContainsString('Voltikan arvio', $card->estimate->body);
+            $this->assertStringContainsString($basisCopy, $card->estimate->body);
+            $this->assertStringContainsString('muuttaa hintaa ilmoittamalla siitä etukäteen', $card->estimate->body);
+            $this->assertStringContainsString('Tulevia hintoja tai muutosaikataulua ei tiedetä', $card->estimate->body);
+            $this->assertStringContainsString('ei ole hintalupaus', $card->estimate->body);
+            $this->assertDoesNotMatchRegularExpression('/kuukausittain|neljännesvuosittain|kausittain|hinta tarkistetaan/ui', $card->estimate->body);
+        }
+    }
+
     public function test_a_reset_that_is_also_base_only_hybrid_explains_the_reset_not_a_flat_price(): void
     {
         // Vaasan Sähkö Vaikuttaja / Korpela Kvartaali. The calculator decides the
@@ -1008,6 +1078,23 @@ class ContractCardPresenterTest extends TestCase
         $html->assertSee('Arvio');
         $html->assertSee('voltikka.fi/tietoa#menetelma');
         $html->assertSee('Näin laskemme arviot');
+    }
+
+    public function test_supplier_adjusted_standard_and_featured_cards_render_the_arvio_pill(): void
+    {
+        $contract = $this->contract(cost: [
+            'estimate_method' => 'supplier_adjusted_forward_curve_shift',
+            'supplier_adjusted_estimate' => $this->supplierAdjustedEstimate(),
+        ]);
+
+        foreach (['contract-card', 'featured-contract-card'] as $component) {
+            $html = $this->blade('<x-'.$component.' :contract="$contract" :consumption="5000" />', ['contract' => $contract]);
+
+            $html->assertSee('Arvio');
+            $html->assertSee('Nykyinen energianhinta on kiinteä');
+            $html->assertSee('Voltikan arvio');
+            $html->assertDontSee('Energian hinta ei muutu');
+        }
     }
 
     public function test_the_featured_card_renders_the_same_warnings_as_a_normal_card(): void
