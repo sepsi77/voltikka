@@ -7,6 +7,7 @@ use App\Models\ContractPriceSnapshot;
 use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
 use App\Services\CanonicalPricing\PricingMode;
+use App\Services\ContractStatistics\AnnualSeriesCompatibility;
 use App\Services\ContractStatistics\ContractStatisticsSegmentClassifier;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -144,11 +145,17 @@ class ContractPriceStatistics extends Component
         }
 
         $rows = ContractPriceDailyStatistic::query()
+            ->activeMetricMethods()
             ->select([
                 'stat_date',
                 'segment_key',
                 'metric_key',
                 'pricing_basis',
+                'method_version',
+                'calculation_basis',
+                'estimate_basis',
+                'compatibility_key',
+                'basis_counts',
                 'consumption_kwh',
                 'p20_value',
                 'avg_value',
@@ -161,6 +168,7 @@ class ContractPriceStatistics extends Component
 
         $expectedBasis = app(PricingMode::class)->expectedContractPriceBasis()->value;
         $latestExpectedDate = $rows
+            ->where('method_version', ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION)
             ->where('pricing_basis', $expectedBasis)
             ->max(fn (ContractPriceDailyStatistic $row) => $row->stat_date->toDateString());
 
@@ -168,15 +176,27 @@ class ContractPriceStatistics extends Component
             return $this->dailyStatsCache = collect();
         }
 
-        // Historical rows keep their date-specific basis. A newer row from the
-        // opposite feature mode must not become the public current point, and an
-        // opposite-basis row on the owned current date must not enter an aggregate.
+        // Unit statistics own the public endpoint date and still require the
+        // expected current pricing basis. Active annual rows can use a mixed
+        // evidence basis on that same date. Older rows keep their dated basis,
+        // but every row has already passed the metric-method isolation scope.
         return $this->dailyStatsCache = $rows
             ->filter(function (ContractPriceDailyStatistic $row) use ($expectedBasis, $latestExpectedDate): bool {
                 $date = $row->stat_date->toDateString();
 
-                return $date < $latestExpectedDate
-                    || ($date === $latestExpectedDate && $row->pricing_basis === $expectedBasis);
+                if ($date < $latestExpectedDate) {
+                    return true;
+                }
+
+                if ($date !== $latestExpectedDate) {
+                    return false;
+                }
+
+                if ($row->metric_key === 'annual_cost') {
+                    return in_array($row->pricing_basis, [$expectedBasis, 'mixed_evidence'], true);
+                }
+
+                return $row->pricing_basis === $expectedBasis;
             })
             ->values();
     }
@@ -494,23 +514,28 @@ class ContractPriceStatistics extends Component
 
         $lead = $chart['series'][0] ?? null;
         if ($lead) {
-            $first = $this->firstNonNull($lead['values']);
             $current = $this->lastNonNull($lead['values']);
-            $delta = $this->percentDelta($current['value'] ?? null, $first['value'] ?? null);
+            $first = $this->firstNonNullInCurrentAnnualRegime($lead, $current);
+            $delta = $this->compatibleAnnualDelta($lead, $current, $first);
 
             if ($delta !== null) {
-                $sentences[] = $this->annualCostCaptionSentence($lead['label'], $delta, false);
+                $sentences[] = $this->annualCostCaptionSentence(
+                    $lead['label'],
+                    $delta,
+                    ($first['index'] ?? null) === 0,
+                );
             }
         }
 
         $contrast = collect(array_slice($chart['series'], 1))
             ->map(function ($series) {
-                $first = $this->firstNonNull($series['values']);
                 $current = $this->lastNonNull($series['values']);
+                $first = $this->firstNonNullInCurrentAnnualRegime($series, $current);
 
                 return [
                     'label' => $series['label'],
-                    'delta' => $this->percentDelta($current['value'] ?? null, $first['value'] ?? null),
+                    'delta' => $this->compatibleAnnualDelta($series, $current, $first),
+                    'from_dataset_start' => ($first['index'] ?? null) === 0,
                 ];
             })
             ->filter(fn ($series) => $series['delta'] !== null)
@@ -518,7 +543,11 @@ class ContractPriceStatistics extends Component
             ->first();
 
         if ($contrast) {
-            $sentences[] = $this->annualCostCaptionSentence($contrast['label'], $contrast['delta'], true);
+            $sentences[] = $this->annualCostCaptionSentence(
+                $contrast['label'],
+                $contrast['delta'],
+                $contrast['from_dataset_start'],
+            );
         }
 
         return $sentences;
@@ -634,16 +663,18 @@ class ContractPriceStatistics extends Component
             'latestSnapshotDate' => $this->latestSnapshotDate,
             'latestSnapshotCount' => $this->latestSnapshotCount,
             'latestPricingBasis' => $this->latestPricingBasis,
+            'activeAnnualMethod' => ContractPriceDailyStatistic::activeAnnualMethodVersion()->value,
             'jsonLd' => $this->jsonLd,
         ];
     }
 
     private function statisticsViewDataCacheKey(): string
     {
-        return 'contract-price-statistics:view-data:v11:'.md5(json_encode([
+        return 'contract-price-statistics:view-data:v13:'.md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
             'pricing_basis' => app(PricingMode::class)->expectedContractPriceBasis()->value,
+            'annual_method' => ContractPriceDailyStatistic::activeAnnualMethodVersion()->value,
             'version' => $this->statisticsDataVersion(),
         ]));
     }
@@ -655,6 +686,7 @@ class ContractPriceStatistics extends Component
     private function statisticsDataVersion(): array
     {
         $statistics = ContractPriceDailyStatistic::query()
+            ->activeMetricMethods()
             ->selectRaw('COUNT(*) as row_count, MAX(stat_date) as latest_date, MAX(updated_at) as latest_update')
             ->first();
 
@@ -677,6 +709,7 @@ class ContractPriceStatistics extends Component
             ->first();
 
         return [
+            'active_annual_method' => ContractPriceDailyStatistic::activeAnnualMethodVersion()->value,
             'statistics_row_count' => (int) ($statistics?->row_count ?? 0),
             'statistics_latest_date' => $statistics?->latest_date,
             'statistics_latest_update' => $statistics?->latest_update,
@@ -719,14 +752,18 @@ class ContractPriceStatistics extends Component
         $series = [];
         foreach ($segmentKeys as $key) {
             $byTs = array_combine($aggregated[$key]['x'], $aggregated[$key]['median']);
+            $compatibilityByTs = array_combine($aggregated[$key]['x'], $aggregated[$key]['compatibility_keys']);
             $values = [];
+            $compatibilityKeys = [];
             foreach ($allTimestamps as $ts) {
                 $values[] = $byTs[$ts] ?? null;
+                $compatibilityKeys[] = $compatibilityByTs[$ts] ?? null;
             }
 
             $series[] = [
                 'label' => $this->segments[$key] ?? $key,
                 'values' => $values,
+                'compatibility_keys' => $compatibilityKeys,
             ];
         }
 
@@ -788,7 +825,7 @@ class ContractPriceStatistics extends Component
      * monthly aggregation averages those daily medians so the trend stays
      * market-day weighted.
      *
-     * @return array{x:array<int,int>,median:array<int,?float>}
+     * @return array{x:array<int,int>,median:array<int,?float>,compatibility_keys:array<int,?string>}
      */
     private function aggregatedSeries(string $segmentKey, string $metricKey, ?int $consumption): array
     {
@@ -798,7 +835,7 @@ class ContractPriceStatistics extends Component
             ->filter(fn ($row) => $row->consumption_kwh === $consumption);
 
         if ($rows->isEmpty()) {
-            return ['x' => [], 'median' => []];
+            return ['x' => [], 'median' => [], 'compatibility_keys' => []];
         }
 
         $grouped = $rows->groupBy(fn ($row) => $this->periodStart($row->stat_date)->toDateString())
@@ -806,14 +843,24 @@ class ContractPriceStatistics extends Component
 
         $x = [];
         $median = [];
+        $compatibilityKeys = [];
+        $compatibility = $metricKey === 'annual_cost' ? new AnnualSeriesCompatibility : null;
 
         foreach ($grouped as $periodStart => $periodRows) {
+            $periodRows = $periodRows->sortBy('stat_date')->values();
             $vals = $periodRows->pluck('median_value')->filter(fn ($v) => $v !== null);
+            $periodCompatibility = $compatibility?->evaluatePeriod(
+                $periodRows->pluck('compatibility_key')->all(),
+            );
+
             $x[] = Carbon::parse($periodStart)->getTimestamp();
-            $median[] = $vals->isEmpty() ? null : (float) $vals->avg();
+            $median[] = $vals->isEmpty() || ($periodCompatibility !== null && ! $periodCompatibility['comparable'])
+                ? null
+                : (float) $vals->avg();
+            $compatibilityKeys[] = $periodCompatibility['compatibility_key'] ?? null;
         }
 
-        return ['x' => $x, 'median' => $median];
+        return ['x' => $x, 'median' => $median, 'compatibility_keys' => $compatibilityKeys];
     }
 
     /**
@@ -1212,9 +1259,53 @@ class ContractPriceStatistics extends Component
         ];
     }
 
-    private function annualCostCaptionSentence(string $label, float $delta, bool $samePeriod): string
+    /**
+     * @param  array{values:array<int,?float>,compatibility_keys:array<int,?string>}  $series
+     * @param  array{value:?float,index:?int}  $current
+     * @param  array{value:?float,index:?int}  $reference
+     */
+    private function compatibleAnnualDelta(array $series, array $current, array $reference): ?float
     {
-        $prefix = $samePeriod ? "{$label}-sopimusten vuosikustannus on samalla aikavälillä" : "{$label}-sopimusten vuosikustannus on";
+        if ($current['index'] === null || $reference['index'] === null) {
+            return null;
+        }
+
+        $currentKey = $series['compatibility_keys'][$current['index']] ?? null;
+        $referenceKey = $series['compatibility_keys'][$reference['index']] ?? null;
+        if (! AnnualSeriesCompatibility::sameKey($currentKey, $referenceKey)) {
+            return null;
+        }
+
+        return $this->percentDelta($current['value'], $reference['value']);
+    }
+
+    /**
+     * @param  array{values:array<int,?float>,compatibility_keys:array<int,?string>}  $series
+     * @param  array{value:?float,index:?int}  $current
+     * @return array{value:?float,index:?int}
+     */
+    private function firstNonNullInCurrentAnnualRegime(array $series, array $current): array
+    {
+        if ($current['index'] === null) {
+            return ['value' => null, 'index' => null];
+        }
+
+        $currentKey = $series['compatibility_keys'][$current['index']] ?? null;
+        foreach ($series['values'] as $index => $value) {
+            $key = $series['compatibility_keys'][$index] ?? null;
+            if ($value !== null && AnnualSeriesCompatibility::sameKey($key, $currentKey)) {
+                return ['value' => (float) $value, 'index' => $index];
+            }
+        }
+
+        return ['value' => null, 'index' => null];
+    }
+
+    private function annualCostCaptionSentence(string $label, float $delta, bool $fromDatasetStart): string
+    {
+        $prefix = $fromDatasetStart
+            ? "{$label}-sopimusten vuosikustannus on"
+            : "{$label}-sopimusten vuosikustannus on nykyisen vertailukelpoisen jakson aikana";
 
         if (abs($delta) < 1.5) {
             return "{$prefix} pysynyt käytännössä paikoillaan.";
@@ -1223,9 +1314,9 @@ class ContractPriceStatistics extends Component
         $verb = $delta < 0 ? 'laskenut' : 'noussut';
         $abs = number_format(abs($delta), 0, ',', ' ');
 
-        return $samePeriod
-            ? "{$prefix} {$verb} {$abs} %."
-            : "{$prefix} {$verb} {$abs} % aineiston alusta.";
+        return $fromDatasetStart
+            ? "{$prefix} {$verb} {$abs} % aineiston alusta."
+            : "{$prefix} {$verb} {$abs} %.";
     }
 
     private function percentDelta(?float $current, ?float $reference): ?float
@@ -1249,7 +1340,13 @@ class ContractPriceStatistics extends Component
         return $this->dailyStats
             ->where('segment_key', $segmentKey)
             ->where('metric_key', $metricKey)
-            ->where('pricing_basis', app(PricingMode::class)->expectedContractPriceBasis()->value)
+            ->when(
+                $metricKey !== 'annual_cost',
+                fn (Collection $rows) => $rows->where(
+                    'pricing_basis',
+                    app(PricingMode::class)->expectedContractPriceBasis()->value,
+                ),
+            )
             ->filter(fn ($row) => $row->consumption_kwh === $consumption)
             ->sortByDesc('stat_date')
             ->first();

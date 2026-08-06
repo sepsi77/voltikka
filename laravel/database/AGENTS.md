@@ -111,11 +111,25 @@ Important semantics:
 distinguish `canonical_calculation` forward values from `observed_seller_data` historical or
 feature-off values. Existing rows default to observed. These columns are necessary because the
 old tables could mix canonical annual totals with relational unit metrics and had no way for the
-public page or CSV to state provenance. They do not change the date/contract or aggregate unique
-keys. The existing unique keys still allow only one row per date+contract and per aggregate key.
-Before a calculation writes snapshots, it removes opposite-basis rows for that target date and
-replaces its own contract set inside the same transaction. Thus one run and one basis own a newly
-calculated date, including when canonical mode now excludes a contract. Other dates remain intact.
+public page or CSV to state provenance. Before a calculation writes snapshots, it removes
+opposite-basis rows for that target date and replaces its own contract set inside the same
+transaction. Thus one run and one basis own a newly calculated date, including when canonical mode
+now excludes a contract. Other dates remain intact.
+
+`contract_price_annual_costs` is the versioned annual-only snapshot table. Its identity is date,
+contract, consumption, and annual method. It keeps source IDs as indexed provenance without foreign
+keys; only `contract_id` is a cascading foreign key. Do not put observed unit-price facts in this
+table. `contract_price_daily_statistics.method_version` separates aggregate methods. Migration
+`2026_08_06_000001` labels old `annual_cost` rows as `annual_cost_legacy_v1`, labels all old unit
+rows as `unit_statistics_v1`, and replaces the old unique key with its method-aware form. The column
+stays nullable at database level for application rollback compatibility. The Eloquent model and new
+writers enforce a method value. The migration is retry-safe after partial MySQL DDL, always reruns the
+backfill, and reports duplicate old identities before key replacement. The method-aware key does not
+solve the residual nullable-key rule: MySQL and SQLite both permit duplicate unit rows when
+`consumption_kwh` is NULL, and a rolled-back application can also write a NULL method. Date-scoped
+application writers prevent these duplicates on rerun. The
+migration down path refuses to remove the method key when rows would conflict under the old identity;
+it never chooses one version or deletes it silently.
 
 ## `fixed_contract_price_forecasts` provenance
 

@@ -13,6 +13,7 @@ use App\Models\SpotPriceHour;
 use App\Services\CanonicalPricing\DTO\CanonicalPricingOutcome;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\ContractPriceCalculator;
+use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
 use App\Services\DTO\EnergyUsage;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -27,6 +28,8 @@ class ContractPriceStatisticsService
         private readonly ContractPriceCalculator $calculator,
         private readonly \App\Services\CanonicalPricing\CanonicalContractPricingService $canonicalPricing,
         private readonly ContractStatisticsSegmentClassifier $segmentClassifier,
+        private readonly CurrentCanonicalAnnualCostResultFactory $currentAnnualCostResultFactory,
+        private readonly AnnualCostStatisticsWriter $annualCostStatisticsWriter,
     ) {}
 
     /**
@@ -67,10 +70,11 @@ class ContractPriceStatisticsService
                     ->delete();
             }
 
-            ContractPriceDailyStatistic::whereDate('stat_date', $dateString)->delete();
+            $this->deleteLegacyDailyStatisticsForDate($dateString);
 
             $spotPrices = $this->spotPricesForDate($dateString);
             $snapshotCount = 0;
+            $currentCanonicalOutcomes = [];
 
             ElectricityContract::query()
                 ->whereIn('id', $contractIds)
@@ -79,7 +83,7 @@ class ContractPriceStatisticsService
                         ->orWhereNull('target_group');
                 })
                 ->orderBy('id')
-                ->chunkById(200, function (Collection $contracts) use ($date, $dateString, $spotPrices, $useCanonical, &$snapshotCount) {
+                ->chunkById(200, function (Collection $contracts) use ($date, $dateString, $spotPrices, $useCanonical, &$snapshotCount, &$currentCanonicalOutcomes) {
                     $canonicalOutcomes = $useCanonical
                         ? $this->canonicalPricing->outcomesForContractsAtConsumptions(
                             $contracts,
@@ -92,9 +96,10 @@ class ContractPriceStatisticsService
                     foreach ($contracts as $contract) {
                         /** @var ElectricityContract $contract */
                         if ($useCanonical) {
+                            $currentCanonicalOutcomes[(string) $contract->id] = $canonicalOutcomes[$contract->id] ?? [];
                             $snapshot = $this->buildCanonicalSnapshot(
                                 $contract,
-                                $canonicalOutcomes[$contract->id] ?? [],
+                                $currentCanonicalOutcomes[(string) $contract->id],
                             );
 
                             // An excluded or incomplete canonical result must not leave an
@@ -126,6 +131,14 @@ class ContractPriceStatisticsService
                 });
 
             $statisticsCount = $this->calculateDailyStatistics($dateString, $pricingBasis);
+
+            // Reuse the exact canonical outcomes that built the public current snapshots.
+            // The adapter loads only current provenance after snapshot IDs exist. Keep the
+            // write in this transaction so a failure cannot leave a partial method set.
+            if ($useCanonical) {
+                $asOfResults = $this->currentAnnualCostResultFactory->create($dateString, $currentCanonicalOutcomes);
+                $this->annualCostStatisticsWriter->write($dateString, $asOfResults);
+            }
 
             return ['snapshots' => $snapshotCount, 'statistics' => $statisticsCount];
         });
@@ -339,7 +352,7 @@ class ContractPriceStatisticsService
 
     private function calculateDailyStatistics(string $dateString, string $pricingBasis): int
     {
-        ContractPriceDailyStatistic::whereDate('stat_date', $dateString)->delete();
+        $this->deleteLegacyDailyStatisticsForDate($dateString);
 
         $snapshots = ContractPriceSnapshot::query()
             ->whereDate('snapshot_date', $dateString)
@@ -384,6 +397,17 @@ class ContractPriceStatisticsService
         }
 
         return $count;
+    }
+
+    private function deleteLegacyDailyStatisticsForDate(string $dateString): void
+    {
+        ContractPriceDailyStatistic::query()
+            ->whereDate('stat_date', $dateString)
+            ->where(function ($query): void {
+                $query->where('method_version', ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION)
+                    ->orWhere('method_version', AnnualCostMethodVersion::Legacy->value);
+            })
+            ->delete();
     }
 
     /**

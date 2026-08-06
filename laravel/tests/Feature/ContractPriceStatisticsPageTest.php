@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Livewire\ContractPriceStatistics;
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\SpotPriceAverage;
+use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -325,9 +326,10 @@ class ContractPriceStatisticsPageTest extends TestCase
         $this->assertNotContains(9999.0, $component->viewData('leadChartPayload')['series'][0]['values']);
     }
 
-    public function test_prepared_cache_key_uses_the_new_provenance_schema_and_basis(): void
+    public function test_prepared_cache_key_uses_the_new_provenance_schema_basis_and_annual_method(): void
     {
         config()->set('canonical_pricing.enabled', false);
+        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::Legacy->value);
         app()->forgetScopedInstances();
         $component = app(ContractPriceStatistics::class);
         $method = new \ReflectionMethod($component, 'statisticsViewDataCacheKey');
@@ -337,14 +339,119 @@ class ContractPriceStatisticsPageTest extends TestCase
         app()->forgetScopedInstances();
         $canonicalKey = $method->invoke(app(ContractPriceStatistics::class));
 
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v11:', $legacyKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v11:', $canonicalKey);
+        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::AsOf->value);
+        app()->forgetScopedInstances();
+        $asOfKey = $method->invoke(app(ContractPriceStatistics::class));
+
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v13:', $legacyKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v13:', $canonicalKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v13:', $asOfKey);
         $this->assertNotSame($legacyKey, $canonicalKey);
+        $this->assertNotSame($canonicalKey, $asOfKey);
+    }
+
+    public function test_active_as_of_annual_row_can_use_mixed_evidence_on_latest_unit_date(): void
+    {
+        $this->seedSampleStatistics();
+        $latestDate = Carbon::parse(ContractPriceDailyStatistic::unitStatistics()->max('stat_date'))->toDateString();
+        ContractPriceDailyStatistic::create([
+            ...$this->statisticValues($latestDate, 'spot', 'annual_cost', 777.0, 20),
+            'pricing_basis' => 'mixed_evidence',
+            'method_version' => AnnualCostMethodVersion::AsOf->value,
+            'calculation_basis' => 'mixed',
+            'estimate_basis' => 'mixed',
+            'compatibility_key' => 'as-of-current',
+            'consumption_kwh' => 5000,
+        ]);
+
+        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::AsOf->value);
+        Cache::flush();
+        $component = Livewire::test(ContractPriceStatistics::class);
+
+        $spot = collect($component->viewData('consumptionRows'))->firstWhere('segment_key', 'spot');
+        $this->assertSame(777.0, $spot['median']);
+        $this->assertSame('mixed_evidence', $spot['pricing_basis']);
+        $this->assertNotEmpty($component->viewData('segmentRows'), 'Unit c/kWh rows must remain visible with the AsOf annual method.');
+    }
+
+    public function test_daily_and_period_boundary_transitions_create_one_chart_gap(): void
+    {
+        Cache::flush();
+
+        foreach ([
+            ['2026-05-04', 100.0, 'key-a'],
+            ['2026-05-05', 110.0, 'key-a'],
+            ['2026-05-11', 200.0, 'key-b'],
+            ['2026-05-12', 210.0, 'key-b'],
+            ['2026-05-18', 220.0, 'key-b'],
+        ] as [$date, $value, $key]) {
+            ContractPriceDailyStatistic::create([
+                ...$this->statisticValues($date, 'spot', 'annual_cost', $value, 20),
+                'method_version' => AnnualCostMethodVersion::AsOf->value,
+                'compatibility_key' => $key,
+                'consumption_kwh' => 5000,
+            ]);
+        }
+        ContractPriceDailyStatistic::create([
+            ...$this->statisticValues('2026-05-18', 'spot', 'energy_price', 8.0, 20),
+            'consumption_kwh' => null,
+        ]);
+        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::AsOf->value);
+
+        $daily = Livewire::test(ContractPriceStatistics::class)
+            ->set('period', 'daily')
+            ->viewData('leadChartPayload');
+        $this->assertSame([100.0, 110.0, null, 210.0, 220.0], $daily['series'][0]['values']);
+
+        $weekly = Livewire::test(ContractPriceStatistics::class)->viewData('leadChartPayload');
+        $this->assertSame([105.0, null, 220.0], $weekly['series'][0]['values']);
+    }
+
+    public function test_annual_periods_and_captions_do_not_cross_compatibility_keys(): void
+    {
+        Cache::flush();
+
+        foreach ([
+            ['2026-05-04', 100.0, 'key-a'],
+            ['2026-05-05', 110.0, 'key-b'],
+            ['2026-06-01', 120.0, 'key-a'],
+            ['2026-07-06', 180.0, 'key-b'],
+        ] as [$date, $value, $key]) {
+            ContractPriceDailyStatistic::create([
+                ...$this->statisticValues($date, 'spot', 'annual_cost', $value, 20),
+                'method_version' => AnnualCostMethodVersion::AsOf->value,
+                'compatibility_key' => $key,
+                'consumption_kwh' => 5000,
+            ]);
+        }
+        ContractPriceDailyStatistic::create([
+            ...$this->statisticValues('2026-07-06', 'spot', 'energy_price', 8.0, 20),
+            'consumption_kwh' => null,
+        ]);
+        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::AsOf->value);
+
+        $weekly = Livewire::test(ContractPriceStatistics::class)->viewData('leadChartPayload');
+        $this->assertNull($weekly['series'][0]['values'][0]);
+        $this->assertSame([], Livewire::test(ContractPriceStatistics::class)->viewData('caption'));
+
+        $monthly = Livewire::test(ContractPriceStatistics::class)
+            ->set('period', 'monthly')
+            ->viewData('leadChartPayload');
+        $this->assertNull($monthly['series'][0]['values'][0]);
     }
 
     public function test_csv_endpoint_streams_with_attribution_header_lines(): void
     {
         $this->seedSampleStatistics();
+        ContractPriceDailyStatistic::create([
+            ...$this->statisticValues('2026-04-29', 'spot', 'annual_cost', 777.0, 20),
+            'method_version' => AnnualCostMethodVersion::AsOf->value,
+            'calculation_basis' => 'canonical_outcome',
+            'estimate_basis' => 'forward_curve',
+            'compatibility_key' => 'as-of-audit',
+            'basis_counts' => ['forward_curve' => 20],
+            'consumption_kwh' => 5000,
+        ]);
 
         $response = $this->get('/sahkosopimus/tilastot.csv');
 
@@ -356,8 +463,31 @@ class ContractPriceStatisticsPageTest extends TestCase
         $this->assertStringContainsString('CC BY 4.0', $body);
         $this->assertStringContainsString('arvonlisäveron 25,5 %', $body);
         $this->assertStringContainsString('pricing_basis=canonical_calculation', $body);
-        $this->assertStringContainsString('segment_key,metric_key,pricing_basis', $body);
-        $this->assertStringContainsString('spot,annual_cost,observed_seller_data,5000', $body);
+        $this->assertStringContainsString('kaikki menetelmäversiot auditointia varten', $body);
+        $this->assertStringContainsString('segment_key,metric_key,pricing_basis,method_version,calculation_basis,estimate_basis,compatibility_key,basis_counts,is_active_annual_method', $body);
+        $this->assertStringContainsString('spot,annual_cost,observed_seller_data,annual_cost_legacy_v1', $body);
+        $this->assertStringContainsString('spot,annual_cost,observed_seller_data,annual_cost_as_of_v1,canonical_outcome,forward_curve,as-of-audit', $body);
+        $this->assertStringContainsString('spot,energy_price,observed_seller_data,unit_statistics_v1', $body);
+        $this->assertStringContainsString('annual_cost_legacy_v1,,,,,1,5000', $body);
+        $this->assertStringContainsString('forward_curve"":20}",0,5000', $body);
+    }
+
+    /** @return array<string, mixed> */
+    private function statisticValues(string $date, string $segment, string $metric, float $value, int $contractCount): array
+    {
+        return [
+            'stat_date' => $date,
+            'segment_key' => $segment,
+            'metric_key' => $metric,
+            'pricing_basis' => 'observed_seller_data',
+            'min_value' => $value,
+            'p20_value' => $value,
+            'avg_value' => $value,
+            'median_value' => $value,
+            'p80_value' => $value,
+            'max_value' => $value,
+            'contract_count' => $contractCount,
+        ];
     }
 
     private function seedRisingSpotYearlyAverages(): void

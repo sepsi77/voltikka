@@ -2,11 +2,14 @@
 
 namespace App\Services\CompanyStatistics;
 
+use App\Models\ContractPriceAnnualCost;
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\ContractPriceSnapshot;
 use App\Services\CanonicalPricing\PricingMode;
+use App\Services\ContractStatistics\AnnualSeriesCompatibility;
 use App\Services\ContractStatistics\ContractPriceBasis;
 use App\Services\ContractStatistics\ContractStatisticsSegmentClassifier;
+use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -121,8 +124,10 @@ class CompanyMarketComparisonService
             return null;
         }
 
+        $annualMethod = ContractPriceDailyStatistic::activeAnnualMethodVersion()->value;
+
         return Cache::remember(
-            'company-market-comparison:v6:'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis.':'.md5($companyName).':'.$referenceConsumption.':'.$fingerprint,
+            'company-market-comparison:v9:'.$annualMethod.':'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis.':'.md5($companyName).':'.$referenceConsumption.':'.$fingerprint,
             now()->addHours(self::CACHE_TTL_HOURS),
             fn () => $this->build($companyName, $referenceConsumption),
         );
@@ -188,25 +193,18 @@ class CompanyMarketComparisonService
 
         $marketRows = ContractPriceDailyStatistic::query()
             ->whereDate('stat_date', $statDate)
-            ->where('metric_key', 'annual_cost')
+            ->activeAnnualMethod()
             ->where('pricing_basis', $pricingBasis)
             ->where('consumption_kwh', $referenceConsumption)
             ->get()
             ->keyBy('segment_key');
 
-        // The energy-rate guard repairs a known defect only in old relational
-        // observations: those rows could contain a standing-charge-only annual
-        // total or a unit-import error. A canonical annual result is complete on
-        // its own and can validly have no public unit rate (canonical-only and
-        // package contracts), so a relational guard must not remove it.
-        $companySnapshots = ContractPriceSnapshot::query()
-            ->where('company_name', $companyName)
-            ->whereDate('snapshot_date', $statDate)
-            ->where('pricing_basis', $pricingBasis)
-            ->when($pricingBasis !== ContractPriceBasis::CanonicalCalculation->value, fn ($query) => $query
-                ->where('energy_price_cents_per_kwh', '>', 0)
-                ->where('energy_price_cents_per_kwh', '<=', self::MAX_PLAUSIBLE_ENERGY_PRICE_CENTS))
-            ->get(['segment_key', 'annual_cost_'.$referenceConsumption.'_kwh as annual_cost']);
+        $companySnapshots = $this->companyAnnualRows(
+            $companyName,
+            $referenceConsumption,
+            $statDate,
+            $pricingBasis,
+        );
 
         $rows = $this->buildRows($companySnapshots, $marketRows);
         if ($rows === []) {
@@ -244,6 +242,7 @@ class CompanyMarketComparisonService
         $rows = ContractPriceDailyStatistic::query()
             ->whereDate('stat_date', $statDate)
             ->where('segment_key', 'spot')
+            ->unitStatistics()
             ->where('pricing_basis', $pricingBasis)
             ->whereNull('consumption_kwh')
             ->whereIn('metric_key', ['spot_margin', 'monthly_fee'])
@@ -275,6 +274,10 @@ class CompanyMarketComparisonService
 
     private function latestUsableDate(string $companyName, int $referenceConsumption, string $pricingBasis): ?string
     {
+        if (ContractPriceDailyStatistic::activeAnnualMethodVersion() === AnnualCostMethodVersion::AsOf) {
+            return $this->latestAsOfUsableDate($companyName, $referenceConsumption, $pricingBasis);
+        }
+
         $annualCostColumn = 'snapshots.annual_cost_'.$referenceConsumption.'_kwh';
 
         $date = ContractPriceSnapshot::query()
@@ -287,6 +290,7 @@ class CompanyMarketComparisonService
             ->where('snapshots.company_name', $companyName)
             ->where('snapshots.pricing_basis', $pricingBasis)
             ->where('statistics.metric_key', 'annual_cost')
+            ->where('statistics.method_version', AnnualCostMethodVersion::Legacy->value)
             ->where('statistics.consumption_kwh', $referenceConsumption)
             ->where('statistics.contract_count', '>=', self::MIN_MARKET_CONTRACTS)
             ->whereNotNull('statistics.p20_value')
@@ -299,6 +303,84 @@ class CompanyMarketComparisonService
                 ->where('snapshots.energy_price_cents_per_kwh', '<=', self::MAX_PLAUSIBLE_ENERGY_PRICE_CENTS))
             ->max('snapshots.snapshot_date');
 
+        return $this->dateString($date);
+    }
+
+    private function latestAsOfUsableDate(
+        string $companyName,
+        int $referenceConsumption,
+        string $pricingBasis,
+    ): ?string {
+        $date = ContractPriceAnnualCost::query()
+            ->from('contract_price_annual_costs as annual_costs')
+            ->join('contract_price_snapshots as snapshots', function ($join) {
+                $join->on('snapshots.snapshot_date', '=', 'annual_costs.snapshot_date')
+                    ->on('snapshots.contract_id', '=', 'annual_costs.contract_id');
+            })
+            ->join('contract_price_daily_statistics as statistics', function ($join) {
+                $join->on('statistics.stat_date', '=', 'annual_costs.snapshot_date')
+                    ->on('statistics.segment_key', '=', 'annual_costs.segment_key')
+                    ->on('statistics.pricing_basis', '=', 'annual_costs.pricing_basis')
+                    ->on('statistics.consumption_kwh', '=', 'annual_costs.consumption_kwh')
+                    ->on('statistics.method_version', '=', 'annual_costs.method_version');
+            })
+            ->where('snapshots.company_name', $companyName)
+            ->where('annual_costs.pricing_basis', $pricingBasis)
+            ->where('annual_costs.method_version', AnnualCostMethodVersion::AsOf->value)
+            ->where('annual_costs.consumption_kwh', $referenceConsumption)
+            ->where('annual_costs.annual_cost', '>', 0)
+            ->where('statistics.metric_key', 'annual_cost')
+            ->where('statistics.contract_count', '>=', self::MIN_MARKET_CONTRACTS)
+            ->whereNotNull('statistics.p20_value')
+            ->whereNotNull('statistics.median_value')
+            ->whereNotNull('statistics.p80_value')
+            ->when($pricingBasis === ContractPriceBasis::ObservedSellerData->value, fn ($query) => $query
+                ->where('snapshots.energy_price_cents_per_kwh', '>', 0)
+                ->where('snapshots.energy_price_cents_per_kwh', '<=', self::MAX_PLAUSIBLE_ENERGY_PRICE_CENTS))
+            ->max('annual_costs.snapshot_date');
+
+        return $this->dateString($date);
+    }
+
+    /** @return Collection<int,object> */
+    private function companyAnnualRows(
+        string $companyName,
+        int $referenceConsumption,
+        string $statDate,
+        string $pricingBasis,
+    ): Collection {
+        // The legacy branch intentionally keeps reading the unversioned annual
+        // snapshot columns. It must remain unchanged while both methods coexist.
+        if (ContractPriceDailyStatistic::activeAnnualMethodVersion() === AnnualCostMethodVersion::Legacy) {
+            return ContractPriceSnapshot::query()
+                ->where('company_name', $companyName)
+                ->whereDate('snapshot_date', $statDate)
+                ->where('pricing_basis', $pricingBasis)
+                ->when($pricingBasis !== ContractPriceBasis::CanonicalCalculation->value, fn ($query) => $query
+                    ->where('energy_price_cents_per_kwh', '>', 0)
+                    ->where('energy_price_cents_per_kwh', '<=', self::MAX_PLAUSIBLE_ENERGY_PRICE_CENTS))
+                ->get(['segment_key', 'annual_cost_'.$referenceConsumption.'_kwh as annual_cost']);
+        }
+
+        return ContractPriceAnnualCost::query()
+            ->from('contract_price_annual_costs as annual_costs')
+            ->join('contract_price_snapshots as snapshots', function ($join) {
+                $join->on('snapshots.snapshot_date', '=', 'annual_costs.snapshot_date')
+                    ->on('snapshots.contract_id', '=', 'annual_costs.contract_id');
+            })
+            ->where('snapshots.company_name', $companyName)
+            ->whereDate('annual_costs.snapshot_date', $statDate)
+            ->where('annual_costs.pricing_basis', $pricingBasis)
+            ->where('annual_costs.method_version', AnnualCostMethodVersion::AsOf->value)
+            ->where('annual_costs.consumption_kwh', $referenceConsumption)
+            ->when($pricingBasis === ContractPriceBasis::ObservedSellerData->value, fn ($query) => $query
+                ->where('snapshots.energy_price_cents_per_kwh', '>', 0)
+                ->where('snapshots.energy_price_cents_per_kwh', '<=', self::MAX_PLAUSIBLE_ENERGY_PRICE_CENTS))
+            ->get(['annual_costs.segment_key', 'annual_costs.annual_cost']);
+    }
+
+    private function dateString(mixed $date): ?string
+    {
         return $date === null
             ? null
             : Carbon::parse($date)->setTimezone((string) config('app.timezone'))->toDateString();
@@ -473,7 +555,7 @@ class CompanyMarketComparisonService
         $canonicalStart = $pricingBasis === ContractPriceBasis::CanonicalCalculation->value
             ? ContractPriceDailyStatistic::query()
                 ->where('segment_key', $segmentKey)
-                ->where('metric_key', 'annual_cost')
+                ->activeAnnualMethod()
                 ->where('consumption_kwh', $referenceConsumption)
                 ->where('pricing_basis', $pricingBasis)
                 ->whereDate('stat_date', '>=', $from)
@@ -484,9 +566,15 @@ class CompanyMarketComparisonService
             ? Carbon::parse($canonicalStart)->setTimezone((string) config('app.timezone'))->toDateString()
             : null;
 
+        $annualMethod = ContractPriceDailyStatistic::activeAnnualMethodVersion();
+        $marketColumns = ['stat_date', 'p20_value', 'median_value', 'p80_value'];
+        if ($annualMethod === AnnualCostMethodVersion::AsOf) {
+            $marketColumns[] = 'compatibility_key';
+        }
+
         $marketDaily = ContractPriceDailyStatistic::query()
             ->where('segment_key', $segmentKey)
-            ->where('metric_key', 'annual_cost')
+            ->activeAnnualMethod()
             ->where('consumption_kwh', $referenceConsumption)
             ->where(function ($query) use ($pricingBasis, $canonicalStart) {
                 $query->where('pricing_basis', $pricingBasis);
@@ -501,48 +589,31 @@ class CompanyMarketComparisonService
             ->whereDate('stat_date', '>=', $from)
             ->whereDate('stat_date', '<=', $statDate)
             ->orderBy('stat_date')
-            ->get(['stat_date', 'p20_value', 'median_value', 'p80_value']);
+            ->get($marketColumns);
 
         if ($marketDaily->isEmpty()) {
             return null;
         }
 
-        // Keep dated observed seller evidence before canonical forward collection
-        // starts. On and after that boundary, only canonical rows can own a point.
-        $companyDaily = ContractPriceSnapshot::query()
-            ->where('company_name', $companyName)
-            ->where('segment_key', $segmentKey)
-            ->where(function ($query) use ($pricingBasis, $canonicalStart) {
-                $query->where(function ($current) use ($pricingBasis) {
-                    $current->where('pricing_basis', $pricingBasis)
-                        ->when($pricingBasis === ContractPriceBasis::ObservedSellerData->value, fn ($observed) => $observed
-                            ->where('energy_price_cents_per_kwh', '>', 0)
-                            ->where('energy_price_cents_per_kwh', '<=', self::MAX_PLAUSIBLE_ENERGY_PRICE_CENTS));
-                });
-
-                if ($canonicalStart !== null) {
-                    $query->orWhere(function ($observed) use ($canonicalStart) {
-                        $observed->where('pricing_basis', ContractPriceBasis::ObservedSellerData->value)
-                            ->whereDate('snapshot_date', '<', $canonicalStart)
-                            ->where('energy_price_cents_per_kwh', '>', 0)
-                            ->where('energy_price_cents_per_kwh', '<=', self::MAX_PLAUSIBLE_ENERGY_PRICE_CENTS);
-                    });
-                }
-            })
-            ->whereDate('snapshot_date', '>=', $from)
-            ->whereDate('snapshot_date', '<=', $statDate)
-            ->get(['snapshot_date', 'annual_cost_'.$referenceConsumption.'_kwh as annual_cost'])
-            ->groupBy(fn ($row) => Carbon::parse($row->snapshot_date)->toDateString())
-            ->map(function (Collection $rows) {
-                $values = $rows
-                    ->pluck('annual_cost')
-                    ->filter(fn ($value) => $value !== null && (float) $value > 0)
-                    ->map(fn ($value) => (float) $value)
-                    ->values()
-                    ->all();
-
-                return $values === [] ? null : $this->median($values);
-            });
+        $companyDaily = $annualMethod === AnnualCostMethodVersion::Legacy
+            ? $this->legacyCompanyChartDaily(
+                $companyName,
+                $segmentKey,
+                $referenceConsumption,
+                $pricingBasis,
+                $canonicalStart,
+                $from,
+                $statDate,
+            )
+            : $this->asOfCompanyChartDaily(
+                $companyName,
+                $segmentKey,
+                $referenceConsumption,
+                $pricingBasis,
+                $canonicalStart,
+                $from,
+                $statDate,
+            );
 
         $weeks = [];
 
@@ -551,6 +622,10 @@ class CompanyMarketComparisonService
             $weeks[$week]['p20'][] = $row->p20_value === null ? null : (float) $row->p20_value;
             $weeks[$week]['median'][] = $row->median_value === null ? null : (float) $row->median_value;
             $weeks[$week]['p80'][] = $row->p80_value === null ? null : (float) $row->p80_value;
+
+            if ($annualMethod === AnnualCostMethodVersion::AsOf) {
+                $weeks[$week]['compatibility_keys'][] = $row->compatibility_key;
+            }
         }
 
         foreach ($companyDaily as $date => $value) {
@@ -568,13 +643,19 @@ class CompanyMarketComparisonService
         ksort($weeks);
 
         $x = $companySeries = $marketSeries = $lower = $upper = [];
+        $compatibility = $annualMethod === AnnualCostMethodVersion::AsOf
+            ? new AnnualSeriesCompatibility
+            : null;
 
         foreach ($weeks as $week => $values) {
             $x[] = Carbon::parse($week)->getTimestamp();
-            $companySeries[] = $this->averageOrNull($values['company'] ?? []);
-            $marketSeries[] = $this->averageOrNull($values['median'] ?? []);
-            $lower[] = $this->averageOrNull($values['p20'] ?? []);
-            $upper[] = $this->averageOrNull($values['p80'] ?? []);
+            $period = $compatibility?->evaluatePeriod($values['compatibility_keys'] ?? []);
+            $comparable = $period === null || $period['comparable'];
+
+            $companySeries[] = $comparable ? $this->averageOrNull($values['company'] ?? []) : null;
+            $marketSeries[] = $comparable ? $this->averageOrNull($values['median'] ?? []) : null;
+            $lower[] = $comparable ? $this->averageOrNull($values['p20'] ?? []) : null;
+            $upper[] = $comparable ? $this->averageOrNull($values['p80'] ?? []) : null;
         }
 
         $companyPoints = count(array_filter($companySeries, fn ($value) => $value !== null));
@@ -605,6 +686,101 @@ class CompanyMarketComparisonService
             'current_pricing_basis' => $pricingBasis,
             'canonical_from' => $canonicalStart,
         ];
+    }
+
+    /** @return Collection<string,?float> */
+    private function legacyCompanyChartDaily(
+        string $companyName,
+        string $segmentKey,
+        int $referenceConsumption,
+        string $pricingBasis,
+        ?string $canonicalStart,
+        string $from,
+        string $statDate,
+    ): Collection {
+        // Keep dated observed seller evidence before canonical forward collection
+        // starts. On and after that boundary, only canonical rows can own a point.
+        return ContractPriceSnapshot::query()
+            ->where('company_name', $companyName)
+            ->where('segment_key', $segmentKey)
+            ->where(function ($query) use ($pricingBasis, $canonicalStart) {
+                $query->where(function ($current) use ($pricingBasis) {
+                    $current->where('pricing_basis', $pricingBasis)
+                        ->when($pricingBasis === ContractPriceBasis::ObservedSellerData->value, fn ($observed) => $observed
+                            ->where('energy_price_cents_per_kwh', '>', 0)
+                            ->where('energy_price_cents_per_kwh', '<=', self::MAX_PLAUSIBLE_ENERGY_PRICE_CENTS));
+                });
+
+                if ($canonicalStart !== null) {
+                    $query->orWhere(function ($observed) use ($canonicalStart) {
+                        $observed->where('pricing_basis', ContractPriceBasis::ObservedSellerData->value)
+                            ->whereDate('snapshot_date', '<', $canonicalStart)
+                            ->where('energy_price_cents_per_kwh', '>', 0)
+                            ->where('energy_price_cents_per_kwh', '<=', self::MAX_PLAUSIBLE_ENERGY_PRICE_CENTS);
+                    });
+                }
+            })
+            ->whereDate('snapshot_date', '>=', $from)
+            ->whereDate('snapshot_date', '<=', $statDate)
+            ->get(['snapshot_date', 'annual_cost_'.$referenceConsumption.'_kwh as annual_cost'])
+            ->groupBy(fn ($row) => Carbon::parse($row->snapshot_date)->toDateString())
+            ->map(fn (Collection $rows) => $this->dailyCompanyMedian($rows));
+    }
+
+    /** @return Collection<string,?float> */
+    private function asOfCompanyChartDaily(
+        string $companyName,
+        string $segmentKey,
+        int $referenceConsumption,
+        string $pricingBasis,
+        ?string $canonicalStart,
+        string $from,
+        string $statDate,
+    ): Collection {
+        return ContractPriceAnnualCost::query()
+            ->from('contract_price_annual_costs as annual_costs')
+            ->join('contract_price_snapshots as snapshots', function ($join) {
+                $join->on('snapshots.snapshot_date', '=', 'annual_costs.snapshot_date')
+                    ->on('snapshots.contract_id', '=', 'annual_costs.contract_id');
+            })
+            ->where('snapshots.company_name', $companyName)
+            ->where('annual_costs.segment_key', $segmentKey)
+            ->where('annual_costs.method_version', AnnualCostMethodVersion::AsOf->value)
+            ->where('annual_costs.consumption_kwh', $referenceConsumption)
+            ->where(function ($query) use ($pricingBasis, $canonicalStart) {
+                $query->where(function ($current) use ($pricingBasis) {
+                    $current->where('annual_costs.pricing_basis', $pricingBasis)
+                        ->when($pricingBasis === ContractPriceBasis::ObservedSellerData->value, fn ($observed) => $observed
+                            ->where('snapshots.energy_price_cents_per_kwh', '>', 0)
+                            ->where('snapshots.energy_price_cents_per_kwh', '<=', self::MAX_PLAUSIBLE_ENERGY_PRICE_CENTS));
+                });
+
+                if ($canonicalStart !== null) {
+                    $query->orWhere(function ($observed) use ($canonicalStart) {
+                        $observed->where('annual_costs.pricing_basis', ContractPriceBasis::ObservedSellerData->value)
+                            ->whereDate('annual_costs.snapshot_date', '<', $canonicalStart)
+                            ->where('snapshots.energy_price_cents_per_kwh', '>', 0)
+                            ->where('snapshots.energy_price_cents_per_kwh', '<=', self::MAX_PLAUSIBLE_ENERGY_PRICE_CENTS);
+                    });
+                }
+            })
+            ->whereDate('annual_costs.snapshot_date', '>=', $from)
+            ->whereDate('annual_costs.snapshot_date', '<=', $statDate)
+            ->get(['annual_costs.snapshot_date', 'annual_costs.annual_cost'])
+            ->groupBy(fn ($row) => Carbon::parse($row->snapshot_date)->toDateString())
+            ->map(fn (Collection $rows) => $this->dailyCompanyMedian($rows));
+    }
+
+    private function dailyCompanyMedian(Collection $rows): ?float
+    {
+        $values = $rows
+            ->pluck('annual_cost')
+            ->filter(fn ($value) => $value !== null && (float) $value > 0)
+            ->map(fn ($value) => (float) $value)
+            ->values()
+            ->all();
+
+        return $values === [] ? null : $this->median($values);
     }
 
     private function weekStart(CarbonInterface|string $date): string
@@ -642,6 +818,7 @@ class CompanyMarketComparisonService
     {
         $pricingBasis = $this->pricingMode->expectedContractPriceBasis()->value;
         $canonicalEnabled = $this->pricingMode->enabled();
+        $annualMethod = ContractPriceDailyStatistic::activeAnnualMethodVersion();
         $bases = $canonicalEnabled
             ? [ContractPriceBasis::CanonicalCalculation->value, ContractPriceBasis::ObservedSellerData->value]
             : [$pricingBasis];
@@ -649,7 +826,9 @@ class CompanyMarketComparisonService
         $hasData = false;
 
         foreach ($bases as $basis) {
-            $statistics = ContractPriceDailyStatistic::query()->where('pricing_basis', $basis);
+            $statistics = ContractPriceDailyStatistic::query()
+                ->activeMetricMethods()
+                ->where('pricing_basis', $basis);
             $snapshots = ContractPriceSnapshot::query()->where('pricing_basis', $basis);
             $statDate = $statistics->max('stat_date');
             $snapshotDate = $snapshots->max('snapshot_date');
@@ -660,6 +839,16 @@ class CompanyMarketComparisonService
                 'snapshots_latest_date' => $snapshotDate,
                 'snapshots_latest_updated' => $snapshots->max('updated_at'),
             ];
+
+            if ($annualMethod === AnnualCostMethodVersion::AsOf) {
+                $annualCosts = ContractPriceAnnualCost::query()
+                    ->where('method_version', $annualMethod->value)
+                    ->where('pricing_basis', $basis);
+                $annualDate = $annualCosts->max('snapshot_date');
+                $hasData = $hasData || $annualDate !== null;
+                $sources[$basis]['annual_costs_latest_date'] = $annualDate;
+                $sources[$basis]['annual_costs_latest_updated'] = $annualCosts->max('updated_at');
+            }
         }
 
         if (! $hasData) {
@@ -669,6 +858,7 @@ class CompanyMarketComparisonService
         return md5(json_encode([
             'canonical_enabled' => $canonicalEnabled,
             'expected_pricing_basis' => $pricingBasis,
+            'active_annual_method' => $annualMethod->value,
             'sources' => $sources,
         ]));
     }

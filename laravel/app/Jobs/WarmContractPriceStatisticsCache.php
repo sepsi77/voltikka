@@ -27,12 +27,11 @@ class WarmContractPriceStatisticsCache implements ShouldBeUnique, ShouldQueue
     public function __construct(
         public readonly string $period = 'weekly',
         public readonly int $consumption = 5000,
-    ) {
-    }
+    ) {}
 
     public function uniqueId(): string
     {
-        return $this->period . ':' . $this->consumption;
+        return $this->period.':'.$this->consumption;
     }
 
     public function handle(): void

@@ -12,18 +12,26 @@ Purpose: place one seller's own contract prices against the whole market, per
 contract-type segment, for the `[yhtiö] hinta` / `sähkön hinta` query cluster on
 `/sahkosopimus/sahkoyhtiot/{slug}`.
 
-It reads two tables that already exist and calculates no contract prices of its
+It reads precomputed statistics tables and calculates no contract prices of its
 own:
 
 - `contract_price_daily_statistics` — the market p20 / median / p80 band
-- `contract_price_snapshots` — the same fields per contract, with `company_name`
+- `contract_price_snapshots` — legacy seller annual values plus company identity and observed unit evidence
+- `contract_price_annual_costs` — versioned seller annual values for `annual_cost_as_of_v1`
 
-Both are written by `ContractPriceStatisticsService` on the same date by the same
-method. The service selects the latest **usable joined date** for
-request-scoped `PricingMode::expectedContractPriceBasis()`: market and seller rows must share date,
-segment, basis, consumption, and the minimum market count. Thus a newer
-wrong-basis or market-only date cannot replace a usable canonical pair. **Do not
-swap either side for a live `ContractPriceCalculator` call.**
+The service branches on `ContractPriceDailyStatistic::activeAnnualMethodVersion()`.
+The legacy branch keeps its old snapshot-column behavior. The AsOf branch reads the
+seller total only from `contract_price_annual_costs`, filtered by exact method, date,
+consumption, company, segment, and pricing basis. It joins the same-date snapshot only
+to identify the company and apply the historical observed energy-rate guard. It never
+reads a snapshot annual column.
+
+Both branches select the latest **usable joined date** for request-scoped
+`PricingMode::expectedContractPriceBasis()`: active-method market and seller rows must
+share date, segment, basis, consumption, and the minimum market count. Thus a newer
+wrong-basis or market-only date cannot replace a usable canonical pair, and AsOf
+market aggregates can never pair with legacy seller annual values. **Do not swap
+either side for a live `ContractPriceCalculator` call.**
 
 When canonical mode has no usable canonical joined date, the service can select
 the latest usable `observed_seller_data` joined date. This is an explicitly
@@ -159,15 +167,23 @@ persisted `market_reset` points. In both cases:
   behaviour exactly, so `/sahkosopimus/tilastot` and the article chart are
   unchanged.
 - A seller-only week is dropped: its line would sit over an empty band.
+- In AsOf mode, the seller daily series comes from `contract_price_annual_costs`.
+  The market series uses the shared `AnnualSeriesCompatibility` guard. A week that
+  mixes null legacy and named keys, or any other key pair, makes seller, median,
+  and band values null. The first week after a transition is also null, including
+  a transition on Monday. The shared x-axis stays present. The legacy weekly chart
+  is unchanged.
 
 ### Caching
 
-Cached for 6 hours under key schema v6: request-scoped `PricingMode` canonical state + expected basis + company
-+ snapped reference consumption + a fingerprint of the two source tables'
-newest dates and maximum `updated_at`. In canonical mode the fingerprint includes
-both canonical and observed bases because either can own the payload. A same-day
-rewrite therefore creates a new key, and a flag flip cannot serve an
-opposite-basis payload.
+Cached for 6 hours under key schema v9: active annual method + request-scoped
+`PricingMode` canonical state + expected basis + company + snapped reference
+consumption. The legacy fingerprint remains based on snapshots and active-method
+statistics. The AsOf fingerprint also includes the versioned annual table's newest
+date and maximum `updated_at`. In canonical mode the fingerprint includes both
+canonical and observed bases because either can own the payload. A same-day rewrite
+therefore creates a new key, and a flag or method flip cannot serve an incompatible
+payload.
 Skipped under `runningUnitTests()`, like the page-level caches, to avoid
 array-driver pollution across tests.
 

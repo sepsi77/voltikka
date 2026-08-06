@@ -8,6 +8,7 @@ use App\Models\ElectricityContract;
 use App\Models\SpotPriceHour;
 use App\Models\SpotPriceQuarter;
 use App\Services\CanonicalPricing\PricingMode;
+use App\Services\ContractStatistics\AnnualSeriesCompatibility;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
@@ -171,8 +172,8 @@ class HomePage extends Component
         $start = Carbon::now()->subDays(180)->toDateString();
         $expectedBasis = app(PricingMode::class)->expectedContractPriceBasis()->value;
         $sourceQuery = ContractPriceDailyStatistic::query()
+            ->activeAnnualMethod()
             ->whereIn('segment_key', array_keys($segments))
-            ->where('metric_key', 'annual_cost')
             ->where('consumption_kwh', 5000)
             ->where('stat_date', '>=', $start);
         $latestExpectedDate = (clone $sourceQuery)
@@ -188,7 +189,8 @@ class HomePage extends Component
             ->where('stat_date', '<=', $latestExpectedDate)
             ->selectRaw('COUNT(*) as row_count, MAX(updated_at) as latest_update')
             ->first();
-        $cacheKey = 'home-page:contract-price-trend:v6:'.md5(json_encode([
+        $cacheKey = 'home-page:contract-price-trend:v7:'.md5(json_encode([
+            'annual_method' => ContractPriceDailyStatistic::activeAnnualMethodVersion()->value,
             'pricing_basis' => $expectedBasis,
             'latest_expected_date' => (string) $latestExpectedDate,
             'row_count' => (int) ($sourceVersion?->row_count ?? 0),
@@ -197,8 +199,8 @@ class HomePage extends Component
 
         return Cache::remember($cacheKey, Carbon::tomorrow(), function () use ($segments, $start, $expectedBasis, $latestExpectedDate) {
             $rows = ContractPriceDailyStatistic::query()
+                ->activeAnnualMethod()
                 ->whereIn('segment_key', array_keys($segments))
-                ->where('metric_key', 'annual_cost')
                 ->where('consumption_kwh', 5000)
                 ->where('stat_date', '>=', $start)
                 ->where(function ($query) use ($expectedBasis, $latestExpectedDate) {
@@ -209,25 +211,29 @@ class HomePage extends Component
                         });
                 })
                 ->orderBy('stat_date')
-                ->get(['stat_date', 'segment_key', 'metric_key', 'median_value', 'pricing_basis']);
+                ->get(['stat_date', 'segment_key', 'median_value', 'pricing_basis', 'compatibility_key']);
 
             $latestPricingBasis = $expectedBasis;
             $weeklyBySegment = [];
             foreach ($segments as $segmentKey => $label) {
-                $byWeek = [];
-                foreach ($rows as $row) {
-                    if ($row->segment_key !== $segmentKey || $row->median_value === null) {
-                        continue;
-                    }
-                    $weekStart = Carbon::parse($row->stat_date)->startOfWeek(Carbon::MONDAY)->toDateString();
-                    $byWeek[$weekStart][] = (float) $row->median_value;
-                }
-                ksort($byWeek);
+                $byWeek = $rows
+                    ->where('segment_key', $segmentKey)
+                    ->groupBy(fn ($row) => Carbon::parse($row->stat_date)->startOfWeek(Carbon::MONDAY)->toDateString())
+                    ->sortKeys();
+                $compatibility = new AnnualSeriesCompatibility;
+                $weeklyBySegment[$segmentKey] = [];
 
-                $weeklyBySegment[$segmentKey] = array_map(
-                    static fn (array $vals) => round(array_sum($vals) / count($vals), 2),
-                    $byWeek,
-                );
+                foreach ($byWeek as $weekStart => $weekRows) {
+                    $weekRows = $weekRows->sortBy('stat_date')->values();
+                    $period = $compatibility->evaluatePeriod($weekRows->pluck('compatibility_key')->all());
+                    $values = $weekRows->pluck('median_value')->filter(fn ($value) => $value !== null);
+                    $weeklyBySegment[$segmentKey][$weekStart] = [
+                        'value' => $period['comparable'] && $values->isNotEmpty()
+                            ? round((float) $values->avg(), 2)
+                            : null,
+                        'compatibility_key' => $period['compatibility_key'],
+                    ];
+                }
             }
 
             $allWeeks = [];
@@ -246,10 +252,16 @@ class HomePage extends Component
             $series = [];
             foreach ($segments as $segmentKey => $label) {
                 $values = [];
+                $compatibilityKeys = [];
                 foreach ($allWeeks as $weekStart) {
-                    $values[] = $weeklyBySegment[$segmentKey][$weekStart] ?? null;
+                    $values[] = $weeklyBySegment[$segmentKey][$weekStart]['value'] ?? null;
+                    $compatibilityKeys[] = $weeklyBySegment[$segmentKey][$weekStart]['compatibility_key'] ?? null;
                 }
-                $series[] = ['label' => $label, 'values' => $values];
+                $series[] = [
+                    'label' => $label,
+                    'values' => $values,
+                    'compatibility_keys' => $compatibilityKeys,
+                ];
             }
 
             return [
@@ -267,7 +279,7 @@ class HomePage extends Component
      * range, fixed-term 12-month range, and which segment is currently most or
      * least expensive. Returns null if data is too sparse to characterize.
      *
-     * @param  array<int, array{label:string, values:array<int,?float>}>  $series
+     * @param  array<int, array{label:string, values:array<int,?float>, compatibility_keys:array<int,?string>}>  $series
      */
     private function buildTrendCaption(array $series, string $latestPricingBasis): ?string
     {
@@ -275,8 +287,8 @@ class HomePage extends Component
             return null;
         }
 
-        $spotValues = array_values(array_filter($series[0]['values'], static fn ($v) => $v !== null));
-        $fixedValues = array_values(array_filter($series[1]['values'], static fn ($v) => $v !== null));
+        $spotValues = $this->valuesInLatestAnnualRegime($series[0]);
+        $fixedValues = $this->valuesInLatestAnnualRegime($series[1]);
 
         if (count($spotValues) < 2 || count($fixedValues) < 2) {
             return null;
@@ -317,5 +329,28 @@ class HomePage extends Component
             $lcfirst($lowestLabel),
             $provenance,
         );
+    }
+
+    /**
+     * @param  array{values:array<int,?float>,compatibility_keys:array<int,?string>}  $series
+     * @return array<int,float>
+     */
+    private function valuesInLatestAnnualRegime(array $series): array
+    {
+        if ($series['compatibility_keys'] === []) {
+            return [];
+        }
+
+        $latestKey = $series['compatibility_keys'][array_key_last($series['compatibility_keys'])] ?? null;
+
+        return collect($series['values'])
+            ->filter(function ($value, int $index) use ($latestKey, $series): bool {
+                $key = $series['compatibility_keys'][$index] ?? null;
+
+                return $value !== null && AnnualSeriesCompatibility::sameKey($key, $latestKey);
+            })
+            ->map(fn ($value) => (float) $value)
+            ->values()
+            ->all();
     }
 }

@@ -50,6 +50,14 @@ feature flag is retired by a separate decision.
 There is no contract API response cache. A change to this shape does not require an application
 cache-version bump.
 
+## Contract statistics CSV
+
+`GET /sahkosopimus/tilastot.csv` is an audit export. It includes every daily-statistics method
+version, annual calculation/estimate/compatibility provenance, JSON `basis_counts`, and an
+`is_active_annual_method` marker. Only annual rows at the configured active method get marker `1`;
+unit rows remain `unit_statistics_v1` with marker `0`. Public pages still filter annual output to
+the active method even though the CSV exposes shadow versions.
+
 ## Company resource logos
 
 `Resources/CompanyResource` returns `Company::getLogoUrl()` instead of the raw upstream

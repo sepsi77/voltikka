@@ -141,7 +141,8 @@ Voltikka stores daily contract-price trend data for `/sahkosopimus/tilastot`.
 
 Primary tables:
 - `contract_price_snapshots` — one daily row per included contract with normalized component prices and annual-cost estimates for 2000/5000/18000 kWh.
-- `contract_price_daily_statistics` — aggregate daily min/p20/average/p80/max rows by segment and metric.
+- `contract_price_annual_costs` — versioned annual-only rows by date, contract, consumption, and method; initially shadow persistence only.
+- `contract_price_daily_statistics` — aggregate daily min/p20/average/p80/max rows by segment, metric, and method version.
 
 Primary implementation:
 - `app/Services/ContractStatistics/ContractPriceStatisticsService.php`
@@ -152,20 +153,23 @@ Primary implementation:
 
 Commands:
 ```bash
-php artisan contracts:calculate-price-statistics --date=2026-04-29 --overwrite
+php artisan contracts:calculate-price-statistics --overwrite
 php artisan contracts:backfill-price-statistics --from=2025-01-01 --to=2026-04-29 --overwrite
+php artisan contracts:rebuild-annual-cost-statistics --from=2025-01-01 --to=2026-04-29
+php artisan contracts:rebuild-annual-cost-statistics --date=2026-04-29 --apply
 ```
 
 Important semantics:
 - future daily calculations are run during `contracts:fetch` and use `active_contracts`; in canonical mode all current numeric metrics and measured offer state come from batched typed canonical outcomes and no `price_components` query runs
-- `/sahkosopimus/tilastot` serves cached prepared view data per period + consumption and automatically busts that cache when statistics/snapshot/source spot-price fingerprints change
+- `/sahkosopimus/tilastot` serves cached prepared view data per period + consumption. Its v13 key and source fingerprint include the configured active annual method; shadow annual rows do not invalidate or enter the legacy public payload
 - the contract post-import coordinator calls `ContractPriceStatisticsService::calculateForDate()` before optional percentile badge thresholds so `/sahkosopimus/tilastot` continues to advance even if percentile recalculation fails; it captures exact start and completion timestamps immediately around this call for the morning freshness checkpoint
 - `contracts:warm-price-statistics-cache` queues `App\Jobs\WarmContractPriceStatisticsCache` by default; use `--sync` only for manual immediate warming/tests. The contract post-import coordinator dispatches that job directly for weekly/5 000 after successful statistics; `spot:fetch` also queues it after source data updates.
 - Production containers start `php artisan queue:work --timeout=420 --tries=3` through root `supervisord.conf`; keep database queue `retry_after` at 450 seconds or more. Queued cache warmers and contract interpretation depend on that worker running.
 - historical backfills infer availability from `price_components.price_date` and always store observed seller evidence; `pricing_basis` distinguishes these rows from canonical forward calculations in the page and CSV
+- the shadow `annual_cost_as_of_v1` historical core uses the union of exact-date snapshot and component contract identities. A component-only identity has no safe historical classification, so it yields exactly three typed `missing_historical_snapshot_identity` exclusions under `unclassified`; snapshot-only canonical evidence remains eligible. It then optionally uses one unambiguous covering source snapshot and a parser-valid interpretation completed by that date. It batches components, chronology, interpretations, exact-target Spot assumptions, and supplier episode anchors. It does not read active contracts, current canonical columns, or current interpretation pointers. `contracts:rebuild-annual-cost-statistics` selects the union of snapshot/component dates, previews by default, and applies only with `--apply`. Apply rejects empty or incomplete three-consumption identity sets before replacement. Canonical current daily calculation instead adapts the exact already-calculated public canonical outcomes after snapshots exist, with one batched current-pointer provenance query and no `price_components` query. Its writer stays inside the same date transaction. Feature-off and historical observed calculations do not run the current adapter. Public readers remain method-isolated and production activation remains separate work
 - `ContractStatisticsSegmentClassifier` owns the one basis-aware segment rule and label map. Canonical card facts map every non-Spot monthly/quarterly/seasonal/other reset to `market_reset` (`Päivittyvä hinta`), with Spot and reset-over-Hybrid precedence from `PricingBucket`. Observed rows keep the old text-first `quarterly` rule and are never relabelled or rewritten
-- public current-statistics consumers use one shared rule: canonical flag on requires `canonical_calculation`, while feature-off requires `observed_seller_data`; they select the latest date for that basis and never fall back across bases
-- one pricing basis owns each newly calculated date: inside the calculation transaction, the target date loses opposite-basis snapshots and the run's own prior snapshots before aggregates are rebuilt; this removes stale canonical exclusions without deleting other dates
+- all public annual-cost consumers explicitly select the configured active annual method, which remains `annual_cost_legacy_v1`. Unit consumers explicitly select `unit_statistics_v1`; mixed queries use the model scope that combines those two branches. Canonical flag on still requires `canonical_calculation` for current unit data, while feature-off requires `observed_seller_data`. On the main page endpoint, active annual rows must use that expected basis or `mixed_evidence`, so feature-off cannot expose a stale canonical AsOf row. Public annual series share one compatibility guard: null is one legacy regime, mixed periods and first points after transitions are gaps, and deltas require equal keys. Company comparison branches by the active method: legacy keeps snapshot annual columns, while AsOf reads seller totals only from `contract_price_annual_costs` and requires same-date active-method market rows
+- one pricing basis owns each newly calculated date: inside the calculation transaction, the target date loses opposite-basis snapshots and the run's own prior snapshots before aggregates are rebuilt; this removes stale canonical exclusions without deleting other dates. Legacy/current calculations replace only `unit_statistics_v1` and `annual_cost_legacy_v1` daily rows, so shadow AsOf daily rows and annual-only rows survive current calculations and historical backfills
 - missing contract rows for a date are excluded; prices are not carried forward
 - spot contracts store both supplier margin and total spot energy price (`stored spot average + margin`)
 

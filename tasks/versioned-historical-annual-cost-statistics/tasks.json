@@ -1,0 +1,13 @@
+[
+  {"name":"Map historical evidence and statistics persistence","status":"completed"},
+  {"name":"Design annual-cost method and basis provenance","status":"completed"},
+  {"name":"Implement versioned annual-cost persistence foundation","status":"completed"},
+  {"name":"Implement as-of evidence resolution","status":"completed"},
+  {"name":"Implement historical annual calculation","status":"completed"},
+  {"name":"Implement dry-run historical rebuild and annual-only writer","status":"completed"},
+  {"name":"Integrate current daily annual rows from public canonical outcomes","status":"completed"},
+  {"name":"Implement version-aware public trends CSV and company comparisons","status":"completed"},
+  {"name":"Add regression coverage and documentation","status":"completed"},
+  {"name":"Run final verification and fresh production-data dry run","status":"in_progress"},
+  {"name":"Prepare confirmed production recalculation and activation","status":"pending"}
+]

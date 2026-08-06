@@ -5,6 +5,7 @@ namespace App\Services\ContractMarketInsights;
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\FixedContractPriceForecast;
 use App\Services\CanonicalPricing\PricingMode;
+use App\Services\ContractStatistics\AnnualSeriesCompatibility;
 use App\Services\ContractStatistics\ContractPriceBasis;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -12,8 +13,6 @@ use Illuminate\Support\Facades\Cache;
 
 class ContractMarketInsightService
 {
-    private const TREND_METRIC = 'annual_cost';
-
     public function __construct(private readonly PricingMode $pricingMode) {}
 
     /**
@@ -43,11 +42,14 @@ class ContractMarketInsightService
         $canonicalEnabled = $this->pricingMode->enabled();
 
         return Cache::remember(
-            'contract-market-insight:fingerprint:v3:'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis,
+            'contract-market-insight:fingerprint:v4:'.ContractPriceDailyStatistic::activeAnnualMethodVersion()->value.':'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis,
             now()->addMinutes(10),
             function () use ($pricingBasis, $canonicalEnabled) {
-                $expected = ContractPriceDailyStatistic::query()->where('pricing_basis', $pricingBasis);
+                $expected = ContractPriceDailyStatistic::query()
+                    ->activeAnnualMethod()
+                    ->where('pricing_basis', $pricingBasis);
                 $observed = ContractPriceDailyStatistic::query()
+                    ->activeAnnualMethod()
                     ->where('pricing_basis', ContractPriceBasis::ObservedSellerData->value);
 
                 return md5(json_encode([
@@ -73,7 +75,7 @@ class ContractMarketInsightService
         $segmentKey = $segmentKey ?: 'aggregate';
 
         return Cache::remember(
-            'contract-market-insight:v6:'.md5(json_encode([
+            'contract-market-insight:v8:'.md5(json_encode([
                 $segmentKey,
                 $consumption,
                 $includeForecast,
@@ -133,7 +135,7 @@ class ContractMarketInsightService
                 : $latestBasis);
         $latest = ContractPriceDailyStatistic::query()
             ->where('segment_key', $segmentKey)
-            ->where('metric_key', self::TREND_METRIC)
+            ->activeAnnualMethod()
             ->where('pricing_basis', $latestBasis)
             ->where('consumption_kwh', $consumption)
             ->where('contract_count', '>', 0)
@@ -146,15 +148,19 @@ class ContractMarketInsightService
 
         $previous = ContractPriceDailyStatistic::query()
             ->where('segment_key', $segmentKey)
-            ->where('metric_key', self::TREND_METRIC)
+            ->activeAnnualMethod()
             ->where('pricing_basis', $previousBasis)
+            ->where('compatibility_key', $latest->compatibility_key)
             ->where('consumption_kwh', $consumption)
             ->where('contract_count', '>', 0)
             ->whereDate('stat_date', '<=', Carbon::parse($latest->stat_date)->subDays(30)->toDateString())
             ->orderByDesc('stat_date')
             ->first();
 
-        if ($previous === null || $previous->median_value === null) {
+        if ($previous === null
+            || $previous->median_value === null
+            || ! AnnualSeriesCompatibility::sameKey($previous->compatibility_key, $latest->compatibility_key)
+        ) {
             return null;
         }
 
@@ -180,7 +186,7 @@ class ContractMarketInsightService
             : $latestBasis;
         $latestDate = ContractPriceDailyStatistic::query()
             ->whereIn('segment_key', $this->aggregateSegments)
-            ->where('metric_key', self::TREND_METRIC)
+            ->activeAnnualMethod()
             ->where('pricing_basis', $latestBasis)
             ->where('consumption_kwh', $consumption)
             ->where('contract_count', '>', 0)
@@ -196,7 +202,7 @@ class ContractMarketInsightService
 
         $previousDate = ContractPriceDailyStatistic::query()
             ->whereIn('segment_key', $this->aggregateSegments)
-            ->where('metric_key', self::TREND_METRIC)
+            ->activeAnnualMethod()
             ->where('pricing_basis', $previousBasis)
             ->where('consumption_kwh', $consumption)
             ->where('contract_count', '>', 0)
@@ -213,6 +219,7 @@ class ContractMarketInsightService
 
         $latestRows = $this->aggregateRowsForDate($latestDate, $consumption, $latestBasis);
         $previousRows = $this->aggregateRowsForDate($previousDate, $consumption, $previousBasis);
+        [$latestRows, $previousRows] = $this->compatibleAggregateRows($latestRows, $previousRows);
 
         $latestWeighted = $this->weightedAverage($latestRows);
         $previousWeighted = $this->weightedAverage($previousRows);
@@ -240,11 +247,41 @@ class ContractMarketInsightService
         return ContractPriceDailyStatistic::query()
             ->whereDate('stat_date', $date)
             ->whereIn('segment_key', $this->aggregateSegments)
-            ->where('metric_key', self::TREND_METRIC)
+            ->activeAnnualMethod()
             ->where('pricing_basis', $pricingBasis)
             ->where('consumption_kwh', $consumption)
             ->where('contract_count', '>', 0)
-            ->get(['median_value', 'contract_count']);
+            ->orderBy('segment_key')
+            ->get(['segment_key', 'compatibility_key', 'median_value', 'contract_count']);
+    }
+
+    /**
+     * Compare the same deterministic segment set at both endpoints. Each segment
+     * can have its own compatibility key, but that key must not change.
+     *
+     * @param  Collection<int, ContractPriceDailyStatistic>  $latestRows
+     * @param  Collection<int, ContractPriceDailyStatistic>  $previousRows
+     * @return array{Collection<int,ContractPriceDailyStatistic>,Collection<int,ContractPriceDailyStatistic>}
+     */
+    private function compatibleAggregateRows(Collection $latestRows, Collection $previousRows): array
+    {
+        $latestBySegment = $latestRows->keyBy('segment_key');
+        $previousBySegment = $previousRows->keyBy('segment_key');
+        $segments = $latestBySegment->keys()
+            ->intersect($previousBySegment->keys())
+            ->filter(function (string $segment) use ($latestBySegment, $previousBySegment): bool {
+                return AnnualSeriesCompatibility::sameKey(
+                    $latestBySegment[$segment]->compatibility_key,
+                    $previousBySegment[$segment]->compatibility_key,
+                );
+            })
+            ->sort()
+            ->values();
+
+        return [
+            $segments->map(fn (string $segment) => $latestBySegment[$segment])->values(),
+            $segments->map(fn (string $segment) => $previousBySegment[$segment])->values(),
+        ];
     }
 
     /**

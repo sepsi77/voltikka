@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\ContractPriceDailyStatistic;
 use App\Services\CanonicalPricing\PricingMode;
+use App\Services\ContractStatistics\AnnualSeriesCompatibility;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
@@ -25,7 +26,7 @@ class ArticleSpotWinRateChart extends Component
         $segments = array_merge(['spot'], array_keys($this->comparisonSegments));
         $pricingBasis = app(PricingMode::class)->expectedContractPriceBasis()->value;
         $latestDate = ContractPriceDailyStatistic::query()
-            ->where('metric_key', 'annual_cost')
+            ->activeAnnualMethod()
             ->where('pricing_basis', $pricingBasis)
             ->where('consumption_kwh', 5000)
             ->whereIn('segment_key', $segments)
@@ -38,9 +39,9 @@ class ArticleSpotWinRateChart extends Component
         $to = Carbon::parse($latestDate)->toDateString();
         $from = Carbon::parse($to)->subYear()->toDateString();
 
-        return Cache::remember('article:spot-win-rate-chart:v2:'.$pricingBasis.':'.$to, now()->addHours(6), function () use ($from, $pricingBasis, $segments, $to) {
+        return Cache::remember('article:spot-win-rate-chart:v3:'.ContractPriceDailyStatistic::activeAnnualMethodVersion()->value.':'.$pricingBasis.':'.$to, now()->addHours(6), function () use ($from, $pricingBasis, $segments, $to) {
             $stats = ContractPriceDailyStatistic::query()
-                ->where('metric_key', 'annual_cost')
+                ->activeAnnualMethod()
                 ->where('consumption_kwh', 5000)
                 ->whereIn('segment_key', $segments)
                 ->whereBetween('stat_date', [$from, $to])
@@ -53,7 +54,7 @@ class ArticleSpotWinRateChart extends Component
                 })
                 ->orderBy('stat_date')
                 ->toBase()
-                ->get(['stat_date', 'segment_key', 'p20_value']);
+                ->get(['stat_date', 'segment_key', 'p20_value', 'compatibility_key']);
 
             $bySegment = [];
             foreach ($stats as $row) {
@@ -61,11 +62,11 @@ class ArticleSpotWinRateChart extends Component
                 $bySegment[$row->segment_key][$date] = $row;
             }
 
-            $spotRows = $bySegment['spot'] ?? [];
+            $spotRows = $this->latestCompatibleDailyRegime($bySegment['spot'] ?? []);
 
             $byComparison = [];
             foreach ($this->comparisonSegments as $key => $_label) {
-                $byComparison[$key] = $bySegment[$key] ?? [];
+                $byComparison[$key] = $this->latestCompatibleDailyRegime($bySegment[$key] ?? []);
             }
 
             $labels = [];
@@ -162,6 +163,35 @@ class ArticleSpotWinRateChart extends Component
                 'to' => $lastDate ? Carbon::parse($lastDate)->translatedFormat('j.n.Y') : null,
             ];
         });
+    }
+
+    /**
+     * Keep only comparable dates in the segment's newest calculation regime.
+     * The compatibility state still sees the complete window, so the first
+     * date after a transition remains a chart gap.
+     *
+     * @param  array<string,object>  $rows
+     * @return array<string,object>
+     */
+    private function latestCompatibleDailyRegime(array $rows): array
+    {
+        if ($rows === []) {
+            return [];
+        }
+
+        $latest = $rows[array_key_last($rows)];
+        $latestKey = $latest->compatibility_key;
+        $compatibility = new AnnualSeriesCompatibility;
+        $compatibleRows = [];
+
+        foreach ($rows as $date => $row) {
+            $period = $compatibility->evaluatePeriod([$row->compatibility_key]);
+            if ($period['comparable'] && AnnualSeriesCompatibility::sameKey($row->compatibility_key, $latestKey)) {
+                $compatibleRows[$date] = $row;
+            }
+        }
+
+        return $compatibleRows;
     }
 
     public function placeholder(): string

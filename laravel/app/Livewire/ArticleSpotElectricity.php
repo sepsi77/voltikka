@@ -67,22 +67,23 @@ class ArticleSpotElectricity extends Component
         $pricingBasis = $mode->expectedContractPriceBasis()->value;
         $canonicalEnabled = $mode->enabled();
         $source = ContractPriceDailyStatistic::query()
-            ->where('metric_key', 'annual_cost')
+            ->activeAnnualMethod()
             ->where('pricing_basis', $pricingBasis)
             ->where('consumption_kwh', 5000);
         $fingerprint = md5(json_encode([
             'canonical_enabled' => $canonicalEnabled,
             'pricing_basis' => $pricingBasis,
+            'annual_method' => ContractPriceDailyStatistic::activeAnnualMethodVersion()->value,
             'latest_date' => $source->max('stat_date'),
             'latest_updated' => $source->max('updated_at'),
         ]));
 
         return Cache::remember(
-            'article:spot-electricity:market-snapshot:v2:'.$fingerprint,
+            'article:spot-electricity:market-snapshot:v3:'.$fingerprint,
             now()->addHours(6),
             function () use ($pricingBasis) {
                 $latestDate = ContractPriceDailyStatistic::query()
-                    ->where('metric_key', 'annual_cost')
+                    ->activeAnnualMethod()
                     ->where('pricing_basis', $pricingBasis)
                     ->where('consumption_kwh', 5000)
                     ->max('stat_date');
@@ -96,7 +97,7 @@ class ArticleSpotElectricity extends Component
                     ->toDateString();
 
                 $stats = ContractPriceDailyStatistic::query()
-                    ->where('metric_key', 'annual_cost')
+                    ->activeAnnualMethod()
                     ->where('pricing_basis', $pricingBasis)
                     ->where('consumption_kwh', 5000)
                     ->whereIn('segment_key', ['spot', 'fixed_term_12', 'open_ended'])

@@ -7,6 +7,7 @@ use App\Livewire\ArticleSpotSeasonalityChart;
 use App\Livewire\ArticleSpotVolatilityChart;
 use App\Livewire\ArticleSpotWinRateChart;
 use App\Models\SpotPriceAverage;
+use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -78,6 +79,53 @@ class ArticleSpotElectricityStatisticsQueryTest extends TestCase
 
         $this->assertSame('2026-07-28', $observedComparison['data_window']['to']);
         $this->assertSame(5449.5, $observedComparison['lead_chart']['series'][0]['values'][array_key_last($observedComparison['lead_chart']['series'][0]['values'])]);
+    }
+
+    public function test_article_annual_chart_gaps_a_transition_on_a_week_boundary(): void
+    {
+        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::AsOf->value);
+        Cache::flush();
+
+        foreach ([
+            ['2026-05-04', 100.0, 'rolling'],
+            ['2026-05-11', 200.0, 'forward'],
+            ['2026-05-18', 220.0, 'forward'],
+        ] as [$date, $value, $key]) {
+            DB::table('contract_price_daily_statistics')->insert(
+                $this->statisticRow($date, 'spot', $value, 'canonical_calculation', $key, AnnualCostMethodVersion::AsOf),
+            );
+        }
+
+        $chart = app(ArticleContractPriceComparisonChart::class)->preparedData['lead_chart'];
+
+        $this->assertSame([100.0, null, 220.0], $chart['series'][0]['values']);
+    }
+
+    public function test_spot_win_rate_uses_only_each_segments_latest_compatible_regime(): void
+    {
+        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::AsOf->value);
+        Cache::flush();
+
+        foreach ([
+            ['2026-04-29', 100.0, 200.0, 'rolling-spot', 'rolling-fixed'],
+            ['2026-04-30', 100.0, 200.0, 'rolling-spot', 'rolling-fixed'],
+            ['2026-05-01', 300.0, 100.0, 'forward-spot', 'forward-fixed'],
+            ['2026-05-02', 300.0, 100.0, 'forward-spot', 'forward-fixed'],
+        ] as [$date, $spot, $fixed, $spotKey, $fixedKey]) {
+            DB::table('contract_price_daily_statistics')->insert([
+                $this->statisticRow($date, 'spot', $spot, 'canonical_calculation', $spotKey, AnnualCostMethodVersion::AsOf),
+                $this->statisticRow($date, 'fixed_term_12', $fixed, 'canonical_calculation', $fixedKey, AnnualCostMethodVersion::AsOf),
+            ]);
+        }
+
+        $chart = app(ArticleSpotWinRateChart::class)->chartData;
+        $rate = $chart['segmentRates']['fixed_term_12'];
+
+        $this->assertSame(1, $rate['overlap_days']);
+        $this->assertSame(0, $rate['spot_wins']);
+        $this->assertSame(0.0, $rate['spot_win_pct']);
+        $this->assertSame('2.5.2026', $chart['from']);
+        $this->assertSame('2.5.2026', $chart['to']);
     }
 
     public function test_article_route_renders_with_production_scale_statistics(): void
@@ -251,13 +299,21 @@ class ArticleSpotElectricityStatisticsQueryTest extends TestCase
         $this->assertGreaterThan(6000, DB::table('contract_price_daily_statistics')->count());
     }
 
-    private function statisticRow(string $date, string $segment, float $value, string $pricingBasis): array
-    {
+    private function statisticRow(
+        string $date,
+        string $segment,
+        float $value,
+        string $pricingBasis,
+        ?string $compatibilityKey = null,
+        AnnualCostMethodVersion $methodVersion = AnnualCostMethodVersion::Legacy,
+    ): array {
         return [
             'stat_date' => $date,
             'segment_key' => $segment,
             'metric_key' => 'annual_cost',
             'pricing_basis' => $pricingBasis,
+            'method_version' => $methodVersion->value,
+            'compatibility_key' => $compatibilityKey,
             'consumption_kwh' => 5000,
             'min_value' => $value,
             'p20_value' => $value,

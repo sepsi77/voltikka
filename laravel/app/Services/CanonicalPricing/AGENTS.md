@@ -526,10 +526,12 @@ VAT-inclusive c/kWh and falls from month to quarter to year contracts. The forwa
 they keep the rolling path until VAT status survives parsing and can normalize the full bill.
 
 Futures are baseload prices. The estimator preserves the trailing-365 intraday shape as additive
-`day - overall` and `night - overall` offsets. It does not apply historical monthly seasonality on
-top of futures because the forward strip already contains that shape. Each projected wholesale
-bucket is floored at zero before the exact contract margin is added. Fees, phases, and measured
-discounts stay contractual facts.
+`day - overall` and `night - overall` offsets. Historical AsOf pricing can use an accepted stored
+shape with at least 98% hourly coverage because it supplies only these offsets, not the future market
+level; complete/partial coverage stays in the annual-result provenance. It does not apply historical
+monthly seasonality on top of futures because the forward strip already contains that shape. Each
+projected wholesale bucket is floored at zero before the exact contract margin is added. Fees,
+phases, and measured discounts stay contractual facts.
 
 Missing, stale, or incomplete curve/shape evidence rejects the full strip and produces one typed
 rolling-365 fallback. Forward and rolling months are never mixed. `CanonicalContractPricingService`

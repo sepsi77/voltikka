@@ -29,6 +29,7 @@ class BackfillContractPriceStatistics extends Command
 
         if ($dates->isEmpty()) {
             $this->warn('No price component dates found for the selected range.');
+
             return self::SUCCESS;
         }
 

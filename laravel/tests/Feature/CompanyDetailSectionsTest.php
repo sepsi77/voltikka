@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ActiveContract;
 use App\Models\Company;
+use App\Models\ContractPriceAnnualCost;
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\ContractPriceSnapshot;
 use App\Models\ElectricityContract;
@@ -629,6 +630,142 @@ class CompanyDetailSectionsTest extends TestCase
         $this->assertNull($comparison['spot_benchmarks']);
     }
 
+    public function test_as_of_current_canonical_comparison_uses_versioned_seller_annual_values(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        config()->set('contract_statistics.annual_cost.active_method_version', 'annual_cost_as_of_v1');
+        $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
+        $this->createContract('fixed-two', 'Kiinteä Sähkö 2', 8.0, 3.0);
+        $this->seedMarket(
+            'open_ended', 500.0, 700.0, 900.0, 40,
+            'canonical_calculation', '2026-08-01', 'annual_cost_as_of_v1', 'market-compatible',
+        );
+        $this->seedCompanySnapshot('open_ended', 9999.0, null, 'fixed', 'canonical_calculation', '2026-08-01');
+        $this->seedCompanySnapshot('open_ended', 8888.0, null, 'fixed-two', 'canonical_calculation', '2026-08-01');
+        $this->seedAsOfAnnual('fixed', 'open_ended', 600.0, 'canonical_calculation', '2026-08-01');
+        $this->seedAsOfAnnual('fixed-two', 'open_ended', 800.0, 'canonical_calculation', '2026-08-01');
+
+        $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+        $comparison = $component->viewData('marketComparison');
+
+        $this->assertNotNull($comparison);
+        $this->assertSame('current_canonical', $comparison['comparison_state']);
+        $this->assertSame(700.0, $comparison['rows'][0]['company_value']);
+        $this->assertNotSame(9443.5, $comparison['rows'][0]['company_value']);
+        $component->assertSee('Test Energy Oy: sähkön hinta');
+    }
+
+    public function test_as_of_historical_observed_fallback_uses_versioned_rows(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        config()->set('contract_statistics.annual_cost.active_method_version', 'annual_cost_as_of_v1');
+        $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
+        $this->seedMarket(
+            'open_ended', 500.0, 600.0, 700.0, 40,
+            'observed_seller_data', '2026-07-22', 'annual_cost_as_of_v1', 'observed-compatible',
+        );
+        $this->seedCompanySnapshot('open_ended', 9999.0, 8.0, 'fixed', 'observed_seller_data', '2026-07-22');
+        $this->seedAsOfAnnual('fixed', 'open_ended', 620.0, 'observed_seller_data', '2026-07-22');
+        // A newer active-method market row cannot become the endpoint without
+        // a matching versioned seller row.
+        $this->seedMarket(
+            'open_ended', 510.0, 610.0, 710.0, 40,
+            'observed_seller_data', '2026-07-29', 'annual_cost_as_of_v1', 'newer-market-only',
+        );
+
+        $comparison = app(CompanyMarketComparisonService::class)->forCompany($this->company->name, 5000);
+
+        $this->assertNotNull($comparison);
+        $this->assertSame('historical_observed_fallback', $comparison['comparison_state']);
+        $this->assertSame('2026-07-22', $comparison['stat_date']);
+        $this->assertSame(620.0, $comparison['rows'][0]['company_value']);
+    }
+
+    public function test_as_of_observed_seller_row_keeps_the_historical_energy_rate_guard(): void
+    {
+        config()->set('contract_statistics.annual_cost.active_method_version', 'annual_cost_as_of_v1');
+        $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
+        $this->seedMarket(
+            'open_ended', 500.0, 600.0, 700.0, 40,
+            'observed_seller_data', '2026-08-01', 'annual_cost_as_of_v1', 'market-compatible',
+        );
+        $this->seedCompanySnapshot('open_ended', 600.0, 585.46, 'fixed', 'observed_seller_data', '2026-08-01');
+        $this->seedAsOfAnnual('fixed', 'open_ended', 600.0, 'observed_seller_data', '2026-08-01');
+
+        $this->assertNull(app(CompanyMarketComparisonService::class)->forCompany($this->company->name, 5000));
+    }
+
+    public function test_as_of_comparison_fails_closed_without_a_matching_versioned_seller_row(): void
+    {
+        config()->set('contract_statistics.annual_cost.active_method_version', 'annual_cost_as_of_v1');
+        $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
+        $this->seedMarket(
+            'open_ended', 500.0, 600.0, 700.0, 40,
+            'observed_seller_data', '2026-08-01', 'annual_cost_as_of_v1', 'market-compatible',
+        );
+        $this->seedCompanySnapshot('open_ended', 620.0, 8.0, 'fixed', 'observed_seller_data', '2026-08-01');
+
+        $this->assertNull(app(CompanyMarketComparisonService::class)->forCompany($this->company->name, 5000));
+    }
+
+    public function test_as_of_chart_reads_versioned_seller_rows_and_breaks_mixed_compatibility_weeks(): void
+    {
+        config()->set('contract_statistics.annual_cost.active_method_version', 'annual_cost_as_of_v1');
+        $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
+        $dates = [
+            ['2026-06-15', 610.0, 'key-a'],
+            ['2026-06-22', 611.0, 'key-a'],
+            ['2026-06-29', 612.0, 'key-a'],
+            ['2026-07-06', 613.0, 'key-a'],
+            ['2026-07-07', 999.0, 'key-b'],
+        ];
+
+        foreach ($dates as [$date, $sellerValue, $compatibilityKey]) {
+            $this->seedMarket(
+                'open_ended', 500.0, 600.0, 700.0, 40,
+                'observed_seller_data', $date, 'annual_cost_as_of_v1', $compatibilityKey,
+            );
+            $this->seedCompanySnapshot('open_ended', 9000.0, 8.0, 'fixed', 'observed_seller_data', $date);
+            $this->seedAsOfAnnual('fixed', 'open_ended', $sellerValue, 'observed_seller_data', $date);
+        }
+
+        $chart = app(CompanyMarketComparisonService::class)
+            ->forCompany($this->company->name, 5000)['chart'];
+
+        $this->assertNotNull($chart);
+        $this->assertSame([610.0, 611.0, 612.0, null], $chart['series'][0]['values']);
+        $this->assertSame([600.0, 600.0, 600.0, null], $chart['series'][1]['values']);
+        $this->assertSame([500.0, 500.0, 500.0, null], $chart['band']['lower']);
+        $this->assertSame([700.0, 700.0, 700.0, null], $chart['band']['upper']);
+        $this->assertCount(count($chart['x']), $chart['series'][0]['values']);
+        $this->assertCount(count($chart['x']), $chart['series'][1]['values']);
+        $this->assertCount(count($chart['x']), $chart['band']['lower']);
+        $this->assertCount(count($chart['x']), $chart['band']['upper']);
+        $this->assertNotContains(9000.0, $chart['series'][0]['values']);
+    }
+
+    public function test_as_of_fingerprint_changes_after_a_same_day_annual_row_rewrite(): void
+    {
+        config()->set('contract_statistics.annual_cost.active_method_version', 'annual_cost_as_of_v1');
+        $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
+        $this->seedMarket(
+            'open_ended', 500.0, 600.0, 700.0, 40,
+            'observed_seller_data', '2026-08-01', 'annual_cost_as_of_v1', 'market-compatible',
+        );
+        $this->seedCompanySnapshot('open_ended', 9999.0, 8.0, 'fixed', 'observed_seller_data', '2026-08-01');
+        $this->seedAsOfAnnual('fixed', 'open_ended', 620.0, 'observed_seller_data', '2026-08-01');
+        $service = app(CompanyMarketComparisonService::class);
+        $fingerprintMethod = new \ReflectionMethod($service, 'fingerprint');
+        $before = $fingerprintMethod->invoke($service);
+
+        ContractPriceAnnualCost::query()->update([
+            'annual_cost' => 630.0,
+            'updated_at' => now()->addMinute(),
+        ]);
+
+        $this->assertNotSame($before, $fingerprintMethod->invoke($service));
+    }
+
     public function test_the_comparison_section_renders_an_honest_fallback_without_reference_data(): void
     {
         $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
@@ -653,12 +790,16 @@ class CompanyDetailSectionsTest extends TestCase
         int $contractCount,
         string $pricingBasis = 'observed_seller_data',
         ?string $date = null,
+        ?string $methodVersion = null,
+        ?string $compatibilityKey = null,
     ): void {
         ContractPriceDailyStatistic::create([
             'stat_date' => $date ?? now()->toDateString(),
             'segment_key' => $segment,
             'metric_key' => 'annual_cost',
             'pricing_basis' => $pricingBasis,
+            'method_version' => $methodVersion,
+            'compatibility_key' => $compatibilityKey,
             'consumption_kwh' => 5000,
             'min_value' => $p20 - 50,
             'p20_value' => $p20,
@@ -718,6 +859,30 @@ class CompanyDetailSectionsTest extends TestCase
             'annual_cost_18000_kwh' => $annualCost * 3,
             'has_discount' => false,
             'includes_spot_price' => false,
+        ]);
+    }
+
+    private function seedAsOfAnnual(
+        string $contractId,
+        string $segment,
+        float $annualCost,
+        string $pricingBasis,
+        string $date,
+        string $compatibilityKey = 'seller-compatible',
+    ): void {
+        ContractPriceAnnualCost::create([
+            'snapshot_date' => $date,
+            'contract_id' => $contractId,
+            'segment_key' => $segment,
+            'pricing_basis' => $pricingBasis,
+            'consumption_kwh' => 5000,
+            'annual_cost' => $annualCost,
+            'method_version' => 'annual_cost_as_of_v1',
+            'calculation_basis' => $pricingBasis === 'canonical_calculation'
+                ? 'canonical_outcome'
+                : 'observed_relational_components',
+            'compatibility_key' => $compatibilityKey,
+            'provenance' => ['flags' => ['test']],
         ]);
     }
 

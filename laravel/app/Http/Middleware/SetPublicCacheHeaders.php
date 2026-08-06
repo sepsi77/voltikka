@@ -9,7 +9,9 @@ use Symfony\Component\HttpFoundation\Response;
 class SetPublicCacheHeaders
 {
     public const BROWSER_MAX_AGE = 300;
+
     public const SHARED_MAX_AGE = 3600;
+
     public const STALE_WHILE_REVALIDATE = 86400;
 
     /**

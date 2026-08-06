@@ -258,7 +258,7 @@ Important semantics:
 - cache invalidation is automatic through cheap `contract_price_daily_statistics` / `contract_price_snapshots` / spot-price max-date/update fingerprints, so daily imports/backfills should not need manual page-cache clearing
 - run `contracts:backfill-price-statistics` before expecting historical data
 - spot metrics are split between `spot_margin` and `spot_total_energy_price`
-- forward rows store `pricing_basis=canonical_calculation`; historical backfill and feature-off rows store `observed_seller_data`. Current unit panels and latest points require request-scoped `PricingMode::expectedContractPriceBasis()` and do not fall back to a newer opposite-mode date. Historical rows stay date-scoped evidence and are not described as today's canonical interpretation. The page explains this split, CSV exports `pricing_basis`, and prepared view-data cache schema is v11; its key includes the expected basis
+- forward rows store `pricing_basis=canonical_calculation`; historical backfill and feature-off rows store `observed_seller_data`. Current unit panels and the endpoint date require request-scoped `PricingMode::expectedContractPriceBasis()`. Active annual rows on that unit-owned endpoint must use the expected basis or `mixed_evidence`; a stale canonical AsOf row cannot survive a feature-off recalculation into public output. Historical rows stay method-filtered and date-scoped. The CSV exports all method/provenance fields and marks the active annual version. Prepared view-data cache schema is v13; its key and source fingerprint include the active annual method
 - a package can contribute an annual total and package fee, but its excess-use rate is not an all-in energy price and stays out of unit-price panels
 - `ContractPriceStatistics::$segments` is `ContractStatisticsSegmentClassifier::SEGMENT_LABELS`. Canonical monthly/quarterly/seasonal/other resets share `market_reset` / `Päivittyvä hinta`; the generic reset deep dive uses plain cadence-neutral copy. Persisted observed `quarterly` keeps its historical label and CSV key
 - the “Hinnat sopimustyypeittäin” spot row must display a trailing-12-month realized spot daily average + latest typical margin, not the latest daily spot price; show p20–p80 daily-price variation under the value without adding a column
@@ -331,7 +331,9 @@ Important semantics:
 - keep its aggregation aligned with `ContractPriceStatistics`: weekly views average daily median statistics so trends remain market-day weighted
 - do not calculate contract prices during the article request; the component only reads aggregate statistics rows
 - article chart data is cached with short TTLs (typically 6 hours) because it is derived from daily/hourly precomputed market tables and does not need per-request freshness
+- annual article and homepage series use the shared `AnnualSeriesCompatibility` guard: mixed weeks and the first week after a key transition are null, including a transition on a Monday boundary
 - the embed shows at most the trailing 12 months and caches only its weekly prepared payload; never cache or group an unbounded all-column Eloquent statistics collection here
+- `ArticleSpotWinRateChart` filters Spot and each comparison segment to that segment's newest compatibility regime before counting overlap days. It never pools rolling and forward Spot annual pricing across the 2026-05-01 cutover, and the first daily point after a transition stays a gap
 - do not Livewire-lazy-load the article chart widgets unless their pushed scripts/chart initializers are moved to a non-lazy parent bundle; otherwise the widget markup can hydrate without the chart drawing
 
 ## `CompanyDetail`
@@ -404,9 +406,12 @@ contracts or precomputed household statistics.
    `../Services/CompanyStatistics/CompanyMarketComparisonService`. **Read that
    `AGENTS.md` before changing the metric, the segment floor, or the geometry.**
    Current canonical rows always win when an internally consistent market+company
-   date exists. Otherwise, canonical mode may render the latest internally
-   consistent `observed_seller_data` date only as a payload-marked historical
-   fallback with explicit dated copy. It never calls that fallback today's price.
+   date exists. The service follows the configured annual-cost method: legacy
+   comparisons read seller snapshot annual columns, while AsOf comparisons read
+   versioned seller totals and active-method market rows. Otherwise, canonical mode
+   may render the latest internally consistent `observed_seller_data` date only as
+   a payload-marked historical fallback with explicit dated copy. It never calls
+   that fallback today's price.
    **The heading always renders.** When neither source has a usable same-date pair,
    the page states that comparable data is not available and points to the current
    contract prices. It does not make a market claim.
@@ -573,7 +578,7 @@ Consequences to preserve:
 
 ## `HomePage`
 
-- The homepage contract trend uses stored `annual_cost` at 5,000 kWh, not `energy_price` / `spot_total_energy_price`. Its current endpoint requires `PricingMode::expectedContractPriceBasis()` and excludes newer opposite-mode rows; older points keep their own stored date basis. The chart and caption use €/year and identify the current basis. Cache key schema is `home-page:contract-price-trend:v6`, with the expected basis, latest expected date, and source fingerprint in the key so a flag flip or same-day rewrite cannot serve stale output.
+- The homepage contract trend uses stored `annual_cost` at 5,000 kWh, not `energy_price` / `spot_total_energy_price`. It reads only the configured active annual method. Its current endpoint requires `PricingMode::expectedContractPriceBasis()` and excludes newer opposite-mode rows; older points keep their own stored date basis. Cache key schema is `home-page:contract-price-trend:v7`, with the active annual method, expected basis, latest expected date, and source fingerprint.
 
 ## `ContractTypeComparison`
 

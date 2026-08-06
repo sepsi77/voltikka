@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Models\ContractPriceDailyStatistic;
 use App\Services\CanonicalPricing\PricingMode;
+use App\Services\ContractStatistics\AnnualSeriesCompatibility;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Cache;
@@ -31,7 +32,7 @@ class ArticleContractPriceComparisonChart extends Component
     {
         $pricingBasis = app(PricingMode::class)->expectedContractPriceBasis()->value;
         $latestDate = ContractPriceDailyStatistic::query()
-            ->where('metric_key', 'annual_cost')
+            ->activeAnnualMethod()
             ->where('pricing_basis', $pricingBasis)
             ->where('consumption_kwh', self::CONSUMPTION)
             ->whereIn('segment_key', $this->primarySegments)
@@ -45,11 +46,11 @@ class ArticleContractPriceComparisonChart extends Component
         $from = Carbon::parse($to)->subYear()->toDateString();
 
         return Cache::remember(
-            'article:contract-price-comparison-chart:prepared:v2:'.$pricingBasis.':'.$to,
+            'article:contract-price-comparison-chart:prepared:v4:'.ContractPriceDailyStatistic::activeAnnualMethodVersion()->value.':'.$pricingBasis.':'.$to,
             now()->addHours(6),
             function () use ($from, $pricingBasis, $to): array {
                 $rows = ContractPriceDailyStatistic::query()
-                    ->where('metric_key', 'annual_cost')
+                    ->activeAnnualMethod()
                     ->where('consumption_kwh', self::CONSUMPTION)
                     ->whereIn('segment_key', $this->primarySegments)
                     ->whereBetween('stat_date', [$from, $to])
@@ -62,7 +63,7 @@ class ArticleContractPriceComparisonChart extends Component
                     })
                     ->orderBy('stat_date')
                     ->toBase()
-                    ->get(['stat_date', 'segment_key', 'median_value']);
+                    ->get(['stat_date', 'segment_key', 'median_value', 'compatibility_key']);
 
                 if ($rows->isEmpty()) {
                     return $this->emptyPreparedData();
@@ -78,15 +79,11 @@ class ArticleContractPriceComparisonChart extends Component
                     $firstDate ??= $dateString;
                     $lastDate = $dateString;
 
-                    if ($row->median_value === null) {
-                        continue;
-                    }
-
                     $timestamp = $this->periodStart($date)->getTimestamp();
-                    $weekly[$row->segment_key][$timestamp]['sum'] =
-                        ($weekly[$row->segment_key][$timestamp]['sum'] ?? 0.0) + (float) $row->median_value;
-                    $weekly[$row->segment_key][$timestamp]['count'] =
-                        ($weekly[$row->segment_key][$timestamp]['count'] ?? 0) + 1;
+                    $weekly[$row->segment_key][$timestamp]['compatibility_keys'][] = $row->compatibility_key;
+                    if ($row->median_value !== null) {
+                        $weekly[$row->segment_key][$timestamp]['values'][] = (float) $row->median_value;
+                    }
                 }
 
                 $timestamps = [];
@@ -99,9 +96,19 @@ class ArticleContractPriceComparisonChart extends Component
                 $series = [];
                 foreach ($this->primarySegments as $key) {
                     $values = [];
+                    $compatibility = new AnnualSeriesCompatibility;
                     foreach ($timestamps as $timestamp) {
                         $bucket = $weekly[$key][$timestamp] ?? null;
-                        $values[] = $bucket === null ? null : $bucket['sum'] / $bucket['count'];
+                        if ($bucket === null) {
+                            $values[] = null;
+
+                            continue;
+                        }
+
+                        $period = $compatibility->evaluatePeriod($bucket['compatibility_keys']);
+                        $values[] = $period['comparable'] && ($bucket['values'] ?? []) !== []
+                            ? array_sum($bucket['values']) / count($bucket['values'])
+                            : null;
                     }
 
                     $series[] = [

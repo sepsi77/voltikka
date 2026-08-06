@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\ActiveContract;
 use App\Models\Company;
+use App\Models\ContractPriceAnnualCost;
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\ContractPriceSnapshot;
 use App\Models\ElectricityContract;
@@ -337,6 +338,10 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         $this->assertSame('canonical_calculation', ContractPriceSnapshot::whereDate('snapshot_date', self::DATE)->sole()->pricing_basis);
         $this->assertFalse(ContractPriceDailyStatistic::whereDate('stat_date', self::DATE)
             ->where('pricing_basis', 'observed_seller_data')->exists());
+        $this->assertSame(3, ContractPriceAnnualCost::query()
+            ->whereDate('snapshot_date', self::DATE)
+            ->where('contract_id', $contract->id)
+            ->count());
 
         $contract->update([
             'canonical_pricing' => [
@@ -357,6 +362,10 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
 
         $this->assertSame(0, $result['snapshots']);
         $this->assertFalse(ContractPriceSnapshot::whereDate('snapshot_date', self::DATE)->exists());
+        $this->assertFalse(ContractPriceAnnualCost::query()
+            ->whereDate('snapshot_date', self::DATE)
+            ->where('contract_id', $contract->id)
+            ->exists());
         $this->assertTrue(ContractPriceSnapshot::whereDate('snapshot_date', '2026-07-26')
             ->where('pricing_basis', 'observed_seller_data')->exists(), 'Other historical dates must stay intact.');
     }
@@ -375,6 +384,10 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         $this->assertSame(1, ContractPriceSnapshot::whereDate('snapshot_date', self::DATE)->count());
         $this->assertSame('observed_seller_data', ContractPriceSnapshot::whereDate('snapshot_date', self::DATE)->sole()->pricing_basis);
         $this->assertFalse(ContractPriceDailyStatistic::whereDate('stat_date', self::DATE)
+            ->whereIn('method_version', [
+                ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION,
+                \App\Services\ContractStatistics\Enums\AnnualCostMethodVersion::Legacy->value,
+            ])
             ->where('pricing_basis', 'canonical_calculation')->exists());
     }
 
@@ -484,7 +497,7 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         $this->assertSame('quarterly', $segments[$textQuarterly->id]);
     }
 
-    public function test_canonical_forward_collection_does_not_query_price_components(): void
+    public function test_canonical_current_collection_does_not_query_components_and_batches_current_provenance(): void
     {
         $contract = $this->createContract('query-1', [
             $this->phase('Nykyinen', 'current_structured', 9.0, $this->boundary('contract_start'), $this->boundary('none')),
@@ -496,7 +509,24 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         $queries = collect(DB::getQueryLog())->pluck('query');
         DB::disableQueryLog();
 
-        $this->assertFalse($queries->contains(fn (string $query) => str_contains($query, 'price_components')));
+        $this->assertSame(
+            0,
+            $queries->filter(fn (string $query) => str_contains($query, 'price_components'))->count(),
+        );
+        $this->assertSame(
+            1,
+            $queries->filter(fn (string $query) => str_contains($query, 'contract_price_snapshots')
+                && str_contains($query, 'contract_source_observations'))->count(),
+            'Current snapshot and source-pointer provenance must load in one batch.',
+        );
+        $this->assertLessThanOrEqual(
+            2,
+            $queries->filter(fn (string $query) => str_contains($query, 'contract_source_observations'))->count(),
+        );
+        $this->assertLessThanOrEqual(
+            2,
+            $queries->filter(fn (string $query) => str_contains($query, 'contract_interpretations'))->count(),
+        );
     }
 
     /**

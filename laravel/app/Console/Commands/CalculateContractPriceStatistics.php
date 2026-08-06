@@ -4,8 +4,9 @@ namespace App\Console\Commands;
 
 use App\Models\ActiveContract;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
-use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
+use Throwable;
 
 class CalculateContractPriceStatistics extends Command
 {
@@ -17,14 +18,29 @@ class CalculateContractPriceStatistics extends Command
 
     public function handle(ContractPriceStatisticsService $statistics): int
     {
-        $date = $this->option('date')
-            ? Carbon::parse($this->option('date'))->toDateString()
-            : Carbon::now('Europe/Helsinki')->toDateString();
+        $today = CarbonImmutable::now('Europe/Helsinki')->startOfDay();
+        if ($this->option('date') !== null) {
+            $date = $this->parseDate((string) $this->option('date'));
+            if ($date === null) {
+                $this->error('The --date value must be a valid date in YYYY-MM-DD format.');
+
+                return self::FAILURE;
+            }
+            if (! $date->equalTo($today)) {
+                $this->error('This current-state command accepts only today. Use contracts:rebuild-annual-cost-statistics for historical annual costs.');
+
+                return self::FAILURE;
+            }
+            $date = $date->toDateString();
+        } else {
+            $date = $today->toDateString();
+        }
 
         $contractIds = ActiveContract::query()->pluck('id');
 
         if ($contractIds->isEmpty()) {
             $this->warn('No active contracts found.');
+
             return self::SUCCESS;
         }
 
@@ -49,5 +65,16 @@ class CalculateContractPriceStatistics extends Command
         ]);
 
         return self::SUCCESS;
+    }
+
+    private function parseDate(string $value): ?CarbonImmutable
+    {
+        try {
+            $date = CarbonImmutable::createFromFormat('!Y-m-d', $value, 'Europe/Helsinki');
+        } catch (Throwable) {
+            return null;
+        }
+
+        return $date !== false && $date->format('Y-m-d') === $value ? $date : null;
     }
 }
