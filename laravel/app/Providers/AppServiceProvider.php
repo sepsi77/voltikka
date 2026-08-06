@@ -9,8 +9,15 @@ use App\Services\CanonicalPricing\MarketReset\EexMarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketResetPriceEstimator;
 use App\Services\CanonicalPricing\PricingMode;
+use DateTimeZone;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Console\Events\ScheduledTaskFailed;
+use Illuminate\Console\Events\ScheduledTaskFinished;
+use Illuminate\Console\Events\ScheduledTaskSkipped;
+use Illuminate\Console\Scheduling\Event as ScheduledEvent;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -63,5 +70,49 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('solar-geocode', function (Request $request) {
             return Limit::perMinute(60)->by($request->ip());
         });
+
+        Event::listen(ScheduledTaskFinished::class, function (ScheduledTaskFinished $event): void {
+            if ($event->task->exitCode === null || $event->task->exitCode === 0) {
+                return;
+            }
+
+            Log::error('Scheduled task returned a non-zero exit code.', [
+                ...$this->scheduledTaskContext($event->task),
+                'exit_code' => $event->task->exitCode,
+                'runtime_seconds' => $event->runtime,
+            ]);
+        });
+
+        Event::listen(ScheduledTaskFailed::class, function (ScheduledTaskFailed $event): void {
+            Log::error('Scheduled task threw an exception.', [
+                ...$this->scheduledTaskContext($event->task),
+                'exception_class' => $event->exception::class,
+            ]);
+        });
+
+        Event::listen(ScheduledTaskSkipped::class, function (ScheduledTaskSkipped $event): void {
+            if (! $event->task->withoutOverlapping) {
+                return;
+            }
+
+            Log::error(
+                'Scheduled task was skipped because of an overlap lock.',
+                $this->scheduledTaskContext($event->task),
+            );
+        });
+    }
+
+    /**
+     * @return array{task: string, cron_expression: string, timezone: string|null}
+     */
+    private function scheduledTaskContext(ScheduledEvent $task): array
+    {
+        return [
+            'task' => $task->getSummaryForDisplay(),
+            'cron_expression' => $task->expression,
+            'timezone' => $task->timezone instanceof DateTimeZone
+                ? $task->timezone->getName()
+                : $task->timezone,
+        ];
     }
 }

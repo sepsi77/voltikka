@@ -24,6 +24,13 @@ Schedule::command('spot:fetch')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/spot-fetch.log'));
 
+// Check official FI data independently after the hourly import has time to finish.
+Schedule::command('spot:check-freshness')
+    ->hourlyAt(10)
+    ->timezone('Europe/Helsinki')
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/spot-freshness-check.log'));
+
 // Poll the lightweight third-party forecast feed a few times per day.
 Schedule::command('spot:fetch-forecast')
     ->everySixHours()

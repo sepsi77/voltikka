@@ -3,5 +3,7 @@
   {"name":"Fix header unavailable-state Finnish copy and tests","status":"done"},
   {"name":"Limit the hourly overlap mutex and ENTSO-E request duration","status":"done"},
   {"name":"Add schedule and request-timeout regression coverage","status":"done"},
-  {"name":"Run focused tests and record findings","status":"done"}
+  {"name":"Run focused tests and record findings","status":"done"},
+  {"name":"Add an independent read-only Spot freshness check and tests","status":"done"},
+  {"name":"Add global scheduled workflow failure logging and tests","status":"done"}
 ]

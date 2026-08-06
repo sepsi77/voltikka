@@ -349,6 +349,8 @@ LOG_STACK=single,sentry_logs
 
 The production Docker image installs and enables the Excimer PHP extension for profiling. Console/queue profiling is disabled by default because long-running `queue:work` transactions can accumulate large profiling logs and exhaust the 128 MB worker while Sentry serializes the profile; temporarily enable `SENTRY_PROFILE_CONSOLE_ENABLED` / `SENTRY_PROFILE_QUEUE_ENABLED` only for short diagnostic runs.
 
+`AppServiceProvider::boot()` centrally listens for Laravel scheduler lifecycle events. It logs a `ScheduledTaskFinished` error only for a non-zero exit code, logs a `ScheduledTaskFailed` error with the exception class but never its message, and logs a `ScheduledTaskSkipped` error only when `withoutOverlapping` is active. Deliberate filter skips and secondary-replica `onOneServer` decisions do not create alerts. Context is limited to the public task display summary, cron expression, timezone, and applicable exit code/runtime or exception class. Do not add repeated callbacks to each schedule.
+
 Verification:
 ```bash
 cd laravel
@@ -374,6 +376,7 @@ Important semantics:
 - `SpotPriceImporter` is the source of truth for official record normalization, Helsinki-local historical VAT, direct hourly persistence, and region+UTC-hour arithmetic aggregation from quarter-hour records. It uses insert-only `insertOrIgnore()` chunks of 500.
 - Backfill skips a half-open UTC chunk only when every exact expected FI hourly timestamp exists. Partial data and off-hour rows do not satisfy coverage. Exhausted request/connection failures do not stop later chunks, but any failed chunk makes the command return failure after averages are calculated for records imported by other chunks.
 - `spot:fetch` only persists spot prices, calculates averages, and warms the statistics cache. Manual or repeated imports never invoke social publication. Its hourly Europe/Helsinki schedule uses one-server execution and a 60-minute overlap-lock expiry so an interrupted run does not block the next day of imports.
+- `spot:check-freshness` is a read-only independent check at minute 10 of each Helsinki hour. It has no overlap mutex. It writes one Laravel error log when the latest official FI UTC hour is older than the current Helsinki hour start, so the configured log stack sends the error to Sentry.
 - `social:publish-daily-spot` is scheduled independently at minute 15 each hour. It defers until exact hourly rows exist for both the Helsinki content date and next date.
 - Real PostFast publication is disabled by default through `SPOT_SOCIAL_PUBLISHING_ENABLED=false`. Dry-run, skip-post, and draft modes do not use the `spot_social_publications` ledger. Draft still requires the enable setting because it calls PostFast.
 - The durable ledger permits one first claim per Helsinki `content_date`. Normal calls never retry. `--retry --date=YYYY-MM-DD` permits only failed or processing attempts that are at least 30 minutes old. Published rows never retry.

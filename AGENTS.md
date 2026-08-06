@@ -160,6 +160,7 @@ php artisan contracts:republish-gated-pricing  # Re-run the relational price pub
 
 # Spot prices
 php artisan spot:fetch               # Fetch current spot prices from ENTSO-E; retries transient server/connection timeouts
+php artisan spot:check-freshness     # Read-only check that FI data covers the current Helsinki hour
 php artisan spot:fetch-forecast      # Fetch third-party spot-price forecasts from nordpool-predict-fi
 php artisan spot:backfill            # Backfill historical spot prices; retries transient server/connection timeouts per chunk
 php artisan spot:averages            # Calculate spot price averages
@@ -283,7 +284,7 @@ php artisan test --filter="ContractsFilterTest"
 - **Location**: `app/Livewire/SpotPrice.php`, `HeaderSpotPrice.php`
 - **Route**: `/spot-price`
 - **Data source**: ENTSO-E API via `EntsoeService` for official actual prices; optional third-party forecast feed from `vividfog/nordpool-predict-fi` for hours after official prices end
-- **Import safety**: ENTSO-E requests default to a 5-second connection timeout and 30-second total timeout. The hourly Europe/Helsinki import runs on one server and expires its overlap mutex after 60 minutes.
+- **Import safety**: ENTSO-E requests default to a 5-second connection timeout and 30-second total timeout. The hourly Europe/Helsinki import runs on one server and expires its overlap mutex after 60 minutes. An independent read-only freshness check runs at minute 10 without an overlap mutex. It writes a Laravel error log when the latest official FI row does not cover the current Helsinki hour.
 - Features:
   - Hourly and 15-minute price granularity
   - Third-party forecast section clearly separated from official prices with source citation
@@ -724,6 +725,7 @@ For pricing type pages, the `getContractsProperty()` method determines which con
 - **First-party seller-click analytics**: Signed, typed, rate-limited `contract_order_click` events with data-minimal browser attribution; see `laravel/app/Services/Analytics/AGENTS.md`
 - **Plausible Analytics**: Privacy-friendly analytics script in `layouts/app.blade.php`; it stays independent from first-party event delivery
 - **Sentry**: Laravel exception capture, optional Sentry log forwarding, and tracing/profiling configuration are configured in `laravel/bootstrap/app.php`, `laravel/config/sentry.php`, and `laravel/config/logging.php`. Performance spans/profiles are disabled by default to preserve span quota; see `laravel/AGENTS.md` for env variables and verification commands.
+- **Scheduled workflow failures**: Central Laravel scheduler lifecycle listeners log non-zero exits, thrown exceptions, and `withoutOverlapping()` skips through `Log::error`, so the production `single,sentry_logs` stack forwards them to Sentry. The safe context contains the task display summary, cron expression, timezone, and relevant exit/runtime or exception-class facts only.
 
 ## Navigation Structure
 
