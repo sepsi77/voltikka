@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 
 class HistoricalContractEpisodeBuilder
 {
-    public const VERSION = 'historical-episode-builder-v4';
+    public const VERSION = 'historical-episode-builder-v5';
 
     public const DISCOVERY_CONTRACT_CHUNK_SIZE = 25;
 

@@ -75,6 +75,20 @@ class HistoricalInterpretationFingerprint
 
     private function canonicalize(mixed $value): mixed
     {
+        if (is_int($value)) {
+            return ['__historical_number' => (string) $value];
+        }
+
+        if (is_float($value)) {
+            if (! is_finite($value)) {
+                throw new \InvalidArgumentException('Historical fingerprints cannot contain non-finite numbers.');
+            }
+
+            $number = rtrim(rtrim(sprintf('%.12F', $value), '0'), '.');
+
+            return ['__historical_number' => $number === '' || $number === '-0' ? '0' : $number];
+        }
+
         if (! is_array($value)) {
             return $value;
         }

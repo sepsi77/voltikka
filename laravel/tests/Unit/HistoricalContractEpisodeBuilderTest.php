@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use App\Services\ContractInterpretation\HistoricalContractEpisodeBuilder;
+use App\Services\ContractInterpretation\HistoricalInterpretationFingerprint;
 use Carbon\CarbonImmutable;
 use Tests\TestCase;
 
@@ -63,6 +64,26 @@ class HistoricalContractEpisodeBuilderTest extends TestCase
         $this->assertSame(['4.5', '7.2'], collect($first['analysis_input']['components'])->pluck('price')->sort()->values()->all());
         $this->assertNotSame($first['evidence_manifest'], $second['evidence_manifest']);
         $this->assertNotSame($first['manifest_fingerprint'], $second['manifest_fingerprint']);
+    }
+
+    public function test_fingerprints_survive_mysql_style_whole_float_json_normalization(): void
+    {
+        $fingerprints = app(HistoricalInterpretationFingerprint::class);
+        $beforeStorage = [
+            'minimum' => 0.0,
+            'maximum' => 100000.0,
+            'fraction' => 7.25,
+            'count' => 12,
+        ];
+        $afterStorage = json_decode(json_encode($beforeStorage, JSON_THROW_ON_ERROR), true, flags: JSON_THROW_ON_ERROR);
+
+        $this->assertSame(0, $afterStorage['minimum']);
+        $this->assertSame(100000, $afterStorage['maximum']);
+        $this->assertSame($fingerprints->hash($beforeStorage), $fingerprints->hash($afterStorage));
+        $this->assertNotSame(
+            $fingerprints->hash($beforeStorage),
+            $fingerprints->hash([...$afterStorage, 'fraction' => 7.26]),
+        );
     }
 
     public function test_economic_identity_changes_gaps_and_a_b_a_each_split(): void
