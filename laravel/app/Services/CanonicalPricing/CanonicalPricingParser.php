@@ -29,6 +29,9 @@ use App\Services\CanonicalPricing\Exceptions\CanonicalPricingParseException;
  */
 class CanonicalPricingParser
 {
+    /** Version marker used only by historical analysis fingerprints. */
+    public const VERSION = 'canonical-pricing-parser-v1';
+
     /**
      * Canonical issue codes this build understands. Unknown codes from a future schema
      * are ignored for label classification rather than excluding the contract.

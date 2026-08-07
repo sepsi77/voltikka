@@ -5,10 +5,9 @@ namespace App\Jobs;
 use App\Models\ContractInterpretation;
 use App\Models\ContractSourceObservation;
 use App\Models\ElectricityContract;
+use App\Services\ContractInterpretation\ContractInterpretationAttemptRunner;
 use App\Services\ContractInterpretation\ContractInterpretationInputBuilder;
 use App\Services\ContractInterpretation\ContractInterpretationPublisher;
-use App\Services\ContractInterpretation\ContractInterpretationValidator;
-use App\Services\ContractInterpretation\OpenRouterContractInterpretationClient;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -44,8 +43,7 @@ class AnalyzeContractSourceSnapshot implements ShouldBeUnique, ShouldQueue
 
     public function handle(
         ContractInterpretationInputBuilder $inputBuilder,
-        OpenRouterContractInterpretationClient $client,
-        ContractInterpretationValidator $validator,
+        ContractInterpretationAttemptRunner $attemptRunner,
         ContractInterpretationPublisher $publisher,
     ): void {
         $interpretation = ContractInterpretation::with('sourceSnapshot')->findOrFail($this->interpretationId);
@@ -90,44 +88,40 @@ class AnalyzeContractSourceSnapshot implements ShouldBeUnique, ShouldQueue
             'completed_at' => null,
             'error' => null,
         ]);
+        $previousAttempts = is_array($interpretation->llm_attempts) ? $interpretation->llm_attempts : [];
 
         try {
-            $result = $client->interpret($input);
-            $attempts = [];
-            $maxRepairAttempts = min(2, max(0, (int) config('contract_interpretation.max_repair_attempts')));
-
-            for ($attemptNumber = 0; $attemptNumber <= $maxRepairAttempts; $attemptNumber++) {
-                $errors = $validator->validate($result['output'], $input);
-                $attempts[] = $this->attemptRecord($attemptNumber, $result, $errors);
-                $usage = $this->aggregateUsage($attempts);
-
-                $interpretation->update([
-                    'output' => $result['output'],
-                    'validation_errors' => $errors === [] ? null : $errors,
-                    'llm_attempts' => $attempts,
-                    'usage' => $usage,
-                    'provider_response_id' => $result['response_id'],
-                    'latency_ms' => collect($attempts)->sum('latency_ms'),
-                ]);
-
-                if ($errors === []) {
-                    $publisher->publish($interpretation->fresh());
-
-                    return;
-                }
-
-                if ($attemptNumber === $maxRepairAttempts) {
+            $result = $attemptRunner->run(
+                $input,
+                afterAttempt: function (array $attempt, array $attempts) use ($interpretation, $previousAttempts): void {
+                    $allAttempts = array_merge($previousAttempts, $attempts);
+                    foreach ($allAttempts as $index => &$storedAttempt) {
+                        $storedAttempt['attempt'] = $index + 1;
+                    }
+                    unset($storedAttempt);
+                    $errors = $attempt['validation_errors'];
                     $interpretation->update([
-                        'status' => ContractInterpretation::STATUS_FAILED,
-                        'completed_at' => now(),
-                        'error' => 'Automatic validation failed after '.count($attempts).' LLM attempts.',
+                        'output' => $attempt['output'],
+                        'validation_errors' => $errors === [] ? null : $errors,
+                        'llm_attempts' => $allAttempts,
+                        'usage' => ContractInterpretationAttemptRunner::aggregateUsage($allAttempts),
+                        'provider_response_id' => $attempt['provider_response_id'],
+                        'latency_ms' => collect($allAttempts)->sum('latency_ms'),
                     ]);
+                },
+            );
 
-                    return;
-                }
+            if ($result['validated']) {
+                $publisher->publish($interpretation->fresh());
 
-                $result = $client->repair($input, $result['output'], $errors);
+                return;
             }
+
+            $interpretation->update([
+                'status' => ContractInterpretation::STATUS_FAILED,
+                'completed_at' => now(),
+                'error' => 'Automatic validation failed after '.count($result['attempts']).' LLM attempts.',
+            ]);
         } catch (Throwable $exception) {
             $interpretation->update([
                 'status' => ContractInterpretation::STATUS_FAILED,
@@ -137,53 +131,6 @@ class AnalyzeContractSourceSnapshot implements ShouldBeUnique, ShouldQueue
 
             throw $exception;
         }
-    }
-
-    /**
-     * @param  array{output: array<string, mixed>, usage: array<string, mixed>, provider: ?string, response_id: ?string, latency_ms: int}  $result
-     * @param  list<string>  $errors
-     * @return array<string, mixed>
-     */
-    private function attemptRecord(int $attemptNumber, array $result, array $errors): array
-    {
-        return [
-            'attempt' => $attemptNumber + 1,
-            'type' => $attemptNumber === 0 ? 'initial' : 'repair',
-            'output' => $result['output'],
-            'validation_errors' => $errors,
-            'usage' => $result['usage'],
-            'provider' => $result['provider'],
-            'provider_response_id' => $result['response_id'],
-            'latency_ms' => $result['latency_ms'],
-        ];
-    }
-
-    /**
-     * @param  list<array<string, mixed>>  $attempts
-     * @return array<string, mixed>
-     */
-    private function aggregateUsage(array $attempts): array
-    {
-        $usage = [
-            'attempt_count' => count($attempts),
-            'prompt_tokens' => 0,
-            'completion_tokens' => 0,
-            'total_tokens' => 0,
-            'cost' => 0.0,
-        ];
-
-        foreach ($attempts as $attempt) {
-            $attemptUsage = $attempt['usage'] ?? [];
-            foreach (['prompt_tokens', 'completion_tokens', 'total_tokens'] as $field) {
-                $usage[$field] += (int) ($attemptUsage[$field] ?? 0);
-            }
-            $usage['cost'] += (float) ($attemptUsage['cost'] ?? 0);
-            if (is_string($attempt['provider'] ?? null)) {
-                $usage['provider'] = $attempt['provider'];
-            }
-        }
-
-        return $usage;
     }
 
     public function failed(Throwable $exception): void

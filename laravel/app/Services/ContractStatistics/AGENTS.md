@@ -62,20 +62,26 @@ Primary files:
   components are normalized in one query. A component-only identity never reads current contract
   fields: it produces three unavailable `unclassified` results with
   `missing_historical_snapshot_identity` provenance and is never aggregated or persisted. Optional
-  canonical data requires covering source-observation rows to identify exactly one source snapshot,
-  then one deterministic latest parser-valid published or superseded interpretation completed by
-  the target day's end. Failed/in-flight output, tied completion chronology, multiple covering
-  snapshots, and date-scoped output for another episode omit canonical data with explicit flags.
-  The resolver never reads `active_contracts`, current canonical JSON, or current pointers.
+  canonical data first uses covering source observations and one parser-valid interpretation completed
+  by the target day. Only exact `canonical_omitted_no_covering_source_observation` opens the dedicated
+  historical path. It batch-loads overlapping current-builder episodes and analyses, requires one
+  covering episode, exact target snapshot plus sorted component composite membership and normalized
+  economic digest in `target_days`, and one validated complete current analysis fingerprint with empty
+  errors and a fresh parser pass. A successful retrospective row records its later completion, text grade, episode ID, and
+  interpretation ID; stale, pending, failed, mismatched, parser-invalid, or ambiguous states stay closed.
+  The resolver never reads `active_contracts`, current contract prose/canonical JSON, publication
+  pointers, or currentness pointers.
 - `AsOfAnnualCostCalculator` produces typed shadow results for 2,000, 5,000, and 18,000 kWh. It
   resolves Spot assumptions and supplier episode candidates once per date. Strict canonical Spot
   uses the as-of forward estimator and typed rolling fallback. An accepted partial stored shape can
   supply the historical day/night offset because the forward curve still supplies the future level.
   Each result carries the Spot source, complete/partial flag, coverage ratio, and expected/actual
   hours in its provenance. Relational Spot receives the
-  estimate's annual day/night equivalents. Missing Spot evidence is unavailable. A proven recurring
-  reset deliberately uses exact-date relational components held flat in v1, because the canonical
-  reset estimator's realized seasonal fallback is not as-of safe. A supplier-adjusted outcome that
+  estimate's annual day/night equivalents. Missing Spot evidence is unavailable. Source
+  `PricingModel=Spot` has precedence over an active canonical recurring schedule and always uses the
+  Spot forward/fallback path. A proven recurring reset on a non-Spot contract deliberately uses
+  exact-date relational components held flat in v1, because the canonical reset estimator's realized
+  seasonal fallback is not as-of safe. A supplier-adjusted outcome that
   selects the shared, non-date-bounded Spot seasonal index is also recalculated from exact-date
   relational prices and held flat with explicit provenance. Programming exceptions leave the
   calculator and fail the complete command date. Relational open-ended fixed data stays
@@ -96,10 +102,12 @@ Primary files:
   and any contract without exactly the 2,000/5,000/18,000 kWh identity set before one date-scoped
   transaction. It replaces only `annual_cost_as_of_v1` annual-only and aggregate rows, and leaves
   snapshots, unit metrics, legacy annual rows, other methods, and caches unchanged. Unavailable
-  results enter a separate reason sub-map but not annual-only rows. Aggregate pricing, calculation,
-  estimate-method, and estimate-basis counts include available contributors only. Aggregate
-  compatibility hashes the sorted member key set; mixed source, calculation, and estimate evidence
-  is explicit.
+  results enter a separate reason sub-map but not annual-only rows. Dedicated historical results write
+  `historical_episode_id`, `historical_interpretation_id`, and `historical_evidence_grade` while normal
+  source IDs stay null; source and current-adapter rows keep all three dedicated fields null. The full
+  identity and flags remain in provenance JSON. Aggregate pricing, calculation, estimate-method, and
+  estimate-basis counts include available contributors only. Aggregate compatibility hashes the sorted
+  member key set; mixed source, calculation, and estimate evidence is explicit.
 - `contracts:rebuild-annual-cost-statistics` selects the union of distinct historical snapshot and
   component dates through yesterday by default. It is dry-run unless `--apply` is present. Contract filters and the stable
   contract-ID limit apply to typed results per date. `--apply` rejects either partial selector before

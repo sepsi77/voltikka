@@ -105,6 +105,16 @@ Important semantics:
 - `relational_pricing_published` is the durable gate used by later imports for activation and relational price writes
 - canonical phase-aware calculators consume the published interpretation phases for annual and exact-period pricing; unsafe source pricing is not copied to relational `price_components`
 
+## Historical contract interpretation reconstruction
+
+`contract_historical_interpretation_episodes` stores append-only consecutive exact-date evidence episodes. Its unique episode fingerprint covers the builder version, contract, full episode dates, and semantic evidence fingerprint. Flat validator input and an exact evidence manifest are immutable records. Builder v4 uses one `target_days` entry per date with the exact snapshot ID, sorted `id|price_date` component identities, and a normalized digest of the complete historical snapshot identity and component values. A separate `manifest_fingerprint` binds all exact row identities and values to the reviewed command plan without forcing a new LLM analysis for storage-ID-only changes. Redundant episode-wide lists are not stored.
+
+`contract_historical_interpretations` stores only non-publishing work states: pending, processing, validated, and failed. Its unique analysis fingerprint covers all model, prompt/addendum, validator, parser, and provider versions. There are no publication fields or publication status values.
+
+Migration up is retry-safe after MySQL partial DDL commits: each table, annual provenance column, and named index is guarded. Migration down refuses before any schema change when either historical audit table contains rows, but tolerates an empty partial schema. Historical audit data must never disappear through an implicit migration rollback.
+
+`contract_price_annual_costs` has nullable indexed `historical_episode_id`, `historical_interpretation_id`, and `historical_evidence_grade` provenance columns. The AsOf writer fills all three only for a validated dedicated retrospective interpretation and keeps the normal source snapshot/interpretation fields null. Immutable-source and current-adapter rows keep the dedicated fields null. Full identities and flags remain in provenance JSON. This does not activate the public annual-cost method.
+
 ## Contract price statistics provenance
 
 `contract_price_snapshots.pricing_basis` and `contract_price_daily_statistics.pricing_basis`

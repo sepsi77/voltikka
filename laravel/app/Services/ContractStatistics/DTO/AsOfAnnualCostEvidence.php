@@ -14,7 +14,7 @@ readonly class AsOfAnnualCostEvidence
     /**
      * @param  array<int, array<string, mixed>>  $priceComponents
      * @param  array<int, bool>  $consumptionAvailability
-     * @param  array{price_snapshot_id: int|null, price_component_ids: list<string>, observation_ids: list<int>, source_snapshot_id: int|null, interpretation_id: int|null}  $sourceEvidenceIds
+     * @param  array{price_snapshot_id: int|null, price_component_ids: list<string>, observation_ids: list<int>, source_snapshot_id: int|null, interpretation_id: int|null, historical_episode_id: int|null, historical_interpretation_id: int|null, historical_evidence_grade: string|null}  $sourceEvidenceIds
      * @param  list<string>  $provenanceFlags
      */
     public function __construct(

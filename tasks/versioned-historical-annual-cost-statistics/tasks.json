@@ -8,6 +8,10 @@
   {"name":"Integrate current daily annual rows from public canonical outcomes","status":"completed"},
   {"name":"Implement version-aware public trends CSV and company comparisons","status":"completed"},
   {"name":"Add regression coverage and documentation","status":"completed"},
+  {"name":"Implement isolated historical episode LLM discovery and analysis unit","status":"completed"},
+  {"name":"Integrate validated historical interpretations into the AsOf evidence resolver","status":"completed"},
+  {"name":"Fix bounded-memory historical interpretation planning and apply","status":"completed"},
+  {"name":"Bind exact manifests and enforce deterministic backcast safety","status":"completed"},
   {"name":"Run final verification and fresh production-data dry run","status":"in_progress"},
   {"name":"Prepare confirmed production recalculation and activation","status":"pending"}
 ]

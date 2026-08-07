@@ -224,6 +224,22 @@ class ElectricityContract extends Model
     }
 
     /**
+     * Read the isolated historical reconstruction episodes for this contract.
+     */
+    public function historicalInterpretationEpisodes(): HasMany
+    {
+        return $this->hasMany(ContractHistoricalInterpretationEpisode::class, 'contract_id', 'id');
+    }
+
+    /**
+     * Read the non-publishing historical analyses for this contract.
+     */
+    public function historicalInterpretations(): HasMany
+    {
+        return $this->hasMany(ContractHistoricalInterpretation::class, 'contract_id', 'id');
+    }
+
+    /**
      * Get the interpretation currently published to the canonical fields.
      */
     public function publishedInterpretation(): BelongsTo

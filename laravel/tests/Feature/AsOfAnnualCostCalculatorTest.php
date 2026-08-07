@@ -265,6 +265,38 @@ class AsOfAnnualCostCalculatorTest extends TestCase
         $this->assertSame(0, $curve->forwardCalls);
     }
 
+    public function test_source_spot_model_wins_over_an_active_monthly_recurring_schedule(): void
+    {
+        $contract = $this->contract('spot-recurring', pricingModel: 'Spot');
+        $this->snapshot($contract, pricingModel: 'Spot', segment: 'spot');
+        $this->priceComponent($contract, 'General', 0.5);
+        $attributes = CanonicalPricingFixture::attributes(
+            phases: [CanonicalPricingFixture::phase(
+                'Pörssisähkö',
+                PhaseKind::RecurringPeriod,
+                CanonicalPricingFixture::boundary(BoundaryKind::PeriodBoundary),
+                CanonicalPricingFixture::boundary(BoundaryKind::PeriodBoundary),
+                [CanonicalPricingFixture::component(ComponentType::SpotMargin, 0.5, ComponentUnit::CentsPerKwh)],
+            )],
+            calculationStatus: CalculationStatus::EstimateRequired,
+            recurringSchedule: CanonicalPricingFixture::recurringSchedule('monthly', self::DATE, '2026-06-30', false),
+            issueCodes: ['recurring_reset_requires_estimate'],
+        );
+        $this->strictInterpretation($contract, $attributes, '2026-05-31 00:00:00', '2026-06-01 23:00:00');
+        $this->rollingSpot();
+        $curve = new FakeAsOfCurve(true);
+        $this->app->instance(MarketReferenceCurveProvider::class, $curve);
+
+        $result = $this->annualResult($contract->id, 5000);
+
+        $this->assertTrue($result->isAvailable());
+        $this->assertSame('forward_curve_spot', $result->estimateMethod);
+        $this->assertSame('forward_curve', $result->estimateBasis);
+        $this->assertSame(AnnualCostCalculationBasis::CanonicalOutcome, $result->calculationBasis);
+        $this->assertNotContains('recurring_reset_relational_hold_flat_no_as_of_reset_estimator', $result->provenanceFlags);
+        $this->assertGreaterThan(0, $curve->forwardCalls);
+    }
+
     public function test_legacy_annual_value_is_only_a_per_consumption_mask(): void
     {
         $contract = $this->contract('mask');
@@ -292,7 +324,7 @@ class AsOfAnnualCostCalculatorTest extends TestCase
         $queries = DB::getQueryLog();
 
         $this->assertCount(36, $results);
-        $this->assertLessThanOrEqual(7, count($queries), collect($queries)->pluck('query')->implode("\n"));
+        $this->assertLessThanOrEqual(8, count($queries), collect($queries)->pluck('query')->implode("\n"));
     }
 
     private function annualResult(string $contractId, int $consumption)

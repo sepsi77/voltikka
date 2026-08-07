@@ -2,9 +2,13 @@
 
 namespace App\Services\ContractStatistics;
 
+use App\Models\ContractHistoricalInterpretation;
 use App\Services\CanonicalPricing\CanonicalPricingParser;
 use App\Services\CanonicalPricing\DTO\CanonicalContractData;
 use App\Services\CanonicalPricing\Exceptions\CanonicalPricingParseException;
+use App\Services\ContractInterpretation\HistoricalContractEpisodeBuilder;
+use App\Services\ContractInterpretation\HistoricalEvidenceNormalizer;
+use App\Services\ContractInterpretation\HistoricalInterpretationFingerprint;
 use App\Services\ContractStatistics\DTO\AsOfAnnualCostEvidence;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -17,7 +21,11 @@ class AsOfAnnualCostEvidenceResolver
 
     private const CONSUMPTIONS = [2000, 5000, 18000];
 
-    public function __construct(private readonly CanonicalPricingParser $parser) {}
+    public function __construct(
+        private readonly CanonicalPricingParser $parser,
+        private readonly HistoricalInterpretationFingerprint $historicalFingerprints,
+        private readonly HistoricalEvidenceNormalizer $historicalNormalizer,
+    ) {}
 
     /**
      * Resolve all requested dates with one query per evidence table.
@@ -46,12 +54,16 @@ class AsOfAnnualCostEvidenceResolver
                 'id',
                 'snapshot_date',
                 'contract_id',
+                'company_name',
+                'contract_name',
                 'pricing_model',
                 'contract_type',
                 'fixed_time_range',
                 'metering',
                 'segment_key',
                 'pricing_basis',
+                'has_discount',
+                'includes_spot_price',
                 'annual_cost_2000_kwh',
                 'annual_cost_5000_kwh',
                 'annual_cost_18000_kwh',
@@ -70,6 +82,7 @@ class AsOfAnnualCostEvidenceResolver
                 'price_date',
                 'electricity_contract_id',
                 'price_component_type',
+                'fuse_size',
                 'payment_unit',
                 'price',
                 'has_discount',
@@ -128,6 +141,57 @@ class AsOfAnnualCostEvidenceResolver
                 ])
                 ->groupBy('source_snapshot_id');
 
+        $historicalEpisodes = $snapshotContractIds === []
+            ? collect()
+            : DB::table('contract_historical_interpretation_episodes')
+                ->whereIn('contract_id', $snapshotContractIds)
+                ->where('builder_version', HistoricalContractEpisodeBuilder::VERSION)
+                ->whereDate('episode_start', '<=', $targets->last()->toDateString())
+                ->whereDate('episode_end', '>=', $targets->first()->toDateString())
+                ->orderBy('contract_id')
+                ->orderBy('episode_start')
+                ->orderBy('id')
+                ->get([
+                    'id',
+                    'contract_id',
+                    'episode_start',
+                    'episode_end',
+                    'builder_version',
+                    'episode_fingerprint',
+                    'evidence_fingerprint',
+                    'manifest_fingerprint',
+                    'evidence_grade',
+                    'analysis_input',
+                    'evidence_manifest',
+                ])
+                ->groupBy('contract_id');
+        $historicalEpisodeIds = $historicalEpisodes->flatten(1)->pluck('id')->map(fn ($id): int => (int) $id)->all();
+        $historicalInterpretations = $historicalEpisodeIds === []
+            ? collect()
+            : DB::table('contract_historical_interpretations')
+                ->whereIn('episode_id', $historicalEpisodeIds)
+                ->orderBy('episode_id')
+                ->orderBy('id')
+                ->get([
+                    'id',
+                    'episode_id',
+                    'contract_id',
+                    'analysis_fingerprint',
+                    'status',
+                    'schema_version',
+                    'prompt_version',
+                    'historical_addendum_version',
+                    'validator_version',
+                    'parser_version',
+                    'provider',
+                    'model',
+                    'reasoning_effort',
+                    'output',
+                    'validation_errors',
+                    'completed_at',
+                ])
+                ->groupBy('episode_id');
+
         $resolved = array_fill_keys($dateStrings, []);
         foreach ($targets as $target) {
             $dateString = $target->toDateString();
@@ -170,8 +234,12 @@ class AsOfAnnualCostEvidenceResolver
                 [$canonical, $sourceIds, $flags] = $this->canonicalEvidence(
                     $contractId,
                     $target,
+                    $snapshot,
+                    $rawComponents,
                     $observations->get($contractId, collect()),
                     $interpretations,
+                    $historicalEpisodes->get($contractId, collect()),
+                    $historicalInterpretations,
                 );
 
                 $sourceIds = [
@@ -214,15 +282,22 @@ class AsOfAnnualCostEvidenceResolver
     }
 
     /**
+     * @param  Collection<int, object>  $rawComponents
      * @param  Collection<int, object>  $contractObservations
      * @param  Collection<int|string, Collection<int, object>>  $interpretations
-     * @return array{0: CanonicalContractData|null, 1: array{observation_ids: list<int>, source_snapshot_id: int|null, interpretation_id: int|null}, 2: list<string>}
+     * @param  Collection<int, object>  $historicalEpisodes
+     * @param  Collection<int|string, Collection<int, object>>  $historicalInterpretations
+     * @return array{0: CanonicalContractData|null, 1: array{price_snapshot_id?: int|null, price_component_ids?: list<string>, observation_ids: list<int>, source_snapshot_id: int|null, interpretation_id: int|null, historical_episode_id: int|null, historical_interpretation_id: int|null, historical_evidence_grade: string|null}, 2: list<string>}
      */
     private function canonicalEvidence(
         string $contractId,
         CarbonImmutable $target,
+        object $priceSnapshot,
+        Collection $rawComponents,
         Collection $contractObservations,
         Collection $interpretations,
+        Collection $historicalEpisodes,
+        Collection $historicalInterpretations,
     ): array {
         $startUtc = $target->startOfDay()->utc();
         $endUtc = $target->endOfDay()->utc();
@@ -239,10 +314,21 @@ class AsOfAnnualCostEvidenceResolver
             'observation_ids' => $observationIds,
             'source_snapshot_id' => $sourceSnapshotIds->count() === 1 ? $sourceSnapshotIds->first() : null,
             'interpretation_id' => null,
+            'historical_episode_id' => null,
+            'historical_interpretation_id' => null,
+            'historical_evidence_grade' => null,
         ];
 
         if ($covering->isEmpty()) {
-            return [null, $ids, ['canonical_omitted_no_covering_source_observation']];
+            return $this->historicalCanonicalEvidence(
+                $contractId,
+                $target,
+                $priceSnapshot,
+                $rawComponents,
+                $historicalEpisodes,
+                $historicalInterpretations,
+                $ids,
+            );
         }
         if ($sourceSnapshotIds->count() !== 1) {
             return [null, $ids, ['canonical_omitted_ambiguous_covering_source_snapshots']];
@@ -307,6 +393,157 @@ class AsOfAnnualCostEvidenceResolver
         return [$latest[0]['data'], $ids, ['historical_household_statistics_scope_assumed']];
     }
 
+    /**
+     * @param  Collection<int, object>  $rawComponents
+     * @param  Collection<int, object>  $episodes
+     * @param  Collection<int|string, Collection<int, object>>  $interpretations
+     * @param  array<string, mixed>  $ids
+     * @return array{0: CanonicalContractData|null, 1: array<string, mixed>, 2: list<string>}
+     */
+    private function historicalCanonicalEvidence(
+        string $contractId,
+        CarbonImmutable $target,
+        object $priceSnapshot,
+        Collection $rawComponents,
+        Collection $episodes,
+        Collection $interpretations,
+        array $ids,
+    ): array {
+        $flags = ['canonical_omitted_no_covering_source_observation'];
+        $date = $target->toDateString();
+        $covering = $episodes->filter(fn (object $episode): bool => $this->dateString($episode->episode_start) <= $date
+            && $this->dateString($episode->episode_end) >= $date)->values();
+
+        if ($covering->isEmpty()) {
+            return [null, $ids, [...$flags, 'historical_canonical_omitted_no_covering_current_builder_episode']];
+        }
+        if ($covering->count() !== 1) {
+            return [null, $ids, [...$flags, 'historical_canonical_omitted_ambiguous_covering_current_builder_episodes']];
+        }
+
+        $episode = $covering->first();
+        $analysisInput = $this->jsonObject($episode->analysis_input);
+        $manifest = $this->jsonObject($episode->evidence_manifest);
+        $recomputedManifest = $this->historicalFingerprints->manifest($manifest);
+        $recomputedEvidence = $this->historicalFingerprints->evidence($analysisInput, $manifest);
+        $recomputedEpisode = $this->historicalFingerprints->episode(
+            HistoricalContractEpisodeBuilder::VERSION,
+            $contractId,
+            $this->dateString($episode->episode_start),
+            $this->dateString($episode->episode_end),
+            $recomputedEvidence,
+        );
+        if ((string) $episode->contract_id !== $contractId
+            || (string) $episode->manifest_fingerprint !== $recomputedManifest
+            || (string) $episode->evidence_fingerprint !== $recomputedEvidence
+            || (string) $episode->episode_fingerprint !== $recomputedEpisode) {
+            return [null, $ids, [...$flags, 'historical_canonical_omitted_episode_fingerprint_mismatch']];
+        }
+
+        $targetManifest = collect(is_array($manifest['target_days'] ?? null) ? $manifest['target_days'] : [])
+            ->filter(fn (mixed $day): bool => is_array($day) && ($day['date'] ?? null) === $date)
+            ->values();
+        $expectedComponents = $this->componentCompositeIdentities($rawComponents);
+        $economicDigest = $this->historicalNormalizer->targetEconomicDigest($priceSnapshot, $rawComponents);
+        $manifestMatches = $targetManifest->count() === 1
+            && (int) ($targetManifest[0]['snapshot_id'] ?? 0) === (int) $priceSnapshot->id
+            && is_array($targetManifest[0]['component_ids'] ?? null)
+            && $this->sortedStrings($targetManifest[0]['component_ids']) === $expectedComponents
+            && is_string($targetManifest[0]['economic_digest'] ?? null)
+            && hash_equals($targetManifest[0]['economic_digest'], $economicDigest);
+        if (! $manifestMatches) {
+            return [null, $ids, [...$flags, 'historical_canonical_omitted_exact_target_manifest_mismatch']];
+        }
+
+        $episodeInterpretations = $interpretations->get((int) $episode->id, collect());
+        if ($episodeInterpretations->isEmpty()) {
+            return [null, $ids, [...$flags, 'historical_canonical_omitted_no_interpretation']];
+        }
+
+        $expectedAnalysisFingerprint = $this->historicalFingerprints->analysis((string) $episode->episode_fingerprint);
+        $current = $episodeInterpretations->filter(
+            fn (object $row): bool => $this->historicalVersionsMatch($row)
+                && (string) $row->analysis_fingerprint === $expectedAnalysisFingerprint,
+        )->values();
+        if ($current->isEmpty()) {
+            return [null, $ids, [...$flags, 'historical_canonical_omitted_stale_wrong_version_or_fingerprint_interpretation']];
+        }
+        if ($current->count() !== 1) {
+            return [null, $ids, [...$flags, 'historical_canonical_omitted_ambiguous_current_interpretations']];
+        }
+
+        $interpretation = $current->first();
+        if ((string) $interpretation->contract_id !== $contractId
+            || (int) $interpretation->episode_id !== (int) $episode->id) {
+            return [null, $ids, [...$flags, 'historical_canonical_omitted_interpretation_ownership_mismatch']];
+        }
+        if ((string) $interpretation->status !== ContractHistoricalInterpretation::STATUS_VALIDATED) {
+            return [null, $ids, [...$flags, 'historical_canonical_omitted_interpretation_status_'.(string) $interpretation->status]];
+        }
+        if (! $this->isEmptyJsonList($interpretation->validation_errors)) {
+            return [null, $ids, [...$flags, 'historical_canonical_omitted_nonempty_validation_errors']];
+        }
+        if ($interpretation->completed_at === null) {
+            return [null, $ids, [...$flags, 'historical_canonical_omitted_missing_completion_timestamp']];
+        }
+
+        $output = $this->jsonObject($interpretation->output);
+        try {
+            $canonical = $this->parser->parse(
+                $this->arrayValue($output, 'pricing'),
+                $this->arrayValue($output, 'calculation'),
+                $this->arrayValue($output, 'source_consistency'),
+            );
+        } catch (CanonicalPricingParseException) {
+            return [null, $ids, [...$flags, 'historical_canonical_omitted_parser_invalid_output']];
+        }
+
+        $completedAt = CarbonImmutable::parse((string) $interpretation->completed_at, 'UTC');
+        $grade = (string) $episode->evidence_grade;
+        $ids['historical_episode_id'] = (int) $episode->id;
+        $ids['historical_interpretation_id'] = (int) $interpretation->id;
+        $ids['historical_evidence_grade'] = $grade;
+
+        return [$canonical, $ids, [
+            ...$flags,
+            'retrospective_historical_interpretation',
+            'historical_evidence_grade_'.$grade,
+            'historical_episode_id_'.(int) $episode->id,
+            'historical_interpretation_id_'.(int) $interpretation->id,
+            'historical_interpretation_completed_at_'.$completedAt->toAtomString(),
+            'historical_household_statistics_scope_assumed',
+        ]];
+    }
+
+    private function historicalVersionsMatch(object $row): bool
+    {
+        return (string) $row->schema_version === (string) config('contract_interpretation.schema_version')
+            && (string) $row->prompt_version === (string) config('contract_interpretation.prompt_version')
+            && (string) $row->historical_addendum_version === (string) config('contract_interpretation.historical.addendum_version')
+            && (string) $row->validator_version === (string) config('contract_interpretation.validator_version')
+            && (string) $row->parser_version === CanonicalPricingParser::VERSION
+            && (string) $row->provider === (string) config('contract_interpretation.provider')
+            && (string) $row->model === (string) config('contract_interpretation.model')
+            && (string) $row->reasoning_effort === (string) config('contract_interpretation.reasoning_effort');
+    }
+
+    /** @param Collection<int, object> $components @return list<string> */
+    private function componentCompositeIdentities(Collection $components): array
+    {
+        return $this->sortedStrings($components->map(
+            fn (object $component): string => (string) $component->id.'|'.$this->dateString($component->price_date),
+        )->all());
+    }
+
+    /** @param array<int, mixed> $values @return list<string> */
+    private function sortedStrings(array $values): array
+    {
+        $strings = array_values(array_map('strval', $values));
+        sort($strings, SORT_STRING);
+
+        return $strings;
+    }
+
     /** @param Collection<int, object> $components */
     private function excludedEvidence(
         string $contractId,
@@ -333,6 +570,9 @@ class AsOfAnnualCostEvidenceResolver
                 'observation_ids' => [],
                 'source_snapshot_id' => null,
                 'interpretation_id' => null,
+                'historical_episode_id' => null,
+                'historical_interpretation_id' => null,
+                'historical_evidence_grade' => null,
             ],
             provenanceFlags: [$reason],
             exclusionReason: $reason,

@@ -15,4 +15,14 @@ return [
     'timeout' => (int) env('CONTRACT_INTERPRETATION_TIMEOUT', 120),
     'max_repair_attempts' => (int) env('CONTRACT_INTERPRETATION_MAX_REPAIR_ATTEMPTS', 2),
     'queue' => env('CONTRACT_INTERPRETATION_QUEUE', 'default'),
+    'historical' => [
+        'cutoff' => '2026-07-22',
+        'addendum_version' => 'historical-addendum-v3',
+        'addendum_path' => resource_path('contract-interpretation/historical-system-prompt-addendum-v3.md'),
+        'connect_timeout' => 10,
+        'timeout' => 100,
+        'http_attempts' => 1,
+        'queue' => 'historical-interpretation',
+        'stale_processing_min_minutes' => 30,
+    ],
 ];

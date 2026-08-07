@@ -16,6 +16,7 @@ use App\Services\ContractInterpretation\ContractInterpretationPublisher;
 use App\Services\ContractInterpretation\ContractInterpretationValidator;
 use App\Services\ContractInterpretation\OpenRouterContractInterpretationClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
@@ -396,6 +397,50 @@ class ContractInterpretationPipelineTest extends TestCase
                 && data_get($input, 'contract_id') === 'contract-1'
                 && ! array_key_exists('contract', $input);
         });
+    }
+
+    public function test_historical_client_uses_one_http_attempt(): void
+    {
+        config()->set('services.openrouter.api_key', 'test-key');
+        $success = [
+            'choices' => [[
+                'message' => ['content' => json_encode(['ok' => true])],
+            ]],
+        ];
+        Http::fakeSequence()
+            ->pushFailedConnection('temporary connection failure')
+            ->push($success);
+
+        try {
+            app(OpenRouterContractInterpretationClient::class)->interpret(
+                ['analysis_date' => '2026-07-22', 'contract_id' => 'historical-contract'],
+                (string) config('contract_interpretation.historical.addendum_path'),
+            );
+            $this->fail('The historical client must not retry a failed HTTP request.');
+        } catch (ConnectionException) {
+            $this->assertTrue(true);
+        }
+        Http::assertSentCount(1);
+    }
+
+    public function test_current_client_keeps_its_http_retry_policy(): void
+    {
+        config()->set('services.openrouter.api_key', 'test-key');
+        Http::fakeSequence()
+            ->pushFailedConnection('temporary connection failure')
+            ->push([
+                'choices' => [[
+                    'message' => ['content' => json_encode(['ok' => true])],
+                ]],
+            ]);
+
+        $result = app(OpenRouterContractInterpretationClient::class)->interpret([
+            'analysis_date' => '2026-07-23',
+            'contract_id' => 'current-contract',
+        ]);
+
+        $this->assertSame(['ok' => true], $result['output']);
+        Http::assertSentCount(2);
     }
 
     public function test_client_sends_validation_errors_for_a_complete_repair(): void
@@ -1770,6 +1815,41 @@ class ContractInterpretationPipelineTest extends TestCase
         $this->assertSame(['initial', 'repair', 'repair'], collect($interpretation->llm_attempts)->pluck('type')->all());
         $this->assertSame(3, $interpretation->usage['attempt_count']);
         $this->assertSame(60, $interpretation->latency_ms);
+    }
+
+    public function test_queue_retry_preserves_and_aggregates_prior_current_attempt_history(): void
+    {
+        config()->set('contract_interpretation.max_repair_attempts', 1);
+        $snapshot = $this->createSnapshot();
+        $interpretation = $this->createInterpretation($snapshot);
+        $client = $this->mock(OpenRouterContractInterpretationClient::class);
+        $client->shouldReceive('interpret')->twice()->andReturn(
+            $this->llmResult(['schema_version' => 'wrong'], 10),
+            $this->llmResult($this->validOutput($snapshot->contract_id), 30),
+        );
+        $client->shouldReceive('repair')->once()->andThrow(new \RuntimeException('temporary transport failure'));
+        $job = new AnalyzeContractSourceSnapshot($interpretation->id);
+
+        try {
+            app()->call([$job, 'handle']);
+            $this->fail('The first queue execution must throw the transport failure.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('temporary transport failure', $exception->getMessage());
+        }
+        $this->assertCount(1, $interpretation->fresh()->llm_attempts);
+
+        app()->call([$job, 'handle']);
+
+        $interpretation->refresh();
+        $this->assertSame(ContractInterpretation::STATUS_PUBLISHED, $interpretation->status);
+        $this->assertSame([1, 2], collect($interpretation->llm_attempts)->pluck('attempt')->all());
+        $this->assertSame(['initial', 'initial'], collect($interpretation->llm_attempts)->pluck('type')->all());
+        $this->assertSame(2, $interpretation->usage['attempt_count']);
+        $this->assertSame(20, $interpretation->usage['prompt_tokens']);
+        $this->assertSame(10, $interpretation->usage['completion_tokens']);
+        $this->assertSame(30, $interpretation->usage['total_tokens']);
+        $this->assertSame(0.02, $interpretation->usage['cost']);
+        $this->assertSame(40, $interpretation->latency_ms);
     }
 
     public function test_job_stops_after_two_failed_model_correction_calls(): void

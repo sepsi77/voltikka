@@ -11,9 +11,9 @@ class OpenRouterContractInterpretationClient
      * @param  array<string, mixed>  $input
      * @return array{output: array<string, mixed>, usage: array<string, mixed>, provider: ?string, response_id: ?string, latency_ms: int}
      */
-    public function interpret(array $input): array
+    public function interpret(array $input, ?string $historicalAddendumPath = null): array
     {
-        return $this->request($input);
+        return $this->request($input, historicalAddendumPath: $historicalAddendumPath);
     }
 
     /**
@@ -22,9 +22,13 @@ class OpenRouterContractInterpretationClient
      * @param  list<string>  $validationErrors
      * @return array{output: array<string, mixed>, usage: array<string, mixed>, provider: ?string, response_id: ?string, latency_ms: int}
      */
-    public function repair(array $input, array $previousOutput, array $validationErrors): array
-    {
-        return $this->request($input, $previousOutput, $validationErrors);
+    public function repair(
+        array $input,
+        array $previousOutput,
+        array $validationErrors,
+        ?string $historicalAddendumPath = null,
+    ): array {
+        return $this->request($input, $previousOutput, $validationErrors, $historicalAddendumPath);
     }
 
     /**
@@ -33,8 +37,12 @@ class OpenRouterContractInterpretationClient
      * @param  list<string>  $validationErrors
      * @return array{output: array<string, mixed>, usage: array<string, mixed>, provider: ?string, response_id: ?string, latency_ms: int}
      */
-    private function request(array $input, ?array $previousOutput = null, array $validationErrors = []): array
-    {
+    private function request(
+        array $input,
+        ?array $previousOutput = null,
+        array $validationErrors = [],
+        ?string $historicalAddendumPath = null,
+    ): array {
         $apiKey = config('services.openrouter.api_key');
         if (! $apiKey) {
             throw new RuntimeException('OPENROUTER_API_KEY is not configured.');
@@ -42,6 +50,9 @@ class OpenRouterContractInterpretationClient
 
         $schema = $this->readJsonFile((string) config('contract_interpretation.schema_path'));
         $prompt = $this->readFile((string) config('contract_interpretation.prompt_path'));
+        if ($historicalAddendumPath !== null) {
+            $prompt .= "\n\n".$this->readFile($historicalAddendumPath);
+        }
         $messages = [
             ['role' => 'system', 'content' => $prompt],
             [
@@ -76,16 +87,30 @@ class OpenRouterContractInterpretationClient
             ];
         }
 
-        $startedAt = hrtime(true);
-        $response = Http::withToken($apiKey)
+        $historical = $historicalAddendumPath !== null;
+        $connectTimeout = (int) config($historical
+            ? 'contract_interpretation.historical.connect_timeout'
+            : 'contract_interpretation.connect_timeout');
+        $timeout = (int) config($historical
+            ? 'contract_interpretation.historical.timeout'
+            : 'contract_interpretation.timeout');
+        $request = Http::withToken($apiKey)
             ->acceptJson()
             ->withHeaders([
                 'HTTP-Referer' => config('app.url'),
                 'X-Title' => 'Voltikka contract interpretation',
             ])
-            ->connectTimeout((int) config('contract_interpretation.connect_timeout'))
-            ->timeout((int) config('contract_interpretation.timeout'))
-            ->retry(2, 1000)
+            ->connectTimeout($connectTimeout)
+            ->timeout($timeout);
+        if ($historical && (int) config('contract_interpretation.historical.http_attempts') !== 1) {
+            throw new RuntimeException('Historical interpretation HTTP attempts must remain 1 to fit the queue timeout.');
+        }
+        if (! $historical) {
+            $request->retry(2, 1000);
+        }
+
+        $startedAt = hrtime(true);
+        $response = $request
             ->post(rtrim((string) config('services.openrouter.base_url'), '/').'/chat/completions', [
                 'model' => config('contract_interpretation.model'),
                 'max_tokens' => config('contract_interpretation.max_tokens'),

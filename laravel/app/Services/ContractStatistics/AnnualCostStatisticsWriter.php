@@ -117,6 +117,9 @@ class AnnualCostStatisticsWriter
                     : null,
                 'source_snapshot_id' => $result->sourceEvidenceIds['source_snapshot_id'],
                 'source_interpretation_id' => $result->sourceEvidenceIds['interpretation_id'],
+                'historical_episode_id' => $result->sourceEvidenceIds['historical_episode_id'],
+                'historical_interpretation_id' => $result->sourceEvidenceIds['historical_interpretation_id'],
+                'historical_evidence_grade' => $result->sourceEvidenceIds['historical_evidence_grade'],
                 'price_episode_started_at' => $result->priceEpisodeStartedAt?->toDateTimeString(),
                 'provenance' => json_encode([
                     'source_evidence_ids' => $result->sourceEvidenceIds,
@@ -276,7 +279,16 @@ class AnnualCostStatisticsWriter
     /** @param array<string, mixed> $source */
     private function validateSourceEvidence(array $source): void
     {
-        $required = ['price_snapshot_id', 'price_component_ids', 'observation_ids', 'source_snapshot_id', 'interpretation_id'];
+        $required = [
+            'price_snapshot_id',
+            'price_component_ids',
+            'observation_ids',
+            'source_snapshot_id',
+            'interpretation_id',
+            'historical_episode_id',
+            'historical_interpretation_id',
+            'historical_evidence_grade',
+        ];
         foreach ($required as $key) {
             if (! array_key_exists($key, $source)) {
                 throw new InvalidArgumentException('Annual cost source evidence is incomplete.');
@@ -288,9 +300,29 @@ class AnnualCostStatisticsWriter
             || ! is_array($source['observation_ids']) || ! array_is_list($source['observation_ids'])
             || collect($source['observation_ids'])->contains(fn ($id): bool => ! is_int($id) || $id <= 0)
             || ! $this->isNullablePositiveInteger($source['source_snapshot_id'])
-            || ! $this->isNullablePositiveInteger($source['interpretation_id'])) {
+            || ! $this->isNullablePositiveInteger($source['interpretation_id'])
+            || ! $this->isNullablePositiveInteger($source['historical_episode_id'])
+            || ! $this->isNullablePositiveInteger($source['historical_interpretation_id'])
+            || ! $this->isNullableEvidenceGrade($source['historical_evidence_grade'])) {
             throw new InvalidArgumentException('Annual cost source evidence has invalid identifiers.');
         }
+
+        $hasHistorical = $source['historical_episode_id'] !== null
+            || $source['historical_interpretation_id'] !== null
+            || $source['historical_evidence_grade'] !== null;
+        if ($hasHistorical && ($source['historical_episode_id'] === null
+            || $source['historical_interpretation_id'] === null
+            || $source['historical_evidence_grade'] === null
+            || $source['source_snapshot_id'] !== null
+            || $source['interpretation_id'] !== null
+            || $source['observation_ids'] !== [])) {
+            throw new InvalidArgumentException('Dedicated historical evidence provenance must be complete and isolated.');
+        }
+    }
+
+    private function isNullableEvidenceGrade(mixed $value): bool
+    {
+        return $value === null || (is_string($value) && trim($value) !== '' && strlen($value) <= 80);
     }
 
     private function isNullablePositiveInteger(mixed $value): bool

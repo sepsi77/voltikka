@@ -24,6 +24,9 @@ class ContractPriceAnnualCost extends Model
         'source_observation_id',
         'source_snapshot_id',
         'source_interpretation_id',
+        'historical_episode_id',
+        'historical_interpretation_id',
+        'historical_evidence_grade',
         'price_episode_started_at',
         'provenance',
     ];
@@ -39,6 +42,8 @@ class ContractPriceAnnualCost extends Model
             'source_observation_id' => 'integer',
             'source_snapshot_id' => 'integer',
             'source_interpretation_id' => 'integer',
+            'historical_episode_id' => 'integer',
+            'historical_interpretation_id' => 'integer',
             'price_episode_started_at' => 'datetime',
             'provenance' => 'array',
         ];
@@ -47,5 +52,15 @@ class ContractPriceAnnualCost extends Model
     public function contract(): BelongsTo
     {
         return $this->belongsTo(ElectricityContract::class, 'contract_id', 'id');
+    }
+
+    public function historicalEpisode(): BelongsTo
+    {
+        return $this->belongsTo(ContractHistoricalInterpretationEpisode::class, 'historical_episode_id');
+    }
+
+    public function historicalInterpretation(): BelongsTo
+    {
+        return $this->belongsTo(ContractHistoricalInterpretation::class, 'historical_interpretation_id');
     }
 }

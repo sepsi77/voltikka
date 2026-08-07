@@ -107,7 +107,12 @@ class AsOfAnnualCostCalculator
         AsOfSpotAssumptionsResult $spotResult,
     ): AsOfAnnualCostResult {
         $canonical = $evidence->canonicalData !== null;
-        $recurringHold = $canonical && $evidence->canonicalData->recurringSchedule->isActiveReset();
+        $usesSpot = $canonical
+            ? $this->canonicalCalculator->usesSpotPricing($evidence->canonicalData, $this->context($evidence))
+            : PricingModel::fromSource($evidence->pricingModel) === PricingModel::Spot;
+        $recurringHold = $canonical
+            && ! $usesSpot
+            && $evidence->canonicalData->recurringSchedule->isActiveReset();
         $calculationBasis = $canonical && ! $recurringHold
             ? AnnualCostCalculationBasis::CanonicalOutcome
             : AnnualCostCalculationBasis::ObservedRelationalComponents;
@@ -144,9 +149,6 @@ class AsOfAnnualCostCalculator
             );
         }
 
-        $usesSpot = $canonical
-            ? $this->canonicalCalculator->usesSpotPricing($evidence->canonicalData, $this->context($evidence))
-            : PricingModel::fromSource($evidence->pricingModel) === PricingModel::Spot;
         if ($usesSpot && (! $spotAvailable || $spotEstimate === null)) {
             $flags[] = 'spot_assumptions_unavailable'.($spotResult->unavailableReason !== null ? '_'.$spotResult->unavailableReason : '');
 

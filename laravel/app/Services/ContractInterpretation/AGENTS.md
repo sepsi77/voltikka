@@ -23,6 +23,10 @@ Primary services:
 - `ContractInterpretationPublisher` locks contract, pointed observation, pointed snapshot, then interpretation, validates that all three source rows belong to the contract, and automatically publishes valid compatible classifications and current canonical pricing JSON.
 - Publication gets supported pricing-model and contract-type values from their enums and metering values from `MeteringType::cases()`. `Unknown` and all unsupported classifications do not publish; confidence and consistency gates still apply.
 - `CanonicalPriceComponentWriter` writes relational source components only after the relevant source version is safe to expose.
+- `HistoricalContractEpisodeBuilder` discovers the full pre-cutoff chronology from the union of exact-date statistics snapshots and price components. It sorts the union of contract IDs, yields at most 25 complete contract chronologies at a time, and selects only required snapshot/component columns. Each chunk uses batched contract and first-source text reads, with no per-contract query. A day is eligible only with one snapshot and nonempty components. It groups only consecutive dates with the same normalized identity and economic components. Builder v4 stores one compact `target_days` manifest list: each date has its exact snapshot ID, sorted `id|price_date` component identities, and a normalized economic digest of the complete snapshot identity and component values. Redundant episode-wide snapshot and component lists are not stored.
+- `HistoricalInterpretationFingerprint` keeps component/snapshot storage IDs and dates out of the semantic LLM evidence identity, but a separate exact manifest fingerprint binds every reviewed row identity and value to the command plan, persisted episode, job claim, and AsOf read. Historical analysis fingerprints include the normal prompt, historical addendum, dedicated backcast validator, canonical parser, provider, model, and reasoning versions.
+- `HistoricalInterpretationBackcastValidator` is the deterministic second gate for retrospective text. Stable mechanism classification can use clearly graded backcast prose. Every numeric billed fact is matched one-to-one to a cited structured source component by the normal validator's shared source-to-canonical type mapping, exact source payment unit, amount role, and component-scoped discount timing. Package fee/rate/allowance facts have the same exact scope rule. Recurring-period dates and numeric consumption effects stay null, and backcast deception can never be `detected`. Unsupported or duplicate text-derived pricing is returned to the repair loop and cannot enter annual arithmetic.
+- `ContractInterpretationAttemptRunner` is the publisher-free shared one-initial-plus-two-repairs loop used by current and historical jobs. Both jobs retain and renumber attempts across queue retries so usage and cost cannot be understated.
 - The API can return multiple null-UUID components with the same type and fuse size. These rows generate the same relational `(id, price_date)` key. The writer must collapse each collision before `upsert()`: keep the first positive-price row, or the first row when none is positive. This restores the old importer's effective behavior, prevents a later zero consumption-effect placeholder from overwriting a real energy price, and preserves valid all-zero package components. Do not use source array order to select the last row.
 
 Configuration and assets:
@@ -30,10 +34,16 @@ Configuration and assets:
 - `config/contract_interpretation.php`
 - `resources/contract-interpretation/schema-v4.json`
 - `resources/contract-interpretation/system-prompt-v19.md`
+- `resources/contract-interpretation/historical-system-prompt-addendum-v3.md`
 
 Important semantics:
 
 - Import-time queueing uses `CONTRACT_INTERPRETATION_ENABLED=true`; production enabled it after the successful 425-contract backfill on 2026-07-24.
+- Historical reconstruction defaults through 2026-07-22, the day before immutable source chronology began. This is a code value, not a feature flag or schedule. Text is explicitly graded as first-immutable-source backcast, retained last-observed backcast, or structured-only. Retained input can include the API ID, target group, Spot selection, pricing name, period definitions, billing frequency, and consumption limits, but all such values remain explicit last-observed backcast metadata. Exact historical snapshot identity and components always override backcast metadata.
+- Historical `analysis_input` must have exactly the normal builder's flat top-level keys plus `_historical_provenance`. The provenance object is control metadata only. The historical prompt addendum forbids citing it as seller evidence.
+- Historical episodes and analyses use dedicated tables. The historical job validates with the normal deterministic validator, historical addendum v3, backcast validator v2, and `CanonicalPricingParser`, then stops at `validated`. The addendum and backcast-validator versions are in the analysis fingerprint. Prior dedicated analyses remain for audit but exact expected-fingerprint selection ignores them. The job has no publisher or canonical writer dependency and cannot change current contract pointers, classifications, pricing, active state, annual costs, or statistics. Historical HTTP calls use one attempt with a 100-second total timeout; up to three model calls therefore remain inside the 400-second job and 420-second worker envelope, while the queue's bounded retries own transport recovery.
+- `contracts:backfill-historical-interpretations` is strict read-only by default. Its first pass consumes builder chunks and retains only compact fingerprint/action entries, counts, and selected dispatch fingerprints. Dry run stops there. Apply verifies the exact recomputed plan hash before any write, then repeats deterministic discovery inside one transaction to persist full inputs and manifests. A second-pass evidence or status mismatch rolls back all writes. Dispatch happens after commit, needs the OpenRouter key and explicit `--yes`, and uses the `historical-interpretation` queue. Failed and stale processing rows are inert unless their explicit options are present. There is no schedule.
+- `AsOfAnnualCostEvidenceResolver` can consume one validated dedicated result only when the higher-priority immutable source path has no covering observation. Exact target manifest membership, current builder and analysis versions, recomputed fingerprints, validated status, empty errors, parser success, and unique candidates are mandatory. The later completion time is accepted only for this date-bounded retrospective store and is recorded with the text grade and dedicated IDs. The integration does not activate `annual_cost_as_of_v1`. Production is the evidence authority, but any production apply, provider execution, or annual rebuild is later work and requires explicit confirmation.
 - There is no human review, approval, or override workflow.
 - Validation failure can cause at most two model correction calls. Each call receives the exact validator errors and the previous complete output. All attempts are stored in `llm_attempts`.
 - Invalid final output is stored as failed and does not publish.
@@ -94,6 +104,19 @@ php artisan contracts:interpret --contract=LOCAL_CONTRACT_ID
 php artisan contracts:interpret --include-inactive
 php artisan contracts:interpret --retry-failed
 ```
+
+Historical reconstruction command (never scheduled):
+
+```bash
+php artisan contracts:backfill-historical-interpretations
+php artisan contracts:backfill-historical-interpretations --from=2026-01-01 --to=2026-07-22 --contract=LOCAL_ID
+php artisan contracts:backfill-historical-interpretations --apply --plan-hash=EXACT_DRY_RUN_HASH
+php artisan contracts:backfill-historical-interpretations --apply --dispatch --yes --plan-hash=EXACT_DRY_RUN_HASH
+php artisan contracts:backfill-historical-interpretations --retry-failed
+php artisan contracts:backfill-historical-interpretations --resume-stale-processing=60
+```
+
+`--dispatch-limit` selects a deterministic prefix. Apply without dispatch needs no provider key and only persists immutable episodes plus pending analyses. No form of this command publishes or writes annual-cost provenance.
 
 Repair command for a relaxed publication gate:
 

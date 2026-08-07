@@ -8,6 +8,30 @@ use Carbon\CarbonInterface;
 
 class ContractInterpretationInputBuilder
 {
+    public const TOP_LEVEL_KEYS = [
+        'analysis_date',
+        'contract_id',
+        'api_id',
+        'company_name',
+        'contract_name',
+        'pricing_model',
+        'contract_type',
+        'fixed_time_range',
+        'metering',
+        'target_group',
+        'spot_price_selection',
+        'pricing_name',
+        'pricing_has_discounts',
+        'short_description',
+        'long_description',
+        'extra_information_fi',
+        'extra_information_default',
+        'time_period_definitions',
+        'billing_frequency',
+        'consumption_limitation',
+        'components',
+    ];
+
     /**
      * Build the compact, stable input shape used by the tested prompt.
      *
@@ -53,7 +77,7 @@ class ContractInterpretationInputBuilder
         ];
     }
 
-    private function normalizeText(mixed $value): ?string
+    public function normalizeText(mixed $value): ?string
     {
         if (! is_string($value)) {
             return null;

@@ -263,7 +263,7 @@ class ContractInterpretationValidator
                     return null;
                 }
 
-                return $this->interpretedComponentType(
+                return $this->canonicalComponentTypeForSource(
                     $component['price_component_type'] ?? null,
                     $output['classification']['primary_pricing_model'] ?? $input['pricing_model'] ?? null,
                 );
@@ -330,7 +330,7 @@ class ContractInterpretationValidator
         }
 
         $expectedTypes = $components->map(
-            fn (array $component): ?string => $this->interpretedComponentType(
+            fn (array $component): ?string => $this->canonicalComponentTypeForSource(
                 $component['price_component_type'] ?? null,
                 $sourceModel,
             ),
@@ -634,7 +634,7 @@ class ContractInterpretationValidator
             return ['monthly_fee', 'flat_fee'];
         }
 
-        $type = $this->interpretedComponentType($sourceType, $pricingModel);
+        $type = $this->canonicalComponentTypeForSource($sourceType, $pricingModel);
 
         return $type === null ? [] : [$type];
     }
@@ -860,7 +860,13 @@ class ContractInterpretationValidator
         return true;
     }
 
-    private function interpretedComponentType(mixed $sourceType, mixed $pricingModel): ?string
+    /**
+     * Map one structured source component type to the canonical interpretation type.
+     *
+     * This pure mapping is public so deterministic validators can share the normal
+     * interpretation taxonomy instead of maintaining parallel maps.
+     */
+    public function canonicalComponentTypeForSource(mixed $sourceType, mixed $pricingModel): ?string
     {
         // On a Spot contract every supplier c/kWh energy adder is a margin over the market price,
         // whichever tariff slot the source entered it in (General/DayTime/NightTime/Seasonal).
