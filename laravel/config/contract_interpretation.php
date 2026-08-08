@@ -20,7 +20,7 @@ return [
         'addendum_version' => 'historical-addendum-v3',
         'addendum_path' => resource_path('contract-interpretation/historical-system-prompt-addendum-v3.md'),
         'connect_timeout' => 10,
-        'timeout' => 100,
+        'timeout' => 300,
         'http_attempts' => 1,
         'queue' => 'historical-interpretation',
         'stale_processing_min_minutes' => 30,

@@ -19,7 +19,7 @@ class AnalyzeHistoricalContractEpisode implements ShouldBeUnique, ShouldQueue
 
     public int $tries = 3;
 
-    public int $timeout = 400;
+    public int $timeout = 1000;
 
     public int $uniqueFor = 3600;
 

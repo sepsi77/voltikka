@@ -1,0 +1,6 @@
+[
+  {"name":"Inspect the Sentry transfer facts and queue policy","status":"completed"},
+  {"name":"Check the durable production analysis state","status":"completed"},
+  {"name":"Implement the coordinated five-minute request envelope","status":"completed"},
+  {"name":"Run focused tests and update documentation","status":"completed"}
+]

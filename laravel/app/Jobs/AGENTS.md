@@ -16,7 +16,7 @@ Important semantics:
 - `ContractPostImportCoordinator` calls the fingerprint-idempotent dispatcher only after the source transaction commits when interpretation is enabled; each observed source episode has its own failure boundary. An unchanged pointed episode revisits the dispatcher so a transient failure before interpretation creation can recover, but an existing fingerprint does not create a duplicate job
 - before any model call, the job loads the contract's pointed observation and requires matching contract and snapshot ownership. A date-scoped fallback also requires `analysis_source_observation_id` to equal that exact pointed observation; base rows keep it null and retain snapshot-based reuse. The job builds input with the accepted episode's `first_observed_at`; missing or moved pointers supersede the row without a client call
 - stale results cannot publish over a newer source snapshot; they become `superseded`
-- job timeout is 400 seconds; the Supervisor worker timeout is 420 seconds and database queue `retry_after` must remain above both at 450 seconds or more
+- the job timeout stays 400 seconds; the shared Supervisor worker timeout is 1,020 seconds, and code enforces a database queue `retry_after` minimum of 1,050 seconds
 - output becomes a permanent failed interpretation only after the allowed correction calls still fail; deterministic validation failure does not use a queue retry
 - transport/provider failures throw so the queue can retry them
 
@@ -27,7 +27,7 @@ Purpose:
 - stores complete attempts and usage in the dedicated historical table and stops at `validated`
 
 Important semantics:
-- runs on `historical-interpretation`, after the higher-priority `default` queue; its job timeout is 400 seconds. Each historical model call has a 100-second total HTTP timeout and one HTTP attempt, so one initial plus two repairs fits below the job and 420-second worker limits. The queue's three tries own transport retries
+- runs on `historical-interpretation`, after the higher-priority `default` queue; its job timeout is 1,000 seconds. Each historical model call has a 300-second total HTTP timeout and one HTTP attempt. One initial call plus two repair calls fits below the job timeout and the 1,020-second worker timeout. The queue's three tries own transport retries
 - verifies episode ownership, exact manifest fingerprint, semantic input evidence fingerprint, episode fingerprint, analysis fingerprint, and every configured version before an HTTP call
 - requires `ContractInterpretationValidator`, the historical-only backcast restriction validator, and `CanonicalPricingParser` success. Backcast text can classify a stable mechanism, but numeric billed and package facts must match one cited exact structured component by shared canonical type, unit, role, and scoped discount timing. Recurring-period dates and numeric consumption effects stay null, duplicate billed components fail, and backcast evidence can never produce `detected` deception
 - has no publisher, canonical component writer, current-pointer, active-state, annual-cost, or statistics dependency
@@ -46,4 +46,4 @@ Important semantics:
 - `ContractPostImportCoordinator` dispatches this job directly for weekly/5 000 after its direct daily statistics call succeeds; it does not use a nested Artisan command
 - `spot:fetch` queues this after recalculating spot averages because spot data participates in the statistics page cache fingerprint
 - do not move this back to synchronous warming in import commands unless product explicitly accepts longer import runtimes; user-facing UX should not depend on the first low-traffic visitor hitting a cold cache
-- the job timeout stays 300 seconds. A timeout kills the worker before the job can delete itself; database `retry_after=450` then releases it, and attempt 4 becomes `MaxAttemptsExceededException` under Supervisor's `--tries=3`. Fix warmer CPU/query complexity instead of increasing tries or timeout. `ContractPriceStatistics` therefore indexes its loaded daily rows once and memoizes repeated period series
+- the job timeout stays 300 seconds. A timeout kills the worker before the job can delete itself; the code-enforced database `retry_after` minimum of 1,050 seconds then releases it, and attempt 4 becomes `MaxAttemptsExceededException` under Supervisor's `--tries=3`. Fix warmer CPU/query complexity instead of increasing tries or timeout. `ContractPriceStatistics` therefore indexes its loaded daily rows once and memoizes repeated period series

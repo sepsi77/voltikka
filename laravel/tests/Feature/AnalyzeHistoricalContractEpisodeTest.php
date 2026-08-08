@@ -49,11 +49,38 @@ class AnalyzeHistoricalContractEpisodeTest extends TestCase
     public function test_historical_job_and_http_policy_fit_the_worker_envelope(): void
     {
         $job = new AnalyzeHistoricalContractEpisode(1);
+        $httpTimeout = config('contract_interpretation.historical.timeout');
+        $modelCalls = 1 + config('contract_interpretation.max_repair_attempts');
+        $retryAfter = config('queue.connections.database.retry_after');
+        $supervisorConfig = file_get_contents(base_path('../supervisord.conf'));
+        $retryAfterWasDefined = array_key_exists('DB_QUEUE_RETRY_AFTER', $_SERVER);
+        $originalRetryAfter = $_SERVER['DB_QUEUE_RETRY_AFTER'] ?? null;
 
-        $this->assertSame(400, $job->timeout);
-        $this->assertSame(100, config('contract_interpretation.historical.timeout'));
+        try {
+            $_SERVER['DB_QUEUE_RETRY_AFTER'] = '450';
+            $queueConfigWithStaleOverride = require config_path('queue.php');
+        } finally {
+            if ($retryAfterWasDefined) {
+                $_SERVER['DB_QUEUE_RETRY_AFTER'] = $originalRetryAfter;
+            } else {
+                unset($_SERVER['DB_QUEUE_RETRY_AFTER']);
+            }
+        }
+
+        $this->assertIsString($supervisorConfig);
+        $this->assertSame(1, preg_match('/\[program:queue-worker\]\Rcommand=.*\bqueue:work\b.*--timeout=(\d+)\b/', $supervisorConfig, $matches));
+        $workerTimeout = (int) $matches[1];
+
+        $this->assertSame(3, $modelCalls);
+        $this->assertSame(300, $httpTimeout);
         $this->assertSame(1, config('contract_interpretation.historical.http_attempts'));
-        $this->assertLessThan($job->timeout, config('contract_interpretation.historical.timeout') * 3);
+        $this->assertSame(1000, $job->timeout);
+        $this->assertSame(1020, $workerTimeout);
+        $this->assertSame(1050, $retryAfter);
+        $this->assertSame(1050, $queueConfigWithStaleOverride['connections']['database']['retry_after']);
+        $this->assertLessThan($job->timeout, $modelCalls * $httpTimeout);
+        $this->assertLessThan($workerTimeout, $job->timeout);
+        $this->assertLessThan($retryAfter, $workerTimeout);
     }
 
     public function test_invalid_output_uses_two_repairs_then_fails_and_retains_all_attempts(): void
