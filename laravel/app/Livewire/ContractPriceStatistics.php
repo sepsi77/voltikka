@@ -68,6 +68,15 @@ class ContractPriceStatistics extends Component
      */
     private ?Collection $dailyStatsCache = null;
 
+    /** @var array<string, Collection<int, ContractPriceDailyStatistic>>|null */
+    private ?array $dailyStatsIndexCache = null;
+
+    /** @var array<string, array<string,mixed>> */
+    private array $aggregatedSeriesCache = [];
+
+    /** @var array<string, array{x:array<int,int>,median:array<int,?float>,p20:array<int,?float>,p80:array<int,?float>}> */
+    private array $spotEnergyPriceAggregatedSeriesCache = [];
+
     /** @var array<string, float>|null */
     private ?array $dailySpotAveragePricesByDateCache = null;
 
@@ -212,15 +221,20 @@ class ContractPriceStatistics extends Component
             return ['from' => null, 'to' => null, 'days' => 0, 'dayCount' => 0];
         }
 
-        $dates = $stats->pluck('stat_date')->map(fn ($d) => Carbon::parse($d));
-        $from = $dates->min();
-        $to = $dates->max();
+        $dates = [];
+        foreach ($stats as $stat) {
+            $date = $stat->stat_date->toDateString();
+            $dates[$date] = true;
+        }
+
+        $from = array_key_first($dates);
+        $to = array_key_last($dates);
 
         return [
-            'from' => $from->toDateString(),
-            'to' => $to->toDateString(),
-            'days' => $from->diffInDays($to) + 1,
-            'dayCount' => $dates->unique(fn ($d) => $d->toDateString())->count(),
+            'from' => $from,
+            'to' => $to,
+            'days' => Carbon::parse($from)->diffInDays(Carbon::parse($to)) + 1,
+            'dayCount' => count($dates),
         ];
     }
 
@@ -787,13 +801,15 @@ class ContractPriceStatistics extends Component
      */
     private function aggregatedSeriesWithBands(string $segmentKey, string $metricKey): array
     {
-        $rows = $this->dailyStats
-            ->where('segment_key', $segmentKey)
-            ->where('metric_key', $metricKey)
-            ->filter(fn ($row) => $row->consumption_kwh === null);
+        $cacheKey = $this->period.'|'.$segmentKey.'|'.$metricKey;
+        if (isset($this->aggregatedSeriesCache[$cacheKey])) {
+            return $this->aggregatedSeriesCache[$cacheKey];
+        }
+
+        $rows = $this->dailyStatisticRows($segmentKey, $metricKey, null);
 
         if ($rows->isEmpty()) {
-            return ['x' => [], 'median' => [], 'p20' => [], 'p80' => []];
+            return $this->aggregatedSeriesCache[$cacheKey] = ['x' => [], 'median' => [], 'p20' => [], 'p80' => []];
         }
 
         $grouped = $rows
@@ -808,7 +824,7 @@ class ContractPriceStatistics extends Component
             $p80[] = $this->averageOrNull($periodRows->pluck('p80_value'));
         }
 
-        return ['x' => $x, 'median' => $median, 'p20' => $p20, 'p80' => $p80];
+        return $this->aggregatedSeriesCache[$cacheKey] = ['x' => $x, 'median' => $median, 'p20' => $p20, 'p80' => $p80];
     }
 
     private function averageOrNull(Collection $values): ?float
@@ -829,13 +845,15 @@ class ContractPriceStatistics extends Component
      */
     private function aggregatedSeries(string $segmentKey, string $metricKey, ?int $consumption): array
     {
-        $rows = $this->dailyStats
-            ->where('segment_key', $segmentKey)
-            ->where('metric_key', $metricKey)
-            ->filter(fn ($row) => $row->consumption_kwh === $consumption);
+        $cacheKey = $this->period.'|'.$segmentKey.'|'.$metricKey.'|'.($consumption ?? 'null');
+        if (isset($this->aggregatedSeriesCache[$cacheKey])) {
+            return $this->aggregatedSeriesCache[$cacheKey];
+        }
+
+        $rows = $this->dailyStatisticRows($segmentKey, $metricKey, $consumption);
 
         if ($rows->isEmpty()) {
-            return ['x' => [], 'median' => [], 'compatibility_keys' => []];
+            return $this->aggregatedSeriesCache[$cacheKey] = ['x' => [], 'median' => [], 'compatibility_keys' => []];
         }
 
         $grouped = $rows->groupBy(fn ($row) => $this->periodStart($row->stat_date)->toDateString())
@@ -860,7 +878,11 @@ class ContractPriceStatistics extends Component
             $compatibilityKeys[] = $periodCompatibility['compatibility_key'] ?? null;
         }
 
-        return ['x' => $x, 'median' => $median, 'compatibility_keys' => $compatibilityKeys];
+        return $this->aggregatedSeriesCache[$cacheKey] = [
+            'x' => $x,
+            'median' => $median,
+            'compatibility_keys' => $compatibilityKeys,
+        ];
     }
 
     /**
@@ -883,13 +905,19 @@ class ContractPriceStatistics extends Component
      */
     private function spotEnergyPriceAggregatedSeriesWithBands(): array
     {
-        $rows = $this->dailyStats
-            ->where('segment_key', 'spot')
-            ->where('metric_key', 'spot_total_energy_price')
-            ->where('consumption_kwh', null);
+        if (isset($this->spotEnergyPriceAggregatedSeriesCache[$this->period])) {
+            return $this->spotEnergyPriceAggregatedSeriesCache[$this->period];
+        }
+
+        $rows = $this->dailyStatisticRows('spot', 'spot_total_energy_price', null);
 
         if ($rows->isEmpty()) {
-            return ['x' => [], 'median' => [], 'p20' => [], 'p80' => []];
+            return $this->spotEnergyPriceAggregatedSeriesCache[$this->period] = [
+                'x' => [],
+                'median' => [],
+                'p20' => [],
+                'p80' => [],
+            ];
         }
 
         $daily = $rows
@@ -906,7 +934,12 @@ class ContractPriceStatistics extends Component
             ->filter(fn ($row) => $row['median'] !== null);
 
         if ($daily->isEmpty()) {
-            return ['x' => [], 'median' => [], 'p20' => [], 'p80' => []];
+            return $this->spotEnergyPriceAggregatedSeriesCache[$this->period] = [
+                'x' => [],
+                'median' => [],
+                'p20' => [],
+                'p80' => [],
+            ];
         }
 
         $grouped = $daily
@@ -921,7 +954,12 @@ class ContractPriceStatistics extends Component
             $p80[] = $this->averageOrNull($periodRows->pluck('p80'));
         }
 
-        return ['x' => $x, 'median' => $median, 'p20' => $p20, 'p80' => $p80];
+        return $this->spotEnergyPriceAggregatedSeriesCache[$this->period] = [
+            'x' => $x,
+            'median' => $median,
+            'p20' => $p20,
+            'p80' => $p80,
+        ];
     }
 
     /**
@@ -933,10 +971,7 @@ class ContractPriceStatistics extends Component
      */
     private function spotEnergyPriceSummaryForLatestDate(): array
     {
-        $spotRows = $this->dailyStats
-            ->where('segment_key', 'spot')
-            ->where('metric_key', 'spot_total_energy_price')
-            ->where('consumption_kwh', null)
+        $spotRows = $this->dailyStatisticRows('spot', 'spot_total_energy_price', null)
             ->sortBy('stat_date')
             ->values();
 
@@ -972,23 +1007,18 @@ class ContractPriceStatistics extends Component
         $dailyMarketPrices = $this->dailySpotMarketPricesForWindow($startDate, $endDate);
 
         if ($dailyMarketPrices !== []) {
-            $dailyTotals = array_map(fn (float $price) => $price + $margin, $dailyMarketPrices);
-
             return $this->spotEnergySummaryCache[$endDate] = [
-                'avg' => array_sum($dailyTotals) / count($dailyTotals),
-                'p20' => $this->percentileFromValues($dailyTotals, 20),
-                'p80' => $this->percentileFromValues($dailyTotals, 80),
-                'days' => count($dailyTotals),
+                'avg' => array_sum($dailyMarketPrices) / count($dailyMarketPrices) + $margin,
+                'p20' => $this->percentileFromValues($dailyMarketPrices, 20) + $margin,
+                'p80' => $this->percentileFromValues($dailyMarketPrices, 80) + $margin,
+                'days' => count($dailyMarketPrices),
             ];
         }
 
         // Test/development fallback: if stored spot averages are unavailable,
         // use the page's own daily spot-total medians over the same window.
-        $dailyTotals = $this->dailyStats
-            ->where('segment_key', 'spot')
-            ->where('metric_key', 'spot_total_energy_price')
-            ->where('consumption_kwh', null)
-            ->filter(fn ($row) => Carbon::parse($row->stat_date)->betweenIncluded($startDate, $endDate))
+        $dailyTotals = $this->dailyStatisticRows('spot', 'spot_total_energy_price', null)
+            ->filter(fn ($row) => $row->stat_date->betweenIncluded($startDate, $endDate))
             ->pluck('median_value')
             ->filter(fn ($value) => $value !== null)
             ->map(fn ($value) => (float) $value)
@@ -1035,11 +1065,8 @@ class ContractPriceStatistics extends Component
 
     private function latestSpotMargin(string $latestDate): ?float
     {
-        $row = $this->dailyStats
-            ->where('segment_key', 'spot')
-            ->where('metric_key', 'spot_margin')
-            ->where('consumption_kwh', null)
-            ->filter(fn ($stat) => Carbon::parse($stat->stat_date)->lte($latestDate))
+        $row = $this->dailyStatisticRows('spot', 'spot_margin', null)
+            ->filter(fn ($stat) => $stat->stat_date->lte($latestDate))
             ->sortByDesc('stat_date')
             ->first();
 
@@ -1337,9 +1364,7 @@ class ContractPriceStatistics extends Component
 
     private function latestStatisticRow(string $segmentKey, string $metricKey, ?int $consumption): ?ContractPriceDailyStatistic
     {
-        return $this->dailyStats
-            ->where('segment_key', $segmentKey)
-            ->where('metric_key', $metricKey)
+        return $this->dailyStatisticRows($segmentKey, $metricKey, $consumption)
             ->when(
                 $metricKey !== 'annual_cost',
                 fn (Collection $rows) => $rows->where(
@@ -1347,9 +1372,39 @@ class ContractPriceStatistics extends Component
                     app(PricingMode::class)->expectedContractPriceBasis()->value,
                 ),
             )
-            ->filter(fn ($row) => $row->consumption_kwh === $consumption)
             ->sortByDesc('stat_date')
             ->first();
+    }
+
+    /**
+     * @return Collection<int, ContractPriceDailyStatistic>
+     */
+    private function dailyStatisticRows(string $segmentKey, string $metricKey, ?int $consumption): Collection
+    {
+        if ($this->dailyStatsIndexCache === null) {
+            $indexed = [];
+
+            foreach ($this->dailyStats as $row) {
+                $key = $this->dailyStatisticIndexKey(
+                    $row->segment_key,
+                    $row->metric_key,
+                    $row->consumption_kwh,
+                );
+                $indexed[$key][] = $row;
+            }
+
+            $this->dailyStatsIndexCache = collect($indexed)
+                ->map(fn (array $rows) => collect($rows))
+                ->all();
+        }
+
+        return $this->dailyStatsIndexCache[$this->dailyStatisticIndexKey($segmentKey, $metricKey, $consumption)]
+            ?? collect();
+    }
+
+    private function dailyStatisticIndexKey(string $segmentKey, string $metricKey, ?int $consumption): string
+    {
+        return $segmentKey.'|'.$metricKey.'|'.($consumption ?? 'null');
     }
 
     private function latestSnapshotDateRaw(): ?string
@@ -1417,10 +1472,7 @@ class ContractPriceStatistics extends Component
             return $this->spotMarketPriceBoundsCache;
         }
 
-        $spotRows = $this->dailyStats
-            ->where('segment_key', 'spot')
-            ->where('metric_key', 'spot_total_energy_price')
-            ->where('consumption_kwh', null);
+        $spotRows = $this->dailyStatisticRows('spot', 'spot_total_energy_price', null);
 
         if ($spotRows->isEmpty()) {
             $today = Carbon::today();
@@ -1447,10 +1499,21 @@ class ContractPriceStatistics extends Component
      */
     private function spotMarketPricesForWindow(array $pricesByDate, string $startDate, string $endDate): array
     {
-        return collect($pricesByDate)
-            ->filter(fn (float $price, string $date) => $date >= $startDate && $date <= $endDate)
-            ->values()
-            ->all();
+        $prices = [];
+
+        foreach ($pricesByDate as $date => $price) {
+            if ($date < $startDate) {
+                continue;
+            }
+
+            if ($date > $endDate) {
+                break;
+            }
+
+            $prices[] = $price;
+        }
+
+        return $prices;
     }
 
     /**

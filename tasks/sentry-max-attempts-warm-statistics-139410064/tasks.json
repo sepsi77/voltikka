@@ -1,0 +1,6 @@
+[
+  {"name":"Correlate Sentry event with production worker logs","status":"completed"},
+  {"name":"Reproduce and profile the cold cache warmer","status":"completed"},
+  {"name":"Implement the smallest bounded fix","status":"completed"},
+  {"name":"Run focused tests and update documentation","status":"completed"}
+]

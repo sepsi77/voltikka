@@ -46,3 +46,4 @@ Important semantics:
 - `ContractPostImportCoordinator` dispatches this job directly for weekly/5 000 after its direct daily statistics call succeeds; it does not use a nested Artisan command
 - `spot:fetch` queues this after recalculating spot averages because spot data participates in the statistics page cache fingerprint
 - do not move this back to synchronous warming in import commands unless product explicitly accepts longer import runtimes; user-facing UX should not depend on the first low-traffic visitor hitting a cold cache
+- the job timeout stays 300 seconds. A timeout kills the worker before the job can delete itself; database `retry_after=450` then releases it, and attempt 4 becomes `MaxAttemptsExceededException` under Supervisor's `--tries=3`. Fix warmer CPU/query complexity instead of increasing tries or timeout. `ContractPriceStatistics` therefore indexes its loaded daily rows once and memoizes repeated period series

@@ -8,6 +8,7 @@ use App\Models\SpotPriceAverage;
 use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
@@ -159,6 +160,84 @@ class ContractPriceStatisticsPageTest extends TestCase
 
         $this->assertLessThanOrEqual(1, $spotAverageReads->count(), 'Spot daily averages should be loaded once and sliced in memory for rolling 12-month windows.');
         $this->assertCount(0, $latestStatisticLookups, 'Latest per-segment rows should come from the already-loaded daily statistics collection.');
+    }
+
+    public function test_payload_build_indexes_daily_rows_once_for_reused_slices(): void
+    {
+        $rows = collect();
+        $segments = ['spot', 'fixed_term_12', 'open_ended'];
+
+        foreach (range(0, 39) as $day) {
+            $date = Carbon::parse('2026-06-01')->addDays($day)->toDateString();
+
+            foreach ($segments as $segment) {
+                foreach (['energy_price', 'monthly_fee'] as $metric) {
+                    $rows->push(new CountingContractPriceDailyStatistic([
+                        'stat_date' => $date,
+                        'segment_key' => $segment,
+                        'metric_key' => $metric,
+                        'pricing_basis' => 'observed_seller_data',
+                        'method_version' => ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION,
+                        'consumption_kwh' => null,
+                        'p20_value' => 5.0,
+                        'median_value' => 6.0,
+                        'p80_value' => 7.0,
+                        'contract_count' => 20,
+                    ]));
+                }
+
+                $rows->push(new CountingContractPriceDailyStatistic([
+                    'stat_date' => $date,
+                    'segment_key' => $segment,
+                    'metric_key' => 'annual_cost',
+                    'pricing_basis' => 'observed_seller_data',
+                    'method_version' => AnnualCostMethodVersion::Legacy->value,
+                    'consumption_kwh' => 5000,
+                    'p20_value' => 500.0,
+                    'median_value' => 600.0,
+                    'p80_value' => 700.0,
+                    'contract_count' => 20,
+                ]));
+            }
+
+            foreach (['spot_margin', 'spot_total_energy_price'] as $metric) {
+                $rows->push(new CountingContractPriceDailyStatistic([
+                    'stat_date' => $date,
+                    'segment_key' => 'spot',
+                    'metric_key' => $metric,
+                    'pricing_basis' => 'observed_seller_data',
+                    'method_version' => ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION,
+                    'consumption_kwh' => null,
+                    'p20_value' => 5.0,
+                    'median_value' => 6.0,
+                    'p80_value' => 7.0,
+                    'contract_count' => 20,
+                ]));
+            }
+        }
+
+        CountingContractPriceDailyStatistic::resetReadCounts();
+
+        $component = new class($rows) extends ContractPriceStatistics
+        {
+            /** @param Collection<int, CountingContractPriceDailyStatistic> $rows */
+            public function __construct(private readonly Collection $rows) {}
+
+            public function getDailyStatsProperty(): Collection
+            {
+                return $this->rows;
+            }
+        };
+
+        $component->getDeepDivePayloadsProperty();
+        $component->getSegmentRowsProperty();
+        $component->getConsumptionRowsProperty();
+        $component->getCalloutsProperty();
+
+        $rowCount = $rows->count();
+        $this->assertLessThanOrEqual($rowCount * 2, CountingContractPriceDailyStatistic::$readCounts['segment_key']);
+        $this->assertLessThanOrEqual($rowCount * 2, CountingContractPriceDailyStatistic::$readCounts['metric_key']);
+        $this->assertLessThanOrEqual($rowCount * 2, CountingContractPriceDailyStatistic::$readCounts['consumption_kwh']);
     }
 
     public function test_cached_statistics_payload_invalidates_when_daily_statistics_change(): void
@@ -689,5 +768,29 @@ class ContractPriceStatisticsPageTest extends TestCase
             }
         }
 
+    }
+}
+
+class CountingContractPriceDailyStatistic extends ContractPriceDailyStatistic
+{
+    /** @var array<string,int> */
+    public static array $readCounts = [
+        'segment_key' => 0,
+        'metric_key' => 0,
+        'consumption_kwh' => 0,
+    ];
+
+    public static function resetReadCounts(): void
+    {
+        self::$readCounts = array_fill_keys(array_keys(self::$readCounts), 0);
+    }
+
+    public function getAttribute($key): mixed
+    {
+        if (is_string($key) && array_key_exists($key, self::$readCounts)) {
+            self::$readCounts[$key]++;
+        }
+
+        return parent::getAttribute($key);
     }
 }

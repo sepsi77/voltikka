@@ -1,0 +1,12 @@
+# Decisions
+
+## 2026-08-08
+
+- Railway production logs show the queue worker exited unexpectedly at 01:02:09, 01:09:51, and 01:17:32 UTC. Each gap is consistent with the warmer's 300-second per-job timeout plus the database queue's 450-second retry delay. Sentry then rejected attempt 4 at 01:25 because Supervisor starts the worker with `--tries=3`.
+- This is not evidence that the fourth attempt threw inside application code. Laravel raises `MaxAttemptsExceededException` before `handle()` when the three earlier attempts timed out or lost their worker.
+- Production inspection remains read-only. No failed job retry, queue mutation, cache clear, deployment, or infrastructure change is allowed without separate confirmation.
+- A cold local warm against the ignored 2026-08-07 production snapshot took 11.93 seconds of wall time, 10.62 seconds of CPU, and 144,228,352 bytes maximum RSS. Section timing isolated most CPU in the Spot deep-dive and repeated collection slicing. The active payload contained 11,492 daily aggregate rows; the algorithm repeatedly scanned that full collection for the same segment/metric/consumption slices and rebuilt the same period series.
+- `ContractPriceStatistics` now partitions the loaded rows once by segment + metric + consumption, memoizes repeated period series, uses direct ordered-array slicing for Spot windows, applies the constant supplier margin after market average/percentile calculation, and counts the data window without creating thousands of duplicate Carbon objects. These changes preserve the numeric result because adding one constant before or after average/percentile gives the same value.
+- The same cold local warm now takes 3.08 seconds wall time, 1.63 seconds CPU, and 123,289,600 bytes maximum RSS. The payload-section profile dropped from 15.90 seconds / 112.5 MiB PHP peak to 2.95 seconds / 78.5 MiB PHP peak.
+- Added a regression fixture whose statistic models count key reads. Building the reused chart/table payloads must keep segment, metric, and consumption-key reads linear in row count. Existing query batching tests remain in place.
+- Verification passed: all 24 `ContractPriceStatisticsPageTest` tests (113 assertions), 19 post-import/freshness integration tests (85 assertions), PHP syntax checks, Pint, and `git diff --check`. The statistics suite was run with the public legacy annual method explicitly selected because the developer's ignored local `.env` currently opts into the AsOf method for local work.
