@@ -263,7 +263,7 @@ class ContractPriceStatistics extends Component
      * Lead chart payload: annual cost @ 5000 kWh for the four primary segments,
      * aggregated to the selected period. Coral on the first segment.
      *
-     * @return array{x:array<int,int>,series:array<int,array{label:string,values:array<int,?float>}>,unit:string,decimals:int,showPoints:bool}
+     * @return array{x:array<int,int>,series:array<int,array{label:string,values:array<int,?float>}>,unit:string,decimals:int,showPoints:bool,showLatestPoint:bool}
      */
     public function getLeadChartPayloadProperty(): array
     {
@@ -684,7 +684,7 @@ class ContractPriceStatistics extends Component
 
     private function statisticsViewDataCacheKey(): string
     {
-        return 'contract-price-statistics:view-data:v14:'.md5(json_encode([
+        return 'contract-price-statistics:view-data:v15:'.md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
             'pricing_basis' => app(PricingMode::class)->expectedContractPriceBasis()->value,
@@ -743,7 +743,7 @@ class ContractPriceStatistics extends Component
 
     /**
      * @param  array<int,string>  $segmentKeys
-     * @return array{x:array<int,int>,series:array<int,array{label:string,values:array<int,?float>}>,unit:string,decimals:int,showPoints:bool}
+     * @return array{x:array<int,int>,series:array<int,array{label:string,values:array<int,?float>}>,unit:string,decimals:int,showPoints:bool,showLatestPoint:bool}
      */
     private function buildAnnualCostChart(array $segmentKeys, int $consumption): array
     {
@@ -766,6 +766,7 @@ class ContractPriceStatistics extends Component
                 'unit' => 'eur',
                 'decimals' => 0,
                 'showPoints' => $this->period !== 'daily',
+                'showLatestPoint' => $this->period === 'daily',
             ];
         }
 
@@ -793,6 +794,7 @@ class ContractPriceStatistics extends Component
             'unit' => 'eur',
             'decimals' => 0,
             'showPoints' => $this->period !== 'daily',
+            'showLatestPoint' => $this->period === 'daily',
         ];
     }
 

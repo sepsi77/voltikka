@@ -422,9 +422,9 @@ class ContractPriceStatisticsPageTest extends TestCase
         app()->forgetScopedInstances();
         $asOfKey = $method->invoke(app(ContractPriceStatistics::class));
 
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v14:', $legacyKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v14:', $canonicalKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v14:', $asOfKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v15:', $legacyKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v15:', $canonicalKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v15:', $asOfKey);
         $this->assertNotSame($legacyKey, $canonicalKey);
         $this->assertNotSame($canonicalKey, $asOfKey);
     }
@@ -550,6 +550,7 @@ class ContractPriceStatisticsPageTest extends TestCase
         $this->assertIsInt($currentWeek);
         $this->assertIsInt($latestDay);
         $this->assertTrue($chart['showPoints']);
+        $this->assertFalse($chart['showLatestPoint']);
         $this->assertSame(551.0, $hybrid['values'][$previousWeek]);
         $this->assertSame(556.0, $hybrid['values'][$currentWeek]);
         $this->assertNull($openEnded['values'][$currentWeek]);
@@ -561,6 +562,7 @@ class ContractPriceStatisticsPageTest extends TestCase
             ->set('period', 'daily')
             ->viewData('leadChartPayload');
         $this->assertFalse($daily['showPoints']);
+        $this->assertTrue($daily['showLatestPoint']);
     }
 
     public function test_annual_periods_and_captions_do_not_cross_compatibility_keys(): void

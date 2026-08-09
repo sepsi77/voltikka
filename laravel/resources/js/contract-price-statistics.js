@@ -81,7 +81,7 @@ function buildOptions(payload, root) {
                 label: s.label,
                 stroke,
                 width: 2.2,
-                points: logicalSeriesPointOptions(payload.showPoints, stroke),
+                points: logicalSeriesPointOptions(payload.showPoints, stroke, payload.showLatestPoint),
                 paths: splinePath,
             });
             return;
@@ -92,7 +92,7 @@ function buildOptions(payload, root) {
             stroke: style.stroke,
             width: style.width,
             dash: style.dash.length ? style.dash : undefined,
-            points: logicalSeriesPointOptions(payload.showPoints, style.stroke),
+            points: logicalSeriesPointOptions(payload.showPoints, style.stroke, payload.showLatestPoint),
             paths: splinePath,
         });
     });
