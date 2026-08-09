@@ -96,6 +96,44 @@ class ContractPriceStatisticsPageTest extends TestCase
             ->assertDontSee('Kvartaalisähkösopimusten hintakehitys');
     }
 
+    public function test_dated_quarterly_history_remains_as_its_own_deep_dive(): void
+    {
+        $this->seedSampleStatistics();
+        $this->seedDatedQuarterlyTrend(30);
+
+        $component = Livewire::test(ContractPriceStatistics::class);
+        $quarterly = collect($component->viewData('deepDivePayloads'))->firstWhere('segment_key', 'quarterly');
+
+        $this->assertNotNull($quarterly);
+        $this->assertFalse($quarterly['is_current']);
+        $this->assertNull($quarterly['contract_count']);
+        $this->assertSame('2026-04-20', $quarterly['latest_observation_date']);
+        $this->assertNotContains('quarterly', array_column($component->viewData('segmentRows'), 'segment_key'));
+        $this->assertNotContains('quarterly', array_column($component->viewData('consumptionRows'), 'segment_key'));
+        $component
+            ->assertSee('Kvartaalisähkösopimusten hintakehitys')
+            ->assertSee('id="kvartaalisahko"', false)
+            ->assertSee('Aineisto 20.4.2026 asti')
+            ->assertSee('Viimeinen havainto');
+    }
+
+    public function test_current_quarterly_rows_continue_the_own_category_after_a_visible_data_gap(): void
+    {
+        $this->seedSampleStatistics();
+        $this->seedDatedQuarterlyTrend(30);
+        $this->seedQuarterlyStatistics(contractCount: 15);
+
+        $component = Livewire::test(ContractPriceStatistics::class)->set('period', 'daily');
+        $quarterly = collect($component->viewData('deepDivePayloads'))->firstWhere('segment_key', 'quarterly');
+
+        $this->assertNotNull($quarterly);
+        $this->assertTrue($quarterly['is_current']);
+        $this->assertSame(15, $quarterly['contract_count']);
+        $this->assertContains(null, $quarterly['chart']['series'][0]['values']);
+        $this->assertContains('quarterly', array_column($component->viewData('segmentRows'), 'segment_key'));
+        $this->assertContains('quarterly', array_column($component->viewData('consumptionRows'), 'segment_key'));
+    }
+
     public function test_period_switcher_has_loading_state(): void
     {
         $this->seedSampleStatistics();
@@ -447,9 +485,9 @@ class ContractPriceStatisticsPageTest extends TestCase
         app()->forgetScopedInstances();
         $asOfKey = $method->invoke(app(ContractPriceStatistics::class));
 
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v16:', $legacyKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v16:', $canonicalKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v16:', $asOfKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v17:', $legacyKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v17:', $canonicalKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v17:', $asOfKey);
         $this->assertNotSame($legacyKey, $canonicalKey);
         $this->assertNotSame($canonicalKey, $asOfKey);
     }
@@ -787,9 +825,30 @@ class ContractPriceStatisticsPageTest extends TestCase
         ]);
     }
 
+    private function seedDatedQuarterlyTrend(int $days): void
+    {
+        $end = Carbon::create(2026, 4, 20);
+
+        for ($offset = $days - 1; $offset >= 0; $offset--) {
+            ContractPriceDailyStatistic::create([
+                'stat_date' => $end->copy()->subDays($offset)->toDateString(),
+                'segment_key' => 'quarterly',
+                'metric_key' => 'energy_price',
+                'consumption_kwh' => null,
+                'min_value' => 7.0,
+                'p20_value' => 7.2,
+                'avg_value' => 7.5,
+                'median_value' => 7.4,
+                'p80_value' => 7.8,
+                'max_value' => 8.0,
+                'contract_count' => 15,
+            ]);
+        }
+    }
+
     private function seedMarketResetStatistics(int $days): void
     {
-        $end = Carbon::create(2026, 4, 29);
+        $end = Carbon::create(2026, 8, 9)->addDays($days);
 
         for ($offset = $days - 1; $offset >= 0; $offset--) {
             $date = $end->copy()->subDays($offset)->toDateString();

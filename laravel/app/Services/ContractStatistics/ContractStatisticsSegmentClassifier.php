@@ -33,9 +33,11 @@ class ContractStatisticsSegmentClassifier
     public function classify(ElectricityContract $contract, ContractPriceBasis $basis): string
     {
         if ($basis === ContractPriceBasis::CanonicalCalculation) {
-            return match (PricingBucket::fromFacts($this->pricingCategoryResolver->resolve($contract))) {
+            $facts = $this->pricingCategoryResolver->resolve($contract);
+
+            return match (PricingBucket::fromFacts($facts)) {
                 PricingBucket::Spot => 'spot',
-                PricingBucket::MarketReset => 'market_reset',
+                PricingBucket::MarketReset => $facts->cadence === 'quarterly' ? 'quarterly' : 'market_reset',
                 PricingBucket::ConsumptionEffect => 'hybrid',
                 PricingBucket::Fixed => $this->structuralSegment($contract),
             };

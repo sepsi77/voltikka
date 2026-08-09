@@ -18,7 +18,10 @@ use Livewire\Component;
 
 class ContractPriceStatistics extends Component
 {
-    /** The broader reset-price category started with canonical classification and must earn a useful trend. */
+    /** The non-quarterly reset category restarts after quarterly contracts get their own segment. */
+    private const MARKET_RESET_COMPARABLE_HISTORY_START = '2026-08-10';
+
+    /** The broader reset-price category must earn a useful trend from its stable membership. */
     private const MARKET_RESET_MINIMUM_PUBLIC_OBSERVATIONS = 30;
 
     /** Compact period switcher for the lead chart and sparklines. */
@@ -56,6 +59,7 @@ class ContractPriceStatistics extends Component
         'fixed_term_24',
         'hybrid',
         'open_ended',
+        'quarterly',
         'market_reset',
     ];
 
@@ -104,6 +108,7 @@ class ContractPriceStatistics extends Component
     public array $deepDiveHeadings = [
         'spot' => 'Pörssisähkösopimusten hintakehitys',
         'market_reset' => 'Jaksoittain vaihtuvien sähkösopimusten hintakehitys',
+        'quarterly' => 'Kvartaalisähkösopimusten hintakehitys',
         'fixed_term_6' => '6 kk määräaikaisten sähkösopimusten hintakehitys',
         'fixed_term_12' => '12 kk määräaikaisten sähkösopimusten hintakehitys',
         'fixed_term_24' => '24 kk määräaikaisten sähkösopimusten hintakehitys',
@@ -115,6 +120,7 @@ class ContractPriceStatistics extends Component
     public array $deepDiveAnchors = [
         'spot' => 'porssisahko',
         'market_reset' => 'paivittyva-hinta',
+        'quarterly' => 'kvartaalisahko',
         'fixed_term_6' => 'maaraaikainen-6-kk',
         'fixed_term_12' => 'maaraaikainen-12-kk',
         'fixed_term_24' => 'maaraaikainen-24-kk',
@@ -125,7 +131,8 @@ class ContractPriceStatistics extends Component
     /** Plain-Finnish 1–2 sentence intro per segment for the deep-dive blocks. */
     public array $deepDiveDescriptions = [
         'spot' => 'Pörssisopimuksissa energian hinta seuraa pörssin tuntihintaa, johon sopimustarjoaja lisää oman marginaalinsa. Hinta vaihtelee päivästä toiseen markkinatilanteen mukaan.',
-        'market_reset' => 'Jaksoittain vaihtuvissa sopimuksissa energian hinta pysyy samana yhden jakson ajan. Myyjä vahvistaa uuden hinnan esimerkiksi kuukausittain tai neljännesvuosittain, joten hinta ei seuraa pörssiä tunneittain.',
+        'market_reset' => 'Jaksoittain vaihtuvissa sopimuksissa energian hinta pysyy samana yhden jakson ajan. Myyjä vahvistaa uuden hinnan esimerkiksi kuukausittain tai kausittain, joten hinta ei seuraa pörssiä tunneittain.',
+        'quarterly' => 'Kvartaalisähkösopimuksen energiahinta pysyy samana kolme kuukautta kerrallaan. Myyjä vahvistaa uuden hinnan seuraavalle vuosineljännekselle.',
         'fixed_term_6' => 'Lyhyen määräaikaisen sopimuksen energiahinta lukitaan kuudeksi kuukaudeksi. Suojaa lyhyellä aikavälillä, mutta jää alttiiksi pörssin liikkeille uusittaessa.',
         'fixed_term_12' => 'Vuoden mittainen kiinteähintainen sopimus lukitsee energiahinnan koko sopimuskaudeksi. Hinnat heijastavat pitkän aikavälin näkymiä, eivät päivittäistä pörssiä.',
         'fixed_term_24' => 'Kahden vuoden määräaikaisessa sopimuksessa hinta lukitaan pidemmäksi aikaa. Tarjoukset päivittyvät hitaammin, ja markkinoilla on usein vuoden sopimuksia harvempi valikoima.',
@@ -306,10 +313,18 @@ class ContractPriceStatistics extends Component
         foreach ($this->deepDiveSegments as $segmentKey) {
             $metric = $segmentKey === 'spot' ? 'spot_total_energy_price' : 'energy_price';
 
-            if (! $this->shouldPublishSegmentTrend($segmentKey, $metric, null)) {
+            if (! $this->shouldPublishSegmentTrend(
+                $segmentKey,
+                $metric,
+                null,
+                allowDatedHistory: $segmentKey === 'quarterly',
+            )) {
                 continue;
             }
 
+            $latestMetricRow = $this->latestStatisticRow($segmentKey, $metric, null);
+            $latestObservationDate = $latestMetricRow?->stat_date->toDateString();
+            $isCurrent = $latestObservationDate !== null && $latestObservationDate === $this->dataWindow['to'];
             $bands = $segmentKey === 'spot'
                 ? $this->spotEnergyPriceAggregatedSeriesWithBands()
                 : $this->aggregatedSeriesWithBands($segmentKey, $metric);
@@ -337,16 +352,18 @@ class ContractPriceStatistics extends Component
                 'unit' => 'c/kWh',
                 'delta_30d_pct' => $this->percentDelta($current['value'] ?? null, $thirtyDaysAgo),
                 'delta_since_start_pct' => $this->percentDelta($current['value'] ?? null, $first['value'] ?? null),
-                'contract_count' => $this->latestContractCount($segmentKey),
-                'pricing_basis' => $this->latestStatisticRow($segmentKey, $metric, null)?->pricing_basis,
+                'contract_count' => $isCurrent ? $this->latestContractCount($segmentKey) : null,
+                'latest_observation_date' => $latestObservationDate,
+                'is_current' => $isCurrent,
+                'pricing_basis' => $latestMetricRow?->pricing_basis,
                 'has_data' => count($bands['x']) >= 2 && $current['value'] !== null,
-                'quotable' => $this->buildQuotableForSegment(
+                'quotable' => $isCurrent ? $this->buildQuotableForSegment(
                     $segmentKey,
                     $current['value'] ?? null,
                     $first['value'] ?? null,
                     $segmentKey === 'spot' ? null : $annualCostCurrent,
                     $segmentKey === 'spot' ? null : $spotAnnualCostCurrent,
-                ),
+                ) : null,
                 'chart' => [
                     'unit' => 'cent',
                     'decimals' => 2,
@@ -701,7 +718,7 @@ class ContractPriceStatistics extends Component
 
     private function statisticsViewDataCacheKey(): string
     {
-        return 'contract-price-statistics:view-data:v16:'.md5(json_encode([
+        return 'contract-price-statistics:view-data:v17:'.md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
             'pricing_basis' => app(PricingMode::class)->expectedContractPriceBasis()->value,
@@ -843,14 +860,39 @@ class ContractPriceStatistics extends Component
             ->sortKeys();
 
         $x = $median = $p20 = $p80 = [];
+        $previousPeriodStart = null;
+
         foreach ($grouped as $periodStart => $periodRows) {
-            $x[] = Carbon::parse($periodStart)->getTimestamp();
+            $currentPeriodStart = Carbon::parse($periodStart);
+
+            if ($previousPeriodStart !== null) {
+                $nextExpectedPeriod = $this->nextPeriodStart($previousPeriodStart);
+
+                if ($nextExpectedPeriod->lt($currentPeriodStart)) {
+                    $x[] = $nextExpectedPeriod->getTimestamp();
+                    $median[] = null;
+                    $p20[] = null;
+                    $p80[] = null;
+                }
+            }
+
+            $x[] = $currentPeriodStart->getTimestamp();
             $median[] = $this->averageOrNull($periodRows->pluck('median_value'));
             $p20[] = $this->averageOrNull($periodRows->pluck('p20_value'));
             $p80[] = $this->averageOrNull($periodRows->pluck('p80_value'));
+            $previousPeriodStart = $currentPeriodStart;
         }
 
         return $this->aggregatedSeriesCache[$cacheKey] = ['x' => $x, 'median' => $median, 'p20' => $p20, 'p80' => $p80];
+    }
+
+    private function nextPeriodStart(CarbonInterface $periodStart): CarbonInterface
+    {
+        return match ($this->period) {
+            'monthly' => $periodStart->copy()->addMonthNoOverflow()->startOfMonth(),
+            'weekly' => $periodStart->copy()->addWeek()->startOfWeek(),
+            default => $periodStart->copy()->addDay()->startOfDay(),
+        };
     }
 
     private function averageOrNull(Collection $values): ?float
@@ -1418,10 +1460,20 @@ class ContractPriceStatistics extends Component
      * Hide stale segments and keep the new broader reset-price category private
      * until it has enough daily observations to show a useful trend.
      */
-    private function shouldPublishSegmentTrend(string $segmentKey, string $metricKey, ?int $consumption): bool
-    {
+    private function shouldPublishSegmentTrend(
+        string $segmentKey,
+        string $metricKey,
+        ?int $consumption,
+        bool $allowDatedHistory = false,
+    ): bool {
         $rows = $this->dailyStatisticRows($segmentKey, $metricKey, $consumption)
             ->filter(fn (ContractPriceDailyStatistic $row): bool => $row->median_value !== null);
+
+        if ($segmentKey === 'market_reset') {
+            $rows = $rows->filter(
+                fn (ContractPriceDailyStatistic $row): bool => $row->stat_date->toDateString() >= self::MARKET_RESET_COMPARABLE_HISTORY_START,
+            );
+        }
 
         if ($rows->isEmpty()) {
             return false;
@@ -1432,18 +1484,17 @@ class ContractPriceStatistics extends Component
             fn (ContractPriceDailyStatistic $row): bool => $row->stat_date->toDateString() === $latestPublicDate,
         );
 
-        if (! $hasCurrentPoint) {
-            return false;
-        }
-
-        if ($segmentKey !== 'market_reset') {
-            return true;
-        }
-
-        return $rows
+        $observationCount = $rows
             ->map(fn (ContractPriceDailyStatistic $row): string => $row->stat_date->toDateString())
             ->unique()
-            ->count() >= self::MARKET_RESET_MINIMUM_PUBLIC_OBSERVATIONS;
+            ->count();
+
+        if (! $hasCurrentPoint) {
+            return $allowDatedHistory && $observationCount >= self::MARKET_RESET_MINIMUM_PUBLIC_OBSERVATIONS;
+        }
+
+        return $segmentKey !== 'market_reset'
+            || $observationCount >= self::MARKET_RESET_MINIMUM_PUBLIC_OBSERVATIONS;
     }
 
     private function latestStatisticRow(string $segmentKey, string $metricKey, ?int $consumption): ?ContractPriceDailyStatistic

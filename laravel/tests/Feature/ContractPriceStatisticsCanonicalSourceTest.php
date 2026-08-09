@@ -409,7 +409,7 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         $this->assertSame('observed_seller_data', $snapshot->pricing_basis);
     }
 
-    public function test_canonical_reset_cadences_share_the_market_reset_segment(): void
+    public function test_canonical_quarterly_cadence_keeps_its_own_segment(): void
     {
         foreach (['monthly', 'quarterly', 'seasonal', 'other'] as $cadence) {
             $this->createContract(
@@ -423,10 +423,11 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         $this->calculate();
 
         $this->assertSame(
-            ['market_reset'],
-            ContractPriceSnapshot::query()->distinct()->pluck('segment_key')->all(),
+            ['market_reset', 'quarterly'],
+            ContractPriceSnapshot::query()->distinct()->orderBy('segment_key')->pluck('segment_key')->all(),
         );
-        $this->assertSame(4, ContractPriceSnapshot::count());
+        $this->assertSame(3, ContractPriceSnapshot::where('segment_key', 'market_reset')->count());
+        $this->assertSame(1, ContractPriceSnapshot::where('segment_key', 'quarterly')->count());
     }
 
     public function test_canonical_segment_precedence_matches_the_shared_pricing_bucket(): void
@@ -436,6 +437,11 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
             [$this->phaseWithComponents([$this->canonicalComponent('spot_margin', 0.5)])],
             calculationStatus: 'estimate_required',
             pricingModel: 'Spot',
+            recurringCadence: 'quarterly',
+        );
+        $quarterly = $this->createContract(
+            'quarterly-reset',
+            [$this->phase('Nykyinen', 'current_structured', 8.0, $this->boundary('contract_start'), $this->boundary('none'))],
             recurringCadence: 'quarterly',
         );
         $hybrid = $this->createContract(
@@ -448,6 +454,7 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         $classifier = app(ContractStatisticsSegmentClassifier::class);
 
         $this->assertSame('spot', $classifier->classify($spot, ContractPriceBasis::CanonicalCalculation));
+        $this->assertSame('quarterly', $classifier->classify($quarterly, ContractPriceBasis::CanonicalCalculation));
         $this->assertSame('market_reset', $classifier->classify($hybrid, ContractPriceBasis::CanonicalCalculation));
     }
 

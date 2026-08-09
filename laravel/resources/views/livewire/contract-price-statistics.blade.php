@@ -613,6 +613,10 @@
                                         <span class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-400">
                                             {{ number_format($dive['contract_count'], 0, ',', ' ') }} sopimusta
                                         </span>
+                                    @elseif (! empty($dive['latest_observation_date']))
+                                        <span class="text-sm font-semibold text-slate-500 tabular-nums">
+                                            Aineisto {{ $fiDate($dive['latest_observation_date']) }} asti
+                                        </span>
                                     @endif
                                 </header>
 
@@ -683,14 +687,21 @@
                                             </dd>
                                         </div>
                                         <div>
-                                            <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">Tarjolla nyt</dt>
-                                            <dd class="mt-1 text-base font-semibold tabular-nums text-slate-700">
-                                                @if ($dive['contract_count'] !== null)
-                                                    {{ number_format($dive['contract_count'], 0, ',', ' ') }}<span class="text-slate-400 font-normal">&nbsp;sopimusta</span>
-                                                @else
-                                                    <span class="text-slate-400">–</span>
-                                                @endif
-                                            </dd>
+                                            @if ($dive['is_current'])
+                                                <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">Tarjolla nyt</dt>
+                                                <dd class="mt-1 text-base font-semibold tabular-nums text-slate-700">
+                                                    @if ($dive['contract_count'] !== null)
+                                                        {{ number_format($dive['contract_count'], 0, ',', ' ') }}<span class="text-slate-400 font-normal">&nbsp;sopimusta</span>
+                                                    @else
+                                                        <span class="text-slate-400">–</span>
+                                                    @endif
+                                                </dd>
+                                            @else
+                                                <dt class="text-[11px] font-semibold tracking-[0.12em] uppercase text-slate-400">Viimeinen havainto</dt>
+                                                <dd class="mt-1 text-base font-semibold tabular-nums text-slate-700">
+                                                    {{ $fiDate($dive['latest_observation_date']) }}
+                                                </dd>
+                                            @endif
                                         </div>
                                     </dl>
 

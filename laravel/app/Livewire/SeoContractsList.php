@@ -8,7 +8,6 @@ use App\Models\Municipality;
 use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\CanonicalOfferFacts;
-use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractCard\Enums\PricingCategory;
 use App\Services\ContractCard\PricingCategoryResolver;
 use App\Services\ContractListing\ContractListingPipeline;
@@ -1242,7 +1241,7 @@ class SeoContractsList extends ContractsList
 
         return match ($this->pricingType) {
             'Spot' => 'spot',
-            'Quarterly' => app(PricingMode::class)->enabled() ? 'market_reset' : 'quarterly',
+            'Quarterly' => 'quarterly',
             'Hybrid' => 'hybrid',
             'FixedPrice' => 'fixed_term_12',
             null => $this->consumptionLevel !== null ? null : 'aggregate',

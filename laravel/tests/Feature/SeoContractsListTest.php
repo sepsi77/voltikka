@@ -891,14 +891,14 @@ class SeoContractsListTest extends TestCase
     /**
      * Test that the business page loads successfully.
      */
-    public function test_quarterly_page_market_insight_uses_the_segment_for_the_current_basis(): void
+    public function test_quarterly_page_market_insight_always_uses_the_quarterly_segment(): void
     {
         config()->set('canonical_pricing.enabled', true);
         app()->forgetScopedInstances();
         $canonical = app(SeoContractsList::class);
         $canonical->pricingType = 'Quarterly';
         $method = new \ReflectionMethod($canonical, 'marketInsightSegmentKey');
-        $this->assertSame('market_reset', $method->invoke($canonical));
+        $this->assertSame('quarterly', $method->invoke($canonical));
 
         config()->set('canonical_pricing.enabled', false);
         app()->forgetScopedInstances();

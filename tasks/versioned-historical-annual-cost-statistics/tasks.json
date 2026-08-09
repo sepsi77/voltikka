@@ -17,5 +17,6 @@
   {"name":"Repair post-activation public annual-cost trend presentation","status":"completed"},
   {"name":"Keep the current daily point visible after a method gap","status":"completed"},
   {"name":"Explain chart values, jumps, and gaps in plain Finnish","status":"completed"},
-  {"name":"Hide the reset-price category until its trend history is sufficient","status":"completed"}
+  {"name":"Hide the reset-price category until its trend history is sufficient","status":"completed"},
+  {"name":"Keep Kvartaalisähkö as a separate current and historical category","status":"completed"}
 ]
