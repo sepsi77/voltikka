@@ -3,6 +3,7 @@
 namespace App\Services\ContractInterpretation;
 
 use Illuminate\Support\Facades\Http;
+use JsonException;
 use RuntimeException;
 
 class OpenRouterContractInterpretationClient
@@ -142,7 +143,7 @@ class OpenRouterContractInterpretationClient
             throw new RuntimeException('OpenRouter returned no interpretation content.');
         }
 
-        $output = json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+        $output = $this->decodeContent($content);
         if (! is_array($output)) {
             throw new RuntimeException('OpenRouter interpretation content is not a JSON object.');
         }
@@ -154,6 +155,73 @@ class OpenRouterContractInterpretationClient
             'response_id' => is_string($response['id'] ?? null) ? $response['id'] : null,
             'latency_ms' => (int) round((hrtime(true) - $startedAt) / 1_000_000),
         ];
+    }
+
+    /**
+     * @return mixed
+     */
+    private function decodeContent(string $content): mixed
+    {
+        try {
+            return json_decode($content, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            if ($exception->getCode() !== JSON_ERROR_CTRL_CHAR) {
+                throw $exception;
+            }
+        }
+
+        return json_decode(
+            $this->escapeControlCharactersInStrings($content),
+            true,
+            512,
+            JSON_THROW_ON_ERROR,
+        );
+    }
+
+    private function escapeControlCharactersInStrings(string $content): string
+    {
+        $normalized = '';
+        $insideString = false;
+        $escaped = false;
+
+        for ($index = 0, $length = strlen($content); $index < $length; $index++) {
+            $character = $content[$index];
+
+            if (! $insideString) {
+                $normalized .= $character;
+                $insideString = $character === '"';
+
+                continue;
+            }
+
+            if ($escaped) {
+                $normalized .= $character;
+                $escaped = false;
+
+                continue;
+            }
+
+            if ($character === '\\') {
+                $normalized .= $character;
+                $escaped = true;
+
+                continue;
+            }
+
+            if ($character === '"') {
+                $normalized .= $character;
+                $insideString = false;
+
+                continue;
+            }
+
+            $byte = ord($character);
+            $normalized .= $byte < 0x20
+                ? sprintf('\\u%04X', $byte)
+                : $character;
+        }
+
+        return $normalized;
     }
 
     /**

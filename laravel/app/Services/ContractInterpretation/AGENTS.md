@@ -17,7 +17,7 @@ Primary services:
 
 - `ContractInterpretationInputBuilder` maps a source snapshot to the compact prompt input used in experiments and normalizes HTML descriptions without changing case or punctuation. Callers can supply an analysis date; legacy callers default to snapshot first observation.
 - `ContractAnalysisFingerprint` combines source, schema, prompt, deterministic validator, provider, and model versions. `forObservation()` adds the episode date and exact observation ID only for the temporal fallback, so two recurrence episodes on the same day cannot share queued analysis work.
-- `OpenRouterContractInterpretationClient` requests strict JSON Schema output.
+- `OpenRouterContractInterpretationClient` requests strict JSON Schema output. If the decoded `message.content` has an otherwise valid JSON object with a raw ASCII control byte inside a quoted string, the client escapes only that byte and decodes again. It does not repair controls outside strings or other malformed JSON; those failures stay in the queue retry path.
 - `ContractInterpretationValidator` validates schema shape, identity, dates/ranges, exact description evidence, and classification consistency.
 - `ContractInterpretationDispatcher` accepts the exact pointed observation, creates one reusable base interpretation per snapshot-based analysis fingerprint, and dispatches the job after commit. Date-scoped fallback rows also store the exact analysis observation ID.
 - `ContractInterpretationPublisher` locks contract, pointed observation, pointed snapshot, then interpretation, validates that all three source rows belong to the contract, and automatically publishes valid compatible classifications and current canonical pricing JSON.

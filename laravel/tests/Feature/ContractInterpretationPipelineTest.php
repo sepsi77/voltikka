@@ -20,6 +20,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
+use JsonException;
 use Tests\TestCase;
 
 class ContractInterpretationPipelineTest extends TestCase
@@ -397,6 +398,44 @@ class ContractInterpretationPipelineTest extends TestCase
                 && data_get($input, 'contract_id') === 'contract-1'
                 && ! array_key_exists('contract', $input);
         });
+    }
+
+    public function test_client_escapes_raw_control_characters_inside_json_strings(): void
+    {
+        config()->set('services.openrouter.api_key', 'test-key');
+        Http::fake([
+            '*/chat/completions' => Http::response([
+                'choices' => [[
+                    'message' => ['content' => "{\"summary\":\"Line 1\nLine 2\tLow \x01 byte\"}"],
+                ]],
+            ]),
+        ]);
+
+        $result = app(OpenRouterContractInterpretationClient::class)->interpret([
+            'analysis_date' => '2026-07-23',
+            'contract_id' => 'contract-1',
+        ]);
+
+        $this->assertSame("Line 1\nLine 2\tLow \x01 byte", $result['output']['summary']);
+    }
+
+    public function test_client_does_not_repair_control_characters_outside_json_strings(): void
+    {
+        config()->set('services.openrouter.api_key', 'test-key');
+        Http::fake([
+            '*/chat/completions' => Http::response([
+                'choices' => [[
+                    'message' => ['content' => "{\"ok\":true}\x01"],
+                ]],
+            ]),
+        ]);
+
+        $this->expectException(JsonException::class);
+
+        app(OpenRouterContractInterpretationClient::class)->interpret([
+            'analysis_date' => '2026-07-23',
+            'contract_id' => 'contract-1',
+        ]);
     }
 
     public function test_historical_client_uses_one_http_attempt(): void

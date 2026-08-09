@@ -1,0 +1,6 @@
+[
+  {"name":"Inspect OpenRouter response parsing and retry behavior","status":"completed"},
+  {"name":"Add narrow control-character normalization","status":"completed"},
+  {"name":"Add focused regression tests and validate parser","status":"completed"},
+  {"name":"Update documentation and record decisions","status":"completed"}
+]
