@@ -14,5 +14,5 @@
   {"name":"Bind exact manifests and enforce deterministic backcast safety","status":"completed"},
   {"name":"Run final verification and fresh production-data dry run","status":"completed"},
   {"name":"Prepare confirmed production recalculation and activation","status":"completed"},
-  {"name":"Repair post-activation public annual-cost trend presentation","status":"in_progress"}
+  {"name":"Repair post-activation public annual-cost trend presentation","status":"completed"}
 ]
