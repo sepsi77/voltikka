@@ -37,14 +37,14 @@ class ContractPriceStatisticsPageTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Sähkösopimusten hintakehitys: mitä suomalaiset oikeasti maksavat sähköstä');
         $response->assertSee('Hinnat sopimustyypeittäin');
-        $response->assertSee('Taulukko näyttää viimeisimmän keräyspäivän tyypillisen energiahinnan');
+        $response->assertSee('Taulukko näyttää kunkin sopimustyypin uusimman saatavilla olevan tyypillisen energiahinnan');
         $response->assertSee('Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois');
         $response->assertSee('Pörssisähkön energiahinta on viimeisen 12 kuukauden toteutunut päiväkeskiarvo + tyypillinen marginaali');
         $response->assertSee('Vaihteluväli näyttää saman 12 kuukauden päivähintojen tavanomaisen vaihtelun');
         $response->assertSee('Trendi näyttää energiahinnan mediaanin kehityksen');
         $response->assertSee('Energiahinnan trendi');
         $response->assertSee('Hintahaarukka');
-        $response->assertSee('Taulukko näyttää viimeisimmän keräyspäivän vuosikustannusten jakauman');
+        $response->assertSee('Taulukko näyttää kunkin sopimustyypin uusimman saatavilla olevan vuosikustannusten jakauman');
         $response->assertSee('Viivat näyttävät kunkin sopimustyypin tyypillisen 12 kuukauden kustannusarvion');
         $response->assertSee('Näin luet kuvaajaa');
         $response->assertSee('Katkos viivassa');
@@ -108,8 +108,17 @@ class ContractPriceStatisticsPageTest extends TestCase
         $this->assertFalse($quarterly['is_current']);
         $this->assertNull($quarterly['contract_count']);
         $this->assertSame('2026-04-20', $quarterly['latest_observation_date']);
-        $this->assertNotContains('quarterly', array_column($component->viewData('segmentRows'), 'segment_key'));
-        $this->assertNotContains('quarterly', array_column($component->viewData('consumptionRows'), 'segment_key'));
+
+        $segmentRow = collect($component->viewData('segmentRows'))->firstWhere('segment_key', 'quarterly');
+        $consumptionRow = collect($component->viewData('consumptionRows'))->firstWhere('segment_key', 'quarterly');
+        $this->assertNotNull($segmentRow);
+        $this->assertNotNull($consumptionRow);
+        $this->assertFalse($segmentRow['is_current']);
+        $this->assertFalse($consumptionRow['is_current']);
+        $this->assertSame('2026-04-20', $segmentRow['latest_observation_date']);
+        $this->assertSame('2026-04-20', $consumptionRow['latest_observation_date']);
+        $this->assertSame(15, $segmentRow['contract_count']);
+        $this->assertSame(15, $consumptionRow['contract_count']);
         $component
             ->assertSee('Kvartaalisähkösopimusten hintakehitys')
             ->assertSee('id="kvartaalisahko"', false)
@@ -485,9 +494,9 @@ class ContractPriceStatisticsPageTest extends TestCase
         app()->forgetScopedInstances();
         $asOfKey = $method->invoke(app(ContractPriceStatistics::class));
 
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v17:', $legacyKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v17:', $canonicalKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v17:', $asOfKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v18:', $legacyKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v18:', $canonicalKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v18:', $asOfKey);
         $this->assertNotSame($legacyKey, $canonicalKey);
         $this->assertNotSame($canonicalKey, $asOfKey);
     }
@@ -830,8 +839,10 @@ class ContractPriceStatisticsPageTest extends TestCase
         $end = Carbon::create(2026, 4, 20);
 
         for ($offset = $days - 1; $offset >= 0; $offset--) {
+            $date = $end->copy()->subDays($offset)->toDateString();
+
             ContractPriceDailyStatistic::create([
-                'stat_date' => $end->copy()->subDays($offset)->toDateString(),
+                'stat_date' => $date,
                 'segment_key' => 'quarterly',
                 'metric_key' => 'energy_price',
                 'consumption_kwh' => null,
@@ -841,6 +852,20 @@ class ContractPriceStatisticsPageTest extends TestCase
                 'median_value' => 7.4,
                 'p80_value' => 7.8,
                 'max_value' => 8.0,
+                'contract_count' => 15,
+            ]);
+
+            ContractPriceDailyStatistic::create([
+                'stat_date' => $date,
+                'segment_key' => 'quarterly',
+                'metric_key' => 'annual_cost',
+                'consumption_kwh' => 5000,
+                'min_value' => 430,
+                'p20_value' => 450,
+                'avg_value' => 470,
+                'median_value' => 465,
+                'p80_value' => 490,
+                'max_value' => 510,
                 'contract_count' => 15,
             ]);
         }

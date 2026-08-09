@@ -397,10 +397,18 @@ class ContractPriceStatistics extends Component
         foreach ($this->segments as $segmentKey => $segmentLabel) {
             $metric = $segmentKey === 'spot' ? 'spot_total_energy_price' : 'energy_price';
 
-            if (! $this->shouldPublishSegmentTrend($segmentKey, $metric, null)) {
+            if (! $this->shouldPublishSegmentTrend(
+                $segmentKey,
+                $metric,
+                null,
+                allowDatedHistory: $segmentKey === 'quarterly',
+            )) {
                 continue;
             }
 
+            $latestMetricRow = $this->latestStatisticRow($segmentKey, $metric, null);
+            $latestObservationDate = $latestMetricRow?->stat_date->toDateString();
+            $isCurrent = $latestObservationDate !== null && $latestObservationDate === $this->dataWindow['to'];
             $series = $this->aggregatedSeries($segmentKey, $metric, null);
 
             if ($series['x'] === []) {
@@ -450,10 +458,12 @@ class ContractPriceStatistics extends Component
                 'delta_since_start_pct' => $this->percentDelta($displayCurrentPrice, $displayFirstPrice),
                 'monthly_fee' => $monthlyFeeCurrent['value'] ?? null,
                 'contract_count' => $contractCount,
+                'latest_observation_date' => $latestObservationDate,
+                'is_current' => $isCurrent,
                 'spot_range_p20' => $spotEnergySummary['p20'] ?? null,
                 'spot_range_p80' => $spotEnergySummary['p80'] ?? null,
                 'spot_range_days' => $spotEnergySummary['days'] ?? null,
-                'pricing_basis' => $this->latestStatisticRow($segmentKey, $metric, null)?->pricing_basis,
+                'pricing_basis' => $latestMetricRow?->pricing_basis,
                 'sparkline_path' => $this->sparklinePath($values, 80, 24),
             ];
         }
@@ -471,7 +481,12 @@ class ContractPriceStatistics extends Component
         $rows = [];
 
         foreach ($this->segments as $segmentKey => $segmentLabel) {
-            if (! $this->shouldPublishSegmentTrend($segmentKey, 'annual_cost', $this->consumption)) {
+            if (! $this->shouldPublishSegmentTrend(
+                $segmentKey,
+                'annual_cost',
+                $this->consumption,
+                allowDatedHistory: $segmentKey === 'quarterly',
+            )) {
                 continue;
             }
 
@@ -492,6 +507,8 @@ class ContractPriceStatistics extends Component
                 'median' => $latestRow->median_value,
                 'p80' => $latestRow->p80_value,
                 'contract_count' => $latestRow->contract_count,
+                'latest_observation_date' => $latestRow->stat_date->toDateString(),
+                'is_current' => $latestRow->stat_date->toDateString() === $this->dataWindow['to'],
                 'pricing_basis' => $latestRow->pricing_basis,
                 'sparkline_path' => $this->sparklinePath($annualCostSeries['median'], 80, 24),
             ];
@@ -718,7 +735,7 @@ class ContractPriceStatistics extends Component
 
     private function statisticsViewDataCacheKey(): string
     {
-        return 'contract-price-statistics:view-data:v17:'.md5(json_encode([
+        return 'contract-price-statistics:view-data:v18:'.md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
             'pricing_basis' => app(PricingMode::class)->expectedContractPriceBasis()->value,

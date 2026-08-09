@@ -370,7 +370,7 @@
                             Hinnat sopimustyypeittäin
                         </h2>
                         <p class="mt-2 text-sm text-slate-600 leading-relaxed max-w-[68ch]">
-                            Taulukko näyttää viimeisimmän keräyspäivän tyypillisen energiahinnan sopimustyypeittäin sekä miten hinta on muuttunut aineiston aikana. Luvut perustuvat päiväkohtaisiin mediaaneihin, eli yksittäiset poikkeavat tarjoukset eivät ohjaa tulosta. Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois. Sopimuksia-luku kertoo, monenko sopimuksen julkaistusta energiahinnasta rivin luvut on laskettu. Sopimus jää tästä taulukosta pois, jos sen hinnastossa ilmoitettu yksikköhinta koskee vain kampanjajaksoa tai on muuten ristiriidassa sopimusehtojen kanssa: silloin luku ei kertoisi, mitä sopimus maksaa. Näidenkin sopimusten koko vuoden hinta lasketaan kaikista hintajaksoista, joten ne ovat mukana vuosikustannustaulukossa.
+                            Taulukko näyttää kunkin sopimustyypin uusimman saatavilla olevan tyypillisen energiahinnan sekä miten hinta on muuttunut aineiston aikana. Jos rivin tiedot ovat muita vanhempia, päivämäärä näkyy sopimustyypin alla. Luvut perustuvat päiväkohtaisiin mediaaneihin, eli yksittäiset poikkeavat tarjoukset eivät ohjaa tulosta. Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois. Sopimuksia-luku kertoo, monenko sopimuksen julkaistusta energiahinnasta rivin luvut on laskettu. Sopimus jää tästä taulukosta pois, jos sen hinnastossa ilmoitettu yksikköhinta koskee vain kampanjajaksoa tai on muuten ristiriidassa sopimusehtojen kanssa: silloin luku ei kertoisi, mitä sopimus maksaa. Näidenkin sopimusten koko vuoden hinta lasketaan kaikista hintajaksoista, joten ne ovat mukana vuosikustannustaulukossa.
                         </p>
                     </div>
                     <div class="text-sm text-slate-500 leading-relaxed lg:border-l lg:border-slate-200 lg:pl-6">
@@ -407,7 +407,9 @@
                                         <span class="font-semibold text-slate-900 {{ $row['is_lead'] ? 'text-coral-700' : '' }}">
                                             {{ $row['segment_label'] }}
                                         </span>
-                                        @if ($row['is_spot'])
+                                        @if (! $row['is_current'])
+                                            <span class="block text-sm font-medium text-slate-500 mt-0.5 tabular-nums">Aineisto {{ $fiDate($row['latest_observation_date']) }} asti</span>
+                                        @elseif ($row['is_spot'])
                                             <span class="block text-[11px] text-slate-400 mt-0.5">12 kk keskihinta + marginaali</span>
                                         @endif
                                     </td>
@@ -466,7 +468,7 @@
                             Hintahaarukka {{ $consumptionLabel }}&nbsp;kWh kulutuksella
                         </h2>
                         <p class="mt-2 text-sm text-slate-600 leading-relaxed max-w-[68ch]">
-                            Taulukko näyttää viimeisimmän keräyspäivän vuosikustannusten jakauman sopimustyypeittäin. Laskenta käyttää valittua {{ $consumptionLabel }}&nbsp;kWh vuosikulutusta ja sisältää energiahinnan sekä perusmaksut 12 kuukaudelta. Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois.
+                            Taulukko näyttää kunkin sopimustyypin uusimman saatavilla olevan vuosikustannusten jakauman. Jos rivin tiedot ovat muita vanhempia, päivämäärä näkyy sopimustyypin alla. Laskenta käyttää valittua {{ $consumptionLabel }}&nbsp;kWh vuosikulutusta ja sisältää energiahinnan sekä perusmaksut 12 kuukaudelta. Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois.
                         </p>
                         <p class="mt-3 text-xs text-slate-500">
                             Katso myös:
@@ -520,8 +522,13 @@
                         <tbody class="divide-y divide-slate-100">
                             @foreach ($consumptionRows as $row)
                                 <tr class="{{ $row['is_lead'] ? 'bg-coral-50/40' : '' }}">
-                                    <td class="py-3 pr-3 pl-4 sm:pl-0 font-semibold text-slate-900 {{ $row['is_lead'] ? 'text-coral-700' : '' }}">
-                                        {{ $row['segment_label'] }}
+                                    <td class="py-3 pr-3 pl-4 sm:pl-0">
+                                        <span class="font-semibold text-slate-900 {{ $row['is_lead'] ? 'text-coral-700' : '' }}">
+                                            {{ $row['segment_label'] }}
+                                        </span>
+                                        @if (! $row['is_current'])
+                                            <span class="block text-sm font-medium text-slate-500 mt-0.5 tabular-nums">Aineisto {{ $fiDate($row['latest_observation_date']) }} asti</span>
+                                        @endif
                                     </td>
                                     <td class="py-3 px-3 text-right tabular-nums text-slate-700">{{ $fmtNum($row['p20'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
                                     <td class="py-3 px-3 text-right tabular-nums font-bold text-slate-900">{{ $fmtNum($row['median'], 0) }}<span class="text-slate-400 font-normal">&nbsp;€</span></td>
