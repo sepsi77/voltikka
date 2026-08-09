@@ -97,9 +97,9 @@
 
             <p class="mt-5 max-w-[72ch] text-sm text-slate-500 leading-relaxed">
                 @if ($latestPricingBasis === 'canonical_calculation')
-                    Uusimman päivän nykyhinnat ja vuosikustannukset ovat Voltikan kanonisia laskelmia. Historialliset havaintorivit säilyttävät kyseisenä päivänä kerätyn myyjädatan, eikä tämän päivän tulkintaa sovelleta niihin jälkikäteen.
+                    Uusin piste perustuu nyt myynnissä olevien sopimusten ehtoihin. Vanhemmat pisteet perustuvat kunakin päivänä kerättyihin tietoihin, eikä niitä muuteta jälkikäteen nykyisillä tiedoilla.
                 @else
-                    Tämän aineiston rivit ovat kyseisinä päivinä kerättyjä myyjähintojen havaintoja.
+                    Jokainen piste perustuu kyseisenä päivänä kerättyihin sopimushintoihin.
                 @endif
             </p>
 
@@ -187,14 +187,9 @@
                         <h2 id="lead-chart-heading" class="text-2xl font-bold text-slate-900 tracking-tight">
                             Vuosikustannus {{ $consumptionLabel }}&nbsp;kWh kulutuksella
                         </h2>
-                        <p class="mt-1 text-sm text-slate-500 max-w-[68ch]">
-                            Sähkösopimusten hintakehitys eri sopimustyypeissä — eri sopimustyyppien tyypillinen vuosikustannus, jos sopimus tehtäisiin tämän jakson aikana.
-                            @if ($activeAnnualMethod === 'annual_cost_as_of_v1')
-                                Pörssisopimusten vuosiarvio käyttää jokaisella tilastopäivällä vain silloin saatavilla olleita 12 kuukauden tukkumarkkinan ennakkohintoja. Jos koko ennakkohintajaksoa ei ollut saatavilla, piste käyttää kyseiseen päivään päättyvää toteutunutta 12 kuukauden pörssitasoa.
-                            @else
-                                Nykyinen pörssisopimusten vuosiarvio käyttää tulevan 12 kuukauden tukkumarkkinan ennakkohintoja; vanhemmat pisteet käyttävät kustakin päivästä taaksepäin laskettua 12 kuukauden toteutunutta pörssikeskihintaa.
-                            @endif
-                            Jakso&nbsp;= <span class="font-semibold text-slate-900">{{ $periods[$period] ?? $period }}</span>.
+                        <p class="mt-2 text-base text-slate-600 leading-relaxed max-w-[68ch]">
+                            Viivat näyttävät kunkin sopimustyypin tyypillisen 12 kuukauden kustannusarvion valitulla kulutuksella. Arvio vastaa kyseisen ajankohdan myynnissä olleita sopimuksia ja sisältää energian sekä perusmaksut.
+                            Näkymä: <span class="font-semibold text-slate-900">{{ $periods[$period] ?? $period }}</span>.
                         </p>
                     </div>
 
@@ -242,7 +237,8 @@
                         data-line-chart
                         class="relative w-full h-80 select-none transition-opacity"
                         role="img"
-                        aria-label="Vuosikustannus 5&nbsp;000 kWh kulutuksella sopimustyypeittäin, viivakaavio."
+                        aria-label="Vuosikustannus {{ $consumptionLabel }} kWh kulutuksella sopimustyypeittäin, viivakaavio."
+                        aria-describedby="lead-chart-description"
                     >
                         <script type="application/json">{!! json_encode($leadChartPayload, JSON_UNESCAPED_UNICODE) !!}</script>
                     </div>
@@ -279,24 +275,40 @@
                     @endforeach
                 </ul>
 
-                {{-- Editorial caption --}}
-                @if (! empty($caption) || $activeAnnualMethod === 'annual_cost_as_of_v1')
-                    <figcaption class="mt-10 max-w-[58ch] text-base text-slate-700 leading-relaxed">
-                        @foreach ($caption as $sentence)
-                            <span class="block">{{ $sentence }}</span>
-                        @endforeach
-                        <span class="block {{ ! empty($caption) ? 'mt-3' : '' }} text-sm text-slate-500">
-                            @if ($activeAnnualMethod === 'annual_cost_as_of_v1')
-                                Yhtenäisellä viivalla olevat pisteet käyttävät samaa vuosiarvion laskutapaa. Jakson piste näyttää mediaanin, ja viimeinen piste uusimman päivän mediaanin. Viiva alkaa uudelleen, kun useimpien sopimusten laskutapa vaihtuu.
-                            @else
-                                Sarjan uusin kanoninen Spot-piste on tulevan 12 kuukauden arvio tukkumarkkinan ennakkohinnoista. Historialliset pisteet kuvaavat edeltävän 12 kuukauden toteutunutta pörssikeskihintaa kustakin jaksosta taaksepäin laskettuna.
-                            @endif
-                        </span>
-                        <span class="block mt-2 text-xs text-slate-400">
-                            Lähde: Voltikka, päivittäin kerätyt sähkösopimukset. Sis. ALV 25,5 %.
-                        </span>
-                    </figcaption>
-                @endif
+                {{-- Editorial caption and chart-reading guide --}}
+                <div id="lead-chart-description" class="mt-10 text-slate-700 leading-relaxed">
+                    @if (! empty($caption))
+                        <div class="max-w-[58ch] text-base">
+                            @foreach ($caption as $sentence)
+                                <span class="block">{{ $sentence }}</span>
+                            @endforeach
+                        </div>
+                    @endif
+
+                    <div class="{{ ! empty($caption) ? 'mt-7' : '' }} border-t border-slate-200 pt-5" aria-labelledby="chart-reading-heading">
+                        <h3 id="chart-reading-heading" class="text-base font-bold text-slate-900">
+                            Näin luet kuvaajaa
+                        </h3>
+                        <dl class="mt-3 grid gap-4 md:grid-cols-3 md:gap-7 text-base text-slate-600">
+                            <div>
+                                <dt class="font-semibold text-slate-900">Katkos viivassa</dt>
+                                <dd class="mt-1">Vertailukelpoista hintaa ei ollut saatavilla tai vuosihinnan arviointitapa muuttui. Katkos estää yhdistämästä keskenään erilaisia arvioita.</dd>
+                            </div>
+                            <div>
+                                <dt class="font-semibold text-slate-900">Yksittäinen hyppy</dt>
+                                <dd class="mt-1">Hyppy ei aina tarkoita yleistä hinnanmuutosta. Se voi syntyä myös siitä, että myynnissä olevien sopimusten joukko muuttuu.</dd>
+                            </div>
+                            <div>
+                                <dt class="font-semibold text-slate-900">Uusin piste</dt>
+                                <dd class="mt-1">Viimeinen piste näyttää uusimman saatavilla olevan päivän tilanteen. Viikko- ja kuukausinäkymät tasoittavat sitä edeltävää päivittäistä vaihtelua.</dd>
+                            </div>
+                        </dl>
+                    </div>
+
+                    <span class="block mt-5 text-sm text-slate-500">
+                        Lähde: Voltikka, päivittäin kerätyt sähkösopimukset. Sisältää arvonlisäveron 25,5 %.
+                    </span>
+                </div>
 
                 {{-- Visually-hidden accessible table mirror of the chart.
                      Wrapper carries `sr-only` (not the table itself) — `display: table`
@@ -477,7 +489,7 @@
                         </p>
                         <p class="mt-2">
                             @if ($activeAnnualMethod === 'annual_cost_as_of_v1')
-                                Vuosikustannukset on laskettu uudelleen samalla as-of-menetelmäversiolla: kukin päivä käyttää vain sinä päivänä saatavilla ollutta sopimus-, Spot- ja ennakkohinta-aineistoa. Spot käyttää täyttä ennakkohintajaksoa, kun se on saatavilla, ja muuten kyseiseen päivään päättyvää 12 kuukauden toteutunutta tasoa. Hinnaltaan muutettavissa sopimuksissa tulevat kuukaudet arvioidaan vain, kun historiallinen mekanismi ja hintajakson alku voidaan osoittaa; muuten kyseisen päivän hinta pidetään ennallaan. Viiva ja muutosluvut eivät ylitä yhteensopimattoman laskentaperusteen rajaa.
+                                Jokainen päivä käyttää vain silloin saatavilla olleita tietoja. Tulevia hintoja arvioidaan vain silloin, kun sopimuksen ehdot antavat siihen riittävät tiedot. Jos vertailukelpoista vuosihintaa ei voida muodostaa, sopimus jää kyseisen päivän tilastosta pois.
                             @else
                                 Pörssisähkön nykyinen vuosikustannus käyttää tulevan 12 kuukauden tukkumarkkinan ennakkohintoja, historiallista päivä–yö-eroa ja sopimuksen marginaalia. Historialliset Spot-vuosikustannukset käyttävät kyseisestä päivästä taaksepäin laskettua 12 kuukauden toteutunutta pörssitasoa. Kuukausi- ja kvartaalihinnoissa sekä hinnaltaan muutettavissa toistaiseksi voimassa olevissa yleissähkösopimuksissa tulevat kuukaudet ovat arvioita. Muissa kiinteissä sopimuksissa käytetään julkaistuja hintoja. Trendi näyttää vuosikustannuksen mediaanin kehityksen valitulla kulutuksella.
                             @endif
@@ -760,7 +772,7 @@
                             Tämän sivun keskiluku on mediaani: kuvaa tyypillistä sopimusta paremmin kuin keskiarvo, koska yksittäiset poikkeavat tarjoukset tai virheellinen aineisto eivät vinouta sitä. Hintahaarukan rajat ovat 20.&nbsp;ja 80.&nbsp;persentiilit: halvempi&nbsp;20&nbsp;% on raja jonka alle viidennes saman tyypin sopimuksista jää, ja kalliimpi&nbsp;20&nbsp;% on raja jonka yli viidennes nousee.
                         </p>
                         <p>
-                            Aineisto alkaa {{ $fiDate($dataWindow['from']) }}. Yksittäiset päivät voivat puuttua, jos hintatiedoissa on aukkoja, näitä ei täytetä keinotekoisesti.
+                            Aineisto alkaa {{ $fiDate($dataWindow['from']) }}. Kuvaajaan jätetään katkos, jos päivästä ei saada vertailukelpoista hintaa tai vuosihinnan arviointitapa muuttuu. Katkoksia ei yhdistetä keinotekoisesti.
                         </p>
                     </div>
                 </div>

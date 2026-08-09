@@ -45,6 +45,13 @@ class ContractPriceStatisticsPageTest extends TestCase
         $response->assertSee('Energiahinnan trendi');
         $response->assertSee('Hintahaarukka');
         $response->assertSee('Taulukko näyttää viimeisimmän keräyspäivän vuosikustannusten jakauman');
+        $response->assertSee('Viivat näyttävät kunkin sopimustyypin tyypillisen 12 kuukauden kustannusarvion');
+        $response->assertSee('Näin luet kuvaajaa');
+        $response->assertSee('Katkos viivassa');
+        $response->assertSee('Vertailukelpoista hintaa ei ollut saatavilla tai vuosihinnan arviointitapa muuttui');
+        $response->assertSee('Hyppy ei aina tarkoita yleistä hinnanmuutosta');
+        $response->assertSee('Viimeinen piste näyttää uusimman saatavilla olevan päivän tilanteen');
+        $response->assertDontSee('Yhtenäisellä viivalla olevat pisteet käyttävät samaa vuosiarvion laskutapaa');
         $response->assertDontSee('Halvin');
         $response->assertSee('sisältää energiahinnan sekä perusmaksut 12 kuukaudelta');
         $response->assertSee('Pörssisähkön nykyinen vuosikustannus käyttää tulevan 12 kuukauden tukkumarkkinan ennakkohintoja');
@@ -369,7 +376,7 @@ class ContractPriceStatisticsPageTest extends TestCase
 
         $component = Livewire::test(ContractPriceStatistics::class);
 
-        $component->assertSee('Uusimman päivän nykyhinnat ja vuosikustannukset ovat Voltikan kanonisia laskelmia');
+        $component->assertSee('Uusin piste perustuu nyt myynnissä olevien sopimusten ehtoihin');
         $this->assertSame('canonical_calculation', $component->viewData('latestPricingBasis'));
         $this->assertSame('canonical_calculation', $component->viewData('segmentRows')[0]['pricing_basis']);
     }
