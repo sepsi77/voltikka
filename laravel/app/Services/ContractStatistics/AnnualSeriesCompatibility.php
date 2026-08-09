@@ -2,6 +2,8 @@
 
 namespace App\Services\ContractStatistics;
 
+use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
+
 /**
  * Keeps public annual-cost series inside one calculation regime.
  *
@@ -51,6 +53,45 @@ final class AnnualSeriesCompatibility
             'mixed' => $mixed,
             'transition_gap' => $transitionGap,
         ];
+    }
+
+    /**
+     * Use the dominant estimate method as the aggregate chart regime.
+     * Stored compatibility remains unchanged and strict for audit use.
+     *
+     * @param  array<string, mixed>|null  $basisCounts
+     */
+    public static function aggregateDisplayKey(
+        ?string $storedCompatibilityKey,
+        ?string $methodVersion,
+        ?array $basisCounts,
+    ): ?string {
+        if ($methodVersion !== AnnualCostMethodVersion::AsOf->value) {
+            return $storedCompatibilityKey;
+        }
+
+        $methodCounts = $basisCounts['estimate_method'] ?? null;
+        if (! is_array($methodCounts) || $methodCounts === []) {
+            return $storedCompatibilityKey;
+        }
+
+        foreach ($methodCounts as $method => $count) {
+            if (! is_string($method) || $method === '' || ! is_int($count) || $count <= 0) {
+                return $storedCompatibilityKey;
+            }
+        }
+
+        $maximum = max($methodCounts);
+        $dominantMethods = array_keys(array_filter(
+            $methodCounts,
+            static fn (int $count): bool => $count === $maximum,
+        ));
+        sort($dominantMethods, SORT_STRING);
+
+        return 'annual-cost-display:'.hash('sha256', json_encode([
+            'method_version' => AnnualCostMethodVersion::AsOf->value,
+            'dominant_estimate_methods' => $dominantMethods,
+        ], JSON_THROW_ON_ERROR));
     }
 
     public static function sameKey(?string $left, ?string $right): bool

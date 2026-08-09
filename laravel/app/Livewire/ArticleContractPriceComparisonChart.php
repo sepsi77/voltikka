@@ -46,7 +46,7 @@ class ArticleContractPriceComparisonChart extends Component
         $from = Carbon::parse($to)->subYear()->toDateString();
 
         return Cache::remember(
-            'article:contract-price-comparison-chart:prepared:v4:'.ContractPriceDailyStatistic::activeAnnualMethodVersion()->value.':'.$pricingBasis.':'.$to,
+            'article:contract-price-comparison-chart:prepared:v5:'.ContractPriceDailyStatistic::activeAnnualMethodVersion()->value.':'.$pricingBasis.':'.$to,
             now()->addHours(6),
             function () use ($from, $pricingBasis, $to): array {
                 $rows = ContractPriceDailyStatistic::query()
@@ -63,7 +63,7 @@ class ArticleContractPriceComparisonChart extends Component
                     })
                     ->orderBy('stat_date')
                     ->toBase()
-                    ->get(['stat_date', 'segment_key', 'median_value', 'compatibility_key']);
+                    ->get(['stat_date', 'segment_key', 'median_value', 'method_version', 'compatibility_key', 'basis_counts']);
 
                 if ($rows->isEmpty()) {
                     return $this->emptyPreparedData();
@@ -80,7 +80,14 @@ class ArticleContractPriceComparisonChart extends Component
                     $lastDate = $dateString;
 
                     $timestamp = $this->periodStart($date)->getTimestamp();
-                    $weekly[$row->segment_key][$timestamp]['compatibility_keys'][] = $row->compatibility_key;
+                    $basisCounts = is_string($row->basis_counts)
+                        ? json_decode($row->basis_counts, true)
+                        : $row->basis_counts;
+                    $weekly[$row->segment_key][$timestamp]['compatibility_keys'][] = AnnualSeriesCompatibility::aggregateDisplayKey(
+                        $row->compatibility_key,
+                        $row->method_version,
+                        is_array($basisCounts) ? $basisCounts : null,
+                    );
                     if ($row->median_value !== null) {
                         $weekly[$row->segment_key][$timestamp]['values'][] = (float) $row->median_value;
                     }

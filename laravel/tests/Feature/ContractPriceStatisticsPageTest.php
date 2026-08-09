@@ -422,9 +422,9 @@ class ContractPriceStatisticsPageTest extends TestCase
         app()->forgetScopedInstances();
         $asOfKey = $method->invoke(app(ContractPriceStatistics::class));
 
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v13:', $legacyKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v13:', $canonicalKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v13:', $asOfKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v14:', $legacyKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v14:', $canonicalKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v14:', $asOfKey);
         $this->assertNotSame($legacyKey, $canonicalKey);
         $this->assertNotSame($canonicalKey, $asOfKey);
     }
@@ -484,6 +484,83 @@ class ContractPriceStatisticsPageTest extends TestCase
 
         $weekly = Livewire::test(ContractPriceStatistics::class)->viewData('leadChartPayload');
         $this->assertSame([105.0, null, 220.0], $weekly['series'][0]['values']);
+    }
+
+    public function test_dominant_display_regimes_keep_weekly_medians_and_show_the_latest_day_after_a_mixed_week(): void
+    {
+        Cache::flush();
+        config()->set('canonical_pricing.enabled', true);
+        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::AsOf->value);
+        app()->forgetScopedInstances();
+
+        $rows = [
+            ['2026-07-27', 'hybrid', 550.0, 'hybrid-a', ['hybrid_base_only' => 37, 'none' => 1]],
+            ['2026-07-28', 'hybrid', 552.0, 'hybrid-b', ['hybrid_base_only' => 38]],
+            ['2026-07-27', 'open_ended', 630.0, 'open-a', ['hold_current_supplier_price' => 40, 'supplier_adjusted_spot_seasonal_index' => 2]],
+            ['2026-07-28', 'open_ended', 632.0, 'open-b', ['hold_current_supplier_price' => 41]],
+        ];
+
+        foreach (Carbon::parse('2026-08-03')->daysUntil('2026-08-09') as $index => $date) {
+            $rows[] = [
+                $date->toDateString(),
+                'hybrid',
+                553.0 + $index,
+                'hybrid-current-'.$index,
+                $index % 2 === 0
+                    ? ['hybrid_base_only' => 37, 'none' => 1]
+                    : ['hybrid_base_only' => 38],
+            ];
+            $supplierDominates = $date->gte(Carbon::parse('2026-08-08'));
+            $rows[] = [
+                $date->toDateString(),
+                'open_ended',
+                $date->isSameDay('2026-08-09') ? 642.93 : 633.0 + $index,
+                'open-current-'.$index,
+                $supplierDominates
+                    ? ['supplier_adjusted_spot_seasonal_index' => 32, 'hold_current_supplier_price' => 10]
+                    : ['hold_current_supplier_price' => 40, 'supplier_adjusted_spot_seasonal_index' => 2],
+            ];
+        }
+
+        foreach ($rows as [$date, $segment, $value, $storedKey, $estimateMethods]) {
+            ContractPriceDailyStatistic::create([
+                ...$this->statisticValues($date, $segment, 'annual_cost', $value, $segment === 'hybrid' ? 38 : 42),
+                'pricing_basis' => 'canonical_calculation',
+                'method_version' => AnnualCostMethodVersion::AsOf->value,
+                'compatibility_key' => $storedKey,
+                'basis_counts' => ['estimate_method' => $estimateMethods],
+                'consumption_kwh' => 5000,
+            ]);
+        }
+        ContractPriceDailyStatistic::create([
+            ...$this->statisticValues('2026-08-09', 'spot', 'energy_price', 8.0, 20),
+            'pricing_basis' => 'canonical_calculation',
+            'consumption_kwh' => null,
+        ]);
+
+        $component = Livewire::test(ContractPriceStatistics::class);
+        $chart = $component->viewData('leadChartPayload');
+        $hybrid = collect($chart['series'])->firstWhere('label', 'Joustosähkö');
+        $openEnded = collect($chart['series'])->firstWhere('label', 'Toistaiseksi voimassa oleva');
+        $previousWeek = array_search(Carbon::parse('2026-07-27')->startOfWeek()->getTimestamp(), $chart['x'], true);
+        $currentWeek = array_search(Carbon::parse('2026-08-03')->startOfWeek()->getTimestamp(), $chart['x'], true);
+        $latestDay = array_search(Carbon::parse('2026-08-09')->getTimestamp(), $chart['x'], true);
+
+        $this->assertIsInt($previousWeek);
+        $this->assertIsInt($currentWeek);
+        $this->assertIsInt($latestDay);
+        $this->assertTrue($chart['showPoints']);
+        $this->assertSame(551.0, $hybrid['values'][$previousWeek]);
+        $this->assertSame(556.0, $hybrid['values'][$currentWeek]);
+        $this->assertNull($openEnded['values'][$currentWeek]);
+        $this->assertSame(642.93, $openEnded['values'][$latestDay]);
+        $this->assertNotNull($openEnded['compatibility_keys'][$latestDay]);
+        $this->assertNotEmpty($component->viewData('caption'));
+
+        $daily = Livewire::test(ContractPriceStatistics::class)
+            ->set('period', 'daily')
+            ->viewData('leadChartPayload');
+        $this->assertFalse($daily['showPoints']);
     }
 
     public function test_annual_periods_and_captions_do_not_cross_compatibility_keys(): void

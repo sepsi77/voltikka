@@ -280,14 +280,14 @@
                 </ul>
 
                 {{-- Editorial caption --}}
-                @if (! empty($caption))
+                @if (! empty($caption) || $activeAnnualMethod === 'annual_cost_as_of_v1')
                     <figcaption class="mt-10 max-w-[58ch] text-base text-slate-700 leading-relaxed">
                         @foreach ($caption as $sentence)
                             <span class="block">{{ $sentence }}</span>
                         @endforeach
-                        <span class="block mt-3 text-sm text-slate-500">
+                        <span class="block {{ ! empty($caption) ? 'mt-3' : '' }} text-sm text-slate-500">
                             @if ($activeAnnualMethod === 'annual_cost_as_of_v1')
-                                Jokainen Spot-piste käyttää vain kyseisenä päivänä saatavilla ollutta tietoa. Täysi ennakkohintajakso on käytössä 1.5.2026 alkaen; sitä vanhemmat tai puutteellisen ennakkohinta-aineiston pisteet käyttävät toteutunutta 12 kuukauden tasoa. Viiva katkeaa, kun laskentaperuste vaihtuu.
+                                Yhtenäisellä viivalla olevat pisteet käyttävät samaa vuosiarvion laskutapaa. Jakson piste näyttää mediaanin, ja viimeinen piste uusimman päivän mediaanin. Viiva alkaa uudelleen, kun useimpien sopimusten laskutapa vaihtuu.
                             @else
                                 Sarjan uusin kanoninen Spot-piste on tulevan 12 kuukauden arvio tukkumarkkinan ennakkohinnoista. Historialliset pisteet kuvaavat edeltävän 12 kuukauden toteutunutta pörssikeskihintaa kustakin jaksosta taaksepäin laskettuna.
                             @endif
@@ -306,7 +306,7 @@
                         <caption>Vuosikustannus {{ $consumptionLabel }} kWh kulutuksella sopimustyypeittäin (€/v).</caption>
                         <thead>
                             <tr>
-                                <th>Jakso alkaa</th>
+                                <th>Päivämäärä tai jakson alku</th>
                                 @foreach ($leadChartPayload['series'] as $s)
                                     <th>{{ $s['label'] }}</th>
                                 @endforeach

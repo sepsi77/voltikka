@@ -1,5 +1,6 @@
 import uPlot from 'uplot';
 import 'uplot/dist/uPlot.min.css';
+import { logicalSeriesPointOptions } from './contract-price-chart-options.js';
 
 const SLATE_900 = '#0f172a';
 const SLATE_800 = '#1e293b';
@@ -75,11 +76,12 @@ function buildOptions(payload, root) {
 
     series.forEach((s, idx) => {
         if (idx === 0) {
+            const stroke = resolveLeadStroke(payload, isSpotPalette, SLATE_800);
             uplotSeries.push({
                 label: s.label,
-                stroke: resolveLeadStroke(payload, isSpotPalette, SLATE_800),
+                stroke,
                 width: 2.2,
-                points: { show: false },
+                points: logicalSeriesPointOptions(payload.showPoints, stroke),
                 paths: splinePath,
             });
             return;
@@ -90,7 +92,7 @@ function buildOptions(payload, root) {
             stroke: style.stroke,
             width: style.width,
             dash: style.dash.length ? style.dash : undefined,
-            points: { show: false },
+            points: logicalSeriesPointOptions(payload.showPoints, style.stroke),
             paths: splinePath,
         });
     });

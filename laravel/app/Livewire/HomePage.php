@@ -189,7 +189,7 @@ class HomePage extends Component
             ->where('stat_date', '<=', $latestExpectedDate)
             ->selectRaw('COUNT(*) as row_count, MAX(updated_at) as latest_update')
             ->first();
-        $cacheKey = 'home-page:contract-price-trend:v7:'.md5(json_encode([
+        $cacheKey = 'home-page:contract-price-trend:v8:'.md5(json_encode([
             'annual_method' => ContractPriceDailyStatistic::activeAnnualMethodVersion()->value,
             'pricing_basis' => $expectedBasis,
             'latest_expected_date' => (string) $latestExpectedDate,
@@ -211,7 +211,7 @@ class HomePage extends Component
                         });
                 })
                 ->orderBy('stat_date')
-                ->get(['stat_date', 'segment_key', 'median_value', 'pricing_basis', 'compatibility_key']);
+                ->get(['stat_date', 'segment_key', 'median_value', 'pricing_basis', 'method_version', 'compatibility_key', 'basis_counts']);
 
             $latestPricingBasis = $expectedBasis;
             $weeklyBySegment = [];
@@ -225,7 +225,13 @@ class HomePage extends Component
 
                 foreach ($byWeek as $weekStart => $weekRows) {
                     $weekRows = $weekRows->sortBy('stat_date')->values();
-                    $period = $compatibility->evaluatePeriod($weekRows->pluck('compatibility_key')->all());
+                    $period = $compatibility->evaluatePeriod(
+                        $weekRows->map(fn (ContractPriceDailyStatistic $row): ?string => AnnualSeriesCompatibility::aggregateDisplayKey(
+                            $row->compatibility_key,
+                            $row->method_version,
+                            $row->basis_counts,
+                        ))->all(),
+                    );
                     $values = $weekRows->pluck('median_value')->filter(fn ($value) => $value !== null);
                     $weeklyBySegment[$segmentKey][$weekStart] = [
                         'value' => $period['comparable'] && $values->isNotEmpty()

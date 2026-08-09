@@ -263,7 +263,7 @@ class ContractPriceStatistics extends Component
      * Lead chart payload: annual cost @ 5000 kWh for the four primary segments,
      * aggregated to the selected period. Coral on the first segment.
      *
-     * @return array{x:array<int,int>,series:array<int,array{label:string,values:array<int,?float>}>,unit:string,decimals:int}
+     * @return array{x:array<int,int>,series:array<int,array{label:string,values:array<int,?float>}>,unit:string,decimals:int,showPoints:bool}
      */
     public function getLeadChartPayloadProperty(): array
     {
@@ -684,7 +684,7 @@ class ContractPriceStatistics extends Component
 
     private function statisticsViewDataCacheKey(): string
     {
-        return 'contract-price-statistics:view-data:v13:'.md5(json_encode([
+        return 'contract-price-statistics:view-data:v14:'.md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
             'pricing_basis' => app(PricingMode::class)->expectedContractPriceBasis()->value,
@@ -743,7 +743,7 @@ class ContractPriceStatistics extends Component
 
     /**
      * @param  array<int,string>  $segmentKeys
-     * @return array{x:array<int,int>,series:array<int,array{label:string,values:array<int,?float>}>,unit:string,decimals:int}
+     * @return array{x:array<int,int>,series:array<int,array{label:string,values:array<int,?float>}>,unit:string,decimals:int,showPoints:bool}
      */
     private function buildAnnualCostChart(array $segmentKeys, int $consumption): array
     {
@@ -760,7 +760,13 @@ class ContractPriceStatistics extends Component
             ->all();
 
         if ($allTimestamps === []) {
-            return ['x' => [], 'series' => [], 'unit' => 'eur', 'decimals' => 0];
+            return [
+                'x' => [],
+                'series' => [],
+                'unit' => 'eur',
+                'decimals' => 0,
+                'showPoints' => $this->period !== 'daily',
+            ];
         }
 
         $series = [];
@@ -786,6 +792,7 @@ class ContractPriceStatistics extends Component
             'series' => $series,
             'unit' => 'eur',
             'decimals' => 0,
+            'showPoints' => $this->period !== 'daily',
         ];
     }
 
@@ -868,7 +875,7 @@ class ContractPriceStatistics extends Component
             $periodRows = $periodRows->sortBy('stat_date')->values();
             $vals = $periodRows->pluck('median_value')->filter(fn ($v) => $v !== null);
             $periodCompatibility = $compatibility?->evaluatePeriod(
-                $periodRows->pluck('compatibility_key')->all(),
+                $periodRows->map(fn (ContractPriceDailyStatistic $row): ?string => $this->annualDisplayCompatibilityKey($row))->all(),
             );
 
             $x[] = Carbon::parse($periodStart)->getTimestamp();
@@ -878,11 +885,37 @@ class ContractPriceStatistics extends Component
             $compatibilityKeys[] = $periodCompatibility['compatibility_key'] ?? null;
         }
 
+        if ($compatibility !== null && $this->period !== 'daily') {
+            $latest = $rows
+                ->whereNotNull('median_value')
+                ->sortByDesc('stat_date')
+                ->first();
+            $latestTimestamp = $latest?->stat_date->getTimestamp();
+
+            if ($latest !== null && $latestTimestamp !== $x[array_key_last($x)]) {
+                $endpointCompatibility = $compatibility->evaluatePeriod([
+                    $this->annualDisplayCompatibilityKey($latest),
+                ]);
+                $x[] = $latestTimestamp;
+                $median[] = $endpointCompatibility['comparable'] ? (float) $latest->median_value : null;
+                $compatibilityKeys[] = $endpointCompatibility['compatibility_key'];
+            }
+        }
+
         return $this->aggregatedSeriesCache[$cacheKey] = [
             'x' => $x,
             'median' => $median,
             'compatibility_keys' => $compatibilityKeys,
         ];
+    }
+
+    private function annualDisplayCompatibilityKey(ContractPriceDailyStatistic $row): ?string
+    {
+        return AnnualSeriesCompatibility::aggregateDisplayKey(
+            $row->compatibility_key,
+            $row->method_version,
+            $row->basis_counts,
+        );
     }
 
     /**

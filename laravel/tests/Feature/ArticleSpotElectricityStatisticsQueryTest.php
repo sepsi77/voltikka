@@ -59,6 +59,10 @@ class ArticleSpotElectricityStatisticsQueryTest extends TestCase
             $this->assertStringNotContainsString('select *', strtolower($query));
             $this->assertStringContainsString('"stat_date" between', $query);
             $this->assertStringContainsString('"pricing_basis"', $query);
+            if (str_contains($query, '"median_value"')) {
+                $this->assertStringContainsString('"method_version"', $query);
+                $this->assertStringContainsString('"basis_counts"', $query);
+            }
             $this->assertStringNotContainsString('"min_value"', $query);
             $this->assertStringNotContainsString('"max_value"', $query);
         }
