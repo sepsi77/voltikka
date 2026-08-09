@@ -24,7 +24,7 @@ enum PricingBucket: string
     /** Pörssisähkö: the price follows the hourly exchange price. */
     case Spot = 'porssisahko';
 
-    /** Päivittyvä hinta: kvartaali- ja kuukausisähkö, the seller resets the price each period. */
+    /** Jaksoittain vaihtuva hinta: the seller resets the price monthly, quarterly, seasonally, or on another stated cadence. */
     case MarketReset = 'paivittyva';
 
     /** Otherwise fixed, plus a mandatory adjustment that depends on when the customer uses power. */

@@ -27,7 +27,7 @@
     selected state a second, saturated signal without adding width or shifting the label.
 
     Copy rule: every Finnish string for this row lives in `$pricingBucketPills` below, never
-    inline further down and never in a component. "Päivittyvä hinta" + "kvartaali- ja
+    inline further down and never in a component. "Jaksoittain vaihtuva hinta" + "kvartaali- ja
     kuukausisähkö" is a locked user decision; do not reword it. Sub-lines are shortened
     restatements of `ContractCardCopy::band()` so pill and card say the same thing, and they
     sit at 14px `slate-500`, the DESIGN.md floor for secondary copy, not at 12px.
@@ -36,7 +36,7 @@
     with `$showSeoFilterLinks` and no filter is active, the three buckets that own a canonical
     SEO page render as crawlable `<a href>`; a click still stays on the page through
     `wire:click.prevent`. Any active filter turns every pill back into a plain Livewire
-    toggle, so filter combinations never become crawlable URLs. Päivittyvä hinta has no
+    toggle, so filter combinations never become crawlable URLs. Jaksoittain vaihtuva hinta has no
     canonical page and is a toggle in every state.
 
     No per-bucket counts: the listing applies its energy-source and consumption-range filters
@@ -56,8 +56,8 @@
         ],
         [
             'key' => PricingBucket::MarketReset->value,
-            'label' => 'Päivittyvä hinta',
-            'sub' => 'kvartaali- ja kuukausisähkö',
+            'label' => 'Jaksoittain vaihtuva hinta',
+            'sub' => 'muuttuu kuukausittain tai harvemmin',
             'icon' => 'period',
             'seoUrl' => null,
         ],

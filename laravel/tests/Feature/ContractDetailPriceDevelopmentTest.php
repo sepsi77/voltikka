@@ -141,7 +141,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
         $chart = $test->viewData('priceDevelopment')['chart'];
         $references = array_values(array_filter(array_column($chart['rows'], 'reference')));
 
-        $test->assertSee('Mediaani, päivittyvä hinta');
+        $test->assertSee('Mediaani, jaksoittain vaihtuva hinta');
         $this->assertContains('7,50', $references, 'Observed history with the unchanged key must remain continuous.');
         $this->assertContains('8,50', $references, 'The canonical reset overlay must use persisted market_reset rows.');
         $this->assertNotContains('88,00', $references, 'The expected basis must own the latest date.');

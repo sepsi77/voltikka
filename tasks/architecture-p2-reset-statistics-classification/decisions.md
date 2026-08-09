@@ -7,7 +7,7 @@
   - `canonical_calculation` reuses `PricingCategoryResolver` and `PricingBucket::fromFacts()`: Spot maps to `spot`, MarketReset to `market_reset`, ConsumptionEffect to `hybrid`, and Fixed to the structural term segment. It never falls back to quarterly text.
   - `observed_seller_data` keeps the old order: Spot, Hybrid, shared text-quarterly match, fixed-term bucket, open-ended, other.
 - Canonical Spot precedence and reset-over-Hybrid precedence come from the shared card facts. No reset cadence list or quarterly phrase list was copied.
-- `market_reset` has the generic label `Päivittyvä hinta`. The shared map retains `quarterly => Kvartaalisähkö` for stored history and CSV output.
+- `market_reset` has the generic label `Jaksoittain vaihtuva hinta`. The shared map retains `quarterly => Kvartaalisähkö` for stored history and CSV output.
 - Old rows are not migrated, rewritten, or translated. A canonical reset chart starts when rows are actually persisted under `market_reset`; observed `quarterly` and `open_ended` points do not enter it.
 - Detail-page median overlays use the expected current basis. Older dates can retain their stored basis, but the latest expected-basis date accepts only that basis and newer opposite-basis dates are excluded.
 - Company comparison keeps identical-key history only. Its cache schema is v6.

@@ -422,7 +422,7 @@ class ConsumptionCalculator extends Component
                 'description' => 'Toteutuneeseen pörssihintaan ja tyypilliseen marginaaliin perustuva arvio.',
             ],
             'market_reset' => [
-                'label' => 'Päivittyvä hinta',
+                'label' => 'Jaksoittain vaihtuva hinta',
                 'description' => 'Myyjän määräajoin markkinatilanteen mukaan päivittämä energiahinta.',
             ],
             'fixed_term_12' => [

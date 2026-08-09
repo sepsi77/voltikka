@@ -42,7 +42,7 @@ Copy lives only in `ContractCardCopy` (typed-fields rule); do not patch template
 
 ### Resolved with the user (2026-07-26)
 
-- **Market-following bucket label**: two-line pill — main label **"Päivittyvä hinta"**,
+- **Market-following bucket label**: two-line pill — main label **"Jaksoittain vaihtuva hinta"**,
   sub-line **"kvartaali- ja kuukausisähkö"**. "Markkinaa seuraavat" was rejected as
   unclear to a layperson. The main label states what the customer experiences; the
   sub-line anchors it to product names people recognise. No ambiguity with spot,

@@ -258,9 +258,9 @@ Important semantics:
 - cache invalidation is automatic through cheap `contract_price_daily_statistics` / `contract_price_snapshots` / spot-price max-date/update fingerprints, so daily imports/backfills should not need manual page-cache clearing
 - run `contracts:backfill-price-statistics` before expecting historical data
 - spot metrics are split between `spot_margin` and `spot_total_energy_price`
-- forward rows store `pricing_basis=canonical_calculation`; historical backfill and feature-off rows store `observed_seller_data`. Current unit panels and the endpoint date require request-scoped `PricingMode::expectedContractPriceBasis()`. Active annual rows on that unit-owned endpoint must use the expected basis or `mixed_evidence`; a stale canonical AsOf row cannot survive a feature-off recalculation into public output. Historical rows stay method-filtered and date-scoped. The CSV exports all method/provenance fields and marks the active annual version. Prepared view-data cache schema is v14; its key and source fingerprint include the active annual method
+- forward rows store `pricing_basis=canonical_calculation`; historical backfill and feature-off rows store `observed_seller_data`. Current unit panels and the endpoint date require request-scoped `PricingMode::expectedContractPriceBasis()`. Active annual rows on that unit-owned endpoint must use the expected basis or `mixed_evidence`; a stale canonical AsOf row cannot survive a feature-off recalculation into public output. Historical rows stay method-filtered and date-scoped. The CSV exports all method/provenance fields and marks the active annual version. Prepared view-data cache schema is v16; its key and source fingerprint include the active annual method
 - a package can contribute an annual total and package fee, but its excess-use rate is not an all-in energy price and stays out of unit-price panels
-- `ContractPriceStatistics::$segments` is `ContractStatisticsSegmentClassifier::SEGMENT_LABELS`. Canonical monthly/quarterly/seasonal/other resets share `market_reset` / `Päivittyvä hinta`; the generic reset deep dive uses plain cadence-neutral copy. Persisted observed `quarterly` keeps its historical label and CSV key
+- `ContractPriceStatistics::$segments` is `ContractStatisticsSegmentClassifier::SEGMENT_LABELS`. Canonical monthly/quarterly/seasonal/other resets share `market_reset` / `Jaksoittain vaihtuva hinta`; the generic reset deep dive uses plain cadence-neutral copy. Persisted observed `quarterly` keeps its historical label and CSV key. The broader canonical segment began on 2026-08-02 and must have at least 30 non-null daily observations, including the current public endpoint, before it appears in the unit table, annual table, or deep dive. Do not join the narrower historical `quarterly` rows onto it
 - the “Hinnat sopimustyypeittäin” spot row must display a trailing-12-month realized spot daily average + latest typical margin, not the latest daily spot price; show p20–p80 daily-price variation under the value without adding a column
 - the “Hinnat sopimustyypeittäin” sparkline must track the displayed median energy-price basis; the annual-cost sparkline belongs in the “Hintahaarukka” table below
 - deep-dive spot c/kWh charts and top editorial spot callouts must use the same trailing-12-month spot average + typical margin as the upper spot row, with p20–p80 daily-price variation as the shaded band; do not show latest-day spot there unless explicitly adding a separate volatility view
@@ -540,7 +540,7 @@ Important semantics:
 - fallback select defaults are apartment, electric heating, central region, and 2000-era energy rating.
 - the page also renders a `sähkön hinta laskuri` section when `contract_price_daily_statistics` data exists. Every contract type uses stored `annual_cost` p20/median/p80 rows with the existing interpolation/nearest-reference behavior. The current date and rows use `PricingMode::expectedContractPriceBasis()`: canonical mode requires `canonical_calculation`, and feature-off requires `observed_seller_data`, with no newer wrong-basis fallback. It never rebuilds a public annual total from unit price + monthly fee. If annual rows are missing, that type is unavailable; this keeps canonical-only and package totals while preventing relational fallback.
 - `priceEstimatesFor(int $consumption)` holds that estimate logic; `contractTypePriceEstimates` is just the visitor's own consumption. `priceStatisticsRows()` memoizes `[statDate, groupedRows]` for the request, so the FAQ can price extra fixed levels at **no extra query** (measured: 2 statistics queries per render, unchanged). Keep that memo `protected` — as a public property the grouped Eloquent collection would be dehydrated into the Livewire snapshot for nothing.
-- `priceSegments()` is the single source of truth for which contract types are quoted; it includes current `market_reset` statistics as `Päivittyvä hinta`. `priceStatisticsRows()` derives its `segment_key` filter from `array_keys()` of it. Do not add a parallel key constant — a segment present in the config but missing from the query is silently dropped from the table instead of failing.
+- `priceSegments()` is the single source of truth for which contract types are quoted; it includes current `market_reset` statistics as `Jaksoittain vaihtuva hinta`. `priceStatisticsRows()` derives its `segment_key` filter from `array_keys()` of it. Do not add a parallel key constant — a segment present in the config but missing from the query is silently dropped from the table instead of failing.
 
 ### SEO metadata decisions (2026-07)
 
@@ -674,7 +674,7 @@ UI (`partials/pricing-bucket-pills.blade.php`):
 - The leading 16px glyph is the category icon at rest (`slate-400`) and swaps to a check when
   selected, in the same slot: a second saturated signal with no width change and no label
   shift. Spot / consumption-effect / fixed reuse the card band's own wave / pulse / lock
-  glyphs; Päivittyvä hinta uses a calendar, because the band gives spot and resets the same
+  glyphs; Jaksoittain vaihtuva hinta uses a calendar, because the band gives spot and resets the same
   wave and two identical glyphs side by side would say nothing.
 - Every Finnish string lives in the partial's `$pricingBucketPills` array. **"Päivittyvä
   hinta" + "kvartaali- ja kuukausisähkö" is a locked user decision**; the other sub-lines are
@@ -688,7 +688,7 @@ UI (`partials/pricing-bucket-pills.blade.php`):
   crawlable `<a href>` to `/sahkosopimus/porssisahko`, `/kiintea-hinta` and
   `/kulutusvaikutus`, with `wire:click.prevent` so a real click filters in place. Any active
   filter turns all four back into plain toggles, so filter combinations never become
-  crawlable URLs. Päivittyvä hinta owns no page and is a toggle in every state. SEO listing
+  crawlable URLs. Jaksoittain vaihtuva hinta owns no page and is a toggle in every state. SEO listing
   pages stay opted out: a pill link from `/sahkosopimus/omakotitalo` would drop the housing
   context that page ranks for.
 - Accordion scoping: the accordion's open-default and badge read

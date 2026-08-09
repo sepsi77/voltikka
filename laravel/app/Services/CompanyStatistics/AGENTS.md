@@ -176,7 +176,7 @@ persisted `market_reset` points. In both cases:
 
 ### Caching
 
-Cached for 6 hours under key schema v9: active annual method + request-scoped
+Cached for 6 hours under key schema v10: active annual method + request-scoped
 `PricingMode` canonical state + expected basis + company + snapped reference
 consumption. The legacy fingerprint remains based on snapshots and active-method
 statistics. The AsOf fingerprint also includes the versioned annual table's newest

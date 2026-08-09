@@ -95,7 +95,7 @@ class ContractsFilterTest extends TestCase
         Livewire::test('contracts-list')
             ->assertSee('Miten hinta käyttäytyy?') // Pricing-type pill row label
             ->assertSee('Pörssisähkö')
-            ->assertSee('Päivittyvä hinta')
+            ->assertSee('Jaksoittain vaihtuva hinta')
             ->assertSee('Sopimuksen kesto') // Contract duration filter label
             ->assertSee('Energialähde');    // Energy source filter label
     }

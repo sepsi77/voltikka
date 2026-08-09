@@ -505,7 +505,7 @@ class CompanyDetailSectionsTest extends TestCase
         $chart = $comparison['chart'];
 
         $this->assertSame('market_reset', $comparison['chart_segment_key']);
-        $this->assertSame('Päivittyvä hinta', $comparison['chart_segment_label']);
+        $this->assertSame('Jaksoittain vaihtuva hinta', $comparison['chart_segment_label']);
         $this->assertSame([610.0, 611.0, 612.0], $chart['series'][0]['values']);
         $this->assertNotContains(411.0, $chart['series'][0]['values']);
         $this->assertNotContains(412.0, $chart['series'][0]['values']);

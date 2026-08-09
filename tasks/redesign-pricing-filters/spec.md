@@ -15,7 +15,7 @@ on **four pricing buckets**:
 | Bucket | Finnish label (decided) | Rule |
 |---|---|---|
 | Spot | Pörssisähkö | `pricing_model = Spot` |
-| Market-following resets | Päivittyvä hinta — sub-line "kvartaali- ja kuukausisähkö" | NOT spot AND `canonical_pricing->recurring_schedule.present` with cadence in monthly/quarterly/seasonal/other |
+| Market-following resets | Jaksoittain vaihtuva hinta — sub-line "muuttuu kuukausittain tai harvemmin" | NOT spot AND `canonical_pricing->recurring_schedule.present` with cadence in monthly/quarterly/seasonal/other |
 | Consumption effect | Kulutusvaikutus | existing `PricingCategory::ConsumptionEffect` rules |
 | Fixed | Kiinteä hinta | existing `PricingCategory::Fixed` rules |
 

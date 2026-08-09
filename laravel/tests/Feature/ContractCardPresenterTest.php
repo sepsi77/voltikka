@@ -1378,7 +1378,7 @@ class ContractCardPresenterTest extends TestCase
         $fixtures = [
             ['id' => 'buc-spot', 'pricing_model' => 'Spot', 'canonical_pricing' => $this->canonicalPricing()],
             // Spot wins inside the market category: a spot contract that also carries a reset
-            // schedule is Pörssisähkö, not Päivittyvä hinta.
+            // schedule is Pörssisähkö, not Jaksoittain vaihtuva hinta.
             ['id' => 'buc-spot-reset', 'pricing_model' => 'Spot', 'canonical_pricing' => $this->canonicalPricing(['present' => true, 'cadence' => 'quarterly'])],
             ['id' => 'buc-reset-quarterly', 'pricing_model' => 'FixedPrice', 'canonical_pricing' => $this->canonicalPricing(['present' => true, 'cadence' => 'quarterly'])],
             ['id' => 'buc-reset-monthly', 'pricing_model' => 'FixedPrice', 'canonical_pricing' => $this->canonicalPricing(['present' => true, 'cadence' => 'monthly'])],

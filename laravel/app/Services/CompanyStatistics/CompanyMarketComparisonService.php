@@ -127,7 +127,7 @@ class CompanyMarketComparisonService
         $annualMethod = ContractPriceDailyStatistic::activeAnnualMethodVersion()->value;
 
         return Cache::remember(
-            'company-market-comparison:v9:'.$annualMethod.':'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis.':'.md5($companyName).':'.$referenceConsumption.':'.$fingerprint,
+            'company-market-comparison:v10:'.$annualMethod.':'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis.':'.md5($companyName).':'.$referenceConsumption.':'.$fingerprint,
             now()->addHours(self::CACHE_TTL_HOURS),
             fn () => $this->build($companyName, $referenceConsumption),
         );

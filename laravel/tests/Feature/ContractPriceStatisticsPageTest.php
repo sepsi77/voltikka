@@ -64,17 +64,35 @@ class ContractPriceStatisticsPageTest extends TestCase
         $response->assertSee('ALV 25,5 %');
     }
 
-    public function test_reset_deep_dive_uses_the_generic_market_reset_copy(): void
+    public function test_reset_category_stays_hidden_until_it_has_30_current_observations(): void
     {
         $this->seedSampleStatistics();
+        $this->seedMarketResetStatistics(8);
 
-        $response = $this->get('/sahkosopimus/tilastot');
+        $component = Livewire::test(ContractPriceStatistics::class);
 
-        $response
-            ->assertStatus(200)
-            ->assertSee('Päivittyvän hinnan sähkösopimusten hintakehitys')
+        $this->assertNotContains('market_reset', array_column($component->viewData('deepDivePayloads'), 'segment_key'));
+        $this->assertNotContains('market_reset', array_column($component->viewData('segmentRows'), 'segment_key'));
+        $this->assertNotContains('market_reset', array_column($component->viewData('consumptionRows'), 'segment_key'));
+        $component
+            ->assertDontSee('Jaksoittain vaihtuvien sähkösopimusten hintakehitys')
+            ->assertDontSee('id="paivittyva-hinta"', false);
+    }
+
+    public function test_reset_category_returns_with_clear_copy_after_30_current_observations(): void
+    {
+        $this->seedSampleStatistics();
+        $this->seedMarketResetStatistics(30);
+
+        $component = Livewire::test(ContractPriceStatistics::class);
+
+        $this->assertContains('market_reset', array_column($component->viewData('deepDivePayloads'), 'segment_key'));
+        $this->assertContains('market_reset', array_column($component->viewData('segmentRows'), 'segment_key'));
+        $this->assertContains('market_reset', array_column($component->viewData('consumptionRows'), 'segment_key'));
+        $component
+            ->assertSee('Jaksoittain vaihtuvien sähkösopimusten hintakehitys')
             ->assertSee('id="paivittyva-hinta"', false)
-            ->assertSee('Päivitysväli vaihtelee sopimuksittain')
+            ->assertSee('energian hinta pysyy samana yhden jakson ajan')
             ->assertDontSee('Kvartaalisähkösopimusten hintakehitys');
     }
 
@@ -429,9 +447,9 @@ class ContractPriceStatisticsPageTest extends TestCase
         app()->forgetScopedInstances();
         $asOfKey = $method->invoke(app(ContractPriceStatistics::class));
 
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v15:', $legacyKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v15:', $canonicalKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v15:', $asOfKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v16:', $legacyKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v16:', $canonicalKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v16:', $asOfKey);
         $this->assertNotSame($legacyKey, $canonicalKey);
         $this->assertNotSame($canonicalKey, $asOfKey);
     }
@@ -767,6 +785,43 @@ class ContractPriceStatisticsPageTest extends TestCase
             'max_value' => 490,
             'contract_count' => $contractCount,
         ]);
+    }
+
+    private function seedMarketResetStatistics(int $days): void
+    {
+        $end = Carbon::create(2026, 4, 29);
+
+        for ($offset = $days - 1; $offset >= 0; $offset--) {
+            $date = $end->copy()->subDays($offset)->toDateString();
+
+            ContractPriceDailyStatistic::create([
+                'stat_date' => $date,
+                'segment_key' => 'market_reset',
+                'metric_key' => 'energy_price',
+                'consumption_kwh' => null,
+                'min_value' => 6.8,
+                'p20_value' => 7.0,
+                'avg_value' => 7.4,
+                'median_value' => 7.3,
+                'p80_value' => 7.8,
+                'max_value' => 8.0,
+                'contract_count' => 25,
+            ]);
+
+            ContractPriceDailyStatistic::create([
+                'stat_date' => $date,
+                'segment_key' => 'market_reset',
+                'metric_key' => 'annual_cost',
+                'consumption_kwh' => 5000,
+                'min_value' => 430,
+                'p20_value' => 450,
+                'avg_value' => 470,
+                'median_value' => 465,
+                'p80_value' => 490,
+                'max_value' => 510,
+                'contract_count' => 25,
+            ]);
+        }
     }
 
     private function seedSampleStatistics(): void

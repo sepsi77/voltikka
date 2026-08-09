@@ -1037,7 +1037,7 @@ class ContractsList extends Component
      * Spot / FixedPrice / Hybrid are the three values the new buckets replace, so an
      * old bookmark or inbound link keeps working. The legacy value is cleared after the
      * translation, otherwise both filters would apply and, for Hybrid, contradict each
-     * other (a Hybrid with a quarterly reset is in the Päivittyvä hinta bucket).
+     * other (a Hybrid with a quarterly reset is in the Jaksoittain vaihtuva hinta bucket).
      *
      * Quarterly / TimeOfUse / Seasonal keep their legacy behaviour untouched: they are
      * metering or name-matched pseudo-types, not risk-transfer buckets, and they have no

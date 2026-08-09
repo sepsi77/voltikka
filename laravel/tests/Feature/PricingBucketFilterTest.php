@@ -271,7 +271,7 @@ class PricingBucketFilterTest extends TestCase
 
     public function test_the_legacy_hybrid_value_now_follows_the_bucket_rules(): void
     {
-        // A Hybrid with a quarterly reset is Päivittyvä hinta, not Kulutusvaikutus (market
+        // A Hybrid with a quarterly reset is Jaksoittain vaihtuva hinta, not Kulutusvaikutus (market
         // wins). The legacy `pricing_model = Hybrid` filter listed it; the mapped bucket
         // must not, otherwise the card band would contradict the filter that listed it.
         $this->createContract('c-hybrid-reset', [
@@ -457,7 +457,7 @@ class PricingBucketFilterTest extends TestCase
             );
         }
 
-        // Päivittyvä hinta owns no canonical SEO page, so it is a toggle in every state.
+        // Jaksoittain vaihtuva hinta owns no canonical SEO page, so it is a toggle in every state.
         $this->assertDoesNotMatchRegularExpression(
             '/data-pricing-bucket-pill="paivittyva"[^>]*href=/',
             $html

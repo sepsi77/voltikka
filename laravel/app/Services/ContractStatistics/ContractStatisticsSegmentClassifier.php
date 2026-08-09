@@ -14,7 +14,7 @@ class ContractStatisticsSegmentClassifier
     /** Consumer-facing statistics segment labels, in display order. */
     public const SEGMENT_LABELS = [
         'spot' => 'Pörssisähkö',
-        'market_reset' => 'Päivittyvä hinta',
+        'market_reset' => 'Jaksoittain vaihtuva hinta',
         'hybrid' => 'Joustosähkö',
         'quarterly' => 'Kvartaalisähkö',
         'fixed_term_below6' => 'Määräaikainen alle 6 kk',

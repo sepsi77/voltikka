@@ -77,7 +77,7 @@ pricing-type filter (`?hintatyyppi=`, comma-separated). It is the three categori
 | Bucket | Value (URL) | Rule |
 |---|---|---|
 | Pörssisähkö | `porssisahko` | `pricing_model = Spot` |
-| Päivittyvä hinta | `paivittyva` | not spot, and a reset schedule with a cadence in monthly/quarterly/seasonal/other |
+| Jaksoittain vaihtuva hinta | `paivittyva` | not spot, and a reset schedule with a cadence in monthly/quarterly/seasonal/other |
 | Kulutusvaikutus | `kulutusvaikutus` | the `PricingCategory::ConsumptionEffect` rule |
 | Kiinteä hinta | `kiintea` | the `PricingCategory::Fixed` rule |
 
@@ -85,7 +85,7 @@ pricing-type filter (`?hintatyyppi=`, comma-separated). It is the three categori
   `porssisahko ∪ paivittyva` is exactly the `Market` category scope. That is what makes
   multi-select include semantics well defined and per-bucket counts add up.
 - **Spot wins inside the market category**, mirroring "market wins over consumption effect":
-  a spot contract that also carries a reset schedule is Pörssisähkö, not Päivittyvä hinta,
+  a spot contract that also carries a reset schedule is Pörssisähkö, not Jaksoittain vaihtuva hinta,
   because the hourly exchange price is what the customer pays.
 - `PricingBucket::fromFacts()` maps resolver output to a bucket;
   `PricingCategoryResolver::scopeBucket()` is its SQL form. Both `scopeCategory()` and
