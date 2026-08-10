@@ -199,7 +199,7 @@ php artisan test --filter="ContractsFilterTest"
 - It renders as a row of four toggle pills (`resources/views/partials/pricing-bucket-pills.blade.php`) that is **always visible above the contract list on every listing page**, outside the collapsed "Rajaa hakua" accordion, because ranking makes page 1 spot-heavy and a hidden filter did not help a visitor who wants price certainty. A selected pill carries its category's card tint. A collapsed availability disclosure follows the pills; its trigger states the current availability (koko Suomi or the selected postcode) while the postcode form stays hidden until opened. The accordion keeps duration and energy source; its old "Hinnoittelumalli" section was removed
 - Calculates annual costs based on user consumption
 - SEO-optimized filter links with dual behavior (see SEO section)
-- Low-prominence market-insight pills on comparison heroes reuse cached precomputed price statistics/forecasts; they are informational only and do not affect ranking
+- Low-prominence market-insight pills on comparison heroes reuse cached precomputed price statistics/forecasts; they are informational only and do not affect ranking. Exact 6, 12, and 24 month fixed-term SEO listings use their matching offered-energy-price statistic segment and eligible forecast duration
 - **Contract cards state one of three pricing categories** (`Kiinteä hinta` / `Markkinahinta` / `Kulutusvaikutus`) in a single-purpose tinted band across the top of the card, followed by itemised receipt rows, the €/kk price stub, and a footer of coral warning pills plus quiet fact tags. An estimated 12-month total carries one `Arvio` popover that explains the estimate and links to `/tietoa#menetelma`. All of it is derived server-side by `laravel/app/Services/ContractCard/ContractCardPresenter`, shared by the normal and featured cards; see `laravel/app/Services/ContractCard/AGENTS.md`
 - Individual contract detail meta descriptions are generated from Voltikka ranking/pricing data instead of provider marketing descriptions
 
@@ -435,6 +435,7 @@ unknown values instead of dropping the component.
 | `/sahkosopimus/paikkakunnat/{location}` | City-specific (e.g., /sahkosopimus/paikkakunnat/helsinki) |
 | `/sahkosopimus/omakotitalo`, `/kerrostalo`, `/rivitalo` | Housing type |
 | `/sahkosopimus/porssisahko`, `/kiintea-hinta`, `/kvartaalisahko`, `/aikasahko`, `/kausisahko`, `/joustosahko`, `/yleissahko`, `/kulutusvaikutus` | Pricing type |
+| `/sahkosopimus/maaraaikainen`, `/maaraaikainen-6-kk`, `/maaraaikainen-12-kk`, `/maaraaikainen-24-kk`, `/toistaiseksi` | Contract duration |
 | `/sahkosopimus/tuulisahko`, `/aurinkosahko`, `/vihrea-sahko` | Energy source |
 | `/sahkosopimus/sahkotarjous` | Promotions/offers |
 | `/sahkosopimus/yritykselle` | Business contracts |
@@ -634,6 +635,7 @@ There are several types of SEO listing pages, each differentiated by a route par
 | Pricing type | `pricingType` | `porssisahko` | `/sahkosopimus/porssisahko` |
 | Housing type | `housingType` | `omakotitalo` | `/sahkosopimus/omakotitalo` |
 | Energy source | `energySource` | `tuulisahko` | `/sahkosopimus/tuulisahko` |
+| Contract duration | `contractDuration` + optional exact `fixedTimeRange` | `maaraaikainen-12-kk` | `/sahkosopimus/maaraaikainen-12-kk` |
 | City/Location | `location` | `helsinki` | `/sahkosopimus/paikkakunnat/helsinki` |
 | Target group | `targetGroup` | `Company` | `/sahkosopimus/yritykselle` |
 | Offer type | `offerType` | `promotion` | `/sahkosopimus/sahkotarjous` |

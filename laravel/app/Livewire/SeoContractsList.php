@@ -67,6 +67,11 @@ class SeoContractsList extends ContractsList
     public ?string $contractDuration = null;
 
     /**
+     * Exact fixed-term range for the 6, 12, and 24 month SEO pages.
+     */
+    public ?string $fixedTimeRange = null;
+
+    /**
      * Consumption level filter (2000, 5000, 10000, 20000).
      */
     public ?string $consumptionLevel = null;
@@ -210,6 +215,7 @@ class SeoContractsList extends ContractsList
         ?string $location = null,
         ?string $targetGroup = null,
         ?string $contractDuration = null,
+        ?string $fixedTimeRange = null,
         ?string $consumptionLevel = null
     ): void {
         $this->housingType = $housingType;
@@ -225,6 +231,9 @@ class SeoContractsList extends ContractsList
         $this->offerType = $offerType;
         $this->targetGroup = $targetGroup;
         $this->contractDuration = $contractDuration;
+        $this->fixedTimeRange = in_array($fixedTimeRange, ['Fixed6', 'Fixed12', 'Fixed24'], true)
+            ? $fixedTimeRange
+            : null;
         $this->consumptionLevel = $consumptionLevel;
         $hasExplicitConsumption = array_key_exists('consumption', request()->query());
 
@@ -307,8 +316,12 @@ class SeoContractsList extends ContractsList
                 }
             });
 
-        // Apply SEO contract duration filter
-        if ($this->contractDuration) {
+        // Exact duration pages use structured duration fields only. Product
+        // names do not decide membership.
+        if ($this->fixedDurationMonths() !== null) {
+            $query->where('contract_type', 'FixedTerm')
+                ->where('fixed_time_range', $this->fixedTimeRange);
+        } elseif ($this->contractDuration) {
             $query->where('contract_type', $this->contractDuration);
         }
 
@@ -576,6 +589,10 @@ class SeoContractsList extends ContractsList
             return "{$baseTitle}{$countSuffix}{$pageSuffix} | Voltikka";
         }
 
+        if (($months = $this->fixedDurationMonths()) !== null) {
+            return "{$months} kk määräaikainen sähkösopimus: vertaa hinnat{$countSuffix}{$pageSuffix} | Voltikka";
+        }
+
         if ($this->contractDuration && isset($this->contractDurationNames[$this->contractDuration])) {
             $baseTitle = match ($this->contractDuration) {
                 'FixedTerm' => 'Vertaa määräaikaisia sähkösopimuksia',
@@ -659,6 +676,10 @@ class SeoContractsList extends ContractsList
                 'ydinvoima' => 'Vertaile ja kilpailuta ydinvoimasähkösopimuksia. Ydinvoima on päästötöntä ja tuottaa sähköä tasaisesti ympäri vuoden. Löydä paras ydinvoimasähkösopimus.',
                 default => "Vertaile {$this->energySourceNames[$this->energySource]}sopimuksia. Valitse ympäristöystävällinen sähkösopimus.",
             };
+        }
+
+        if (($months = $this->fixedDurationMonths()) !== null) {
+            return "Vertaile {$months} kk määräaikaisia sähkösopimuksia, hintoja ja ehtoja. Katso {$months} kk hintakehitys ja ennuste sekä löydä halvin vaihtoehto.";
         }
 
         if ($this->contractDuration && isset($this->contractDurationNames[$this->contractDuration])) {
@@ -748,6 +769,10 @@ class SeoContractsList extends ContractsList
 
         if ($this->energySource) {
             return "{$baseUrl}/sahkosopimus/{$this->energySource}{$pageSuffix}";
+        }
+
+        if (($months = $this->fixedDurationMonths()) !== null) {
+            return "{$baseUrl}/sahkosopimus/maaraaikainen-{$months}-kk{$pageSuffix}";
         }
 
         if ($this->contractDuration) {
@@ -915,6 +940,10 @@ class SeoContractsList extends ContractsList
             };
         }
 
+        if (($months = $this->fixedDurationMonths()) !== null) {
+            return "{$months} kk määräaikainen sähkösopimus: vertaa hinnat";
+        }
+
         if ($this->contractDuration && isset($this->contractDurationNames[$this->contractDuration])) {
             return match ($this->contractDuration) {
                 'FixedTerm' => 'Määräaikaiset sähkösopimukset – vertaile ja kilpailuta',
@@ -985,6 +1014,10 @@ class SeoContractsList extends ContractsList
 
         if ($this->energySource && isset($this->energySourceNames[$this->energySource])) {
             return $this->getEnergySourceIntroText($this->energySource);
+        }
+
+        if (($months = $this->fixedDurationMonths()) !== null) {
+            return "{$months} kk määräaikainen sähkösopimus on voimassa sovitun {$months} kuukauden ajan. Vertaa 12 kuukauden vertailukustannuksia, sopimusehtoja, {$months} kk sopimusten tarjottujen energiahintojen kehitystä ja ennustetta.";
         }
 
         if ($this->contractDuration && isset($this->contractDurationNames[$this->contractDuration])) {
@@ -1178,6 +1211,23 @@ class SeoContractsList extends ContractsList
         $this->localContractsDataCache = null;
     }
 
+    protected function fixedDurationMonths(): ?int
+    {
+        return match ($this->fixedTimeRange) {
+            'Fixed6' => 6,
+            'Fixed12' => 12,
+            'Fixed24' => 24,
+            default => null,
+        };
+    }
+
+    public function getRankedResultsHeadingProperty(): ?string
+    {
+        $months = $this->fixedDurationMonths();
+
+        return $months !== null ? "Halvin {$months} kk sähkösopimus" : null;
+    }
+
     /**
      * Check if we have any SEO filter active.
      */
@@ -1231,6 +1281,10 @@ class SeoContractsList extends ContractsList
             return 'aggregate';
         }
 
+        if (($months = $this->fixedDurationMonths()) !== null) {
+            return "fixed_term_{$months}";
+        }
+
         if ($this->contractDuration === 'FixedTerm') {
             return 'fixed_term_12';
         }
@@ -1255,6 +1309,11 @@ class SeoContractsList extends ContractsList
             && $this->housingType === null
             && $this->energySource === null
             && ($this->contractDuration === 'FixedTerm' || $this->pricingType === 'FixedPrice');
+    }
+
+    protected function marketInsightForecastDuration(): ?int
+    {
+        return $this->fixedDurationMonths();
     }
 
     /**
@@ -1420,6 +1479,7 @@ class SeoContractsList extends ContractsList
                 'showCalculatorTab' => $this->showCalculatorTab,
                 'isBusinessPage' => $this->isBusinessPage,
                 'marketInsight' => $this->marketInsight,
+                'rankedResultsHeading' => $this->rankedResultsHeading,
             ],
             'layout' => [
                 'title' => $seoData['title'],
@@ -1453,7 +1513,7 @@ class SeoContractsList extends ContractsList
 
     protected function seoContractsViewDataCacheKey(): string
     {
-        return 'seo-contracts-list:view-data:v3:'.md5(json_encode([
+        return 'seo-contracts-list:view-data:v4:'.md5(json_encode([
             'class' => static::class,
             'base_path' => $this->basePath,
             'housing_type' => $this->housingType,
@@ -1463,6 +1523,7 @@ class SeoContractsList extends ContractsList
             'offer_type' => $this->offerType,
             'target_group' => $this->targetGroup,
             'contract_duration' => $this->contractDuration,
+            'fixed_time_range' => $this->fixedTimeRange,
             'consumption_level' => $this->consumptionLevel,
             'page' => $this->page,
             'consumption' => $this->selectedConsumptionValue(),

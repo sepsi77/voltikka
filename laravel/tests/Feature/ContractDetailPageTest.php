@@ -164,8 +164,13 @@ class ContractDetailPageTest extends TestCase
 
     public function test_duration_and_metering_badges_link_to_comparison_pages(): void
     {
+        $this->contract->update([
+            'contract_type' => 'FixedTerm',
+            'fixed_time_range' => 'Fixed24',
+        ]);
+
         Livewire::test('contract-detail', ['contractId' => 'contract-detail-test'])
-            ->assertSeeHtml('href="/sahkosopimus/maaraaikainen"')
+            ->assertSeeHtml('href="/sahkosopimus/maaraaikainen-24-kk"')
             ->assertSeeHtml('href="/sahkosopimus/yleissahko"');
     }
 

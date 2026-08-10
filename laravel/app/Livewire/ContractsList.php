@@ -2117,6 +2117,7 @@ class ContractsList extends Component
             $this->marketInsightSegmentKey(),
             $this->selectedConsumptionValue(),
             $this->marketInsightIncludesForecast(),
+            $this->marketInsightForecastDuration(),
         );
     }
 
@@ -2128,6 +2129,11 @@ class ContractsList extends Component
     protected function marketInsightIncludesForecast(): bool
     {
         return false;
+    }
+
+    protected function marketInsightForecastDuration(): ?int
+    {
+        return null;
     }
 
     protected function isDefaultListingCacheable(): bool

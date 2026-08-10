@@ -29,7 +29,7 @@ class ContractInternalLinks
         if ($contract->fixed_time_range) {
             $badges[] = [
                 'label' => ContractLabels::fixedTimeRange($contract->fixed_time_range) ?? $contract->fixed_time_range,
-                'url' => '/sahkosopimus/maaraaikainen',
+                'url' => self::fixedTimeRangeUrl($contract->fixed_time_range),
             ];
         } elseif ($contract->contract_type) {
             $badges[] = [
@@ -53,6 +53,16 @@ class ContractInternalLinks
         }
 
         return self::dedupeLinkedBadges($badges);
+    }
+
+    protected static function fixedTimeRangeUrl(string $fixedTimeRange): string
+    {
+        return match ($fixedTimeRange) {
+            'Fixed6' => '/sahkosopimus/maaraaikainen-6-kk',
+            'Fixed12' => '/sahkosopimus/maaraaikainen-12-kk',
+            'Fixed24' => '/sahkosopimus/maaraaikainen-24-kk',
+            default => '/sahkosopimus/maaraaikainen',
+        };
     }
 
     protected static function contractTypeUrl(?string $contractType): ?string

@@ -175,6 +175,18 @@ Route::withoutMiddleware($publicListingWithoutMiddleware)
             ->defaults('targetGroup', 'Company');
 
         // SEO Contract Duration Routes
+        Route::get('/sahkosopimus/maaraaikainen-6-kk', SeoContractsList::class)
+            ->name('seo.duration.maaraaikainen-6-kk')
+            ->defaults('contractDuration', 'FixedTerm')
+            ->defaults('fixedTimeRange', 'Fixed6');
+        Route::get('/sahkosopimus/maaraaikainen-12-kk', SeoContractsList::class)
+            ->name('seo.duration.maaraaikainen-12-kk')
+            ->defaults('contractDuration', 'FixedTerm')
+            ->defaults('fixedTimeRange', 'Fixed12');
+        Route::get('/sahkosopimus/maaraaikainen-24-kk', SeoContractsList::class)
+            ->name('seo.duration.maaraaikainen-24-kk')
+            ->defaults('contractDuration', 'FixedTerm')
+            ->defaults('fixedTimeRange', 'Fixed24');
         Route::get('/sahkosopimus/maaraaikainen', SeoContractsList::class)
             ->name('seo.duration.maaraaikainen')
             ->defaults('contractDuration', 'FixedTerm');

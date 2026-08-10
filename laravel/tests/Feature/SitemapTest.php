@@ -175,6 +175,19 @@ class SitemapTest extends TestCase
         $this->assertStringContainsString("<loc>{$baseUrl}/sahkosopimus/kiintea-hinta</loc>", $content);
     }
 
+    public function test_sitemap_includes_exact_fixed_duration_pages(): void
+    {
+        $content = $this->get('/sitemap.xml')->assertOk()->getContent();
+        $baseUrl = config('app.url');
+
+        foreach ([6, 12, 24] as $months) {
+            $this->assertStringContainsString(
+                "<loc>{$baseUrl}/sahkosopimus/maaraaikainen-{$months}-kk</loc>",
+                $content,
+            );
+        }
+    }
+
     public function test_sitemap_includes_city_pages(): void
     {
         $response = $this->get('/sitemap.xml');

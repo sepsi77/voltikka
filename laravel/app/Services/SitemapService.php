@@ -11,7 +11,7 @@ use Carbon\Carbon;
 
 class SitemapService
 {
-    public const CACHE_KEY = 'sitemap_xml_v2';
+    public const CACHE_KEY = 'sitemap_xml_v3';
 
     /**
      * Housing types for SEO pages.
@@ -39,6 +39,9 @@ class SitemapService
      */
     protected array $contractDurations = [
         'maaraaikainen',
+        'maaraaikainen-6-kk',
+        'maaraaikainen-12-kk',
+        'maaraaikainen-24-kk',
         'toistaiseksi',
     ];
 

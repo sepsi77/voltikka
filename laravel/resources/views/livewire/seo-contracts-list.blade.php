@@ -7,7 +7,7 @@
     @endif
 
     {{-- SEO Hero Section - Dark slate background with gradient --}}
-    <section class="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-6 relative overflow-hidden">
+    <section class="relative mb-6 overflow-hidden bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950">
         {{-- Decorative gradient blobs --}}
         <div class="absolute inset-0 pointer-events-none">
             <div class="absolute top-0 right-1/4 w-96 h-96 bg-coral-500 rounded-full blur-3xl opacity-20"></div>
@@ -15,8 +15,8 @@
         </div>
 
         <div class="max-w-7xl mx-auto px-6 sm:px-8 lg:px-10 relative">
-            <div class="grid max-w-screen-xl py-8 mx-auto lg:gap-8 xl:gap-0 lg:py-12 lg:grid-cols-12">
-                <div class="mx-auto place-self-center col-12 lg:col-span-8">
+            <div class="mx-auto grid max-w-screen-xl grid-cols-1 py-6 lg:grid-cols-12 lg:gap-8 lg:py-12 xl:gap-0">
+                <div class="col-12 mx-auto w-full min-w-0 place-self-center lg:col-span-8">
                     @if ($isBusinessPage)
                         <div class="inline-flex items-center gap-2 bg-coral-500/20 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-medium text-coral-300 mb-3 border border-coral-500/20">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -219,6 +219,10 @@
         </div>
     @endif
 
+    @if ($rankedResultsHeading)
+        <h2 class="mb-4 text-2xl font-bold text-slate-900">{{ $rankedResultsHeading }}</h2>
+    @endif
+
     @if ($this->isBillModeActive() && $this->billSummary)
         {{-- Current-contract anchor: the dark "focused moment" while the user --}}
         {{-- decides. Coral reserved for the one savings number. --}}
@@ -380,6 +384,15 @@
                     </li>
                     <li>
                         <a href="/sahkosopimus/maaraaikainen" class="hover:text-coral-600">Määräaikaiset sopimukset</a>
+                    </li>
+                    <li>
+                        <a href="/sahkosopimus/maaraaikainen-6-kk" class="hover:text-coral-600">6 kk määräaikaiset sopimukset</a>
+                    </li>
+                    <li>
+                        <a href="/sahkosopimus/maaraaikainen-12-kk" class="hover:text-coral-600">12 kk määräaikaiset sopimukset</a>
+                    </li>
+                    <li>
+                        <a href="/sahkosopimus/maaraaikainen-24-kk" class="hover:text-coral-600">24 kk määräaikaiset sopimukset</a>
                     </li>
                     <li>
                         <a href="/sahkosopimus/toistaiseksi" class="hover:text-coral-600">Toistaiseksi voimassa olevat</a>
