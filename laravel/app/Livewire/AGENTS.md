@@ -716,7 +716,7 @@ Purpose:
 Important semantics:
 - only cache canonical default GET states: page 1, no query string, no interactive filters/search input
 - do not cache arbitrary filter/query combinations because they can explode cache cardinality and are less important for search-landing TTFB
-- cache keys include route/filter context plus `ContractPageCacheVersion::hash()` so contract imports and source-table changes bust stale payloads. The current outer schemas are `contracts-list:view-data:v3` and `seo-contracts-list:view-data:v4`; the SEO key includes exact `fixed_time_range`, and v4 invalidates prepared payloads after exact-duration membership and insight context were added
+- cache keys include route/filter context plus `ContractPageCacheVersion::hash()` so contract imports and source-table changes bust stale payloads. The current outer schemas are `contracts-list:view-data:v3` and `seo-contracts-list:view-data:v5`; the SEO key includes exact `fixed_time_range`. v4 added exact-duration membership and insight context; v5 invalidates prepared view data after the neutral forecast wording changed
 - this is prepared-data caching, not full HTML caching; Livewire actions still recompute/serve their interactive state normally
 - page-level caching is disabled when `app()->runningUnitTests()` to avoid cross-test cache pollution from Laravel's array cache driver
 - listing metric rebuilds should use `ElectricityContract::getLatestPriceComponentsForCalculationByContractIds()` so crawler hits do not produce one `price_components` query per contract while still avoiding eager-loading full price history
