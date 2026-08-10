@@ -97,7 +97,7 @@ class ContractMarketInsightService
         $forecastDuration = $includeForecast ? ($fixedTermDuration ?? 12) : null;
 
         return Cache::remember(
-            'contract-market-insight:v9:'.md5(json_encode([
+            'contract-market-insight:v10:'.md5(json_encode([
                 $segmentKey,
                 $consumption,
                 $includeForecast,
