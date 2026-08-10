@@ -3,5 +3,6 @@
   {"name":"Implement 6, 12, and 24 month SEO listing pages","status":"completed"},
   {"name":"Add matching hero price trend and forecast context","status":"completed"},
   {"name":"Add tests and update project documentation","status":"completed"},
-  {"name":"Run focused tests, build, and frontend quality checks","status":"completed"}
+  {"name":"Run focused tests, build, and frontend quality checks","status":"completed"},
+  {"name":"Correct neutral forecast wording to idiomatic Finnish","status":"completed"}
 ]

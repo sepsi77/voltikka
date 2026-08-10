@@ -496,9 +496,9 @@ class ContractMarketInsightService
             ],
             default => [
                 'tone' => 'neutral',
-                'headline' => 'Ennuste: vakaata',
+                'headline' => 'Ennuste: vakaa hintataso',
                 'detail' => 'Ei selvää nousu- tai laskupainetta',
-                'direction_label' => 'Vakaata',
+                'direction_label' => 'Vakaa',
             ],
         };
 

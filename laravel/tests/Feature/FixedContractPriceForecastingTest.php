@@ -240,6 +240,9 @@ class FixedContractPriceForecastingTest extends TestCase
 
         $insight = app(ContractMarketInsightService::class)->insight(null, 5000, true);
         $this->assertSame('2026-05-23', $insight['forecast']['forecast_date']);
+        $this->assertSame('Ennuste: vakaa hintataso', $insight['forecast']['headline']);
+        $this->assertSame('Vakaa', $insight['forecast']['direction_label']);
+        $this->assertNotSame('Vakaata', $insight['forecast']['direction_label']);
     }
 
     public function test_public_history_uses_complete_daily_statistics_timeline_in_canonical_mode(): void
