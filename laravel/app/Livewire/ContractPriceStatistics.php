@@ -806,7 +806,7 @@ class ContractPriceStatistics extends Component
 
     private function statisticsViewDataCacheKey(): string
     {
-        return 'contract-price-statistics:view-data:v19:'.md5(json_encode([
+        return 'contract-price-statistics:view-data:v20:'.md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
             'pricing_basis' => app(PricingMode::class)->expectedContractPriceBasis()->value,
@@ -907,7 +907,7 @@ class ContractPriceStatistics extends Component
 
     /**
      * @param  Collection<int, ContractPriceDailyStatistic>  $rows
-     * @return array{x:array<int,int>,series:array<int,array{label:string,values:array<int,?float>}>,unit:string,decimals:int,showPoints:bool,showLatestPoint:bool}
+     * @return array{x:array<int,int>,series:array<int,array{label:string,values:array<int,?float>}>,unit:string,decimals:int,showPoints:bool,showLatestPoint:bool,leadStroke:string}
      */
     private function sellerSetIndexChart(Collection $rows): array
     {
@@ -932,6 +932,7 @@ class ContractPriceStatistics extends Component
                 'decimals' => 2,
                 'showPoints' => $this->period !== 'daily',
                 'showLatestPoint' => $this->period === 'daily',
+                'leadStroke' => '#f97316',
             ];
         }
 
@@ -968,6 +969,7 @@ class ContractPriceStatistics extends Component
             'decimals' => 2,
             'showPoints' => $this->period !== 'daily',
             'showLatestPoint' => $this->period === 'daily',
+            'leadStroke' => '#f97316',
         ];
     }
 

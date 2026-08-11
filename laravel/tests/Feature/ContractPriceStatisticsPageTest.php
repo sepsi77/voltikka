@@ -96,6 +96,7 @@ class ContractPriceStatisticsPageTest extends TestCase
             ['Kokonaisindeksi', 'Määräaikainen', 'Toistaiseksi voimassa oleva', 'Jaksoittain vaihtuva'],
             array_column($payload['chart']['series'], 'label'),
         );
+        $this->assertSame('#f97316', $payload['chart']['leadStroke']);
         $this->assertSame(
             $payload,
             $component->set('consumption', 18000)->viewData('sellerSetEnergyPriceIndexPayload'),
@@ -616,9 +617,9 @@ class ContractPriceStatisticsPageTest extends TestCase
         app()->forgetScopedInstances();
         $asOfKey = $method->invoke(app(ContractPriceStatistics::class));
 
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v19:', $legacyKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v19:', $canonicalKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v19:', $asOfKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v20:', $legacyKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v20:', $canonicalKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v20:', $asOfKey);
         $this->assertNotSame($legacyKey, $canonicalKey);
         $this->assertNotSame($canonicalKey, $asOfKey);
     }
