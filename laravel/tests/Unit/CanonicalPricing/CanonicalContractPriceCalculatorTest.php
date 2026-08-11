@@ -118,6 +118,53 @@ class CanonicalContractPriceCalculatorTest extends TestCase
         ];
     }
 
+    public function test_direct_general_rate_inherits_the_unchanged_rate_into_the_signup_phase(): void
+    {
+        $data = $this->parser->parse($this->pricing([
+            $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '1'], [
+                $this->component('monthly_fee', 0.0, 'eur_per_month'),
+            ]),
+            $this->phase('normal', ['kind' => 'after_months', 'value' => '1'], ['kind' => 'none', 'value' => null], [
+                $this->component('energy_general', 8.25),
+                $this->component('monthly_fee', 4.0, 'eur_per_month'),
+            ]),
+        ]), ['status' => 'exact', 'missing_facts' => [], 'required_assumptions' => []], $this->cs());
+
+        $this->assertSame(8.25, $this->calculator->directGeneralRate($data, $this->context(), $this->start));
+    }
+
+    public function test_direct_general_rate_rejects_a_package(): void
+    {
+        $data = $this->parser->parse($this->pricing([
+            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [], $this->package(35.0, 500.0, 9.0)),
+        ]), ['status' => 'exact', 'missing_facts' => [], 'required_assumptions' => []], $this->cs());
+
+        $this->assertNull($this->calculator->directGeneralRate($data, $this->context(), $this->start));
+    }
+
+    public function test_direct_general_rate_rejects_spot(): void
+    {
+        $data = $this->parser->parse($this->pricing([
+            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
+                $this->component('spot_margin', 0.45),
+            ]),
+        ]), ['status' => 'estimate_required', 'missing_facts' => [], 'required_assumptions' => []], $this->cs());
+
+        $this->assertNull($this->calculator->directGeneralRate($data, $this->context('Spot'), $this->start));
+    }
+
+    public function test_direct_general_rate_rejects_non_general_metering(): void
+    {
+        $data = $this->parser->parse($this->pricing([
+            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'none', 'value' => null], [
+                $this->component('energy_day', 9.0),
+                $this->component('energy_night', 7.0),
+            ]),
+        ]), ['status' => 'exact', 'missing_facts' => [], 'required_assumptions' => []], $this->cs());
+
+        $this->assertNull($this->calculator->directGeneralRate($data, $this->context(metering: 'Time'), $this->start));
+    }
+
     public function test_1_promo_with_known_later_price_ranks_by_true_cost(): void
     {
         $pricing = $this->pricing([

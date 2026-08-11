@@ -20,6 +20,7 @@ readonly class AsOfAnnualCostEvidence
     public function __construct(
         public string $contractId,
         public CarbonImmutable $date,
+        public ?string $companyName,
         public string $segmentKey,
         public string $pricingModel,
         public string $contractType,

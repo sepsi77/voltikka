@@ -8,7 +8,9 @@ use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractStatistics\AnnualSeriesCompatibility;
+use App\Services\ContractStatistics\ContractPriceBasis;
 use App\Services\ContractStatistics\ContractStatisticsSegmentClassifier;
+use App\Services\ContractStatistics\SellerSetEnergyPriceIndexService;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
@@ -74,6 +76,9 @@ class ContractPriceStatistics extends Component
      * @var Collection<int, ContractPriceDailyStatistic>|null
      */
     private ?Collection $dailyStatsCache = null;
+
+    /** @var Collection<int, ContractPriceDailyStatistic>|null */
+    private ?Collection $sellerSetIndexRowsCache = null;
 
     /** @var array<string, Collection<int, ContractPriceDailyStatistic>>|null */
     private ?array $dailyStatsIndexCache = null;
@@ -267,6 +272,71 @@ class ContractPriceStatistics extends Component
     public function getLatestPricingBasisProperty(): string
     {
         return app(PricingMode::class)->expectedContractPriceBasis()->value;
+    }
+
+    /**
+     * Persisted seller-set direct General c/kWh index. This payload never uses
+     * the page's annual-consumption selection.
+     *
+     * @return array<string,mixed>
+     */
+    public function getSellerSetEnergyPriceIndexPayloadProperty(): array
+    {
+        $rows = $this->sellerSetIndexRows();
+        $latest = $rows
+            ->where('segment_key', SellerSetEnergyPriceIndexService::SEGMENT_OVERALL)
+            ->sortByDesc('stat_date')
+            ->first();
+
+        if ($latest === null || $latest->avg_value === null) {
+            return [
+                'has_data' => false,
+                'chart' => $this->sellerSetIndexChart($rows),
+            ];
+        }
+
+        $latestDate = $latest->stat_date->toDateString();
+        $comparisonDate = Carbon::parse($latestDate, 'Europe/Helsinki')->subDays(30)->toDateString();
+        $previous = $rows->first(fn (ContractPriceDailyStatistic $row): bool =>
+            $row->segment_key === SellerSetEnergyPriceIndexService::SEGMENT_OVERALL
+            && $row->stat_date->toDateString() === $comparisonDate
+            && $row->compatibility_key === $latest->compatibility_key
+        );
+        $metadata = is_array($latest->basis_counts) ? $latest->basis_counts : [];
+        $current = (float) $latest->avg_value;
+        $previousValue = $previous?->avg_value !== null ? (float) $previous->avg_value : null;
+        $hybrid = $rows->first(fn (ContractPriceDailyStatistic $row): bool =>
+            $row->segment_key === SellerSetEnergyPriceIndexService::SEGMENT_HYBRID_BASE
+            && $row->stat_date->toDateString() === $latestDate
+        );
+
+        return [
+            'has_data' => true,
+            'current' => $current,
+            'comparison_value' => $previousValue,
+            'delta_30d_pct' => $this->percentDelta($current, $previousValue),
+            'as_of' => $latestDate,
+            'comparison_date' => $previousValue !== null ? $comparisonDate : null,
+            'contract_count' => is_numeric($metadata['contract_count'] ?? null)
+                ? (int) $metadata['contract_count']
+                : (int) $latest->contract_count,
+            'supplier_count' => is_numeric($metadata['supplier_count'] ?? null)
+                ? (int) $metadata['supplier_count']
+                : null,
+            'family_weights' => is_array($metadata['family_weights'] ?? null)
+                ? $metadata['family_weights']
+                : SellerSetEnergyPriceIndexService::FAMILY_WEIGHTS,
+            'hybrid_base' => $hybrid?->avg_value !== null ? (float) $hybrid->avg_value : null,
+            'hybrid_contract_count' => is_array($hybrid?->basis_counts)
+                && is_numeric($hybrid->basis_counts['contract_count'] ?? null)
+                    ? (int) $hybrid->basis_counts['contract_count']
+                    : null,
+            'hybrid_supplier_count' => is_array($hybrid?->basis_counts)
+                && is_numeric($hybrid->basis_counts['supplier_count'] ?? null)
+                    ? (int) $hybrid->basis_counts['supplier_count']
+                    : null,
+            'chart' => $this->sellerSetIndexChart($rows),
+        ];
     }
 
     /**
@@ -648,7 +718,7 @@ class ContractPriceStatistics extends Component
             '@context' => 'https://schema.org',
             '@type' => 'Dataset',
             'name' => 'Voltikka — Sähkön hintatilastot sopimustyypeittäin',
-            'description' => 'Sähkösopimusten hintakehitys ja päivittäin kerätyt hintatilastot Suomessa. Energiahinnat, perusmaksut, pörssimarginaalit ja vuosikustannukset 2 000 / 5 000 / 18 000 kWh kulutuksella sopimustyypeittäin.',
+            'description' => 'Sähkösopimusten hintakehitys ja päivittäin kerätyt hintatilastot Suomessa. Myyjien suoran yleissähkön energiahintaindeksi, energiahinnat, perusmaksut, pörssimarginaalit ja vuosikustannukset 2 000 / 5 000 / 18 000 kWh kulutuksella sopimustyypeittäin.',
             'url' => $url,
             'license' => 'https://creativecommons.org/licenses/by/4.0/',
             'isAccessibleForFree' => true,
@@ -716,6 +786,7 @@ class ContractPriceStatistics extends Component
     private function buildStatisticsViewData(): array
     {
         return [
+            'sellerSetEnergyPriceIndexPayload' => $this->sellerSetEnergyPriceIndexPayload,
             'leadChartPayload' => $this->leadChartPayload,
             'spotMarginPayload' => $this->spotMarginChartPayload,
             'deepDivePayloads' => $this->deepDivePayloads,
@@ -735,7 +806,7 @@ class ContractPriceStatistics extends Component
 
     private function statisticsViewDataCacheKey(): string
     {
-        return 'contract-price-statistics:view-data:v18:'.md5(json_encode([
+        return 'contract-price-statistics:view-data:v19:'.md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
             'pricing_basis' => app(PricingMode::class)->expectedContractPriceBasis()->value,
@@ -752,6 +823,13 @@ class ContractPriceStatistics extends Component
     {
         $statistics = ContractPriceDailyStatistic::query()
             ->activeMetricMethods()
+            ->selectRaw('COUNT(*) as row_count, MAX(stat_date) as latest_date, MAX(updated_at) as latest_update')
+            ->first();
+
+        $sellerSetIndex = ContractPriceDailyStatistic::query()
+            ->unitStatistics()
+            ->where('metric_key', SellerSetEnergyPriceIndexService::METRIC_KEY)
+            ->where('pricing_basis', 'canonical_calculation')
             ->selectRaw('COUNT(*) as row_count, MAX(stat_date) as latest_date, MAX(updated_at) as latest_update')
             ->first();
 
@@ -778,6 +856,9 @@ class ContractPriceStatistics extends Component
             'statistics_row_count' => (int) ($statistics?->row_count ?? 0),
             'statistics_latest_date' => $statistics?->latest_date,
             'statistics_latest_update' => $statistics?->latest_update,
+            'seller_set_index_row_count' => (int) ($sellerSetIndex?->row_count ?? 0),
+            'seller_set_index_latest_date' => $sellerSetIndex?->latest_date,
+            'seller_set_index_latest_update' => $sellerSetIndex?->latest_update,
             'snapshots_latest_date' => $snapshots?->latest_date,
             'snapshots_latest_update' => $snapshots?->latest_update,
             'spot_averages_row_count' => (int) ($spotAverages?->row_count ?? 0),
@@ -791,6 +872,104 @@ class ContractPriceStatistics extends Component
     // -----------------------------------------------------------------------
     // Internal helpers
     // -----------------------------------------------------------------------
+
+    /** @return Collection<int, ContractPriceDailyStatistic> */
+    private function sellerSetIndexRows(): Collection
+    {
+        if (! app(PricingMode::class)->enabled()) {
+            return collect();
+        }
+
+        if ($this->sellerSetIndexRowsCache !== null) {
+            return $this->sellerSetIndexRowsCache;
+        }
+
+        return $this->sellerSetIndexRowsCache = $this->dailyStats
+            ->filter(fn (ContractPriceDailyStatistic $row): bool =>
+                $row->method_version === ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION
+                && $row->metric_key === SellerSetEnergyPriceIndexService::METRIC_KEY
+                && $row->pricing_basis === ContractPriceBasis::CanonicalCalculation->value
+                && $row->calculation_basis === SellerSetEnergyPriceIndexService::CALCULATION_BASIS
+                && $row->estimate_basis === SellerSetEnergyPriceIndexService::ESTIMATE_BASIS
+                && $row->compatibility_key === SellerSetEnergyPriceIndexService::COMPATIBILITY_KEY
+                && $row->stat_date->toDateString() >= SellerSetEnergyPriceIndexService::SERIES_START_DATE
+                && $row->consumption_kwh === null
+                && $row->avg_value !== null
+                && is_finite((float) $row->avg_value)
+                && (float) $row->avg_value > 0.0
+            )
+            ->sortBy([
+                ['stat_date', 'asc'],
+                ['segment_key', 'asc'],
+            ])
+            ->values();
+    }
+
+    /**
+     * @param  Collection<int, ContractPriceDailyStatistic>  $rows
+     * @return array{x:array<int,int>,series:array<int,array{label:string,values:array<int,?float>}>,unit:string,decimals:int,showPoints:bool,showLatestPoint:bool}
+     */
+    private function sellerSetIndexChart(Collection $rows): array
+    {
+        $segments = [
+            SellerSetEnergyPriceIndexService::SEGMENT_OVERALL => 'Kokonaisindeksi',
+            SellerSetEnergyPriceIndexService::SEGMENT_FIXED_TERM => 'Määräaikainen',
+            SellerSetEnergyPriceIndexService::SEGMENT_OPEN_ENDED => 'Toistaiseksi voimassa oleva',
+            SellerSetEnergyPriceIndexService::SEGMENT_MARKET_RESET => 'Jaksoittain vaihtuva',
+        ];
+        $periodStartsWithData = $rows
+            ->whereIn('segment_key', array_keys($segments))
+            ->map(fn (ContractPriceDailyStatistic $row): string => $this->periodStart($row->stat_date)->toDateString())
+            ->unique()
+            ->sort()
+            ->values();
+
+        if ($periodStartsWithData->isEmpty()) {
+            return [
+                'x' => [],
+                'series' => [],
+                'unit' => 'cent',
+                'decimals' => 2,
+                'showPoints' => $this->period !== 'daily',
+                'showLatestPoint' => $this->period === 'daily',
+            ];
+        }
+
+        $periodStarts = collect();
+        $cursor = Carbon::parse((string) $periodStartsWithData->first());
+        $last = Carbon::parse((string) $periodStartsWithData->last());
+        while ($cursor->lte($last)) {
+            $periodStarts->push($cursor->toDateString());
+            $cursor = $this->nextPeriodStart($cursor);
+        }
+
+        $x = $periodStarts
+            ->map(fn (string $date): int => Carbon::parse($date, 'Europe/Helsinki')->getTimestamp())
+            ->all();
+        $series = [];
+
+        foreach ($segments as $segment => $label) {
+            $valuesByPeriod = $rows
+                ->where('segment_key', $segment)
+                ->groupBy(fn (ContractPriceDailyStatistic $row): string => $this->periodStart($row->stat_date)->toDateString())
+                ->map(fn (Collection $periodRows): ?float => $this->averageOrNull($periodRows->pluck('avg_value')));
+            $series[] = [
+                'label' => $label,
+                'values' => $periodStarts
+                    ->map(fn (string $date): ?float => $valuesByPeriod->get($date))
+                    ->all(),
+            ];
+        }
+
+        return [
+            'x' => $x,
+            'series' => $series,
+            'unit' => 'cent',
+            'decimals' => 2,
+            'showPoints' => $this->period !== 'daily',
+            'showLatestPoint' => $this->period === 'daily',
+        ];
+    }
 
     /**
      * @param  array<int,string>  $segmentKeys

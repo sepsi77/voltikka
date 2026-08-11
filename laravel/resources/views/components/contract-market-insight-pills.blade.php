@@ -13,6 +13,7 @@
     }
 
     $contractCount = $insight['trend']['contract_count'] ?? null;
+    $supplierCount = $insight['trend']['supplier_count'] ?? null;
 @endphp
 
 @if(count($items) > 0)
@@ -118,7 +119,11 @@
             @if($contractCount)
                 <div class="border-t border-white/10 bg-white/[0.02] px-5 py-2.5 sm:px-6 sm:py-3">
                     <p class="text-sm text-slate-300">
-                        Hintakehitys perustuu <span class="font-semibold tabular-nums text-slate-100">{{ number_format($contractCount, 0, ',', ' ') }}</span> sopimukseen.
+                        @if($supplierCount)
+                            Indeksi perustuu <span class="font-semibold tabular-nums text-slate-100">{{ number_format($contractCount, 0, ',', ' ') }}</span> tarjoukseen <span class="font-semibold tabular-nums text-slate-100">{{ number_format($supplierCount, 0, ',', ' ') }}</span> sähköyhtiöltä.
+                        @else
+                            Hintakehitys perustuu <span class="font-semibold tabular-nums text-slate-100">{{ number_format($contractCount, 0, ',', ' ') }}</span> sopimukseen.
+                        @endif
                     </p>
                 </div>
             @endif

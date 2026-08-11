@@ -173,6 +173,7 @@ Important semantics:
 - one pricing basis owns each newly calculated date: inside the calculation transaction, the target date loses opposite-basis snapshots and the run's own prior snapshots before aggregates are rebuilt; this removes stale canonical exclusions without deleting other dates. Legacy/current calculations replace only `unit_statistics_v1` and `annual_cost_legacy_v1` daily rows, so AsOf daily rows and annual-only rows survive current calculations and historical backfills
 - missing contract rows for a date are excluded; prices are not carried forward
 - spot contracts store both supplier margin and total spot energy price (`stored spot average + margin`)
+- current canonical collection also persists the seller-set energy-price index from national household direct General rates. It is consumption-independent, excludes Spot/Time/Season/packages from the overall value, keeps Hybrid base price separate, normalizes duplicate offers to one supplier observation per family, and combines fixed-term/open-ended/market-reset families with frozen launch weights. Feature-off ownership removes same-date index rows. See `app/Services/ContractStatistics/AGENTS.md`
 
 ### Fixed-term price forecasts
 

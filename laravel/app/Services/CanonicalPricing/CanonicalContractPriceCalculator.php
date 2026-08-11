@@ -102,6 +102,44 @@ class CanonicalContractPriceCalculator
         return false;
     }
 
+    /**
+     * Resolve the seller-set direct General rate in effect at signup. This boundary uses
+     * the normal phase timeline and inheritance rules, but it does not calculate a bill.
+     */
+    public function directGeneralRate(
+        CanonicalContractData $data,
+        ContractContext $context,
+        CarbonInterface|string $startDate,
+    ): ?float {
+        if ($context->isSpot() || MeteringType::fromSource($context->metering) !== MeteringType::General) {
+            return null;
+        }
+
+        $windowStart = CarbonImmutable::parse(
+            $startDate instanceof CarbonInterface ? $startDate->toDateString() : $startDate,
+            'Europe/Helsinki',
+        )->startOfDay();
+        $segments = $this->timelineBuilder->build($data->phases, $data->recurringSchedule, $windowStart);
+        $phaseIndex = $this->resolveCurrentPhaseIndex($segments, $data, $windowStart);
+        $phase = $phaseIndex !== null ? ($data->phases[$phaseIndex] ?? null) : null;
+        if ($phase === null || $phase->package !== null) {
+            return null;
+        }
+
+        $rates = $this->resolvePhaseRates(
+            $phase,
+            $data->phases,
+            MeteringType::General,
+            new SpotAssumptions(null, null),
+            isSpot: false,
+        );
+        $rate = $rates !== null && ! $rates['uses_spot'] && $rates['package'] === null
+            ? $rates['display']['general']
+            : null;
+
+        return $rate !== null && is_finite($rate) && $rate > 0.0 ? $rate : null;
+    }
+
     public function calculate(
         CanonicalContractData $data,
         ContractContext $context,

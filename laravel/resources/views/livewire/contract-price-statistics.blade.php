@@ -31,7 +31,9 @@
         return Cb::parse($date)->translatedFormat('j.n.Y');
     };
 
-    $hasData = ! empty($leadChartPayload['x']);
+    $indexPayload = $sellerSetEnergyPriceIndexPayload ?? ['has_data' => false, 'chart' => ['x' => [], 'series' => []]];
+    $hasIndexData = ! empty($indexPayload['has_data']);
+    $hasData = $hasIndexData || ! empty($leadChartPayload['x']);
     $isSparse = ($dataWindow['days'] ?? 0) > 0 && ($dataWindow['days'] ?? 0) < 180;
     $consumptionLabel = number_format($consumption, 0, ',', ' ');
     $csvHref = route('contract.price-statistics.csv');
@@ -179,6 +181,145 @@
                 </p>
             </section>
         @else
+
+            @if ($hasIndexData)
+                {{-- Seller-set energy-price index: direct General c/kWh, independent of consumption. --}}
+                <section class="mb-20 border-b border-slate-200 pb-20" aria-labelledby="seller-set-index-heading">
+                    <div class="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,23rem)] lg:gap-14">
+                        <div>
+                            <h2 id="seller-set-index-heading" class="text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
+                                Sähkösopimusten energianhintaindeksi
+                            </h2>
+                            <p class="mt-3 max-w-[68ch] text-base leading-relaxed text-slate-600">
+                                Indeksi seuraa koko Suomessa saatavilla olevien kotitaloussopimusten suoria yleissähkön energiahintoja. Pörssisähkö ei ole mukana, eikä vuosikulutuksen valinta vaikuta tähän indeksiin.
+                            </p>
+
+                            <div class="mt-8 flex flex-wrap items-baseline gap-x-5 gap-y-2">
+                                <p class="text-5xl font-extrabold leading-none tracking-tight text-slate-900 tabular-nums">
+                                    {{ $fmtNum($indexPayload['current'], 2) }}<span class="ml-2 text-base font-semibold tracking-normal text-slate-500">c/kWh</span>
+                                </p>
+                                <p class="text-base font-semibold text-slate-700 tabular-nums">
+                                    @if ($indexPayload['delta_30d_pct'] !== null)
+                                        {{ $fmtPct($indexPayload['delta_30d_pct']) }} 30 päivässä
+                                    @else
+                                        Ei vertailupistettä täsmälleen 30 päivän takaa
+                                    @endif
+                                </p>
+                            </div>
+                            <p class="mt-3 text-sm text-slate-500 tabular-nums">
+                                Tilanne {{ $fiDate($indexPayload['as_of']) }}
+                                @if ($indexPayload['comparison_date'])
+                                    <span aria-hidden="true"> · </span>Vertailupäivä {{ $fiDate($indexPayload['comparison_date']) }}
+                                @endif
+                            </p>
+                        </div>
+
+                        <dl class="grid grid-cols-2 gap-x-6 gap-y-6 border-t border-slate-200 pt-5 lg:border-t-0 lg:border-l lg:pl-8 lg:pt-0">
+                            <div>
+                                <dt class="text-sm font-semibold text-slate-500">Ehdot täyttäviä tarjouksia</dt>
+                                <dd class="mt-1 text-2xl font-bold text-slate-900 tabular-nums">{{ number_format($indexPayload['contract_count'], 0, ',', ' ') }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-sm font-semibold text-slate-500">Myyjiä</dt>
+                                <dd class="mt-1 text-2xl font-bold text-slate-900 tabular-nums">
+                                    {{ $indexPayload['supplier_count'] !== null ? number_format($indexPayload['supplier_count'], 0, ',', ' ') : '–' }}
+                                </dd>
+                            </div>
+                            <div class="col-span-2">
+                                <dt class="text-sm font-semibold text-slate-500">Kiinteät perhepainot</dt>
+                                <dd class="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-700 tabular-nums">
+                                    <span>Määräaikainen {{ number_format((float) ($indexPayload['family_weights']['fixed_term'] ?? 0) * 100, 0, ',', ' ') }} %</span>
+                                    <span>Toistaiseksi {{ number_format((float) ($indexPayload['family_weights']['open_ended'] ?? 0) * 100, 0, ',', ' ') }} %</span>
+                                    <span>Jaksoittain vaihtuva {{ number_format((float) ($indexPayload['family_weights']['market_reset'] ?? 0) * 100, 0, ',', ' ') }} %</span>
+                                </dd>
+                            </div>
+                            @if ($indexPayload['hybrid_base'] !== null)
+                                <div class="col-span-2 border-t border-slate-200 pt-5">
+                                    <dt class="text-sm font-semibold text-slate-500">Hybridin perushinta, ei mukana indeksissä</dt>
+                                    <dd class="mt-1 text-xl font-bold text-slate-900 tabular-nums">
+                                        {{ $fmtNum($indexPayload['hybrid_base'], 2) }}<span class="text-sm font-normal text-slate-500"> c/kWh</span>
+                                    </dd>
+                                    @if ($indexPayload['hybrid_contract_count'] !== null && $indexPayload['hybrid_supplier_count'] !== null)
+                                        <p class="mt-1 text-sm text-slate-500 tabular-nums">
+                                            {{ number_format($indexPayload['hybrid_contract_count'], 0, ',', ' ') }} tarjousta, {{ number_format($indexPayload['hybrid_supplier_count'], 0, ',', ' ') }} myyjää
+                                        </p>
+                                    @endif
+                                </div>
+                            @endif
+                        </dl>
+                    </div>
+
+                    <figure class="mt-10">
+                        <div
+                            wire:key="seller-set-index-{{ $indexPayload['as_of'] }}"
+                            wire:ignore
+                            data-line-chart="seller-set-index"
+                            class="relative h-72 w-full select-none"
+                            role="img"
+                            aria-label="Sähkösopimusten energianhintaindeksi ja sen kolme sopimusryhmää sentteinä kilowattitunnilta."
+                            aria-describedby="seller-set-index-method"
+                        >
+                            <script type="application/json">{!! json_encode($indexPayload['chart'], JSON_UNESCAPED_UNICODE) !!}</script>
+                        </div>
+                        <ul class="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-slate-700" aria-hidden="true">
+                            @foreach ($indexPayload['chart']['series'] as $i => $series)
+                                @php
+                                    $indexLineStyles = [
+                                        ['stroke' => '#f97316', 'dash' => null, 'width' => 2.5],
+                                        ['stroke' => '#1e293b', 'dash' => null, 'width' => 1.8],
+                                        ['stroke' => '#64748b', 'dash' => '10,4', 'width' => 1.8],
+                                        ['stroke' => '#334155', 'dash' => '4,3', 'width' => 2.0],
+                                    ];
+                                    $lineStyle = $indexLineStyles[$i] ?? $indexLineStyles[3];
+                                @endphp
+                                <li class="inline-flex items-center gap-2 {{ $i === 0 ? 'font-semibold text-coral-700' : '' }}">
+                                    <svg width="22" height="10" viewBox="0 0 22 10" aria-hidden="true">
+                                        <line x1="0" y1="5" x2="22" y2="5"
+                                              stroke="{{ $lineStyle['stroke'] }}"
+                                              stroke-width="{{ $lineStyle['width'] }}"
+                                              stroke-linecap="round"
+                                              @if ($lineStyle['dash']) stroke-dasharray="{{ $lineStyle['dash'] }}" @endif />
+                                    </svg>
+                                    <span>{{ $series['label'] }}</span>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </figure>
+
+                    <div id="seller-set-index-method" class="mt-8 grid gap-5 border-t border-slate-200 pt-6 text-base leading-relaxed text-slate-600 md:grid-cols-2 md:gap-10">
+                        <p>
+                            Jokainen sähköyhtiö saa sopimusryhmän sisällä saman painon riippumatta siitä, kuinka monta sopimusta sillä on.
+                        </p>
+                        <p>
+                            Kokonaisindeksi muodostuu määräaikaisista (50 %), toistaiseksi voimassa olevista (30 %) ja jaksoittain vaihtuvista sopimuksista (20 %). Pörssi-, aika- ja kausisähkö, energiapaketit ja kulutusvaikutussopimukset eivät ole mukana.
+                        </p>
+                    </div>
+
+                    <div class="sr-only">
+                        <table>
+                            <caption>Sähkösopimusten energianhintaindeksi ja sopimusryhmät, c/kWh.</caption>
+                            <thead>
+                                <tr>
+                                    <th>Päivämäärä</th>
+                                    @foreach ($indexPayload['chart']['series'] as $series)
+                                        <th>{{ $series['label'] }}</th>
+                                    @endforeach
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($indexPayload['chart']['x'] as $i => $timestamp)
+                                    <tr>
+                                        <td>{{ Cb::createFromTimestamp($timestamp)->translatedFormat('j.n.Y') }}</td>
+                                        @foreach ($indexPayload['chart']['series'] as $series)
+                                            <td>{{ $fmtNum($series['values'][$i] ?? null, 2) }} c/kWh</td>
+                                        @endforeach
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            @endif
 
             {{-- Lead chart --}}
             <section class="mb-16" aria-labelledby="lead-chart-heading">

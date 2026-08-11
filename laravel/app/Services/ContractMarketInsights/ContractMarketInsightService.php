@@ -7,34 +7,13 @@ use App\Models\FixedContractPriceForecast;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractStatistics\AnnualSeriesCompatibility;
 use App\Services\ContractStatistics\ContractPriceBasis;
+use App\Services\ContractStatistics\SellerSetEnergyPriceIndexService;
 use Carbon\Carbon;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class ContractMarketInsightService
 {
     public function __construct(private readonly PricingMode $pricingMode) {}
-
-    /**
-     * Segments used for the broad comparison-page market summary.
-     *
-     * @var array<int, string>
-     */
-    private array $aggregateSegments = [
-        'spot',
-        'hybrid',
-        'market_reset',
-        'quarterly',
-        'fixed_term_below6',
-        'fixed_term_6',
-        'fixed_term_7_11',
-        'fixed_term_12',
-        'fixed_term_13_23',
-        'fixed_term_24',
-        'fixed_term_over24',
-        'fixed_term_other',
-        'open_ended',
-    ];
 
     public function fingerprint(): string
     {
@@ -42,7 +21,7 @@ class ContractMarketInsightService
         $canonicalEnabled = $this->pricingMode->enabled();
 
         return Cache::remember(
-            'contract-market-insight:fingerprint:v5:'.ContractPriceDailyStatistic::activeAnnualMethodVersion()->value.':'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis,
+            'contract-market-insight:fingerprint:v6:'.ContractPriceDailyStatistic::activeAnnualMethodVersion()->value.':'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis,
             now()->addMinutes(10),
             function () use ($pricingBasis, $canonicalEnabled) {
                 $expected = ContractPriceDailyStatistic::query()
@@ -61,6 +40,12 @@ class ContractMarketInsightService
                     ->where('metric_key', 'energy_price')
                     ->whereNull('consumption_kwh')
                     ->where('pricing_basis', ContractPriceBasis::ObservedSellerData->value);
+                $sellerSetIndex = ContractPriceDailyStatistic::query()
+                    ->unitStatistics()
+                    ->where('metric_key', SellerSetEnergyPriceIndexService::METRIC_KEY)
+                    ->where('segment_key', SellerSetEnergyPriceIndexService::SEGMENT_OVERALL)
+                    ->where('pricing_basis', ContractPriceBasis::CanonicalCalculation->value)
+                    ->where('compatibility_key', SellerSetEnergyPriceIndexService::COMPATIBILITY_KEY);
 
                 return md5(json_encode([
                     'canonical_enabled' => $canonicalEnabled,
@@ -73,6 +58,8 @@ class ContractMarketInsightService
                     'unit_statistics_latest_updated' => $expectedUnit->max('updated_at'),
                     'observed_unit_latest_date' => $observedUnit->max('stat_date'),
                     'observed_unit_latest_updated' => $observedUnit->max('updated_at'),
+                    'seller_set_index_latest_date' => $sellerSetIndex->max('stat_date'),
+                    'seller_set_index_latest_updated' => $sellerSetIndex->max('updated_at'),
                     'forecast_latest_date' => FixedContractPriceForecast::max('forecast_date'),
                     'forecast_latest_updated' => FixedContractPriceForecast::max('updated_at'),
                 ]));
@@ -97,7 +84,7 @@ class ContractMarketInsightService
         $forecastDuration = $includeForecast ? ($fixedTermDuration ?? 12) : null;
 
         return Cache::remember(
-            'contract-market-insight:v10:'.md5(json_encode([
+            'contract-market-insight:v12:'.md5(json_encode([
                 $segmentKey,
                 $consumption,
                 $includeForecast,
@@ -111,7 +98,7 @@ class ContractMarketInsightService
                 $trend = $fixedTermDuration !== null
                     ? $this->fixedTermDurationTrend($fixedTermDuration)
                     : ($segmentKey === 'aggregate'
-                        ? $this->aggregateTrend($consumption)
+                        ? $this->sellerSetEnergyPriceTrend()
                         : $this->segmentTrend($segmentKey, $consumption));
 
                 $forecast = $forecastDuration !== null
@@ -263,135 +250,61 @@ class ContractMarketInsightService
     /**
      * @return array<string,mixed>|null
      */
-    private function aggregateTrend(int $consumption): ?array
+    private function sellerSetEnergyPriceTrend(): ?array
     {
-        $latestBasis = $this->pricingMode->expectedContractPriceBasis()->value;
-        $previousBasis = $latestBasis === ContractPriceBasis::CanonicalCalculation->value
-            ? ContractPriceBasis::ObservedSellerData->value
-            : $latestBasis;
-        $latestDate = ContractPriceDailyStatistic::query()
-            ->whereIn('segment_key', $this->aggregateSegments)
-            ->activeAnnualMethod()
-            ->where('pricing_basis', $latestBasis)
-            ->where('consumption_kwh', $consumption)
+        if (! $this->pricingMode->enabled()) {
+            return null;
+        }
+
+        $baseQuery = fn () => ContractPriceDailyStatistic::query()
+            ->unitStatistics()
+            ->where('metric_key', SellerSetEnergyPriceIndexService::METRIC_KEY)
+            ->where('segment_key', SellerSetEnergyPriceIndexService::SEGMENT_OVERALL)
+            ->where('pricing_basis', ContractPriceBasis::CanonicalCalculation->value)
+            ->where('calculation_basis', SellerSetEnergyPriceIndexService::CALCULATION_BASIS)
+            ->where('estimate_basis', SellerSetEnergyPriceIndexService::ESTIMATE_BASIS)
+            ->where('compatibility_key', SellerSetEnergyPriceIndexService::COMPATIBILITY_KEY)
+            ->whereNull('consumption_kwh')
             ->where('contract_count', '>', 0)
-            ->max('stat_date');
+            ->whereNotNull('avg_value');
 
-        if ($latestDate === null) {
+        $latest = $baseQuery()->orderByDesc('stat_date')->first();
+        if ($latest === null || ! is_finite((float) $latest->avg_value) || (float) $latest->avg_value <= 0.0) {
             return null;
         }
 
-        $latestDate = Carbon::parse($latestDate)
-            ->setTimezone((string) config('app.timezone'))
+        $comparisonDate = Carbon::parse($latest->stat_date, 'Europe/Helsinki')
+            ->subDays(30)
             ->toDateString();
-
-        $previousDate = ContractPriceDailyStatistic::query()
-            ->whereIn('segment_key', $this->aggregateSegments)
-            ->activeAnnualMethod()
-            ->where('pricing_basis', $previousBasis)
-            ->where('consumption_kwh', $consumption)
-            ->where('contract_count', '>', 0)
-            ->whereDate('stat_date', '<=', Carbon::parse($latestDate)->subDays(30)->toDateString())
-            ->max('stat_date');
-
-        if ($previousDate === null) {
+        $previous = $baseQuery()->whereDate('stat_date', $comparisonDate)->first();
+        if ($previous === null || ! is_finite((float) $previous->avg_value) || (float) $previous->avg_value <= 0.0) {
             return null;
         }
 
-        $previousDate = Carbon::parse($previousDate)
-            ->setTimezone((string) config('app.timezone'))
-            ->toDateString();
-
-        $latestRows = $this->aggregateRowsForDate($latestDate, $consumption, $latestBasis);
-        $previousRows = $this->aggregateRowsForDate($previousDate, $consumption, $previousBasis);
-        [$latestRows, $previousRows] = $this->compatibleAggregateRows($latestRows, $previousRows);
-
-        $latestWeighted = $this->weightedAverage($latestRows);
-        $previousWeighted = $this->weightedAverage($previousRows);
-
-        if ($latestWeighted === null || $previousWeighted === null) {
+        $metadata = is_array($latest->basis_counts) ? $latest->basis_counts : [];
+        $contractCount = filter_var($metadata['contract_count'] ?? null, FILTER_VALIDATE_INT);
+        $supplierCount = filter_var($metadata['supplier_count'] ?? null, FILTER_VALIDATE_INT);
+        if ($contractCount === false || $contractCount <= 0 || $supplierCount === false || $supplierCount <= 0) {
             return null;
         }
 
-        return $this->formatTrend(
-            $latestWeighted['value'],
-            $previousWeighted['value'],
-            $latestWeighted['count'],
-            Carbon::parse($latestDate),
-            'Sähkösopimukset',
-            $latestBasis,
-            $previousBasis,
+        $trend = $this->formatTrend(
+            (float) $latest->avg_value,
+            (float) $previous->avg_value,
+            $contractCount,
+            Carbon::parse($latest->stat_date, 'Europe/Helsinki'),
+            'Energianhintaindeksi',
+            ContractPriceBasis::CanonicalCalculation->value,
+            ContractPriceBasis::CanonicalCalculation->value,
+            'Sähkösopimusten energianhintaindeksi',
+            'Indeksi seuraa sähkösopimusten energiahintoja Suomessa. Pörssisähkö ei ole mukana',
         );
-    }
+        $trend['previous_as_of'] = $comparisonDate;
+        $trend['supplier_count'] = $supplierCount;
+        $trend['metric_key'] = SellerSetEnergyPriceIndexService::METRIC_KEY;
+        $trend['segment_key'] = SellerSetEnergyPriceIndexService::SEGMENT_OVERALL;
 
-    /**
-     * @return Collection<int, ContractPriceDailyStatistic>
-     */
-    private function aggregateRowsForDate(string $date, int $consumption, string $pricingBasis): Collection
-    {
-        return ContractPriceDailyStatistic::query()
-            ->whereDate('stat_date', $date)
-            ->whereIn('segment_key', $this->aggregateSegments)
-            ->activeAnnualMethod()
-            ->where('pricing_basis', $pricingBasis)
-            ->where('consumption_kwh', $consumption)
-            ->where('contract_count', '>', 0)
-            ->orderBy('segment_key')
-            ->get(['segment_key', 'compatibility_key', 'median_value', 'contract_count']);
-    }
-
-    /**
-     * Compare the same deterministic segment set at both endpoints. Each segment
-     * can have its own compatibility key, but that key must not change.
-     *
-     * @param  Collection<int, ContractPriceDailyStatistic>  $latestRows
-     * @param  Collection<int, ContractPriceDailyStatistic>  $previousRows
-     * @return array{Collection<int,ContractPriceDailyStatistic>,Collection<int,ContractPriceDailyStatistic>}
-     */
-    private function compatibleAggregateRows(Collection $latestRows, Collection $previousRows): array
-    {
-        $latestBySegment = $latestRows->keyBy('segment_key');
-        $previousBySegment = $previousRows->keyBy('segment_key');
-        $segments = $latestBySegment->keys()
-            ->intersect($previousBySegment->keys())
-            ->filter(function (string $segment) use ($latestBySegment, $previousBySegment): bool {
-                return AnnualSeriesCompatibility::sameKey(
-                    $latestBySegment[$segment]->compatibility_key,
-                    $previousBySegment[$segment]->compatibility_key,
-                );
-            })
-            ->sort()
-            ->values();
-
-        return [
-            $segments->map(fn (string $segment) => $latestBySegment[$segment])->values(),
-            $segments->map(fn (string $segment) => $previousBySegment[$segment])->values(),
-        ];
-    }
-
-    /**
-     * @param  Collection<int, ContractPriceDailyStatistic>  $rows
-     * @return array{value:float,count:int}|null
-     */
-    private function weightedAverage(Collection $rows): ?array
-    {
-        $weightedSum = 0.0;
-        $count = 0;
-
-        foreach ($rows as $row) {
-            if ($row->median_value === null || $row->contract_count <= 0) {
-                continue;
-            }
-
-            $weightedSum += (float) $row->median_value * (int) $row->contract_count;
-            $count += (int) $row->contract_count;
-        }
-
-        if ($count === 0) {
-            return null;
-        }
-
-        return ['value' => $weightedSum / $count, 'count' => $count];
+        return $trend;
     }
 
     /**
@@ -412,23 +325,28 @@ class ContractMarketInsightService
         $changePct = $previous != 0.0 ? ($change / $previous) * 100.0 : 0.0;
         $absPct = abs($changePct);
 
+        $isIndex = $subject === 'Energianhintaindeksi';
+        $headlineSubject = in_array($subject, ['Sähkösopimukset', 'Energianhintaindeksi'], true)
+            ? $subject
+            : 'Hinnat';
+
         if ($absPct < 1.0) {
             $direction = 'steady';
-            $headline = $subject === 'Sähkösopimukset'
-                ? 'Sähkösopimukset pysyneet vakaina'
-                : 'Hinnat pysyneet vakaina';
+            $headline = $isIndex
+                ? "{$headlineSubject} pysynyt vakaana"
+                : "{$headlineSubject} pysyneet vakaina";
             $tone = 'neutral';
         } elseif ($changePct > 0) {
             $direction = 'up';
-            $headline = $subject === 'Sähkösopimukset'
-                ? 'Sähkösopimukset kallistuneet'
-                : 'Hinnat kallistuneet';
+            $headline = $isIndex
+                ? "{$headlineSubject} noussut"
+                : "{$headlineSubject} kallistuneet";
             $tone = 'up';
         } else {
             $direction = 'down';
-            $headline = $subject === 'Sähkösopimukset'
-                ? 'Sähkösopimukset halventuneet'
-                : 'Hinnat halventuneet';
+            $headline = $isIndex
+                ? "{$headlineSubject} laskenut"
+                : "{$headlineSubject} halventuneet";
             $tone = 'down';
         }
 

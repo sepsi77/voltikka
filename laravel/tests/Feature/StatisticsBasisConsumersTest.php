@@ -6,7 +6,9 @@ use App\Livewire\ArticleSpotElectricity;
 use App\Models\ContractPriceDailyStatistic;
 use App\Services\ContractMarketInsights\ContractMarketInsightService;
 use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
+use App\Services\ContractStatistics\SellerSetEnergyPriceIndexService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
@@ -17,6 +19,8 @@ class StatisticsBasisConsumersTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::Legacy->value);
+        app()->forgetScopedInstances();
         Cache::flush();
     }
 
@@ -118,6 +122,9 @@ class StatisticsBasisConsumersTest extends TestCase
             $this->stat($date, $segment, $value, $basis, $count);
         }
 
+        $this->indexStat('2026-05-02', 7.0, 40, 20);
+        $this->indexStat('2026-06-01', 8.0, 42, 21);
+
         config()->set('canonical_pricing.enabled', true);
         app()->forgetScopedInstances();
         $service = app(ContractMarketInsightService::class);
@@ -129,46 +136,60 @@ class StatisticsBasisConsumersTest extends TestCase
         $this->assertSame('canonical_calculation', $segment['latest_pricing_basis']);
         $this->assertSame('observed_seller_data', $segment['previous_pricing_basis']);
         $this->assertStringContainsString('Kanoninen nykyarvio', $segment['supporting']);
-        $this->assertSame(700.0, $aggregate['latest_value']);
-        $this->assertSame(600.0, $aggregate['previous_value']);
+        $this->assertSame(8.0, $aggregate['latest_value']);
+        $this->assertSame(7.0, $aggregate['previous_value']);
+        $this->assertSame(42, $aggregate['contract_count']);
+        $this->assertSame(21, $aggregate['supplier_count']);
 
         config()->set('canonical_pricing.enabled', false);
         app()->forgetScopedInstances();
-        $observed = app(ContractMarketInsightService::class)->insight('spot', 5000)['trend'];
+        $observedService = app(ContractMarketInsightService::class);
+        $observed = $observedService->insight('spot', 5000)['trend'];
 
         $this->assertSame(100.0, $observed['latest_value']);
         $this->assertSame('observed_seller_data', $observed['latest_pricing_basis']);
-        $this->assertSame(6, ContractPriceDailyStatistic::count());
+        $this->assertNull($observedService->insight(null, 5000)['trend']);
+        $this->assertSame(8, ContractPriceDailyStatistic::count());
     }
 
-    public function test_aggregate_market_insight_uses_a_per_segment_compatibility_map(): void
+    public function test_aggregate_market_insight_uses_the_exact_30_day_index_row_and_main_copy_counts(): void
     {
-        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::AsOf->value);
+        config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
+        $this->indexStat('2026-08-10', 4.0, 38, 18);
+        $this->indexStat('2026-08-11', 8.0, 40, 20);
+        $this->indexStat('2026-08-12', 20.0, 41, 20);
+        $this->indexStat('2026-09-10', 10.0, 44, 22);
+        $this->stat('2026-09-11', 'spot', 999.0, 'canonical_calculation');
 
-        foreach ([
-            ['2026-05-01', 'spot', 500.0, 10, 'spot-key'],
-            ['2026-05-01', 'fixed_term_12', 700.0, 10, 'fixed-key'],
-            ['2026-05-01', 'open_ended', 900.0, 100, 'old-open-key'],
-            ['2026-06-01', 'spot', 600.0, 10, 'spot-key'],
-            ['2026-06-01', 'fixed_term_12', 800.0, 10, 'fixed-key'],
-            ['2026-06-01', 'open_ended', 100.0, 100, 'new-open-key'],
-        ] as [$date, $segment, $value, $count, $key]) {
-            $this->stat(
-                $date,
-                $segment,
-                $value,
-                'observed_seller_data',
-                $count,
-                AnnualCostMethodVersion::AsOf,
-                $key,
-            );
-        }
+        $trend = app(ContractMarketInsightService::class)->insight(null, 18000)['trend'];
 
-        $trend = app(ContractMarketInsightService::class)->insight(null, 5000)['trend'];
+        $this->assertSame(10.0, $trend['latest_value']);
+        $this->assertSame(8.0, $trend['previous_value']);
+        $this->assertSame('2026-08-11', $trend['previous_as_of']);
+        $this->assertSame(44, $trend['contract_count']);
+        $this->assertSame(22, $trend['supplier_count']);
+        $this->assertSame('Sähkösopimusten energianhintaindeksi', $trend['eyebrow']);
+        $this->assertStringContainsString('sähkösopimusten energiahintoja Suomessa', $trend['supporting']);
+        $this->assertStringContainsString('Pörssisähkö ei ole mukana', $trend['supporting']);
 
-        $this->assertSame(700.0, $trend['latest_value']);
-        $this->assertSame(600.0, $trend['previous_value']);
-        $this->assertSame(20, $trend['contract_count']);
+        $html = Blade::render('<x-contract-market-insight-pills :insight="$insight" />', [
+            'insight' => ['trend' => $trend, 'forecast' => null, 'has_items' => true],
+        ]);
+        $this->assertStringContainsString('Sähkösopimusten energianhintaindeksi', $html);
+        $this->assertStringContainsString('44</span> tarjoukseen', $html);
+        $this->assertStringContainsString('22</span> sähköyhtiöltä', $html);
+        $this->assertStringNotContainsString('vuosikustannus', mb_strtolower($html));
+    }
+
+    public function test_aggregate_market_insight_has_no_annual_cost_or_nearby_date_fallback(): void
+    {
+        $this->indexStat('2026-08-12', 8.0, 40, 20);
+        $this->indexStat('2026-09-10', 10.0, 44, 22);
+        $this->stat('2026-08-11', 'spot', 500.0, 'canonical_calculation');
+        $this->stat('2026-09-10', 'spot', 600.0, 'canonical_calculation');
+
+        $this->assertNull(app(ContractMarketInsightService::class)->insight(null, 2000)['trend']);
     }
 
     public function test_market_reset_insight_waits_for_same_segment_canonical_history(): void
@@ -187,6 +208,28 @@ class StatisticsBasisConsumersTest extends TestCase
         $this->assertSame('canonical_calculation', $trend['previous_pricing_basis']);
         $this->assertStringContainsString('aiempaan kanoniseen arvioon', $trend['supporting']);
         $this->assertNotSame(400.0, $trend['previous_value']);
+    }
+
+    private function indexStat(string $date, float $value, int $contractCount, int $supplierCount): void
+    {
+        ContractPriceDailyStatistic::create([
+            'stat_date' => $date,
+            'segment_key' => SellerSetEnergyPriceIndexService::SEGMENT_OVERALL,
+            'metric_key' => SellerSetEnergyPriceIndexService::METRIC_KEY,
+            'pricing_basis' => 'canonical_calculation',
+            'method_version' => ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION,
+            'calculation_basis' => SellerSetEnergyPriceIndexService::CALCULATION_BASIS,
+            'estimate_basis' => SellerSetEnergyPriceIndexService::ESTIMATE_BASIS,
+            'compatibility_key' => SellerSetEnergyPriceIndexService::COMPATIBILITY_KEY,
+            'basis_counts' => [
+                'contract_count' => $contractCount,
+                'supplier_count' => $supplierCount,
+                'family_weights' => SellerSetEnergyPriceIndexService::FAMILY_WEIGHTS,
+            ],
+            'consumption_kwh' => null,
+            'avg_value' => $value,
+            'contract_count' => $contractCount,
+        ]);
     }
 
     private function stat(

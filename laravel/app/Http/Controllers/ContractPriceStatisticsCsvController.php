@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ContractPriceDailyStatistic;
+use App\Services\ContractStatistics\SellerSetEnergyPriceIndexService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -27,6 +28,7 @@ class ContractPriceStatisticsCsvController extends Controller
             fputcsv($out, ['# Spot-sopimusten kokonaishinta = pörssin keskihinta + sopimuksen marginaali.']);
             fputcsv($out, ['# CSV sisältää kaikki menetelmäversiot auditointia varten. Vain is_active_annual_method=1 on julkisessa vuosikustannuskäytössä.']);
             fputcsv($out, ['# Yksikköhintarivit käyttävät method_version=unit_statistics_v1 ja is_active_annual_method=0.']);
+            fputcsv($out, ['# '.SellerSetEnergyPriceIndexService::METRIC_KEY.': avg on myyjien suoran yleissähköhinnan indeksi (c/kWh); segmentit erottavat kokonaisindeksin, kolme sopimusperhettä ja indeksin ulkopuolisen Hybridin perushinnan.']);
             fputcsv($out, ['# pricing_basis=canonical_calculation: nykyhinta on validoidusta kanonisesta hinnoittelusta laskettu arvo.']);
             fputcsv($out, ['# pricing_basis=observed_seller_data: historiallinen arvo on kyseisenä päivänä havaittu myyjädata.']);
             fputcsv($out, []);

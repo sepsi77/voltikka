@@ -3,5 +3,8 @@
   {"name":"Clarify product scope and UX","status":"done"},
   {"name":"Design integration points and data mapping","status":"done"},
   {"name":"Implement selected widgets","status":"done"},
-  {"name":"Test and document behavior","status":"done"}
+  {"name":"Test and document behavior","status":"done"},
+  {"name":"Investigate incorrect one-contract trend basis","status":"done"},
+  {"name":"Design meaningful Finland-wide electricity price trend","status":"done"},
+  {"name":"Redesign trend as seller-set energy price index and add it to statistics","status":"done"}
 ]

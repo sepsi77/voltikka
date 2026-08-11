@@ -6,6 +6,7 @@ use App\Livewire\ContractPriceStatistics;
 use App\Models\ContractPriceDailyStatistic;
 use App\Models\SpotPriceAverage;
 use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
+use App\Services\ContractStatistics\SellerSetEnergyPriceIndexService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
@@ -17,6 +18,15 @@ use Tests\TestCase;
 class ContractPriceStatisticsPageTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config()->set('canonical_pricing.enabled', false);
+        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::Legacy->value);
+        app()->forgetScopedInstances();
+        Cache::flush();
+    }
 
     public function test_page_is_accessible_with_empty_data_and_does_not_leak_admin_instructions(): void
     {
@@ -62,6 +72,118 @@ class ContractPriceStatisticsPageTest extends TestCase
         $response->assertSee('Viittaa tähän');
         $response->assertSee('CC&nbsp;BY&nbsp;4.0', false);
         $response->assertSee('ALV 25,5 %');
+    }
+
+    public function test_seller_set_index_payload_render_and_cache_are_consumption_independent(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
+        Cache::flush();
+        $this->seedSellerSetIndex('2026-08-11', [8.0, 9.0, 7.0, 6.0], 40, 20);
+        $this->seedSellerSetIndex('2026-09-10', [10.0, 11.0, 8.0, 7.0], 44, 22, hybridBase: 5.5);
+
+        $component = Livewire::test(ContractPriceStatistics::class);
+        $payload = $component->viewData('sellerSetEnergyPriceIndexPayload');
+
+        $this->assertTrue($payload['has_data']);
+        $this->assertSame(10.0, $payload['current']);
+        $this->assertSame(8.0, $payload['comparison_value']);
+        $this->assertSame(25.0, $payload['delta_30d_pct']);
+        $this->assertSame(44, $payload['contract_count']);
+        $this->assertSame(22, $payload['supplier_count']);
+        $this->assertSame(5.5, $payload['hybrid_base']);
+        $this->assertSame(
+            ['Kokonaisindeksi', 'Määräaikainen', 'Toistaiseksi voimassa oleva', 'Jaksoittain vaihtuva'],
+            array_column($payload['chart']['series'], 'label'),
+        );
+        $this->assertSame(
+            $payload,
+            $component->set('consumption', 18000)->viewData('sellerSetEnergyPriceIndexPayload'),
+        );
+
+        $component
+            ->assertSee('Sähkösopimusten energianhintaindeksi')
+            ->assertSee('Pörssisähkö ei ole mukana')
+            ->assertSee('vuosikulutuksen valinta vaikuta tähän indeksiin')
+            ->assertSee('44')
+            ->assertSee('22')
+            ->assertSee('Määräaikainen 50 %')
+            ->assertSee('Hybridin perushinta, ei mukana indeksissä')
+            ->assertSee('Jokainen sähköyhtiö saa sopimusryhmän sisällä saman painon')
+            ->assertSee('Pörssi-, aika- ja kausisähkö, energiapaketit ja kulutusvaikutussopimukset eivät ole mukana.');
+
+        $html = $component->html();
+        $this->assertLessThan(
+            strpos($html, 'Vuosikustannus'),
+            strpos($html, 'Sähkösopimusten energianhintaindeksi'),
+            'The seller-set index must appear before the annual-cost chart.',
+        );
+
+        $this->get('/sahkosopimus/tilastot')->assertSee('10,00');
+        ContractPriceDailyStatistic::query()
+            ->where('metric_key', SellerSetEnergyPriceIndexService::METRIC_KEY)
+            ->where('segment_key', SellerSetEnergyPriceIndexService::SEGMENT_OVERALL)
+            ->whereDate('stat_date', '2026-09-10')
+            ->update(['avg_value' => 12.0, 'updated_at' => now()->addMinute()]);
+        $this->get('/sahkosopimus/tilastot')->assertSee('12,00');
+    }
+
+    public function test_seller_set_index_30_day_change_requires_the_exact_date_and_avg_value(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
+        Cache::flush();
+        $this->seedSellerSetIndex('2026-08-12', [8.0, 9.0, 7.0, 6.0], 40, 20);
+        $this->seedSellerSetIndex('2026-09-10', [10.0, 11.0, 8.0, 7.0], 44, 22);
+        ContractPriceDailyStatistic::query()
+            ->where('metric_key', SellerSetEnergyPriceIndexService::METRIC_KEY)
+            ->update(['median_value' => 999.0]);
+
+        $payload = Livewire::test(ContractPriceStatistics::class)
+            ->viewData('sellerSetEnergyPriceIndexPayload');
+
+        $this->assertSame(10.0, $payload['current']);
+        $this->assertNull($payload['comparison_value']);
+        $this->assertNull($payload['delta_30d_pct']);
+        $this->assertNull($payload['comparison_date']);
+    }
+
+    public function test_seller_set_index_respects_period_grouping_and_draws_missing_daily_dates_as_gaps(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        app()->forgetScopedInstances();
+        Cache::flush();
+        $this->seedSellerSetIndex('2026-08-11', [8.0, 9.0, 7.0, 6.0], 40, 20);
+        $this->seedSellerSetIndex('2026-08-13', [10.0, 11.0, 9.0, 8.0], 44, 22);
+
+        $daily = Livewire::test(ContractPriceStatistics::class)
+            ->set('period', 'daily')
+            ->viewData('sellerSetEnergyPriceIndexPayload');
+
+        $this->assertCount(3, $daily['chart']['x']);
+        $this->assertSame([8.0, null, 10.0], $daily['chart']['series'][0]['values']);
+        $this->assertFalse($daily['chart']['showPoints']);
+        $this->assertTrue($daily['chart']['showLatestPoint']);
+
+        $weekly = Livewire::test(ContractPriceStatistics::class)
+            ->set('period', 'weekly')
+            ->viewData('sellerSetEnergyPriceIndexPayload');
+
+        $this->assertCount(1, $weekly['chart']['x']);
+        $this->assertSame([9.0], $weekly['chart']['series'][0]['values']);
+        $this->assertTrue($weekly['chart']['showPoints']);
+        $this->assertFalse($weekly['chart']['showLatestPoint']);
+    }
+
+    public function test_seller_set_index_is_hidden_when_canonical_pricing_is_disabled(): void
+    {
+        $this->seedSellerSetIndex('2026-08-11', [8.0, 9.0, 7.0, 6.0], 40, 20);
+
+        $payload = Livewire::test(ContractPriceStatistics::class)
+            ->viewData('sellerSetEnergyPriceIndexPayload');
+
+        $this->assertFalse($payload['has_data']);
+        $this->assertSame([], $payload['chart']['x']);
     }
 
     public function test_reset_category_stays_hidden_until_it_has_30_current_observations(): void
@@ -494,9 +616,9 @@ class ContractPriceStatisticsPageTest extends TestCase
         app()->forgetScopedInstances();
         $asOfKey = $method->invoke(app(ContractPriceStatistics::class));
 
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v18:', $legacyKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v18:', $canonicalKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v18:', $asOfKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v19:', $legacyKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v19:', $canonicalKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v19:', $asOfKey);
         $this->assertNotSame($legacyKey, $canonicalKey);
         $this->assertNotSame($canonicalKey, $asOfKey);
     }
@@ -694,12 +816,73 @@ class ContractPriceStatisticsPageTest extends TestCase
         $this->assertStringContainsString('arvonlisäveron 25,5 %', $body);
         $this->assertStringContainsString('pricing_basis=canonical_calculation', $body);
         $this->assertStringContainsString('kaikki menetelmäversiot auditointia varten', $body);
+        $this->assertStringContainsString(SellerSetEnergyPriceIndexService::METRIC_KEY.': avg on myyjien suoran yleissähköhinnan indeksi', $body);
         $this->assertStringContainsString('segment_key,metric_key,pricing_basis,method_version,calculation_basis,estimate_basis,compatibility_key,basis_counts,is_active_annual_method', $body);
         $this->assertStringContainsString('spot,annual_cost,observed_seller_data,annual_cost_legacy_v1', $body);
         $this->assertStringContainsString('spot,annual_cost,observed_seller_data,annual_cost_as_of_v1,canonical_outcome,forward_curve,as-of-audit', $body);
         $this->assertStringContainsString('spot,energy_price,observed_seller_data,unit_statistics_v1', $body);
         $this->assertStringContainsString('annual_cost_legacy_v1,,,,,1,5000', $body);
         $this->assertStringContainsString('forward_curve"":20}",0,5000', $body);
+    }
+
+    /**
+     * @param  array{0:float,1:float,2:float,3:float}  $values Overall, fixed, open-ended, market-reset.
+     */
+    private function seedSellerSetIndex(
+        string $date,
+        array $values,
+        int $contractCount,
+        int $supplierCount,
+        ?float $hybridBase = null,
+    ): void {
+        $segments = [
+            SellerSetEnergyPriceIndexService::SEGMENT_OVERALL,
+            SellerSetEnergyPriceIndexService::SEGMENT_FIXED_TERM,
+            SellerSetEnergyPriceIndexService::SEGMENT_OPEN_ENDED,
+            SellerSetEnergyPriceIndexService::SEGMENT_MARKET_RESET,
+        ];
+
+        foreach ($segments as $index => $segment) {
+            ContractPriceDailyStatistic::create([
+                'stat_date' => $date,
+                'segment_key' => $segment,
+                'metric_key' => SellerSetEnergyPriceIndexService::METRIC_KEY,
+                'pricing_basis' => 'canonical_calculation',
+                'method_version' => ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION,
+                'calculation_basis' => SellerSetEnergyPriceIndexService::CALCULATION_BASIS,
+                'estimate_basis' => SellerSetEnergyPriceIndexService::ESTIMATE_BASIS,
+                'compatibility_key' => SellerSetEnergyPriceIndexService::COMPATIBILITY_KEY,
+                'basis_counts' => [
+                    'contract_count' => $contractCount,
+                    'supplier_count' => $supplierCount,
+                    'family_weights' => SellerSetEnergyPriceIndexService::FAMILY_WEIGHTS,
+                ],
+                'consumption_kwh' => null,
+                'avg_value' => $values[$index],
+                'contract_count' => $contractCount,
+            ]);
+        }
+
+        if ($hybridBase !== null) {
+            ContractPriceDailyStatistic::create([
+                'stat_date' => $date,
+                'segment_key' => SellerSetEnergyPriceIndexService::SEGMENT_HYBRID_BASE,
+                'metric_key' => SellerSetEnergyPriceIndexService::METRIC_KEY,
+                'pricing_basis' => 'canonical_calculation',
+                'method_version' => ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION,
+                'calculation_basis' => SellerSetEnergyPriceIndexService::CALCULATION_BASIS,
+                'estimate_basis' => SellerSetEnergyPriceIndexService::ESTIMATE_BASIS,
+                'compatibility_key' => SellerSetEnergyPriceIndexService::COMPATIBILITY_KEY,
+                'basis_counts' => [
+                    'contract_count' => 5,
+                    'supplier_count' => 3,
+                    'family_weights' => SellerSetEnergyPriceIndexService::FAMILY_WEIGHTS,
+                ],
+                'consumption_kwh' => null,
+                'avg_value' => $hybridBase,
+                'contract_count' => 5,
+            ]);
+        }
     }
 
     /** @return array<string, mixed> */

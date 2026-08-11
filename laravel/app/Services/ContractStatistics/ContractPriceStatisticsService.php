@@ -30,6 +30,7 @@ class ContractPriceStatisticsService
         private readonly ContractStatisticsSegmentClassifier $segmentClassifier,
         private readonly CurrentCanonicalAnnualCostResultFactory $currentAnnualCostResultFactory,
         private readonly AnnualCostStatisticsWriter $annualCostStatisticsWriter,
+        private readonly SellerSetEnergyPriceIndexService $sellerSetEnergyPriceIndex,
     ) {}
 
     /**
@@ -132,12 +133,24 @@ class ContractPriceStatisticsService
 
             $statisticsCount = $this->calculateDailyStatistics($dateString, $pricingBasis);
 
-            // Reuse the exact canonical outcomes that built the public current snapshots.
-            // The adapter loads only current provenance after snapshot IDs exist. Keep the
-            // write in this transaction so a failure cannot leave a partial method set.
+            // Reuse only persisted canonical snapshots and current contract facts for
+            // the seller-set index. Historical and feature-off runs do not touch it.
             if ($useCanonical) {
+                $statisticsCount += $this->sellerSetEnergyPriceIndex->writeForDate($dateString);
+
+                // Reuse the exact canonical outcomes that built the public current snapshots.
+                // The adapter loads only current provenance after snapshot IDs exist. Keep the
+                // write in this transaction so a failure cannot leave a partial method set.
                 $asOfResults = $this->currentAnnualCostResultFactory->create($dateString, $currentCanonicalOutcomes);
                 $this->annualCostStatisticsWriter->write($dateString, $asOfResults);
+            } elseif ($dateString === Carbon::now('Europe/Helsinki')->toDateString()) {
+                // A current feature-off run owns today's index state and removes a stale
+                // canonical row. A historical observed rebuild does not own a separately
+                // reconstructed seller-set index row for its date.
+                ContractPriceDailyStatistic::query()
+                    ->whereDate('stat_date', $dateString)
+                    ->where('metric_key', SellerSetEnergyPriceIndexService::METRIC_KEY)
+                    ->delete();
             }
 
             return ['snapshots' => $snapshotCount, 'statistics' => $statisticsCount];
@@ -404,8 +417,10 @@ class ContractPriceStatisticsService
         ContractPriceDailyStatistic::query()
             ->whereDate('stat_date', $dateString)
             ->where(function ($query): void {
-                $query->where('method_version', ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION)
-                    ->orWhere('method_version', AnnualCostMethodVersion::Legacy->value);
+                $query->where(function ($unit): void {
+                    $unit->where('method_version', ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION)
+                        ->where('metric_key', '!=', SellerSetEnergyPriceIndexService::METRIC_KEY);
+                })->orWhere('method_version', AnnualCostMethodVersion::Legacy->value);
             })
             ->delete();
     }

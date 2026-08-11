@@ -95,7 +95,9 @@ Monthly included-energy packages are typed and costed as described below.
   `ContractComparability` verdict. Its typed `calculatePeriod()` entry point costs an exact bill
   period with the same parser, phase timeline, inherited rates, packages, mechanism switches,
   reset fill policy, and fail-closed rules. It accepts realized hourly Spot facts instead of
-  adding a second bill-specific canonical calculator.
+  adding a second bill-specific canonical calculator. `directGeneralRate()` is the narrow
+  consumption-free boundary for the seller-set index: it reuses the same signup phase and
+  inheritance logic and returns null for Spot, packages, and non-General tariffs.
 - `DTO/CanonicalPeriodPricingRequest` / `CanonicalPeriodPricingOutcome` — keep exact-period totals,
   measured period savings, relevant rates/margins, comparability, assumptions, and typed
   unavailable reasons separate from the 12-month payload.

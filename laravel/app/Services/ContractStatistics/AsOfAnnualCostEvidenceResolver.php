@@ -251,6 +251,7 @@ class AsOfAnnualCostEvidenceResolver
                 $resolved[$dateString][$contractId] = new AsOfAnnualCostEvidence(
                     contractId: $contractId,
                     date: $target,
+                    companyName: $snapshot->company_name !== null ? (string) $snapshot->company_name : null,
                     segmentKey: (string) $snapshot->segment_key,
                     pricingModel: (string) ($snapshot->pricing_model ?? ''),
                     contractType: (string) ($snapshot->contract_type ?? ''),
@@ -555,6 +556,7 @@ class AsOfAnnualCostEvidenceResolver
         return new AsOfAnnualCostEvidence(
             contractId: $contractId,
             date: $target,
+            companyName: null,
             segmentKey: 'unclassified',
             pricingModel: '',
             contractType: '',
