@@ -24,6 +24,8 @@ A production user create, role grant, or role removal is a production mutation. 
 
 `Tables/ContractOrderClicksTable.php` has no record actions or toolbar actions. It is newest first and uses database pagination. Native pagination shows the count for the selected result set. Search covers company, contract name, and contract ID. Native filters cover date range, company, contract, source, medium, campaign, and CTA location. String filters use exact text input instead of loading every distinct value from the indefinitely retained event table.
 
+The list page has one non-mutating header action, `Vie kaikki CSV-tiedostoon`. It uses the panel-authenticated `filament.admin.contract-order-clicks.export` route and `Exports/ContractOrderClickCsvExport.php`. The response streams all stored rows in bounded chunks, reads the table column list at request time, and writes every column. The response is private and not cacheable. Do not change it to a public route or limit it to the visible pagination page.
+
 Do not add create, edit, view-with-mutation, delete, bulk delete, restore, relation-manager mutation, import, or inline editable actions to this analytics resource. Analytics rows are evidence and are read-only in the panel.
 
 ## Assets and dependencies

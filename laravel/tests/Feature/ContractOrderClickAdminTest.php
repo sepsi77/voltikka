@@ -8,6 +8,7 @@ use App\Models\ContractOrderClick;
 use App\Models\User;
 use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -69,6 +70,8 @@ class ContractOrderClickAdminTest extends TestCase
 
         $component = Livewire::test(ListContractOrderClicks::class)
             ->assertActionDoesNotExist('create')
+            ->assertActionExists('exportCsv')
+            ->assertActionHasUrl('exportCsv', route('filament.admin.contract-order-clicks.export'))
             ->assertTableActionDoesNotExist('edit', record: $click)
             ->assertTableActionDoesNotExist('delete', record: $click);
 
@@ -76,6 +79,79 @@ class ContractOrderClickAdminTest extends TestCase
         $this->assertSame([], $component->instance()->getTable()->getToolbarActions());
         $this->get('/admin/contract-order-clicks/create')->assertNotFound();
         $this->get('/admin/contract-order-clicks/'.$click->getKey().'/edit')->assertNotFound();
+    }
+
+    public function test_only_admin_users_can_download_the_csv_export(): void
+    {
+        $exportUrl = route('filament.admin.contract-order-clicks.export');
+
+        $this->get($exportUrl)->assertRedirect('/admin/login');
+
+        $normalUser = User::factory()->create(['is_admin' => false]);
+        $this->actingAs($normalUser)
+            ->get($exportUrl)
+            ->assertForbidden();
+    }
+
+    public function test_csv_export_contains_every_column_and_every_click(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true]);
+        $clicks = collect([
+            $this->click([
+                'event_uuid' => '11111111-1111-4111-8111-111111111111',
+                'contract_name' => 'Vakaa Tuuli',
+                'session_campaign' => null,
+            ]),
+            $this->click([
+                'event_uuid' => '22222222-2222-4222-8222-222222222222',
+                'contract_name' => 'Yösähkö',
+                'session_campaign' => 'syksy',
+            ]),
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->get(route('filament.admin.contract-order-clicks.export'))
+            ->assertOk()
+            ->assertHeader('content-type', 'text/csv; charset=UTF-8')
+            ->assertHeader('cache-control', 'max-age=0, no-store, private');
+
+        $this->assertStringContainsString(
+            'attachment; filename=voltikka-contract-order-clicks-',
+            (string) $response->headers->get('content-disposition'),
+        );
+
+        $csv = $response->streamedContent();
+        $this->assertStringStartsWith("\xEF\xBB\xBF", $csv);
+
+        $stream = fopen('php://temp', 'w+');
+        fwrite($stream, substr($csv, 3));
+        rewind($stream);
+
+        $rows = [];
+
+        while (($row = fgetcsv($stream)) !== false) {
+            $rows[] = $row;
+        }
+
+        fclose($stream);
+
+        $columns = Schema::getColumnListing('contract_order_clicks');
+        $this->assertSame($columns, $rows[0]);
+        $this->assertCount($clicks->count() + 1, $rows);
+
+        $exportedByUuid = collect(array_slice($rows, 1))
+            ->map(fn (array $row): array => array_combine($columns, $row))
+            ->keyBy('event_uuid');
+
+        foreach ($clicks as $click) {
+            $exported = $exportedByUuid->get($click->event_uuid);
+            $this->assertNotNull($exported);
+
+            foreach ($columns as $column) {
+                $rawValue = $click->fresh()->getRawOriginal($column);
+                $this->assertSame($rawValue === null ? '' : (string) $rawValue, $exported[$column]);
+            }
+        }
     }
 
     public function test_table_is_newest_first_and_paginates_with_a_result_count(): void
