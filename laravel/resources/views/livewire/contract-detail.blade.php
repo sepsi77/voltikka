@@ -411,6 +411,8 @@
         </div>
     </section>
 
+    <x-page-action-strip />
+
     <main class="mx-auto max-w-3xl px-5 pb-20">
         {{-- Inactive contract notice. Slate, not amber: amber is an emissions tier. --}}
         @if (! $this->isActive)

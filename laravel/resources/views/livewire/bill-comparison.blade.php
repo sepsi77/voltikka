@@ -3,7 +3,7 @@
     <x-schema-markup :schemas="[$jsonLd, $faqJsonLd]" />
 
     {{-- Hero --}}
-    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8">
+    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="py-12 lg:py-16 text-center">
                 <h1 class="text-3xl md:text-4xl xl:text-5xl font-extrabold text-white tracking-tight leading-none mb-4">
@@ -15,6 +15,8 @@
             </div>
         </div>
     </section>
+
+    <x-page-action-strip />
 
     <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 

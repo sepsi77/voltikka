@@ -196,6 +196,15 @@ Important semantics:
   `ContractsListPageTest::test_direct_consumption_input_updates_consumption`.
 - Tests: `tests/Feature/SahkosopimusBillModeTest.php`.
 
+### Sitewide public page action strip
+
+- Every real public HTML page template renders `x-page-action-strip` directly after its hero or primary editorial header. Placement is explicit in each Blade template. Do not move it with JavaScript or a layout-wide injection. The internal `contract-type-comparison` widget does not render it.
+- `resources/views/components/page-action-strip.blade.php` owns the quiet full-width strip, its default Finnish copy, the built-in Google action and fallback behavior, its optional action slot, and the one-time Preferred Sources library load. Heroes that directly precede it do not keep an empty bottom margin.
+- The Google action uses the documented advanced manual API: `publisher.js` loads with `preferred-sources-control="manual"`, `PREFERRED_SOURCE` initializes with the light theme, and Voltikka keeps the ready client. Do not replace this with Google's declarative button. That renderer uses a cross-origin iframe, so Voltikka cannot reliably observe its activation for Plausible.
+- The native action stays disabled while the client loads. After 8 seconds without a client, it changes to Google's documented `https://www.google.com/preferences/source?q=voltikka.fi` deeplink; a `noscript` deeplink keeps the action usable without JavaScript. A later client-ready event clears the failure state and restores the native action.
+- Both actions send `Google Preferred Source Clicked` with `placement=post_hero` through one local Alpine tracking method. Its `try/catch` keeps Plausible non-blocking: the native action always calls `addPreferredSource()` after tracking, and the fallback click does not prevent navigation. Language remains under Google/page/browser control.
+- `tests/Unit/PageActionStripSourcePolicyTest.php` lists the 19 real public Blade templates and requires exactly one strip in each. It also keeps the internal widget free of the strip.
+
 ## `HeatPumpCalculator`
 
 Primary files:

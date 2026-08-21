@@ -18,6 +18,8 @@ Project-local Pi agents live in `.pi/agents/`. When you call a trusted project-l
 
 Voltikka is a Finnish electricity contract comparison platform built with **Laravel 11 and Livewire 4**. The site helps consumers find and compare electricity contracts, view real-time spot prices, and calculate solar panel production estimates.
 
+Every real public HTML page renders the shared Preferred Sources action strip directly after its hero or primary editorial header. The Blade page templates own this explicit placement; the internal contract comparison widget does not render the strip. The component owns the Google action, fallbacks, one-time script load, and the global `post_hero` analytics placement.
+
 ## Production site
 
 - Production site URL https://voltikka.fi/

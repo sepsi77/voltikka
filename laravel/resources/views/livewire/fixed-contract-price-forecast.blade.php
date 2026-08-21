@@ -102,7 +102,7 @@
         </nav>
 
         {{-- Editorial header strip --}}
-        <header class="border-b border-slate-200 pb-10 mb-12">
+        <header class="border-b border-slate-200 pb-10">
             <p class="{{ $eyebrow }} text-slate-500 mb-4">
                 Voltikka sähkön hintaennuste
             </p>
@@ -168,6 +168,8 @@
                 <span class="text-slate-400">CC&nbsp;BY&nbsp;4.0</span>
             </div>
         </header>
+
+        <x-page-action-strip class="mb-12" />
 
         @if (! $hasData)
             <section class="border border-slate-200 rounded-2xl px-8 py-16 text-center">

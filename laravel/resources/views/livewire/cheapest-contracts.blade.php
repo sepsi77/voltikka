@@ -7,7 +7,7 @@
     @endif
 
     {{-- SEO Hero Section - Dark slate background with gradient --}}
-    <section class="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8 relative overflow-hidden">
+    <section class="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 relative overflow-hidden">
         {{-- Decorative gradient blobs --}}
         <div class="absolute inset-0 pointer-events-none">
             <div class="absolute top-0 right-1/4 w-96 h-96 bg-coral-500 rounded-full blur-3xl opacity-20"></div>
@@ -37,6 +37,8 @@
             </div>
         </div>
     </section>
+
+    <x-page-action-strip />
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 

@@ -56,7 +56,7 @@
         </nav>
 
         {{-- Editorial header strip --}}
-        <header class="border-b border-slate-200 pb-10 mb-12">
+        <header class="border-b border-slate-200 pb-10">
             <p class="text-[11px] font-semibold tracking-[0.16em] uppercase text-slate-500 mb-4">
                 Voltikka tilastot
             </p>
@@ -172,6 +172,8 @@
                 </span>
             </div>
         </header>
+
+        <x-page-action-strip class="mb-12" />
 
         @if (! $hasData)
             {{-- Empty state. Public-safe; no operator instructions. --}}

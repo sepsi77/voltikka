@@ -65,6 +65,67 @@ class ContractsListPageTest extends TestCase
         $response->assertSeeLivewire('sahkosopimus-index');
     }
 
+    public function test_main_comparison_page_renders_the_manual_preferred_source_action_strip(): void
+    {
+        $response = $this->get('/sahkosopimus');
+
+        $response->assertOk();
+        $response->assertSee('data-page-action-strip', false);
+        $response->assertSee('data-google-preferred-source-action', false);
+        $response->assertSee('x-bind:disabled="!preferredSourceReady"', false);
+        $response->assertSee('x-show="!preferredSourceLoadFailed"', false);
+        $response->assertSee('x-on:click="addPreferredSource()"', false);
+        $response->assertSee('data-google-preferred-source-fallback', false);
+        $response->assertSee('https://www.google.com/preferences/source?q=voltikka.fi', false);
+        $response->assertSee('x-show="preferredSourceLoadFailed"', false);
+        $response->assertSee('x-on:click="trackPreferredSourceClick()"', false);
+        $response->assertSee('<noscript>', false);
+        $response->assertSee('rel="noopener noreferrer"', false);
+        $response->assertSee('preferredSourceLoadFailed: false', false);
+        $response->assertSee('}, 8000);', false);
+        $response->assertSee('Löydä Voltikka helpommin');
+        $response->assertSee('Valitse Voltikka suosikkilähteeksi Google-haussa');
+        $response->assertSee('Valitse suosikkilähteeksi');
+        $response->assertSee('https://news.google.com/swg/js/v1/publisher.js', false);
+        $this->assertSame(1, substr_count(
+            $response->getContent(),
+            'https://news.google.com/swg/js/v1/publisher.js',
+        ));
+        $response->assertSee('preferred-sources-control="manual"', false);
+        $response->assertSee('self.PREFERRED_SOURCE', false);
+        $response->assertSee("preferredSource.init({ theme: 'light' });", false);
+        $response->assertSeeInOrder([
+            'trackPreferredSourceClick() {',
+            'try {',
+            "this.\$track('Google Preferred Source Clicked'",
+            "placement: 'post_hero'",
+            '} catch (error) {',
+            'addPreferredSource() {',
+            'this.trackPreferredSourceClick();',
+            'client.addPreferredSource();',
+        ], false);
+        $response->assertSeeInOrder([
+            'data-comparison-hero',
+            'data-page-action-strip',
+            'data-contract-comparison-content',
+        ], false);
+    }
+
+    public function test_seo_comparison_page_renders_the_preferred_source_action_strip(): void
+    {
+        $response = $this->get('/sahkosopimus/porssisahko');
+
+        $response->assertOk();
+        $response->assertSee('data-page-action-strip', false);
+        $response->assertSee('data-google-preferred-source-action', false);
+        $response->assertSee('https://www.google.com/preferences/source?q=voltikka.fi', false);
+        $response->assertSee('Google Preferred Source Clicked');
+        $this->assertSame(1, substr_count(
+            $response->getContent(),
+            'https://news.google.com/swg/js/v1/publisher.js',
+        ));
+    }
+
     /**
      * Test that contracts are displayed on the page.
      */

@@ -2,7 +2,7 @@
     <script type="application/ld+json">{!! json_encode($this->generateJsonLd(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 
     <!-- Hero Section - Dark slate background -->
-    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8">
+    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav class="pt-6 text-sm text-slate-400" aria-label="Murupolku">
                 <ol class="flex flex-wrap items-center gap-2">
@@ -23,6 +23,8 @@
             </div>
         </div>
     </section>
+
+    <x-page-action-strip />
 
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 

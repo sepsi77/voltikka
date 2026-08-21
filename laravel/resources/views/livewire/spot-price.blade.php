@@ -220,6 +220,8 @@
         @endif
     </section>
 
+    <x-page-action-strip />
+
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 lg:pt-12 pb-8 spot-price-page" style="font-variant-numeric: tabular-nums;">
 
     @if ($loading)

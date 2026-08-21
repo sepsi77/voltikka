@@ -1,6 +1,6 @@
 <div>
     <!-- Hero: comprehensive energy service with independence frame -->
-    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-20 lg:mb-28">
+    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-28 lg:pb-32">
             @if($currentSpotPrice)
                 <p class="inline-flex items-center gap-2.5 text-sm font-semibold text-slate-300 uppercase tracking-wider mb-10">
@@ -27,8 +27,10 @@
         </div>
     </section>
 
+    <x-page-action-strip />
+
     <!-- Palvelut: one bento grid with featured tile + supporting tiles -->
-    <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-24 lg:mb-32">
+    <section class="max-w-7xl mx-auto px-4 pt-20 sm:px-6 lg:px-8 lg:pt-28 mb-24 lg:mb-32">
         <p class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-4">
             Palvelut
         </p>

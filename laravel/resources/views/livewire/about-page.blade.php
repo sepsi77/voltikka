@@ -2,7 +2,7 @@
     <x-schema-markup :schemas="[$jsonLdSchema]" />
 
     {{-- Hero --}}
-    <section class="relative -mx-4 overflow-hidden bg-slate-950 sm:-mx-6 lg:-mx-8 mb-8">
+    <section class="relative -mx-4 overflow-hidden bg-slate-950 sm:-mx-6 lg:-mx-8">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <div class="py-12 lg:py-16">
                 <div class="max-w-3xl mx-auto text-center">
@@ -23,6 +23,8 @@
             </div>
         </div>
     </section>
+
+    <x-page-action-strip />
 
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 

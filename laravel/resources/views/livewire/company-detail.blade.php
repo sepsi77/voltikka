@@ -3,7 +3,7 @@
     <x-schema-markup :schemas="$schemas" />
 
     <!-- Hero Section - Dark slate background -->
-    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8 mb-8">
+    <section class="bg-slate-950 -mx-4 sm:-mx-6 lg:-mx-8">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="py-12 lg:py-16">
                 {{-- Breadcrumb Navigation --}}
@@ -98,6 +98,8 @@
             </div>
         </div>
     </section>
+
+    <x-page-action-strip />
 
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 

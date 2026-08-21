@@ -1,0 +1,10 @@
+{
+  "tasks": [
+    {"name": "Find the shared hero-to-content insertion point and analytics pattern", "status": "completed"},
+    {"name": "Implement the reusable action strip and Google integration", "status": "completed"},
+    {"name": "Add or update automated tests", "status": "completed"},
+    {"name": "Run focused tests, build, and final checks", "status": "completed"},
+    {"name": "Expand the action strip to every public site page", "status": "completed"},
+    {"name": "Verify global route coverage and responsive placement", "status": "completed"}
+  ]
+}
