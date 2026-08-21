@@ -12,6 +12,7 @@ use App\Services\CanonicalPricing\PricingMode;
 use App\Services\CanonicalPricing\SpotForward\SpotForwardPriceEstimator;
 use App\Services\CanonicalPricing\SupplierAdjusted\CurrentPriceEpisodeResolver;
 use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedPriceEstimator;
+use App\Services\ContractListCacheService;
 use DateTimeZone;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Events\ScheduledTaskFailed;
@@ -39,6 +40,8 @@ class AppServiceProvider extends ServiceProvider
         // One scoped value snapshots both flags. All pricing and statistics dependencies in the
         // same request or command therefore use one stable mode.
         $this->app->scoped(PricingMode::class, fn () => PricingMode::fromConfig());
+
+        $this->app->scoped(ContractListCacheService::class);
 
         $this->app->scoped(ResetEstimatorSettings::class, fn ($app) => ResetEstimatorSettings::fromConfig(
             $app->make(PricingMode::class)->resetForwardShiftEnabled(),

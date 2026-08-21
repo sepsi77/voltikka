@@ -15,6 +15,14 @@ use Tests\TestCase;
 
 class ContractRequestMemoizationTest extends TestCase
 {
+    public function test_contract_list_cache_service_is_shared_within_the_application_scope(): void
+    {
+        $first = $this->app->make(ContractListCacheService::class);
+        $second = $this->app->make(ContractListCacheService::class);
+
+        $this->assertSame($first, $second);
+    }
+
     public function test_contract_list_metrics_cache_reads_are_memoized_per_service_instance(): void
     {
         $metrics = [
