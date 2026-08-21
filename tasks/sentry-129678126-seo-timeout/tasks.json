@@ -25,10 +25,10 @@
   },
   {
     "name": "Move the production cache store from MySQL to the application filesystem",
-    "status": "in_progress"
+    "status": "completed"
   },
   {
     "name": "Remove obsolete rows from the production database cache table after verification",
-    "status": "pending"
+    "status": "completed"
   }
 ]
