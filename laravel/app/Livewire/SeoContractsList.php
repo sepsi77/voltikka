@@ -1455,6 +1455,7 @@ class SeoContractsList extends ContractsList
     protected function buildSeoContractsViewData(): array
     {
         $contracts = $this->contracts;
+        $this->abortIfPageIsOutOfRange($contracts);
         $seoData = $this->seoData;
 
         return [
@@ -1487,6 +1488,9 @@ class SeoContractsList extends ContractsList
                 'canonical' => $seoData['canonical'],
                 'prevUrl' => $this->prevUrl,
                 'nextUrl' => $this->nextUrl,
+                'robots' => $this->city !== null && $contracts->currentPage() > 1
+                    ? 'noindex,follow'
+                    : null,
             ],
         ];
     }

@@ -268,7 +268,10 @@ class ContractsListPaginationTest extends TestCase
      */
     public function test_page_title_combines_filters_with_page_suffix(): void
     {
-        $this->createContracts(50);
+        $this->createContracts(75, [
+            'pricing_model' => 'Spot',
+            'contract_type' => 'OpenEnded',
+        ]);
 
         $component = Livewire::test('contracts-list')
             ->set('pricingModelFilter', 'Spot')
@@ -415,6 +418,8 @@ class ContractsListPaginationTest extends TestCase
                 'price' => 0.5,
                 'payment_unit' => 'c/kWh',
             ]);
+
+            ActiveContract::create(['id' => $contract->id]);
         }
 
         for ($i = 1; $i <= 30; $i++) {
@@ -436,6 +441,8 @@ class ContractsListPaginationTest extends TestCase
                 'price' => 5.0,
                 'payment_unit' => 'c/kWh',
             ]);
+
+            ActiveContract::create(['id' => $contract->id]);
         }
 
         $component = Livewire::test('contracts-list')
@@ -560,20 +567,25 @@ class ContractsListPaginationTest extends TestCase
         $response->assertSeeLivewire('sahkosopimus-index');
     }
 
-    /**
-     * Test that out-of-range page numbers are handled gracefully.
-     */
-    public function test_out_of_range_page_number_handled_gracefully(): void
+    public function test_out_of_range_page_returns_404_while_negative_page_uses_page_one(): void
     {
         $this->createContracts(25);
 
-        // Page 999 doesn't exist - should still return 200 (empty page)
-        $response = $this->get('/?page=999');
-        $response->assertStatus(200);
+        $this->get('/sahkosopimus?page=999')->assertStatus(404);
+        $this->get('/sahkosopimus?page=0')->assertStatus(200);
+        $this->get('/sahkosopimus?page=-1')->assertStatus(200);
+    }
 
-        // Negative page - Livewire treats this as page 1
-        $response2 = $this->get('/?page=-1');
-        $response2->assertStatus(200);
+    public function test_bill_mode_out_of_range_page_returns_404(): void
+    {
+        $this->createContracts(1);
+
+        Livewire::test('sahkosopimus-index')
+            ->set('billKwh', 300)
+            ->set('billTotalEur', 40)
+            ->assertSet('billActive', true)
+            ->set('page', 2)
+            ->assertStatus(404);
     }
 
     public function test_empty_page_query_parameter_defaults_to_page_one(): void

@@ -615,8 +615,10 @@ The `ContractsList::$showSeoFilterLinks` property controls this behavior — ena
 
 ### Pagination SEO
 - URLs use query string `?page=N` for unique, crawlable URLs
+- Empty, malformed, zero, and negative page values normalize to page 1; a page greater than the listing paginator's last page returns HTTP 404 without a redirect
 - Page titles include "– Sivu N" suffix for pages > 1
-- `rel="canonical"`, `rel="prev"`, and `rel="next"` link tags are added
+- `rel="canonical"`, `rel="prev"`, and `rel="next"` link tags are added for valid pages
+- Valid city/location pages after page 1 use `noindex,follow`; their shared local and regional contract section renders only on page 1, while those contracts stay excluded from the main paginator on every page
 - Changing filters or consumption resets pagination to page 1
 
 ### Sitemap

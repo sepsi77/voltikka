@@ -1399,6 +1399,13 @@ class ContractsList extends Component
         return max(1, (int) $page);
     }
 
+    protected function abortIfPageIsOutOfRange(LengthAwarePaginator $paginator): void
+    {
+        if ($paginator->currentPage() > $paginator->lastPage()) {
+            abort(404);
+        }
+    }
+
     /**
      * Keep the URL-bound listing state in normal anchor-based pagination links.
      * Default values stay out so canonical pagination remains `?page=N`.
@@ -2074,6 +2081,7 @@ class ContractsList extends Component
     protected function buildContractsListViewData(): array
     {
         $contracts = $this->contracts;
+        $this->abortIfPageIsOutOfRange($contracts);
 
         $schemas = [
             $this->webPageSchema,

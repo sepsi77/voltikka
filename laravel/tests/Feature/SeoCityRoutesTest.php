@@ -195,6 +195,26 @@ class SeoCityRoutesTest extends TestCase
         return $contract;
     }
 
+    private function seedPaginatedCityListing(): void
+    {
+        Company::where('name', 'Helsinki Voima Oy')->update(['postal_name' => 'Helsinki']);
+        $this->createContract(
+            'local-page-one',
+            'Helsinki Voima Oy',
+            'Helsingin paikallinen sopimus',
+            isNational: true,
+        );
+
+        for ($i = 1; $i <= 51; $i++) {
+            $this->createContract(
+                "pagination-{$i}",
+                'Test Energia Oy',
+                "Sivutettava sopimus {$i}",
+                5.0 + ($i / 100),
+            );
+        }
+    }
+
     // ==================== Route Accessibility Tests ====================
 
     /**
@@ -204,6 +224,32 @@ class SeoCityRoutesTest extends TestCase
     {
         $response = $this->get('/sahkosopimus/paikkakunnat/helsinki');
         $response->assertStatus(200);
+    }
+
+    public function test_city_out_of_range_page_returns_404(): void
+    {
+        $this->get('/sahkosopimus/paikkakunnat/helsinki?page=2')->assertStatus(404);
+    }
+
+    public function test_city_pagination_metadata_and_local_blocks_are_page_specific(): void
+    {
+        $this->seedPaginatedCityListing();
+        $baseUrl = config('app.url').'/sahkosopimus/paikkakunnat/helsinki';
+
+        $this->get('/sahkosopimus/paikkakunnat/helsinki')
+            ->assertOk()
+            ->assertDontSee('<meta name="robots"', false)
+            ->assertSeeLivewire('local-contracts-section')
+            ->assertSee('Lähialueen sähköyhtiöt');
+
+        $this->get('/sahkosopimus/paikkakunnat/helsinki?page=2')
+            ->assertOk()
+            ->assertSee('<meta name="robots" content="noindex,follow">', false)
+            ->assertSee('<link rel="canonical" href="'.$baseUrl.'?page=2">', false)
+            ->assertSee('<link rel="prev" href="'.$baseUrl.'">', false)
+            ->assertSee('<link rel="next" href="'.$baseUrl.'?page=3">', false)
+            ->assertDontSeeLivewire('local-contracts-section')
+            ->assertDontSee('Lähialueen sähköyhtiöt');
     }
 
     public function test_city_page_rejects_missing_municipality_slug(): void

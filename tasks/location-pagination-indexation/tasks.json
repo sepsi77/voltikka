@@ -1,0 +1,8 @@
+[
+  {"name":"Map listing pagination and SEO metadata behavior","status":"completed"},
+  {"name":"Implement out-of-range 404 behavior","status":"completed"},
+  {"name":"Limit shared location blocks to page one","status":"completed"},
+  {"name":"Noindex valid location pagination after page one","status":"completed"},
+  {"name":"Add regression tests and run verification","status":"completed"},
+  {"name":"Update local documentation and review diff","status":"completed"}
+]

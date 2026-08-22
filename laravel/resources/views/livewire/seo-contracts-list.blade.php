@@ -196,8 +196,8 @@
     {{-- Filter Section (shared partial) --}}
     @include('partials.contract-filters')
 
-    {{-- Local Contracts Section (for city pages) --}}
-    @if($isCityPage && $citySlug && $localContractsData['has_content'])
+    {{-- Local Contracts Section (for city pages, page 1 only) --}}
+    @if($isCityPage && $citySlug && $contracts->currentPage() === 1 && $localContractsData['has_content'])
         <livewire:local-contracts-section
             :city-name="$cityInfo['name']"
             :city-locative="$cityInfo['locative']"
