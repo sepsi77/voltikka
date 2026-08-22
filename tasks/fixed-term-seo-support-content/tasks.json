@@ -1,0 +1,46 @@
+[
+  {
+    "name": "Inspect listing render and pagination behavior",
+    "status": "completed"
+  },
+  {
+    "name": "Implement the raw common-date fixed-term comparison",
+    "status": "completed"
+  },
+  {
+    "name": "Add personalized duration differences",
+    "status": "completed"
+  },
+  {
+    "name": "Add the pricing-mechanism summary",
+    "status": "completed"
+  },
+  {
+    "name": "Add numeric market direction support",
+    "status": "completed"
+  },
+  {
+    "name": "Reduce and reorder the editorial guide",
+    "status": "completed"
+  },
+  {
+    "name": "Add regression tests and documentation",
+    "status": "completed"
+  },
+  {
+    "name": "Run focused tests and required checks",
+    "status": "completed"
+  },
+  {
+    "name": "Add the six-month end-date and winter warning",
+    "status": "completed"
+  },
+  {
+    "name": "Rewrite the guide in direct natural Finnish",
+    "status": "completed"
+  },
+  {
+    "name": "Verify the revised guidance and dates",
+    "status": "completed"
+  }
+]

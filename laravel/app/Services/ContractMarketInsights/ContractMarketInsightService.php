@@ -13,6 +13,14 @@ use Illuminate\Support\Facades\Cache;
 
 class ContractMarketInsightService
 {
+    private const FIXED_TERM_COMPARISON_PAYLOAD_SCHEMA = 'fixed-term-offered-price-comparison-v1';
+
+    private const FIXED_TERM_COMPARISON_SEGMENTS = [
+        6 => 'fixed_term_6',
+        12 => 'fixed_term_12',
+        24 => 'fixed_term_24',
+    ];
+
     public function __construct(private readonly PricingMode $pricingMode) {}
 
     public function fingerprint(): string
@@ -84,7 +92,7 @@ class ContractMarketInsightService
         $forecastDuration = $includeForecast ? ($fixedTermDuration ?? 12) : null;
 
         return Cache::remember(
-            'contract-market-insight:v12:'.md5(json_encode([
+            'contract-market-insight:v13:'.md5(json_encode([
                 $segmentKey,
                 $consumption,
                 $includeForecast,
@@ -112,6 +120,132 @@ class ContractMarketInsightService
                 ];
             }
         );
+    }
+
+    /**
+     * @return array{
+     *     date:?string,
+     *     basis:string,
+     *     scale_min:?float,
+     *     scale_max:?float,
+     *     rows:list<array{
+     *         duration_months:int,
+     *         p20:float,
+     *         median:float,
+     *         p80:float,
+     *         contract_count:int,
+     *         p20_percent:float,
+     *         median_percent:float,
+     *         p80_percent:float
+     *     }>
+     * }|array{}
+     */
+    public function fixedTermComparison(): array
+    {
+        $pricingBasis = $this->pricingMode->expectedContractPriceBasis()->value;
+
+        return Cache::remember(
+            'contract-market-insight:fixed-term-comparison:'.md5(json_encode([
+                'payload_schema' => self::FIXED_TERM_COMPARISON_PAYLOAD_SCHEMA,
+                'fingerprint' => $this->fingerprint(),
+                'pricing_basis' => $pricingBasis,
+            ])),
+            Carbon::tomorrow(),
+            function () use ($pricingBasis): array {
+                $baseQuery = fn () => ContractPriceDailyStatistic::query()
+                    ->unitStatistics()
+                    ->where('metric_key', 'energy_price')
+                    ->whereNull('consumption_kwh')
+                    ->where('pricing_basis', $pricingBasis)
+                    ->whereIn('segment_key', array_values(self::FIXED_TERM_COMPARISON_SEGMENTS))
+                    ->whereNotNull('p20_value')
+                    ->whereNotNull('median_value')
+                    ->whereNotNull('p80_value')
+                    ->where('contract_count', '>=', 10);
+
+                $commonDate = $baseQuery()
+                    ->select('stat_date')
+                    ->groupBy('stat_date')
+                    ->havingRaw('COUNT(DISTINCT segment_key) = ?', [count(self::FIXED_TERM_COMPARISON_SEGMENTS)])
+                    ->orderByDesc('stat_date')
+                    ->value('stat_date');
+
+                if ($commonDate === null) {
+                    return $this->emptyFixedTermComparison();
+                }
+
+                $statistics = $baseQuery()
+                    ->whereDate('stat_date', Carbon::parse($commonDate)->toDateString())
+                    ->get(['stat_date', 'segment_key', 'p20_value', 'median_value', 'p80_value', 'contract_count']);
+
+                if ($statistics->count() !== count(self::FIXED_TERM_COMPARISON_SEGMENTS)) {
+                    return $this->emptyFixedTermComparison();
+                }
+
+                $rows = [];
+                foreach (self::FIXED_TERM_COMPARISON_SEGMENTS as $durationMonths => $segmentKey) {
+                    $statistic = $statistics->firstWhere('segment_key', $segmentKey);
+                    if ($statistic === null) {
+                        return $this->emptyFixedTermComparison();
+                    }
+
+                    $p20 = (float) $statistic->p20_value;
+                    $median = (float) $statistic->median_value;
+                    $p80 = (float) $statistic->p80_value;
+                    $contractCount = (int) $statistic->contract_count;
+
+                    if (! is_finite($p20) || ! is_finite($median) || ! is_finite($p80)
+                        || $p20 > $median || $median > $p80 || $contractCount < 10
+                    ) {
+                        return $this->emptyFixedTermComparison();
+                    }
+
+                    $rows[] = [
+                        'duration_months' => $durationMonths,
+                        'p20' => $p20,
+                        'median' => $median,
+                        'p80' => $p80,
+                        'contract_count' => $contractCount,
+                    ];
+                }
+
+                $scaleMin = min(array_column($rows, 'p20'));
+                $scaleMax = max(array_column($rows, 'p80'));
+                if (! is_finite($scaleMin) || ! is_finite($scaleMax)) {
+                    return $this->emptyFixedTermComparison();
+                }
+                $scaleSpan = $scaleMax - $scaleMin;
+                foreach ($rows as &$row) {
+                    $row['p20_percent'] = $this->scalePercent($row['p20'], $scaleMin, $scaleSpan);
+                    $row['median_percent'] = $this->scalePercent($row['median'], $scaleMin, $scaleSpan);
+                    $row['p80_percent'] = $this->scalePercent($row['p80'], $scaleMin, $scaleSpan);
+                }
+                unset($row);
+
+                return [
+                    'date' => Carbon::parse($commonDate)->toDateString(),
+                    'basis' => $pricingBasis,
+                    'scale_min' => $scaleMin,
+                    'scale_max' => $scaleMax,
+                    'rows' => $rows,
+                ];
+            },
+        );
+    }
+
+    /** @return array{} */
+    private function emptyFixedTermComparison(): array
+    {
+        return [];
+    }
+
+    private function scalePercent(float $value, float $scaleMin, float $scaleSpan): float
+    {
+        if ($scaleSpan === 0.0) {
+            return 50.0;
+        }
+
+        return max(0.0, min(100.0, (($value - $scaleMin) / $scaleSpan) * 100.0));
     }
 
     private function statisticsConsumptionLevel(int $consumption): int
@@ -431,6 +565,11 @@ class ContractMarketInsightService
             'supporting' => $signal['detail'],
             'duration_months' => $durationMonths,
             'forecast_date' => Carbon::parse($row->forecast_date)->toDateString(),
+            'current_price_cents_per_kwh' => (float) $row->current_price_cents_per_kwh,
+            'forecast_price_cents_per_kwh' => (float) $row->forecast_price_cents_per_kwh,
+            'expected_change_cents_per_kwh' => (float) $row->expected_change_cents_per_kwh,
+            'horizon_days' => (int) $row->horizon_days,
+            'contract_count' => (int) $row->contract_count,
             'url' => '/sahkosopimus/sahkon-hintaennuste',
             'link_label' => 'Katso ennuste',
         ];

@@ -134,6 +134,13 @@ class SeoContractsList extends ContractsList
     protected ?float $cheapestTotalCost = null;
 
     /**
+     * Pricing-category facts from the complete annual-mode result set.
+     *
+     * @var array<string, mixed>|null
+     */
+    protected ?array $fixedTermMechanismSummary = null;
+
+    /**
      * Cached municipality instance for city pages.
      *
      * Keep a separate loaded flag/slug so missing municipalities are also
@@ -438,6 +445,10 @@ class SeoContractsList extends ContractsList
                     ContractPricingViewData::fromArray($contract->calculated_cost),
                 ) !== null)
                 ->values();
+        }
+
+        if ($this->isFixedTermSeoGuideTarget() && $this->currentPageNumber() === 1) {
+            $this->fixedTermMechanismSummary = $this->buildFixedTermMechanismSummary($sorted);
         }
 
         // Store cheapest total cost for SEO titles
@@ -1079,7 +1090,7 @@ class SeoContractsList extends ContractsList
     protected function getContractDurationIntroText(string $contractDuration): string
     {
         return match ($contractDuration) {
-            'FixedTerm' => 'Määräaikaisessa sähkösopimuksessa sitoudut sopimukseen sovituksi ajaksi, tyypillisesti 12, 24 tai 36 kuukaudeksi. Määräaikainen sopimus takaa kiinteän hinnan koko sopimuskauden ajan ja suojaa markkinaheilahteluilta. Vertaile ja kilpailuta määräaikaiset sähkösopimukset ja löydä edullisin vaihtoehto.',
+            'FixedTerm' => 'Määräaikainen sähkösopimus on voimassa sovitun ajan. Määräaikaisuus kertoo sopimuksen kestosta, ei aina hinnoittelutavasta: energiahinta voi olla kiinteä tai siihen voi liittyä esimerkiksi kulutusvaikutus. Vertaa kokonaiskustannusta ja tarkista hinnan muodostuminen sopimusehdoista.',
             'OpenEnded' => 'Toistaiseksi voimassa oleva sähkösopimus jatkuu ilman määräaikaa, kunnes irtisanot sen. Sopimuksen voi irtisanoa milloin tahansa 14 päivän irtisanomisajalla. Tämä sopimustyyppi tarjoaa täyden joustavuuden – voit kilpailuttaa sähkösopimuksen uudelleen aina kun haluat. Vertaile toistaiseksi voimassa olevia sopimuksia ja löydä paras.',
             default => 'Vertaile sähkösopimuksia ja löydä edullisin vaihtoehto.',
         };
@@ -1458,30 +1469,40 @@ class SeoContractsList extends ContractsList
         $this->abortIfPageIsOutOfRange($contracts);
         $seoData = $this->seoData;
 
+        $view = [
+            'contracts' => $contracts,
+            'postcodeSuggestions' => $this->postcodeSuggestions,
+            'seoData' => $seoData,
+            'pageHeading' => $this->pageHeading,
+            'seoIntroText' => $this->seoIntroText,
+            'hasSeoFilter' => $this->hasSeoFilter,
+            'energySourceStats' => $this->energySourceStats,
+            'environmentalInfo' => $this->environmentalInfo,
+            'isEnergySourcePage' => $this->energySource !== null,
+            'isPricingTypePage' => $this->pricingType !== null,
+            'isContractDurationPage' => $this->contractDuration !== null,
+            'isCityPage' => $this->city !== null,
+            'cityInfo' => $this->cityInfo,
+            'citySlug' => $this->city,
+            'municipality' => $this->city ? $this->getMunicipality($this->city) : null,
+            'localContractsData' => $this->localContractsData,
+            'basePath' => $this->basePath,
+            'showCalculatorTab' => $this->showCalculatorTab,
+            'isBusinessPage' => $this->isBusinessPage,
+            'marketInsight' => $this->marketInsight,
+            'rankedResultsHeading' => $this->rankedResultsHeading,
+        ];
+
+        if ($this->isFixedTermSeoGuideTarget() && $contracts->currentPage() === 1) {
+            $view['fixedTermComparison'] = $this->personalizedFixedTermComparison();
+            $view['fixedTermMechanismSummary'] = $this->isBillModeActive()
+                ? null
+                : $this->fixedTermMechanismSummary;
+            $view['fixedTermMarketDirection'] = $this->fixedTermMarketDirection();
+        }
+
         return [
-            'view' => [
-                'contracts' => $contracts,
-                'postcodeSuggestions' => $this->postcodeSuggestions,
-                'seoData' => $seoData,
-                'pageHeading' => $this->pageHeading,
-                'seoIntroText' => $this->seoIntroText,
-                'hasSeoFilter' => $this->hasSeoFilter,
-                'energySourceStats' => $this->energySourceStats,
-                'environmentalInfo' => $this->environmentalInfo,
-                'isEnergySourcePage' => $this->energySource !== null,
-                'isPricingTypePage' => $this->pricingType !== null,
-                'isContractDurationPage' => $this->contractDuration !== null,
-                'isCityPage' => $this->city !== null,
-                'cityInfo' => $this->cityInfo,
-                'citySlug' => $this->city,
-                'municipality' => $this->city ? $this->getMunicipality($this->city) : null,
-                'localContractsData' => $this->localContractsData,
-                'basePath' => $this->basePath,
-                'showCalculatorTab' => $this->showCalculatorTab,
-                'isBusinessPage' => $this->isBusinessPage,
-                'marketInsight' => $this->marketInsight,
-                'rankedResultsHeading' => $this->rankedResultsHeading,
-            ],
+            'view' => $view,
             'layout' => [
                 'title' => $seoData['title'],
                 'metaDescription' => $seoData['description'],
@@ -1492,6 +1513,169 @@ class SeoContractsList extends ContractsList
                     ? 'noindex,follow'
                     : null,
             ],
+        ];
+    }
+
+    private function isFixedTermSeoGuideTarget(): bool
+    {
+        return $this->contractDuration === 'FixedTerm'
+            && in_array($this->fixedTimeRange, [null, 'Fixed6', 'Fixed12', 'Fixed24'], true)
+            && $this->housingType === null
+            && $this->energySource === null
+            && $this->city === null
+            && $this->pricingType === null
+            && $this->offerType === null
+            && $this->targetGroup === null
+            && $this->consumptionLevel === null;
+    }
+
+    /**
+     * Add visitor-specific differences without changing the shared cached source.
+     *
+     * @return array<string, mixed>|array{}
+     */
+    private function personalizedFixedTermComparison(): array
+    {
+        if ($this->isBillModeActive()) {
+            return [];
+        }
+
+        $comparison = app(ContractMarketInsightService::class)->fixedTermComparison();
+        if ($comparison === []) {
+            return [];
+        }
+
+        $baselineDuration = $this->fixedDurationMonths() ?? 12;
+        $baseline = collect($comparison['rows'])->firstWhere('duration_months', $baselineDuration);
+        if (! is_array($baseline)) {
+            return [];
+        }
+
+        $consumption = $this->selectedConsumptionValue();
+        $baselineMedian = (float) $baseline['median'];
+        $comparison['baseline_duration_months'] = $baselineDuration;
+        $comparison['selected_consumption_kwh'] = $consumption;
+        $comparison['rows'] = array_map(
+            static function (array $row) use ($baselineMedian, $consumption): array {
+                $difference = (float) $row['median'] - $baselineMedian;
+                $row['difference_cents_per_kwh'] = $difference;
+                $row['annual_energy_cost_difference_eur'] = $difference * $consumption / 100;
+
+                return $row;
+            },
+            $comparison['rows'],
+        );
+
+        return $comparison;
+    }
+
+    /**
+     * @param  Collection<int, ElectricityContract>  $sorted
+     * @return array<string, mixed>|null
+     */
+    private function buildFixedTermMechanismSummary(Collection $sorted): ?array
+    {
+        if ($sorted->isEmpty()) {
+            return null;
+        }
+
+        $resolver = app(PricingCategoryResolver::class);
+        $categories = [
+            PricingCategory::Fixed->value => [
+                'category' => PricingCategory::Fixed->value,
+                'label' => PricingCategory::Fixed->label(),
+                'count' => 0,
+                'lowest_annual_comparison_eur' => null,
+                'monthly_equivalent_eur' => null,
+            ],
+            PricingCategory::ConsumptionEffect->value => [
+                'category' => PricingCategory::ConsumptionEffect->value,
+                'label' => PricingCategory::ConsumptionEffect->label(),
+                'count' => 0,
+                'lowest_annual_comparison_eur' => null,
+                'monthly_equivalent_eur' => null,
+            ],
+            PricingCategory::Market->value => [
+                'category' => PricingCategory::Market->value,
+                'label' => PricingCategory::Market->label(),
+                'count' => 0,
+                'lowest_annual_comparison_eur' => null,
+                'monthly_equivalent_eur' => null,
+            ],
+        ];
+
+        foreach ($sorted as $contract) {
+            $category = $resolver->resolve($contract)->category;
+            $categories[$category->value]['count']++;
+
+            if (! is_array($contract->calculated_cost)) {
+                continue;
+            }
+
+            try {
+                $pricing = ContractPricingViewData::fromArray($contract->calculated_cost);
+            } catch (\InvalidArgumentException) {
+                continue;
+            }
+
+            $total = $pricing->total();
+            if ($total === null || ! is_finite($total)
+                || ($categories[$category->value]['lowest_annual_comparison_eur'] !== null
+                    && $total >= $categories[$category->value]['lowest_annual_comparison_eur'])
+            ) {
+                continue;
+            }
+
+            $monthly = $pricing->averageMonthlyCost();
+            $categories[$category->value]['lowest_annual_comparison_eur'] = $total;
+            $categories[$category->value]['monthly_equivalent_eur'] =
+                $monthly !== null && is_finite($monthly) ? $monthly : null;
+        }
+
+        $cheapestCategory = $resolver->resolve($sorted->first())->category;
+
+        return [
+            'selected_consumption_kwh' => $this->selectedConsumptionValue(),
+            'cheapest_category' => $cheapestCategory->value,
+            'cheapest_category_label' => $cheapestCategory->label(),
+            'groups' => array_values($categories),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|array{}
+     */
+    private function fixedTermMarketDirection(): array
+    {
+        if ($this->isBillModeActive()) {
+            return [];
+        }
+
+        $duration = $this->fixedDurationMonths() ?? 12;
+        $consumption = $this->selectedConsumptionValue();
+        $insight = app(ContractMarketInsightService::class)->insight(
+            "fixed_term_{$duration}",
+            $consumption,
+            true,
+            $duration,
+        );
+        $trend = $insight['trend'];
+        $forecast = $insight['forecast'];
+
+        if ($trend === null && $forecast === null) {
+            return [];
+        }
+
+        if ($forecast !== null) {
+            $forecast['annual_energy_rate_change_eur'] =
+                (float) $forecast['expected_change_cents_per_kwh'] * $consumption / 100;
+        }
+
+        return [
+            'duration_months' => $duration,
+            'selected_consumption_kwh' => $consumption,
+            'trend' => $trend,
+            'forecast' => $forecast,
         ];
     }
 
@@ -1517,7 +1701,7 @@ class SeoContractsList extends ContractsList
 
     protected function seoContractsViewDataCacheKey(): string
     {
-        return 'seo-contracts-list:view-data:v7:'.md5(json_encode([
+        return 'seo-contracts-list:view-data:v9:'.md5(json_encode([
             'class' => static::class,
             'base_path' => $this->basePath,
             'housing_type' => $this->housingType,

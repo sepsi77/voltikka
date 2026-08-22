@@ -1,0 +1,22 @@
+# Decisions
+
+- Keep the hero, controls, and contract cards before the guide.
+- Render the guide as server HTML after page 1 results and before `Katso myös`.
+- Limit the guide to the general fixed-term page and the exact 6-, 12-, and 24-month pages.
+- Keep `ContractMarketInsightService::fixedTermComparison()` as the raw cached source. It uses the newest common date and basis where all three fully fixed duration segments have complete p20, median, and p80 values and at least 10 contracts.
+- The shared statistics classifier puts Hybrid and market-reset products outside the fixed-term duration segments. The UI states that the duration medians cover fully fixed offers.
+- Add visitor-specific duration differences only in `SeoContractsList`. The exact page duration is the baseline. The general page uses 12 months. Convert a c/kWh difference to annual euros with `difference * selected kWh / 100`.
+- Keep p20–p80 as secondary context. Duration and forecast euro values exclude monthly fees.
+- Build the pricing-mechanism summary from the complete annual sorted collection before pagination. Use only `PricingCategoryResolver` categories and typed `ContractPricingViewData` totals. A consumption-effect minimum is a base-price comparison without the unknown effect.
+- Use the first globally sorted contract for the direct cheapest-category statement.
+- Use the matching duration for market direction, or 12 months on the general page. Keep trend and forecast dates separate. Translate only the stored forecast c/kWh movement to euros. This is not a promised saving or a full bill forecast.
+- Suppress all personalized guide payloads in bill mode. Do not show the guide on page 2.
+- Keep one short duration note, one shared checklist, and exactly three visible FAQs per variant.
+- Keep the 6-month annualization warning and the 24-month 12-month-estimate versus 24-month-commitment warning.
+- Keep early-exit and moving language conditional on contract terms and applicable rules.
+- Use flat borders and rows. Do not add JavaScript, gradients, icon grids, side stripes, or heavy shadows.
+- Final checks passed: Pint passed 3 files; fixed-duration tests passed 16 tests and 251 assertions; forecast tests passed 10 tests and 78 assertions; statistics-basis tests passed 7 tests and 46 assertions; Vite built 60 modules; the Impeccable detector returned no findings; `git diff --check` passed.
+- The exact 6-month guide calculates its illustrative end date from Helsinki time with `addMonthsNoOverflow(6)`. November through March are winter end months. Winter dates get a direct renewal-price warning; all dates recommend comparing again 1–2 months before expiry and state that the order confirmation start date controls the actual end date. The block does not render on the general, 12-month, or 24-month guides.
+- Public guide copy uses `hinnoittelutapa`, direct selection rules, and only four material estimate limits: the 6-month card's 12-month comparison figure, the 24-month commitment beyond its 12-month card estimate, the excluded consumption effect, and the energy-price-only forecast. The forecast recommendation follows its existing `tone`.
+- Public labels avoid internal terms such as p20/p80, calculation basis, and pagination. They say what the comparison contains in familiar Finnish.
+- Revised checks passed: Pint passed; fixed-duration tests passed 20 tests and 316 assertions; Vite built 60 modules; the Impeccable detector returned no findings; `git diff --check` passed.

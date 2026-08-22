@@ -442,7 +442,7 @@ unknown values instead of dropping the component.
 | `/sahkosopimus/sahkotarjous` | Promotions/offers |
 | `/sahkosopimus/yritykselle` | Business contracts |
 
-All SEO listing pages use `SeoContractsList` component. Location pages must match a real `municipalities.slug`; unknown `/sahkosopimus/paikkakunnat/{location}` slugs return 404 instead of rendering fabricated city pages. See "Creating SEO Contract Listing Pages" section for how to add new ones.
+All SEO listing pages use `SeoContractsList`. The general and exact 6-, 12-, and 24-month fixed-term pages keep contract cards first. On page 1, a server-rendered guide follows the results and helps the visitor choose a duration and pricing mechanism. It compares fully fixed 6-, 12-, and 24-month medians on one common date, shows the energy-price and annual euro difference from the page baseline, summarizes all listed contracts by the shared pricing categories, and translates the matching eligible forecast to euros at the selected consumption. The p20–p80 range stays secondary. Monthly fees stay outside duration and forecast euro changes. Bill mode and page 2 do not show personalized guide data. Location pages must match a real `municipalities.slug`; unknown `/sahkosopimus/paikkakunnat/{location}` slugs return 404 instead of rendering fabricated city pages. See "Creating SEO Contract Listing Pages" for how to add new ones.
 
 ## External APIs
 

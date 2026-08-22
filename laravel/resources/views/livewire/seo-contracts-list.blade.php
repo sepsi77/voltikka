@@ -334,6 +334,10 @@
         </div>
     @endif
 
+    @isset($fixedTermComparison)
+        @include('partials.fixed-term-seo-guide')
+    @endisset
+
     {{-- Internal Links Section (for SEO) --}}
     @if($hasSeoFilter)
     <section class="mt-12 bg-white rounded-2xl shadow-sm border border-slate-100 p-8">
