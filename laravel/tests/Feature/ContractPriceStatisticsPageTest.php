@@ -624,6 +624,56 @@ class ContractPriceStatisticsPageTest extends TestCase
         $this->assertNotSame($canonicalKey, $asOfKey);
     }
 
+    public function test_daily_stats_hydrates_only_the_selected_annual_consumption_and_keeps_unit_rows(): void
+    {
+        $unitEnergy = ContractPriceDailyStatistic::create([
+            ...$this->statisticValues('2026-08-25', 'spot', 'energy_price', 8.0, 20),
+            'method_version' => ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION,
+            'consumption_kwh' => null,
+        ]);
+        $unitFee = ContractPriceDailyStatistic::create([
+            ...$this->statisticValues('2026-08-25', 'spot', 'monthly_fee', 4.0, 20),
+            'method_version' => ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION,
+            'consumption_kwh' => null,
+        ]);
+        $selectedAnnual = ContractPriceDailyStatistic::create([
+            ...$this->statisticValues('2026-08-25', 'spot', 'annual_cost', 700.0, 20),
+            'method_version' => AnnualCostMethodVersion::Legacy->value,
+            'consumption_kwh' => 5000,
+        ]);
+        $otherConsumptionAnnual = ContractPriceDailyStatistic::create([
+            ...$this->statisticValues('2026-08-25', 'spot', 'annual_cost', 350.0, 20),
+            'method_version' => AnnualCostMethodVersion::Legacy->value,
+            'consumption_kwh' => 2000,
+        ]);
+        $inactiveMethodAnnual = ContractPriceDailyStatistic::create([
+            ...$this->statisticValues('2026-08-25', 'spot', 'annual_cost', 710.0, 20),
+            'method_version' => AnnualCostMethodVersion::AsOf->value,
+            'consumption_kwh' => 5000,
+        ]);
+
+        $component = app(ContractPriceStatistics::class);
+        $component->consumption = 5000;
+        $loaded = $component->getDailyStatsProperty();
+
+        $this->assertEqualsCanonicalizing(
+            [$unitEnergy->metric_key, $unitFee->metric_key],
+            $loaded
+                ->where('method_version', ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION)
+                ->pluck('metric_key')
+                ->all(),
+        );
+        $this->assertSame(
+            [$selectedAnnual->consumption_kwh],
+            $loaded
+                ->where('method_version', AnnualCostMethodVersion::Legacy->value)
+                ->pluck('consumption_kwh')
+                ->all(),
+        );
+        $this->assertNotContains($otherConsumptionAnnual->consumption_kwh, $loaded->pluck('consumption_kwh'));
+        $this->assertNotContains($inactiveMethodAnnual->method_version, $loaded->pluck('method_version'));
+    }
+
     public function test_active_as_of_annual_row_can_use_mixed_evidence_on_latest_unit_date(): void
     {
         $this->seedSampleStatistics();

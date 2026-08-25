@@ -13,6 +13,7 @@ use App\Services\ContractStatistics\ContractStatisticsSegmentClassifier;
 use App\Services\ContractStatistics\SellerSetEnergyPriceIndexService;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Url;
@@ -170,6 +171,13 @@ class ContractPriceStatistics extends Component
 
         $rows = ContractPriceDailyStatistic::query()
             ->activeMetricMethods()
+            ->where(function (Builder $metrics): void {
+                $metrics->unitStatistics()
+                    ->orWhere(function (Builder $annual): void {
+                        $annual->where('metric_key', 'annual_cost')
+                            ->where('consumption_kwh', $this->consumption);
+                    });
+            })
             ->select([
                 'stat_date',
                 'segment_key',

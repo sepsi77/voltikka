@@ -68,14 +68,23 @@ class AnalyzeHistoricalContractEpisodeTest extends TestCase
         }
 
         $this->assertIsString($supervisorConfig);
-        $this->assertSame(1, preg_match('/\[program:queue-worker\]\Rcommand=.*\bqueue:work\b.*--timeout=(\d+)\b/', $supervisorConfig, $matches));
-        $workerTimeout = (int) $matches[1];
+        $this->assertSame(1, preg_match('/\[program:queue-worker\]\Rcommand=(?<command>[^\r\n]+)/', $supervisorConfig, $matches));
+        $workerCommand = $matches['command'];
+        $this->assertSame(
+            'php /app/artisan queue:work --queue=default,historical-interpretation --timeout=1020 --tries=3 --max-time=3600',
+            $workerCommand,
+        );
+        $this->assertSame(1, preg_match('/--timeout=(\d+)\b/', $workerCommand, $timeoutMatches));
+        $this->assertSame(1, preg_match('/--max-time=(\d+)\b/', $workerCommand, $maxTimeMatches));
+        $workerTimeout = (int) $timeoutMatches[1];
+        $workerMaxTime = (int) $maxTimeMatches[1];
 
         $this->assertSame(3, $modelCalls);
         $this->assertSame(300, $httpTimeout);
         $this->assertSame(1, config('contract_interpretation.historical.http_attempts'));
         $this->assertSame(1000, $job->timeout);
         $this->assertSame(1020, $workerTimeout);
+        $this->assertSame(3600, $workerMaxTime);
         $this->assertSame(1050, $retryAfter);
         $this->assertSame(1050, $queueConfigWithStaleOverride['connections']['database']['retry_after']);
         $this->assertLessThan($job->timeout, $modelCalls * $httpTimeout);
