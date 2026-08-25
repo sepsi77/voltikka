@@ -58,6 +58,7 @@ class AnalyticsEventTest extends TestCase
         $this->assertSame('summer', $click->session_campaign);
         $this->assertSame('/sahkosopimus', $click->landing_path);
         $this->assertSame('/sahkosopimus/sopimus/contract-123', $click->page_path);
+        $this->assertSame('UTC', $click->occurred_at->timezoneName);
         $this->assertTrue($click->occurred_at->equalTo(CarbonImmutable::now('UTC')));
     }
 

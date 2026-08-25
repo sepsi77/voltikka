@@ -89,7 +89,7 @@ ContractDetail has two direct seller CTAs. Both send the closed `contract_order_
 
 The typed event rows have indefinite retention at the initial release. There is no cleanup job. The private Filament panel is at `/admin`; `users.is_admin` defaults to false, and non-admin credentials cannot enter. The analytics resource is read-only and paginated. Its administrator-only CSV header action streams all stored click rows and every database column through a private, non-cacheable Filament route. Production admin provisioning is an explicit data mutation and never runs as part of deployment.
 
-The installed compatible dependency set is Filament 5.7.5 and Livewire 4.3.5 on Laravel 11. Composer publishes Filament assets during the Docker build through `filament:upgrade`. Generated Filament public assets are not tracked source files.
+The installed compatible dependency set is Filament 5.7.6 and Livewire 4.4.2 on Laravel 11. Composer publishes Filament assets during the Docker build through `filament:upgrade`. Generated Filament public assets are not tracked source files.
 
 ## Public contract API
 

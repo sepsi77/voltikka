@@ -9,6 +9,7 @@ Stores one durable first-party event for an accepted contract-detail seller CTA 
 Important semantics:
 
 - `event_uuid` is unique and makes Beacon or fetch retries idempotent
+- `occurred_at` stores UTC wall time for all existing and new rows; `ContractOrderClick` must hydrate it explicitly as an immutable UTC value and must normalize assigned date values to a UTC database string
 - contract and company fields are event-time snapshots; `contract_id` has no cascading foreign key
 - annual price, price rank, rank total, rank consumption, and pricing basis are nullable and stay null when unavailable
 - the table uses typed columns and indexes for time, company, contract identity/name, source, medium, campaign, and CTA location

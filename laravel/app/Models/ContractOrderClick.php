@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
+use DateTimeInterface;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -32,11 +35,20 @@ class ContractOrderClick extends Model
         'page_path',
     ];
 
+    protected function occurredAt(): Attribute
+    {
+        return Attribute::make(
+            get: fn (string $value): CarbonImmutable => CarbonImmutable::parse($value, 'UTC'),
+            set: fn (DateTimeInterface|string $value): string => CarbonImmutable::parse($value, 'UTC')
+                ->utc()
+                ->format($this->getDateFormat()),
+        );
+    }
+
     /** @return array<string, string> */
     protected function casts(): array
     {
         return [
-            'occurred_at' => 'immutable_datetime',
             'annual_price_eur' => 'decimal:2',
             'consumption_kwh' => 'integer',
             'price_rank' => 'integer',

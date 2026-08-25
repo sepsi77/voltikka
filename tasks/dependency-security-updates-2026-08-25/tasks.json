@@ -1,0 +1,7 @@
+[
+  {"name":"Update Composer dependencies within current constraints","status":"completed"},
+  {"name":"Run Composer security audit","status":"completed"},
+  {"name":"Run application tests and build","status":"completed"},
+  {"name":"Record unresolved major-version advisories","status":"completed"},
+  {"name":"Fix explicit UTC hydration for contract-order-click analytics","status":"completed"}
+]

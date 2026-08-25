@@ -51,6 +51,8 @@ Both seller CTAs call `window.voltikkaAnalytics.trackContractOrderClick()` for p
 
 `ContractOrderClickHandler` accepts only `hero` and `sticky`. It normalizes attribution text to lower case, removes control characters, applies database length limits, and strips query and fragment text from paths. It inserts synchronously with `event_uuid` as the idempotency key. It uses `createOrFirst()` so only a duplicate UUID is treated as success; other database errors must remain visible.
 
+`occurred_at` stores UTC wall time. Existing rows and new handler writes use this rule. `ContractOrderClick` has an explicit UTC accessor because the generic Eloquent datetime cast can hydrate a database string in the application timezone. The accessor returns an immutable UTC Carbon value and writes assigned date values as UTC database strings. Do not change new writes to Helsinki time.
+
 `contract_order_clicks` has typed columns and reporting indexes. It has no generic properties JSON. Durable rows have indefinite retention at the initial release. There is no cleanup command, job, or schedule. A later finite-retention decision must include an explicit migration or cleanup design and updated privacy text.
 
 Do not log event request payloads. Do not add raw IP addresses, user agents, full referrers, query strings, visitor IDs, or session IDs to this table.
