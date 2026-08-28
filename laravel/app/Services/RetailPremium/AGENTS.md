@@ -5,7 +5,7 @@ This directory owns the private per-contract retail premium dataset. It has no p
 Primary files:
 - `RetailPremiumObservationService.php` builds current versioned observations.
 - `RetailPremiumHistoryBackfillService.php` reconstructs historical semantic price periods from daily relational `price_components` evidence when inactive ancestors have no interpretation snapshots.
-- `VintageAwareReferencePriceService.php` looks up month, quarter, year, and pure/mixed term-strip candidates at a no-same-day-leakage vintage.
+- `VintageAwareReferencePriceService.php` looks up month, quarter, year, and pure/mixed term-strip candidates at a no-same-day-leakage vintage. Its normal reset-period and delivery-month methods resolve the strict prior vintage once, then delegate to public exact-vintage helpers. Shared live-pricing providers can pass an already-resolved trade date and requested kinds, so they do not repeat vintage resolution or calculate an unused quarter-month average.
 - `RetailPremiumCrossCheckService.php` compares fixed-term per-lineage results with stored market-level EWMA forecast premiums.
 - `RetailPremiumCalibrationService.php` measures market-reset pass-through (`beta`) and premium stability from the stored dataset for the read-only `retail-premiums:calibrate` report.
 - `../../Models/RetailPremiumObservation.php` stores one row per semantic price period and candidate wholesale reference.
@@ -59,6 +59,7 @@ Use **retail premium** or **spread over wholesale**. Never call this value profi
 - `ElectricityContract::getReplacementLineageIds()` and `getLineagePriceComponents()` collect the replacement ancestor set and then order raw prices by `price_date`.
 - Do not refactor `PriceForecasting/FixedTermHedgeCostService`. Fixed-term observations must call its existing vintage-aware `calculate()` method.
 - New single-period futures lookup code belongs beside this service, not inside `FixedTermHedgeCostService`.
+- Keep the exact-vintage helper boundary for shared market-data callers. Full retail-premium `forResetPeriod()` calls must still return every existing candidate, including `quarter_month_average`, but a narrowed exact-vintage call must query only its requested kinds.
 - Treat `contract_price_daily_statistics` as read-only.
 - Do not change `app/Services/CanonicalPricing/` from this feature.
 

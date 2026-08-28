@@ -121,6 +121,17 @@ class MarketResetEstimateSurfacesTest extends TestCase
         $this->assertSame('c1r0', $nextMode->cacheMarker());
     }
 
+    public function test_market_reference_curve_provider_is_shared_only_inside_one_scope(): void
+    {
+        $provider = app(MarketReferenceCurveProvider::class);
+
+        $this->assertSame($provider, app(MarketReferenceCurveProvider::class));
+
+        app()->forgetScopedInstances();
+
+        $this->assertNotSame($provider, app(MarketReferenceCurveProvider::class));
+    }
+
     public function test_direct_service_rejects_a_mode_that_disagrees_with_its_estimator(): void
     {
         $this->beginPricingMode([

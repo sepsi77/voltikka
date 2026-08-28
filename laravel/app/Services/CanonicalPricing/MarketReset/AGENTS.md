@@ -97,8 +97,10 @@ the window looked fully covered. Do not "simplify" this by trusting `ends: none`
   `quarter_month_average` (the day-weighted average of that quarter's three month contracts).
   `other` also uses the Q3-to-Q4 calendar boundary, for example, because no exact boundary exists.
 
-`VintageAwareReferencePriceService::forResetPeriod()` supplies both candidates. Do not write a second
-lookup for them.
+`VintageAwareReferencePriceService::forResetPeriod()` supplies both candidates to full retail-premium
+callers. The shared market provider uses `forResetPeriodAtTradeDate()` with its already-resolved
+vintage and only the requested candidate kinds. Thus a monthly reference does not calculate the
+quarter-month average. Do not write a second lookup for these candidates.
 
 **Which quarterly candidate resolves does not matter numerically, and this is verified.** On FI Base
 production data, across **96** trade-date/maturity pairs where both exist, the quarter settlement and
@@ -195,7 +197,13 @@ here; see the calibration section in `../AGENTS.md`.
   settings arrive as `DTO/ResetEstimatorSettings`, market data through the provider seam.
 - `MarketReferenceCurveProvider.php` — the market-data seam.
 - `EexMarketReferenceCurveProvider.php` — FI EEX curve, realized-spot seasonal index, fixed-term
-  median. Memoizes one curve per vintage; a listing rebuild otherwise costs hundreds of queries.
+  median. One ordered/distinct scalar query loads all available FI Base trade dates for the scoped
+  provider lifetime. Strict `latest trade_date < as-of date` resolution then happens in memory,
+  including memoized null misses. It also memoizes one curve per vintage. Exact-vintage reads use an
+  index-friendly half-open `trade_date` range, so SQLite date strings and datetimes both work while
+  MySQL keeps direct DATE/index comparisons. This request/command/job-scoped shared market-data state
+  prevents many supplier episode starts from issuing repeated `MAX(trade_date)` queries during a
+  listing rebuild, then resets at the next Octane or queue lifecycle boundary.
 - `ResetEstimateCopy.php` — Finnish public copy, generated **only** from typed fields. No
   interpretation `summary` string ever reaches a user. Three surfaces: `cardEquivalent()` and
   `cardTooltip()` on a listing card, and `receiptNote()` on the contract detail page.
@@ -215,10 +223,12 @@ here; see the calibration section in `../AGENTS.md`.
 Caller: `../CanonicalContractPriceCalculator.php` (`resolveResetEstimate`, `resetTailStart`,
 `resetPeriodStart`, `segmentMonthWeights`, `heldForwardMonthWeights`, `weightedEnergyPrice`).
 
-Bindings: `app/Providers/AppServiceProvider.php`. The curve provider is a **singleton** for shared
-memoization. `PricingMode`, reset settings, the estimator, and the calculator are scoped to one
-request or command, so they use one immutable flag snapshot. `CanonicalContractPricingService`
-remains transient because `withSpotAssumptions()` stores caller-specific state.
+Bindings: `app/Providers/AppServiceProvider.php`. The curve provider is **scoped**: one instance
+shares memoization across a request, command, or job, and Laravel flushes it for the next Octane or
+queue lifecycle boundary so its available-date list cannot stay stale. `PricingMode`, reset settings,
+the estimator, and the calculator use the same scoped lifetime and one immutable flag snapshot.
+`CanonicalContractPricingService` remains transient because `withSpotAssumptions()` stores
+caller-specific state.
 
 ## Flag and rollout
 

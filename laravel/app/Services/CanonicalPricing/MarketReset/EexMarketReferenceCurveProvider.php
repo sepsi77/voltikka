@@ -15,20 +15,22 @@ use Carbon\CarbonImmutable;
  *
  * Important properties, do not change casually:
  *
- * - **Vintage per lookup.** Every read resolves `latestTradeDateBefore($asOfDate)` and loads and
- *   memoizes that whole trade date's curve. The caller decides the anchor: today for the forward
- *   months `F_m`, the current period's start for `F_reference`. The reference therefore uses the
- *   same pricing-vintage rule as `RetailPremium`, and for the same reason — it measures the
- *   seller's spread at the moment they priced.
- * - **One query per vintage, not per month.** A listing rebuild costs 32 reset contracts x 12
- *   months of lookups; without the memoized curve that is hundreds of queries per page build.
- * - The reference-period lookup delegates to `VintageAwareReferencePriceService::forResetPeriod()`
+ * - **Vintage per lookup.** One ordered scalar query loads the available FI Base trade dates for
+ *   this provider lifetime. Every lookup then resolves the latest date strictly before its own
+ *   `$asOfDate` in memory. The caller decides the anchor: today for the forward months `F_m`, the
+ *   current period's start for `F_reference`.
+ * - **One curve query per vintage, not per month.** A listing rebuild costs 32 reset contracts x
+ *   12 months of lookups; without the memoized curve that is hundreds of queries per page build.
+ * - The reference-period lookup delegates to the retail-premium service's exact-vintage boundary,
  *   so the `quarter` / `quarter_month_average` candidate logic lives in exactly one place.
  * - The month -> quarter -> year ladder mirrors `FixedTermHedgeCostService`, which must not be
  *   refactored: it runs on the production 07:30 schedule and feeds immutable stored forecasts.
  */
 class EexMarketReferenceCurveProvider implements MarketReferenceCurveProvider
 {
+    /** @var list<string>|null */
+    private ?array $availableTradeDatesMemo = null;
+
     /** @var array<string, CarbonImmutable|null> */
     private array $tradeDateMemo = [];
 
@@ -46,14 +48,25 @@ class EexMarketReferenceCurveProvider implements MarketReferenceCurveProvider
     public function __construct(
         private readonly FixedTermHedgeCostService $hedgeCostService,
         private readonly VintageAwareReferencePriceService $referencePriceService,
-    ) {
-    }
+    ) {}
 
     public function tradeDate(CarbonImmutable $asOfDate): ?CarbonImmutable
     {
         $key = $asOfDate->toDateString();
 
-        return $this->tradeDateMemo[$key] ??= $this->hedgeCostService->latestTradeDateBefore($asOfDate);
+        if (array_key_exists($key, $this->tradeDateMemo)) {
+            return $this->tradeDateMemo[$key];
+        }
+
+        $availableTradeDates = $this->availableTradeDates();
+
+        for ($index = count($availableTradeDates) - 1; $index >= 0; $index--) {
+            if ($availableTradeDates[$index] < $key) {
+                return $this->tradeDateMemo[$key] = CarbonImmutable::parse($availableTradeDates[$index])->startOfDay();
+            }
+        }
+
+        return $this->tradeDateMemo[$key] = null;
     }
 
     public function referencePrice(CarbonImmutable $asOfDate, CarbonImmutable $anchorMonth, array $kindPreference): ?array
@@ -64,7 +77,17 @@ class EexMarketReferenceCurveProvider implements MarketReferenceCurveProvider
             return $this->referenceMemo[$key];
         }
 
-        $candidates = $this->referencePriceService->forResetPeriod($asOfDate, $anchorMonth);
+        $tradeDate = $this->tradeDate($asOfDate);
+
+        if ($tradeDate === null) {
+            return $this->referenceMemo[$key] = null;
+        }
+
+        $candidates = $this->referencePriceService->forResetPeriodAtTradeDate(
+            $tradeDate,
+            $anchorMonth,
+            $kindPreference,
+        );
         $resolved = null;
 
         foreach ($kindPreference as $kind) {
@@ -206,17 +229,33 @@ class EexMarketReferenceCurveProvider implements MarketReferenceCurveProvider
         return $this->fixedTermMedianMemo = is_numeric($value) ? (float) $value : null;
     }
 
+    /** @return list<string> */
+    private function availableTradeDates(): array
+    {
+        return $this->availableTradeDatesMemo ??= ElectricityFuturesEodPrice::query()
+            ->where('area', config('price_forecasting.fixed_term.area', 'FI'))
+            ->where('product', 'Base')
+            ->select('trade_date')
+            ->distinct()
+            ->orderBy('trade_date')
+            ->pluck('trade_date')
+            ->map(fn ($tradeDate) => CarbonImmutable::parse($tradeDate)->toDateString())
+            ->all();
+    }
+
     /**
      * @return array<string, float> `maturity_type|maturity` => settlement price (EUR/MWh)
      */
     private function curve(CarbonImmutable $tradeDate): array
     {
         $key = $tradeDate->toDateString();
+        $nextDate = $tradeDate->addDay()->toDateString();
 
         return $this->curveMemo[$key] ??= ElectricityFuturesEodPrice::query()
             ->where('area', config('price_forecasting.fixed_term.area', 'FI'))
             ->where('product', 'Base')
-            ->whereDate('trade_date', $key)
+            ->where('trade_date', '>=', $key)
+            ->where('trade_date', '<', $nextDate)
             ->whereIn('maturity_type', ['month', 'quarter', 'year'])
             ->get(['maturity_type', 'maturity', 'settlement_price'])
             ->mapWithKeys(fn (ElectricityFuturesEodPrice $price) => [

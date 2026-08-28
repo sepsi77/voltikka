@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\ElectricityFuturesEodPrice;
 use App\Services\RetailPremium\VintageAwareReferencePriceService;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class VintageAwareReferencePriceServiceTest extends TestCase
@@ -31,6 +33,48 @@ class VintageAwareReferencePriceServiceTest extends TestCase
         $this->assertEqualsWithDelta(5.02, $references['month']['price_cents_per_kwh_including_vat'], 0.0001);
         $this->assertEqualsWithDelta(5.0, $references['quarter']['price_cents_per_kwh_excluding_vat'], 0.0001);
         $this->assertEqualsWithDelta(6.0, $references['year']['price_cents_per_kwh_excluding_vat'], 0.0001);
+    }
+
+    public function test_exact_vintage_lookup_uses_the_given_trade_date_without_resolving_again(): void
+    {
+        $this->future('month', '202607', '2026-06-30', 40.0);
+        $this->future('month', '202607', '2026-07-24', 99.0);
+
+        $queries = [];
+        DB::listen(function (QueryExecuted $query) use (&$queries): void {
+            $queries[] = $query;
+        });
+
+        $references = app(VintageAwareReferencePriceService::class)->forResetPeriodAtTradeDate(
+            CarbonImmutable::parse('2026-06-30'),
+            CarbonImmutable::parse('2026-07-01'),
+            ['month'],
+        );
+
+        $this->assertSame('2026-06-30', $references['month']['trade_date']);
+        $this->assertEqualsWithDelta(4.0, $references['month']['price_cents_per_kwh_excluding_vat'], 0.0001);
+        $this->assertCount(0, $this->latestTradeDateQueries($queries));
+    }
+
+    public function test_reset_period_lookup_resolves_the_vintage_once(): void
+    {
+        $this->future('month', '202607', '2026-06-30', 40.0);
+        $this->future('month', '202608', '2026-06-30', 50.0);
+        $this->future('month', '202609', '2026-06-30', 60.0);
+        $this->future('quarter', '202607', '2026-06-30', 50.0);
+
+        $queries = [];
+        DB::listen(function (QueryExecuted $query) use (&$queries): void {
+            $queries[] = $query;
+        });
+
+        $references = app(VintageAwareReferencePriceService::class)->forResetPeriod(
+            CarbonImmutable::parse('2026-07-01'),
+            CarbonImmutable::parse('2026-07-01'),
+        );
+
+        $this->assertSame(['month', 'quarter', 'quarter_month_average'], $references->keys()->all());
+        $this->assertCount(1, $this->latestTradeDateQueries($queries));
     }
 
     public function test_reset_period_lookup_returns_the_published_quarter_before_delivery_starts(): void
@@ -111,6 +155,21 @@ class VintageAwareReferencePriceServiceTest extends TestCase
             'price_cents_per_kwh_including_vat' => null,
             'price_cents_per_kwh_excluding_vat' => null,
         ], 'included'));
+    }
+
+    /**
+     * @param  list<QueryExecuted>  $queries
+     * @return list<QueryExecuted>
+     */
+    private function latestTradeDateQueries(array $queries): array
+    {
+        return array_values(array_filter($queries, function (QueryExecuted $query): bool {
+            $sql = strtolower($query->sql);
+
+            return str_contains($sql, 'electricity_futures_eod_prices')
+                && str_contains($sql, 'max(')
+                && str_contains($sql, 'trade_date');
+        }));
     }
 
     private function future(string $maturityType, string $maturity, string $tradeDate, float $settlementPrice): void

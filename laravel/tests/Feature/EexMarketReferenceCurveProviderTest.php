@@ -7,7 +7,9 @@ use App\Models\ElectricityFuturesEodPrice;
 use App\Models\SpotPriceAverage;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -23,6 +25,106 @@ class EexMarketReferenceCurveProviderTest extends TestCase
     {
         parent::setUp();
         config()->set('price_forecasting.fixed_term.vat_multiplier', 1.255);
+    }
+
+    public function test_many_as_of_dates_use_one_available_trade_date_query_and_keep_strict_vintages(): void
+    {
+        $this->future('month', '202607', '2026-06-29', 31.0);
+        $this->future('month', '202607', '2026-06-30', 32.0);
+        $this->future('month', '202607', '2026-07-24', 24.0);
+
+        $queries = [];
+        DB::listen(function (QueryExecuted $query) use (&$queries): void {
+            $queries[] = $query;
+        });
+
+        $provider = app(MarketReferenceCurveProvider::class);
+        $anchor = CarbonImmutable::parse('2026-07-01');
+        $references = [];
+
+        for ($offset = 0; $offset < 40; $offset++) {
+            $asOf = CarbonImmutable::parse('2026-06-25')->addDays($offset);
+            $references[$asOf->toDateString()] = $provider->referencePrice($asOf, $anchor, ['month']);
+        }
+
+        $this->assertSame('2026-06-29', $references['2026-06-30']['trade_date']);
+        $this->assertSame('2026-06-30', $references['2026-07-01']['trade_date']);
+        $this->assertCount(1, $this->availableTradeDateQueries($queries));
+        $this->assertCount(0, $this->latestTradeDateQueries($queries));
+    }
+
+    public function test_repeated_no_curve_lookups_do_not_requery_available_trade_dates(): void
+    {
+        $queries = [];
+        DB::listen(function (QueryExecuted $query) use (&$queries): void {
+            $queries[] = $query;
+        });
+
+        $provider = app(MarketReferenceCurveProvider::class);
+        $asOf = CarbonImmutable::parse('2026-07-25');
+        $anchor = CarbonImmutable::parse('2026-07-01');
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->assertNull($provider->tradeDate($asOf));
+            $this->assertNull($provider->referencePrice($asOf, $anchor, ['month']));
+            $this->assertNull($provider->forwardPriceForMonth($asOf, $anchor));
+        }
+
+        $this->assertCount(1, $this->availableTradeDateQueries($queries));
+        $this->assertCount(1, $this->futuresSelectQueries($queries));
+    }
+
+    public function test_plain_sqlite_trade_date_is_available_to_reference_and_curve_lookups(): void
+    {
+        $this->future('month', '202607', '2026-06-30', 40.0);
+
+        DB::table('electricity_futures_eod_prices')
+            ->where('maturity_type', 'month')
+            ->where('maturity', '202607')
+            ->update(['trade_date' => '2026-06-30']);
+
+        $this->assertSame(
+            '2026-06-30',
+            DB::table('electricity_futures_eod_prices')->value('trade_date'),
+        );
+
+        $provider = app(MarketReferenceCurveProvider::class);
+        $asOf = CarbonImmutable::parse('2026-07-01');
+        $delivery = CarbonImmutable::parse('2026-07-01');
+
+        $reference = $provider->referencePrice($asOf, $delivery, ['month']);
+        $forward = $provider->forwardPriceForMonth($asOf, $delivery);
+
+        $this->assertSame('2026-06-30', $reference['trade_date']);
+        $this->assertEqualsWithDelta(5.02, $reference['price_cents_per_kwh'], 0.0001);
+        $this->assertEqualsWithDelta(5.02, $forward['price_cents_per_kwh'], 0.0001);
+    }
+
+    public function test_month_only_reference_does_not_query_the_derived_quarter_months(): void
+    {
+        $this->future('month', '202607', '2026-06-30', 40.0);
+        $this->future('month', '202608', '2026-06-30', 50.0);
+        $this->future('month', '202609', '2026-06-30', 60.0);
+
+        $queries = [];
+        DB::listen(function (QueryExecuted $query) use (&$queries): void {
+            $queries[] = $query;
+        });
+
+        $reference = app(MarketReferenceCurveProvider::class)->referencePrice(
+            CarbonImmutable::parse('2026-07-01'),
+            CarbonImmutable::parse('2026-07-01'),
+            ['month'],
+        );
+
+        $this->assertSame('month', $reference['kind']);
+        $this->assertCount(2, $this->futuresSelectQueries($queries));
+        $this->assertFalse(collect($queries)->contains(function (QueryExecuted $query): bool {
+            $bindings = array_map('strval', $query->bindings);
+
+            return str_contains(strtolower($query->sql), 'electricity_futures_eod_prices')
+                && count(array_intersect(['202607', '202608', '202609'], $bindings)) === 3;
+        }));
     }
 
     public function test_each_lookup_resolves_its_own_vintage_and_never_leaks_the_same_day(): void
@@ -169,6 +271,46 @@ class EexMarketReferenceCurveProviderTest extends TestCase
         ]);
 
         $this->assertEqualsWithDelta(10.4667, app(MarketReferenceCurveProvider::class)->fixedTermMedianEnergyPrice(), 0.0001);
+    }
+
+    /**
+     * @param  list<QueryExecuted>  $queries
+     * @return list<QueryExecuted>
+     */
+    private function futuresSelectQueries(array $queries): array
+    {
+        return array_values(array_filter($queries, fn (QueryExecuted $query): bool => str_starts_with(strtolower(ltrim($query->sql)), 'select')
+            && str_contains(strtolower($query->sql), 'electricity_futures_eod_prices')
+        ));
+    }
+
+    /**
+     * @param  list<QueryExecuted>  $queries
+     * @return list<QueryExecuted>
+     */
+    private function availableTradeDateQueries(array $queries): array
+    {
+        return array_values(array_filter($this->futuresSelectQueries($queries), function (QueryExecuted $query): bool {
+            $sql = strtolower($query->sql);
+            $bindings = array_map('strval', $query->bindings);
+
+            return str_contains($sql, 'select distinct')
+                && str_contains($sql, 'trade_date')
+                && str_contains($sql, 'order by')
+                && in_array('FI', $bindings, true)
+                && in_array('Base', $bindings, true);
+        }));
+    }
+
+    /**
+     * @param  list<QueryExecuted>  $queries
+     * @return list<QueryExecuted>
+     */
+    private function latestTradeDateQueries(array $queries): array
+    {
+        return array_values(array_filter($this->futuresSelectQueries($queries), fn (QueryExecuted $query): bool => str_contains(strtolower($query->sql), 'max(')
+            && str_contains(strtolower($query->sql), 'trade_date')
+        ));
     }
 
     private function future(string $maturityType, string $maturity, string $tradeDate, float $settlementPrice): void

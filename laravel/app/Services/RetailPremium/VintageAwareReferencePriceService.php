@@ -31,7 +31,26 @@ class VintageAwareReferencePriceService
             return collect();
         }
 
-        $references = $this->forDeliveryMonth($asOfDate, $periodAnchor);
+        return $this->forResetPeriodAtTradeDate($tradeDate, $periodAnchor);
+    }
+
+    /**
+     * Get requested reset-period references at an already-resolved exact vintage.
+     *
+     * @param  list<string>  $kinds
+     * @return Collection<string, array<string, mixed>>
+     */
+    public function forResetPeriodAtTradeDate(
+        CarbonInterface $tradeDate,
+        CarbonInterface $periodAnchor,
+        array $kinds = ['month', 'quarter', 'year', 'quarter_month_average'],
+    ): Collection {
+        $references = $this->forDeliveryMonthAtTradeDate($tradeDate, $periodAnchor, $kinds);
+
+        if (! in_array('quarter_month_average', $kinds, true)) {
+            return $references;
+        }
+
         $derivedQuarter = $this->quarterFromMonthFutures($tradeDate, $periodAnchor);
 
         if ($derivedQuarter !== null) {
@@ -54,15 +73,38 @@ class VintageAwareReferencePriceService
             return collect();
         }
 
+        return $this->forDeliveryMonthAtTradeDate($tradeDate, $deliveryMonth);
+    }
+
+    /**
+     * Get requested delivery-month references at an already-resolved exact vintage.
+     *
+     * @param  list<string>  $kinds
+     * @return Collection<string, array<string, mixed>>
+     */
+    public function forDeliveryMonthAtTradeDate(
+        CarbonInterface $tradeDate,
+        CarbonInterface $deliveryMonth,
+        array $kinds = ['month', 'quarter', 'year'],
+    ): Collection {
+        $exactTradeDate = CarbonImmutable::instance($tradeDate)->startOfDay();
+        $nextTradeDate = $exactTradeDate->addDay();
         $delivery = CarbonImmutable::instance($deliveryMonth)->startOfMonth();
         $maturities = collect(['month', 'quarter', 'year'])
+            ->filter(fn (string $kind) => in_array($kind, $kinds, true))
             ->mapWithKeys(fn (string $kind) => [
                 $kind => $this->fixedTermHedgeCostService->maturityForMonth($delivery, $kind),
             ]);
+
+        if ($maturities->isEmpty()) {
+            return collect();
+        }
+
         $prices = ElectricityFuturesEodPrice::query()
             ->where('area', config('price_forecasting.fixed_term.area', 'FI'))
             ->where('product', 'Base')
-            ->whereDate('trade_date', $tradeDate->toDateString())
+            ->where('trade_date', '>=', $exactTradeDate->toDateString())
+            ->where('trade_date', '<', $nextTradeDate->toDateString())
             ->where(function ($query) use ($maturities) {
                 foreach ($maturities as $kind => $maturity) {
                     $query->orWhere(fn ($candidate) => $candidate
@@ -73,7 +115,7 @@ class VintageAwareReferencePriceService
             ->get()
             ->keyBy(fn (ElectricityFuturesEodPrice $price) => $price->maturity_type.'|'.$price->maturity);
 
-        return $maturities->mapWithKeys(function (string $maturity, string $kind) use ($prices, $tradeDate, $delivery) {
+        return $maturities->mapWithKeys(function (string $maturity, string $kind) use ($prices, $exactTradeDate, $delivery) {
             $price = $prices->get($kind.'|'.$maturity);
 
             if ($price === null) {
@@ -84,13 +126,13 @@ class VintageAwareReferencePriceService
 
             return [$kind => $this->referencePayload(
                 $kind,
-                $tradeDate,
+                $exactTradeDate,
                 (float) $price->settlement_price,
                 [
                     'maturity' => $maturity,
                     'delivery_start_month' => $span['start']->toDateString(),
                     'delivery_end_month' => $span['end']->toDateString(),
-                    'vintage_inside_delivery_period' => $tradeDate->gte($span['start']),
+                    'vintage_inside_delivery_period' => $exactTradeDate->gte($span['start']),
                 ],
             )];
         });
@@ -103,13 +145,15 @@ class VintageAwareReferencePriceService
      */
     private function quarterFromMonthFutures(CarbonInterface $tradeDate, CarbonInterface $deliveryMonth): ?array
     {
+        $exactTradeDate = CarbonImmutable::instance($tradeDate)->startOfDay();
         $span = $this->deliverySpan(CarbonImmutable::instance($deliveryMonth)->startOfMonth(), 'quarter');
         $months = collect([0, 1, 2])->map(fn (int $offset) => $span['start']->addMonths($offset));
         $prices = ElectricityFuturesEodPrice::query()
             ->where('area', config('price_forecasting.fixed_term.area', 'FI'))
             ->where('product', 'Base')
             ->where('maturity_type', 'month')
-            ->whereDate('trade_date', CarbonImmutable::instance($tradeDate)->toDateString())
+            ->where('trade_date', '>=', $exactTradeDate->toDateString())
+            ->where('trade_date', '<', $exactTradeDate->addDay()->toDateString())
             ->whereIn('maturity', $months->map(fn (CarbonImmutable $month) => $month->format('Ym'))->all())
             ->get()
             ->keyBy('maturity');
@@ -179,10 +223,12 @@ class VintageAwareReferencePriceService
         }
 
         $deliveryStart = $asOf->startOfMonth()->addMonth();
+        $exactTradeDate = CarbonImmutable::instance($tradeDate)->startOfDay();
         $curve = ElectricityFuturesEodPrice::query()
             ->where('area', config('price_forecasting.fixed_term.area', 'FI'))
             ->where('product', 'Base')
-            ->whereDate('trade_date', $tradeDate->toDateString())
+            ->where('trade_date', '>=', $exactTradeDate->toDateString())
+            ->where('trade_date', '<', $exactTradeDate->addDay()->toDateString())
             ->whereIn('maturity_type', ['month', 'quarter', 'year'])
             ->get()
             ->keyBy(fn (ElectricityFuturesEodPrice $price) => $price->maturity_type.'|'.$price->maturity);

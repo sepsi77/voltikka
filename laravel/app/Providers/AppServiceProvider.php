@@ -32,10 +32,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        // The curve provider memoizes one FI forward curve per vintage, so it must be shared
-        // across a whole request/command: a listing rebuild asks for 12 delivery months on
-        // every reset contract and would otherwise issue hundreds of queries.
-        $this->app->singleton(MarketReferenceCurveProvider::class, EexMarketReferenceCurveProvider::class);
+        // The curve provider shares its memoized FI forward curves across one request, command,
+        // or job. Scoped lifetime clears the available-date list at the next long-lived runtime
+        // lifecycle boundary.
+        $this->app->scoped(MarketReferenceCurveProvider::class, EexMarketReferenceCurveProvider::class);
 
         // One scoped value snapshots both flags. All pricing and statistics dependencies in the
         // same request or command therefore use one stable mode.

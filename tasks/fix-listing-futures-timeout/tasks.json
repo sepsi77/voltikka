@@ -1,0 +1,9 @@
+{
+  "tasks": [
+    {"name": "Trace the repeated futures query and select the smallest safe fix", "status": "completed"},
+    {"name": "Implement request-scoped reuse and regression coverage", "status": "completed"},
+    {"name": "Run focused tests and document the decision", "status": "completed"},
+    {"name": "Make exact-vintage reads compatible with plain SQLite dates", "status": "completed"},
+    {"name": "Limit the provider memo to one runtime lifecycle scope", "status": "completed"}
+  ]
+}
