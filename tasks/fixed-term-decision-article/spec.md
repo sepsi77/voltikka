@@ -17,6 +17,11 @@ Refresh `/sahkosopimus/kannattaako-maaraaikainen` as a data-led editorial decisi
 - Show separate market-data and editorial-review dates. Do not set Article `dateModified` to request time.
 - Use precomputed statistics and forecast tables only. Cache prepared article data. Do not calculate contract prices during the request.
 - Follow Voltikka design, accessibility, and Simplified Technical English rules.
+- Lead with a plain-language conclusion that answers the household decision. Explain the trade-off between 6, 12, and 24 months instead of presenting equal-weight data sections.
+- Translate every important statistic into meaning. State whether a difference is small or material, what the trend implies, and which uncertainty limits the conclusion.
+- Keep technical distribution details available, but place p20, p80, sample counts, model details, and full weekly tables after the plain-language interpretation or inside disclosures.
+- Every chart must have a visible labelled y-axis in c/kWh, readable tick values on desktop and mobile, a clear legend, dates, and a short sentence that states the observed change.
+- Avoid internal phrases such as active method, pricing basis, eligible distribution, and point-in-time comparison in primary copy.
 
 ## Verification
 

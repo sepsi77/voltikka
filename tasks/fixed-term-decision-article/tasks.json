@@ -3,5 +3,7 @@
   {"name":"Add open-ended and annual price-of-certainty evidence","status":"completed"},
   {"name":"Replace the article page and remove the contract widget","status":"completed"},
   {"name":"Add focused tests and documentation","status":"completed"},
-  {"name":"Run visual and automated verification","status":"completed"}
+  {"name":"Rewrite the article around a clear household decision story","status":"completed"},
+  {"name":"Add readable labelled chart axes and plain-language chart explanations","status":"completed"},
+  {"name":"Run visual and automated verification after the narrative rewrite","status":"completed"}
 ]

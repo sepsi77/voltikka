@@ -6,30 +6,35 @@
     $history = $articleData['history'] ?? [];
     $forecast = $articleData['forecast'] ?? [];
     $currentRows = collect($current['rows'] ?? []);
+    $currentRowsBySegment = $currentRows->keyBy('segment_key');
     $priceOfCertaintyRows = collect($priceOfCertainty['rows'] ?? [])->keyBy('segment_key');
     $openEndedAnnual = $priceOfCertaintyRows->get('open_ended');
     $fixedTwelveAnnual = $priceOfCertaintyRows->get('fixed_term_12');
     $annualMedianDifference = $priceOfCertainty['median_difference_eur'] ?? null;
+    $monthlyMedianDifference = $priceOfCertainty['median_difference_monthly_eur'] ?? null;
+    $differenceDirection = $priceOfCertainty['difference_direction'] ?? null;
+    $differenceIsSmall = (bool) ($priceOfCertainty['difference_is_small'] ?? false);
     $historySeries = collect($history['series'] ?? []);
+    $historyTicks = collect($history['ticks'] ?? []);
     $forecastDurations = collect($forecast['durations'] ?? [])->keyBy('duration_months');
     $dataDate = $articleData['data_date'] ?? null;
-    $cheapestFixed = $currentRows->whereNotNull('duration_months')->sortBy('median')->first();
     $fiDate = fn ($date) => $date ? Carbon::parse($date)->translatedFormat('j.n.Y') : 'Ei saatavilla';
-    $fmt = fn ($value, $decimals = 2) => $value === null ? '–' : number_format((float) $value, $decimals, ',', ' ');
-    $fmtSigned = function ($value) {
-        if ($value === null) return '–';
-        if (round((float) $value, 2) == 0.0) return '±0,00';
-        return ((float) $value > 0 ? '+' : '−').number_format(abs((float) $value), 2, ',', ' ');
+    $fmt = fn ($value, $decimals = 2) => $value === null ? 'Ei saatavilla' : number_format((float) $value, $decimals, ',', ' ');
+    $fmtSigned = function ($value, $decimals = 2) {
+        if ($value === null) return 'Ei saatavilla';
+        if (round((float) $value, $decimals) == 0.0) return '0'.($decimals > 0 ? ','.str_repeat('0', $decimals) : '');
+        return ((float) $value > 0 ? '+' : '−').number_format(abs((float) $value), $decimals, ',', ' ');
     };
     $confidenceLabels = [
-        'high' => 'Korkea',
-        'medium' => 'Keskitaso',
-        'low' => 'Matala',
+        'high' => 'korkea',
+        'medium' => 'keskitaso',
+        'low' => 'matala',
     ];
-    $quantileLabels = [
-        'p20' => 'p20',
-        'median' => 'Mediaani',
-        'p80' => 'p80',
+    $segmentLabels = [
+        'open_ended' => 'Toistaiseksi voimassa oleva, nykyinen kiinteä hinta',
+        'fixed_term_6' => '6 kk, täysin kiinteä hinta',
+        'fixed_term_12' => '12 kk, täysin kiinteä hinta',
+        'fixed_term_24' => '24 kk, täysin kiinteä hinta',
     ];
 @endphp
 
@@ -48,20 +53,19 @@
         </nav>
 
         <header class="border-b border-slate-200 pb-10">
-            <p class="mb-4 text-sm font-semibold uppercase tracking-[0.14em] text-slate-600">Markkinakatsaus</p>
             <h1 class="max-w-[24ch] text-3xl font-extrabold leading-[1.08] tracking-tight text-slate-900 md:text-5xl">
                 Kannattaako määräaikainen sähkösopimus?
             </h1>
             <p class="mt-5 max-w-[68ch] text-lg leading-relaxed text-slate-600">
-                Vertaa 12 kuukauden sopimusta toistaiseksi voimassa olevan kiinteähintaisen sopimuksen nykyiseen tasoon. Katso myös täysin kiinteiden 6, 12 ja 24 kuukauden sopimusten historia ja 30 päivän ennuste.
+                Katso, onko 12 kuukauden kiinteä sopimus nyt hyvä valinta ja mitä pidempi tai lyhyempi sopimusaika maksaa.
             </p>
             <dl class="mt-8 grid gap-5 text-sm sm:grid-cols-2">
                 <div>
-                    <dt class="font-semibold text-slate-600">Markkina- ja ennustedata</dt>
+                    <dt class="font-semibold text-slate-600">Uusimmat markkina- ja ennustetiedot</dt>
                     <dd class="mt-1 font-bold tabular-nums text-slate-900">{{ $fiDate($dataDate) }}</dd>
                 </div>
                 <div>
-                    <dt class="font-semibold text-slate-600">Toimituksellinen tarkistus</dt>
+                    <dt class="font-semibold text-slate-600">Teksti tarkistettu</dt>
                     <dd class="mt-1 font-bold tabular-nums text-slate-900">{{ $fiDate($editorialReviewDate) }}</dd>
                 </div>
             </dl>
@@ -70,191 +74,321 @@
         <x-page-action-strip class="mb-12" />
 
         <article>
-            <section class="mb-14 border-b border-slate-200 pb-14" aria-labelledby="separate-choices-heading">
-                <h2 id="separate-choices-heading" class="text-2xl font-bold tracking-tight text-slate-900">
-                    Kesto ja hinnoittelutapa ovat eri valintoja
-                </h2>
-                <div class="mt-4 max-w-[72ch] space-y-4 text-base leading-relaxed text-slate-700">
-                    <p>
-                        Määräaikaisuus kertoo, kuinka kauan sopimus sitoo. Se ei yksin kerro, miten energian hinta muodostuu. Määräaikainen sopimus ei aina ole kiinteähintainen, sillä hinta voi sisältää kulutusvaikutuksen tai seurata markkinaa sopimusehtojen mukaan.
-                    </p>
-                    <p>
-                        Nykyinen vertailutaso sisältää myös toistaiseksi voimassa olevat kiinteähintaiset sopimukset. Niiden julkaistu nykyhinta on kiinteä, mutta myyjä voi muuttaa hintaa sopimusehtojen mukaan. Siksi niiden 12 kuukauden kustannus on arvio.
-                    </p>
-                    <p>
-                        Historia ja ennuste koskevat täysin kiinteitä 6, 12 ja 24 kuukauden sopimuksia. Kulutusvaikutukselliset, pörssihintaiset ja jaksoittain markkinan mukaan muuttuvat tuotteet eivät ole mukana näissä luvuissa.
-                    </p>
-                </div>
-            </section>
-
-            <section class="mb-16" aria-labelledby="short-answer-heading">
-                <p class="mb-3 text-sm font-semibold uppercase tracking-[0.14em] text-slate-600">
-                    Lyhyt vastaus {{ ! empty($priceOfCertainty['date']) ? $fiDate($priceOfCertainty['date']) : '' }}
-                </p>
-                <h2 id="short-answer-heading" class="max-w-[34ch] text-2xl font-extrabold leading-tight tracking-tight text-slate-900 md:text-3xl">
+            <section class="mb-20 border-y border-slate-200 bg-slate-50 px-5 py-10 sm:px-8" aria-labelledby="conclusion-heading">
+                <h2 id="conclusion-heading" class="max-w-[34ch] text-2xl font-extrabold leading-tight tracking-tight text-slate-900 md:text-3xl">
                     @if ($annualMedianDifference !== null && $fixedTwelveAnnual && $openEndedAnnual)
-                        @if ($annualMedianDifference > 0)
-                            12 kuukauden täysin kiinteän sopimuksen mediaani maksaa {{ $fmt(abs($annualMedianDifference), 0) }} € vuodessa enemmän kuin toistaiseksi voimassa olevan kiinteähintaisen sopimuksen arvioitu mediaani.
-                        @elseif ($annualMedianDifference < 0)
-                            12 kuukauden täysin kiinteän sopimuksen mediaani maksaa {{ $fmt(abs($annualMedianDifference), 0) }} € vuodessa vähemmän kuin toistaiseksi voimassa olevan kiinteähintaisen sopimuksen arvioitu mediaani.
+                        @if ($differenceIsSmall)
+                            Hinnat ovat nyt lähellä toisiaan. Täysin kiinteä 12 kuukauden sopimus on järkevä valinta, jos haluat varmistaa energian hinnan vuodeksi.
+                        @elseif ($differenceDirection === 'fixed_12_cheaper')
+                            Täysin kiinteä 12 kuukauden sopimus on nyt vertailun edullisempi vaihtoehto ja varmistaa energian hinnan vuodeksi.
+                        @elseif ($differenceDirection === 'open_ended_cheaper')
+                            Toistaiseksi voimassa olevan sopimuksen arvio on nyt edullisempi, mutta sen hinta voi muuttua myöhemmin.
                         @else
-                            12 kuukauden täysin kiinteän sopimuksen ja toistaiseksi voimassa olevan kiinteähintaisen sopimuksen arvioitu mediaanivuosikustannus on sama.
+                            Molempien vaihtoehtojen keskimmäinen vuosihinta on nyt sama. Valinta riippuu siitä, haluatko varmistaa hinnan vuodeksi.
                         @endif
                     @else
-                        12 kuukauden ja toistaiseksi voimassa olevan sopimuksen vertailukelpoista vuosikustannusta ei ole juuri nyt saatavilla.
+                        Vuosihintojen vertailu ei ole juuri nyt saatavilla. Valitse vasta, kun voit verrata hintaa ja sopimusaikaa yhdessä.
                     @endif
                 </h2>
-                <p class="mt-4 max-w-[70ch] text-base leading-relaxed text-slate-700">
-                    @if ($cheapestFixed)
-                        Energiahinnan nykyvertailussa täysin kiinteiden määräaikaisten sopimusten matalin mediaani on {{ $cheapestFixed['duration_months'] }} kuukauden sopimuksissa, {{ $fmt($cheapestFixed['median']) }} c/kWh. Tämä on markkinan yhteenveto, ei suositus tai lupaus yksittäisen tarjouksen hinnasta.
-                    @else
-                        Päätöstä ei pidä tehdä puutteellisen jakauman perusteella. Tarkista myös sopimuskausi, hinnoittelutapa ja myyjän ehdot.
-                    @endif
-                </p>
-            </section>
 
-            <section class="mb-20" aria-labelledby="current-heading">
-                <div class="border-b border-slate-300 pb-4">
-                    <h2 id="current-heading" class="text-2xl font-bold tracking-tight text-slate-900">Nykyinen hintataso</h2>
-                    <p class="mt-2 max-w-[72ch] text-base leading-relaxed text-slate-600">
-                        Taulukko vertaa toistaiseksi voimassa olevien sopimusten nykyistä kiinteää hintaa täysin kiinteisiin 6, 12 ja 24 kuukauden hintoihin. p20 kuvaa edullisemman viidenneksen rajaa, mediaani keskimmäistä hintaa ja p80 kalliimman viidenneksen rajaa. Hinnat sisältävät arvonlisäveron ja koskevat energiahintaa.
+                @if ($annualMedianDifference !== null && $fixedTwelveAnnual && $openEndedAnnual)
+                    <p class="mt-5 max-w-[70ch] text-lg leading-relaxed text-slate-700">
+                        @if ($differenceDirection === 'fixed_12_cheaper')
+                            12 kuukauden sopimuksen arvioitu vuosihinta on <strong class="font-extrabold tabular-nums text-slate-900">{{ $fmt($fixedTwelveAnnual['median'], 0) }} €</strong> ja toistaiseksi voimassa olevan <strong class="font-extrabold tabular-nums text-slate-900">{{ $fmt($openEndedAnnual['median'], 0) }} €</strong>. Ero on 12 kuukauden sopimuksen hyväksi <strong class="font-extrabold tabular-nums text-slate-900">{{ $fmt(abs($annualMedianDifference), 0) }} € vuodessa</strong> eli <strong class="font-extrabold tabular-nums text-slate-900">{{ $fmt(abs($monthlyMedianDifference), 2) }} € kuukaudessa</strong>.
+                        @elseif ($differenceDirection === 'open_ended_cheaper')
+                            12 kuukauden sopimuksen arvioitu vuosihinta on <strong class="font-extrabold tabular-nums text-slate-900">{{ $fmt($fixedTwelveAnnual['median'], 0) }} €</strong> ja toistaiseksi voimassa olevan <strong class="font-extrabold tabular-nums text-slate-900">{{ $fmt($openEndedAnnual['median'], 0) }} €</strong>. Ero on toistaiseksi voimassa olevan sopimuksen hyväksi <strong class="font-extrabold tabular-nums text-slate-900">{{ $fmt(abs($annualMedianDifference), 0) }} € vuodessa</strong> eli <strong class="font-extrabold tabular-nums text-slate-900">{{ $fmt(abs($monthlyMedianDifference), 2) }} € kuukaudessa</strong>.
+                        @else
+                            Molempien arvioitu vuosihinta on sama.
+                        @endif
+                        @if ($differenceIsSmall)
+                            Ero on pieni, joten valinnassa painaa hintaeron lisäksi se, haluatko hinnan pysyvän samana koko vuoden.
+                        @endif
                     </p>
-                </div>
-
-                @if ($currentRows->isEmpty())
-                    <p class="py-10 text-slate-700">Vertailukelpoista yhteisen päivän aineistoa ei ole saatavilla.</p>
-                @else
-                    <div class="overflow-x-auto">
-                        <table class="w-full min-w-[42rem] border-collapse text-sm">
-                            <caption class="sr-only">Toistaiseksi voimassa olevan nykyisen kiinteän hinnan sekä täysin kiinteiden määräaikaisten sopimusten hintajakauma</caption>
-                            <thead>
-                                <tr class="border-b border-slate-200 text-left text-slate-600">
-                                    <th class="py-3 pr-4 font-semibold">Sopimuskausi</th>
-                                    <th class="px-4 py-3 text-right font-semibold">p20</th>
-                                    <th class="px-4 py-3 text-right font-semibold">Mediaani</th>
-                                    <th class="px-4 py-3 text-right font-semibold">p80</th>
-                                    <th class="py-3 pl-4 text-right font-semibold">Sopimuksia</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                @foreach ($currentRows as $row)
-                                    <tr>
-                                        <th scope="row" class="py-4 pr-4 text-left font-bold text-slate-900">
-                                            {{ $row['segment_key'] === 'open_ended' ? 'Toistaiseksi voimassa oleva, nykyinen kiinteä hinta' : $row['duration_months'].' kk, täysin kiinteä hinta' }}
-                                        </th>
-                                        <td class="px-4 py-4 text-right tabular-nums text-slate-700">{{ $fmt($row['p20']) }} c/kWh</td>
-                                        <td class="px-4 py-4 text-right font-bold tabular-nums text-slate-900">{{ $fmt($row['median']) }} c/kWh</td>
-                                        <td class="px-4 py-4 text-right tabular-nums text-slate-700">{{ $fmt($row['p80']) }} c/kWh</td>
-                                        <td class="py-4 pl-4 text-right tabular-nums text-slate-700">{{ number_format($row['contract_count'], 0, ',', ' ') }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                    <p class="mt-3 text-sm text-slate-600">Yhteinen aineistopäivä: <time datetime="{{ $current['date'] }}">{{ $fiDate($current['date']) }}</time>.</p>
+                    <p class="mt-4 text-sm text-slate-600">Vertailun päivä: <time datetime="{{ $priceOfCertainty['date'] }}">{{ $fiDate($priceOfCertainty['date']) }}</time>.</p>
                 @endif
             </section>
 
-            <section class="mb-20" aria-labelledby="certainty-heading">
+            <section class="mb-20" aria-labelledby="concept-heading">
+                <h2 id="concept-heading" class="text-2xl font-bold tracking-tight text-slate-900">Mitä tässä verrataan?</h2>
+                <div class="mt-4 max-w-[72ch] space-y-4 text-base leading-relaxed text-slate-700">
+                    <p>
+                        Sopimuksen pituus ja hinnan toiminta ovat eri asioita. Tämän sivun 6, 12 ja 24 kuukauden luvut koskevat sopimuksia, joissa energian hinta pysyy samana koko sopimusajan. Kaikki määräaikaiset sopimukset eivät ole tällaisia.
+                    </p>
+                    <p>
+                        Vertailukohta on toistaiseksi voimassa oleva kiinteähintainen sopimus. Sen tämänhetkinen hinta on tiedossa, mutta myyjä voi muuttaa sitä ehtojen mukaisesti. Siksi sen tulevan vuoden kustannus on arvio. Mediaani tarkoittaa listattujen hintojen keskimmäistä hintaa.
+                    </p>
+                </div>
+            </section>
+
+            <section class="mb-20" aria-labelledby="annual-heading">
                 <div class="border-b border-slate-300 pb-4">
-                    <h2 id="certainty-heading" class="text-2xl font-bold tracking-tight text-slate-900">Varmuuden hinta 5 000 kWh vuosikulutuksella</h2>
+                    <h2 id="annual-heading" class="text-2xl font-bold tracking-tight text-slate-900">Mitä sopimus maksaisi vuodessa?</h2>
                     <p class="mt-2 max-w-[72ch] text-base leading-relaxed text-slate-600">
-                        Vuosikustannus sisältää sähkön energian ja sopimuksen kuukausimaksut. Se ei sisällä sähkönsiirtoa. Vertailu käyttää yhden päivän tietoja ja samaa vuosikustannuksen laskentamenetelmää. Toistaiseksi voimassa olevan sopimuksen 12 kuukauden kustannus on arvio, sillä myyjä voi muuttaa hintaa sopimusehtojen mukaan.
+                        Arvio perustuu 5 000 kWh vuosikulutukseen. Se sisältää energian ja kuukausimaksut, mutta ei sähkönsiirtoa.
                     </p>
                 </div>
 
                 @if (! $openEndedAnnual || ! $fixedTwelveAnnual || $annualMedianDifference === null)
-                    <p class="py-10 text-slate-700">Vertailukelpoista 5 000 kWh vuosikustannusta ei ole juuri nyt saatavilla.</p>
+                    <p class="py-10 text-slate-700">Vuosihintojen vertailua ei ole juuri nyt saatavilla.</p>
                 @else
-                    <div class="overflow-x-auto">
-                        <table class="w-full min-w-[42rem] border-collapse text-sm">
-                            <caption class="sr-only">Toistaiseksi voimassa olevan kiinteähintaisen sopimuksen arvioitu vuosikustannus ja täysin kiinteän 12 kuukauden sopimuksen vuosikustannus</caption>
-                            <thead>
-                                <tr class="border-b border-slate-200 text-left text-slate-600">
-                                    <th class="py-3 pr-4 font-semibold">Sopimustyyppi</th>
-                                    <th class="px-4 py-3 text-right font-semibold">p20</th>
-                                    <th class="px-4 py-3 text-right font-semibold">Mediaani</th>
-                                    <th class="px-4 py-3 text-right font-semibold">p80</th>
-                                    <th class="py-3 pl-4 text-right font-semibold">Sopimuksia</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                @foreach ([$openEndedAnnual, $fixedTwelveAnnual] as $row)
-                                    <tr>
-                                        <th scope="row" class="py-4 pr-4 text-left font-bold text-slate-900">
-                                            {{ $row['segment_key'] === 'open_ended' ? 'Toistaiseksi voimassa oleva kiinteähintainen sopimus' : '12 kk, täysin kiinteä hinta' }}
-                                        </th>
-                                        <td class="px-4 py-4 text-right tabular-nums text-slate-700">{{ $fmt($row['p20'], 0) }} €/v</td>
-                                        <td class="px-4 py-4 text-right font-bold tabular-nums text-slate-900">{{ $fmt($row['median'], 0) }} €/v</td>
-                                        <td class="px-4 py-4 text-right tabular-nums text-slate-700">{{ $fmt($row['p80'], 0) }} €/v</td>
-                                        <td class="py-4 pl-4 text-right tabular-nums text-slate-700">{{ number_format($row['contract_count'], 0, ',', ' ') }}</td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
+                    <dl class="mt-6 divide-y divide-slate-200 border-y border-slate-200">
+                        <div class="grid gap-2 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-baseline">
+                            <dt class="font-bold text-slate-900">Toistaiseksi voimassa oleva, arvio seuraavalle 12 kuukaudelle</dt>
+                            <dd class="text-2xl font-extrabold tabular-nums text-slate-900">{{ $fmt($openEndedAnnual['median'], 0) }} €/vuosi</dd>
+                        </div>
+                        <div class="grid gap-2 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-baseline">
+                            <dt class="font-bold text-slate-900">12 kk, täysin kiinteä hinta</dt>
+                            <dd class="text-2xl font-extrabold tabular-nums text-slate-900">{{ $fmt($fixedTwelveAnnual['median'], 0) }} €/vuosi</dd>
+                        </div>
+                    </dl>
                     <p class="mt-5 max-w-[72ch] text-base leading-relaxed text-slate-700">
-                        12 kuukauden sopimuksen mediaaniero toistaiseksi voimassa olevaan on <strong class="font-bold tabular-nums text-slate-900">{{ $fmtSigned($annualMedianDifference) }} €/vuosi</strong>. Ero kuvaa tämän aineistopäivän markkinatasoa, ei yksittäisen sopimusparin hintaa.
+                        @if ($differenceDirection === 'fixed_12_cheaper')
+                            12 kuukauden sopimus on noin <strong class="font-bold tabular-nums text-slate-900">{{ $fmt(abs($annualMedianDifference), 0) }} €/vuosi</strong> eli <strong class="font-bold tabular-nums text-slate-900">{{ $fmt(abs($monthlyMedianDifference), 2) }} €/kuukausi</strong> halvempi.
+                        @elseif ($differenceDirection === 'open_ended_cheaper')
+                            12 kuukauden sopimus on noin <strong class="font-bold tabular-nums text-slate-900">{{ $fmt(abs($annualMedianDifference), 0) }} €/vuosi</strong> eli <strong class="font-bold tabular-nums text-slate-900">{{ $fmt(abs($monthlyMedianDifference), 2) }} €/kuukausi</strong> kalliimpi.
+                        @else
+                            Arvioidut vuosihinnat ovat samat.
+                        @endif
                     </p>
-                    <p class="mt-3 text-sm text-slate-600">Yhteinen aineistopäivä: <time datetime="{{ $priceOfCertainty['date'] }}">{{ $fiDate($priceOfCertainty['date']) }}</time>.</p>
+                    <p class="mt-2 text-sm text-slate-600">Hinnat <time datetime="{{ $priceOfCertainty['date'] }}">{{ $fiDate($priceOfCertainty['date']) }}</time>.</p>
+
+                    <details class="mt-6 border-t border-slate-200 pt-4">
+                        <summary class="cursor-pointer font-semibold text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-coral-500">
+                            Katso hintojen vaihteluväli ja aineiston koko
+                        </summary>
+                        <div class="mt-4 max-w-[72ch] text-sm leading-relaxed text-slate-600">
+                            <p>p20–p80 on listattujen hintojen keskimmäinen 60 %. Sen ulkopuolelle jää edullisin ja kallein viidennes.</p>
+                        </div>
+                        <div class="mt-4 overflow-x-auto">
+                            <table class="w-full min-w-[38rem] border-collapse text-sm">
+                                <caption class="sr-only">Vuosihintojen vaihteluväli ja sopimusten määrä</caption>
+                                <thead>
+                                    <tr class="border-b border-slate-300 text-left text-slate-600">
+                                        <th class="py-2 pr-3 font-semibold">Sopimustyyppi</th>
+                                        <th class="px-3 py-2 text-right font-semibold">p20</th>
+                                        <th class="px-3 py-2 text-right font-semibold">Keskimmäinen hinta</th>
+                                        <th class="px-3 py-2 text-right font-semibold">p80</th>
+                                        <th class="py-2 pl-3 text-right font-semibold">Sopimuksia</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    @foreach ([$openEndedAnnual, $fixedTwelveAnnual] as $row)
+                                        <tr>
+                                            <th scope="row" class="py-3 pr-3 text-left font-semibold text-slate-900">{{ $row['segment_key'] === 'open_ended' ? 'Toistaiseksi voimassa oleva' : '12 kk, täysin kiinteä' }}</th>
+                                            <td class="px-3 py-3 text-right tabular-nums text-slate-700">{{ $fmt($row['p20'], 0) }} €</td>
+                                            <td class="px-3 py-3 text-right font-semibold tabular-nums text-slate-900">{{ $fmt($row['median'], 0) }} €</td>
+                                            <td class="px-3 py-3 text-right tabular-nums text-slate-700">{{ $fmt($row['p80'], 0) }} €</td>
+                                            <td class="py-3 pl-3 text-right tabular-nums text-slate-700">{{ number_format($row['contract_count'], 0, ',', ' ') }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="mt-4 max-w-[72ch] text-sm leading-relaxed text-slate-600">
+                            Luvut ovat valmiiksi laskettuja markkinatilastoja samalta päivältä. Yksittäinen tarjous voi olla keskimmäistä hintaa halvempi tai kalliimpi.
+                        </p>
+                    </details>
+                @endif
+            </section>
+
+            <section class="mb-20" aria-labelledby="current-heading">
+                <div class="border-b border-slate-300 pb-4">
+                    <h2 id="current-heading" class="text-2xl font-bold tracking-tight text-slate-900">Mitä energiahinta on nyt?</h2>
+                    <p class="mt-2 max-w-[72ch] text-base leading-relaxed text-slate-600">
+                        Nämä ovat neljän vaihtoehdon keskimmäiset energiahinnat. Kuukausimaksut eivät ole tässä mukana.
+                    </p>
+                </div>
+
+                @if ($currentRows->isEmpty())
+                    <p class="py-10 text-slate-700">Saman päivän energiahintoja ei ole juuri nyt saatavilla.</p>
+                @else
+                    <dl class="mt-6 divide-y divide-slate-200 border-y border-slate-200">
+                        @foreach ($currentRows as $row)
+                            <div class="grid gap-2 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-baseline">
+                                <dt class="font-semibold text-slate-900">{{ $segmentLabels[$row['segment_key']] }}</dt>
+                                <dd class="text-xl font-extrabold tabular-nums text-slate-900">{{ $fmt($row['median']) }} c/kWh</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                    <p class="mt-3 text-sm text-slate-600">Hinnat <time datetime="{{ $current['date'] }}">{{ $fiDate($current['date']) }}</time>.</p>
+
+                    <details class="mt-6 border-t border-slate-200 pt-4">
+                        <summary class="cursor-pointer font-semibold text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-coral-500">
+                            Katso hintojen vaihteluväli ja sopimusten määrä
+                        </summary>
+                        <div class="mt-4 overflow-x-auto">
+                            <table class="w-full min-w-[40rem] border-collapse text-sm">
+                                <caption class="sr-only">Energiahintojen vaihteluväli ja sopimusten määrä</caption>
+                                <thead>
+                                    <tr class="border-b border-slate-300 text-left text-slate-600">
+                                        <th class="py-2 pr-3 font-semibold">Sopimustyyppi</th>
+                                        <th class="px-3 py-2 text-right font-semibold">p20</th>
+                                        <th class="px-3 py-2 text-right font-semibold">Keskimmäinen hinta</th>
+                                        <th class="px-3 py-2 text-right font-semibold">p80</th>
+                                        <th class="py-2 pl-3 text-right font-semibold">Sopimuksia</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100">
+                                    @foreach ($currentRows as $row)
+                                        <tr>
+                                            <th scope="row" class="py-3 pr-3 text-left font-semibold text-slate-900">{{ $segmentLabels[$row['segment_key']] }}</th>
+                                            <td class="px-3 py-3 text-right tabular-nums text-slate-700">{{ $fmt($row['p20']) }}</td>
+                                            <td class="px-3 py-3 text-right font-semibold tabular-nums text-slate-900">{{ $fmt($row['median']) }}</td>
+                                            <td class="px-3 py-3 text-right tabular-nums text-slate-700">{{ $fmt($row['p80']) }}</td>
+                                            <td class="py-3 pl-3 text-right tabular-nums text-slate-700">{{ number_format($row['contract_count'], 0, ',', ' ') }}</td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                @endif
+            </section>
+
+            <section class="mb-20" aria-labelledby="duration-heading">
+                <div class="border-b border-slate-300 pb-4">
+                    <h2 id="duration-heading" class="text-2xl font-bold tracking-tight text-slate-900">Miten sopimuspituutta kannattaa ajatella?</h2>
+                    <p class="mt-2 max-w-[72ch] text-base leading-relaxed text-slate-600">Määräaikaisen sopimuksen pituus kertoo, kuinka kauan nykyinen energiahinta sitoo sinua ja myyjää. Näin vaihtoehdot eroavat nykyisillä hinnoilla.</p>
+                </div>
+
+                @if ($currentRows->isEmpty())
+                    <p class="py-10 text-slate-700">Sopimuspituuksia ei voi asettaa hintajärjestykseen ilman saman päivän tietoja.</p>
+                @else
+                    <div class="mt-6 divide-y divide-slate-200 border-y border-slate-200">
+                        @if ($currentRowsBySegment->has('fixed_term_12'))
+                            <div class="grid gap-2 py-5 md:grid-cols-[10rem_minmax(0,1fr)]">
+                                <h3 class="font-bold text-slate-900">12 kuukautta</h3>
+                                <p class="leading-relaxed text-slate-700">
+                                    @if ($differenceIsSmall)
+                                        Tasapainoinen yhden vuoden valinta: hinta on lähellä toistaiseksi voimassa olevan arviota, mutta energiahinta pysyy samana koko vuoden.
+                                    @else
+                                        Yhden vuoden vaihtoehto. Nykyinen keskimmäinen energiahinta on {{ $fmt($currentRowsBySegment['fixed_term_12']['median']) }} c/kWh.
+                                    @endif
+                                </p>
+                            </div>
+                        @endif
+                        @if ($currentRowsBySegment->has('fixed_term_24'))
+                            <div class="grid gap-2 py-5 md:grid-cols-[10rem_minmax(0,1fr)]">
+                                <h3 class="font-bold text-slate-900">24 kuukautta</h3>
+                                <p class="leading-relaxed text-slate-700">
+                                    @if (($current['lowest_fixed_duration_months'] ?? null) === 24)
+                                        Matalin nykyinen keskimmäinen energiahinta, {{ $fmt($currentRowsBySegment['fixed_term_24']['median']) }} c/kWh, mutta myös pisin sitoutuminen.
+                                    @else
+                                        Nykyinen keskimmäinen energiahinta on {{ $fmt($currentRowsBySegment['fixed_term_24']['median']) }} c/kWh. Tämä on pisin vertailtu sitoutuminen.
+                                    @endif
+                                </p>
+                            </div>
+                        @endif
+                        @if ($currentRowsBySegment->has('fixed_term_6'))
+                            <div class="grid gap-2 py-5 md:grid-cols-[10rem_minmax(0,1fr)]">
+                                <h3 class="font-bold text-slate-900">6 kuukautta</h3>
+                                <p class="leading-relaxed text-slate-700">
+                                    @if (($current['highest_fixed_duration_months'] ?? null) === 6)
+                                        Korkein nykyinen keskimmäinen energiahinta, {{ $fmt($currentRowsBySegment['fixed_term_6']['median']) }} c/kWh, mutta lyhin vertailtu sitoutuminen.
+                                    @else
+                                        Nykyinen keskimmäinen energiahinta on {{ $fmt($currentRowsBySegment['fixed_term_6']['median']) }} c/kWh. Tämä on lyhin vertailtu sitoutuminen.
+                                    @endif
+                                </p>
+                            </div>
+                        @endif
+                        @if ($currentRowsBySegment->has('open_ended'))
+                            <div class="grid gap-2 py-5 md:grid-cols-[10rem_minmax(0,1fr)]">
+                                <h3 class="font-bold text-slate-900">Toistaiseksi</h3>
+                                <p class="leading-relaxed text-slate-700">Nykyinen julkaistu hinta on {{ $fmt($currentRowsBySegment['open_ended']['median']) }} c/kWh. Hinta voi muuttua myöhemmin sopimusehtojen mukaisesti.</p>
+                            </div>
+                        @endif
+                    </div>
                 @endif
             </section>
 
             <section class="mb-20" aria-labelledby="history-heading">
                 <div class="border-b border-slate-300 pb-4">
-                    <h2 id="history-heading" class="text-2xl font-bold tracking-tight text-slate-900">Hintahaarukka viimeisen 12 kuukauden aikana</h2>
+                    <h2 id="history-heading" class="text-2xl font-bold tracking-tight text-slate-900">Miten määräaikaisten hinnat ovat muuttuneet?</h2>
                     <p class="mt-2 max-w-[72ch] text-base leading-relaxed text-slate-600">
-                        Jokainen kuva näyttää yhden sopimuspituuden viikkokeskiarvot. Harmaa alue on p20–p80 ja koralliviiva on mediaani. Kaikissa kuvissa on sama hinta-asteikko.
+                        Viikkotiedot näyttävät hintojen suunnan enintään viimeisen 12 kuukauden ajalta. Kaikissa kuvissa on sama asteikko.
                     </p>
                 </div>
 
-                @if ($historySeries->every(fn ($series) => empty($series['points'])))
-                    <p class="py-10 text-slate-700">Historiallista vertailua ei ole vielä riittävästi.</p>
+                @if ($historySeries->isEmpty() || $historySeries->every(fn ($series) => empty($series['points'])))
+                    <p class="py-10 text-slate-700">Hintahistoriaa ei ole vielä riittävästi.</p>
                 @else
-                    <div class="mt-8 grid gap-10">
+                    <div class="mt-6 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-700" aria-label="Kaavioiden selite">
+                        <div class="flex items-center gap-2">
+                            <span class="block h-0 w-8 border-t-[3px] border-coral-600" aria-hidden="true"></span>
+                            <span><strong class="font-semibold text-slate-900">Koralliviiva:</strong> keskimmäinen hinta</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="block h-4 w-8 border border-slate-300 bg-slate-100" aria-hidden="true"></span>
+                            <span><strong class="font-semibold text-slate-900">Vaalea alue:</strong> hintojen keskimmäinen 60 % (p20–p80)</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-10 grid gap-14">
                         @foreach ($historySeries as $series)
                             @php
                                 $points = collect($series['points'] ?? []);
+                                $summary = $series['summary'] ?? null;
                                 $scaleMin = (float) ($history['scale_min'] ?? 0);
                                 $scaleMax = (float) ($history['scale_max'] ?? 0);
                                 $scaleSpan = max(0.0001, $scaleMax - $scaleMin);
-                                $plotLeft = 0;
-                                $plotTop = 2;
                                 $plotWidth = 720;
-                                $plotHeight = 124;
+                                $plotHeight = 208;
                                 $pointCount = $points->count();
-                                $x = fn ($index) => $pointCount <= 1 ? $plotLeft + $plotWidth / 2 : $plotLeft + ($index / ($pointCount - 1)) * $plotWidth;
-                                $y = fn ($value) => $plotTop + (($scaleMax - (float) $value) / $scaleSpan) * $plotHeight;
+                                $x = fn ($index) => $pointCount <= 1 ? $plotWidth / 2 : ($index / ($pointCount - 1)) * $plotWidth;
+                                $y = fn ($value) => (($scaleMax - (float) $value) / $scaleSpan) * $plotHeight;
                                 $upper = $points->values()->map(fn ($point, $index) => round($x($index), 2).','.round($y($point['p80']), 2))->implode(' ');
                                 $lower = $points->values()->reverse()->values()->map(fn ($point, $reverseIndex) => round($x($pointCount - 1 - $reverseIndex), 2).','.round($y($point['p20']), 2))->implode(' ');
                                 $medianLine = $points->values()->map(fn ($point, $index) => round($x($index), 2).','.round($y($point['median']), 2))->implode(' ');
                                 $chartId = 'fixed-history-'.$series['duration_months'];
                             @endphp
-                            <figure aria-labelledby="{{ $chartId }}-heading">
-                                <div class="mb-3 flex flex-wrap items-baseline justify-between gap-3">
-                                    <h3 id="{{ $chartId }}-heading" class="text-lg font-bold text-slate-900">{{ $series['duration_months'] }} kuukauden sopimukset</h3>
-                                    <span class="text-sm tabular-nums text-slate-600">{{ $fmt($scaleMin) }}–{{ $fmt($scaleMax) }} c/kWh</span>
-                                </div>
+                            <figure aria-labelledby="{{ $chartId }}-heading" @if ($summary) aria-describedby="{{ $chartId }}-summary" @endif>
+                                <h3 id="{{ $chartId }}-heading" class="text-lg font-bold text-slate-900">{{ $series['duration_months'] }} kuukauden sopimukset</h3>
                                 @if ($points->isEmpty())
-                                    <p class="border-y border-slate-200 py-8 text-slate-700">Tälle sopimuskaudelle ei ole vertailukelpoista historiaa.</p>
+                                    <p class="mt-3 border-y border-slate-200 py-8 text-slate-700">Tälle sopimusajalle ei ole hintahistoriaa.</p>
                                 @else
-                                    <svg viewBox="0 0 720 132" class="h-auto w-full" role="img" aria-labelledby="{{ $chartId }}-title {{ $chartId }}-desc">
-                                        <title id="{{ $chartId }}-title">{{ $series['duration_months'] }} kuukauden sopimusten viikoittainen hintahaarukka</title>
-                                        <desc id="{{ $chartId }}-desc">p20–p80-hintahaarukka ja mediaani. Tarkat arvot ovat kuvan jälkeisessä taulukossa.</desc>
-                                        <line x1="0" y1="2" x2="720" y2="2" stroke="#e2e8f0" />
-                                        <line x1="0" y1="64" x2="720" y2="64" stroke="#e2e8f0" />
-                                        <line x1="0" y1="126" x2="720" y2="126" stroke="#cbd5e1" />
-                                        <polygon points="{{ $upper }} {{ $lower }}" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" />
-                                        <polyline points="{{ $medianLine }}" fill="none" stroke="#ea580c" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
-                                    </svg>
-                                    <div class="mt-2 flex justify-between gap-4 text-sm tabular-nums text-slate-600" aria-hidden="true">
-                                        <span>{{ $fiDate($points->first()['date']) }}</span>
-                                        <span>{{ $fiDate($points->last()['date']) }}</span>
+                                    @if ($summary)
+                                        <p id="{{ $chartId }}-summary" class="mt-2 max-w-[72ch] leading-relaxed text-slate-700">
+                                            Keskimmäinen hinta
+                                            @if ($summary['direction'] === 'rose')
+                                                nousi
+                                            @elseif ($summary['direction'] === 'fell')
+                                                laski
+                                            @else
+                                                pysyi lähes ennallaan
+                                            @endif
+                                            tasolta <strong class="font-semibold tabular-nums text-slate-900">{{ $fmt($summary['start_median']) }} c/kWh</strong> tasolle <strong class="font-semibold tabular-nums text-slate-900">{{ $fmt($summary['end_median']) }} c/kWh</strong> aikavälillä {{ $fiDate($summary['start_date']) }}–{{ $fiDate($summary['end_date']) }}.
+                                        </p>
+                                    @endif
+
+                                    <p class="mt-5 text-sm font-semibold text-slate-700">Hinta, c/kWh</p>
+                                    <div class="mt-3 grid grid-cols-[76px_minmax(0,1fr)] gap-x-2">
+                                        <div class="relative h-44 overflow-visible md:h-52" aria-hidden="true">
+                                            @foreach ($historyTicks as $tick)
+                                                <span class="absolute right-1 -translate-y-1/2 whitespace-nowrap text-sm font-medium tabular-nums text-slate-600" style="top: {{ $tick['percent'] }}%">
+                                                    {{ $fmt($tick['value'], abs($tick['value'] - round($tick['value'])) < 0.001 ? 0 : 1) }} c/kWh
+                                                </span>
+                                            @endforeach
+                                        </div>
+                                        <svg viewBox="0 0 720 208" preserveAspectRatio="none" class="h-44 w-full overflow-visible md:h-52" role="img" aria-labelledby="{{ $chartId }}-title {{ $chartId }}-desc">
+                                            <title id="{{ $chartId }}-title">{{ $series['duration_months'] }} kuukauden sopimusten hintakehitys</title>
+                                            <desc id="{{ $chartId }}-desc">Koralliviiva näyttää keskimmäisen hinnan. Vaalea alue näyttää hintojen keskimmäisen 60 prosentin vaihteluvälin. Tarkat viikkoarvot ovat kuvan jälkeen avattavassa taulukossa.</desc>
+                                            @foreach ($historyTicks as $tick)
+                                                @php $tickY = ($tick['percent'] / 100) * $plotHeight; @endphp
+                                                <line x1="0" y1="{{ $tickY }}" x2="720" y2="{{ $tickY }}" stroke="#cbd5e1" stroke-width="1" vector-effect="non-scaling-stroke" />
+                                            @endforeach
+                                            <polygon points="{{ $upper }} {{ $lower }}" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1" vector-effect="non-scaling-stroke" />
+                                            <polyline points="{{ $medianLine }}" fill="none" stroke="#ea580c" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+                                        </svg>
+                                        <div aria-hidden="true"></div>
+                                        <div class="mt-3 flex justify-between gap-3 text-sm tabular-nums text-slate-600">
+                                            <span>{{ $fiDate($points->first()['date']) }}</span>
+                                            <span>{{ $fiDate($points->last()['date']) }}</span>
+                                        </div>
                                     </div>
 
-                                    <details class="mt-4 border-t border-slate-200 pt-4">
+                                    <details class="mt-5 border-t border-slate-200 pt-4">
                                         <summary class="cursor-pointer font-semibold text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-coral-500">
-                                            Näytä kuvan arvot taulukkona
+                                            Katso kaikki viikkoarvot
                                         </summary>
                                         <div class="mt-4 max-h-96 overflow-auto">
                                             <table class="w-full min-w-[38rem] border-collapse text-sm">
@@ -262,7 +396,7 @@
                                                     <tr class="border-b border-slate-300 text-left text-slate-600">
                                                         <th class="py-2 pr-3 font-semibold">Viikko alkoi</th>
                                                         <th class="px-3 py-2 text-right font-semibold">p20</th>
-                                                        <th class="px-3 py-2 text-right font-semibold">Mediaani</th>
+                                                        <th class="px-3 py-2 text-right font-semibold">Keskimmäinen hinta</th>
                                                         <th class="px-3 py-2 text-right font-semibold">p80</th>
                                                         <th class="py-2 pl-3 text-right font-semibold">Sopimuksia</th>
                                                     </tr>
@@ -290,93 +424,106 @@
 
             <section class="mb-20" aria-labelledby="forecast-heading">
                 <div class="border-b border-slate-300 pb-4">
-                    <h2 id="forecast-heading" class="text-2xl font-bold tracking-tight text-slate-900">30 päivän hintaennuste</h2>
+                    <h2 id="forecast-heading" class="text-2xl font-bold tracking-tight text-slate-900">Mitä hinnalle voi tapahtua seuraavan 30 päivän aikana?</h2>
                     <p class="mt-2 max-w-[72ch] text-base leading-relaxed text-slate-600">
-                        Ennuste arvioi markkinan p20-, mediaani- ja p80-tasoja. Se ei takaa tulevaa hintaa. Sopimuspituus näytetään vain, jos nykyiset ja ennustetut kolme hintatasoa ovat täydelliset ja oikeassa järjestyksessä.
+                        Ennuste näyttää mahdollisen suunnan, ei lupausta tulevasta hinnasta.
                     </p>
                 </div>
 
                 @if (empty($forecast['date']))
-                    <p class="py-10 text-slate-700">Kelvollista 30 päivän ennustetta ei ole juuri nyt saatavilla.</p>
+                    <p class="py-10 text-slate-700">30 päivän ennustetta ei ole juuri nyt saatavilla.</p>
                 @else
-                    <p class="mt-4 text-sm text-slate-600">
-                        Ennuste on tehty <time datetime="{{ $forecast['date'] }}">{{ $fiDate($forecast['date']) }}</time>.
+                    <p class="mt-5 max-w-[72ch] text-lg font-bold leading-relaxed text-slate-900">
+                        @if (($forecast['direction_summary'] ?? 'none') === 'down')
+                            Kaikki saatavilla olevat ennusteet viittaavat hienoiseen laskuun.
+                        @elseif (($forecast['direction_summary'] ?? 'none') === 'up')
+                            Kaikki saatavilla olevat ennusteet viittaavat hienoiseen nousuun.
+                        @elseif (($forecast['direction_summary'] ?? 'none') === 'stable')
+                            Saatavilla olevat ennusteet viittaavat lähes ennallaan pysyvään hintaan.
+                        @elseif (($forecast['direction_summary'] ?? 'none') === 'mixed')
+                            Ennusteiden suunta vaihtelee sopimuspituuden mukaan.
+                        @else
+                            Yhtään täydellistä 30 päivän ennustetta ei ole saatavilla.
+                        @endif
                     </p>
+                    <p class="mt-2 text-sm text-slate-600">Ennuste tehty <time datetime="{{ $forecast['date'] }}">{{ $fiDate($forecast['date']) }}</time>.</p>
+
                     <div class="mt-6 divide-y divide-slate-200 border-y border-slate-200">
                         @foreach ([6, 12, 24] as $duration)
-                            @php $durationForecast = $forecastDurations->get($duration); @endphp
-                            <section class="py-8" aria-labelledby="forecast-{{ $duration }}-heading">
-                                <div class="flex flex-wrap items-start justify-between gap-4">
+                            @php
+                                $durationForecast = $forecastDurations->get($duration);
+                                $available = $durationForecast && $durationForecast['available'];
+                                $change = $available ? (float) $durationForecast['median_change'] : null;
+                            @endphp
+                            <section class="py-6" aria-labelledby="forecast-{{ $duration }}-heading">
+                                <div class="grid gap-4 md:grid-cols-[9rem_minmax(0,1fr)_auto] md:items-center">
                                     <div>
-                                        <h3 id="forecast-{{ $duration }}-heading" class="text-lg font-bold text-slate-900">{{ $duration }} kuukauden sopimukset</h3>
-                                        @if ($durationForecast && $durationForecast['available'])
-                                            <p class="mt-1 text-sm text-slate-600">
-                                                Tavoitepäivä {{ $fiDate($durationForecast['target_date']) }}, otos {{ number_format($durationForecast['contract_count'], 0, ',', ' ') }} sopimusta, luottamus {{ mb_strtolower($confidenceLabels[$durationForecast['confidence']] ?? 'ei ilmoitettu') }}.
-                                            </p>
+                                        <h3 id="forecast-{{ $duration }}-heading" class="font-bold text-slate-900">{{ $duration }} kuukautta</h3>
+                                        @if ($available)
+                                            <p class="mt-1 text-sm text-slate-600">Luottamus: <strong class="font-semibold text-slate-900">{{ $confidenceLabels[$durationForecast['confidence']] ?? 'ei ilmoitettu' }}</strong></p>
                                         @endif
                                     </div>
-                                    @if ($durationForecast && $durationForecast['available'])
-                                        <p class="text-sm font-semibold tabular-nums text-slate-900">Mediaanin muutos {{ $fmtSigned($durationForecast['median_change']) }} c/kWh</p>
+                                    @if (! $available)
+                                        <p class="text-slate-700">Ennustetta ei ole saatavilla.</p>
+                                    @else
+                                        <div class="flex flex-wrap gap-x-6 gap-y-2 tabular-nums">
+                                            <p><span class="text-slate-600">Nyt</span> <strong class="font-bold text-slate-900">{{ $fmt($durationForecast['current']['median']) }} c/kWh</strong></p>
+                                            <p><span class="text-slate-600">30 päivän arvio</span> <strong class="font-bold text-slate-900">{{ $fmt($durationForecast['forecast']['median']) }} c/kWh</strong></p>
+                                        </div>
+                                        <p class="font-bold tabular-nums text-slate-900">
+                                            {{ $change < -0.005 ? 'Laskua' : ($change > 0.005 ? 'Nousua' : 'Muutos') }} {{ $fmt(abs($change)) }} c/kWh
+                                        </p>
                                     @endif
                                 </div>
 
-                                @if (! $durationForecast || ! $durationForecast['available'])
-                                    <p class="mt-4 text-slate-700">Tälle sopimuskaudelle ei ole täydellistä kelvollista ennustetta.</p>
-                                @else
-                                    <div class="mt-5 overflow-x-auto">
-                                        <table class="w-full min-w-[34rem] border-collapse text-sm">
-                                            <caption class="sr-only">{{ $duration }} kuukauden sopimusten nykyinen ja ennustettu hintajakauma</caption>
-                                            <thead>
-                                                <tr class="border-b border-slate-200 text-left text-slate-600">
-                                                    <th class="py-2 pr-3 font-semibold">Hintataso</th>
-                                                    <th class="px-3 py-2 text-right font-semibold">Nykyinen</th>
-                                                    <th class="py-2 pl-3 text-right font-semibold">Ennuste 30 pv</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody class="divide-y divide-slate-100">
-                                                @foreach (['p20', 'median', 'p80'] as $quantile)
-                                                    <tr>
-                                                        <th scope="row" class="py-3 pr-3 text-left font-semibold text-slate-900">{{ $quantileLabels[$quantile] }}</th>
-                                                        <td class="px-3 py-3 text-right tabular-nums text-slate-700">{{ $fmt($durationForecast['current'][$quantile]) }} c/kWh</td>
-                                                        <td class="py-3 pl-3 text-right font-semibold tabular-nums text-slate-900">{{ $fmt($durationForecast['forecast'][$quantile]) }} c/kWh</td>
+                                @if ($available)
+                                    <details class="mt-4">
+                                        <summary class="cursor-pointer text-sm font-semibold text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-coral-500">Katso vaihteluväli ja ennusteen tiedot</summary>
+                                        <div class="mt-4 overflow-x-auto">
+                                            <table class="w-full min-w-[34rem] border-collapse text-sm">
+                                                <caption class="sr-only">{{ $duration }} kuukauden sopimusten nykyinen ja ennustettu hintaväli</caption>
+                                                <thead>
+                                                    <tr class="border-b border-slate-200 text-left text-slate-600">
+                                                        <th class="py-2 pr-3 font-semibold">Hintataso</th>
+                                                        <th class="px-3 py-2 text-right font-semibold">Nyt</th>
+                                                        <th class="py-2 pl-3 text-right font-semibold">30 päivän ennuste</th>
                                                     </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                                </thead>
+                                                <tbody class="divide-y divide-slate-100">
+                                                    @foreach (['p20' => 'p20', 'median' => 'Keskimmäinen hinta', 'p80' => 'p80'] as $quantile => $label)
+                                                        <tr>
+                                                            <th scope="row" class="py-3 pr-3 text-left font-semibold text-slate-900">{{ $label }}</th>
+                                                            <td class="px-3 py-3 text-right tabular-nums text-slate-700">{{ $fmt($durationForecast['current'][$quantile]) }} c/kWh</td>
+                                                            <td class="py-3 pl-3 text-right font-semibold tabular-nums text-slate-900">{{ $fmt($durationForecast['forecast'][$quantile]) }} c/kWh</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <p class="mt-3 text-sm leading-relaxed text-slate-600">Ennusteen päivä {{ $fiDate($durationForecast['target_date']) }}. Aineistossa {{ number_format($durationForecast['contract_count'], 0, ',', ' ') }} sopimusta. Luottamus {{ $confidenceLabels[$durationForecast['confidence']] ?? 'ei ilmoitettu' }}.</p>
+                                    </details>
                                 @endif
                             </section>
                         @endforeach
                     </div>
+                    <p class="mt-5 max-w-[72ch] text-base leading-relaxed text-slate-700">Luottamus kertoo, kuinka vahva ennusteen tietopohja on. Matalan luottamuksen ennuste voi muuttua nopeasti, eikä sitä pidä käyttää yksin sopimuspäätökseen.</p>
                 @endif
             </section>
 
-            <section class="mb-16 border-y border-slate-200 py-12" aria-labelledby="decision-heading">
-                <h2 id="decision-heading" class="text-2xl font-bold tracking-tight text-slate-900">Mitä ennen päätöstä pitää tarkistaa?</h2>
-                <div class="mt-5 grid gap-8 text-base leading-relaxed text-slate-700 md:grid-cols-2">
-                    <div>
-                        <h3 class="font-bold text-slate-900">Hinnan toiminta</h3>
-                        <p class="mt-2">Tarkista, pysyykö energiahinta samana koko sopimuskauden ajan. Katso erikseen perusmaksu, mahdollinen kulutusvaikutus ja muut hinnan muutosehdot.</p>
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-slate-900">Sitoutuminen ja muutto</h3>
-                        <p class="mt-2">Myyjän sopimusehdot ratkaisevat, mitä muutossa tapahtuu ja milloin määräaikaisen sopimuksen voi päättää poikkeustilanteessa. Tarkista ehdot ennen sopimuksen tekemistä.</p>
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-slate-900">Sopimuskauden päättyminen</h3>
-                        <p class="mt-2">Sopimuksen päättymisen jälkeinen menettely ja mahdollinen uusi hinta käyvät ilmi myyjän ehdoista ja ilmoituksista. Älä oleta, että sopimus jatkuu aina samalla tavalla.</p>
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-slate-900">Ennusteen epävarmuus</h3>
-                        <p class="mt-2">30 päivän ennuste on mallin arvio markkinan hintatasosta. Se voi muuttua, kun sopimushinnat ja futuurit muuttuvat.</p>
-                    </div>
-                </div>
+            <section class="mb-16 border-y border-slate-200 py-12" aria-labelledby="checklist-heading">
+                <h2 id="checklist-heading" class="text-2xl font-bold tracking-tight text-slate-900">Tarkista nämä ennen sopimusta</h2>
+                <ul class="mt-6 divide-y divide-slate-200 border-y border-slate-200 text-base leading-relaxed text-slate-700">
+                    <li class="grid gap-2 py-5 md:grid-cols-[12rem_minmax(0,1fr)]"><strong class="text-slate-900">Hinnan toiminta</strong><span>Varmista, pysyykö energiahinta samana koko sopimusajan vai sisältääkö sopimus kulutusvaikutuksen tai muun muuttuvan osan.</span></li>
+                    <li class="grid gap-2 py-5 md:grid-cols-[12rem_minmax(0,1fr)]"><strong class="text-slate-900">Koko vuosihinta</strong><span>Laske energiahinnan lisäksi kuukausimaksut omalla vuosikulutuksellasi.</span></li>
+                    <li class="grid gap-2 py-5 md:grid-cols-[12rem_minmax(0,1fr)]"><strong class="text-slate-900">Sopimusaika</strong><span>Valitse vain aika, johon olet valmis sitoutumaan, ja lue myyjän ehdot ennen tilausta.</span></li>
+                    <li class="grid gap-2 py-5 md:grid-cols-[12rem_minmax(0,1fr)]"><strong class="text-slate-900">Ennusteen rajat</strong><span>Pidä ennustetta yhtenä tietona muiden joukossa. Se ei takaa tulevaa hintaa.</span></li>
+                </ul>
             </section>
 
             <section aria-labelledby="offers-heading">
-                <h2 id="offers-heading" class="text-2xl font-bold tracking-tight text-slate-900">Katso yksittäiset tarjoukset listoilta</h2>
+                <h2 id="offers-heading" class="text-2xl font-bold tracking-tight text-slate-900">Vertaa seuraavaksi tarjoukset</h2>
                 <p class="mt-3 max-w-[70ch] text-base leading-relaxed text-slate-700">
-                    Markkinajakauma auttaa valitsemaan sopimuskauden. Tarkista yksittäisen tarjouksen hinta ja ehdot määräaikaisten sopimusten listalta.
+                    Markkinan keskimmäinen hinta auttaa valitsemaan sopimusajan. Tarkista lopuksi yksittäisen tarjouksen vuosihinta ja ehdot.
                 </p>
                 <div class="mt-6 flex flex-wrap gap-3">
                     <a href="/sahkosopimus/maaraaikainen" class="rounded-xl bg-coral-600 px-5 py-3 font-bold text-white hover:bg-coral-500">Kaikki määräaikaiset</a>

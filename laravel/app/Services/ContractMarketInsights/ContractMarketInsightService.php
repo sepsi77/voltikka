@@ -15,7 +15,7 @@ class ContractMarketInsightService
 {
     private const FIXED_TERM_COMPARISON_PAYLOAD_SCHEMA = 'fixed-term-offered-price-comparison-v2';
 
-    private const FIXED_TERM_ARTICLE_PAYLOAD_SCHEMA = 'fixed-term-decision-article-v3';
+    private const FIXED_TERM_ARTICLE_PAYLOAD_SCHEMA = 'fixed-term-decision-article-v4';
 
     private const FIXED_TERM_COMPARISON_SEGMENTS = [
         6 => 'fixed_term_6',
@@ -380,10 +380,18 @@ class ContractMarketInsightService
             }
 
             if (count($rows) === count(self::FIXED_TERM_ARTICLE_CURRENT_SEGMENTS)) {
+                $fixedRows = collect($rows)
+                    ->whereNotNull('duration_months')
+                    ->sortBy('median')
+                    ->values();
+
                 return [
                     'date' => $date,
                     'basis' => $pricingBasis,
                     'rows' => $rows,
+                    'fixed_ranking' => $fixedRows->pluck('duration_months')->all(),
+                    'lowest_fixed_duration_months' => $fixedRows->first()['duration_months'],
+                    'highest_fixed_duration_months' => $fixedRows->last()['duration_months'],
                 ];
             }
         }
@@ -480,12 +488,26 @@ class ContractMarketInsightService
                 continue;
             }
 
+            $medianDifference = $rows['fixed_term_12']['median'] - $rows['open_ended']['median'];
+            $monthlyDifference = $medianDifference / 12;
+            $lowerMedian = min($rows['fixed_term_12']['median'], $rows['open_ended']['median']);
+            $relativeDifference = $lowerMedian > 0 ? abs($medianDifference) / $lowerMedian : null;
+            $differenceIsSmall = abs($monthlyDifference) <= 5.0
+                || ($relativeDifference !== null && $relativeDifference <= 0.05);
+
             return [
                 'date' => $date,
                 'method_version' => $activeMethod,
                 'consumption_kwh' => 5000,
                 'rows' => array_values($rows),
-                'median_difference_eur' => $rows['fixed_term_12']['median'] - $rows['open_ended']['median'],
+                'median_difference_eur' => $medianDifference,
+                'median_difference_monthly_eur' => $monthlyDifference,
+                'difference_direction' => match (true) {
+                    $medianDifference < 0 => 'fixed_12_cheaper',
+                    $medianDifference > 0 => 'open_ended_cheaper',
+                    default => 'equal',
+                },
+                'difference_is_small' => $differenceIsSmall,
             ];
         }
 
@@ -512,7 +534,14 @@ class ContractMarketInsightService
         $latestDate = $query()->max('stat_date');
 
         if ($latestDate === null) {
-            return ['start_date' => null, 'end_date' => null, 'scale_min' => null, 'scale_max' => null, 'series' => []];
+            return [
+                'start_date' => null,
+                'end_date' => null,
+                'scale_min' => null,
+                'scale_max' => null,
+                'ticks' => [],
+                'series' => [],
+            ];
         }
 
         $endDate = Carbon::parse($latestDate)->toDateString();
@@ -584,17 +613,40 @@ class ContractMarketInsightService
                 $allP80[] = $point['p80'];
             }
 
+            $firstPoint = $points[0] ?? null;
+            $lastPoint = $points === [] ? null : $points[array_key_last($points)];
+            $medianChange = $firstPoint === null || $lastPoint === null
+                ? null
+                : $lastPoint['median'] - $firstPoint['median'];
+
             $series[] = [
                 'duration_months' => $durationMonths,
                 'points' => $points,
+                'summary' => $medianChange === null ? null : [
+                    'start_date' => $firstPoint['date'],
+                    'end_date' => $lastPoint['date'],
+                    'start_median' => $firstPoint['median'],
+                    'end_median' => $lastPoint['median'],
+                    'change' => $medianChange,
+                    'direction' => match (true) {
+                        $medianChange > 0.05 => 'rose',
+                        $medianChange < -0.05 => 'fell',
+                        default => 'stable',
+                    },
+                ],
             ];
         }
+
+        $scale = $allP20 === [] || $allP80 === []
+            ? ['min' => null, 'max' => null, 'ticks' => []]
+            : $this->niceScale(min($allP20), max($allP80));
 
         return [
             'start_date' => $startDate,
             'end_date' => $endDate,
-            'scale_min' => $allP20 === [] ? null : min($allP20),
-            'scale_max' => $allP80 === [] ? null : max($allP80),
+            'scale_min' => $scale['min'],
+            'scale_max' => $scale['max'],
+            'ticks' => $scale['ticks'],
             'series' => $series,
         ];
     }
@@ -612,7 +664,7 @@ class ContractMarketInsightService
         $latestDate = $baseQuery()->max('forecast_date');
 
         if ($latestDate === null) {
-            return ['date' => null, 'horizon_days' => 30, 'durations' => []];
+            return ['date' => null, 'horizon_days' => 30, 'direction_summary' => 'none', 'durations' => []];
         }
 
         $date = Carbon::parse($latestDate)->toDateString();
@@ -682,10 +734,71 @@ class ContractMarketInsightService
             ];
         }
 
+        $availableChanges = collect($durations)
+            ->where('available', true)
+            ->pluck('median_change')
+            ->map(fn ($change) => (float) $change)
+            ->values();
+        $directionSummary = match (true) {
+            $availableChanges->isEmpty() => 'none',
+            $availableChanges->every(fn (float $change) => abs($change) < 0.005) => 'stable',
+            $availableChanges->every(fn (float $change) => $change < 0) => 'down',
+            $availableChanges->every(fn (float $change) => $change > 0) => 'up',
+            default => 'mixed',
+        };
+
         return [
             'date' => $date,
             'horizon_days' => 30,
+            'direction_summary' => $directionSummary,
             'durations' => $durations,
+        ];
+    }
+
+    /**
+     * Expand a data range to shared readable chart bounds.
+     *
+     * @return array{min:float,max:float,ticks:list<array{value:float,percent:float}>}
+     */
+    private function niceScale(float $minimum, float $maximum): array
+    {
+        if ($minimum === $maximum) {
+            $padding = max(abs($minimum) * 0.1, 1.0);
+            $minimum -= $padding;
+            $maximum += $padding;
+        }
+
+        $roughStep = ($maximum - $minimum) / 4;
+        $magnitude = 10 ** floor(log10($roughStep));
+        $normalized = $roughStep / $magnitude;
+        $niceNormalized = match (true) {
+            $normalized <= 1 => 1,
+            $normalized <= 2 => 2,
+            $normalized <= 2.5 => 2.5,
+            $normalized <= 5 => 5,
+            default => 10,
+        };
+        $step = $niceNormalized * $magnitude;
+        $niceMinimum = floor($minimum / $step) * $step;
+        $niceMaximum = ceil($maximum / $step) * $step;
+        $precision = max(0, (int) ceil(-log10($step)) + 1);
+        $niceMinimum = round($niceMinimum, $precision);
+        $niceMaximum = round($niceMaximum, $precision);
+        $span = $niceMaximum - $niceMinimum;
+        $ticks = [];
+
+        for ($value = $niceMinimum; $value <= $niceMaximum + ($step / 10); $value += $step) {
+            $roundedValue = round($value, $precision);
+            $ticks[] = [
+                'value' => $roundedValue,
+                'percent' => $span === 0.0 ? 50.0 : (($niceMaximum - $roundedValue) / $span) * 100,
+            ];
+        }
+
+        return [
+            'min' => $niceMinimum,
+            'max' => $niceMaximum,
+            'ticks' => $ticks,
         ];
     }
 
