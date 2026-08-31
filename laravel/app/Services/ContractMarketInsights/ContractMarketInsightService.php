@@ -15,7 +15,7 @@ class ContractMarketInsightService
 {
     private const FIXED_TERM_COMPARISON_PAYLOAD_SCHEMA = 'fixed-term-offered-price-comparison-v2';
 
-    private const FIXED_TERM_ARTICLE_PAYLOAD_SCHEMA = 'fixed-term-decision-article-v4';
+    private const FIXED_TERM_ARTICLE_PAYLOAD_SCHEMA = 'fixed-term-decision-article-v7';
 
     private const FIXED_TERM_COMPARISON_SEGMENTS = [
         6 => 'fixed_term_6',
@@ -30,9 +30,40 @@ class ContractMarketInsightService
         'fixed_term_24',
     ];
 
-    private const PRICE_OF_CERTAINTY_SEGMENTS = [
-        'open_ended',
+    private const ANNUAL_COMPARISON_CORE_SEGMENTS = [
         'fixed_term_12',
+        'spot',
+        'open_ended',
+    ];
+
+    private const ANNUAL_COMPARISON_OPTIONAL_SEGMENTS = [
+        'market_reset',
+        'quarterly',
+        'fixed_term_6',
+        'fixed_term_24',
+        'hybrid',
+    ];
+
+    private const ANNUAL_COMPARISON_LABELS = [
+        'fixed_term_12' => 'Kiinteä hinta, 12 kk',
+        'spot' => 'Pörssisähkö',
+        'open_ended' => 'Toistaiseksi voimassa oleva',
+        'market_reset' => 'Jaksoittain vaihtuva hinta',
+        'quarterly' => 'Kvartaalisähkö',
+        'fixed_term_6' => 'Kiinteä hinta, 6 kk',
+        'fixed_term_24' => 'Kiinteä hinta, 24 kk',
+        'hybrid' => 'Kulutusvaikutus',
+    ];
+
+    private const ANNUAL_COMPARISON_CAVEATS = [
+        'fixed_term_12' => 'clean_benchmark',
+        'spot' => 'spot_forward_estimate',
+        'open_ended' => 'seller_can_change_price',
+        'market_reset' => 'future_periods_estimated',
+        'quarterly' => 'future_periods_estimated',
+        'fixed_term_6' => 'annualized_equivalent',
+        'fixed_term_24' => 'next_twelve_months_only',
+        'hybrid' => 'consumption_effect_ignored',
     ];
 
     public function __construct(private readonly PricingMode $pricingMode) {}
@@ -160,19 +191,19 @@ class ContractMarketInsightService
             Carbon::tomorrow(),
             function () use ($pricingBasis): array {
                 $current = $this->fixedTermArticleCurrentComparison();
-                $priceOfCertainty = $this->priceOfCertaintyComparison();
+                $annualComparison = $this->annualComparison();
                 $history = $this->fixedTermHistory();
                 $forecast = $this->fixedTermArticleForecast($pricingBasis);
                 $dates = array_values(array_filter([
                     $current['date'] ?? null,
-                    $priceOfCertainty['date'] ?? null,
+                    $annualComparison['date'] ?? null,
                     $history['end_date'] ?? null,
                     $forecast['date'] ?? null,
                 ]));
 
                 return [
                     'current' => $current,
-                    'price_of_certainty' => $priceOfCertainty,
+                    'annual_comparison' => $annualComparison,
                     'history' => $history,
                     'forecast' => $forecast,
                     'data_date' => $dates === [] ? null : max($dates),
@@ -400,40 +431,36 @@ class ContractMarketInsightService
     }
 
     /**
-     * Compare current annual distributions on one date and active method.
-     * Segment estimator methods can differ by design and do not block this
-     * point-in-time comparison.
+     * Compare precomputed annual distributions with a fully fixed 12-month
+     * contract. Estimator methods can differ between segments by design.
      *
      * @return array<string,mixed>
      */
-    private function priceOfCertaintyComparison(): array
+    private function annualComparison(): array
     {
         if (! $this->pricingMode->enabled()) {
             return [];
         }
 
         $expectedBasis = $this->pricingMode->expectedContractPriceBasis()->value;
-        $activeMethod = ContractPriceDailyStatistic::activeAnnualMethodVersion()->value;
-        $latestExpectedUnitDate = ContractPriceDailyStatistic::query()
-            ->unitStatistics()
-            ->where('pricing_basis', $expectedBasis)
-            ->max('stat_date');
-        $latestExpectedUnitDate = $latestExpectedUnitDate === null
-            ? null
-            : Carbon::parse($latestExpectedUnitDate)->toDateString();
+        $allSegments = array_merge(
+            self::ANNUAL_COMPARISON_CORE_SEGMENTS,
+            self::ANNUAL_COMPARISON_OPTIONAL_SEGMENTS,
+        );
         $baseQuery = fn () => ContractPriceDailyStatistic::query()
             ->activeAnnualMethod()
             ->where('consumption_kwh', 5000)
-            ->whereIn('segment_key', self::PRICE_OF_CERTAINTY_SEGMENTS)
-            ->whereIn('pricing_basis', [$expectedBasis, 'mixed_evidence'])
+            ->where('pricing_basis', $expectedBasis)
+            ->whereIn('segment_key', $allSegments)
             ->whereNotNull('p20_value')
             ->whereNotNull('median_value')
             ->whereNotNull('p80_value')
-            ->where('contract_count', '>=', 10);
+            ->where('contract_count', '>', 0);
         $candidateDates = $baseQuery()
+            ->whereIn('segment_key', self::ANNUAL_COMPARISON_CORE_SEGMENTS)
             ->select('stat_date')
             ->groupBy('stat_date')
-            ->havingRaw('COUNT(DISTINCT segment_key) = ?', [count(self::PRICE_OF_CERTAINTY_SEGMENTS)])
+            ->havingRaw('COUNT(DISTINCT segment_key) = ?', [count(self::ANNUAL_COMPARISON_CORE_SEGMENTS)])
             ->orderByDesc('stat_date')
             ->pluck('stat_date');
 
@@ -444,74 +471,189 @@ class ContractMarketInsightService
                 ->get([
                     'segment_key',
                     'pricing_basis',
+                    'basis_counts',
                     'p20_value',
                     'median_value',
                     'p80_value',
                     'contract_count',
                 ]);
-
-            if ($statistics->count() !== count(self::PRICE_OF_CERTAINTY_SEGMENTS)) {
-                continue;
-            }
-
+            $statisticsBySegment = $statistics->groupBy('segment_key');
             $rows = [];
-            foreach (self::PRICE_OF_CERTAINTY_SEGMENTS as $segmentKey) {
-                $statistic = $statistics->firstWhere('segment_key', $segmentKey);
-                if ($statistic === null
-                    || ($statistic->pricing_basis === 'mixed_evidence' && $date !== $latestExpectedUnitDate)
-                ) {
+
+            foreach (self::ANNUAL_COMPARISON_CORE_SEGMENTS as $segmentKey) {
+                $segmentRows = $statisticsBySegment->get($segmentKey, collect());
+                if ($segmentRows->count() !== 1) {
                     $rows = [];
                     break;
                 }
 
-                $p20 = (float) $statistic->p20_value;
-                $median = (float) $statistic->median_value;
-                $p80 = (float) $statistic->p80_value;
-                if (! is_finite($p20) || ! is_finite($median) || ! is_finite($p80)
-                    || $p20 > $median || $median > $p80 || (int) $statistic->contract_count < 10
-                ) {
+                $row = $this->completeAnnualRow($segmentRows->first());
+                if ($row === null) {
                     $rows = [];
                     break;
                 }
 
-                $rows[$segmentKey] = [
-                    'segment_key' => $segmentKey,
-                    'pricing_basis' => $statistic->pricing_basis,
-                    'p20' => $p20,
-                    'median' => $median,
-                    'p80' => $p80,
-                    'contract_count' => (int) $statistic->contract_count,
-                ];
+                $rows[$segmentKey] = $row;
             }
 
-            if (count($rows) !== count(self::PRICE_OF_CERTAINTY_SEGMENTS)) {
+            if (count($rows) !== count(self::ANNUAL_COMPARISON_CORE_SEGMENTS)) {
                 continue;
             }
 
-            $medianDifference = $rows['fixed_term_12']['median'] - $rows['open_ended']['median'];
-            $monthlyDifference = $medianDifference / 12;
-            $lowerMedian = min($rows['fixed_term_12']['median'], $rows['open_ended']['median']);
-            $relativeDifference = $lowerMedian > 0 ? abs($medianDifference) / $lowerMedian : null;
-            $differenceIsSmall = abs($monthlyDifference) <= 5.0
-                || ($relativeDifference !== null && $relativeDifference <= 0.05);
+            $comparisons = [];
+            foreach (['spot', 'open_ended'] as $segmentKey) {
+                $comparisons[$segmentKey] = $this->annualDifference($rows['fixed_term_12'], $rows[$segmentKey]);
+            }
+
+            foreach (self::ANNUAL_COMPARISON_OPTIONAL_SEGMENTS as $segmentKey) {
+                $segmentRows = $statisticsBySegment->get($segmentKey, collect());
+                $statistic = $segmentRows->count() === 1 ? $segmentRows->first() : null;
+
+                if ($statistic === null) {
+                    $comparisons[$segmentKey] = [
+                        'segment_key' => $segmentKey,
+                        'state' => 'unavailable',
+                    ];
+
+                    continue;
+                }
+
+                $estimateMethods = $this->estimateMethodCounts($statistic->basis_counts);
+                if (in_array($segmentKey, ['market_reset', 'quarterly'], true) && $estimateMethods === []) {
+                    $comparisons[$segmentKey] = [
+                        'segment_key' => $segmentKey,
+                        'state' => 'unavailable',
+                    ];
+
+                    continue;
+                }
+
+                $row = $this->completeAnnualRow($statistic);
+                if ($row === null) {
+                    $comparisons[$segmentKey] = [
+                        'segment_key' => $segmentKey,
+                        'state' => 'unavailable',
+                    ];
+
+                    continue;
+                }
+
+                $baseOnlyCount = $segmentKey === 'hybrid'
+                    ? ($estimateMethods['hybrid_base_only'] ?? (int) $statistic->contract_count)
+                    : ($estimateMethods['hybrid_base_only'] ?? 0);
+                $consumptionEffectIgnored = $segmentKey === 'hybrid' || $baseOnlyCount > 0;
+                if ($consumptionEffectIgnored) {
+                    $row['consumption_effect_ignored'] = true;
+                    $row['base_only_count'] = $baseOnlyCount;
+                    $row['complete_estimate_count'] = max(array_sum($estimateMethods) - $baseOnlyCount, 0);
+                }
+
+                $rows[$segmentKey] = $row;
+                $comparison = $this->annualDifference($rows['fixed_term_12'], $row);
+                if ($consumptionEffectIgnored) {
+                    $comparison['consumption_effect_ignored'] = true;
+                    $comparison['base_only_count'] = $baseOnlyCount;
+                    $comparison['complete_estimate_count'] = $row['complete_estimate_count'];
+                }
+                $comparisons[$segmentKey] = $comparison;
+            }
+
+            $orderedRows = collect(array_keys(self::ANNUAL_COMPARISON_LABELS))
+                ->map(fn (string $segmentKey) => $rows[$segmentKey] ?? null)
+                ->filter()
+                ->values()
+                ->all();
 
             return [
                 'date' => $date,
-                'method_version' => $activeMethod,
+                'method_version' => ContractPriceDailyStatistic::activeAnnualMethodVersion()->value,
+                'pricing_basis' => $expectedBasis,
                 'consumption_kwh' => 5000,
-                'rows' => array_values($rows),
-                'median_difference_eur' => $medianDifference,
-                'median_difference_monthly_eur' => $monthlyDifference,
-                'difference_direction' => match (true) {
-                    $medianDifference < 0 => 'fixed_12_cheaper',
-                    $medianDifference > 0 => 'open_ended_cheaper',
-                    default => 'equal',
-                },
-                'difference_is_small' => $differenceIsSmall,
+                'benchmark_segment_key' => 'fixed_term_12',
+                'rows' => $orderedRows,
+                'comparisons' => $comparisons,
+                'chart' => [
+                    'labels' => array_map(fn (array $row) => $row['label'], $orderedRows),
+                    'medians' => array_map(fn (array $row) => $row['median'], $orderedRows),
+                    'segment_keys' => array_map(fn (array $row) => $row['segment_key'], $orderedRows),
+                    'benchmark_segment_key' => 'fixed_term_12',
+                ],
             ];
         }
 
         return [];
+    }
+
+    /** @return array<string,mixed>|null */
+    private function completeAnnualRow(ContractPriceDailyStatistic $statistic): ?array
+    {
+        if ($statistic->p20_value === null || $statistic->median_value === null || $statistic->p80_value === null) {
+            return null;
+        }
+
+        $p20 = (float) $statistic->p20_value;
+        $median = (float) $statistic->median_value;
+        $p80 = (float) $statistic->p80_value;
+        $contractCount = (int) $statistic->contract_count;
+        if (! is_finite($p20) || ! is_finite($median) || ! is_finite($p80)
+            || $p20 > $median || $median > $p80 || $contractCount <= 0
+        ) {
+            return null;
+        }
+
+        $segmentKey = (string) $statistic->segment_key;
+
+        return [
+            'segment_key' => $segmentKey,
+            'label' => self::ANNUAL_COMPARISON_LABELS[$segmentKey],
+            'p20' => $p20,
+            'median' => $median,
+            'p80' => $p80,
+            'contract_count' => $contractCount,
+            'low_sample' => $segmentKey === 'market_reset' && $contractCount < 10,
+            'caveat' => self::ANNUAL_COMPARISON_CAVEATS[$segmentKey],
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    private function annualDifference(array $benchmark, array $alternative): array
+    {
+        $difference = $benchmark['median'] - $alternative['median'];
+        $monthlyDifference = $difference / 12;
+        $lowerMedian = min($benchmark['median'], $alternative['median']);
+        $relativeDifference = $lowerMedian > 0 ? abs($difference) / $lowerMedian : null;
+
+        return [
+            'segment_key' => $alternative['segment_key'],
+            'state' => 'complete',
+            'median_difference_eur' => $difference,
+            'median_difference_monthly_eur' => $monthlyDifference,
+            'cheaper_direction' => match (true) {
+                $difference < 0 => 'fixed_12_cheaper',
+                $difference > 0 => 'alternative_cheaper',
+                default => 'equal',
+            },
+            'difference_is_small' => abs($monthlyDifference) <= 5.0
+                || ($relativeDifference !== null && $relativeDifference <= 0.05),
+            'low_sample' => (bool) ($alternative['low_sample'] ?? false),
+        ];
+    }
+
+    /** @return array<string,int> */
+    private function estimateMethodCounts(mixed $basisCounts): array
+    {
+        if (! is_array($basisCounts) || ! is_array($basisCounts['estimate_method'] ?? null)) {
+            return [];
+        }
+
+        $counts = [];
+        foreach ($basisCounts['estimate_method'] as $method => $count) {
+            if (is_string($method) && is_numeric($count) && (int) $count > 0) {
+                $counts[$method] = (int) $count;
+            }
+        }
+
+        return $counts;
     }
 
     /**
@@ -537,10 +679,8 @@ class ContractMarketInsightService
             return [
                 'start_date' => null,
                 'end_date' => null,
-                'scale_min' => null,
-                'scale_max' => null,
-                'ticks' => [],
                 'series' => [],
+                'chart' => ['labels' => [], 'datasets' => []],
             ];
         }
 
@@ -589,8 +729,6 @@ class ContractMarketInsightService
         }
 
         $series = [];
-        $allP20 = [];
-        $allP80 = [];
         foreach (self::FIXED_TERM_COMPARISON_SEGMENTS as $durationMonths => $segmentKey) {
             $weeks = [];
             foreach ($daily[$segmentKey] ?? [] as $date => $row) {
@@ -609,8 +747,6 @@ class ContractMarketInsightService
                     'contract_count' => (int) round(array_sum(array_map(fn ($row) => (int) $row->contract_count, $weekRows)) / $count),
                 ];
                 $points[] = $point;
-                $allP20[] = $point['p20'];
-                $allP80[] = $point['p80'];
             }
 
             $firstPoint = $points[0] ?? null;
@@ -637,17 +773,31 @@ class ContractMarketInsightService
             ];
         }
 
-        $scale = $allP20 === [] || $allP80 === []
-            ? ['min' => null, 'max' => null, 'ticks' => []]
-            : $this->niceScale(min($allP20), max($allP80));
+        $chartDates = collect($series)
+            ->flatMap(fn (array $durationSeries) => array_column($durationSeries['points'], 'date'))
+            ->unique()
+            ->sort()
+            ->values();
+        $chartDatasets = collect($series)->map(function (array $durationSeries) use ($chartDates): array {
+            $mediansByDate = collect($durationSeries['points'])->pluck('median', 'date');
+
+            return [
+                'duration_months' => $durationSeries['duration_months'],
+                'segment_key' => 'fixed_term_'.$durationSeries['duration_months'],
+                'label' => $durationSeries['duration_months'].' kk',
+                'values' => $chartDates->map(fn (string $date) => $mediansByDate->get($date))->all(),
+            ];
+        })->all();
 
         return [
             'start_date' => $startDate,
             'end_date' => $endDate,
-            'scale_min' => $scale['min'],
-            'scale_max' => $scale['max'],
-            'ticks' => $scale['ticks'],
             'series' => $series,
+            'chart' => [
+                'labels' => $chartDates->map(fn (string $date) => Carbon::parse($date)->translatedFormat('j.n.Y'))->all(),
+                'dates' => $chartDates->all(),
+                'datasets' => $chartDatasets,
+            ],
         ];
     }
 
@@ -752,53 +902,6 @@ class ContractMarketInsightService
             'horizon_days' => 30,
             'direction_summary' => $directionSummary,
             'durations' => $durations,
-        ];
-    }
-
-    /**
-     * Expand a data range to shared readable chart bounds.
-     *
-     * @return array{min:float,max:float,ticks:list<array{value:float,percent:float}>}
-     */
-    private function niceScale(float $minimum, float $maximum): array
-    {
-        if ($minimum === $maximum) {
-            $padding = max(abs($minimum) * 0.1, 1.0);
-            $minimum -= $padding;
-            $maximum += $padding;
-        }
-
-        $roughStep = ($maximum - $minimum) / 4;
-        $magnitude = 10 ** floor(log10($roughStep));
-        $normalized = $roughStep / $magnitude;
-        $niceNormalized = match (true) {
-            $normalized <= 1 => 1,
-            $normalized <= 2 => 2,
-            $normalized <= 2.5 => 2.5,
-            $normalized <= 5 => 5,
-            default => 10,
-        };
-        $step = $niceNormalized * $magnitude;
-        $niceMinimum = floor($minimum / $step) * $step;
-        $niceMaximum = ceil($maximum / $step) * $step;
-        $precision = max(0, (int) ceil(-log10($step)) + 1);
-        $niceMinimum = round($niceMinimum, $precision);
-        $niceMaximum = round($niceMaximum, $precision);
-        $span = $niceMaximum - $niceMinimum;
-        $ticks = [];
-
-        for ($value = $niceMinimum; $value <= $niceMaximum + ($step / 10); $value += $step) {
-            $roundedValue = round($value, $precision);
-            $ticks[] = [
-                'value' => $roundedValue,
-                'percent' => $span === 0.0 ? 50.0 : (($niceMaximum - $roundedValue) / $span) * 100,
-            ];
-        }
-
-        return [
-            'min' => $niceMinimum,
-            'max' => $niceMaximum,
-            'ticks' => $ticks,
         ];
     }
 

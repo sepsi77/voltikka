@@ -21,7 +21,7 @@ class ArticleFixedTermContract extends Component
             'editorialReviewDate' => self::EDITORIAL_REVIEW_DATE,
         ])->layout('layouts.app', [
             'title' => 'Kannattaako määräaikainen sähkösopimus? | Voltikka',
-            'metaDescription' => 'Katso, milloin määräaikainen sähkösopimus kannattaa. Vertaa vuoden kustannusta, 6, 12 ja 24 kuukauden hintoja sekä 30 päivän ennustetta.',
+            'metaDescription' => 'Vertaa 12 kuukauden kiinteähintaista sähkösopimusta pörssisähköön, vaihtuviin hintoihin ja kulutusvaikutukseen. Katso hinnat, erot ja riskit.',
             'canonical' => config('app.url').'/sahkosopimus/kannattaako-maaraaikainen',
         ]);
     }
@@ -36,7 +36,7 @@ class ArticleFixedTermContract extends Component
             '@context' => 'https://schema.org',
             '@type' => 'Article',
             'headline' => 'Kannattaako määräaikainen sähkösopimus?',
-            'description' => 'Selkeä opas määräaikaisen sähkösopimuksen valintaan. Vertaa vuoden kustannusta, nykyisiä energiahintoja, hintahistoriaa ja 30 päivän ennustetta.',
+            'description' => 'Vertailu siitä, miten täysin kiinteähintainen 12 kuukauden sähkösopimus eroaa pörssisähköstä, vaihtuvista hinnoista ja kulutusvaikutuksesta.',
             'author' => [
                 '@type' => 'Organization',
                 'name' => 'Voltikka',

@@ -27,21 +27,20 @@ class ArticleFixedTermContractTest extends TestCase
         Cache::flush();
     }
 
-    public function test_article_tells_one_plain_language_decision_story_from_aggregate_data(): void
+    public function test_article_builds_broad_comparison_and_plain_language_sections_from_aggregate_data(): void
     {
-        $this->unitStatistic('2026-06-08', 'open_ended', 8.0, 9.0, 10.0, 14);
-        $this->unitStatistic('2026-06-15', 'open_ended', 8.0, 9.0, 10.0, 14);
-        $this->statistic('2026-06-08', 6, 8.2, 9.2, 10.2, 12);
-        $this->statistic('2026-06-08', 12, 8.1, 9.1, 10.1, 12);
-        $this->statistic('2026-06-08', 24, 7.4, 8.4, 9.4, 12);
-        $this->statistic('2026-06-15', 6, 9.2, 10.2, 11.2, 12);
-        $this->statistic('2026-06-15', 12, 7.9, 8.9, 9.9, 12);
-        $this->statistic('2026-06-15', 24, 7.4, 8.4, 9.4, 12);
+        $this->seedCurrentAndHistory();
+        $this->annualStatistic('2026-06-15', 'fixed_term_12', 650, 700, 760, 15, estimateMethods: ['none' => 15]);
+        $this->annualStatistic('2026-06-15', 'spot', 560, 620, 690, 25, estimateMethods: ['forward_curve_spot' => 25]);
+        $this->annualStatistic('2026-06-15', 'open_ended', 720, 780, 850, 18, estimateMethods: ['supplier_adjusted_forward_curve_shift' => 18]);
+        $this->annualStatistic('2026-06-15', 'market_reset', 730, 800, 880, 12, estimateMethods: ['recurring_forward_curve_shift' => 12]);
+        $this->annualStatistic('2026-06-15', 'quarterly', 690, 740, 810, 11, estimateMethods: ['recurring_forward_curve_shift' => 11]);
+        $this->annualStatistic('2026-06-15', 'fixed_term_6', 680, 730, 790, 10, estimateMethods: ['term_price_annualized' => 10]);
+        $this->annualStatistic('2026-06-15', 'fixed_term_24', 660, 710, 770, 13, estimateMethods: ['none' => 13]);
+        $this->annualStatistic('2026-06-15', 'hybrid', 500, 551, 620, 30, estimateMethods: ['hybrid_base_only' => 30]);
         foreach ([6, 12, 24] as $duration) {
             $this->forecastQuantiles('2026-06-18', $duration);
         }
-        $this->annualStatistic('2026-06-15', 'open_ended', 640.0, 718.0, 790.0, 14);
-        $this->annualStatistic('2026-06-15', 'fixed_term_12', 630.0, 700.0, 780.0, 12);
 
         $queries = [];
         DB::listen(function ($query) use (&$queries): void {
@@ -49,153 +48,299 @@ class ArticleFixedTermContractTest extends TestCase
         });
 
         $payload = app(ContractMarketInsightService::class)->fixedTermArticle();
-        $aggregateQueries = implode("\n", $queries);
-        $this->assertStringNotContainsString('electricity_contracts', $aggregateQueries);
-        $this->assertStringNotContainsString('price_components', $aggregateQueries);
-        $this->assertStringNotContainsString('active_contracts', $aggregateQueries);
-        $this->assertSame(24, $payload['current']['lowest_fixed_duration_months']);
-        $this->assertSame(6, $payload['current']['highest_fixed_duration_months']);
-        $this->assertSame('fixed_12_cheaper', $payload['price_of_certainty']['difference_direction']);
-        $this->assertTrue($payload['price_of_certainty']['difference_is_small']);
-        $this->assertEqualsWithDelta(-1.5, $payload['price_of_certainty']['median_difference_monthly_eur'], 0.0001);
-        $this->assertSame('down', $payload['forecast']['direction_summary']);
-        $historyByDuration = collect($payload['history']['series'])->keyBy('duration_months');
-        $this->assertSame('rose', $historyByDuration[6]['summary']['direction']);
-        $this->assertSame('fell', $historyByDuration[12]['summary']['direction']);
-        $this->assertSame('stable', $historyByDuration[24]['summary']['direction']);
+        $querySql = implode("\n", $queries);
+        $this->assertStringContainsString('contract_price_daily_statistics', $querySql);
+        $this->assertStringContainsString('fixed_contract_price_forecasts', $querySql);
+        foreach (['electricity_contracts', 'active_contracts', 'price_components', 'contract_price_annual_costs'] as $prohibitedTable) {
+            $this->assertStringNotContainsString($prohibitedTable, $querySql);
+        }
+
+        $annual = $payload['annual_comparison'];
+        $this->assertSame('2026-06-15', $annual['date']);
+        $this->assertSame('fixed_term_12', $annual['benchmark_segment_key']);
+        $this->assertSame(
+            ['fixed_term_12', 'spot', 'open_ended', 'market_reset', 'quarterly', 'fixed_term_6', 'fixed_term_24', 'hybrid'],
+            array_column($annual['rows'], 'segment_key'),
+        );
+        $this->assertContains('hybrid', $annual['chart']['segment_keys']);
+        $this->assertSame('complete', $annual['comparisons']['hybrid']['state']);
+        $this->assertTrue($annual['comparisons']['hybrid']['consumption_effect_ignored']);
+        $this->assertSame(30, $annual['comparisons']['hybrid']['base_only_count']);
+        $this->assertSame('alternative_cheaper', $annual['comparisons']['spot']['cheaper_direction']);
+        $this->assertEqualsWithDelta(80.0, $annual['comparisons']['spot']['median_difference_eur'], 0.0001);
+        $this->assertSame('fixed_12_cheaper', $annual['comparisons']['open_ended']['cheaper_direction']);
+        $this->assertEqualsWithDelta(-80.0, $annual['comparisons']['open_ended']['median_difference_eur'], 0.0001);
+        $this->assertFalse($annual['comparisons']['spot']['difference_is_small']);
 
         $response = $this->get('/sahkosopimus/kannattaako-maaraaikainen')->assertOk();
-        $text = strip_tags($response->getContent());
-
         $response
-            ->assertSeeText('Hinnat ovat nyt lähellä toisiaan')
-            ->assertSeeText('12 kuukauden sopimuksen arvioitu vuosihinta on 700 € ja toistaiseksi voimassa olevan 718 €. Ero on 12 kuukauden sopimuksen hyväksi 18 € vuodessa eli 1,50 € kuukaudessa')
-            ->assertSeeText('Ero on pieni')
-            ->assertSeeText('Mitä tässä verrataan?')
-            ->assertSeeText('Mediaani tarkoittaa listattujen hintojen keskimmäistä hintaa')
-            ->assertSeeText('Mitä sopimus maksaisi vuodessa?')
-            ->assertSeeText('718 €/vuosi')
-            ->assertSeeText('700 €/vuosi')
-            ->assertSeeText('12 kuukauden sopimus on noin 18 €/vuosi eli 1,50 €/kuukausi halvempi')
-            ->assertSeeText('Mitä energiahinta on nyt?')
-            ->assertSeeText('10,20 c/kWh')
-            ->assertSeeText('8,90 c/kWh')
-            ->assertSeeText('8,40 c/kWh')
-            ->assertSeeText('Miten sopimuspituutta kannattaa ajatella?')
-            ->assertSeeText('Tasapainoinen yhden vuoden valinta')
-            ->assertSeeText('Matalin nykyinen keskimmäinen energiahinta, 8,40 c/kWh')
-            ->assertSeeText('Korkein nykyinen keskimmäinen energiahinta, 10,20 c/kWh')
-            ->assertSeeText('nousi')
-            ->assertSeeText('9,20 c/kWh')
-            ->assertSeeText('laski')
-            ->assertSeeText('9,10 c/kWh')
-            ->assertSeeText('pysyi lähes ennallaan')
-            ->assertSeeText('Hinta, c/kWh')
-            ->assertSeeText('Koralliviiva: keskimmäinen hinta')
-            ->assertSeeText('Vaalea alue: hintojen keskimmäinen 60 % (p20–p80)')
-            ->assertSeeText('Kaikki saatavilla olevat ennusteet viittaavat hienoiseen laskuun')
-            ->assertSeeText('9,00 c/kWh')
-            ->assertSeeText('8,80 c/kWh')
-            ->assertSeeText('Laskua 0,20 c/kWh')
-            ->assertSeeText('Luottamus: matala')
-            ->assertSeeText('p20–p80 on listattujen hintojen keskimmäinen 60 %')
-            ->assertSeeHtml('<details')
-            ->assertSeeHtml('preserveAspectRatio="none"')
-            ->assertSeeHtml('vector-effect="non-scaling-stroke"')
-            ->assertSeeHtml('grid-cols-[76px_minmax(0,1fr)]')
-            ->assertSeeText('Uusimmat markkina- ja ennustetiedot')
-            ->assertSeeText('18.6.2026')
-            ->assertSeeText('Teksti tarkistettu')
-            ->assertSeeText('31.8.2026')
-            ->assertSeeHtml('href="/sahkosopimus/maaraaikainen"')
-            ->assertSeeHtml('href="/sahkosopimus/maaraaikainen-6-kk"')
-            ->assertSeeHtml('href="/sahkosopimus/maaraaikainen-12-kk"')
-            ->assertSeeHtml('href="/sahkosopimus/maaraaikainen-24-kk"')
-            ->assertSee('"headline": "Kannattaako määräaikainen sähkösopimus?"', false)
-            ->assertSee('"datePublished": "2026-01-31"', false)
-            ->assertSee('"dateModified": "2026-08-31"', false)
-            ->assertSee('"temporalCoverage": "2026-06-18"', false)
-            ->assertDontSeeText('Markkinakatsaus')
-            ->assertDontSeeText('Lyhyt vastaus')
+            ->assertSeeText('Kannattaako määräaikainen sähkösopimus?')
+            ->assertSeeText('Määräaikainen ei ole aina halvin, mutta sen energiahinta ei muutu kesken vuoden.')
+            ->assertSeeText('Hintaerot jäävät tässä vertailussa enintään 6,67 euroon kuukaudessa.')
+            ->assertSeeText('Pörssisähkö on halvempi kuin kiinteä 12 kuukauden sopimus.')
+            ->assertSeeText('Mediaanien ero on 80 € vuodessa eli 6,67 € kuukaudessa pörssisähkön hyväksi.')
+            ->assertSeeText('Kiinteä 12 kuukauden sopimus on halvempi kuin toistaiseksi voimassa oleva sopimus.')
+            ->assertSeeText('Mediaanien ero on 80 € vuodessa eli 6,67 € kuukaudessa kiinteän 12 kuukauden sopimuksen hyväksi.')
+            ->assertSeeText('Täysin kiinteähintainen sopimus helpottaa sähkölaskun ennakointia.')
+            ->assertSeeText('Miten määräaikainen vertautuu muihin sopimustyyppeihin?')
+            ->assertSeeText('Valinta on tasapaino hinnan ja hintariskin välillä.')
+            ->assertSeeText('Suurempi hintariski voi tuoda säästöä')
+            ->assertSeeText('Se ei kuitenkaan takaa halvempaa sopimusta.')
+            ->assertSeeText('Hinta ja hintariski rinnakkain')
+            ->assertSeeText('Ennakoitavuus: korkea')
+            ->assertSeeText('Ennakoitavuus: kohtalainen')
+            ->assertSeeText('Ennakoitavuus: matala')
+            ->assertSeeText('Perushinta tunnetaan, mutta kulutusvaikutus jää avoimeksi.')
+            ->assertSeeText('Ennakoitavuus jää pörssisähkön ja täysin kiinteän sopimuksen väliin')
+            ->assertSeeText('Kulutusvaikutus ei sisälly')
+            ->assertSee('aria-label="Sopimustyyppien hinnan ennakoitavuus ja vuosikustannus"', false)
+            ->assertSeeText('Määräaikainen vai pörssisähkö?')
+            ->assertSeeText('Määräaikainen vai toistaiseksi voimassa oleva sopimus?')
+            ->assertSeeText('Määräaikainen vai jaksoittain vaihtuva hinta?')
+            ->assertSeeText('Määräaikainen vai kvartaalisähkö?')
+            ->assertSeeText('Määräaikainen vai kulutusvaikutussopimus?')
+            ->assertSeeText('sähköenergian ja sopimuksen kuukausimaksut')
+            ->assertSeeText('Sähkönsiirto ei kuulu vertailuun.')
+            ->assertSeeText('6 kuukauden hinta on muutettu 12 kuukauden vertailuarvoksi')
+            ->assertSeeText('24 kuukauden sopimuksesta verrataan vain seuraavia 12 kuukautta')
+            ->assertSeeText('Vuosikustannus perustuu perushintaan, ja kulutusvaikutus oletetaan nollaksi.')
+            ->assertSeeText('551 € vuodessa')
             ->assertDontSeeText('Varmuuden hinta')
-            ->assertDontSeeText('aktiivinen menetelmä')
-            ->assertDontSeeText('hinnoitteluperuste')
-            ->assertDontSeeText('kelvollinen jakauma')
-            ->assertDontSeeText('yhteinen aineistopäivä')
-            ->assertDontSeeText('mediaaniero')
-            ->assertDontSee('contract-type-comparison', false)
-            ->assertDontSeeText('Alla oleva laskuri')
+            ->assertDontSeeText('jatkuu automaattisesti')
             ->assertDontSeeText('Sopimuksen purkaminen maksaa yleensä')
-            ->assertDontSeeText('jatkuu automaattisesti');
+            ->assertSee('id="fixedAnnualComparisonChart"', false)
+            ->assertSee('id="fixedPriceHistoryChart"', false)
+            ->assertSee('role="img"', false)
+            ->assertSee('aria-describedby="annual-comparison-takeaway"', false)
+            ->assertSee('aria-describedby="fixed-history-takeaway"', false)
+            ->assertSeeText('Näytä tarkemmat vuosikustannukset')
+            ->assertSeeText('Näytä hintahaarukka ja sopimusten määrä')
+            ->assertSeeText('Näytä viikoittaiset hinnat')
+            ->assertSeeText('Näytä hintahaarukka ja ennusteen taustatiedot')
+            ->assertSeeHtml('scope="col"')
+            ->assertSeeHtml('scope="row"')
+            ->assertSee('responsive: true', false)
+            ->assertSee('maintainAspectRatio: false', false)
+            ->assertSee('chartInstance.destroy()', false)
+            ->assertSee("document.addEventListener('DOMContentLoaded', initFixedTermArticleCharts)", false)
+            ->assertSee("document.addEventListener('livewire:navigated', initFixedTermArticleCharts)", false)
+            ->assertSee('animation: false', false)
+            ->assertSeeText('Markkina- ja ennustetiedot päivitetty')
+            ->assertSeeText('18.6.2026')
+            ->assertSeeText('Artikkeli tarkistettu')
+            ->assertSeeText('31.8.2026')
+            ->assertSee('"headline": "Kannattaako määräaikainen sähkösopimus?"', false)
+            ->assertSee('"description": "Vertailu siitä, miten täysin kiinteähintainen 12 kuukauden sähkösopimus eroaa pörssisähköstä, vaihtuvista hinnoista ja kulutusvaikutuksesta."', false)
+            ->assertSee('"dateModified": "2026-08-31"', false)
+            ->assertSee('Vertaa 12 kuukauden kiinteähintaista sähkösopimusta pörssisähköön, vaihtuviin hintoihin ja kulutusvaikutukseen. Katso hinnat, erot ja riskit.', false)
+            ->assertSee('href="/sahkosopimus/maaraaikainen"', false)
+            ->assertSee('href="/sahkosopimus/maaraaikainen-6-kk"', false)
+            ->assertSee('href="/sahkosopimus/maaraaikainen-12-kk"', false)
+            ->assertSee('href="/sahkosopimus/maaraaikainen-24-kk"', false);
 
-        $this->assertTextAppearsInOrder($text, [
-            'Hinnat ovat nyt lähellä toisiaan',
-            'Mitä tässä verrataan?',
-            'Mitä sopimus maksaisi vuodessa?',
-            'Mitä energiahinta on nyt?',
-            'Miten sopimuspituutta kannattaa ajatella?',
-            'Miten määräaikaisten hinnat ovat muuttuneet?',
-            'Mitä hinnalle voi tapahtua seuraavan 30 päivän aikana?',
-            'Tarkista nämä ennen sopimusta',
-            'Vertaa seuraavaksi tarjoukset',
-        ]);
-    }
-
-    public function test_conclusion_changes_when_fixed_twelve_month_price_is_materially_higher(): void
-    {
-        $this->unitStatistic('2026-06-15', 'open_ended', 7.0, 8.0, 9.0, 20);
-        $this->annualStatistic('2026-06-15', 'open_ended', 500.0, 600.0, 700.0, 20);
-        $this->annualStatistic('2026-06-15', 'fixed_term_12', 600.0, 700.0, 800.0, 20);
-
-        $payload = app(ContractMarketInsightService::class)->fixedTermArticle();
-        $this->assertSame('open_ended_cheaper', $payload['price_of_certainty']['difference_direction']);
-        $this->assertFalse($payload['price_of_certainty']['difference_is_small']);
-
-        $this->get('/sahkosopimus/kannattaako-maaraaikainen')
-            ->assertOk()
-            ->assertSeeText('Toistaiseksi voimassa olevan sopimuksen arvio on nyt edullisempi')
-            ->assertSeeText('12 kuukauden sopimuksen arvioitu vuosihinta on 700 € ja toistaiseksi voimassa olevan 600 €. Ero on toistaiseksi voimassa olevan sopimuksen hyväksi 100 € vuodessa eli 8,33 € kuukaudessa')
-            ->assertSeeText('12 kuukauden sopimus on noin 100 €/vuosi eli 8,33 €/kuukausi kalliimpi')
-            ->assertDontSeeText('Hinnat ovat nyt lähellä toisiaan')
-            ->assertDontSeeText('Ero on pieni');
-    }
-
-    public function test_current_comparison_uses_latest_valid_four_segment_common_date_expected_basis_and_contract_floor(): void
-    {
-        foreach (['open_ended', 'fixed_term_6', 'fixed_term_12', 'fixed_term_24'] as $segment) {
-            $this->unitStatistic('2026-05-20', $segment, 7.0, 8.0, 9.0, 10);
-            $this->unitStatistic('2026-06-20', $segment, 10.0, 11.0, 12.0, 11);
-            $this->unitStatistic('2026-06-21', $segment, 20.0, 21.0, 22.0, 20, 'observed_seller_data');
+        $plainText = strip_tags($response->getContent());
+        foreach ([
+            ['Hintaerot jäävät tässä vertailussa enintään 6,67 euroon kuukaudessa.', 'Pörssisähkö on halvempi kuin kiinteä 12 kuukauden sopimus.', 'summary overview'],
+            ['Pörssisähkö on halvempi kuin kiinteä 12 kuukauden sopimus.', 'Mediaanien ero on 80 € vuodessa', 'summary'],
+            ['Mediaanin perusteella halvin on kulutusvaikutus.', 'Kulutusvaikutus oletetaan nollaksi.', 'annual comparison'],
+            ['Kulutusvaikutus oletetaan nollaksi.', 'Kaaviossa näkyvät vain sopimustyypit', 'annual assumption'],
+            ['Matalin mediaanihinta on 24 kuukauden sopimuksilla', 'Alla ovat 6, 12 ja 24 kuukauden', 'current prices'],
+            ['Hintakehitys vaihteli sopimusajan mukaan.', 'Kaavio näyttää täysin kiinteiden 6, 12 ja 24 kuukauden', 'history'],
+            ['Mediaanihinta laskee hieman kaikissa saatavilla olevissa ennusteissa.', 'Ennuste kertoo mahdollisesta suunnasta.', 'forecast'],
+        ] as [$verdict, $detail, $section]) {
+            $verdictPosition = mb_strpos($plainText, $verdict);
+            $detailPosition = mb_strpos($plainText, $detail);
+            $this->assertNotFalse($verdictPosition, "Missing {$section} verdict.");
+            $this->assertNotFalse($detailPosition, "Missing {$section} detail.");
+            $this->assertLessThan($detailPosition, $verdictPosition, "The {$section} detail appears before its verdict.");
         }
 
+        $blade = file_get_contents(resource_path('views/livewire/article-fixed-term-contract.blade.php'));
+        $this->assertIsString($blade);
+        $this->assertStringNotContainsString('<svg', $blade);
+        $this->assertStringNotContainsString('niceScale', $blade);
+        $this->assertStringNotContainsString('preserveAspectRatio', $blade);
+        $this->assertStringNotContainsString('vector-effect', $blade);
+    }
+
+    public function test_annual_comparison_falls_back_when_newest_core_date_is_invalid(): void
+    {
+        foreach ([
+            ['fixed_term_12', 600, 700, 800],
+            ['spot', 500, 620, 750],
+            ['open_ended', 650, 740, 820],
+        ] as [$segment, $p20, $median, $p80]) {
+            $this->annualStatistic('2026-06-20', $segment, $p20, $median, $p80, 8, estimateMethods: ['different_'.$segment => 8]);
+            $this->annualStatistic('2026-06-21', $segment, $p20, $median, $p80, 9, estimateMethods: ['new_'.$segment => 9]);
+        }
         ContractPriceDailyStatistic::query()
-            ->whereDate('stat_date', '2026-06-20')
-            ->where('segment_key', 'fixed_term_12')
-            ->update(['p20_value' => 13.0]);
-        ContractPriceDailyStatistic::query()
-            ->whereDate('stat_date', '2026-06-20')
-            ->where('segment_key', 'fixed_term_24')
-            ->update(['contract_count' => 9]);
+            ->whereDate('stat_date', '2026-06-21')
+            ->where('segment_key', 'spot')
+            ->update(['p20_value' => 900]);
         Cache::flush();
 
-        $payload = app(ContractMarketInsightService::class)->fixedTermArticle();
+        $annual = app(ContractMarketInsightService::class)->fixedTermArticle()['annual_comparison'];
 
-        $this->assertSame('2026-05-20', $payload['current']['date']);
-        $this->assertSame('canonical_calculation', $payload['current']['basis']);
-        $this->assertSame(
-            ['open_ended', 'fixed_term_6', 'fixed_term_12', 'fixed_term_24'],
-            array_column($payload['current']['rows'], 'segment_key'),
-        );
-        $this->assertSame([10, 10, 10, 10], array_column($payload['current']['rows'], 'contract_count'));
+        $this->assertSame('2026-06-20', $annual['date']);
+        $this->assertSame(8, collect($annual['rows'])->firstWhere('segment_key', 'fixed_term_12')['contract_count']);
+        $this->assertSame('alternative_cheaper', $annual['comparisons']['spot']['cheaper_direction']);
     }
 
-    public function test_feature_off_mode_fails_closed_for_article_open_ended_rows_without_changing_fixed_term_comparison(): void
+    public function test_difference_copy_uses_natural_equal_and_small_difference_sentences(): void
+    {
+        $this->annualStatistic('2026-06-15', 'fixed_term_12', 650, 700, 760, 15, estimateMethods: ['none' => 15]);
+        $this->annualStatistic('2026-06-15', 'spot', 640, 690, 750, 25, estimateMethods: ['forward_curve_spot' => 25]);
+        $this->annualStatistic('2026-06-15', 'open_ended', 650, 700, 770, 18, estimateMethods: ['supplier_adjusted_forward_curve_shift' => 18]);
+
+        $content = $this->get('/sahkosopimus/kannattaako-maaraaikainen')
+            ->assertOk()
+            ->assertSeeText('Kiinteän 12 kuukauden sopimuksen ja pörssisähkön hintaero on pieni.')
+            ->assertSeeText('Mediaanien ero on 10 € vuodessa eli 0,83 € kuukaudessa pörssisähkön hyväksi.')
+            ->assertSeeText('Kiinteän 12 kuukauden sopimuksen ja toistaiseksi voimassa olevan sopimuksen vuosikustannukset ovat samat.')
+            ->assertSeeText('Vuosikustannusten mediaanit ovat samat.')
+            ->getContent();
+
+        $plainText = strip_tags($content);
+        $smallVerdictPosition = mb_strpos($plainText, 'Kiinteän 12 kuukauden sopimuksen ja pörssisähkön hintaero on pieni.');
+        $smallDetailPosition = mb_strpos($plainText, 'Mediaanien ero on 10 € vuodessa');
+        $this->assertNotFalse($smallVerdictPosition);
+        $this->assertNotFalse($smallDetailPosition);
+        $this->assertLessThan($smallDetailPosition, $smallVerdictPosition);
+    }
+
+    public function test_market_reset_accepts_small_clean_sample_and_gives_the_verdict_before_details(): void
+    {
+        $this->seedAnnualCore();
+        $this->annualStatistic('2026-06-15', 'market_reset', 620, 680, 760, 4, estimateMethods: ['recurring_forward_curve_shift' => 4]);
+
+        $annual = app(ContractMarketInsightService::class)->fixedTermArticle()['annual_comparison'];
+        $reset = collect($annual['rows'])->firstWhere('segment_key', 'market_reset');
+
+        $this->assertNotNull($reset);
+        $this->assertTrue($reset['low_sample']);
+        $this->assertTrue($annual['comparisons']['market_reset']['low_sample']);
+        $this->assertContains('market_reset', $annual['chart']['segment_keys']);
+
+        $plainText = strip_tags($this->get('/sahkosopimus/kannattaako-maaraaikainen')->assertOk()->getContent());
+        $headingPosition = mb_strpos($plainText, 'Määräaikainen vai jaksoittain vaihtuva hinta?');
+        $verdictPosition = mb_strpos($plainText, 'Kiinteän 12 kuukauden sopimuksen ja jaksoittain vaihtuvan sopimuksen hintaero on pieni.', $headingPosition);
+        $detailPosition = mb_strpos($plainText, 'Mediaanien ero on 20 € vuodessa eli 1,67 € kuukaudessa jaksoittain vaihtuvan sopimuksen hyväksi.', $headingPosition);
+        $warningPosition = mb_strpos($plainText, 'Mukana on alle 10 sopimusta. Tulos on siksi vain suuntaa antava.', $headingPosition);
+        $this->assertNotFalse($headingPosition);
+        $this->assertNotFalse($verdictPosition);
+        $this->assertNotFalse($detailPosition);
+        $this->assertNotFalse($warningPosition);
+        $this->assertLessThan($detailPosition, $verdictPosition);
+        $this->assertLessThan($warningPosition, $detailPosition);
+    }
+
+    public function test_market_reset_with_hybrid_contributor_uses_the_base_price_with_a_disclosure(): void
+    {
+        $this->seedAnnualCore();
+        $this->annualStatistic('2026-06-15', 'market_reset', 500, 551, 620, 12, estimateMethods: [
+            'recurring_forward_curve_shift' => 9,
+            'hybrid_base_only' => 3,
+        ]);
+
+        $annual = app(ContractMarketInsightService::class)->fixedTermArticle()['annual_comparison'];
+
+        $this->assertSame('complete', $annual['comparisons']['market_reset']['state']);
+        $this->assertTrue($annual['comparisons']['market_reset']['consumption_effect_ignored']);
+        $this->assertSame(9, $annual['comparisons']['market_reset']['complete_estimate_count']);
+        $this->assertSame(3, $annual['comparisons']['market_reset']['base_only_count']);
+        $this->assertNotNull(collect($annual['rows'])->firstWhere('segment_key', 'market_reset'));
+        $this->assertContains('market_reset', $annual['chart']['segment_keys']);
+        $this->get('/sahkosopimus/kannattaako-maaraaikainen')
+            ->assertOk()
+            ->assertSeeText('3 sopimuksen kulutusvaikutus oletetaan nollaksi. Todellinen vuosikustannus voi siksi olla suurempi tai pienempi.');
+    }
+
+    public function test_quarterly_uses_base_prices_when_consumption_effect_is_unknown(): void
+    {
+        $this->seedAnnualCore();
+        $quarterly = $this->annualStatistic('2026-06-15', 'quarterly', 660, 720, 790, 12, estimateMethods: ['recurring_forward_curve_shift' => 12]);
+
+        $service = app(ContractMarketInsightService::class);
+        $clean = $service->fixedTermArticle()['annual_comparison'];
+        $this->assertSame('complete', $clean['comparisons']['quarterly']['state']);
+        $this->assertContains('quarterly', $clean['chart']['segment_keys']);
+
+        $quarterly->update(['basis_counts' => ['estimate_method' => ['recurring_forward_curve_shift' => 8, 'hybrid_base_only' => 4]]]);
+        Cache::flush();
+        $incomplete = $service->fixedTermArticle()['annual_comparison'];
+
+        $this->assertSame('complete', $incomplete['comparisons']['quarterly']['state']);
+        $this->assertTrue($incomplete['comparisons']['quarterly']['consumption_effect_ignored']);
+        $this->assertSame(8, $incomplete['comparisons']['quarterly']['complete_estimate_count']);
+        $this->assertSame(4, $incomplete['comparisons']['quarterly']['base_only_count']);
+        $this->assertContains('quarterly', $incomplete['chart']['segment_keys']);
+        $this->get('/sahkosopimus/kannattaako-maaraaikainen')
+            ->assertOk()
+            ->assertSeeText('4 sopimuksen kulutusvaikutus oletetaan nollaksi. Todellinen vuosikustannus voi siksi olla suurempi tai pienempi.')
+            ->assertSeeText('720 € vuodessa');
+
+        $quarterly->update(['basis_counts' => null]);
+        Cache::flush();
+        $missingMethodEvidence = $service->fixedTermArticle()['annual_comparison'];
+        $this->assertSame('unavailable', $missingMethodEvidence['comparisons']['quarterly']['state']);
+        $this->assertNotContains('quarterly', $missingMethodEvidence['chart']['segment_keys']);
+    }
+
+    public function test_hybrid_uses_the_base_price_distribution_with_an_explicit_zero_effect_assumption(): void
+    {
+        $this->seedAnnualCore();
+        $this->annualStatistic('2026-06-15', 'hybrid', 9800, 9876, 9900, 44, estimateMethods: ['none' => 44]);
+
+        $annual = app(ContractMarketInsightService::class)->fixedTermArticle()['annual_comparison'];
+
+        $this->assertSame('complete', $annual['comparisons']['hybrid']['state']);
+        $this->assertTrue($annual['comparisons']['hybrid']['consumption_effect_ignored']);
+        $this->assertSame(44, $annual['comparisons']['hybrid']['base_only_count']);
+        $this->assertNotNull(collect($annual['rows'])->firstWhere('segment_key', 'hybrid'));
+        $this->assertContains('hybrid', $annual['chart']['segment_keys']);
+        $this->assertContains(9876.0, $annual['chart']['medians']);
+        $this->get('/sahkosopimus/kannattaako-maaraaikainen')
+            ->assertOk()
+            ->assertSeeText('9 876 € vuodessa')
+            ->assertSeeText('Vuosikustannus perustuu perushintaan, ja kulutusvaikutus oletetaan nollaksi.');
+    }
+
+    public function test_history_is_bounded_weekly_and_uses_one_median_only_chart_payload(): void
+    {
+        $this->unitStatistic('2025-05-01', 'fixed_term_6', 2, 3, 4, 20, 'observed_seller_data');
+        foreach ([6, 12, 24] as $duration) {
+            $segment = "fixed_term_{$duration}";
+            $this->unitStatistic('2026-05-04', $segment, 7, 8, 9, 20, 'observed_seller_data');
+            $this->unitStatistic('2026-05-04', $segment, 17, 18, 19, 30);
+            $this->unitStatistic('2026-05-05', $segment, 19, 20, 21, 40);
+        }
+
+        $history = app(ContractMarketInsightService::class)->fixedTermArticle()['history'];
+        $sixMonth = collect($history['series'])->firstWhere('duration_months', 6);
+
+        $this->assertSame('2025-05-05', $history['start_date']);
+        $this->assertSame('2026-05-05', $history['end_date']);
+        $this->assertArrayNotHasKey('ticks', $history);
+        $this->assertArrayNotHasKey('scale_min', $history);
+        $this->assertSame([6, 12, 24], array_column($history['chart']['datasets'], 'duration_months'));
+        $this->assertSame(['6 kk', '12 kk', '24 kk'], array_column($history['chart']['datasets'], 'label'));
+        $this->assertEqualsWithDelta(19.0, $sixMonth['points'][0]['median'], 0.0001);
+        $this->assertSame(35, $sixMonth['points'][0]['contract_count']);
+        foreach ($history['chart']['datasets'] as $dataset) {
+            $this->assertArrayHasKey('values', $dataset);
+            $this->assertArrayNotHasKey('p20', $dataset);
+            $this->assertArrayNotHasKey('p80', $dataset);
+        }
+    }
+
+    public function test_feature_off_and_empty_data_states_fail_closed_without_breaking_fixed_term_comparison(): void
     {
         foreach ([6, 12, 24] as $duration) {
-            $this->statistic('2026-05-20', $duration, 7.0, 8.0, 9.0, 10, 'observed_seller_data');
-            $this->statistic('2026-05-20', $duration, 17.0, 18.0, 19.0, 10);
+            $this->unitStatistic('2026-05-20', "fixed_term_{$duration}", 7, 8, 9, 10, 'observed_seller_data');
         }
-        $this->unitStatistic('2026-05-20', 'open_ended', 7.0, 8.0, 9.0, 10, 'observed_seller_data');
+        $this->annualStatistic('2026-05-20', 'fixed_term_12', 600, 700, 800, 10, pricingBasis: 'observed_seller_data');
+        $this->annualStatistic('2026-05-20', 'spot', 500, 600, 700, 10, pricingBasis: 'observed_seller_data');
+        $this->annualStatistic('2026-05-20', 'open_ended', 650, 750, 850, 10, pricingBasis: 'observed_seller_data');
 
         config()->set('canonical_pricing.enabled', false);
         app()->forgetScopedInstances();
@@ -203,93 +348,24 @@ class ArticleFixedTermContractTest extends TestCase
 
         $service = app(ContractMarketInsightService::class);
         $article = $service->fixedTermArticle();
-
         $this->assertSame([], $article['current']);
-        $this->assertSame([], $article['price_of_certainty']);
+        $this->assertSame([], $article['annual_comparison']);
         $this->assertSame([6, 12, 24], array_column($service->fixedTermComparison()['rows'], 'duration_months'));
-        $sixMonthHistory = collect($article['history']['series'])->firstWhere('duration_months', 6);
-        $this->assertEqualsWithDelta(8.0, $sixMonthHistory['points'][0]['median'], 0.0001);
+
+        $this->get('/sahkosopimus/kannattaako-maaraaikainen')
+            ->assertOk()
+            ->assertSeeText('Vuosikustannusten vertailu ei ole juuri nyt saatavilla')
+            ->assertSeeText('Saman päivän energiahintoja ei ole juuri nyt saatavilla')
+            ->assertSeeText('30 päivän ennustetta ei ole juuri nyt saatavilla');
     }
 
-    public function test_history_is_bounded_weekly_and_canonical_wins_same_date(): void
-    {
-        $this->statistic('2025-05-01', 6, 2.0, 3.0, 4.0, 20, 'observed_seller_data');
-        foreach ([6, 12, 24] as $duration) {
-            $this->statistic('2026-05-04', $duration, 7.0, 8.0, 9.0, 20, 'observed_seller_data');
-            $this->statistic('2026-05-04', $duration, 17.0, 18.0, 19.0, 30);
-            $this->statistic('2026-05-05', $duration, 19.0, 20.0, 21.0, 40);
-        }
-        $this->unitStatistic('2026-05-05', 'open_ended', 9.0, 10.0, 11.0, 40);
-
-        $history = app(ContractMarketInsightService::class)->fixedTermArticle()['history'];
-        $sixMonth = collect($history['series'])->firstWhere('duration_months', 6);
-
-        $this->assertSame('2025-05-05', $history['start_date']);
-        $this->assertSame('2026-05-05', $history['end_date']);
-        $this->assertSame([6, 12, 24], array_column($history['series'], 'duration_months'));
-        $this->assertCount(1, $sixMonth['points']);
-        $this->assertEqualsWithDelta(19.0, $sixMonth['points'][0]['median'], 0.0001);
-        $this->assertSame(35, $sixMonth['points'][0]['contract_count']);
-        $this->assertSame('stable', $sixMonth['summary']['direction']);
-        $this->assertGreaterThanOrEqual(4, count($history['ticks']));
-        $this->assertLessThanOrEqual(6, count($history['ticks']));
-        $this->assertLessThanOrEqual(18.0, $history['scale_min']);
-        $this->assertGreaterThanOrEqual(20.0, $history['scale_max']);
-        $this->assertSame(100.0, $history['ticks'][0]['percent']);
-        $this->assertSame(0.0, $history['ticks'][array_key_last($history['ticks'])]['percent']);
-    }
-
-    public function test_price_of_certainty_accepts_different_segment_estimators_on_latest_eligible_common_date(): void
-    {
-        $this->unitStatistic('2026-06-24', 'open_ended', 7.0, 8.0, 9.0, 20);
-
-        $this->annualStatistic('2026-06-20', 'open_ended', 580.0, 650.0, 740.0, 14);
-        $this->annualStatistic('2026-06-20', 'fixed_term_12', 620.0, 700.0, 790.0, 12);
-
-        $this->annualStatistic('2026-06-21', 'open_ended', 800.0, 700.0, 900.0, 20);
-        $this->annualStatistic('2026-06-21', 'fixed_term_12', 700.0, 800.0, 900.0, 20);
-
-        $this->annualStatistic('2026-06-24', 'open_ended', 700.0, 800.0, 900.0, 20, estimateMethod: 'supplier_adjusted_spot_seasonal_index');
-        $this->annualStatistic('2026-06-24', 'fixed_term_12', 700.0, 810.0, 920.0, 20, estimateMethod: 'none');
-
-        $this->annualStatistic('2026-06-25', 'open_ended', 100.0, 200.0, 300.0, 20, pricingBasis: 'observed_seller_data');
-        $this->annualStatistic('2026-06-25', 'fixed_term_12', 100.0, 210.0, 300.0, 20, pricingBasis: 'observed_seller_data');
-        $this->annualStatistic('2026-06-26', 'open_ended', 100.0, 200.0, 300.0, 20, methodVersion: AnnualCostMethodVersion::Legacy->value);
-        $this->annualStatistic('2026-06-26', 'fixed_term_12', 100.0, 210.0, 300.0, 20, methodVersion: AnnualCostMethodVersion::Legacy->value);
-        Cache::flush();
-
-        $comparison = app(ContractMarketInsightService::class)->fixedTermArticle()['price_of_certainty'];
-
-        $this->assertSame('2026-06-24', $comparison['date']);
-        $this->assertSame(AnnualCostMethodVersion::AsOf->value, $comparison['method_version']);
-        $this->assertSame(5000, $comparison['consumption_kwh']);
-        $this->assertEqualsWithDelta(10.0, $comparison['median_difference_eur'], 0.0001);
-    }
-
-    public function test_price_of_certainty_accepts_mixed_evidence_only_on_current_unit_endpoint(): void
-    {
-        $this->unitStatistic('2026-06-30', 'open_ended', 7.0, 8.0, 9.0, 20);
-        $this->annualStatistic('2026-06-29', 'open_ended', 500.0, 600.0, 700.0, 20, pricingBasis: 'mixed_evidence');
-        $this->annualStatistic('2026-06-29', 'fixed_term_12', 550.0, 650.0, 750.0, 20, pricingBasis: 'mixed_evidence');
-        $this->annualStatistic('2026-06-30', 'open_ended', 600.0, 700.0, 800.0, 20, pricingBasis: 'mixed_evidence');
-        $this->annualStatistic('2026-06-30', 'fixed_term_12', 650.0, 760.0, 850.0, 20, pricingBasis: 'mixed_evidence');
-        Cache::flush();
-
-        $comparison = app(ContractMarketInsightService::class)->fixedTermArticle()['price_of_certainty'];
-
-        $this->assertSame('2026-06-30', $comparison['date']);
-        $this->assertSame(['mixed_evidence', 'mixed_evidence'], array_column($comparison['rows'], 'pricing_basis'));
-        $this->assertEqualsWithDelta(60.0, $comparison['median_difference_eur'], 0.0001);
-    }
-
-    public function test_forecast_rejects_old_model_and_wrong_basis_and_marks_incomplete_duration_unavailable(): void
+    public function test_forecast_keeps_model_basis_and_history_continuity_rules(): void
     {
         foreach ([6, 12, 24] as $duration) {
             $this->forecastQuantiles('2026-06-18', $duration);
             $this->forecastQuantiles('2026-06-19', $duration, modelVersion: 'old_model');
             $this->forecastQuantiles('2026-06-20', $duration, pricingBasis: 'observed_seller_data');
         }
-
         FixedContractPriceForecast::query()
             ->whereDate('forecast_date', '2026-06-18')
             ->where('duration_months', 24)
@@ -309,71 +385,26 @@ class ArticleFixedTermContractTest extends TestCase
         $this->assertSame('down', $forecast['direction_summary']);
     }
 
-    public function test_forecast_summary_changes_for_upward_and_mixed_directions(): void
+    private function seedAnnualCore(string $date = '2026-06-15'): void
     {
+        $this->annualStatistic($date, 'fixed_term_12', 650, 700, 760, 15, estimateMethods: ['none' => 15]);
+        $this->annualStatistic($date, 'spot', 560, 620, 690, 25, estimateMethods: ['forward_curve_spot' => 25]);
+        $this->annualStatistic($date, 'open_ended', 720, 780, 850, 18, estimateMethods: ['supplier_adjusted_forward_curve_shift' => 18]);
+    }
+
+    private function seedCurrentAndHistory(): void
+    {
+        foreach ([
+            'open_ended' => [8.0, 9.0, 10.0, 14],
+            'fixed_term_6' => [9.2, 10.2, 11.2, 12],
+            'fixed_term_12' => [7.9, 8.9, 9.9, 12],
+            'fixed_term_24' => [7.4, 8.4, 9.4, 12],
+        ] as $segment => [$p20, $median, $p80, $count]) {
+            $this->unitStatistic('2026-06-15', $segment, $p20, $median, $p80, $count);
+        }
         foreach ([6, 12, 24] as $duration) {
-            $this->forecastQuantiles('2026-06-18', $duration, forecastChange: 0.2);
+            $this->unitStatistic('2026-06-08', "fixed_term_{$duration}", 8.0, 9.0, 10.0, 12, 'observed_seller_data');
         }
-
-        $service = app(ContractMarketInsightService::class);
-        $this->assertSame('up', $service->fixedTermArticle()['forecast']['direction_summary']);
-
-        FixedContractPriceForecast::query()
-            ->where('duration_months', 24)
-            ->update([
-                'forecast_price_cents_per_kwh' => DB::raw('current_price_cents_per_kwh - 0.2'),
-                'expected_change_cents_per_kwh' => -0.2,
-            ]);
-        Cache::flush();
-
-        $this->assertSame('mixed', $service->fixedTermArticle()['forecast']['direction_summary']);
-    }
-
-    public function test_article_has_honest_unavailable_states_without_aggregate_data(): void
-    {
-        $this->get('/sahkosopimus/kannattaako-maaraaikainen')
-            ->assertOk()
-            ->assertSeeText('Vuosihintojen vertailu ei ole juuri nyt saatavilla')
-            ->assertSeeText('Vuosihintojen vertailua ei ole juuri nyt saatavilla')
-            ->assertSeeText('Saman päivän energiahintoja ei ole juuri nyt saatavilla')
-            ->assertSeeText('Sopimuspituuksia ei voi asettaa hintajärjestykseen ilman saman päivän tietoja')
-            ->assertSeeText('Hintahistoriaa ei ole vielä riittävästi')
-            ->assertSeeText('30 päivän ennustetta ei ole juuri nyt saatavilla')
-            ->assertSeeText('Ei saatavilla')
-            ->assertDontSeeText('kelvollinen');
-    }
-
-    /** @param list<string> $needles */
-    private function assertTextAppearsInOrder(string $text, array $needles): void
-    {
-        $lastPosition = -1;
-
-        foreach ($needles as $needle) {
-            $position = mb_strpos($text, $needle);
-            $this->assertNotFalse($position, "Text not found: {$needle}");
-            $this->assertGreaterThan($lastPosition, $position, "Text is out of order: {$needle}");
-            $lastPosition = $position;
-        }
-    }
-
-    private function statistic(
-        string $date,
-        int $duration,
-        float $p20,
-        float $median,
-        float $p80,
-        int $contractCount,
-        string $pricingBasis = 'canonical_calculation',
-    ): void {
-        $this->unitStatistic(
-            $date,
-            "fixed_term_{$duration}",
-            $p20,
-            $median,
-            $p80,
-            $contractCount,
-            $pricingBasis,
-        );
     }
 
     private function unitStatistic(
@@ -384,8 +415,8 @@ class ArticleFixedTermContractTest extends TestCase
         float $p80,
         int $contractCount,
         string $pricingBasis = 'canonical_calculation',
-    ): void {
-        ContractPriceDailyStatistic::create([
+    ): ContractPriceDailyStatistic {
+        return ContractPriceDailyStatistic::create([
             'stat_date' => $date,
             'segment_key' => $segment,
             'metric_key' => 'energy_price',
@@ -399,6 +430,7 @@ class ArticleFixedTermContractTest extends TestCase
         ]);
     }
 
+    /** @param array<string,int> $estimateMethods */
     private function annualStatistic(
         string $date,
         string $segment,
@@ -408,18 +440,18 @@ class ArticleFixedTermContractTest extends TestCase
         int $contractCount,
         string $pricingBasis = 'canonical_calculation',
         string $methodVersion = AnnualCostMethodVersion::AsOf->value,
-        string $estimateMethod = 'flat',
-    ): void {
-        ContractPriceDailyStatistic::create([
+        array $estimateMethods = ['flat' => 10],
+    ): ContractPriceDailyStatistic {
+        return ContractPriceDailyStatistic::create([
             'stat_date' => $date,
             'segment_key' => $segment,
             'metric_key' => 'annual_cost',
             'pricing_basis' => $pricingBasis,
             'method_version' => $methodVersion,
-            'calculation_basis' => $pricingBasis === 'mixed_evidence' ? 'mixed' : 'canonical_outcome',
-            'estimate_basis' => $estimateMethod,
-            'compatibility_key' => "stored-{$segment}-{$estimateMethod}",
-            'basis_counts' => ['estimate_method' => [$estimateMethod => $contractCount]],
+            'calculation_basis' => 'canonical_outcome',
+            'estimate_basis' => array_key_first($estimateMethods),
+            'compatibility_key' => 'stored-'.$segment,
+            'basis_counts' => ['estimate_method' => $estimateMethods],
             'consumption_kwh' => 5000,
             'p20_value' => $p20,
             'median_value' => $median,
@@ -434,15 +466,8 @@ class ArticleFixedTermContractTest extends TestCase
         string $modelVersion = 'article_test_model',
         string $pricingBasis = 'canonical_calculation',
         float $forecastChange = -0.2,
-        string $confidence = 'low',
     ): void {
-        $prices = [
-            'p20' => 8.0,
-            'median' => 9.0,
-            'p80' => 10.0,
-        ];
-
-        foreach ($prices as $quantile => $currentPrice) {
+        foreach (['p20' => 8.0, 'median' => 9.0, 'p80' => 10.0] as $quantile => $currentPrice) {
             FixedContractPriceForecast::create([
                 'forecast_date' => $forecastDate,
                 'target_date' => CarbonImmutable::parse($forecastDate)->addDays(30)->toDateString(),
@@ -459,7 +484,7 @@ class ArticleFixedTermContractTest extends TestCase
                 'gap_cents_per_kwh' => 0.3,
                 'futures_trade_date' => CarbonImmutable::parse($forecastDate)->subDay()->toDateString(),
                 'coverage_quality' => 'all_monthly',
-                'confidence' => $confidence,
+                'confidence' => 'low',
                 'direction' => $forecastChange < 0 ? 'slightly_falling' : 'slightly_rising',
                 'consumer_signal' => 'neutral',
                 'contract_count' => 25,

@@ -17,11 +17,16 @@ Refresh `/sahkosopimus/kannattaako-maaraaikainen` as a data-led editorial decisi
 - Show separate market-data and editorial-review dates. Do not set Article `dateModified` to request time.
 - Use precomputed statistics and forecast tables only. Cache prepared article data. Do not calculate contract prices during the request.
 - Follow Voltikka design, accessibility, and Simplified Technical English rules.
-- Lead with a plain-language conclusion that answers the household decision. Explain the trade-off between 6, 12, and 24 months instead of presenting equal-weight data sections.
+- Lead with a plain-language conclusion that answers the household decision. Every data section must state its answer or unavailable verdict before amounts, method, and caveats. Explain the trade-off between 6, 12, and 24 months instead of presenting equal-weight data sections.
 - Translate every important statistic into meaning. State whether a difference is small or material, what the trend implies, and which uncertainty limits the conclusion.
 - Keep technical distribution details available, but place p20, p80, sample counts, model details, and full weekly tables after the plain-language interpretation or inside disclosures.
 - Every chart must have a visible labelled y-axis in c/kWh, readable tick values on desktop and mobile, a clear legend, dates, and a short sentence that states the observed change.
 - Avoid internal phrases such as active method, pricing basis, eligible distribution, and point-in-time comparison in primary copy.
+- Answer the broad title by comparing fully fixed-term contracts with Spot, open-ended fixed-price, periodically market-reset, quarterly, and consumption-effect contracts in separate explanatory sections.
+- Show price and price risk together in one accessible illustration. Explain that accepting more price variation can create a saving opportunity but does not guarantee a cheaper contract. When a consumption effect is unknown, use the stored base-price aggregate and state that the effect is assumed to be zero.
+- Use the fully fixed 12-month annual cost as the clean one-year benchmark. Keep 6- and 24-month fixed-term evidence as duration context and explain their annual-comparison limits.
+- For this article only, compare Hybrid and affected quarterly/reset aggregates from their stored base-price totals. Label every such number as excluding the consumption effect, and state that the actual cost can be higher or lower. Do not change contract-list ranking or canonical calculator output.
+- Replace custom SVG charts with the existing Chart.js article convention: responsive canvas, Finnish labels and tooltips, destroy/recreate lifecycle, a visible takeaway, and an accessible disclosure table.
 
 ## Verification
 

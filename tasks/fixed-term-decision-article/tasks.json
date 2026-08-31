@@ -4,6 +4,20 @@
   {"name":"Replace the article page and remove the contract widget","status":"completed"},
   {"name":"Add focused tests and documentation","status":"completed"},
   {"name":"Rewrite the article around a clear household decision story","status":"completed"},
-  {"name":"Add readable labelled chart axes and plain-language chart explanations","status":"completed"},
-  {"name":"Run visual and automated verification after the narrative rewrite","status":"completed"}
+  {"name":"Broaden annual comparison to Spot, open-ended, market-reset, quarterly, and consumption-effect alternatives","status":"completed"},
+  {"name":"Replace custom SVG history with the established Chart.js article pattern","status":"completed"},
+  {"name":"Add one explanatory answer section for each alternative contract type","status":"completed"},
+  {"name":"Review and rewrite all article copy for natural Finnish fluency","status":"completed"},
+  {"name":"Run final language and regression verification","status":"completed"},
+  {"name":"Reorder article copy so each section gives the conclusion before details","status":"completed"},
+  {"name":"Verify conclusion-first copy and responsive rendering","status":"completed"},
+  {"name":"Name both compared contract types in every short verdict","status":"completed"},
+  {"name":"Add an accessible price-versus-risk illustration","status":"completed"},
+  {"name":"Verify explicit comparison referents and risk illustration","status":"completed"},
+  {"name":"Explain the incomplete quarterly aggregate with method counts","status":"completed"},
+  {"name":"Move consumption-effect predictability to the middle tier","status":"completed"},
+  {"name":"Verify quarterly evidence and revised predictability","status":"completed"},
+  {"name":"Use base-price annual comparisons when consumption effect is unknown","status":"completed"},
+  {"name":"Label every ignored consumption effect clearly","status":"completed"},
+  {"name":"Verify base-price quarterly and consumption-effect comparisons","status":"completed"}
 ]
