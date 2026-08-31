@@ -13,12 +13,26 @@ use Illuminate\Support\Facades\Cache;
 
 class ContractMarketInsightService
 {
-    private const FIXED_TERM_COMPARISON_PAYLOAD_SCHEMA = 'fixed-term-offered-price-comparison-v1';
+    private const FIXED_TERM_COMPARISON_PAYLOAD_SCHEMA = 'fixed-term-offered-price-comparison-v2';
+
+    private const FIXED_TERM_ARTICLE_PAYLOAD_SCHEMA = 'fixed-term-decision-article-v3';
 
     private const FIXED_TERM_COMPARISON_SEGMENTS = [
         6 => 'fixed_term_6',
         12 => 'fixed_term_12',
         24 => 'fixed_term_24',
+    ];
+
+    private const FIXED_TERM_ARTICLE_CURRENT_SEGMENTS = [
+        'open_ended',
+        'fixed_term_6',
+        'fixed_term_12',
+        'fixed_term_24',
+    ];
+
+    private const PRICE_OF_CERTAINTY_SEGMENTS = [
+        'open_ended',
+        'fixed_term_12',
     ];
 
     public function __construct(private readonly PricingMode $pricingMode) {}
@@ -29,7 +43,7 @@ class ContractMarketInsightService
         $canonicalEnabled = $this->pricingMode->enabled();
 
         return Cache::remember(
-            'contract-market-insight:fingerprint:v6:'.ContractPriceDailyStatistic::activeAnnualMethodVersion()->value.':'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis,
+            'contract-market-insight:fingerprint:v7:'.ContractPriceDailyStatistic::activeAnnualMethodVersion()->value.':'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis,
             now()->addMinutes(10),
             function () use ($pricingBasis, $canonicalEnabled) {
                 $expected = ContractPriceDailyStatistic::query()
@@ -38,6 +52,9 @@ class ContractMarketInsightService
                 $observed = ContractPriceDailyStatistic::query()
                     ->activeAnnualMethod()
                     ->where('pricing_basis', ContractPriceBasis::ObservedSellerData->value);
+                $mixedAnnual = ContractPriceDailyStatistic::query()
+                    ->activeAnnualMethod()
+                    ->where('pricing_basis', 'mixed_evidence');
                 $expectedUnit = ContractPriceDailyStatistic::query()
                     ->unitStatistics()
                     ->where('metric_key', 'energy_price')
@@ -62,6 +79,8 @@ class ContractMarketInsightService
                     'statistics_latest_updated' => $expected->max('updated_at'),
                     'observed_latest_date' => $observed->max('stat_date'),
                     'observed_latest_updated' => $observed->max('updated_at'),
+                    'mixed_annual_latest_date' => $mixedAnnual->max('stat_date'),
+                    'mixed_annual_latest_updated' => $mixedAnnual->max('updated_at'),
                     'unit_statistics_latest_date' => $expectedUnit->max('stat_date'),
                     'unit_statistics_latest_updated' => $expectedUnit->max('updated_at'),
                     'observed_unit_latest_date' => $observedUnit->max('stat_date'),
@@ -123,6 +142,47 @@ class ContractMarketInsightService
     }
 
     /**
+     * Prepare all aggregate evidence used by the fixed-term decision article.
+     *
+     * @return array<string,mixed>
+     */
+    public function fixedTermArticle(): array
+    {
+        $pricingBasis = $this->pricingMode->expectedContractPriceBasis();
+
+        return Cache::remember(
+            'contract-market-insight:fixed-term-article:'.md5(json_encode([
+                'payload_schema' => self::FIXED_TERM_ARTICLE_PAYLOAD_SCHEMA,
+                'fingerprint' => $this->fingerprint(),
+                'pricing_basis' => $pricingBasis->value,
+                'forecast_model' => (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_ewma_gap_v2'),
+            ])),
+            Carbon::tomorrow(),
+            function () use ($pricingBasis): array {
+                $current = $this->fixedTermArticleCurrentComparison();
+                $priceOfCertainty = $this->priceOfCertaintyComparison();
+                $history = $this->fixedTermHistory();
+                $forecast = $this->fixedTermArticleForecast($pricingBasis);
+                $dates = array_values(array_filter([
+                    $current['date'] ?? null,
+                    $priceOfCertainty['date'] ?? null,
+                    $history['end_date'] ?? null,
+                    $forecast['date'] ?? null,
+                ]));
+
+                return [
+                    'current' => $current,
+                    'price_of_certainty' => $priceOfCertainty,
+                    'history' => $history,
+                    'forecast' => $forecast,
+                    'data_date' => $dates === [] ? null : max($dates),
+                    'pricing_basis' => $pricingBasis->value,
+                ];
+            },
+        );
+    }
+
+    /**
      * @return array{
      *     date:?string,
      *     basis:string,
@@ -163,50 +223,62 @@ class ContractMarketInsightService
                     ->whereNotNull('p80_value')
                     ->where('contract_count', '>=', 10);
 
-                $commonDate = $baseQuery()
+                $candidateDates = $baseQuery()
                     ->select('stat_date')
                     ->groupBy('stat_date')
                     ->havingRaw('COUNT(DISTINCT segment_key) = ?', [count(self::FIXED_TERM_COMPARISON_SEGMENTS)])
                     ->orderByDesc('stat_date')
-                    ->value('stat_date');
+                    ->pluck('stat_date');
+
+                $commonDate = null;
+                $rows = [];
+                foreach ($candidateDates as $candidateDate) {
+                    $statistics = $baseQuery()
+                        ->whereDate('stat_date', Carbon::parse($candidateDate)->toDateString())
+                        ->get(['stat_date', 'segment_key', 'p20_value', 'median_value', 'p80_value', 'contract_count']);
+
+                    if ($statistics->count() !== count(self::FIXED_TERM_COMPARISON_SEGMENTS)) {
+                        continue;
+                    }
+
+                    $candidateRows = [];
+                    foreach (self::FIXED_TERM_COMPARISON_SEGMENTS as $durationMonths => $segmentKey) {
+                        $statistic = $statistics->firstWhere('segment_key', $segmentKey);
+                        if ($statistic === null) {
+                            $candidateRows = [];
+                            break;
+                        }
+
+                        $p20 = (float) $statistic->p20_value;
+                        $median = (float) $statistic->median_value;
+                        $p80 = (float) $statistic->p80_value;
+                        $contractCount = (int) $statistic->contract_count;
+
+                        if (! is_finite($p20) || ! is_finite($median) || ! is_finite($p80)
+                            || $p20 > $median || $median > $p80 || $contractCount < 10
+                        ) {
+                            $candidateRows = [];
+                            break;
+                        }
+
+                        $candidateRows[] = [
+                            'duration_months' => $durationMonths,
+                            'p20' => $p20,
+                            'median' => $median,
+                            'p80' => $p80,
+                            'contract_count' => $contractCount,
+                        ];
+                    }
+
+                    if (count($candidateRows) === count(self::FIXED_TERM_COMPARISON_SEGMENTS)) {
+                        $commonDate = $candidateDate;
+                        $rows = $candidateRows;
+                        break;
+                    }
+                }
 
                 if ($commonDate === null) {
                     return $this->emptyFixedTermComparison();
-                }
-
-                $statistics = $baseQuery()
-                    ->whereDate('stat_date', Carbon::parse($commonDate)->toDateString())
-                    ->get(['stat_date', 'segment_key', 'p20_value', 'median_value', 'p80_value', 'contract_count']);
-
-                if ($statistics->count() !== count(self::FIXED_TERM_COMPARISON_SEGMENTS)) {
-                    return $this->emptyFixedTermComparison();
-                }
-
-                $rows = [];
-                foreach (self::FIXED_TERM_COMPARISON_SEGMENTS as $durationMonths => $segmentKey) {
-                    $statistic = $statistics->firstWhere('segment_key', $segmentKey);
-                    if ($statistic === null) {
-                        return $this->emptyFixedTermComparison();
-                    }
-
-                    $p20 = (float) $statistic->p20_value;
-                    $median = (float) $statistic->median_value;
-                    $p80 = (float) $statistic->p80_value;
-                    $contractCount = (int) $statistic->contract_count;
-
-                    if (! is_finite($p20) || ! is_finite($median) || ! is_finite($p80)
-                        || $p20 > $median || $median > $p80 || $contractCount < 10
-                    ) {
-                        return $this->emptyFixedTermComparison();
-                    }
-
-                    $rows[] = [
-                        'duration_months' => $durationMonths,
-                        'p20' => $p20,
-                        'median' => $median,
-                        'p80' => $p80,
-                        'contract_count' => $contractCount,
-                    ];
                 }
 
                 $scaleMin = min(array_column($rows, 'p20'));
@@ -231,6 +303,390 @@ class ContractMarketInsightService
                 ];
             },
         );
+    }
+
+    /**
+     * The article can use the open-ended segment as a published current
+     * fixed-rate baseline only after canonical classification removes Spot,
+     * reset, and Hybrid rows.
+     *
+     * @return array<string,mixed>
+     */
+    private function fixedTermArticleCurrentComparison(): array
+    {
+        if (! $this->pricingMode->enabled()) {
+            return [];
+        }
+
+        $pricingBasis = $this->pricingMode->expectedContractPriceBasis()->value;
+        $baseQuery = fn () => ContractPriceDailyStatistic::query()
+            ->unitStatistics()
+            ->where('metric_key', 'energy_price')
+            ->whereNull('consumption_kwh')
+            ->where('pricing_basis', $pricingBasis)
+            ->whereIn('segment_key', self::FIXED_TERM_ARTICLE_CURRENT_SEGMENTS)
+            ->whereNotNull('p20_value')
+            ->whereNotNull('median_value')
+            ->whereNotNull('p80_value')
+            ->where('contract_count', '>=', 10);
+        $candidateDates = $baseQuery()
+            ->select('stat_date')
+            ->groupBy('stat_date')
+            ->havingRaw('COUNT(DISTINCT segment_key) = ?', [count(self::FIXED_TERM_ARTICLE_CURRENT_SEGMENTS)])
+            ->orderByDesc('stat_date')
+            ->pluck('stat_date');
+
+        foreach ($candidateDates as $candidateDate) {
+            $date = Carbon::parse($candidateDate)->toDateString();
+            $statistics = $baseQuery()
+                ->whereDate('stat_date', $date)
+                ->get(['segment_key', 'p20_value', 'median_value', 'p80_value', 'contract_count']);
+
+            if ($statistics->count() !== count(self::FIXED_TERM_ARTICLE_CURRENT_SEGMENTS)) {
+                continue;
+            }
+
+            $rows = [];
+            foreach (self::FIXED_TERM_ARTICLE_CURRENT_SEGMENTS as $segmentKey) {
+                $statistic = $statistics->firstWhere('segment_key', $segmentKey);
+                if ($statistic === null) {
+                    $rows = [];
+                    break;
+                }
+
+                $p20 = (float) $statistic->p20_value;
+                $median = (float) $statistic->median_value;
+                $p80 = (float) $statistic->p80_value;
+                if (! is_finite($p20) || ! is_finite($median) || ! is_finite($p80)
+                    || $p20 > $median || $median > $p80 || (int) $statistic->contract_count < 10
+                ) {
+                    $rows = [];
+                    break;
+                }
+
+                $rows[] = [
+                    'segment_key' => $segmentKey,
+                    'duration_months' => match ($segmentKey) {
+                        'fixed_term_6' => 6,
+                        'fixed_term_12' => 12,
+                        'fixed_term_24' => 24,
+                        default => null,
+                    },
+                    'p20' => $p20,
+                    'median' => $median,
+                    'p80' => $p80,
+                    'contract_count' => (int) $statistic->contract_count,
+                ];
+            }
+
+            if (count($rows) === count(self::FIXED_TERM_ARTICLE_CURRENT_SEGMENTS)) {
+                return [
+                    'date' => $date,
+                    'basis' => $pricingBasis,
+                    'rows' => $rows,
+                ];
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Compare current annual distributions on one date and active method.
+     * Segment estimator methods can differ by design and do not block this
+     * point-in-time comparison.
+     *
+     * @return array<string,mixed>
+     */
+    private function priceOfCertaintyComparison(): array
+    {
+        if (! $this->pricingMode->enabled()) {
+            return [];
+        }
+
+        $expectedBasis = $this->pricingMode->expectedContractPriceBasis()->value;
+        $activeMethod = ContractPriceDailyStatistic::activeAnnualMethodVersion()->value;
+        $latestExpectedUnitDate = ContractPriceDailyStatistic::query()
+            ->unitStatistics()
+            ->where('pricing_basis', $expectedBasis)
+            ->max('stat_date');
+        $latestExpectedUnitDate = $latestExpectedUnitDate === null
+            ? null
+            : Carbon::parse($latestExpectedUnitDate)->toDateString();
+        $baseQuery = fn () => ContractPriceDailyStatistic::query()
+            ->activeAnnualMethod()
+            ->where('consumption_kwh', 5000)
+            ->whereIn('segment_key', self::PRICE_OF_CERTAINTY_SEGMENTS)
+            ->whereIn('pricing_basis', [$expectedBasis, 'mixed_evidence'])
+            ->whereNotNull('p20_value')
+            ->whereNotNull('median_value')
+            ->whereNotNull('p80_value')
+            ->where('contract_count', '>=', 10);
+        $candidateDates = $baseQuery()
+            ->select('stat_date')
+            ->groupBy('stat_date')
+            ->havingRaw('COUNT(DISTINCT segment_key) = ?', [count(self::PRICE_OF_CERTAINTY_SEGMENTS)])
+            ->orderByDesc('stat_date')
+            ->pluck('stat_date');
+
+        foreach ($candidateDates as $candidateDate) {
+            $date = Carbon::parse($candidateDate)->toDateString();
+            $statistics = $baseQuery()
+                ->whereDate('stat_date', $date)
+                ->get([
+                    'segment_key',
+                    'pricing_basis',
+                    'p20_value',
+                    'median_value',
+                    'p80_value',
+                    'contract_count',
+                ]);
+
+            if ($statistics->count() !== count(self::PRICE_OF_CERTAINTY_SEGMENTS)) {
+                continue;
+            }
+
+            $rows = [];
+            foreach (self::PRICE_OF_CERTAINTY_SEGMENTS as $segmentKey) {
+                $statistic = $statistics->firstWhere('segment_key', $segmentKey);
+                if ($statistic === null
+                    || ($statistic->pricing_basis === 'mixed_evidence' && $date !== $latestExpectedUnitDate)
+                ) {
+                    $rows = [];
+                    break;
+                }
+
+                $p20 = (float) $statistic->p20_value;
+                $median = (float) $statistic->median_value;
+                $p80 = (float) $statistic->p80_value;
+                if (! is_finite($p20) || ! is_finite($median) || ! is_finite($p80)
+                    || $p20 > $median || $median > $p80 || (int) $statistic->contract_count < 10
+                ) {
+                    $rows = [];
+                    break;
+                }
+
+                $rows[$segmentKey] = [
+                    'segment_key' => $segmentKey,
+                    'pricing_basis' => $statistic->pricing_basis,
+                    'p20' => $p20,
+                    'median' => $median,
+                    'p80' => $p80,
+                    'contract_count' => (int) $statistic->contract_count,
+                ];
+            }
+
+            if (count($rows) !== count(self::PRICE_OF_CERTAINTY_SEGMENTS)) {
+                continue;
+            }
+
+            return [
+                'date' => $date,
+                'method_version' => $activeMethod,
+                'consumption_kwh' => 5000,
+                'rows' => array_values($rows),
+                'median_difference_eur' => $rows['fixed_term_12']['median'] - $rows['open_ended']['median'],
+            ];
+        }
+
+        return [];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function fixedTermHistory(): array
+    {
+        $basisPriority = [
+            ContractPriceBasis::ObservedSellerData->value => 1,
+        ];
+        if ($this->pricingMode->enabled()) {
+            $basisPriority[ContractPriceBasis::CanonicalCalculation->value] = 2;
+        }
+        $query = fn () => ContractPriceDailyStatistic::query()
+            ->unitStatistics()
+            ->where('metric_key', 'energy_price')
+            ->whereNull('consumption_kwh')
+            ->whereIn('segment_key', array_values(self::FIXED_TERM_COMPARISON_SEGMENTS))
+            ->whereIn('pricing_basis', array_keys($basisPriority));
+        $latestDate = $query()->max('stat_date');
+
+        if ($latestDate === null) {
+            return ['start_date' => null, 'end_date' => null, 'scale_min' => null, 'scale_max' => null, 'series' => []];
+        }
+
+        $endDate = Carbon::parse($latestDate)->toDateString();
+        $startDate = Carbon::parse($endDate)->subMonthsNoOverflow(12)->toDateString();
+        $rows = $query()
+            ->whereDate('stat_date', '>=', $startDate)
+            ->whereDate('stat_date', '<=', $endDate)
+            ->orderBy('stat_date')
+            ->get([
+                'stat_date',
+                'segment_key',
+                'pricing_basis',
+                'p20_value',
+                'median_value',
+                'p80_value',
+                'contract_count',
+            ]);
+
+        $selectedDaily = [];
+        foreach ($rows as $row) {
+            $date = $row->stat_date->toDateString();
+            $existing = $selectedDaily[$row->segment_key][$date] ?? null;
+            if ($existing === null
+                || $basisPriority[$row->pricing_basis] > $basisPriority[$existing->pricing_basis]
+            ) {
+                $selectedDaily[$row->segment_key][$date] = $row;
+            }
+        }
+
+        $daily = [];
+        foreach ($selectedDaily as $segmentKey => $dateRows) {
+            foreach ($dateRows as $date => $row) {
+                $p20 = (float) $row->p20_value;
+                $median = (float) $row->median_value;
+                $p80 = (float) $row->p80_value;
+                if ($row->p20_value === null || $row->median_value === null || $row->p80_value === null
+                    || ! is_finite($p20) || ! is_finite($median) || ! is_finite($p80)
+                    || $p20 > $median || $median > $p80 || (int) $row->contract_count <= 0
+                ) {
+                    continue;
+                }
+
+                $daily[$segmentKey][$date] = $row;
+            }
+        }
+
+        $series = [];
+        $allP20 = [];
+        $allP80 = [];
+        foreach (self::FIXED_TERM_COMPARISON_SEGMENTS as $durationMonths => $segmentKey) {
+            $weeks = [];
+            foreach ($daily[$segmentKey] ?? [] as $date => $row) {
+                $week = Carbon::parse($date)->startOfWeek()->toDateString();
+                $weeks[$week][] = $row;
+            }
+
+            $points = [];
+            foreach ($weeks as $week => $weekRows) {
+                $count = count($weekRows);
+                $point = [
+                    'date' => $week,
+                    'p20' => array_sum(array_map(fn ($row) => (float) $row->p20_value, $weekRows)) / $count,
+                    'median' => array_sum(array_map(fn ($row) => (float) $row->median_value, $weekRows)) / $count,
+                    'p80' => array_sum(array_map(fn ($row) => (float) $row->p80_value, $weekRows)) / $count,
+                    'contract_count' => (int) round(array_sum(array_map(fn ($row) => (int) $row->contract_count, $weekRows)) / $count),
+                ];
+                $points[] = $point;
+                $allP20[] = $point['p20'];
+                $allP80[] = $point['p80'];
+            }
+
+            $series[] = [
+                'duration_months' => $durationMonths,
+                'points' => $points,
+            ];
+        }
+
+        return [
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'scale_min' => $allP20 === [] ? null : min($allP20),
+            'scale_max' => $allP80 === [] ? null : max($allP80),
+            'series' => $series,
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function fixedTermArticleForecast(ContractPriceBasis $pricingBasis): array
+    {
+        $baseQuery = fn () => FixedContractPriceForecast::query()
+            ->eligibleForPublicDisplay($pricingBasis)
+            ->where('horizon_days', 30)
+            ->whereIn('duration_months', array_keys(self::FIXED_TERM_COMPARISON_SEGMENTS))
+            ->whereIn('target_quantile', ['p20', 'median', 'p80']);
+        $latestDate = $baseQuery()->max('forecast_date');
+
+        if ($latestDate === null) {
+            return ['date' => null, 'horizon_days' => 30, 'durations' => []];
+        }
+
+        $date = Carbon::parse($latestDate)->toDateString();
+        $rows = $baseQuery()
+            ->whereDate('forecast_date', $date)
+            ->get([
+                'forecast_date',
+                'target_date',
+                'horizon_days',
+                'duration_months',
+                'target_quantile',
+                'current_price_cents_per_kwh',
+                'forecast_price_cents_per_kwh',
+                'contract_count',
+                'confidence',
+            ]);
+        $durations = [];
+
+        foreach (array_keys(self::FIXED_TERM_COMPARISON_SEGMENTS) as $durationMonths) {
+            $durationRows = $rows->where('duration_months', $durationMonths);
+            $byQuantile = $durationRows->keyBy('target_quantile');
+            $p20 = $byQuantile->get('p20');
+            $median = $byQuantile->get('median');
+            $p80 = $byQuantile->get('p80');
+            $orderedRows = [$p20, $median, $p80];
+            $current = array_map(
+                fn ($row) => $row === null || $row->current_price_cents_per_kwh === null
+                    ? null
+                    : (float) $row->current_price_cents_per_kwh,
+                $orderedRows,
+            );
+            $forecast = array_map(
+                fn ($row) => $row === null || $row->forecast_price_cents_per_kwh === null
+                    ? null
+                    : (float) $row->forecast_price_cents_per_kwh,
+                $orderedRows,
+            );
+            $targetDates = $durationRows->pluck('target_date')->filter()->map(
+                fn ($targetDate) => Carbon::parse($targetDate)->toDateString(),
+            )->unique();
+            $complete = $durationRows->count() === 3
+                && ! in_array(null, $orderedRows, true)
+                && count(array_filter($current, fn ($value) => $value !== null && is_finite($value))) === 3
+                && count(array_filter($forecast, fn ($value) => $value !== null && is_finite($value))) === 3
+                && $current[0] <= $current[1] && $current[1] <= $current[2]
+                && $forecast[0] <= $forecast[1] && $forecast[1] <= $forecast[2]
+                && $durationRows->every(fn ($row) => (int) $row->contract_count > 0 && (int) $row->horizon_days === 30)
+                && $targetDates->count() === 1;
+
+            if (! $complete) {
+                $durations[] = ['duration_months' => $durationMonths, 'available' => false];
+
+                continue;
+            }
+
+            $durations[] = [
+                'duration_months' => $durationMonths,
+                'available' => true,
+                'forecast_date' => $date,
+                'target_date' => $targetDates->first(),
+                'horizon_days' => 30,
+                'contract_count' => (int) $median->contract_count,
+                'confidence' => $median->confidence,
+                'current' => ['p20' => $current[0], 'median' => $current[1], 'p80' => $current[2]],
+                'forecast' => ['p20' => $forecast[0], 'median' => $forecast[1], 'p80' => $forecast[2]],
+                'median_change' => $forecast[1] - $current[1],
+            ];
+        }
+
+        return [
+            'date' => $date,
+            'horizon_days' => 30,
+            'durations' => $durations,
+        ];
     }
 
     /** @return array{} */

@@ -1,0 +1,7 @@
+[
+  {"name":"Build aggregate article data payload","status":"completed"},
+  {"name":"Add open-ended and annual price-of-certainty evidence","status":"completed"},
+  {"name":"Replace the article page and remove the contract widget","status":"completed"},
+  {"name":"Add focused tests and documentation","status":"completed"},
+  {"name":"Run visual and automated verification","status":"completed"}
+]

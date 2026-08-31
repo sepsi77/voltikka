@@ -314,6 +314,16 @@ Important semantics:
 - expanded 15-minute rows use the same signed/diverging geometry horizontally; server-precomputed `bar_left_percent`, `bar_width_percent`, and `zero_percent` keep the Alpine view presentation-only
 - minimum visible sizing applies only to non-zero bars and must preserve direction; all-negative and all-zero datasets must remain legible
 
+## `ArticleFixedTermContract`
+
+- `/sahkosopimus/kannattaako-maaraaikainen` is an aggregate editorial page. It never embeds `ContractTypeComparison`, loads individual contracts, or calculates contract prices.
+- The component receives one cached `ContractMarketInsightService::fixedTermArticle()` payload. Current, annual-cost, history, and forecast evidence comes only from precomputed statistics and forecast tables. See `../Services/ContractMarketInsights/AGENTS.md` for eligibility and cache rules.
+- Page copy keeps contract duration separate from pricing method. The canonical current unit table compares the open-ended segment's published current fixed rate with fully fixed 6/12/24 month segments on one common date. It never implies that an open-ended seller rate stays fixed for the future. Feature-off mode fails closed for this table. Links to the broad and exact 6/12/24 month listings are the route to individual offers.
+- The short answer starts with the 5,000 kWh annual median difference between an open-ended fixed-price product and a fully fixed 12-month product. Its own table includes energy and monthly contract fees, excludes transfer, and labels the open-ended 12-month total as an estimate because its seller can change the price under the terms. Different same-date estimator methods do not make current active-method segment medians incompatible. The cheapest fixed duration is secondary energy-price context, not a recommendation.
+- History uses fixed 6/12/24 only in three server-rendered weekly SVG small multiples on one shared scale. Open-ended stays out because observed historical classification can drift. Each chart has a native disclosure table with all p20, median, p80, and contract-count values.
+- `dateModified` is the fixed editorial review date 2026-08-31. The newest stored market or forecast date is visible as a separate market-data date and never changes the editorial review date. The HTML title and Article headline omit a year so they cannot become stale.
+- Moving, exceptional termination, end-of-term handling, and later prices are governed by seller terms. Do not restore generic termination fees, automatic-continuation claims, or unsupported long-term price direction claims.
+
 ## `ArticleSpotElectricity`
 
 - The `Markkinatilanne nyt` snapshot uses only `annual_cost` rows on the latest date for `PricingMode::expectedContractPriceBasis()`. Canonical mode cannot fall back to a newer observed date; feature-off uses observed rows.
