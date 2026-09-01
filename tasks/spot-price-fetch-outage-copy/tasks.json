@@ -1,0 +1,6 @@
+[
+  {"name":"Inspect production Spot import and freshness logs","status":"completed"},
+  {"name":"Correct the unavailable-state Finnish copy","status":"completed"},
+  {"name":"Update focused tests","status":"completed"},
+  {"name":"Run verification and document results","status":"completed"}
+]
