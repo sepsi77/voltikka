@@ -11,6 +11,8 @@ use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
 use App\Services\CompanyStatistics\CompanyMarketComparisonService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -285,6 +287,105 @@ class CompanyDetailSectionsTest extends TestCase
         $this->assertEqualsWithDelta($row['median_percent'], $row['marker_percent'], 0.01);
         $this->assertGreaterThan($row['band_left_percent'], $row['marker_percent']);
         $this->assertLessThan($row['band_left_percent'] + $row['band_width_percent'], $row['marker_percent']);
+    }
+
+    public function test_production_mode_company_calls_share_one_global_fingerprint_scan(): void
+    {
+        config()->set('canonical_pricing.enabled', false);
+        config()->set('contract_statistics.annual_cost.active_method_version', 'annual_cost_legacy_v1');
+        $otherCompany = Company::create([
+            'name' => 'Other Energy Oy',
+            'name_slug' => 'other-energy-oy',
+            'company_url' => 'https://otherenergy.fi',
+        ]);
+        $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
+        ElectricityContract::create([
+            'id' => 'other-fixed',
+            'company_name' => $otherCompany->name,
+            'name' => 'Muu Kiinteä Sähkö',
+            'contract_type' => 'OpenEnded',
+            'pricing_model' => 'FixedPrice',
+            'metering' => 'General',
+            'availability_is_national' => true,
+        ]);
+        $this->seedMarket(segment: 'open_ended', p20: 500.0, median: 600.0, p80: 700.0, contractCount: 40);
+        $this->seedCompanySnapshot(segment: 'open_ended', annualCost: 600.0);
+        $this->seedCompanySnapshot(
+            segment: 'open_ended',
+            annualCost: 620.0,
+            contractId: 'other-fixed',
+            companyName: $otherCompany->name,
+        );
+        Cache::flush();
+
+        $originalEnvironment = $this->app->environment();
+        $this->app['env'] = 'production';
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $sql = strtolower($query->sql);
+
+            if (str_contains($sql, 'max(')
+                && ! str_contains($sql, ' join ')
+                && (str_contains($sql, 'contract_price_daily_statistics')
+                    || str_contains($sql, 'contract_price_snapshots'))) {
+                $queries[] = $sql;
+            }
+        });
+
+        try {
+            $service = app(CompanyMarketComparisonService::class);
+
+            $this->assertNotNull($service->forCompany($this->company->name, 5000));
+            $this->assertNotNull($service->forCompany($otherCompany->name, 5000));
+            $this->assertCount(4, $queries, 'The second company must reuse the shared fingerprint.');
+        } finally {
+            $this->app['env'] = $originalEnvironment;
+            Cache::flush();
+        }
+    }
+
+    public function test_a_held_company_payload_lock_fails_soft_without_build_queries(): void
+    {
+        config()->set('canonical_pricing.enabled', false);
+        config()->set('contract_statistics.annual_cost.active_method_version', 'annual_cost_legacy_v1');
+        $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
+        $this->seedMarket(segment: 'open_ended', p20: 500.0, median: 600.0, p80: 700.0, contractCount: 40);
+        $this->seedCompanySnapshot(segment: 'open_ended', annualCost: 600.0);
+        Cache::flush();
+
+        $originalEnvironment = $this->app->environment();
+        $this->app['env'] = 'production';
+        $lock = null;
+
+        try {
+            $service = app(CompanyMarketComparisonService::class);
+            $fingerprintMethod = new \ReflectionMethod($service, 'fingerprint');
+            $fingerprint = $fingerprintMethod->invoke($service);
+            $payloadKeyMethod = new \ReflectionMethod($service, 'payloadCacheKey');
+            $payloadKey = $payloadKeyMethod->invoke(
+                $service,
+                $this->company->name,
+                5000,
+                $fingerprint,
+                'annual_cost_legacy_v1',
+                false,
+                'observed_seller_data',
+            );
+            $lock = Cache::lock($payloadKey.':lock', 30);
+            $this->assertTrue($lock->get());
+
+            $queries = [];
+            DB::listen(function ($query) use (&$queries): void {
+                $queries[] = $query->sql;
+            });
+
+            $this->assertNull($service->forCompany($this->company->name, 5000));
+            $this->assertSame([], $queries, 'Lock contention must not run an uncached payload build.');
+        } finally {
+            $lock?->release();
+            $this->app['env'] = $originalEnvironment;
+            Cache::flush();
+        }
     }
 
     public function test_a_seller_cheaper_than_p20_is_marked_below_the_band(): void
@@ -841,11 +942,12 @@ class CompanyDetailSectionsTest extends TestCase
         string $contractId = 'fixed',
         string $pricingBasis = 'observed_seller_data',
         ?string $date = null,
+        ?string $companyName = null,
     ): void {
         ContractPriceSnapshot::create([
             'snapshot_date' => $date ?? now()->toDateString(),
             'contract_id' => $contractId,
-            'company_name' => $this->company->name,
+            'company_name' => $companyName ?? $this->company->name,
             'contract_name' => 'Kiinteä Sähkö',
             'pricing_model' => 'FixedPrice',
             'contract_type' => 'OpenEnded',

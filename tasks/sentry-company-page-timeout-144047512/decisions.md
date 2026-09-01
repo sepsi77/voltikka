@@ -1,0 +1,15 @@
+# Decisions
+
+## 2026-09-01
+
+- VOLTIKKA-23 and VOLTIKKA-24 occurred on deployment `5dff6199-71b3-420f-b46c-6189ab7d5365` (commit `a415cb9`) within 31 seconds of each other.
+- The successful SQL breadcrumbs were individually fast, so the final Sentry frame is where the hard timeout fired, not proof that Sentry or one shown query caused it.
+- Read-only Railway metrics show four requests for each affected URL in the same minute. All ended as 4xx after about 4.98 seconds, while PHP continued until its 30-second limit. In the same interval, app CPU rose above 2 cores, app memory rose from about 0.47 GB to 1.29 GB, and MySQL CPU rose from near idle to 24.3 cores.
+- `CompanyMarketComparisonService` currently recomputes one global source fingerprint for every company request. That fingerprint performs repeated `MAX(date)` and `MAX(updated_at)` scans over statistics, snapshot, and versioned annual-cost tables for both canonical and observed bases. Concurrent cold requests also all enter the same company-specific `Cache::remember` callback because it has no lock.
+- The fix will cache the global fingerprint under one mode/method-specific key and use short cache locks for both the fingerprint and company payload. A request that cannot get a cold-build lock quickly will use the existing honest no-comparison state instead of running another expensive build or waiting near the PHP timeout.
+- The unrelated VOLTIKKA-22 article exception occurred before commit `a415cb9` reached production. That commit replaced the old `incomplete_base_only` presentation path, bumped the article payload schema to v7, and its focused 190-assertion test suite passes. No additional article code change is needed for that already-released issue.
+- Implementation completed without changing pricing or data-selection rules. The global fingerprint now has one 10-minute schema-v1 cache entry per active annual method, canonical mode, and expected pricing basis. Unit tests keep the direct uncached scan.
+- Cold fingerprint and company payload builds use 30-second cache locks, wait at most one second, and check the cache again inside the lock. A `LockTimeoutException` returns `null` and uses the existing honest no-comparison page state. The company payload key and stored v10 payload remain unchanged.
+- Added production-mode regression coverage that proves two different companies cause only one set of four legacy global fingerprint aggregate queries. Added coverage that holds the company payload lock and proves the request returns `null` without a database build query.
+- Verification passed: `CONTRACT_STATISTICS_ANNUAL_METHOD_VERSION=annual_cost_legacy_v1 php artisan test tests/Feature/CompanyDetailSectionsTest.php` ran 39 tests with 154 assertions; `ArticleFixedTermContractTest` ran 10 tests with 190 assertions; Pint, PHP syntax checks, the production Vite build, and `git diff --check` passed.
+- The Aug 31 VOLTIKKA-18 event on Porvoon Energia is the same failure class. Its breadcrumbs show the fingerprint aggregate scans taking 0.52–1.84 seconds each before the hard timeout. The shared fingerprint cache and locks cover it.

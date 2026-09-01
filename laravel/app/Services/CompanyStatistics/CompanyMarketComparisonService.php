@@ -12,6 +12,7 @@ use App\Services\ContractStatistics\ContractStatisticsSegmentClassifier;
 use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
@@ -81,6 +82,12 @@ class CompanyMarketComparisonService
 
     private const CACHE_TTL_HOURS = 6;
 
+    private const FINGERPRINT_CACHE_TTL_MINUTES = 10;
+
+    private const CACHE_LOCK_SECONDS = 30;
+
+    private const CACHE_LOCK_WAIT_SECONDS = 1;
+
     public function __construct(private readonly PricingMode $pricingMode) {}
 
     /**
@@ -125,12 +132,37 @@ class CompanyMarketComparisonService
         }
 
         $annualMethod = ContractPriceDailyStatistic::activeAnnualMethodVersion()->value;
-
-        return Cache::remember(
-            'company-market-comparison:v10:'.$annualMethod.':'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis.':'.md5($companyName).':'.$referenceConsumption.':'.$fingerprint,
-            now()->addHours(self::CACHE_TTL_HOURS),
-            fn () => $this->build($companyName, $referenceConsumption),
+        $key = $this->payloadCacheKey(
+            $companyName,
+            $referenceConsumption,
+            $fingerprint,
+            $annualMethod,
+            $canonicalEnabled,
+            $pricingBasis,
         );
+        $cached = Cache::get($key);
+
+        if ($cached !== null) {
+            return $cached;
+        }
+
+        try {
+            return Cache::lock($key.':lock', self::CACHE_LOCK_SECONDS)
+                ->block(self::CACHE_LOCK_WAIT_SECONDS, function () use ($key, $companyName, $referenceConsumption) {
+                    $cached = Cache::get($key);
+
+                    if ($cached !== null) {
+                        return $cached;
+                    }
+
+                    $payload = $this->build($companyName, $referenceConsumption);
+                    Cache::put($key, $payload, now()->addHours(self::CACHE_TTL_HOURS));
+
+                    return $payload;
+                });
+        } catch (LockTimeoutException) {
+            return null;
+        }
     }
 
     /**
@@ -814,7 +846,57 @@ class CompanyMarketComparisonService
             : ($values[$middle - 1] + $values[$middle]) / 2;
     }
 
+    private function payloadCacheKey(
+        string $companyName,
+        int $referenceConsumption,
+        string $fingerprint,
+        string $annualMethod,
+        bool $canonicalEnabled,
+        string $pricingBasis,
+    ): string {
+        return 'company-market-comparison:v10:'.$annualMethod.':'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis.':'.md5($companyName).':'.$referenceConsumption.':'.$fingerprint;
+    }
+
     private function fingerprint(): ?string
+    {
+        if (app()->runningUnitTests()) {
+            return $this->buildFingerprint();
+        }
+
+        $pricingBasis = $this->pricingMode->expectedContractPriceBasis()->value;
+        $canonicalEnabled = $this->pricingMode->enabled();
+        $annualMethod = ContractPriceDailyStatistic::activeAnnualMethodVersion()->value;
+        $key = 'company-market-comparison-fingerprint:v1:'.$annualMethod.':'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis;
+        $cached = Cache::get($key);
+
+        if (is_array($cached) && array_key_exists('fingerprint', $cached)) {
+            return $cached['fingerprint'];
+        }
+
+        try {
+            return Cache::lock($key.':lock', self::CACHE_LOCK_SECONDS)
+                ->block(self::CACHE_LOCK_WAIT_SECONDS, function () use ($key) {
+                    $cached = Cache::get($key);
+
+                    if (is_array($cached) && array_key_exists('fingerprint', $cached)) {
+                        return $cached['fingerprint'];
+                    }
+
+                    $fingerprint = $this->buildFingerprint();
+                    Cache::put(
+                        $key,
+                        ['fingerprint' => $fingerprint],
+                        now()->addMinutes(self::FINGERPRINT_CACHE_TTL_MINUTES),
+                    );
+
+                    return $fingerprint;
+                });
+        } catch (LockTimeoutException) {
+            return null;
+        }
+    }
+
+    private function buildFingerprint(): ?string
     {
         $pricingBasis = $this->pricingMode->expectedContractPriceBasis()->value;
         $canonicalEnabled = $this->pricingMode->enabled();

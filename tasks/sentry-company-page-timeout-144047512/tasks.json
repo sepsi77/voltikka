@@ -1,0 +1,6 @@
+[
+  {"name":"Correlate Sentry timeouts with production load","status":"completed"},
+  {"name":"Add shared fingerprint and stampede protection","status":"completed"},
+  {"name":"Add focused regression tests","status":"completed"},
+  {"name":"Run verification and document the result","status":"completed"}
+]

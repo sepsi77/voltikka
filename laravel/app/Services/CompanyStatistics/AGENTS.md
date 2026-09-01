@@ -184,8 +184,17 @@ date and maximum `updated_at`. In canonical mode the fingerprint includes both
 canonical and observed bases because either can own the payload. A same-day rewrite
 therefore creates a new key, and a flag or method flip cannot serve an incompatible
 payload.
-Skipped under `runningUnitTests()`, like the page-level caches, to avoid
-array-driver pollution across tests.
+
+The global fingerprint scan is shared by all companies for 10 minutes under its
+own schema-versioned key. That key varies by active annual method, canonical mode,
+and expected pricing basis. Both a cold fingerprint and a cold v10 company payload
+use a short cache lock with a second cache check after lock acquisition. Lock
+contention must return `null`; it must never run an uncached expensive fallback.
+The page already presents `null` as the honest no-comparison state.
+
+All of this stays skipped under `runningUnitTests()`, like the page-level caches,
+to avoid array-driver pollution across tests and to keep same-process source-rewrite
+tests direct and deterministic.
 
 **`selected_consumption` and `is_snapped` are added after the cache read, never
 stored.** The cache key carries only the snapped reference, so storing them let a
