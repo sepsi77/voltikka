@@ -40,7 +40,7 @@ Optional work:
 - dispatch `WarmContractPriceStatisticsCache` for weekly and 5,000 kWh
 - calculate contract percentiles
 
-Each stage has its own failure boundary. One interpretation failure must not stop a later snapshot. A required failure makes `contracts:fetch` fail, but safe later stages still run.
+Each stage has its own failure boundary. One interpretation failure must not stop a later snapshot. A required failure makes `contracts:fetch` fail, but safe later stages still run. The command combines required stage codes, acquisition failures, and checkpoint failures into one explicit Sentry Issue and safe aggregate Laravel log at its outcome boundary. It never sends the result's failure message text to Sentry. Partial acquisition keeps its existing success exit and reports warning severity; terminal failures report error severity. Optional stages do not create import Issues.
 
 Database cache invalidation uses `TRUNCATE TABLE`. Other cache stores use the cache repository API directly. The coordinator does not call nested Artisan commands and does not use `app()` service location.
 

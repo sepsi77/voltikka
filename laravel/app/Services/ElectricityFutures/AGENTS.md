@@ -10,6 +10,7 @@ Primary files:
 - `../../../database/migrations/2026_05_22_000001_create_electricity_futures_eod_prices_table.php` — storage table.
 
 Important behavior:
+- The fetch command collects discovery and maturity HTTP/connection failures, missing current-run prior-date FI proof for full runs, and checkpoint failures into one explicit Sentry Issue plus one safe aggregate Laravel log. Normal empty out-of-range maturities never alert on their own. Per-maturity/discovery diagnostics are console-only and show exception classes, never raw HTTP text. Service methods keep throwing their original exceptions but do not log response bodies. Each command invocation owns a fresh reporter; repeated runs group by `eex_futures`. See `../../../AGENTS.md` for reporting rules.
 - EEX requires the `Referer: https://www.eex.com/` header for browser-equivalent public chart requests.
 - Public EEX API calls are throttled centrally in `EexFuturesService`: by default the first call runs immediately and later calls wait a random delay around 15 seconds (`request_delay_seconds` +/- `request_delay_jitter_seconds`). This intentionally makes backfills/daily fetches slow and polite.
 - The scheduled production fetch runs at 04:00 Europe/Helsinki. An earlier 20:30 schedule ran successfully but FI settlement rows were still lagging, so fixed-term forecasts could keep using older futures; the overnight schedule gives EEX time to publish FI rows and still leaves enough time before the 07:30 forecast job.

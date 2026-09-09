@@ -332,7 +332,11 @@ Restore drill outline:
 
 ### Sentry
 
-Sentry is configured for Laravel exception capture and optional log forwarding.
+Sentry is configured for Laravel exception capture and optional log forwarding. The log driver sends Sentry Logs, not Issues.
+
+`App\Support\DataFetchFailureReporter` creates explicit message Issues for `spot:fetch`, `futures:fetch-eex`, and `contracts:fetch`. Each invocation creates a fresh reporter, accumulates controlled stage failure counts and numeric totals, and reports once at the command outcome boundary. Exit failures use error severity; incomplete acquisitions and empty responses that keep their existing success exit use warning severity. The fingerprint is `data-fetch-failure` plus the import name, so repeated failed runs group without suppressing later events. One aggregate Laravel log uses the same safe context. The temporary Sentry scope is cleared first to exclude inherited HTTP breadcrumbs, tags, users, and contexts, then restored after capture. Never pass upstream strings, postcodes, URLs, response bodies, exception messages, traces, or tokens to this reporter; exception classes alone are permitted.
+
+Spot reports only a wholly empty today-plus-tomorrow response, not a normal missing tomorrow. Its pricing and insert-only rules are unchanged. EEX counts discovery and maturity failures without per-request warnings; empty out-of-range maturities stay normal, but a full run without current-run prior-date FI proof reports one aggregate failure. Contracts count exhausted HTTP and connection failures per postcode, keep partial-import safeguards and exits, and include required post-import/checkpoint failures in the same Issue. Optional interpretations, logo work, and cache warming do not create import Issues. Unexpected thrown failures are caught at the command boundary, return failure, and add a safe `unexpected` reason instead of a second automatic exception event. Scheduler listeners remain log-only and unchanged.
 
 Primary files:
 - `bootstrap/app.php` — registers `Sentry\Laravel\Integration::handles($exceptions)`.

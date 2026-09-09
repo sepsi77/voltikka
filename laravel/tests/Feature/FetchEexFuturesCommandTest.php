@@ -15,6 +15,49 @@ use Tests\TestCase;
 class FetchEexFuturesCommandTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\CapturesSentryIssues;
+
+    public function test_multiple_failed_maturities_create_one_issue(): void
+    {
+        $this->captureSentryIssues();
+        config()->set('eex_futures.request_delay_seconds', 0);
+        config()->set('eex_futures.request_delay_jitter_seconds', 0);
+        Http::fake(fn () => Http::response('private response', 400));
+
+        $this->artisan('futures:fetch-eex', [
+            '--area' => ['FI'], '--tenor' => ['month'], '--maturity' => ['202609', '202610'],
+        ])->assertExitCode(1);
+
+        $this->assertImportIssue('eex_futures', 'error', ['acquisition' => 2]);
+    }
+
+    public function test_discovery_failures_and_missing_fi_proof_create_one_issue(): void
+    {
+        $this->captureSentryIssues();
+        config()->set('eex_futures.request_delay_seconds', 0);
+        config()->set('eex_futures.request_delay_jitter_seconds', 0);
+        Http::fake(fn () => Http::response('private response', 400));
+
+        $this->artisan('futures:fetch-eex')->assertExitCode(1);
+
+        $this->assertImportIssue('eex_futures', 'error', [
+            'discovery' => 3, 'missing_current_run_prior_fi' => 1,
+        ]);
+    }
+
+    public function test_normal_empty_maturity_does_not_create_an_issue(): void
+    {
+        $this->captureSentryIssues();
+        config()->set('eex_futures.request_delay_seconds', 0);
+        config()->set('eex_futures.request_delay_jitter_seconds', 0);
+        Http::fake(fn () => Http::response(['data' => []], 200));
+
+        $this->artisan('futures:fetch-eex', [
+            '--area' => ['FI'], '--tenor' => ['month'], '--maturity' => ['202609'],
+        ])->assertExitCode(0);
+
+        $this->assertSame([], $this->sentryIssues);
+    }
 
     protected function tearDown(): void
     {
@@ -156,6 +199,7 @@ class FetchEexFuturesCommandTest extends TestCase
 
     public function test_full_scope_fails_when_current_run_fetches_only_non_fi_points_despite_old_fi_data(): void
     {
+        $this->captureSentryIssues();
         Carbon::setTestNow(Carbon::create(2026, 5, 22, 12, 0, 0, 'Europe/Helsinki'));
         ElectricityFuturesEodPrice::create([
             'area' => 'FI',
@@ -193,6 +237,7 @@ class FetchEexFuturesCommandTest extends TestCase
         $checkpoint = DataFreshnessCheckpoint::sole();
         $this->assertSame(DataFreshnessCheckpoint::STATUS_FAILED, $checkpoint->status);
         $this->assertNull($checkpoint->metadata['current_run_latest_prior_fi_trade_date']);
+        $this->assertImportIssue('eex_futures', 'error', ['missing_current_run_prior_fi' => 1]);
         $this->assertDatabaseHas('electricity_futures_eod_prices', [
             'area' => 'SE3',
             'trade_date' => '2026-05-21',

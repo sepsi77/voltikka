@@ -6,7 +6,6 @@ use Carbon\Carbon;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use SimpleXMLElement;
 
 class EntsoeService
@@ -52,10 +51,6 @@ class EntsoeService
             })->get($url);
 
         if ($response->failed()) {
-            Log::error('Failed to fetch spot prices from ENTSO-E API', [
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
             throw new RequestException($response);
         }
 
@@ -78,10 +73,6 @@ class EntsoeService
         try {
             $xml = new SimpleXMLElement($xmlContent);
         } catch (\Exception $e) {
-            Log::error('Failed to parse ENTSO-E XML response', [
-                'error' => $e->getMessage(),
-                'content' => substr($xmlContent, 0, 500),
-            ]);
             return [];
         }
 

@@ -22,6 +22,7 @@ use Tests\TestCase;
 class FetchContractsCommandTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\CapturesSentryIssues;
 
     protected function setUp(): void
     {
@@ -626,6 +627,7 @@ class FetchContractsCommandTest extends TestCase
 
     public function test_partial_postcode_failure_is_reported_as_incomplete_and_available_contracts_import(): void
     {
+        $this->captureSentryIssues();
         Company::create([
             'name' => 'Regional Energy Oy',
             'name_slug' => 'regional-energy-oy',
@@ -661,10 +663,12 @@ class FetchContractsCommandTest extends TestCase
 
         $this->assertDatabaseHas('electricity_contracts', ['api_id' => 'contract-12345']);
         $this->assertDatabaseHas('active_contracts', ['id' => $regionalContract->id]);
+        $this->assertImportIssue('contracts', 'warning', ['acquisition' => 1]);
     }
 
     public function test_required_statistics_failure_returns_exit_one_after_import(): void
     {
+        $this->captureSentryIssues();
         Http::fake([
             'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response(
                 $this->getSampleApiResponse(),
@@ -680,8 +684,9 @@ class FetchContractsCommandTest extends TestCase
             '--postcodes' => '00100',
             '--skip-logos' => true,
         ])
-            ->expectsOutput('Required post-import stage daily_statistics failed: Required statistics failed')
+            ->expectsOutput('Required post-import stage daily_statistics failed.')
             ->assertExitCode(1);
+        $this->assertImportIssue('contracts', 'error', ['daily_statistics' => 1]);
 
         $this->assertDatabaseHas('electricity_contracts', ['api_id' => 'contract-12345']);
     }
@@ -691,6 +696,7 @@ class FetchContractsCommandTest extends TestCase
      */
     public function test_command_handles_api_errors(): void
     {
+        $this->captureSentryIssues();
         Http::fake([
             'ev-shv-prod-app-wa-consumerapi1.azurewebsites.net/api/productlist/*' => Http::response(
                 ['error' => 'Server Error'],
@@ -700,13 +706,56 @@ class FetchContractsCommandTest extends TestCase
 
         $this->artisan('contracts:fetch', ['--postcodes' => '00100'])
             ->assertExitCode(1);
+        $this->assertImportIssue('contracts', 'error', ['acquisition' => 1]);
     }
 
     /**
      * Test command retries failed API requests.
      */
+    public function test_empty_scoped_response_reports_a_warning_without_changing_the_exit(): void
+    {
+        $this->captureSentryIssues();
+        Http::fake(fn () => Http::response([]));
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+        $this->assertImportIssue('contracts', 'warning', ['no_contracts' => 1]);
+    }
+
+    public function test_connection_failure_is_retried_and_recovery_is_silent(): void
+    {
+        $this->captureSentryIssues();
+        $attempts = 0;
+        Http::fake(function () use (&$attempts) {
+            if (++$attempts < 3) {
+                throw new \Illuminate\Http\Client\ConnectionException('private URL and token');
+            }
+
+            return Http::response($this->getSampleApiResponse());
+        });
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])
+            ->assertExitCode(0);
+        $this->assertSame(3, $attempts);
+        $this->assertSame([], $this->sentryIssues);
+    }
+
+    public function test_exhausted_connection_failures_are_counted_once_per_postcode(): void
+    {
+        $this->captureSentryIssues();
+        $attempts = 0;
+        Http::fake(function () use (&$attempts) {
+            $attempts++;
+            throw new \Illuminate\Http\Client\ConnectionException('private URL and token');
+        });
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100,02230', '--skip-logos' => true])
+            ->assertExitCode(1);
+        $this->assertSame(6, $attempts);
+        $this->assertImportIssue('contracts', 'error', ['acquisition' => 2]);
+        $this->assertSame(2, $this->sentryIssues[0]->getContexts()['data_fetch']['counts']['failed_postcodes']);
+    }
+
     public function test_command_retries_on_failure(): void
     {
+        $this->captureSentryIssues();
         $attempts = 0;
         Http::fake(function ($request) use (&$attempts) {
             $attempts++;
@@ -720,6 +769,7 @@ class FetchContractsCommandTest extends TestCase
         $this->artisan('contracts:fetch', ['--postcodes' => '00100'])
             ->assertExitCode(0);
 
+        $this->assertSame([], $this->sentryIssues);
         // Should have retried and eventually succeeded
         $this->assertDatabaseHas('electricity_contracts', ['api_id' => 'contract-12345']);
     }

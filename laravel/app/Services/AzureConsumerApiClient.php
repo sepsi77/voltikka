@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 class AzureConsumerApiClient
 {
@@ -25,15 +25,12 @@ class AzureConsumerApiClient
 
         $response = Http::retry(self::MAX_RETRIES, self::RETRY_DELAY_MS, function ($exception, $request) {
             // Only retry on server errors or connection issues
-            return $exception instanceof RequestException
-                && ($exception->response?->serverError() || $exception->response === null);
+            return $exception instanceof ConnectionException
+                || ($exception instanceof RequestException
+                    && ($exception->response?->serverError() || $exception->response === null));
         })->get($url);
 
         if ($response->failed()) {
-            Log::error("Failed to fetch contracts for postcode {$postcode}", [
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
             throw new RequestException($response);
         }
 

@@ -11,8 +11,10 @@ use App\Services\ContractImport\ContractAcquisitionResult;
 use App\Services\ContractImport\ContractImporter;
 use App\Services\ContractImport\ContractPostImportCoordinator;
 use App\Services\MorningFreshness\MorningJobFreshnessService;
+use App\Support\DataFetchFailureReporter;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -41,7 +43,25 @@ class FetchContracts extends Command
         parent::__construct();
     }
 
+    private DataFetchFailureReporter $failureReporter;
+
     public function handle(): int
+    {
+        $this->failureReporter = new DataFetchFailureReporter('contracts');
+        $exit = self::FAILURE;
+        try {
+            $exit = $this->fetch();
+        } catch (Throwable $exception) {
+            $this->failureReporter->fail('unexpected', $exception);
+            $this->error('Contract import failed.');
+        } finally {
+            $this->failureReporter->report($exit === self::FAILURE);
+        }
+
+        return $exit;
+    }
+
+    private function fetch(): int
     {
         $this->info('Fetching contracts from Azure Consumer API...');
         $today = Carbon::now('Europe/Helsinki')->toDateString();
@@ -60,11 +80,8 @@ class FetchContracts extends Command
 
         try {
             $acquisition = $this->fetchAllContracts($postcodes);
-        } catch (RequestException $exception) {
-            $this->error('Failed to fetch contracts: '.$exception->getMessage());
-            Log::error('FetchContracts acquisition failed', [
-                'exception_class' => $exception::class,
-            ]);
+        } catch (RequestException|ConnectionException $exception) {
+            $this->error('Failed to fetch contracts after retries.');
             $this->recordFullScopeCheckpoint(
                 $fullScope,
                 $today,
@@ -75,12 +92,14 @@ class FetchContracts extends Command
             return self::FAILURE;
         }
 
+        $this->failureReporter->count('fetched_contracts', count($acquisition->contracts));
         if (! $acquisition->complete) {
             $this->warn('Contract acquisition was incomplete. Failed postcodes: '.implode(', ', $acquisition->failedPostcodes).'.');
         }
 
         if ($acquisition->contracts === []) {
             $this->warn('No contracts fetched from API.');
+            $this->failureReporter->fail('no_contracts');
             $this->recordFullScopeCheckpoint(
                 $fullScope,
                 $today,
@@ -101,11 +120,8 @@ class FetchContracts extends Command
                 complete: $acquisition->complete,
             );
         } catch (Throwable $exception) {
-            $this->error('Error processing contracts: '.$exception->getMessage());
-            Log::error('FetchContracts authoritative import failed', [
-                'exception_class' => $exception::class,
-                'exception' => $exception->getMessage(),
-            ]);
+            $this->error('Error processing contracts.');
+            $this->failureReporter->fail('import', $exception);
             $this->recordFullScopeCheckpoint(
                 $fullScope,
                 $today,
@@ -143,7 +159,11 @@ class FetchContracts extends Command
             }
         }
         foreach ($postImport->requiredFailures as $stage => $message) {
-            $this->error("Required post-import stage {$stage} failed: {$message}");
+            $this->error("Required post-import stage {$stage} failed.");
+            $this->failureReporter->fail(match ($stage) {
+                'daily_statistics', 'cache_invalidation', 'contract_cache_version', 'company_cache_version' => $stage,
+                default => 'required_post_import',
+            });
         }
 
         if (! $postImport->succeeded()) {
@@ -197,6 +217,7 @@ class FetchContracts extends Command
     {
         $contractsById = [];
         $failedPostcodes = [];
+        $this->failureReporter->count('requested_postcodes', count($postcodes));
 
         foreach ($postcodes as $postcode) {
             $this->info("Fetching contracts for postcode: {$postcode}");
@@ -208,9 +229,11 @@ class FetchContracts extends Command
                         $contractsById[$id] = $contract;
                     }
                 }
-            } catch (RequestException $exception) {
+            } catch (RequestException|ConnectionException $exception) {
                 $failedPostcodes[] = $postcode;
-                $this->warn("Failed to fetch contracts for postcode {$postcode}: ".$exception->getMessage());
+                $this->failureReporter->fail('acquisition', $exception);
+                $this->failureReporter->count('failed_postcodes', count($failedPostcodes));
+                $this->warn("Failed to fetch contracts for postcode {$postcode} after retries.");
 
                 if ($postcode === end($postcodes) && $contractsById === []) {
                     throw $exception;
@@ -246,10 +269,7 @@ class FetchContracts extends Command
             return true;
         } catch (Throwable $exception) {
             $this->error('Failed to record the contract freshness checkpoint.');
-            Log::error('FetchContracts freshness checkpoint failed', [
-                'status' => $status,
-                'exception_class' => $exception::class,
-            ]);
+            $this->failureReporter->fail('checkpoint', $exception);
 
             return false;
         }

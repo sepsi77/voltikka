@@ -190,6 +190,10 @@ php artisan test
 php artisan test --filter="ContractsFilterTest"
 ```
 
+## Import failure Issues
+
+`spot:fetch`, `futures:fetch-eex`, and `contracts:fetch` send one explicit Sentry Issue and one safe aggregate Laravel log for a failed or incomplete invocation. Repeated failures group by import. Recovered retries and normal empty EEX maturities do not alert. Optional interpretation/logo failures do not create import Issues. Sentry Logs are separate from Issues; scheduler listeners remain unchanged. See `laravel/AGENTS.md` for the outcome, severity, and privacy rules.
+
 ## Key Features
 
 ### 1. Contract Comparison (Main Feature)

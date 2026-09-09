@@ -32,6 +32,10 @@ Preferred pattern:
 
 The grouping unit should be a cohesive feature/domain, not an individual class unless that truly makes sense.
 
+## Acquisition reporting boundary
+
+Azure, ENTSO-E, and EEX acquisition methods preserve their exception/return contracts but no longer log raw failed HTTP responses. The fetch commands own aggregate Sentry Issue reporting through `App\Support\DataFetchFailureReporter`; see `../../AGENTS.md`. Azure retries exhausted connection failures under the same transient policy as server errors. ENTSO-E XML parse failures still return an empty array, but no longer log source XML or parser messages; `spot:fetch` reports the wholly empty outcome. Backfill return and retry behavior is unchanged.
+
 ## Current service subtrees
 
 ### First-party analytics

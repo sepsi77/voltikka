@@ -7,11 +7,11 @@ use App\Models\ElectricityFuturesEodPrice;
 use App\Services\ContractListCacheService;
 use App\Services\ElectricityFutures\EexFuturesService;
 use App\Services\MorningFreshness\MorningJobFreshnessService;
+use App\Support\DataFetchFailureReporter;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class FetchEexFutures extends Command
@@ -54,6 +54,24 @@ class FetchEexFutures extends Command
      */
     public function handle(): int
     {
+        $this->failureReporter = new DataFetchFailureReporter('eex_futures');
+        $exit = Command::FAILURE;
+        try {
+            $exit = $this->fetch();
+        } catch (Throwable $exception) {
+            $this->failureReporter->fail('unexpected', $exception);
+            $this->error('EEX import failed.');
+        } finally {
+            $this->failureReporter->report($exit === Command::FAILURE);
+        }
+
+        return $exit;
+    }
+
+    private DataFetchFailureReporter $failureReporter;
+
+    private function fetch(): int
+    {
         $fullScope = $this->isFullScheduledScope();
         $effectiveDate = Carbon::today('Europe/Helsinki')->toDateString();
 
@@ -68,6 +86,9 @@ class FetchEexFutures extends Command
 
         if (empty($instruments)) {
             $this->warn('No EEX futures instruments selected.');
+            if ($fullScope) {
+                $this->failureReporter->fail('no_instruments');
+            }
             $this->recordFullScopeCheckpoint($fullScope, $effectiveDate, [
                 'reason' => 'no_instruments',
             ]);
@@ -145,17 +166,17 @@ class FetchEexFutures extends Command
                     $instrument['maturity_type'] ?? 'unknown-tenor',
                     $instrument['short_code'] ?? 'unknown-code',
                     $maturity,
-                    $e->getMessage()
+                    $e::class
                 ));
-                Log::warning('EEX futures fetch failed for instrument maturity', [
-                    'area' => $instrument['area'] ?? null,
-                    'maturity_type' => $instrument['maturity_type'] ?? null,
-                    'short_code' => $instrument['short_code'] ?? null,
-                    'maturity' => $maturity,
-                    'exception_class' => $e::class,
-                    'exception' => $e->getMessage(),
-                ]);
+                $this->failureReporter->fail('acquisition', $e);
             }
+        }
+
+        $this->failureReporter->count('maturity_requests', count($requests));
+        $this->failureReporter->count('fetched_points', $totalFetched);
+        $this->failureReporter->count('saved_points', $totalSaved);
+        if ($fullScope && $latestCurrentRunPriorFiTradeDate === null) {
+            $this->failureReporter->fail('missing_current_run_prior_fi');
         }
 
         $this->info("EEX futures fetch complete. Fetched {$totalFetched} price points, upserted {$totalSaved}. Failures: {$failures}.");
@@ -235,9 +256,7 @@ class FetchEexFutures extends Command
             return true;
         } catch (Throwable $exception) {
             $this->error('Failed to record the EEX freshness checkpoint.');
-            Log::error('FetchEexFutures freshness checkpoint failed', [
-                'exception_class' => $exception::class,
-            ]);
+            $this->failureReporter->fail('checkpoint', $exception);
 
             return false;
         }
@@ -347,15 +366,9 @@ class FetchEexFutures extends Command
                     $tenor,
                     $representativeInstrument['area'] ?? 'unknown-area',
                     $representativeInstrument['short_code'] ?? 'unknown-code',
-                    $e->getMessage()
+                    $e::class
                 ));
-                Log::warning('EEX futures maturity discovery failed', [
-                    'area' => $representativeInstrument['area'] ?? null,
-                    'maturity_type' => $tenor,
-                    'short_code' => $representativeInstrument['short_code'] ?? null,
-                    'exception_class' => $e::class,
-                    'exception' => $e->getMessage(),
-                ]);
+                $this->failureReporter->fail('discovery', $e);
             }
         }
 

@@ -19,6 +19,35 @@ use Tests\TestCase;
 class FetchSpotCommandTest extends TestCase
 {
     use RefreshDatabase;
+    use \Tests\Concerns\CapturesSentryIssues;
+
+    public function test_save_failure_creates_one_safe_issue(): void
+    {
+        $this->captureSentryIssues();
+        $this->mockEntsoeService([['region' => 'FI']]);
+        $importer = Mockery::mock(\App\Services\SpotPriceImport\SpotPriceImporter::class);
+        $importer->shouldReceive('import')->once()->andThrow(new \RuntimeException('private SQL and token'));
+        $this->app->instance(\App\Services\SpotPriceImport\SpotPriceImporter::class, $importer);
+        $this->artisan('spot:fetch')->assertExitCode(1);
+        $this->assertImportIssue('spot', 'error', ['save_or_post_import' => 1]);
+    }
+
+    public function test_recovered_connection_retry_with_today_only_data_is_silent(): void
+    {
+        $this->captureSentryIssues();
+        $attempts = 0;
+        \Illuminate\Support\Facades\Http::fake(function () use (&$attempts) {
+            if (++$attempts < 3) {
+                throw new ConnectionException('private URL and token');
+            }
+
+            return \Illuminate\Support\Facades\Http::response('<Publication_MarketDocument><TimeSeries><Period><timeInterval><start>2026-08-25T00:00Z</start></timeInterval><resolution>PT60M</resolution><Point><position>1</position><price.amount>0</price.amount></Point></Period></TimeSeries></Publication_MarketDocument>');
+        });
+        $this->artisan('spot:fetch')->assertExitCode(0);
+        $this->assertSame(3, $attempts);
+        $this->assertSame([], $this->sentryIssues);
+        $this->assertSame(1, SpotPriceHour::count());
+    }
 
     protected function setUp(): void
     {
@@ -245,6 +274,7 @@ class FetchSpotCommandTest extends TestCase
      */
     public function test_command_handles_connection_timeouts(): void
     {
+        $this->captureSentryIssues();
         $mockService = Mockery::mock(EntsoeService::class);
         $mockService->shouldReceive('fetchDayAheadPrices')
             ->once()
@@ -257,6 +287,7 @@ class FetchSpotCommandTest extends TestCase
         $this->artisan('spot:fetch')
             ->expectsOutput('Failed to fetch spot prices from ENTSO-E API after retries.')
             ->assertExitCode(1);
+        $this->assertImportIssue('spot', 'error', ['acquisition' => 1]);
     }
 
     /**
@@ -264,12 +295,14 @@ class FetchSpotCommandTest extends TestCase
      */
     public function test_command_handles_empty_response(): void
     {
+        $this->captureSentryIssues();
         $this->mockEntsoeService([]);
 
         $this->artisan('spot:fetch')
             ->assertExitCode(0);
 
         $this->assertEquals(0, SpotPriceHour::count());
+        $this->assertImportIssue('spot', 'warning', ['empty_response' => 1]);
     }
 
     /**

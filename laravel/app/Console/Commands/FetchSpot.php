@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Services\EntsoeService;
 use App\Services\SpotPriceAverageService;
 use App\Services\SpotPriceImport\SpotPriceImporter;
+use App\Support\DataFetchFailureReporter;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Http\Client\ConnectionException;
@@ -49,6 +50,22 @@ class FetchSpot extends Command
      */
     public function handle(): int
     {
+        $reporter = new DataFetchFailureReporter('spot');
+        $exit = Command::FAILURE;
+        try {
+            $exit = $this->fetch($reporter);
+        } catch (\Throwable $exception) {
+            $reporter->fail('unexpected', $exception);
+            $this->error('Spot import failed.');
+        } finally {
+            $reporter->report($exit === Command::FAILURE);
+        }
+
+        return $exit;
+    }
+
+    private function fetch(DataFetchFailureReporter $reporter): int
+    {
         $this->info('Fetching spot prices from ENTSO-E API...');
 
         try {
@@ -61,15 +78,14 @@ class FetchSpot extends Command
             $spotPrices = $this->entsoeService->fetchDayAheadPrices($startDate, $endDate);
         } catch (RequestException|ConnectionException $e) {
             $this->error('Failed to fetch spot prices from ENTSO-E API after retries.');
-            Log::error('FetchSpot command failed while fetching prices', [
-                'exception_class' => $e::class,
-                'exception' => $this->sanitizeHttpExceptionMessage($e->getMessage()),
-            ]);
+            $reporter->fail('acquisition', $e);
 
             return Command::FAILURE;
         }
 
+        $reporter->count('fetched_records', count($spotPrices));
         if (empty($spotPrices)) {
+            $reporter->fail('empty_response');
             $this->warn('No spot prices fetched from API.');
 
             return Command::SUCCESS;
@@ -94,22 +110,11 @@ class FetchSpot extends Command
             ]);
 
             return Command::SUCCESS;
-        } catch (\Exception $e) {
-            $this->error('Error saving spot prices: '.$e->getMessage());
-            Log::error('FetchSpot command failed during save', [
-                'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+        } catch (\Throwable $e) {
+            $this->error('Error saving spot prices or updating derived data.');
+            $reporter->fail('save_or_post_import', $e);
 
             return Command::FAILURE;
         }
-    }
-
-    /**
-     * Remove sensitive ENTSO-E query parameters before writing HTTP exception messages to logs.
-     */
-    private function sanitizeHttpExceptionMessage(string $message): string
-    {
-        return preg_replace('/securityToken=[^&\s]+/', 'securityToken=[redacted]', $message) ?? $message;
     }
 }

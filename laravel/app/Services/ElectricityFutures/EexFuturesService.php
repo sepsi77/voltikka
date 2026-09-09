@@ -6,7 +6,6 @@ use Carbon\CarbonInterface;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
 class EexFuturesService
@@ -61,14 +60,6 @@ class EexFuturesService
             ->get(config('eex_futures.endpoint'), $params);
 
         if ($response->failed()) {
-            Log::warning('Failed to fetch EEX futures EOD data', [
-                'status' => $response->status(),
-                'area' => $instrument['area'],
-                'short_code' => $instrument['short_code'],
-                'maturity' => $maturity,
-                'body' => substr($response->body(), 0, 1000),
-            ]);
-
             throw new RequestException($response);
         }
 
@@ -120,14 +111,6 @@ class EexFuturesService
             ->get(config('eex_futures.price_ticker_endpoint'), $params);
 
         if ($response->failed()) {
-            Log::warning('Failed to fetch EEX futures price ticker data', [
-                'status' => $response->status(),
-                'area' => $instrument['area'],
-                'short_code' => $instrument['short_code'],
-                'maturity' => $maturity,
-                'body' => substr($response->body(), 0, 1000),
-            ]);
-
             throw new RequestException($response);
         }
 
