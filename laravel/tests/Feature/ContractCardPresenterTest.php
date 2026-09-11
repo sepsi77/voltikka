@@ -893,13 +893,16 @@ class ContractCardPresenterTest extends TestCase
             ['contract_type' => 'FixedTerm', 'fixed_time_range' => 'Fixed6'],
             ['estimate_method' => 'term_price_annualized', 'term_months' => 6],
         ))->estimate;
-        $this->assertStringContainsString('kiinteä 6 kuukautta', $term->body);
+        $this->assertStringContainsString('määräaikainen 6 kuukautta', $term->body);
+        $this->assertStringContainsString('sopimuskauden laskettu kustannus luvulla 12 / 6', $term->body);
+        $this->assertStringContainsString('tiedossa olevat hinnat ja mahdolliset arviot tuntemattomille osille', $term->body);
+        $this->assertStringContainsString('Vuosihinta ei ole tarjous sopimuskauden jälkeiselle ajalle', $term->body);
 
         $hybrid = $this->present($this->contract(
             ['pricing_model' => 'Hybrid'],
             ['estimate_method' => 'hybrid_base_only', 'general_kwh_price' => 8.59],
         ))->estimate;
-        $this->assertStringContainsString('8,59 c/kWh', $hybrid->body);
+        $this->assertStringContainsString('tiedossa olevia perushintoja', $hybrid->body);
         $this->assertStringContainsString('kulutusvaikutus', $hybrid->body);
 
         $held = $this->present($this->contract([
@@ -988,16 +991,18 @@ class ContractCardPresenterTest extends TestCase
         $this->assertStringNotContainsString('johdannais', $card->estimate->body);
     }
 
-    public function test_a_plain_hybrid_still_gets_the_flat_base_price_explanation(): void
+    public function test_a_plain_hybrid_explains_known_base_prices_and_unknown_parts_without_a_reset_schedule(): void
     {
-        // No reset schedule, so "laskettu kiinteällä perushinnalla" is the accurate statement
-        // and must not be replaced by reset copy.
+        // Base prices and unknown periods need an explanation, not an invented reset schedule.
         $card = $this->present($this->contract([
             'pricing_model' => 'Hybrid',
             'canonical_pricing' => $this->canonicalPricing([], ['present' => true, 'applies_to' => 'base_contract']),
         ], ['estimate_method' => 'hybrid_base_only', 'general_kwh_price' => 8.59]));
 
-        $this->assertStringContainsString('kiinteällä perushinnalla 8,59 c/kWh', $card->estimate->body);
+        $this->assertStringContainsString('tiedossa olevia perushintoja', $card->estimate->body);
+        $this->assertStringContainsString('tuntemattomat osat arvioidaan viimeisimmällä soveltuvalla perushinnalla tai ilmoitetulla normaalihinnalla', $card->estimate->body);
+        $this->assertStringContainsString('Arvio ei sisällä kulutusvaikutusta', $card->estimate->body);
+        $this->assertStringNotContainsString('kiinteällä perushinnalla 8,59', $card->estimate->body);
         $this->assertStringNotContainsString('tarkistetaan', $card->estimate->body);
     }
 

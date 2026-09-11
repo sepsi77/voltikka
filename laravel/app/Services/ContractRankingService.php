@@ -61,6 +61,19 @@ class ContractRankingService
      */
     private ?array $rankingsMemo = null;
 
+    private ?string $memoBoundary = null;
+
+    private function refreshMemoBoundary(): void
+    {
+        $boundary = now('Europe/Helsinki')->toDateString().':'.$this->listCache->getVersion();
+        if ($boundary !== $this->memoBoundary) {
+            $this->eligibleSortedIdsMemo = [];
+            $this->bucketCostSummaryMemo = [];
+            $this->rankingsMemo = null;
+            $this->memoBoundary = $boundary;
+        }
+    }
+
     /**
      * Contracts cheaper than the given one at the given consumption.
      *
@@ -214,6 +227,7 @@ class ContractRankingService
      */
     public function getBucketCostSummary(string $contractId, int $consumption, PricingBucket $bucket): ?array
     {
+        $this->refreshMemoBoundary();
         $memoKey = $contractId.':'.$consumption.':'.$bucket->value;
         if (array_key_exists($memoKey, $this->bucketCostSummaryMemo)) {
             return $this->bucketCostSummaryMemo[$memoKey];
@@ -315,6 +329,7 @@ class ContractRankingService
      */
     private function getEligibleSortedIds(string $viewedContractId, int $consumption): ?array
     {
+        $this->refreshMemoBoundary();
         $memoKey = $viewedContractId.':'.$consumption;
         if (array_key_exists($memoKey, $this->eligibleSortedIdsMemo)) {
             return $this->eligibleSortedIdsMemo[$memoKey];
@@ -445,6 +460,7 @@ class ContractRankingService
      */
     private function getRankings(): array
     {
+        $this->refreshMemoBoundary();
         if ($this->rankingsMemo !== null) {
             return $this->rankingsMemo;
         }
@@ -454,7 +470,8 @@ class ContractRankingService
             .':s'.self::PAYLOAD_SCHEMA_VERSION
             .':'.CalculatedCostPayloadSchema::cacheMarker()
             .':lv'.$this->listCache->getVersion()
-            .':'.$this->pricingMode->cacheMarker();
+            .':'.$this->pricingMode->cacheMarker()
+            .':'.now('Europe/Helsinki')->toDateString();
 
         return $this->rankingsMemo = Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () {
             return $this->calculateRankings();

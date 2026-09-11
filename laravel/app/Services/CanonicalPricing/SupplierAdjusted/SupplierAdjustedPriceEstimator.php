@@ -63,7 +63,7 @@ class SupplierAdjustedPriceEstimator
         }
 
         $reference = $this->curve->referencePrice(
-            $episodeStart,
+            $episodeStart->min($request->asOfDate),
             $episodeStart->startOfMonth(),
             ['month'],
         );
@@ -72,7 +72,8 @@ class SupplierAdjustedPriceEstimator
         }
 
         $offsets = [];
-        $flags = [];
+        $flags = $episodeStart->greaterThan($request->asOfDate)
+            ? ['reference_vintage_bounded_by_as_of'] : [];
         foreach ($request->tailMonthKeys as $monthKey) {
             $forward = $this->curve->forwardPriceForMonth($request->asOfDate, $this->monthFromKey($monthKey));
             if ($forward === null) {
@@ -82,7 +83,8 @@ class SupplierAdjustedPriceEstimator
                 $flags[] = 'forward_month_from_'.$forward['kind'].'_contract';
             }
             $offsets[$monthKey] = $this->settings->beta
-                * ($forward['price_cents_per_kwh'] - $reference['price_cents_per_kwh']);
+                * ($forward['price_cents_per_kwh'] * $request->marketPriceMultiplier
+                    - $reference['price_cents_per_kwh'] * $request->marketPriceMultiplier);
         }
 
         return new SupplierAdjustedEstimate(
@@ -93,7 +95,7 @@ class SupplierAdjustedPriceEstimator
             monthlyFeeEur: $request->monthlyFeeEur,
             annualEquivalentEnergyPriceCentsPerKwh: $this->annualEquivalent($request, $offsets),
             referenceKind: $reference['kind'],
-            referencePriceCentsPerKwh: $reference['price_cents_per_kwh'],
+            referencePriceCentsPerKwh: $reference['price_cents_per_kwh'] * $request->marketPriceMultiplier,
             curveTradeDate: $tradeDate->toDateString(),
             referenceTradeDate: ($reference['trade_date'] ?? '') !== '' ? $reference['trade_date'] : null,
             tailStartsMonthKey: $request->tailMonthKeys[0],
@@ -110,7 +112,7 @@ class SupplierAdjustedPriceEstimator
             return null;
         }
 
-        $index = $this->curve->spotSeasonalIndex();
+        $index = $this->curve->spotSeasonalIndex($request->asOfDate);
         if ($index === null) {
             return null;
         }

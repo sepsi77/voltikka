@@ -10,8 +10,8 @@ use App\Services\DTO\EnergyUsage;
  * (General, DayTime, NightTime, SeasonalWinterDay, SeasonalOther).
  *
  * This is the single source of truth for how annual consumption distributes across
- * the twelve calendar months and across day/night/seasonal buckets, including the
- * Finnish winter consumption weighting, cooling summer months, and per-month heating.
+ * the twelve calendar months and across day/night/seasonal buckets. Default usage
+ * stays flat for every tariff; explicit cooling and per-month heating keep their shape.
  *
  * It was extracted from ContractPriceCalculator so both the legacy source-component
  * calculator and the canonical phase-aware calculator share identical usage math.
@@ -39,8 +39,8 @@ class MonthlyUsageProfileBuilder
     ];
 
     /**
-     * Winter months have 30% higher general electricity consumption than summer months.
-     * This reflects reality in Finland: more lighting, indoor activities, etc.
+     * Historical feature-off seasonal calculation factor. The shared consumer profile
+     * does not apply a tariff-specific consumption multiplier.
      */
     public const WINTER_CONSUMPTION_MULTIPLIER = 1.30;
 
@@ -61,7 +61,7 @@ class MonthlyUsageProfileBuilder
      * Build a monthly kWh timeline per priced component bucket.
      *
      * @return array<int, array<string, float>> Twelve entries (calendar-month indexed 0-11),
-     *                                           each with General/DayTime/NightTime/SeasonalWinterDay/SeasonalOther kWh.
+     *                                          each with General/DayTime/NightTime/SeasonalWinterDay/SeasonalOther kWh.
      */
     public function build(MeteringType $metering, EnergyUsage $usage, bool $isSpotContract = false): array
     {
@@ -126,28 +126,17 @@ class MonthlyUsageProfileBuilder
     }
 
     /**
-     * @param array<int, array<string, float>> $timeline
+     * @param  array<int, array<string, float>>  $timeline
      */
     private function addUsageTimeline(array &$timeline, MeteringType $metering, bool $isSpotContract, float $monthlyAverageUse, float $nightTimeUsageShare): void
     {
-        if ($metering === MeteringType::Season && ! $isSpotContract) {
-            [$summerConsumptionFactor, $winterConsumptionFactor] = $this->seasonalConsumptionFactors();
-
-            foreach (self::WINTER_PRICE_MONTHS as $monthIndex => $isWinterMonth) {
-                $monthlyUse = $monthlyAverageUse * ($isWinterMonth ? $winterConsumptionFactor : $summerConsumptionFactor);
-                $this->addUsageForMonth($timeline, $metering, $isSpotContract, $monthIndex, $monthlyUse, $nightTimeUsageShare);
-            }
-
-            return;
-        }
-
         foreach (array_keys(self::WINTER_PRICE_MONTHS) as $monthIndex) {
             $this->addUsageForMonth($timeline, $metering, $isSpotContract, $monthIndex, $monthlyAverageUse, $nightTimeUsageShare);
         }
     }
 
     /**
-     * @param array<int, array<string, float>> $timeline
+     * @param  array<int, array<string, float>>  $timeline
      */
     private function addUsageForMonth(array &$timeline, MeteringType $metering, bool $isSpotContract, int $monthIndex, float $monthlyUse, float $nightTimeUsageShare): void
     {
@@ -169,7 +158,7 @@ class MonthlyUsageProfileBuilder
     }
 
     /**
-     * @param array<int, array<string, float>> $timeline
+     * @param  array<int, array<string, float>>  $timeline
      */
     private function addTimeBasedUsageForMonth(array &$timeline, int $monthIndex, float $monthlyUse, float $nightTimeUsageShare): void
     {
@@ -178,7 +167,7 @@ class MonthlyUsageProfileBuilder
     }
 
     /**
-     * @param array<int, array<string, float>> $timeline
+     * @param  array<int, array<string, float>>  $timeline
      */
     private function addSeasonalUsageForMonth(array &$timeline, int $monthIndex, float $monthlyUse, float $nightTimeUsageShare): void
     {

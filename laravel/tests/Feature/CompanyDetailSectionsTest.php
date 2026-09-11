@@ -699,7 +699,7 @@ class CompanyDetailSectionsTest extends TestCase
         $component
             ->assertSee('viimeisin yhtenäinen historiallinen hintavertailu 22.7.2026')
             ->assertSee('Se ei ole tämän päivän hintavertailu')
-            ->assertSee('Kaikki pisteet ovat päivättyjä myyjiltä havaittuja hintoja');
+            ->assertSee('Pisteet ovat päivättyjä vuosikustannusarvioita.');
 
         $service = app(CompanyMarketComparisonService::class);
         $fingerprintMethod = new \ReflectionMethod($service, 'fingerprint');
@@ -754,6 +754,34 @@ class CompanyDetailSectionsTest extends TestCase
         $this->assertSame(700.0, $comparison['rows'][0]['company_value']);
         $this->assertNotSame(9443.5, $comparison['rows'][0]['company_value']);
         $component->assertSee('Test Energy Oy: sähkön hinta');
+    }
+
+    public function test_retained_v1_company_comparison_is_dated_and_v2_activation_can_be_reversed(): void
+    {
+        config()->set('canonical_pricing.enabled', true);
+        $this->createContract('fixed', 'Kiinteä Sähkö', 8.0, 3.0);
+        foreach (['2026-08-01' => ['annual_cost_as_of_v1', 600.0], '2026-08-02' => ['annual_cost_as_of_v2', 800.0]] as $date => [$method, $value]) {
+            $this->seedMarket('open_ended', $value - 100, $value, $value + 100, 40, 'canonical_calculation', $date, $method, 'market-compatible');
+            $this->seedCompanySnapshot('open_ended', 9999.0, null, 'fixed', 'canonical_calculation', $date);
+            $this->seedAsOfAnnual('fixed', 'open_ended', $value, 'canonical_calculation', $date, methodVersion: $method);
+        }
+        $this->seedSpotBenchmark('spot_margin', 0.5, 40, 'canonical_calculation', '2026-08-02');
+
+        foreach (['annual_cost_as_of_v1', 'annual_cost_as_of_v2', 'annual_cost_as_of_v1'] as $method) {
+            config()->set('contract_statistics.annual_cost.active_method_version', $method);
+            app()->forgetScopedInstances();
+            $component = Livewire::test('company-detail', ['companySlug' => 'test-energy-oy']);
+            $comparison = $component->viewData('marketComparison');
+            if ($method === 'annual_cost_as_of_v1') {
+                $this->assertSame('historical_retained_annual', $comparison['comparison_state']);
+                $this->assertSame(600.0, $comparison['rows'][0]['company_value']);
+                $this->assertNull($comparison['spot_benchmarks']);
+                $component->assertSee('Se ei ole tämän päivän hintavertailu.');
+            } else {
+                $this->assertSame('current_canonical', $comparison['comparison_state']);
+                $this->assertSame(800.0, $comparison['rows'][0]['company_value']);
+            }
+        }
     }
 
     public function test_as_of_historical_observed_fallback_uses_versioned_rows(): void
@@ -843,6 +871,16 @@ class CompanyDetailSectionsTest extends TestCase
         $this->assertCount(count($chart['x']), $chart['band']['lower']);
         $this->assertCount(count($chart['x']), $chart['band']['upper']);
         $this->assertNotContains(9000.0, $chart['series'][0]['values']);
+
+        foreach ($dates as [$date, $sellerValue, $compatibilityKey]) {
+            $this->seedMarket('open_ended', 600.0, 700.0, 800.0, 40, 'observed_seller_data', $date, 'annual_cost_as_of_v2', $compatibilityKey);
+            $this->seedAsOfAnnual('fixed', 'open_ended', $sellerValue + 100, 'observed_seller_data', $date, methodVersion: 'annual_cost_as_of_v2');
+        }
+        config()->set('contract_statistics.annual_cost.active_method_version', 'annual_cost_as_of_v2');
+        app()->forgetScopedInstances();
+        $correctedChart = app(CompanyMarketComparisonService::class)->forCompany($this->company->name, 5000)['chart'];
+        $this->assertSame([710.0, 711.0, 712.0, null], $correctedChart['series'][0]['values']);
+        $this->assertSame([700.0, 700.0, 700.0, null], $correctedChart['series'][1]['values']);
     }
 
     public function test_as_of_fingerprint_changes_after_a_same_day_annual_row_rewrite(): void
@@ -971,6 +1009,7 @@ class CompanyDetailSectionsTest extends TestCase
         string $pricingBasis,
         string $date,
         string $compatibilityKey = 'seller-compatible',
+        string $methodVersion = 'annual_cost_as_of_v1',
     ): void {
         ContractPriceAnnualCost::create([
             'snapshot_date' => $date,
@@ -979,7 +1018,7 @@ class CompanyDetailSectionsTest extends TestCase
             'pricing_basis' => $pricingBasis,
             'consumption_kwh' => 5000,
             'annual_cost' => $annualCost,
-            'method_version' => 'annual_cost_as_of_v1',
+            'method_version' => $methodVersion,
             'calculation_basis' => $pricingBasis === 'canonical_calculation'
                 ? 'canonical_outcome'
                 : 'observed_relational_components',

@@ -518,6 +518,7 @@ class ConsumptionCalculator extends Component
 
         $pricingBasis = app(PricingMode::class)->expectedContractPriceBasis()->value;
         $latestDate = ContractPriceDailyStatistic::query()
+            ->activeAnnualMethod()
             ->where('pricing_basis', $pricingBasis)
             ->where('metric_key', 'annual_cost')
             ->max('stat_date');
@@ -533,6 +534,7 @@ class ConsumptionCalculator extends Component
             ->toDateString();
 
         $stats = ContractPriceDailyStatistic::query()
+            ->activeAnnualMethod()
             ->whereDate('stat_date', $statDate)
             ->whereIn('segment_key', array_keys($this->priceSegments()))
             ->where('metric_key', 'annual_cost')

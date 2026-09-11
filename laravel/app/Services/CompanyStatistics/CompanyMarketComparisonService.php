@@ -244,6 +244,14 @@ class CompanyMarketComparisonService
         }
 
         $primary = $this->chartSegment($rows);
+        $latestUnitDate = ContractPriceDailyStatistic::activeAnnualMethodVersion()->isAsOf()
+            ? ContractPriceDailyStatistic::query()
+                ->unitStatistics()
+                ->where('pricing_basis', $pricingBasis)
+                ->max('stat_date')
+            : null;
+        $retainedAnnual = $latestUnitDate !== null && $statDate < $this->dateString($latestUnitDate);
+        $historicalFallback = $historicalFallback || $retainedAnnual;
 
         return [
             'stat_date' => $statDate,
@@ -251,7 +259,7 @@ class CompanyMarketComparisonService
             'rows' => $rows,
             'pricing_basis' => $pricingBasis,
             'comparison_state' => $historicalFallback
-                ? 'historical_observed_fallback'
+                ? ($retainedAnnual ? 'historical_retained_annual' : 'historical_observed_fallback')
                 : ($pricingBasis === ContractPriceBasis::CanonicalCalculation->value ? 'current_canonical' : 'current_observed'),
             'is_historical_fallback' => $historicalFallback,
             'spot_benchmarks' => $historicalFallback ? null : $this->spotBenchmarks($statDate, $pricingBasis),
@@ -306,7 +314,7 @@ class CompanyMarketComparisonService
 
     private function latestUsableDate(string $companyName, int $referenceConsumption, string $pricingBasis): ?string
     {
-        if (ContractPriceDailyStatistic::activeAnnualMethodVersion() === AnnualCostMethodVersion::AsOf) {
+        if (ContractPriceDailyStatistic::activeAnnualMethodVersion()->isAsOf()) {
             return $this->latestAsOfUsableDate($companyName, $referenceConsumption, $pricingBasis);
         }
 
@@ -358,7 +366,7 @@ class CompanyMarketComparisonService
             })
             ->where('snapshots.company_name', $companyName)
             ->where('annual_costs.pricing_basis', $pricingBasis)
-            ->where('annual_costs.method_version', AnnualCostMethodVersion::AsOf->value)
+            ->where('annual_costs.method_version', ContractPriceDailyStatistic::activeAnnualMethodVersion()->value)
             ->where('annual_costs.consumption_kwh', $referenceConsumption)
             ->where('annual_costs.annual_cost', '>', 0)
             ->where('statistics.metric_key', 'annual_cost')
@@ -403,7 +411,7 @@ class CompanyMarketComparisonService
             ->where('snapshots.company_name', $companyName)
             ->whereDate('annual_costs.snapshot_date', $statDate)
             ->where('annual_costs.pricing_basis', $pricingBasis)
-            ->where('annual_costs.method_version', AnnualCostMethodVersion::AsOf->value)
+            ->where('annual_costs.method_version', ContractPriceDailyStatistic::activeAnnualMethodVersion()->value)
             ->where('annual_costs.consumption_kwh', $referenceConsumption)
             ->when($pricingBasis === ContractPriceBasis::ObservedSellerData->value, fn ($query) => $query
                 ->where('snapshots.energy_price_cents_per_kwh', '>', 0)
@@ -600,7 +608,7 @@ class CompanyMarketComparisonService
 
         $annualMethod = ContractPriceDailyStatistic::activeAnnualMethodVersion();
         $marketColumns = ['stat_date', 'p20_value', 'median_value', 'p80_value'];
-        if ($annualMethod === AnnualCostMethodVersion::AsOf) {
+        if ($annualMethod->isAsOf()) {
             $marketColumns[] = 'compatibility_key';
         }
 
@@ -655,7 +663,7 @@ class CompanyMarketComparisonService
             $weeks[$week]['median'][] = $row->median_value === null ? null : (float) $row->median_value;
             $weeks[$week]['p80'][] = $row->p80_value === null ? null : (float) $row->p80_value;
 
-            if ($annualMethod === AnnualCostMethodVersion::AsOf) {
+            if ($annualMethod->isAsOf()) {
                 $weeks[$week]['compatibility_keys'][] = $row->compatibility_key;
             }
         }
@@ -675,7 +683,7 @@ class CompanyMarketComparisonService
         ksort($weeks);
 
         $x = $companySeries = $marketSeries = $lower = $upper = [];
-        $compatibility = $annualMethod === AnnualCostMethodVersion::AsOf
+        $compatibility = $annualMethod->isAsOf()
             ? new AnnualSeriesCompatibility
             : null;
 
@@ -777,7 +785,7 @@ class CompanyMarketComparisonService
             })
             ->where('snapshots.company_name', $companyName)
             ->where('annual_costs.segment_key', $segmentKey)
-            ->where('annual_costs.method_version', AnnualCostMethodVersion::AsOf->value)
+            ->where('annual_costs.method_version', ContractPriceDailyStatistic::activeAnnualMethodVersion()->value)
             ->where('annual_costs.consumption_kwh', $referenceConsumption)
             ->where(function ($query) use ($pricingBasis, $canonicalStart) {
                 $query->where(function ($current) use ($pricingBasis) {
@@ -854,7 +862,7 @@ class CompanyMarketComparisonService
         bool $canonicalEnabled,
         string $pricingBasis,
     ): string {
-        return 'company-market-comparison:v10:'.$annualMethod.':'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis.':'.md5($companyName).':'.$referenceConsumption.':'.$fingerprint;
+        return 'company-market-comparison:v11:'.$annualMethod.':'.($canonicalEnabled ? 'c1' : 'c0').':'.$pricingBasis.':'.md5($companyName).':'.$referenceConsumption.':'.$fingerprint;
     }
 
     private function fingerprint(): ?string
@@ -922,7 +930,7 @@ class CompanyMarketComparisonService
                 'snapshots_latest_updated' => $snapshots->max('updated_at'),
             ];
 
-            if ($annualMethod === AnnualCostMethodVersion::AsOf) {
+            if ($annualMethod->isAsOf()) {
                 $annualCosts = ContractPriceAnnualCost::query()
                     ->where('method_version', $annualMethod->value)
                     ->where('pricing_basis', $basis);

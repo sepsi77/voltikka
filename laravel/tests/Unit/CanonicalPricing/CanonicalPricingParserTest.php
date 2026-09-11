@@ -154,11 +154,9 @@ class CanonicalPricingParserTest extends TestCase
         $this->parser->parse(null, ['status' => 'exact', 'missing_facts' => [], 'required_assumptions' => []], []);
     }
 
-    public function test_conflicting_vat_basis_for_same_component_throws(): void
+    public function test_known_vat_bases_are_preserved_for_conversion(): void
     {
-        $this->expectException(CanonicalPricingParseException::class);
-
-        $this->parser->parse(
+        $data = $this->parser->parse(
             $this->pricing([
                 $this->phase(),
                 $this->phase([
@@ -178,6 +176,9 @@ class CanonicalPricingParserTest extends TestCase
             ['status' => 'exact', 'missing_facts' => [], 'required_assumptions' => []],
             [],
         );
+        $this->assertSame('included', $data->phases[0]->components[0]->vatStatus);
+        $this->assertSame('excluded', $data->phases[1]->components[0]->vatStatus);
+        $this->assertEqualsWithDelta(13.65 * 1.255, $data->withVatBasis(true, 1.255)->phases[1]->components[0]->amount, 1e-10);
     }
 
     public function test_parses_complete_monthly_included_energy_package(): void

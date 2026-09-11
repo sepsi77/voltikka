@@ -32,8 +32,8 @@ readonly class ResetEstimate
         public ?string $anchorPeriodLabel = null,
         public ?string $tailStartsMonthKey = null,
         public array $flags = [],
-    ) {
-    }
+        public ?string $tailStartsOn = null,
+    ) {}
 
     public static function holdFlat(string $cadence, float $currentPrice, array $flags = []): self
     {
@@ -45,6 +45,11 @@ readonly class ResetEstimate
             currentPeriodEnergyPriceCentsPerKwh: $currentPrice,
             flags: $flags,
         );
+    }
+
+    public function withTailStart(string $date): self
+    {
+        return new self(...array_replace(get_object_vars($this), ['tailStartsOn' => $date]));
     }
 
     public function shiftsPrices(): bool

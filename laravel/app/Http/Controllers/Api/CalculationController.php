@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ElectricityContract;
+use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\ContractPriceCalculator;
 use App\Services\ContractPricing\ContractPricingViewData;
 use App\Services\DTO\EnergyCalculatorRequest;
@@ -11,6 +12,8 @@ use App\Services\DTO\EnergyUsage;
 use App\Services\EnergyCalculator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CalculationController extends Controller
 {
@@ -32,15 +35,24 @@ class CalculationController extends Controller
             'contract_id' => 'required|string',
             'consumption' => 'required_without:energy_usage|integer|min:0',
             'energy_usage' => 'required_without:consumption|array',
-            'energy_usage.total' => 'required_with:energy_usage|integer|min:0',
+            'energy_usage.total' => [Rule::requiredIf($request->has('energy_usage')), 'integer', 'min:0'],
             'energy_usage.basic_living' => 'sometimes|integer|min:0',
-            'energy_usage.room_heating' => 'sometimes|integer|min:0',
+            'energy_usage.room_heating' => 'required_with:energy_usage.heating_electricity_use_by_month|integer|min:0',
             'energy_usage.bathroom_underfloor_heating' => 'sometimes|integer|min:0',
             'energy_usage.water' => 'sometimes|integer|min:0',
             'energy_usage.sauna' => 'sometimes|integer|min:0',
             'energy_usage.electricity_vehicle' => 'sometimes|integer|min:0',
-            'energy_usage.cooling' => 'sometimes|numeric|min:0',
-            'energy_usage.heating_electricity_use_by_month' => 'sometimes|array|size:12',
+            'energy_usage.cooling' => ['sometimes', 'numeric', 'min:0', function ($attribute, $value, $fail) {
+                if (! is_numeric($value) || ! is_finite((float) $value)) {
+                    $fail('The cooling consumption must be a finite number.');
+                }
+            }],
+            'energy_usage.heating_electricity_use_by_month' => 'sometimes|array:0,1,2,3,4,5,6,7,8,9,10,11|size:12',
+            'energy_usage.heating_electricity_use_by_month.*' => ['required', 'numeric', 'min:0', function ($attribute, $value, $fail) {
+                if (! is_numeric($value) || ! is_finite((float) $value)) {
+                    $fail('Each monthly heating weight must be a finite non-negative number.');
+                }
+            }],
             'spot_price_day' => 'sometimes|numeric',
             'spot_price_night' => 'sometimes|numeric',
         ]);
@@ -57,7 +69,7 @@ class CalculationController extends Controller
 
         // Build energy usage object
         if (isset($validated['energy_usage'])) {
-            $usage = EnergyUsage::fromArray($validated['energy_usage']);
+            $usage = $this->normalizeEnergyUsage($validated['energy_usage']);
         } else {
             $consumption = $validated['consumption'];
             $usage = new EnergyUsage(
@@ -66,7 +78,7 @@ class CalculationController extends Controller
             );
         }
 
-        $canonicalPricing = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class);
+        $canonicalPricing = app(CanonicalContractPricingService::class);
         if ($canonicalPricing->enabled()) {
             $evaluation = $canonicalPricing->evaluate($contract, $usage);
 
@@ -101,6 +113,37 @@ class CalculationController extends Controller
         return response()->json([
             'data' => ContractPricingViewData::fromLegacyResult($result)->toArray(),
         ]);
+    }
+
+    private function normalizeEnergyUsage(array $data): EnergyUsage
+    {
+        $components = ['basic_living', 'room_heating', 'bathroom_underfloor_heating', 'water', 'sauna', 'electricity_vehicle', 'cooling'];
+        // Only validated snake-case inputs can reach the DTO's alias-aware factory.
+        $data = array_intersect_key($data, array_flip([...$components, 'total', 'heating_electricity_use_by_month']));
+        $sum = array_sum(array_intersect_key($data, array_flip($components)));
+        if ($sum > $data['total']) {
+            throw ValidationException::withMessages([
+                'energy_usage.total' => 'The consumption breakdown must not exceed energy_usage.total.',
+            ]);
+        }
+
+        $data['basic_living'] = ($data['basic_living'] ?? 0) + ($data['total'] - $sum);
+        if (isset($data['heating_electricity_use_by_month'])) {
+            $weights = $data['heating_electricity_use_by_month'];
+            $weightTotal = array_sum($weights);
+            if (! is_finite((float) $weightTotal) || ($data['room_heating'] > 0 && $weightTotal <= 0)) {
+                throw ValidationException::withMessages([
+                    'energy_usage.heating_electricity_use_by_month' => 'Monthly heating weights must have a finite positive sum when room_heating is positive.',
+                ]);
+            }
+            ksort($weights);
+            $data['heating_electricity_use_by_month'] = array_map(
+                fn ($weight) => $weightTotal > 0 ? ($weight / $weightTotal) * $data['room_heating'] : 0.0,
+                $weights,
+            );
+        }
+
+        return EnergyUsage::fromArray($data);
     }
 
     /**

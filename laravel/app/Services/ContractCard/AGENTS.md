@@ -1,5 +1,7 @@
 # Contract card derivation
 
+Spot estimate popovers read the annual payload's `vat_basis`. Excluded Company estimates say `ilman alv:tä`; included or legacy estimates say `sis. alv`. The selected-cost VAT label must agree with the displayed Spot averages and margin.
+
 Everything a contract card shows, derived once on the server. Both card templates
 (`resources/views/components/contract-card.blade.php` and
 `featured-contract-card.blade.php`) read the view model this directory produces.
@@ -120,6 +122,8 @@ important. A fixed contract with a **pre-published** later price keeps a truthfu
 published in advance; the increase is a footer warning plus two dated receipt rows. This was
 an explicit user decision after a first version put the warning in the band.
 
+Unknown-price estimates keep the same category and layout, but cannot claim `Energian hinta ei muutu` or a guaranteed Hybrid base. The presenter passes `hasEstimatedUnknownPrices` when the typed method is `hold_last_known_price` or assumptions contain `unknown_periods_use_latest_applicable_price_or_disclosed_normal`. The fixed band then states that the current price is known and unknown periods are estimated. The Hybrid band says `Perushinta + kulutusvaikutus` and qualifies the estimated periods. This takes priority over a scheduled fixed-price change, because known changes do not make all other periods known. It does not claim a supplier adjustment schedule. Existing reset and Spot bands keep their proven mechanisms; the optional flag defaults to false for existing callers.
+
 ## Estimate disclosure
 
 Any estimated 12-month total shows one Arvio chip at the band's right end, opening a popover
@@ -134,9 +138,15 @@ cadence or reads seller/LLM text.
 
 1. **Price level** — where the annual number came from. Read from the MECHANISM, in this
    order: an active reset (`facts->isReset`) → `forward_curve_spot` / `rolling_365_spot` →
-   `term_price_annualized` → `hybrid_base_only`.
-2. **Exclusion** — appended when `hybrid_base_only` applies on top of a reset: "Arvio ei
-   sisällä kulutusvaikutusta…".
+   `term_price_annualized` → `hybrid_base_only` → `hold_last_known_price`.
+2. **Term and exclusion** — append real-term annualization when the typed assumptions contain
+   `term_price_annualized`, even if another method owns the price-level reason. Append the
+   consumption-effect exclusion when the method or `excludes_consumption_effect` assumption
+   requires it and the level copy has not already stated it.
+
+`hold_last_known_price` always produces an Arvio explanation: known prices apply in their disclosed periods; unknown parts use the latest applicable price or disclosed normal price as an assumption, not a price promise. Short-term copy annualizes the calculated real-term cost by `12 / months`; that cost can include estimated parts. It never extends the signup price across a year. Hybrid copy uses plural known base prices, explains estimated unknown parts, and explicitly excludes the unquantified consumption effect. Neither helper claims all periods have one constant rate.
+
+For forward Spot, the current estimator sets typed `confidence=lower` with `zero_intraday_shape_fallback` when usable historical day/night evidence is missing. The copy reads that confidence and states that day and night use the same assumed exchange price. It does not claim the 365-day difference was preserved. Higher-confidence results and older payloads without the optional Spot record keep the existing historical-shape explanation.
 
 The reason this matters: a contract that is both a market reset and an unsupported Hybrid
 (Vaasan Sähkö Vaikuttaja, Korpela Kvartaali) reports `estimate_method = hybrid_base_only`,

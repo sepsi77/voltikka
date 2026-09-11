@@ -14,9 +14,9 @@ use Carbon\CarbonImmutable;
  *
  *     P_m = P_current_period + beta * (F_m - F_reference)
  *
- * Only *differences* on one curve vintage are used, so the seasonal shape is imported while
- * the price level stays anchored on the provider's own published price. A uniform curve error
- * cancels out, which is why the estimator is robust to a wrong or drifting curve level.
+ * Two vintages are intentional: forward months use the target-date curve, while the reference
+ * uses the pricing-date curve, bounded by the target date. This preserves market-level changes
+ * since the seller set its published price, without importing front-month convergence.
  *
  * Fallback ladder, recorded on the result so every surface can state the basis:
  *   1. forward-curve shift (higher confidence);
@@ -104,7 +104,10 @@ class MarketResetPriceEstimator
         }
 
         $flags = [];
-        $referenceAsOf = $request->currentPeriodStart;
+        $referenceAsOf = $request->currentPeriodStart->min($request->asOfDate);
+        if ($request->currentPeriodStart->greaterThan($request->asOfDate)) {
+            $flags[] = 'reference_vintage_bounded_by_as_of';
+        }
 
         // A period that began before the FI curve history starts (2026-04-08) has no pricing
         // vintage and never will: EEX serves an approximately 45-day rolling window. Fall back to
@@ -141,7 +144,8 @@ class MarketResetPriceEstimator
                 $fallbackKinds[$forward['kind']] = true;
             }
 
-            $offsets[$monthKey] = $beta * ($forward['price_cents_per_kwh'] - $reference['price_cents_per_kwh']);
+            $offsets[$monthKey] = $beta * ($forward['price_cents_per_kwh'] * $request->marketPriceMultiplier
+                - $reference['price_cents_per_kwh'] * $request->marketPriceMultiplier);
         }
 
         foreach (array_keys($fallbackKinds) as $kind) {
@@ -156,7 +160,7 @@ class MarketResetPriceEstimator
             currentPeriodEnergyPriceCentsPerKwh: $request->anchorEnergyPriceCentsPerKwh,
             annualEquivalentEnergyPriceCentsPerKwh: $this->annualEquivalent($request, $offsets),
             referenceKind: $reference['kind'],
-            referencePriceCentsPerKwh: $reference['price_cents_per_kwh'],
+            referencePriceCentsPerKwh: $reference['price_cents_per_kwh'] * $request->marketPriceMultiplier,
             curveTradeDate: $tradeDate->toDateString(),
             referenceTradeDate: ($reference['trade_date'] ?? '') !== '' ? $reference['trade_date'] : null,
             anchorPeriodLabel: $this->anchorPeriodLabel($request),
@@ -180,7 +184,7 @@ class MarketResetPriceEstimator
             return null;
         }
 
-        $index = $this->curve->spotSeasonalIndex();
+        $index = $this->curve->spotSeasonalIndex($request->asOfDate);
 
         if ($index === null) {
             return null;

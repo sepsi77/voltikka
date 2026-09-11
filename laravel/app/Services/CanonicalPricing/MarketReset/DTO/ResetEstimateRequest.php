@@ -41,6 +41,8 @@ readonly class ResetEstimateRequest
         public array $tailMonthKeys,
         public float $anchorEnergyPriceCentsPerKwh,
         public array $monthWeights,
+        // The provider supplies VAT-inclusive prices; the caller selects the bill basis.
+        public float $marketPriceMultiplier = 1.0,
     ) {}
 
     /**

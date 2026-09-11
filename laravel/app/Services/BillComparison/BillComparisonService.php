@@ -294,8 +294,9 @@ class BillComparisonService
     private function canonicalPeriodRequest(array $context): CanonicalPeriodPricingRequest
     {
         $history = $context['spotHours']->map(static fn (SpotPriceHour $hour): HistoricalSpotPrice => new HistoricalSpotPrice(
-            startsAtUtc: CarbonImmutable::instance($hour->utc_datetime)->utc(),
+            startsAtUtc: CarbonImmutable::parse($hour->getRawOriginal('utc_datetime'), 'UTC'),
             centsPerKwhWithTax: (float) $hour->price_with_tax,
+            centsPerKwhWithoutTax: (float) $hour->price_without_tax,
         ))->values()->all();
 
         return new CanonicalPeriodPricingRequest(

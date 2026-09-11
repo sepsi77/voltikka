@@ -186,7 +186,7 @@
                     <p class="mt-2 text-[15px] text-slate-300 tabular-nums">
                         {{ number_format($calculatedCost['total_cost'] ?? 0, 0, ',', ' ') }} € vuodessa ·
                         {{ number_format($consumption, 0, ',', ' ') }} kWh vuosikulutuksella ·
-                        sisältää alv 25,5 %
+                        {{ $contract->target_group === 'Company' ? 'ilman ALV:tä' : 'sisältää ALV:n' }}
                     </p>
 
                     {{-- ---------- The verdict, fused with the price rather than boxed
@@ -641,7 +641,7 @@
                         </tbody>
                     </table>
                     <p class="mt-2 text-sm text-slate-500">
-                        12 kuukauden arvio ilman siirtomaksuja, hinnat sisältävät alv 25,5 %. Valittu kulutus on korostettu.
+                        12 kuukauden arvio ilman siirtomaksuja, {{ $contract->target_group === 'Company' ? 'hinnat ilman ALV:tä' : 'hinnat sisältävät ALV:n' }}. Valittu kulutus on korostettu.
                     </p>
                 </div>
             @endif

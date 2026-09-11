@@ -40,8 +40,8 @@ class EexMarketReferenceCurveProvider implements MarketReferenceCurveProvider
     /** @var array<string, array{kind: string, price_cents_per_kwh: float}|null> */
     private array $referenceMemo = [];
 
-    /** @var array<int, float>|null|false */
-    private array|null|false $seasonalIndexMemo = false;
+    /** @var array<string, array<int, float>|null> */
+    private array $seasonalIndexMemo = [];
 
     private float|null|false $fixedTermMedianMemo = false;
 
@@ -132,30 +132,33 @@ class EexMarketReferenceCurveProvider implements MarketReferenceCurveProvider
         return null;
     }
 
-    public function spotSeasonalIndex(): ?array
+    public function spotSeasonalIndex(CarbonImmutable $asOfDate): ?array
     {
-        if ($this->seasonalIndexMemo !== false) {
-            return $this->seasonalIndexMemo;
+        $cutoff = $asOfDate->setTimezone('Europe/Helsinki')->startOfDay();
+        $key = $cutoff->toDateString();
+        if (array_key_exists($key, $this->seasonalIndexMemo)) {
+            return $this->seasonalIndexMemo[$key];
         }
 
         $config = (array) config('canonical_pricing.reset_forward_shift.seasonal_index', []);
         $lookbackYears = (int) ($config['lookback_years'] ?? 4);
         $minYears = max(1, (int) ($config['min_years_per_month'] ?? 2));
 
-        $latest = SpotPriceAverage::query()
+        // Raw DATE bounds also accept SQLite datetime strings without model-cast timezone shifts.
+        $completed = SpotPriceAverage::query()
             ->where('region', 'FI')
             ->where('period_type', SpotPriceAverage::PERIOD_MONTHLY)
-            ->max('period_start');
+            ->where('period_start', '<', $cutoff->startOfMonth()->toDateString())
+            ->where('period_end', '<', $key);
+        $latest = (clone $completed)->max('period_start');
 
         if ($latest === null) {
-            return $this->seasonalIndexMemo = null;
+            return $this->seasonalIndexMemo[$key] = null;
         }
 
         $from = CarbonImmutable::parse($latest)->startOfMonth()->subYears($lookbackYears);
 
-        $rows = SpotPriceAverage::query()
-            ->where('region', 'FI')
-            ->where('period_type', SpotPriceAverage::PERIOD_MONTHLY)
+        $rows = (clone $completed)
             ->where('period_start', '>=', $from->toDateString())
             ->orderBy('period_start')
             ->get(['period_start', 'avg_price_with_tax']);
@@ -166,10 +169,10 @@ class EexMarketReferenceCurveProvider implements MarketReferenceCurveProvider
         $byYear = [];
         foreach ($rows as $row) {
             $price = (float) $row->avg_price_with_tax;
-            if ($price <= 0) {
+            if (! is_finite($price) || $price <= 0) {
                 continue;
             }
-            $start = CarbonImmutable::parse($row->period_start);
+            $start = CarbonImmutable::parse($row->getRawOriginal('period_start'), 'Europe/Helsinki');
             $byYear[(int) $start->year][(int) $start->month] = $price;
         }
 
@@ -196,12 +199,12 @@ class EexMarketReferenceCurveProvider implements MarketReferenceCurveProvider
         }
 
         if (count($index) < 12) {
-            return $this->seasonalIndexMemo = null;
+            return $this->seasonalIndexMemo[$key] = null;
         }
 
         ksort($index);
 
-        return $this->seasonalIndexMemo = $index;
+        return $this->seasonalIndexMemo[$key] = $index;
     }
 
     /**

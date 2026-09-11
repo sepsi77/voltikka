@@ -78,6 +78,19 @@ class AnnualSeriesCompatibilityTest extends TestCase
         $this->assertSame($left, $right);
     }
 
+    public function test_corrected_method_has_a_separate_display_regime(): void
+    {
+        $counts = ['estimate_method' => ['forward_curve' => 10]];
+        $v1 = AnnualSeriesCompatibility::aggregateDisplayKey('strict', AnnualCostMethodVersion::AsOf->value, $counts);
+        $v2 = AnnualSeriesCompatibility::aggregateDisplayKey('strict', AnnualCostMethodVersion::AsOfV2->value, $counts);
+        $this->assertNotSame($v1, $v2);
+        $this->assertSame($v2, AnnualSeriesCompatibility::aggregateDisplayKey('other', AnnualCostMethodVersion::AsOfV2->value, $counts));
+        $compatibility = new AnnualSeriesCompatibility;
+        $this->assertTrue($compatibility->evaluatePeriod([$v1])['comparable']);
+        $this->assertFalse($compatibility->evaluatePeriod([$v2])['comparable']);
+        $this->assertTrue($compatibility->evaluatePeriod([$v2])['comparable']);
+    }
+
     public function test_display_key_falls_back_for_legacy_and_malformed_counts(): void
     {
         $this->assertSame('legacy-stored', AnnualSeriesCompatibility::aggregateDisplayKey(

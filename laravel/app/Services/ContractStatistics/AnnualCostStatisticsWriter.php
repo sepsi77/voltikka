@@ -22,21 +22,21 @@ class AnnualCostStatisticsWriter
      *
      * @param  list<AsOfAnnualCostResult>  $results
      */
-    public function preview(CarbonInterface|string $date, array $results): AnnualCostStatisticsDateSummary
+    public function preview(CarbonInterface|string $date, array $results, AnnualCostMethodVersion $methodVersion = AnnualCostMethodVersion::AsOf): AnnualCostStatisticsDateSummary
     {
-        return $this->prepare($date, $results, requireCompleteIdentitySet: false)->summary(applied: false);
+        return $this->prepare($date, $results, $methodVersion, requireCompleteIdentitySet: false)->summary(applied: false);
     }
 
     /**
-     * Replace only annual_cost_as_of_v1 rows for one complete date.
+     * Replace only the selected AsOf method rows for one complete date.
      *
      * @param  list<AsOfAnnualCostResult>  $results
      */
-    public function write(CarbonInterface|string $date, array $results): AnnualCostStatisticsDateSummary
+    public function write(CarbonInterface|string $date, array $results, AnnualCostMethodVersion $methodVersion = AnnualCostMethodVersion::AsOf): AnnualCostStatisticsDateSummary
     {
-        $prepared = $this->prepare($date, $results, requireCompleteIdentitySet: true);
+        $prepared = $this->prepare($date, $results, $methodVersion, requireCompleteIdentitySet: true);
         $dateString = $prepared->date->toDateString();
-        $method = AnnualCostMethodVersion::AsOf->value;
+        $method = $prepared->methodVersion->value;
 
         DB::transaction(function () use ($prepared, $dateString, $method): void {
             ContractPriceAnnualCost::query()
@@ -68,8 +68,13 @@ class AnnualCostStatisticsWriter
     private function prepare(
         CarbonInterface|string $date,
         array $results,
+        AnnualCostMethodVersion $methodVersion,
         bool $requireCompleteIdentitySet,
     ): PreparedAnnualCostDate {
+        if (! $methodVersion->isAsOf()) {
+            throw new InvalidArgumentException('The annual cost writer requires an AsOf target method.');
+        }
+
         $target = CarbonImmutable::parse(
             $date instanceof CarbonInterface ? $date->toDateString() : $date,
             'Europe/Helsinki',
@@ -80,7 +85,7 @@ class AnnualCostStatisticsWriter
             if (! $result instanceof AsOfAnnualCostResult) {
                 throw new InvalidArgumentException('Every annual cost row must be an AsOfAnnualCostResult.');
             }
-            $this->validateResult($target, $result);
+            $this->validateResult($target, $result, $methodVersion);
 
             $identity = $result->date->toDateString().'|'.$result->contractId.'|'.$result->consumptionKwh;
             if (isset($identities[$identity])) {
@@ -167,7 +172,7 @@ class AnnualCostStatisticsWriter
                 'segment_key' => $first->segmentKey,
                 'metric_key' => 'annual_cost',
                 'pricing_basis' => $pricingBasis,
-                'method_version' => AnnualCostMethodVersion::AsOf->value,
+                'method_version' => $methodVersion->value,
                 'calculation_basis' => $calculationBasis,
                 'estimate_basis' => $estimateBasis,
                 'compatibility_key' => $compatibilityKey,
@@ -203,6 +208,7 @@ class AnnualCostStatisticsWriter
 
         return new PreparedAnnualCostDate(
             date: $target,
+            methodVersion: $methodVersion,
             evidenceResultCount: count($results),
             availableCount: $availableCount,
             unavailableCount: count($results) - $availableCount,
@@ -213,13 +219,13 @@ class AnnualCostStatisticsWriter
         );
     }
 
-    private function validateResult(CarbonImmutable $target, AsOfAnnualCostResult $result): void
+    private function validateResult(CarbonImmutable $target, AsOfAnnualCostResult $result, AnnualCostMethodVersion $methodVersion): void
     {
         if ($result->date->toDateString() !== $target->toDateString()) {
             throw new InvalidArgumentException('All annual cost results must belong to the selected date.');
         }
-        if ($result->methodVersion !== AnnualCostMethodVersion::AsOf) {
-            throw new InvalidArgumentException('The annual cost writer accepts only annual_cost_as_of_v1 results.');
+        if ($result->methodVersion !== $methodVersion) {
+            throw new InvalidArgumentException('Every annual cost result must match the selected AsOf method.');
         }
         if (! in_array($result->consumptionKwh, AsOfAnnualCostCalculator::DEFAULT_CONSUMPTIONS, true)) {
             throw new InvalidArgumentException('Annual cost consumption must be 2000, 5000, or 18000 kWh.');
@@ -420,6 +426,7 @@ readonly class PreparedAnnualCostDate
      */
     public function __construct(
         public CarbonImmutable $date,
+        public AnnualCostMethodVersion $methodVersion,
         public int $evidenceResultCount,
         public int $availableCount,
         public int $unavailableCount,
@@ -433,7 +440,7 @@ readonly class PreparedAnnualCostDate
     {
         return new AnnualCostStatisticsDateSummary(
             date: $this->date,
-            methodVersion: AnnualCostMethodVersion::AsOf,
+            methodVersion: $this->methodVersion,
             evidenceResultCount: $this->evidenceResultCount,
             availableCount: $this->availableCount,
             unavailableCount: $this->unavailableCount,

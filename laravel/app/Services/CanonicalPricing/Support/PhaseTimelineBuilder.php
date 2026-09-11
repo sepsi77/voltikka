@@ -19,13 +19,13 @@ use Carbon\CarbonImmutable;
 class PhaseTimelineBuilder
 {
     /**
-     * @param list<PricingPhase> $phases
+     * @param  list<PricingPhase>  $phases
      * @return list<WindowSegment>
      */
     public function build(array $phases, RecurringScheduleData $recurring, CarbonImmutable $windowStart): array
     {
         $windowStart = $windowStart->startOfDay();
-        $windowEnd = $windowStart->addYear();
+        $windowEnd = $windowStart->addMonthsNoOverflow(12);
 
         // Resolve each known-pricing phase to a clamped [start, end) inside the window.
         $resolved = [];
@@ -65,7 +65,29 @@ class PhaseTimelineBuilder
             );
         }
 
-        return $segments;
+        // A calendar month can occur at both ends of a rolling year. Normalize its
+        // two fractions together, including February windows that cross a leap year.
+        $fractions = array_fill(0, 12, 0.0);
+        foreach ($segments as $segment) {
+            $fractions[$segment->monthIndex] += $segment->monthFraction();
+        }
+
+        return array_map(static function (WindowSegment $segment) use ($windowStart, $fractions): WindowSegment {
+            $month = 0;
+            while ($month < 11 && $segment->start->greaterThanOrEqualTo($windowStart->addMonthsNoOverflow($month + 1))) {
+                $month++;
+            }
+            $billingDays = $windowStart->addMonthsNoOverflow($month)->diffInDays($windowStart->addMonthsNoOverflow($month + 1));
+
+            return new WindowSegment(
+                $segment->start,
+                $segment->end,
+                $segment->monthIndex,
+                $segment->phaseIndex,
+                1 / $fractions[$segment->monthIndex],
+                $billingDays,
+            );
+        }, $segments);
     }
 
     /**
@@ -122,7 +144,7 @@ class PhaseTimelineBuilder
             return null;
         }
 
-        return $windowStart->addMonths((int) $value);
+        return $windowStart->addMonthsNoOverflow((int) $value);
     }
 
     private function parseDate(?string $value): ?CarbonImmutable
@@ -139,7 +161,7 @@ class PhaseTimelineBuilder
     }
 
     /**
-     * @param list<array{index:int,start:CarbonImmutable,end:CarbonImmutable}> $resolved
+     * @param  list<array{index:int,start:CarbonImmutable,end:CarbonImmutable}>  $resolved
      * @return list<CarbonImmutable>
      */
     private function boundaryPoints(array $resolved, CarbonImmutable $windowStart, CarbonImmutable $windowEnd): array
@@ -151,6 +173,12 @@ class PhaseTimelineBuilder
         while ($cursor->lessThan($windowEnd)) {
             $points[$cursor->getTimestamp()] = $cursor;
             $cursor = $cursor->addMonthNoOverflow();
+        }
+
+        // Display bins and relative phase dates use the same no-overflow anniversaries.
+        for ($month = 1; $month < 12; $month++) {
+            $point = $windowStart->addMonthsNoOverflow($month);
+            $points[$point->getTimestamp()] = $point;
         }
 
         // Phase boundaries.
@@ -168,7 +196,7 @@ class PhaseTimelineBuilder
     }
 
     /**
-     * @param list<array{index:int,start:CarbonImmutable,end:CarbonImmutable}> $resolved
+     * @param  list<array{index:int,start:CarbonImmutable,end:CarbonImmutable}>  $resolved
      */
     private function governingPhaseIndex(array $resolved, CarbonImmutable $a, CarbonImmutable $b): ?int
     {

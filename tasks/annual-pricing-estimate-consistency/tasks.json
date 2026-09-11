@@ -1,0 +1,8 @@
+[
+  {"name":"Core annual timeline, consumption profile, and estimate consistency","status":"completed"},
+  {"name":"Spot timestamp and incomplete-evidence estimates","status":"completed"},
+  {"name":"Consumption API and daily metric cache consistency","status":"completed"},
+  {"name":"Supplier price episode chronology","status":"completed"},
+  {"name":"VAT basis and integrated regression checks","status":"completed"},
+  {"name":"Documentation, full tests, and production asset build","status":"completed"}
+]

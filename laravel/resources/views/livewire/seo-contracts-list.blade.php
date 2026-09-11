@@ -250,7 +250,7 @@
                 @endif
             </div>
             <p class="text-xs text-slate-300 mt-4">
-                Vertailu perustuu laskutusjaksosi ({{ $billStartDate }} – {{ $billEndDate }}) toteutuneisiin hintoihin samalla kulutuksella. Pörssisopimuksilla käytetään jakson todellisia tuntihintoja. Hinnat sis. alv 25,5 %, siirtomaksu ei sisälly.
+                Vertailu perustuu laskutusjaksosi ({{ $billStartDate }} – {{ $billEndDate }}) toteutuneisiin hintoihin samalla kulutuksella. Pörssisopimuksilla käytetään jakson todellisia tuntihintoja. {{ $targetGroup === 'Company' ? 'Yrityssopimusten hinnat ilman ALV:tä. Molemmille asiakasryhmille tarkoitetut hinnat sisältävät ALV:n.' : 'Hinnat sisältävät ALV:n.' }} Siirtomaksu ei sisälly.
             </p>
         </div>
     @else
@@ -259,7 +259,7 @@
         <div class="mb-5 flex flex-col gap-2 border-b border-slate-200 pb-4 lg:flex-row lg:items-baseline lg:justify-between">
             <p class="text-sm text-slate-600">
                 <span class="font-bold text-slate-900">{{ $contracts->total() }} sopimusta.</span>
-                12 kk arvio sisältää tarjoukset ja ALV 25,5 %. Siirtomaksu ei sisälly.
+                12 kk arvio sisältää tarjoukset. {{ $targetGroup === 'Company' ? 'Yrityssopimusten hinnat ilman ALV:tä. Molemmille asiakasryhmille tarkoitetut hinnat sisältävät ALV:n.' : 'Hinnat sisältävät ALV:n.' }} Siirtomaksu ei sisälly.
                 <a href="/tietoa#menetelma" class="whitespace-nowrap font-medium text-coral-600 underline underline-offset-2 hover:text-coral-700">Näin laskemme &rarr;</a>
             </p>
             {{-- Type-band legend; replaced the emissions legend when the card's emissions

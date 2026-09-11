@@ -31,14 +31,21 @@ class AsOfSpotAssumptionsProvider
 
         $storedRow = SpotPriceAverage::query()
             ->forRegion($region)
-            ->ofType(SpotPriceAverage::PERIOD_ROLLING_365D)
+            ->whereIn('period_type', SpotPriceAverage::ROLLING_365D_TYPES)
             ->whereDate('period_end', $target->toDateString())
-            ->orderByDesc('id')
+            ->latestRollingEvidence()
             ->first();
 
         if ($storedRow !== null) {
             $result = $this->fromStoredRow($storedRow, $target, $region);
             if ($result !== null) {
+                if ($storedRow->period_type === SpotPriceAverage::PERIOD_ROLLING_365D) {
+                    $raw = $this->fromHourlyRows($target, $region);
+                    if ($raw->isAvailable()) {
+                        return $this->memo[$key] = $raw;
+                    }
+                }
+
                 return $this->memo[$key] = $result;
             }
         }
@@ -51,16 +58,15 @@ class AsOfSpotAssumptionsProvider
         CarbonImmutable $target,
         string $region,
     ): ?AsOfSpotAssumptionsResult {
-        $end = CarbonImmutable::instance($row->period_end)
-            ->setTimezone(self::TIMEZONE)
-            ->startOfDay();
+        $end = CarbonImmutable::parse($row->period_end->toDateString(), self::TIMEZONE)->startOfDay();
+        $isLocal = $row->period_type === SpotPriceAverage::PERIOD_ROLLING_365D_LOCAL;
 
         if (! $end->isSameDay($target) || $row->period_start?->toDateString() !== $end->toDateString()) {
             return null;
         }
 
         $start = $end->subDays(364)->startOfDay();
-        $expectedHours = $this->expectedHours($start, $end);
+        $expectedHours = $isLocal ? $this->expectedHours($start, $end) : 365 * 24;
         $values = [
             $row->avg_price_with_tax,
             $row->day_avg_with_tax,
@@ -73,21 +79,21 @@ class AsOfSpotAssumptionsProvider
         }
 
         $coverageRatio = $actualHours / $expectedHours;
-        if ($coverageRatio < self::MINIMUM_STORED_COVERAGE_RATIO) {
-            return null;
-        }
-
         $coverageFlag = $actualHours === $expectedHours
             ? AsOfSpotAssumptionsResult::EVIDENCE_COMPLETE
-            : AsOfSpotAssumptionsResult::EVIDENCE_PARTIAL_ABOVE_THRESHOLD;
+            : ($coverageRatio >= self::MINIMUM_STORED_COVERAGE_RATIO
+                ? AsOfSpotAssumptionsResult::EVIDENCE_PARTIAL_ABOVE_THRESHOLD : 'partial_below_threshold');
 
         return new AsOfSpotAssumptionsResult(
             assumptions: new SpotAssumptions(
                 dayAvgWithTax: (float) $row->day_avg_with_tax,
                 nightAvgWithTax: (float) $row->night_avg_with_tax,
                 overallAvgWithTax: (float) $row->avg_price_with_tax,
-                periodStart: $start,
+                periodStart: $isLocal ? $start : CarbonImmutable::parse($start->toDateString(), 'UTC'),
                 periodEnd: $end,
+                actualHours: $actualHours,
+                expectedHours: $expectedHours,
+                windowSemantics: $isLocal ? 'helsinki_dates_v2' : 'legacy_utc_dates',
             ),
             source: AsOfSpotAssumptionsResult::SOURCE_STORED_ROLLING_365D,
             region: $region,
@@ -96,7 +102,7 @@ class AsOfSpotAssumptionsProvider
             expectedHours: $expectedHours,
             actualHours: $actualHours,
             hoursCount: $actualHours,
-            provenanceFlags: [$coverageFlag],
+            provenanceFlags: $isLocal ? [$coverageFlag] : ['legacy_utc_dates', 'unverified_shape_window'],
             sourceRecordId: (int) $row->getKey(),
         );
     }
@@ -117,7 +123,7 @@ class AsOfSpotAssumptionsProvider
             ->where('utc_datetime', '<', $endExclusiveUtc->format('Y-m-d H:i:s'))
             ->get(['utc_datetime', 'price_without_tax', 'vat_rate']);
 
-        if ($rows->count() !== $expectedHours) {
+        if ($rows->isEmpty() || $rows->count() > $expectedHours) {
             return $this->unavailableHourlyResult(
                 $region,
                 $target,
@@ -168,13 +174,7 @@ class AsOfSpotAssumptionsProvider
         for ($instant = $startUtc; $instant->lessThan($endExclusiveUtc); $instant = $instant->addHour()) {
             $price = $pricesByTimestamp[$instant->timestamp] ?? null;
             if ($price === null) {
-                return $this->unavailableHourlyResult(
-                    $region,
-                    $target,
-                    'incomplete_hourly_coverage',
-                    $expectedHours,
-                    $rows->count(),
-                );
+                continue;
             }
 
             $overall[] = $price;
@@ -203,17 +203,22 @@ class AsOfSpotAssumptionsProvider
                 overallAvgWithTax: array_sum($overall) / count($overall),
                 periodStart: $start,
                 periodEnd: $target,
+                actualHours: count($overall),
+                expectedHours: $expectedHours,
+                windowSemantics: 'helsinki_dates_v2',
             ),
             source: AsOfSpotAssumptionsResult::SOURCE_HOURLY_RECONSTRUCTION,
             region: $region,
             targetDate: $target,
-            coverageRatio: 1.0,
+            coverageRatio: count($overall) / $expectedHours,
             expectedHours: $expectedHours,
-            actualHours: $expectedHours,
-            hoursCount: $expectedHours,
+            actualHours: count($overall),
+            hoursCount: count($overall),
             provenanceFlags: [
-                AsOfSpotAssumptionsResult::EVIDENCE_COMPLETE,
-                'raw_hourly_reconstruction_strict',
+                count($overall) === $expectedHours ? AsOfSpotAssumptionsResult::EVIDENCE_COMPLETE
+                    : (count($overall) / $expectedHours >= self::MINIMUM_STORED_COVERAGE_RATIO
+                        ? AsOfSpotAssumptionsResult::EVIDENCE_PARTIAL_ABOVE_THRESHOLD : 'partial_below_threshold'),
+                'raw_hourly_reconstruction',
             ],
         );
     }

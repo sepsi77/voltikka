@@ -18,7 +18,7 @@
     <p class="text-slate-600 mb-6 max-w-prose">
         @if ($historicalFallback)
             <span class="font-semibold text-slate-800">Nykyinen laskettu vertailu ei ole saatavilla.</span>
-            Alla on viimeisin yhtenäinen historiallinen hintavertailu {{ $statDate }} myyjiltä havaituista hinnoista. Se ei ole tämän päivän hintavertailu.
+            Alla on viimeisin yhtenäinen historiallinen hintavertailu {{ $statDate }}. Se ei ole tämän päivän hintavertailu.
         @elseif (($marketComparison['pricing_basis'] ?? null) === 'canonical_calculation')
             Vertailu perustuu {{ $statDate }} Voltikan laskemiin nykyhintoihin.
         @else
@@ -127,9 +127,9 @@
             <p class="mt-1 text-sm text-slate-600 max-w-prose">
                 Viikoittainen vertailu edeltävältä 12 kuukaudelta. Varjostettu alue näyttää markkinan keskimmäisen 60 %:n.
                 @if ($historicalFallback)
-                    Kaikki pisteet ovat päivättyjä myyjiltä havaittuja hintoja. Viimeisin piste on {{ $statDate }}.
+                    Pisteet ovat päivättyjä vuosikustannusarvioita. Viimeisin piste on {{ $statDate }}.
                 @elseif (($chart['current_pricing_basis'] ?? null) === 'canonical_calculation' && ($chart['canonical_from'] ?? null) !== null)
-                    Vanhemmat pisteet ovat myyjiltä havaittuja hintoja. {{ Carbon::parse($chart['canonical_from'])->translatedFormat('j.n.Y') }} alkaen pisteet ovat Voltikan laskemia vertailuhintoja.
+                    Vanhemmat arviot perustuvat myyjiltä havaittuihin hintoihin. {{ Carbon::parse($chart['canonical_from'])->translatedFormat('j.n.Y') }} alkaen pisteet ovat Voltikan laskemia vertailuhintoja.
                 @endif
             </p>
 

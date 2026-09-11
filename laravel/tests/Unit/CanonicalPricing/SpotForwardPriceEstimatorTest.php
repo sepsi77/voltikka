@@ -30,6 +30,21 @@ class SpotForwardPriceEstimatorTest extends TestCase
         );
     }
 
+    public function test_leap_day_window_ends_on_the_same_no_overflow_anniversary_as_the_bill(): void
+    {
+        $start = CarbonImmutable::parse('2024-02-29', 'Europe/Helsinki');
+        $curve = $this->createMock(MarketReferenceCurveProvider::class);
+        $curve->method('tradeDate')->willReturnCallback(static fn ($date) => $date->subDay());
+        $curve->method('forwardPriceForMonth')->willReturnCallback(static fn ($date, $month) => [
+            'kind' => 'month', 'price_cents_per_kwh' => $month->format('Y-m') === '2025-02' ? 100 : 0,
+        ]);
+        $estimate = (new SpotForwardPriceEstimator($curve, new ResetEstimatorSettings))->estimate($start, new SpotAssumptions(null, null));
+
+        $this->assertSame(SpotEstimateBasis::ForwardCurve, $estimate->basis);
+        $this->assertEqualsWithDelta(100 * 27 / 365, $estimate->annualEquivalentBaseCentsPerKwh, 1e-10);
+        $this->assertSame('2025-02', array_key_last($estimate->months));
+    }
+
     public function test_it_builds_all_thirteen_touched_months_with_two_deliberate_vintages(): void
     {
         $curve = new FakeSpotForwardCurve;
@@ -112,7 +127,7 @@ class SpotForwardPriceEstimatorTest extends TestCase
         $this->assertContains('stale_future_curve_vintage', $staleEstimate->flags);
     }
 
-    public function test_stale_or_incomplete_shape_returns_the_typed_fallback_without_querying_the_curve(): void
+    public function test_stale_or_incomplete_shape_uses_lower_confidence_forward_baseload(): void
     {
         $staleCurve = new FakeSpotForwardCurve;
         $stale = new SpotAssumptions(
@@ -124,9 +139,8 @@ class SpotForwardPriceEstimatorTest extends TestCase
         );
         $staleEstimate = $this->estimator($staleCurve)->estimate($this->start, $stale);
 
-        $this->assertRollingFallback($staleEstimate);
+        $this->assertFlatForward($staleEstimate);
         $this->assertContains('stale_shape_period', $staleEstimate->flags);
-        $this->assertSame([], $staleCurve->tradeDateCalls);
 
         $incompleteCurve = new FakeSpotForwardCurve;
         $incomplete = new SpotAssumptions(
@@ -138,22 +152,66 @@ class SpotForwardPriceEstimatorTest extends TestCase
         );
         $incompleteEstimate = $this->estimator($incompleteCurve)->estimate($this->start, $incomplete);
 
-        $this->assertRollingFallback($incompleteEstimate);
+        $this->assertFlatForward($incompleteEstimate);
         $this->assertContains('incomplete_shape_period', $incompleteEstimate->flags);
-        $this->assertSame([], $incompleteCurve->tradeDateCalls);
     }
 
-    public function test_invalid_shape_returns_a_typed_rolling_fallback_without_querying_the_curve(): void
+    public function test_invalid_shape_uses_a_lower_confidence_forward_baseload(): void
     {
         $curve = new FakeSpotForwardCurve;
         $shape = new SpotAssumptions(7.0, 3.0, 5.0);
 
         $estimate = $this->estimator($curve)->estimate($this->start, $shape);
 
-        $this->assertRollingFallback($estimate);
+        $this->assertFlatForward($estimate);
         $this->assertContains('invalid_shape_period', $estimate->flags);
-        $this->assertSame([], $curve->tradeDateCalls);
-        $this->assertSame([], $curve->forwardCalls);
+    }
+
+    public function test_missing_and_sparse_history_do_not_block_a_complete_forward_strip(): void
+    {
+        foreach ([new SpotAssumptions(null, null), new SpotAssumptions(
+            10.0, 1.0, 5.5, $this->shape->periodStart, $this->shape->periodEnd,
+            actualHours: 2, expectedHours: 8760, windowSemantics: 'helsinki_dates_v2',
+        )] as $shape) {
+            $estimate = $this->estimator(new FakeSpotForwardCurve)->estimate($this->start, $shape);
+            $this->assertFlatForward($estimate);
+            $this->assertSame($shape->actualHours, $estimate->toArray()['shape']['actual_hours']);
+        }
+    }
+
+    public function test_accepted_partial_coverage_preserves_offsets_and_reports_coverage(): void
+    {
+        $shape = new SpotAssumptions(7.0, 3.0, 5.0, $this->shape->periodStart, $this->shape->periodEnd,
+            actualHours: 8600, expectedHours: 8760, windowSemantics: 'helsinki_dates_v2');
+        $estimate = $this->estimator(new FakeSpotForwardCurve)->estimate($this->start, $shape);
+        $this->assertSame('higher', $estimate->confidence);
+        $this->assertSame(2.0, $estimate->dayOffsetCentsPerKwh);
+        $this->assertSame(8600 / 8760, $estimate->toArray()['shape']['coverage_ratio']);
+        $this->assertContains('partial_shape_coverage', $estimate->flags);
+    }
+
+    public function test_sparse_rolling_levels_remain_usable_when_the_curve_is_missing(): void
+    {
+        $curve = new FakeSpotForwardCurve;
+        $curve->missingCurrentVintage = true;
+        $shape = new SpotAssumptions(7.0, 3.0, 5.0, $this->shape->periodStart, $this->shape->periodEnd,
+            actualHours: 2, expectedHours: 8760, windowSemantics: 'helsinki_dates_v2');
+        $estimate = $this->estimator($curve)->estimate($this->start, $shape);
+        $this->assertRollingFallback($estimate);
+        $this->assertSame(2, $estimate->toArray()['shape']['actual_hours']);
+        $this->assertContains('partial_shape_coverage', $estimate->flags);
+    }
+
+    private function assertFlatForward($estimate): void
+    {
+        $this->assertSame(SpotEstimateBasis::ForwardCurve, $estimate->basis);
+        $this->assertCount(13, $estimate->months);
+        $this->assertSame('lower', $estimate->confidence);
+        $this->assertFalse($estimate->toArray()['higher_confidence']);
+        $this->assertSame(0.0, $estimate->dayOffsetCentsPerKwh);
+        $this->assertSame(0.0, $estimate->nightOffsetCentsPerKwh);
+        $this->assertSame($estimate->annualEquivalentDayCentsPerKwh, $estimate->annualEquivalentNightCentsPerKwh);
+        $this->assertContains('zero_intraday_shape_fallback', $estimate->flags);
     }
 
     private function estimator(FakeSpotForwardCurve $curve): SpotForwardPriceEstimator
@@ -225,7 +283,7 @@ class FakeSpotForwardCurve implements MarketReferenceCurveProvider
         ];
     }
 
-    public function spotSeasonalIndex(): ?array
+    public function spotSeasonalIndex(CarbonImmutable $asOfDate): ?array
     {
         return null;
     }

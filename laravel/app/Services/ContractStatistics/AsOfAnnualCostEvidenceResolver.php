@@ -120,6 +120,12 @@ class AsOfAnnualCostEvidenceResolver
                 ->groupBy('contract_id');
 
         $sourceSnapshotIds = $observations->flatten(1)->pluck('source_snapshot_id')->unique()->values()->all();
+        $sourcePayloads = $sourceSnapshotIds === []
+            ? collect()
+            : DB::table('contract_source_snapshots')
+                ->whereIn('id', $sourceSnapshotIds)
+                ->get(['id', 'contract_id', 'source_payload'])
+                ->keyBy('id');
         $interpretations = $sourceSnapshotIds === []
             ? collect()
             : DB::table('contract_interpretations')
@@ -248,6 +254,20 @@ class AsOfAnnualCostEvidenceResolver
                     ...$sourceIds,
                 ];
 
+                $source = $sourcePayloads->get($sourceIds['source_snapshot_id']);
+                $payload = $source !== null && (string) $source->contract_id === $contractId
+                    ? json_decode((string) $source->source_payload, true)
+                    : null;
+                $details = is_array($payload['Details'] ?? null) ? $payload['Details'] : [];
+                $limits = $details['ConsumptionLimitation'] ?? null;
+                $eligibilityProven = is_array($limits)
+                    && array_key_exists('MinXKWhPerY', $limits)
+                    && array_key_exists('MaxXKWhPerY', $limits)
+                    && $this->validConsumptionBound($limits['MinXKWhPerY'])
+                    && $this->validConsumptionBound($limits['MaxXKWhPerY'])
+                    && ($limits['MinXKWhPerY'] === null || $limits['MaxXKWhPerY'] === null
+                        || $limits['MinXKWhPerY'] <= $limits['MaxXKWhPerY']);
+
                 $resolved[$dateString][$contractId] = new AsOfAnnualCostEvidence(
                     contractId: $contractId,
                     date: $target,
@@ -267,11 +287,20 @@ class AsOfAnnualCostEvidenceResolver
                     canonicalData: $canonical,
                     sourceEvidenceIds: $sourceIds,
                     provenanceFlags: $flags,
+                    consumptionEligibilityProven: $eligibilityProven,
+                    minimumAnnualConsumptionKwh: $eligibilityProven && $limits['MinXKWhPerY'] !== null ? (int) $limits['MinXKWhPerY'] : null,
+                    maximumAnnualConsumptionKwh: $eligibilityProven && $limits['MaxXKWhPerY'] !== null ? (int) $limits['MaxXKWhPerY'] : null,
+                    householdAudienceConflict: ($details['TargetGroup'] ?? null) === 'Company',
                 );
             }
         }
 
         return $resolved;
+    }
+
+    private function validConsumptionBound(mixed $value): bool
+    {
+        return $value === null || (is_int($value) && $value >= 0);
     }
 
     /** @return array<string, AsOfAnnualCostEvidence> */

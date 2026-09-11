@@ -137,6 +137,76 @@ class ContractPricingIntegrityServiceTest extends TestCase
         $this->assertSame(IntegrityReasonFamily::None, $result->reasonFamily);
     }
 
+    public function test_listed_unknown_future_estimate_keeps_detail_caveat_without_claiming_an_increase(): void
+    {
+        $pricing = $this->pricing([
+            $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'date', 'value' => '2026-07-31'], [
+                $this->component('energy_general', 5),
+            ]),
+        ]);
+        $result = $this->assess($pricing, 'incomplete', 'detected', ['future_price_unknown'], $this->context());
+
+        $this->assertTrue($result->detected);
+        $this->assertSame(IntegrityReasonFamily::Promo, $result->reasonFamily);
+        $this->assertNull($result->cardLabel);
+        $this->assertNull($result->normalRateCents);
+        $this->assertNull($result->firstYearImpactEur);
+        $facts = implode(' ', $result->detailFacts);
+        $this->assertStringContainsString('kustannus on arvioitu', $facts);
+        $this->assertStringNotContainsString('Hinta nousee', $facts);
+        $this->assertStringNotContainsString('€ korkeampi', $facts);
+        $this->assertStringNotContainsString('Sen jälkeen energian hinta on', $facts);
+    }
+
+    public function test_partly_known_continuation_does_not_turn_an_estimated_tail_into_a_measured_impact(): void
+    {
+        $pricing = $this->tyyni();
+        $pricing['phases'][1]['ends'] = ['kind' => 'date', 'value' => '2026-08-31'];
+        $result = $this->assess($pricing, 'incomplete', 'detected', ['future_price_unknown'], $this->context());
+        $this->assertTrue($result->detected);
+        $this->assertNull($result->cardLabel);
+        $this->assertNull($result->normalRateCents);
+        $this->assertNull($result->firstYearImpactEur);
+    }
+
+    public function test_small_known_normal_price_increase_still_fails_the_materiality_threshold(): void
+    {
+        $pricing = $this->tyyni();
+        $pricing['phases'][1]['components'][0]['amount'] = 5.60;
+        $pricing['phases'][1]['components'][1]['amount'] = 2.99;
+        $result = $this->assess($pricing, 'exact', 'detected', ['future_price_omitted'], $this->context());
+        $this->assertFalse($result->detected);
+    }
+
+    public function test_unknown_coverage_inside_a_short_term_keeps_the_caveat(): void
+    {
+        $pricing = $this->pricing([
+            $this->phase('current_structured', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '1'], [
+                $this->component('energy_general', 5),
+            ]),
+        ]);
+        $result = $this->assess($pricing, 'incomplete', 'detected', ['future_price_unknown'], $this->context('FixedPrice', 'FixedTerm', 'Fixed6'));
+        $this->assertTrue($result->detected);
+        $this->assertNull($result->cardLabel);
+        $this->assertNull($result->firstYearImpactEur);
+        $this->assertSame('Sopimuskauden hinnassa on arvioituja osia', $result->detailHeading);
+        $this->assertStringContainsString('Kaikkien sopimuskauden osien', implode(' ', $result->detailFacts));
+        $this->assertStringContainsString('kustannus on arvioitu', implode(' ', $result->detailFacts));
+    }
+
+    public function test_unknown_future_caveat_still_requires_the_detected_gate(): void
+    {
+        $pricing = $this->pricing([
+            $this->phase('introductory', ['kind' => 'contract_start', 'value' => null], ['kind' => 'after_months', 'value' => '1'], [
+                $this->component('energy_general', 5),
+            ]),
+        ]);
+        foreach (['not_detected', 'uncertain', 'not_assessable'] as $state) {
+            $result = $this->assess($pricing, 'incomplete', $state, ['future_price_unknown'], $this->context());
+            $this->assertFalse($result->detected);
+        }
+    }
+
     public function test_recurring_market_product_gets_no_deceptive_label(): void
     {
         // A quarterly product flagged detected (small first-period intro) is not deceptive.

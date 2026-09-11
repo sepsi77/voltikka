@@ -91,14 +91,18 @@ Important pricing guardrails:
 - calculation inputs should preserve component discount metadata (`has_discount`, value/type/months/kWh/until-date, `payment_unit`)
 - use `ElectricityContract::getLatestPriceComponentsForCalculation()` for single-contract calculations and `ElectricityContract::getLatestPriceComponentsForCalculationByContractIds()` for listing/cache batches instead of rebuilding calculator arrays ad hoc
 - do not eagerly load full `priceComponents` history for contract-list/cache calculations; the active dataset has tens of thousands of historical price rows and can exceed PHP's 128M request memory limit
-- `ContractListCacheService` is request-scoped in `AppServiceProvider` and memoizes its version and one hydrated `ContractMetricSet` per consumption. Independent consumers in one request or command therefore avoid repeated database-cache reads and hydration; clear per-consumption memo entries inside cache-warming loops so workers do not retain every preset payload at once
+- `ContractListCacheService` is request-scoped in `AppServiceProvider` and memoizes its version and one hydrated `ContractMetricSet` per dated/versioned key. Independent consumers in one request or command therefore avoid repeated database-cache reads and hydration; clear per-consumption memo entries inside cache-warming loops so workers do not retain every preset payload at once
 - `CompanyListCacheService` consumes those list metrics. In canonical mode it accepts only listed canonical outcomes with a finite total for company membership, counts, averages, displayed prices, and price rankings; canonical-only contracts work and excluded/missing outcomes do not become zero or sentinels. Its separate 48-hour cache key has its own outer payload schema, the shared calculated-cost schema and contract-list data version, and one `PricingMode` marker. The service memoizes reads per instance. The shared version makes interpretation publication invalidate company output without waiting 48 hours. Feature-off keeps the legacy relational metrics.
 - city/local contract sections do not load `priceComponents` in canonical mode. Feature-off must still avoid full history and attach only the latest normalized components needed by contract cards
 - city/local company-distance logic must bulk-load company postcodes; do not call `Postcode::find()` per company because crawler hits to city SEO pages otherwise trigger Sentry N+1 reports
 - first-year promo-aware pricing should return both discounted totals and base totals/savings so UI can explain the effect of the offer
 - `ContractPriceCalculator::calculatePeriod()` is the one feature-off exact-period pricing path. It returns a typed result with availability, actual/base totals, measured savings, Spot facts, and display rates; bill comparison must not duplicate raw component arithmetic
 - annual and exact-period pricing share component/rate resolution, Spot margin selection, discount amount rules, and inclusive `UntilDate` semantics. Normalized `c/kWh` / `EUR/month` and upstream enum-like units are valid discount units
-- do not assume `monthly_costs` represent calendar Jan-Dec once promo timing matters; they are the calculator's 12-month estimate timeline
+- do not assume `monthly_costs` represent calendar Jan-Dec once promo timing matters; canonical bins use no-overflow contract-month anniversaries. Ordinary annual fees use those same month fractions; packages remain calendar-month scoped
+- annual list/company/ranking keys include the Helsinki calculation date, with instance memo refresh at midnight and data-version changes. Shared calculated-cost schema v16 invalidates pricing semantics, not historical rows
+- canonical annual estimates keep known prices exact and fill unknown periods with an explicit latest applicable price or disclosed normal continuation. No free gaps or extended promo savings; short terms retain real-term annualization and Hybrids retain base-only comparisons. Exclude unidentifiable/conflicting pricing, not uncertainty alone
+- one flat default monthly consumption profile serves all tariffs; explicit heating/cooling keeps its shape. Detailed API usage must reconcile to its total; see `../Http/AGENTS.md` for remainder and heating-weight validation
+- canonical VAT uses Household/Both/null inclusive and Company excluded. Normalize explicit component evidence and market prices once; unknown component VAT assumes the target. See `CanonicalPricing/AGENTS.md` for the calculation-copy boundary
 
 ### Contract classification boundaries
 
@@ -187,7 +191,7 @@ Purpose:
 - annualise monthly/quarterly/seasonal/other market-reset products with a shape-only forward-curve
   shift instead of holding one seasonal price flat; `other` uses the quarterly proxy
   (`CanonicalPricing/MarketReset/`)
-- annualise narrowly eligible ordinary adjustable open-ended fixed General tariffs through a
+- annualise narrowly eligible ordinary adjustable open-ended fixed General, Time, and Season tariffs through a
   separate observed-price-episode path (`CanonicalPricing/SupplierAdjusted/`)
 - gated behind `CANONICAL_PRICING_ENABLED`; when off, `ContractPriceCalculator` behavior is unchanged.
   The market-reset shift has its own separate flag, `RESET_FORWARD_SHIFT_ENABLED`
@@ -196,6 +200,7 @@ Read first:
 - `CanonicalPricing/AGENTS.md`
 - `CanonicalPricing/MarketReset/AGENTS.md` before touching the market-reset estimator
 - `CanonicalPricing/SupplierAdjusted/AGENTS.md` before touching adjustable open-ended estimates
+- `CanonicalPricing/SpotForward/AGENTS.md` for local/legacy rolling evidence, coverage provenance, and complete-futures baseload estimates when historical shape is insufficient
 
 ### Contract card derivation
 Directory:

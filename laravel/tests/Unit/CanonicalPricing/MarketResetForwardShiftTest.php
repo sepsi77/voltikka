@@ -4,6 +4,7 @@ namespace Tests\Unit\CanonicalPricing;
 
 use App\Services\CanonicalPricing\CanonicalContractPriceCalculator;
 use App\Services\CanonicalPricing\CanonicalPricingParser;
+use App\Services\CanonicalPricing\DTO\CanonicalPeriodPricingRequest;
 use App\Services\CanonicalPricing\DTO\ContractContext;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\CanonicalPricing\Enums\ContractComparability;
@@ -122,6 +123,56 @@ class MarketResetForwardShiftTest extends TestCase
 
     // ---------------------------------------------------------------- tests
 
+    public function test_exact_period_keeps_reset_hold_policy_without_annual_forward_offsets(): void
+    {
+        $pricing = $this->resetPricing(8, 'monthly',
+            starts: ['kind' => 'contract_start', 'value' => null], ends: ['kind' => 'date', 'value' => '2026-07-31']);
+        $estimator = $this->estimator(new FakeMarketCurve(reference: ['month' => 5], forward: $this->flatForward(9)));
+        $annual = $this->evaluate($pricing, $estimator);
+        $data = $this->parser->parse($pricing,
+            ['status' => 'estimate_required', 'missing_facts' => [], 'required_assumptions' => []],
+            ['misleading_first_12_months' => 'not_detected', 'structured_pricing_status' => 'complete', 'issue_codes' => []]);
+        $period = $this->calculator($estimator)->calculatePeriod($data,
+            new ContractContext('FixedPrice', 'OpenEnded', 'General', null, 'Household'),
+            new CanonicalPeriodPricingRequest(
+                startDate: CarbonImmutable::parse('2026-07-01', 'Europe/Helsinki'),
+                endDate: CarbonImmutable::parse('2026-08-31', 'Europe/Helsinki'),
+                periodKwh: 1000, annualizedKwh: 12000, historicalSpotPrices: [],
+            ), new SpotAssumptions(null, null), $annual);
+        $this->assertEqualsWithDelta(80, $period->periodTotal, 0.0001);
+        $this->assertNotContains('reset_tail_shifted_on_forward_curve', $period->assumptions);
+    }
+
+    public function test_mid_month_known_boundary_and_tariff_equivalent_use_the_actual_costed_segments(): void
+    {
+        $pricing = $this->resetPricing(8, 'monthly',
+            starts: ['kind' => 'contract_start', 'value' => null], ends: ['kind' => 'date', 'value' => '2026-08-15']);
+        $outcome = $this->evaluate($pricing, $this->estimator(new FakeMarketCurve(reference: ['month' => 5], forward: $this->flatForward(9))));
+        $expected = 400 + (5000 / 12) * (10 + 16 / 31) * 4 / 100;
+        $this->assertEqualsWithDelta($expected, $outcome->totalCost, 0.0001);
+        $this->assertEqualsWithDelta($expected, $outcome->structuredOnlyTotal, 0.0001);
+        $this->assertEqualsWithDelta($expected / 50, $outcome->resetEstimate['annual_equivalent_energy_price'], 0.0001);
+
+        $pricing['phases'][0]['components'] = [$this->component('energy_day', 8), $this->component('energy_night', 4)];
+        $time = $this->evaluate($pricing, $this->estimator(new FakeMarketCurve(reference: ['month' => 5], forward: $this->flatForward(5))));
+        $this->assertEqualsWithDelta(370, $time->totalCost, 0.0001);
+        $this->assertEqualsWithDelta(7.4, $time->resetEstimate['annual_equivalent_energy_price'], 0.0001);
+    }
+
+    public function test_disclosed_reset_rates_and_annual_equivalent_reconcile_without_false_offer_savings(): void
+    {
+        $pricing = $this->resetPricing(4, 'monthly',
+            starts: ['kind' => 'contract_start', 'value' => null], ends: ['kind' => 'date', 'value' => '2026-07-31']);
+        $pricing['phases'][1] = $pricing['phases'][0];
+        $pricing['phases'][1]['starts'] = ['kind' => 'date', 'value' => '2026-08-01'];
+        $pricing['phases'][1]['ends'] = ['kind' => 'date', 'value' => '2026-08-31'];
+        $pricing['phases'][1]['components'][0]['amount'] = 8;
+        $outcome = $this->evaluate($pricing, $this->estimator(new FakeMarketCurve(reference: ['month' => 5], forward: $this->flatForward(9))));
+        $this->assertEqualsWithDelta(550, $outcome->totalCost, 0.0001);
+        $this->assertEqualsWithDelta(11, $outcome->resetEstimate['annual_equivalent_energy_price'], 0.0001);
+        $this->assertEqualsWithDelta(0, $outcome->discountSavingsTotal(), 0.0001);
+    }
+
     public function test_fee_only_promotions_keep_the_september_energy_reference_and_monthly_forecast(): void
     {
         foreach (['quarterly' => 7.69, 'monthly' => 8.98] as $cadence => $energy) {
@@ -163,8 +214,8 @@ class MarketResetForwardShiftTest extends TestCase
                 $this->assertEqualsWithDelta($energy - 2 * (11 + 10 / 30) / 12,
                     $offer->resetEstimate['annual_equivalent_energy_price'], 0.0001);
 
-                // Fees use calendar-month fractions: September 11–30 and October 1–10.
-                $feeSaving = 5.95 * (20 / 30 + 10 / 31);
+                // The first contract month has exactly one ordinary monthly fee.
+                $feeSaving = 5.95;
                 $this->assertEqualsWithDelta($energy * 50 - 2 * 5000 / 1200 * (11 + 10 / 30) + 12 * 5.95,
                     $normal->totalCost, 0.0001);
                 $this->assertEqualsWithDelta($normal->totalCost - $feeSaving, $offer->totalCost, 0.0001);
@@ -173,21 +224,15 @@ class MarketResetForwardShiftTest extends TestCase
                 $disabled = $this->evaluate($promo, $this->estimator(new FakeMarketCurve, ['enabled' => false]), start: '2026-09-11');
                 $this->assertNull($disabled->resetEstimate);
                 $this->assertEqualsWithDelta($energy * 50 + 12 * 5.95 - $feeSaving, $disabled->totalCost, 0.0001);
-                $currentMonth = $energy * 5000 / 1200 + 5.95;
-                $futureMonth = ($energy - 2) * 5000 / 1200 + 5.95;
+                $start = CarbonImmutable::parse('2026-09-11', 'Europe/Helsinki');
                 foreach ($normal->monthlyCosts as $month => $cost) {
-                    // Existing output groups slices by elapsed month at the slice start.
-                    $normalExpected = match ($month) {
-                        0 => $currentMonth * 20 / 30 + $futureMonth,
-                        11 => $futureMonth * 10 / 30,
-                        default => $futureMonth,
-                    };
-                    $offerExpected = match ($month) {
-                        0 => $currentMonth * 20 / 30 + $futureMonth * 10 / 31 - $feeSaving,
-                        1 => $futureMonth * (21 / 31 + 1),
-                        11 => $futureMonth * 10 / 30,
-                        default => $futureMonth,
-                    };
+                    $normalExpected = 5.95;
+                    $end = $start->addMonthsNoOverflow($month + 1);
+                    for ($day = $start->addMonthsNoOverflow($month); $day->lessThan($end); $day = $day->addDay()) {
+                        $rate = $day->toDateString() < '2026-10-01' ? $energy : $energy - 2;
+                        $normalExpected += $rate * 5000 / 1200 / $day->daysInMonth;
+                    }
+                    $offerExpected = $normalExpected - ($month === 0 ? $feeSaving : 0);
                     $this->assertEqualsWithDelta($normalExpected, $cost, 0.0001);
                     $this->assertEqualsWithDelta($offerExpected, $offer->monthlyCosts[$month], 0.0001);
                     $this->assertEqualsWithDelta($month === 0 ? $feeSaving : 0.0, $offer->monthlyDiscountSavings[$month], 0.0001);
@@ -217,7 +262,7 @@ class MarketResetForwardShiftTest extends TestCase
             $normal = $this->evaluate($base, $this->estimator($curve), start: '2026-09-11');
             $offer = $this->evaluate($promo, $this->estimator($curve), start: '2026-09-11');
             $this->assertSame($normal->resetEstimate, $offer->resetEstimate);
-            $this->assertEqualsWithDelta($normal->totalCost - 5.95 * (20 / 30 + 10 / 31), $offer->totalCost, 0.0001);
+            $this->assertEqualsWithDelta($normal->totalCost - 5.95, $offer->totalCost, 0.0001);
 
             // A change to only one bucket is a real energy boundary; the other is inherited.
             $promo['phases'][0]['components'][] = $this->component($second, 5.0);
@@ -241,7 +286,7 @@ class MarketResetForwardShiftTest extends TestCase
             forward: $this->flatForward(4.0), today: '2026-09-11');
         $outcome = $this->evaluate($pricing, $this->estimator($curve), start: '2026-09-11');
         $this->assertSame('2026-10', $outcome->resetEstimate['anchor_period']);
-        $this->assertSame(['2026-10-01'], $curve->referenceAsOfDates);
+        $this->assertSame(['2026-09-11'], $curve->referenceAsOfDates);
     }
 
     public function test_a_real_energy_promotion_keeps_its_finite_boundary(): void
@@ -258,18 +303,19 @@ class MarketResetForwardShiftTest extends TestCase
         $outcome = $this->evaluate($pricing, $this->estimator($curve), start: '2026-09-11');
 
         $this->assertSame('2026-10', $outcome->resetEstimate['anchor_period']);
-        $this->assertSame(['2026-10-01'], $curve->referenceAsOfDates);
-        // October is wholly repriced by the existing calendar-month offset policy.
+        $this->assertSame(['2026-09-11'], $curve->referenceAsOfDates);
+        // The genuine October 11 boundary keeps October 1–10 at the disclosed rate.
         $expected = 0.0;
+        $start = CarbonImmutable::parse('2026-09-11', 'Europe/Helsinki');
         foreach ($outcome->monthlyCosts as $month => $cost) {
-            $rate = match ($month) {
-                0 => 7.0 * 20 / 30 + 5.0 * 10 / 31,
-                1 => 6.0 * (21 / 31 + 1),
-                11 => 6.0 * 10 / 30,
-                default => 6.0,
-            };
-            $this->assertEqualsWithDelta($rate * 5000 / 1200, $cost, 0.0001);
-            $expected += $rate * 5000 / 1200;
+            $monthExpected = 0.0;
+            $end = $start->addMonthsNoOverflow($month + 1);
+            for ($day = $start->addMonthsNoOverflow($month); $day->lessThan($end); $day = $day->addDay()) {
+                $rate = $day->toDateString() < '2026-10-11' ? 7.0 : 6.0;
+                $monthExpected += $rate * 5000 / 1200 / $day->daysInMonth;
+            }
+            $this->assertEqualsWithDelta($monthExpected, $cost, 0.0001);
+            $expected += $monthExpected;
         }
         $this->assertEqualsWithDelta($expected, $outcome->totalCost, 0.0001);
     }
@@ -781,7 +827,7 @@ class MarketResetDisabledSupplierCurve implements MarketReferenceCurveProvider
         return null;
     }
 
-    public function spotSeasonalIndex(): ?array
+    public function spotSeasonalIndex(CarbonImmutable $asOfDate): ?array
     {
         return null;
     }
@@ -866,7 +912,7 @@ class FakeMarketCurve implements MarketReferenceCurveProvider
             : null;
     }
 
-    public function spotSeasonalIndex(): ?array
+    public function spotSeasonalIndex(CarbonImmutable $asOfDate): ?array
     {
         $this->calls++;
 

@@ -23,8 +23,8 @@ interface MarketReferenceCurveProvider
     /**
      * The reference settlement price for the delivery period a reset price was set for.
      *
-     * `$asOfDate` is the **pricing vintage anchor** — the current period's start date — not
-     * today.
+     * `$asOfDate` is the pricing vintage anchor, bounded by the calculation target date.
+     * The delivery anchor stays unchanged even when its period has not started.
      *
      * @param  list<string>  $kindPreference  Reference kinds to try in order, e.g.
      *                                        `['quarter', 'quarter_month_average']`.
@@ -41,11 +41,12 @@ interface MarketReferenceCurveProvider
 
     /**
      * Multiplicative seasonal index from multi-year realized spot, keyed by calendar month
-     * number (1-12). Null when there is not enough history.
+     * number (1-12). Only completed Helsinki months before the target month whose declared
+     * end is before `$asOfDate` contribute. Null when there is not enough history.
      *
      * @return array<int, float>|null
      */
-    public function spotSeasonalIndex(): ?array;
+    public function spotSeasonalIndex(CarbonImmutable $asOfDate): ?array;
 
     /**
      * Median energy price (c/kWh incl. VAT) of the fully-fixed 12-month retail market.

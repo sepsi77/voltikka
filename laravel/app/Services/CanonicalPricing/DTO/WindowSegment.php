@@ -16,8 +16,9 @@ readonly class WindowSegment
         public CarbonImmutable $end,
         public int $monthIndex,
         public ?int $phaseIndex,
-    ) {
-    }
+        public float $annualMonthScale = 1.0,
+        public ?float $billingMonthDays = null,
+    ) {}
 
     /**
      * Fraction of the calendar month this segment represents (0..1), used to pro-rate
@@ -33,6 +34,18 @@ readonly class WindowSegment
         $segmentDays = $this->start->diffInDays($this->end);
 
         return max(0.0, min(1.0, $segmentDays / $daysInMonth));
+    }
+
+    public function billingMonthFraction(): float
+    {
+        return $this->billingMonthDays !== null
+            ? $this->start->diffInDays($this->end) / $this->billingMonthDays
+            : $this->monthFraction();
+    }
+
+    public function annualMonthFraction(): float
+    {
+        return $this->monthFraction() * $this->annualMonthScale;
     }
 
     public function isCovered(): bool

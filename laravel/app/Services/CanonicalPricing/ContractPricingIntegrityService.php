@@ -62,6 +62,7 @@ class ContractPricingIntegrityService
 
         // A fixed-term continuation is legitimate; the "6 kk sopimus" term pill already explains it.
         if ($outcome->comparability === ContractComparability::TermPriceOnly
+            && ! in_array('unknown_periods_use_latest_applicable_price_or_disclosed_normal', $outcome->assumptions, true)
             && $conflictCodes === []
             && $this->onlyContinuationCodes($promoCodes)) {
             return ContractPricingIntegrity::none();
@@ -92,10 +93,11 @@ class ContractPricingIntegrityService
         $normalPhase = $this->firstNormalPhase($data->phases);
         $normalRate = $normalPhase !== null ? $this->generalRate($normalPhase) : null;
         $changeDate = $this->changeDate($data->phases);
-        $laterPriceKnown = $outcome->isListed() && $normalRate !== null;
+        $hasEstimatedGaps = in_array('unknown_periods_use_latest_applicable_price_or_disclosed_normal', $outcome->assumptions, true);
+        $laterPriceKnown = $outcome->isListed() && $normalRate !== null && ! $hasEstimatedGaps;
 
         $impact = null;
-        if ($outcome->totalCost !== null && $outcome->structuredOnlyTotal !== null) {
+        if (! $hasEstimatedGaps && $outcome->totalCost !== null && $outcome->structuredOnlyTotal !== null) {
             $impact = round($outcome->totalCost - $outcome->structuredOnlyTotal);
             if ($impact <= 0) {
                 $impact = null;
@@ -105,8 +107,9 @@ class ContractPricingIntegrityService
         // Materiality gate for LISTED contracts: only warn when the structured price materially
         // understates the first year (≥ 20 % and ≥ 30 €). A modest step-up — e.g. a 6-month fixed
         // that continues at a similar spot price — is an ordinary product structure, not deception.
-        // Excluded contracts (later price unknown) keep their detail-only notice regardless.
-        if ($outcome->isListed()) {
+        // Unknown-price estimates keep the factual detail caveat even when holding the
+        // current rate produces no measurable increase. An assumption is not proof of safety.
+        if ($outcome->isListed() && ! $hasEstimatedGaps) {
             $materiallyUnderstated = $impact !== null
                 && $outcome->totalCost !== null
                 && $outcome->structuredOnlyTotal !== null
@@ -125,7 +128,10 @@ class ContractPricingIntegrityService
             $facts[] = 'Tarjoushinta on '.$this->cents($promoRate).' snt/kWh.';
         }
 
-        if ($laterPriceKnown) {
+        if ($hasEstimatedGaps) {
+            $period = $outcome->termMonths !== null ? 'sopimuskauden' : 'vertailujakson';
+            $facts[] = 'Kaikkien '.$period.' osien hintoja ei ole ilmoitettu. Näiden osien kustannus on arvioitu viimeisimmän soveltuvan hinnan tai ilmoitetun normaalihinnan perusteella.';
+        } elseif ($laterPriceKnown) {
             $facts[] = 'Sen jälkeen energian hinta on '.$this->cents($normalRate).' snt/kWh.';
         } else {
             $facts[] = 'Tarjousjakson jälkeistä hintaa ei ole ilmoitettu selkeästi.';
@@ -136,7 +142,7 @@ class ContractPricingIntegrityService
         }
 
         $cardLabel = null;
-        if ($outcome->isListed()) {
+        if ($outcome->isListed() && ! $hasEstimatedGaps) {
             $cardLabel = $changeDate !== null
                 ? 'Hinta nousee '.$this->date($changeDate)
                 : 'Tarjoushinta ei kata koko vuotta';
@@ -147,7 +153,9 @@ class ContractPricingIntegrityService
             reasonFamily: IntegrityReasonFamily::Promo,
             issueCodes: $promoCodes,
             cardLabel: $cardLabel,
-            detailHeading: 'Tarjoushinta ei kata koko vuotta',
+            detailHeading: $hasEstimatedGaps
+                ? ($outcome->termMonths !== null ? 'Sopimuskauden hinnassa on arvioituja osia' : 'Vertailuhinnassa on arvioituja osia')
+                : 'Tarjoushinta ei kata koko vuotta',
             detailFacts: $facts,
             changeDate: $changeDate,
             firstYearImpactEur: $impact,

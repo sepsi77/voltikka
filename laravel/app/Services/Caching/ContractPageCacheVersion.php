@@ -60,7 +60,7 @@ class ContractPageCacheVersion
 
         $spotAverages = SpotPriceAverage::query()
             ->where('region', 'FI')
-            ->selectRaw('COUNT(*) as row_count, MAX(period_start) as latest_period_start, MAX(period_end) as latest_period_end')
+            ->selectRaw('COUNT(*) as row_count, MAX(period_start) as latest_period_start, MAX(period_end) as latest_period_end, MAX(updated_at) as latest_update, SUM(hours_count) as total_hours, SUM(avg_price_with_tax) as price_sum, SUM(day_avg_with_tax) as day_sum, SUM(night_avg_with_tax) as night_sum')
             ->first();
 
         return [
@@ -78,6 +78,11 @@ class ContractPageCacheVersion
             'spot_average_count' => (int) ($spotAverages?->row_count ?? 0),
             'spot_average_latest_start' => $spotAverages?->latest_period_start,
             'spot_average_latest_end' => $spotAverages?->latest_period_end,
+            'spot_average_latest_update' => $spotAverages?->latest_update,
+            'spot_average_total_hours' => $spotAverages?->total_hours,
+            'spot_average_price_sum' => $spotAverages?->price_sum,
+            'spot_average_day_sum' => $spotAverages?->day_sum,
+            'spot_average_night_sum' => $spotAverages?->night_sum,
         ];
     }
 

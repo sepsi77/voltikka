@@ -110,6 +110,7 @@ class SellerSetEnergyPriceIndexTest extends TestCase
 
     public function test_historical_writer_uses_validated_direct_rates_without_annual_cost_membership(): void
     {
+        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::AsOf->value);
         $date = SellerSetEnergyPriceIndexService::SERIES_START_DATE;
         $evidence = [];
         foreach ([
@@ -159,7 +160,7 @@ class SellerSetEnergyPriceIndexTest extends TestCase
 
         $this->mock(AsOfAnnualCostEvidenceResolver::class)
             ->shouldReceive('resolveDate')
-            ->twice()
+            ->times(4)
             ->with($date)
             ->andReturn($evidence);
 
@@ -170,6 +171,12 @@ class SellerSetEnergyPriceIndexTest extends TestCase
         $this->assertSame(5, $preview->rowCount);
         $this->assertArrayNotHasKey('missing_canonical_annual_cost_availability_proof', $preview->exclusionCounts);
         $this->assertSame(0, ContractPriceDailyStatistic::query()->where('metric_key', SellerSetEnergyPriceIndexService::METRIC_KEY)->count());
+
+        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::AsOfV2->value);
+        $inactiveProof = $service->previewHistoricalForDate($date);
+        $this->assertSame(0, $inactiveProof->annualProofCount);
+        $this->assertSame($preview->directRateCount, $inactiveProof->directRateCount);
+        $this->assertSame(9, $service->previewHistoricalForDate($date, AnnualCostMethodVersion::AsOf)->annualProofCount);
 
         $summary = $service->writeHistoricalForDate($date);
         $this->assertSame(5, $summary->rowCount);

@@ -5,6 +5,7 @@ namespace App\Services\ContractCard;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Services\CanonicalPricing\DTO\ContractPricingIntegrity;
+use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractCard\DTO\CardSellerCta;
 use App\Services\ContractCard\DTO\ContractCardView;
@@ -99,6 +100,8 @@ class ContractCardPresenter
                 $contract->fixed_time_range,
                 $hasScheduledChange,
                 $publicPricing && $pricing?->supplierAdjustedEstimate() !== null,
+                $publicPricing && ($pricing?->estimateMethod() === EstimateMethod::HoldLastKnownPrice
+                    || in_array('unknown_periods_use_latest_applicable_price_or_disclosed_normal', $pricing?->assumptions() ?? [], true)),
             ),
             detailUrl: $this->detailUrl($contract, $consumption, $detailConsumption),
             company: $company,

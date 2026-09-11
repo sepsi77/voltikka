@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\PriceComponent;
+use Database\Factories\Support\CanonicalPricingFixture;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -269,11 +270,38 @@ class ContractsListPageTest extends TestCase
 
     public function test_query_consumption_selects_the_matching_preset_on_initial_load(): void
     {
+        for ($i = 1; $i <= 26; $i++) {
+            $id = 'query-hybrid-'.$i;
+            ElectricityContract::create([
+                'id' => $id,
+                'company_name' => 'Test Energia Oy',
+                'name' => 'Kulutusvaikutus '.$i,
+                ...CanonicalPricingFixture::fixedAttributes(),
+                'contract_type' => 'OpenEnded',
+                'pricing_model' => 'Hybrid',
+                'metering' => 'General',
+                'target_group' => 'Household',
+                'availability_is_national' => true,
+            ]);
+            $this->markAsActive($id);
+            PriceComponent::create([
+                'id' => 'pc-'.$id,
+                'electricity_contract_id' => $id,
+                'price_component_type' => 'General',
+                'price_date' => now()->toDateString(),
+                'price' => 6.0,
+                'payment_unit' => 'c/kWh',
+            ]);
+        }
+
         Livewire::withQueryParams([
             'consumption' => 10000,
             'hintatyyppi' => 'kulutusvaikutus',
             'page' => 2,
         ])->test('sahkosopimus-index')
+            ->assertStatus(200)
+            ->assertSet('page', 2)
+            ->assertSet('pricingBucketFilter', 'kulutusvaikutus')
             ->assertSet('consumption', 10000)
             ->assertSet('selectedPreset', 'row_house')
             ->assertSet('directConsumption', null);

@@ -457,7 +457,7 @@ class ContractTypeComparisonTest extends TestCase
             $id,
             $contractType,
             'FixedPrice',
-            [$this->phase([$this->canonicalComponent('energy_general', 2.0)], 'contract_start', 'after_months', '1')],
+            [$this->phase([$this->canonicalComponent('other', 2.0)], 'contract_start', 'after_months', '1')],
             calculationStatus: 'estimate_required',
             misleading: 'detected',
             issues: ['future_price_unknown'],

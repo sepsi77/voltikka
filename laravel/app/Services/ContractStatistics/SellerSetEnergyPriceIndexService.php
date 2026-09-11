@@ -107,14 +107,15 @@ class SellerSetEnergyPriceIndexService
     /**
      * Resolve and aggregate one historical date without changing stored index rows.
      */
-    public function previewHistoricalForDate(CarbonInterface|string $date): SellerSetEnergyPriceIndexDateSummary
+    public function previewHistoricalForDate(CarbonInterface|string $date, ?AnnualCostMethodVersion $methodVersion = null): SellerSetEnergyPriceIndexDateSummary
     {
+        $methodVersion ??= ContractPriceDailyStatistic::activeAnnualMethodVersion();
         $dateString = $this->dateString($date);
         $evidence = $this->evidenceResolver->resolveDate($dateString);
         $proofIds = ContractPriceAnnualCost::query()
             ->whereDate('snapshot_date', $dateString)
             ->where('consumption_kwh', 5000)
-            ->where('method_version', AnnualCostMethodVersion::AsOf->value)
+            ->where('method_version', $methodVersion->value)
             ->where('calculation_basis', AnnualCostCalculationBasis::CanonicalOutcome->value)
             ->whereNotNull('annual_cost')
             ->pluck('contract_id')

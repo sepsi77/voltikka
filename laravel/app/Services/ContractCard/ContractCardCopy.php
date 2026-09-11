@@ -37,6 +37,7 @@ class ContractCardCopy
         ?string $fixedTimeRange,
         bool $hasScheduledPublishedChange = false,
         bool $hasSupplierAdjustedEstimate = false,
+        bool $hasEstimatedUnknownPrices = false,
     ): CardTypeBand {
         if ($facts->category === PricingCategory::Market) {
             // Spot first: when a contract is both hourly and reset-scheduled, the hourly
@@ -63,9 +64,20 @@ class ContractCardCopy
         if ($facts->category === PricingCategory::ConsumptionEffect) {
             return new CardTypeBand(
                 category: PricingCategory::ConsumptionEffect,
-                headline: 'Kiinteä hinta + kulutusvaikutus',
-                detail: 'Vaikutus riippuu siitä, mihin aikaan käytät sähköä',
+                headline: $hasEstimatedUnknownPrices ? 'Perushinta + kulutusvaikutus' : 'Kiinteä hinta + kulutusvaikutus',
+                detail: $hasEstimatedUnknownPrices
+                    ? 'Tuntemattomien jaksojen perushinnat on arvioitu'
+                    : 'Vaikutus riippuu siitä, mihin aikaan käytät sähköä',
                 icon: 'pulse',
+            );
+        }
+
+        if ($hasEstimatedUnknownPrices) {
+            return new CardTypeBand(
+                category: PricingCategory::Fixed,
+                headline: 'Nykyinen energianhinta on tiedossa',
+                detail: 'Tuntemattomien jaksojen hinnat on arvioitu',
+                icon: 'lock',
             );
         }
 
@@ -124,7 +136,7 @@ class ContractCardCopy
     }
 
     /**
-     * The Arvio popover. One of four typed reasons.
+     * The Arvio popover. Typed price, term, and exclusion reasons compose.
      */
     public static function estimate(?ContractPricingViewData $pricing, PricingCategoryFacts $facts): ?CardEstimate
     {
@@ -152,22 +164,29 @@ class ContractCardCopy
             $method === 'forward_curve_spot' => self::forwardSpotBody($pricing),
             $method === 'rolling_365_spot' => self::spotBody($pricing),
             $method === 'term_price_annualized' => self::termBody($pricing),
-            $method === 'hybrid_base_only' => self::hybridBody($pricing),
+            $method === 'hybrid_base_only' => self::hybridBody(),
+            $method === 'hold_last_known_price' => self::heldPriceBody(),
             default => null,
         };
-
-        // Appended only when the level sentence has not already said it.
-        $exclusion = ($method === 'hybrid_base_only' && $level !== null && $facts->isReset)
-            ? 'Arvio ei sisällä kulutusvaikutusta, jonka suuruutta myyjä ei julkaise etukäteen.'
-            : null;
 
         if ($level === null) {
             return null;
         }
 
+        $assumptions = $pricing?->assumptions() ?? [];
+        if ($method !== 'term_price_annualized' && in_array('term_price_annualized', $assumptions, true)) {
+            $level .= ' '.self::termBody($pricing);
+        }
+
+        // Append the exclusion only when the price-level sentence has not already said it.
+        if (($method === 'hybrid_base_only' || in_array('excludes_consumption_effect', $assumptions, true))
+            && ($method !== 'hybrid_base_only' || $facts->isReset || $pricing?->supplierAdjustedEstimate() !== null)) {
+            $level .= ' Arvio ei sisällä kulutusvaikutusta, jonka suuruutta myyjä ei julkaise etukäteen.';
+        }
+
         return new CardEstimate(
             heading: 'Miten arvio on laskettu?',
-            body: trim($level.($exclusion !== null ? ' '.$exclusion : '')),
+            body: $level,
         );
     }
 
@@ -177,9 +196,13 @@ class ContractCardCopy
         $night = self::price($pricing?->spotPriceNightAverage());
         $margin = self::price($pricing?->spotPriceMargin());
 
-        $body = 'Vuosihinta perustuu seuraavan 12 kuukauden Suomen tukkumarkkinan ennakkohintoihin eli sähköfutuureihin. Viimeisen 365 päivän toteutuneiden päivä- ja yöhintojen ero säilytetään arviossa';
+        $vatLabel = ($pricing?->toArray()['vat_basis'] ?? null) === 'excluded' ? 'ilman alv:tä' : 'sis. alv';
+        $body = 'Vuosihinta perustuu seuraavan 12 kuukauden Suomen tukkumarkkinan ennakkohintoihin eli sähköfutuureihin. ';
+        $body .= $pricing?->spotEstimate()?->string('confidence') === 'lower'
+            ? 'Hintahistoriaa ei ole riittävästi päivä- ja yöeron arviointiin, joten päivälle ja yölle oletetaan sama pörssihinta'
+            : 'Viimeisen 365 päivän toteutuneiden päivä- ja yöhintojen ero säilytetään arviossa';
         if ($day !== null && $night !== null) {
-            $body .= ' (päivä '.$day.' c, yö '.$night.' c, sis. alv)';
+            $body .= ' (päivä '.$day.' c, yö '.$night.' c, '.$vatLabel.')';
         }
         $body .= $margin !== null
             ? ', ja hintaan lisätään sopimuksen marginaali '.$margin.' c/kWh.'
@@ -194,9 +217,10 @@ class ContractCardCopy
         $night = self::price($pricing?->spotPriceNightAverage());
         $margin = self::price($pricing?->spotPriceMargin());
 
+        $vatLabel = ($pricing?->toArray()['vat_basis'] ?? null) === 'excluded' ? 'ilman alv:tä' : 'sis. alv';
         $body = 'Vuosihinta perustuu 12 kuukauden toteutuneeseen pörssikeskihintaan';
         if ($day !== null && $night !== null) {
-            $body .= ' (päivä '.$day.' c, yö '.$night.' c, sis. alv)';
+            $body .= ' (päivä '.$day.' c, yö '.$night.' c, '.$vatLabel.')';
         }
         $body .= $margin !== null
             ? ' ja sopimuksen marginaaliin '.$margin.' c/kWh.'
@@ -244,28 +268,26 @@ class ContractCardCopy
     {
         $months = $pricing?->termMonths();
 
+        $months ??= $pricing?->contractTerm()?->integer('months');
         $body = $months !== null
-            ? 'Sopimus on kiinteä '.$months.' kuukautta.'
-            : 'Sopimus on kiinteä alle vuoden.';
+            ? 'Sopimus on määräaikainen '.$months.' kuukautta. Vertailun vuosihinta saadaan kertomalla sopimuskauden laskettu kustannus luvulla 12 / '.$months.'.'
+            : 'Sopimus on määräaikainen ja alle vuoden mittainen. Vertailun vuosihinta saadaan kertomalla sopimuskauden laskettu kustannus luvulla 12 ja jakamalla se sopimuskuukausien määrällä.';
 
-        return $body.' Vuosihinta on laskettu olettaen, että sama hinta jatkuu koko vuoden.'
-            .' Myyjä ei ole ilmoittanut hintaa jakson jälkeen.';
+        return $body.' Sopimuskauden kustannus sisältää tiedossa olevat hinnat ja mahdolliset arviot tuntemattomille osille.'
+            .' Vuosihinta ei ole tarjous sopimuskauden jälkeiselle ajalle.';
     }
 
-    private static function hybridBody(?ContractPricingViewData $pricing): string
+    private static function hybridBody(): string
     {
-        $base = self::price(
-            $pricing?->generalKwhPrice()
-            ?? $pricing?->daytimeKwhPrice()
-            ?? $pricing?->seasonalWinterDayKwhPrice(),
-        );
-
-        $body = $base !== null
-            ? 'Vuosihinta on laskettu kiinteällä perushinnalla '.$base.' c/kWh.'
-            : 'Vuosihinta on laskettu pelkällä sopimuksen perushinnalla.';
-
-        return $body.' Lopullista hintaa nostaa tai laskee kulutusvaikutus, joka riippuu siitä, mihin aikaan käytät sähköä.'
+        return 'Arviossa käytetään sopimuksen tiedossa olevia perushintoja. Mahdolliset tuntemattomat osat arvioidaan viimeisimmällä soveltuvalla perushinnalla tai ilmoitetulla normaalihinnalla.'
+            .' Arvio ei sisällä kulutusvaikutusta. Se voi nostaa tai laskea lopullista hintaa sen mukaan, mihin aikaan käytät sähköä.'
             .' Myyjä ei julkaise vaikutuksen suuruutta etukäteen.';
+    }
+
+    private static function heldPriceBody(): string
+    {
+        return 'Arviossa käytetään tiedossa olevia hintoja niiden voimassaoloajalta. Tuntemattomille osille oletetaan viimeisin soveltuva hinta tai myyjän ilmoittama normaalihinta.'
+            .' Todellinen hinta voi muuttua. Vuosihinta ei ole hintalupaus.';
     }
 
     public static function cadenceAdverb(?string $cadence): string

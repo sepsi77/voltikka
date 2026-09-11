@@ -6,7 +6,7 @@ class EnergyUsage
 {
     public function __construct(
         public readonly int $total,
-        public readonly int $basicLiving = 0,
+        public readonly int|float $basicLiving = 0,
         public readonly ?int $roomHeating = null,
         public readonly ?int $bathroomUnderfloorHeating = null,
         public readonly ?int $water = null,
@@ -14,8 +14,7 @@ class EnergyUsage
         public readonly ?int $electricityVehicle = null,
         public readonly ?float $cooling = null,
         public readonly ?array $heatingElectricityUseByMonth = null,
-    ) {
-    }
+    ) {}
 
     public static function fromArray(array $data): self
     {

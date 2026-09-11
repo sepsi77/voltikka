@@ -21,10 +21,6 @@ class SpotForwardPriceEstimator
         $windowStart = $windowStart->setTimezone('Europe/Helsinki')->startOfDay();
         $shapeError = $this->shapeError($shape, $windowStart);
 
-        if ($shapeError !== null) {
-            return $this->fallback($shape, [$shapeError]);
-        }
-
         $currentAsOf = $windowStart->startOfMonth();
         $currentTradeDate = $this->curve->tradeDate($currentAsOf);
         if ($currentTradeDate === null) {
@@ -42,12 +38,15 @@ class SpotForwardPriceEstimator
             return $this->fallback($shape, ['stale_future_curve_vintage']);
         }
 
-        $dayOffset = (float) $shape->dayAvgWithTax - (float) $shape->overallAvgWithTax;
-        $nightOffset = (float) $shape->nightAvgWithTax - (float) $shape->overallAvgWithTax;
-        $windowEnd = $windowStart->addYear();
+        $dayOffset = $shapeError === null ? (float) $shape->dayAvgWithTax - (float) $shape->overallAvgWithTax : 0.0;
+        $nightOffset = $shapeError === null ? (float) $shape->nightAvgWithTax - (float) $shape->overallAvgWithTax : 0.0;
+        $windowEnd = $windowStart->addMonthsNoOverflow(12);
         $month = $windowStart->startOfMonth();
         $months = [];
-        $flags = [];
+        $flags = $shapeError === null ? [] : ['zero_intraday_shape_fallback' => true, $shapeError => true];
+        if ($shape->actualHours !== null && $shape->expectedHours !== null && $shape->actualHours < $shape->expectedHours) {
+            $flags['partial_shape_coverage'] = true;
+        }
         $weightedBase = 0.0;
         $weightedDay = 0.0;
         $weightedNight = 0.0;
@@ -110,13 +109,22 @@ class SpotForwardPriceEstimator
             annualEquivalentBaseCentsPerKwh: $weightedBase / $totalDays,
             annualEquivalentDayCentsPerKwh: $weightedDay / $totalDays,
             annualEquivalentNightCentsPerKwh: $weightedNight / $totalDays,
-            confidence: 'higher',
+            confidence: $shapeError === null ? 'higher' : 'lower',
             flags: array_keys($flags),
+            shapeCoverage: $shape->coverage(),
         );
     }
 
     private function shapeError(SpotAssumptions $shape, CarbonImmutable $windowStart): ?string
     {
+        if ($shape->windowSemantics !== null && $shape->windowSemantics !== 'helsinki_dates_v2') {
+            return 'unverified_shape_window';
+        }
+        if ($shape->actualHours !== null && ($shape->expectedHours === null || $shape->expectedHours <= 0
+            || $shape->actualHours > $shape->expectedHours || $shape->actualHours / $shape->expectedHours < 0.98)) {
+            return 'insufficient_shape_coverage';
+        }
+
         foreach ([$shape->overallAvgWithTax, $shape->dayAvgWithTax, $shape->nightAvgWithTax] as $value) {
             if ($value === null || ! is_finite($value)) {
                 return 'invalid_shape_inputs';
@@ -176,7 +184,11 @@ class SpotForwardPriceEstimator
             annualEquivalentDayCentsPerKwh: $shape->dayAvgWithTax,
             annualEquivalentNightCentsPerKwh: $shape->nightAvgWithTax,
             confidence: 'fallback',
-            flags: array_values(array_unique(['rolling_365_fallback', ...$flags])),
+            flags: array_values(array_unique(['rolling_365_fallback', ...$flags,
+                ...($shape->actualHours !== null && $shape->expectedHours !== null && $shape->actualHours < $shape->expectedHours ? ['partial_shape_coverage'] : []),
+                ...($shape->windowSemantics === 'legacy_utc_dates' ? ['unverified_shape_window'] : []),
+            ])),
+            shapeCoverage: $shape->coverage(),
         );
     }
 }

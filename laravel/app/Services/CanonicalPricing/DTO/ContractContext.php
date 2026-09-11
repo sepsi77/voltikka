@@ -31,6 +31,11 @@ readonly class ContractContext
         );
     }
 
+    public function includesVat(): bool
+    {
+        return strcasecmp((string) $this->targetGroup, 'Company') !== 0;
+    }
+
     public function isSpot(): bool
     {
         return PricingModel::fromSource($this->pricingModel) === PricingModel::Spot;

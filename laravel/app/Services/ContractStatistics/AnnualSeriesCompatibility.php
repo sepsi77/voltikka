@@ -66,7 +66,7 @@ final class AnnualSeriesCompatibility
         ?string $methodVersion,
         ?array $basisCounts,
     ): ?string {
-        if ($methodVersion !== AnnualCostMethodVersion::AsOf->value) {
+        if (! AnnualCostMethodVersion::tryFrom($methodVersion ?? '')?->isAsOf()) {
             return $storedCompatibilityKey;
         }
 
@@ -89,7 +89,7 @@ final class AnnualSeriesCompatibility
         sort($dominantMethods, SORT_STRING);
 
         return 'annual-cost-display:'.hash('sha256', json_encode([
-            'method_version' => AnnualCostMethodVersion::AsOf->value,
+            'method_version' => $methodVersion,
             'dominant_estimate_methods' => $dominantMethods,
         ], JSON_THROW_ON_ERROR));
     }

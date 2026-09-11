@@ -81,6 +81,63 @@ class BillComparisonCanonicalPricingTest extends TestCase
         $this->assertEqualsWithDelta(18.0, $detail['contract_cost'], 0.001);
     }
 
+    public function test_historical_company_and_household_spot_bills_use_real_hourly_tax_and_utc_facts(): void
+    {
+        $originalTimezone = date_default_timezone_get();
+        config()->set('app.timezone', 'Europe/Helsinki');
+        date_default_timezone_set('Europe/Helsinki');
+
+        try {
+            SpotPriceAverage::create([
+                'region' => 'FI',
+                'period_type' => SpotPriceAverage::PERIOD_ROLLING_365D,
+                'period_start' => '2022-07-01',
+                'period_end' => '2023-06-30',
+                'avg_price_without_tax' => 5,
+                'avg_price_with_tax' => 6.2,
+                'day_avg_with_tax' => 6.2,
+                'night_avg_with_tax' => 6.2,
+                'hours_count' => 8760,
+            ]);
+            $contracts = [];
+            foreach (['Company', 'Household'] as $target) {
+                $contract = $this->createContract('historical-'.$target, [
+                    $this->phase([$this->canonicalComponent('spot_margin', 0)]),
+                ], status: 'estimate_required', pricingModel: 'Spot');
+                $contract->update(['target_group' => $target]);
+                $contracts[] = $contract->load('company');
+            }
+
+            $start = Carbon::parse('2023-07-01', 'Europe/Helsinki')->startOfDay();
+            for ($hour = 0; $hour < 24; $hour++) {
+                $utc = $start->copy()->utc()->addHours($hour);
+                SpotPriceHour::create([
+                    'region' => 'FI',
+                    'timestamp' => $utc->timestamp,
+                    'utc_datetime' => $utc->format('Y-m-d H:i:s'),
+                    'price_without_tax' => $hour + 1,
+                    'vat_rate' => 0.24,
+                ]);
+            }
+
+            $data = app(BillComparisonService::class)->periodRowsForContracts($contracts, new BillComparisonRequest(
+                startDate: $start,
+                endDate: $start->copy(),
+                kwh: 240,
+                userTotalEur: 50,
+                annualKwhOverride: 5000,
+            ));
+            foreach (['Company' => 30.0, 'Household' => 37.2] as $target => $expected) {
+                $row = $data['rows']['historical-'.$target];
+                $this->assertEqualsWithDelta($expected, $row->periodCostEur, 1e-8);
+                $this->assertContains('actual_hourly_spot_prices', $row->assumptions);
+                $this->assertNotContains('missing_spot_hours_filled_with_observed_average', $row->assumptions);
+            }
+        } finally {
+            date_default_timezone_set($originalTimezone);
+        }
+    }
+
     public function test_partial_spot_history_remains_available_in_the_service_and_contract_detail(): void
     {
         $contract = $this->createContract('canonical-spot-gap', [
@@ -151,7 +208,7 @@ class BillComparisonCanonicalPricingTest extends TestCase
         $missing = $this->createContract('canonical-missing-bill', [], canonicalPricing: null, status: null);
         $this->addRelationalPrices($missing, 1, 0);
         $excluded = $this->createContract('canonical-excluded-bill', [
-            $this->phase([$this->canonicalComponent('energy_general', 1)], endKind: 'after_months', endValue: '1'),
+            $this->phase([$this->canonicalComponent('other', 1)], endKind: 'after_months', endValue: '1'),
         ], misleading: 'detected');
         $this->addRelationalPrices($excluded, 1, 0);
         $capped = $this->createContract('canonical-capped-bill', [

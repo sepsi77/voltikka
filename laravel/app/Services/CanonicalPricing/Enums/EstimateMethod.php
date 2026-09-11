@@ -11,6 +11,9 @@ enum EstimateMethod: string
     /** Every window segment came from a disclosed, dated phase. */
     case None = 'none';
 
+    /** Unknown future periods use the latest applicable billed price or disclosed normal price. */
+    case HoldLastKnownPrice = 'hold_last_known_price';
+
     /** Recurring reset: the current period's rates were held forward. */
     case HoldCurrentRecurringPrice = 'hold_current_recurring_price';
 

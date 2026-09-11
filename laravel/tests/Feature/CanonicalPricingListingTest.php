@@ -69,7 +69,7 @@ class CanonicalPricingListingTest extends TestCase
             ]);
     }
 
-    public function test_honest_contract_is_listed_and_deceptive_is_labelled_and_unknown_is_hidden(): void
+    public function test_known_prices_and_unknown_continuations_are_listed_but_malformed_pricing_is_hidden(): void
     {
         // Honest single-price contract.
         $this->createContract(
@@ -134,7 +134,7 @@ class CanonicalPricingListingTest extends TestCase
             ),
         );
 
-        // Deceptive promo with an UNKNOWN later price → excluded from listings.
+        // A known promo with an unknown continuation remains an explicit estimate.
         $this->createContract(
             'unknown-1',
             'Viekas Piilohinta',
@@ -191,15 +191,18 @@ class CanonicalPricingListingTest extends TestCase
         $component = Livewire::test(SahkosopimusIndex::class)->set('consumption', 5000);
         $contracts = $component->viewData('contracts');
 
-        $this->assertSame(2, $contracts->total());
+        $this->assertSame(3, $contracts->total());
         $this->assertEqualsCanonicalizing(
-            ['honest-1', 'deceptive-1'],
+            ['honest-1', 'deceptive-1', 'unknown-1'],
             $contracts->pluck('id')->all(),
         );
         $component->assertSee('Reilu Perussähkö');
         $component->assertSee('Viekas Tarjoushinta');
-        // Excluded contract must not appear in the listing.
-        $component->assertDontSee('Viekas Piilohinta');
+        $component->assertSee('Viekas Piilohinta');
+        $estimated = $contracts->firstWhere('id', 'unknown-1');
+        $this->assertSame('hold_last_known_price', $estimated->calculated_cost['estimate_method']);
+        $this->assertEqualsWithDelta(100, $estimated->calculated_cost['total_cost'], 0.001);
+        // Malformed package pricing must still not appear in the listing.
         $component->assertDontSee('Viekas Virhepaketti');
         // Deceptive contract carries the price-increase warning pill.
         $component->assertSee('Hinta nousee');

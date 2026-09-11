@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricitySource;
 use App\Models\PriceComponent;
+use App\Services\CalculatedCostPayloadSchema;
 use App\Services\CompanyListCacheService;
 use App\Services\ContractListCacheService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -1070,10 +1071,12 @@ class CompanyListPageTest extends TestCase
 
         $keys = $this->cacheKeysMatching('company_list:');
 
-        $this->assertContains('company_list:v1:s2:cs15:lv1:c0r0:5000', $keys);
-        $this->assertContains('company_list:v1:s2:cs15:lv1:c1r0:5000', $keys);
-        $this->assertContains('company_list:v1:s2:cs15:lv1:c1r1:5000', $keys);
-        $this->assertContains('company_list:v1:s2:cs15:lv2:c1r1:5000', $keys);
+        $schema = CalculatedCostPayloadSchema::cacheMarker();
+        $date = now('Europe/Helsinki')->toDateString();
+        $this->assertContains("company_list:v1:s2:{$schema}:lv1:c0r0:5000:{$date}", $keys);
+        $this->assertContains("company_list:v1:s2:{$schema}:lv1:c1r0:5000:{$date}", $keys);
+        $this->assertContains("company_list:v1:s2:{$schema}:lv1:c1r1:5000:{$date}", $keys);
+        $this->assertContains("company_list:v1:s2:{$schema}:lv2:c1r1:5000:{$date}", $keys);
     }
 
     private function createCanonicalContract(

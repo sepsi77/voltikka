@@ -269,11 +269,13 @@ class ContractDetailPresenterTest extends TestCase
         $component = Livewire::test('contract-detail', ['contractId' => $contract->id])->instance();
         $offers = collect($component->productSchema['offers'] ?? [])->keyBy('name');
 
-        $this->assertSame(['Perusmaksu'], array_map(fn ($line) => $line->label, $component->card->receiptLines));
+        // A fee without an identifiable energy mechanism is unavailable, not free energy.
+        $this->assertTrue($component->isPricingExcluded);
+        $this->assertSame([], $component->card->receiptLines);
         $this->assertStringNotContainsString('1,11 c/kWh', $component->pageTitle);
         $this->assertStringNotContainsString('maksaa nyt 1,11 c/kWh', $component->metaDescription);
         $this->assertFalse($offers->has('Energiahinta'));
-        $this->assertSame(4.2, $offers['Perusmaksu']['priceSpecification']['price']);
+        $this->assertFalse($offers->has('Perusmaksu'));
     }
 
     public function test_a_canonical_package_labels_its_included_energy_and_excess_rate_without_an_ordinary_energy_price(): void

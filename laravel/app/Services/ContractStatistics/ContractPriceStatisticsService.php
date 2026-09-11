@@ -142,7 +142,7 @@ class ContractPriceStatisticsService
                 // The adapter loads only current provenance after snapshot IDs exist. Keep the
                 // write in this transaction so a failure cannot leave a partial method set.
                 $asOfResults = $this->currentAnnualCostResultFactory->create($dateString, $currentCanonicalOutcomes);
-                $this->annualCostStatisticsWriter->write($dateString, $asOfResults);
+                $this->annualCostStatisticsWriter->write($dateString, $asOfResults, AnnualCostMethodVersion::AsOfV2);
             } elseif ($dateString === Carbon::now('Europe/Helsinki')->toDateString()) {
                 // A current feature-off run owns today's index state and removes a stale
                 // canonical row. A historical observed rebuild does not own a separately
@@ -510,7 +510,7 @@ class ContractPriceStatisticsService
      * Used to project a realistic annual cost for spot contracts (rather than
      * extrapolating a single peak/trough day to a full year).
      *
-     * Prefers a stored `rolling_365d` row whose `period_start <= $dateString`,
+     * Prefers a stored rolling row whose `period_end <= $dateString`,
      * falls back to averaging the last 365 days of `SpotPriceHour.price_with_tax`.
      */
     private function spotRolling365ForDate(string $dateString): ?float
@@ -528,29 +528,36 @@ class ContractPriceStatisticsService
         }
 
         $stored = SpotPriceAverage::forRegion('FI')
-            ->ofType(SpotPriceAverage::PERIOD_ROLLING_365D)
-            ->where('period_start', '<=', $dateString)
-            ->orderByDesc('period_start')
+            ->whereIn('period_type', SpotPriceAverage::ROLLING_365D_TYPES)
+            ->whereDate('period_end', '<=', $dateString)
+            ->latestRollingEvidence()
             ->first();
 
         if ($stored !== null) {
             $periodEnd = $stored->period_end !== null
-                ? Carbon::parse($stored->period_end, 'Europe/Helsinki')->startOfDay()->toImmutable()
+                ? Carbon::parse($stored->period_end->toDateString(), 'Europe/Helsinki')->startOfDay()->toImmutable()
                 : null;
+            $isLocal = $stored->period_type === SpotPriceAverage::PERIOD_ROLLING_365D_LOCAL;
+            $periodStart = $isLocal ? $periodEnd?->subDays(364) : null;
 
             return $this->rolling365EvidenceCache[$dateString] = new SpotAssumptions(
                 dayAvgWithTax: $stored->day_avg_with_tax,
                 nightAvgWithTax: $stored->night_avg_with_tax,
                 overallAvgWithTax: $stored->avg_price_with_tax,
-                periodStart: $periodEnd?->subDays(364),
+                periodStart: $periodStart,
                 periodEnd: $periodEnd,
+                actualHours: $stored->hours_count,
+                expectedHours: $periodStart !== null ? (int) $periodStart->utc()->diffInHours($periodEnd->addDay()->utc()) : null,
+                windowSemantics: $isLocal ? 'helsinki_dates_v2' : 'legacy_utc_dates',
             );
         }
 
-        $end = Carbon::parse($dateString)->endOfDay();
-        $start = $end->copy()->subDays(365)->startOfDay();
+        $end = Carbon::parse($dateString, 'Europe/Helsinki')->startOfDay();
+        $start = $end->copy()->subDays(364);
+        $endExclusive = $end->copy()->addDay();
         $rows = SpotPriceHour::forRegion('FI')
-            ->whereBetween('utc_datetime', [$start, $end])
+            ->where('utc_datetime', '>=', $start->copy()->utc())
+            ->where('utc_datetime', '<', $endExclusive->copy()->utc())
             ->get(['utc_datetime', 'price_without_tax', 'vat_rate']);
 
         if ($rows->isEmpty()) {
@@ -558,12 +565,11 @@ class ContractPriceStatisticsService
         }
 
         $overall = (float) $rows->avg(fn ($hour) => $hour->price_with_tax);
-        $day = $rows->filter(function ($hour): bool {
-            $localHour = $hour->utc_datetime->copy()->setTimezone('Europe/Helsinki')->hour;
+        [$day, $night] = $rows->partition(function ($hour): bool {
+            $localHour = Carbon::parse($hour->getRawOriginal('utc_datetime'), 'UTC')->setTimezone('Europe/Helsinki')->hour;
 
             return $localHour >= 7 && $localHour < 22;
         });
-        $night = $rows->diff($day);
 
         return $this->rolling365EvidenceCache[$dateString] = new SpotAssumptions(
             dayAvgWithTax: $day->isNotEmpty() ? (float) $day->avg(fn ($hour) => $hour->price_with_tax) : $overall,
@@ -571,6 +577,9 @@ class ContractPriceStatisticsService
             overallAvgWithTax: $overall,
             periodStart: $start->toImmutable(),
             periodEnd: $end->toImmutable(),
+            actualHours: $rows->count(),
+            expectedHours: (int) $start->copy()->utc()->diffInHours($endExclusive->copy()->utc()),
+            windowSemantics: 'helsinki_dates_v2',
         );
     }
 

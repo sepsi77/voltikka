@@ -166,6 +166,78 @@ class AnnualCostStatisticsWriterTest extends TestCase
         }
     }
 
+    public function test_v2_is_idempotent_cleans_unavailable_rows_and_preserves_v1_exactly(): void
+    {
+        $contract = $this->contract('versioned');
+        $v1 = ContractPriceAnnualCost::create([
+            ...$this->annualAttributes($contract),
+            'method_version' => AnnualCostMethodVersion::AsOf,
+        ])->fresh();
+        $aggregate = $this->daily('annual_cost', AnnualCostMethodVersion::AsOf->value, 5000)->fresh();
+        $writer = app(AnnualCostStatisticsWriter::class);
+        $results = array_map(fn ($kwh) => $this->annualResult($contract->id, $kwh, 400.0, methodVersion: AnnualCostMethodVersion::AsOfV2), [2000, 5000, 18000]);
+        $preview = $writer->preview(self::DATE, $results, AnnualCostMethodVersion::AsOfV2);
+        $this->assertSame(AnnualCostMethodVersion::AsOfV2, $preview->methodVersion);
+        foreach (range(1, 2) as $run) {
+            $summary = $writer->write(self::DATE, $results, AnnualCostMethodVersion::AsOfV2);
+            $this->assertSame(AnnualCostMethodVersion::AsOfV2, $summary->methodVersion);
+            $this->assertSame(4, ContractPriceAnnualCost::count());
+            $this->assertSame(3, ContractPriceDailyStatistic::annualCostByMethod(AnnualCostMethodVersion::AsOfV2)->count());
+        }
+        $unavailable = array_map(fn ($kwh) => $this->annualResult($contract->id, $kwh, null, unavailableReason: 'missing', methodVersion: AnnualCostMethodVersion::AsOfV2), [2000, 5000, 18000]);
+        $writer->write(self::DATE, $unavailable, AnnualCostMethodVersion::AsOfV2);
+        $this->assertSame(1, ContractPriceAnnualCost::count());
+        $this->assertSame(0, ContractPriceDailyStatistic::annualCostByMethod(AnnualCostMethodVersion::AsOfV2)->count());
+        $this->assertSame($v1->getRawOriginal(), $v1->fresh()->getRawOriginal());
+        $this->assertSame($aggregate->getRawOriginal(), $aggregate->fresh()->getRawOriginal());
+    }
+
+    public function test_v2_invalid_batches_and_legacy_target_do_not_write(): void
+    {
+        $contract = $this->contract('invalid-version');
+        $writer = app(AnnualCostStatisticsWriter::class);
+        $results = array_map(fn ($kwh) => $this->annualResult($contract->id, $kwh, 400.0, methodVersion: AnnualCostMethodVersion::AsOfV2), [2000, 5000, 18000]);
+        $mixed = $results;
+        $mixed[0] = $this->annualResult($contract->id, 2000, 200.0);
+        $wrongDate = $results;
+        $wrongDate[0] = new AsOfAnnualCostResult(...[...get_object_vars($results[0]), 'date' => CarbonImmutable::parse('2026-06-02', 'Europe/Helsinki')]);
+        foreach ([
+            [$results, AnnualCostMethodVersion::Legacy],
+            [$results, AnnualCostMethodVersion::AsOf],
+            [$mixed, AnnualCostMethodVersion::AsOfV2],
+            [$wrongDate, AnnualCostMethodVersion::AsOfV2],
+            [[...$results, $results[0]], AnnualCostMethodVersion::AsOfV2],
+            [[$results[0]], AnnualCostMethodVersion::AsOfV2],
+            [[], AnnualCostMethodVersion::AsOfV2],
+        ] as [$batch, $method]) {
+            try {
+                $writer->write(self::DATE, $batch, $method);
+                $this->fail('Invalid method or incomplete batch was accepted.');
+            } catch (InvalidArgumentException) {
+                $this->assertSame(0, ContractPriceAnnualCost::count());
+                $this->assertSame(0, ContractPriceDailyStatistic::count());
+            }
+        }
+    }
+
+    public function test_v2_insert_failure_rolls_back_deleted_rows_and_aggregates(): void
+    {
+        $contract = $this->contract('rollback-v2');
+        $existing = ContractPriceAnnualCost::create([
+            ...$this->annualAttributes($contract),
+            'method_version' => AnnualCostMethodVersion::AsOfV2,
+        ])->fresh();
+        $aggregate = $this->daily('annual_cost', AnnualCostMethodVersion::AsOfV2->value, 5000)->fresh();
+        $results = array_map(fn ($kwh) => $this->annualResult('missing-foreign-contract', $kwh, 400.0, methodVersion: AnnualCostMethodVersion::AsOfV2), [2000, 5000, 18000]);
+        try {
+            app(AnnualCostStatisticsWriter::class)->write(self::DATE, $results, AnnualCostMethodVersion::AsOfV2);
+            $this->fail('The invalid foreign key did not fail.');
+        } catch (\Illuminate\Database\QueryException) {
+            $this->assertSame($existing->getRawOriginal(), $existing->fresh()->getRawOriginal());
+            $this->assertSame($aggregate->getRawOriginal(), $aggregate->fresh()->getRawOriginal());
+        }
+    }
+
     private function contract(string $id): ElectricityContract
     {
         return ElectricityContract::factory()->forCompany('Writer Energy Oy')->create(['id' => $id]);
@@ -234,6 +306,7 @@ class AnnualCostStatisticsWriterTest extends TestCase
         string $estimateBasis = 'exact_date_components_held_flat',
         string $compatibilityKey = 'member-key',
         ?string $unavailableReason = null,
+        AnnualCostMethodVersion $methodVersion = AnnualCostMethodVersion::AsOf,
     ): AsOfAnnualCostResult {
         return new AsOfAnnualCostResult(
             contractId: $contractId,
@@ -241,7 +314,7 @@ class AnnualCostStatisticsWriterTest extends TestCase
             segmentKey: 'open_ended',
             consumptionKwh: $consumption,
             totalCost: $cost,
-            methodVersion: AnnualCostMethodVersion::AsOf,
+            methodVersion: $methodVersion,
             pricingBasis: $pricingBasis,
             calculationBasis: $calculationBasis,
             estimateMethod: $cost === null ? null : 'none',

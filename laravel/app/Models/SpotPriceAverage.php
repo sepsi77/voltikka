@@ -14,6 +14,11 @@ class SpotPriceAverage extends Model
     public const PERIOD_YEARLY = 'yearly';
     public const PERIOD_ROLLING_30D = 'rolling_30d';
     public const PERIOD_ROLLING_365D = 'rolling_365d';
+    public const PERIOD_ROLLING_30D_LOCAL = 'rolling_30d_local';
+    public const PERIOD_ROLLING_365D_LOCAL = 'rolling_365d_local';
+
+    public const ROLLING_30D_TYPES = [self::PERIOD_ROLLING_30D, self::PERIOD_ROLLING_30D_LOCAL];
+    public const ROLLING_365D_TYPES = [self::PERIOD_ROLLING_365D, self::PERIOD_ROLLING_365D_LOCAL];
 
     /**
      * The attributes that are mass assignable.
@@ -82,6 +87,16 @@ class SpotPriceAverage extends Model
         return $query->where('period_type', $periodType);
     }
 
+    /** Prefer the newest date, then verified local evidence for a same-date tie. */
+    public function scopeLatestRollingEvidence($query)
+    {
+        return $query->orderByRaw('DATE(period_end) DESC')
+            ->orderByRaw('CASE WHEN period_type IN (?, ?) THEN 0 ELSE 1 END', [
+                self::PERIOD_ROLLING_30D_LOCAL, self::PERIOD_ROLLING_365D_LOCAL,
+            ])
+            ->orderByDesc('id');
+    }
+
     /**
      * Get the latest rolling 30-day average.
      *
@@ -91,8 +106,8 @@ class SpotPriceAverage extends Model
     public static function latestRolling30Days(string $region = 'FI'): ?self
     {
         return static::forRegion($region)
-            ->ofType(self::PERIOD_ROLLING_30D)
-            ->orderByDesc('period_start')
+            ->whereIn('period_type', self::ROLLING_30D_TYPES)
+            ->latestRollingEvidence()
             ->first();
     }
 
@@ -105,8 +120,8 @@ class SpotPriceAverage extends Model
     public static function latestRolling365Days(string $region = 'FI'): ?self
     {
         return static::forRegion($region)
-            ->ofType(self::PERIOD_ROLLING_365D)
-            ->orderByDesc('period_start')
+            ->whereIn('period_type', self::ROLLING_365D_TYPES)
+            ->latestRollingEvidence()
             ->first();
     }
 

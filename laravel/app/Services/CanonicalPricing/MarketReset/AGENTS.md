@@ -15,6 +15,15 @@ Read `../AGENTS.md` first, then `tasks/market-reset-annualised-pricing/spec.md` 
 `decisions.md`. That decisions file records several **explicitly retracted** conclusions; do not
 re-derive them.
 
+## Annual segment integration
+
+`ResetEstimate::tailStartsOn` carries the exact exclusive current-period boundary internally.
+The annual calculator splits at this date and applies monthly offsets only to segments on or
+after it. A mid-month boundary must not shift the known part of that month. The public
+`annual_equivalent_energy_price` is costed energy EUR × 100 / costed kWh, from the same tariff
+buckets and segments as the annual bill. Disclosed reset phases without explicit normal-amount
+discounts do not create offer savings. Exact-period calculation receives no annual projection.
+
 ## The estimator
 
 ```
@@ -39,7 +48,7 @@ because the spread is observed, never estimated.
 ### 1. TWO vintages: `F_m` from today, `F_reference` from the pricing date
 
 - `F_m` → latest `trade_date < today` (the window start).
-- `F_reference` → latest `trade_date < the current period's start date`.
+- `F_reference` → latest `trade_date < min(current period start, target date)`.
 
 **Both halves matter, and an earlier version of this file got the second one wrong.** The retracted
 argument was that one shared vintage is needed to "cancel level drift". It is not:
@@ -73,8 +82,10 @@ today's vintage and are flagged `reference_vintage_fallback_today`, rather than 
 weaker spot index. Verified 2026-07-25: **0 of 32** lineages needed it.
 
 A period that has not started yet (a disclosed `role: future` phase, e.g. Kokkolan Tyyni's August
-price) resolves its pricing vintage to today's trade date, because that is genuinely the latest trade
-date before its start. Correct and expected: an unstarted month has not converged.
+price) keeps its actual delivery anchor, but its reference lookup is bounded by the target date.
+`reference_vintage_bounded_by_as_of` records this bound. Later stored futures must not enter a
+historical calculation. Here and in `reference_vintage_fallback_today`, “today” means the request's
+`asOfDate`, never the process clock.
 
 ### 2. The current period stays exact
 
@@ -175,6 +186,17 @@ uncertainty.
 The seasonal index is deliberately last. Its realized monthly index has a year-to-year sd of about
 **0.42** across 2022-2025 and **0.77-0.80** in the winter months that drive the correction. It is
 better than flat but must never outrank an available curve. Do not promote it.
+
+### Dated input rule (2026-09-11)
+
+`spotSeasonalIndex(CarbonImmutable $asOfDate): ?array` requires an explicit target. Both estimators
+pass their request date. Only Helsinki calendar months before the target month with declared
+`period_end < target date` contribute; even a stored whole-month average for the current month is
+excluded. Raw DATE/datetime columns supply calendar bounds, without model-cast timezone shifts.
+The four-year window starts from the latest eligible completed month, not the latest stored row.
+Finite positive prices use the existing yearly normalization, minimum years, and full 12-month
+coverage rules. Cache entries (including null) are keyed by Helsinki target date. Missing history
+still falls through to hold flat; no Spot observations are changed.
 
 ## Guards
 

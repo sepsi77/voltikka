@@ -550,7 +550,7 @@ final readonly class ContractPricingViewData
             self::nullableFiniteNumber($record[$key], $path.'.'.$key);
         }
         $confidence = self::nonEmptyString($record['confidence'], $path.'.confidence');
-        if (! in_array($confidence, ['higher', 'fallback'], true)) {
+        if (! in_array($confidence, ['higher', 'lower', 'fallback'], true)) {
             throw new InvalidArgumentException($path.'.confidence is not supported.');
         }
         $higherConfidence = self::boolean($record['higher_confidence'], $path.'.higher_confidence');
@@ -558,8 +558,9 @@ final readonly class ContractPricingViewData
 
         if ($basis === SpotEstimateBasis::ForwardCurve) {
             if ($record['current_curve_trade_date'] === null || $record['future_curve_trade_date'] === null
-                || $record['shape']['period_start'] === null || $record['shape']['period_end'] === null
-                || $record['months'] === [] || $confidence !== 'higher' || ! $higherConfidence) {
+                || $record['months'] === [] || ! in_array($confidence, ['higher', 'lower'], true)
+                || $higherConfidence !== ($confidence === 'higher')
+                || ($confidence === 'higher' && ($record['shape']['period_start'] === null || $record['shape']['period_end'] === null))) {
                 throw new InvalidArgumentException($path.' has incoherent forward-curve evidence.');
             }
         } elseif ($record['months'] !== [] || $confidence !== 'fallback' || $higherConfidence

@@ -142,10 +142,19 @@ class CurrentAsOfAnnualCostParityTest extends TestCase
             }
         }
 
-        $historicalResults = collect(app(AsOfAnnualCostCalculator::class)->calculate(self::DATE))
+        $historicalResults = collect(app(AsOfAnnualCostCalculator::class)->calculate(self::DATE, \App\Services\ContractStatistics\Enums\AnnualCostMethodVersion::AsOfV2))
             ->keyBy(fn ($result): string => $result->contractId.'|'.$result->consumptionKwh);
-        foreach ([$fixed, $spot] as $equivalentContract) {
+        foreach ([$fixed, $short, $spot, $hybrid, $package, $reset] as $equivalentContract) {
             foreach ([2000, 5000, 18000] as $consumption) {
+                // Spot uses separately resolved historical shape, not this test's current shape.
+                if ($equivalentContract !== $spot) {
+                    $this->assertEqualsWithDelta(
+                        $currentOutcomes[$equivalentContract->id][$consumption]->totalCost,
+                        $historicalResults[$equivalentContract->id.'|'.$consumption]->totalCost,
+                        0.00001,
+                        $equivalentContract->id.' historical total at '.$consumption.' kWh',
+                    );
+                }
                 $currentKey = ContractPriceAnnualCost::query()
                     ->where('contract_id', $equivalentContract->id)
                     ->where('consumption_kwh', $consumption)
@@ -289,7 +298,7 @@ class CurrentAsOfPriorDateCurve implements MarketReferenceCurveProvider
         return ['kind' => 'month', 'price_cents_per_kwh' => 6.0];
     }
 
-    public function spotSeasonalIndex(): ?array
+    public function spotSeasonalIndex(CarbonImmutable $asOfDate): ?array
     {
         return null;
     }

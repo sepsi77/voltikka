@@ -17,7 +17,32 @@ readonly class CanonicalComponent
         public ?float $normalAmount,
         public ComponentUnit $unit,
         public PriceRole $priceRole,
+        public string $vatStatus = 'unknown',
     ) {}
+
+    public function withVatBasis(bool $includeVat, float $vatMultiplier): self
+    {
+        $target = $includeVat ? 'included' : 'excluded';
+        $multiplier = match ($this->vatStatus) {
+            'excluded' => $includeVat ? $vatMultiplier : 1.0,
+            'included' => $includeVat ? 1.0 : 1.0 / $vatMultiplier,
+            default => 1.0,
+        };
+
+        // Percentages and opaque units are not monetary amounts.
+        if (! $this->unit->isCostable()) {
+            return $this;
+        }
+
+        return new self(
+            type: $this->type,
+            amount: $this->amount === null ? null : $this->amount * $multiplier,
+            normalAmount: $this->normalAmount === null ? null : $this->normalAmount * $multiplier,
+            unit: $this->unit,
+            priceRole: $this->priceRole,
+            vatStatus: $target,
+        );
+    }
 
     /**
      * Whether this component contributes a billed amount to the 12-month cost timeline.

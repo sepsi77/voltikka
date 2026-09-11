@@ -45,8 +45,8 @@ passes still exclude the unknown consumption effect and the annual outcome keeps
 assumptions also state `term_price_annualized`. This prevents the earlier
 Unsupported-first branch from erasing a structural `Fixed6` term and labelling
 its offer saving as a 12-month benefit. The field is null for non-short terms and
-when a finite term cannot be costed or estimated under the existing Hybrid hold
-rule. The existing top-level totals stay annualized for ranking and comparison.
+when a finite term cannot be costed or estimated from an identifiable applicable price.
+Unknown in-term segments carry explicit continuation assumptions; the term total is not necessarily exact. The existing top-level totals stay annualized for ranking and comparison.
 This is derived calculation output; it is not stored in the LLM interpretation
 JSON.
 
@@ -82,15 +82,17 @@ Monthly included-energy packages are typed and costed as described below.
 ## Components
 
 - `CanonicalPricingParser` — JSON → typed DTOs. **Fails closed**: an unknown enum affecting
-  costing, a missing required object, or a conflicting VAT basis for one component throws
+  costing or a missing required object throws
   `CanonicalPricingParseException` so the caller excludes the contract instead of costing it on
-  data it does not understand. Unknown *issue codes* (which never affect costing) are dropped, not fatal.
+  data it does not understand. Component `vat_status` survives parsing; mixed explicit VAT bases
+  are normalized for calculation, not rejected. Unknown *issue codes* are dropped, not fatal.
 - `Support/PhaseTimelineBuilder` — resolves phase boundaries to absolute dates and segments the
   12-month window into elemental slices, each governed by at most one known-pricing phase.
-- `Support/MonthlyUsageProfileBuilder` — the usage distribution (night shares, winter ×1.156 /
-  summer ×0.889 weighting, cooling Jun–Aug, per-month heating), **extracted from
-  `ContractPriceCalculator`** so both calculators stay numerically identical for constant prices.
-  `ContractPriceCalculator` still exposes `WINTER_PRICE_MONTHS` / `NIGHT_TIME_SHARES` as aliases.
+- `Support/MonthlyUsageProfileBuilder` — one customer consumption distribution independent of tariff:
+  default usage is flat across 12 calendar months; explicit heating and Jun–Aug cooling retain their
+  shape. Day/night and winter tariff buckets partition that same usage, never add consumption.
+  Extracted from `ContractPriceCalculator`; its historical feature-off seasonal constants remain
+  for compatibility. See `Support/AGENTS.md` for calendar conservation and anniversary bins.
 - `CanonicalContractPriceCalculator` — costs the annual window and assigns a
   `ContractComparability` verdict. Its typed `calculatePeriod()` entry point costs an exact bill
   period with the same parser, phase timeline, inherited rates, packages, mechanism switches,
@@ -104,8 +106,8 @@ Monthly included-energy packages are typed and costed as described below.
 - `MarketReset/` — annualises monthly/quarterly/seasonal/other reset products with a shape-only
   forward-curve shift instead of holding one seasonal price flat. Cadence `other` uses the
   quarterly calendar and reference proxy. Own flag, own `AGENTS.md`.
-- `SupplierAdjusted/` — annualises narrowly eligible ordinary adjustable open-ended fixed General
-  tariffs without inventing a recurring cadence. It keeps the current calendar-month remainder
+- `SupplierAdjusted/` — annualises narrowly eligible ordinary adjustable open-ended fixed General,
+  Time, and Season tariffs without inventing a recurring cadence. It keeps the current calendar-month remainder
   exact, then shifts later months from the observed current-price episode anchor. It has its own
   typed payload and `AGENTS.md`; it does not reuse `reset_estimate`.
 - `ContractPricingIntegrityService` — the deterministic label state machine.
@@ -116,23 +118,32 @@ Monthly included-energy packages are typed and costed as described below.
 
 ## Phase-timeline algorithm
 
-1. Window `W = [S, S+12 months)`, `S` = signup/start date (default today, Europe/Helsinki).
+1. Window `W = [S, S+12 months)`, `S` = signup/start date at Helsinki midnight.
+   All relative month boundaries use no-overflow anniversaries, including leap-day starts.
 2. Resolve boundaries: `contract_start`/`none`/`unknown` start → `S`; `date(d)` end is inclusive →
    exclusive `d+1`; `after_months(N)` → `S+N` (N=0 ≡ S, N=12 falls outside W); `period_boundary`
    uses `recurring_schedule.current_period_*`. A phase whose end is before `S` (expired promo) is
    dropped so a known later phase can take over. **An unknown start with a resolvable end is the
    already-running current price and covers from `S`** — do not treat it as unresolved.
-3. Segment `W` at phase and calendar-month boundaries; latest-starting phase wins on overlap.
+3. Segment `W` at phase, calendar-month, and contract-month anniversary boundaries;
+   latest-starting phase wins on overlap. Normalize repeated calendar-month fractions across the
+   rolling year so leap years and no-op phase insertion cannot change total consumption.
 4. Cost known segments by applying the governing phase's rates to the day-fraction of that month's
    usage. Spot phases use `spot_margin` plus the `SpotForward/` monthly wholesale estimate. The
    rolling-365 overall/day/night evidence supplies the intraday shape only; it is the complete level
-   only for the typed fallback. Uncovered tails are filled by holding the current phase forward only
-   for active recurring resets or Spot; otherwise the
-   contract is excluded. A short fixed term is the explicit exception: cost all covered segments
-   up to the real term end and annualize that complete term, without filling the unknown tail. For
-   an **active recurring reset** the filled tail (and any tail a phase only claims with `ends: none`)
-   is additionally repriced per calendar month by `MarketReset/`, when
-   `RESET_FORWARD_SHIFT_ENABLED` is on.
+   only for the typed fallback. Unknown annual segments use the latest applicable already-started
+   price or its disclosed normal amount. Never borrow a future phase for an earlier gap, skip a gap
+   as free energy, or extend measured promo savings into assumed coverage. Known later phases win.
+   Short terms cost the real term, including explicit in-term assumptions, then annualize by
+   `12 / term_months`. Hybrids keep every disclosed base phase and exclude the consumption effect.
+   For an **active recurring reset**, `MarketReset/` shifts only the unknown tail when enabled;
+   an exact `tailStartsOn` split protects even a mid-month known boundary.
+5. Ordinary annual fees use contract-month fractions: N complete contract months cost N fees.
+   Packages retain calendar-month fee/allowance rules. One-time charges use original component
+   identity, so inherited charges apply once and separate disclosed charges remain distinct.
+   Reset and supplier-adjusted annual equivalents are costed energy euros × 100 / costed kWh;
+   representative snapshot weights remain only for episode matching, not displayed equivalents.
+   Monthly output uses anniversary bins and reconciles with the annual total.
 
 An **empty-components phase is UNKNOWN coverage, never €0**, unless it has a
 validated non-null `package` object.
@@ -167,23 +178,24 @@ not read relational `price_components` to fill missing package facts.
 | Verdict | Listed? | Meaning |
 |---|---|---|
 | `comparable_exact` | yes | full window covered, `calculation.status = exact` |
-| `comparable_estimate` | yes | `estimate_required` (Spot / recurring hold / eligible supplier-adjusted open-ended price); total labelled "Arvio" |
+| `comparable_estimate` | yes | Spot, reset, supplier-adjusted, or explicit unknown-period continuation estimate; total labelled "Arvio" |
 | `term_price_only` | yes | fixed-term < 12 mo, unknown continuation; ranked by term price annualized |
 | `base_only_hybrid` | yes | Hybrid (`unsupported`); base-only total + "Ei sisällä kulutusvaikutusta" |
-| `excluded_unknown_future` | no | open-ended promo with an undisclosed later price; detail page only |
+| `excluded_unknown_future` | no | no applicable identifiable price can fill an annual segment; not merely an undisclosed future price |
 | `excluded_incomplete` | no | broken/ambiguous/unsupported structured pricing; detail page only |
 
-Order of decision in the calculator: unsupported Hybrid (phase timeline when fully covered; held
-current base only when not covered) → fixed-term-term-only (all term phases, then annualize) →
-incomplete (with two costable exceptions below) → `detected` contracts must be fully covered by
-disclosed phases or they are excluded, **unless they are an active recurring reset** → estimate-fill
-for recurring/spot → `exact`/`estimate_required` map to the two comparable verdicts.
+Conflicting structured pricing is excluded first. Hybrid base-only and short-term paths then cost
+chronological segments, including explicitly assumed gaps. An incomplete status caused only by
+unknown future pricing does not block a costable estimate; disclosed Spot and resolvable duplicate
+fees retain their exceptions. Remaining unidentifiable/unsupported pricing is excluded. A detected
+promotion with unknown future prices can still list as an estimate with its factual warning.
+Do not restore full-year certainty as an eligibility gate. A monthly fee alone is not proof of free energy.
 
 Domain rules layered on top (each with a regression test and a documented reason):
 - **Recurring market products** (monthly/quarterly/seasonal/other reset) are never excluded for
   `detected` and get no deceptive label — they behave like Spot (current period known, future resets with the
-  market; a small first-period intro is not deception). The uncovered tail holds the most recent
-  disclosed (recurring) price via `lastCoveredPhaseIndex`, not the phase at signup.
+  market; a small first-period intro is not deception). Each uncovered segment selects the latest
+  already-applicable disclosed price via `applicableKnownPhaseIndex`, not the signup phase or a future phase.
 - **Costable incomplete Spot** (`isCostableSpot`): a Spot contract with a disclosed `spot_margin` is a
   spot estimate even if the LLM marked it `incomplete` (some phrase the margin as a "toimitusmaksu").
 - **Spot margin misclassified as fixed energy** (`resolvePhaseRates`, `SPOT_MARGIN_CEILING_CENTS = 2.0`):
@@ -219,6 +231,16 @@ Domain rules layered on top (each with a regression test and a documented reason
   (Hehku KIINTEÄ 6 kk −41 €/v, Cheap Määräaikainen 6 kk −29 €/v). Inheritance **inside** one mechanism is
   unchanged, so a Time phase that restates only `energy_day` still inherits `energy_night`. Regression
   tests 23 (cross-mechanism) and 24 (same-mechanism control) pin both sides.
+- **Annual Hybrid base-effect placeholders**: only `Unsupported` with typed
+  `consumption_effect.present=true` and `applies_to=base_contract` removes `Other` / `cents_per_kwh`
+  rows with amount exactly zero and normal amount null or zero from an immutable calculation copy.
+  The explicit base-effect mechanism is authoritative, not the legacy pricing-model enum;
+  a `FixedPrice`-labelled contract with these same facts also gets a base-only estimate.
+  This keeps known base phases and fees available (Helen Valkkysähkö: €716.88; Herrfors Vakaa:
+  €442.60 at 5,000 kWh) after the chronological annual-cost change. Later known increases stay exact.
+  The effect is excluded, not predicted zero. Conflicting sources, missing/nonzero amounts, positive
+  normal amounts, wrong units, and fee-only tariffs still fail closed. Exact-period pricing and the
+  general `Other` rejection do not change. Tests: `php artisan test --filter='CanonicalContractPriceCalculatorTest|AsOfAnnualCostCalculatorTest'`.
 - **Duplicate-zero guard**: within a phase, a placeholder `0` never overwrites a real non-zero rate of
   the same component type.
 
@@ -234,20 +256,32 @@ Gate: only `misleading_first_12_months === 'detected'` can produce a label
 - **Data conflict** (`component_mismatch`, `insufficient_evidence`, `*_mismatch`, `other`):
   detail-page-only neutral notice; no accusatory card pill.
 
-Suppressed even when `detected`:
+Suppressed even when `detected` (except the unknown-period caveat below):
 - an **active recurring reset** (legitimate market product; the "Arvio" marker communicates the estimate);
 - a **listed** promo that does not **materially** understate the year — the gate requires impact ≥ 30 €
   AND structured ≤ 80 % of true. Tyyni Vakiohinta understates by 434 € (42 % of true) → labelled; a
-  6-month fixed that continues at a similar spot price (~50 € / ~10 %) → not labelled. Excluded contracts
-  (later price unknown) keep their detail-only notice regardless.
+  6-month fixed that continues at a similar spot price (~50 € / ~10 %) → not labelled. Unknown-period
+  estimates bypass this materiality suppression and keep a detail-only caveat: an assumed unchanged
+  price is not proof of safety. They do not invent a known increase, card increase pill, or euro impact.
+  The short-term continuation exemption also does not hide unknown in-term coverage.
 
 **All UI copy is generated from typed fields; the LLM `summary` string is never rendered.**
 
-## VAT assumption (documented)
+## VAT basis
 
-Amounts are used as-is. Structured API prices are VAT-inclusive consumer prices; description prices
-share the contract's VAT basis (business contracts stay ex-VAT). A component type appearing with both
-`included` and `excluded` VAT in one contract → parse exception → exclusion.
+`Household`, `Both`, and legacy null targets use VAT-inclusive prices; `Company` uses VAT-excluded
+prices. `CanonicalComponent::vatStatus` preserves source evidence. Calculation copies normalize
+explicit included/excluded monetary amounts and normal amounts to the target once; unknown status
+assumes the target basis. Mixed component bases are not a conflict. Percent/opaque units remain
+unchanged. Packages and top-level consumption effects have no source VAT facts and keep that
+explicit target-basis assumption. Stored parser/source data is never changed.
+
+The existing configured `price_forecasting.fixed_term.vat_multiplier` supplies the conversion.
+FI market curves are inclusive; Company calculations convert curve prices, reference prices,
+Spot monthly values, and shape offsets exactly once before applying them to normalized components.
+Do not scale the resulting reset/supplier offset again or mutate a shared household Spot estimate.
+Exact-period pricing uses realized hourly tax evidence and never the annual market projection.
+Typed `vat_basis` output controls public tax wording; it is not an LLM summary.
 
 ## Rollout
 
@@ -261,7 +295,9 @@ share the contract's VAT basis (business contracts stay ex-VAT). A component typ
    at 5000 kWh is 429 €/v with the reset flag off and 556 €/v with it on, which is what
    voltikka.fi serves. Both are documented in `.env.example` with the production value, and
    both are pinned to `false` with `force="true"` in `phpunit.xml` so the suite cannot inherit a
-   developer's environment. Tests that exercise either flag opt in via `config()->set()`.
+   developer's environment. The annual statistics method is also forced to the configured legacy
+   default there; AsOf tests opt in through config. This does not alter production configuration.
+   Tests that exercise either pricing flag opt in via `config()->set()`.
 
    `PricingMode` snapshots both flags once per request or command. Resolve normal pricing services
    through `app()`. Direct construction must supply both `PricingMode` and a
@@ -362,6 +398,14 @@ invalidates their data instead of leaving it stale for 48 hours or one hour.
 `ContractPricingIntegrity` gained typed `promo_rate_cents` /
 `normal_rate_cents` for the dated receipt rows; that was schema v2.
 
+Schema **v16** invalidates pricing-semantic caches once for chronological unknown-period estimates,
+short-term/Hybrid coverage, no-overflow anniversary fees and bins, one-time charge identity,
+common flat default usage, reconciled annual equivalents, local Spot evidence and baseload fallback,
+and audience/component VAT normalization. List, company, and ranking keys also include the Helsinki
+calculation date; instance memos refresh at midnight even without an import. The version changes
+calculation output and caches only: it does not rewrite stored interpretations, historical snapshots,
+annual statistics, or old method evidence. Historical method facts below remain release history.
+
 Schema **v15** corrects recurring-reset energy boundaries for fee-only phase transitions.
 The calculator compares adjacent resolved energy buckets and mechanisms with the existing component
 inheritance rules. A fee change with unchanged energy does not extend known energy coverage or move
@@ -428,8 +472,8 @@ Eligible adjustable open-ended fixed General, Time, and Season tariffs use the s
 `P_m = P_current + beta * (F_m(today) - F_reference)`, where the reference is the FI month contract
 for the observed current-price episode's start month at the latest vintage before that episode
 start. Time and Season tariffs apply the same additive shift to each exact rate. Their stable
-representative rate uses the same weights as statistics snapshots only for episode matching and the
-12-month equivalent. Forward curve, Spot seasonal index, and hold-flat are all typed estimates.
+representative rate uses statistics snapshot weights only for episode matching; the displayed
+12-month equivalent comes from billed energy and the same costed consumption. Forward curve, Spot seasonal index, and hold-flat are all typed estimates.
 Multiple monthly-fee variants resolve to the same conservative maximum as the calculator. This
 keeps supplier-adjusted eligibility aligned with the exact current fee already used for ranking. Exact-period pricing never applies this annual projection.
 
@@ -532,8 +576,7 @@ month touched by `[window start, window start + 1 year)`. A mid-month start touc
 months. The current in-delivery month uses the latest curve strictly before that month began; later
 months use the latest curve strictly before the comparison date. The shared provider returns
 VAT-inclusive c/kWh and falls from month to quarter to year contracts. The forward strip applies to
-`Household` and `Both` contracts. Company-only components can use a VAT-excluded or unknown basis;
-they keep the rolling path until VAT status survives parsing and can normalize the full bill.
+all supported audiences after full-bill normalization: Household/Both/null inclusive, Company excluded.
 
 Futures are baseload prices. The estimator preserves the trailing-365 intraday shape as additive
 `day - overall` and `night - overall` offsets. Historical AsOf pricing can use an accepted stored
@@ -543,10 +586,16 @@ monthly seasonality on top of futures because the forward strip already contains
 projected wholesale bucket is floored at zero before the exact contract margin is added. Fees,
 phases, and measured discounts stay contractual facts.
 
-Missing, stale, or incomplete curve/shape evidence rejects the full strip and produces one typed
-rolling-365 fallback. Forward and rolling months are never mixed. `CanonicalContractPricingService`
-memoizes one estimate per window and shape evidence set after parsed contracts prove that Spot is
-needed. `calculatePeriod()` never receives this estimate and keeps using realized hourly Spot data.
+Missing, stale, or incomplete curve evidence produces one typed rolling-365 fallback when a
+historical level exists. Insufficient or absent historical shape does not reject a complete curve:
+use zero day/night offsets at lower confidence with `zero_intraday_shape_fallback` and the
+public `spot_forward_curve_flat_baseload_shape` assumption. Preserve actual coverage and unavailable
+historical-source facts; do not invent a verified shape. Forward and rolling months are never mixed. `CanonicalContractPricingService`
+memoizes one estimate per window and shape evidence set, including coverage, after parsed contracts
+prove that Spot is needed. New `rolling_30d_local` / `rolling_365d_local` rows cover half-open Helsinki
+calendar-date windows with raw timestamps parsed as UTC. Readers accept legacy rolling types,
+choose the newest eligible date, and prefer local on ties. Legacy UTC-date evidence keeps explicit
+`legacy_utc_dates` provenance, never verified local shape; no old rows are rewritten. `calculatePeriod()` never receives this estimate and keeps using realized hourly Spot data.
 
 ## Deferred / known limitations
 

@@ -15,6 +15,7 @@ use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\ContractStatistics\ContractPriceBasis;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
 use App\Services\ContractStatistics\ContractStatisticsSegmentClassifier;
+use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
 use App\Services\DTO\EnergyUsage;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -77,10 +78,10 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         $this->assertSame('canonical_calculation', $snapshot->pricing_basis);
     }
 
-    public function test_a_contract_canonical_pricing_refuses_to_total_is_still_skipped(): void
+    public function test_unknown_continuation_keeps_a_useful_canonical_annual_estimate(): void
     {
-        // Vimpelin Voima's shape: the pre-discount price list is undisclosed, so the
-        // continuation phase has no components and canonical declines to price the year.
+        // The future rate is unknown, but the disclosed current price supports an
+        // explicit held-price estimate. It must not become a zero-cost tail.
         $contract = $this->createContract('incomplete-1', [
             $this->phase('Alennettu hinnasto', 'introductory', 5.0, $this->boundary('contract_start'), $this->boundary('after_months', '3')),
             [
@@ -96,8 +97,8 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
 
         $result = $this->calculate();
 
-        $this->assertSame(0, $result['snapshots'], 'An all-null row helps nobody.');
-        $this->assertSame(0, ContractPriceSnapshot::count());
+        $this->assertSame(1, $result['snapshots']);
+        $this->assertEqualsWithDelta(250, ContractPriceSnapshot::sole()->annual_cost_5000_kwh, 0.001);
     }
 
     public function test_legacy_calculation_still_requires_relational_components(): void
@@ -134,7 +135,7 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         $this->assertSame(9.0, (float) ContractPriceSnapshot::sole()->energy_price_cents_per_kwh);
     }
 
-    public function test_a_missing_canonical_unit_rate_stays_null_even_when_a_relational_rate_exists(): void
+    public function test_an_unidentifiable_canonical_energy_price_is_skipped_even_when_a_relational_rate_exists(): void
     {
         $contract = $this->createContract('fee-only-1', [
             $this->phaseWithComponents([
@@ -145,10 +146,8 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
 
         $this->calculate();
 
-        $snapshot = ContractPriceSnapshot::sole();
-        $this->assertNull($snapshot->energy_price_cents_per_kwh);
-        $this->assertSame(4.0, (float) $snapshot->monthly_fee_eur);
-        $this->assertSame(48.0, (float) $snapshot->annual_cost_5000_kwh);
+        // A monthly fee alone does not establish free energy or a package allowance.
+        $this->assertSame(0, ContractPriceSnapshot::count());
     }
 
     public function test_a_package_keeps_annual_total_and_fee_but_omits_an_all_in_energy_rate_and_offer(): void
@@ -183,8 +182,8 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
     {
         SpotPriceAverage::create([
             'region' => 'FI',
-            'period_type' => SpotPriceAverage::PERIOD_ROLLING_365D,
-            'period_start' => '2025-07-28',
+            'period_type' => SpotPriceAverage::PERIOD_ROLLING_365D_LOCAL,
+            'period_start' => '2026-07-27',
             'period_end' => '2026-07-27',
             'avg_price_without_tax' => 6.0,
             'avg_price_with_tax' => 6.0,
@@ -386,7 +385,7 @@ class ContractPriceStatisticsCanonicalSourceTest extends TestCase
         $this->assertFalse(ContractPriceDailyStatistic::whereDate('stat_date', self::DATE)
             ->whereIn('method_version', [
                 ContractPriceDailyStatistic::UNIT_STATISTICS_METHOD_VERSION,
-                \App\Services\ContractStatistics\Enums\AnnualCostMethodVersion::Legacy->value,
+                AnnualCostMethodVersion::Legacy->value,
             ])
             ->where('pricing_basis', 'canonical_calculation')->exists());
     }

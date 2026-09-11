@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Services\CalculatedCostPayloadSchema;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\CO2EmissionsCalculator;
@@ -41,7 +42,7 @@ class ContractRequestMemoizationTest extends TestCase
             ->once()
             // v7 = import-driven data version, s15 = calculated-cost payload schema,
             // c0r0 = canonical pricing off, market-reset forward shift off.
-            ->with('contract_list_metrics:v7:s15:c0r0:5000', 60 * 60 * 48, \Mockery::type(\Closure::class))
+            ->with('contract_list_metrics:v7:s'.CalculatedCostPayloadSchema::VERSION.':c0r0:5000:'.now('Europe/Helsinki')->toDateString(), 60 * 60 * 48, \Mockery::type(\Closure::class))
             ->andReturn($metrics);
 
         $canonical = $this->createMock(CanonicalContractPricingService::class);
@@ -76,7 +77,7 @@ class ContractRequestMemoizationTest extends TestCase
             // v4 = company import version, s2 = company payload schema,
             // cs15 = calculated-cost schema, lv7 = contract pricing data version,
             // c1r0 = pricing mode.
-            ->with('company_list:v4:s2:cs15:lv7:c1r0:5000', 60 * 60 * 48, \Mockery::type(\Closure::class))
+            ->with('company_list:v4:s2:'.CalculatedCostPayloadSchema::cacheMarker().':lv7:c1r0:5000:'.now('Europe/Helsinki')->toDateString(), 60 * 60 * 48, \Mockery::type(\Closure::class))
             ->andReturn($companies);
 
         $listCache = $this->createMock(ContractListCacheService::class);
@@ -109,7 +110,7 @@ class ContractRequestMemoizationTest extends TestCase
             ->once()
             // s2 = ranking payload schema; cs15 = calculated-cost schema;
             // lv7 = contract pricing data version; c0r0 = pricing mode.
-            ->with('contract_rankings_5000kwh:s2:cs15:lv7:c0r0', 3600, \Mockery::type(\Closure::class))
+            ->with('contract_rankings_5000kwh:s2:'.CalculatedCostPayloadSchema::cacheMarker().':lv7:c0r0:'.now('Europe/Helsinki')->toDateString(), 3600, \Mockery::type(\Closure::class))
             ->andReturn($rankings);
 
         $listCache = $this->createMock(ContractListCacheService::class);

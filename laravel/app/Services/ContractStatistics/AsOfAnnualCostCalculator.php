@@ -26,6 +26,8 @@ class AsOfAnnualCostCalculator
 
     private const MAXIMUM_ANNUAL_COST_EUR = 50000.0;
 
+    private readonly ContractPriceCalculator $uniformRelationalCalculator;
+
     public function __construct(
         private readonly AsOfAnnualCostEvidenceResolver $evidenceResolver,
         private readonly AsOfSpotAssumptionsProvider $spotAssumptionsProvider,
@@ -33,15 +35,21 @@ class AsOfAnnualCostCalculator
         private readonly HistoricalPriceEpisodeResolver $priceEpisodeResolver,
         private readonly CanonicalContractPriceCalculator $canonicalCalculator,
         private readonly ContractPriceCalculator $relationalCalculator,
-    ) {}
+    ) {
+        $this->uniformRelationalCalculator = new ContractPriceCalculator(uniformSeasonalConsumption: true);
+    }
 
     /**
      * Calculate all three consumption results for every contract on one historical date.
      *
      * @return list<AsOfAnnualCostResult>
      */
-    public function calculate(CarbonInterface|string $date): array
+    public function calculate(CarbonInterface|string $date, AnnualCostMethodVersion $methodVersion = AnnualCostMethodVersion::AsOf): array
     {
+        if (! $methodVersion->isAsOf()) {
+            throw new \InvalidArgumentException('The historical annual calculator requires an AsOf method.');
+        }
+
         $target = CarbonImmutable::parse(
             $date instanceof CarbonInterface ? $date->toDateString() : $date,
             'Europe/Helsinki',
@@ -55,10 +63,13 @@ class AsOfAnnualCostCalculator
                 ? $this->canonicalCalculator->usesSpotPricing($item->canonicalData, $this->context($item))
                 : PricingModel::fromSource($item->pricingModel) === PricingModel::Spot;
         });
-        $spotEstimate = $spotResult->isAvailable() && $needsSpotEstimate
-            ? $this->spotEstimator->estimate($target, $spotResult->assumptions)
-            : null;
-        $spot = $spotResult->assumptions ?? new SpotAssumptions(null, null);
+        $spot = $spotResult->assumptions ?? new SpotAssumptions(
+            null, null,
+            actualHours: $spotResult->actualHours,
+            expectedHours: $spotResult->expectedHours,
+            windowSemantics: 'missing',
+        );
+        $spotEstimate = $needsSpotEstimate ? $this->spotEstimator->estimate($target, $spot) : null;
 
         $candidates = [];
         $candidateBases = [];
@@ -82,15 +93,25 @@ class AsOfAnnualCostCalculator
         $results = [];
         foreach ($evidence as $item) {
             foreach (self::DEFAULT_CONSUMPTIONS as $consumption) {
-                $results[] = $this->calculateOne(
+                $result = $this->calculateOne(
                     $item,
                     $consumption,
                     $spot,
-                    $spotResult->isAvailable(),
                     $spotEstimate,
                     $anchors[$item->contractId] ?? null,
                     $spotResult,
+                    $methodVersion,
                 );
+                $results[] = new AsOfAnnualCostResult(...[
+                    ...get_object_vars($result),
+                    'methodVersion' => $methodVersion,
+                    'compatibilityKey' => AnnualCostCompatibilityKey::make(
+                        $methodVersion,
+                        $result->calculationBasis,
+                        $result->estimateMethod,
+                        $result->estimateBasis,
+                    ),
+                ]);
             }
         }
 
@@ -101,16 +122,17 @@ class AsOfAnnualCostCalculator
         AsOfAnnualCostEvidence $evidence,
         int $consumption,
         SpotAssumptions $spot,
-        bool $spotAvailable,
         ?SpotEstimate $spotEstimate,
         ?PriceEpisodeAnchor $anchor,
         AsOfSpotAssumptionsResult $spotResult,
+        AnnualCostMethodVersion $methodVersion,
     ): AsOfAnnualCostResult {
         $canonical = $evidence->canonicalData !== null;
         $usesSpot = $canonical
             ? $this->canonicalCalculator->usesSpotPricing($evidence->canonicalData, $this->context($evidence))
             : PricingModel::fromSource($evidence->pricingModel) === PricingModel::Spot;
-        $recurringHold = $canonical
+        $recurringHold = $methodVersion === AnnualCostMethodVersion::AsOf
+            && $canonical
             && ! $usesSpot
             && $evidence->canonicalData->recurringSchedule->isActiveReset();
         $calculationBasis = $canonical && ! $recurringHold
@@ -120,6 +142,10 @@ class AsOfAnnualCostCalculator
             ...$evidence->provenanceFlags,
             ...$this->spotEvidenceFlags($spotResult),
         ];
+
+        if ($methodVersion === AnnualCostMethodVersion::AsOfV2 && ! $canonical) {
+            $flags[] = 'observed_relational_uniform_monthly_consumption';
+        }
 
         if ($evidence->exclusionReason !== null) {
             return $this->result(
@@ -135,7 +161,24 @@ class AsOfAnnualCostCalculator
             );
         }
 
-        if (! $evidence->isAvailableForConsumption($consumption)) {
+        $eligibilityReason = null;
+        if ($methodVersion === AnnualCostMethodVersion::AsOfV2 && $evidence->householdAudienceConflict) {
+            $eligibilityReason = 'historical_company_only_household_conflict';
+        } elseif ($methodVersion === AnnualCostMethodVersion::AsOfV2 && $canonical && $evidence->consumptionEligibilityProven) {
+            if (! $evidence->isWithinProvenConsumptionRange($consumption)) {
+                $eligibilityReason = 'historical_consumption_out_of_range';
+            } elseif (! $evidence->isAvailableForConsumption($consumption)) {
+                $flags[] = 'legacy_null_mask_recovered_with_dated_consumption_eligibility';
+            }
+        } elseif (! $evidence->isAvailableForConsumption($consumption)) {
+            $eligibilityReason = $methodVersion === AnnualCostMethodVersion::AsOfV2 && $canonical
+                ? 'historical_consumption_eligibility_unknown_null_mask'
+                : 'legacy_annual_cost_mask_unavailable';
+        }
+
+        if ($eligibilityReason !== null) {
+            $flags[] = $eligibilityReason;
+
             return $this->result(
                 $evidence,
                 $consumption,
@@ -145,11 +188,15 @@ class AsOfAnnualCostCalculator
                 null,
                 $anchor,
                 $flags,
-                'legacy_annual_cost_mask_unavailable',
+                $eligibilityReason,
             );
         }
 
-        if ($usesSpot && (! $spotAvailable || $spotEstimate === null)) {
+        if ($usesSpot && ($spotEstimate === null
+            || $spotEstimate->annualEquivalentDayCentsPerKwh === null
+            || $spotEstimate->annualEquivalentNightCentsPerKwh === null
+            || ! is_finite($spotEstimate->annualEquivalentDayCentsPerKwh)
+            || ! is_finite($spotEstimate->annualEquivalentNightCentsPerKwh))) {
             $flags[] = 'spot_assumptions_unavailable'.($spotResult->unavailableReason !== null ? '_'.$spotResult->unavailableReason : '');
 
             return $this->result(
@@ -163,6 +210,10 @@ class AsOfAnnualCostCalculator
                 $flags,
                 'spot_assumptions_unavailable',
             );
+        }
+
+        if ($usesSpot && $spotEstimate !== null) {
+            $flags[] = 'spot_estimate_confidence_'.$spotEstimate->confidence;
         }
 
         if ($recurringHold) {
@@ -204,17 +255,18 @@ class AsOfAnnualCostCalculator
                 $anchor,
                 $usesSpot ? $spotEstimate : null,
             );
-            $estimateBasis = $this->canonicalEstimateBasis($outcome->supplierAdjustedEstimate, $outcome->spotEstimate);
+            $estimateBasis = $this->canonicalEstimateBasis($outcome->supplierAdjustedEstimate, $outcome->spotEstimate, $outcome->resetEstimate);
             $outcomeFlags = [
                 ...$flags,
                 ...$outcome->assumptions,
                 ...$this->nestedFlags($outcome->supplierAdjustedEstimate),
                 ...$this->nestedFlags($outcome->spotEstimate),
+                ...$this->nestedFlags($outcome->resetEstimate),
             ];
 
-            // The shared seasonal supplier provider uses present-day realized data and has
-            // no as-of date boundary. Its result can never enter historical method v1.
-            if ($outcome->estimateMethod === EstimateMethod::SupplierAdjustedSpotSeasonalIndex) {
+            // Keep the original v1 hold policy. V2 accepts the date-bounded seasonal provider.
+            if ($methodVersion === AnnualCostMethodVersion::AsOf
+                && $outcome->estimateMethod === EstimateMethod::SupplierAdjustedSpotSeasonalIndex) {
                 if ($evidence->priceComponents === []) {
                     return $this->result(
                         $evidence,
@@ -270,7 +322,15 @@ class AsOfAnnualCostCalculator
             );
         }
 
-        $pricing = $this->relationalCost($evidence, $consumption, $spotEstimate);
+        if ($methodVersion === AnnualCostMethodVersion::AsOfV2 && ! $this->hasIdentifiableEnergy($evidence)) {
+            return $this->result(
+                $evidence, $consumption, null, $calculationBasis, null, null, $anchor,
+                [...$flags, 'relational_energy_price_unidentified'],
+                'relational_energy_price_unidentified',
+            );
+        }
+
+        $pricing = $this->relationalCost($evidence, $consumption, $spotEstimate, $methodVersion);
         if (PricingModel::fromSource($evidence->pricingModel) === PricingModel::Spot) {
             $estimateMethod = $spotEstimate->basis->isForward()
                 ? EstimateMethod::ForwardCurveSpot->value
@@ -302,10 +362,15 @@ class AsOfAnnualCostCalculator
         AsOfAnnualCostEvidence $evidence,
         int $consumption,
         ?SpotEstimate $spotEstimate,
+        AnnualCostMethodVersion $methodVersion = AnnualCostMethodVersion::AsOf,
     ): \App\Services\DTO\ContractPricingResult {
         $isSpot = PricingModel::fromSource($evidence->pricingModel) === PricingModel::Spot;
 
-        return $this->relationalCalculator->calculate(
+        $calculator = $methodVersion === AnnualCostMethodVersion::AsOfV2
+            ? $this->uniformRelationalCalculator
+            : $this->relationalCalculator;
+
+        return $calculator->calculate(
             $evidence->priceComponents,
             [
                 'contract_type' => $evidence->contractType,
@@ -317,6 +382,45 @@ class AsOfAnnualCostCalculator
             $isSpot ? $spotEstimate?->annualEquivalentNightCentsPerKwh : null,
             $evidence->date,
         );
+    }
+
+    private function hasIdentifiableEnergy(AsOfAnnualCostEvidence $evidence): bool
+    {
+        $knownTypes = ['General', 'DayTime', 'NightTime', 'SeasonalWinter', 'SeasonalWinterDay', 'SeasonalOther'];
+        $isSpot = PricingModel::fromSource($evidence->pricingModel) === PricingModel::Spot;
+        $rates = [];
+        foreach ($evidence->priceComponents as $component) {
+            $type = $component['price_component_type'] ?? '';
+            $price = $component['price'] ?? null;
+            $finite = is_numeric($price) && is_finite((float) $price);
+            if ($isSpot && $type !== 'Monthly') {
+                // The legacy engine takes the first non-monthly component as its margin.
+                // Do not let an unknown surcharge become that margin.
+                return ($type === 'Spot' || in_array($type, $knownTypes, true)) && $finite;
+            }
+            if (in_array($type, $knownTypes, true)) {
+                $rates[$type === 'SeasonalWinter' ? 'SeasonalWinterDay' : $type] = $finite ? (float) $price : null;
+            }
+        }
+        if ($isSpot) {
+            return false;
+        }
+
+        // Match the engine's supplied-rate precedence, not the snapshot metering label.
+        if (($rates['General'] ?? 0) > 0) {
+            return true;
+        }
+        if (($rates['DayTime'] ?? 0) > 0 || ($rates['NightTime'] ?? 0) > 0) {
+            return isset($rates['DayTime'], $rates['NightTime']);
+        }
+        if (($rates['SeasonalWinterDay'] ?? 0) > 0 || ($rates['SeasonalOther'] ?? 0) > 0) {
+            return isset($rates['SeasonalWinterDay'], $rates['SeasonalOther']);
+        }
+
+        // A fully disclosed zero tariff is valid. An absent counterpart is not zero.
+        return ($rates['General'] ?? null) === 0.0
+            || (($rates['DayTime'] ?? null) === 0.0 && ($rates['NightTime'] ?? null) === 0.0)
+            || (($rates['SeasonalWinterDay'] ?? null) === 0.0 && ($rates['SeasonalOther'] ?? null) === 0.0);
     }
 
     private function context(AsOfAnnualCostEvidence $evidence): ContractContext
@@ -334,13 +438,17 @@ class AsOfAnnualCostCalculator
      * @param  array<string, mixed>|null  $supplier
      * @param  array<string, mixed>|null  $spot
      */
-    private function canonicalEstimateBasis(?array $supplier, ?array $spot): string
+    private function canonicalEstimateBasis(?array $supplier, ?array $spot, ?array $reset): string
     {
         if (is_string($spot['basis'] ?? null)) {
             return (string) $spot['basis'];
         }
         if (is_string($supplier['basis'] ?? null)) {
             return 'supplier_adjusted_'.$supplier['basis'];
+        }
+
+        if (is_string($reset['basis'] ?? null)) {
+            return 'market_reset_'.$reset['basis'];
         }
 
         return 'canonical_disclosed_phase_timeline';
@@ -350,6 +458,9 @@ class AsOfAnnualCostCalculator
     private function spotEvidenceFlags(AsOfSpotAssumptionsResult $result): array
     {
         $flags = ['spot_assumptions_source_'.$result->source];
+        if ($result->unavailableReason !== null) {
+            $flags[] = 'spot_assumptions_unavailable_'.$result->unavailableReason;
+        }
         foreach ($result->provenanceFlags as $flag) {
             $flags[] = 'spot_assumptions_'.$flag;
         }

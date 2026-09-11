@@ -617,9 +617,9 @@ class ContractPriceStatisticsPageTest extends TestCase
         app()->forgetScopedInstances();
         $asOfKey = $method->invoke(app(ContractPriceStatistics::class));
 
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v20:', $legacyKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v20:', $canonicalKey);
-        $this->assertStringStartsWith('contract-price-statistics:view-data:v20:', $asOfKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v21:', $legacyKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v21:', $canonicalKey);
+        $this->assertStringStartsWith('contract-price-statistics:view-data:v21:', $asOfKey);
         $this->assertNotSame($legacyKey, $canonicalKey);
         $this->assertNotSame($canonicalKey, $asOfKey);
     }

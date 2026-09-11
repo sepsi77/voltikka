@@ -1,0 +1,6 @@
+[
+  {"name":"Design corrected method and historical evidence boundaries","status":"completed"},
+  {"name":"Implement historical estimates and versioned persistence","status":"completed"},
+  {"name":"Implement previews, reader compatibility and rollout guidance","status":"completed"},
+  {"name":"Integrated review, regression tests and build","status":"completed"}
+]

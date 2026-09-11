@@ -221,8 +221,14 @@ class PricingBucketFilterTest extends TestCase
     {
         $this->createOnePerBucket();
 
+        for ($i = 1; $i <= 22; $i++) {
+            $this->createContract('extra-fixed-'.$i);
+        }
+
         $component = Livewire::test(ContractsList::class)
-            ->set('page', 3)
+            ->set('page', 2)
+            ->assertStatus(200)
+            ->assertSet('page', 2)
             ->call('togglePricingBucket', 'kiintea');
 
         $this->assertSame('kiintea', $component->get('pricingBucketFilter'));

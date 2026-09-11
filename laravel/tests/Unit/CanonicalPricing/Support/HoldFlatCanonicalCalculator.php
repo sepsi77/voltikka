@@ -53,7 +53,7 @@ final class DisabledMarketReferenceCurveProvider implements MarketReferenceCurve
         return null;
     }
 
-    public function spotSeasonalIndex(): ?array
+    public function spotSeasonalIndex(CarbonImmutable $asOfDate): ?array
     {
         return null;
     }

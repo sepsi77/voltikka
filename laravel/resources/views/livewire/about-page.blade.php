@@ -105,31 +105,41 @@
             {{-- Menetelmä --}}
             <section id="menetelma" class="scroll-mt-24">
                 <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight mb-4">Näin laskemme kustannukset</h2>
+                <p class="mb-4">
+                    Sähkösopimuksissa yhdistyy yhä useammin määräaikaisia tarjoushintoja, muuttuvia hintoja ja
+                    kulutuksen ajoituksen vaikutuksia. Siksi tulevan vuoden tarkkaa hintaa ei aina voi tietää.
+                    Vertailemme sopimuksia samalla valitsemallasi vuosikulutuksella (kWh) 12 kuukauden ajalta
+                    alla kerrotuilla oletuksilla. Sama kulutus ei tarkoita, että jokaisen sopimuksen hinta olisi yhtä varma.
+                    Koko vuodeksi sovituista kiinteistä hinnoista kustannuksen voi laskea valitulle kulutukselle.
+                </p>
                 <p class="mb-6">
-                    Vertailun vuosikustannukset lasketaan kaikille sopimuksille samalla kaavalla, jotta ne ovat
-                    keskenään vertailukelpoisia. Alla on kerrottu lähteet, laskentakaava ja oletukset.
+                    <strong class="font-semibold text-slate-900">Arvio ei ole lupaus tulevasta sähkölaskusta.</strong>
+                    Todellinen kulutuksesi, sen ajoitus ja myyjän tulevat hinnat voivat poiketa oletuksista.
+                    Pieni ero vuosiarvioissa ei yksin kerro, mikä sopimus tulee lopulta halvimmaksi.
                 </p>
 
                 <div class="space-y-5">
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
                         <h3 class="font-bold text-slate-900 mb-2">Lähde ja päivitys</h3>
                         <p>
-                            Sopimushinnat kerätään sähköyhtiöiden julkisesti saatavilla olevista hinnastoista ja
-                            päivitetään päivittäin. Pörssisähkön toteutuneet hinnat päivittyvät tunneittain.
+                            Haemme sopimushinnat päivittäin sähköyhtiöiden julkisesti saatavilla olevista hinnastoista.
+                            Toteutuneita pörssihintoja haetaan tunneittain.
+                            Jos tietojen haku ei onnistu, sivulla voi olla vanhempia tietoja.
                         </p>
                     </div>
 
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
                         <h3 class="font-bold text-slate-900 mb-2">Vuosikustannuksen kaava</h3>
                         <p class="mb-3">
-                            <span class="font-semibold text-slate-900">Vuosikustannus = energia (snt/kWh × kulutus) + perusmaksu × 12</span>,
-                            sisältäen voimassa olevat tarjoukset.
+                            <span class="font-semibold text-slate-900">Vuosikustannus (€) = energiahinta (snt/kWh) × vuosikulutus (kWh) / 100 + perusmaksu (€/kk) × 12</span>.
+                            Tämä peruskaava koskee koko vuoden samana pysyvää hintaa. Eri jaksojen hinnat, tarjoukset ja kertamaksut lasketaan erikseen.
                         </p>
                         <ul class="list-disc pl-5 space-y-1.5">
-                            <li>Hinnat sisältävät arvonlisäveron (alv 25,5 %).</li>
+                            <li>Kotitalouksille tarkoitetut hinnat sisältävät arvonlisäveron (alv 25,5 %), myös kun sama sopimus on tarjolla yrityksille. Vain yrityksille tarkoitetut sopimukset näytetään ilman arvonlisäveroa. Jos kohderyhmää ei ole ilmoitettu, näytämme hinnat veroineen. Lisäämme tai poistamme veron tarvittaessa myyjän ilmoittamasta hinnasta. Jos verosta ei ole tietoa, oletamme kotitaloushinnan sisältävän veron ja vain yrityksille tarkoitetun hinnan olevan veroton.</li>
                             <li>Sähkön <span class="font-medium">siirtomaksu ei sisälly</span> — se maksetaan paikalliselle
                                 verkkoyhtiölle erikseen eikä riipu sähkösopimuksesta.</li>
-                            <li>Kulutus jaetaan kuukausille realistisesti: talvikuukausina kulutus on suurempi kuin kesällä.</li>
+                            <li>Oletuksena vuosikulutus jaetaan tasan 12 kalenterikuukaudelle sopimuksen hintatyypistä riippumatta. Emme tiedä, milloin juuri sinä käytät sähköä. Tarkemmat lämmitys- ja jäähdytystiedot voivat muuttaa kulutuksen jakautumista kuukausille.</li>
+                            <li>Päivä- ja yösähkön erikseen hinnoittelevassa aikasähkössä perusoletus on 85 % kulutuksesta päivällä ja 15 % yöllä. Tarkemmat kulutustiedot voivat muuttaa tätä jakoa. Tämä ei ole kaikkien asiakkaiden tai pörssisopimusten kulutusoletus.</li>
                             <li>Kaikkien sopimusten hinta ei pysy samana koko vuotta. Pörssisähkön, kuukausi- ja
                                 kvartaalisähkön sekä hinnaltaan muutettavien toistaiseksi voimassa olevien sopimusten
                                 kohdalla laskemme kuukaudet erikseen. Katso omat kohtansa alempana.</li>
@@ -144,26 +154,44 @@
                             kertoo vasta kuvaustekstissä, että hinta nousee tietyn jakson jälkeen.
                         </p>
                         <p>
-                            Tunnistamme tällaiset harhaanjohtavat tarjoukset ja korjaamme niiden vaikutuksen: laskemme
-                            sopimuksen todellisen 12 kuukauden kustannuksen kaikkien hintavaiheiden yli, jotta
-                            tarjoushinta ei nosta sopimusta vertailussa ansaitsematta korkeammalle. Merkitsemme tällaiset
-                            sopimukset selkeästi (esimerkiksi <span class="font-medium">"Hinta nousee"</span> -merkinnällä)
-                            ja kerromme hinnan muutoksesta sopimuksen tiedoissa.
+                            Tarkistus perustuu julkaistuihin hintoihin ja kuvauksiin, eikä se takaa kaikkien virheiden löytymistä.
+                            Otamme tiedossa olevat hinnankorotukset huomioon, jotta pelkkä alun tarjoushinta ei ratkaise vertailua.
+                            Sopimuksen tiedoissa kerromme havaitusta muutoksesta, esimerkiksi
+                            <span class="font-medium">"Hinta nousee"</span> -merkinnällä.
+                        </p>
+                        <p class="mt-3">
+                            Jos tavallisen sopimuksen myöhempää hintaa ei ole ilmoitettu, jatkamme arviossa viimeisimmällä
+                            kyseiseen aikaan soveltuvalla hinnalla tai myyjän ilmoittamalla normaalihinnalla.
+                            Myyjän ilmoittama myöhempi hinta menee aina oletuksen edelle.
+                            Emme jätä puuttuvan hinnan aikaa maksuttomaksi emmekä laske sille ylimääräistä tarjoussäästöä.
+                            Emme myöskään keksi tuntematonta hinnankorotusta. Kerromme arvion oletuksen.
+                            Jos hinnoittelutapaa ei voida tunnistaa tai tiedot ovat ristiriidassa, emme näytä vertailuhintaa.
                         </p>
                     </div>
 
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
                         <h3 class="font-bold text-slate-900 mb-2">Pörssisähkön arviot (· arvio)</h3>
                         <p>
-                            Pörssisopimuksilla todellinen hinta vaihtelee tunneittain, joten vuosikustannus on aina arvio.
-                            Nykyinen arvio käyttää ensisijaisesti seuraavan 12 kuukauden Suomen tukkumarkkinan ennakkohintoja eli sähköfutuureja kuukausi kerrallaan. Viimeisen 365 päivän toteutuneista hinnoista säilytetään päivä- ja yöhintojen ero. Sen jälkeen lisätään sopimuksen tarkka marginaali ja perusmaksu; hinnat sisältävät arvonlisäveron.
+                            Pörssisähkön hinta vaihtelee, joten vuosikustannus on aina arvio.
+                            Käytämme ensisijaisesti seuraavan 12 kuukauden sähköfutuureja kuukausi kerrallaan.
+                            Futuurit ovat tukkumarkkinoilla nyt sovittuja hintoja myöhemmin toimitettavalle sähkölle.
+                            Kun viimeisen vuoden hintatietoja on riittävästi, käytämme toteutuneita päivä- ja yöhintojen eroja
+                            myös arviossa. Lisäämme sopimuksen marginaalin eli myyjän oman hintalisän sekä muut maksut
+                            niille jaksoille, joilla ne ovat voimassa.
                         </p>
                         <p class="mt-3">
-                            Jos koko futuurijaksoa ei ole saatavilla tai tiedot ovat vanhentuneet, käytämme erikseen merkittynä varamenetelmänä edeltävän 12 kuukauden toteutunutta pörssihintaa
+                            Jos futuurit kattavat koko vertailujakson mutta aiempia päivä- ja yöhintoja ei ole riittävästi,
+                            käytämme päivälle ja yölle samaa markkinahinta-arviota. Tällöin arvio on tavallista epävarmempi.
+                            Tämä on oletus hinnoista, ei siitä, että käyttäisit sähköä tasaisesti kaikkina tunteina.
+                        </p>
+                        <p class="mt-3">
+                            Jos koko futuurijaksoa ei ole saatavilla tai tiedot ovat vanhentuneet, käytämme varalla
+                            edeltävän 12 kuukauden toteutunutta pörssihintaa.
                             @if($spotAvg !== null)
-                                (tällä hetkellä <span class="font-semibold text-slate-900 tabular-nums">{{ number_format($spotAvg, 2, ',', ' ') }} c/kWh</span>, sis. alv)
-                            @endif.
-                            Toteutunut hinta voi kummassakin tapauksessa olla arviota korkeampi tai matalampi.
+                                Tämä aiempi keskihinta on nyt <span class="font-semibold text-slate-900 tabular-nums">{{ number_format($spotAvg, 2, ',', ' ') }} c/kWh</span> (sis. alv).
+                            @endif
+                            Kerromme, kun arvio perustuu aiempiin hintoihin. Toteutuva hinta voi kummallakin menetelmällä
+                            olla arviota korkeampi tai matalampi.
                         </p>
                     </div>
 
@@ -172,47 +200,76 @@
                         <p class="mb-3">
                             Osa sopimuksista lukitsee energian hinnan kuukaudeksi tai vuosineljännekseksi kerrallaan
                             ja päivittää sen sitten markkinahinnan mukaan. Voimassa oleva hinta on siis aina yhden
-                            jakson hinta, eikä koko vuoden hinta: kesällä sähkö on halpaa ja talvella kallista.
+                            jakson hinta, eikä koko vuoden hinta. Sähkön hinta voi vaihdella vuodenajan mukaan.
                         </p>
                         <p class="mb-3">
-                            Jos tällaisen sopimuksen nykyinen hinta kerrottaisiin suoraan kahdellatoista, sopimus
-                            näyttäisi kesällä liian halvalta ja talvella liian kalliilta. Siksi laskemme
-                            vuosikustannuksen näin: nykyinen jakso lasketaan sen omalla, jo tiedossa olevalla
-                            hinnalla, ja loput kuukaudet sähkön futuurimarkkinan hinnalla kullekin kuukaudelle
-                            erikseen. Sähköyhtiön oma kate pidetään tässä ennallaan.
+                            Laskemme nykyisen jakson ja muut tiedossa olevat jaksot myyjän ilmoittamilla hinnoilla.
+                            Tulevien jaksojen arviossa lähdemme nykyisestä sopimushinnasta. Vertaamme tulevien kuukausien
+                            tukkuhintoja siihen markkinatilanteeseen, jossa nykyinen hintajakso hinnoiteltiin.
+                            Oletamme sopimushinnan muuttuvan suunnilleen saman verran kuin tukkuhinta.
+                            Myyjä voi kuitenkin hinnoitella sähkön toisin.
+                            Jos futuuritietoja ei voi käyttää, arvioimme muutosta aiempien vuosien pörssihintojen
+                            vuodenaikavaihtelun avulla. Jos sekään ei onnistu, oletamme nykyisen hinnan jatkuvan.
                         </p>
                         <p>
-                            Emme siis ennusta sähkön hintaa itse, vaan käytämme markkinan omaa hintaa tuleville
-                            kuukausille. Lopputulos on arvio. Näytämme sopimuskortilla sekä
-                            <span class="font-medium">voimassa olevan hinnan</span> että
-                            <span class="font-medium">12 kuukauden arvion</span>, jotta molemmat ovat näkyvissä.
-                            Toteutunut hinta voi olla arviota korkeampi tai matalampi, koska sopimuksen hinta
-                            seuraa markkinaa.
+                            Näytämme sopimuskortilla erikseen <span class="font-medium">voimassa olevan hinnan</span> ja
+                            <span class="font-medium">12 kuukauden arvion</span>. Markkinahinnat auttavat arvioimaan muutosta,
+                            mutta ne eivät kerro varmasti myyjän tulevia sopimushintoja.
                         </p>
                     </div>
 
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                        <h3 class="font-bold text-slate-900 mb-2">Muutettavan toistaiseksi voimassa olevan hinnan arvio (· arvio)</h3>
+                        <h3 class="font-bold text-slate-900 mb-2">Toistaiseksi voimassa olevat sopimukset</h3>
                         <p class="mb-3">
                             Toistaiseksi voimassa olevan sopimuksen nykyinen energianhinta on myyjän julkaisema hinta,
                             mutta myyjä voi muuttaa sitä ilmoittamalla muutoksesta etukäteen. Tulevia hintoja tai
                             muutosaikataulua ei tiedetä, joten nykyistä hintaa ei käsitellä koko vuoden hintalupauksena.
                         </p>
                         <p>
-                            Nykyinen kalenterikuukausi lasketaan julkaistulla hinnalla. Myöhemmät kuukaudet arvioidaan
-                            ensisijaisesti tukkumarkkinan ennakkohintojen eli sähköfutuurien avulla. Jos niitä ei voi
-                            käyttää, arvio perustuu pörssisähkön usean vuoden kausivaihteluun tai viimeisenä vaihtoehtona
-                            nykyisen hinnan jatkumiseen. Näytämme nykyisen hinnan erillään 12 kuukauden keskihinta-arviosta.
-                            Toteutunut hinta voi olla korkeampi tai matalampi, eikä arvio ole hintalupaus.
+                            Kun sopimukselle näytetään tällainen markkinamuutoksiin perustuva arvio, nykyinen kalenterikuukausi
+                            lasketaan julkaistulla hinnalla. Myöhempien kuukausien arviossa muutamme nykyistä sopimushintaa
+                            futuurien osoittaman markkinamuutoksen verran. Vertailukohtana on markkinahinta nykyisen
+                            sopimushinnan alkaessa. Jos futuureja ei voi käyttää, arvioimme muutosta aiempien vuosien
+                            vuodenaikavaihtelun avulla tai viimeisenä vaihtoehtona oletamme nykyisen hinnan jatkuvan.
+                            Näytämme nykyisen hinnan erillään 12 kuukauden keskihinta-arviosta.
+                            Kuukausittainen laskenta ei tarkoita, että tietäisimme myyjän tulevat hinnanmuutospäivät.
+                        </p>
+                    </div>
+
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                        <h3 class="font-bold text-slate-900 mb-2">Lyhyet sopimukset, kulutusvaikutus ja paketit</h3>
+                        <p class="mb-3">
+                            <strong class="font-semibold text-slate-900">Lyhyet määräaikaiset sopimukset.</strong>
+                            Lyhyen sopimuksen vuosivertailu voi perustua vain sen omaan sopimusaikaan.
+                            Tällöin laskemme ensin kustannuksen tältä sopimusajalta.
+                            Sopimusajan tuntemattomat hinnat arvioidaan erikseen. Muunnamme summan vuosivertailuun
+                            kertomalla sen luvulla 12 / sopimuskuukaudet. Esimerkki: jos kuuden kuukauden kustannus on
+                            300 €, vuosivertailun luku on 600 €. Tämä on laskuesimerkki, ei tarjous jatkosopimuksesta.
+                            Emme tiedä, millaisen sopimuksen saat määräajan jälkeen.
+                        </p>
+                        <p class="mb-3">
+                            <strong class="font-semibold text-slate-900">Kulutusvaikutussopimukset eli hybridit.</strong>
+                            Vertailuhinta sisältää eri jaksojen perushinnat ja maksut, mutta ei kulutusvaikutusta.
+                            Tuntemattomat perushinnat arvioidaan. Kulutusvaikutus voi nostaa tai laskea omaa hintaasi
+                            sen mukaan, milloin käytät sähköä. Sen pois jättäminen ei tarkoita, että vaikutus olisi sinulle nolla.
+                        </p>
+                        <p>
+                            <strong class="font-semibold text-slate-900">Sähköpaketit.</strong>
+                            Paketin kuukausimaksuun kuuluu tietty määrä sähköä kalenterikuukaudessa.
+                            Käyttämätön osuus ei siirry seuraavaan kuukauteen. Rajan ylittävästä kulutuksesta maksetaan ylityshinta.
+                            Siksi oman kotisi kulutuksen jakautuminen kuukausille vaikuttaa paketin kustannukseen.
+                            Jos sopimus on voimassa vain osan kuukaudesta, pienennämme sekä maksua että kulutusrajaa
+                            samassa suhteessa päivien määrään. Pakettiin sisältyvä sähkö ei ole tarjoussäästöä.
                         </p>
                     </div>
 
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-5">
                         <h3 class="font-bold text-slate-900 mb-2">"Säästö €/v" -merkinnät</h3>
                         <p>
-                            Kun sopimuksessa on tarjous, näytämme arvioidun ensimmäisen vuoden säästön. Säästö tarkoittaa
-                            tarjouksen tuomaa alennusta verrattuna saman sopimuksen normaalihintaan — ei vertailua muiden
-                            yhtiöiden hintoihin tai markkinakeskiarvoon.
+                            Tarjoussäästö tarkoittaa alennusta saman sopimuksen normaalihintaan verrattuna.
+                            Yleensä näytämme säästön 12 kuukauden vertailuajalta. Alle vuoden määräaikaisessa sopimuksessa
+                            säästö koskee vain todellista sopimusaikaa, eikä sitä kerrota vuositasolle.
+                            Kyse ei ole säästöstä omaan vanhaan sopimukseesi, muiden yhtiöiden hintoihin tai markkinakeskiarvoon verrattuna.
                         </p>
                     </div>
 
@@ -222,22 +279,22 @@
                             Toteutuneet pörssisähkön hinnat ovat peräisin ENTSO-E:n julkisesta datasta. Mahdolliset
                             tuntikohtaiset hintaennusteet ovat kolmannen osapuolen ennusteita avoimesta lähteestä
                             <a href="https://github.com/vividfog/nordpool-predict-fi" rel="nofollow noopener" target="_blank" class="text-coral-600 font-medium hover:text-coral-700 underline underline-offset-2">vividfog/nordpool-predict-fi</a>,
-                            ja ne erotetaan sivustolla selkeästi toteutuneista hinnoista.
+                            ja ne erotetaan sivustolla toteutuneista hinnoista. Nämä lyhyen aikavälin tuntiennusteet
+                            ovat eri asia kuin sopimusvertailun vuosiarvio.
                         </p>
                         <p>
-                            Tulevien kuukausien markkinahinnat, joita käytämme kuukausi- ja kvartaalisähkön sekä
-                            muutettavien toistaiseksi voimassa olevien hintojen arvioissa, ovat Suomen hinta-alueen
+                            Pörssisähkön vuosiarvioissa sekä kuukausi- ja kvartaalisähkön ja muutettavien
+                            toistaiseksi voimassa olevien hintojen arvioissa käytetyt markkinahinnat ovat Suomen hinta-alueen
                             julkisia futuurien päätöshintoja
                             <a href="https://www.eex.com/en/market-data" rel="nofollow noopener" target="_blank" class="text-coral-600 font-medium hover:text-coral-700 underline underline-offset-2">EEX-sähköpörssistä</a>.
-                            Ne päivittyvät jokaisena pörssipäivänä.
+                            Päätöshintoja julkaistaan pörssipäivinä, ja haemme niitä päivittäin.
                         </p>
                     </div>
                 </div>
 
                 <p class="text-sm text-slate-500 mt-5">
-                    Laskelmat ovat suuntaa antavia arvioita oman ilmoittamasi kulutuksen perusteella. Ne eivät ole
-                    tarjous eivätkä takaa lopullista hintaa — tarkista aina sopimusehdot sähköyhtiöltä ennen
-                    sopimuksen tekemistä.
+                    Tarkista ennen sopimuksen tekemistä myyjältä hinta, sopimuksen kesto ja ehdot hinnan muuttamiselle.
+                    Kun vertailuhinnan vieressä on Arvio-painike, avaa siitä juuri sen laskelman oletukset.
                 </p>
             </section>
 

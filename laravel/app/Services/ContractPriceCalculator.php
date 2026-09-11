@@ -36,6 +36,7 @@ class ContractPriceCalculator
 
     public function __construct(
         private readonly MonthlyUsageProfileBuilder $usageProfileBuilder = new MonthlyUsageProfileBuilder,
+        private readonly bool $uniformSeasonalConsumption = false,
     ) {}
 
     /**
@@ -549,7 +550,9 @@ class ContractPriceCalculator
     ): array {
         $monthlyCosts = [];
 
-        [$summerConsumptionFactor, $winterConsumptionFactor] = $this->usageProfileBuilder->seasonalConsumptionFactors();
+        [$summerConsumptionFactor, $winterConsumptionFactor] = $this->uniformSeasonalConsumption
+            ? [1.0, 1.0]
+            : $this->usageProfileBuilder->seasonalConsumptionFactors();
 
         foreach (self::WINTER_PRICE_MONTHS as $isWinterMonth) {
             if ($isWinterMonth) {

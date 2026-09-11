@@ -59,6 +59,7 @@ readonly class CanonicalPricingOutcome
         public ?array $resetEstimate = null,
         public ?array $supplierAdjustedEstimate = null,
         public ?array $spotEstimate = null,
+        public ?string $vatBasis = null,
     ) {}
 
     public function isListed(): bool
@@ -112,6 +113,7 @@ readonly class CanonicalPricingOutcome
 
             // Canonical additions.
             'pricing_basis' => 'canonical',
+            'vat_basis' => $this->vatBasis,
             'comparability' => $this->comparability->value,
             'is_estimate' => $this->isEstimate(),
             'estimate_method' => $this->estimateMethod->value,

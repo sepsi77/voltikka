@@ -14,6 +14,9 @@ class SpotPriceAverageService
      * Day hours in Finnish time: 07:00-22:00 (UTC: depends on DST).
      * Night hours: 22:00-07:00.
      */
+    public const PERIOD_ROLLING_365D_LOCAL = SpotPriceAverage::PERIOD_ROLLING_365D_LOCAL;
+    public const PERIOD_ROLLING_30D_LOCAL = SpotPriceAverage::PERIOD_ROLLING_30D_LOCAL;
+
     private const DAY_START_HOUR = 7;
     private const DAY_END_HOUR = 22;
 
@@ -217,7 +220,7 @@ class SpotPriceAverageService
      */
     public function calculateRollingAverages(string $region = 'FI'): void
     {
-        $today = Carbon::today('UTC');
+        $today = Carbon::today('Europe/Helsinki');
 
         // Rolling 30 days
         $this->calculateRolling30DayAverage($today, $region);
@@ -231,11 +234,13 @@ class SpotPriceAverageService
      */
     public function calculateRolling30DayAverage(Carbon $endDate, string $region = 'FI'): ?SpotPriceAverage
     {
-        $startDate = $endDate->copy()->subDays(29)->startOfDay();
-        $endDateTime = $endDate->copy()->endOfDay();
+        $endDate = Carbon::parse($endDate->toDateString(), 'Europe/Helsinki')->startOfDay();
+        $startDate = $endDate->copy()->subDays(29);
+        $endDateTime = $endDate->copy()->addDay();
 
         $hours = SpotPriceHour::forRegion($region)
-            ->whereBetween('utc_datetime', [$startDate, $endDateTime])
+            ->where('utc_datetime', '>=', $startDate->copy()->utc())
+            ->where('utc_datetime', '<', $endDateTime->copy()->utc())
             ->get();
 
         if ($hours->isEmpty()) {
@@ -247,8 +252,8 @@ class SpotPriceAverageService
         return SpotPriceAverage::updateOrCreate(
             [
                 'region' => $region,
-                'period_type' => SpotPriceAverage::PERIOD_ROLLING_30D,
-                'period_start' => $endDate->toDateString(),
+                'period_type' => self::PERIOD_ROLLING_30D_LOCAL,
+                'period_start' => $endDate->copy(),
             ],
             [
                 'period_end' => $endDate->toDateString(),
@@ -270,11 +275,13 @@ class SpotPriceAverageService
      */
     public function calculateRolling365DayAverage(Carbon $endDate, string $region = 'FI'): ?SpotPriceAverage
     {
-        $startDate = $endDate->copy()->subDays(364)->startOfDay();
-        $endDateTime = $endDate->copy()->endOfDay();
+        $endDate = Carbon::parse($endDate->toDateString(), 'Europe/Helsinki')->startOfDay();
+        $startDate = $endDate->copy()->subDays(364);
+        $endDateTime = $endDate->copy()->addDay();
 
         $hours = SpotPriceHour::forRegion($region)
-            ->whereBetween('utc_datetime', [$startDate, $endDateTime])
+            ->where('utc_datetime', '>=', $startDate->copy()->utc())
+            ->where('utc_datetime', '<', $endDateTime->copy()->utc())
             ->get();
 
         if ($hours->isEmpty()) {
@@ -286,8 +293,8 @@ class SpotPriceAverageService
         return SpotPriceAverage::updateOrCreate(
             [
                 'region' => $region,
-                'period_type' => SpotPriceAverage::PERIOD_ROLLING_365D,
-                'period_start' => $endDate->toDateString(),
+                'period_type' => self::PERIOD_ROLLING_365D_LOCAL,
+                'period_start' => $endDate->copy(),
             ],
             [
                 'period_end' => $endDate->toDateString(),
@@ -340,8 +347,8 @@ class SpotPriceAverageService
      */
     private function calculateStats($hours): array
     {
-        $dayHours = $hours->filter(fn($h) => $this->isDayHour($h->utc_datetime));
-        $nightHours = $hours->filter(fn($h) => !$this->isDayHour($h->utc_datetime));
+        $dayHours = $hours->filter(fn($h) => $this->isDayHour(Carbon::parse($h->getRawOriginal('utc_datetime'), 'UTC')));
+        $nightHours = $hours->filter(fn($h) => !$this->isDayHour(Carbon::parse($h->getRawOriginal('utc_datetime'), 'UTC')));
 
         // Calculate averages
         $avgWithoutTax = $hours->avg('price_without_tax');

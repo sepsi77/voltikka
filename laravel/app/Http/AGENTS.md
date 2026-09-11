@@ -74,6 +74,27 @@ canonical mode it evaluates the published canonical JSON, adapts the outcome thr
 components and adapts the legacy result through `fromLegacyResult()` before it serializes the
 unchanged response. Keep this branch boundary explicit.
 
+Detailed `energy_usage` always requires `total`, including when `consumption` is also supplied.
+The total is authoritative. Missing component consumption is added to `basic_living`; a component
+sum above the total returns a 422 validation error on `energy_usage.total`. Only validated
+snake-case component fields reach the DTO. `basicLiving` can be fractional so a fractional cooling
+input does not lose the remaining fraction through integer conversion. The shared DTO does not
+normalize other callers.
+
+An optional heating array requires `room_heating` and exactly the calendar keys 0 through 11.
+Each value must be finite, numeric, and non-negative. Values are weights, normalized to the supplied
+room-heating total. Positive room heating requires a finite positive weight sum. Zero room heating
+produces a zero monthly distribution; no array means the calculator uses its normal heating profile.
+This policy accepts partial breakdowns without losing annual consumption or silently ignoring an
+array for which the room-heating branch cannot run.
+
+The calculation API has no response cache. Annual list, company, and ranking caches include the
+Helsinki calculation date as well as their existing schemas, flags, and import/futures data versions.
+Their instance memos also cross this daily boundary. Date keys retain the existing bounded TTLs
+(48 hours for list/company, one hour for ranking); no import invalidation path is removed. Custom
+consumption still bypasses the preset list cache. `AnnualConsumerConsistencyTest` checks a dated
+promotion across Helsinki midnight through list/company/ranking, custom API, and current statistics.
+
 ## Weekly-offers video API pricing
 
 `GET /api/video/weekly-offers` returns `data.pricing_basis`. In canonical mode, each offer contains

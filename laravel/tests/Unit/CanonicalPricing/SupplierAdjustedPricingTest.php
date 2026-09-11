@@ -215,14 +215,14 @@ class SupplierAdjustedPricingTest extends TestCase
             [
                 $this->tariffFixture('contract_start', ['energy_day' => 8.0, 'energy_night' => 4.0], 4.65),
                 new ContractContext('FixedPrice', 'OpenEnded', 'Time', null, 'Household'),
-                6.5,
+                7.4,
                 5000 - (5000 / 12),
             ],
             [
                 $this->tariffFixture('contract_start', ['energy_seasonal_winter' => 12.0, 'energy_seasonal_other' => 4.0], 4.65),
                 new ContractContext('FixedPrice', 'OpenEnded', 'Season', null, 'Household'),
-                22 / 3,
-                5000 - ((5000 / 12) * (12 / 13.5)),
+                (5 * (12 * 0.85 + 4 * 0.15) + 7 * 4) / 12,
+                5000 - (5000 / 12),
             ],
         ];
 
@@ -232,6 +232,8 @@ class SupplierAdjustedPricingTest extends TestCase
 
             $this->assertSame(ContractComparability::ComparableEstimate, $shifted->comparability);
             $this->assertEqualsWithDelta($representative + (4 * $tailKwh / 5000), $shifted->supplierAdjustedEstimate['annual_equivalent_energy_price'], 0.001);
+            $this->assertEqualsWithDelta(($shifted->totalCost - 12 * 4.65) * 100 / 5000, $shifted->supplierAdjustedEstimate['annual_equivalent_energy_price'], 0.001);
+            $this->assertEqualsWithDelta(($held->totalCost - 12 * 4.65) * 100 / 5000, $held->supplierAdjustedEstimate['annual_equivalent_energy_price'], 0.001);
             $this->assertEqualsWithDelta($tailKwh * 4 / 100, $shifted->totalCost - $held->totalCost, 0.001);
             $this->assertEqualsWithDelta($held->monthlyCosts[0], $shifted->monthlyCosts[0], 0.001);
             $this->assertEqualsWithDelta($shifted->totalCost, $shifted->baseTotalCost, 0.001);
@@ -459,7 +461,7 @@ class SupplierAdjustedFakeCurve implements MarketReferenceCurveProvider
         return $price === null ? null : ['kind' => 'month', 'price_cents_per_kwh' => $price];
     }
 
-    public function spotSeasonalIndex(): ?array
+    public function spotSeasonalIndex(CarbonImmutable $asOfDate): ?array
     {
         return $this->seasonalIndex;
     }

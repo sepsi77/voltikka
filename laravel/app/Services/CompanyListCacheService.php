@@ -27,7 +27,7 @@ class CompanyListCacheService
 
     private const DEFAULT_CONSUMPTION = 5000;
 
-    /** @var array<int, Collection<int, array<string, mixed>>> */
+    /** @var array<string, Collection<int, array<string, mixed>>> */
     private array $cachedCompaniesMemo = [];
 
     private ?int $versionMemo = null;
@@ -40,12 +40,13 @@ class CompanyListCacheService
 
     public function getCachedCompanies(int $consumption = self::DEFAULT_CONSUMPTION): Collection
     {
-        if (isset($this->cachedCompaniesMemo[$consumption])) {
-            return $this->cachedCompaniesMemo[$consumption];
+        $cacheKey = $this->getCacheKey($consumption);
+        if (isset($this->cachedCompaniesMemo[$cacheKey])) {
+            return $this->cachedCompaniesMemo[$cacheKey];
         }
 
-        return $this->cachedCompaniesMemo[$consumption] = Cache::remember(
-            $this->getCacheKey($consumption),
+        return $this->cachedCompaniesMemo[$cacheKey] = Cache::remember(
+            $cacheKey,
             self::CACHE_TTL_SECONDS,
             fn () => $this->buildCachedCompanies($consumption)
         );
@@ -74,13 +75,14 @@ class CompanyListCacheService
     private function getCacheKey(int $consumption): string
     {
         return sprintf(
-            'company_list:v%d:s%d:%s:lv%d:%s:%d',
+            'company_list:v%d:s%d:%s:lv%d:%s:%d:%s',
             $this->getVersion(),
             self::PAYLOAD_SCHEMA_VERSION,
             CalculatedCostPayloadSchema::cacheMarker(),
             $this->contractListCache->getVersion(),
             $this->pricingMode->cacheMarker(),
             $consumption,
+            now('Europe/Helsinki')->toDateString(),
         );
     }
 

@@ -329,6 +329,7 @@ class CanonicalContractPricingService
             $spot->nightAvgWithTax ?? 'null',
             $spot->periodStart?->toDateString() ?? 'null',
             $spot->periodEnd?->toDateString() ?? 'null',
+            json_encode($spot->coverage()),
         ]);
 
         return $this->spotEstimates[$key] ??= ($this->spotEstimator ?? app(SpotForwardPriceEstimator::class))
@@ -344,15 +345,20 @@ class CanonicalContractPricingService
         $avg = SpotPriceAverage::latestRolling365Days();
 
         $periodEnd = $avg?->period_end !== null
-            ? CarbonImmutable::parse($avg->period_end, 'Europe/Helsinki')->startOfDay()
+            ? CarbonImmutable::parse($avg->period_end->toDateString(), 'Europe/Helsinki')->startOfDay()
             : null;
+        $isLocal = $avg?->period_type === SpotPriceAverage::PERIOD_ROLLING_365D_LOCAL;
+        $periodStart = $isLocal ? $periodEnd?->subDays(364) : null;
 
         return $this->spotAssumptions = new SpotAssumptions(
             dayAvgWithTax: $avg?->day_avg_with_tax,
             nightAvgWithTax: $avg?->night_avg_with_tax,
             overallAvgWithTax: $avg?->avg_price_with_tax,
-            periodStart: $periodEnd?->subDays(364),
+            periodStart: $periodStart,
             periodEnd: $periodEnd,
+            actualHours: $avg?->hours_count,
+            expectedHours: $periodStart !== null ? (int) $periodStart->utc()->diffInHours($periodEnd->addDay()->utc()) : null,
+            windowSemantics: $avg === null ? 'missing' : ($isLocal ? 'helsinki_dates_v2' : 'legacy_utc_dates'),
         );
     }
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Services\CalculatedCostPayloadSchema;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\CO2EmissionsCalculator;
@@ -17,7 +18,7 @@ class ContractRankingTypedMetricsTest extends TestCase
     public function test_a_cached_metric_without_a_total_fails_before_it_can_become_a_zero_euro_recommendation(): void
     {
         Cache::flush();
-        Cache::put('contract_list_metrics:v1:s15:c0r0:5000', [
+        Cache::put('contract_list_metrics:v1:s'.CalculatedCostPayloadSchema::VERSION.':c0r0:5000:'.now('Europe/Helsinki')->toDateString(), [
             'contracts' => [
                 'cheap' => [
                     'calculated_cost' => $this->legacyPricingWithoutTotal(),

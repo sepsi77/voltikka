@@ -177,7 +177,18 @@ class ContractPricingReadModelTest extends TestCase
 
     public function test_valid_forward_and_fallback_spot_payloads_round_trip_exactly(): void
     {
-        foreach ([self::forwardSpotEstimateFixture(), self::fallbackSpotEstimateFixture()] as $estimate) {
+        $flat = self::forwardSpotEstimateFixture();
+        $flat['confidence'] = 'lower';
+        $flat['higher_confidence'] = false;
+        $flat['flags'] = ['zero_intraday_shape_fallback', 'invalid_shape_inputs'];
+        foreach (['overall_price', 'day_price', 'night_price', 'period_start', 'period_end'] as $key) {
+            $flat['shape'][$key] = null;
+        }
+        $flat['shape']['day_offset'] = 0.0;
+        $flat['shape']['night_offset'] = 0.0;
+        $flat['shape']['actual_hours'] = 0;
+        $flat['shape']['expected_hours'] = 8760;
+        foreach ([self::forwardSpotEstimateFixture(), self::fallbackSpotEstimateFixture(), $flat] as $estimate) {
             $payload = $this->canonicalPricing([
                 'comparability' => 'comparable_estimate',
                 'is_estimate' => true,

@@ -242,7 +242,7 @@ class EexMarketReferenceCurveProviderTest extends TestCase
             }
         }
 
-        $index = app(MarketReferenceCurveProvider::class)->spotSeasonalIndex();
+        $index = app(MarketReferenceCurveProvider::class)->spotSeasonalIndex(CarbonImmutable::parse('2026-01-01', 'Europe/Helsinki'));
 
         $this->assertNotNull($index);
         $this->assertCount(12, $index);
@@ -256,7 +256,7 @@ class EexMarketReferenceCurveProviderTest extends TestCase
             $this->monthlySpotAverage(2025, $month, 5.0);
         }
 
-        $this->assertNull(app(MarketReferenceCurveProvider::class)->spotSeasonalIndex());
+        $this->assertNull(app(MarketReferenceCurveProvider::class)->spotSeasonalIndex(CarbonImmutable::parse('2026-01-01', 'Europe/Helsinki')));
     }
 
     public function test_fixed_term_median_reads_the_latest_statistic_row(): void

@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\DB;
 class CurrentPriceEpisodeResolver
 {
     /**
-     * @param array<string, SupplierAdjustedCandidate> $candidates
+     * @param  array<string, SupplierAdjustedCandidate>  $candidates
      * @return array<string, PriceEpisodeAnchor>
      */
     public function resolve(array $candidates): array
@@ -37,24 +37,9 @@ class CurrentPriceEpisodeResolver
 
         $resolved = [];
         foreach ($candidates as $contractId => $candidate) {
-            $contractRows = $rows->get($contractId, collect());
-            $observed = $contractRows->where('pricing_basis', 'observed_seller_data')->values();
-            $basisRows = $observed->contains(fn ($row): bool => $this->matches($row, $candidate))
-                ? $observed
-                : $contractRows->values();
-            $start = $this->latestMatchingRunStart($basisRows->all(), $candidate);
-
-            if ($start !== null) {
-                $observedBasis = $basisRows === $observed || ($basisRows->isNotEmpty() && $basisRows->every(
-                    fn ($row): bool => $row->pricing_basis === 'observed_seller_data'
-                ));
-                $resolved[$contractId] = new PriceEpisodeAnchor(
-                    startedAt: $start,
-                    evidenceBasis: $observedBasis
-                        ? PriceEpisodeEvidenceBasis::ObservedSellerSnapshotRun
-                        : PriceEpisodeEvidenceBasis::CanonicalSnapshotRun,
-                    flags: ['price_snapshot_episode_proxy'],
-                );
+            $anchor = $this->latestMatchingRun($rows->get($contractId, collect())->all(), $candidate);
+            if ($anchor !== null) {
+                $resolved[$contractId] = $anchor;
             }
         }
 
@@ -91,26 +76,40 @@ class CurrentPriceEpisodeResolver
     }
 
     /** @param list<object> $rows */
-    private function latestMatchingRunStart(array $rows, SupplierAdjustedCandidate $candidate): ?CarbonImmutable
+    private function latestMatchingRun(array $rows, SupplierAdjustedCandidate $candidate): ?PriceEpisodeAnchor
     {
         $runStart = null;
         $previousDate = null;
+        $observedRun = true;
 
-        foreach ($rows as $row) {
-            $date = CarbonImmutable::parse($row->snapshot_date, 'Europe/Helsinki')->startOfDay();
-            if (! $this->matches($row, $candidate)) {
+        foreach (collect($rows)->groupBy('snapshot_date') as $snapshotDate => $dailyRows) {
+            $date = CarbonImmutable::parse($snapshotDate, 'Europe/Helsinki')->startOfDay();
+            // Preference is local to one date. Unknown rates cannot override known evidence.
+            $known = $dailyRows->filter(fn ($row): bool => $row->energy_price_cents_per_kwh !== null);
+            $observed = $known->where('pricing_basis', 'observed_seller_data');
+            $evidence = $observed->isNotEmpty() ? $observed : $known;
+            if ($evidence->isEmpty() || ! $evidence->every(fn ($row): bool => $this->matches($row, $candidate))) {
                 $runStart = null;
                 $previousDate = $date;
+
                 continue;
             }
 
             if ($runStart === null || $previousDate === null || ! $previousDate->addDay()->equalTo($date)) {
                 $runStart = $date;
+                $observedRun = true;
             }
+            $observedRun = $observedRun && $evidence->every(fn ($row): bool => $row->pricing_basis === 'observed_seller_data');
             $previousDate = $date;
         }
 
-        return $runStart;
+        return $runStart === null ? null : new PriceEpisodeAnchor(
+            startedAt: $runStart,
+            evidenceBasis: $observedRun
+                ? PriceEpisodeEvidenceBasis::ObservedSellerSnapshotRun
+                : PriceEpisodeEvidenceBasis::CanonicalSnapshotRun,
+            flags: ['price_snapshot_episode_proxy'],
+        );
     }
 
     private function matches(object $row, SupplierAdjustedCandidate $candidate): bool

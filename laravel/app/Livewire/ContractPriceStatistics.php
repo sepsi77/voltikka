@@ -84,6 +84,8 @@ class ContractPriceStatistics extends Component
     /** @var array<string, Collection<int, ContractPriceDailyStatistic>>|null */
     private ?array $dailyStatsIndexCache = null;
 
+    private ?string $annualDataDateCache = null;
+
     /** @var array<string, array<string,mixed>> */
     private array $aggregatedSeriesCache = [];
 
@@ -208,13 +210,20 @@ class ContractPriceStatistics extends Component
             return $this->dailyStatsCache = collect();
         }
 
-        // Unit statistics own the public endpoint date and still require the
-        // expected current pricing basis. Active annual rows can use a mixed
-        // evidence basis on that same date. Older rows keep their dated basis,
-        // but every row has already passed the metric-method isolation scope.
+        // Retained active annual history has its own eligible endpoint while
+        // unit collection advances. Neither endpoint can change pricing mode.
+        $latestAnnualDate = $rows->where('metric_key', 'annual_cost')
+            ->filter(fn (ContractPriceDailyStatistic $row): bool => $row->stat_date->toDateString() <= $latestExpectedDate
+                && in_array($row->pricing_basis, [$expectedBasis, 'mixed_evidence'], true))
+            ->max(fn (ContractPriceDailyStatistic $row): string => $row->stat_date->toDateString());
+
         return $this->dailyStatsCache = $rows
-            ->filter(function (ContractPriceDailyStatistic $row) use ($expectedBasis, $latestExpectedDate): bool {
+            ->filter(function (ContractPriceDailyStatistic $row) use ($expectedBasis, $latestExpectedDate, $latestAnnualDate): bool {
                 $date = $row->stat_date->toDateString();
+                if ($row->metric_key === 'annual_cost') {
+                    return $latestAnnualDate !== null && ($date < $latestAnnualDate
+                        || ($date === $latestAnnualDate && in_array($row->pricing_basis, [$expectedBasis, 'mixed_evidence'], true)));
+                }
 
                 if ($date < $latestExpectedDate) {
                     return true;
@@ -222,10 +231,6 @@ class ContractPriceStatistics extends Component
 
                 if ($date !== $latestExpectedDate) {
                     return false;
-                }
-
-                if ($row->metric_key === 'annual_cost') {
-                    return in_array($row->pricing_basis, [$expectedBasis, 'mixed_evidence'], true);
                 }
 
                 return $row->pricing_basis === $expectedBasis;
@@ -259,6 +264,13 @@ class ContractPriceStatistics extends Component
             'days' => Carbon::parse($from)->diffInDays(Carbon::parse($to)) + 1,
             'dayCount' => count($dates),
         ];
+    }
+
+    public function getAnnualDataDateProperty(): ?string
+    {
+        $this->dailyStatisticRows('', 'annual_cost', $this->consumption);
+
+        return $this->annualDataDateCache;
     }
 
     public function getLatestSnapshotCountProperty(): int
@@ -808,13 +820,16 @@ class ContractPriceStatistics extends Component
             'latestSnapshotCount' => $this->latestSnapshotCount,
             'latestPricingBasis' => $this->latestPricingBasis,
             'activeAnnualMethod' => ContractPriceDailyStatistic::activeAnnualMethodVersion()->value,
+            'activeAnnualIsAsOf' => ContractPriceDailyStatistic::activeAnnualMethodVersion()->isAsOf(),
+            'annualDataDate' => $this->annualDataDate,
+            'annualDataIsRetained' => $this->annualDataDate !== null && $this->annualDataDate < $this->dataWindow['to'],
             'jsonLd' => $this->jsonLd,
         ];
     }
 
     private function statisticsViewDataCacheKey(): string
     {
-        return 'contract-price-statistics:view-data:v20:'.md5(json_encode([
+        return 'contract-price-statistics:view-data:v21:'.md5(json_encode([
             'period' => $this->period,
             'consumption' => $this->consumption,
             'pricing_basis' => app(PricingMode::class)->expectedContractPriceBasis()->value,
@@ -850,8 +865,8 @@ class ContractPriceStatistics extends Component
 
         $spotAverages = SpotPriceAverage::query()
             ->forRegion('FI')
-            ->ofType(SpotPriceAverage::PERIOD_DAILY)
-            ->selectRaw('COUNT(*) as row_count, MAX(period_start) as latest_date, MAX(updated_at) as latest_update')
+            ->whereIn('period_type', [SpotPriceAverage::PERIOD_DAILY, ...SpotPriceAverage::ROLLING_30D_TYPES, ...SpotPriceAverage::ROLLING_365D_TYPES])
+            ->selectRaw('COUNT(*) as row_count, MAX(period_end) as latest_date, MAX(updated_at) as latest_update, SUM(hours_count) as total_hours, SUM(avg_price_with_tax) as price_sum')
             ->first();
 
         $spotHours = SpotPriceHour::query()
@@ -872,6 +887,8 @@ class ContractPriceStatistics extends Component
             'spot_averages_row_count' => (int) ($spotAverages?->row_count ?? 0),
             'spot_averages_latest_date' => $spotAverages?->latest_date,
             'spot_averages_latest_update' => $spotAverages?->latest_update,
+            'spot_averages_total_hours' => $spotAverages?->total_hours,
+            'spot_averages_price_sum' => $spotAverages?->price_sum,
             'spot_hours_row_count' => (int) ($spotHours?->row_count ?? 0),
             'spot_hours_latest_date' => $spotHours?->latest_date,
         ];
@@ -1685,7 +1702,7 @@ class ContractPriceStatistics extends Component
             return false;
         }
 
-        $latestPublicDate = $this->dataWindow['to'];
+        $latestPublicDate = $metricKey === 'annual_cost' ? $this->annualDataDate : $this->dataWindow['to'];
         $hasCurrentPoint = $latestPublicDate !== null && $rows->contains(
             fn (ContractPriceDailyStatistic $row): bool => $row->stat_date->toDateString() === $latestPublicDate,
         );
@@ -1726,11 +1743,16 @@ class ContractPriceStatistics extends Component
             $indexed = [];
 
             foreach ($this->dailyStats as $row) {
+                $rowMetricKey = $row->metric_key;
                 $key = $this->dailyStatisticIndexKey(
                     $row->segment_key,
-                    $row->metric_key,
+                    $rowMetricKey,
                     $row->consumption_kwh,
                 );
+                if ($rowMetricKey === 'annual_cost') {
+                    $date = $row->stat_date->toDateString();
+                    $this->annualDataDateCache = max($this->annualDataDateCache ?? $date, $date);
+                }
                 $indexed[$key][] = $row;
             }
 

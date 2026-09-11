@@ -17,10 +17,11 @@ own:
 
 - `contract_price_daily_statistics` — the market p20 / median / p80 band
 - `contract_price_snapshots` — legacy seller annual values plus company identity and observed unit evidence
-- `contract_price_annual_costs` — versioned seller annual values for `annual_cost_as_of_v1`
+- `contract_price_annual_costs` — versioned seller annual values for both `annual_cost_as_of_v1` and `annual_cost_as_of_v2`
 
 The service branches on `ContractPriceDailyStatistic::activeAnnualMethodVersion()`.
-The legacy branch keeps its old snapshot-column behavior. The AsOf branch reads the
+The legacy branch keeps its old snapshot-column behavior. `isAsOf()` selects the shared branch for
+both AsOf versions. All three annual-table queries filter the active method. The AsOf branch reads the
 seller total only from `contract_price_annual_costs`, filtered by exact method, date,
 consumption, company, segment, and pricing basis. It joins the same-date snapshot only
 to identify the company and apply the historical observed energy-rate guard. It never
@@ -41,12 +42,21 @@ historical page fallback, not a current-price fallback: the payload sets
 today's comparison. Current canonical rows always win when usable. The FAQ does
 not answer a current-price question from the historical fallback.
 
+An AsOf pair older than the latest same-basis unit date sets
+`comparison_state=historical_retained_annual` and `is_historical_fallback=true`, even when the pair
+is canonical. The existing dated presentation states that it is not today's comparison. Unit
+collection can advance while public v1 retains its old annual endpoint beside inactive v2. This
+check compares stored endpoints; it does not reclassify ordinary yesterday data by clock age.
+Switchback to v1 restores dated retained values, not new current v1 calculations. Same-day snapshot
+replacement can remove identities from company date/contract joins, even though v1 financial rows
+remain unchanged. Avoid overwriting the last retained v1 date during rollout.
+
 A non-historical payload can also carry the small typed `spot_benchmarks`
 payload. It reads only the `spot` segment's `spot_margin` and `monthly_fee`
 medians from the exact `stat_date` and `pricing_basis` selected above. Each
 metric independently requires a numeric median and at least
-`MIN_MARKET_CONTRACTS`; unusable metrics are absent. A historical observed
-fallback always sets this payload to null. This prevents current canonical
+`MIN_MARKET_CONTRACTS`; unusable metrics are absent. Every historical fallback, including retained
+canonical annual data, sets this payload to null. This prevents current canonical
 contract charges from being compared with dated observed market rows. In
 feature-off mode, current observed contract charges use current observed rows on
 the same date.
@@ -55,9 +65,9 @@ the same date.
 
 `energy_price` prices a spot contract at **that day's** spot average plus the
 seller's margin. On 2026-07-24 that put spot at 2,16 c/kWh beside a 12-month
-fixed contract at 10,47 c/kWh, which is not a comparison. `annual_cost` uses the
-trailing-365-day spot average for spot, which is what
-`../ContractStatistics/AGENTS.md` names as the metric for cross-type comparison.
+fixed contract at 10,47 c/kWh, which is not a comparison. `annual_cost` uses the selected method's dated 12-month estimate: AsOf uses the dated forward
+curve or its explicit rolling fallback. It does not use that day's Spot price. See
+`../ContractStatistics/AGENTS.md` for the method and evidence rules.
 
 Cost of that choice: `annual_cost` exists only for 2 000 / 5 000 / 18 000 kWh
 (`REFERENCE_CONSUMPTIONS`), and the company page also offers 10 000 kWh. So a
@@ -176,7 +186,7 @@ persisted `market_reset` points. In both cases:
 
 ### Caching
 
-Cached for 6 hours under key schema v10: active annual method + request-scoped
+Cached for 6 hours under key schema v11: active annual method + request-scoped
 `PricingMode` canonical state + expected basis + company + snapped reference
 consumption. The legacy fingerprint remains based on snapshots and active-method
 statistics. The AsOf fingerprint also includes the versioned annual table's newest
@@ -187,7 +197,7 @@ payload.
 
 The global fingerprint scan is shared by all companies for 10 minutes under its
 own schema-versioned key. That key varies by active annual method, canonical mode,
-and expected pricing basis. Both a cold fingerprint and a cold v10 company payload
+and expected pricing basis. Both a cold fingerprint and a cold v11 company payload
 use a short cache lock with a second cache check after lock acquisition. Lock
 contention must return `null`; it must never run an uncached expensive fallback.
 The page already presents `null` as the honest no-comparison state.

@@ -22,3 +22,4 @@ Important semantics:
 - calculated-cost schema v14 adds the forward-Spot evidence payload and invalidates old rolling-Spot sort values
 - `CalculatedCostPayloadSchema::VERSION` is the one calculated-cost shape version used by list, company, ranking, and prepared-page cache keys
 - `ContractPageCacheVersion` keeps its own prepared-view wrapper version and also includes the shared `cs{version}` marker plus `PricingMode::cacheMarker()`
+- Its Spot fingerprint includes all FI average period types, including corrected local rolling rows. Updated time, hour count, and overall/day/night price sums detect a same-date refresh even when row count and evidence dates stay unchanged.

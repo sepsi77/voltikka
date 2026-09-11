@@ -62,7 +62,7 @@ class ContractListCacheService
      * single detail render otherwise show up as repeated identical cache SQL
      * spans in Sentry.
      *
-     * @var array<int, ContractMetricSet>
+     * @var array<string, ContractMetricSet>
      */
     private array $cachedMetricsMemo = [];
 
@@ -79,12 +79,13 @@ class ContractListCacheService
             return null;
         }
 
-        if (array_key_exists($consumption, $this->cachedMetricsMemo)) {
-            return $this->cachedMetricsMemo[$consumption];
+        $cacheKey = $this->getCacheKey($consumption);
+        if (array_key_exists($cacheKey, $this->cachedMetricsMemo)) {
+            return $this->cachedMetricsMemo[$cacheKey];
         }
 
         $payload = Cache::remember(
-            $this->getCacheKey($consumption),
+            $cacheKey,
             self::CACHE_TTL_SECONDS,
             fn (): array => $this->buildCachedMetrics($consumption)->toArray(),
         );
@@ -93,14 +94,14 @@ class ContractListCacheService
             throw new InvalidArgumentException('Cached contract metrics must be an array payload.');
         }
 
-        return $this->cachedMetricsMemo[$consumption] = ContractMetricSet::fromArray($payload);
+        return $this->cachedMetricsMemo[$cacheKey] = ContractMetricSet::fromArray($payload);
     }
 
     public function warmPresetCaches(): void
     {
         foreach (self::PRESET_CONSUMPTIONS as $consumption) {
             $this->getCachedMetrics($consumption);
-            unset($this->cachedMetricsMemo[$consumption]);
+            $this->cachedMetricsMemo = [];
         }
     }
 
@@ -126,11 +127,12 @@ class ContractListCacheService
         // marker does the same for RESET_FORWARD_SHIFT_ENABLED, which changes market-reset
         // totals and therefore the sorted order.
         return sprintf(
-            'contract_list_metrics:v%d:s%d:%s:%d',
+            'contract_list_metrics:v%d:s%d:%s:%d:%s',
             $this->getVersion(),
             CalculatedCostPayloadSchema::VERSION,
             $this->pricingMode->cacheMarker(),
             $consumption,
+            now('Europe/Helsinki')->toDateString(),
         );
     }
 

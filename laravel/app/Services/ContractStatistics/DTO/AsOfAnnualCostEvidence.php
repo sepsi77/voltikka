@@ -33,7 +33,18 @@ readonly class AsOfAnnualCostEvidence
         public array $sourceEvidenceIds,
         public array $provenanceFlags = [],
         public ?string $exclusionReason = null,
+        public bool $consumptionEligibilityProven = false,
+        public ?int $minimumAnnualConsumptionKwh = null,
+        public ?int $maximumAnnualConsumptionKwh = null,
+        public bool $householdAudienceConflict = false,
     ) {}
+
+    public function isWithinProvenConsumptionRange(int $consumption): bool
+    {
+        return $this->consumptionEligibilityProven
+            && ($this->minimumAnnualConsumptionKwh === null || $consumption >= $this->minimumAnnualConsumptionKwh)
+            && ($this->maximumAnnualConsumptionKwh === null || $consumption <= $this->maximumAnnualConsumptionKwh);
+    }
 
     public function isAvailableForConsumption(int $consumption): bool
     {

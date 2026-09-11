@@ -82,8 +82,15 @@ class ContractListingEligibilityTest extends TestCase
         $this->createContract('national', true, 5.0);
         $this->createContract('regional', false, 4.0, ['00100']);
 
+        // Page two must exist before an action can reset or preserve it.
+        for ($i = 1; $i <= 25; $i++) {
+            $this->createContract('national-'.$i, true, 5.0);
+        }
+
         $invalid = Livewire::test('contracts-list')
-            ->set('page', 3)
+            ->set('page', 2)
+            ->assertStatus(200)
+            ->assertSet('page', 2)
             ->set('postcodeSearch', '12x')
             ->call('applyPostcodeSearch')
             ->assertSet('postcodeFilter', '')
@@ -94,19 +101,23 @@ class ContractListingEligibilityTest extends TestCase
         $invalid->set('postcodeSearch', '1')->assertSet('postcodeError', null);
 
         $restored = Livewire::test('contracts-list')
-            ->set('page', 3)
+            ->set('page', 2)
+            ->assertStatus(200)
             ->call('restorePostcode', '00100')
             ->assertSet('postcodeFilter', '00100')
-            ->assertSet('page', 3)
+            ->assertSet('page', 2)
             ->call('restorePostcode', '99999')
             ->assertSet('postcodeFilter', '')
             ->assertSet('postcodeError', 'Postinumeroa ei löytynyt. Tarkista numero ja yritä uudelleen.')
-            ->assertSet('page', 3)
+            ->assertSet('page', 2)
             ->assertDispatched('postcode-preference-removed');
 
         $nationalOnly = Livewire::test('contracts-list');
 
-        $this->assertSame(['national'], $this->listingIds($nationalOnly->viewData('contracts'))->all());
+        $contracts = $nationalOnly->viewData('contracts');
+        $this->assertSame(26, $contracts->total());
+        $this->assertCount(25, $this->listingIds($contracts));
+        $this->assertFalse($this->listingIds($contracts)->contains('regional'));
     }
 
     public function test_selector_is_visible_and_contains_browser_persistence_markup(): void

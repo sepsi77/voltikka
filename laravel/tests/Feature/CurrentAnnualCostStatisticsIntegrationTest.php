@@ -61,7 +61,7 @@ class CurrentAnnualCostStatisticsIntegrationTest extends TestCase
 
         $this->assertSame(['snapshots' => 1, 'statistics' => 5], $result);
         $this->assertSame(3, ContractPriceAnnualCost::query()
-            ->where('method_version', AnnualCostMethodVersion::AsOf->value)
+            ->where('method_version', AnnualCostMethodVersion::AsOfV2->value)
             ->where('contract_id', $contract->id)
             ->count());
         $this->assertSame(
@@ -73,7 +73,7 @@ class CurrentAnnualCostStatisticsIntegrationTest extends TestCase
             ContractPriceAnnualCost::query()->orderBy('consumption_kwh')->pluck('annual_cost')->all(),
         );
         $this->assertSame(3, ContractPriceDailyStatistic::annualCostByMethod(AnnualCostMethodVersion::Legacy)->count());
-        $this->assertSame(3, ContractPriceDailyStatistic::annualCostByMethod(AnnualCostMethodVersion::AsOf)->count());
+        $this->assertSame(3, ContractPriceDailyStatistic::annualCostByMethod(AnnualCostMethodVersion::AsOfV2)->count());
     }
 
     public function test_canonical_rerun_does_not_create_nullable_unit_identity_duplicates(): void
@@ -143,16 +143,16 @@ class CurrentAnnualCostStatisticsIntegrationTest extends TestCase
 
         config()->set('canonical_pricing.enabled', true);
         $service->calculateForDate(self::DATE, [$contract->id], overwrite: true, useCanonical: true);
-        $this->assertTrue(ContractPriceDailyStatistic::annualCostByMethod(AnnualCostMethodVersion::AsOf)
+        $this->assertTrue(ContractPriceDailyStatistic::annualCostByMethod(AnnualCostMethodVersion::AsOfV2)
             ->where('pricing_basis', ContractPriceBasis::CanonicalCalculation->value)
             ->exists());
 
         config()->set('canonical_pricing.enabled', false);
-        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::AsOf->value);
+        config()->set('contract_statistics.annual_cost.active_method_version', AnnualCostMethodVersion::AsOfV2->value);
         app()->forgetScopedInstances();
         $service->calculateForDate(self::DATE, [$contract->id], overwrite: true, useCanonical: false);
 
-        $this->assertTrue(ContractPriceDailyStatistic::annualCostByMethod(AnnualCostMethodVersion::AsOf)
+        $this->assertTrue(ContractPriceDailyStatistic::annualCostByMethod(AnnualCostMethodVersion::AsOfV2)
             ->where('pricing_basis', ContractPriceBasis::CanonicalCalculation->value)
             ->exists(), 'The shadow row remains for audit after the feature-off calculation.');
         $this->assertSame([], app(ContractPriceStatistics::class)->leadChartPayload['x']);
@@ -166,7 +166,7 @@ class CurrentAnnualCostStatisticsIntegrationTest extends TestCase
         foreach ([2000, 5000, 18000] as $consumption) {
             ContractPriceAnnualCost::create([
                 ...$this->storedAnnualAttributes($stale, $consumption),
-                'method_version' => AnnualCostMethodVersion::AsOf,
+                'method_version' => AnnualCostMethodVersion::AsOfV2,
             ]);
         }
 
@@ -200,7 +200,7 @@ class CurrentAnnualCostStatisticsIntegrationTest extends TestCase
         $this->mockCanonicalOutcomes($contract);
         ContractPriceAnnualCost::create([
             ...$this->storedAnnualAttributes($contract, 2000),
-            'method_version' => AnnualCostMethodVersion::AsOf,
+            'method_version' => AnnualCostMethodVersion::AsOfV2,
         ]);
 
         app(ContractPriceStatisticsService::class)->calculateForDate(
@@ -230,6 +230,43 @@ class CurrentAnnualCostStatisticsIntegrationTest extends TestCase
         });
 
         $this->assertCanonicalFailureRollsBack($contract);
+    }
+
+    public function test_current_v2_rewrite_keeps_v1_rows_but_replaces_unversioned_snapshot_identity(): void
+    {
+        $contract = $this->contract('retained-v1');
+        $this->seedPreviousSnapshotAndStatistics($contract);
+        $oldSnapshot = ContractPriceSnapshot::query()->where('contract_id', $contract->id)->sole();
+        $v1 = ContractPriceAnnualCost::create([
+            ...$this->storedAnnualAttributes($contract, 5000),
+            'method_version' => AnnualCostMethodVersion::AsOf,
+            'provenance' => ['source_evidence_ids' => ['price_snapshot_id' => $oldSnapshot->id], 'flags' => ['retained']],
+        ])->fresh();
+        $v1Aggregate = ContractPriceDailyStatistic::create([
+            'stat_date' => self::DATE, 'segment_key' => 'open_ended', 'metric_key' => 'annual_cost',
+            'method_version' => AnnualCostMethodVersion::AsOf, 'consumption_kwh' => 5000,
+            'pricing_basis' => ContractPriceBasis::CanonicalCalculation->value,
+            'median_value' => 111.0, 'contract_count' => 1,
+        ])->fresh();
+        $this->mockCanonicalOutcomes($contract);
+        app(ContractPriceStatisticsService::class)->calculateForDate(self::DATE, [$contract->id], overwrite: true, useCanonical: true);
+        $this->assertSame($v1->getRawOriginal(), $v1->fresh()->getRawOriginal());
+        $this->assertSame($v1Aggregate->getRawOriginal(), $v1Aggregate->fresh()->getRawOriginal());
+        $this->assertNull($oldSnapshot->fresh());
+        $this->assertNotSame($oldSnapshot->id, ContractPriceSnapshot::query()->where('contract_id', $contract->id)->sole()->id);
+    }
+
+    public function test_failure_after_v2_annual_insert_rolls_back_outer_date_transaction(): void
+    {
+        $contract = $this->contract('nested-rollback');
+        $this->mockCanonicalOutcomes($contract);
+        $this->seedPreviousSnapshotAndStatistics($contract);
+        \Illuminate\Support\Facades\DB::unprepared("CREATE TRIGGER fail_v2_aggregate BEFORE INSERT ON contract_price_daily_statistics WHEN NEW.method_version = 'annual_cost_as_of_v2' BEGIN SELECT RAISE(ABORT, 'forced aggregate failure'); END");
+        try {
+            $this->assertCanonicalFailureRollsBack($contract);
+        } finally {
+            \Illuminate\Support\Facades\DB::unprepared('DROP TRIGGER fail_v2_aggregate');
+        }
     }
 
     private function assertCanonicalFailureRollsBack(ElectricityContract $contract): void

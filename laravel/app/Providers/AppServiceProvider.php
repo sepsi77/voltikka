@@ -65,6 +65,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->scoped(CanonicalContractPriceCalculator::class, fn ($app) => new CanonicalContractPriceCalculator(
             resetEstimator: $app->make(MarketResetPriceEstimator::class),
             supplierAdjustedEstimator: $app->make(SupplierAdjustedPriceEstimator::class),
+            vatMultiplier: (float) config('price_forecasting.fixed_term.vat_multiplier', 1.255),
         ));
 
         // Keep the orchestrator transient because withSpotAssumptions() stores caller-specific

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
+use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\CanonicalPricing\Enums\AllowanceCadence;
 use App\Services\CanonicalPricing\Enums\BoundaryKind;
@@ -119,10 +120,10 @@ class ContractApiCanonicalPricingTest extends TestCase
 
         $response->assertOk()
             ->assertJsonMissingPath('data.price_components')
-            ->assertJsonPath('data.current_pricing.availability', 'available')
+            ->assertJsonPath('data.current_pricing.availability', 'unavailable')
             ->assertJsonPath('data.current_pricing.general_kwh_price', null)
-            ->assertJsonPath('data.calculated_cost.general_kwh_price', null);
-        $this->assertEqualsWithDelta(36.0, $response->json('data.calculated_cost.total_cost'), 0.01);
+            ->assertJsonPath('data.calculated_cost.general_kwh_price', null)
+            ->assertJsonPath('data.calculated_cost.total_cost', null);
     }
 
     public function test_canonical_only_contract_exposes_unit_price_and_total_in_the_list(): void
@@ -162,7 +163,7 @@ class ContractApiCanonicalPricingTest extends TestCase
                 starts: CanonicalPricingFixture::boundary(BoundaryKind::ContractStart),
                 ends: CanonicalPricingFixture::boundary(BoundaryKind::AfterMonths, '1'),
                 components: [
-                    CanonicalPricingFixture::component(ComponentType::EnergyGeneral, 2.0, ComponentUnit::CentsPerKwh),
+                    CanonicalPricingFixture::component(ComponentType::Other, 2.0, ComponentUnit::CentsPerKwh),
                 ],
             )],
             calculationStatus: CalculationStatus::EstimateRequired,
@@ -182,8 +183,8 @@ class ContractApiCanonicalPricingTest extends TestCase
             $response->assertOk()
                 ->assertJsonMissingPath($path.'.price_components')
                 ->assertJsonPath($path.'.current_pricing.availability', 'unavailable')
-                ->assertJsonPath($path.'.current_pricing.comparability', 'excluded_unknown_future')
-                ->assertJsonPath($path.'.current_pricing.exclusion_reason', 'excluded_unknown_future')
+                ->assertJsonPath($path.'.current_pricing.comparability', 'excluded_incomplete')
+                ->assertJsonPath($path.'.current_pricing.exclusion_reason', 'excluded_incomplete')
                 ->assertJsonPath($path.'.current_pricing.general_kwh_price', null)
                 ->assertJsonMissingPath($path.'.current_pricing.integrity.promo_rate_cents')
                 ->assertJsonMissingPath($path.'.current_pricing.integrity.first_year_impact_eur')
@@ -373,7 +374,7 @@ class ContractApiCanonicalPricingTest extends TestCase
             CarbonImmutable::parse('2026-08-06'),
         );
 
-        $outcomes = app(\App\Services\CanonicalPricing\CanonicalContractPricingService::class)
+        $outcomes = app(CanonicalContractPricingService::class)
             ->outcomesForContractsAtConsumptions($contracts, [2000, 5000, 18000], $spot, CarbonImmutable::parse('2026-08-06'));
 
         $this->assertCount(8, $outcomes);
@@ -504,7 +505,7 @@ class ApiSpotCurve implements MarketReferenceCurveProvider
         return ['kind' => 'month', 'price_cents_per_kwh' => 10.0];
     }
 
-    public function spotSeasonalIndex(): ?array
+    public function spotSeasonalIndex(CarbonImmutable $asOfDate): ?array
     {
         return null;
     }

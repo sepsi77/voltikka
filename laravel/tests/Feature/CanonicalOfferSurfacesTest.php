@@ -49,7 +49,7 @@ class CanonicalOfferSurfacesTest extends TestCase
         $this->createContract('canonical-conflict', 'Canonical conflict', $this->offerPhase(), relationalDiscount: 99.0);
         $this->createContract('canonical-only', 'Canonical only', $this->offerPhase(8.0, 9.0));
         $this->createContract('relational-only', 'Relational only', $this->plainPhase(), relationalDiscount: 77.0);
-        $this->createContract('excluded-offer', 'Excluded offer', $this->offerPhase(), status: 'incomplete', relationalDiscount: 66.0);
+        $this->createContract('excluded-offer', 'Excluded offer', $this->unidentifiableOfferPhase(), status: 'incomplete', relationalDiscount: 66.0);
         $this->createContract('package', 'Monthly package', $this->packagePhase(), pricingHasDiscounts: true, relationalDiscount: 55.0);
         $this->createContract('phase-only-offer', 'Phase-only offer', $this->phaseOnlyOffer());
         $this->createContract('untyped-offer', 'Untyped offer', $this->unresolvedOffer());
@@ -183,7 +183,7 @@ class CanonicalOfferSurfacesTest extends TestCase
         $this->createContract('canonical-conflict', 'Canonical conflict', $this->offerPhase(), relationalDiscount: 99.0);
         $this->createContract('canonical-only', 'Canonical only', $this->offerPhase(8.0, 9.0));
         $this->createContract('relational-only', 'Relational only', $this->plainPhase(), relationalDiscount: 77.0);
-        $this->createContract('excluded-offer', 'Excluded offer', $this->offerPhase(), status: 'incomplete', relationalDiscount: 66.0);
+        $this->createContract('excluded-offer', 'Excluded offer', $this->unidentifiableOfferPhase(), status: 'incomplete', relationalDiscount: 66.0);
         $this->createContract('package', 'Monthly package', $this->packagePhase(), pricingHasDiscounts: true, relationalDiscount: 55.0);
         $this->createContract('phase-only-offer', 'Phase-only offer', $this->phaseOnlyOffer());
         $this->createContract('untyped-offer', 'Untyped offer', $this->unresolvedOffer());
@@ -325,6 +325,15 @@ class CanonicalOfferSurfacesTest extends TestCase
         ActiveContract::create(['id' => $id]);
 
         return $contract;
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function unidentifiableOfferPhase(): array
+    {
+        $phases = $this->offerPhase();
+        $phases[0]['components'][0]['component_type'] = 'other';
+
+        return $phases;
     }
 
     /** @return list<array<string, mixed>> */

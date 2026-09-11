@@ -29,6 +29,31 @@ readonly class CanonicalContractData
     ) {
     }
 
+    /** Normalize a calculation copy; packages and effect disclosures assume the target basis. */
+    public function withVatBasis(bool $includeVat, float $vatMultiplier): self
+    {
+        return new self(
+            phases: array_map(static fn (PricingPhase $phase) => new PricingPhase(
+                label: $phase->label,
+                phaseKind: $phase->phaseKind,
+                starts: $phase->starts,
+                ends: $phase->ends,
+                components: array_map(
+                    static fn (CanonicalComponent $component) => $component->withVatBasis($includeVat, $vatMultiplier),
+                    $phase->components,
+                ),
+                package: $phase->package,
+            ), $this->phases),
+            recurringSchedule: $this->recurringSchedule,
+            consumptionEffect: $this->consumptionEffect,
+            calculationStatus: $this->calculationStatus,
+            missingFacts: $this->missingFacts,
+            misleadingState: $this->misleadingState,
+            structuredPricingStatus: $this->structuredPricingStatus,
+            issueCodes: $this->issueCodes,
+        );
+    }
+
     public function hasIssueCode(string $code): bool
     {
         return in_array($code, $this->issueCodes, true);

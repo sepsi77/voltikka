@@ -10,5 +10,6 @@ readonly class HistoricalSpotPrice
     public function __construct(
         public CarbonImmutable $startsAtUtc,
         public float $centsPerKwhWithTax,
+        public ?float $centsPerKwhWithoutTax = null,
     ) {}
 }

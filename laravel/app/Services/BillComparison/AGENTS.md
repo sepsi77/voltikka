@@ -236,6 +236,8 @@ once, passes realized `SpotPriceHour::price_with_tax` values to
 `ContractPriceCalculator::calculatePeriod()`, and maps its typed availability, measured savings,
 Spot facts, and totals to the row. The legacy annual call uses the bill start as its promotion start.
 
+Canonical period requests preserve real hourly tax facts: `price_with_tax` includes each hour's recorded VAT, and `price_without_tax` supplies Company costs without applying today's tax rate to old delivery. Parse the raw `utc_datetime` explicitly as UTC; the ordinary model datetime cast uses the application timezone and must not shift delivery hours. The service regression covers Company and Household bills before September 2024 under the Helsinki application timezone. This does not change household user-total normalization or the annualization profile.
+
 ## Query guardrails
 
 - Active household contracts only: `ElectricityContract::active()->whereIn('target_group', ['Household','Both'])`.

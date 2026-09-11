@@ -331,6 +331,9 @@
                             Vuosikustannus {{ $consumptionLabel }}&nbsp;kWh kulutuksella
                         </h2>
                         <p class="mt-2 text-base text-slate-600 leading-relaxed max-w-[68ch]">
+                            @if ($annualDataIsRetained)
+                                Vuosihinnat ovat päivältä {{ $fiDate($annualDataDate) }}. Ne ovat historiallisia arvioita, eivät tämän päivän hintavertailu.
+                            @endif
                             Viivat näyttävät kunkin sopimustyypin tyypillisen 12 kuukauden kustannusarvion valitulla kulutuksella. Arvio vastaa kyseisen ajankohdan myynnissä olleita sopimuksia ja sisältää energian sekä perusmaksut.
                             Näkymä: <span class="font-semibold text-slate-900">{{ $periods[$period] ?? $period }}</span>.
                         </p>
@@ -611,6 +614,9 @@
                             Hintahaarukka {{ $consumptionLabel }}&nbsp;kWh kulutuksella
                         </h2>
                         <p class="mt-2 text-sm text-slate-600 leading-relaxed max-w-[68ch]">
+                            @if ($annualDataIsRetained)
+                                Vuosihinnat ovat päivältä {{ $fiDate($annualDataDate) }}. Ne ovat historiallisia arvioita, eivät tämän päivän hintavertailu.
+                            @endif
                             Taulukko näyttää kunkin sopimustyypin uusimman saatavilla olevan vuosikustannusten jakauman. Jos rivin tiedot ovat muita vanhempia, päivämäärä näkyy sopimustyypin alla. Laskenta käyttää valittua {{ $consumptionLabel }}&nbsp;kWh vuosikulutusta ja sisältää energiahinnan sekä perusmaksut 12 kuukaudelta. Sopimustyypit, joissa on alle 10 sopimusta, jätetään pois.
                         </p>
                         <p class="mt-3 text-xs text-slate-500">
@@ -633,7 +639,7 @@
                             Halvempi&nbsp;20&nbsp;% on raja, jonka alle viidennes saman tyypin sopimuksista jää. Mediaani kuvaa tyypillistä sopimusta, ja kalliimpi&nbsp;20&nbsp;% on raja, jonka yli viidennes nousee.
                         </p>
                         <p class="mt-2">
-                            @if ($activeAnnualMethod === 'annual_cost_as_of_v1')
+                            @if ($activeAnnualIsAsOf)
                                 Jokainen päivä käyttää vain silloin saatavilla olleita tietoja. Tulevia hintoja arvioidaan vain silloin, kun sopimuksen ehdot antavat siihen riittävät tiedot. Jos vertailukelpoista vuosihintaa ei voida muodostaa, sopimus jää kyseisen päivän tilastosta pois.
                             @else
                                 Pörssisähkön nykyinen vuosikustannus käyttää tulevan 12 kuukauden tukkumarkkinan ennakkohintoja, historiallista päivä–yö-eroa ja sopimuksen marginaalia. Historialliset Spot-vuosikustannukset käyttävät kyseisestä päivästä taaksepäin laskettua 12 kuukauden toteutunutta pörssitasoa. Kuukausi- ja kvartaalihinnoissa sekä hinnaltaan muutettavissa toistaiseksi voimassa olevissa yleissähkösopimuksissa tulevat kuukaudet ovat arvioita. Muissa kiinteissä sopimuksissa käytetään julkaistuja hintoja. Trendi näyttää vuosikustannuksen mediaanin kehityksen valitulla kulutuksella.
@@ -917,14 +923,14 @@
                         </p>
                         <p>
                             Pörssipohjaisille sopimuksille käytetään kahta eri näkymää. Sopimustyyppien c/kWh-taulukko ja historialliset kuvaajat näyttävät viimeisen 12 kuukauden toteutuneen päiväkeskiarvon + tyypillisen marginaalin. P20–P80-väli lasketaan saman jakson päivähinnoista.
-                            @if ($activeAnnualMethod === 'annual_cost_as_of_v1')
+                            @if ($activeAnnualIsAsOf)
                                 Vuosikustannussarja on erillinen as-of-laskelma. Jokainen päivä käyttää kyseisen päivän ennakkohintakäyrää, toteutunutta päivä–yö-eroa sekä sopimuksen silloin julkaistua marginaalia ja perusmaksua. Puuttuva täysi ennakkohintajakso käyttää erikseen merkittyä toteutunutta 12 kuukauden tasoa.
                             @else
                                 Nykyinen kanoninen vuosikustannus käyttää sen sijaan tulevan 12 kuukauden tukkumarkkinan ennakkohintoja, toteutunutta päivä–yö-eroa ja sopimuksen tarkkaa marginaalia sekä perusmaksua. Jos koko ennakkohintajaksoa ei voi käyttää, vuosikustannus palaa erikseen merkittyyn toteutuneen 12 kuukauden tasoon.
                             @endif
                         </p>
                         <p>
-                            Nykyiset vuosikustannukset tulevat samasta kanonisesta 12 kuukauden laskelmasta kuin Voltikan sopimusvertailussa. Laskelma huomioi hinnoitteluvaiheet, tarjoukset, aika- ja kausihinnat, pörssimarginaalit, markkinahinnan päivitykset ja kuukausittaiset energiapaketit silloin, kun ne koskevat sopimusta.
+                            Vuosikustannukset ovat kyseisen päivän tiedoilla laskettuja 12 kuukauden arvioita. Vanhemman laskentatavan luvut voivat poiketa nykyisestä sopimusvertailusta. Laskelma huomioi hinnoitteluvaiheet, tarjoukset, aika- ja kausihinnat, pörssimarginaalit, markkinahinnan päivitykset ja kuukausittaiset energiapaketit silloin, kun ne koskevat sopimusta.
                         </p>
                         <p>
                             Vuosikustannukset 2&nbsp;000, 5&nbsp;000 ja 18&nbsp;000&nbsp;kWh kulutuksilla sisältävät kaikki kanonisessa tuloksessa laskettavat energia- ja kuukausimaksut. Puuttuva tai poissuljettu tulos jätetään pois tilastosta, eikä sitä täytetä havaitulla komponenttihinnalla.

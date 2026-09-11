@@ -22,8 +22,8 @@ use App\Services\CanonicalPricing\Exceptions\CanonicalPricingParseException;
 /**
  * Parses the three `electricity_contracts.canonical_*` JSON columns into typed pricing data.
  *
- * Fail closed: an unknown enum value that affects costing, a missing required object, or a
- * VAT-basis conflict throws CanonicalPricingParseException so the caller excludes the
+ * Fail closed: an unknown enum value that affects costing or a missing required object
+ * throws CanonicalPricingParseException so the caller excludes the
  * contract instead of costing it on data the calculator does not understand. Unknown
  * canonical issue codes (which do not affect costing) are dropped, not fatal.
  */
@@ -97,8 +97,6 @@ class CanonicalPricingParser
         }
 
         $phases = [];
-        // component_type => vat_status seen, to detect an inconsistent VAT basis for one component.
-        $vatBasis = [];
 
         foreach ($raw as $rawPhase) {
             if (! is_array($rawPhase)) {
@@ -117,7 +115,7 @@ class CanonicalPricingParser
 
             $components = [];
             foreach ($rawComponents as $rawComponent) {
-                $components[] = $this->parseComponent($rawComponent, $vatBasis);
+                $components[] = $this->parseComponent($rawComponent);
             }
 
             $package = $this->parsePackage($rawPhase['package'] ?? null);
@@ -149,10 +147,7 @@ class CanonicalPricingParser
         return $phases;
     }
 
-    /**
-     * @param  array<string, string>  $vatBasis
-     */
-    private function parseComponent(mixed $raw, array &$vatBasis): CanonicalComponent
+    private function parseComponent(mixed $raw): CanonicalComponent
     {
         if (! is_array($raw)) {
             throw new CanonicalPricingParseException('Malformed pricing component.');
@@ -174,13 +169,6 @@ class CanonicalPricingParser
         }
 
         $vatStatus = (string) ($raw['vat_status'] ?? 'unknown');
-        if ($vatStatus === 'included' || $vatStatus === 'excluded') {
-            $key = $type->value;
-            if (isset($vatBasis[$key]) && $vatBasis[$key] !== $vatStatus) {
-                throw new CanonicalPricingParseException("Conflicting VAT basis for {$key}: {$vatBasis[$key]} vs {$vatStatus}.");
-            }
-            $vatBasis[$key] = $vatStatus;
-        }
 
         return new CanonicalComponent(
             type: $type,
@@ -188,6 +176,7 @@ class CanonicalPricingParser
             normalAmount: $this->nullableFloat($raw['normal_amount'] ?? null),
             unit: $unit,
             priceRole: $priceRole,
+            vatStatus: $vatStatus,
         );
     }
 
