@@ -362,6 +362,13 @@ invalidates their data instead of leaving it stale for 48 hours or one hour.
 `ContractPricingIntegrity` gained typed `promo_rate_cents` /
 `normal_rate_cents` for the dated receipt rows; that was schema v2.
 
+Schema **v15** corrects recurring-reset energy boundaries for fee-only phase transitions.
+The calculator compares adjacent resolved energy buckets and mechanisms with the existing component
+inheritance rules. A fee change with unchanged energy does not extend known energy coverage or move
+the reference period/vintage. Fee billing and measured benefits keep the original phase timeline.
+Explicit recurring boundaries, finite coverage before a gap, and real energy changes stay intact.
+See `MarketReset/AGENTS.md` for the September 2026 Aalto regression and historical-statistics limits.
+
 Schema **v14** adds `calculated_cost.spot_estimate` and changes canonical Spot annual-cost semantics
 from a flat trailing-365 level to a monthly FI forward strip with trailing intraday shape. Persistent
 list, company, ranking, and prepared-page caches must not retain v13 Spot sort values. The payload
@@ -470,7 +477,8 @@ Behaviour summary, with the reasons living in `MarketReset/AGENTS.md`:
 - `beta` is **one global value** (1.0). Per-company calibration stays the documented future work
   below, and is also what pins down the effective pricing date behind the vintage proxy.
 - A phase with `ends: none` is **not** a credible reset boundary; at minimum the current cadence
-  period stays exact, and any coverage from a *dated* phase end also stays exact.
+  period stays exact, and finite known energy coverage also stays exact. A fee-only transition
+  with unchanged resolved energy is not an energy boundary.
 - Ladder: forward-curve shift → multi-year spot seasonal index (lower confidence) → hold flat, with
   the rung recorded on the outcome as `EstimateMethod::RecurringForwardCurveShift` /
   `RecurringSpotSeasonalIndex` / `HoldCurrentRecurringPrice`, plus a typed

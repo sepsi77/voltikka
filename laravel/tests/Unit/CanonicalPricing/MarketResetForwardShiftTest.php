@@ -122,6 +122,158 @@ class MarketResetForwardShiftTest extends TestCase
 
     // ---------------------------------------------------------------- tests
 
+    public function test_fee_only_promotions_keep_the_september_energy_reference_and_monthly_forecast(): void
+    {
+        foreach (['quarterly' => 7.69, 'monthly' => 8.98] as $cadence => $energy) {
+            foreach ([false, true] as $inherited) {
+                $base = $this->resetPricing($energy, $cadence,
+                    starts: ['kind' => 'contract_start', 'value' => null],
+                    ends: ['kind' => 'none', 'value' => null]);
+                $base['phases'][0]['components'][] = $this->component('monthly_fee', 5.95, 'eur_per_month');
+                $promo = $base;
+                $promo['phases'][0]['phase_kind'] = 'introductory';
+                $promo['phases'][0]['ends'] = ['kind' => 'after_months', 'value' => '1'];
+                $promo['phases'][0]['components'][1] = $this->component('monthly_fee', 0.0, 'eur_per_month', 'introductory', 5.95);
+                $promo['phases'][1] = $base['phases'][0];
+                $promo['phases'][1]['phase_kind'] = 'continuation';
+                $promo['phases'][1]['starts'] = ['kind' => 'after_months', 'value' => '1'];
+                if ($inherited) {
+                    unset($promo['phases'][0]['components'][0]);
+                    $promo['phases'][0]['components'] = array_values($promo['phases'][0]['components']);
+                }
+
+                $vintage = $cadence === 'quarterly' ? '2026-06-30' : '2026-08-31';
+                $curve = new FakeMarketCurve(
+                    tradeDate: '2026-09-10',
+                    reference: ['month' => 14.0, 'quarter' => 14.0],
+                    forward: $this->flatForward(4.0),
+                    today: '2026-09-11',
+                    pricingVintageReference: ['month' => 6.0, 'quarter' => 6.0],
+                    pricingVintageTradeDate: $vintage,
+                );
+                $normal = $this->evaluate($base, $this->estimator($curve), start: '2026-09-11');
+                $offer = $this->evaluate($promo, $this->estimator($curve), start: '2026-09-11');
+
+                $this->assertSame($normal->resetEstimate, $offer->resetEstimate);
+                $this->assertSame($cadence === 'quarterly' ? '2026-Q3' : '2026-09', $offer->resetEstimate['anchor_period']);
+                $this->assertSame('2026-10', $offer->resetEstimate['tail_starts']);
+                $this->assertSame($vintage, $offer->resetEstimate['reference_trade_date']);
+                $this->assertSame(array_fill(0, 2, $cadence === 'quarterly' ? '2026-07-01' : '2026-09-01'), $curve->referenceAsOfDates);
+                $this->assertSame(['2026-09', '2026-09'], $curve->referenceAnchorMonths);
+                $this->assertEqualsWithDelta($energy - 2 * (11 + 10 / 30) / 12,
+                    $offer->resetEstimate['annual_equivalent_energy_price'], 0.0001);
+
+                // Fees use calendar-month fractions: September 11–30 and October 1–10.
+                $feeSaving = 5.95 * (20 / 30 + 10 / 31);
+                $this->assertEqualsWithDelta($energy * 50 - 2 * 5000 / 1200 * (11 + 10 / 30) + 12 * 5.95,
+                    $normal->totalCost, 0.0001);
+                $this->assertEqualsWithDelta($normal->totalCost - $feeSaving, $offer->totalCost, 0.0001);
+                $this->assertEqualsWithDelta($normal->totalCost, $offer->baseTotalCost, 0.0001);
+                $this->assertEqualsWithDelta($feeSaving, $offer->discountSavingsTotal(), 0.0001);
+                $disabled = $this->evaluate($promo, $this->estimator(new FakeMarketCurve, ['enabled' => false]), start: '2026-09-11');
+                $this->assertNull($disabled->resetEstimate);
+                $this->assertEqualsWithDelta($energy * 50 + 12 * 5.95 - $feeSaving, $disabled->totalCost, 0.0001);
+                $currentMonth = $energy * 5000 / 1200 + 5.95;
+                $futureMonth = ($energy - 2) * 5000 / 1200 + 5.95;
+                foreach ($normal->monthlyCosts as $month => $cost) {
+                    // Existing output groups slices by elapsed month at the slice start.
+                    $normalExpected = match ($month) {
+                        0 => $currentMonth * 20 / 30 + $futureMonth,
+                        11 => $futureMonth * 10 / 30,
+                        default => $futureMonth,
+                    };
+                    $offerExpected = match ($month) {
+                        0 => $currentMonth * 20 / 30 + $futureMonth * 10 / 31 - $feeSaving,
+                        1 => $futureMonth * (21 / 31 + 1),
+                        11 => $futureMonth * 10 / 30,
+                        default => $futureMonth,
+                    };
+                    $this->assertEqualsWithDelta($normalExpected, $cost, 0.0001);
+                    $this->assertEqualsWithDelta($offerExpected, $offer->monthlyCosts[$month], 0.0001);
+                    $this->assertEqualsWithDelta($month === 0 ? $feeSaving : 0.0, $offer->monthlyDiscountSavings[$month], 0.0001);
+                    $this->assertGreaterThan(0.0, $offer->monthlyCosts[$month]);
+                }
+            }
+        }
+    }
+
+    public function test_time_and_season_fee_transitions_use_inherited_energy_buckets(): void
+    {
+        foreach ([['energy_day', 'energy_night'], ['energy_seasonal_winter', 'energy_seasonal_other']] as [$first, $second]) {
+            $base = $this->resetPricing(8.0, 'monthly',
+                starts: ['kind' => 'contract_start', 'value' => null],
+                ends: ['kind' => 'none', 'value' => null]);
+            $base['phases'][0]['components'] = [
+                $this->component($first, 8.0), $this->component($second, 6.0),
+                $this->component('monthly_fee', 5.95, 'eur_per_month'),
+            ];
+            $promo = $base;
+            $promo['phases'][0]['components'] = [$this->component('monthly_fee', 0.0, 'eur_per_month', 'introductory', 5.95)];
+            $promo['phases'][0]['ends'] = ['kind' => 'after_months', 'value' => '1'];
+            $promo['phases'][1] = $base['phases'][0];
+            $promo['phases'][1]['starts'] = ['kind' => 'after_months', 'value' => '1'];
+            $curve = new FakeMarketCurve(tradeDate: '2026-09-10', reference: ['month' => 6.0],
+                forward: $this->flatForward(4.0), today: '2026-09-11');
+            $normal = $this->evaluate($base, $this->estimator($curve), start: '2026-09-11');
+            $offer = $this->evaluate($promo, $this->estimator($curve), start: '2026-09-11');
+            $this->assertSame($normal->resetEstimate, $offer->resetEstimate);
+            $this->assertEqualsWithDelta($normal->totalCost - 5.95 * (20 / 30 + 10 / 31), $offer->totalCost, 0.0001);
+
+            // A change to only one bucket is a real energy boundary; the other is inherited.
+            $promo['phases'][0]['components'][] = $this->component($second, 5.0);
+            $changed = $this->evaluate($promo, $this->estimator($curve), start: '2026-09-11');
+            $this->assertSame('2026-10', $changed->resetEstimate['anchor_period']);
+        }
+    }
+
+    public function test_explicit_recurring_end_survives_a_fee_only_transition(): void
+    {
+        $pricing = $this->resetPricing(8.0, 'monthly',
+            starts: ['kind' => 'contract_start', 'value' => null],
+            ends: ['kind' => 'period_boundary', 'value' => null],
+            periodEnd: '2026-10-10');
+        $pricing['phases'][0]['components'][] = $this->component('monthly_fee', 0.0, 'eur_per_month');
+        $pricing['phases'][1] = $pricing['phases'][0];
+        $pricing['phases'][1]['starts'] = ['kind' => 'date', 'value' => '2026-10-11'];
+        $pricing['phases'][1]['ends'] = ['kind' => 'none', 'value' => null];
+        $pricing['phases'][1]['components'][1]['amount'] = 5.95;
+        $curve = new FakeMarketCurve(tradeDate: '2026-09-10', reference: ['month' => 6.0],
+            forward: $this->flatForward(4.0), today: '2026-09-11');
+        $outcome = $this->evaluate($pricing, $this->estimator($curve), start: '2026-09-11');
+        $this->assertSame('2026-10', $outcome->resetEstimate['anchor_period']);
+        $this->assertSame(['2026-10-01'], $curve->referenceAsOfDates);
+    }
+
+    public function test_a_real_energy_promotion_keeps_its_finite_boundary(): void
+    {
+        $pricing = $this->resetPricing(7.0, 'monthly',
+            starts: ['kind' => 'contract_start', 'value' => null],
+            ends: ['kind' => 'after_months', 'value' => '1']);
+        $pricing['phases'][1] = $pricing['phases'][0];
+        $pricing['phases'][1]['starts'] = ['kind' => 'after_months', 'value' => '1'];
+        $pricing['phases'][1]['ends'] = ['kind' => 'none', 'value' => null];
+        $pricing['phases'][1]['components'][0]['amount'] = 8.0;
+        $curve = new FakeMarketCurve(tradeDate: '2026-09-10', reference: ['month' => 6.0],
+            forward: $this->flatForward(4.0), today: '2026-09-11');
+        $outcome = $this->evaluate($pricing, $this->estimator($curve), start: '2026-09-11');
+
+        $this->assertSame('2026-10', $outcome->resetEstimate['anchor_period']);
+        $this->assertSame(['2026-10-01'], $curve->referenceAsOfDates);
+        // October is wholly repriced by the existing calendar-month offset policy.
+        $expected = 0.0;
+        foreach ($outcome->monthlyCosts as $month => $cost) {
+            $rate = match ($month) {
+                0 => 7.0 * 20 / 30 + 5.0 * 10 / 31,
+                1 => 6.0 * (21 / 31 + 1),
+                11 => 6.0 * 10 / 30,
+                default => 6.0,
+            };
+            $this->assertEqualsWithDelta($rate * 5000 / 1200, $cost, 0.0001);
+            $expected += $rate * 5000 / 1200;
+        }
+        $this->assertEqualsWithDelta($expected, $outcome->totalCost, 0.0001);
+    }
+
     public function test_calculator_constructor_requires_a_non_nullable_estimator(): void
     {
         $constructor = (new \ReflectionClass(CanonicalContractPriceCalculator::class))->getConstructor();
@@ -647,6 +799,8 @@ class FakeMarketCurve implements MarketReferenceCurveProvider
     /** @var list<string> asOf dates referencePrice() was asked for, so tests can pin the vintage */
     public array $referenceAsOfDates = [];
 
+    public array $referenceAnchorMonths = [];
+
     /**
      * @param  string  $today  the window start the estimator is called with
      * @param  array<string, float>  $reference  reference kind => c/kWh incl. VAT at today's vintage
@@ -683,6 +837,7 @@ class FakeMarketCurve implements MarketReferenceCurveProvider
     {
         $this->calls++;
         $this->referenceAsOfDates[] = $asOfDate->toDateString();
+        $this->referenceAnchorMonths[] = $anchorMonth->format('Y-m');
 
         $prices = ($this->isPricingVintageLookup($asOfDate) && $this->pricingVintageReference !== [])
             ? $this->pricingVintageReference

@@ -83,12 +83,34 @@ takes the **latest** of:
 
 - the end of the cadence period containing the window start;
 - the disclosed `recurring_schedule.current_period_end` (for a non-calendar period);
-- the end of the latest coverage from a phase with a **dated** end.
+- the end of the latest finite known energy coverage, excluding fee-only transitions.
 
 A phase whose end is `none` is an open-ended claim, **not** a credible reset boundary: a product that
 resets quarterly does not have a known price for twelve months. That shape is where most of the live
 defect hid — 12 of 32 lineages, and the old code did not even mark them as an estimate fill because
 the window looked fully covered. Do not "simplify" this by trusting `ends: none`.
+
+A finite phase end followed immediately by a phase with the same resolved energy buckets,
+Spot/fixed mechanism, and margin is a fee-only transition when only the resolved monthly or one-off
+fee changes. It does not extend energy coverage. Use `resolvePhaseRates()` so missing components,
+explicit zero overrides, duplicate-rate rules, and Time/Season bucket inheritance match billing.
+Do not use labels, raw component counts, or a weighted average to test equality. Unresolved rates
+and packages remain conservative; an explicit `period_boundary`, a declared recurring end, a finite
+phase followed by a gap, and a genuine energy change keep their boundaries. Fee amounts, offer
+terms, and fee savings still use the complete original timeline.
+
+The September 11, 2026 Aalto Huoleton (7.69 c/kWh, quarterly) and Kuukausihinta (8.98 c/kWh,
+monthly) first-month fee waiver must keep the Q3/September energy reference and June 30/August 31
+pricing vintages. The old fee boundary at October 11 selected Q4/October and could create false
+zero-floor months. The floor itself is unchanged. Schema v15 invalidates cached annual results.
+New daily statistics can change after this code is released; stored historical annual rows and
+aggregates are not rewritten by cache invalidation. A historical rebuild needs a separate reviewed
+plan and explicit write approval. Do not infer a real seller price cut from that method correction.
+
+Existing timeline limits are unchanged: offsets apply to calendar-month keys, even for a genuine
+mid-month energy boundary. `monthly_costs` groups each slice by its start's elapsed month, so an
+extra fee slice can move part of October between display bins without changing energy pricing or
+the annual sum. Regression tests check the exact current grouping, not calendar-month equality.
 
 ### 3. Reference period by cadence
 

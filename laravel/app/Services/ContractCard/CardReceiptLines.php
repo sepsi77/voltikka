@@ -421,7 +421,7 @@ class CardReceiptLines
         // With the flag off the tail holds flat, and there is no second figure to show.
         if ($reset?->number('annual_equivalent_energy_price') !== null) {
             $lines[] = new CardReceiptLine(
-                'Loppuvuosi, arvio',
+                '12 kk keskihinta, arvio',
                 $this->amount((float) $reset->number('annual_equivalent_energy_price')),
                 'c/kWh',
                 soft: true,

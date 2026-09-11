@@ -52,7 +52,8 @@ class ResetEstimateCopy
         $parts = [
             'Sopimuksen energianhinta tarkistetaan '.self::cadenceAdverb($reset['cadence'] ?? null).'.',
             $current.' c/kWh on nykyisen hintajakson tiedossa oleva hinta.',
-            $annual.' c/kWh on arvio koko 12 kuukauden keskihinnasta, '.self::basisPhrase($reset).'.',
+            $annual.' c/kWh on arvio seuraavien 12 kuukauden keskihinnasta, '.self::basisPhrase($reset).'.',
+            'Arvio sisältää nykyisen tunnetun hintajakson ja sen jälkeiset arvioidut jaksot.',
             'Tulevien jaksojen hintoja ei tiedetä, joten arvio ei ole hintalupaus.',
         ];
 

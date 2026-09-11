@@ -1433,8 +1433,9 @@ class ContractDetailPageTest extends TestCase
 
         $this->assertNotNull($estimate, 'A market reset must carry the Arvio popover.');
         $this->assertStringContainsString('Nykyinen hinta 8,00 c/kWh on tiedossa 30.9. asti', $estimate->body);
-        $this->assertStringContainsString('Loppuvuoden hinnat on arvioitu sähköjohdannaisten markkinahinnoista', $estimate->body);
-        $this->assertStringContainsString('koko vuoden keskihinnaksi tulee', $estimate->body);
+        $this->assertStringContainsString('Tulevien jaksojen hinnat on arvioitu sähköjohdannaisten markkinahinnoista', $estimate->body);
+        $this->assertStringContainsString('seuraavien 12 kuukauden keskihinnaksi tulee', $estimate->body);
+        $this->assertStringContainsString('nykyisen tunnetun hintajakson ja sen jälkeiset arvioidut jaksot', $estimate->body);
         $this->assertStringContainsString('Myyjä julkaisee todelliset hinnat neljännesvuosittain', $estimate->body);
 
         $this->assertNull($component->priceQualifier, 'The qualifier must not repeat what the popover already says.');

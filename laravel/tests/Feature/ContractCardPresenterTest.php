@@ -528,10 +528,34 @@ class ContractCardPresenterTest extends TestCase
             ],
         ]));
 
-        $this->assertSame(['Energia nyt, 30.9. asti', 'Loppuvuosi, arvio', 'Perusmaksu'], array_map(fn ($l) => $l->label, $card->receiptLines));
+        $this->assertSame(['Energia nyt, 30.9. asti', '12 kk keskihinta, arvio', 'Perusmaksu'], array_map(fn ($l) => $l->label, $card->receiptLines));
         $this->assertFalse($card->receiptLines[0]->soft);
         $this->assertTrue($card->receiptLines[1]->soft);
         $this->assertSame('10,51', $card->receiptLines[1]->value);
+        $this->assertStringContainsString('seuraavien 12 kuukauden keskihinnaksi', $card->estimate->body);
+        $this->assertStringContainsString('nykyisen tunnetun hintajakson ja sen jälkeiset arvioidut jaksot', $card->estimate->body);
+        $this->assertStringNotContainsString('Loppuvuoden', $card->estimate->body);
+    }
+
+    public function test_reset_fallback_copy_uses_the_next_twelve_months_not_the_calendar_year(): void
+    {
+        foreach (['spot_seasonal_index', 'hold_flat'] as $basis) {
+            $card = $this->present($this->contract([
+                'canonical_pricing' => $this->canonicalPricing(['present' => true, 'cadence' => 'monthly']),
+            ], [
+                'reset_estimate' => [
+                    'basis' => $basis,
+                    'cadence' => 'monthly',
+                    'current_period_energy_price' => 8.98,
+                    'annual_equivalent_energy_price' => 9.50,
+                ],
+            ]));
+
+            $this->assertStringContainsString('12 kuukau', $card->estimate->body);
+            $this->assertStringContainsString('nykyisen tunnetun hintajakson ja sen jälkeiset arvioidut jaksot', $card->estimate->body);
+            $this->assertStringNotContainsString('Loppuvuoden', $card->estimate->body);
+            $this->assertStringNotContainsString('koko vuoden', $card->estimate->body);
+        }
     }
 
     public function test_reset_boundary_falls_back_to_the_estimated_tail_start(): void

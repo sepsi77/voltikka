@@ -229,14 +229,15 @@ class ContractCardCopy
 
         $annual = self::price($reset?->number('annual_equivalent_energy_price'));
         $body .= match ($reset?->string('basis')) {
-            'forward_curve_shift' => ' Loppuvuoden hinnat on arvioitu sähköjohdannaisten markkinahinnoista'
-                .($annual !== null ? ', jolloin koko vuoden keskihinnaksi tulee '.$annual.' c/kWh.' : '.'),
-            'spot_seasonal_index' => ' Loppuvuoden hinnat on arvioitu pörssisähkön usean vuoden kausivaihtelusta, koska johdannaishintoja ei ollut saatavilla'
-                .($annual !== null ? ', jolloin koko vuoden keskihinnaksi tulee '.$annual.' c/kWh.' : '.'),
-            default => ' Loppuvuoden hintoja ei tiedetä, joten arvio olettaa nykyisen hinnan jatkuvan.',
+            'forward_curve_shift' => ' Tulevien jaksojen hinnat on arvioitu sähköjohdannaisten markkinahinnoista'
+                .($annual !== null ? ', jolloin seuraavien 12 kuukauden keskihinnaksi tulee '.$annual.' c/kWh.' : '.'),
+            'spot_seasonal_index' => ' Tulevien jaksojen hinnat on arvioitu pörssisähkön usean vuoden kausivaihtelusta, koska johdannaishintoja ei ollut saatavilla'
+                .($annual !== null ? ', jolloin seuraavien 12 kuukauden keskihinnaksi tulee '.$annual.' c/kWh.' : '.'),
+            default => ' Tulevien jaksojen hintoja ei tiedetä, joten 12 kuukauden arvio olettaa nykyisen hinnan jatkuvan.',
         };
 
-        return $body.' Myyjä julkaisee todelliset hinnat '.self::cadenceAdverb($facts->cadence).'.';
+        return $body.' Arvio sisältää nykyisen tunnetun hintajakson ja sen jälkeiset arvioidut jaksot.'
+            .' Myyjä julkaisee todelliset hinnat '.self::cadenceAdverb($facts->cadence).'.';
     }
 
     private static function termBody(?ContractPricingViewData $pricing): string

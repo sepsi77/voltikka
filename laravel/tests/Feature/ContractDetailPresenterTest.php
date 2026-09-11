@@ -522,7 +522,7 @@ class ContractDetailPresenterTest extends TestCase
 
         Livewire::test('contract-detail', ['contractId' => $contract->id])
             ->assertSee('Energia nyt, '.$periodEnd->format('j.n.').' asti')
-            ->assertSee('Loppuvuosi, arvio')
+            ->assertSee('12 kk keskihinta, arvio')
             ->assertSee('Hinta tarkistetaan neljännesvuosittain');
     }
 

@@ -66,7 +66,7 @@ class MarketResetEstimateSurfacesTest extends TestCase
         $allKeys = $this->cacheKeysMatching('contract_list_metrics');
 
         $this->assertNotEmpty($offKeys);
-        $this->assertNotEmpty(array_filter($allKeys, fn (string $key) => str_contains($key, ':s14:')));
+        $this->assertNotEmpty(array_filter($allKeys, fn (string $key) => str_contains($key, ':s15:')));
         $this->assertGreaterThan(count($offKeys), count($allKeys), 'flipping the flag must create a new cache entry, not reuse the old one');
         $this->assertNotEmpty(array_filter($allKeys, fn (string $key) => str_contains($key, 'c0r1')));
         $this->assertNotEmpty(array_filter($allKeys, fn (string $key) => str_contains($key, 'c0r0')));
@@ -84,7 +84,7 @@ class MarketResetEstimateSurfacesTest extends TestCase
 
         $keys = $this->cacheKeysMatching('contract_rankings');
 
-        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':s2:cs14:')));
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':s2:cs15:')));
         $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_ends_with($key, ':c0r1')));
         $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_ends_with($key, ':c0r0')));
     }
@@ -160,7 +160,7 @@ class MarketResetEstimateSurfacesTest extends TestCase
 
         $keys = $this->cacheKeysMatching('company_list:');
 
-        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':s2:cs14:')));
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':s2:cs15:')));
         $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':c1r1:')));
     }
 
@@ -295,6 +295,8 @@ class MarketResetEstimateSurfacesTest extends TestCase
         $this->assertStringContainsString('5,54 c/kWh', $tooltip);
         $this->assertStringContainsString('8,05 c/kWh', $tooltip);
         $this->assertStringContainsString('ei ole hintalupaus', $tooltip);
+        $this->assertStringContainsString('seuraavien 12 kuukauden keskihinnasta', $tooltip);
+        $this->assertStringContainsString('nykyisen tunnetun hintajakson ja sen jälkeiset arvioidut jaksot', $tooltip);
 
         // The detail page's receipt note deliberately states only what the hero
         // qualifier and the dated receipt rows do not: that future period prices are

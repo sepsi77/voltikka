@@ -2114,7 +2114,7 @@ class CanonicalContractPriceCalculator
             return null;
         }
 
-        $tailStart = $this->resetTailStart($data, $segments, $windowStart);
+        $tailStart = $this->resetTailStart($data, $segments, $windowStart, $metering, $spot, $context->isSpot());
         [$monthWeights, $tailMonthKeys] = $heldForward
             ? $this->heldForwardMonthWeights($profile, $windowStart, $tailStart)
             : $this->segmentMonthWeights($profile, $segments, $tailStart);
@@ -2144,7 +2144,7 @@ class CanonicalContractPriceCalculator
      *  - the end of the cadence period containing the window start (the current period is
      *    contractual, so at minimum that period stays exact);
      *  - the disclosed `current_period_end`, when the provider declares a non-calendar period;
-     *  - the end of the latest window coverage that comes from a phase with a *dated* end.
+     *  - the end of the latest finite known energy coverage (not a fee-only transition).
      *
      * A phase whose end is `none` is an open-ended claim, not a credible reset-period boundary:
      * a product that resets quarterly does not have a known price for twelve months. Cadence
@@ -2153,7 +2153,7 @@ class CanonicalContractPriceCalculator
      *
      * @param  list<WindowSegment>  $segments
      */
-    private function resetTailStart(CanonicalContractData $data, array $segments, CarbonImmutable $windowStart): CarbonImmutable
+    private function resetTailStart(CanonicalContractData $data, array $segments, CarbonImmutable $windowStart, MeteringType $metering, SpotAssumptions $spot, bool $isSpot): CarbonImmutable
     {
         $windowEnd = $windowStart->addYear();
 
@@ -2166,14 +2166,34 @@ class CanonicalContractPriceCalculator
             $candidate = $declaredEnd->addDay();
         }
 
-        foreach ($segments as $segment) {
+        foreach ($segments as $index => $segment) {
             if ($segment->phaseIndex === null) {
+                continue;
+            }
+
+            $next = $segments[$index + 1] ?? null;
+            if ($next?->phaseIndex === $segment->phaseIndex) {
                 continue;
             }
 
             $ends = $data->phases[$segment->phaseIndex]->ends->kind;
             if ($ends === BoundaryKind::None || $ends === BoundaryKind::Unknown || $ends === BoundaryKind::ContractStart) {
                 continue;
+            }
+
+            // Fee billing keeps its full timeline, but a fee change alone is not evidence
+            // that the energy price is known until this boundary.
+            if ($ends !== BoundaryKind::PeriodBoundary && $next?->phaseIndex !== null) {
+                $rates = $this->resolvePhaseRates($data->phases[$segment->phaseIndex], $data->phases, $metering, $spot, $isSpot);
+                $nextRates = $this->resolvePhaseRates($data->phases[$next->phaseIndex], $data->phases, $metering, $spot, $isSpot);
+                if ($rates !== null && $nextRates !== null
+                    && $rates['package'] === null && $nextRates['package'] === null
+                    && $rates['uses_spot'] === $nextRates['uses_spot']
+                    && $rates['spot_margin'] === $nextRates['spot_margin']
+                    && $rates['buckets'] === $nextRates['buckets']
+                    && ($rates['monthly_fee'] !== $nextRates['monthly_fee'] || $rates['flat_once'] !== $nextRates['flat_once'])) {
+                    continue;
+                }
             }
 
             if ($segment->end->greaterThan($candidate)) {

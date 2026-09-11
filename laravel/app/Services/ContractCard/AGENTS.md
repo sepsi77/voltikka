@@ -329,13 +329,22 @@ Two rules that must not be reverted, because both produced visible defects on a 
   company, ranking, and prepared-page cache keys all include its `cs{version}` dependency.
   Service-specific outer wrapper versions remain separate. Neither the import-driven version nor
   `PricingMode::cacheMarker()` moves on a code-only deploy, so the shared marker prevents cards from
-  reading stale calculated-cost data for up to 48 hours. Current calculated-cost schema **v14**
+  reading stale calculated-cost data for up to 48 hours. Current calculated-cost schema **v15**
   includes package and real-term fields, canonical-only current facts, exact typed offer terms,
   short Hybrid real-term totals, listed `other`-cadence reset estimates, and the separate typed
   `supplier_adjusted_estimate` payload.
   The presenter strictly hydrates the existing Eloquent `calculated_cost` transport attribute into one `ContractPricingViewData`; receipt, footer, copy, package, Hybrid, reset, phase, term, discount, estimate, and total decisions use typed access. `pricing_integrity` is hydrated into the existing typed `ContractPricingIntegrity`. Arrays do not continue inside card derivation.
   The detail page's own prepared-payload key is **v18** because its price-development
   overlay now uses the basis-aware statistics segment classifier.
+
+## Reset estimate horizon
+
+The soft reset receipt row is `12 kk keskihinta, arvio`, not `Loppuvuosi, arvio`.
+It is the next 12-month equivalent, not the remaining calendar year's price or the future tail
+alone. Both reset copy helpers state that the estimate includes the current known period and
+later estimated periods. Forward, seasonal-index, and hold-current copy must not say `Loppuvuoden`.
+Schema v15 also removes fee-only phase ends from the reset energy reference selection; see
+`../CanonicalPricing/MarketReset/AGENTS.md`. Fee benefits keep their original billing dates.
 
 ## Tests
 
