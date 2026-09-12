@@ -4,7 +4,7 @@ namespace App\Services;
 
 final class CalculatedCostPayloadSchema
 {
-    public const VERSION = 16;
+    public const VERSION = 17;
 
     public static function cacheMarker(): string
     {

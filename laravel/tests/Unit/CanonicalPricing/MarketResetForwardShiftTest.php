@@ -9,7 +9,9 @@ use App\Services\CanonicalPricing\DTO\ContractContext;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\CanonicalPricing\Enums\ContractComparability;
 use App\Services\CanonicalPricing\Enums\EstimateMethod;
+use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimateRequest;
 use App\Services\CanonicalPricing\MarketReset\DTO\ResetEstimatorSettings;
+use App\Services\CanonicalPricing\MarketReset\Enums\ResetEstimateBasis;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\MarketReset\MarketResetPriceEstimator;
 use App\Services\CanonicalPricing\SupplierAdjusted\SupplierAdjustedPriceEstimator;
@@ -450,6 +452,127 @@ class MarketResetForwardShiftTest extends TestCase
         $this->assertFalse($outcome->resetEstimate['higher_confidence']);
         $this->assertContains('lower_confidence_seasonal_index', $outcome->resetEstimate['flags']);
         $this->assertEqualsWithDelta(11.5, $outcome->resetEstimate['annual_equivalent_energy_price'], 0.001);
+    }
+
+    public function test_seasonal_quarter_reference_is_invariant_to_the_anchor_month_for_each_nonmonthly_cadence(): void
+    {
+        $index = array_fill(1, 12, 0.6);
+        $index[4] = 0.9;
+        $index[6] = 0.3;
+
+        foreach (['quarterly', 'seasonal', 'other'] as $cadence) {
+            foreach (['2026-04-01', '2026-05-01', '2026-06-01'] as $anchor) {
+                $estimate = $this->estimator(new FakeMarketCurve(tradeDate: null, seasonalIndex: $index))
+                    ->estimate($this->seasonalRequest($cadence, $anchor));
+
+                // (30 * .9 + 31 * .6 + 30 * .3) / 91 = .6, not June's .3.
+                $this->assertSame(ResetEstimateBasis::SpotSeasonalIndex, $estimate->basis);
+                $this->assertEqualsWithDelta(0, $estimate->offsetsByMonthKey['2026-07'], 0.000001);
+                $this->assertEqualsWithDelta(10, $estimate->annualEquivalentEnergyPriceCentsPerKwh, 0.000001);
+                $this->assertArrayNotHasKey('2026-06', $estimate->offsetsByMonthKey);
+                $this->assertSame('2026-Q2', $estimate->anchorPeriodLabel);
+            }
+        }
+    }
+
+    public function test_seasonal_quarter_reference_uses_calendar_days_in_the_anchor_year(): void
+    {
+        $index = array_fill(1, 12, 0.6);
+        $index[1] = 0.9;
+        $index[2] = 0.3;
+
+        foreach ([2024 => 29, 2025 => 28] as $year => $februaryDays) {
+            foreach (['quarterly', 'seasonal', 'other'] as $cadence) {
+                $estimate = $this->estimator(new FakeMarketCurve(tradeDate: null, seasonalIndex: $index))
+                    ->estimate($this->seasonalRequest($cadence, $year.'-03-01'));
+                $reference = (31 * 0.9 + $februaryDays * 0.3 + 31 * 0.6) / (62 + $februaryDays);
+                $this->assertSame(ResetEstimateBasis::SpotSeasonalIndex, $estimate->basis);
+                $this->assertEqualsWithDelta(10 * 0.6 / $reference - 10, $estimate->offsetsByMonthKey['2026-07'], 0.000001);
+            }
+        }
+    }
+
+    public function test_missing_or_invalid_required_seasonal_indices_hold_flat(): void
+    {
+        foreach (['quarterly', 'seasonal', 'other'] as $cadence) {
+            foreach ([4, 5, 6, 7] as $month) {
+                foreach ([null, NAN, INF, 0.0, -0.1] as $invalid) {
+                    $index = array_fill(1, 12, 0.6);
+                    if ($invalid === null) {
+                        unset($index[$month]);
+                    } else {
+                        $index[$month] = $invalid;
+                    }
+                    $estimate = $this->estimator(new FakeMarketCurve(tradeDate: null, seasonalIndex: $index))
+                        ->estimate($this->seasonalRequest($cadence, '2026-06-01'));
+                    $this->assertSame(ResetEstimateBasis::HoldFlat, $estimate->basis);
+                    $this->assertSame([], $estimate->offsetsByMonthKey);
+                    $this->assertContains('no_usable_market_shape', $estimate->flags);
+                }
+            }
+        }
+    }
+
+    public function test_monthly_seasonal_reference_still_uses_only_the_exact_anchor_month_and_global_beta(): void
+    {
+        // Other reference-quarter months are not required for a monthly price.
+        $index = [6 => 0.3, 7 => 0.6];
+        foreach ([1.0, 0.5] as $beta) {
+            $estimate = $this->estimator(new FakeMarketCurve(tradeDate: null, seasonalIndex: $index), ['beta' => $beta])
+                ->estimate($this->seasonalRequest('monthly', '2026-06-01'));
+            $this->assertSame(ResetEstimateBasis::SpotSeasonalIndex, $estimate->basis);
+            $this->assertEqualsWithDelta(10 * $beta, $estimate->offsetsByMonthKey['2026-07'], 0.000001);
+        }
+    }
+
+    public function test_usable_quarter_forward_curve_keeps_priority_over_the_seasonal_reference(): void
+    {
+        foreach (['quarterly', 'seasonal', 'other'] as $cadence) {
+            $curve = new FakeMarketCurve(
+                tradeDate: '2026-05-29', reference: ['quarter' => 4], forward: $this->flatForward(6),
+                seasonalIndex: [4 => 0.9, 5 => 0.6, 6 => 0.3, 7 => 0.6], today: '2026-06-01',
+                pricingVintageReference: ['quarter' => 3], pricingVintageTradeDate: '2026-03-31',
+            );
+            $estimate = $this->estimator($curve)->estimate($this->seasonalRequest($cadence, '2026-06-01'));
+            $this->assertSame(ResetEstimateBasis::ForwardCurveShift, $estimate->basis);
+            $this->assertSame(3.0, $estimate->offsetsByMonthKey['2026-07']);
+            $this->assertSame('2026-03-31', $estimate->referenceTradeDate);
+            $this->assertSame('2026-05-29', $estimate->curveTradeDate);
+        }
+    }
+
+    public function test_shared_calculator_keeps_june_exact_and_uses_the_q2_seasonal_reference_from_july(): void
+    {
+        $index = array_fill(1, 12, 0.6);
+        $index[4] = 0.9;
+        $index[6] = 0.3;
+        foreach (['quarterly', 'seasonal', 'other'] as $cadence) {
+            $outcome = $this->evaluate($this->resetPricing(10, $cadence),
+                $this->estimator(new FakeMarketCurve(tradeDate: null, seasonalIndex: $index, today: '2026-06-01')),
+                start: '2026-06-01');
+            $this->assertSame(EstimateMethod::RecurringSpotSeasonalIndex, $outcome->estimateMethod);
+            $this->assertSame('2026-Q2', $outcome->resetEstimate['anchor_period']);
+            $this->assertSame('2026-07', $outcome->resetEstimate['tail_starts']);
+            $this->assertEqualsWithDelta(5000 / 12 * 10 / 100, $outcome->monthlyCosts[0], 0.000001);
+            $this->assertEqualsWithDelta(5000 / 12 * 10 / 100, $outcome->monthlyCosts[1], 0.000001);
+            // Eleven months cost 10 c/kWh; next April costs 15 c/kWh.
+            $this->assertEqualsWithDelta(5000 / 12 * (11 * 10 + 15) / 100, $outcome->totalCost, 0.000001);
+        }
+    }
+
+    private function seasonalRequest(string $cadence, string $anchor): ResetEstimateRequest
+    {
+        $month = CarbonImmutable::parse($anchor, 'Europe/Helsinki');
+
+        return new ResetEstimateRequest(
+            cadence: $cadence,
+            asOfDate: CarbonImmutable::parse('2026-06-01', 'Europe/Helsinki'),
+            anchorPeriodMonth: $month,
+            currentPeriodStart: $cadence === 'monthly' ? $month->startOfMonth() : $month->startOfQuarter(),
+            tailMonthKeys: ['2026-07'],
+            anchorEnergyPriceCentsPerKwh: 10,
+            monthWeights: ['2026-06' => 1.0, '2026-07' => 1.0],
+        );
     }
 
     public function test_a_stale_curve_is_rejected_and_drops_to_the_seasonal_index(): void

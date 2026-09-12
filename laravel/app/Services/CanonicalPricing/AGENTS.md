@@ -398,6 +398,13 @@ invalidates their data instead of leaving it stale for 48 hours or one hour.
 `ContractPricingIntegrity` gained typed `promo_rate_cents` /
 `normal_rate_cents` for the dated receipt rows; that was schema v2.
 
+Schema **v17** corrects the market-reset seasonal fallback reference: monthly stays the exact
+anchor month; quarterly, seasonal, and other use the calendar-day-weighted containing quarter
+with anchor-year day counts. A published quarter price must not be divided by only its last
+month's index. It changes calculated-cost caches, not stored annual statistics or the active public
+annual method. Forward priority, beta, and supplier-adjusted monthly references stay unchanged.
+See `MarketReset/AGENTS.md` for the rule and invalid-index fallback.
+
 Schema **v16** invalidates pricing-semantic caches once for chronological unknown-period estimates,
 short-term/Hybrid coverage, no-overflow anniversary fees and bins, one-time charge identity,
 common flat default usage, reconciled annual equivalents, local Spot evidence and baseload fallback,

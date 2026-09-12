@@ -190,10 +190,9 @@ class MarketResetPriceEstimator
             return null;
         }
 
-        $referenceMonth = (int) $request->anchorPeriodMonth->month;
-        $referenceIndex = $index[$referenceMonth] ?? null;
+        $referenceIndex = $this->seasonalReferenceIndex($request, $index);
 
-        if ($referenceIndex === null || $referenceIndex <= 0) {
+        if ($referenceIndex === null || ! is_finite($referenceIndex) || $referenceIndex <= 0) {
             return null;
         }
 
@@ -205,7 +204,7 @@ class MarketResetPriceEstimator
             $month = (int) $this->monthFromKey($monthKey)->month;
             $monthIndex = $index[$month] ?? null;
 
-            if ($monthIndex === null) {
+            if ($monthIndex === null || ! is_finite($monthIndex) || $monthIndex <= 0) {
                 return null;
             }
 
@@ -226,6 +225,33 @@ class MarketResetPriceEstimator
             tailStartsMonthKey: $request->tailMonthKeys[0],
             flags: array_values(array_unique(array_merge($carriedFlags, ['lower_confidence_seasonal_index']))),
         );
+    }
+
+    /** @param array<int, float> $index */
+    private function seasonalReferenceIndex(ResetEstimateRequest $request, array $index): ?float
+    {
+        if ($request->cadence === 'monthly') {
+            return $index[(int) $request->anchorPeriodMonth->month] ?? null;
+        }
+
+        // The anchor month is inside the known period, not a monthly price for that month.
+        $quarterStart = $request->anchorPeriodMonth->startOfQuarter();
+        $weighted = 0.0;
+        $days = 0;
+
+        for ($offset = 0; $offset < 3; $offset++) {
+            $month = $quarterStart->addMonths($offset);
+            $monthIndex = $index[(int) $month->month] ?? null;
+
+            if ($monthIndex === null || ! is_finite($monthIndex) || $monthIndex <= 0) {
+                return null;
+            }
+
+            $weighted += $monthIndex * $month->daysInMonth;
+            $days += $month->daysInMonth;
+        }
+
+        return $weighted / $days;
     }
 
     /**

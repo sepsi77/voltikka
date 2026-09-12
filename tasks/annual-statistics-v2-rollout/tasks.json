@@ -1,0 +1,10 @@
+[
+  {"name":"Commit and deploy the approved pricing and v2 preparation code","status":"completed"},
+  {"name":"Inspect production and complete the first read-only historical preview","status":"completed"},
+  {"name":"Correct quarterly seasonal reference; test and obtain release approval","status":"completed"},
+  {"name":"Deploy the approved correction and rerun full read-only previews","status":"in_progress"},
+  {"name":"Review coverage and numerical changes; obtain exact apply approval","status":"pending"},
+  {"name":"Apply reviewed historical dates and verify preserved evidence","status":"pending"},
+  {"name":"Verify current v2 coverage and obtain public activation approval","status":"pending"},
+  {"name":"Activate and verify public readers","status":"pending"}
+]

@@ -478,6 +478,42 @@ class AsOfAnnualCostCalculatorTest extends TestCase
         $this->assertGreaterThan(0, $curve->forwardCalls);
     }
 
+    public function test_v2_reset_seasonal_fallback_uses_the_known_quarter_not_its_last_month(): void
+    {
+        config()->set('canonical_pricing.reset_forward_shift.enabled', true);
+        foreach (['quarterly', 'seasonal', 'other'] as $cadence) {
+            $contract = $this->contract('seasonal-quarter-'.$cadence);
+            $this->snapshot($contract, energy: 10);
+            $attributes = CanonicalPricingFixture::attributes(
+                phases: [CanonicalPricingFixture::phase(
+                    'Known quarter', PhaseKind::RecurringPeriod,
+                    CanonicalPricingFixture::boundary(BoundaryKind::PeriodBoundary),
+                    CanonicalPricingFixture::boundary(BoundaryKind::PeriodBoundary),
+                    [CanonicalPricingFixture::component(ComponentType::EnergyGeneral, 10, ComponentUnit::CentsPerKwh)],
+                )],
+                calculationStatus: CalculationStatus::EstimateRequired,
+                recurringSchedule: CanonicalPricingFixture::recurringSchedule($cadence, '2026-04-01', '2026-06-30', false),
+                issueCodes: ['recurring_reset_requires_estimate'],
+            );
+            $this->strictInterpretation($contract, $attributes, '2026-05-31 00:00:00', '2026-06-01 23:00:00');
+        }
+        $index = array_fill(1, 12, 0.6);
+        $index[4] = 0.9;
+        $index[6] = 0.3;
+        $this->app->instance(MarketReferenceCurveProvider::class, new FakeAsOfCurve(false, $index));
+        $results = app(AsOfAnnualCostCalculator::class)->calculate(self::DATE, AnnualCostMethodVersion::AsOfV2);
+
+        $this->assertCount(9, $results);
+        foreach ($results as $result) {
+            $this->assertTrue($result->isAvailable());
+            $this->assertSame(AnnualCostCalculationBasis::CanonicalOutcome, $result->calculationBasis);
+            $this->assertSame('market_reset_spot_seasonal_index', $result->estimateBasis);
+            // June stays exact; July through May use the day-weighted Q2 reference .6.
+            $expected = $result->consumptionKwh * (11 * 10 + 15) / 12 / 100;
+            $this->assertEqualsWithDelta($expected, $result->totalCost, 0.00001);
+        }
+    }
+
     public function test_v2_keeps_a_genuine_announced_reset_phase_and_shifts_only_unknown_tail(): void
     {
         config()->set('canonical_pricing.reset_forward_shift.enabled', true);

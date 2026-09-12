@@ -187,6 +187,20 @@ The seasonal index is deliberately last. Its realized monthly index has a year-t
 **0.42** across 2022-2025 and **0.77-0.80** in the winter months that drive the correction. It is
 better than flat but must never outrank an available curve. Do not promote it.
 
+### Seasonal reference period (schema v17)
+
+The seasonal fallback uses the exact anchor month's index for `monthly`. For `quarterly`,
+`seasonal`, and `other`, it uses the calendar-day-weighted mean of all three indices in the
+containing quarter, with day counts from the anchor year (including leap February). The anchor
+month is only a month inside the known period: a Q2 price anchored in June is not a June price.
+This matches the forward reference's cadence and the quarterly proxy for `other`. Missing,
+non-finite, or nonpositive required reference or tail indices fall through to hold flat.
+The multiplicative formula, global beta, current-period exactness, dated inputs, forward priority,
+and absolute guards stay unchanged. Supplier-adjusted monthly references do not change.
+Schema v17 invalidates cached calculated costs after deployed v16; no stored statistics are rewritten.
+Tests cover all three nonmonthly cadences, anchor-month invariance, leap weighting, and June-to-July
+shared-calculator and historical AsOfV2 results. See `tasks/annual-statistics-v2-rollout/seasonal-reference-fix.md`.
+
 ### Dated input rule (2026-09-11)
 
 `spotSeasonalIndex(CarbonImmutable $asOfDate): ?array` requires an explicit target. Both estimators
