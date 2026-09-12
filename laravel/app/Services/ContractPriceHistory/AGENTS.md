@@ -42,6 +42,19 @@ pricing, the price-development adapter and Livewire state stay in the component.
 These four prepared payload keys are cache compatibility requirements; this
 extraction does not require a cache schema change.
 
+The observation-clarity update uses prepared ContractDetail cache **v20**. Each
+version now includes `first_price_date` and `observation_count`, derived from
+unique calendar `price_date` values in its already loaded components. The count
+includes zero rows and is not a component-row count or a lineage total. No query
+is added. `latest_price_date` still comes from the existing latest-positive
+component selection; `last_seen_on_sale_date` still uses all rows. The timeline
+labels the latest observation from `last_seen_on_sale_date`, first observation,
+and observed-day count, with singular/plural and no-data copy. The displayed last
+date must include zero-price observations: `latest_price_date` can lag because it
+belongs to positive-price selection, not the observation window. Its price rows explicitly do not promise
+unchanged prices throughout that window. This is display clarification, not a
+backfill repair or proof of missing historical data.
+
 ## Two variants, because the honest question differs
 
 | `pricing_model` | Ink line | Dashed reference |
@@ -69,6 +82,14 @@ variant plots the market instead. This follows the approved
   day/night 15:9, else seasonal 5:7). A time-metered contract charted on
   `DayTime` alone would sit above a median that blends day and night, and the
   overlay would be a lie about the gap.
+- **Seasonal history copy follows the resolved historical rates, not metadata.**
+  When every energy-bearing observation resolves to Season under General > Time >
+  Season precedence, the series label, subtitle, and accessible description say
+  `Painotettu kausisähkön energianhinta`. The visible note explains the 5 winter /
+  7 other month weights and says this is neither a consumption-specific bill nor
+  a coming-year estimate. Mixed tariff histories keep the general energy label.
+  The missing-reference note remains. No arithmetic, points, Spot copy, or
+  short-history suppression changes.
 - **`ContractStatisticsSegmentClassifier` is the one classifier** and owns the one
   `SEGMENT_LABELS` map. The presenter classifies with
   `PricingMode::expectedContractPriceBasis()`: a current canonical reset overlays persisted

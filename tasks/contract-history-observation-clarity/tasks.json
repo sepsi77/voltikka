@@ -1,0 +1,5 @@
+[
+  {"name":"Implement observation and seasonal display clarification with tests", "status":"completed"},
+  {"name":"Verify focused tests, build, and diff; update context", "status":"completed"},
+  {"name":"Use all-row latest observation date and add zero-row rendered regression", "status":"completed"}
+]

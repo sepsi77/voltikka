@@ -78,6 +78,57 @@ class ContractDetailPriceDevelopmentTest extends TestCase
             ->assertSee('Näin hinta on kehittynyt');
     }
 
+    public function test_seasonal_chart_explains_its_weighting_without_changing_prices(): void
+    {
+        $contract = $this->openEndedContract('history-seasonal');
+        // Actual historical types, not General metadata, select the copy.
+        foreach (['2026-01-21', '2026-07-25'] as $date) {
+            foreach (['SeasonalWinter' => 13.7, 'SeasonalOther' => 10.2, 'Monthly' => 3.7] as $type => $price) {
+                PriceComponent::create([
+                    'id' => $type.'-'.$date,
+                    'electricity_contract_id' => $contract->id,
+                    'price_component_type' => $type,
+                    'price_date' => $date,
+                    'price' => $price,
+                    'payment_unit' => $type === 'Monthly' ? 'EUR/month' : 'c/kWh',
+                ]);
+            }
+        }
+        $test = Livewire::test('contract-detail', ['contractId' => $contract->id]);
+        $development = $test->viewData('priceDevelopment');
+        $label = 'Painotettu kausisähkön energianhinta';
+        $this->assertSame($label, $development['chart']['series_label']);
+        $this->assertStringStartsWith($label.' c/kWh', $development['subtitle']);
+        foreach ($development['chart']['series_points'] as $point) {
+            $this->assertEqualsWithDelta((13.7 * 5 + 10.2 * 7) / 12, $point['value'], 0.000001);
+        }
+        $test->assertSee($label)
+            ->assertSeeHtml('aria-label="'.$label.' senttiä kilowattitunnilta')
+            ->assertSee('talvihintaa 5 kuukauden ja muun ajan hintaa 7 kuukauden painolla')
+            ->assertSee('Se ei kuvaa omaan kulutukseesi perustuvaa sähkölaskua eikä tulevan vuoden hinta-arviota.')
+            ->assertSee('Vertailuryhmän mediaania ei ole vielä tallessa');
+    }
+
+    public function test_general_and_time_observations_take_precedence_over_seasonal_copy(): void
+    {
+        $contract = $this->openEndedContract('history-seasonal-precedence');
+        $contract->update(['metering' => 'Season']);
+        foreach ([['General' => 8.0, 'DayTime' => 9.0], ['DayTime' => 9.0, 'NightTime' => 6.0]] as $preferred) {
+            $history = [];
+            foreach ($preferred + ['SeasonalWinterDay' => 13.7, 'SeasonalOther' => 10.2] as $type => $price) {
+                foreach (['2026-01-21', '2026-07-25'] as $date) {
+                    $history[$type][] = ['date' => $date, 'price' => $price];
+                }
+            }
+            $development = app(PriceDevelopmentPresenter::class)->present($contract, $history);
+            $this->assertSame('Tämän sopimuksen energianhinta', $development['chart']['series_label']);
+            $this->assertStringStartsWith('Energianhinta c/kWh', $development['subtitle']);
+            $this->assertStringNotContainsString('Painotettu', $development['note']);
+            $expected = $preferred['General'] ?? (9 * 15 + 6 * 9) / 24;
+            $this->assertEqualsWithDelta($expected, $development['chart']['series_points'][0]['value'], 0.000001);
+        }
+    }
+
     public function test_contract_line_is_stepped_between_price_changes(): void
     {
         $contract = $this->openEndedContract('history-stepped');
@@ -190,6 +241,7 @@ class ContractDetailPriceDevelopmentTest extends TestCase
         $this->assertSame('4,52', $development['chart']['rows'][4]['series']);
 
         $test
+            ->assertDontSee('Painotettu kausisähkön energianhinta')
             ->assertSee('Kuukauden keskihinta, marginaali mukana')
             ->assertSee('12 kk keskihinta')
             // Trailing-year reference 6,57 + margin 0,42.

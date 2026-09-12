@@ -2789,8 +2789,8 @@ class ContractDetail extends Component
 
     protected function contractDetailViewDataCacheKey(): string
     {
-        // v19: the payload contains a versioned signed seller-click context.
-        return 'contract-detail:view-data:v19:'.md5(json_encode([
+        // v20: version observation dates/counts and weighted seasonal history copy.
+        return 'contract-detail:view-data:v20:'.md5(json_encode([
             'contract_id' => $this->contractId,
             'consumption' => $this->consumption,
             'version' => $this->contractPageCacheVersionHash(),

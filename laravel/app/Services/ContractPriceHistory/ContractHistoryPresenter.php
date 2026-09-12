@@ -41,6 +41,8 @@ class ContractHistoryPresenter
      *         company: string|null,
      *         is_current: bool,
      *         is_active: bool,
+     *         first_price_date: ?Carbon,
+     *         observation_count: int,
      *         latest_price_date: ?Carbon,
      *         last_seen_on_sale_date: ?Carbon,
      *         prices: array<int, array{type: string, label: string, price: float, unit: string}>,
@@ -102,6 +104,8 @@ class ContractHistoryPresenter
      *     company: string|null,
      *     is_current: bool,
      *     is_active: bool,
+     *     first_price_date: ?Carbon,
+     *     observation_count: int,
      *     latest_price_date: ?Carbon,
      *     last_seen_on_sale_date: ?Carbon,
      *     prices: array<int, array{type: string, label: string, price: float, unit: string}>,
@@ -131,12 +135,22 @@ class ContractHistoryPresenter
                     ->sortByDesc(fn ($date) => $date instanceof Carbon ? $date->timestamp : Carbon::parse($date)->timestamp)
                     ->first();
 
+                $observationDates = $historyContract->priceComponents
+                    ->pluck('price_date')
+                    ->filter()
+                    ->map(fn ($date) => Carbon::parse($date)->toDateString())
+                    ->unique()
+                    ->sort()
+                    ->values();
+
                 return [
                     'id' => $historyContract->id,
                     'name' => ContractContentSanitizer::displayName($historyContract->name),
                     'company' => $historyContract->company?->name,
                     'is_current' => $historyContract->id === $contract->id,
                     'is_active' => $historyContract->isActive(),
+                    'first_price_date' => $observationDates->isEmpty() ? null : Carbon::parse($observationDates->first()),
+                    'observation_count' => $observationDates->count(),
                     'latest_price_date' => $latestPriceDate,
                     'last_seen_on_sale_date' => $lastSeenOnSaleDate,
                     'prices' => $this->formatContractHistoryPrices($historyContract, $latestPriceComponents->all()),

@@ -109,7 +109,7 @@ class PriceDevelopmentPresenter
 
         $result = $isSpot
             ? $this->spotVariant($contract, $calculatedCost, $energySeries, $feeSeries, $trackedSince)
-            : $this->contractVariant($contract, $energySeries, $feeSeries, $trackedSince);
+            : $this->contractVariant($contract, $energySeries, $feeSeries, $trackedSince, $byDate);
 
         return $result + ['tracked_since' => $trackedSince];
     }
@@ -121,6 +121,7 @@ class PriceDevelopmentPresenter
     /**
      * @param  array{points: array<int, array{date: \Carbon\Carbon, value: float}>, last_date: ?\Carbon\Carbon}  $energySeries
      * @param  array{points: array<int, array{date: \Carbon\Carbon, value: float}>, last_date: ?\Carbon\Carbon}  $feeSeries
+     * @param  array<string, array<string, float>>  $byDate
      * @return array<string, mixed>
      */
     private function contractVariant(
@@ -128,6 +129,7 @@ class PriceDevelopmentPresenter
         array $energySeries,
         array $feeSeries,
         ?Carbon $trackedSince,
+        array $byDate,
     ): array {
         $span = $this->spanDays($energySeries);
         $points = $this->plateauPoints($energySeries);
@@ -153,26 +155,39 @@ class PriceDevelopmentPresenter
         $reference = $this->segmentMedianByBucket($segmentKey, $buckets);
         $hasReference = count(array_filter($reference, fn (?float $v) => $v !== null)) >= 2;
 
+        // Use the resolved observations and the same General > Time > Season
+        // precedence as representativeEnergy(), not today's metering metadata.
+        $isSeasonal = collect($byDate)
+            ->filter(fn (array $components) => $this->representativeEnergy($components, false) !== null)
+            ->every(fn (array $components) => ! isset($components['General'])
+                && ! isset($components['DayTime']) && ! isset($components['NightTime']));
+
         $chart = $this->buildChart(
             steppedPoints: $points,
             referenceByBucket: $hasReference ? $reference : [],
             buckets: $buckets,
-            seriesLabel: 'Tämän sopimuksen energianhinta',
+            seriesLabel: $isSeasonal ? 'Painotettu kausisähkön energianhinta' : 'Tämän sopimuksen energianhinta',
             referenceLabel: 'Mediaani, '.$segmentLabel,
             referenceShortLabel: 'mediaani',
             tooltipSeriesLabel: 'Tämä sopimus',
             tooltipReferenceLabel: 'Vertailuryhmän mediaani',
-            ariaLabel: 'Sopimuksen energianhinta senttiä kilowattitunnilta verrattuna vastaavien sopimusten mediaaniin.',
+            ariaLabel: $isSeasonal
+                ? 'Painotettu kausisähkön energianhinta senttiä kilowattitunnilta verrattuna vastaavien sopimusten mediaaniin.'
+                : 'Sopimuksen energianhinta senttiä kilowattitunnilta verrattuna vastaavien sopimusten mediaaniin.',
         );
 
         $note = $hasReference
             ? null
             : 'Vertailuryhmän mediaania ei ole vielä tallessa tältä ajanjaksolta, joten kuvaajassa on vain tämän sopimuksen oma hinta.';
 
+        if ($isSeasonal) {
+            $note = trim('Painotettu energianhinta käyttää talvihintaa 5 kuukauden ja muun ajan hintaa 7 kuukauden painolla. Se ei kuvaa omaan kulutukseesi perustuvaa sähkölaskua eikä tulevan vuoden hinta-arviota. '.($note ?? ''));
+        }
+
         return [
             'variant' => 'contract',
             'available' => true,
-            'subtitle' => 'Energianhinta c/kWh · '.$this->trackedSinceSentence($trackedSince),
+            'subtitle' => ($isSeasonal ? 'Painotettu kausisähkön energianhinta' : 'Energianhinta').' c/kWh · '.$this->trackedSinceSentence($trackedSince),
             'message' => null,
             'note' => $note,
             'chart' => $chart,

@@ -26,12 +26,13 @@
 
     <div class="space-y-1.5">
         <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
-            @if ($entry['latest_price_date'])
-                <time datetime="{{ $entry['latest_price_date']->format('Y-m-d') }}" class="text-sm font-semibold text-slate-900 tabular-nums">
-                    {{ $entry['latest_price_date']->translatedFormat('j.n.Y') }}
+            @if ($entry['last_seen_on_sale_date'])
+                <span class="text-xs text-slate-500">Viimeisin hintahavainto</span>
+                <time datetime="{{ $entry['last_seen_on_sale_date']->format('Y-m-d') }}" class="text-sm font-semibold text-slate-900 tabular-nums">
+                    {{ $entry['last_seen_on_sale_date']->translatedFormat('j.n.Y') }}
                 </time>
             @else
-                <span class="text-sm font-semibold text-slate-500">Päivämäärä ei tiedossa</span>
+                <span class="text-sm font-semibold text-slate-500">Ei tallennettuja hintahavaintoja</span>
             @endif
 
             @if ($entry['is_current'] && $entry['is_active'])
@@ -41,9 +42,18 @@
             @endif
         </div>
 
+        @if ($entry['first_price_date'])
+            <p class="text-xs text-slate-500">
+                Ensimmäinen hintahavainto
+                <time datetime="{{ $entry['first_price_date']->format('Y-m-d') }}">{{ $entry['first_price_date']->format('j.n.Y') }}</time>
+                · {{ $entry['observation_count'] }} {{ $entry['observation_count'] === 1 ? 'havaintopäivä' : 'havaintopäivää' }}
+            </p>
+        @endif
+
         <div class="text-sm font-medium text-slate-800">{{ $entry['name'] }}</div>
 
         @if (! empty($entry['prices']))
+            <p class="text-xs text-slate-500">Viimeisimmät havaitut hinnat. Hinnat ovat voineet muuttua havaintojakson aikana.</p>
             <dl class="flex flex-wrap gap-x-5 gap-y-1 pt-0.5 tabular-nums">
                 @foreach ($entry['prices'] as $price)
                     <div class="flex items-baseline gap-1.5">
