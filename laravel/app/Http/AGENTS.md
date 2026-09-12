@@ -58,6 +58,17 @@ version, annual calculation/estimate/compatibility provenance, JSON `basis_count
 unit rows remain `unit_statistics_v1` with marker `0`. Public pages still filter annual output to
 the active method even though the CSV exposes shadow versions.
 
+The export uses one sorted Eloquent cursor, not sorted OFFSET chunks: all-version history made
+repeated sorting exceed the request time limit. Keep the existing date/segment/metric/consumption/
+method order and model casts. On MySQL, disable `MYSQL_ATTR_USE_BUFFERED_QUERY` only on the
+query connection's resolved read PDO during iteration, then restore its previous value in
+`finally`. Release the iterator (and its PDO statement) before restoration or later queries,
+including on hydration/output failure. Check attribute-setting failures. SQLite skips the MySQL
+attribute. Do not add queries or relationship loading inside this unbuffered loop, global timeout
+changes, or a separate connection. Regression tests cover 540 reverse-inserted rows and use a PDO
+test double over SQLite to check read-PDO selection, statement release, and both prior buffer
+settings on success and failure. A real MySQL performance check is separate release evidence.
+
 ## Company resource logos
 
 `Resources/CompanyResource` returns `Company::getLogoUrl()` instead of the raw upstream

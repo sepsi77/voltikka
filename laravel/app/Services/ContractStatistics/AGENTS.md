@@ -21,9 +21,14 @@ Primary files:
   without copying or rewriting observed unit-price facts.
 - `AnnualCostMethodVersion` defines `annual_cost_legacy_v1`, `annual_cost_as_of_v1`, and
   `annual_cost_as_of_v2`; `isAsOf()` accepts both AsOf versions. `AnnualCostCalculationBasis`
-  distinguishes observed relational input from a canonical outcome. Public v1 has been active since
-  2026-08-09. Current canonical collection writes v2 only, without changing public configuration.
-  Every public annual reader selects the active method. Retained v1 remains dated history for rollback.
+  distinguishes observed relational input from a canonical outcome. Public v2 has been active since
+  the explicitly approved activation on 2026-09-12. Historical v2 was applied for 233 evidence dates
+  from 2026-01-21 through 2026-09-11 (no evidence date on February 12): 213,755 annual rows and
+  7,618 aggregates. V1 remains retained at 2026-09-11 with its snapshot joins preserved; historical
+  snapshots and price components are unchanged. See
+  `../../../../tasks/annual-statistics-v2-rollout/apply-results.md` for proof.
+  Current canonical collection writes v2 only. Every public annual reader selects the active method.
+  Retained v1 remains dated history for a separately approved rollback.
 - Daily aggregate application writes carry a non-null `method_version`, but the database column stays
   nullable so an application rollback can still write the old shape. Existing annual rows are always
   backfilled as legacy and existing unit metrics as `unit_statistics_v1`, including on a migration
@@ -163,8 +168,8 @@ Primary files:
   rolls back snapshots, unit aggregates, legacy annual aggregates, and v2 annual rows together.
   Date-wide replacement removes excluded, out-of-range, and stale rows. Feature-off and historical
   observed calls do not invoke this current adapter. Historical rebuilds continue to use the strict
-  `AsOfAnnualCostCalculator`. Production has used public v1 since 2026-08-09; the release does not
-  switch it. The annual-only table has no compatibility-snapshot foreign key. Current same-day
+  `AsOfAnnualCostCalculator`. Production has used public v2 since 2026-09-12, with v1 retained
+  at 2026-09-11 for dated rollback. The annual-only table has no compatibility-snapshot foreign key. Current same-day
   replacement preserves v1 financial rows, but old snapshot IDs in provenance can stop resolving,
   and company date/contract joins can lose newly excluded identities. Avoid replacing the last
   retained v1 date; stored annual rows alone do not replace a full backup.
@@ -203,7 +208,7 @@ Primary files:
   Coverage and price sums detect a same-second refresh even when row count and date do not change.
 - Current canonical annual outcomes use the shared flat default monthly consumption profile with explicit heating/cooling shape, no-overflow anniversary fee/bin rules, calendar package rules, and once-only inherited charges. Short-term real costs remain annualized; Hybrid totals exclude consumption effects. Reset/supplier annual equivalents use billed energy divided by costed kWh, not snapshot representative weights. Audience VAT is Household/Both/null inclusive and Company excluded; explicit source components and inclusive market curves normalize once before costing. Current collection reuses these outcomes, not a second statistics calculation.
 - Shared calculated-cost schema v17 invalidates semantic caches only. It does not run a historical rebuild, rewrite snapshots/annual statistics, or replace stored method evidence. Dated annual metric keys advance at Helsinki midnight. Existing historical method rules remain dated evidence, not current annual fallbacks.
-- `phpunit.xml` forces the configured legacy annual-method default for test isolation from local `.env`; AsOf tests opt in through `config()->set()`. Production method configuration is unchanged.
+- `phpunit.xml` forces the configured legacy annual-method default for test isolation from local `.env`; AsOf tests opt in through `config()->set()`. Test isolation does not change production method configuration.
 - Current canonical Spot `annual_cost` uses the same forward 12-month curve, historical intraday shape (or explicit lower-confidence zero-offset baseload), exact margin, fee, and offers as the public ranking. Historical observed rows keep the trailing-365 Spot level that was known for that date. Use `annual_cost`, not current/day-period `spot_total_energy_price`, for contract-type annual-cost comparisons.
 - On `/sahkosopimus/tilastot`, the contract-type **c/kWh** table, deep-dive Spot chart, and top Spot callout remain historical views: trailing-12-month realized daily Spot average + latest typical margin, with p20–p80 calculated from daily prices over the same window. Do not switch those historical unit-price figures to the forward estimate or latest-day Spot. The annual-cost chart and current canonical snapshot are the forward-looking surfaces.
 - Weekly/monthly UI aggregates should average daily statistics, not recompute from all contract-day rows, so trend lines are market-day weighted.
@@ -211,7 +216,7 @@ Primary files:
 - After `contracts:calculate-price-statistics` recalculates daily statistics, it queues `contracts:warm-price-statistics-cache` for the default weekly/5 000 kWh page state. The contract post-import coordinator does not call that command; after successful direct statistics it dispatches `WarmContractPriceStatisticsCache` directly for the same state. `spot:fetch` queues the same warmer after spot averages update because spot fingerprints also bust this page cache.
 - The warmer builds many segment/date summaries in one job. Keep `ContractPriceStatistics` request/job-scoped batching intact: one `dailyStats` collection, one one-pass segment + metric + consumption index over those rows, memoized period series, one daily spot-average load sliced with native ordered-array loops for rolling windows, and no per-segment latest-row SQL lookups. The daily-statistics query hydrates all `unit_statistics_v1` rows. It hydrates active-method `annual_cost` rows only for the component's selected consumption because the page does not use the other annual consumption rows. The one-pass index and series memoization reduced the 2026-08-07 local production-snapshot cold warm from about 12 seconds / 144 MB RSS to about 3 seconds / 123 MB RSS after production exhausted its 300-second queue timeout.
 - One pricing basis owns each newly calculated date. Inside the calculation transaction, a run deletes opposite-basis snapshots for only its target date and replaces snapshots for its own contract set before aggregate calculation. This removes stale snapshots when a later canonical run excludes a contract. It never deletes another date. Its base daily-statistic cleanup is method-scoped to `unit_statistics_v1` and `annual_cost_legacy_v1`. The current canonical adapter separately replaces only v2 annual rows within that transaction; v1 remains unchanged. A feature-off/backfill run takes the same target-date ownership with observed basis.
-- Unit panels end on the latest `unit_statistics_v1` date for `PricingMode::expectedContractPriceBasis()`. Annual panels have their own latest eligible active-method date, no later than the unit endpoint, requiring the expected basis or `mixed_evidence`. Retained annual history behind unit collection gets dated historical copy, not today's-price copy. This is an endpoint comparison, not a clock-age rule for ordinary yesterday data. Earlier points retain their dated basis; sample floors and compatibility rules remain. No expected-basis annual endpoint means no fallback to inactive v2 or wrong-basis annual data. The one-pass daily index also caches the annual endpoint. Switching back to v1 selects retained dated v1; it does not resume old current computation.
+- Unit panels end on the latest `unit_statistics_v1` date for `PricingMode::expectedContractPriceBasis()`. Annual panels have their own latest eligible active-method date, no later than the unit endpoint, requiring the expected basis or `mixed_evidence`. Retained annual history behind unit collection gets dated historical copy, not today's-price copy. This is an endpoint comparison, not a clock-age rule for ordinary yesterday data. Earlier points retain their dated basis; sample floors and compatibility rules remain. No expected-basis annual endpoint means no fallback to an inactive method or wrong-basis annual data. The one-pass daily index also caches the annual endpoint. Switching back to v1 selects retained dated v1; it does not resume old current computation.
 - Every public annual-cost trend uses `AnnualSeriesCompatibility`: mixed weekly/monthly periods and the first point after a method cutover are null, while deltas require the same normalized key. Unit c/kWh aggregation is unchanged.
 - The two statistics widgets on `/sahkosopimus/kannattaako-porssisahko` follow the same endpoint rule. They read only the trailing year and only the plotted columns, then cache prepared arrays. Do not restore their former unbounded all-column Eloquent reads: together with the other eager article widgets, those reads exhausted the 128 MB production request limit.
 

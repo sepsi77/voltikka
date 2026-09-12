@@ -45,11 +45,17 @@ not answer a current-price question from the historical fallback.
 An AsOf pair older than the latest same-basis unit date sets
 `comparison_state=historical_retained_annual` and `is_historical_fallback=true`, even when the pair
 is canonical. The existing dated presentation states that it is not today's comparison. Unit
-collection can advance while public v1 retains its old annual endpoint beside inactive v2. This
-check compares stored endpoints; it does not reclassify ordinary yesterday data by clock age.
-Switchback to v1 restores dated retained values, not new current v1 calculations. Same-day snapshot
-replacement can remove identities from company date/contract joins, even though v1 financial rows
-remain unchanged. Avoid overwriting the last retained v1 date during rollout.
+collection can advance beyond a retained active-method annual endpoint. This check compares stored
+endpoints; it does not reclassify ordinary yesterday data by clock age.
+Public `annual_cost_as_of_v2` has been active since the explicitly approved activation on 2026-09-12.
+Historical v2 was applied for 233 evidence dates from 2026-01-21 through 2026-09-11 (no evidence date
+on February 12). V1 remains retained at 2026-09-11 with its snapshot joins preserved; historical
+snapshots and price components are unchanged. See
+`../../../../tasks/annual-statistics-v2-rollout/apply-results.md` for proof. Inactive methods remain
+isolated from public reads. A separately approved switchback to v1 restores dated retained values,
+not new current v1 calculations. Same-day snapshot replacement can remove identities from company
+date/contract joins, even though v1 financial rows remain unchanged. Avoid overwriting the last
+retained v1 date.
 
 A non-historical payload can also carry the small typed `spot_benchmarks`
 payload. It reads only the `spot` segment's `spot_margin` and `monthly_fee`

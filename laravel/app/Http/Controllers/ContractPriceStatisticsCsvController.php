@@ -5,7 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\ContractPriceDailyStatistic;
 use App\Services\ContractStatistics\SellerSetEnergyPriceIndexService;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
+use PDO;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ContractPriceStatisticsCsvController extends Controller
@@ -56,42 +59,62 @@ class ContractPriceStatisticsCsvController extends Controller
 
             $activeAnnualMethod = ContractPriceDailyStatistic::activeAnnualMethodVersion()->value;
 
-            ContractPriceDailyStatistic::query()
+            $query = ContractPriceDailyStatistic::query()
                 ->orderBy('stat_date')
                 ->orderBy('segment_key')
                 ->orderBy('metric_key')
                 ->orderBy('consumption_kwh')
-                ->orderBy('method_version')
-                ->chunk(500, function ($rows) use ($activeAnnualMethod, $out) {
-                    foreach ($rows as $row) {
-                        fputcsv($out, [
-                            $row->stat_date instanceof \Carbon\CarbonInterface
-                                ? $row->stat_date->toDateString()
-                                : (string) $row->stat_date,
-                            $row->segment_key,
-                            $row->metric_key,
-                            $row->pricing_basis,
-                            $row->method_version,
-                            $row->calculation_basis,
-                            $row->estimate_basis,
-                            $row->compatibility_key,
-                            $row->basis_counts === null
-                                ? null
-                                : json_encode($row->basis_counts, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-                            $row->metric_key === 'annual_cost' && $row->method_version === $activeAnnualMethod ? 1 : 0,
-                            $row->consumption_kwh,
-                            $row->min_value,
-                            $row->p20_value,
-                            $row->median_value,
-                            $row->avg_value,
-                            $row->p80_value,
-                            $row->max_value,
-                            $row->contract_count,
-                        ]);
-                    }
-                });
+                ->orderBy('method_version');
 
-            fclose($out);
+            $pdo = $query->getConnection()->getReadPdo();
+            $buffered = null;
+
+            try {
+                if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') {
+                    $buffered = $pdo->getAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY);
+                    if (! $pdo->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, false)) {
+                        throw new RuntimeException('Cannot disable CSV query buffering.');
+                    }
+                }
+
+                $rows = $query->cursor()->getIterator();
+                foreach ($rows as $row) {
+                    fputcsv($out, [
+                        $row->stat_date instanceof CarbonInterface
+                            ? $row->stat_date->toDateString()
+                            : (string) $row->stat_date,
+                        $row->segment_key,
+                        $row->metric_key,
+                        $row->pricing_basis,
+                        $row->method_version,
+                        $row->calculation_basis,
+                        $row->estimate_basis,
+                        $row->compatibility_key,
+                        $row->basis_counts === null
+                            ? null
+                            : json_encode($row->basis_counts, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+                        $row->metric_key === 'annual_cost' && $row->method_version === $activeAnnualMethod ? 1 : 0,
+                        $row->consumption_kwh,
+                        $row->min_value,
+                        $row->p20_value,
+                        $row->median_value,
+                        $row->avg_value,
+                        $row->p80_value,
+                        $row->max_value,
+                        $row->contract_count,
+                    ]);
+                }
+            } finally {
+                // Release the generator and its PDO statement before another query can run.
+                unset($rows);
+                try {
+                    if ($buffered !== null && ! $pdo->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, $buffered)) {
+                        throw new RuntimeException('Cannot restore CSV query buffering.');
+                    }
+                } finally {
+                    fclose($out);
+                }
+            }
         }, $filename, [
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Cache-Control' => 'public, max-age=3600',
