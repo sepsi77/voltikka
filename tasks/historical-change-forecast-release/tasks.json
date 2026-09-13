@@ -2,5 +2,9 @@
   {"name":"Implement generation, nullable diagnostics and freshness","status":"done"},
   {"name":"Update presentation and tests","status":"done"},
   {"name":"Run isolated export replay and verification","status":"done"},
-  {"name":"Update context and release plan","status":"done"}
+  {"name":"Update context and release plan","status":"done"},
+  {"name":"Approved main push and exact deployment verification","status":"done"},
+  {"name":"Record production page and read-only forecast checks","status":"done"},
+  {"name":"Obtain separate approval for initial generation and possible statistics refresh","status":"done"},
+  {"name":"Run approved initial generation and verify saved forecasts","status":"done"}
 ]

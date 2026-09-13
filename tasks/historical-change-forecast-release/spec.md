@@ -9,3 +9,7 @@ Keep legacy evaluation APIs and stored rows. New obsolete financial diagnostics 
 Keep qualified outlooks, visible uncertainty, history-count confidence and current layout. Explain equal weights, separate fits, overlapping periods and turning-point lag. Do not sort crossing quantiles; show a notice and preserve article distribution guards.
 
 Verify with targeted/full tests, Pint, lint, build and isolated SQLite-memory export replay against an independent raw-array mean. Do not change frozen research, production or normal databases. No commit/push/deploy is authorized.
+
+## Later release status — 2026-09-13
+
+The implementation limits above describe the original local stage. A later approved main push, successful deployment, and separately approved initial production generation are recorded in `deployment-results.md`. Initial generation and saved-row/public-page verification are complete: nine forecasts saved, zero skipped. No recovery message was printed; a statistics refresh is not confirmed. Daily generation at 07:30 and evaluation at 07:45 remain unchanged. These documentation changes stay local. No additional production operation, application change, commit or push is authorized.
