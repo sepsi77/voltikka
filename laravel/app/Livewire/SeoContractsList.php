@@ -1701,7 +1701,7 @@ class SeoContractsList extends ContractsList
 
     protected function seoContractsViewDataCacheKey(): string
     {
-        return 'seo-contracts-list:view-data:v9:'.md5(json_encode([
+        return 'seo-contracts-list:view-data:v10:'.md5(json_encode([
             'class' => static::class,
             'base_path' => $this->basePath,
             'housing_type' => $this->housingType,
@@ -1717,6 +1717,8 @@ class SeoContractsList extends ContractsList
             'consumption' => $this->selectedConsumptionValue(),
             'version' => app(ContractPageCacheVersion::class)->hash(),
             'market_insight_version' => $this->marketInsightCacheVersion(),
+            'forecast_model' => config('price_forecasting.fixed_term.model_version'),
+            'forecast_horizon' => config('price_forecasting.fixed_term.default_horizon_days'),
         ]));
     }
 }

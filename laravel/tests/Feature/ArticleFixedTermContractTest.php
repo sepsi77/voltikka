@@ -6,6 +6,7 @@ use App\Models\ContractPriceDailyStatistic;
 use App\Models\FixedContractPriceForecast;
 use App\Services\ContractMarketInsights\ContractMarketInsightService;
 use App\Services\ContractStatistics\Enums\AnnualCostMethodVersion;
+use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -146,7 +147,7 @@ class ArticleFixedTermContractTest extends TestCase
             ['Kulutusvaikutus oletetaan nollaksi.', 'Kaaviossa näkyvät vain sopimustyypit', 'annual assumption'],
             ['Matalin mediaanihinta on 24 kuukauden sopimuksilla', 'Alla ovat 6, 12 ja 24 kuukauden', 'current prices'],
             ['Hintakehitys vaihteli sopimusajan mukaan.', 'Kaavio näyttää täysin kiinteiden 6, 12 ja 24 kuukauden', 'history'],
-            ['Mediaanihinta laskee hieman kaikissa saatavilla olevissa ennusteissa.', 'Ennuste kertoo mahdollisesta suunnasta.', 'forecast'],
+            ['Hintojen odotetaan laskevan kaikissa kolmessa sopimuspituudessa.', 'Suuntaa antava arvio, ei varma hintakehitys.', 'forecast'],
         ] as [$verdict, $detail, $section]) {
             $verdictPosition = mb_strpos($plainText, $verdict);
             $detailPosition = mb_strpos($plainText, $detail);
@@ -356,7 +357,7 @@ class ArticleFixedTermContractTest extends TestCase
             ->assertOk()
             ->assertSeeText('Vuosikustannusten vertailu ei ole juuri nyt saatavilla')
             ->assertSeeText('Saman päivän energiahintoja ei ole juuri nyt saatavilla')
-            ->assertSeeText('30 päivän ennustetta ei ole juuri nyt saatavilla');
+            ->assertSeeText('Ennustetta ei ole juuri nyt saatavilla');
     }
 
     public function test_forecast_keeps_model_basis_and_history_continuity_rules(): void
@@ -382,7 +383,33 @@ class ArticleFixedTermContractTest extends TestCase
         $this->assertFalse($durations[24]['available']);
         $this->assertSame('2026-07-18', $durations[12]['target_date']);
         $this->assertEqualsWithDelta(-0.2, $durations[12]['median_change'], 0.0001);
-        $this->assertSame('down', $forecast['direction_summary']);
+        $this->assertSame('incomplete', $forecast['direction_summary']);
+    }
+
+    public function test_article_uses_saved_direction_categories_and_stored_horizon(): void
+    {
+        config()->set('price_forecasting.fixed_term.default_horizon_days', 45);
+        foreach ([6, 12, 24] as $duration) {
+            $this->forecastQuantiles('2026-06-18', $duration);
+        }
+        FixedContractPriceForecast::query()->update(['horizon_days' => 45, 'target_date' => '2026-08-02']);
+        foreach (['rising' => 'up', 'falling' => 'down', 'slightly_rising' => 'stable', 'slightly_falling' => 'stable', 'flat' => 'stable', 'unknown' => 'none'] as $direction => $summary) {
+            FixedContractPriceForecast::query()->update(['direction' => $direction, 'consumer_signal' => 'lock_sooner']);
+            Cache::flush();
+            $forecast = app(ContractMarketInsightService::class)->fixedTermArticle()['forecast'];
+            $this->assertSame($summary, $forecast['direction_summary']);
+            $this->assertSame(45, $forecast['horizon_days']);
+            $this->get('/sahkosopimus/kannattaako-maaraaikainen')->assertOk()->assertSeeText('45 päivän ennuste');
+        }
+        FixedContractPriceForecast::query()->update(['direction' => 'rising']);
+        FixedContractPriceForecast::where('duration_months', 24)->update(['direction' => 'falling']);
+        Cache::flush();
+        $this->assertSame('mixed', app(ContractMarketInsightService::class)->fixedTermArticle()['forecast']['direction_summary']);
+        $this->get('/sahkosopimus/kannattaako-maaraaikainen')->assertOk()
+            ->assertSeeText('18.6.2026–2.8.2026')
+            ->assertSeeText('Suuntaa antava arvio, ei varma hintakehitys.')
+            ->assertSeeText('Ennusteen tietopohja:')
+            ->assertDontSeeText('Ennusteen luotettavuus:');
     }
 
     private function seedAnnualCore(string $date = '2026-06-15'): void
@@ -485,7 +512,7 @@ class ArticleFixedTermContractTest extends TestCase
                 'futures_trade_date' => CarbonImmutable::parse($forecastDate)->subDay()->toDateString(),
                 'coverage_quality' => 'all_monthly',
                 'confidence' => 'low',
-                'direction' => $forecastChange < 0 ? 'slightly_falling' : 'slightly_rising',
+                'direction' => app(FixedTermPriceForecastService::class)->directionLabel($forecastChange),
                 'consumer_signal' => 'neutral',
                 'contract_count' => 25,
                 'model_version' => $modelVersion,

@@ -8,6 +8,7 @@ use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractStatistics\AnnualSeriesCompatibility;
 use App\Services\ContractStatistics\ContractPriceBasis;
 use App\Services\ContractStatistics\SellerSetEnergyPriceIndexService;
+use App\Services\PriceForecasting\ForecastOutlook;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 
@@ -15,7 +16,7 @@ class ContractMarketInsightService
 {
     private const FIXED_TERM_COMPARISON_PAYLOAD_SCHEMA = 'fixed-term-offered-price-comparison-v2';
 
-    private const FIXED_TERM_ARTICLE_PAYLOAD_SCHEMA = 'fixed-term-decision-article-v7';
+    private const FIXED_TERM_ARTICLE_PAYLOAD_SCHEMA = 'fixed-term-decision-article-v8';
 
     private const FIXED_TERM_COMPARISON_SEGMENTS = [
         6 => 'fixed_term_6',
@@ -142,14 +143,15 @@ class ContractMarketInsightService
         $forecastDuration = $includeForecast ? ($fixedTermDuration ?? 12) : null;
 
         return Cache::remember(
-            'contract-market-insight:v13:'.md5(json_encode([
+            'contract-market-insight:v14:'.md5(json_encode([
                 $segmentKey,
                 $consumption,
                 $includeForecast,
                 $fixedTermDuration,
                 $this->fingerprint(),
                 $this->pricingMode->enabled(),
-                (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_ewma_gap_v2'),
+                (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_historical_change_v1'),
+                (int) config('price_forecasting.fixed_term.default_horizon_days', 30),
             ])),
             Carbon::tomorrow(),
             function () use ($segmentKey, $consumption, $forecastDuration, $fixedTermDuration) {
@@ -186,7 +188,8 @@ class ContractMarketInsightService
                 'payload_schema' => self::FIXED_TERM_ARTICLE_PAYLOAD_SCHEMA,
                 'fingerprint' => $this->fingerprint(),
                 'pricing_basis' => $pricingBasis->value,
-                'forecast_model' => (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_ewma_gap_v2'),
+                'forecast_model' => (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_historical_change_v1'),
+                'forecast_horizon' => (int) config('price_forecasting.fixed_term.default_horizon_days', 30),
             ])),
             Carbon::tomorrow(),
             function () use ($pricingBasis): array {
@@ -806,15 +809,16 @@ class ContractMarketInsightService
      */
     private function fixedTermArticleForecast(ContractPriceBasis $pricingBasis): array
     {
+        $horizon = (int) config('price_forecasting.fixed_term.default_horizon_days', 30);
         $baseQuery = fn () => FixedContractPriceForecast::query()
             ->eligibleForPublicDisplay($pricingBasis)
-            ->where('horizon_days', 30)
+            ->where('horizon_days', $horizon)
             ->whereIn('duration_months', array_keys(self::FIXED_TERM_COMPARISON_SEGMENTS))
             ->whereIn('target_quantile', ['p20', 'median', 'p80']);
         $latestDate = $baseQuery()->max('forecast_date');
 
         if ($latestDate === null) {
-            return ['date' => null, 'horizon_days' => 30, 'direction_summary' => 'none', 'durations' => []];
+            return ['date' => null, 'horizon_days' => $horizon, 'direction_summary' => 'none', 'durations' => []];
         }
 
         $date = Carbon::parse($latestDate)->toDateString();
@@ -830,6 +834,7 @@ class ContractMarketInsightService
                 'forecast_price_cents_per_kwh',
                 'contract_count',
                 'confidence',
+                'direction',
             ]);
         $durations = [];
 
@@ -861,10 +866,10 @@ class ContractMarketInsightService
                 && count(array_filter($forecast, fn ($value) => $value !== null && is_finite($value))) === 3
                 && $current[0] <= $current[1] && $current[1] <= $current[2]
                 && $forecast[0] <= $forecast[1] && $forecast[1] <= $forecast[2]
-                && $durationRows->every(fn ($row) => (int) $row->contract_count > 0 && (int) $row->horizon_days === 30)
+                && $durationRows->every(fn ($row) => (int) $row->contract_count > 0 && (int) $row->horizon_days === $horizon)
                 && $targetDates->count() === 1;
 
-            if (! $complete) {
+            if (! $complete || ForecastOutlook::category($median?->direction) === null) {
                 $durations[] = ['duration_months' => $durationMonths, 'available' => false];
 
                 continue;
@@ -875,7 +880,9 @@ class ContractMarketInsightService
                 'available' => true,
                 'forecast_date' => $date,
                 'target_date' => $targetDates->first(),
-                'horizon_days' => 30,
+                'horizon_days' => (int) $median->horizon_days,
+                'direction_category' => ForecastOutlook::category($median->direction),
+                'outlook' => ForecastOutlook::presentation($median->direction),
                 'contract_count' => (int) $median->contract_count,
                 'confidence' => $median->confidence,
                 'current' => ['p20' => $current[0], 'median' => $current[1], 'p80' => $current[2]],
@@ -884,22 +891,11 @@ class ContractMarketInsightService
             ];
         }
 
-        $availableChanges = collect($durations)
-            ->where('available', true)
-            ->pluck('median_change')
-            ->map(fn ($change) => (float) $change)
-            ->values();
-        $directionSummary = match (true) {
-            $availableChanges->isEmpty() => 'none',
-            $availableChanges->every(fn (float $change) => abs($change) < 0.005) => 'stable',
-            $availableChanges->every(fn (float $change) => $change < 0) => 'down',
-            $availableChanges->every(fn (float $change) => $change > 0) => 'up',
-            default => 'mixed',
-        };
+        $directionSummary = ForecastOutlook::summary(collect($durations)->pluck('direction_category')->all());
 
         return [
             'date' => $date,
-            'horizon_days' => 30,
+            'horizon_days' => $horizon,
             'direction_summary' => $directionSummary,
             'durations' => $durations,
         ];
@@ -1197,6 +1193,7 @@ class ContractMarketInsightService
         $row = FixedContractPriceForecast::query()
             ->eligibleForPublicDisplay($this->pricingMode->expectedContractPriceBasis())
             ->where('duration_months', $durationMonths)
+            ->where('horizon_days', config('price_forecasting.fixed_term.default_horizon_days', 30))
             ->where('target_quantile', 'median')
             ->orderByDesc('forecast_date')
             ->first();
@@ -1205,26 +1202,13 @@ class ContractMarketInsightService
             return null;
         }
 
-        $signal = match ($row->consumer_signal) {
-            'lock_sooner' => [
-                'tone' => 'up',
-                'headline' => 'Ennuste: hinnat nousussa',
-                'detail' => 'Määräaikaiset voivat kallistua',
-                'direction_label' => 'Nousussa',
-            ],
-            'wait_if_flexible' => [
-                'tone' => 'down',
-                'headline' => 'Ennuste: hinnat laskussa',
-                'detail' => 'Määräaikaiset voivat halventua',
-                'direction_label' => 'Laskussa',
-            ],
-            default => [
-                'tone' => 'neutral',
-                'headline' => 'Ennuste: vakaa hintataso',
-                'detail' => 'Ei selvää nousu- tai laskupainetta',
-                'direction_label' => 'Vakaa',
-            ],
-        };
+        $signal = ForecastOutlook::presentation($row->direction);
+        if ($signal['key'] === 'unknown') {
+            return null;
+        }
+        $signal['direction_label'] = $signal['label'];
+        $signal['detail'] = sprintf('%d päivän arvio, %s–%s. %s', $row->horizon_days,
+            $row->forecast_date->format('j.n.Y'), $row->target_date->format('j.n.Y'), ForecastOutlook::UNCERTAINTY);
 
         return [
             'type' => 'forecast',
@@ -1237,6 +1221,7 @@ class ContractMarketInsightService
             'supporting' => $signal['detail'],
             'duration_months' => $durationMonths,
             'forecast_date' => Carbon::parse($row->forecast_date)->toDateString(),
+            'target_date' => $row->target_date->toDateString(),
             'current_price_cents_per_kwh' => (float) $row->current_price_cents_per_kwh,
             'forecast_price_cents_per_kwh' => (float) $row->forecast_price_cents_per_kwh,
             'expected_change_cents_per_kwh' => (float) $row->expected_change_cents_per_kwh,

@@ -2157,13 +2157,15 @@ class ContractsList extends Component
 
     protected function contractsListViewDataCacheKey(): string
     {
-        return 'contracts-list:view-data:v5:'.md5(json_encode([
+        return 'contracts-list:view-data:v6:'.md5(json_encode([
             'class' => static::class,
             'base_path' => $this->basePath,
             'page' => $this->page,
             'consumption' => $this->selectedConsumptionValue(),
             'version' => app(ContractPageCacheVersion::class)->hash(),
             'market_insight_version' => app(ContractMarketInsightService::class)->fingerprint(),
+            'forecast_model' => config('price_forecasting.fixed_term.model_version'),
+            'forecast_horizon' => config('price_forecasting.fixed_term.default_horizon_days'),
         ]));
     }
 }

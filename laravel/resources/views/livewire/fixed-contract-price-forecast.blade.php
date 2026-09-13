@@ -32,13 +32,9 @@
         return Cb::parse($date)->translatedFormat('j.n.Y');
     };
 
-    $directionLabels = [
-        'rising' => 'Nouseva',
-        'slightly_rising' => 'Lievästi nouseva',
-        'flat' => 'Tasainen',
-        'slightly_falling' => 'Lievästi laskeva',
-        'falling' => 'Laskeva',
-    ];
+    $directionLabels = collect(['rising', 'slightly_rising', 'flat', 'slightly_falling', 'falling'])
+        ->mapWithKeys(fn ($direction) => [$direction => \App\Services\PriceForecasting\ForecastOutlook::presentation($direction)['label']])
+        ->all();
 
     $directionTone = function (string $direction) {
         return match ($direction) {
@@ -67,16 +63,9 @@
     ];
 
     $confidenceLabels = [
-        'high' => 'Korkea luotettavuus',
-        'medium' => 'Keskimääräinen luotettavuus',
-        'low' => 'Matala luotettavuus',
-    ];
-
-    $coverageLabels = [
-        'all_monthly' => 'Tarkkuus: kuukausi',
-        'mixed_with_quarter_fallback' => 'Tarkkuus: kuukausi + kvartaali',
-        'mixed_with_year_fallback' => 'Tarkkuus: kuukausi + vuosi',
-        'partial_missing' => 'Tarkkuus: osittainen',
+        'high' => 'Tietopohja: pitkä hintahistoria',
+        'medium' => 'Tietopohja: kohtalainen hintahistoria',
+        'low' => 'Tietopohja: rajallinen hintahistoria',
     ];
 
     // Shared eyebrow class. 14px / weight 600 per DESIGN.md Readable-By-Default rule.
@@ -107,10 +96,10 @@
                 Voltikka sähkön hintaennuste
             </p>
             <h1 class="text-3xl md:text-5xl font-extrabold text-slate-900 leading-[1.05] tracking-tight max-w-[28ch]">
-                Sähkön hintaennuste: kannattaako sähkösopimus lukita nyt?
+                Sähkön hintaennuste: määräaikaisten hintanäkymä
             </h1>
             <p class="mt-5 max-w-[62ch] text-lg text-slate-600 leading-relaxed">
-                Voltikan sähkön hintaennuste seuraa päivittäin määräaikaisten sähkösopimusten hintakehitystä. Ennuste perustuu tämänhetkisiin sopimushintoihin ja aiempien päivien hintatilastoihin. Lisäksi se käyttää Suomen sähkön futuurihintoja EEX-pörssistä. Näiden tietojen perusteella malli arvioi, onko tämänhetkinen hinta poikkeuksellisen korkea, matala vai tavanomainen ja miten se voi muuttua seuraavan kuukauden aikana.
+                Voltikan sähkön hintaennuste seuraa päivittäin määräaikaisten sähkösopimusten hintakehitystä. Ennuste perustuu tämänhetkisiin sopimushintoihin ja aiempien päivien hintatilastoihin. Nykyhintaan lisätään aiemmin toteutuneiden, ennustejakson pituisten hintamuutosten keskiarvo. Malli arvioi hintojen suuntaa alla ilmoitetulle ennustejaksolle. Suuntaa antava arvio, ei varma hintakehitys.
             </p>
 
             {{-- Meta strip --}}
@@ -189,7 +178,7 @@
                 @endphp
                 <section class="mb-16" aria-labelledby="signal-eyebrow">
                     <p id="signal-eyebrow" class="{{ $eyebrow }} text-slate-500 mb-3">
-                        30 päivän näkymä
+                        {{ $horizonDays }} päivän näkymä
                     </p>
                     <p class="text-2xl md:text-3xl font-extrabold leading-tight tracking-tight max-w-[44ch] {{ $overallHeadlineClass }}">
                         {{ $overall['headline'] }}
@@ -220,7 +209,6 @@
                                 <th class="py-3 px-3 font-semibold text-right">Mediaanihinta nyt</th>
                                 <th class="py-3 px-3 font-semibold text-right">Ennuste {{ $horizonDays }}&nbsp;pv</th>
                                 <th class="py-3 px-3 font-semibold text-right">Muutos</th>
-                                <th class="py-3 px-3 font-semibold text-right">Markkinatason hinta</th>
                                 <th class="py-3 pl-3 pr-4 sm:pr-0 font-semibold">Suositus</th>
                             </tr>
                         </thead>
@@ -258,9 +246,6 @@
                                             {{ $fmtSignedCents($median['expected_change'], 2) }}<span class="text-slate-400 font-normal">&nbsp;c/kWh</span>
                                             <span class="block text-xs text-slate-400 mt-0.5">{{ $fmtPct($median['expected_change_pct']) }}</span>
                                         </td>
-                                        <td class="py-4 px-3 text-right tabular-nums text-slate-700">
-                                            {{ $fmtNum($median['fair_price'], 2) }}<span class="text-slate-400 font-normal">&nbsp;c/kWh</span>
-                                        </td>
                                         <td class="py-4 pl-3 pr-4 sm:pr-0">
                                             <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold tracking-wide {{ $toneBadgeClass[$tone] ?? $toneBadgeClass['neutral'] }}">
                                                 @if ($tone === 'up')
@@ -274,7 +259,7 @@
                                             </span>
                                         </td>
                                     @else
-                                        <td colspan="5" class="py-4 px-3 text-sm text-slate-400">Ei tarpeeksi aineistoa juuri nyt.</td>
+                                        <td colspan="4" class="py-4 px-3 text-sm text-slate-400">Ei tarpeeksi aineistoa juuri nyt.</td>
                                     @endif
                                 </tr>
                             @endforeach
@@ -289,7 +274,7 @@
                     Sopimuspituudet tarkemmin
                 </h2>
                 <p class="text-sm text-slate-500 max-w-[60ch] mb-7">
-                    Markkinatason hinta on pörssifutuurien hinta + tämän sopimustyypin tavanomainen vähittäishintalisä. Jos tarjottu hinta on selvästi markkinatason yläpuolella, malli odottaa laskua kohti sitä; jos selvästi alapuolella, malli odottaa nousua. Liikkeet ovat aina maltillisia, sillä vähittäishinnat seuraavat futuureja vain hitaasti.
+                    Ennuste lisää nykyhintaan aiemmin toteutuneiden hintamuutosten keskiarvon. Jokainen sopimuspituus ja hintataso lasketaan erikseen. Todellinen muutos voi olla ennustetta suurempi tai vastakkaissuuntainen.
                 </p>
 
                 {{-- TOC chips, matching /sahkosopimus/tilastot deep-dive nav. --}}
@@ -348,7 +333,7 @@
                                     <div class="mb-10 max-w-[64ch]">
                                         <div class="flex flex-wrap items-center gap-3 mb-3">
                                             <p class="{{ $colEyebrow }} text-slate-500">
-                                                30 päivän suositus
+                                                {{ $payload['median_row']?->horizon_days ?? $horizonDays }} päivän hintanäkymä
                                             </p>
                                             <span class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold tracking-wide {{ $toneBadgeClass[$tone] ?? $toneBadgeClass['neutral'] }}">
                                                 @if ($tone === 'up')
@@ -364,6 +349,7 @@
                                         <p class="text-base text-slate-700 leading-relaxed">
                                             {{ $signal['body'] }}
                                         </p>
+                                        <p class="mt-2 text-sm text-slate-600">Suuntaa antava arvio, ei varma hintakehitys.</p>
                                     </div>
                                 @endif
 
@@ -376,7 +362,6 @@
                                                 <th class="py-3 px-3 font-semibold text-right">Hinta nyt</th>
                                                 <th class="py-3 px-3 font-semibold text-right">Ennuste {{ $horizonDays }}&nbsp;pv</th>
                                                 <th class="py-3 px-3 font-semibold text-right">Muutos</th>
-                                                <th class="py-3 px-3 font-semibold text-right">Markkinatason hinta</th>
                                                 <th class="py-3 pl-3 pr-4 sm:pr-0 font-semibold text-center">Suunta</th>
                                             </tr>
                                         </thead>
@@ -404,12 +389,6 @@
                                                         {{ $fmtSignedCents($lane['expected_change'], 2) }}&nbsp;c/kWh
                                                         <span class="block text-xs text-slate-500 mt-0.5">{{ $fmtPct($lane['expected_change_pct']) }}</span>
                                                     </td>
-                                                    <td class="py-3 px-3 text-right tabular-nums text-slate-700">
-                                                        {{ $fmtNum($lane['fair_price'], 2) }}<span class="text-slate-400 font-normal">&nbsp;c/kWh</span>
-                                                        <span class="block text-xs text-slate-500 mt-0.5">
-                                                            ero {{ $fmtSignedCents(-$lane['gap'], 2) }}&nbsp;c/kWh
-                                                        </span>
-                                                    </td>
                                                     <td class="py-3 pl-3 pr-4 sm:pr-0 text-center">
                                                         <span class="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold tracking-wide {{ $toneBadgeClass[$laneTone] }}">
                                                             {{ $directionLabels[$lane['direction']] ?? $lane['direction'] }}
@@ -421,28 +400,14 @@
                                     </table>
                                 </div>
 
+                                @if ($payload['quantiles_crossed'])
+                                    <p class="mt-4 text-sm text-amber-800">Hintatasojen ennusteet menevät ristiin. Ne on laskettu erikseen, eikä niitä voi tulkita järjestetyksi hintajakaumaksi. Lukuja ei ole järjestetty uudelleen.</p>
+                                @endif
+
                                 {{-- Footnote strip --}}
                                 <dl class="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-5 text-sm">
                                     <div>
-                                        <dt class="{{ $colEyebrow }} text-slate-500">Futuurien hinta</dt>
-                                        <dd class="mt-1 font-semibold text-slate-900 tabular-nums">
-                                            {{ $fmtNum($payload['hedge_cost'], 2) }}<span class="text-slate-400 font-normal">&nbsp;c/kWh</span>
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt class="{{ $colEyebrow }} text-slate-500">Futuuripäivä</dt>
-                                        <dd class="mt-1 font-semibold text-slate-900 tabular-nums">
-                                            {{ $payload['futures_trade_date'] ? $fiDate($payload['futures_trade_date']) : '–' }}
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt class="{{ $colEyebrow }} text-slate-500">Futuurikatto</dt>
-                                        <dd class="mt-1 font-semibold text-slate-900">
-                                            {{ $coverageLabels[$payload['coverage_quality'] ?? ''] ?? '–' }}
-                                        </dd>
-                                    </div>
-                                    <div>
-                                        <dt class="{{ $colEyebrow }} text-slate-500">Luotettavuus</dt>
+                                        <dt class="{{ $colEyebrow }} text-slate-500">Ennusteen tietopohja</dt>
                                         <dd class="mt-1 font-semibold text-slate-900">
                                             {{ $confidenceLabels[$payload['confidence']] ?? '–' }}
                                         </dd>
@@ -558,22 +523,22 @@
                     <h2 class="text-2xl font-bold text-slate-900 tracking-tight mb-4">Miten ennuste lasketaan</h2>
                     <div class="space-y-4 text-base text-slate-600 leading-relaxed max-w-[58ch]">
                         <p>
-                            Malli on tarkoitettu yksinkertaiseksi kuluttajan apuvälineeksi, ei markkinaennusteeksi. Se vastaa kysymykseen: <em>onko tämänhetkinen tarjottu hinta poikkeuksellisen korkea, matala vai tavanomainen seuraavaa kuukautta varten?</em>
+                            Malli arvioi määräaikaisten sopimusten tarjottujen energiahintojen suuntaa. Se ei ennusta yksittäisen tarjouksen hintaa eikä neuvo sopimuksen ajoituksessa.
                         </p>
                         <p>
                             Nykyinen hintataso lasketaan tämän päivän määräaikaisista sopimuksista. Malli tarkastelee tyypillisen hinnan lisäksi markkinoiden edullisempaa ja kalliimpaa hintatasoa. Historiallinen vertailuaineisto koostuu aiempina päivinä myyjiltä havaituista hinnoista.
                         </p>
                         <p>
-                            Lisäksi malli käyttää Suomen sähkön futuurihintoja EEX-pörssistä. Futuurihinnat muunnetaan senteiksi kilowattitunnilta, niihin lisätään arvonlisävero ja ne painotetaan sopimuskauden mukaan.
+                            Malli etsii koko saatavilla olevasta historiasta täsmälleen ennustejakson pituiset hintamuutokset, tavallisesti 30 päivää. Jakson on päätyttävä ennen ennustepäivää. Puuttuvia päiviä ei täytetä.
                         </p>
                         <p>
-                            Malli vertaa aiempia sopimushintoja saman ajan futuurihintoihin. Näin se arvioi kullekin sopimustyypille tavallisen eron sopimus- ja futuurihinnan välillä. Uusimmat havainnot vaikuttavat arvioon eniten.
+                            Jokainen hyväksytty muutos saa saman painon. Muutosten keskiarvo lisätään nykyhintaan erikseen 6, 12 ja 24 kuukauden sopimuksille sekä p20-, mediaani- ja p80-hintatasoille. Ennuste vaatii vähintään 20 eri aloituspäivää.
                         </p>
                         <p>
-                            Markkinatason hinta saadaan lisäämällä tämä tavanomainen hintaero futuurihintaan. Jos nykyinen sopimushinta on tätä korkeampi, malli odottaa hinnan laskevan. Jos sopimushinta on tätä matalampi, malli odottaa hinnan nousevan. Ennuste olettaa, että noin 30&nbsp;% erosta poistuu 30 päivän aikana.
+                            Vanhempi myyjiltä havaittu hintahistoria jatkuu nykyisellä laskentatavalla tuotetuilla hinnoilla. Yhden muutosjakson molempien päiden on käytettävä samaa laskentatapaa. Laskentatapojen rajan ylittäviä muutoksia ei käytetä.
                         </p>
                         <p>
-                            Pieniin liikkeisiin (alle 0,15&nbsp;c/kWh) sovelletaan "lievästi nouseva" / "lievästi laskeva" -leimaa, joka kääntyy kuluttajan suosituksessa neutraaliksi. Vain selvä nouseva tai laskeva näkymä antaa "lukitse pian" tai "voit odottaa" -suosituksen.
+                            Pienet tallennetut nousut ja laskut näytetään muodossa ”suunnilleen ennallaan”. Mallin oletusraja selvälle nousulle tai laskulle on 0,15&nbsp;c/kWh. Hintajakauman p20 ja p80 kuvaavat markkinoiden halvempia ja kalliimpia sopimuksia, eivät ennusteen epävarmuusväliä.
                         </p>
                     </div>
                 </div>
@@ -582,13 +547,13 @@
                     <h2 class="text-2xl font-bold text-slate-900 tracking-tight mb-4">Tärkeää huomioida</h2>
                     <div class="space-y-4 text-base text-slate-600 leading-relaxed max-w-[58ch]">
                         <p>
-                            Ennuste perustuu julkisesti saatavilla olevien futuurien hintoihin. Yksittäisten sähköntoimittajien hinnoittelu voi muuttua eri logiikalla ja eri ajoituksella kuin malli olettaa.
+                            Ennuste käyttää vain toteutuneita sopimushintoja, ei futuurihintoja. Päällekkäiset muutosjaksot eivät ole toisistaan riippumattomia havaintoja. Historiallinen keskiarvo voi reagoida käännekohtiin hitaasti, ja myyjien hinnoittelu voi muuttua eri tavalla kuin ennen.
                         </p>
                         <p>
                             Lyhyellä aikavälillä (alle viikon) malli ei yritä ennustaa yksittäisten tarjousten muutoksia tai kampanjoita. Päätös sopimuksen tekemisestä kannattaa aina perustaa myös sopimusehtoihin, irtisanomisaikoihin ja perusmaksuun, ei vain energiahintaan.
                         </p>
                         <p>
-                            Aineiston pituuden mukaan ennusteen luotettavuus on luokiteltu matalaksi, keskimääräiseksi tai korkeaksi. Matala luotettavuus tarkoittaa, että historiallista vertailuaineistoa on toistaiseksi vähän, joten lukua kannattaa pitää suuntaa-antavana.
+                            Ennusteen tietopohja kuvaa käytettävissä olevan vertailukelpoisen hintahistorian määrää, ei mitattua osumatarkkuutta tai toteutumisen todennäköisyyttä. Rajallinen hintahistoria ei tarkoita, että arvio olisi varmasti väärä. Pitkäkään historia ei takaa oikeaa ennustetta.
                         </p>
                         <p>
                             Voltikka ei anna sijoitus- tai sopimusneuvontaa. Tämä sivu on tarkoitettu auttamaan kuluttajaa hahmottamaan, missä määräaikaisten sopimusten hinnat liikkuvat juuri nyt.

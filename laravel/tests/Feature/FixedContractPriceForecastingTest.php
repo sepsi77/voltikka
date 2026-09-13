@@ -6,11 +6,14 @@ use App\Models\ContractPriceDailyStatistic;
 use App\Models\ElectricityFuturesEodPrice;
 use App\Models\FixedContractPriceForecast;
 use App\Services\ContractMarketInsights\ContractMarketInsightService;
+use App\Services\PriceForecasting\FixedTermForecastEvaluationService;
 use App\Services\PriceForecasting\FixedTermHedgeCostService;
 use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class FixedContractPriceForecastingTest extends TestCase
@@ -49,73 +52,6 @@ class FixedContractPriceForecastingTest extends TestCase
         $this->assertEqualsWithDelta($expectedCentsPerKwh, $hedge['price_cents_per_kwh'], 0.0001);
     }
 
-    public function test_run_command_persists_fixed_contract_forecast(): void
-    {
-        config()->set('price_forecasting.fixed_term.minimum_history_observations', 2);
-        config()->set('price_forecasting.fixed_term.gap_closure_lambda', 0.30);
-        config()->set('price_forecasting.fixed_term.ewma_alpha', 0.25);
-        config()->set('price_forecasting.fixed_term.model_version', 'test_model');
-
-        $this->retailStat('2026-05-21', 12, median: 9.40);
-        $this->retailStat('2026-05-22', 12, median: 9.50);
-        $this->retailStat('2026-05-23', 12, median: 9.60);
-        $this->monthlyCurve('2026-05-20', 60.0);
-        $this->monthlyCurve('2026-05-21', 60.0);
-        $this->monthlyCurve('2026-05-22', 60.0);
-
-        $this->artisan('forecasting:run-fixed-contracts --as-of=2026-05-23 --horizon=30 --duration=12 --quantile=median')
-            ->assertExitCode(0);
-
-        $forecast = FixedContractPriceForecast::first();
-        $this->assertNotNull($forecast);
-        $this->assertSame('2026-05-23', $forecast->forecast_date->toDateString());
-        $this->assertSame('2026-06-22', $forecast->target_date->toDateString());
-        $this->assertSame(12, $forecast->duration_months);
-        $this->assertSame('median', $forecast->target_quantile);
-        $this->assertSame('test_model', $forecast->model_version);
-        $this->assertSame('low', $forecast->confidence);
-        $this->assertNotNull($forecast->source_metadata['history_observations'] ?? null);
-        $this->assertSame('observed_seller_data', $forecast->source_metadata['current_retail_pricing_basis']);
-        $this->assertSame('2026-05-23', $forecast->source_metadata['current_retail_source_date']);
-        $this->assertSame('fixed_term_12', $forecast->source_metadata['current_retail_segment']);
-        $this->assertSame('energy_price', $forecast->source_metadata['current_retail_metric']);
-        $this->assertEqualsWithDelta(9.60, $forecast->current_price_cents_per_kwh, 0.0001);
-    }
-
-    public function test_canonical_mode_requires_canonical_current_input_and_records_observed_history_provenance(): void
-    {
-        config()->set('canonical_pricing.enabled', true);
-        config()->set('price_forecasting.fixed_term.minimum_history_observations', 2);
-        config()->set('price_forecasting.fixed_term.model_version', 'canonical_model');
-
-        $this->retailStat('2026-05-21', 12, median: 9.40);
-        $this->retailStat('2026-05-21', 12, median: 9.45);
-        $this->retailStat('2026-05-22', 12, median: 9.50);
-        $this->retailStat('2026-05-23', 12, median: 19.60);
-        $this->retailStat('2026-05-23', 12, median: 9.60, pricingBasis: 'canonical_calculation');
-        $this->monthlyCurve('2026-05-20', 60.0);
-        $this->monthlyCurve('2026-05-21', 60.0);
-        $this->monthlyCurve('2026-05-22', 60.0);
-
-        $forecast = app(FixedTermPriceForecastService::class)
-            ->buildForecasts(CarbonImmutable::parse('2026-05-23'), 30, [12], ['median'])
-            ->first();
-
-        $this->assertNotNull($forecast);
-        $this->assertEqualsWithDelta(9.60, $forecast['current_price_cents_per_kwh'], 0.0001);
-        $this->assertSame('canonical_calculation', $forecast['source_metadata']['current_retail_pricing_basis']);
-        $this->assertSame('2026-05-23', $forecast['source_metadata']['current_retail_source_date']);
-        $this->assertSame('fixed_term_12', $forecast['source_metadata']['current_retail_segment']);
-        $this->assertSame('energy_price', $forecast['source_metadata']['current_retail_metric']);
-        $this->assertSame(2, $forecast['source_metadata']['historical_retail_observations']);
-        $this->assertSame(
-            ['observed_seller_data' => 2],
-            $forecast['source_metadata']['historical_retail_pricing_basis_counts'],
-        );
-        $this->assertSame('2026-05-21', $forecast['source_metadata']['historical_retail_source_start_date']);
-        $this->assertSame('2026-05-22', $forecast['source_metadata']['historical_retail_source_end_date']);
-    }
-
     public function test_canonical_mode_does_not_fall_back_to_observed_current_input(): void
     {
         config()->set('canonical_pricing.enabled', true);
@@ -130,27 +66,6 @@ class FixedContractPriceForecastingTest extends TestCase
             ->buildForecasts(CarbonImmutable::parse('2026-05-23'), 30, [12], ['median']);
 
         $this->assertTrue($forecasts->isEmpty());
-    }
-
-    public function test_new_model_version_preserves_prior_forecast_rows(): void
-    {
-        config()->set('canonical_pricing.enabled', false);
-        config()->set('price_forecasting.fixed_term.minimum_history_observations', 1);
-        config()->set('price_forecasting.fixed_term.model_version', 'fixed_term_ewma_gap_v2');
-
-        $this->forecastRow('2026-05-23', 'fixed_term_ewma_gap_v1', 'observed_seller_data');
-        $this->retailStat('2026-05-22', 12, median: 9.50);
-        $this->retailStat('2026-05-23', 12, median: 9.60);
-        $this->monthlyCurve('2026-05-21', 60.0);
-        $this->monthlyCurve('2026-05-22', 60.0);
-
-        $this->artisan('forecasting:run-fixed-contracts --as-of=2026-05-23 --horizon=30 --duration=12 --quantile=median')
-            ->assertExitCode(0);
-
-        $this->assertSame(
-            ['fixed_term_ewma_gap_v1', 'fixed_term_ewma_gap_v2'],
-            FixedContractPriceForecast::query()->orderBy('model_version')->pluck('model_version')->all(),
-        );
     }
 
     public function test_evaluate_command_updates_matured_forecasts_with_observed_actual_provenance(): void
@@ -178,7 +93,11 @@ class FixedContractPriceForecastingTest extends TestCase
             'consumer_signal' => 'lock_sooner',
             'contract_count' => 50,
             'model_version' => 'test_model',
-            'source_metadata' => [],
+            'source_metadata' => [
+                'current_retail_pricing_basis' => 'observed_seller_data',
+                'current_retail_method_version' => 'unit_statistics_v1',
+                'direction_threshold_cents_per_kwh' => 0.15,
+            ],
         ]);
         $this->retailStat('2026-05-31', 12, median: 9.20);
         $this->retailStat('2026-05-31', 12, median: 19.20, pricingBasis: 'canonical_calculation');
@@ -218,11 +137,11 @@ class FixedContractPriceForecastingTest extends TestCase
     public function test_public_page_and_market_insight_show_current_canonical_forecast(): void
     {
         config()->set('canonical_pricing.enabled', true);
-        config()->set('price_forecasting.fixed_term.model_version', 'current_model');
+        config()->set('price_forecasting.fixed_term.model_version', 'fixed_term_historical_change_v1');
         Cache::flush();
 
-        $this->forecastRow('2026-05-22', 'current_model', 'observed_seller_data', 9.99);
-        $this->forecastRow('2026-05-23', 'current_model', 'canonical_calculation', 8.88);
+        $this->forecastRow('2026-05-24', 'fixed_term_ewma_gap_v2', 'canonical_calculation', 9.99);
+        $this->forecastRow('2026-05-23', 'fixed_term_historical_change_v1', 'canonical_calculation', 8.88);
 
         $this->get('/sahkosopimus/sahkon-hintaennuste')
             ->assertOk()
@@ -231,17 +150,17 @@ class FixedContractPriceForecastingTest extends TestCase
             ->assertDontSee('9,99')
             ->assertSeeText('Ennustejakso')
             ->assertSeeText('Ennuste perustuu tämänhetkisiin sopimushintoihin ja aiempien päivien hintatilastoihin.')
-            ->assertSeeText('Lisäksi se käyttää Suomen sähkön futuurihintoja EEX-pörssistä.')
+            ->assertDontSeeText('Lisäksi se käyttää Suomen sähkön futuurihintoja EEX-pörssistä.')
             ->assertSeeText('Nykyinen hintataso lasketaan tämän päivän määräaikaisista sopimuksista.')
-            ->assertSeeText('Malli vertaa aiempia sopimushintoja saman ajan futuurihintoihin.')
+            ->assertSeeText('Jokainen hyväksytty muutos saa saman painon.')
             ->assertDontSeeText('kanonis')
             ->assertDontSeeText('Kolmas syöte')
             ->assertDontSeeText('settlement-hinta');
 
         $insight = app(ContractMarketInsightService::class)->insight(null, 5000, true);
         $this->assertSame('2026-05-23', $insight['forecast']['forecast_date']);
-        $this->assertSame('Ennuste: vakaa hintataso', $insight['forecast']['headline']);
-        $this->assertSame('Vakaa', $insight['forecast']['direction_label']);
+        $this->assertSame('Hintatason odotetaan pysyvän suunnilleen ennallaan', $insight['forecast']['headline']);
+        $this->assertSame('Suunnilleen ennallaan', $insight['forecast']['direction_label']);
         $this->assertNotSame('Vakaata', $insight['forecast']['direction_label']);
     }
 
@@ -286,6 +205,217 @@ class FixedContractPriceForecastingTest extends TestCase
             ->assertSeeText('Nykyinen hintataso lasketaan tämän päivän määräaikaisista sopimuksista.');
     }
 
+    public function test_old_basis_history_cannot_upgrade_confidence_and_feature_off_ignores_canonical(): void
+    {
+        $hedge = ['price_cents_per_kwh' => 7.53, 'trade_date' => '2026-05-01', 'coverage_quality' => 'all_monthly', 'monthly_futures_months' => 12, 'quarter_futures_months' => 0, 'year_futures_months' => 0, 'missing_delivery_months' => [], 'delivery_start_month' => '202606', 'delivery_end_month' => '202705'];
+        $this->mock(FixedTermHedgeCostService::class)->shouldReceive('calculate')->andReturn($hedge);
+        $asOf = CarbonImmutable::parse('2026-05-23');
+        for ($day = 365; $day >= 0; $day--) {
+            $this->retailStat($asOf->subDays($day)->toDateString(), 12, median: 9);
+        }
+        $this->retailStat('2026-05-23', 12, median: 11, pricingBasis: 'canonical_calculation');
+        $this->retailStat('2026-05-24', 12, median: 99, pricingBasis: 'canonical_calculation');
+        config()->set('canonical_pricing.enabled', true);
+        $forecast = app(FixedTermPriceForecastService::class)->buildForecasts($asOf, 30, [12], ['median'])->first();
+        $this->assertSame(335, $forecast['source_metadata']['history_observations']);
+        $this->assertSame(0, $forecast['source_metadata']['confidence_history_observations']);
+        $this->assertSame('low', $forecast['confidence']);
+        $this->assertSame('2026-05-23', $forecast['source_metadata']['historical_retail_transition_date']);
+        $this->retailStat('2026-05-01', 12, median: 99, pricingBasis: 'canonical_calculation');
+        config()->set('canonical_pricing.enabled', false);
+        app()->forgetScopedInstances();
+        $forecast = app(FixedTermPriceForecastService::class)->buildForecasts($asOf, 30, [12], ['median'])->first();
+        $this->assertSame(335, $forecast['source_metadata']['confidence_history_observations']);
+        $this->assertSame('medium', $forecast['confidence']);
+        $this->assertNull($forecast['source_metadata']['historical_retail_transition_date']);
+        $this->assertSame(['observed_seller_data' => 335], $forecast['source_metadata']['historical_retail_pricing_basis_counts']);
+        $this->assertEquals(9, $forecast['current_price_cents_per_kwh']);
+    }
+
+    public function test_reserved_model_versions_cannot_generate_or_overwrite(): void
+    {
+        foreach (['fixed_term_ewma_gap_v1', 'fixed_term_ewma_gap_v2', 'fixed_term_ewma_gap_v3', 'unknown'] as $version) {
+            config()->set('price_forecasting.fixed_term.model_version', $version);
+            $row = $this->forecastRow('2026-05-01', $version, null);
+            $before = $row->fresh()->getRawOriginal();
+            try {
+                app(FixedTermPriceForecastService::class)->buildForecasts(CarbonImmutable::parse('2026-05-01'));
+                $this->fail('Reserved model must be rejected.');
+            } catch (\InvalidArgumentException $exception) {
+                $this->assertStringContainsString('reserved', $exception->getMessage());
+            }
+            $this->artisan('forecasting:run-fixed-contracts --as-of=2026-05-01 --overwrite --require-freshness')
+                ->expectsOutput('Generation requires fixed_term_historical_change_v1. Other model names are reserved for stored forecasts.')
+                ->assertExitCode(1);
+            $this->assertSame($before, $row->fresh()->getRawOriginal());
+        }
+        $this->assertSame(4, FixedContractPriceForecast::count());
+    }
+
+    public function test_evaluation_uses_saved_canonical_basis_threshold_and_baseline_without_runtime_leakage(): void
+    {
+        config()->set('canonical_pricing.enabled', false);
+        config()->set('price_forecasting.fixed_term.direction_threshold_cents_per_kwh', 0.01);
+        $row = $this->forecastRow('2026-05-01', 'fixed_term_ewma_gap_v2', 'canonical_calculation');
+        $row->update(['source_metadata' => ['current_retail_pricing_basis' => 'canonical_calculation', 'direction_threshold_cents_per_kwh' => 0.5]]);
+        $before = $row->fresh()->getRawOriginal();
+        $this->retailStat('2026-05-31', 12, median: 9.2, pricingBasis: 'canonical_calculation');
+        $this->retailStat('2026-05-31', 12, median: 99);
+        $service = app(FixedTermForecastEvaluationService::class);
+        $result = $service->evaluateMatured(CarbonImmutable::parse('2026-06-01'), dryRun: true);
+        $this->assertSame(1, $result['evaluated']);
+        $preview = $result['forecasts']->first();
+        $this->assertSame('slightly_rising', $preview->actual_direction);
+        $this->assertEquals(0.2, $preview->source_metadata['unchanged_price_absolute_error_cents_per_kwh']);
+        $this->assertSame('same_basis_v1', $preview->source_metadata['evaluation_method_version']);
+        $this->assertSame('unit_statistics_v1', $preview->source_metadata['actual_retail_method_version']);
+        $this->assertSame(0.5, $preview->source_metadata['evaluation_direction_threshold_cents_per_kwh']);
+        $this->assertSame($before, $row->fresh()->getRawOriginal());
+        $service->evaluateMatured(CarbonImmutable::parse('2026-06-01'));
+        $saved = $row->fresh()->getRawOriginal();
+        foreach ($before as $key => $value) {
+            if (! in_array($key, ['actual_price_cents_per_kwh', 'actual_change_cents_per_kwh', 'forecast_error_cents_per_kwh', 'absolute_error_cents_per_kwh', 'actual_direction', 'direction_correct', 'source_metadata', 'evaluated_at', 'updated_at'], true)) {
+                $this->assertSame($value, $saved[$key]);
+            }
+        }
+        $this->assertSame(0, $service->evaluateMatured(CarbonImmutable::parse('2026-06-01'))['evaluated']);
+        $this->assertSame($saved, $row->fresh()->getRawOriginal());
+    }
+
+    public function test_evaluation_fails_closed_for_incomplete_or_invalid_provenance(): void
+    {
+        $valid = ['current_retail_pricing_basis' => 'canonical_calculation', 'current_retail_method_version' => 'unit_statistics_v1', 'direction_threshold_cents_per_kwh' => 0.15];
+        $cases = [
+            ['fixed_term_ewma_gap_v2', []],
+            ['fixed_term_ewma_gap_v2', ['current_retail_pricing_basis' => 'canonical_calculation']],
+            ['custom', []],
+            ['custom', array_diff_key($valid, ['current_retail_method_version' => true])],
+            ['custom', array_replace($valid, ['current_retail_pricing_basis' => 'unknown'])],
+            ['custom', array_replace($valid, ['current_retail_pricing_basis' => []])],
+            ['custom', array_replace($valid, ['current_retail_method_version' => 'wrong'])],
+            ['custom', array_replace($valid, ['direction_threshold_cents_per_kwh' => -1])],
+            ['custom', array_replace($valid, ['direction_threshold_cents_per_kwh' => 'INF'])],
+            ['custom', array_replace($valid, ['direction_threshold_cents_per_kwh' => null])],
+            ['fixed_term_ewma_gap_v1', ['direction_threshold_cents_per_kwh' => null]],
+            ['fixed_term_ewma_gap_v1', ['current_retail_pricing_basis' => null]],
+        ];
+        foreach ($cases as $index => [$version, $metadata]) {
+            $row = $this->forecastRow(CarbonImmutable::parse('2026-05-01')->addDays($index)->toDateString(), $version, null);
+            $row->update(['source_metadata' => $metadata]);
+            $this->retailStat($row->target_date->toDateString(), 12, median: 10, pricingBasis: 'canonical_calculation');
+        }
+        $result = app(FixedTermForecastEvaluationService::class)->evaluateMatured(CarbonImmutable::parse('2026-07-01'));
+        $this->assertSame(count($cases), $result['unsupported_provenance']);
+        $this->assertSame(0, $result['evaluated']);
+        $this->assertSame(0, $result['missing_actual']);
+    }
+
+    public function test_evaluation_requires_exact_basis_date_and_method_and_accepts_legacy_zero(): void
+    {
+        $legacy = $this->forecastRow('2026-05-01', 'fixed_term_ewma_gap_v1', null);
+        $this->retailStat('2026-05-31', 12, median: 0);
+        $row = $this->forecastRow('2026-05-02', 'fixed_term_ewma_gap_v2', 'canonical_calculation');
+        $row->update(['source_metadata' => ['current_retail_pricing_basis' => 'canonical_calculation', 'direction_threshold_cents_per_kwh' => 0.15]]);
+        $this->retailStat('2026-06-01', 12, median: 10);
+        $this->retailStat('2026-05-31', 12, median: 10, pricingBasis: 'canonical_calculation');
+        $this->retailStat('2026-06-01', 12, median: 10, pricingBasis: 'canonical_calculation', methodVersion: 'wrong');
+        $result = app(FixedTermForecastEvaluationService::class)->evaluateMatured(CarbonImmutable::parse('2026-06-02'));
+        $this->assertSame(1, $result['evaluated']);
+        $this->assertSame(1, $result['missing_actual']);
+        $this->assertEquals(0, $legacy->fresh()->actual_price_cents_per_kwh);
+        $this->assertSame(0.15, $legacy->fresh()->source_metadata['evaluation_direction_threshold_cents_per_kwh']);
+        $this->assertNull($row->fresh()->actual_price_cents_per_kwh);
+    }
+
+    public function test_evaluation_rejects_non_finite_actual_without_older_row_fallback(): void
+    {
+        $row = $this->forecastRow('2026-05-01', 'fixed_term_ewma_gap_v1', null);
+        $this->retailStat('2026-05-31', 12, median: 9.2);
+        $this->retailStat('2026-05-31', 12, median: 10);
+        // SQLite needs a numeric expression; PDO binds PHP INF as text.
+        DB::table('contract_price_daily_statistics')->where('id', ContractPriceDailyStatistic::max('id'))
+            ->update(['median_value' => DB::raw('1e999')]);
+        $result = app(FixedTermForecastEvaluationService::class)->evaluateMatured(CarbonImmutable::parse('2026-06-01'));
+        $this->assertSame(0, $result['evaluated']);
+        $this->assertSame(1, $result['missing_actual']);
+        $this->assertNull($row->fresh()->actual_price_cents_per_kwh);
+    }
+
+    public function test_evaluation_id_chunks_dry_run_and_filters(): void
+    {
+        for ($index = 105; $index >= 0; $index--) {
+            $date = CarbonImmutable::parse('2026-01-01')->addDays($index);
+            $row = $this->forecastRow($date->toDateString(), 'fixed_term_ewma_gap_v1', null);
+            $this->retailStat($row->target_date->toDateString(), 12, median: 9.2);
+        }
+        $excluded = $this->forecastRow('2026-01-01', 'custom', null);
+        $otherHorizon = $this->forecastRow('2025-12-31', 'fixed_term_ewma_gap_v1', null);
+        $otherHorizon->update(['horizon_days' => 60]);
+        $before = DB::table('fixed_contract_price_forecasts')->orderBy('id')->get()->toJson();
+        $this->artisan('forecasting:evaluate-fixed-contracts --as-of=2026-07-01 --horizon=30 --model-version=fixed_term_ewma_gap_v1 --dry-run')
+            ->expectsOutput('Dry run: no database changes.')
+            ->expectsOutput('Done. Evaluated 106 forecasts; 0 matured forecasts still lack target-date retail statistics; 0 have unsupported provenance.')
+            ->assertExitCode(0);
+        $this->assertSame($before, DB::table('fixed_contract_price_forecasts')->orderBy('id')->get()->toJson());
+        $result = app(FixedTermForecastEvaluationService::class)->evaluateMatured(CarbonImmutable::parse('2026-07-01'), 30, 'fixed_term_ewma_gap_v1');
+        $this->assertSame(106, $result['evaluated']);
+        $this->assertSame(106, $result['forecasts']->pluck('id')->unique()->count());
+        $this->assertNull($excluded->fresh()->actual_price_cents_per_kwh);
+        $this->assertNull($otherHorizon->fresh()->actual_price_cents_per_kwh);
+    }
+
+    public function test_public_outlook_uses_all_saved_directions_and_ignores_legacy_advice(): void
+    {
+        config()->set('price_forecasting.fixed_term.model_version', 'qualified_test');
+        $row = $this->forecastRow('2026-05-23', 'qualified_test', 'observed_seller_data');
+        foreach ([
+            'rising' => 'Nousua odotettavissa',
+            'falling' => 'Laskua odotettavissa',
+            'flat' => 'Suunnilleen ennallaan',
+            'slightly_rising' => 'Suunnilleen ennallaan',
+            'slightly_falling' => 'Suunnilleen ennallaan',
+            'unrecognized' => 'Ennuste ei saatavilla',
+        ] as $direction => $label) {
+            $row->update(['direction' => $direction, 'consumer_signal' => 'wait_if_flexible', 'confidence' => 'low']);
+            Cache::flush();
+            $page = Livewire::test(\App\Livewire\FixedContractPriceForecast::class);
+            $page->assertSeeText($label)->assertSeeText('Suuntaa antava arvio, ei varma hintakehitys.')
+                ->assertDontSeeText('Lukitse pian')->assertDontSeeText('Kannattaa odottaa');
+            $this->assertSame($direction === 'unrecognized' ? 'unknown' : app(FixedTermPriceForecastService::class)->directionCategory($direction), $page->viewData('rowsByDuration')[12]['signal']['key']);
+            $insight = app(ContractMarketInsightService::class)->insight(null, 5000, true);
+            if ($direction === 'unrecognized') {
+                $this->assertNull($insight['forecast']);
+            } else {
+                $this->assertSame($label, $insight['forecast']['direction_label']);
+            }
+        }
+    }
+
+    public function test_overall_outlook_distinguishes_complete_mixed_and_partial_data_and_stored_horizon(): void
+    {
+        config()->set('price_forecasting.fixed_term.model_version', 'qualified_test');
+        config()->set('price_forecasting.fixed_term.default_horizon_days', 45);
+        $rows = collect();
+        foreach ([6, 12, 24] as $duration) {
+            $row = $this->forecastRow('2026-05-01', 'qualified_test', 'observed_seller_data');
+            $row->update(['forecast_date' => '2026-05-23', 'duration_months' => $duration, 'horizon_days' => 45, 'target_date' => '2026-07-07', 'direction' => 'rising']);
+            $rows->push($row);
+        }
+        $page = Livewire::test(\App\Livewire\FixedContractPriceForecast::class);
+        $this->assertSame('Hintojen odotetaan nousevan', $page->viewData('overall')['headline']);
+        $page->assertSeeText('45 päivän hintanäkymä')->assertSeeText('23.5.2026–7.7.2026')->assertDontSeeText('30 päivän');
+        $this->get('/sahkosopimus/sahkon-hintaennuste')->assertOk()
+            ->assertSee('Sähkön hintaennuste: määräaikaisten hintanäkymä')
+            ->assertDontSee('kannattaako lukita')->assertDontSee('Suositus (');
+        $rows[2]->update(['direction' => 'falling']);
+        Livewire::test(\App\Livewire\FixedContractPriceForecast::class)->assertSeeText('Hintojen suunnat eroavat sopimuspituuksittain');
+        $rows[2]->update(['direction' => 'unknown']);
+        Livewire::test(\App\Livewire\FixedContractPriceForecast::class)->assertSeeText('Hintanäkymä on saatavilla vain osalle sopimuspituuksista');
+        $rows[1]->delete();
+        $rows[2]->delete();
+        Livewire::test(\App\Livewire\FixedContractPriceForecast::class)->assertSeeText('Hintanäkymä on saatavilla vain osalle sopimuspituuksista');
+    }
+
     private function retailStat(
         string $date,
         int $durationMonths,
@@ -293,12 +423,14 @@ class FixedContractPriceForecastingTest extends TestCase
         ?float $median = null,
         ?float $p80 = null,
         string $pricingBasis = 'observed_seller_data',
+        string $methodVersion = 'unit_statistics_v1',
     ): void {
         ContractPriceDailyStatistic::create([
             'stat_date' => $date,
             'segment_key' => "fixed_term_{$durationMonths}",
             'metric_key' => 'energy_price',
             'pricing_basis' => $pricingBasis,
+            'method_version' => $methodVersion,
             'consumption_kwh' => null,
             'p20_value' => $p20,
             'median_value' => $median,

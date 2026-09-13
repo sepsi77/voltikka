@@ -35,7 +35,7 @@
     $dataDate = $articleData['data_date'] ?? null;
     $fiDate = fn ($date) => $date ? Carbon::parse($date)->translatedFormat('j.n.Y') : 'Ei saatavilla';
     $fmt = fn ($value, $decimals = 2) => $value === null ? 'Ei saatavilla' : number_format((float) $value, $decimals, ',', ' ');
-    $confidenceLabels = ['high' => 'hyvä', 'medium' => 'kohtalainen', 'low' => 'heikko'];
+    $confidenceLabels = ['high' => 'pitkä hintahistoria', 'medium' => 'kohtalainen hintahistoria', 'low' => 'rajallinen hintahistoria'];
     $segmentLabels = [
         'open_ended' => 'Toistaiseksi voimassa oleva, nykyinen kiinteä hinta',
         'fixed_term_6' => '6 kk, täysin kiinteä hinta',
@@ -478,19 +478,20 @@
 
             <section class="mb-20" aria-labelledby="forecast-heading">
                 <div class="border-b border-slate-300 pb-4">
-                    <h2 id="forecast-heading" class="text-2xl font-bold tracking-tight text-slate-900">Mitä 30 päivän ennuste kertoo hinnoista?</h2>
+                    <h2 id="forecast-heading" class="text-2xl font-bold tracking-tight text-slate-900">Mitä {{ $forecast['horizon_days'] }} päivän ennuste kertoo hinnoista?</h2>
                 </div>
                 @if (empty($forecast['date']))
-                    <p class="py-10 text-slate-700">30 päivän ennustetta ei ole juuri nyt saatavilla.</p>
+                    <p class="py-10 text-slate-700">Ennustetta ei ole juuri nyt saatavilla.</p>
                 @else
                     <p class="mt-5 max-w-[72ch] text-lg font-bold leading-relaxed text-slate-900">
-                        @if (($forecast['direction_summary'] ?? 'none') === 'down') Mediaanihinta laskee hieman kaikissa saatavilla olevissa ennusteissa.
-                        @elseif (($forecast['direction_summary'] ?? 'none') === 'up') Mediaanihinta nousee hieman kaikissa saatavilla olevissa ennusteissa.
-                        @elseif (($forecast['direction_summary'] ?? 'none') === 'stable') Mediaanihinta pysyy lähes ennallaan kaikissa saatavilla olevissa ennusteissa.
-                        @elseif (($forecast['direction_summary'] ?? 'none') === 'mixed') Mediaanihinnan suunta vaihtelee sopimusajan mukaan.
-                        @else Yhdellekään sopimusajalle ei ole kattavaa 30 päivän ennustetta. @endif
+                        @if (($forecast['direction_summary'] ?? 'none') === 'down') Hintojen odotetaan laskevan kaikissa kolmessa sopimuspituudessa.
+                        @elseif (($forecast['direction_summary'] ?? 'none') === 'up') Hintojen odotetaan nousevan kaikissa kolmessa sopimuspituudessa.
+                        @elseif (($forecast['direction_summary'] ?? 'none') === 'stable') Hintatason odotetaan pysyvän suunnilleen ennallaan kaikissa kolmessa sopimuspituudessa.
+                        @elseif (($forecast['direction_summary'] ?? 'none') === 'mixed') Hintojen suunnat eroavat sopimuspituuksittain.
+                        @elseif (($forecast['direction_summary'] ?? 'none') === 'incomplete') Hintanäkymä on saatavilla vain osalle sopimuspituuksista.
+                        @else Yhdellekään sopimusajalle ei ole kattavaa ennustetta. @endif
                     </p>
-                    <p class="mt-3 max-w-[72ch] text-base leading-relaxed text-slate-700">Ennuste kertoo mahdollisesta suunnasta. Se ei lupaa tulevaa hintaa.</p>
+                    <p class="mt-3 max-w-[72ch] text-base leading-relaxed text-slate-700">Suuntaa antava arvio, ei varma hintakehitys.</p>
                     <p class="mt-2 text-sm text-slate-600">Ennuste laadittu <time datetime="{{ $forecast['date'] }}">{{ $fiDate($forecast['date']) }}</time>.</p>
                     <div class="mt-6 divide-y divide-slate-200 border-y border-slate-200">
                         @foreach ([6, 12, 24] as $duration)
@@ -501,21 +502,22 @@
                             @endphp
                             <section class="py-6" aria-labelledby="forecast-{{ $duration }}-heading">
                                 <div class="grid gap-4 md:grid-cols-[9rem_minmax(0,1fr)_auto] md:items-center">
-                                    <div><h3 id="forecast-{{ $duration }}-heading" class="font-bold text-slate-900">{{ $duration }} kuukautta</h3>@if ($available)<p class="mt-1 text-sm text-slate-600">Ennusteen luotettavuus: <strong class="font-semibold text-slate-900">{{ $confidenceLabels[$durationForecast['confidence']] ?? 'ei ilmoitettu' }}</strong></p>@endif</div>
+                                    <div><h3 id="forecast-{{ $duration }}-heading" class="font-bold text-slate-900">{{ $duration }} kuukautta</h3>@if ($available)<p class="mt-1 text-sm text-slate-600">Ennusteen tietopohja: <strong class="font-semibold text-slate-900">{{ $confidenceLabels[$durationForecast['confidence']] ?? 'ei ilmoitettu' }}</strong></p>@endif</div>
                                     @if (! $available)
                                         <p class="text-slate-700">Ennustetta ei ole saatavilla.</p>
                                     @else
                                         <div class="flex flex-wrap gap-x-6 gap-y-2 tabular-nums"><p><span class="text-slate-600">Nyt</span> <strong class="font-bold text-slate-900">{{ $fmt($durationForecast['current']['median']) }} c/kWh</strong></p><p><span class="text-slate-600">Ennuste</span> <strong class="font-bold text-slate-900">{{ $fmt($durationForecast['forecast']['median']) }} c/kWh</strong></p></div>
-                                        <p class="font-bold tabular-nums text-slate-900">{{ $change < -0.005 ? 'Laskua '.$fmt(abs($change)).' c/kWh' : ($change > 0.005 ? 'Nousua '.$fmt(abs($change)).' c/kWh' : 'Lähes ennallaan') }}</p>
+                                        <p class="font-bold tabular-nums text-slate-900">{{ $durationForecast['outlook']['label'] }}</p>
                                     @endif
                                 </div>
                                 @if ($available)
-                                    <details class="mt-4"><summary class="cursor-pointer text-sm font-semibold text-slate-900 underline decoration-slate-300 underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral-500">Näytä hintahaarukka ja ennusteen taustatiedot</summary><div class="mt-4 overflow-x-auto"><table class="w-full min-w-[34rem] border-collapse text-sm tabular-nums"><caption class="sr-only">{{ $duration }} kuukauden sopimusten nykyinen ja ennustettu hintaväli.</caption><thead><tr class="border-b border-slate-200 text-left text-slate-600"><th scope="col" class="py-2 pr-3 font-semibold">Hintataso</th><th scope="col" class="px-3 py-2 text-right font-semibold">Nyt</th><th scope="col" class="py-2 pl-3 text-right font-semibold">30 päivän ennuste</th></tr></thead><tbody class="divide-y divide-slate-100">@foreach (['p20' => 'p20', 'median' => 'Mediaani', 'p80' => 'p80'] as $quantile => $label)<tr><th scope="row" class="py-3 pr-3 text-left font-semibold text-slate-900">{{ $label }}</th><td class="px-3 py-3 text-right text-slate-700">{{ $fmt($durationForecast['current'][$quantile]) }} c/kWh</td><td class="py-3 pl-3 text-right font-semibold text-slate-900">{{ $fmt($durationForecast['forecast'][$quantile]) }} c/kWh</td></tr>@endforeach</tbody></table></div><p class="mt-3 text-sm leading-relaxed text-slate-600">Ennusteen kohdepäivä on {{ $fiDate($durationForecast['target_date']) }}. Mukana on {{ number_format($durationForecast['contract_count'], 0, ',', ' ') }} sopimusta. Ennusteen luotettavuus: {{ $confidenceLabels[$durationForecast['confidence']] ?? 'ei ilmoitettu' }}.</p></details>
+                                    <p class="mt-3 text-sm text-slate-600">{{ $durationForecast['horizon_days'] }} päivän arvio ajalle {{ $fiDate($durationForecast['forecast_date']) }}–{{ $fiDate($durationForecast['target_date']) }}. Suuntaa antava arvio, ei varma hintakehitys.</p>
+                                    <details class="mt-4"><summary class="cursor-pointer text-sm font-semibold text-slate-900 underline decoration-slate-300 underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-coral-500">Näytä hintahaarukka ja ennusteen taustatiedot</summary><div class="mt-4 overflow-x-auto"><table class="w-full min-w-[34rem] border-collapse text-sm tabular-nums"><caption class="sr-only">{{ $duration }} kuukauden sopimusten nykyinen ja ennustettu hintaväli.</caption><thead><tr class="border-b border-slate-200 text-left text-slate-600"><th scope="col" class="py-2 pr-3 font-semibold">Hintataso</th><th scope="col" class="px-3 py-2 text-right font-semibold">Nyt</th><th scope="col" class="py-2 pl-3 text-right font-semibold">{{ $durationForecast['horizon_days'] }} päivän ennuste</th></tr></thead><tbody class="divide-y divide-slate-100">@foreach (['p20' => 'p20', 'median' => 'Mediaani', 'p80' => 'p80'] as $quantile => $label)<tr><th scope="row" class="py-3 pr-3 text-left font-semibold text-slate-900">{{ $label }}</th><td class="px-3 py-3 text-right text-slate-700">{{ $fmt($durationForecast['current'][$quantile]) }} c/kWh</td><td class="py-3 pl-3 text-right font-semibold text-slate-900">{{ $fmt($durationForecast['forecast'][$quantile]) }} c/kWh</td></tr>@endforeach</tbody></table></div><p class="mt-3 text-sm leading-relaxed text-slate-600">Ennusteen kohdepäivä on {{ $fiDate($durationForecast['target_date']) }}. Mukana on {{ number_format($durationForecast['contract_count'], 0, ',', ' ') }} sopimusta. Ennusteen tietopohja: {{ $confidenceLabels[$durationForecast['confidence']] ?? 'ei ilmoitettu' }}.</p></details>
                                 @endif
                             </section>
                         @endforeach
                     </div>
-                    <p class="mt-5 max-w-[72ch] text-base leading-relaxed text-slate-700">Varsinkin heikko ennuste voi muuttua nopeasti. Älä tee sopimuspäätöstä pelkän 30 päivän ennusteen perusteella.</p>
+                    <p class="mt-5 max-w-[72ch] text-base leading-relaxed text-slate-700">Tietopohja kuvaa vertailukelpoisen hintahistorian määrää, ei mitattua osumatarkkuutta tai toteutumisen todennäköisyyttä. Rajallinen historia ei tarkoita varmasti väärää arviota. p20 ja p80 kuvaavat sopimusten hintajakaumaa, eivät ennusteen epävarmuusväliä.</p>
                 @endif
             </section>
 

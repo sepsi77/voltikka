@@ -1,0 +1,6 @@
+[
+  {"name":"Implement generation, nullable diagnostics and freshness","status":"done"},
+  {"name":"Update presentation and tests","status":"done"},
+  {"name":"Run isolated export replay and verification","status":"done"},
+  {"name":"Update context and release plan","status":"done"}
+]

@@ -19,7 +19,7 @@ class RunFixedContractPriceForecasts extends Command
         {--horizon= : Forecast horizon in days, defaults to config value.}
         {--duration=* : Duration months to forecast, e.g. 6, 12, 24. Defaults to config values.}
         {--quantile=* : Target quantile to forecast: median, p20, p80. Defaults to config values.}
-        {--overwrite : Replace an existing forecast for the same date/horizon/duration/quantile/model version.}
+        {--overwrite : Replace an unevaluated forecast for the same date/horizon/duration/quantile/model version.}
         {--dry-run : Calculate and print forecasts without writing to the database.}
         {--require-freshness : Require current morning import checkpoints before forecasting.}';
 
@@ -30,6 +30,15 @@ class RunFixedContractPriceForecasts extends Command
         MorningJobFreshnessService $freshness,
         ContractPriceStatisticsService $statistics,
     ): int {
+        // Reject historical model pins before freshness recovery can write statistics.
+        try {
+            $forecastService->generationModelVersion();
+        } catch (\InvalidArgumentException $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
+
         $asOf = $this->option('as-of')
             ? CarbonImmutable::parse($this->option('as-of'), 'Europe/Helsinki')->startOfDay()
             : CarbonImmutable::now('Europe/Helsinki')->startOfDay();
@@ -80,7 +89,7 @@ class RunFixedContractPriceForecasts extends Command
         $forecasts = $forecastService->buildForecasts($asOf, $horizon, $durations, $quantiles);
 
         if ($forecasts->isEmpty()) {
-            $this->warn('No forecasts were produced. Check retail statistics, futures coverage, and minimum history settings.');
+            $this->warn('No forecasts were produced. Check current retail statistics and at least 20 completed same-basis history pairs.');
 
             if ((bool) $this->option('require-freshness')) {
                 return $this->defer(
@@ -112,26 +121,37 @@ class RunFixedContractPriceForecasts extends Command
             ));
 
             if ($this->option('dry-run')) {
+                $metadata = $forecast['source_metadata'];
+                $this->line(sprintf('Pairs %d (minimum %d), mean %+.8f; starts %s–%s; targets %s–%s; current-basis pairs %d.',
+                    $metadata['pair_count'], $metadata['minimum_history_observations'],
+                    $metadata['mean_change_cents_per_kwh'], $metadata['pair_start_min'], $metadata['pair_start_max'],
+                    $metadata['pair_target_min'], $metadata['pair_target_max'], $metadata['confidence_history_observations'],
+                ));
+
                 continue;
             }
 
             $identity = [
-                'forecast_date' => $forecast['forecast_date'],
                 'horizon_days' => $forecast['horizon_days'],
                 'duration_months' => $forecast['duration_months'],
                 'target_quantile' => $forecast['target_quantile'],
                 'model_version' => $forecast['model_version'],
             ];
 
-            $existing = FixedContractPriceForecast::query()->where($identity)->first();
+            $existing = FixedContractPriceForecast::query()->where($identity)
+                ->whereDate('forecast_date', $forecast['forecast_date'])->first();
 
-            if ($existing !== null && ! $this->option('overwrite')) {
+            if ($existing !== null && (! $this->option('overwrite') || $existing->actual_price_cents_per_kwh !== null)) {
                 $skipped++;
 
                 continue;
             }
 
-            FixedContractPriceForecast::query()->updateOrCreate($identity, $forecast);
+            if ($existing !== null) {
+                $existing->update($forecast);
+            } else {
+                FixedContractPriceForecast::create($forecast);
+            }
             $saved++;
         }
 

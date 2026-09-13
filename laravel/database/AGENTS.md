@@ -146,7 +146,9 @@ it never chooses one version or deletes it silently.
 
 Forecast rows keep their input provenance in the existing `source_metadata` JSON. Model v2 records the current retail statistic's pricing basis, date, segment, metric, and contract count separately from historical observed basis counts/date bounds and futures coverage. Matured evaluation adds the actual retail basis/date/segment/metric without replacing forecast-input metadata.
 
-`model_version` remains part of the unique identity. A semantics change inserts v2 rows beside immutable v1 rows; no replacement column or migration is needed. Public queries accept only the configured model version and expected current basis, while prior rows remain available for audit and evaluation.
+`model_version` remains part of the unique identity. Historical-change v1 rows sit beside retained gap v1/v2/v3 rows. Public queries accept only the configured model and expected current basis. Source metadata now records expanding equal-weight same-basis completed pairs, mean, unique start-day count, both endpoint bounds, basis counts and transition. Old completed rows remain intact.
+
+Migration `2026_09_14_000001_make_forecast_gap_diagnostics_nullable.php` makes the five decimal hedge/premium/normal-premium/fair-price/gap columns, `futures_trade_date` and `coverage_quality` nullable with their existing types and lengths. All old values are retained. New historical-change rows store NULL, not zero, because no futures/gap calculation is performed. Intervals remain NULL. Down intentionally does nothing: restoring NOT NULL must not delete or invent historical data. No table or backfill is added; normal deployment runs this forward migration. Generation uses calendar-date identity for SQLite/MySQL rerun consistency and cannot overwrite completed rows.
 
 ## `electricity_futures_eod_prices`
 

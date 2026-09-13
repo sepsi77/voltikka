@@ -6,6 +6,7 @@ use App\Models\ContractPriceDailyStatistic;
 use App\Models\FixedContractPriceForecast as ForecastModel;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\PriceForecasting\FixedTermPriceForecastService;
+use App\Services\PriceForecasting\ForecastOutlook;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Livewire\Component;
@@ -38,8 +39,8 @@ class FixedContractPriceForecast extends Component
 
     /** Plain-Finnish description per duration, shown under each section heading. */
     public array $durationDescriptions = [
-        6 => 'Lyhyt määräaikainen sopimus lukitsee energiahinnan kuudeksi kuukaudeksi. Tähän sopimuspituuteen vaikuttavat eniten lähikuukausien futuurihinnat.',
-        12 => 'Vuoden mittainen kiinteähintainen sopimus lukitsee energiahinnan koko sopimuskaudeksi. Hinnoittelussa heijastuu seuraavan 12 kuukauden futuurikäyrä.',
+        6 => 'Kuuden kuukauden sopimus lukitsee energiahinnan puoleksi vuodeksi. Ennuste käyttää vain tämän sopimuspituuden hintahistoriaa.',
+        12 => 'Vuoden sopimus lukitsee energiahinnan koko sopimuskaudeksi. Ennuste lasketaan erikseen 12 kuukauden sopimusten hintahistoriasta.',
         24 => 'Kahden vuoden määräaikainen sopimus lukitsee energiahinnan pidemmäksi aikaa. Markkinoilla on yleensä vuoden sopimuksia harvempi valikoima.',
     ];
 
@@ -47,8 +48,8 @@ class FixedContractPriceForecast extends Component
     {
         return view('livewire.fixed-contract-price-forecast', $this->buildViewData())
             ->layout('layouts.app', [
-                'title' => 'Sähkön hintaennuste: kannattaako lukita sähkösopimus nyt? | Voltikka',
-                'metaDescription' => 'Sähkön hintaennuste määräaikaisille sähkösopimuksille (6, 12 ja 24 kk). Voltikan päivittäin päivittyvä hintaennuste yhdistää pörssifutuurit ja tarjotut sopimukset, ja kertoo kannattaako hinta lukita nyt.',
+                'title' => 'Sähkön hintaennuste: määräaikaisten hintanäkymä | Voltikka',
+                'metaDescription' => 'Sähkön hintaennuste 6, 12 ja 24 kuukauden määräaikaisille sopimuksille: nousua, laskua vai suunnilleen ennallaan? Suuntaa antava arvio, ei varma hintakehitys.',
                 'canonical' => config('app.url').'/sahkosopimus/sahkon-hintaennuste',
             ]);
     }
@@ -61,6 +62,8 @@ class FixedContractPriceForecast extends Component
         $expectedBasis = app(PricingMode::class)->expectedContractPriceBasis();
         $latestForecastDate = ForecastModel::query()
             ->eligibleForPublicDisplay($expectedBasis)
+            ->where('horizon_days', config('price_forecasting.fixed_term.default_horizon_days', 30))
+            ->whereIn('duration_months', $this->durations)
             ->max('forecast_date');
         $latestForecastDate = $latestForecastDate ? Carbon::parse($latestForecastDate)->toDateString() : null;
 
@@ -69,7 +72,7 @@ class FixedContractPriceForecast extends Component
                 'hasData' => false,
                 'forecastDate' => null,
                 'targetDate' => null,
-                'horizonDays' => 30,
+                'horizonDays' => (int) config('price_forecasting.fixed_term.default_horizon_days', 30),
                 'durations' => $this->durations,
                 'rowsByDuration' => collect(),
                 'history' => collect(),
@@ -81,6 +84,8 @@ class FixedContractPriceForecast extends Component
 
         $latestRows = ForecastModel::query()
             ->eligibleForPublicDisplay($expectedBasis)
+            ->where('horizon_days', config('price_forecasting.fixed_term.default_horizon_days', 30))
+            ->whereIn('duration_months', $this->durations)
             ->whereDate('forecast_date', $latestForecastDate)
             ->orderBy('duration_months')
             ->get();
@@ -138,9 +143,9 @@ class FixedContractPriceForecast extends Component
             'median_row' => $median,
             'lanes' => array_values(array_filter($lanes)),
             'signal' => $this->signalFromRow($median, $duration),
-            'futures_trade_date' => $median?->futures_trade_date,
-            'hedge_cost' => $median?->hedge_cost_cents_per_kwh,
-            'coverage_quality' => $median?->coverage_quality,
+            'quantiles_crossed' => $p20 !== null && $median !== null && $p80 !== null
+                && ((float) $p20->forecast_price_cents_per_kwh > (float) $median->forecast_price_cents_per_kwh
+                    || (float) $median->forecast_price_cents_per_kwh > (float) $p80->forecast_price_cents_per_kwh),
             'contract_count' => $median?->contract_count,
             'confidence' => $median?->confidence,
         ];
@@ -163,18 +168,12 @@ class FixedContractPriceForecast extends Component
             'forecast_price' => (float) $row->forecast_price_cents_per_kwh,
             'expected_change' => (float) $row->expected_change_cents_per_kwh,
             'expected_change_pct' => $this->pctChange($row->current_price_cents_per_kwh, $row->expected_change_cents_per_kwh),
-            'fair_price' => (float) $row->fair_price_cents_per_kwh,
-            'gap' => (float) $row->gap_cents_per_kwh,
             'direction' => $row->direction,
         ];
     }
 
     /**
-     * Consumer-facing signal derived from the median forecast row.
-     *
-     * The body copy is duration-aware so the three deep-dive sections don't
-     * read as carbon copies when all three durations land on the same signal
-     * (which happens often near "flat" market days).
+     * Qualified outlook from the saved median direction, not legacy timing advice.
      *
      * @return array<string,string>
      */
@@ -190,50 +189,17 @@ class FixedContractPriceForecast extends Component
             ];
         }
 
-        $neutralBody = match ($durationMonths) {
-            6 => 'Lähikuukausien futuurit hinnoittelevat vakaata kehitystä. Odottamalla ei juuri voita eikä häviä, joten päätös voi perustua muihin ehtoihin kuin ajoitukseen.',
-            12 => 'Seuraavan 12 kuukauden futuurikäyrä on lähellä tarjottujen sopimusten tasoa. Lukitsemisen ja odottamisen välinen ero on tällä hetkellä pieni.',
-            24 => 'Pidemmän aikavälin futuurit eivät kallistu kumpaankaan suuntaan. 24 kk on muutenkin pitkä sitoumus, jonka kohdalla muut ehdot kuin ajoitus painavat eniten.',
-            default => 'Markkinanäkymä on tasainen. Odottaminen ei juuri muuta hintaa kumpaankaan suuntaan, joten päätös kannattaa tehdä muiden ehtojen perusteella.',
-        };
+        $signal = ForecastOutlook::presentation($row->direction);
+        $signal['body'] = $signal['key'] === 'unknown'
+            ? 'Tallennettu suuntatieto puuttuu tai sitä ei voida tulkita.'
+            : sprintf('%d kk sopimusten hintanäkymä ajalle %s–%s (%d päivää). Malli lisää nykyhintaan samanpituisilla jaksoilla toteutuneiden hintamuutosten keskiarvon.',
+                $durationMonths ?? $row->duration_months,
+                $row->forecast_date->format('j.n.Y'),
+                $row->target_date->format('j.n.Y'),
+                $row->horizon_days,
+            );
 
-        $risingBody = match ($durationMonths) {
-            6 => 'Lähikuukausien futuurit viittaavat nouseviin hintoihin. 6 kk lukitus suojaa lyhyellä aikavälillä, mutta jää alttiiksi pörssin liikkeille uusittaessa.',
-            12 => 'Seuraavan 12 kuukauden futuurikäyrä on tarjottujen sopimusten yläpuolella, joten malli odottaa hintojen tasaantumista ylöspäin. Lukitus nyt voi olla perusteltu.',
-            24 => 'Pidemmän aikavälin futuurit ovat tarjottujen sopimusten yläpuolella. 24 kk lukitus tarjoaa pisimmän suojan, mutta sitoo myös pisimpään.',
-            default => 'Markkinanäkymä viittaa nouseviin hintoihin lähiviikkoina. Jos arvostat ennustettavuutta, määräaikaisen lukitseminen nyt voi olla perusteltua.',
-        };
-
-        $fallingBody = match ($durationMonths) {
-            6 => 'Lähikuukausien futuurit ovat tarjottujen sopimusten alapuolella. Halvempi 6 kk tarjous voi olla muutaman viikon päässä.',
-            12 => 'Seuraavan 12 kuukauden futuurikäyrä on tarjottujen sopimusten alapuolella, joten malli odottaa hintojen laskua kohti markkinatasoa. Jos voit joustaa, odota.',
-            24 => 'Pidemmän aikavälin futuurit ovat tarjottujen sopimusten alapuolella. Odottaminen voi tuoda halvemman 24 kk lukituksen, mutta liike on yleensä hidas.',
-            default => 'Lähiviikkojen näkymä on laskeva. Jos voit joustaa, halvempi sopimustarjous voi olla muutaman viikon päässä.',
-        };
-
-        return match ($row->consumer_signal) {
-            'lock_sooner' => [
-                'key' => 'lock_sooner',
-                'label' => 'Lukitse pian',
-                'headline' => 'Hinnat näyttävät nousevan',
-                'tone' => 'up',
-                'body' => $risingBody,
-            ],
-            'wait_if_flexible' => [
-                'key' => 'wait_if_flexible',
-                'label' => 'Kannattaa odottaa',
-                'headline' => 'Hinnat näyttävät laskevan',
-                'tone' => 'down',
-                'body' => $fallingBody,
-            ],
-            default => [
-                'key' => 'neutral',
-                'label' => 'Ei suositusta',
-                'headline' => 'Hintojen suunta epäselvä',
-                'tone' => 'neutral',
-                'body' => $neutralBody,
-            ],
-        };
+        return $signal;
     }
 
     /**
@@ -248,31 +214,18 @@ class FixedContractPriceForecast extends Component
             return null;
         }
 
-        $signals = $rowsByDuration->pluck('signal')->pluck('key');
-        $up = $signals->filter(fn ($s) => $s === 'lock_sooner')->count();
-        $down = $signals->filter(fn ($s) => $s === 'wait_if_flexible')->count();
+        $summary = ForecastOutlook::summary($rowsByDuration->pluck('signal')->pluck('key')->all());
+        $signal = ForecastOutlook::presentation(match ($summary) {
+            'up' => 'rising', 'down' => 'falling', 'stable' => 'flat', default => null,
+        });
+        $signal['headline'] = match ($summary) {
+            'mixed' => 'Hintojen suunnat eroavat sopimuspituuksittain',
+            'incomplete' => 'Hintanäkymä on saatavilla vain osalle sopimuspituuksista',
+            default => $signal['headline'],
+        };
+        $signal['body'] = 'Katso kunkin sopimuspituuden arvio ja kohdepäivä alta. '.ForecastOutlook::UNCERTAINTY;
 
-        if ($up > $down && $up >= 2) {
-            return [
-                'tone' => 'up',
-                'headline' => 'Hinnat näyttävät nousevan lähiviikkoina',
-                'body' => 'Useimmissa sopimuspituuksissa ennustemalli odottaa pientä nousua kuukauden sisällä. Jos arvostat ennustettavuutta, harkitse hinnan lukitsemista nyt.',
-            ];
-        }
-
-        if ($down > $up && $down >= 2) {
-            return [
-                'tone' => 'down',
-                'headline' => 'Hinnat näyttävät laskevan lähiviikkoina',
-                'body' => 'Useimmissa sopimuspituuksissa ennustemalli odottaa pientä laskua kuukauden sisällä. Jos voit joustaa, halvempi sopimus voi olla muutaman viikon päässä.',
-            ];
-        }
-
-        return [
-            'tone' => 'neutral',
-            'headline' => 'Markkinatilanne on neutraali',
-            'body' => 'Ennustemalli ei odota merkittäviä liikkeitä kuukauden sisällä. Päätöksen voi tehdä muiden ehtojen kuin ajoituksen perusteella.',
-        ];
+        return $signal;
     }
 
     /**
@@ -374,11 +327,11 @@ class FixedContractPriceForecast extends Component
             '@context' => 'https://schema.org',
             '@type' => 'Dataset',
             'name' => 'Voltikka — Sähkön hintaennuste määräaikaisille sähkösopimuksille',
-            'description' => 'Päivittäin päivittyvä mallipohjainen ennuste määräaikaisten sähkösopimusten (6, 12 ja 24 kk) hintakehityksestä. Yhdistää tarjottujen sopimusten tämänhetkisen tason ja Suomen EEX-pörssifutuurien hinnat.',
+            'description' => 'Päivittäin päivittyvä mallipohjainen ennuste määräaikaisten sähkösopimusten (6, 12 ja 24 kk) hintakehityksestä. Lisää nykyhintaan aiempien, kokonaan päättyneiden ennustejakson pituisten hintamuutosten keskiarvon. Jokaisella muutoksella on sama paino. Sopimuspituudet ja hintatasot lasketaan erikseen.',
             'url' => $url,
             'license' => 'https://creativecommons.org/licenses/by/4.0/',
             'isAccessibleForFree' => true,
-            'keywords' => ['sähkön hintaennuste', 'sähkösopimus', 'määräaikainen sähkösopimus', 'EEX futuurit', 'ennustemalli', 'Suomi'],
+            'keywords' => ['sähkön hintaennuste', 'sähkösopimus', 'määräaikainen sähkösopimus', 'hintahistoria', 'ennustemalli', 'Suomi'],
             'inLanguage' => 'fi',
             'creator' => [
                 '@type' => 'Organization',
@@ -389,9 +342,8 @@ class FixedContractPriceForecast extends Component
             'dateModified' => $date,
             'variableMeasured' => [
                 'Tarjottu mediaanihinta (c/kWh)',
-                'Ennustettu hinta 30 päivän päästä (c/kWh)',
-                'Markkinatason hinta (c/kWh)',
-                'Suositus (lukitse pian / kannattaa odottaa / ei suositusta)',
+                'Ennustettu hinta ilmoitettuna kohdepäivänä (c/kWh)',
+                'Hintanäkymä (nousua / laskua / suunnilleen ennallaan)',
             ],
         ];
     }

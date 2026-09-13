@@ -144,6 +144,7 @@ class MorningJobFreshnessService
         if ($forecast) {
             $basis = $this->pricingMode->expectedContractPriceBasis()->value;
             $hasFixedTermStatistic = ContractPriceDailyStatistic::query()
+                ->unitStatistics()
                 ->whereDate('stat_date', $date)
                 ->where('metric_key', 'energy_price')
                 ->where('pricing_basis', $basis)
@@ -164,35 +165,37 @@ class MorningJobFreshnessService
             }
         }
 
-        $eexCheckpoint = DataFreshnessCheckpoint::query()
-            ->where('key', DataFreshnessCheckpoint::KEY_EEX_FUTURES)
-            ->whereDate('effective_date', $date)
-            ->first();
+        if (! $forecast) {
+            $eexCheckpoint = DataFreshnessCheckpoint::query()
+                ->where('key', DataFreshnessCheckpoint::KEY_EEX_FUTURES)
+                ->whereDate('effective_date', $date)
+                ->first();
 
-        if ($eexCheckpoint === null) {
-            $failures['eex_checkpoint'] = 'The current EEX futures checkpoint is missing.';
-        } elseif ($eexCheckpoint->status !== DataFreshnessCheckpoint::STATUS_READY) {
-            $failures['eex_checkpoint'] = "The current EEX futures fetch is {$eexCheckpoint->status}.";
-        } elseif (! $this->hasCurrentRunPriorFiPoint($eexCheckpoint->metadata, $date)) {
-            $failures['eex_metadata'] = 'The current EEX fetch has no prior-date FI Base point from this run.';
-        }
+            if ($eexCheckpoint === null) {
+                $failures['eex_checkpoint'] = 'The current EEX futures checkpoint is missing.';
+            } elseif ($eexCheckpoint->status !== DataFreshnessCheckpoint::STATUS_READY) {
+                $failures['eex_checkpoint'] = "The current EEX futures fetch is {$eexCheckpoint->status}.";
+            } elseif (! $this->hasCurrentRunPriorFiPoint($eexCheckpoint->metadata, $date)) {
+                $failures['eex_metadata'] = 'The current EEX fetch has no prior-date FI Base point from this run.';
+            }
 
-        $latestTradeDate = ElectricityFuturesEodPrice::query()
-            ->where('exchange', 'EEX')
-            ->where('area', 'FI')
-            ->where('product', 'Base')
-            ->whereDate('trade_date', '<', $date)
-            ->max('trade_date');
+            $latestTradeDate = ElectricityFuturesEodPrice::query()
+                ->where('exchange', 'EEX')
+                ->where('area', 'FI')
+                ->where('product', 'Base')
+                ->whereDate('trade_date', '<', $date)
+                ->max('trade_date');
 
-        if ($latestTradeDate === null) {
-            $failures['futures_data'] = 'No prior-date FI EEX Base futures data is available.';
-        } else {
-            $tradeDate = CarbonImmutable::parse($latestTradeDate, 'Europe/Helsinki')->startOfDay();
-            $age = $tradeDate->diffInDays(CarbonImmutable::parse($date, 'Europe/Helsinki'), false);
-            $maxAge = max(0, (int) $this->config->get('morning_freshness.max_futures_age_days', 7));
+            if ($latestTradeDate === null) {
+                $failures['futures_data'] = 'No prior-date FI EEX Base futures data is available.';
+            } else {
+                $tradeDate = CarbonImmutable::parse($latestTradeDate, 'Europe/Helsinki')->startOfDay();
+                $age = $tradeDate->diffInDays(CarbonImmutable::parse($date, 'Europe/Helsinki'), false);
+                $maxAge = max(0, (int) $this->config->get('morning_freshness.max_futures_age_days', 7));
 
-            if ($age > $maxAge) {
-                $failures['futures_data'] = "The latest FI EEX Base futures data is {$age} days old.";
+                if ($age > $maxAge) {
+                    $failures['futures_data'] = "The latest FI EEX Base futures data is {$age} days old.";
+                }
             }
         }
 

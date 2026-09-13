@@ -481,7 +481,8 @@ class FixedDurationContractsListingTest extends TestCase
                 ->assertSeeText('Mediaani '.number_format($months + 0.60, 2, ',', ' ').' → '.number_format($months + 0.70, 2, ',', ' ').' c/kWh')
                 ->assertSeeText('+0,10 c/kWh')
                 ->assertSeeText('+5 €/vuosi')
-                ->assertSeeText('Kun ennuste on vakaa, valitse kausi sen mukaan')
+                ->assertSeeText('suunnilleen ennallaan')
+                ->assertSeeText('Suuntaa antava arvio, ei varma hintakehitys.')
                 ->assertSeeText('Kuukausimaksu ja muut sähkölaskun erät eivät sisälly');
         }
 
@@ -492,21 +493,26 @@ class FixedDurationContractsListingTest extends TestCase
         $this->assertSame(12, $generalDirection['forecast']['duration_months']);
     }
 
-    public function test_forecast_tone_gives_a_direct_duration_recommendation(): void
+    public function test_forecast_direction_gives_a_qualified_outlook_not_duration_advice(): void
     {
         $cases = [
-            6 => ['Fixed6', 'lock_sooner', 'Nousuennuste puoltaa hinnan lukitsemista nyt'],
-            12 => ['Fixed12', 'wait_if_flexible', 'Laskuennusteen aikana lyhyt sopimus antaa mahdollisuuden kilpailuttaa hinta pian uudelleen'],
-            24 => ['Fixed24', 'neutral', 'Kun ennuste on vakaa, valitse kausi sen mukaan'],
+            6 => ['Fixed6', 'rising', 'nousua odotettavissa'],
+            12 => ['Fixed12', 'falling', 'laskua odotettavissa'],
+            24 => ['Fixed24', 'flat', 'suunnilleen ennallaan'],
         ];
 
-        foreach ($cases as $months => [$range, $signal, $recommendation]) {
-            $this->forecast('2026-06-01', $months, 'observed_seller_data', $signal);
+        foreach ($cases as $months => [$range, $direction, $outlook]) {
+            $this->forecast('2026-06-01', $months, 'observed_seller_data', 'lock_sooner');
+            FixedContractPriceForecast::where('duration_months', $months)->update(['direction' => $direction]);
 
             Livewire::test(SeoContractsList::class, [
                 'contractDuration' => 'FixedTerm',
                 'fixedTimeRange' => $range,
-            ])->assertSeeText($recommendation);
+            ])->assertSeeText($outlook)
+                ->assertSeeText('Suuntaa antava arvio, ei varma hintakehitys.')
+                ->assertSeeText('1.6.2026–1.7.2026')
+                ->assertSeeText('ei odottamisesta saatava säästö')
+                ->assertDontSeeText('puoltaa hinnan lukitsemista nyt');
         }
     }
 

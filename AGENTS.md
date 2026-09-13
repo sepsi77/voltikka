@@ -178,7 +178,7 @@ php artisan forecasting:evaluate-fixed-contracts  # Compare matured stored forec
 
 # Retail premium dataset (private; spread over wholesale, never called margin or profit)
 php artisan retail-premiums:collect               # Collect per-contract retail premium observations
-php artisan retail-premiums:cross-check           # Read-only: compare fixed-term premiums with stored EWMA forecasts
+php artisan retail-premiums:cross-check           # Read-only: compare fixed-term premiums with stored legacy gap diagnostics
 php artisan retail-premiums:calibrate             # Read-only: measure market-reset pass-through (beta) per company and cadence
 
 # Utilities
@@ -283,15 +283,15 @@ php artisan test --filter="ContractsFilterTest"
 ### 3. Fixed-term Price Forecasting
 - **Location**: `app/Services/PriceForecasting/`, `app/Models/FixedContractPriceForecast.php`, `app/Livewire/FixedContractPriceForecast.php`
 - **Route**: `/sahkosopimus/sahkon-hintaennuste`
-- **Commands**: `forecasting:run-fixed-contracts`, `forecasting:evaluate-fixed-contracts`
-- **Schedule**: daily forecast run at 07:30 and evaluation at 07:45 Europe/Helsinki. The scheduled generation command uses `--require-freshness`; it defers on missing same-day full import checkpoints, incomplete active pointed-episode/publication coverage, no current fixed-term 6/12/24 statistic in the expected pricing basis, missing current-run prior-date FI proof, or stale FI Base database data. If the only failure is that statistics started before a required publication, the non-dry command overwrites that date's statistics from all current active contracts and runs the full gate again against the new calculation start before forecasting
-- Model v2 forecasts fixed-term 6/12/24 month market p20/median/p80 energy-price indices
-- In canonical mode, the current retail input must be a `canonical_calculation` statistic; observed seller statistics remain separate historical EWMA evidence and matured actuals
-- Uses FI EEX futures-implied hedge costs plus EWMA retail premium / gap closure
-- Persists current and historical input provenance in `source_metadata`; old model or missing/wrong-basis rows are not shown as current forecasts
-- The public "Mediaanihinta viime kuukausina" section is not forecast-run history. It reads the complete fixed-term `energy_price` median timeline from `contract_price_daily_statistics`: older `observed_seller_data` evidence followed by canonical daily calculations after that rollout. Current forecast rows still require the configured model and current-input basis
-- Persists forecasts and later fills actual prices/errors so forecast quality can be tracked over time
-- See `laravel/app/Services/PriceForecasting/AGENTS.md` before changing model semantics
+- **Commands**: generation, evaluation, and read-only `forecasting:report-fixed-contracts`.
+- The approved local release model is `fixed_term_historical_change_v1`: current retail price plus the expanding equal-weight mean of completed same-basis retail changes, independently for each 6/12/24-month term, p20/median/p80 and horizon. Default horizon 30 days; at least max(20, configured minimum) unique start days; targets strictly before issue. No futures, hedge costs, coefficients, shared fitted parameters or rolling window. Earlier gap v1/v2/v3 and frozen research remain historical evidence, not this model's measured performance.
+- Current input is exact-date unit_statistics_v1 in PricingMode's basis. History uses observed prefix before term-specific canonical presence and canonical continuation after it; both pair endpoints must have the same basis. Latest ID owns a day before finite validation. Invalid presence establishes the boundary; missing/invalid canonical dates never permit observed fallback. Annual methods do not gate this unit history. Zero and negative finite values are valid.
+- Confidence uses accepted current-basis pairs only, at unchanged 120/365 thresholds. It describes history coverage, not probability or accuracy. New obsolete financial/futures diagnostics are null; a value-preserving nullable migration is part of release. Old forecasts and completed evaluations remain intact.
+- Public saved-direction outlooks say rise/fall/approximately unchanged, never lock/wait. Dates/horizon and visible uncertainty qualify them; unknown, incomplete and mixed remain distinct. Independently fitted quantiles can cross: the page warns without sorting, and the article keeps its ordered-distribution guard. Median teasers stay independent. p20/p80 are not uncertainty bounds. The offered-price history is separate and must not be truncated by a model switch.
+- Evaluation uses saved basis/method/threshold on exact targets. New outcomes are correct/wrong_way/missed_move/false_move. The read-only median report separates compatibility groups and shows valid n, unique issue days and unchanged-direction baseline. Completed rows are not rewritten. Dry run is read-only.
+- **Schedule** stays 07:30 generation with --require-freshness and 07:45 evaluation, Europe/Helsinki. Forecast freshness keeps contract checkpoint, relevant publication/observation and current unit-statistics checks, but no longer reads EEX checkpoint/presence/age. Retail-premium freshness still requires EEX. Publication-order-only recovery can overwrite current statistics and recheck the full gate on a non-dry run; no new deployment generation or schedule is added.
+- Every other generation model pin is rejected before recovery writes. Model/horizon cache identities isolate the new rows. Switching hides old public forecasts until new generation: this is a release gap, not a seamless rollout. Manager's read-only preflight found no model/minimum/threshold/horizon pins. Normal Git deployment, its nullable migration and a separate exact-context first generation require explicit approval. No production mutation, commit or push occurred in this task.
+- See `laravel/app/Services/PriceForecasting/AGENTS.md` and `tasks/historical-change-forecast-release/` for policy, isolated replay and release plan.
 
 ### 4. Spot Price Display
 - **Location**: `app/Livewire/SpotPrice.php`, `HeaderSpotPrice.php`
@@ -390,7 +390,7 @@ php artisan test --filter="ContractsFilterTest"
 | `SolarCalculatorService` | Solar calculator orchestration |
 | `CompanyLogoService` | Handles company logo URLs with WebP optimization |
 | `AzureConsumerApiClient` | Fetches contracts from Azure API |
-| `PriceForecasting/FixedTermPriceForecastService` | Builds fixed-term price forecasts from retail stats and futures hedge costs |
+| `PriceForecasting/FixedTermPriceForecastService` | Adds expanding completed retail-change means to current prices, separately by term and quantile |
 
 ### Important Fields
 

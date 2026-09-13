@@ -53,7 +53,6 @@
                         } else {
                             $focal = $item['direction_label']
                                 ?? trim(preg_replace('/^Ennuste:\s*/u', '', (string)($item['headline'] ?? '—')));
-                            $focal = mb_convert_case($focal, MB_CASE_TITLE, 'UTF-8');
                             $supporting = $item['supporting'] ?? $item['detail'] ?? '';
                         }
 

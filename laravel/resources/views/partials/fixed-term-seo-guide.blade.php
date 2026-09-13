@@ -75,12 +75,7 @@
     $lowestMedianRow = $marketComparison !== []
         ? collect($marketComparison['rows'])->sortBy('median')->first()
         : null;
-    $forecastRecommendation = match ($marketDirection['forecast']['tone'] ?? null) {
-        'up' => 'Nousuennuste puoltaa hinnan lukitsemista nyt, kun haluat varman hinnan.',
-        'down' => 'Laskuennusteen aikana lyhyt sopimus antaa mahdollisuuden kilpailuttaa hinta pian uudelleen.',
-        'neutral' => 'Kun ennuste on vakaa, valitse kausi sen mukaan, kuinka pitkäksi aikaa haluat lukita hinnan.',
-        default => null,
-    };
+    $forecastRecommendation = $marketDirection['forecast']['detail'] ?? null;
     $formatSigned = static function (float $value, int $decimals = 2): string {
         if (abs($value) < 0.00001) {
             return number_format(0, $decimals, ',', ' ');
@@ -253,7 +248,7 @@
                 <p class="mt-3 max-w-3xl font-semibold text-slate-950">{{ $forecastRecommendation }}</p>
             @endif
             <p class="mt-2 text-sm text-slate-600">
-                Ennuste koskee energiahintaa. Euroarvo näyttää ennustetun muutoksen kulutuksella {{ number_format($marketDirection['selected_consumption_kwh'], 0, ',', ' ') }} kWh/v. Kuukausimaksu ja muut sähkölaskun erät eivät sisälly. <a href="/sahkosopimus/sahkon-hintaennuste" class="font-semibold text-coral-600 underline underline-offset-2 hover:text-coral-700">Katso ennusteen perusteet</a>.
+                Ennuste koskee energiahintaa. Euroarvo on ennustetun energiahinnan muutoksen vuosivastaavuus, ei odottamisesta saatava säästö. Se on laskettu kulutuksella {{ number_format($marketDirection['selected_consumption_kwh'], 0, ',', ' ') }} kWh/v. Kuukausimaksu ja muut sähkölaskun erät eivät sisälly. <a href="/sahkosopimus/sahkon-hintaennuste" class="font-semibold text-coral-600 underline underline-offset-2 hover:text-coral-700">Katso ennusteen perusteet</a>.
             </p>
         </section>
     @endif

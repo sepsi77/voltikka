@@ -363,7 +363,7 @@ Directory:
 - `PriceForecasting/`
 
 Purpose:
-- calculate and persist fixed-term contract price forecasts from retail statistics, FI EEX futures hedge costs, and simple EWMA retail-premium gap closure
+- calculate and persist separate-term/quantile expanding equal-weight completed retail-change forecasts; current generation has no futures or hedge-cost input
 - evaluate matured forecasts against realized contract-price statistics so model performance can be tracked over time
 
 Read first:

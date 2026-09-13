@@ -48,7 +48,7 @@ class FixedContractPriceForecast extends Model
     public function scopeEligibleForPublicDisplay(Builder $query, ContractPriceBasis $expectedBasis): Builder
     {
         return $query
-            ->where('model_version', (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_ewma_gap_v2'))
+            ->where('model_version', (string) config('price_forecasting.fixed_term.model_version', 'fixed_term_historical_change_v1'))
             ->where('source_metadata->current_retail_pricing_basis', $expectedBasis->value);
     }
 

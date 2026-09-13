@@ -12,7 +12,6 @@ use App\Models\ContractSourceSnapshot;
 use App\Models\DataFreshnessCheckpoint;
 use App\Models\ElectricityContract;
 use App\Models\ElectricityFuturesEodPrice;
-use App\Models\FixedContractPriceForecast;
 use App\Models\RetailPremiumObservation;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
 use App\Services\MorningFreshness\MorningJobFreshnessService;
@@ -20,6 +19,7 @@ use App\Services\PriceForecasting\FixedTermPriceForecastService;
 use App\Services\RetailPremium\RetailPremiumObservationService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
@@ -211,7 +211,9 @@ class MorningJobFreshnessGateTest extends TestCase
             '2026-08-01T06:10:00+03:00',
             '2026-08-01T06:20:00+03:00',
         );
+        // An annual-method unit-shaped row must not pass the forecast gate.
         $this->forecastStatistics([6]);
+        ContractPriceDailyStatistic::query()->update(['method_version' => 'annual_cost_as_of_v2']);
         $this->future('2026-07-31');
 
         $statistics = $this->createMock(ContractPriceStatisticsService::class);
@@ -226,8 +228,8 @@ class MorningJobFreshnessGateTest extends TestCase
             '--as-of' => self::DATE,
             '--require-freshness' => true,
         ])
+            ->expectsOutput('Morning job deferred: No current fixed-term 6/12/24 energy-price statistic is available in the expected pricing basis.')
             ->expectsOutput('Morning job deferred: Contract statistics started before the current interpretation was published.')
-            ->expectsOutput('Morning job deferred: The current EEX futures checkpoint is missing.')
             ->assertExitCode(1);
 
         Queue::assertNotPushed(WarmContractPriceStatisticsCache::class);
@@ -359,32 +361,27 @@ class MorningJobFreshnessGateTest extends TestCase
         );
     }
 
-    public function test_stale_futures_blocks_forecast_builder_and_writes_no_forecast(): void
+    public function test_forecast_ignores_eex_but_retail_premium_still_requires_it(): void
     {
-        config()->set('morning_freshness.max_futures_age_days', 7);
         $this->readyContractCheckpoint([1], []);
+        $this->forecastStatistics();
+        $date = CarbonImmutable::parse(self::DATE, 'Europe/Helsinki');
+        DB::enableQueryLog();
+        $this->assertTrue(app(MorningJobFreshnessService::class)->checkFixedTermForecast($date)->ready());
+        foreach (DB::getQueryLog() as $query) {
+            $this->assertStringNotContainsString('electricity_futures', $query['query']);
+            $this->assertNotContains(DataFreshnessCheckpoint::KEY_EEX_FUTURES, $query['bindings']);
+        }
+        DB::disableQueryLog();
+        $retail = app(MorningJobFreshnessService::class)->checkRetailPremium($date);
+        $this->assertArrayHasKey('eex_checkpoint', $retail->failures);
+        $this->assertArrayHasKey('futures_data', $retail->failures);
         $this->checkpoint(DataFreshnessCheckpoint::KEY_EEX_FUTURES, DataFreshnessCheckpoint::STATUS_READY, [
             'current_run_latest_prior_fi_trade_date' => '2026-07-31',
         ]);
-        $this->forecastStatistics();
         $this->future('2026-07-20');
-
-        $statistics = $this->createMock(ContractPriceStatisticsService::class);
-        $statistics->expects($this->never())->method('calculateForDate');
-        $this->app->instance(ContractPriceStatisticsService::class, $statistics);
-
-        $builder = $this->createMock(FixedTermPriceForecastService::class);
-        $builder->expects($this->never())->method('buildForecasts');
-        $this->app->instance(FixedTermPriceForecastService::class, $builder);
-
-        $this->artisan('forecasting:run-fixed-contracts', [
-            '--as-of' => self::DATE,
-            '--require-freshness' => true,
-        ])
-            ->expectsOutput('Morning job deferred: The latest FI EEX Base futures data is 12 days old.')
-            ->assertExitCode(1);
-
-        $this->assertSame(0, FixedContractPriceForecast::count());
+        $this->assertTrue(app(MorningJobFreshnessService::class)->checkFixedTermForecast($date)->ready());
+        $this->assertArrayHasKey('futures_data', app(MorningJobFreshnessService::class)->checkRetailPremium($date)->failures);
     }
 
     public function test_missing_required_checkpoint_has_visible_deferred_output_and_failure(): void

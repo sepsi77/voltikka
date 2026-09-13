@@ -1,0 +1,6 @@
+[
+  {"name":"Implement shared qualified public outlook and update all forecast surfaces","status":"completed"},
+  {"name":"Add evaluation outcomes and read-only compatible median report","status":"completed"},
+  {"name":"Add regression tests and run full verification","status":"completed"},
+  {"name":"Update context and record release approval boundary","status":"completed"}
+]
