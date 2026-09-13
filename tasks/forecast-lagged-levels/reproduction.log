@@ -1,0 +1,95 @@
+{
+  "export_status": "complete",
+  "forecast_candidates": 9540,
+  "hedge_rows": 2385,
+  "horizon": 30,
+  "lags": [
+    0,
+    7,
+    14,
+    21,
+    30
+  ],
+  "php_replay_rows": 147,
+  "precision_mismatches": 0,
+  "preserved_files": 138
+}
+{
+  "status": "passed",
+  "day_expanded_hedges": 2385,
+  "closed_form_history_forecasts": 9540,
+  "eligible_forecasts": 3774,
+  "cohort_rows": 4194,
+  "metric_groups": 328,
+  "precision_mismatches": 0,
+  "synthetic_checks": [
+    "leap_month_end",
+    "fixed_basket_across_roll",
+    "month_quarter_year",
+    "zero_valid",
+    "strict_earliest_trade",
+    "missing_newest_no_vintage_fallback",
+    "invalid_slot_no_tenor_fallback",
+    "invalid_latest_ownership",
+    "presence_boundary",
+    "no_observed_postcanonical_fallback",
+    "gap_dates",
+    "future_boundary_excluded",
+    "annual_method_excluded",
+    "future_targets_not_learning",
+    "four_decimal_boundary_detected"
+  ],
+  "preserved_files": 138,
+  "php_replay_rows": 147,
+  "prior_php_verified_both_basis_pairs": 297,
+  "database": "not used; retained verified actual-PHP evidence"
+}
+Report: 570 words
+{
+  "export_status": "complete",
+  "forecast_candidates": 9540,
+  "hedge_rows": 2385,
+  "horizon": 30,
+  "lags": [
+    0,
+    7,
+    14,
+    21,
+    30
+  ],
+  "php_replay_rows": 147,
+  "precision_mismatches": 0,
+  "preserved_files": 138
+}
+{
+  "status": "passed",
+  "day_expanded_hedges": 2385,
+  "closed_form_history_forecasts": 9540,
+  "eligible_forecasts": 3774,
+  "cohort_rows": 4194,
+  "metric_groups": 328,
+  "precision_mismatches": 0,
+  "synthetic_checks": [
+    "leap_month_end",
+    "fixed_basket_across_roll",
+    "month_quarter_year",
+    "zero_valid",
+    "strict_earliest_trade",
+    "missing_newest_no_vintage_fallback",
+    "invalid_slot_no_tenor_fallback",
+    "invalid_latest_ownership",
+    "presence_boundary",
+    "no_observed_postcanonical_fallback",
+    "gap_dates",
+    "future_boundary_excluded",
+    "annual_method_excluded",
+    "future_targets_not_learning",
+    "four_decimal_boundary_detected"
+  ],
+  "preserved_files": 138,
+  "php_replay_rows": 147,
+  "prior_php_verified_both_basis_pairs": 297,
+  "database": "not used; retained verified actual-PHP evidence"
+}
+Report: 570 words
+PASS: 21 byte-identical artifacts; 138 pinned sources unchanged.

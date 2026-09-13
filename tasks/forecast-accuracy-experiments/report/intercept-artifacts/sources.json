@@ -1,0 +1,8 @@
+{
+  "tasks/forecast-accuracy-experiments/intercept-inputs.json": "b4d2f1b13740f34f93874b8ea6ee0c565508a8c07e7e2505f4a6eb6c029db19e",
+  "tasks/forecast-accuracy-experiments/intercept-spec.md": "10a8928418cdb955335c9a0a081bbb289e0eb27d1060d5eef97bc2b7f4c0448b",
+  "tasks/forecast-accuracy-experiments/intercept-spec.sha256": "ac5617e1d31194b9a7c69d98884d68d7ee8d0a326a628210e9fbb87e14ae2c1d",
+  "tasks/forecast-accuracy-experiments/scripts/intercept_experiment.py": "2ac10c8dd0adf815afe5db06eb5ee27798f09627f7393898aa227af70cb2b10e",
+  "tasks/forecast-accuracy-experiments/scripts/reproduce_intercept.py": "76bc5c8891fb0d9ed0094d78a10bdd8dae55d8d5b8b4833527b631654cd78b9d",
+  "tasks/forecast-accuracy-experiments/scripts/verify_intercept.py": "0589290d38fc64b1bb72dc515a569cd7910c3838815e7cdb47a4f2243bd01fb7"
+}

@@ -1,0 +1,23 @@
+{
+  "laravel/app/Services/PriceForecasting/FixedTermHedgeCostService.php": "9d46193ed4571e61c64a7623285a179c7ee000a043bc77346168965eb96a4709",
+  "laravel/app/Services/PriceForecasting/FixedTermPriceForecastService.php": "e5b58599860529d1d31e42f53a55f600360d0e79de0752385d80b80b2a8727df",
+  "tasks/fixed-term-repricing-frequency/horizon-lag-analysis.py": "04891c8ef8ec5e97bc0ddae9aa983ebc53d00df99f423b89848cc2c9087f8784",
+  "tasks/fixed-term-repricing-frequency/horizon-lag-forecasts.csv": "423bab5d72b314190796cd5504ec379091bb8b3887bffd3af5debc00f64100e1",
+  "tasks/fixed-term-repricing-frequency/horizon-lag-hedges.csv": "f42720a0be50bc6ba5573760624e6b25f6b2ad50f4d0816a82b473ec8e576e4b",
+  "tasks/fixed-term-repricing-frequency/horizon-lag-php-checks.json": "6bd2f304723c15b2e22521c1b18cdcdbd5b82b6092fe521f5837f6077e6bc3fb",
+  "tasks/fixed-term-repricing-frequency/horizon-lag-reproducibility.json": "2f4b9950d8fd4cbe01b0d4d3ecc2ffd10f555b2a0cb9f6b93fd629f656fbc28e",
+  "tasks/forecast-accuracy-experiments/scripts/experiment.py": "38c29511f5f99c6e6ed4d21832c39a86410f7fca0045fe184b7c239457461e0e",
+  "tasks/forecast-accuracy-experiments/scripts/report.py": "09414a32d5f2815322c6df5f268240319c2cadfa1230a3a28dfce7d02f322a6e",
+  "tasks/forecast-accuracy-experiments/scripts/reproduce.py": "477bf8c1f43b1ccc1b8838aa1e4a5d13918e0a853d761dc4a027a8d9263ea0a9",
+  "tasks/forecast-accuracy-experiments/scripts/verify.py": "55e9e42260fb5981646b867c13fd88a1a81030742b2ecad42eebc5d2f6036140",
+  "tasks/forecast-accuracy-experiments/spec.md": "a667740cab9b312dfe7fb4c5817986ec896787ffe8892b2c31186c3f33730d0c",
+  "tasks/supplier-premium-coverage/export-20260913T094138Z/forecasts.json": "d2567ac2f4ca6bb2946d32b536e8afa183fc02aeb0f73219ff044704aae468bf",
+  "tasks/supplier-premium-coverage/export-20260913T094138Z/futures.json": "dbce01e7425cc7c76e42d7cb2c1fcd8a9e72a9ebd7e206ac60df10e5d59bbb96",
+  "tasks/supplier-premium-coverage/export-20260913T094138Z/manifest.json": "6b7dd7093cafab8f91bb8417becba321747da4bc4334a19924374cc6be05efb6",
+  "tasks/supplier-premium-coverage/export-20260913T094138Z/manifest.sha256": "871d14e9a84c39cdc15c093fbdca508302b9b57fe087ffc557e2e87223ee9d8b",
+  "tasks/supplier-premium-coverage/export-20260913T094138Z/premiums.json": "1b631054e23deecb464c34afa4e44cf23047d98b77c916cef5c80326e6354db8",
+  "tasks/supplier-premium-coverage/export-20260913T094138Z/schemas.json": "54b4e8f74d5867cdbf3b8ebf0b30307c458034e6ac0800d2d1f2b3a7c0f6d08a",
+  "tasks/supplier-premium-coverage/export-20260913T094138Z/snapshots.json": "48f2d2fdee413e91a98b9bedf8a7fc69450bc6233fef0daf9337b9513d1842da",
+  "tasks/supplier-premium-coverage/export-20260913T094138Z/statistics.json": "4e9a2a0cf1142f4cb7ddf79d526fa4611bb3d3ff19a10084bcd3c3926684ef13",
+  "tasks/supplier-premium-coverage/export-20260913T094138Z/version_metadata.json": "ab8c9370e8e5e6cd148637ea66ae13a6e2946fe424637fb1db8ffc572d49eb21"
+}

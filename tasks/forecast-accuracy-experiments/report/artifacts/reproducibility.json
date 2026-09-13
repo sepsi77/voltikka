@@ -1,0 +1,91 @@
+{
+  "byte_identical_outputs": {
+    "report/artifacts/availability.csv": {
+      "bytes": 38914,
+      "sha256": "99210c79b358a830b4759735967ab9c9bc70c5e2d94f5486f4afb0d18a251504"
+    },
+    "report/artifacts/baskets.json": {
+      "bytes": 1778324,
+      "sha256": "ac2d2860e87ee1a534912268577120b8c7ae81a1378a1ea2850a33bb1e97ed19"
+    },
+    "report/artifacts/common-horizons.json": {
+      "bytes": 40606,
+      "sha256": "15be559c0327c053a2b52ed54867dcc99f028b70b80929c8200e56638d8eeb0e"
+    },
+    "report/artifacts/exclusions.csv": {
+      "bytes": 206180,
+      "sha256": "a4370f3ec6802ce9591ea5f177a38ea671e1869fb38e5d27e174796468bece6f"
+    },
+    "report/artifacts/features.json": {
+      "bytes": 571290,
+      "sha256": "ff891d1e480f2fcf34b77102fa0d104d04b1eef0e6d99597c1b3704f061bda49"
+    },
+    "report/artifacts/fits.json": {
+      "bytes": 2827138,
+      "sha256": "b73d2b3ce30843b2fbb76a9960ade0c4bb87a2fc74bef4d161308a89d45ff4e8"
+    },
+    "report/artifacts/metrics.csv": {
+      "bytes": 32128,
+      "sha256": "43b9077e6ab662c99b016a9741367f2397098e16390eb7b5fc662a49e83eef0c"
+    },
+    "report/artifacts/pairs.json": {
+      "bytes": 913160,
+      "sha256": "4567d51298a0283134549ebb5a6329d436e3d981edbd78f9fa700a2ab7a072a6"
+    },
+    "report/artifacts/predictions.csv": {
+      "bytes": 768877,
+      "sha256": "c2d0730f6db7f2854ed8ed8d3382718eebddd121257384be0005f4fcfce8eb28"
+    },
+    "report/artifacts/sources.json": {
+      "bytes": 2904,
+      "sha256": "a9bb5ba674890e3894a00ae7517cba408e0259da173bdd2c8c666e6e83b72b17"
+    },
+    "report/artifacts/summary.json": {
+      "bytes": 1390,
+      "sha256": "2b10ad94e02e5634d44f1e28d6d2aea2170f9a2b1b5eb59d1b2c69910c8fa7fc"
+    },
+    "report/artifacts/verification.json": {
+      "bytes": 457,
+      "sha256": "289f835af340d95de25df37b22f6697ef70065005e6e801553db71041d459967"
+    },
+    "report/report.md": {
+      "bytes": 20977,
+      "sha256": "8dd17dadfa04bd7bb408b723a9eb705f705c0e6aa563e7ce1b8f6c057cd03c1b"
+    }
+  },
+  "git_head": "4401bf3733d93b8ebb1a551ef4325e43d41f8e74",
+  "preserved_export_hashes": {
+    "tasks/supplier-premium-coverage/export-20260913T094138Z/forecasts.json": "d2567ac2f4ca6bb2946d32b536e8afa183fc02aeb0f73219ff044704aae468bf",
+    "tasks/supplier-premium-coverage/export-20260913T094138Z/futures.json": "dbce01e7425cc7c76e42d7cb2c1fcd8a9e72a9ebd7e206ac60df10e5d59bbb96",
+    "tasks/supplier-premium-coverage/export-20260913T094138Z/manifest.json": "6b7dd7093cafab8f91bb8417becba321747da4bc4334a19924374cc6be05efb6",
+    "tasks/supplier-premium-coverage/export-20260913T094138Z/manifest.sha256": "871d14e9a84c39cdc15c093fbdca508302b9b57fe087ffc557e2e87223ee9d8b",
+    "tasks/supplier-premium-coverage/export-20260913T094138Z/premiums.json": "1b631054e23deecb464c34afa4e44cf23047d98b77c916cef5c80326e6354db8",
+    "tasks/supplier-premium-coverage/export-20260913T094138Z/schemas.json": "54b4e8f74d5867cdbf3b8ebf0b30307c458034e6ac0800d2d1f2b3a7c0f6d08a",
+    "tasks/supplier-premium-coverage/export-20260913T094138Z/snapshots.json": "48f2d2fdee413e91a98b9bedf8a7fc69450bc6233fef0daf9337b9513d1842da",
+    "tasks/supplier-premium-coverage/export-20260913T094138Z/statistics.json": "4e9a2a0cf1142f4cb7ddf79d526fa4611bb3d3ff19a10084bcd3c3926684ef13",
+    "tasks/supplier-premium-coverage/export-20260913T094138Z/version_metadata.json": "ab8c9370e8e5e6cd148637ea66ae13a6e2946fe424637fb1db8ffc572d49eb21"
+  },
+  "python_version": "3.13.12",
+  "runs": 2,
+  "status": "passed",
+  "verification": {
+    "basket_vintages": 729,
+    "features": 954,
+    "fits": 136,
+    "pairs": 1098,
+    "predictions": 3564,
+    "same_vintage_verified_php_hedges": 474,
+    "status": "passed",
+    "synthetic_checks": [
+      "lambda zero known solution",
+      "lambda one known solution",
+      "zero-scale column",
+      "all constant columns",
+      "missing trade",
+      "strict trade endpoint",
+      "zero valid",
+      "partial strip rejected",
+      "invalid owned month blocks fallback"
+    ]
+  }
+}

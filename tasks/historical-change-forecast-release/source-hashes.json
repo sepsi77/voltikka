@@ -1,0 +1,15 @@
+{
+  "laravel/app/Services/PriceForecasting/FixedTermPriceForecastService.php": "f7e5c56a9b6b162e0f7f2889d5d402d19c5f726ab40cf0f333593f0a92f43317",
+  "laravel/app/Services/PriceForecasting/FixedTermForecastEvaluationService.php": "2ea7be2b47c48b9b7541b8b7e4a9560bbb0d37d452169bd00613060ce5ab5c5b",
+  "laravel/app/Services/PriceForecasting/ForecastOutlook.php": "55c2b6cb3f3e1a0539dd2a4ff9d3a2bc9588f8de72024abc7b1e13fed19315cd",
+  "laravel/app/Services/PriceForecasting/FixedTermForecastReport.php": "4f43e6a463979f78be9cc7623909b1ea04255a9090eb84a7a954a44e17fc5590",
+  "laravel/app/Console/Commands/RunFixedContractPriceForecasts.php": "f1cc6ad73dd2b095470060680509fcb706b32b0002bc7a20f01d4b3e7e598328",
+  "laravel/app/Console/Commands/ReportFixedContractPriceForecasts.php": "d9d5964b93bb0cd81b7aec6a83f23643e31be084b6e430bb527642347c6c6071",
+  "laravel/app/Models/ContractPriceDailyStatistic.php": "d4894b5acccebe298acc44e7a3cf78b06d5586637c76ac76ac3e0ffa1fd5bd50",
+  "laravel/app/Models/FixedContractPriceForecast.php": "f5c15556e725cfcfcd90a0e89a7c7b08d482b2a41881b624a4a801fec6d00494",
+  "laravel/app/Services/CanonicalPricing/PricingMode.php": "f2ad9d5b0709b2245c49a65fc6b85648ef369089524175e55ef5e39e2101d334",
+  "laravel/config/price_forecasting.php": "98bb7b8b69663ca3d2e5c2850e962e50de9c6241e68dab59186bbcab0fe60a91",
+  "laravel/database/migrations/2026_09_14_000001_make_forecast_gap_diagnostics_nullable.php": "3be9f55c70409b5feef37927a452e7c9e66b33318888609701de67764b8ec5cb",
+  "tasks/historical-change-forecast-release/replay.php": "d97d6363bafd1718b265e51ee078c3686b7f4d06b6e21af471446d5a5adec2c9",
+  "tasks/historical-change-forecast-release/replay-results.json": "ab0eb03682086b5759764bfaca8d0f866b5f1ad4ab04f944fcdb4427d4084855"
+}

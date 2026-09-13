@@ -1,0 +1,4888 @@
+{
+    "proof": {
+        "driver": "sqlite",
+        "configured_database": ":memory:",
+        "pragma_file": "",
+        "environment": "testing"
+    },
+    "verified_export": {
+        "schemas": {
+            "sha256": "54b4e8f74d5867cdbf3b8ebf0b30307c458034e6ac0800d2d1f2b3a7c0f6d08a",
+            "rows": 145
+        },
+        "version_metadata": {
+            "sha256": "ab8c9370e8e5e6cd148637ea66ae13a6e2946fe424637fb1db8ffc572d49eb21",
+            "rows": 89
+        },
+        "futures": {
+            "sha256": "dbce01e7425cc7c76e42d7cb2c1fcd8a9e72a9ebd7e206ac60df10e5d59bbb96",
+            "rows": 2239
+        },
+        "statistics": {
+            "sha256": "4e9a2a0cf1142f4cb7ddf79d526fa4611bb3d3ff19a10084bcd3c3926684ef13",
+            "rows": 477
+        },
+        "forecasts": {
+            "sha256": "d2567ac2f4ca6bb2946d32b536e8afa183fc02aeb0f73219ff044704aae468bf",
+            "rows": 1314
+        },
+        "snapshots": {
+            "sha256": "48f2d2fdee413e91a98b9bedf8a7fc69450bc6233fef0daf9337b9513d1842da",
+            "rows": 25620
+        },
+        "premiums": {
+            "sha256": "1b631054e23deecb464c34afa4e44cf23047d98b77c916cef5c80326e6354db8",
+            "rows": 1949
+        }
+    },
+    "original_forecast_sha256": "eaf3264285913aae6d15112632425eeb7059ba3bae0d4c9379cea643a0287acf",
+    "original_forecasts_preserved": true,
+    "dry_run_preserved": true,
+    "dry_evaluation_preserved": true,
+    "generation_fits_checked": 180,
+    "current": [
+        {
+            "forecast_date": "2026-09-13",
+            "target_date": "2026-10-13",
+            "horizon_days": 30,
+            "duration_months": 6,
+            "target_quantile": "median",
+            "current_price_cents_per_kwh": 14.5294,
+            "forecast_price_cents_per_kwh": 15.8096,
+            "expected_change_cents_per_kwh": 1.2802,
+            "interval_low_cents_per_kwh": null,
+            "interval_high_cents_per_kwh": null,
+            "hedge_cost_cents_per_kwh": null,
+            "retail_premium_cents_per_kwh": null,
+            "normal_retail_premium_cents_per_kwh": null,
+            "fair_price_cents_per_kwh": null,
+            "gap_cents_per_kwh": null,
+            "futures_trade_date": null,
+            "coverage_quality": null,
+            "confidence": "low",
+            "direction": "rising",
+            "consumer_signal": "lock_sooner",
+            "contract_count": 10,
+            "model_version": "fixed_term_historical_change_v1",
+            "source_metadata": {
+                "model": "fixed_term_historical_change_v1",
+                "fitting_policy": "expanding_equal_weight_completed_same_basis_pairs_v1",
+                "pair_count": 98,
+                "unique_issue_days": 98,
+                "mean_change_cents_per_kwh": 1.2802326530612242,
+                "pair_start_min": "2026-04-08",
+                "pair_start_max": "2026-08-13",
+                "pair_target_min": "2026-05-08",
+                "pair_target_max": "2026-09-12",
+                "direction_threshold_cents_per_kwh": 0.15,
+                "minimum_history_observations": 20,
+                "history_observations": 98,
+                "confidence_history_observations": 18,
+                "historical_retail_continuity_policy": "observed_prefix_canonical_continuation_v1",
+                "historical_retail_transition_date": "2026-07-27",
+                "current_retail_pricing_basis": "canonical_calculation",
+                "current_retail_method_version": "unit_statistics_v1",
+                "historical_retail_method_version": "unit_statistics_v1",
+                "current_retail_source_date": "2026-09-13",
+                "current_retail_segment": "fixed_term_6",
+                "current_retail_metric": "energy_price",
+                "current_retail_contract_count": 10,
+                "historical_retail_observations": 98,
+                "historical_retail_pricing_basis_counts": {
+                    "canonical_calculation": 18,
+                    "observed_seller_data": 80
+                },
+                "historical_retail_source_start_date": "2026-04-08",
+                "historical_retail_source_end_date": "2026-08-13",
+                "historical_retail_segment": "fixed_term_6",
+                "historical_retail_metric": "energy_price"
+            }
+        },
+        {
+            "forecast_date": "2026-09-13",
+            "target_date": "2026-10-13",
+            "horizon_days": 30,
+            "duration_months": 6,
+            "target_quantile": "p20",
+            "current_price_cents_per_kwh": 14.3193,
+            "forecast_price_cents_per_kwh": 15.4933,
+            "expected_change_cents_per_kwh": 1.174,
+            "interval_low_cents_per_kwh": null,
+            "interval_high_cents_per_kwh": null,
+            "hedge_cost_cents_per_kwh": null,
+            "retail_premium_cents_per_kwh": null,
+            "normal_retail_premium_cents_per_kwh": null,
+            "fair_price_cents_per_kwh": null,
+            "gap_cents_per_kwh": null,
+            "futures_trade_date": null,
+            "coverage_quality": null,
+            "confidence": "low",
+            "direction": "rising",
+            "consumer_signal": "lock_sooner",
+            "contract_count": 10,
+            "model_version": "fixed_term_historical_change_v1",
+            "source_metadata": {
+                "model": "fixed_term_historical_change_v1",
+                "fitting_policy": "expanding_equal_weight_completed_same_basis_pairs_v1",
+                "pair_count": 98,
+                "unique_issue_days": 98,
+                "mean_change_cents_per_kwh": 1.1740163265306125,
+                "pair_start_min": "2026-04-08",
+                "pair_start_max": "2026-08-13",
+                "pair_target_min": "2026-05-08",
+                "pair_target_max": "2026-09-12",
+                "direction_threshold_cents_per_kwh": 0.15,
+                "minimum_history_observations": 20,
+                "history_observations": 98,
+                "confidence_history_observations": 18,
+                "historical_retail_continuity_policy": "observed_prefix_canonical_continuation_v1",
+                "historical_retail_transition_date": "2026-07-27",
+                "current_retail_pricing_basis": "canonical_calculation",
+                "current_retail_method_version": "unit_statistics_v1",
+                "historical_retail_method_version": "unit_statistics_v1",
+                "current_retail_source_date": "2026-09-13",
+                "current_retail_segment": "fixed_term_6",
+                "current_retail_metric": "energy_price",
+                "current_retail_contract_count": 10,
+                "historical_retail_observations": 98,
+                "historical_retail_pricing_basis_counts": {
+                    "canonical_calculation": 18,
+                    "observed_seller_data": 80
+                },
+                "historical_retail_source_start_date": "2026-04-08",
+                "historical_retail_source_end_date": "2026-08-13",
+                "historical_retail_segment": "fixed_term_6",
+                "historical_retail_metric": "energy_price"
+            }
+        },
+        {
+            "forecast_date": "2026-09-13",
+            "target_date": "2026-10-13",
+            "horizon_days": 30,
+            "duration_months": 6,
+            "target_quantile": "p80",
+            "current_price_cents_per_kwh": 15.9,
+            "forecast_price_cents_per_kwh": 17.0943,
+            "expected_change_cents_per_kwh": 1.1943,
+            "interval_low_cents_per_kwh": null,
+            "interval_high_cents_per_kwh": null,
+            "hedge_cost_cents_per_kwh": null,
+            "retail_premium_cents_per_kwh": null,
+            "normal_retail_premium_cents_per_kwh": null,
+            "fair_price_cents_per_kwh": null,
+            "gap_cents_per_kwh": null,
+            "futures_trade_date": null,
+            "coverage_quality": null,
+            "confidence": "low",
+            "direction": "rising",
+            "consumer_signal": "lock_sooner",
+            "contract_count": 10,
+            "model_version": "fixed_term_historical_change_v1",
+            "source_metadata": {
+                "model": "fixed_term_historical_change_v1",
+                "fitting_policy": "expanding_equal_weight_completed_same_basis_pairs_v1",
+                "pair_count": 98,
+                "unique_issue_days": 98,
+                "mean_change_cents_per_kwh": 1.1943306122448984,
+                "pair_start_min": "2026-04-08",
+                "pair_start_max": "2026-08-13",
+                "pair_target_min": "2026-05-08",
+                "pair_target_max": "2026-09-12",
+                "direction_threshold_cents_per_kwh": 0.15,
+                "minimum_history_observations": 20,
+                "history_observations": 98,
+                "confidence_history_observations": 18,
+                "historical_retail_continuity_policy": "observed_prefix_canonical_continuation_v1",
+                "historical_retail_transition_date": "2026-07-27",
+                "current_retail_pricing_basis": "canonical_calculation",
+                "current_retail_method_version": "unit_statistics_v1",
+                "historical_retail_method_version": "unit_statistics_v1",
+                "current_retail_source_date": "2026-09-13",
+                "current_retail_segment": "fixed_term_6",
+                "current_retail_metric": "energy_price",
+                "current_retail_contract_count": 10,
+                "historical_retail_observations": 98,
+                "historical_retail_pricing_basis_counts": {
+                    "canonical_calculation": 18,
+                    "observed_seller_data": 80
+                },
+                "historical_retail_source_start_date": "2026-04-08",
+                "historical_retail_source_end_date": "2026-08-13",
+                "historical_retail_segment": "fixed_term_6",
+                "historical_retail_metric": "energy_price"
+            }
+        },
+        {
+            "forecast_date": "2026-09-13",
+            "target_date": "2026-10-13",
+            "horizon_days": 30,
+            "duration_months": 12,
+            "target_quantile": "median",
+            "current_price_cents_per_kwh": 11.9409,
+            "forecast_price_cents_per_kwh": 12.2218,
+            "expected_change_cents_per_kwh": 0.2809,
+            "interval_low_cents_per_kwh": null,
+            "interval_high_cents_per_kwh": null,
+            "hedge_cost_cents_per_kwh": null,
+            "retail_premium_cents_per_kwh": null,
+            "normal_retail_premium_cents_per_kwh": null,
+            "fair_price_cents_per_kwh": null,
+            "gap_cents_per_kwh": null,
+            "futures_trade_date": null,
+            "coverage_quality": null,
+            "confidence": "low",
+            "direction": "rising",
+            "consumer_signal": "lock_sooner",
+            "contract_count": 46,
+            "model_version": "fixed_term_historical_change_v1",
+            "source_metadata": {
+                "model": "fixed_term_historical_change_v1",
+                "fitting_policy": "expanding_equal_weight_completed_same_basis_pairs_v1",
+                "pair_count": 98,
+                "unique_issue_days": 98,
+                "mean_change_cents_per_kwh": 0.2809051020408162,
+                "pair_start_min": "2026-04-08",
+                "pair_start_max": "2026-08-13",
+                "pair_target_min": "2026-05-08",
+                "pair_target_max": "2026-09-12",
+                "direction_threshold_cents_per_kwh": 0.15,
+                "minimum_history_observations": 20,
+                "history_observations": 98,
+                "confidence_history_observations": 18,
+                "historical_retail_continuity_policy": "observed_prefix_canonical_continuation_v1",
+                "historical_retail_transition_date": "2026-07-27",
+                "current_retail_pricing_basis": "canonical_calculation",
+                "current_retail_method_version": "unit_statistics_v1",
+                "historical_retail_method_version": "unit_statistics_v1",
+                "current_retail_source_date": "2026-09-13",
+                "current_retail_segment": "fixed_term_12",
+                "current_retail_metric": "energy_price",
+                "current_retail_contract_count": 46,
+                "historical_retail_observations": 98,
+                "historical_retail_pricing_basis_counts": {
+                    "canonical_calculation": 18,
+                    "observed_seller_data": 80
+                },
+                "historical_retail_source_start_date": "2026-04-08",
+                "historical_retail_source_end_date": "2026-08-13",
+                "historical_retail_segment": "fixed_term_12",
+                "historical_retail_metric": "energy_price"
+            }
+        },
+        {
+            "forecast_date": "2026-09-13",
+            "target_date": "2026-10-13",
+            "horizon_days": 30,
+            "duration_months": 12,
+            "target_quantile": "p20",
+            "current_price_cents_per_kwh": 11.3,
+            "forecast_price_cents_per_kwh": 11.5818,
+            "expected_change_cents_per_kwh": 0.2818,
+            "interval_low_cents_per_kwh": null,
+            "interval_high_cents_per_kwh": null,
+            "hedge_cost_cents_per_kwh": null,
+            "retail_premium_cents_per_kwh": null,
+            "normal_retail_premium_cents_per_kwh": null,
+            "fair_price_cents_per_kwh": null,
+            "gap_cents_per_kwh": null,
+            "futures_trade_date": null,
+            "coverage_quality": null,
+            "confidence": "low",
+            "direction": "rising",
+            "consumer_signal": "lock_sooner",
+            "contract_count": 46,
+            "model_version": "fixed_term_historical_change_v1",
+            "source_metadata": {
+                "model": "fixed_term_historical_change_v1",
+                "fitting_policy": "expanding_equal_weight_completed_same_basis_pairs_v1",
+                "pair_count": 98,
+                "unique_issue_days": 98,
+                "mean_change_cents_per_kwh": 0.28180714285714287,
+                "pair_start_min": "2026-04-08",
+                "pair_start_max": "2026-08-13",
+                "pair_target_min": "2026-05-08",
+                "pair_target_max": "2026-09-12",
+                "direction_threshold_cents_per_kwh": 0.15,
+                "minimum_history_observations": 20,
+                "history_observations": 98,
+                "confidence_history_observations": 18,
+                "historical_retail_continuity_policy": "observed_prefix_canonical_continuation_v1",
+                "historical_retail_transition_date": "2026-07-27",
+                "current_retail_pricing_basis": "canonical_calculation",
+                "current_retail_method_version": "unit_statistics_v1",
+                "historical_retail_method_version": "unit_statistics_v1",
+                "current_retail_source_date": "2026-09-13",
+                "current_retail_segment": "fixed_term_12",
+                "current_retail_metric": "energy_price",
+                "current_retail_contract_count": 46,
+                "historical_retail_observations": 98,
+                "historical_retail_pricing_basis_counts": {
+                    "canonical_calculation": 18,
+                    "observed_seller_data": 80
+                },
+                "historical_retail_source_start_date": "2026-04-08",
+                "historical_retail_source_end_date": "2026-08-13",
+                "historical_retail_segment": "fixed_term_12",
+                "historical_retail_metric": "energy_price"
+            }
+        },
+        {
+            "forecast_date": "2026-09-13",
+            "target_date": "2026-10-13",
+            "horizon_days": 30,
+            "duration_months": 12,
+            "target_quantile": "p80",
+            "current_price_cents_per_kwh": 12.79,
+            "forecast_price_cents_per_kwh": 13.0848,
+            "expected_change_cents_per_kwh": 0.2948,
+            "interval_low_cents_per_kwh": null,
+            "interval_high_cents_per_kwh": null,
+            "hedge_cost_cents_per_kwh": null,
+            "retail_premium_cents_per_kwh": null,
+            "normal_retail_premium_cents_per_kwh": null,
+            "fair_price_cents_per_kwh": null,
+            "gap_cents_per_kwh": null,
+            "futures_trade_date": null,
+            "coverage_quality": null,
+            "confidence": "low",
+            "direction": "rising",
+            "consumer_signal": "lock_sooner",
+            "contract_count": 46,
+            "model_version": "fixed_term_historical_change_v1",
+            "source_metadata": {
+                "model": "fixed_term_historical_change_v1",
+                "fitting_policy": "expanding_equal_weight_completed_same_basis_pairs_v1",
+                "pair_count": 98,
+                "unique_issue_days": 98,
+                "mean_change_cents_per_kwh": 0.29478775510204097,
+                "pair_start_min": "2026-04-08",
+                "pair_start_max": "2026-08-13",
+                "pair_target_min": "2026-05-08",
+                "pair_target_max": "2026-09-12",
+                "direction_threshold_cents_per_kwh": 0.15,
+                "minimum_history_observations": 20,
+                "history_observations": 98,
+                "confidence_history_observations": 18,
+                "historical_retail_continuity_policy": "observed_prefix_canonical_continuation_v1",
+                "historical_retail_transition_date": "2026-07-27",
+                "current_retail_pricing_basis": "canonical_calculation",
+                "current_retail_method_version": "unit_statistics_v1",
+                "historical_retail_method_version": "unit_statistics_v1",
+                "current_retail_source_date": "2026-09-13",
+                "current_retail_segment": "fixed_term_12",
+                "current_retail_metric": "energy_price",
+                "current_retail_contract_count": 46,
+                "historical_retail_observations": 98,
+                "historical_retail_pricing_basis_counts": {
+                    "canonical_calculation": 18,
+                    "observed_seller_data": 80
+                },
+                "historical_retail_source_start_date": "2026-04-08",
+                "historical_retail_source_end_date": "2026-08-13",
+                "historical_retail_segment": "fixed_term_12",
+                "historical_retail_metric": "energy_price"
+            }
+        },
+        {
+            "forecast_date": "2026-09-13",
+            "target_date": "2026-10-13",
+            "horizon_days": 30,
+            "duration_months": 24,
+            "target_quantile": "median",
+            "current_price_cents_per_kwh": 10.56,
+            "forecast_price_cents_per_kwh": 10.7589,
+            "expected_change_cents_per_kwh": 0.1989,
+            "interval_low_cents_per_kwh": null,
+            "interval_high_cents_per_kwh": null,
+            "hedge_cost_cents_per_kwh": null,
+            "retail_premium_cents_per_kwh": null,
+            "normal_retail_premium_cents_per_kwh": null,
+            "fair_price_cents_per_kwh": null,
+            "gap_cents_per_kwh": null,
+            "futures_trade_date": null,
+            "coverage_quality": null,
+            "confidence": "low",
+            "direction": "rising",
+            "consumer_signal": "lock_sooner",
+            "contract_count": 47,
+            "model_version": "fixed_term_historical_change_v1",
+            "source_metadata": {
+                "model": "fixed_term_historical_change_v1",
+                "fitting_policy": "expanding_equal_weight_completed_same_basis_pairs_v1",
+                "pair_count": 98,
+                "unique_issue_days": 98,
+                "mean_change_cents_per_kwh": 0.19888775510204088,
+                "pair_start_min": "2026-04-08",
+                "pair_start_max": "2026-08-13",
+                "pair_target_min": "2026-05-08",
+                "pair_target_max": "2026-09-12",
+                "direction_threshold_cents_per_kwh": 0.15,
+                "minimum_history_observations": 20,
+                "history_observations": 98,
+                "confidence_history_observations": 18,
+                "historical_retail_continuity_policy": "observed_prefix_canonical_continuation_v1",
+                "historical_retail_transition_date": "2026-07-27",
+                "current_retail_pricing_basis": "canonical_calculation",
+                "current_retail_method_version": "unit_statistics_v1",
+                "historical_retail_method_version": "unit_statistics_v1",
+                "current_retail_source_date": "2026-09-13",
+                "current_retail_segment": "fixed_term_24",
+                "current_retail_metric": "energy_price",
+                "current_retail_contract_count": 47,
+                "historical_retail_observations": 98,
+                "historical_retail_pricing_basis_counts": {
+                    "canonical_calculation": 18,
+                    "observed_seller_data": 80
+                },
+                "historical_retail_source_start_date": "2026-04-08",
+                "historical_retail_source_end_date": "2026-08-13",
+                "historical_retail_segment": "fixed_term_24",
+                "historical_retail_metric": "energy_price"
+            }
+        },
+        {
+            "forecast_date": "2026-09-13",
+            "target_date": "2026-10-13",
+            "horizon_days": 30,
+            "duration_months": 24,
+            "target_quantile": "p20",
+            "current_price_cents_per_kwh": 10.028,
+            "forecast_price_cents_per_kwh": 10.2642,
+            "expected_change_cents_per_kwh": 0.2362,
+            "interval_low_cents_per_kwh": null,
+            "interval_high_cents_per_kwh": null,
+            "hedge_cost_cents_per_kwh": null,
+            "retail_premium_cents_per_kwh": null,
+            "normal_retail_premium_cents_per_kwh": null,
+            "fair_price_cents_per_kwh": null,
+            "gap_cents_per_kwh": null,
+            "futures_trade_date": null,
+            "coverage_quality": null,
+            "confidence": "low",
+            "direction": "rising",
+            "consumer_signal": "lock_sooner",
+            "contract_count": 47,
+            "model_version": "fixed_term_historical_change_v1",
+            "source_metadata": {
+                "model": "fixed_term_historical_change_v1",
+                "fitting_policy": "expanding_equal_weight_completed_same_basis_pairs_v1",
+                "pair_count": 98,
+                "unique_issue_days": 98,
+                "mean_change_cents_per_kwh": 0.23617346938775508,
+                "pair_start_min": "2026-04-08",
+                "pair_start_max": "2026-08-13",
+                "pair_target_min": "2026-05-08",
+                "pair_target_max": "2026-09-12",
+                "direction_threshold_cents_per_kwh": 0.15,
+                "minimum_history_observations": 20,
+                "history_observations": 98,
+                "confidence_history_observations": 18,
+                "historical_retail_continuity_policy": "observed_prefix_canonical_continuation_v1",
+                "historical_retail_transition_date": "2026-07-27",
+                "current_retail_pricing_basis": "canonical_calculation",
+                "current_retail_method_version": "unit_statistics_v1",
+                "historical_retail_method_version": "unit_statistics_v1",
+                "current_retail_source_date": "2026-09-13",
+                "current_retail_segment": "fixed_term_24",
+                "current_retail_metric": "energy_price",
+                "current_retail_contract_count": 47,
+                "historical_retail_observations": 98,
+                "historical_retail_pricing_basis_counts": {
+                    "canonical_calculation": 18,
+                    "observed_seller_data": 80
+                },
+                "historical_retail_source_start_date": "2026-04-08",
+                "historical_retail_source_end_date": "2026-08-13",
+                "historical_retail_segment": "fixed_term_24",
+                "historical_retail_metric": "energy_price"
+            }
+        },
+        {
+            "forecast_date": "2026-09-13",
+            "target_date": "2026-10-13",
+            "horizon_days": 30,
+            "duration_months": 24,
+            "target_quantile": "p80",
+            "current_price_cents_per_kwh": 11.1,
+            "forecast_price_cents_per_kwh": 11.3069,
+            "expected_change_cents_per_kwh": 0.2069,
+            "interval_low_cents_per_kwh": null,
+            "interval_high_cents_per_kwh": null,
+            "hedge_cost_cents_per_kwh": null,
+            "retail_premium_cents_per_kwh": null,
+            "normal_retail_premium_cents_per_kwh": null,
+            "fair_price_cents_per_kwh": null,
+            "gap_cents_per_kwh": null,
+            "futures_trade_date": null,
+            "coverage_quality": null,
+            "confidence": "low",
+            "direction": "rising",
+            "consumer_signal": "lock_sooner",
+            "contract_count": 47,
+            "model_version": "fixed_term_historical_change_v1",
+            "source_metadata": {
+                "model": "fixed_term_historical_change_v1",
+                "fitting_policy": "expanding_equal_weight_completed_same_basis_pairs_v1",
+                "pair_count": 98,
+                "unique_issue_days": 98,
+                "mean_change_cents_per_kwh": 0.20686428571428578,
+                "pair_start_min": "2026-04-08",
+                "pair_start_max": "2026-08-13",
+                "pair_target_min": "2026-05-08",
+                "pair_target_max": "2026-09-12",
+                "direction_threshold_cents_per_kwh": 0.15,
+                "minimum_history_observations": 20,
+                "history_observations": 98,
+                "confidence_history_observations": 18,
+                "historical_retail_continuity_policy": "observed_prefix_canonical_continuation_v1",
+                "historical_retail_transition_date": "2026-07-27",
+                "current_retail_pricing_basis": "canonical_calculation",
+                "current_retail_method_version": "unit_statistics_v1",
+                "historical_retail_method_version": "unit_statistics_v1",
+                "current_retail_source_date": "2026-09-13",
+                "current_retail_segment": "fixed_term_24",
+                "current_retail_metric": "energy_price",
+                "current_retail_contract_count": 47,
+                "historical_retail_observations": 98,
+                "historical_retail_pricing_basis_counts": {
+                    "canonical_calculation": 18,
+                    "observed_seller_data": 80
+                },
+                "historical_retail_source_start_date": "2026-04-08",
+                "historical_retail_source_end_date": "2026-08-13",
+                "historical_retail_segment": "fixed_term_24",
+                "historical_retail_metric": "energy_price"
+            }
+        }
+    ],
+    "metrics": {
+        "12|median": {
+            "n": 19,
+            "absolute_error_sum": 4.2345999999999915,
+            "unchanged_error_sum": 7.278399999999991,
+            "correct": 16,
+            "unchanged_correct": 3,
+            "mae": 0.22287368421052586,
+            "unchanged_mae": 0.38307368421052584
+        },
+        "12|p20": {
+            "n": 19,
+            "absolute_error_sum": 3.4323000000000015,
+            "unchanged_error_sum": 7.981400000000001,
+            "correct": 19,
+            "unchanged_correct": 0,
+            "mae": 0.1806473684210527,
+            "unchanged_mae": 0.4200736842105264
+        },
+        "12|p80": {
+            "n": 19,
+            "absolute_error_sum": 2.774699999999994,
+            "unchanged_error_sum": 6.574799999999996,
+            "correct": 16,
+            "unchanged_correct": 3,
+            "mae": 0.14603684210526283,
+            "unchanged_mae": 0.3460421052631577
+        },
+        "24|median": {
+            "n": 19,
+            "absolute_error_sum": 2.2924000000000024,
+            "unchanged_error_sum": 3.7268999999999917,
+            "correct": 9,
+            "unchanged_correct": 10,
+            "mae": 0.1206526315789475,
+            "unchanged_mae": 0.19615263157894694
+        },
+        "24|p20": {
+            "n": 19,
+            "absolute_error_sum": 2.166599999999997,
+            "unchanged_error_sum": 4.953199999999992,
+            "correct": 14,
+            "unchanged_correct": 5,
+            "mae": 0.11403157894736828,
+            "unchanged_mae": 0.2606947368421048
+        },
+        "24|p80": {
+            "n": 19,
+            "absolute_error_sum": 2.7697000000000003,
+            "unchanged_error_sum": 4.1369000000000025,
+            "correct": 10,
+            "unchanged_correct": 9,
+            "mae": 0.14577368421052633,
+            "unchanged_mae": 0.21773157894736855
+        },
+        "6|median": {
+            "n": 19,
+            "absolute_error_sum": 6.699400000000004,
+            "unchanged_error_sum": 29.04339999999999,
+            "correct": 19,
+            "unchanged_correct": 0,
+            "mae": 0.35260000000000025,
+            "unchanged_mae": 1.5285999999999995
+        },
+        "6|p20": {
+            "n": 19,
+            "absolute_error_sum": 11.284100000000004,
+            "unchanged_error_sum": 31.4241,
+            "correct": 19,
+            "unchanged_correct": 0,
+            "mae": 0.5939000000000002,
+            "unchanged_mae": 1.6539
+        },
+        "6|p80": {
+            "n": 19,
+            "absolute_error_sum": 9.120300000000002,
+            "unchanged_error_sum": 23.106100000000012,
+            "correct": 18,
+            "unchanged_correct": 1,
+            "mae": 0.48001578947368434,
+            "unchanged_mae": 1.21611052631579
+        }
+    },
+    "evaluated": 171,
+    "missing_actual": 0,
+    "unsupported_provenance": 0,
+    "fits": {
+        "2026-07-27|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 11.6488,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-27|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 10.87,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-27|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 12.205,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-27|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 10.48,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-27|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.078,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-27|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.2127,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-27|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 9.64,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-27|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.288,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-27|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.0534,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-28|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 11.8096,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-28|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 11.036,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-28|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 12.1575,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-28|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 10.5225,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-28|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.305,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-28|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.424,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-28|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 9.7638,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-28|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.384,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-28|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.1288,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-29|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 11.885,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-29|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 11.2,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-29|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 12.64,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-29|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 10.6,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-29|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.389,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-29|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.625,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-29|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 9.88,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-29|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.452,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-29|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.2,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-30|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 11.975,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-30|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 11.5645,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-30|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 12.572,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-30|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 10.66,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-30|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.414,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-30|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.675,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-30|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 9.8694,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-30|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.454,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-30|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.2,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-31|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 12.0625,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-31|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 11.896,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-31|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 13.312,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-31|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 10.8038,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-31|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.474,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-31|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.7,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-31|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 9.88,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-31|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.454,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-07-31|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.2575,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-01|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 12.1646,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-01|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 11.924,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-01|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 12.728,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-01|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 10.8667,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-01|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.493,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-01|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.7025,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-01|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 9.8694,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-01|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.5,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-01|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.3058,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-02|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 12.1646,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-02|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 11.924,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-02|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 12.728,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-02|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 10.8667,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-02|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.493,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-02|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.7025,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-02|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 9.8482,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-02|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.4993,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-02|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.2991,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-03|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 12.1375,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-03|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 11.916,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-03|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 12.772,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-03|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 10.99,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-03|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.6,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-03|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.7184,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-03|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 9.88,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-03|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.59,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-03|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.3125,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-04|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 12.1646,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-04|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 11.886,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-04|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 12.684,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-04|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 10.99,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-04|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.6,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-04|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.705,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-04|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 9.8588,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-04|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.592,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-04|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.3092,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-05|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 12.64,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-05|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 11.916,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-05|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 13.228,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-05|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 10.99,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-05|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.6,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-05|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.82,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-05|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 9.99,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-05|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.6,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-05|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.2958,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-06|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 12.64,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-06|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 11.916,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-06|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 13.228,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-06|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 11.16,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-06|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.6,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-06|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.9367,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-06|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 10.0163,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-06|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.64,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-06|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.42,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-07|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 12.64,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-07|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 11.916,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-07|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 13.228,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-07|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 11.33,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-07|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.6,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-07|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.975,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-07|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 10,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-07|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.672,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-07|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.42,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-08|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 13.195,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-08|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 12.371,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-08|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 14.3685,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-08|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 11.33,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-08|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.805,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-08|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.975,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-08|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 10,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-08|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.689,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-08|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.42,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-09|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 13.195,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-09|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 12.371,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-09|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 14.3685,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-09|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 11.33,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-09|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.805,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-09|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.975,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-09|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 10,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-09|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.689,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-09|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.42,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-10|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 13.195,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-10|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 12.371,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-10|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 14.3685,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-10|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 11.33,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-10|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.805,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-10|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.975,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-10|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 10,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-10|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.689,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-10|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.42,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-11|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 13.25,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-11|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 13.149,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-11|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 14.3685,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-11|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 11.32,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-11|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.805,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-11|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.975,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-11|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 10,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-11|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.79,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-11|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.42,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-12|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 13.25,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-12|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 13.149,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-12|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 14.3685,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-12|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 11.32,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-12|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.88,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-12|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.975,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-12|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 10,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-12|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.796,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-12|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.42,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-13|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 13.25,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-13|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 13.149,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-13|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 14.3685,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-13|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 11.32,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-13|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.88,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-13|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.975,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-13|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 10,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-13|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.796,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-13|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.42,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-14|6|median": {
+            "pair_count": 80,
+            "pair_sha256": "4eacae9723b8273d3dc77c1d677599c5c80efad7ae3d5197175d18918a4fe550",
+            "mean": 1.2212349999999996,
+            "current": 13.25,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-14|6|p20": {
+            "pair_count": 80,
+            "pair_sha256": "9be4236b97d4073128b23bc760b48c34916697a9fc4880aa39bc004698e8bfa9",
+            "mean": 1.0599974999999997,
+            "current": 13.149,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-14|6|p80": {
+            "pair_count": 80,
+            "pair_sha256": "24b5177c105f24cf91d1bf33534f6751e7fce92bb25d602772aa178a5b056b27",
+            "mean": 1.1933725000000002,
+            "current": 14.3685,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-14|12|median": {
+            "pair_count": 80,
+            "pair_sha256": "22f2b91dd65a9fdfd8a88c5f2020437582f14c89ce0bf817509bc28d67fe1cc8",
+            "mean": 0.26096999999999987,
+            "current": 11.32,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-14|12|p20": {
+            "pair_count": 80,
+            "pair_sha256": "ad6eb7a946cb9cc297cd927965e889bdb2be1c7a6194d85267975fb9dc6ff7df",
+            "mean": 0.25069624999999995,
+            "current": 10.88,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-14|12|p80": {
+            "pair_count": 80,
+            "pair_sha256": "2cc4c9d9c7c8990f2a0e487fe180cac83695eaaa844ef75209386e0b7510e6e3",
+            "mean": 0.2891175000000002,
+            "current": 11.975,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-14|24|median": {
+            "pair_count": 80,
+            "pair_sha256": "f23b39c1e396e1dca7394906972d083eb20336db03376fecbeb73c5796d4ce37",
+            "mean": 0.20405125000000018,
+            "current": 10,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-14|24|p20": {
+            "pair_count": 80,
+            "pair_sha256": "31724d1377239593a0ce4918df7361527d3f5ffad32ecaf02c73a9209a0879a5",
+            "mean": 0.23044750000000008,
+            "current": 9.784,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-08-14|24|p80": {
+            "pair_count": 80,
+            "pair_sha256": "b7f8debc9b75bafb42dcf462bedd57e8b491384f7983436da516b7601d97a741",
+            "mean": 0.21019750000000004,
+            "current": 10.42,
+            "basis_counts": {
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-06-26",
+            "target_min": "2026-05-08",
+            "target_max": "2026-07-26"
+        },
+        "2026-09-13|6|median": {
+            "pair_count": 98,
+            "pair_sha256": "4e0e33945a70164db07d7ff7be0043ed99482487a1d59aa72dd7cb0f771da400",
+            "mean": 1.2802326530612242,
+            "current": 14.5294,
+            "basis_counts": {
+                "canonical_calculation": 18,
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-08-13",
+            "target_min": "2026-05-08",
+            "target_max": "2026-09-12"
+        },
+        "2026-09-13|6|p20": {
+            "pair_count": 98,
+            "pair_sha256": "de75a59c6c8ee96d6babf491c129fff0442adcd5c28d92bb8bb29a9de363880a",
+            "mean": 1.1740163265306125,
+            "current": 14.3193,
+            "basis_counts": {
+                "canonical_calculation": 18,
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-08-13",
+            "target_min": "2026-05-08",
+            "target_max": "2026-09-12"
+        },
+        "2026-09-13|6|p80": {
+            "pair_count": 98,
+            "pair_sha256": "cd26d81ed09f4fd3e96d131c9cc224f6cf4b612186a4167f05733f68634604e0",
+            "mean": 1.1943306122448984,
+            "current": 15.9,
+            "basis_counts": {
+                "canonical_calculation": 18,
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-08-13",
+            "target_min": "2026-05-08",
+            "target_max": "2026-09-12"
+        },
+        "2026-09-13|12|median": {
+            "pair_count": 98,
+            "pair_sha256": "1befd9ed40f54d79f6fe202fdb531c1463f9d4e583153250118a6c4d75c24d66",
+            "mean": 0.2809051020408162,
+            "current": 11.9409,
+            "basis_counts": {
+                "canonical_calculation": 18,
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-08-13",
+            "target_min": "2026-05-08",
+            "target_max": "2026-09-12"
+        },
+        "2026-09-13|12|p20": {
+            "pair_count": 98,
+            "pair_sha256": "e0b869e30ee948739fd53aedaeaa724bd23067f26e6c9674c122eea0733b4a7e",
+            "mean": 0.28180714285714287,
+            "current": 11.3,
+            "basis_counts": {
+                "canonical_calculation": 18,
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-08-13",
+            "target_min": "2026-05-08",
+            "target_max": "2026-09-12"
+        },
+        "2026-09-13|12|p80": {
+            "pair_count": 98,
+            "pair_sha256": "510ef0a05fd7093adaee20c899d7dada1592d3f9e373e45b71cdc49798a2df76",
+            "mean": 0.29478775510204097,
+            "current": 12.79,
+            "basis_counts": {
+                "canonical_calculation": 18,
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-08-13",
+            "target_min": "2026-05-08",
+            "target_max": "2026-09-12"
+        },
+        "2026-09-13|24|median": {
+            "pair_count": 98,
+            "pair_sha256": "0f7b897f25855ba9982b24a907a66a39e6936875c702e001eb6c2cce5ca10f6b",
+            "mean": 0.19888775510204088,
+            "current": 10.56,
+            "basis_counts": {
+                "canonical_calculation": 18,
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-08-13",
+            "target_min": "2026-05-08",
+            "target_max": "2026-09-12"
+        },
+        "2026-09-13|24|p20": {
+            "pair_count": 98,
+            "pair_sha256": "6ad8994a9a1b1993b818fa0cdf1f748095e6a8690b85f8948b4ed54d00b1c6d5",
+            "mean": 0.23617346938775508,
+            "current": 10.028,
+            "basis_counts": {
+                "canonical_calculation": 18,
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-08-13",
+            "target_min": "2026-05-08",
+            "target_max": "2026-09-12"
+        },
+        "2026-09-13|24|p80": {
+            "pair_count": 98,
+            "pair_sha256": "5c945800aa55176e4cc4ac525666ffdba447eb8fca04e38806487306c2007257",
+            "mean": 0.20686428571428578,
+            "current": 11.1,
+            "basis_counts": {
+                "canonical_calculation": 18,
+                "observed_seller_data": 80
+            },
+            "boundary": "2026-07-27",
+            "start_min": "2026-04-08",
+            "start_max": "2026-08-13",
+            "target_min": "2026-05-08",
+            "target_max": "2026-09-12"
+        }
+    },
+    "matched": [
+        {
+            "issue": "2026-07-27",
+            "target": "2026-08-26",
+            "term": 6,
+            "quantile": "median",
+            "current": 11.6488,
+            "forecast": 12.87,
+            "actual": 13.795,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-27",
+            "target": "2026-08-26",
+            "term": 6,
+            "quantile": "p20",
+            "current": 10.87,
+            "forecast": 11.93,
+            "actual": 13.2433,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-27",
+            "target": "2026-08-26",
+            "term": 6,
+            "quantile": "p80",
+            "current": 12.205,
+            "forecast": 13.3984,
+            "actual": 14.2415,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-27",
+            "target": "2026-08-26",
+            "term": 12,
+            "quantile": "median",
+            "current": 10.48,
+            "forecast": 10.741,
+            "actual": 11.29,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-27",
+            "target": "2026-08-26",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.078,
+            "forecast": 10.3287,
+            "actual": 11,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-27",
+            "target": "2026-08-26",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.2127,
+            "forecast": 11.5018,
+            "actual": 11.9917,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-27",
+            "target": "2026-08-26",
+            "term": 24,
+            "quantile": "median",
+            "current": 9.64,
+            "forecast": 9.8441,
+            "actual": 10.0125,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-27",
+            "target": "2026-08-26",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.288,
+            "forecast": 9.5184,
+            "actual": 9.87,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-27",
+            "target": "2026-08-26",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.0534,
+            "forecast": 10.2636,
+            "actual": 10.42,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-28",
+            "target": "2026-08-27",
+            "term": 6,
+            "quantile": "median",
+            "current": 11.8096,
+            "forecast": 13.0308,
+            "actual": 13.795,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-28",
+            "target": "2026-08-27",
+            "term": 6,
+            "quantile": "p20",
+            "current": 11.036,
+            "forecast": 12.096,
+            "actual": 13.2433,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-28",
+            "target": "2026-08-27",
+            "term": 6,
+            "quantile": "p80",
+            "current": 12.1575,
+            "forecast": 13.3509,
+            "actual": 14.1413,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-28",
+            "target": "2026-08-27",
+            "term": 12,
+            "quantile": "median",
+            "current": 10.5225,
+            "forecast": 10.7835,
+            "actual": 11.2888,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-28",
+            "target": "2026-08-27",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.305,
+            "forecast": 10.5557,
+            "actual": 10.99,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-28",
+            "target": "2026-08-27",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.424,
+            "forecast": 11.7131,
+            "actual": 11.9917,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-28",
+            "target": "2026-08-27",
+            "term": 24,
+            "quantile": "median",
+            "current": 9.7638,
+            "forecast": 9.9679,
+            "actual": 10.0125,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-28",
+            "target": "2026-08-27",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.384,
+            "forecast": 9.6144,
+            "actual": 9.87,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-28",
+            "target": "2026-08-27",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.1288,
+            "forecast": 10.339,
+            "actual": 10.42,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-29",
+            "target": "2026-08-28",
+            "term": 6,
+            "quantile": "median",
+            "current": 11.885,
+            "forecast": 13.1062,
+            "actual": 13.785,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-29",
+            "target": "2026-08-28",
+            "term": 6,
+            "quantile": "p20",
+            "current": 11.2,
+            "forecast": 12.26,
+            "actual": 13.2433,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-29",
+            "target": "2026-08-28",
+            "term": 6,
+            "quantile": "p80",
+            "current": 12.64,
+            "forecast": 13.8334,
+            "actual": 14.1413,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-29",
+            "target": "2026-08-28",
+            "term": 12,
+            "quantile": "median",
+            "current": 10.6,
+            "forecast": 10.861,
+            "actual": 11.2,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-29",
+            "target": "2026-08-28",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.389,
+            "forecast": 10.6397,
+            "actual": 10.95,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-29",
+            "target": "2026-08-28",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.625,
+            "forecast": 11.9141,
+            "actual": 11.9917,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-29",
+            "target": "2026-08-28",
+            "term": 24,
+            "quantile": "median",
+            "current": 9.88,
+            "forecast": 10.0841,
+            "actual": 10.0125,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-07-29",
+            "target": "2026-08-28",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.452,
+            "forecast": 9.6824,
+            "actual": 9.87,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-29",
+            "target": "2026-08-28",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.2,
+            "forecast": 10.4102,
+            "actual": 10.42,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-30",
+            "target": "2026-08-29",
+            "term": 6,
+            "quantile": "median",
+            "current": 11.975,
+            "forecast": 13.1962,
+            "actual": 13.85,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-30",
+            "target": "2026-08-29",
+            "term": 6,
+            "quantile": "p20",
+            "current": 11.5645,
+            "forecast": 12.6245,
+            "actual": 13.5,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-30",
+            "target": "2026-08-29",
+            "term": 6,
+            "quantile": "p80",
+            "current": 12.572,
+            "forecast": 13.7654,
+            "actual": 14.2183,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-30",
+            "target": "2026-08-29",
+            "term": 12,
+            "quantile": "median",
+            "current": 10.66,
+            "forecast": 10.921,
+            "actual": 11.2,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-30",
+            "target": "2026-08-29",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.414,
+            "forecast": 10.6647,
+            "actual": 10.95,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-30",
+            "target": "2026-08-29",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.675,
+            "forecast": 11.9641,
+            "actual": 11.9917,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-30",
+            "target": "2026-08-29",
+            "term": 24,
+            "quantile": "median",
+            "current": 9.8694,
+            "forecast": 10.0735,
+            "actual": 10.0125,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-07-30",
+            "target": "2026-08-29",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.454,
+            "forecast": 9.6844,
+            "actual": 9.87,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-30",
+            "target": "2026-08-29",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.2,
+            "forecast": 10.4102,
+            "actual": 10.42,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-31",
+            "target": "2026-08-30",
+            "term": 6,
+            "quantile": "median",
+            "current": 12.0625,
+            "forecast": 13.2837,
+            "actual": 13.85,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-31",
+            "target": "2026-08-30",
+            "term": 6,
+            "quantile": "p20",
+            "current": 11.896,
+            "forecast": 12.956,
+            "actual": 13.5,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-31",
+            "target": "2026-08-30",
+            "term": 6,
+            "quantile": "p80",
+            "current": 13.312,
+            "forecast": 14.5054,
+            "actual": 14.2183,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-31",
+            "target": "2026-08-30",
+            "term": 12,
+            "quantile": "median",
+            "current": 10.8038,
+            "forecast": 11.0648,
+            "actual": 11.2,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-31",
+            "target": "2026-08-30",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.474,
+            "forecast": 10.7247,
+            "actual": 10.95,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-31",
+            "target": "2026-08-30",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.7,
+            "forecast": 11.9891,
+            "actual": 11.9917,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-31",
+            "target": "2026-08-30",
+            "term": 24,
+            "quantile": "median",
+            "current": 9.88,
+            "forecast": 10.0841,
+            "actual": 10.0125,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-07-31",
+            "target": "2026-08-30",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.454,
+            "forecast": 9.6844,
+            "actual": 9.87,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-07-31",
+            "target": "2026-08-30",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.2575,
+            "forecast": 10.4677,
+            "actual": 10.42,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-01",
+            "target": "2026-08-31",
+            "term": 6,
+            "quantile": "median",
+            "current": 12.1646,
+            "forecast": 13.3858,
+            "actual": 13.85,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-01",
+            "target": "2026-08-31",
+            "term": 6,
+            "quantile": "p20",
+            "current": 11.924,
+            "forecast": 12.984,
+            "actual": 13.5,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-01",
+            "target": "2026-08-31",
+            "term": 6,
+            "quantile": "p80",
+            "current": 12.728,
+            "forecast": 13.9214,
+            "actual": 14.2183,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-01",
+            "target": "2026-08-31",
+            "term": 12,
+            "quantile": "median",
+            "current": 10.8667,
+            "forecast": 11.1277,
+            "actual": 11.2,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-01",
+            "target": "2026-08-31",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.493,
+            "forecast": 10.7437,
+            "actual": 10.95,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-01",
+            "target": "2026-08-31",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.7025,
+            "forecast": 11.9916,
+            "actual": 11.9917,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-01",
+            "target": "2026-08-31",
+            "term": 24,
+            "quantile": "median",
+            "current": 9.8694,
+            "forecast": 10.0735,
+            "actual": 10.0125,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-01",
+            "target": "2026-08-31",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.5,
+            "forecast": 9.7304,
+            "actual": 9.87,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-01",
+            "target": "2026-08-31",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.3058,
+            "forecast": 10.516,
+            "actual": 10.42,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-02",
+            "target": "2026-09-01",
+            "term": 6,
+            "quantile": "median",
+            "current": 12.1646,
+            "forecast": 13.3858,
+            "actual": 13.82,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-02",
+            "target": "2026-09-01",
+            "term": 6,
+            "quantile": "p20",
+            "current": 11.924,
+            "forecast": 12.984,
+            "actual": 13.426,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-02",
+            "target": "2026-09-01",
+            "term": 6,
+            "quantile": "p80",
+            "current": 12.728,
+            "forecast": 13.9214,
+            "actual": 14.2299,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-02",
+            "target": "2026-09-01",
+            "term": 12,
+            "quantile": "median",
+            "current": 10.8667,
+            "forecast": 11.1277,
+            "actual": 11.2,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-02",
+            "target": "2026-09-01",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.493,
+            "forecast": 10.7437,
+            "actual": 10.8788,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-02",
+            "target": "2026-09-01",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.7025,
+            "forecast": 11.9916,
+            "actual": 11.9917,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-02",
+            "target": "2026-09-01",
+            "term": 24,
+            "quantile": "median",
+            "current": 9.8482,
+            "forecast": 10.0523,
+            "actual": 10,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-02",
+            "target": "2026-09-01",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.4993,
+            "forecast": 9.7297,
+            "actual": 9.78,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-02",
+            "target": "2026-09-01",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.2991,
+            "forecast": 10.5093,
+            "actual": 10.42,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-03",
+            "target": "2026-09-02",
+            "term": 6,
+            "quantile": "median",
+            "current": 12.1375,
+            "forecast": 13.3587,
+            "actual": 13.82,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-03",
+            "target": "2026-09-02",
+            "term": 6,
+            "quantile": "p20",
+            "current": 11.916,
+            "forecast": 12.976,
+            "actual": 13.426,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-03",
+            "target": "2026-09-02",
+            "term": 6,
+            "quantile": "p80",
+            "current": 12.772,
+            "forecast": 13.9654,
+            "actual": 14.2299,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-03",
+            "target": "2026-09-02",
+            "term": 12,
+            "quantile": "median",
+            "current": 10.99,
+            "forecast": 11.251,
+            "actual": 11.2,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-03",
+            "target": "2026-09-02",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.6,
+            "forecast": 10.8507,
+            "actual": 10.8788,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-03",
+            "target": "2026-09-02",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.7184,
+            "forecast": 12.0075,
+            "actual": 11.9917,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-03",
+            "target": "2026-09-02",
+            "term": 24,
+            "quantile": "median",
+            "current": 9.88,
+            "forecast": 10.0841,
+            "actual": 10,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-03",
+            "target": "2026-09-02",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.59,
+            "forecast": 9.8204,
+            "actual": 9.78,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-03",
+            "target": "2026-09-02",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.3125,
+            "forecast": 10.5227,
+            "actual": 10.42,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-04",
+            "target": "2026-09-03",
+            "term": 6,
+            "quantile": "median",
+            "current": 12.1646,
+            "forecast": 13.3858,
+            "actual": 13.975,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-04",
+            "target": "2026-09-03",
+            "term": 6,
+            "quantile": "p20",
+            "current": 11.886,
+            "forecast": 12.946,
+            "actual": 13.694,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-04",
+            "target": "2026-09-03",
+            "term": 6,
+            "quantile": "p80",
+            "current": 12.684,
+            "forecast": 13.8774,
+            "actual": 14.307,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-04",
+            "target": "2026-09-03",
+            "term": 12,
+            "quantile": "median",
+            "current": 10.99,
+            "forecast": 11.251,
+            "actual": 11.2875,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-04",
+            "target": "2026-09-03",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.6,
+            "forecast": 10.8507,
+            "actual": 10.879,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-04",
+            "target": "2026-09-03",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.705,
+            "forecast": 11.9941,
+            "actual": 11.9914,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-04",
+            "target": "2026-09-03",
+            "term": 24,
+            "quantile": "median",
+            "current": 9.8588,
+            "forecast": 10.0629,
+            "actual": 10.0325,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-04",
+            "target": "2026-09-03",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.592,
+            "forecast": 9.8224,
+            "actual": 9.78,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-04",
+            "target": "2026-09-03",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.3092,
+            "forecast": 10.5194,
+            "actual": 10.444,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-05",
+            "target": "2026-09-04",
+            "term": 6,
+            "quantile": "median",
+            "current": 12.64,
+            "forecast": 13.8612,
+            "actual": 14.0342,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-05",
+            "target": "2026-09-04",
+            "term": 6,
+            "quantile": "p20",
+            "current": 11.916,
+            "forecast": 12.976,
+            "actual": 13.694,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-05",
+            "target": "2026-09-04",
+            "term": 6,
+            "quantile": "p80",
+            "current": 13.228,
+            "forecast": 14.4214,
+            "actual": 14.444,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-05",
+            "target": "2026-09-04",
+            "term": 12,
+            "quantile": "median",
+            "current": 10.99,
+            "forecast": 11.251,
+            "actual": 11.3284,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-05",
+            "target": "2026-09-04",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.6,
+            "forecast": 10.8507,
+            "actual": 10.996,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-05",
+            "target": "2026-09-04",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.82,
+            "forecast": 12.1091,
+            "actual": 12.1015,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-05",
+            "target": "2026-09-04",
+            "term": 24,
+            "quantile": "median",
+            "current": 9.99,
+            "forecast": 10.1941,
+            "actual": 10.0392,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-05",
+            "target": "2026-09-04",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.6,
+            "forecast": 9.8304,
+            "actual": 9.798,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-05",
+            "target": "2026-09-04",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.2958,
+            "forecast": 10.506,
+            "actual": 10.432,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-06",
+            "target": "2026-09-05",
+            "term": 6,
+            "quantile": "median",
+            "current": 12.64,
+            "forecast": 13.8612,
+            "actual": 14.0342,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-06",
+            "target": "2026-09-05",
+            "term": 6,
+            "quantile": "p20",
+            "current": 11.916,
+            "forecast": 12.976,
+            "actual": 13.694,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-06",
+            "target": "2026-09-05",
+            "term": 6,
+            "quantile": "p80",
+            "current": 13.228,
+            "forecast": 14.4214,
+            "actual": 14.444,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-06",
+            "target": "2026-09-05",
+            "term": 12,
+            "quantile": "median",
+            "current": 11.16,
+            "forecast": 11.421,
+            "actual": 11.3284,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-06",
+            "target": "2026-09-05",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.6,
+            "forecast": 10.8507,
+            "actual": 10.996,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-06",
+            "target": "2026-09-05",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.9367,
+            "forecast": 12.2258,
+            "actual": 12.1015,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-06",
+            "target": "2026-09-05",
+            "term": 24,
+            "quantile": "median",
+            "current": 10.0163,
+            "forecast": 10.2204,
+            "actual": 10.0325,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-06",
+            "target": "2026-09-05",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.64,
+            "forecast": 9.8704,
+            "actual": 9.79,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-06",
+            "target": "2026-09-05",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.42,
+            "forecast": 10.6302,
+            "actual": 10.42,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-07",
+            "target": "2026-09-06",
+            "term": 6,
+            "quantile": "median",
+            "current": 12.64,
+            "forecast": 13.8612,
+            "actual": 14.0342,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-07",
+            "target": "2026-09-06",
+            "term": 6,
+            "quantile": "p20",
+            "current": 11.916,
+            "forecast": 12.976,
+            "actual": 13.694,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-07",
+            "target": "2026-09-06",
+            "term": 6,
+            "quantile": "p80",
+            "current": 13.228,
+            "forecast": 14.4214,
+            "actual": 14.444,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-07",
+            "target": "2026-09-06",
+            "term": 12,
+            "quantile": "median",
+            "current": 11.33,
+            "forecast": 11.591,
+            "actual": 11.3284,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-07",
+            "target": "2026-09-06",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.6,
+            "forecast": 10.8507,
+            "actual": 10.996,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-07",
+            "target": "2026-09-06",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.975,
+            "forecast": 12.2641,
+            "actual": 12.1015,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-07",
+            "target": "2026-09-06",
+            "term": 24,
+            "quantile": "median",
+            "current": 10,
+            "forecast": 10.2041,
+            "actual": 10.0325,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-07",
+            "target": "2026-09-06",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.672,
+            "forecast": 9.9024,
+            "actual": 9.79,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-07",
+            "target": "2026-09-06",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.42,
+            "forecast": 10.6302,
+            "actual": 10.42,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-08",
+            "target": "2026-09-07",
+            "term": 6,
+            "quantile": "median",
+            "current": 13.195,
+            "forecast": 14.4162,
+            "actual": 14.0342,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-08",
+            "target": "2026-09-07",
+            "term": 6,
+            "quantile": "p20",
+            "current": 12.371,
+            "forecast": 13.431,
+            "actual": 13.694,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-08",
+            "target": "2026-09-07",
+            "term": 6,
+            "quantile": "p80",
+            "current": 14.3685,
+            "forecast": 15.5619,
+            "actual": 14.444,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-08",
+            "target": "2026-09-07",
+            "term": 12,
+            "quantile": "median",
+            "current": 11.33,
+            "forecast": 11.591,
+            "actual": 11.3284,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-08",
+            "target": "2026-09-07",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.805,
+            "forecast": 11.0557,
+            "actual": 10.996,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-08",
+            "target": "2026-09-07",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.975,
+            "forecast": 12.2641,
+            "actual": 12.1015,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-08",
+            "target": "2026-09-07",
+            "term": 24,
+            "quantile": "median",
+            "current": 10,
+            "forecast": 10.2041,
+            "actual": 10.0392,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-08",
+            "target": "2026-09-07",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.689,
+            "forecast": 9.9194,
+            "actual": 9.798,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-08",
+            "target": "2026-09-07",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.42,
+            "forecast": 10.6302,
+            "actual": 10.432,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-09",
+            "target": "2026-09-08",
+            "term": 6,
+            "quantile": "median",
+            "current": 13.195,
+            "forecast": 14.4162,
+            "actual": 14.465,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-09",
+            "target": "2026-09-08",
+            "term": 6,
+            "quantile": "p20",
+            "current": 12.371,
+            "forecast": 13.431,
+            "actual": 14.1246,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-09",
+            "target": "2026-09-08",
+            "term": 6,
+            "quantile": "p80",
+            "current": 14.3685,
+            "forecast": 15.5619,
+            "actual": 14.559,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-09",
+            "target": "2026-09-08",
+            "term": 12,
+            "quantile": "median",
+            "current": 11.33,
+            "forecast": 11.591,
+            "actual": 11.4,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-09",
+            "target": "2026-09-08",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.805,
+            "forecast": 11.0557,
+            "actual": 11.032,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-09",
+            "target": "2026-09-08",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.975,
+            "forecast": 12.2641,
+            "actual": 12.0936,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-09",
+            "target": "2026-09-08",
+            "term": 24,
+            "quantile": "median",
+            "current": 10,
+            "forecast": 10.2041,
+            "actual": 10.1219,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-09",
+            "target": "2026-09-08",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.689,
+            "forecast": 9.9194,
+            "actual": 9.832,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-09",
+            "target": "2026-09-08",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.42,
+            "forecast": 10.6302,
+            "actual": 10.456,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-10",
+            "target": "2026-09-09",
+            "term": 6,
+            "quantile": "median",
+            "current": 13.195,
+            "forecast": 14.4162,
+            "actual": 14.465,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-10",
+            "target": "2026-09-09",
+            "term": 6,
+            "quantile": "p20",
+            "current": 12.371,
+            "forecast": 13.431,
+            "actual": 14.2647,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-10",
+            "target": "2026-09-09",
+            "term": 6,
+            "quantile": "p80",
+            "current": 14.3685,
+            "forecast": 15.5619,
+            "actual": 14.628,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-10",
+            "target": "2026-09-09",
+            "term": 12,
+            "quantile": "median",
+            "current": 11.33,
+            "forecast": 11.591,
+            "actual": 11.49,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-10",
+            "target": "2026-09-09",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.805,
+            "forecast": 11.0557,
+            "actual": 11.032,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-10",
+            "target": "2026-09-09",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.975,
+            "forecast": 12.2641,
+            "actual": 12.144,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-10",
+            "target": "2026-09-09",
+            "term": 24,
+            "quantile": "median",
+            "current": 10,
+            "forecast": 10.2041,
+            "actual": 10.18,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-10",
+            "target": "2026-09-09",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.689,
+            "forecast": 9.9194,
+            "actual": 9.832,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-10",
+            "target": "2026-09-09",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.42,
+            "forecast": 10.6302,
+            "actual": 10.6,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-11",
+            "target": "2026-09-10",
+            "term": 6,
+            "quantile": "median",
+            "current": 13.25,
+            "forecast": 14.4712,
+            "actual": 14.43,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-11",
+            "target": "2026-09-10",
+            "term": 6,
+            "quantile": "p20",
+            "current": 13.149,
+            "forecast": 14.209,
+            "actual": 14.2531,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-11",
+            "target": "2026-09-10",
+            "term": 6,
+            "quantile": "p80",
+            "current": 14.3685,
+            "forecast": 15.5619,
+            "actual": 14.5593,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-11",
+            "target": "2026-09-10",
+            "term": 12,
+            "quantile": "median",
+            "current": 11.32,
+            "forecast": 11.581,
+            "actual": 11.85,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-11",
+            "target": "2026-09-10",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.805,
+            "forecast": 11.0557,
+            "actual": 11.2,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-11",
+            "target": "2026-09-10",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.975,
+            "forecast": 12.2641,
+            "actual": 12.2,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-11",
+            "target": "2026-09-10",
+            "term": 24,
+            "quantile": "median",
+            "current": 10,
+            "forecast": 10.2041,
+            "actual": 10.2,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-11",
+            "target": "2026-09-10",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.79,
+            "forecast": 10.0204,
+            "actual": 9.898,
+            "outcome": "false_move"
+        },
+        {
+            "issue": "2026-08-11",
+            "target": "2026-09-10",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.42,
+            "forecast": 10.6302,
+            "actual": 10.625,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-12",
+            "target": "2026-09-11",
+            "term": 6,
+            "quantile": "median",
+            "current": 13.25,
+            "forecast": 14.4712,
+            "actual": 14.465,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-12",
+            "target": "2026-09-11",
+            "term": 6,
+            "quantile": "p20",
+            "current": 13.149,
+            "forecast": 14.209,
+            "actual": 14.2647,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-12",
+            "target": "2026-09-11",
+            "term": 6,
+            "quantile": "p80",
+            "current": 14.3685,
+            "forecast": 15.5619,
+            "actual": 15.9,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-12",
+            "target": "2026-09-11",
+            "term": 12,
+            "quantile": "median",
+            "current": 11.32,
+            "forecast": 11.581,
+            "actual": 11.8,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-12",
+            "target": "2026-09-11",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.88,
+            "forecast": 11.1307,
+            "actual": 11.2128,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-12",
+            "target": "2026-09-11",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.975,
+            "forecast": 12.2641,
+            "actual": 12.248,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-12",
+            "target": "2026-09-11",
+            "term": 24,
+            "quantile": "median",
+            "current": 10,
+            "forecast": 10.2041,
+            "actual": 10.35,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-12",
+            "target": "2026-09-11",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.796,
+            "forecast": 10.0264,
+            "actual": 9.9575,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-12",
+            "target": "2026-09-11",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.42,
+            "forecast": 10.6302,
+            "actual": 10.89,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-13",
+            "target": "2026-09-12",
+            "term": 6,
+            "quantile": "median",
+            "current": 13.25,
+            "forecast": 14.4712,
+            "actual": 14.5294,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-13",
+            "target": "2026-09-12",
+            "term": 6,
+            "quantile": "p20",
+            "current": 13.149,
+            "forecast": 14.209,
+            "actual": 14.3193,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-13",
+            "target": "2026-09-12",
+            "term": 6,
+            "quantile": "p80",
+            "current": 14.3685,
+            "forecast": 15.5619,
+            "actual": 15.9,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-13",
+            "target": "2026-09-12",
+            "term": 12,
+            "quantile": "median",
+            "current": 11.32,
+            "forecast": 11.581,
+            "actual": 11.9409,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-13",
+            "target": "2026-09-12",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.88,
+            "forecast": 11.1307,
+            "actual": 11.3,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-13",
+            "target": "2026-09-12",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.975,
+            "forecast": 12.2641,
+            "actual": 12.79,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-13",
+            "target": "2026-09-12",
+            "term": 24,
+            "quantile": "median",
+            "current": 10,
+            "forecast": 10.2041,
+            "actual": 10.56,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-13",
+            "target": "2026-09-12",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.796,
+            "forecast": 10.0264,
+            "actual": 10.028,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-13",
+            "target": "2026-09-12",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.42,
+            "forecast": 10.6302,
+            "actual": 11.1,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-14",
+            "target": "2026-09-13",
+            "term": 6,
+            "quantile": "median",
+            "current": 13.25,
+            "forecast": 14.4712,
+            "actual": 14.5294,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-14",
+            "target": "2026-09-13",
+            "term": 6,
+            "quantile": "p20",
+            "current": 13.149,
+            "forecast": 14.209,
+            "actual": 14.3193,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-14",
+            "target": "2026-09-13",
+            "term": 6,
+            "quantile": "p80",
+            "current": 14.3685,
+            "forecast": 15.5619,
+            "actual": 15.9,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-14",
+            "target": "2026-09-13",
+            "term": 12,
+            "quantile": "median",
+            "current": 11.32,
+            "forecast": 11.581,
+            "actual": 11.9409,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-14",
+            "target": "2026-09-13",
+            "term": 12,
+            "quantile": "p20",
+            "current": 10.88,
+            "forecast": 11.1307,
+            "actual": 11.3,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-14",
+            "target": "2026-09-13",
+            "term": 12,
+            "quantile": "p80",
+            "current": 11.975,
+            "forecast": 12.2641,
+            "actual": 12.79,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-14",
+            "target": "2026-09-13",
+            "term": 24,
+            "quantile": "median",
+            "current": 10,
+            "forecast": 10.2041,
+            "actual": 10.56,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-14",
+            "target": "2026-09-13",
+            "term": 24,
+            "quantile": "p20",
+            "current": 9.784,
+            "forecast": 10.0144,
+            "actual": 10.028,
+            "outcome": "correct"
+        },
+        {
+            "issue": "2026-08-14",
+            "target": "2026-09-13",
+            "term": 24,
+            "quantile": "p80",
+            "current": 10.42,
+            "forecast": 10.6302,
+            "actual": 11.1,
+            "outcome": "correct"
+        }
+    ],
+    "dry_output": "2026-09-13 6m median: current 14.5294, forecast 15.8096, move +1.2802 c/kWh, rising (low)\nPairs 98 (minimum 20), mean +1.28023265; starts 2026-04-08\u20132026-08-13; targets 2026-05-08\u20132026-09-12; current-basis pairs 18.\n2026-09-13 6m p20: current 14.3193, forecast 15.4933, move +1.1740 c/kWh, rising (low)\nPairs 98 (minimum 20), mean +1.17401633; starts 2026-04-08\u20132026-08-13; targets 2026-05-08\u20132026-09-12; current-basis pairs 18.\n2026-09-13 6m p80: current 15.9000, forecast 17.0943, move +1.1943 c/kWh, rising (low)\nPairs 98 (minimum 20), mean +1.19433061; starts 2026-04-08\u20132026-08-13; targets 2026-05-08\u20132026-09-12; current-basis pairs 18.\n2026-09-13 12m median: current 11.9409, forecast 12.2218, move +0.2809 c/kWh, rising (low)\nPairs 98 (minimum 20), mean +0.28090510; starts 2026-04-08\u20132026-08-13; targets 2026-05-08\u20132026-09-12; current-basis pairs 18.\n2026-09-13 12m p20: current 11.3000, forecast 11.5818, move +0.2818 c/kWh, rising (low)\nPairs 98 (minimum 20), mean +0.28180714; starts 2026-04-08\u20132026-08-13; targets 2026-05-08\u20132026-09-12; current-basis pairs 18.\n2026-09-13 12m p80: current 12.7900, forecast 13.0848, move +0.2948 c/kWh, rising (low)\nPairs 98 (minimum 20), mean +0.29478776; starts 2026-04-08\u20132026-08-13; targets 2026-05-08\u20132026-09-12; current-basis pairs 18.\n2026-09-13 24m median: current 10.5600, forecast 10.7589, move +0.1989 c/kWh, rising (low)\nPairs 98 (minimum 20), mean +0.19888776; starts 2026-04-08\u20132026-08-13; targets 2026-05-08\u20132026-09-12; current-basis pairs 18.\n2026-09-13 24m p20: current 10.0280, forecast 10.2642, move +0.2362 c/kWh, rising (low)\nPairs 98 (minimum 20), mean +0.23617347; starts 2026-04-08\u20132026-08-13; targets 2026-05-08\u20132026-09-12; current-basis pairs 18.\n2026-09-13 24m p80: current 11.1000, forecast 11.3069, move +0.2069 c/kWh, rising (low)\nPairs 98 (minimum 20), mean +0.20686429; starts 2026-04-08\u20132026-08-13; targets 2026-05-08\u20132026-09-12; current-basis pairs 18.\nDry run complete. Calculated 9 forecasts.\n"
+}

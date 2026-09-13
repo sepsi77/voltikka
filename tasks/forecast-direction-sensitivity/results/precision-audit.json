@@ -1,0 +1,1379 @@
+[
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-07-27|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-07-27|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-07-27|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-07-28|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-07-28|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-07-28|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-07-29|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-07-29|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-07-29|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-07-30|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-07-30|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-07-30|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-07-31|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-07-31|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-07-31|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-01|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-01|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-01|6|median",
+    "model": "v3",
+    "numeric_category": "up",
+    "rounding_difference": "0.0000",
+    "saved_category": "up"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-02|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-02|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-02|6|median",
+    "model": "v3",
+    "numeric_category": "up",
+    "rounding_difference": "0.0000",
+    "saved_category": "up"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-03|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-03|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-03|6|median",
+    "model": "v3",
+    "numeric_category": "up",
+    "rounding_difference": "0.0000",
+    "saved_category": "up"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-04|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-04|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-04|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-05|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-05|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-05|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-06|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-06|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-06|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-07|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-07|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-07|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-08|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-08|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-08|6|median",
+    "model": "v3",
+    "numeric_category": "down",
+    "rounding_difference": "0.0000",
+    "saved_category": "down"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-09|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-09|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-09|6|median",
+    "model": "v3",
+    "numeric_category": "down",
+    "rounding_difference": "0.0000",
+    "saved_category": "down"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-10|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-10|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-10|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-11|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-11|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-11|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-12|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-12|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-12|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-13|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-13|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-13|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-14|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-14|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "full57",
+    "disagreement": false,
+    "id": "2026-08-14|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-27|12|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-27|24|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-27|6|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-28|12|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-28|24|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-28|6|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-29|12|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-29|24|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-29|6|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-30|12|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-30|24|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-30|6|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-31|12|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-31|24|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-31|6|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-01|12|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-01|24|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-01|6|median",
+    "model": "v2",
+    "numeric_category": "up",
+    "rounding_difference": "0.0000",
+    "saved_category": "up"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-05|12|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-05|24|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-05|6|median",
+    "model": "v2",
+    "numeric_category": "up",
+    "rounding_difference": "0.0000",
+    "saved_category": "up"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-06|12|median",
+    "model": "v2",
+    "numeric_category": "down",
+    "rounding_difference": "0.0000",
+    "saved_category": "down"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-06|24|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-06|6|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-07|12|median",
+    "model": "v2",
+    "numeric_category": "down",
+    "rounding_difference": "0.0000",
+    "saved_category": "down"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-07|24|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-07|6|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-08|12|median",
+    "model": "v2",
+    "numeric_category": "down",
+    "rounding_difference": "0.0000",
+    "saved_category": "down"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-08|24|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-08|6|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-09|12|median",
+    "model": "v2",
+    "numeric_category": "down",
+    "rounding_difference": "0.0000",
+    "saved_category": "down"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-09|24|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-09|6|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-10|12|median",
+    "model": "v2",
+    "numeric_category": "down",
+    "rounding_difference": "0.0000",
+    "saved_category": "down"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-10|24|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-10|6|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-11|12|median",
+    "model": "v2",
+    "numeric_category": "down",
+    "rounding_difference": "0.0000",
+    "saved_category": "down"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-11|24|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-11|6|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-12|12|median",
+    "model": "v2",
+    "numeric_category": "down",
+    "rounding_difference": "0.0000",
+    "saved_category": "down"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-12|24|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-12|6|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-13|12|median",
+    "model": "v2",
+    "numeric_category": "down",
+    "rounding_difference": "0.0000",
+    "saved_category": "down"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-13|24|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-13|6|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-14|12|median",
+    "model": "v2",
+    "numeric_category": "down",
+    "rounding_difference": "0.0000",
+    "saved_category": "down"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-14|24|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-14|6|median",
+    "model": "v2",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-27|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-27|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-27|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-28|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-28|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-28|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-29|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-29|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-29|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-30|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-30|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-30|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-31|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-31|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-07-31|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-01|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-01|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-01|6|median",
+    "model": "v3",
+    "numeric_category": "up",
+    "rounding_difference": "0.0000",
+    "saved_category": "up"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-05|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-05|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-05|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-06|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-06|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-06|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-07|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-07|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-07|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-08|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-08|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-08|6|median",
+    "model": "v3",
+    "numeric_category": "down",
+    "rounding_difference": "0.0000",
+    "saved_category": "down"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-09|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-09|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-09|6|median",
+    "model": "v3",
+    "numeric_category": "down",
+    "rounding_difference": "0.0000",
+    "saved_category": "down"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-10|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-10|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-10|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-11|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-11|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-11|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-12|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-12|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-12|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-13|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-13|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-13|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-14|12|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-14|24|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  },
+  {
+    "cohort": "matched48",
+    "disagreement": false,
+    "id": "2026-08-14|6|median",
+    "model": "v3",
+    "numeric_category": "flat",
+    "rounding_difference": "0.0000",
+    "saved_category": "flat"
+  }
+]

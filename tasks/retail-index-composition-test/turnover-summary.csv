@@ -1,0 +1,7 @@
+basis,term,adjacent_days,supplier_entries_count,supplier_entries_days,supplier_exits_count,supplier_exits_days,contract_entries_count,contract_entries_days,contract_exits_count,contract_exits_days
+observed_seller_data,6,109,4,4,12,8,104,64,111,64
+observed_seller_data,12,109,1,1,4,3,173,69,175,69
+observed_seller_data,24,109,4,4,6,6,193,80,195,80
+canonical_calculation,6,48,10,6,13,8,42,23,46,26
+canonical_calculation,12,48,20,9,21,11,91,27,94,30
+canonical_calculation,24,48,22,11,22,10,96,31,97,33

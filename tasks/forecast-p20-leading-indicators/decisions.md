@@ -1,0 +1,19 @@
+# Decisions
+
+- The spec is frozen before new metrics. Both pooled primary and independent per-term sensitivity fits are required. Rolling origins repeat the same bounded model definitions; they are not extra model candidates.
+- Omit the optional repaired gap model. Its warmup would impose an unrelated cohort restriction. The native quantile/rolling-H intersection defines primary A and B support.
+- Fixed basket is A-only and has its own matched-control cohort. No result can replace the primary rolling-H feature.
+- Preserve all pre-existing working-tree changes. Use only this new folder; do not run any previous artifact writer.
+
+## Completion
+
+- Frozen spec SHA256: `712814c51eed296cb8edb5e51588827bd51759d9c5c92b45274cbb1a1c8cd0f6`. The first source pin was made before metrics; retain it as `initial-source-hashes.json`. After the first successful run, add result interpretation and extra synthetic/identity checks only. The analysis script and frozen specification remain unchanged. Final source hashes are refreshed before the final two-run verification.
+- All 477 owned vectors are finite and ordered. Scope counts match the pinned export: 2,239 futures and 1,314 stored forecasts. No raw offer-level quantile distribution is reconstructed; supplied unit-statistic quantile fields and their exact arithmetic/IDs are verified.
+- Native and fixed-basket cohorts match exactly. Frozen observed training has 72 issue days/216 rows at 30 days, 88 days/264 rows at 14. Training starts April 16, three days before the previous gap-gated experiment. This explains changed median/intercept coefficients without changing a target or adding a bridge.
+- Canonical test remains 12 days/36 term rows at 30 days and 28/84 at 14. Older observed rolling has 22/66 and 54/162. Canonical rolling has at most 0/13 prior training days for the respective horizons and stays unavailable.
+- A primary pooled rolling MAE skill for p20/median/p80 is +34.2%/+28.4%/+15.7% versus each target's unchanged baseline. Rolling minus history is -0.0345/-0.0422/-0.0697 c/kWh. P20 has the most consistent pooled baseline gains across horizons/regimes, not the largest isolated futures increment. Primary pooled p20 12/24-month errors lose to intercept. Independent per-term p20 rolling loses to aggregate intercept by 0.0294; no term model is selected.
+- B primary pooled p20-change reduces median MAE by 0.0559 versus history and 0.0605 versus intercept. Combined adds a further 0.0557 reduction versus p20. The gain mainly comes from six months, and all these models merely match always-UP direction (27/36). P20-change loses to per-term primary history by 0.0149, older observed pooled 30-day history by 0.0049, and history in all 14-day contexts. Spread has mixed results; it is not a stable leading indicator.
+- The full fixed definitions produce 8,112 fit instances because rolling origins repeat every fit and the fixed-basket cohort refits its controls. This is not 8,112 feature candidates or a search. All were specified before metrics; no result picks a winner.
+- Independent verification covers 600 raw pairs, 432 features, 954 daily-expanded baskets, 477 retained verified zero-lag H comparisons, all 8,112 normal-equation fits, 32,712 predictions, 1,504 metric groups and 19 synthetic guards. There are zero raw-versus-four-decimal model-class disagreements.
+- Final two-run reproduction passes 24 byte-identical artifacts and 171 unchanged pinned inputs. `reproduction.log` and `reproducibility.json` retain evidence. No app tests or build run because the application and assets are untouched. No production lookup/action, DB, dependency, previous-artifact edit, commit or push occurred.
+- Suggested small next step, not started: repeat the same frozen offline comparisons on the next separately supplied local export with matured targets. No automatic adoption or archive collector is needed.

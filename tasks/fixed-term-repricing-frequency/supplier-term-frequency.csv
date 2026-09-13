@@ -1,0 +1,462 @@
+panel,supplier,term,basis,series,series_at_least_two_dates,series_no_observed_change,no_change_multi_date_series,observed_dates,adjacent_pairs,adjacent_energy_changes,gap_bounded_energy_changes,adjacent_fee_comparable_pairs,adjacent_fee_changes,adjacent_discount_flag_changes,energy_changes_discount_at_either,spells,left_censored,right_censored,completed_intervals,interval_p25,interval_median,interval_p75,interval_p90,observed_constant_days_median
+same_id,ALL,ALL,ALL,851,821,850,820,11608,10757,1,0,10757,6,0,1,852,851,851,0,,,,,8.0
+same_id,Aalto energia Oyj,12,observed_seller_data,1,1,1,1,56,55,0,0,55,0,0,0,1,1,1,0,,,,,56.0
+same_id,Aalto energia Oyj,24,observed_seller_data,1,1,1,1,56,55,0,0,55,0,0,0,1,1,1,0,,,,,56.0
+same_id,Alajärven Sähkö Oy,12,canonical_calculation,2,2,2,2,49,47,0,0,47,0,0,0,2,2,2,0,,,,,24.5
+same_id,Alajärven Sähkö Oy,12,observed_seller_data,2,2,2,2,110,108,0,0,108,0,0,0,2,2,2,0,,,,,55.0
+same_id,Alajärven Sähkö Oy,24,canonical_calculation,2,2,2,2,49,47,0,0,47,0,0,0,2,2,2,0,,,,,24.5
+same_id,Alajärven Sähkö Oy,24,observed_seller_data,3,3,3,3,110,107,0,0,107,0,0,0,3,3,3,0,,,,,50.0
+same_id,Cheap Energy Finland Oy,6,canonical_calculation,2,1,2,1,3,1,0,0,1,0,0,0,2,2,2,0,,,,,1.5
+same_id,Cheap Energy Finland Oy,6,observed_seller_data,6,6,6,6,108,102,0,0,102,0,0,0,6,6,6,0,,,,,18.0
+same_id,Cheap Energy Finland Oy,12,canonical_calculation,1,1,1,1,9,8,0,0,8,0,0,0,1,1,1,0,,,,,9.0
+same_id,Cheap Energy Finland Oy,24,canonical_calculation,4,4,4,4,51,47,0,0,47,0,0,0,4,4,4,0,,,,,9.0
+same_id,Cheap Energy Finland Oy,24,observed_seller_data,9,9,9,9,111,102,0,0,102,0,0,0,9,9,9,0,,,,,11.0
+same_id,Fortum Markets Oy,24,canonical_calculation,1,1,1,1,49,48,0,0,48,0,0,0,1,1,1,0,,,,,49.0
+same_id,Fortum Markets Oy,24,observed_seller_data,8,8,8,8,75,67,0,0,67,0,0,0,8,8,8,0,,,,,7.0
+same_id,Hehku Energia Oy,6,canonical_calculation,1,0,1,0,1,0,0,0,0,0,0,0,1,1,1,0,,,,,1.0
+same_id,Hehku Energia Oy,6,observed_seller_data,7,7,6,6,104,97,1,0,97,0,0,1,8,7,7,0,,,,,7.5
+same_id,Hehku Energia Oy,12,canonical_calculation,8,8,8,8,96,88,0,0,88,0,0,0,8,8,8,0,,,,,8.0
+same_id,Hehku Energia Oy,12,observed_seller_data,8,8,8,8,220,212,0,0,212,0,0,0,8,8,8,0,,,,,18.0
+same_id,Hehku Energia Oy,24,canonical_calculation,5,5,5,5,96,91,0,0,91,0,0,0,5,5,5,0,,,,,7.0
+same_id,Hehku Energia Oy,24,observed_seller_data,14,14,14,14,221,207,0,0,207,0,0,0,14,14,14,0,,,,,11.5
+same_id,Helen Oy,6,canonical_calculation,9,8,9,8,47,38,0,0,38,0,0,0,9,9,9,0,,,,,6.0
+same_id,Helen Oy,6,observed_seller_data,16,16,16,16,110,94,0,0,94,0,0,0,16,16,16,0,,,,,7.0
+same_id,Helen Oy,12,canonical_calculation,9,8,9,8,47,38,0,0,38,0,0,0,9,9,9,0,,,,,6.0
+same_id,Helen Oy,12,observed_seller_data,14,14,14,14,110,96,0,0,96,0,0,0,14,14,14,0,,,,,7.0
+same_id,Helen Oy,24,canonical_calculation,8,7,8,7,47,39,0,0,39,0,0,0,8,8,8,0,,,,,6.0
+same_id,Helen Oy,24,observed_seller_data,15,15,15,15,110,95,0,0,95,0,0,0,15,15,15,0,,,,,7.0
+same_id,Imatran Seudun Sähkö Oy,6,canonical_calculation,10,9,10,9,47,37,0,0,37,0,0,0,10,10,10,0,,,,,4.5
+same_id,Imatran Seudun Sähkö Oy,6,observed_seller_data,9,9,9,9,110,101,0,0,101,0,0,0,9,9,9,0,,,,,9.0
+same_id,Imatran Seudun Sähkö Oy,12,canonical_calculation,7,6,7,6,48,41,0,0,41,0,0,0,7,7,7,0,,,,,8.0
+same_id,Imatran Seudun Sähkö Oy,12,observed_seller_data,11,10,11,10,110,99,0,0,99,0,0,0,11,11,11,0,,,,,9.0
+same_id,Imatran Seudun Sähkö Oy,24,canonical_calculation,10,8,10,8,47,37,0,0,37,0,0,0,10,10,10,0,,,,,3.5
+same_id,Imatran Seudun Sähkö Oy,24,observed_seller_data,11,10,11,10,114,103,0,0,103,0,0,0,11,11,11,0,,,,,7.0
+same_id,Keravan Energia Oy,6,canonical_calculation,6,6,6,6,48,42,0,0,42,0,0,0,6,6,6,0,,,,,4.0
+same_id,Keravan Energia Oy,6,observed_seller_data,9,9,9,9,110,101,0,0,101,0,0,0,9,9,9,0,,,,,7.0
+same_id,Keravan Energia Oy,12,canonical_calculation,11,11,11,11,97,86,0,0,86,0,0,0,11,11,11,0,,,,,6.0
+same_id,Keravan Energia Oy,12,observed_seller_data,14,14,14,14,296,282,0,0,282,0,0,0,14,14,14,0,,,,,17.5
+same_id,Keravan Energia Oy,24,canonical_calculation,16,16,16,16,94,78,0,0,78,0,0,0,16,16,16,0,,,,,2.5
+same_id,Keravan Energia Oy,24,observed_seller_data,11,11,11,11,220,209,0,0,209,0,0,0,11,11,11,0,,,,,23.0
+same_id,Koillis-Satakunnan Sähkö Oy,12,canonical_calculation,8,6,8,6,94,86,0,0,86,0,0,0,8,8,8,0,,,,,9.0
+same_id,Koillis-Satakunnan Sähkö Oy,12,observed_seller_data,8,8,8,8,220,212,0,0,212,0,0,0,8,8,8,0,,,,,24.0
+same_id,Koillis-Satakunnan Sähkö Oy,24,canonical_calculation,4,3,4,3,46,42,0,0,42,0,0,0,4,4,4,0,,,,,8.5
+same_id,Koillis-Satakunnan Sähkö Oy,24,observed_seller_data,5,5,5,5,110,105,0,0,105,0,0,0,5,5,5,0,,,,,14.0
+same_id,Kokkolan Energia Oy,6,canonical_calculation,8,8,8,8,49,41,0,0,41,0,0,0,8,8,8,0,,,,,6.0
+same_id,Kokkolan Energia Oy,6,observed_seller_data,9,9,9,9,191,182,0,0,182,0,0,0,9,9,9,0,,,,,16.0
+same_id,Kokkolan Energia Oy,12,canonical_calculation,5,5,5,5,49,44,0,0,44,0,0,0,5,5,5,0,,,,,6.0
+same_id,Kokkolan Energia Oy,12,observed_seller_data,4,4,4,4,110,106,0,0,106,0,0,0,4,4,4,0,,,,,21.5
+same_id,Kokkolan Energia Oy,24,canonical_calculation,5,5,5,5,49,44,0,0,44,0,0,0,5,5,5,0,,,,,4.0
+same_id,Kokkolan Energia Oy,24,observed_seller_data,6,6,6,6,110,104,0,0,104,0,0,0,6,6,6,0,,,,,17.0
+same_id,Korpelan Energia Oy,12,canonical_calculation,4,4,4,4,47,43,0,0,43,0,0,0,4,4,4,0,,,,,7.5
+same_id,Korpelan Energia Oy,12,observed_seller_data,5,5,5,5,110,105,0,0,105,0,0,0,5,5,5,0,,,,,15.0
+same_id,Korpelan Energia Oy,24,canonical_calculation,2,2,2,2,12,10,0,0,10,0,0,0,2,2,2,0,,,,,6.0
+same_id,Köyliön-Säkylän Sähkö Oy,12,canonical_calculation,3,3,3,3,49,46,0,0,46,0,0,0,3,3,3,0,,,,,12.0
+same_id,Köyliön-Säkylän Sähkö Oy,12,observed_seller_data,3,3,3,3,111,108,0,0,108,0,0,0,3,3,3,0,,,,,10.0
+same_id,Köyliön-Säkylän Sähkö Oy,24,canonical_calculation,3,3,3,3,49,46,0,0,46,0,0,0,3,3,3,0,,,,,12.0
+same_id,Köyliön-Säkylän Sähkö Oy,24,observed_seller_data,3,3,3,3,110,107,0,0,107,0,0,0,3,3,3,0,,,,,9.0
+same_id,Lammaisten Energia Oy,6,observed_seller_data,1,1,1,1,27,26,0,0,26,0,0,0,1,1,1,0,,,,,27.0
+same_id,Lammaisten Energia Oy,12,canonical_calculation,3,3,3,3,48,45,0,0,45,0,0,0,3,3,3,0,,,,,4.0
+same_id,Lammaisten Energia Oy,12,observed_seller_data,3,3,3,3,110,107,0,0,107,0,0,0,3,3,3,0,,,,,27.0
+same_id,Lammaisten Energia Oy,24,canonical_calculation,3,3,3,3,48,45,0,0,45,0,0,0,3,3,3,0,,,,,4.0
+same_id,Lammaisten Energia Oy,24,observed_seller_data,2,2,2,2,110,108,0,0,108,0,0,0,2,2,2,0,,,,,55.0
+same_id,Lumme Energia,6,observed_seller_data,14,11,14,11,86,72,0,0,72,0,0,0,14,14,14,0,,,,,7.0
+same_id,Lumme Energia,12,canonical_calculation,3,3,3,3,22,19,0,0,19,0,0,0,3,3,3,0,,,,,7.0
+same_id,Lumme Energia,12,observed_seller_data,14,14,14,14,110,96,0,0,96,0,0,0,14,14,14,0,,,,,7.0
+same_id,Lumme Energia,24,canonical_calculation,4,4,4,4,21,17,0,0,17,0,0,0,4,4,4,0,,,,,5.5
+same_id,Lumme Energia,24,observed_seller_data,17,16,17,16,110,93,0,0,93,0,0,0,17,17,17,0,,,,,7.0
+same_id,Nurmijärven Sähkö Oy,12,canonical_calculation,2,2,2,2,49,47,0,0,47,0,0,0,2,2,2,0,,,,,24.5
+same_id,Nurmijärven Sähkö Oy,12,observed_seller_data,2,2,2,2,110,108,0,0,108,0,0,0,2,2,2,0,,,,,55.0
+same_id,Nurmijärven Sähkö Oy,24,canonical_calculation,2,2,2,2,49,47,0,0,47,0,0,0,2,2,2,0,,,,,24.5
+same_id,Nurmijärven Sähkö Oy,24,observed_seller_data,2,2,2,2,110,108,0,0,108,0,0,0,2,2,2,0,,,,,55.0
+same_id,Omavoima Oy,12,canonical_calculation,4,3,4,3,48,44,0,0,44,0,0,0,4,4,4,0,,,,,9.5
+same_id,Omavoima Oy,12,observed_seller_data,3,3,3,3,110,107,0,0,107,0,0,0,3,3,3,0,,,,,42.0
+same_id,Omavoima Oy,24,canonical_calculation,3,2,3,2,48,45,0,0,45,0,0,0,3,3,3,0,,,,,10.0
+same_id,Omavoima Oy,24,observed_seller_data,3,3,3,3,110,107,0,0,107,0,0,0,3,3,3,0,,,,,42.0
+same_id,Oomi Oy,6,observed_seller_data,9,9,9,9,77,68,0,0,68,0,0,0,9,9,9,0,,,,,7.0
+same_id,Oomi Oy,12,canonical_calculation,5,5,5,5,49,44,0,0,44,0,0,0,5,5,5,0,,,,,7.0
+same_id,Oomi Oy,12,observed_seller_data,13,13,13,13,109,96,0,0,96,0,0,0,13,13,13,0,,,,,7.0
+same_id,Oomi Oy,24,canonical_calculation,6,6,6,6,48,42,0,0,42,0,0,0,6,6,6,0,,,,,6.5
+same_id,Oomi Oy,24,observed_seller_data,15,15,15,15,109,94,0,0,94,0,0,0,15,15,15,0,,,,,7.0
+same_id,Paneliankosken Voima Oy,12,canonical_calculation,3,3,3,3,46,43,0,0,43,0,0,0,3,3,3,0,,,,,20.0
+same_id,Paneliankosken Voima Oy,12,observed_seller_data,4,4,4,4,110,106,0,0,106,0,0,0,4,4,4,0,,,,,21.5
+same_id,Paneliankosken Voima Oy,24,canonical_calculation,3,3,3,3,47,44,0,0,44,0,0,0,3,3,3,0,,,,,20.0
+same_id,Paneliankosken Voima Oy,24,observed_seller_data,5,5,5,5,110,105,0,0,105,0,0,0,5,5,5,0,,,,,22.0
+same_id,Pohjois-Karjalan Sähkö Oy,6,canonical_calculation,4,4,4,4,52,48,0,0,48,0,0,0,4,4,4,0,,,,,11.5
+same_id,Pohjois-Karjalan Sähkö Oy,6,observed_seller_data,4,4,4,4,129,125,0,0,125,0,0,0,4,4,4,0,,,,,29.0
+same_id,Pohjois-Karjalan Sähkö Oy,12,canonical_calculation,3,3,3,3,52,49,0,0,49,0,0,0,3,3,3,0,,,,,17.0
+same_id,Pohjois-Karjalan Sähkö Oy,12,observed_seller_data,4,4,4,4,112,108,0,0,108,0,0,0,4,4,4,0,,,,,29.0
+same_id,Pohjois-Karjalan Sähkö Oy,24,canonical_calculation,2,2,2,2,49,47,0,0,47,0,0,0,2,2,2,0,,,,,24.5
+same_id,Pohjois-Karjalan Sähkö Oy,24,observed_seller_data,3,3,3,3,111,108,0,0,108,0,0,0,3,3,3,0,,,,,28.0
+same_id,Porvoon Energia Oy,6,observed_seller_data,4,4,4,4,70,66,0,0,66,0,0,0,4,4,4,0,,,,,20.0
+same_id,Porvoon Energia Oy,12,canonical_calculation,12,12,12,12,147,135,0,0,135,0,0,0,12,12,12,0,,,,,6.0
+same_id,Porvoon Energia Oy,12,observed_seller_data,33,33,33,33,330,297,0,0,297,0,0,0,33,33,33,0,,,,,7.0
+same_id,Porvoon Energia Oy,24,canonical_calculation,12,12,12,12,155,143,0,0,143,0,0,0,12,12,12,0,,,,,4.0
+same_id,Porvoon Energia Oy,24,observed_seller_data,29,29,29,29,330,301,0,0,301,0,0,0,29,29,29,0,,,,,10.0
+same_id,Sähkötytöt Oy,6,observed_seller_data,1,1,1,1,42,41,0,0,41,0,0,0,1,1,1,0,,,,,42.0
+same_id,Sähkötytöt Oy,12,observed_seller_data,1,1,1,1,56,55,0,0,55,0,0,0,1,1,1,0,,,,,56.0
+same_id,Sähkötytöt Oy,24,observed_seller_data,1,1,1,1,51,50,0,0,50,0,0,0,1,1,1,0,,,,,51.0
+same_id,Turku Energia Oy,6,canonical_calculation,5,4,5,4,48,43,0,0,43,0,0,0,5,5,5,0,,,,,13.0
+same_id,Turku Energia Oy,6,observed_seller_data,6,6,6,6,104,98,0,0,98,0,0,0,6,6,6,0,,,,,14.5
+same_id,Turku Energia Oy,12,canonical_calculation,5,4,5,4,48,43,0,0,43,0,0,0,5,5,5,0,,,,,9.0
+same_id,Turku Energia Oy,12,observed_seller_data,5,5,5,5,110,105,0,0,105,0,0,0,5,5,5,0,,,,,15.0
+same_id,Turku Energia Oy,24,canonical_calculation,6,5,6,5,50,44,0,0,44,0,0,0,6,6,6,0,,,,,9.0
+same_id,Turku Energia Oy,24,observed_seller_data,5,5,5,5,76,71,0,0,71,0,0,0,5,5,5,0,,,,,17.0
+same_id,Vaasan Sähkö Myynti Oy,6,canonical_calculation,4,4,4,4,48,44,0,0,44,0,0,0,4,4,4,0,,,,,11.0
+same_id,Vaasan Sähkö Myynti Oy,6,observed_seller_data,10,10,10,10,110,100,0,0,100,0,0,0,10,10,10,0,,,,,9.5
+same_id,Vaasan Sähkö Myynti Oy,12,canonical_calculation,3,3,3,3,28,25,0,0,25,0,0,0,3,3,3,0,,,,,7.0
+same_id,Vaasan Sähkö Myynti Oy,12,observed_seller_data,14,14,14,14,110,96,0,0,96,0,0,0,14,14,14,0,,,,,7.0
+same_id,Vaasan Sähkö Myynti Oy,24,canonical_calculation,4,4,4,4,48,44,0,0,44,0,0,0,4,4,4,0,,,,,11.0
+same_id,Vaasan Sähkö Myynti Oy,24,observed_seller_data,12,12,12,12,110,98,0,0,98,0,0,0,12,12,12,0,,,,,7.0
+same_id,Vattenfall Oy,6,canonical_calculation,1,1,1,1,11,10,0,0,10,0,0,0,1,1,1,0,,,,,11.0
+same_id,Vattenfall Oy,6,observed_seller_data,6,6,6,6,100,94,0,0,94,0,0,0,6,6,6,0,,,,,17.5
+same_id,Vattenfall Oy,12,canonical_calculation,15,15,15,15,123,108,0,0,108,0,0,0,15,15,15,0,,,,,4.0
+same_id,Vattenfall Oy,12,observed_seller_data,22,20,22,20,329,307,0,0,307,4,0,0,22,22,22,0,,,,,14.5
+same_id,Vattenfall Oy,24,canonical_calculation,15,15,15,15,141,126,0,0,126,0,0,0,15,15,15,0,,,,,9.0
+same_id,Vattenfall Oy,24,observed_seller_data,30,28,30,28,331,301,0,0,301,2,0,0,30,30,30,0,,,,,11.5
+same_id,Vihreä Älyenergia Oy,12,canonical_calculation,3,3,3,3,60,57,0,0,57,0,0,0,3,3,3,0,,,,,11.0
+same_id,Vihreä Älyenergia Oy,12,observed_seller_data,10,10,10,10,222,212,0,0,212,0,0,0,10,10,10,0,,,,,7.0
+same_id,Vihreä Älyenergia Oy,24,canonical_calculation,3,3,3,3,60,57,0,0,57,0,0,0,3,3,3,0,,,,,11.0
+same_id,Vihreä Älyenergia Oy,24,observed_seller_data,8,8,8,8,220,212,0,0,212,0,0,0,8,8,8,0,,,,,15.0
+same_id,Väre Oy,6,observed_seller_data,3,2,3,2,15,12,0,0,12,0,0,0,3,3,3,0,,,,,6.0
+same_id,Väre Oy,12,observed_seller_data,3,2,3,2,15,12,0,0,12,0,0,0,3,3,3,0,,,,,6.0
+same_id,Väre Oy,24,observed_seller_data,3,2,3,2,15,12,0,0,12,0,0,0,3,3,3,0,,,,,6.0
+same_id,Äänekosken Energia Oy,6,canonical_calculation,3,3,3,3,32,29,0,0,29,0,0,0,3,3,3,0,,,,,10.0
+same_id,Äänekosken Energia Oy,6,observed_seller_data,6,6,6,6,110,104,0,0,104,0,0,0,6,6,6,0,,,,,20.0
+same_id,Äänekosken Energia Oy,12,canonical_calculation,3,3,3,3,47,44,0,0,44,0,0,0,3,3,3,0,,,,,4.0
+same_id,Äänekosken Energia Oy,12,observed_seller_data,5,5,5,5,110,105,0,0,105,0,0,0,5,5,5,0,,,,,12.0
+same_id,Äänekosken Energia Oy,24,canonical_calculation,3,3,3,3,48,45,0,0,45,0,0,0,3,3,3,0,,,,,10.0
+same_id,Äänekosken Energia Oy,24,observed_seller_data,3,3,3,3,110,107,0,0,107,0,0,0,3,3,3,0,,,,,40.0
+same_id_no_discount,ALL,ALL,ALL,677,654,677,654,9174,8497,0,0,8497,6,0,0,677,677,677,0,,,,,7.0
+same_id_no_discount,Alajärven Sähkö Oy,12,canonical_calculation,2,2,2,2,49,47,0,0,47,0,0,0,2,2,2,0,,,,,24.5
+same_id_no_discount,Alajärven Sähkö Oy,12,observed_seller_data,2,2,2,2,110,108,0,0,108,0,0,0,2,2,2,0,,,,,55.0
+same_id_no_discount,Alajärven Sähkö Oy,24,canonical_calculation,2,2,2,2,49,47,0,0,47,0,0,0,2,2,2,0,,,,,24.5
+same_id_no_discount,Alajärven Sähkö Oy,24,observed_seller_data,3,3,3,3,110,107,0,0,107,0,0,0,3,3,3,0,,,,,50.0
+same_id_no_discount,Cheap Energy Finland Oy,6,observed_seller_data,2,2,2,2,33,31,0,0,31,0,0,0,2,2,2,0,,,,,16.5
+same_id_no_discount,Cheap Energy Finland Oy,12,canonical_calculation,1,1,1,1,9,8,0,0,8,0,0,0,1,1,1,0,,,,,9.0
+same_id_no_discount,Cheap Energy Finland Oy,24,canonical_calculation,1,1,1,1,5,4,0,0,4,0,0,0,1,1,1,0,,,,,5.0
+same_id_no_discount,Fortum Markets Oy,24,canonical_calculation,1,1,1,1,49,48,0,0,48,0,0,0,1,1,1,0,,,,,49.0
+same_id_no_discount,Fortum Markets Oy,24,observed_seller_data,8,8,8,8,75,67,0,0,67,0,0,0,8,8,8,0,,,,,7.0
+same_id_no_discount,Hehku Energia Oy,6,observed_seller_data,5,5,5,5,63,58,0,0,58,0,0,0,5,5,5,0,,,,,9.0
+same_id_no_discount,Hehku Energia Oy,24,canonical_calculation,1,1,1,1,5,4,0,0,4,0,0,0,1,1,1,0,,,,,5.0
+same_id_no_discount,Helen Oy,6,canonical_calculation,9,8,9,8,47,38,0,0,38,0,0,0,9,9,9,0,,,,,6.0
+same_id_no_discount,Helen Oy,6,observed_seller_data,16,16,16,16,110,94,0,0,94,0,0,0,16,16,16,0,,,,,7.0
+same_id_no_discount,Helen Oy,12,canonical_calculation,9,8,9,8,47,38,0,0,38,0,0,0,9,9,9,0,,,,,6.0
+same_id_no_discount,Helen Oy,12,observed_seller_data,14,14,14,14,110,96,0,0,96,0,0,0,14,14,14,0,,,,,7.0
+same_id_no_discount,Helen Oy,24,canonical_calculation,8,7,8,7,47,39,0,0,39,0,0,0,8,8,8,0,,,,,6.0
+same_id_no_discount,Helen Oy,24,observed_seller_data,15,15,15,15,110,95,0,0,95,0,0,0,15,15,15,0,,,,,7.0
+same_id_no_discount,Imatran Seudun Sähkö Oy,6,canonical_calculation,10,9,10,9,47,37,0,0,37,0,0,0,10,10,10,0,,,,,4.5
+same_id_no_discount,Imatran Seudun Sähkö Oy,6,observed_seller_data,9,9,9,9,110,101,0,0,101,0,0,0,9,9,9,0,,,,,9.0
+same_id_no_discount,Imatran Seudun Sähkö Oy,12,canonical_calculation,7,6,7,6,48,41,0,0,41,0,0,0,7,7,7,0,,,,,8.0
+same_id_no_discount,Imatran Seudun Sähkö Oy,12,observed_seller_data,11,10,11,10,110,99,0,0,99,0,0,0,11,11,11,0,,,,,9.0
+same_id_no_discount,Imatran Seudun Sähkö Oy,24,canonical_calculation,10,8,10,8,47,37,0,0,37,0,0,0,10,10,10,0,,,,,3.5
+same_id_no_discount,Imatran Seudun Sähkö Oy,24,observed_seller_data,11,10,11,10,114,103,0,0,103,0,0,0,11,11,11,0,,,,,7.0
+same_id_no_discount,Keravan Energia Oy,6,canonical_calculation,6,6,6,6,48,42,0,0,42,0,0,0,6,6,6,0,,,,,4.0
+same_id_no_discount,Keravan Energia Oy,6,observed_seller_data,9,9,9,9,110,101,0,0,101,0,0,0,9,9,9,0,,,,,7.0
+same_id_no_discount,Keravan Energia Oy,12,canonical_calculation,11,11,11,11,97,86,0,0,86,0,0,0,11,11,11,0,,,,,6.0
+same_id_no_discount,Keravan Energia Oy,12,observed_seller_data,14,14,14,14,296,282,0,0,282,0,0,0,14,14,14,0,,,,,17.5
+same_id_no_discount,Keravan Energia Oy,24,canonical_calculation,16,16,16,16,94,78,0,0,78,0,0,0,16,16,16,0,,,,,2.5
+same_id_no_discount,Keravan Energia Oy,24,observed_seller_data,11,11,11,11,220,209,0,0,209,0,0,0,11,11,11,0,,,,,23.0
+same_id_no_discount,Kokkolan Energia Oy,6,canonical_calculation,8,8,8,8,49,41,0,0,41,0,0,0,8,8,8,0,,,,,6.0
+same_id_no_discount,Kokkolan Energia Oy,6,observed_seller_data,9,9,9,9,191,182,0,0,182,0,0,0,9,9,9,0,,,,,16.0
+same_id_no_discount,Kokkolan Energia Oy,12,canonical_calculation,5,5,5,5,49,44,0,0,44,0,0,0,5,5,5,0,,,,,6.0
+same_id_no_discount,Kokkolan Energia Oy,12,observed_seller_data,4,4,4,4,110,106,0,0,106,0,0,0,4,4,4,0,,,,,21.5
+same_id_no_discount,Kokkolan Energia Oy,24,canonical_calculation,5,5,5,5,49,44,0,0,44,0,0,0,5,5,5,0,,,,,4.0
+same_id_no_discount,Kokkolan Energia Oy,24,observed_seller_data,6,6,6,6,110,104,0,0,104,0,0,0,6,6,6,0,,,,,17.0
+same_id_no_discount,Korpelan Energia Oy,12,canonical_calculation,4,4,4,4,47,43,0,0,43,0,0,0,4,4,4,0,,,,,7.5
+same_id_no_discount,Korpelan Energia Oy,12,observed_seller_data,5,5,5,5,110,105,0,0,105,0,0,0,5,5,5,0,,,,,15.0
+same_id_no_discount,Korpelan Energia Oy,24,canonical_calculation,2,2,2,2,12,10,0,0,10,0,0,0,2,2,2,0,,,,,6.0
+same_id_no_discount,Köyliön-Säkylän Sähkö Oy,12,canonical_calculation,3,3,3,3,49,46,0,0,46,0,0,0,3,3,3,0,,,,,12.0
+same_id_no_discount,Köyliön-Säkylän Sähkö Oy,12,observed_seller_data,3,3,3,3,111,108,0,0,108,0,0,0,3,3,3,0,,,,,10.0
+same_id_no_discount,Köyliön-Säkylän Sähkö Oy,24,canonical_calculation,3,3,3,3,49,46,0,0,46,0,0,0,3,3,3,0,,,,,12.0
+same_id_no_discount,Köyliön-Säkylän Sähkö Oy,24,observed_seller_data,3,3,3,3,110,107,0,0,107,0,0,0,3,3,3,0,,,,,9.0
+same_id_no_discount,Lammaisten Energia Oy,6,observed_seller_data,1,1,1,1,27,26,0,0,26,0,0,0,1,1,1,0,,,,,27.0
+same_id_no_discount,Lammaisten Energia Oy,12,canonical_calculation,3,3,3,3,48,45,0,0,45,0,0,0,3,3,3,0,,,,,4.0
+same_id_no_discount,Lammaisten Energia Oy,12,observed_seller_data,3,3,3,3,110,107,0,0,107,0,0,0,3,3,3,0,,,,,27.0
+same_id_no_discount,Lammaisten Energia Oy,24,canonical_calculation,3,3,3,3,48,45,0,0,45,0,0,0,3,3,3,0,,,,,4.0
+same_id_no_discount,Lammaisten Energia Oy,24,observed_seller_data,2,2,2,2,110,108,0,0,108,0,0,0,2,2,2,0,,,,,55.0
+same_id_no_discount,Lumme Energia,6,observed_seller_data,14,11,14,11,86,72,0,0,72,0,0,0,14,14,14,0,,,,,7.0
+same_id_no_discount,Lumme Energia,12,canonical_calculation,3,3,3,3,22,19,0,0,19,0,0,0,3,3,3,0,,,,,7.0
+same_id_no_discount,Lumme Energia,12,observed_seller_data,14,14,14,14,110,96,0,0,96,0,0,0,14,14,14,0,,,,,7.0
+same_id_no_discount,Lumme Energia,24,canonical_calculation,1,1,1,1,3,2,0,0,2,0,0,0,1,1,1,0,,,,,3.0
+same_id_no_discount,Lumme Energia,24,observed_seller_data,13,13,13,13,92,79,0,0,79,0,0,0,13,13,13,0,,,,,7.0
+same_id_no_discount,Nurmijärven Sähkö Oy,12,canonical_calculation,2,2,2,2,49,47,0,0,47,0,0,0,2,2,2,0,,,,,24.5
+same_id_no_discount,Nurmijärven Sähkö Oy,12,observed_seller_data,2,2,2,2,110,108,0,0,108,0,0,0,2,2,2,0,,,,,55.0
+same_id_no_discount,Nurmijärven Sähkö Oy,24,canonical_calculation,2,2,2,2,49,47,0,0,47,0,0,0,2,2,2,0,,,,,24.5
+same_id_no_discount,Nurmijärven Sähkö Oy,24,observed_seller_data,2,2,2,2,110,108,0,0,108,0,0,0,2,2,2,0,,,,,55.0
+same_id_no_discount,Omavoima Oy,12,canonical_calculation,4,3,4,3,48,44,0,0,44,0,0,0,4,4,4,0,,,,,9.5
+same_id_no_discount,Omavoima Oy,12,observed_seller_data,3,3,3,3,110,107,0,0,107,0,0,0,3,3,3,0,,,,,42.0
+same_id_no_discount,Omavoima Oy,24,canonical_calculation,3,2,3,2,48,45,0,0,45,0,0,0,3,3,3,0,,,,,10.0
+same_id_no_discount,Omavoima Oy,24,observed_seller_data,3,3,3,3,110,107,0,0,107,0,0,0,3,3,3,0,,,,,42.0
+same_id_no_discount,Oomi Oy,6,observed_seller_data,9,9,9,9,77,68,0,0,68,0,0,0,9,9,9,0,,,,,7.0
+same_id_no_discount,Oomi Oy,12,canonical_calculation,5,5,5,5,49,44,0,0,44,0,0,0,5,5,5,0,,,,,7.0
+same_id_no_discount,Oomi Oy,12,observed_seller_data,13,13,13,13,109,96,0,0,96,0,0,0,13,13,13,0,,,,,7.0
+same_id_no_discount,Oomi Oy,24,canonical_calculation,3,3,3,3,31,28,0,0,28,0,0,0,3,3,3,0,,,,,7.0
+same_id_no_discount,Oomi Oy,24,observed_seller_data,12,12,12,12,91,79,0,0,79,0,0,0,12,12,12,0,,,,,7.0
+same_id_no_discount,Paneliankosken Voima Oy,12,canonical_calculation,3,3,3,3,46,43,0,0,43,0,0,0,3,3,3,0,,,,,20.0
+same_id_no_discount,Paneliankosken Voima Oy,12,observed_seller_data,4,4,4,4,110,106,0,0,106,0,0,0,4,4,4,0,,,,,21.5
+same_id_no_discount,Paneliankosken Voima Oy,24,canonical_calculation,3,3,3,3,47,44,0,0,44,0,0,0,3,3,3,0,,,,,20.0
+same_id_no_discount,Paneliankosken Voima Oy,24,observed_seller_data,5,5,5,5,110,105,0,0,105,0,0,0,5,5,5,0,,,,,22.0
+same_id_no_discount,Pohjois-Karjalan Sähkö Oy,6,canonical_calculation,4,4,4,4,52,48,0,0,48,0,0,0,4,4,4,0,,,,,11.5
+same_id_no_discount,Pohjois-Karjalan Sähkö Oy,6,observed_seller_data,4,4,4,4,129,125,0,0,125,0,0,0,4,4,4,0,,,,,29.0
+same_id_no_discount,Pohjois-Karjalan Sähkö Oy,12,canonical_calculation,3,3,3,3,52,49,0,0,49,0,0,0,3,3,3,0,,,,,17.0
+same_id_no_discount,Pohjois-Karjalan Sähkö Oy,12,observed_seller_data,4,4,4,4,112,108,0,0,108,0,0,0,4,4,4,0,,,,,29.0
+same_id_no_discount,Pohjois-Karjalan Sähkö Oy,24,canonical_calculation,2,2,2,2,49,47,0,0,47,0,0,0,2,2,2,0,,,,,24.5
+same_id_no_discount,Pohjois-Karjalan Sähkö Oy,24,observed_seller_data,3,3,3,3,111,108,0,0,108,0,0,0,3,3,3,0,,,,,28.0
+same_id_no_discount,Porvoon Energia Oy,6,observed_seller_data,4,4,4,4,70,66,0,0,66,0,0,0,4,4,4,0,,,,,20.0
+same_id_no_discount,Porvoon Energia Oy,12,canonical_calculation,12,12,12,12,147,135,0,0,135,0,0,0,12,12,12,0,,,,,6.0
+same_id_no_discount,Porvoon Energia Oy,12,observed_seller_data,33,33,33,33,330,297,0,0,297,0,0,0,33,33,33,0,,,,,7.0
+same_id_no_discount,Porvoon Energia Oy,24,canonical_calculation,12,12,12,12,155,143,0,0,143,0,0,0,12,12,12,0,,,,,4.0
+same_id_no_discount,Porvoon Energia Oy,24,observed_seller_data,29,29,29,29,330,301,0,0,301,0,0,0,29,29,29,0,,,,,10.0
+same_id_no_discount,Turku Energia Oy,6,canonical_calculation,5,4,5,4,48,43,0,0,43,0,0,0,5,5,5,0,,,,,13.0
+same_id_no_discount,Turku Energia Oy,6,observed_seller_data,6,6,6,6,104,98,0,0,98,0,0,0,6,6,6,0,,,,,14.5
+same_id_no_discount,Turku Energia Oy,12,canonical_calculation,5,4,5,4,48,43,0,0,43,0,0,0,5,5,5,0,,,,,9.0
+same_id_no_discount,Turku Energia Oy,12,observed_seller_data,5,5,5,5,110,105,0,0,105,0,0,0,5,5,5,0,,,,,15.0
+same_id_no_discount,Turku Energia Oy,24,canonical_calculation,6,5,6,5,50,44,0,0,44,0,0,0,6,6,6,0,,,,,9.0
+same_id_no_discount,Turku Energia Oy,24,observed_seller_data,5,5,5,5,76,71,0,0,71,0,0,0,5,5,5,0,,,,,17.0
+same_id_no_discount,Vattenfall Oy,6,canonical_calculation,1,1,1,1,11,10,0,0,10,0,0,0,1,1,1,0,,,,,11.0
+same_id_no_discount,Vattenfall Oy,6,observed_seller_data,6,6,6,6,100,94,0,0,94,0,0,0,6,6,6,0,,,,,17.5
+same_id_no_discount,Vattenfall Oy,12,canonical_calculation,10,10,10,10,82,72,0,0,72,0,0,0,10,10,10,0,,,,,4.0
+same_id_no_discount,Vattenfall Oy,12,observed_seller_data,17,15,17,15,266,249,0,0,249,4,0,0,17,17,17,0,,,,,16.0
+same_id_no_discount,Vattenfall Oy,24,canonical_calculation,10,10,10,10,94,84,0,0,84,0,0,0,10,10,10,0,,,,,9.0
+same_id_no_discount,Vattenfall Oy,24,observed_seller_data,20,19,20,19,237,217,0,0,217,2,0,0,20,20,20,0,,,,,14.0
+same_id_no_discount,Vihreä Älyenergia Oy,12,canonical_calculation,2,2,2,2,49,47,0,0,47,0,0,0,2,2,2,0,,,,,24.5
+same_id_no_discount,Vihreä Älyenergia Oy,12,observed_seller_data,9,9,9,9,219,210,0,0,210,0,0,0,9,9,9,0,,,,,7.0
+same_id_no_discount,Vihreä Älyenergia Oy,24,canonical_calculation,2,2,2,2,49,47,0,0,47,0,0,0,2,2,2,0,,,,,24.5
+same_id_no_discount,Vihreä Älyenergia Oy,24,observed_seller_data,7,7,7,7,217,210,0,0,210,0,0,0,7,7,7,0,,,,,23.0
+same_id_no_discount,Väre Oy,6,observed_seller_data,3,2,3,2,15,12,0,0,12,0,0,0,3,3,3,0,,,,,6.0
+same_id_no_discount,Väre Oy,12,observed_seller_data,3,2,3,2,15,12,0,0,12,0,0,0,3,3,3,0,,,,,6.0
+same_id_no_discount,Väre Oy,24,observed_seller_data,3,2,3,2,15,12,0,0,12,0,0,0,3,3,3,0,,,,,6.0
+same_id_no_discount,Äänekosken Energia Oy,6,canonical_calculation,3,3,3,3,32,29,0,0,29,0,0,0,3,3,3,0,,,,,10.0
+same_id_no_discount,Äänekosken Energia Oy,6,observed_seller_data,6,6,6,6,110,104,0,0,104,0,0,0,6,6,6,0,,,,,20.0
+same_id_no_discount,Äänekosken Energia Oy,12,canonical_calculation,3,3,3,3,47,44,0,0,44,0,0,0,3,3,3,0,,,,,4.0
+same_id_no_discount,Äänekosken Energia Oy,12,observed_seller_data,5,5,5,5,110,105,0,0,105,0,0,0,5,5,5,0,,,,,12.0
+same_id_no_discount,Äänekosken Energia Oy,24,canonical_calculation,3,3,3,3,48,45,0,0,45,0,0,0,3,3,3,0,,,,,10.0
+same_id_no_discount,Äänekosken Energia Oy,24,observed_seller_data,3,3,3,3,110,107,0,0,107,0,0,0,3,3,3,0,,,,,40.0
+dated_lineage_sensitivity,ALL,ALL,ALL,141,118,61,38,4648,4350,112,147,0,0,0,51,410,298,298,82,7.0,13.5,20.0,24.80000000000001,6.0
+dated_lineage_sensitivity,Alajärven Sähkö Oy,12,canonical_calculation,1,1,0,0,46,44,0,1,0,0,0,0,2,2,2,0,,,,,23.0
+dated_lineage_sensitivity,Alajärven Sähkö Oy,12,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Alajärven Sähkö Oy,24,canonical_calculation,1,1,0,0,46,44,0,1,0,0,0,0,2,2,2,0,,,,,23.0
+dated_lineage_sensitivity,Alajärven Sähkö Oy,24,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Cheap Energy Finland Oy,12,canonical_calculation,1,1,1,1,9,8,0,0,0,0,0,0,1,1,1,0,,,,,9.0
+dated_lineage_sensitivity,Cheap Energy Finland Oy,24,canonical_calculation,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Cheap Energy Finland Oy,24,observed_seller_data,1,1,0,0,103,101,6,1,0,0,0,6,8,2,2,4,10.5,16.0,20.25,20.7,11.0
+dated_lineage_sensitivity,Fortum Markets Oy,24,canonical_calculation,1,1,1,1,47,46,0,0,0,0,0,0,1,1,1,0,,,,,47.0
+dated_lineage_sensitivity,Fortum Markets Oy,24,observed_seller_data,1,1,1,1,2,1,0,0,0,0,0,0,1,1,1,0,,,,,2.0
+dated_lineage_sensitivity,Hehku Energia Oy,6,observed_seller_data,1,1,1,1,2,1,0,0,0,0,0,0,1,1,1,0,,,,,2.0
+dated_lineage_sensitivity,Hehku Energia Oy,12,observed_seller_data,2,2,0,0,152,150,4,0,0,0,0,4,6,2,2,2,6.0,6.0,6.0,6.0,6.0
+dated_lineage_sensitivity,Hehku Energia Oy,24,canonical_calculation,1,1,1,1,2,1,0,0,0,0,0,0,1,1,1,0,,,,,2.0
+dated_lineage_sensitivity,Hehku Energia Oy,24,observed_seller_data,2,2,0,0,179,176,9,1,0,0,0,9,12,3,3,6,7.5,16.0,20.75,31.5,11.0
+dated_lineage_sensitivity,Helen Oy,6,canonical_calculation,1,1,0,0,38,29,0,8,0,0,0,0,9,9,9,0,,,,,6.0
+dated_lineage_sensitivity,Helen Oy,6,observed_seller_data,1,0,1,0,1,0,0,0,0,0,0,0,1,1,1,0,,,,,1.0
+dated_lineage_sensitivity,Helen Oy,12,canonical_calculation,1,1,0,0,37,29,0,7,0,0,0,0,8,8,8,0,,,,,6.0
+dated_lineage_sensitivity,Helen Oy,24,canonical_calculation,1,1,0,0,39,31,0,7,0,0,0,0,8,8,8,0,,,,,5.0
+dated_lineage_sensitivity,Helen Oy,24,observed_seller_data,1,0,1,0,1,0,0,0,0,0,0,0,1,1,1,0,,,,,1.0
+dated_lineage_sensitivity,Imatran Seudun Sähkö Oy,6,canonical_calculation,3,2,1,0,37,27,0,7,0,0,0,0,10,10,10,0,,,,,3.0
+dated_lineage_sensitivity,Imatran Seudun Sähkö Oy,6,observed_seller_data,1,1,0,0,89,88,6,0,0,0,0,0,7,1,1,5,9.0,9.0,11.0,25.400000000000002,9.0
+dated_lineage_sensitivity,Imatran Seudun Sähkö Oy,12,canonical_calculation,3,2,1,0,40,33,0,4,0,0,0,0,7,7,7,0,,,,,6.0
+dated_lineage_sensitivity,Imatran Seudun Sähkö Oy,12,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Imatran Seudun Sähkö Oy,24,canonical_calculation,5,3,2,0,41,31,0,5,0,0,0,0,10,10,10,0,,,,,2.5
+dated_lineage_sensitivity,Imatran Seudun Sähkö Oy,24,observed_seller_data,1,1,0,0,109,108,7,0,0,0,0,0,8,1,1,6,8.75,14.5,18.75,21.5,14.5
+dated_lineage_sensitivity,Keravan Energia Oy,6,canonical_calculation,2,1,1,0,41,35,0,4,0,0,0,0,6,6,6,0,,,,,3.0
+dated_lineage_sensitivity,Keravan Energia Oy,6,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Keravan Energia Oy,12,canonical_calculation,4,2,2,0,80,70,0,6,0,0,0,0,10,10,10,0,,,,,3.5
+dated_lineage_sensitivity,Keravan Energia Oy,12,observed_seller_data,2,2,2,2,8,6,0,0,0,0,0,0,2,2,2,0,,,,,4.0
+dated_lineage_sensitivity,Keravan Energia Oy,24,canonical_calculation,4,2,2,0,84,68,0,10,0,0,0,0,16,16,16,0,,,,,2.0
+dated_lineage_sensitivity,Keravan Energia Oy,24,observed_seller_data,2,2,1,1,86,84,3,0,0,0,0,0,5,2,2,2,16.5,21.0,25.5,28.2,12.0
+dated_lineage_sensitivity,Koillis-Satakunnan Sähkö Oy,12,observed_seller_data,1,1,0,0,104,103,2,0,0,0,0,2,3,1,1,1,8.0,8.0,8.0,8.0,40.0
+dated_lineage_sensitivity,Koillis-Satakunnan Sähkö Oy,24,observed_seller_data,1,1,0,0,104,103,3,0,0,0,0,3,4,1,1,2,9.5,11.0,12.5,13.4,27.0
+dated_lineage_sensitivity,Kokkolan Energia Oy,6,canonical_calculation,1,1,0,0,38,30,0,5,0,0,0,0,8,8,8,0,,,,,5.0
+dated_lineage_sensitivity,Kokkolan Energia Oy,6,observed_seller_data,1,1,0,0,83,82,3,0,0,0,0,0,4,1,1,2,22.75,30.5,38.25,42.900000000000006,15.5
+dated_lineage_sensitivity,Kokkolan Energia Oy,12,canonical_calculation,1,1,0,0,44,39,0,3,0,0,0,0,5,5,5,0,,,,,5.0
+dated_lineage_sensitivity,Kokkolan Energia Oy,12,observed_seller_data,1,1,0,0,83,82,2,0,0,0,0,0,3,1,1,1,61.0,61.0,61.0,61.0,16.0
+dated_lineage_sensitivity,Kokkolan Energia Oy,24,canonical_calculation,1,1,0,0,44,39,0,2,0,0,0,0,5,5,5,0,,,,,3.0
+dated_lineage_sensitivity,Kokkolan Energia Oy,24,observed_seller_data,1,1,0,0,67,66,4,0,0,0,0,0,5,1,1,3,12.5,19.0,20.0,20.6,15.0
+dated_lineage_sensitivity,Korpelan Energia Oy,12,canonical_calculation,1,1,0,0,43,39,0,3,0,0,0,0,4,4,4,0,,,,,6.5
+dated_lineage_sensitivity,Korpelan Energia Oy,12,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Korpelan Energia Oy,24,canonical_calculation,1,1,0,0,11,9,0,1,0,0,0,0,2,2,2,0,,,,,5.5
+dated_lineage_sensitivity,Köyliön-Säkylän Sähkö Oy,12,canonical_calculation,2,1,1,0,47,44,0,1,0,0,0,0,3,3,3,0,,,,,12.0
+dated_lineage_sensitivity,Köyliön-Säkylän Sähkö Oy,12,observed_seller_data,1,1,0,0,100,99,1,0,0,0,0,0,2,1,1,0,,,,,50.0
+dated_lineage_sensitivity,Köyliön-Säkylän Sähkö Oy,24,canonical_calculation,2,1,1,0,47,44,0,1,0,0,0,0,3,3,3,0,,,,,12.0
+dated_lineage_sensitivity,Köyliön-Säkylän Sähkö Oy,24,observed_seller_data,1,1,0,0,101,100,1,0,0,0,0,0,2,1,1,0,,,,,50.5
+dated_lineage_sensitivity,Lammaisten Energia Oy,12,canonical_calculation,2,1,1,0,47,44,0,1,0,0,0,0,3,3,3,0,,,,,4.0
+dated_lineage_sensitivity,Lammaisten Energia Oy,12,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Lammaisten Energia Oy,24,canonical_calculation,2,1,1,0,47,44,0,1,0,0,0,0,3,3,3,0,,,,,4.0
+dated_lineage_sensitivity,Lammaisten Energia Oy,24,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Lumme Energia,12,canonical_calculation,1,1,0,0,20,17,0,1,0,0,0,0,3,3,3,0,,,,,6.0
+dated_lineage_sensitivity,Lumme Energia,12,observed_seller_data,1,0,1,0,1,0,0,0,0,0,0,0,1,1,1,0,,,,,1.0
+dated_lineage_sensitivity,Lumme Energia,24,canonical_calculation,1,1,1,1,2,1,0,0,0,0,0,0,1,1,1,0,,,,,2.0
+dated_lineage_sensitivity,Nurmijärven Sähkö Oy,12,canonical_calculation,1,1,0,0,48,47,1,0,0,0,0,0,2,1,1,0,,,,,24.0
+dated_lineage_sensitivity,Nurmijärven Sähkö Oy,12,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Nurmijärven Sähkö Oy,24,canonical_calculation,1,1,0,0,48,47,1,0,0,0,0,0,2,1,1,0,,,,,24.0
+dated_lineage_sensitivity,Nurmijärven Sähkö Oy,24,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Omavoima Oy,12,canonical_calculation,1,1,0,0,44,40,0,3,0,0,0,0,4,4,4,0,,,,,8.0
+dated_lineage_sensitivity,Omavoima Oy,12,observed_seller_data,1,1,0,0,104,103,1,0,0,0,0,0,2,1,1,0,,,,,52.0
+dated_lineage_sensitivity,Omavoima Oy,24,canonical_calculation,1,1,0,0,46,43,0,2,0,0,0,0,3,3,3,0,,,,,8.0
+dated_lineage_sensitivity,Omavoima Oy,24,observed_seller_data,1,1,0,0,104,103,1,0,0,0,0,0,2,1,1,0,,,,,52.0
+dated_lineage_sensitivity,Oomi Oy,12,canonical_calculation,1,1,0,0,43,38,0,4,0,0,0,0,5,5,5,0,,,,,6.0
+dated_lineage_sensitivity,Oomi Oy,12,observed_seller_data,1,0,1,0,1,0,0,0,0,0,0,0,1,1,1,0,,,,,1.0
+dated_lineage_sensitivity,Oomi Oy,24,canonical_calculation,1,1,0,0,27,24,0,2,0,0,0,0,3,3,3,0,,,,,6.0
+dated_lineage_sensitivity,Paneliankosken Voima Oy,12,canonical_calculation,1,1,0,0,44,41,0,2,0,0,0,0,3,3,3,0,,,,,20.0
+dated_lineage_sensitivity,Paneliankosken Voima Oy,12,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Paneliankosken Voima Oy,24,canonical_calculation,1,1,0,0,45,42,0,2,0,0,0,0,3,3,3,0,,,,,20.0
+dated_lineage_sensitivity,Paneliankosken Voima Oy,24,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Pohjois-Karjalan Sähkö Oy,6,canonical_calculation,1,1,0,0,46,43,1,1,0,0,0,0,4,3,3,0,,,,,9.5
+dated_lineage_sensitivity,Pohjois-Karjalan Sähkö Oy,6,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Pohjois-Karjalan Sähkö Oy,12,canonical_calculation,2,2,1,1,50,47,0,1,0,0,0,0,3,3,3,0,,,,,17.0
+dated_lineage_sensitivity,Pohjois-Karjalan Sähkö Oy,12,observed_seller_data,2,2,2,2,6,4,0,0,0,0,0,0,2,2,2,0,,,,,3.0
+dated_lineage_sensitivity,Pohjois-Karjalan Sähkö Oy,24,canonical_calculation,1,1,1,1,47,45,0,0,0,0,0,0,2,2,2,0,,,,,23.5
+dated_lineage_sensitivity,Pohjois-Karjalan Sähkö Oy,24,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Porvoon Energia Oy,12,canonical_calculation,3,3,0,0,126,114,0,9,0,0,0,0,12,12,12,0,,,,,3.5
+dated_lineage_sensitivity,Porvoon Energia Oy,12,observed_seller_data,3,0,3,0,3,0,0,0,0,0,0,0,3,3,3,0,,,,,1.0
+dated_lineage_sensitivity,Porvoon Energia Oy,24,canonical_calculation,5,5,2,2,67,55,0,7,0,0,0,0,12,12,12,0,,,,,2.5
+dated_lineage_sensitivity,Porvoon Energia Oy,24,observed_seller_data,1,0,1,0,1,0,0,0,0,0,0,0,1,1,1,0,,,,,1.0
+dated_lineage_sensitivity,Turku Energia Oy,6,canonical_calculation,2,1,1,0,45,40,0,3,0,0,0,0,5,5,5,0,,,,,12.0
+dated_lineage_sensitivity,Turku Energia Oy,6,observed_seller_data,1,1,0,0,89,88,4,0,0,0,0,0,5,1,1,3,12.0,14.0,24.0,30.0,14.0
+dated_lineage_sensitivity,Turku Energia Oy,12,canonical_calculation,2,1,1,0,44,39,0,3,0,0,0,0,5,5,5,0,,,,,8.0
+dated_lineage_sensitivity,Turku Energia Oy,12,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Turku Energia Oy,24,canonical_calculation,3,3,2,2,45,38,0,4,0,0,0,0,7,7,7,0,,,,,7.0
+dated_lineage_sensitivity,Turku Energia Oy,24,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Vaasan Sähkö Myynti Oy,6,observed_seller_data,1,1,0,0,98,97,7,0,0,0,0,7,8,1,1,6,7.0,10.5,14.0,18.0,10.5
+dated_lineage_sensitivity,Vaasan Sähkö Myynti Oy,12,observed_seller_data,1,1,0,0,98,97,10,0,0,0,0,10,11,1,1,9,7.0,7.0,7.0,15.600000000000001,7.0
+dated_lineage_sensitivity,Vaasan Sähkö Myynti Oy,24,observed_seller_data,1,1,0,0,98,97,10,0,0,0,0,10,11,1,1,9,7.0,7.0,7.0,15.600000000000001,7.0
+dated_lineage_sensitivity,Vattenfall Oy,12,canonical_calculation,2,2,0,0,74,65,0,7,0,0,0,0,9,9,9,0,,,,,4.0
+dated_lineage_sensitivity,Vattenfall Oy,12,observed_seller_data,2,2,0,0,218,216,10,0,0,0,0,0,12,2,2,8,11.75,18.5,25.0,28.599999999999998,19.5
+dated_lineage_sensitivity,Vattenfall Oy,24,canonical_calculation,2,2,0,0,84,74,0,8,0,0,0,0,10,10,10,0,,,,,8.0
+dated_lineage_sensitivity,Vattenfall Oy,24,observed_seller_data,2,2,0,0,206,204,15,0,0,0,0,0,17,2,2,13,14.0,15.0,17.0,20.200000000000003,14.0
+dated_lineage_sensitivity,Vihreä Älyenergia Oy,12,canonical_calculation,1,1,0,0,46,44,0,1,0,0,0,0,2,2,2,0,,,,,23.0
+dated_lineage_sensitivity,Vihreä Älyenergia Oy,12,observed_seller_data,1,1,1,1,3,2,0,0,0,0,0,0,1,1,1,0,,,,,3.0
+dated_lineage_sensitivity,Vihreä Älyenergia Oy,24,canonical_calculation,1,1,0,0,46,44,0,1,0,0,0,0,2,2,2,0,,,,,23.0
+dated_lineage_sensitivity,Vihreä Älyenergia Oy,24,observed_seller_data,1,1,1,1,3,2,0,0,0,0,0,0,1,1,1,0,,,,,3.0
+dated_lineage_sensitivity,Äänekosken Energia Oy,6,canonical_calculation,1,1,0,0,31,28,0,2,0,0,0,0,3,3,3,0,,,,,10.0
+dated_lineage_sensitivity,Äänekosken Energia Oy,6,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Äänekosken Energia Oy,12,canonical_calculation,1,1,0,0,46,43,0,2,0,0,0,0,3,3,3,0,,,,,4.0
+dated_lineage_sensitivity,Äänekosken Energia Oy,12,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+dated_lineage_sensitivity,Äänekosken Energia Oy,24,canonical_calculation,1,1,0,0,46,43,0,2,0,0,0,0,3,3,3,0,,,,,10.0
+dated_lineage_sensitivity,Äänekosken Energia Oy,24,observed_seller_data,1,1,1,1,4,3,0,0,0,0,0,0,1,1,1,0,,,,,4.0
+supplier_median,ALL,ALL,ALL,126,125,11,10,9094,8913,473,54,0,0,22,109,654,181,181,362,7.0,7.0,15.0,28.900000000000034,7.0
+supplier_median,Aalto energia Oyj,12,observed_seller_data,1,1,1,1,56,55,0,0,0,0,0,0,1,1,1,0,,,,,56.0
+supplier_median,Aalto energia Oyj,24,observed_seller_data,1,1,1,1,56,55,0,0,0,0,0,0,1,1,1,0,,,,,56.0
+supplier_median,Alajärven Sähkö Oy,12,canonical_calculation,1,1,0,0,49,48,1,0,0,0,0,0,2,1,1,0,,,,,24.5
+supplier_median,Alajärven Sähkö Oy,12,observed_seller_data,1,1,0,0,110,109,1,0,0,0,0,0,2,1,1,0,,,,,55.0
+supplier_median,Alajärven Sähkö Oy,24,canonical_calculation,1,1,0,0,49,48,1,0,0,0,0,0,2,1,1,0,,,,,24.5
+supplier_median,Alajärven Sähkö Oy,24,observed_seller_data,1,1,0,0,110,109,2,0,0,0,0,0,3,1,1,1,50.0,50.0,50.0,50.0,50.0
+supplier_median,Cheap Energy Finland Oy,6,canonical_calculation,1,1,0,0,3,1,0,1,0,0,0,0,2,2,2,0,,,,,1.5
+supplier_median,Cheap Energy Finland Oy,6,observed_seller_data,1,1,0,0,108,107,4,0,0,0,2,4,5,1,1,3,19.5,33.0,34.0,34.6,30.0
+supplier_median,Cheap Energy Finland Oy,12,canonical_calculation,1,1,1,1,9,8,0,0,0,0,0,0,1,1,1,0,,,,,9.0
+supplier_median,Cheap Energy Finland Oy,24,canonical_calculation,1,1,0,0,49,48,3,0,0,0,1,3,4,1,1,2,10.0,18.0,26.0,30.8,6.5
+supplier_median,Cheap Energy Finland Oy,24,observed_seller_data,1,1,0,0,110,109,9,0,0,0,0,9,10,1,1,8,5.5,11.0,20.25,23.099999999999998,8.0
+supplier_median,Fortum Markets Oy,24,canonical_calculation,1,1,1,1,49,48,0,0,0,0,0,0,1,1,1,0,,,,,49.0
+supplier_median,Fortum Markets Oy,24,observed_seller_data,1,1,0,0,51,50,8,0,0,0,0,0,9,1,1,7,7.0,7.0,7.0,7.0,7.0
+supplier_median,Hehku Energia Oy,6,canonical_calculation,1,0,1,0,1,0,0,0,0,0,0,0,1,1,1,0,,,,,1.0
+supplier_median,Hehku Energia Oy,6,observed_seller_data,1,1,0,0,104,102,4,1,0,0,1,2,6,2,2,2,16.5,18.0,19.5,20.4,18.0
+supplier_median,Hehku Energia Oy,12,canonical_calculation,1,1,0,0,48,46,3,1,0,0,0,3,5,2,2,2,7.5,8.0,8.5,8.8,8.0
+supplier_median,Hehku Energia Oy,12,observed_seller_data,1,1,0,0,110,109,3,0,0,0,0,3,4,1,1,2,21.5,37.0,52.5,61.800000000000004,18.0
+supplier_median,Hehku Energia Oy,24,canonical_calculation,1,1,0,0,48,46,1,1,0,0,0,1,3,2,2,0,,,,,7.0
+supplier_median,Hehku Energia Oy,24,observed_seller_data,1,1,0,0,110,109,10,0,0,0,0,10,11,1,1,9,6.0,10.0,14.0,21.6,7.0
+supplier_median,Helen Oy,6,canonical_calculation,1,1,0,0,47,44,6,2,0,0,0,0,9,3,3,5,7.0,7.0,7.0,7.0,6.0
+supplier_median,Helen Oy,6,observed_seller_data,1,1,0,0,110,109,14,0,0,0,0,0,15,1,1,13,7.0,7.0,7.0,9.600000000000001,7.0
+supplier_median,Helen Oy,12,canonical_calculation,1,1,0,0,47,44,6,2,0,0,0,0,9,3,3,5,7.0,7.0,7.0,7.0,6.0
+supplier_median,Helen Oy,12,observed_seller_data,1,1,0,0,110,109,12,0,0,0,0,0,13,1,1,11,7.0,7.0,7.5,14.0,7.0
+supplier_median,Helen Oy,24,canonical_calculation,1,1,0,0,47,44,5,2,0,0,0,0,8,3,3,4,6.0,7.0,8.75,11.900000000000002,6.0
+supplier_median,Helen Oy,24,observed_seller_data,1,1,0,0,110,109,13,0,0,0,0,0,14,1,1,12,7.0,7.0,8.5,13.600000000000001,7.0
+supplier_median,Imatran Seudun Sähkö Oy,6,canonical_calculation,1,1,0,0,47,44,7,2,0,0,0,0,10,3,3,6,4.0,5.0,6.75,7.5,4.5
+supplier_median,Imatran Seudun Sähkö Oy,6,observed_seller_data,1,1,0,0,110,109,7,0,0,0,0,0,8,1,1,6,9.0,10.0,14.0,25.0,10.0
+supplier_median,Imatran Seudun Sähkö Oy,12,canonical_calculation,1,1,0,0,48,46,5,1,0,0,0,0,7,2,2,4,6.25,8.0,9.25,11.5,8.0
+supplier_median,Imatran Seudun Sähkö Oy,12,observed_seller_data,1,1,0,0,110,109,10,0,0,0,0,0,11,1,1,9,7.0,11.0,15.0,16.8,9.0
+supplier_median,Imatran Seudun Sähkö Oy,24,canonical_calculation,1,1,0,0,47,44,7,2,0,0,0,0,10,3,3,6,1.5,3.5,5.5,7.0,3.5
+supplier_median,Imatran Seudun Sähkö Oy,24,observed_seller_data,1,1,0,0,110,109,10,0,0,0,0,0,11,1,1,9,6.0,14.0,15.0,20.0,7.0
+supplier_median,Keravan Energia Oy,6,canonical_calculation,1,1,0,0,48,46,4,1,0,0,0,0,6,2,2,3,4.5,6.0,17.5,24.400000000000002,4.0
+supplier_median,Keravan Energia Oy,6,observed_seller_data,1,1,0,0,110,109,8,0,0,0,0,0,9,1,1,7,5.5,7.0,14.0,21.8,7.0
+supplier_median,Keravan Energia Oy,12,canonical_calculation,1,1,0,0,49,48,6,0,0,0,0,0,7,1,1,5,3.0,6.0,6.0,19.800000000000004,3.0
+supplier_median,Keravan Energia Oy,12,observed_seller_data,1,1,0,0,110,109,6,0,0,0,0,0,7,1,1,5,6.0,12.0,23.0,23.6,12.0
+supplier_median,Keravan Energia Oy,24,canonical_calculation,1,1,0,0,47,44,4,2,0,0,0,0,7,3,3,3,4.5,6.0,10.5,13.2,3.0
+supplier_median,Keravan Energia Oy,24,observed_seller_data,1,1,0,0,110,109,5,0,0,0,0,0,6,1,1,4,10.75,17.5,24.75,27.900000000000002,17.5
+supplier_median,Koillis-Satakunnan Sähkö Oy,12,canonical_calculation,1,1,0,0,47,44,1,2,0,0,0,1,4,3,3,0,,,,,9.0
+supplier_median,Koillis-Satakunnan Sähkö Oy,12,observed_seller_data,1,1,0,0,110,109,3,0,0,0,0,3,4,1,1,2,16.0,24.0,32.0,36.8,24.0
+supplier_median,Koillis-Satakunnan Sähkö Oy,24,canonical_calculation,1,1,0,0,46,43,1,2,0,0,0,1,4,3,3,0,,,,,8.5
+supplier_median,Koillis-Satakunnan Sähkö Oy,24,observed_seller_data,1,1,0,0,110,109,4,0,0,0,0,4,5,1,1,3,11.0,14.0,27.0,34.8,14.0
+supplier_median,Kokkolan Energia Oy,6,canonical_calculation,1,1,0,0,49,48,5,0,0,0,0,0,6,1,1,4,5.75,7.5,9.0,9.0,7.5
+supplier_median,Kokkolan Energia Oy,6,observed_seller_data,1,1,0,0,110,109,4,0,0,0,0,0,5,1,1,3,17.5,31.0,38.5,43.0,27.0
+supplier_median,Kokkolan Energia Oy,12,canonical_calculation,1,1,0,0,49,48,3,0,0,0,0,0,4,1,1,2,10.25,14.5,18.75,21.3,10.5
+supplier_median,Kokkolan Energia Oy,12,observed_seller_data,1,1,0,0,110,109,3,0,0,0,0,0,4,1,1,2,27.25,38.5,49.75,56.5,21.5
+supplier_median,Kokkolan Energia Oy,24,canonical_calculation,1,1,0,0,49,48,2,0,0,0,0,0,3,1,1,1,6.0,6.0,6.0,6.0,6.0
+supplier_median,Kokkolan Energia Oy,24,observed_seller_data,1,1,0,0,110,109,5,0,0,0,0,0,6,1,1,4,12.75,17.0,19.5,20.4,17.0
+supplier_median,Korpelan Energia Oy,12,canonical_calculation,1,1,0,0,47,44,1,2,0,0,0,0,4,3,3,0,,,,,7.5
+supplier_median,Korpelan Energia Oy,12,observed_seller_data,1,1,0,0,110,109,4,0,0,0,0,0,5,1,1,3,10.5,15.0,18.0,19.8,15.0
+supplier_median,Korpelan Energia Oy,24,canonical_calculation,1,1,0,0,12,10,0,1,0,0,0,0,2,2,2,0,,,,,6.0
+supplier_median,Köyliön-Säkylän Sähkö Oy,12,canonical_calculation,1,1,0,0,49,48,2,0,0,0,0,0,3,1,1,1,35.0,35.0,35.0,35.0,12.0
+supplier_median,Köyliön-Säkylän Sähkö Oy,12,observed_seller_data,1,1,0,0,110,109,3,0,0,0,0,0,4,1,1,2,23.5,46.0,68.5,82.0,9.0
+supplier_median,Köyliön-Säkylän Sähkö Oy,24,canonical_calculation,1,1,0,0,49,48,2,0,0,0,0,0,3,1,1,1,35.0,35.0,35.0,35.0,12.0
+supplier_median,Köyliön-Säkylän Sähkö Oy,24,observed_seller_data,1,1,0,0,110,109,2,0,0,0,0,0,3,1,1,1,92.0,92.0,92.0,92.0,9.0
+supplier_median,Lammaisten Energia Oy,6,observed_seller_data,1,1,1,1,27,26,0,0,0,0,0,0,1,1,1,0,,,,,27.0
+supplier_median,Lammaisten Energia Oy,12,canonical_calculation,1,1,0,0,48,46,1,1,0,0,0,0,3,2,2,0,,,,,4.0
+supplier_median,Lammaisten Energia Oy,12,observed_seller_data,1,1,0,0,110,109,2,0,0,0,0,0,3,1,1,1,15.0,15.0,15.0,15.0,27.0
+supplier_median,Lammaisten Energia Oy,24,canonical_calculation,1,1,0,0,48,46,1,1,0,0,0,0,3,2,2,0,,,,,4.0
+supplier_median,Lammaisten Energia Oy,24,observed_seller_data,1,1,0,0,110,109,1,0,0,0,0,0,2,1,1,0,,,,,55.0
+supplier_median,Lumme Energia,6,observed_seller_data,1,1,0,0,86,85,12,0,0,0,0,0,13,1,1,11,5.0,7.0,8.5,11.0,7.0
+supplier_median,Lumme Energia,12,canonical_calculation,1,1,0,0,22,21,1,0,0,0,0,0,2,1,1,0,,,,,11.0
+supplier_median,Lumme Energia,12,observed_seller_data,1,1,0,0,110,109,12,0,0,0,0,0,13,1,1,11,7.0,7.0,10.5,18.0,7.0
+supplier_median,Lumme Energia,24,canonical_calculation,1,1,0,0,21,19,2,1,0,0,1,2,4,2,2,1,7.0,7.0,7.0,7.0,5.5
+supplier_median,Lumme Energia,24,observed_seller_data,1,1,0,0,110,109,13,0,0,0,5,4,14,1,1,12,7.0,7.0,8.0,13.700000000000001,7.0
+supplier_median,Nurmijärven Sähkö Oy,12,canonical_calculation,1,1,0,0,49,48,1,0,0,0,0,0,2,1,1,0,,,,,24.5
+supplier_median,Nurmijärven Sähkö Oy,12,observed_seller_data,1,1,0,0,110,109,1,0,0,0,0,0,2,1,1,0,,,,,55.0
+supplier_median,Nurmijärven Sähkö Oy,24,canonical_calculation,1,1,0,0,49,48,1,0,0,0,0,0,2,1,1,0,,,,,24.5
+supplier_median,Nurmijärven Sähkö Oy,24,observed_seller_data,1,1,0,0,110,109,1,0,0,0,0,0,2,1,1,0,,,,,55.0
+supplier_median,Omavoima Oy,12,canonical_calculation,1,1,0,0,48,46,2,1,0,0,0,0,4,2,2,1,28.0,28.0,28.0,28.0,9.5
+supplier_median,Omavoima Oy,12,observed_seller_data,1,1,0,0,110,109,2,0,0,0,0,0,3,1,1,1,42.0,42.0,42.0,42.0,42.0
+supplier_median,Omavoima Oy,24,canonical_calculation,1,1,0,0,48,46,1,1,0,0,0,0,3,2,2,0,,,,,10.0
+supplier_median,Omavoima Oy,24,observed_seller_data,1,1,0,0,110,109,2,0,0,0,0,0,3,1,1,1,42.0,42.0,42.0,42.0,42.0
+supplier_median,Oomi Oy,6,observed_seller_data,1,1,0,0,77,76,8,0,0,0,0,0,9,1,1,7,7.0,7.0,8.5,10.4,7.0
+supplier_median,Oomi Oy,12,canonical_calculation,1,1,0,0,49,48,4,0,0,0,0,0,5,1,1,3,7.0,7.0,14.0,18.200000000000003,7.0
+supplier_median,Oomi Oy,12,observed_seller_data,1,1,0,0,109,107,11,1,0,0,0,0,13,2,2,10,7.0,7.0,12.25,18.0,7.0
+supplier_median,Oomi Oy,24,canonical_calculation,1,1,0,0,48,46,4,1,0,0,1,2,6,2,2,3,7.0,7.0,14.0,18.200000000000003,6.5
+supplier_median,Oomi Oy,24,observed_seller_data,1,1,0,0,109,107,12,1,0,0,4,3,14,2,2,11,7.0,7.0,9.0,14.0,7.0
+supplier_median,Paneliankosken Voima Oy,12,canonical_calculation,1,1,0,0,46,43,0,2,0,0,0,0,3,3,3,0,,,,,20.0
+supplier_median,Paneliankosken Voima Oy,12,observed_seller_data,1,1,0,0,110,109,3,0,0,0,0,0,4,1,1,2,41.5,48.0,54.5,58.400000000000006,21.5
+supplier_median,Paneliankosken Voima Oy,24,canonical_calculation,1,1,0,0,47,44,0,2,0,0,0,0,3,3,3,0,,,,,20.0
+supplier_median,Paneliankosken Voima Oy,24,observed_seller_data,1,1,0,0,110,109,4,0,0,0,0,0,5,1,1,3,28.5,35.0,37.0,38.2,22.0
+supplier_median,Pohjois-Karjalan Sähkö Oy,6,canonical_calculation,1,1,0,0,49,48,2,0,0,0,0,0,3,1,1,1,9.0,9.0,9.0,9.0,9.0
+supplier_median,Pohjois-Karjalan Sähkö Oy,6,observed_seller_data,1,1,0,0,110,109,3,0,0,0,0,0,4,1,1,2,30.75,31.5,32.25,32.7,29.0
+supplier_median,Pohjois-Karjalan Sähkö Oy,12,canonical_calculation,1,1,0,0,49,48,1,0,0,0,0,0,2,1,1,0,,,,,24.5
+supplier_median,Pohjois-Karjalan Sähkö Oy,12,observed_seller_data,1,1,0,0,110,109,3,0,0,0,0,0,4,1,1,2,35.0,40.0,45.0,48.0,29.0
+supplier_median,Pohjois-Karjalan Sähkö Oy,24,canonical_calculation,1,1,1,1,49,48,0,0,0,0,0,0,1,1,1,0,,,,,49.0
+supplier_median,Pohjois-Karjalan Sähkö Oy,24,observed_seller_data,1,1,0,0,110,109,3,0,0,0,0,0,4,1,1,2,18.0,35.0,52.0,62.2,20.0
+supplier_median,Porvoon Energia Oy,6,observed_seller_data,1,1,0,0,70,69,3,0,0,0,0,0,4,1,1,2,26.5,27.0,27.5,27.8,20.0
+supplier_median,Porvoon Energia Oy,12,canonical_calculation,1,1,0,0,49,48,3,0,0,0,0,0,4,1,1,2,10.25,18.5,26.75,31.7,6.0
+supplier_median,Porvoon Energia Oy,12,observed_seller_data,1,1,0,0,110,109,10,0,0,0,0,0,11,1,1,9,7.0,10.0,14.0,16.800000000000004,7.0
+supplier_median,Porvoon Energia Oy,24,canonical_calculation,1,1,0,0,49,48,3,0,0,0,0,0,4,1,1,2,1.25,1.5,1.75,1.9,2.5
+supplier_median,Porvoon Energia Oy,24,observed_seller_data,1,1,0,0,110,109,8,0,0,0,0,0,9,1,1,7,11.0,14.0,17.5,23.800000000000004,12.0
+supplier_median,Sähkötytöt Oy,6,observed_seller_data,1,1,1,1,42,41,0,0,0,0,0,0,1,1,1,0,,,,,42.0
+supplier_median,Sähkötytöt Oy,12,observed_seller_data,1,1,1,1,56,55,0,0,0,0,0,0,1,1,1,0,,,,,56.0
+supplier_median,Sähkötytöt Oy,24,observed_seller_data,1,1,1,1,51,50,0,0,0,0,0,0,1,1,1,0,,,,,51.0
+supplier_median,Turku Energia Oy,6,canonical_calculation,1,1,0,0,48,46,3,1,0,0,0,0,5,2,2,2,13.5,14.0,14.5,14.8,13.0
+supplier_median,Turku Energia Oy,6,observed_seller_data,1,1,0,0,104,102,4,0,0,0,0,0,6,2,2,3,12.0,14.0,24.0,30.0,14.5
+supplier_median,Turku Energia Oy,12,canonical_calculation,1,1,0,0,48,46,3,1,0,0,0,0,5,2,2,2,16.5,18.0,19.5,20.4,9.0
+supplier_median,Turku Energia Oy,12,observed_seller_data,1,1,0,0,110,109,4,0,0,0,0,0,5,1,1,3,12.0,14.0,34.0,46.0,15.0
+supplier_median,Turku Energia Oy,24,canonical_calculation,1,1,0,0,48,46,5,1,0,0,0,0,7,2,2,4,6.5,8.0,9.25,11.5,8.0
+supplier_median,Turku Energia Oy,24,observed_seller_data,1,1,0,0,74,72,2,1,0,0,0,0,4,2,2,1,10.0,10.0,10.0,10.0,18.5
+supplier_median,Vaasan Sähkö Myynti Oy,6,canonical_calculation,1,1,0,0,48,46,2,1,0,0,0,2,4,2,2,1,20.0,20.0,20.0,20.0,11.0
+supplier_median,Vaasan Sähkö Myynti Oy,6,observed_seller_data,1,1,0,0,110,109,8,0,0,0,0,8,9,1,1,7,7.0,14.0,17.0,20.8,11.0
+supplier_median,Vaasan Sähkö Myynti Oy,12,canonical_calculation,1,1,0,0,28,25,0,2,0,0,0,0,3,3,3,0,,,,,7.0
+supplier_median,Vaasan Sähkö Myynti Oy,12,observed_seller_data,1,1,0,0,110,109,11,0,0,0,0,11,12,1,1,10,7.0,7.0,7.0,14.799999999999997,7.0
+supplier_median,Vaasan Sähkö Myynti Oy,24,canonical_calculation,1,1,0,0,48,46,1,1,0,0,0,1,3,2,2,0,,,,,7.0
+supplier_median,Vaasan Sähkö Myynti Oy,24,observed_seller_data,1,1,0,0,110,109,11,0,0,0,0,11,12,1,1,10,7.0,7.0,7.0,14.799999999999997,7.0
+supplier_median,Vattenfall Oy,6,canonical_calculation,1,1,1,1,11,10,0,0,0,0,0,0,1,1,1,0,,,,,11.0
+supplier_median,Vattenfall Oy,6,observed_seller_data,1,1,0,0,100,98,4,1,0,0,0,0,6,2,2,2,10.75,13.5,16.25,17.9,17.5
+supplier_median,Vattenfall Oy,12,canonical_calculation,1,1,0,0,41,38,2,2,0,0,0,2,5,3,3,1,11.0,11.0,11.0,11.0,4.0
+supplier_median,Vattenfall Oy,12,observed_seller_data,1,1,0,0,110,109,7,0,0,0,1,5,8,1,1,6,13.75,18.5,21.0,23.0,14.5
+supplier_median,Vattenfall Oy,24,canonical_calculation,1,1,0,0,47,44,2,2,0,0,0,2,5,3,3,1,11.0,11.0,11.0,11.0,9.0
+supplier_median,Vattenfall Oy,24,observed_seller_data,1,1,0,0,110,109,8,0,0,0,2,8,9,1,1,7,11.5,15.0,16.5,18.6,14.0
+supplier_median,Vihreä Älyenergia Oy,12,canonical_calculation,1,1,0,0,49,48,1,0,0,0,1,1,2,1,1,0,,,,,24.5
+supplier_median,Vihreä Älyenergia Oy,12,observed_seller_data,1,1,0,0,110,109,3,0,0,0,1,1,4,1,1,2,26.0,50.0,74.0,88.4,5.0
+supplier_median,Vihreä Älyenergia Oy,24,canonical_calculation,1,1,0,0,49,48,1,0,0,0,1,1,2,1,1,0,,,,,24.5
+supplier_median,Vihreä Älyenergia Oy,24,observed_seller_data,1,1,0,0,110,109,1,0,0,0,1,1,2,1,1,0,,,,,55.0
+supplier_median,Väre Oy,6,observed_seller_data,1,1,0,0,15,14,2,0,0,0,0,0,3,1,1,1,6.0,6.0,6.0,6.0,6.0
+supplier_median,Väre Oy,12,observed_seller_data,1,1,0,0,15,14,2,0,0,0,0,0,3,1,1,1,6.0,6.0,6.0,6.0,6.0
+supplier_median,Väre Oy,24,observed_seller_data,1,1,0,0,15,14,2,0,0,0,0,0,3,1,1,1,6.0,6.0,6.0,6.0,6.0
+supplier_median,Äänekosken Energia Oy,6,canonical_calculation,1,1,0,0,32,30,1,1,0,0,0,0,3,2,2,0,,,,,10.0
+supplier_median,Äänekosken Energia Oy,6,observed_seller_data,1,1,0,0,110,109,5,0,0,0,0,0,6,1,1,4,21.5,29.0,30.75,32.1,20.0
+supplier_median,Äänekosken Energia Oy,12,canonical_calculation,1,1,0,0,47,44,0,2,0,0,0,0,3,3,3,0,,,,,4.0
+supplier_median,Äänekosken Energia Oy,12,observed_seller_data,1,1,0,0,110,109,4,0,0,0,0,0,5,1,1,3,15.0,28.0,45.5,56.0,12.0
+supplier_median,Äänekosken Energia Oy,24,canonical_calculation,1,1,0,0,48,46,1,1,0,0,0,0,3,2,2,0,,,,,10.0
+supplier_median,Äänekosken Energia Oy,24,observed_seller_data,1,1,0,0,110,109,2,0,0,0,0,0,3,1,1,1,65.0,65.0,65.0,65.0,40.0

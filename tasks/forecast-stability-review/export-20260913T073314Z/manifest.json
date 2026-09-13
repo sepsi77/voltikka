@@ -1,0 +1,18 @@
+{
+    "status": "failed",
+    "started_at_utc": "2026-09-13T07:33:14Z",
+    "project_id": "6d8cae01-1006-409f-8108-1d51f1abc676",
+    "environment_id": "9245cef8-41d0-486e-862f-193726511dba",
+    "service_id": "beb2ba12-4a7b-416b-b4b1-596434dc3215",
+    "transaction": "REPEATABLE READ; START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY; ROLLBACK",
+    "limits": {
+        "rows_per_query": 20000,
+        "bytes_total": 104857600,
+        "query_timeout_ms": 20000
+    },
+    "json_columns": "Preserved as database JSON strings, without decoding or removing fields.",
+    "queries": [],
+    "failed_stage": "database_clock",
+    "completed_at_utc": "2026-09-13T07:33:15Z",
+    "script_sha256": "513fb09385f5abd469dbc2759016f10b232c381ba26137e7483d92bd05028a19"
+}

@@ -1,0 +1,8 @@
+PHP Deprecated:  Constant PDO::MYSQL_ATTR_SSL_CA is deprecated since 8.5, use Pdo\Mysql::ATTR_SSL_CA instead in /Users/seppo/code/voltikka/laravel/vendor/laravel/framework/config/database.php on line 61
+
+Deprecated: Constant PDO::MYSQL_ATTR_SSL_CA is deprecated since 8.5, use Pdo\Mysql::ATTR_SSL_CA instead in /Users/seppo/code/voltikka/laravel/vendor/laravel/framework/config/database.php on line 61
+PHP Deprecated:  Constant PDO::MYSQL_ATTR_SSL_CA is deprecated since 8.5, use Pdo\Mysql::ATTR_SSL_CA instead in /Users/seppo/code/voltikka/laravel/vendor/laravel/framework/config/database.php on line 81
+
+Deprecated: Constant PDO::MYSQL_ATTR_SSL_CA is deprecated since 8.5, use Pdo\Mysql::ATTR_SSL_CA instead in /Users/seppo/code/voltikka/laravel/vendor/laravel/framework/config/database.php on line 81
+PROVED testing / sqlite / :memory: / PRAGMA file empty before fixture creation
+{"hedge_checks":678,"forecast_checks":1047,"status":"passed","database":":memory:"}

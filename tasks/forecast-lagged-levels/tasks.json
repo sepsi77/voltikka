@@ -1,0 +1,6 @@
+[
+  {"name":"Freeze protocol and source hashes","status":"completed"},
+  {"name":"Calculate lagged levels and matched cohorts","status":"completed"},
+  {"name":"Verify independent arithmetic, chronology and repeat hashes","status":"completed"},
+  {"name":"Write report and review scope","status":"completed"}
+]

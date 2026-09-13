@@ -1,0 +1,16 @@
+{
+  "adjacent_supplier_changes": 473,
+  "adjacent_supplier_pairs": 8913,
+  "canonical_supplier_30_pairs": 891,
+  "eligible": 11608,
+  "july27_checks": 147,
+  "member_checks": 36376,
+  "metric_checks": 256,
+  "pair_checks": 1908,
+  "prior_cadence_artifacts": 19,
+  "prior_pilot_rows": 9571,
+  "same_id_changes": 1,
+  "status": "PASS",
+  "supplier_medians": 9094,
+  "synthetic_checks": 4
+}

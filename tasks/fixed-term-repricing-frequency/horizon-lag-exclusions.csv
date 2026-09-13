@@ -1,0 +1,925 @@
+panel,company,term,basis,lag,retail_dates,missing_retail_window,complete_retail_windows,missing_hedge_endpoints,unscreened_pairs,removed_rolls,screened_pairs
+market,public_market,6,canonical_calculation,0,49,7,42,0,42,12,30
+market,public_market,6,canonical_calculation,7,49,7,42,0,42,13,29
+market,public_market,6,canonical_calculation,14,49,7,42,0,42,7,35
+market,public_market,6,canonical_calculation,21,49,7,42,0,42,7,35
+market,public_market,6,canonical_calculation,30,49,7,42,0,42,11,31
+market,public_market,6,canonical_calculation,45,49,7,42,0,42,7,35
+market,public_market,6,canonical_calculation,60,49,7,42,0,42,11,31
+market,public_market,6,observed_seller_data,0,110,7,103,1,102,21,81
+market,public_market,6,observed_seller_data,7,110,7,103,8,95,21,74
+market,public_market,6,observed_seller_data,14,110,7,103,15,88,21,67
+market,public_market,6,observed_seller_data,21,110,7,103,22,81,19,62
+market,public_market,6,observed_seller_data,30,110,7,103,31,72,14,58
+market,public_market,6,observed_seller_data,45,110,7,103,46,57,14,43
+market,public_market,6,observed_seller_data,60,110,7,103,61,42,7,35
+market,public_market,12,canonical_calculation,0,49,7,42,0,42,12,30
+market,public_market,12,canonical_calculation,7,49,7,42,0,42,13,29
+market,public_market,12,canonical_calculation,14,49,7,42,0,42,7,35
+market,public_market,12,canonical_calculation,21,49,7,42,0,42,7,35
+market,public_market,12,canonical_calculation,30,49,7,42,0,42,11,31
+market,public_market,12,canonical_calculation,45,49,7,42,0,42,7,35
+market,public_market,12,canonical_calculation,60,49,7,42,0,42,11,31
+market,public_market,12,observed_seller_data,0,110,7,103,1,102,21,81
+market,public_market,12,observed_seller_data,7,110,7,103,8,95,21,74
+market,public_market,12,observed_seller_data,14,110,7,103,15,88,21,67
+market,public_market,12,observed_seller_data,21,110,7,103,22,81,19,62
+market,public_market,12,observed_seller_data,30,110,7,103,31,72,14,58
+market,public_market,12,observed_seller_data,45,110,7,103,46,57,14,43
+market,public_market,12,observed_seller_data,60,110,7,103,61,42,7,35
+market,public_market,24,canonical_calculation,0,49,7,42,0,42,12,30
+market,public_market,24,canonical_calculation,7,49,7,42,0,42,13,29
+market,public_market,24,canonical_calculation,14,49,7,42,0,42,7,35
+market,public_market,24,canonical_calculation,21,49,7,42,0,42,7,35
+market,public_market,24,canonical_calculation,30,49,7,42,0,42,11,31
+market,public_market,24,canonical_calculation,45,49,7,42,0,42,7,35
+market,public_market,24,canonical_calculation,60,49,7,42,0,42,11,31
+market,public_market,24,observed_seller_data,0,110,7,103,1,102,21,81
+market,public_market,24,observed_seller_data,7,110,7,103,8,95,21,74
+market,public_market,24,observed_seller_data,14,110,7,103,15,88,21,67
+market,public_market,24,observed_seller_data,21,110,7,103,22,81,19,62
+market,public_market,24,observed_seller_data,30,110,7,103,31,72,14,58
+market,public_market,24,observed_seller_data,45,110,7,103,46,57,14,43
+market,public_market,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Aalto energia Oyj,12,observed_seller_data,0,56,7,49,1,48,9,39
+supplier_general,Aalto energia Oyj,12,observed_seller_data,7,56,7,49,8,41,7,34
+supplier_general,Aalto energia Oyj,12,observed_seller_data,14,56,7,49,15,34,7,27
+supplier_general,Aalto energia Oyj,12,observed_seller_data,21,56,7,49,22,27,7,20
+supplier_general,Aalto energia Oyj,12,observed_seller_data,30,56,7,49,31,18,3,15
+supplier_general,Aalto energia Oyj,12,observed_seller_data,45,56,7,49,46,3,0,3
+supplier_general,Aalto energia Oyj,12,observed_seller_data,60,56,7,49,49,0,0,0
+supplier_general,Aalto energia Oyj,24,observed_seller_data,0,56,7,49,1,48,9,39
+supplier_general,Aalto energia Oyj,24,observed_seller_data,7,56,7,49,8,41,7,34
+supplier_general,Aalto energia Oyj,24,observed_seller_data,14,56,7,49,15,34,7,27
+supplier_general,Aalto energia Oyj,24,observed_seller_data,21,56,7,49,22,27,7,20
+supplier_general,Aalto energia Oyj,24,observed_seller_data,30,56,7,49,31,18,3,15
+supplier_general,Aalto energia Oyj,24,observed_seller_data,45,56,7,49,46,3,0,3
+supplier_general,Aalto energia Oyj,24,observed_seller_data,60,56,7,49,49,0,0,0
+supplier_general,Alajärven Sähkö Oy,12,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Alajärven Sähkö Oy,12,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Alajärven Sähkö Oy,12,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Alajärven Sähkö Oy,12,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Alajärven Sähkö Oy,12,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Alajärven Sähkö Oy,12,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Alajärven Sähkö Oy,12,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Alajärven Sähkö Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Alajärven Sähkö Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Alajärven Sähkö Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Alajärven Sähkö Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Alajärven Sähkö Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Alajärven Sähkö Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Alajärven Sähkö Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Alajärven Sähkö Oy,24,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Alajärven Sähkö Oy,24,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Alajärven Sähkö Oy,24,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Alajärven Sähkö Oy,24,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Alajärven Sähkö Oy,24,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Alajärven Sähkö Oy,24,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Alajärven Sähkö Oy,24,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Alajärven Sähkö Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Alajärven Sähkö Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Alajärven Sähkö Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Alajärven Sähkö Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Alajärven Sähkö Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Alajärven Sähkö Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Alajärven Sähkö Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Cheap Energy Finland Oy,6,canonical_calculation,0,3,3,0,0,0,0,0
+supplier_general,Cheap Energy Finland Oy,6,canonical_calculation,7,3,3,0,0,0,0,0
+supplier_general,Cheap Energy Finland Oy,6,canonical_calculation,14,3,3,0,0,0,0,0
+supplier_general,Cheap Energy Finland Oy,6,canonical_calculation,21,3,3,0,0,0,0,0
+supplier_general,Cheap Energy Finland Oy,6,canonical_calculation,30,3,3,0,0,0,0,0
+supplier_general,Cheap Energy Finland Oy,6,canonical_calculation,45,3,3,0,0,0,0,0
+supplier_general,Cheap Energy Finland Oy,6,canonical_calculation,60,3,3,0,0,0,0,0
+supplier_general,Cheap Energy Finland Oy,6,observed_seller_data,0,108,7,101,1,100,21,79
+supplier_general,Cheap Energy Finland Oy,6,observed_seller_data,7,108,7,101,8,93,21,72
+supplier_general,Cheap Energy Finland Oy,6,observed_seller_data,14,108,7,101,15,86,21,65
+supplier_general,Cheap Energy Finland Oy,6,observed_seller_data,21,108,7,101,22,79,17,62
+supplier_general,Cheap Energy Finland Oy,6,observed_seller_data,30,108,7,101,31,70,14,56
+supplier_general,Cheap Energy Finland Oy,6,observed_seller_data,45,108,7,101,46,55,14,41
+supplier_general,Cheap Energy Finland Oy,6,observed_seller_data,60,108,7,101,61,40,7,33
+supplier_general,Cheap Energy Finland Oy,12,canonical_calculation,0,9,7,2,0,2,0,2
+supplier_general,Cheap Energy Finland Oy,12,canonical_calculation,7,9,7,2,0,2,2,0
+supplier_general,Cheap Energy Finland Oy,12,canonical_calculation,14,9,7,2,0,2,0,2
+supplier_general,Cheap Energy Finland Oy,12,canonical_calculation,21,9,7,2,0,2,0,2
+supplier_general,Cheap Energy Finland Oy,12,canonical_calculation,30,9,7,2,0,2,0,2
+supplier_general,Cheap Energy Finland Oy,12,canonical_calculation,45,9,7,2,0,2,0,2
+supplier_general,Cheap Energy Finland Oy,12,canonical_calculation,60,9,7,2,0,2,0,2
+supplier_general,Cheap Energy Finland Oy,24,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Cheap Energy Finland Oy,24,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Cheap Energy Finland Oy,24,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Cheap Energy Finland Oy,24,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Cheap Energy Finland Oy,24,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Cheap Energy Finland Oy,24,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Cheap Energy Finland Oy,24,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Cheap Energy Finland Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Cheap Energy Finland Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Cheap Energy Finland Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Cheap Energy Finland Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Cheap Energy Finland Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Cheap Energy Finland Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Cheap Energy Finland Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Fortum Markets Oy,24,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Fortum Markets Oy,24,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Fortum Markets Oy,24,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Fortum Markets Oy,24,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Fortum Markets Oy,24,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Fortum Markets Oy,24,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Fortum Markets Oy,24,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Fortum Markets Oy,24,observed_seller_data,0,51,7,44,0,44,7,37
+supplier_general,Fortum Markets Oy,24,observed_seller_data,7,51,7,44,0,44,11,33
+supplier_general,Fortum Markets Oy,24,observed_seller_data,14,51,7,44,0,44,14,30
+supplier_general,Fortum Markets Oy,24,observed_seller_data,21,51,7,44,0,44,10,34
+supplier_general,Fortum Markets Oy,24,observed_seller_data,30,51,7,44,0,44,7,37
+supplier_general,Fortum Markets Oy,24,observed_seller_data,45,51,7,44,0,44,14,30
+supplier_general,Fortum Markets Oy,24,observed_seller_data,60,51,7,44,4,40,7,33
+supplier_general,Hehku Energia Oy,6,canonical_calculation,0,1,1,0,0,0,0,0
+supplier_general,Hehku Energia Oy,6,canonical_calculation,7,1,1,0,0,0,0,0
+supplier_general,Hehku Energia Oy,6,canonical_calculation,14,1,1,0,0,0,0,0
+supplier_general,Hehku Energia Oy,6,canonical_calculation,21,1,1,0,0,0,0,0
+supplier_general,Hehku Energia Oy,6,canonical_calculation,30,1,1,0,0,0,0,0
+supplier_general,Hehku Energia Oy,6,canonical_calculation,45,1,1,0,0,0,0,0
+supplier_general,Hehku Energia Oy,6,canonical_calculation,60,1,1,0,0,0,0,0
+supplier_general,Hehku Energia Oy,6,observed_seller_data,0,104,14,90,1,89,21,68
+supplier_general,Hehku Energia Oy,6,observed_seller_data,7,104,14,90,8,82,17,65
+supplier_general,Hehku Energia Oy,6,observed_seller_data,14,104,14,90,15,75,14,61
+supplier_general,Hehku Energia Oy,6,observed_seller_data,21,104,14,90,22,68,17,51
+supplier_general,Hehku Energia Oy,6,observed_seller_data,30,104,14,90,31,59,14,45
+supplier_general,Hehku Energia Oy,6,observed_seller_data,45,104,14,90,46,44,8,36
+supplier_general,Hehku Energia Oy,6,observed_seller_data,60,104,14,90,61,29,7,22
+supplier_general,Hehku Energia Oy,12,canonical_calculation,0,48,14,34,0,34,7,27
+supplier_general,Hehku Energia Oy,12,canonical_calculation,7,48,14,34,0,34,10,24
+supplier_general,Hehku Energia Oy,12,canonical_calculation,14,48,14,34,0,34,7,27
+supplier_general,Hehku Energia Oy,12,canonical_calculation,21,48,14,34,0,34,7,27
+supplier_general,Hehku Energia Oy,12,canonical_calculation,30,48,14,34,0,34,7,27
+supplier_general,Hehku Energia Oy,12,canonical_calculation,45,48,14,34,0,34,7,27
+supplier_general,Hehku Energia Oy,12,canonical_calculation,60,48,14,34,0,34,7,27
+supplier_general,Hehku Energia Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Hehku Energia Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Hehku Energia Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Hehku Energia Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Hehku Energia Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Hehku Energia Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Hehku Energia Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Hehku Energia Oy,24,canonical_calculation,0,48,14,34,0,34,7,27
+supplier_general,Hehku Energia Oy,24,canonical_calculation,7,48,14,34,0,34,10,24
+supplier_general,Hehku Energia Oy,24,canonical_calculation,14,48,14,34,0,34,7,27
+supplier_general,Hehku Energia Oy,24,canonical_calculation,21,48,14,34,0,34,7,27
+supplier_general,Hehku Energia Oy,24,canonical_calculation,30,48,14,34,0,34,7,27
+supplier_general,Hehku Energia Oy,24,canonical_calculation,45,48,14,34,0,34,7,27
+supplier_general,Hehku Energia Oy,24,canonical_calculation,60,48,14,34,0,34,7,27
+supplier_general,Hehku Energia Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Hehku Energia Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Hehku Energia Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Hehku Energia Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Hehku Energia Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Hehku Energia Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Hehku Energia Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Helen Oy,6,canonical_calculation,0,47,14,33,0,33,7,26
+supplier_general,Helen Oy,6,canonical_calculation,7,47,14,33,0,33,9,24
+supplier_general,Helen Oy,6,canonical_calculation,14,47,14,33,0,33,7,26
+supplier_general,Helen Oy,6,canonical_calculation,21,47,14,33,0,33,7,26
+supplier_general,Helen Oy,6,canonical_calculation,30,47,14,33,0,33,7,26
+supplier_general,Helen Oy,6,canonical_calculation,45,47,14,33,0,33,7,26
+supplier_general,Helen Oy,6,canonical_calculation,60,47,14,33,0,33,7,26
+supplier_general,Helen Oy,6,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Helen Oy,6,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Helen Oy,6,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Helen Oy,6,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Helen Oy,6,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Helen Oy,6,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Helen Oy,6,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Helen Oy,12,canonical_calculation,0,47,14,33,0,33,7,26
+supplier_general,Helen Oy,12,canonical_calculation,7,47,14,33,0,33,9,24
+supplier_general,Helen Oy,12,canonical_calculation,14,47,14,33,0,33,7,26
+supplier_general,Helen Oy,12,canonical_calculation,21,47,14,33,0,33,7,26
+supplier_general,Helen Oy,12,canonical_calculation,30,47,14,33,0,33,7,26
+supplier_general,Helen Oy,12,canonical_calculation,45,47,14,33,0,33,7,26
+supplier_general,Helen Oy,12,canonical_calculation,60,47,14,33,0,33,7,26
+supplier_general,Helen Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Helen Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Helen Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Helen Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Helen Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Helen Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Helen Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Helen Oy,24,canonical_calculation,0,47,14,33,0,33,7,26
+supplier_general,Helen Oy,24,canonical_calculation,7,47,14,33,0,33,9,24
+supplier_general,Helen Oy,24,canonical_calculation,14,47,14,33,0,33,7,26
+supplier_general,Helen Oy,24,canonical_calculation,21,47,14,33,0,33,7,26
+supplier_general,Helen Oy,24,canonical_calculation,30,47,14,33,0,33,7,26
+supplier_general,Helen Oy,24,canonical_calculation,45,47,14,33,0,33,7,26
+supplier_general,Helen Oy,24,canonical_calculation,60,47,14,33,0,33,7,26
+supplier_general,Helen Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Helen Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Helen Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Helen Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Helen Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Helen Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Helen Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Imatran Seudun Sähkö Oy,6,canonical_calculation,0,47,13,34,0,34,8,26
+supplier_general,Imatran Seudun Sähkö Oy,6,canonical_calculation,7,47,13,34,0,34,9,25
+supplier_general,Imatran Seudun Sähkö Oy,6,canonical_calculation,14,47,13,34,0,34,7,27
+supplier_general,Imatran Seudun Sähkö Oy,6,canonical_calculation,21,47,13,34,0,34,7,27
+supplier_general,Imatran Seudun Sähkö Oy,6,canonical_calculation,30,47,13,34,0,34,7,27
+supplier_general,Imatran Seudun Sähkö Oy,6,canonical_calculation,45,47,13,34,0,34,7,27
+supplier_general,Imatran Seudun Sähkö Oy,6,canonical_calculation,60,47,13,34,0,34,7,27
+supplier_general,Imatran Seudun Sähkö Oy,6,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Imatran Seudun Sähkö Oy,6,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Imatran Seudun Sähkö Oy,6,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Imatran Seudun Sähkö Oy,6,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Imatran Seudun Sähkö Oy,6,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Imatran Seudun Sähkö Oy,6,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Imatran Seudun Sähkö Oy,6,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Imatran Seudun Sähkö Oy,12,canonical_calculation,0,48,10,38,0,38,12,26
+supplier_general,Imatran Seudun Sähkö Oy,12,canonical_calculation,7,48,10,38,0,38,9,29
+supplier_general,Imatran Seudun Sähkö Oy,12,canonical_calculation,14,48,10,38,0,38,7,31
+supplier_general,Imatran Seudun Sähkö Oy,12,canonical_calculation,21,48,10,38,0,38,7,31
+supplier_general,Imatran Seudun Sähkö Oy,12,canonical_calculation,30,48,10,38,0,38,11,27
+supplier_general,Imatran Seudun Sähkö Oy,12,canonical_calculation,45,48,10,38,0,38,7,31
+supplier_general,Imatran Seudun Sähkö Oy,12,canonical_calculation,60,48,10,38,0,38,11,27
+supplier_general,Imatran Seudun Sähkö Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Imatran Seudun Sähkö Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Imatran Seudun Sähkö Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Imatran Seudun Sähkö Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Imatran Seudun Sähkö Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Imatran Seudun Sähkö Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Imatran Seudun Sähkö Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Imatran Seudun Sähkö Oy,24,canonical_calculation,0,47,12,35,0,35,9,26
+supplier_general,Imatran Seudun Sähkö Oy,24,canonical_calculation,7,47,12,35,0,35,9,26
+supplier_general,Imatran Seudun Sähkö Oy,24,canonical_calculation,14,47,12,35,0,35,7,28
+supplier_general,Imatran Seudun Sähkö Oy,24,canonical_calculation,21,47,12,35,0,35,7,28
+supplier_general,Imatran Seudun Sähkö Oy,24,canonical_calculation,30,47,12,35,0,35,8,27
+supplier_general,Imatran Seudun Sähkö Oy,24,canonical_calculation,45,47,12,35,0,35,7,28
+supplier_general,Imatran Seudun Sähkö Oy,24,canonical_calculation,60,47,12,35,0,35,8,27
+supplier_general,Imatran Seudun Sähkö Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Imatran Seudun Sähkö Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Imatran Seudun Sähkö Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Imatran Seudun Sähkö Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Imatran Seudun Sähkö Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Imatran Seudun Sähkö Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Imatran Seudun Sähkö Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Keravan Energia Oy,6,canonical_calculation,0,48,11,37,0,37,7,30
+supplier_general,Keravan Energia Oy,6,canonical_calculation,7,48,11,37,0,37,13,24
+supplier_general,Keravan Energia Oy,6,canonical_calculation,14,48,11,37,0,37,7,30
+supplier_general,Keravan Energia Oy,6,canonical_calculation,21,48,11,37,0,37,7,30
+supplier_general,Keravan Energia Oy,6,canonical_calculation,30,48,11,37,0,37,7,30
+supplier_general,Keravan Energia Oy,6,canonical_calculation,45,48,11,37,0,37,7,30
+supplier_general,Keravan Energia Oy,6,canonical_calculation,60,48,11,37,0,37,7,30
+supplier_general,Keravan Energia Oy,6,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Keravan Energia Oy,6,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Keravan Energia Oy,6,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Keravan Energia Oy,6,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Keravan Energia Oy,6,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Keravan Energia Oy,6,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Keravan Energia Oy,6,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Keravan Energia Oy,12,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Keravan Energia Oy,12,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Keravan Energia Oy,12,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Keravan Energia Oy,12,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Keravan Energia Oy,12,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Keravan Energia Oy,12,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Keravan Energia Oy,12,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Keravan Energia Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Keravan Energia Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Keravan Energia Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Keravan Energia Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Keravan Energia Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Keravan Energia Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Keravan Energia Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Keravan Energia Oy,24,canonical_calculation,0,47,11,36,0,36,7,29
+supplier_general,Keravan Energia Oy,24,canonical_calculation,7,47,11,36,0,36,12,24
+supplier_general,Keravan Energia Oy,24,canonical_calculation,14,47,11,36,0,36,7,29
+supplier_general,Keravan Energia Oy,24,canonical_calculation,21,47,11,36,0,36,7,29
+supplier_general,Keravan Energia Oy,24,canonical_calculation,30,47,11,36,0,36,7,29
+supplier_general,Keravan Energia Oy,24,canonical_calculation,45,47,11,36,0,36,7,29
+supplier_general,Keravan Energia Oy,24,canonical_calculation,60,47,11,36,0,36,7,29
+supplier_general,Keravan Energia Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Keravan Energia Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Keravan Energia Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Keravan Energia Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Keravan Energia Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Keravan Energia Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Keravan Energia Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Koillis-Satakunnan Sähkö Oy,12,canonical_calculation,0,47,11,36,0,36,10,26
+supplier_general,Koillis-Satakunnan Sähkö Oy,12,canonical_calculation,7,47,11,36,0,36,9,27
+supplier_general,Koillis-Satakunnan Sähkö Oy,12,canonical_calculation,14,47,11,36,0,36,7,29
+supplier_general,Koillis-Satakunnan Sähkö Oy,12,canonical_calculation,21,47,11,36,0,36,7,29
+supplier_general,Koillis-Satakunnan Sähkö Oy,12,canonical_calculation,30,47,11,36,0,36,9,27
+supplier_general,Koillis-Satakunnan Sähkö Oy,12,canonical_calculation,45,47,11,36,0,36,7,29
+supplier_general,Koillis-Satakunnan Sähkö Oy,12,canonical_calculation,60,47,11,36,0,36,9,27
+supplier_general,Koillis-Satakunnan Sähkö Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Koillis-Satakunnan Sähkö Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Koillis-Satakunnan Sähkö Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Koillis-Satakunnan Sähkö Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Koillis-Satakunnan Sähkö Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Koillis-Satakunnan Sähkö Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Koillis-Satakunnan Sähkö Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Koillis-Satakunnan Sähkö Oy,24,canonical_calculation,0,46,10,36,0,36,10,26
+supplier_general,Koillis-Satakunnan Sähkö Oy,24,canonical_calculation,7,46,10,36,0,36,9,27
+supplier_general,Koillis-Satakunnan Sähkö Oy,24,canonical_calculation,14,46,10,36,0,36,7,29
+supplier_general,Koillis-Satakunnan Sähkö Oy,24,canonical_calculation,21,46,10,36,0,36,7,29
+supplier_general,Koillis-Satakunnan Sähkö Oy,24,canonical_calculation,30,46,10,36,0,36,9,27
+supplier_general,Koillis-Satakunnan Sähkö Oy,24,canonical_calculation,45,46,10,36,0,36,7,29
+supplier_general,Koillis-Satakunnan Sähkö Oy,24,canonical_calculation,60,46,10,36,0,36,9,27
+supplier_general,Koillis-Satakunnan Sähkö Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Koillis-Satakunnan Sähkö Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Koillis-Satakunnan Sähkö Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Koillis-Satakunnan Sähkö Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Koillis-Satakunnan Sähkö Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Koillis-Satakunnan Sähkö Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Koillis-Satakunnan Sähkö Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Kokkolan Energia Oy,6,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Kokkolan Energia Oy,6,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Kokkolan Energia Oy,6,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Kokkolan Energia Oy,6,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Kokkolan Energia Oy,6,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Kokkolan Energia Oy,6,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Kokkolan Energia Oy,6,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Kokkolan Energia Oy,6,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Kokkolan Energia Oy,6,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Kokkolan Energia Oy,6,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Kokkolan Energia Oy,6,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Kokkolan Energia Oy,6,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Kokkolan Energia Oy,6,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Kokkolan Energia Oy,6,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Kokkolan Energia Oy,12,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Kokkolan Energia Oy,12,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Kokkolan Energia Oy,12,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Kokkolan Energia Oy,12,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Kokkolan Energia Oy,12,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Kokkolan Energia Oy,12,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Kokkolan Energia Oy,12,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Kokkolan Energia Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Kokkolan Energia Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Kokkolan Energia Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Kokkolan Energia Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Kokkolan Energia Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Kokkolan Energia Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Kokkolan Energia Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Kokkolan Energia Oy,24,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Kokkolan Energia Oy,24,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Kokkolan Energia Oy,24,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Kokkolan Energia Oy,24,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Kokkolan Energia Oy,24,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Kokkolan Energia Oy,24,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Kokkolan Energia Oy,24,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Kokkolan Energia Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Kokkolan Energia Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Kokkolan Energia Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Kokkolan Energia Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Kokkolan Energia Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Kokkolan Energia Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Kokkolan Energia Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Korpelan Energia Oy,12,canonical_calculation,0,47,17,30,0,30,8,22
+supplier_general,Korpelan Energia Oy,12,canonical_calculation,7,47,17,30,0,30,5,25
+supplier_general,Korpelan Energia Oy,12,canonical_calculation,14,47,17,30,0,30,7,23
+supplier_general,Korpelan Energia Oy,12,canonical_calculation,21,47,17,30,0,30,7,23
+supplier_general,Korpelan Energia Oy,12,canonical_calculation,30,47,17,30,0,30,8,22
+supplier_general,Korpelan Energia Oy,12,canonical_calculation,45,47,17,30,0,30,7,23
+supplier_general,Korpelan Energia Oy,12,canonical_calculation,60,47,17,30,0,30,8,22
+supplier_general,Korpelan Energia Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Korpelan Energia Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Korpelan Energia Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Korpelan Energia Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Korpelan Energia Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Korpelan Energia Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Korpelan Energia Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Korpelan Energia Oy,24,canonical_calculation,0,12,10,2,0,2,0,2
+supplier_general,Korpelan Energia Oy,24,canonical_calculation,7,12,10,2,0,2,2,0
+supplier_general,Korpelan Energia Oy,24,canonical_calculation,14,12,10,2,0,2,0,2
+supplier_general,Korpelan Energia Oy,24,canonical_calculation,21,12,10,2,0,2,0,2
+supplier_general,Korpelan Energia Oy,24,canonical_calculation,30,12,10,2,0,2,0,2
+supplier_general,Korpelan Energia Oy,24,canonical_calculation,45,12,10,2,0,2,0,2
+supplier_general,Korpelan Energia Oy,24,canonical_calculation,60,12,10,2,0,2,0,2
+supplier_general,Köyliön-Säkylän Sähkö Oy,12,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Köyliön-Säkylän Sähkö Oy,12,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Köyliön-Säkylän Sähkö Oy,12,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Köyliön-Säkylän Sähkö Oy,12,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Köyliön-Säkylän Sähkö Oy,12,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Köyliön-Säkylän Sähkö Oy,12,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Köyliön-Säkylän Sähkö Oy,12,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Köyliön-Säkylän Sähkö Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Köyliön-Säkylän Sähkö Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Köyliön-Säkylän Sähkö Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Köyliön-Säkylän Sähkö Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Köyliön-Säkylän Sähkö Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Köyliön-Säkylän Sähkö Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Köyliön-Säkylän Sähkö Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Köyliön-Säkylän Sähkö Oy,24,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Köyliön-Säkylän Sähkö Oy,24,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Köyliön-Säkylän Sähkö Oy,24,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Köyliön-Säkylän Sähkö Oy,24,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Köyliön-Säkylän Sähkö Oy,24,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Köyliön-Säkylän Sähkö Oy,24,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Köyliön-Säkylän Sähkö Oy,24,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Köyliön-Säkylän Sähkö Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Köyliön-Säkylän Sähkö Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Köyliön-Säkylän Sähkö Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Köyliön-Säkylän Sähkö Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Köyliön-Säkylän Sähkö Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Köyliön-Säkylän Sähkö Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Köyliön-Säkylän Sähkö Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Lammaisten Energia Oy,6,observed_seller_data,0,27,7,20,1,19,4,15
+supplier_general,Lammaisten Energia Oy,6,observed_seller_data,7,27,7,20,8,12,0,12
+supplier_general,Lammaisten Energia Oy,6,observed_seller_data,14,27,7,20,15,5,0,5
+supplier_general,Lammaisten Energia Oy,6,observed_seller_data,21,27,7,20,20,0,0,0
+supplier_general,Lammaisten Energia Oy,6,observed_seller_data,30,27,7,20,20,0,0,0
+supplier_general,Lammaisten Energia Oy,6,observed_seller_data,45,27,7,20,20,0,0,0
+supplier_general,Lammaisten Energia Oy,6,observed_seller_data,60,27,7,20,20,0,0,0
+supplier_general,Lammaisten Energia Oy,12,canonical_calculation,0,48,11,37,0,37,7,30
+supplier_general,Lammaisten Energia Oy,12,canonical_calculation,7,48,11,37,0,37,13,24
+supplier_general,Lammaisten Energia Oy,12,canonical_calculation,14,48,11,37,0,37,7,30
+supplier_general,Lammaisten Energia Oy,12,canonical_calculation,21,48,11,37,0,37,7,30
+supplier_general,Lammaisten Energia Oy,12,canonical_calculation,30,48,11,37,0,37,7,30
+supplier_general,Lammaisten Energia Oy,12,canonical_calculation,45,48,11,37,0,37,7,30
+supplier_general,Lammaisten Energia Oy,12,canonical_calculation,60,48,11,37,0,37,7,30
+supplier_general,Lammaisten Energia Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Lammaisten Energia Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Lammaisten Energia Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Lammaisten Energia Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Lammaisten Energia Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Lammaisten Energia Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Lammaisten Energia Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Lammaisten Energia Oy,24,canonical_calculation,0,48,11,37,0,37,7,30
+supplier_general,Lammaisten Energia Oy,24,canonical_calculation,7,48,11,37,0,37,13,24
+supplier_general,Lammaisten Energia Oy,24,canonical_calculation,14,48,11,37,0,37,7,30
+supplier_general,Lammaisten Energia Oy,24,canonical_calculation,21,48,11,37,0,37,7,30
+supplier_general,Lammaisten Energia Oy,24,canonical_calculation,30,48,11,37,0,37,7,30
+supplier_general,Lammaisten Energia Oy,24,canonical_calculation,45,48,11,37,0,37,7,30
+supplier_general,Lammaisten Energia Oy,24,canonical_calculation,60,48,11,37,0,37,7,30
+supplier_general,Lammaisten Energia Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Lammaisten Energia Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Lammaisten Energia Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Lammaisten Energia Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Lammaisten Energia Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Lammaisten Energia Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Lammaisten Energia Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Lumme Energia,6,observed_seller_data,0,86,7,79,1,78,16,62
+supplier_general,Lumme Energia,6,observed_seller_data,7,86,7,79,8,71,14,57
+supplier_general,Lumme Energia,6,observed_seller_data,14,86,7,79,15,64,14,50
+supplier_general,Lumme Energia,6,observed_seller_data,21,86,7,79,22,57,14,43
+supplier_general,Lumme Energia,6,observed_seller_data,30,86,7,79,31,48,9,39
+supplier_general,Lumme Energia,6,observed_seller_data,45,86,7,79,46,33,7,26
+supplier_general,Lumme Energia,6,observed_seller_data,60,86,7,79,61,18,3,15
+supplier_general,Lumme Energia,12,canonical_calculation,0,22,7,15,0,15,5,10
+supplier_general,Lumme Energia,12,canonical_calculation,7,22,7,15,0,15,7,8
+supplier_general,Lumme Energia,12,canonical_calculation,14,22,7,15,0,15,3,12
+supplier_general,Lumme Energia,12,canonical_calculation,21,22,7,15,0,15,0,15
+supplier_general,Lumme Energia,12,canonical_calculation,30,22,7,15,0,15,4,11
+supplier_general,Lumme Energia,12,canonical_calculation,45,22,7,15,0,15,3,12
+supplier_general,Lumme Energia,12,canonical_calculation,60,22,7,15,0,15,4,11
+supplier_general,Lumme Energia,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Lumme Energia,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Lumme Energia,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Lumme Energia,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Lumme Energia,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Lumme Energia,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Lumme Energia,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Lumme Energia,24,canonical_calculation,0,21,11,10,0,10,0,10
+supplier_general,Lumme Energia,24,canonical_calculation,7,21,11,10,0,10,7,3
+supplier_general,Lumme Energia,24,canonical_calculation,14,21,11,10,0,10,3,7
+supplier_general,Lumme Energia,24,canonical_calculation,21,21,11,10,0,10,0,10
+supplier_general,Lumme Energia,24,canonical_calculation,30,21,11,10,0,10,0,10
+supplier_general,Lumme Energia,24,canonical_calculation,45,21,11,10,0,10,3,7
+supplier_general,Lumme Energia,24,canonical_calculation,60,21,11,10,0,10,0,10
+supplier_general,Lumme Energia,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Lumme Energia,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Lumme Energia,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Lumme Energia,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Lumme Energia,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Lumme Energia,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Lumme Energia,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Nurmijärven Sähkö Oy,12,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Nurmijärven Sähkö Oy,12,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Nurmijärven Sähkö Oy,12,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Nurmijärven Sähkö Oy,12,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Nurmijärven Sähkö Oy,12,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Nurmijärven Sähkö Oy,12,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Nurmijärven Sähkö Oy,12,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Nurmijärven Sähkö Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Nurmijärven Sähkö Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Nurmijärven Sähkö Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Nurmijärven Sähkö Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Nurmijärven Sähkö Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Nurmijärven Sähkö Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Nurmijärven Sähkö Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Nurmijärven Sähkö Oy,24,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Nurmijärven Sähkö Oy,24,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Nurmijärven Sähkö Oy,24,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Nurmijärven Sähkö Oy,24,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Nurmijärven Sähkö Oy,24,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Nurmijärven Sähkö Oy,24,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Nurmijärven Sähkö Oy,24,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Nurmijärven Sähkö Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Nurmijärven Sähkö Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Nurmijärven Sähkö Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Nurmijärven Sähkö Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Nurmijärven Sähkö Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Nurmijärven Sähkö Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Nurmijärven Sähkö Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Omavoima Oy,12,canonical_calculation,0,48,8,40,0,40,10,30
+supplier_general,Omavoima Oy,12,canonical_calculation,7,48,8,40,0,40,13,27
+supplier_general,Omavoima Oy,12,canonical_calculation,14,48,8,40,0,40,7,33
+supplier_general,Omavoima Oy,12,canonical_calculation,21,48,8,40,0,40,7,33
+supplier_general,Omavoima Oy,12,canonical_calculation,30,48,8,40,0,40,9,31
+supplier_general,Omavoima Oy,12,canonical_calculation,45,48,8,40,0,40,7,33
+supplier_general,Omavoima Oy,12,canonical_calculation,60,48,8,40,0,40,9,31
+supplier_general,Omavoima Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Omavoima Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Omavoima Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Omavoima Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Omavoima Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Omavoima Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Omavoima Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Omavoima Oy,24,canonical_calculation,0,48,8,40,0,40,10,30
+supplier_general,Omavoima Oy,24,canonical_calculation,7,48,8,40,0,40,13,27
+supplier_general,Omavoima Oy,24,canonical_calculation,14,48,8,40,0,40,7,33
+supplier_general,Omavoima Oy,24,canonical_calculation,21,48,8,40,0,40,7,33
+supplier_general,Omavoima Oy,24,canonical_calculation,30,48,8,40,0,40,9,31
+supplier_general,Omavoima Oy,24,canonical_calculation,45,48,8,40,0,40,7,33
+supplier_general,Omavoima Oy,24,canonical_calculation,60,48,8,40,0,40,9,31
+supplier_general,Omavoima Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Omavoima Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Omavoima Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Omavoima Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Omavoima Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Omavoima Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Omavoima Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Oomi Oy,6,observed_seller_data,0,77,7,70,0,70,16,54
+supplier_general,Oomi Oy,6,observed_seller_data,7,77,7,70,0,70,14,56
+supplier_general,Oomi Oy,6,observed_seller_data,14,77,7,70,6,64,14,50
+supplier_general,Oomi Oy,6,observed_seller_data,21,77,7,70,13,57,14,43
+supplier_general,Oomi Oy,6,observed_seller_data,30,77,7,70,22,48,9,39
+supplier_general,Oomi Oy,6,observed_seller_data,45,77,7,70,37,33,7,26
+supplier_general,Oomi Oy,6,observed_seller_data,60,77,7,70,52,18,3,15
+supplier_general,Oomi Oy,12,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Oomi Oy,12,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Oomi Oy,12,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Oomi Oy,12,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Oomi Oy,12,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Oomi Oy,12,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Oomi Oy,12,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Oomi Oy,12,observed_seller_data,0,109,9,100,1,99,21,78
+supplier_general,Oomi Oy,12,observed_seller_data,7,109,9,100,8,92,21,71
+supplier_general,Oomi Oy,12,observed_seller_data,14,109,9,100,15,85,21,64
+supplier_general,Oomi Oy,12,observed_seller_data,21,109,9,100,22,78,16,62
+supplier_general,Oomi Oy,12,observed_seller_data,30,109,9,100,31,69,14,55
+supplier_general,Oomi Oy,12,observed_seller_data,45,109,9,100,46,54,14,40
+supplier_general,Oomi Oy,12,observed_seller_data,60,109,9,100,61,39,7,32
+supplier_general,Oomi Oy,24,canonical_calculation,0,48,11,37,0,37,7,30
+supplier_general,Oomi Oy,24,canonical_calculation,7,48,11,37,0,37,13,24
+supplier_general,Oomi Oy,24,canonical_calculation,14,48,11,37,0,37,7,30
+supplier_general,Oomi Oy,24,canonical_calculation,21,48,11,37,0,37,7,30
+supplier_general,Oomi Oy,24,canonical_calculation,30,48,11,37,0,37,7,30
+supplier_general,Oomi Oy,24,canonical_calculation,45,48,11,37,0,37,7,30
+supplier_general,Oomi Oy,24,canonical_calculation,60,48,11,37,0,37,7,30
+supplier_general,Oomi Oy,24,observed_seller_data,0,109,9,100,1,99,21,78
+supplier_general,Oomi Oy,24,observed_seller_data,7,109,9,100,8,92,21,71
+supplier_general,Oomi Oy,24,observed_seller_data,14,109,9,100,15,85,21,64
+supplier_general,Oomi Oy,24,observed_seller_data,21,109,9,100,22,78,16,62
+supplier_general,Oomi Oy,24,observed_seller_data,30,109,9,100,31,69,14,55
+supplier_general,Oomi Oy,24,observed_seller_data,45,109,9,100,46,54,14,40
+supplier_general,Oomi Oy,24,observed_seller_data,60,109,9,100,61,39,7,32
+supplier_general,Paneliankosken Voima Oy,12,canonical_calculation,0,46,16,30,0,30,8,22
+supplier_general,Paneliankosken Voima Oy,12,canonical_calculation,7,46,16,30,0,30,13,17
+supplier_general,Paneliankosken Voima Oy,12,canonical_calculation,14,46,16,30,0,30,5,25
+supplier_general,Paneliankosken Voima Oy,12,canonical_calculation,21,46,16,30,0,30,1,29
+supplier_general,Paneliankosken Voima Oy,12,canonical_calculation,30,46,16,30,0,30,7,23
+supplier_general,Paneliankosken Voima Oy,12,canonical_calculation,45,46,16,30,0,30,5,25
+supplier_general,Paneliankosken Voima Oy,12,canonical_calculation,60,46,16,30,0,30,7,23
+supplier_general,Paneliankosken Voima Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Paneliankosken Voima Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Paneliankosken Voima Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Paneliankosken Voima Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Paneliankosken Voima Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Paneliankosken Voima Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Paneliankosken Voima Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Paneliankosken Voima Oy,24,canonical_calculation,0,47,17,30,0,30,8,22
+supplier_general,Paneliankosken Voima Oy,24,canonical_calculation,7,47,17,30,0,30,13,17
+supplier_general,Paneliankosken Voima Oy,24,canonical_calculation,14,47,17,30,0,30,5,25
+supplier_general,Paneliankosken Voima Oy,24,canonical_calculation,21,47,17,30,0,30,1,29
+supplier_general,Paneliankosken Voima Oy,24,canonical_calculation,30,47,17,30,0,30,7,23
+supplier_general,Paneliankosken Voima Oy,24,canonical_calculation,45,47,17,30,0,30,5,25
+supplier_general,Paneliankosken Voima Oy,24,canonical_calculation,60,47,17,30,0,30,7,23
+supplier_general,Paneliankosken Voima Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Paneliankosken Voima Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Paneliankosken Voima Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Paneliankosken Voima Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Paneliankosken Voima Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Paneliankosken Voima Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Paneliankosken Voima Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Pohjois-Karjalan Sähkö Oy,6,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Pohjois-Karjalan Sähkö Oy,6,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Pohjois-Karjalan Sähkö Oy,6,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Pohjois-Karjalan Sähkö Oy,6,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Pohjois-Karjalan Sähkö Oy,6,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Pohjois-Karjalan Sähkö Oy,6,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Pohjois-Karjalan Sähkö Oy,6,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Pohjois-Karjalan Sähkö Oy,6,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Pohjois-Karjalan Sähkö Oy,6,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Pohjois-Karjalan Sähkö Oy,6,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Pohjois-Karjalan Sähkö Oy,6,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Pohjois-Karjalan Sähkö Oy,6,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Pohjois-Karjalan Sähkö Oy,6,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Pohjois-Karjalan Sähkö Oy,6,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Pohjois-Karjalan Sähkö Oy,12,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Pohjois-Karjalan Sähkö Oy,12,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Pohjois-Karjalan Sähkö Oy,12,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Pohjois-Karjalan Sähkö Oy,12,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Pohjois-Karjalan Sähkö Oy,12,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Pohjois-Karjalan Sähkö Oy,12,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Pohjois-Karjalan Sähkö Oy,12,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Pohjois-Karjalan Sähkö Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Pohjois-Karjalan Sähkö Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Pohjois-Karjalan Sähkö Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Pohjois-Karjalan Sähkö Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Pohjois-Karjalan Sähkö Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Pohjois-Karjalan Sähkö Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Pohjois-Karjalan Sähkö Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Pohjois-Karjalan Sähkö Oy,24,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Pohjois-Karjalan Sähkö Oy,24,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Pohjois-Karjalan Sähkö Oy,24,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Pohjois-Karjalan Sähkö Oy,24,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Pohjois-Karjalan Sähkö Oy,24,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Pohjois-Karjalan Sähkö Oy,24,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Pohjois-Karjalan Sähkö Oy,24,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Pohjois-Karjalan Sähkö Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Pohjois-Karjalan Sähkö Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Pohjois-Karjalan Sähkö Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Pohjois-Karjalan Sähkö Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Pohjois-Karjalan Sähkö Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Pohjois-Karjalan Sähkö Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Pohjois-Karjalan Sähkö Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Porvoon Energia Oy,6,observed_seller_data,0,70,7,63,1,62,14,48
+supplier_general,Porvoon Energia Oy,6,observed_seller_data,7,70,7,63,8,55,14,41
+supplier_general,Porvoon Energia Oy,6,observed_seller_data,14,70,7,63,15,48,9,39
+supplier_general,Porvoon Energia Oy,6,observed_seller_data,21,70,7,63,22,41,7,34
+supplier_general,Porvoon Energia Oy,6,observed_seller_data,30,70,7,63,31,32,7,25
+supplier_general,Porvoon Energia Oy,6,observed_seller_data,45,70,7,63,46,17,2,15
+supplier_general,Porvoon Energia Oy,6,observed_seller_data,60,70,7,63,61,2,0,2
+supplier_general,Porvoon Energia Oy,12,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Porvoon Energia Oy,12,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Porvoon Energia Oy,12,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Porvoon Energia Oy,12,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Porvoon Energia Oy,12,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Porvoon Energia Oy,12,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Porvoon Energia Oy,12,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Porvoon Energia Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Porvoon Energia Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Porvoon Energia Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Porvoon Energia Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Porvoon Energia Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Porvoon Energia Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Porvoon Energia Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Porvoon Energia Oy,24,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Porvoon Energia Oy,24,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Porvoon Energia Oy,24,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Porvoon Energia Oy,24,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Porvoon Energia Oy,24,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Porvoon Energia Oy,24,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Porvoon Energia Oy,24,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Porvoon Energia Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Porvoon Energia Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Porvoon Energia Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Porvoon Energia Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Porvoon Energia Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Porvoon Energia Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Porvoon Energia Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Sähkötytöt Oy,6,observed_seller_data,0,42,7,35,1,34,7,27
+supplier_general,Sähkötytöt Oy,6,observed_seller_data,7,42,7,35,8,27,7,20
+supplier_general,Sähkötytöt Oy,6,observed_seller_data,14,42,7,35,15,20,5,15
+supplier_general,Sähkötytöt Oy,6,observed_seller_data,21,42,7,35,22,13,0,13
+supplier_general,Sähkötytöt Oy,6,observed_seller_data,30,42,7,35,31,4,0,4
+supplier_general,Sähkötytöt Oy,6,observed_seller_data,45,42,7,35,35,0,0,0
+supplier_general,Sähkötytöt Oy,6,observed_seller_data,60,42,7,35,35,0,0,0
+supplier_general,Sähkötytöt Oy,12,observed_seller_data,0,56,7,49,1,48,9,39
+supplier_general,Sähkötytöt Oy,12,observed_seller_data,7,56,7,49,8,41,7,34
+supplier_general,Sähkötytöt Oy,12,observed_seller_data,14,56,7,49,15,34,7,27
+supplier_general,Sähkötytöt Oy,12,observed_seller_data,21,56,7,49,22,27,7,20
+supplier_general,Sähkötytöt Oy,12,observed_seller_data,30,56,7,49,31,18,3,15
+supplier_general,Sähkötytöt Oy,12,observed_seller_data,45,56,7,49,46,3,0,3
+supplier_general,Sähkötytöt Oy,12,observed_seller_data,60,56,7,49,49,0,0,0
+supplier_general,Sähkötytöt Oy,24,observed_seller_data,0,51,7,44,1,43,7,36
+supplier_general,Sähkötytöt Oy,24,observed_seller_data,7,51,7,44,8,36,7,29
+supplier_general,Sähkötytöt Oy,24,observed_seller_data,14,51,7,44,15,29,7,22
+supplier_general,Sähkötytöt Oy,24,observed_seller_data,21,51,7,44,22,22,7,15
+supplier_general,Sähkötytöt Oy,24,observed_seller_data,30,51,7,44,31,13,0,13
+supplier_general,Sähkötytöt Oy,24,observed_seller_data,45,51,7,44,44,0,0,0
+supplier_general,Sähkötytöt Oy,24,observed_seller_data,60,51,7,44,44,0,0,0
+supplier_general,Turku Energia Oy,6,canonical_calculation,0,48,8,40,0,40,10,30
+supplier_general,Turku Energia Oy,6,canonical_calculation,7,48,8,40,0,40,13,27
+supplier_general,Turku Energia Oy,6,canonical_calculation,14,48,8,40,0,40,7,33
+supplier_general,Turku Energia Oy,6,canonical_calculation,21,48,8,40,0,40,7,33
+supplier_general,Turku Energia Oy,6,canonical_calculation,30,48,8,40,0,40,9,31
+supplier_general,Turku Energia Oy,6,canonical_calculation,45,48,8,40,0,40,7,33
+supplier_general,Turku Energia Oy,6,canonical_calculation,60,48,8,40,0,40,9,31
+supplier_general,Turku Energia Oy,6,observed_seller_data,0,104,14,90,1,89,16,73
+supplier_general,Turku Energia Oy,6,observed_seller_data,7,104,14,90,8,82,21,61
+supplier_general,Turku Energia Oy,6,observed_seller_data,14,104,14,90,8,82,21,61
+supplier_general,Turku Energia Oy,6,observed_seller_data,21,104,14,90,9,81,19,62
+supplier_general,Turku Energia Oy,6,observed_seller_data,30,104,14,90,18,72,14,58
+supplier_general,Turku Energia Oy,6,observed_seller_data,45,104,14,90,33,57,14,43
+supplier_general,Turku Energia Oy,6,observed_seller_data,60,104,14,90,48,42,7,35
+supplier_general,Turku Energia Oy,12,canonical_calculation,0,48,8,40,0,40,10,30
+supplier_general,Turku Energia Oy,12,canonical_calculation,7,48,8,40,0,40,13,27
+supplier_general,Turku Energia Oy,12,canonical_calculation,14,48,8,40,0,40,7,33
+supplier_general,Turku Energia Oy,12,canonical_calculation,21,48,8,40,0,40,7,33
+supplier_general,Turku Energia Oy,12,canonical_calculation,30,48,8,40,0,40,9,31
+supplier_general,Turku Energia Oy,12,canonical_calculation,45,48,8,40,0,40,7,33
+supplier_general,Turku Energia Oy,12,canonical_calculation,60,48,8,40,0,40,9,31
+supplier_general,Turku Energia Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Turku Energia Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Turku Energia Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Turku Energia Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Turku Energia Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Turku Energia Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Turku Energia Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Turku Energia Oy,24,canonical_calculation,0,48,8,40,0,40,10,30
+supplier_general,Turku Energia Oy,24,canonical_calculation,7,48,8,40,0,40,13,27
+supplier_general,Turku Energia Oy,24,canonical_calculation,14,48,8,40,0,40,7,33
+supplier_general,Turku Energia Oy,24,canonical_calculation,21,48,8,40,0,40,7,33
+supplier_general,Turku Energia Oy,24,canonical_calculation,30,48,8,40,0,40,9,31
+supplier_general,Turku Energia Oy,24,canonical_calculation,45,48,8,40,0,40,7,33
+supplier_general,Turku Energia Oy,24,canonical_calculation,60,48,8,40,0,40,9,31
+supplier_general,Turku Energia Oy,24,observed_seller_data,0,74,14,60,0,60,14,46
+supplier_general,Turku Energia Oy,24,observed_seller_data,7,74,14,60,0,60,8,52
+supplier_general,Turku Energia Oy,24,observed_seller_data,14,74,14,60,0,60,14,46
+supplier_general,Turku Energia Oy,24,observed_seller_data,21,74,14,60,0,60,19,41
+supplier_general,Turku Energia Oy,24,observed_seller_data,30,74,14,60,0,60,14,46
+supplier_general,Turku Energia Oy,24,observed_seller_data,45,74,14,60,11,49,12,37
+supplier_general,Turku Energia Oy,24,observed_seller_data,60,74,14,60,20,40,7,33
+supplier_general,Vaasan Sähkö Myynti Oy,6,canonical_calculation,0,48,14,34,0,34,8,26
+supplier_general,Vaasan Sähkö Myynti Oy,6,canonical_calculation,7,48,14,34,0,34,9,25
+supplier_general,Vaasan Sähkö Myynti Oy,6,canonical_calculation,14,48,14,34,0,34,7,27
+supplier_general,Vaasan Sähkö Myynti Oy,6,canonical_calculation,21,48,14,34,0,34,7,27
+supplier_general,Vaasan Sähkö Myynti Oy,6,canonical_calculation,30,48,14,34,0,34,8,26
+supplier_general,Vaasan Sähkö Myynti Oy,6,canonical_calculation,45,48,14,34,0,34,7,27
+supplier_general,Vaasan Sähkö Myynti Oy,6,canonical_calculation,60,48,14,34,0,34,8,26
+supplier_general,Vaasan Sähkö Myynti Oy,6,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Vaasan Sähkö Myynti Oy,6,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Vaasan Sähkö Myynti Oy,6,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Vaasan Sähkö Myynti Oy,6,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Vaasan Sähkö Myynti Oy,6,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Vaasan Sähkö Myynti Oy,6,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Vaasan Sähkö Myynti Oy,6,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Vaasan Sähkö Myynti Oy,12,canonical_calculation,0,28,20,8,0,8,0,8
+supplier_general,Vaasan Sähkö Myynti Oy,12,canonical_calculation,7,28,20,8,0,8,4,4
+supplier_general,Vaasan Sähkö Myynti Oy,12,canonical_calculation,14,28,20,8,0,8,4,4
+supplier_general,Vaasan Sähkö Myynti Oy,12,canonical_calculation,21,28,20,8,0,8,0,8
+supplier_general,Vaasan Sähkö Myynti Oy,12,canonical_calculation,30,28,20,8,0,8,0,8
+supplier_general,Vaasan Sähkö Myynti Oy,12,canonical_calculation,45,28,20,8,0,8,4,4
+supplier_general,Vaasan Sähkö Myynti Oy,12,canonical_calculation,60,28,20,8,0,8,0,8
+supplier_general,Vaasan Sähkö Myynti Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Vaasan Sähkö Myynti Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Vaasan Sähkö Myynti Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Vaasan Sähkö Myynti Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Vaasan Sähkö Myynti Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Vaasan Sähkö Myynti Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Vaasan Sähkö Myynti Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Vaasan Sähkö Myynti Oy,24,canonical_calculation,0,48,14,34,0,34,7,27
+supplier_general,Vaasan Sähkö Myynti Oy,24,canonical_calculation,7,48,14,34,0,34,10,24
+supplier_general,Vaasan Sähkö Myynti Oy,24,canonical_calculation,14,48,14,34,0,34,7,27
+supplier_general,Vaasan Sähkö Myynti Oy,24,canonical_calculation,21,48,14,34,0,34,7,27
+supplier_general,Vaasan Sähkö Myynti Oy,24,canonical_calculation,30,48,14,34,0,34,7,27
+supplier_general,Vaasan Sähkö Myynti Oy,24,canonical_calculation,45,48,14,34,0,34,7,27
+supplier_general,Vaasan Sähkö Myynti Oy,24,canonical_calculation,60,48,14,34,0,34,7,27
+supplier_general,Vaasan Sähkö Myynti Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Vaasan Sähkö Myynti Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Vaasan Sähkö Myynti Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Vaasan Sähkö Myynti Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Vaasan Sähkö Myynti Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Vaasan Sähkö Myynti Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Vaasan Sähkö Myynti Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Vattenfall Oy,6,canonical_calculation,0,11,7,4,0,4,0,4
+supplier_general,Vattenfall Oy,6,canonical_calculation,7,11,7,4,0,4,0,4
+supplier_general,Vattenfall Oy,6,canonical_calculation,14,11,7,4,0,4,0,4
+supplier_general,Vattenfall Oy,6,canonical_calculation,21,11,7,4,0,4,1,3
+supplier_general,Vattenfall Oy,6,canonical_calculation,30,11,7,4,0,4,1,3
+supplier_general,Vattenfall Oy,6,canonical_calculation,45,11,7,4,0,4,0,4
+supplier_general,Vattenfall Oy,6,canonical_calculation,60,11,7,4,0,4,2,2
+supplier_general,Vattenfall Oy,6,observed_seller_data,0,100,14,86,1,85,15,70
+supplier_general,Vattenfall Oy,6,observed_seller_data,7,100,14,86,8,78,14,64
+supplier_general,Vattenfall Oy,6,observed_seller_data,14,100,14,86,15,71,19,52
+supplier_general,Vattenfall Oy,6,observed_seller_data,21,100,14,86,22,64,17,47
+supplier_general,Vattenfall Oy,6,observed_seller_data,30,100,14,86,31,55,9,46
+supplier_general,Vattenfall Oy,6,observed_seller_data,45,100,14,86,46,40,12,28
+supplier_general,Vattenfall Oy,6,observed_seller_data,60,100,14,86,48,38,7,31
+supplier_general,Vattenfall Oy,12,canonical_calculation,0,41,14,27,0,27,3,24
+supplier_general,Vattenfall Oy,12,canonical_calculation,7,41,14,27,0,27,7,20
+supplier_general,Vattenfall Oy,12,canonical_calculation,14,41,14,27,0,27,7,20
+supplier_general,Vattenfall Oy,12,canonical_calculation,21,41,14,27,0,27,7,20
+supplier_general,Vattenfall Oy,12,canonical_calculation,30,41,14,27,0,27,4,23
+supplier_general,Vattenfall Oy,12,canonical_calculation,45,41,14,27,0,27,7,20
+supplier_general,Vattenfall Oy,12,canonical_calculation,60,41,14,27,0,27,5,22
+supplier_general,Vattenfall Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Vattenfall Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Vattenfall Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Vattenfall Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Vattenfall Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Vattenfall Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Vattenfall Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Vattenfall Oy,24,canonical_calculation,0,47,17,30,0,30,8,22
+supplier_general,Vattenfall Oy,24,canonical_calculation,7,47,17,30,0,30,5,25
+supplier_general,Vattenfall Oy,24,canonical_calculation,14,47,17,30,0,30,7,23
+supplier_general,Vattenfall Oy,24,canonical_calculation,21,47,17,30,0,30,7,23
+supplier_general,Vattenfall Oy,24,canonical_calculation,30,47,17,30,0,30,8,22
+supplier_general,Vattenfall Oy,24,canonical_calculation,45,47,17,30,0,30,7,23
+supplier_general,Vattenfall Oy,24,canonical_calculation,60,47,17,30,0,30,8,22
+supplier_general,Vattenfall Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Vattenfall Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Vattenfall Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Vattenfall Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Vattenfall Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Vattenfall Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Vattenfall Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Vihreä Älyenergia Oy,12,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Vihreä Älyenergia Oy,12,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Vihreä Älyenergia Oy,12,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Vihreä Älyenergia Oy,12,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Vihreä Älyenergia Oy,12,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Vihreä Älyenergia Oy,12,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Vihreä Älyenergia Oy,12,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Vihreä Älyenergia Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Vihreä Älyenergia Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Vihreä Älyenergia Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Vihreä Älyenergia Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Vihreä Älyenergia Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Vihreä Älyenergia Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Vihreä Älyenergia Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Vihreä Älyenergia Oy,24,canonical_calculation,0,49,7,42,0,42,12,30
+supplier_general,Vihreä Älyenergia Oy,24,canonical_calculation,7,49,7,42,0,42,13,29
+supplier_general,Vihreä Älyenergia Oy,24,canonical_calculation,14,49,7,42,0,42,7,35
+supplier_general,Vihreä Älyenergia Oy,24,canonical_calculation,21,49,7,42,0,42,7,35
+supplier_general,Vihreä Älyenergia Oy,24,canonical_calculation,30,49,7,42,0,42,11,31
+supplier_general,Vihreä Älyenergia Oy,24,canonical_calculation,45,49,7,42,0,42,7,35
+supplier_general,Vihreä Älyenergia Oy,24,canonical_calculation,60,49,7,42,0,42,11,31
+supplier_general,Vihreä Älyenergia Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Vihreä Älyenergia Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Vihreä Älyenergia Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Vihreä Älyenergia Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Vihreä Älyenergia Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Vihreä Älyenergia Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Vihreä Älyenergia Oy,24,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Väre Oy,6,observed_seller_data,0,15,7,8,1,7,0,7
+supplier_general,Väre Oy,6,observed_seller_data,7,15,7,8,8,0,0,0
+supplier_general,Väre Oy,6,observed_seller_data,14,15,7,8,8,0,0,0
+supplier_general,Väre Oy,6,observed_seller_data,21,15,7,8,8,0,0,0
+supplier_general,Väre Oy,6,observed_seller_data,30,15,7,8,8,0,0,0
+supplier_general,Väre Oy,6,observed_seller_data,45,15,7,8,8,0,0,0
+supplier_general,Väre Oy,6,observed_seller_data,60,15,7,8,8,0,0,0
+supplier_general,Väre Oy,12,observed_seller_data,0,15,7,8,1,7,0,7
+supplier_general,Väre Oy,12,observed_seller_data,7,15,7,8,8,0,0,0
+supplier_general,Väre Oy,12,observed_seller_data,14,15,7,8,8,0,0,0
+supplier_general,Väre Oy,12,observed_seller_data,21,15,7,8,8,0,0,0
+supplier_general,Väre Oy,12,observed_seller_data,30,15,7,8,8,0,0,0
+supplier_general,Väre Oy,12,observed_seller_data,45,15,7,8,8,0,0,0
+supplier_general,Väre Oy,12,observed_seller_data,60,15,7,8,8,0,0,0
+supplier_general,Väre Oy,24,observed_seller_data,0,15,7,8,1,7,0,7
+supplier_general,Väre Oy,24,observed_seller_data,7,15,7,8,8,0,0,0
+supplier_general,Väre Oy,24,observed_seller_data,14,15,7,8,8,0,0,0
+supplier_general,Väre Oy,24,observed_seller_data,21,15,7,8,8,0,0,0
+supplier_general,Väre Oy,24,observed_seller_data,30,15,7,8,8,0,0,0
+supplier_general,Väre Oy,24,observed_seller_data,45,15,7,8,8,0,0,0
+supplier_general,Väre Oy,24,observed_seller_data,60,15,7,8,8,0,0,0
+supplier_general,Äänekosken Energia Oy,6,canonical_calculation,0,32,11,21,0,21,0,21
+supplier_general,Äänekosken Energia Oy,6,canonical_calculation,7,32,11,21,0,21,7,14
+supplier_general,Äänekosken Energia Oy,6,canonical_calculation,14,32,11,21,0,21,7,14
+supplier_general,Äänekosken Energia Oy,6,canonical_calculation,21,32,11,21,0,21,7,14
+supplier_general,Äänekosken Energia Oy,6,canonical_calculation,30,32,11,21,0,21,0,21
+supplier_general,Äänekosken Energia Oy,6,canonical_calculation,45,32,11,21,0,21,7,14
+supplier_general,Äänekosken Energia Oy,6,canonical_calculation,60,32,11,21,0,21,0,21
+supplier_general,Äänekosken Energia Oy,6,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Äänekosken Energia Oy,6,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Äänekosken Energia Oy,6,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Äänekosken Energia Oy,6,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Äänekosken Energia Oy,6,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Äänekosken Energia Oy,6,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Äänekosken Energia Oy,6,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Äänekosken Energia Oy,12,canonical_calculation,0,47,14,33,0,33,7,26
+supplier_general,Äänekosken Energia Oy,12,canonical_calculation,7,47,14,33,0,33,9,24
+supplier_general,Äänekosken Energia Oy,12,canonical_calculation,14,47,14,33,0,33,7,26
+supplier_general,Äänekosken Energia Oy,12,canonical_calculation,21,47,14,33,0,33,7,26
+supplier_general,Äänekosken Energia Oy,12,canonical_calculation,30,47,14,33,0,33,7,26
+supplier_general,Äänekosken Energia Oy,12,canonical_calculation,45,47,14,33,0,33,7,26
+supplier_general,Äänekosken Energia Oy,12,canonical_calculation,60,47,14,33,0,33,7,26
+supplier_general,Äänekosken Energia Oy,12,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Äänekosken Energia Oy,12,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Äänekosken Energia Oy,12,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Äänekosken Energia Oy,12,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Äänekosken Energia Oy,12,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Äänekosken Energia Oy,12,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Äänekosken Energia Oy,12,observed_seller_data,60,110,7,103,61,42,7,35
+supplier_general,Äänekosken Energia Oy,24,canonical_calculation,0,48,11,37,0,37,7,30
+supplier_general,Äänekosken Energia Oy,24,canonical_calculation,7,48,11,37,0,37,13,24
+supplier_general,Äänekosken Energia Oy,24,canonical_calculation,14,48,11,37,0,37,7,30
+supplier_general,Äänekosken Energia Oy,24,canonical_calculation,21,48,11,37,0,37,7,30
+supplier_general,Äänekosken Energia Oy,24,canonical_calculation,30,48,11,37,0,37,7,30
+supplier_general,Äänekosken Energia Oy,24,canonical_calculation,45,48,11,37,0,37,7,30
+supplier_general,Äänekosken Energia Oy,24,canonical_calculation,60,48,11,37,0,37,7,30
+supplier_general,Äänekosken Energia Oy,24,observed_seller_data,0,110,7,103,1,102,21,81
+supplier_general,Äänekosken Energia Oy,24,observed_seller_data,7,110,7,103,8,95,21,74
+supplier_general,Äänekosken Energia Oy,24,observed_seller_data,14,110,7,103,15,88,21,67
+supplier_general,Äänekosken Energia Oy,24,observed_seller_data,21,110,7,103,22,81,19,62
+supplier_general,Äänekosken Energia Oy,24,observed_seller_data,30,110,7,103,31,72,14,58
+supplier_general,Äänekosken Energia Oy,24,observed_seller_data,45,110,7,103,46,57,14,43
+supplier_general,Äänekosken Energia Oy,24,observed_seller_data,60,110,7,103,61,42,7,35

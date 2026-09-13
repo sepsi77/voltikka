@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "hedge_rows": 678,
+  "forecast_rows": 1047,
+  "lag_change_rows": 47115,
+  "synthetic_guards": [
+    "latest invalid ownership",
+    "no observed fallback",
+    "strict prior history",
+    "no future boundary",
+    "zero valid",
+    "nonfinite invalid",
+    "missing prior trade",
+    "missing delivery strip"
+  ],
+  "coefficient_fitting": "none; no training-target selection",
+  "source_manifest_sha256": "6b7dd7093cafab8f91bb8417becba321747da4bc4334a19924374cc6be05efb6"
+}

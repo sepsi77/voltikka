@@ -1,0 +1,22 @@
+{
+  "checks": [
+    "original verifier with writes disabled",
+    "pinned original/source hashes",
+    "raw statistic ownership and IDs",
+    "strict label cutoffs and no future fit",
+    "exact balanced training/test identities and 20 issue days",
+    "Decimal delta means equal all standardized intercepts within 1e-10",
+    "all original prediction fields unchanged",
+    "independent metrics and feature adjustments",
+    "common cohorts and original metrics reproduced",
+    "constant delta across price levels",
+    "changing historical training cohort mean"
+  ],
+  "common_metric_groups": 112,
+  "fit_means": 136,
+  "intercept_predictions": 594,
+  "metric_groups": 224,
+  "original_predictions": 3564,
+  "raw_pairs": 1098,
+  "status": "passed"
+}

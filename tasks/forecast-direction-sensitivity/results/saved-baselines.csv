@@ -1,0 +1,13 @@
+cohort,model,term,correct,missed_move,false_move,wrong_way
+matched48,unchanged,12,3,13,0,0
+matched48,unchanged,24,9,7,0,0
+matched48,unchanged,6,0,16,0,0
+matched48,unchanged,all,12,36,0,0
+matched48,v2,12,0,7,3,6
+matched48,v2,24,9,7,0,0
+matched48,v2,6,2,14,0,0
+matched48,v2,all,11,28,3,6
+matched48,v3,12,3,13,0,0
+matched48,v3,24,9,7,0,0
+matched48,v3,6,1,13,0,2
+matched48,v3,all,13,33,0,2

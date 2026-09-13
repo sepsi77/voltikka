@@ -1,0 +1,22 @@
+# Additive intercept-only diagnostic specification
+
+## Status and boundary
+This is a user-approved post-hoc diagnostic on an already inspected holdout. Freeze this separate file and its SHA256 before calculating its metrics. It does not change the original frozen spec, model set, scripts, report or artifacts. This is not untouched out-of-sample validation. No result permits production adoption or term-specific model selection. Offline standard-library analysis only; no application, database, export, dependency, collector, schedule or release changes.
+
+## Exact paired ablation
+Predict price as current + mean(training actual minus current). Use equal row weights and one mean shared across 6/12/24 months for each original fit. Use EXACT training IDs shared by original retail, rolling and basket fits, not all rows that could support an intercept. Recompute the mean from pairs and independently from raw export prices; require absolute agreement within 1e-10 with each stored standardized_intercept. Do not use the raw-feature b0. Assert balanced three-term issue days so row and issue weighting agree.
+
+Frozen transfer uses the corresponding original input 7/14, target 30/14 observed cohort with labels strictly before 2026-07-27. Each same-basis rolling-origin fit uses its own issue cutoff and training IDs, labels strictly before that issue, and at least 20 distinct prior issue DAYS. Strict canonical remains unavailable; no observed fill. Do not broaden training or test cohorts because features are unnecessary. Original learned predictions are retained, not refit. No features, term means, extra calibration, tuning, new horizon, grid or intercept abstention.
+
+Primary remains input seven days, target 30 days: 36 canonical rows on 12 issue days, August 3–14. Preserve all original secondary input/target combinations, observed rolling cohorts, unavailable canonical fits, and frozen cross-horizon common-identity comparisons.
+
+## Outputs and questions
+Compare unchanged, intercept-only, original fixed gap, retail, rolling, basket and basket abstention on exactly paired rows. Report MAE, RMSE, bias (prediction minus actual), three-way direction (absolute delta strictly below .15 is flat), MAE skill versus unchanged, dates/counts and issue-window overlap, per term and pooled. Report signed absolute MAE difference (model minus intercept, c/kWh) and relative difference (model MAE / intercept MAE minus one). Save paired row absolute-error increments too.
+
+Ask whether rolling adds over intercept in primary, secondary and older observed cohorts; whether retail's benefit versus unchanged is mostly reproduced by the training mean; whether fixed basket improves over intercept; and whether pooled gains versus unchanged are limited to six months. Do not claim a causal fraction of gain or percent variance explained: signed errors can cancel across terms and MAE gains can offset across terms. Report each learned prediction delta minus intercept: mean absolute adjustment and signed range, per term and pooled. Slopes are conditional ridge-shrinkage estimates, not independently identified causal effects. Do not choose a term-specific model after these results.
+
+## Verification and preservation
+Pin original files and their source hashes before analysis, including both original spec files and all original report/artifact outputs. Reuse original verified H inputs and PHP evidence by hash; no new H calculation is needed. Run original verification with its save function disabled, so it cannot write original artifacts. Independently read original pairs, training IDs, fits, availability and predictions plus raw export current/target statistic identities. Check every retained identity, exact cohort/counts, strict label cutoffs, no future fit, 20-day gate, balanced term weights, target changes not levels, all metrics and common cohorts. Test constant-delta synthetic data and a changing historical training-cohort mean. Run the standalone continuation twice; require byte-identical new outputs and unchanged original files/export hashes.
+
+## Limits
+All 66 primary issue-window pairs overlap; term rows share shocks. The observed-to-canonical transfer is an unproven regime-continuity assumption. Older observed results remain separate. Export-time revisions do not prove original-vintage availability. Public medians can move with offer composition. The small selected sample and prior inspection prevent independent validation or causal conclusions. No prospective experiment or collector starts here.

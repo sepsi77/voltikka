@@ -1,0 +1,492 @@
+{
+  "accuracy": {
+    "6": {
+      "count": 15,
+      "forecast_mae": 1.0353333333333334,
+      "unchanged_price_mae": 0.9824133333333328
+    },
+    "12": {
+      "count": 15,
+      "forecast_mae": 0.3946266666666667,
+      "unchanged_price_mae": 0.3778399999999997
+    },
+    "24": {
+      "count": 15,
+      "forecast_mae": 0.4174733333333333,
+      "unchanged_price_mae": 0.40101333333333344
+    }
+  },
+  "august_6m_old_curve_roll_contribution": 0.3655185992673557,
+  "fixed_maturities": {
+    "Calendar 2027": {
+      "adjacent_max_absolute_percent": 3.739245532759772,
+      "adjacent_mean_absolute_percent": 1.2002011284476937,
+      "adjacent_pairs": 65,
+      "exact_7day_max_absolute_percent": 11.454356126345022,
+      "exact_7day_mean_absolute_percent": 3.3569408877815685,
+      "exact_7day_pairs": 61,
+      "exact_7day_unmatched_endpoints": 5,
+      "first_date": "2026-06-12",
+      "first_price": 47.33,
+      "last_date": "2026-09-11",
+      "last_price": 62.75,
+      "observations": 66,
+      "period_return_percent": 32.57975913796747
+    },
+    "Q1 2027": {
+      "adjacent_max_absolute_percent": 5.379574003276888,
+      "adjacent_mean_absolute_percent": 1.422508091768384,
+      "adjacent_pairs": 65,
+      "exact_7day_max_absolute_percent": 13.261372397841154,
+      "exact_7day_mean_absolute_percent": 4.65773632311296,
+      "exact_7day_pairs": 61,
+      "exact_7day_unmatched_endpoints": 5,
+      "first_date": "2026-06-12",
+      "first_price": 82.63,
+      "last_date": "2026-09-11",
+      "last_price": 115.72,
+      "observations": 66,
+      "period_return_percent": 40.04598813990077
+    },
+    "Q4 2026": {
+      "adjacent_max_absolute_percent": 4.754307594128915,
+      "adjacent_mean_absolute_percent": 1.7322087341034589,
+      "adjacent_pairs": 65,
+      "exact_7day_max_absolute_percent": 14.692690023033105,
+      "exact_7day_mean_absolute_percent": 5.4797099993511695,
+      "exact_7day_pairs": 61,
+      "exact_7day_unmatched_endpoints": 5,
+      "first_date": "2026-06-12",
+      "first_price": 72.35,
+      "last_date": "2026-09-11",
+      "last_price": 102.37,
+      "observations": 66,
+      "period_return_percent": 41.49274360746374
+    }
+  },
+  "futures_volume_counts": {
+    "null": 1475,
+    "present": 24
+  },
+  "hedge_reconstruction": {
+    "maximum_absolute_error": 4.980662983555817e-05,
+    "rows": 270,
+    "tolerance": 5.1e-05
+  },
+  "largest_6m_revision": {
+    "calendar_days": 1,
+    "change_revision": 0.42979999999999996,
+    "duration_months": 6,
+    "from_date": "2026-07-31",
+    "hedge_contribution": 0.4604700000000001,
+    "model_boundary": false,
+    "premium_contribution": 0.0,
+    "retail_contribution": -0.030630000000000022,
+    "rounding_residual": -4.0000000000095515e-05,
+    "to_date": "2026-08-01"
+  },
+  "manifest_sha256": "ed0077cb619bfb429ab1ea2fc58b050df6a7890878b10d133885a03e324e4011",
+  "matured_unevaluated": [
+    {
+      "all_quantiles": 90,
+      "duration_months": 6,
+      "median": 30,
+      "model_version": "fixed_term_ewma_gap_v1"
+    },
+    {
+      "all_quantiles": 48,
+      "duration_months": 6,
+      "median": 16,
+      "model_version": "fixed_term_ewma_gap_v2"
+    },
+    {
+      "all_quantiles": 90,
+      "duration_months": 12,
+      "median": 30,
+      "model_version": "fixed_term_ewma_gap_v1"
+    },
+    {
+      "all_quantiles": 48,
+      "duration_months": 12,
+      "median": 16,
+      "model_version": "fixed_term_ewma_gap_v2"
+    },
+    {
+      "all_quantiles": 90,
+      "duration_months": 24,
+      "median": 30,
+      "model_version": "fixed_term_ewma_gap_v1"
+    },
+    {
+      "all_quantiles": 48,
+      "duration_months": 24,
+      "median": 16,
+      "model_version": "fixed_term_ewma_gap_v2"
+    }
+  ],
+  "month_boundary_decomposition": [
+    {
+      "calendar_days": 1,
+      "change_revision": 0.315,
+      "delivery_roll_forecast": 0.3294027146739128,
+      "delivery_roll_hedge": 1.0980090489130427,
+      "duration_months": 6,
+      "from_date": "2026-06-30",
+      "hedge_contribution": 0.35420999999999997,
+      "model_boundary": false,
+      "new_delivery_start": "2026-08-01",
+      "new_window_on_new_curve": 8.389504483695651,
+      "old_delivery_start": "2026-07-01",
+      "old_window_curve_and_selection_forecast": 0.024822399456521538,
+      "old_window_on_new_curve": 7.291495434782608,
+      "premium_contribution": -0.11867999999999998,
+      "retail_contribution": 0.07950000000000017,
+      "rounding_residual": -3.0000000000141025e-05,
+      "to_date": "2026-07-01",
+      "trade_date": "2026-06-30"
+    },
+    {
+      "calendar_days": 1,
+      "change_revision": 0.42979999999999996,
+      "delivery_roll_forecast": 0.3940335905296653,
+      "delivery_roll_hedge": 1.313445301765551,
+      "duration_months": 6,
+      "from_date": "2026-07-31",
+      "hedge_contribution": 0.4604700000000001,
+      "model_boundary": false,
+      "new_delivery_start": "2026-09-01",
+      "new_window_on_new_curve": 11.95340350828729,
+      "old_delivery_start": "2026-08-01",
+      "old_window_curve_and_selection_forecast": 0.06643997282608662,
+      "old_window_on_new_curve": 10.639958206521738,
+      "premium_contribution": 0.0,
+      "retail_contribution": -0.030630000000000022,
+      "rounding_residual": -4.0000000000095515e-05,
+      "to_date": "2026-08-01",
+      "trade_date": "2026-07-31"
+    },
+    {
+      "calendar_days": 1,
+      "change_revision": 0.26139999999999997,
+      "delivery_roll_forecast": 0.10927990789873014,
+      "delivery_roll_hedge": 0.3642663596624338,
+      "duration_months": 6,
+      "from_date": "2026-08-31",
+      "hedge_contribution": 0.25242000000000003,
+      "model_boundary": false,
+      "new_delivery_start": "2026-10-01",
+      "new_window_on_new_curve": 11.8664939010989,
+      "old_delivery_start": "2026-09-01",
+      "old_window_curve_and_selection_forecast": 0.14315320441989066,
+      "old_window_on_new_curve": 11.502227541436467,
+      "premium_contribution": 0.0,
+      "retail_contribution": 0.008999999999999809,
+      "rounding_residual": -1.999999999985347e-05,
+      "to_date": "2026-09-01",
+      "trade_date": "2026-08-31"
+    },
+    {
+      "calendar_days": 1,
+      "change_revision": 0.027500000000000004,
+      "delivery_roll_forecast": 0.008537782191780252,
+      "delivery_roll_hedge": 0.02845927397260084,
+      "duration_months": 12,
+      "from_date": "2026-06-30",
+      "hedge_contribution": 0.05292000000000003,
+      "model_boundary": false,
+      "new_delivery_start": "2026-08-01",
+      "new_window_on_new_curve": 7.291367767123285,
+      "old_delivery_start": "2026-07-01",
+      "old_window_curve_and_selection_forecast": 0.04437851917808242,
+      "old_window_on_new_curve": 7.262908493150684,
+      "premium_contribution": -0.02961,
+      "retail_contribution": 0.004110000000000014,
+      "rounding_residual": 7.999999999996205e-05,
+      "to_date": "2026-07-01",
+      "trade_date": "2026-06-30"
+    },
+    {
+      "calendar_days": 1,
+      "change_revision": 0.023899999999999998,
+      "delivery_roll_forecast": -0.021552304109588683,
+      "delivery_roll_hedge": -0.07184101369862894,
+      "duration_months": 12,
+      "from_date": "2026-07-31",
+      "hedge_contribution": 0.04269000000000016,
+      "model_boundary": false,
+      "new_delivery_start": "2026-09-01",
+      "new_window_on_new_curve": 8.88860798630137,
+      "old_delivery_start": "2026-08-01",
+      "old_window_curve_and_selection_forecast": 0.06425256164383483,
+      "old_window_on_new_curve": 8.960448999999999,
+      "premium_contribution": 0.0,
+      "retail_contribution": -0.01886999999999972,
+      "rounding_residual": 7.999999999955959e-05,
+      "to_date": "2026-08-01",
+      "trade_date": "2026-07-31"
+    },
+    {
+      "calendar_days": 1,
+      "change_revision": -0.05459999999999998,
+      "delivery_roll_forecast": -0.14547341095890456,
+      "delivery_roll_hedge": -0.4849113698630152,
+      "duration_months": 12,
+      "from_date": "2026-08-31",
+      "hedge_contribution": -0.05457000000000018,
+      "model_boundary": false,
+      "new_delivery_start": "2026-10-01",
+      "new_window_on_new_curve": 8.194654876712328,
+      "old_delivery_start": "2026-09-01",
+      "old_window_curve_and_selection_forecast": 0.09090463561643922,
+      "old_window_on_new_curve": 8.679566246575343,
+      "premium_contribution": 0.0,
+      "retail_contribution": -0.0,
+      "rounding_residual": -2.999999999980102e-05,
+      "to_date": "2026-09-01",
+      "trade_date": "2026-08-31"
+    },
+    {
+      "calendar_days": 1,
+      "change_revision": 0.0615,
+      "delivery_roll_forecast": 0.021985848837209065,
+      "delivery_roll_hedge": 0.07328616279069688,
+      "duration_months": 24,
+      "from_date": "2026-06-30",
+      "hedge_contribution": 0.0664500000000002,
+      "model_boundary": false,
+      "new_delivery_start": "2026-08-01",
+      "new_window_on_new_curve": 6.578045588235293,
+      "old_delivery_start": "2026-07-01",
+      "old_window_curve_and_selection_forecast": 0.044477989740082435,
+      "old_window_on_new_curve": 6.504759425444596,
+      "premium_contribution": -0.019350000000000065,
+      "retail_contribution": 0.014370000000000082,
+      "rounding_residual": 2.9999999999780202e-05,
+      "to_date": "2026-07-01",
+      "trade_date": "2026-06-30"
+    },
+    {
+      "calendar_days": 1,
+      "change_revision": 0.0621,
+      "delivery_roll_forecast": 0.017595065663474418,
+      "delivery_roll_hedge": 0.05865021887824806,
+      "duration_months": 24,
+      "from_date": "2026-07-31",
+      "hedge_contribution": 0.0589500000000001,
+      "model_boundary": false,
+      "new_delivery_start": "2026-09-01",
+      "new_window_on_new_curve": 7.608965424076606,
+      "old_delivery_start": "2026-08-01",
+      "old_window_curve_and_selection_forecast": 0.041341863201094585,
+      "old_window_on_new_curve": 7.550315205198358,
+      "premium_contribution": 0.0,
+      "retail_contribution": 0.0031800000000000495,
+      "rounding_residual": -3.0000000000147964e-05,
+      "to_date": "2026-08-01",
+      "trade_date": "2026-07-31"
+    },
+    {
+      "calendar_days": 1,
+      "change_revision": 0.012899999999999995,
+      "delivery_roll_forecast": -0.04553538303693605,
+      "delivery_roll_hedge": -0.15178461012312017,
+      "duration_months": 24,
+      "from_date": "2026-08-31",
+      "hedge_contribution": 0.00912000000000006,
+      "model_boundary": false,
+      "new_delivery_start": "2026-10-01",
+      "new_window_on_new_curve": 7.393321744186046,
+      "old_delivery_start": "2026-09-01",
+      "old_window_curve_and_selection_forecast": 0.05466100136798957,
+      "old_window_on_new_curve": 7.5451063543091665,
+      "premium_contribution": 0.0,
+      "retail_contribution": 0.0037499999999997865,
+      "rounding_residual": 3.0000000000147964e-05,
+      "to_date": "2026-09-01",
+      "trade_date": "2026-08-31"
+    }
+  ],
+  "six_month_threshold_sensitivity": {
+    "0.15": 7,
+    "0.2": 8,
+    "0.25": 12
+  },
+  "source": "export-20260913T073334Z",
+  "stability": {
+    "6": {
+      "direct_wait_lock_transitions": 0,
+      "raw_sign_reversals": 9,
+      "signal_changes": 7,
+      "signal_counts": {
+        "lock": 10,
+        "neutral": 61,
+        "wait": 18
+      },
+      "transitions": [
+        {
+          "date": "2026-07-01",
+          "from": "neutral",
+          "previous_date": "2026-06-30",
+          "to": "lock"
+        },
+        {
+          "date": "2026-07-05",
+          "from": "lock",
+          "previous_date": "2026-07-04",
+          "to": "neutral"
+        },
+        {
+          "date": "2026-08-01",
+          "from": "neutral",
+          "previous_date": "2026-07-31",
+          "to": "lock"
+        },
+        {
+          "date": "2026-08-06",
+          "from": "lock",
+          "previous_date": "2026-08-05",
+          "to": "neutral"
+        },
+        {
+          "date": "2026-08-15",
+          "from": "neutral",
+          "previous_date": "2026-08-14",
+          "to": "wait"
+        },
+        {
+          "date": "2026-09-03",
+          "from": "wait",
+          "previous_date": "2026-09-02",
+          "to": "neutral"
+        },
+        {
+          "date": "2026-09-10",
+          "from": "neutral",
+          "previous_date": "2026-09-09",
+          "to": "lock"
+        }
+      ]
+    },
+    "12": {
+      "direct_wait_lock_transitions": 0,
+      "raw_sign_reversals": 4,
+      "signal_changes": 3,
+      "signal_counts": {
+        "neutral": 52,
+        "wait": 37
+      },
+      "transitions": [
+        {
+          "date": "2026-08-06",
+          "from": "neutral",
+          "previous_date": "2026-08-05",
+          "to": "wait"
+        },
+        {
+          "date": "2026-09-11",
+          "from": "wait",
+          "previous_date": "2026-09-10",
+          "to": "neutral"
+        },
+        {
+          "date": "2026-09-12",
+          "from": "neutral",
+          "previous_date": "2026-09-11",
+          "to": "wait"
+        }
+      ]
+    },
+    "24": {
+      "direct_wait_lock_transitions": 0,
+      "raw_sign_reversals": 14,
+      "signal_changes": 4,
+      "signal_counts": {
+        "neutral": 85,
+        "wait": 4
+      },
+      "transitions": [
+        {
+          "date": "2026-08-27",
+          "from": "neutral",
+          "previous_date": "2026-08-26",
+          "to": "wait"
+        },
+        {
+          "date": "2026-08-28",
+          "from": "wait",
+          "previous_date": "2026-08-27",
+          "to": "neutral"
+        },
+        {
+          "date": "2026-08-29",
+          "from": "neutral",
+          "previous_date": "2026-08-28",
+          "to": "wait"
+        },
+        {
+          "date": "2026-09-01",
+          "from": "wait",
+          "previous_date": "2026-08-31",
+          "to": "neutral"
+        }
+      ]
+    }
+  },
+  "v2_normal_premiums": {
+    "6": [
+      1.3692
+    ],
+    "12": [
+      1.7866
+    ],
+    "24": [
+      2.1343
+    ]
+  },
+  "verified_files": {
+    "database_clock": {
+      "bytes": 185,
+      "rows": 1,
+      "sha256": "8da2b985ca7299ea651887cf28d04520e2b1183195f561d9ac18dd5f3e122f9c"
+    },
+    "forecast_table_bounds": {
+      "bytes": 89,
+      "rows": 1,
+      "sha256": "060cd7637a45138aab61c7d3e0afb89d73d53d99ba5f252d3dcc1b869aee4116"
+    },
+    "forecasts": {
+      "bytes": 1443047,
+      "rows": 810,
+      "sha256": "ab34f0250bd24b470382b8085a6829dee13f08c49cab3ffe5f2e5fb02613f715"
+    },
+    "futures": {
+      "bytes": 886193,
+      "rows": 1499,
+      "sha256": "68c543853bdfd6f3eba834b8b014d011d98d31e23accb02fb8693c67fffa3b2c"
+    },
+    "schemas": {
+      "bytes": 15039,
+      "rows": 80,
+      "sha256": "13346a4989a6487f3d054d0c7e41c470577789c8328fb350d8b7e66ba63d3870"
+    },
+    "statistics": {
+      "bytes": 161270,
+      "rows": 315,
+      "sha256": "482834e2c7e96564c0d7bb19c68b885ccef3ba17f0c5009780dbcfcda97efa59"
+    }
+  },
+  "window": {
+    "all_forecast_rows": 810,
+    "calendar_days": 93,
+    "end": "2026-09-13",
+    "headline_rows": 267,
+    "missing_dates": [
+      "2026-08-02",
+      "2026-08-03",
+      "2026-08-04",
+      "2026-08-22"
+    ],
+    "observed_dates": 89,
+    "start": "2026-06-13"
+  }
+}

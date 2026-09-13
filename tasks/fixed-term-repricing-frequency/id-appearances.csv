@@ -1,0 +1,781 @@
+supplier,term,contract_id,first,last,left_study_boundary,right_study_boundary,observed_dates,price_values
+Aalto energia Oyj,12,40obsl-aalto-energia-oyj-ankkuri-kiintea-12kk-ensimmainen-kuukausi-ilman-perusmaksua,2026-04-08,2026-06-02,True,False,56,1
+Aalto energia Oyj,24,mgxpn4-aalto-energia-oyj-ankkuri-kiintea-24kk-ensimmaiset-3kk-ilman-kuukausimaksua,2026-04-08,2026-06-02,True,False,56,1
+Alajärven Sähkö Oy,12,bp5plr-alajarven-sahko-oy-yleissahko-12-kk,2026-04-08,2026-07-22,True,False,106,1
+Alajärven Sähkö Oy,12,v7bvq3-alajarven-sahko-oy-yleissahko-12-kk,2026-08-07,2026-09-13,False,True,38,1
+Alajärven Sähkö Oy,12,vrekdo-alajarven-sahko-oy-yleissahko-12-kk,2026-07-23,2026-08-06,False,False,15,1
+Alajärven Sähkö Oy,24,fg3irh-alajarven-sahko-oy-yleissahko-24-kk,2026-08-07,2026-09-13,False,True,38,1
+Alajärven Sähkö Oy,24,llpuxr-alajarven-sahko-oy-yleissahko-24-kk,2026-06-03,2026-07-22,False,False,50,1
+Alajärven Sähkö Oy,24,sdylbi-alajarven-sahko-oy-yleissahko-24-kk,2026-07-23,2026-08-06,False,False,15,1
+Alajärven Sähkö Oy,24,tevygl-alajarven-sahko-oy-yleissahko-24-kk,2026-04-08,2026-06-02,True,False,56,1
+Cheap Energy Finland Oy,6,d8codr-cheap-energy-finland-oy-cheap-maaraaikainen-6-kk,2026-05-08,2026-05-10,False,False,3,1
+Cheap Energy Finland Oy,6,dwwsck-cheap-energy-finland-oy-cheap-maaraaikainen-6-kk,2026-06-10,2026-07-14,False,False,35,1
+Cheap Energy Finland Oy,6,eqsxae-cheap-energy-finland-oy-cheap-maaraaikainen-6-kk-0-kuukausimaksu-ensimmainen-kuukausi,2026-04-08,2026-05-07,True,False,30,1
+Cheap Energy Finland Oy,6,gtuij0-cheap-energy-finland-oy-cheap-maaraaikainen-6-kk,2026-05-11,2026-06-09,False,False,30,1
+Cheap Energy Finland Oy,6,nwouc3-cheap-energy-finland-oy-cheap-maaraaikainen-6-kk,2026-07-15,2026-07-20,False,False,6,1
+Cheap Energy Finland Oy,6,okmsyk-cheap-energy-finland-oy-cheap-maaraaikainen-6-kk,2026-07-21,2026-07-27,False,False,5,1
+Cheap Energy Finland Oy,6,yuz5hv-cheap-energy-finland-oy-cheap-maaraaikainen-6-kk-0-kuukausimaksu-ensimmaiset-3-kuukautta,2026-08-01,2026-08-02,False,False,2,1
+Cheap Energy Finland Oy,12,bxoqen-cheap-energy-finland-oy-cheap-maaraaikainen-12-kk,2026-09-03,2026-09-11,False,False,9,1
+Cheap Energy Finland Oy,24,02t8fp-cheap-energy-finland-oy-cheap-maaraaikainen-24-kk-0-kuukausimaksu-ensimmaiset-4-kk,2026-05-08,2026-05-19,False,False,12,1
+Cheap Energy Finland Oy,24,a9robz-cheap-energy-finland-oy-cheap-maaraaikainen-24-kk-0-kuukausimaksu-ensimmaiset-4-kk,2026-08-12,2026-09-08,False,False,28,1
+Cheap Energy Finland Oy,24,ai4ivq-cheap-energy-finland-oy-cheap-maaraaikainen-24-kk-0-kuukausimaksu-ensimmaiset-4-kk,2026-05-20,2026-06-09,False,False,21,1
+Cheap Energy Finland Oy,24,astury-cheap-energy-finland-oy-cheap-maaraaikainen-24-kk-0-kuukausimaksu-ensimmaiset-4-kk,2026-07-10,2026-07-14,False,False,5,1
+Cheap Energy Finland Oy,24,cjnnmf-cheap-energy-finland-oy-cheap-maaraaikainen-24-kk-0-kuukausimaksu-ensimmaiset-4-kk,2026-07-21,2026-08-05,False,False,16,1
+Cheap Energy Finland Oy,24,e85fwa-cheap-energy-finland-oy-cheap-maaraaikainen-24-kk-0-kuukausimaksu-ensimmaiset-4-kk,2026-06-30,2026-07-10,False,False,11,1
+Cheap Energy Finland Oy,24,o0st2m-cheap-energy-finland-oy-cheap-maaraaikainen-24-kk-0-kuukausimaksu-ensimmaiset-4-kk,2026-04-10,2026-05-07,False,False,28,1
+Cheap Energy Finland Oy,24,p8htux-cheap-energy-finland-oy-cheap-maaraaikainen-24-kk-0-kuukausimaksu-ensimmaiset-4-kk,2026-07-15,2026-07-20,False,False,6,1
+Cheap Energy Finland Oy,24,rqdlzd-cheap-energy-finland-oy-cheap-maaraaikainen-24-kk-0-kuukausimaksu-ensimmaiset-4-kk,2026-04-08,2026-04-09,True,False,2,1
+Cheap Energy Finland Oy,24,timrj1-cheap-energy-finland-oy-cheap-maaraaikainen-24-kk,2026-09-09,2026-09-13,False,True,5,1
+Cheap Energy Finland Oy,24,w4lvzl-cheap-energy-finland-oy-cheap-maaraaikainen-24-kk-0-kuukausimaksu-ensimmaiset-4-kk,2026-08-04,2026-08-11,False,False,8,1
+Cheap Energy Finland Oy,24,yjo87g-cheap-energy-finland-oy-cheap-maaraaikainen-24-kk-0-kuukausimaksu-ensimmaiset-4-kk,2026-06-10,2026-06-29,False,False,20,1
+Fortum Markets Oy,24,9d47d7-fortum-markets-oy-fortum-takuu-24-kk,2026-07-06,2026-07-12,False,False,7,1
+Fortum Markets Oy,24,9pb5h7-fortum-markets-oy-fortum-takuu-24-kk,2026-07-13,2026-07-19,False,False,7,1
+Fortum Markets Oy,24,cy3svg-fortum-markets-oy-fortum-takuu-24-kk,2026-06-22,2026-07-22,False,False,31,1
+Fortum Markets Oy,24,n3dcim-fortum-markets-oy-fortum-takuu-24-kk,2026-07-27,2026-09-13,False,True,49,1
+Fortum Markets Oy,24,pkrtvp-fortum-markets-oy-fortum-takuu-24-kk,2026-06-04,2026-06-07,False,False,4,1
+Fortum Markets Oy,24,s6xxpq-fortum-markets-oy-fortum-takuu-24-kk,2026-06-08,2026-06-14,False,False,7,1
+Fortum Markets Oy,24,sc1qlj-fortum-markets-oy-fortum-takuu-24-kk,2026-06-15,2026-06-21,False,False,7,1
+Fortum Markets Oy,24,wwwvyt-fortum-markets-oy-fortum-takuu-24-kk,2026-06-29,2026-07-05,False,False,7,1
+Fortum Markets Oy,24,zxt8y9-fortum-markets-oy-fortum-takuu-24-kk,2026-07-20,2026-07-24,False,False,5,1
+Hehku Energia Oy,6,4xrqlw-hehku-energia-oy-hehku-kiintea-6-kk,2026-05-20,2026-06-09,False,False,21,1
+Hehku Energia Oy,6,6m68xc-hehku-energia-oy-hehku-kiintea-6-kk,2026-05-11,2026-05-19,False,False,9,1
+Hehku Energia Oy,6,bkilfp-hehku-energia-oy-hehku-kiintea-6-kk,2026-04-08,2026-05-04,True,False,27,1
+Hehku Energia Oy,6,cnbsaj-hehku-energia-oy-hehku-kiintea-6-kk,2026-06-10,2026-07-10,False,False,31,1
+Hehku Energia Oy,6,izszo3-hehku-energia-oy-hehku-kiintea-6-kk,2026-05-05,2026-05-07,False,False,3,1
+Hehku Energia Oy,6,lecan2-hehku-energia-oy-hehku-kiintea-6-kk,2026-07-15,2026-07-27,False,False,11,2
+Hehku Energia Oy,6,vvklfh-hehku-energia-oy-hehku-kiintea-6-kk,2026-05-08,2026-05-10,False,False,3,1
+Hehku Energia Oy,12,3nznl3-hehku-energia-oy-hehku-hiilivapaa-12-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-08-12,2026-09-13,False,True,33,1
+Hehku Energia Oy,12,5s5r2e-hehku-energia-oy-hehku-hiilivapaa-12-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-07-21,2026-08-02,False,False,13,1
+Hehku Energia Oy,12,dar1ov-hehku-energia-oy-hehku-kiintea-12-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-08-12,2026-08-20,False,False,9,1
+Hehku Energia Oy,12,e4auec-hehku-energia-oy-hehku-kiintea-12-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-08-28,2026-09-13,False,True,17,1
+Hehku Energia Oy,12,epjt1n-hehku-energia-oy-hehku-kiintea-12-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-08-04,2026-08-11,False,False,8,1
+Hehku Energia Oy,12,fokapn-hehku-energia-oy-hehku-hiilivapaa-12-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-08-04,2026-08-11,False,False,8,1
+Hehku Energia Oy,12,if1udv-hehku-energia-oy-hehku-kiintea-12-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-08-21,2026-08-27,False,False,7,1
+Hehku Energia Oy,12,muhunn-hehku-energia-oy-hehku-hiilivapaa-12-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-04-08,2026-05-07,True,False,30,1
+Hehku Energia Oy,12,qcfjvj-hehku-energia-oy-hehku-hiilivapaa-12-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-07-15,2026-07-20,False,False,6,1
+Hehku Energia Oy,12,qwbm0d-hehku-energia-oy-hehku-hiilivapaa-12-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-05-08,2026-07-14,False,False,68,1
+Hehku Energia Oy,12,s2orfb-hehku-energia-oy-hehku-kiintea-12-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-04-08,2026-05-07,True,False,30,1
+Hehku Energia Oy,12,w55jce-hehku-energia-oy-hehku-kiintea-12-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-05-08,2026-07-14,False,False,68,1
+Hehku Energia Oy,12,xe9b5i-hehku-energia-oy-hehku-kiintea-12-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-07-21,2026-08-02,False,False,13,1
+Hehku Energia Oy,12,zmaxhb-hehku-energia-oy-hehku-kiintea-12-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-07-15,2026-07-20,False,False,6,1
+Hehku Energia Oy,24,5avbab-hehku-energia-oy-hehku-kiintea-24-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-07-21,2026-08-02,False,False,13,1
+Hehku Energia Oy,24,77a71e-hehku-energia-oy-hehku-kiintea-24-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-05-20,2026-06-09,False,False,21,1
+Hehku Energia Oy,24,8nfzdh-hehku-energia-oy-hehku-hiilivapaa-24-kk-0-kuukausimaksu-ensimmaiset-6-kk,2026-06-03,2026-07-14,False,False,42,1
+Hehku Energia Oy,24,abkfhl-hehku-energia-oy-hehku-kiintea-24-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-06-30,2026-07-10,False,False,11,1
+Hehku Energia Oy,24,agryfc-hehku-energia-oy-hehku-kiintea-24-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-05-08,2026-05-19,False,False,12,1
+Hehku Energia Oy,24,dbhion-hehku-energia-oy-hehku-kiintea-24-kk,2026-09-09,2026-09-13,False,True,5,1
+Hehku Energia Oy,24,dlmhrs-hehku-energia-oy-hehku-hiilivapaa-24-kk-0-kuukausimaksu-ensimmaiset-6-kk,2026-07-15,2026-07-20,False,False,6,1
+Hehku Energia Oy,24,ex4cv8-hehku-energia-oy-hehku-hiilivapaa-24-kk-0-kuukausimaksu-ensimmaiset-6-kk,2026-08-04,2026-09-13,False,True,41,1
+Hehku Energia Oy,24,f73apx-hehku-energia-oy-hehku-kiintea-24-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-04-08,2026-04-09,True,False,2,1
+Hehku Energia Oy,24,gjtygv-hehku-energia-oy-hehku-kiintea-24-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-08-04,2026-09-08,False,False,36,1
+Hehku Energia Oy,24,mm1cnn-hehku-energia-oy-hehku-hiilivapaa-24-kk-0-kuukausimaksu-ensimmaiset-6-kk,2026-04-08,2026-05-07,True,False,30,1
+Hehku Energia Oy,24,o7uuqp-hehku-energia-oy-hehku-hiilivapaa-24-kk-0-kuukausimaksu-ensimmaiset-6-kk,2026-05-08,2026-06-02,False,False,26,1
+Hehku Energia Oy,24,q9yyrm-hehku-energia-oy-hehku-kiintea-24-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-06-10,2026-06-29,False,False,20,1
+Hehku Energia Oy,24,vgtmby-hehku-energia-oy-hehku-kiintea-24-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-07-10,2026-07-14,False,False,5,1
+Hehku Energia Oy,24,woy5w2-hehku-energia-oy-hehku-kiintea-24-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-07-15,2026-07-20,False,False,6,1
+Hehku Energia Oy,24,xiojoa-hehku-energia-oy-hehku-hiilivapaa-24-kk-0-kuukausimaksu-ensimmaiset-6-kk,2026-07-21,2026-08-02,False,False,13,1
+Hehku Energia Oy,24,zvmbk9-hehku-energia-oy-hehku-kiintea-24-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-04-10,2026-05-07,False,False,28,1
+Helen Oy,6,6enth1-helen-oy-maaraaikainen-perussahko-6-kk,2026-06-30,2026-07-06,False,False,7,1
+Helen Oy,6,6revla-helen-oy-maaraaikainen-perussahko-6-kk,2026-08-18,2026-08-24,False,False,7,1
+Helen Oy,6,9eilc1-helen-oy-maaraaikainen-perussahko-6-kk,2026-05-19,2026-05-25,False,False,7,1
+Helen Oy,6,9ywtbj-helen-oy-maaraaikainen-perussahko-6-kk,2026-04-14,2026-04-20,False,False,7,1
+Helen Oy,6,dllp9o-helen-oy-maaraaikainen-perussahko-6-kk,2026-05-26,2026-06-01,False,False,7,1
+Helen Oy,6,euhscx-helen-oy-maaraaikainen-perussahko-6-kk,2026-07-21,2026-07-24,False,False,4,1
+Helen Oy,6,fghxxe-helen-oy-maaraaikainen-perussahko-6-kk,2026-06-02,2026-06-08,False,False,7,1
+Helen Oy,6,fw9xin-helen-oy-maaraaikainen-perussahko-6-kk,2026-09-01,2026-09-07,False,False,7,1
+Helen Oy,6,gr2teh-helen-oy-maaraaikainen-perussahko-6-kk,2026-08-25,2026-08-31,False,False,7,1
+Helen Oy,6,gx0koj-helen-oy-maaraaikainen-perussahko-6-kk,2026-09-11,2026-09-13,False,True,3,1
+Helen Oy,6,kmftfp-helen-oy-maaraaikainen-perussahko-6-kk,2026-05-12,2026-05-18,False,False,7,1
+Helen Oy,6,ksnsmh-helen-oy-maaraaikainen-perussahko-6-kk,2026-09-08,2026-09-10,False,False,3,1
+Helen Oy,6,mx7cyy-helen-oy-maaraaikainen-perussahko-6-kk,2026-07-07,2026-07-14,False,False,8,1
+Helen Oy,6,oshbie-helen-oy-maaraaikainen-perussahko-6-kk,2026-04-21,2026-05-04,False,False,14,1
+Helen Oy,6,qemzon-helen-oy-maaraaikainen-perussahko-6-kk,2026-07-15,2026-07-20,False,False,6,1
+Helen Oy,6,shtgi1-helen-oy-maaraaikainen-perussahko-6-kk,2026-06-09,2026-06-18,False,False,10,1
+Helen Oy,6,t0eg9e-helen-oy-maaraaikainen-perussahko-6-kk,2026-07-25,2026-07-27,False,False,3,1
+Helen Oy,6,u0zf19-helen-oy-maaraaikainen-perussahko-6-kk,2026-08-11,2026-08-17,False,False,7,1
+Helen Oy,6,uetg2j-helen-oy-maaraaikainen-perussahko-6-kk,2026-05-05,2026-05-11,False,False,7,1
+Helen Oy,6,vnwmvn-helen-oy-maaraaikainen-perussahko-6-kk,2026-06-19,2026-06-22,False,False,4,1
+Helen Oy,6,xw1fx4-helen-oy-maaraaikainen-perussahko-6-kk,2026-06-23,2026-06-29,False,False,7,1
+Helen Oy,6,ynymtf-helen-oy-maaraaikainen-perussahko-6-kk,2026-08-05,2026-08-10,False,False,6,1
+Helen Oy,6,yye5cr-helen-oy-maaraaikainen-perussahko-6-kk,2026-07-29,2026-08-03,False,False,6,1
+Helen Oy,6,z5gzkm-helen-oy-maaraaikainen-perussahko-6-kk,2026-04-08,2026-04-13,True,False,6,1
+Helen Oy,12,5cxtmi-helen-oy-maaraaikainen-perussahko-12-kk,2026-05-12,2026-05-18,False,False,7,1
+Helen Oy,12,5jp8mz-helen-oy-maaraaikainen-perussahko-12-kk,2026-06-30,2026-07-06,False,False,7,1
+Helen Oy,12,5zmo0v-helen-oy-maaraaikainen-perussahko-12-kk,2026-08-05,2026-08-10,False,False,6,1
+Helen Oy,12,7nmsxb-helen-oy-maaraaikainen-perussahko-12-kk,2026-04-14,2026-04-20,False,False,7,1
+Helen Oy,12,bvlyjg-helen-oy-maaraaikainen-perussahko-12-kk,2026-08-25,2026-08-31,False,False,7,1
+Helen Oy,12,cswpse-helen-oy-maaraaikainen-perussahko-12-kk,2026-08-18,2026-08-24,False,False,7,1
+Helen Oy,12,hy7mfl-helen-oy-maaraaikainen-perussahko-12-kk,2026-09-08,2026-09-10,False,False,3,1
+Helen Oy,12,jccffn-helen-oy-maaraaikainen-perussahko-12-kk,2026-05-05,2026-05-11,False,False,7,1
+Helen Oy,12,kdyhkp-helen-oy-maaraaikainen-perussahko-12-kk,2026-05-26,2026-06-18,False,False,24,1
+Helen Oy,12,kzbzgp-helen-oy-maaraaikainen-perussahko-12-kk,2026-06-23,2026-06-29,False,False,7,1
+Helen Oy,12,luadkb-helen-oy-maaraaikainen-perussahko-12-kk,2026-04-08,2026-04-13,True,False,6,1
+Helen Oy,12,q5oyms-helen-oy-maaraaikainen-perussahko-12-kk,2026-07-29,2026-08-03,False,False,6,1
+Helen Oy,12,rlvp2i-helen-oy-maaraaikainen-perussahko-12-kk,2026-06-19,2026-06-22,False,False,4,1
+Helen Oy,12,seedcy-helen-oy-maaraaikainen-perussahko-12-kk,2026-07-07,2026-07-14,False,False,8,1
+Helen Oy,12,u8smnc-helen-oy-maaraaikainen-perussahko-12-kk,2026-09-01,2026-09-07,False,False,7,1
+Helen Oy,12,vmyuwy-helen-oy-maaraaikainen-perussahko-12-kk,2026-07-25,2026-07-27,False,False,3,1
+Helen Oy,12,vnbjjz-helen-oy-maaraaikainen-perussahko-12-kk,2026-07-21,2026-07-24,False,False,4,1
+Helen Oy,12,vwrl9w-helen-oy-maaraaikainen-perussahko-12-kk,2026-05-19,2026-05-25,False,False,7,1
+Helen Oy,12,waqodk-helen-oy-maaraaikainen-perussahko-12-kk,2026-04-21,2026-05-04,False,False,14,1
+Helen Oy,12,wjso61-helen-oy-maaraaikainen-perussahko-12-kk,2026-09-11,2026-09-13,False,True,3,1
+Helen Oy,12,y4r7z7-helen-oy-maaraaikainen-perussahko-12-kk,2026-07-15,2026-07-20,False,False,6,1
+Helen Oy,12,yig38c-helen-oy-maaraaikainen-perussahko-12-kk,2026-08-11,2026-08-17,False,False,7,1
+Helen Oy,24,2gql3z-helen-oy-maaraaikainen-perussahko-24-kk,2026-07-25,2026-07-27,False,False,3,1
+Helen Oy,24,apigay-helen-oy-maaraaikainen-perussahko-24-kk,2026-07-15,2026-07-20,False,False,6,1
+Helen Oy,24,cc1ejt-helen-oy-maaraaikainen-perussahko-24-kk,2026-08-05,2026-08-10,False,False,6,1
+Helen Oy,24,cyumq6-helen-oy-maaraaikainen-perussahko-24-kk,2026-05-05,2026-05-11,False,False,7,1
+Helen Oy,24,fbnoat-helen-oy-maaraaikainen-perussahko-24-kk,2026-07-07,2026-07-14,False,False,8,1
+Helen Oy,24,fwkj5c-helen-oy-maaraaikainen-perussahko-24-kk,2026-05-19,2026-05-25,False,False,7,1
+Helen Oy,24,gwfagj-helen-oy-maaraaikainen-perussahko-24-kk,2026-07-29,2026-08-03,False,False,6,1
+Helen Oy,24,kptbav-helen-oy-maaraaikainen-perussahko-24-kk,2026-09-11,2026-09-13,False,True,3,1
+Helen Oy,24,mihwnl-helen-oy-maaraaikainen-perussahko-24-kk,2026-05-12,2026-05-18,False,False,7,1
+Helen Oy,24,mrn86m-helen-oy-maaraaikainen-perussahko-24-kk,2026-08-25,2026-08-31,False,False,7,1
+Helen Oy,24,okxwdn-helen-oy-maaraaikainen-perussahko-24-kk,2026-06-19,2026-06-22,False,False,4,1
+Helen Oy,24,oxiiyo-helen-oy-maaraaikainen-perussahko-24-kk,2026-04-28,2026-05-04,False,False,7,1
+Helen Oy,24,q4jfx1-helen-oy-maaraaikainen-perussahko-24-kk,2026-09-08,2026-09-10,False,False,3,1
+Helen Oy,24,rveuie-helen-oy-maaraaikainen-perussahko-24-kk,2026-06-09,2026-06-18,False,False,10,1
+Helen Oy,24,rziblc-helen-oy-maaraaikainen-perussahko-24-kk,2026-04-08,2026-04-13,True,False,6,1
+Helen Oy,24,s9eznx-helen-oy-maaraaikainen-perussahko-24-kk,2026-06-23,2026-07-06,False,False,14,1
+Helen Oy,24,smctca-helen-oy-maaraaikainen-perussahko-24-kk,2026-05-26,2026-06-01,False,False,7,1
+Helen Oy,24,tenqy9-helen-oy-maaraaikainen-perussahko-24-kk,2026-09-01,2026-09-07,False,False,7,1
+Helen Oy,24,ugefco-helen-oy-maaraaikainen-perussahko-24-kk,2026-04-14,2026-04-27,False,False,14,1
+Helen Oy,24,uzazny-helen-oy-maaraaikainen-perussahko-24-kk,2026-06-02,2026-06-08,False,False,7,1
+Helen Oy,24,xzyppx-helen-oy-maaraaikainen-perussahko-24-kk,2026-07-21,2026-07-24,False,False,4,1
+Helen Oy,24,yqf44a-helen-oy-maaraaikainen-perussahko-24-kk,2026-08-11,2026-08-24,False,False,14,1
+Imatran Seudun Sähkö Oy,6,0wrdw2-imatran-seudun-sahko-oy-voima-6-kk,2026-08-18,2026-08-18,False,False,1,1
+Imatran Seudun Sähkö Oy,6,47rkfn-imatran-seudun-sahko-oy-voima-6-kk,2026-06-12,2026-06-18,False,False,7,1
+Imatran Seudun Sähkö Oy,6,7s6hln-imatran-seudun-sahko-oy-voima-6-kk,2026-07-31,2026-08-04,False,False,5,1
+Imatran Seudun Sähkö Oy,6,dwuom6-imatran-seudun-sahko-oy-voima-6-kk,2026-05-14,2026-05-22,False,False,9,1
+Imatran Seudun Sähkö Oy,6,hdkhuf-imatran-seudun-sahko-oy-voima-6-kk,2026-07-17,2026-07-22,False,False,6,1
+Imatran Seudun Sähkö Oy,6,jzmm21-imatran-seudun-sahko-oy-voima-6-kk,2026-08-05,2026-08-11,False,False,7,1
+Imatran Seudun Sähkö Oy,6,lviryu-imatran-seudun-sahko-oy-voima-6-kk,2026-08-27,2026-08-30,False,False,4,1
+Imatran Seudun Sähkö Oy,6,oll8jk-imatran-seudun-sahko-oy-voima-6-kk,2026-06-19,2026-07-16,False,False,28,1
+Imatran Seudun Sähkö Oy,6,pmwqbv-imatran-seudun-sahko-oy-voima-6-kk,2026-08-12,2026-08-17,False,False,6,1
+Imatran Seudun Sähkö Oy,6,qniyru-imatran-seudun-sahko-oy-voima-6-kk,2026-09-11,2026-09-13,False,True,3,1
+Imatran Seudun Sähkö Oy,6,qnkyzx-imatran-seudun-sahko-oy-voima-6-kk,2026-06-03,2026-06-11,False,False,9,1
+Imatran Seudun Sähkö Oy,6,u503wd-imatran-seudun-sahko-oy-voima-6-kk,2026-05-23,2026-06-02,False,False,11,1
+Imatran Seudun Sähkö Oy,6,u8wc8e-imatran-seudun-sahko-oy-voima-6-kk,2026-04-29,2026-05-13,False,False,15,1
+Imatran Seudun Sähkö Oy,6,vjakj5-imatran-seudun-sahko-oy-voima-6-kk,2026-08-19,2026-08-26,False,False,8,1
+Imatran Seudun Sähkö Oy,6,wqfasx-imatran-seudun-sahko-oy-voima-6-kk,2026-08-31,2026-09-03,False,False,4,1
+Imatran Seudun Sähkö Oy,6,xhm9jf-imatran-seudun-sahko-oy-voima-6-kk,2026-07-23,2026-07-29,False,False,7,1
+Imatran Seudun Sähkö Oy,6,xrvlzo-imatran-seudun-sahko-oy-voima-6-kk,2026-09-04,2026-09-09,False,False,6,1
+Imatran Seudun Sähkö Oy,6,zk9vue-imatran-seudun-sahko-oy-voima-6-kk,2026-04-08,2026-04-28,True,False,21,1
+Imatran Seudun Sähkö Oy,12,2lyoo8-imatran-seudun-sahko-oy-voima-12-kk,2026-09-04,2026-09-09,False,False,6,1
+Imatran Seudun Sähkö Oy,12,48roh1-imatran-seudun-sahko-oy-voima-12-kk,2026-04-09,2026-04-28,False,False,20,1
+Imatran Seudun Sähkö Oy,12,akvy3r-imatran-seudun-sahko-oy-voima-12-kk,2026-07-17,2026-07-22,False,False,6,1
+Imatran Seudun Sähkö Oy,12,arf0ke-imatran-seudun-sahko-oy-voima-12-kk,2026-08-18,2026-08-18,False,False,1,1
+Imatran Seudun Sähkö Oy,12,bk0hau-imatran-seudun-sahko-oy-voima-12-kk,2026-06-19,2026-06-25,False,False,7,1
+Imatran Seudun Sähkö Oy,12,cnw5ns-imatran-seudun-sahko-oy-voima-12-kk,2026-07-10,2026-07-16,False,False,7,1
+Imatran Seudun Sähkö Oy,12,ctngqh-imatran-seudun-sahko-oy-voima-12-kk,2026-07-23,2026-08-04,False,False,13,1
+Imatran Seudun Sähkö Oy,12,f9ycp4-imatran-seudun-sahko-oy-voima-12-kk,2026-08-27,2026-09-03,False,False,8,1
+Imatran Seudun Sähkö Oy,12,fxn0an-imatran-seudun-sahko-oy-voima-12-kk,2026-04-08,2026-04-08,True,False,1,1
+Imatran Seudun Sähkö Oy,12,jlpmyq-imatran-seudun-sahko-oy-voima-12-kk,2026-06-26,2026-07-09,False,False,14,1
+Imatran Seudun Sähkö Oy,12,jvmw4m-imatran-seudun-sahko-oy-voima-12-kk,2026-08-05,2026-08-17,False,False,13,1
+Imatran Seudun Sähkö Oy,12,qo1hqu-imatran-seudun-sahko-oy-voima-12-kk,2026-05-14,2026-05-22,False,False,9,1
+Imatran Seudun Sähkö Oy,12,smzzco-imatran-seudun-sahko-oy-voima-12-kk,2026-08-19,2026-08-26,False,False,8,1
+Imatran Seudun Sähkö Oy,12,t1arkv-imatran-seudun-sahko-oy-voima-12-kk,2026-09-11,2026-09-13,False,True,3,1
+Imatran Seudun Sähkö Oy,12,vjwyzt-imatran-seudun-sahko-oy-voima-12-kk,2026-05-23,2026-06-02,False,False,11,1
+Imatran Seudun Sähkö Oy,12,x2ch5a-imatran-seudun-sahko-oy-voima-12-kk,2026-04-29,2026-05-13,False,False,15,1
+Imatran Seudun Sähkö Oy,12,yiujdt-imatran-seudun-sahko-oy-voima-12-kk,2026-06-03,2026-06-18,False,False,16,1
+Imatran Seudun Sähkö Oy,24,30pfqw-imatran-seudun-sahko-oy-juhannustarjous-voima-sesonki-24-kk,2026-06-18,2026-06-21,False,False,4,1
+Imatran Seudun Sähkö Oy,24,4nobbg-imatran-seudun-sahko-oy-voima-24-kk,2026-09-01,2026-09-03,False,False,3,1
+Imatran Seudun Sähkö Oy,24,6xklde-imatran-seudun-sahko-oy-voima-24-kk,2026-06-03,2026-06-18,False,False,16,1
+Imatran Seudun Sähkö Oy,24,b7zttj-imatran-seudun-sahko-oy-voima-24-kk,2026-08-31,2026-08-31,False,False,1,1
+Imatran Seudun Sähkö Oy,24,dgsoec-imatran-seudun-sahko-oy-voima-24-kk,2026-09-11,2026-09-13,False,True,3,1
+Imatran Seudun Sähkö Oy,24,egbxyb-imatran-seudun-sahko-oy-voima-24-kk,2026-04-09,2026-04-28,False,False,20,1
+Imatran Seudun Sähkö Oy,24,hon8zi-imatran-seudun-sahko-oy-voima-24-kk,2026-08-19,2026-08-26,False,False,8,1
+Imatran Seudun Sähkö Oy,24,lgpkpx-imatran-seudun-sahko-oy-voima-24-kk,2026-07-30,2026-08-11,False,False,13,1
+Imatran Seudun Sähkö Oy,24,lldcbp-imatran-seudun-sahko-oy-voima-24-kk,2026-08-12,2026-08-17,False,False,6,1
+Imatran Seudun Sähkö Oy,24,qdb5ug-imatran-seudun-sahko-oy-voima-24-kk,2026-04-29,2026-05-13,False,False,15,1
+Imatran Seudun Sähkö Oy,24,rk2ccs-imatran-seudun-sahko-oy-voima-24-kk,2026-06-19,2026-06-25,False,False,7,1
+Imatran Seudun Sähkö Oy,24,rlhroi-imatran-seudun-sahko-oy-voima-24-kk,2026-08-27,2026-08-30,False,False,4,1
+Imatran Seudun Sähkö Oy,24,s0qaio-imatran-seudun-sahko-oy-voima-24-kk,2026-05-14,2026-06-02,False,False,20,1
+Imatran Seudun Sähkö Oy,24,skjp0s-imatran-seudun-sahko-oy-voima-24-kk,2026-08-18,2026-08-18,False,False,1,1
+Imatran Seudun Sähkö Oy,24,sxfhwt-imatran-seudun-sahko-oy-voima-24-kk,2026-07-17,2026-07-22,False,False,6,1
+Imatran Seudun Sähkö Oy,24,tin5cj-imatran-seudun-sahko-oy-voima-24-kk,2026-09-04,2026-09-09,False,False,6,1
+Imatran Seudun Sähkö Oy,24,vlwyja-imatran-seudun-sahko-oy-voima-24-kk,2026-04-08,2026-04-08,True,False,1,1
+Imatran Seudun Sähkö Oy,24,x6siad-imatran-seudun-sahko-oy-voima-24-kk,2026-07-10,2026-07-16,False,False,7,1
+Imatran Seudun Sähkö Oy,24,yurkfu-imatran-seudun-sahko-oy-voima-24-kk,2026-06-26,2026-07-09,False,False,14,1
+Imatran Seudun Sähkö Oy,24,zlhj1m-imatran-seudun-sahko-oy-voima-24-kk,2026-07-23,2026-07-28,False,False,6,1
+Keravan Energia Oy,6,3ahllc-keravan-energia-oy-perussahko-yleis-6-kk,2026-07-10,2026-07-14,False,False,5,1
+Keravan Energia Oy,6,40acqu-keravan-energia-oy-perussahko-yleis-6-kk,2026-08-01,2026-08-04,False,False,4,1
+Keravan Energia Oy,6,arpgon-keravan-energia-oy-perussahko-yleis-6-kk,2026-06-17,2026-07-09,False,False,23,1
+Keravan Energia Oy,6,bl0tn4-keravan-energia-oy-perussahko-yleis-6-kk,2026-04-08,2026-05-12,True,False,35,1
+Keravan Energia Oy,6,d6zx1a-keravan-energia-oy-perussahko-yleis-6-kk,2026-05-13,2026-06-02,False,False,21,1
+Keravan Energia Oy,6,fevyw2-keravan-energia-oy-perussahko-yleis-6-kk,2026-07-17,2026-07-22,False,False,6,1
+Keravan Energia Oy,6,fwj9qs-keravan-energia-oy-perussahko-yleis-6-kk,2026-09-03,2026-09-08,False,False,6,1
+Keravan Energia Oy,6,ou6yjr-keravan-energia-oy-perussahko-yleis-6-kk,2026-06-10,2026-06-16,False,False,7,1
+Keravan Energia Oy,6,ovycon-keravan-energia-oy-perussahko-yleis-6-kk,2026-09-09,2026-09-11,False,False,3,1
+Keravan Energia Oy,6,pkdzdu-keravan-energia-oy-perussahko-yleis-6-kk,2026-07-23,2026-07-30,False,False,8,1
+Keravan Energia Oy,6,rbwamx-keravan-energia-oy-perussahko-yleis-6-kk,2026-07-15,2026-07-16,False,False,2,1
+Keravan Energia Oy,6,s6lsqa-keravan-energia-oy-perussahko-yleis-6-kk,2026-06-03,2026-06-09,False,False,7,1
+Keravan Energia Oy,6,t4nzpb-keravan-energia-oy-perussahko-yleis-6-kk,2026-09-12,2026-09-13,False,True,2,1
+Keravan Energia Oy,6,zuuky1-keravan-energia-oy-perussahko-yleis-6-kk,2026-08-05,2026-09-02,False,False,29,1
+Keravan Energia Oy,12,0gmw0k-keravan-energia-oy-perussahko-yleis-12-kk,2026-09-03,2026-09-08,False,False,6,1
+Keravan Energia Oy,12,5pbkuh-keravan-energia-oy-perussahko-yleis-12-kk,2026-04-08,2026-05-12,True,False,35,1
+Keravan Energia Oy,12,91uibl-keravan-energia-oy-perussahko-luonnonvoima-12-kk,2026-06-05,2026-06-16,False,False,12,1
+Keravan Energia Oy,12,ciequj-keravan-energia-oy-perussahko-yleis-12-kk,2026-08-05,2026-09-02,False,False,29,1
+Keravan Energia Oy,12,ckwbyg-keravan-energia-oy-perussahko-luonnonvoima-12-kk,2026-09-03,2026-09-08,False,False,6,1
+Keravan Energia Oy,12,csvpit-keravan-energia-oy-perussahko-yleis-12-kk,2026-09-09,2026-09-11,False,False,3,1
+Keravan Energia Oy,12,derkno-keravan-energia-oy-perussahko-yleis-12-kk,2026-09-12,2026-09-13,False,True,2,1
+Keravan Energia Oy,12,ejf3a7-keravan-energia-oy-perussahko-yleis-12-kk,2026-05-13,2026-06-04,False,False,23,1
+Keravan Energia Oy,12,fpmbqk-keravan-energia-oy-perussahko-luonnonvoima-12-kk,2026-04-08,2026-05-05,True,False,28,1
+Keravan Energia Oy,12,g4sjmy-keravan-energia-oy-perussahko-luonnonvoima-12-kk,2026-09-09,2026-09-11,False,False,3,1
+Keravan Energia Oy,12,hnu1ne-keravan-energia-oy-perussahko-luonnonvoima-12-kk,2026-09-12,2026-09-13,False,True,2,1
+Keravan Energia Oy,12,hxy4ru-keravan-energia-oy-perussahko-co2-vapaa-12-kk,2026-04-08,2026-06-22,True,False,76,1
+Keravan Energia Oy,12,i5dqpd-keravan-energia-oy-perussahko-yleis-12-kk,2026-06-17,2026-07-16,False,False,30,1
+Keravan Energia Oy,12,iino9a-keravan-energia-oy-perussahko-luonnonvoima-12-kk,2026-05-13,2026-06-04,False,False,23,1
+Keravan Energia Oy,12,kp2ioi-keravan-energia-oy-perussahko-yleis-12-kk,2026-06-05,2026-06-16,False,False,12,1
+Keravan Energia Oy,12,pat0nm-keravan-energia-oy-perussahko-luonnonvoima-12-kk,2026-07-17,2026-07-22,False,False,6,1
+Keravan Energia Oy,12,qecu71-keravan-energia-oy-perussahko-luonnonvoima-12-kk,2026-08-05,2026-09-02,False,False,29,1
+Keravan Energia Oy,12,rcmpqn-keravan-energia-oy-perussahko-yleis-12-kk,2026-07-17,2026-07-22,False,False,6,1
+Keravan Energia Oy,12,s91uya-keravan-energia-oy-perussahko-yleis-12-kk,2026-07-23,2026-08-04,False,False,13,1
+Keravan Energia Oy,12,sfb9w8-keravan-energia-oy-perussahko-luonnonvoima-12-kk,2026-06-17,2026-07-16,False,False,30,1
+Keravan Energia Oy,12,tlxuqe-keravan-energia-oy-perussahko-luonnonvoima-12-kk,2026-07-30,2026-08-04,False,False,6,1
+Keravan Energia Oy,12,vfnc3c-keravan-energia-oy-perussahko-luonnonvoima-12-kk,2026-05-06,2026-05-12,False,False,7,1
+Keravan Energia Oy,12,xhyxbc-keravan-energia-oy-perussahko-luonnonvoima-12-kk,2026-07-23,2026-07-28,False,False,6,1
+Keravan Energia Oy,24,1qwrz8-keravan-energia-oy-perussahko-yleissahko,2026-08-19,2026-08-20,False,False,2,1
+Keravan Energia Oy,24,1tma4r-keravan-energia-oy-perussahko-yleissahko,2026-04-08,2026-05-05,True,False,28,1
+Keravan Energia Oy,24,2jpxu6-keravan-energia-oy-perussahko-luonnonvoima-24-kk,2026-09-12,2026-09-13,False,True,2,1
+Keravan Energia Oy,24,37h9kf-keravan-energia-oy-perussahko-yleissahko,2026-06-17,2026-07-16,False,False,30,1
+Keravan Energia Oy,24,5cnshc-keravan-energia-oy-perussahko-luonnonvoima-24-kk,2026-05-13,2026-06-04,False,False,23,1
+Keravan Energia Oy,24,7pfvg0-keravan-energia-oy-perussahko-yleissahko,2026-09-12,2026-09-13,False,True,2,1
+Keravan Energia Oy,24,b80lm9-keravan-energia-oy-perussahko-luonnonvoima-24-kk,2026-05-06,2026-05-12,False,False,7,1
+Keravan Energia Oy,24,ddcjkv-keravan-energia-oy-perussahko-luonnonvoima-24-kk,2026-07-30,2026-07-31,False,False,2,1
+Keravan Energia Oy,24,f9fqq7-keravan-energia-oy-perussahko-luonnonvoima-24-kk,2026-08-02,2026-08-18,False,False,17,1
+Keravan Energia Oy,24,fdrvso-keravan-energia-oy-perussahko-luonnonvoima-24-kk,2026-04-08,2026-05-05,True,False,28,1
+Keravan Energia Oy,24,gylwet-keravan-energia-oy-perussahko-yleissahko,2026-09-03,2026-09-08,False,False,6,1
+Keravan Energia Oy,24,hhrdxs-keravan-energia-oy-perussahko-yleissahko,2026-08-21,2026-09-02,False,False,13,1
+Keravan Energia Oy,24,hvpgex-keravan-energia-oy-perussahko-luonnonvoima-24-kk,2026-06-05,2026-06-16,False,False,12,1
+Keravan Energia Oy,24,i24cye-keravan-energia-oy-perussahko-luonnonvoima-24-kk,2026-09-03,2026-09-08,False,False,6,1
+Keravan Energia Oy,24,ihaveq-keravan-energia-oy-perussahko-yleissahko,2026-07-30,2026-07-31,False,False,2,1
+Keravan Energia Oy,24,ijsblo-keravan-energia-oy-perussahko-luonnonvoima-24-kk,2026-08-21,2026-09-02,False,False,13,1
+Keravan Energia Oy,24,kdu81w-keravan-energia-oy-perussahko-yleissahko,2026-08-02,2026-08-18,False,False,17,1
+Keravan Energia Oy,24,kpricu-keravan-energia-oy-perussahko-luonnonvoima-24-kk,2026-06-17,2026-07-16,False,False,30,1
+Keravan Energia Oy,24,nhwqud-keravan-energia-oy-perussahko-yleissahko,2026-06-05,2026-06-16,False,False,12,1
+Keravan Energia Oy,24,qv63i4-keravan-energia-oy-perussahko-yleissahko,2026-05-06,2026-06-04,False,False,30,1
+Keravan Energia Oy,24,rcfdul-keravan-energia-oy-perussahko-luonnonvoima-24-kk,2026-09-09,2026-09-11,False,False,3,1
+Keravan Energia Oy,24,srhu1r-keravan-energia-oy-perussahko-luonnonvoima-24-kk,2026-07-17,2026-07-28,False,False,12,1
+Keravan Energia Oy,24,vmhieu-keravan-energia-oy-perussahko-yleissahko,2026-09-09,2026-09-11,False,False,3,1
+Keravan Energia Oy,24,vmqvel-keravan-energia-oy-perussahko-yleissahko,2026-07-17,2026-07-28,False,False,12,1
+Keravan Energia Oy,24,wowcvp-keravan-energia-oy-perussahko-luonnonvoima-24-kk,2026-08-19,2026-08-20,False,False,2,1
+Koillis-Satakunnan Sähkö Oy,12,3o6flt-koillis-satakunnan-sahko-oy-vakaawirta-12-kk,2026-04-08,2026-04-09,True,False,2,1
+Koillis-Satakunnan Sähkö Oy,12,3ptapg-koillis-satakunnan-sahko-oy-vakaawirta-12-kk,2026-08-26,2026-09-09,False,False,15,1
+Koillis-Satakunnan Sähkö Oy,12,9gznfq-koillis-satakunnan-sahko-oy-ikiwirta-12-kk,2026-08-26,2026-09-09,False,False,15,1
+Koillis-Satakunnan Sähkö Oy,12,9wcorr-koillis-satakunnan-sahko-oy-ikiwirta-12-kk,2026-07-29,2026-08-25,False,False,28,1
+Koillis-Satakunnan Sähkö Oy,12,dkzws6-koillis-satakunnan-sahko-oy-ikiwirta-12-kk,2026-05-28,2026-07-27,False,False,61,1
+Koillis-Satakunnan Sähkö Oy,12,kr6dzl-koillis-satakunnan-sahko-oy-vakaawirta-12-kk,2026-05-20,2026-05-27,False,False,8,1
+Koillis-Satakunnan Sähkö Oy,12,kwaswq-koillis-satakunnan-sahko-oy-vakaawirta-12-kk,2026-05-28,2026-07-27,False,False,61,1
+Koillis-Satakunnan Sähkö Oy,12,npr1ot-koillis-satakunnan-sahko-oy-vakaawirta-12-kk,2026-07-29,2026-08-25,False,False,28,1
+Koillis-Satakunnan Sähkö Oy,12,pqfkju-koillis-satakunnan-sahko-oy-vakaawirta-12-kk,2026-04-10,2026-05-19,False,False,40,1
+Koillis-Satakunnan Sähkö Oy,12,rglisy-koillis-satakunnan-sahko-oy-ikiwirta-12-kk,2026-09-11,2026-09-13,False,True,3,1
+Koillis-Satakunnan Sähkö Oy,12,rlibga-koillis-satakunnan-sahko-oy-ikiwirta-12-kk,2026-05-20,2026-05-27,False,False,8,1
+Koillis-Satakunnan Sähkö Oy,12,ukxanu-koillis-satakunnan-sahko-oy-ikiwirta-12-kk,2026-04-08,2026-04-09,True,False,2,1
+Koillis-Satakunnan Sähkö Oy,12,v4kluq-koillis-satakunnan-sahko-oy-vakaawirta-12-kk,2026-09-11,2026-09-13,False,True,3,1
+Koillis-Satakunnan Sähkö Oy,12,zfygey-koillis-satakunnan-sahko-oy-ikiwirta-12-kk,2026-04-10,2026-05-19,False,False,40,1
+Koillis-Satakunnan Sähkö Oy,24,6lvgux-koillis-satakunnan-sahko-oy-vakaawirta-24-kk,2026-08-26,2026-09-09,False,False,15,1
+Koillis-Satakunnan Sähkö Oy,24,brglnc-koillis-satakunnan-sahko-oy-vakaawirta-24-kk,2026-04-08,2026-04-09,True,False,2,1
+Koillis-Satakunnan Sähkö Oy,24,c66dxw-koillis-satakunnan-sahko-oy-vakaawirta-24-kk,2026-07-29,2026-08-25,False,False,28,1
+Koillis-Satakunnan Sähkö Oy,24,h925l0-koillis-satakunnan-sahko-oy-vakaawirta-24-kk,2026-06-11,2026-07-27,False,False,47,1
+Koillis-Satakunnan Sähkö Oy,24,hiopjo-koillis-satakunnan-sahko-oy-vakaawirta-24-kk,2026-05-20,2026-05-27,False,False,8,1
+Koillis-Satakunnan Sähkö Oy,24,jyyrhn-koillis-satakunnan-sahko-oy-vakaawirta-24-kk,2026-05-28,2026-06-10,False,False,14,1
+Koillis-Satakunnan Sähkö Oy,24,qhg4h1-koillis-satakunnan-sahko-oy-vakaawirta-24-kk,2026-04-10,2026-05-19,False,False,40,1
+Koillis-Satakunnan Sähkö Oy,24,u1abve-koillis-satakunnan-sahko-oy-vakaawirta-24-kk,2026-09-12,2026-09-13,False,True,2,1
+Kokkolan Energia Oy,6,8myebc-kokkolan-energia-oy-aalto-6-kk,2026-06-05,2026-07-20,False,False,46,1
+Kokkolan Energia Oy,6,8wsbp6-kokkolan-energia-oy-aalto-6-kk,2026-07-21,2026-07-24,False,False,4,1
+Kokkolan Energia Oy,6,bjmuxp-kokkolan-energia-oy-ranta-6-kk,2026-05-21,2026-06-04,False,False,15,1
+Kokkolan Energia Oy,6,goq1fj-kokkolan-energia-oy-ranta-6-kk,2026-08-20,2026-08-24,False,False,5,1
+Kokkolan Energia Oy,6,jnlupi-kokkolan-energia-oy-ranta-6-kk,2026-04-08,2026-05-04,True,False,27,1
+Kokkolan Energia Oy,6,ki6odb-kokkolan-energia-oy-ranta-6-kk,2026-07-21,2026-08-04,False,False,15,1
+Kokkolan Energia Oy,6,q4ezdm-kokkolan-energia-oy-ranta-6-kk,2026-08-05,2026-08-10,False,False,6,1
+Kokkolan Energia Oy,6,qkr4r6-kokkolan-energia-oy-ranta-6-kk,2026-09-09,2026-09-13,False,True,5,1
+Kokkolan Energia Oy,6,rl9lca-kokkolan-energia-oy-ranta-6-kk,2026-08-25,2026-08-31,False,False,7,1
+Kokkolan Energia Oy,6,s95xly-kokkolan-energia-oy-ranta-6-kk,2026-06-05,2026-07-20,False,False,46,1
+Kokkolan Energia Oy,6,tio0mr-kokkolan-energia-oy-ranta-6-kk,2026-08-11,2026-08-19,False,False,9,1
+Kokkolan Energia Oy,6,u5qugb-kokkolan-energia-oy-aalto-6-kk,2026-05-05,2026-05-20,False,False,16,1
+Kokkolan Energia Oy,6,vo9hmx-kokkolan-energia-oy-aalto-6-kk,2026-05-21,2026-06-04,False,False,15,1
+Kokkolan Energia Oy,6,vxd09m-kokkolan-energia-oy-ranta-6-kk,2026-09-03,2026-09-08,False,False,6,1
+Kokkolan Energia Oy,6,wxenfm-kokkolan-energia-oy-ranta-6-kk,2026-05-05,2026-05-20,False,False,16,1
+Kokkolan Energia Oy,6,ybty3e-kokkolan-energia-oy-ranta-6-kk,2026-09-01,2026-09-02,False,False,2,1
+Kokkolan Energia Oy,12,ebzfax-kokkolan-energia-oy-ranta-12-kk,2026-09-09,2026-09-13,False,True,5,1
+Kokkolan Energia Oy,12,fzf5dz-kokkolan-energia-oy-ranta-12-kk,2026-09-01,2026-09-02,False,False,2,1
+Kokkolan Energia Oy,12,jksgcv-kokkolan-energia-oy-ranta-12-kk,2026-05-05,2026-05-20,False,False,16,1
+Kokkolan Energia Oy,12,kbsins-kokkolan-energia-oy-ranta-12-kk,2026-09-03,2026-09-08,False,False,6,1
+Kokkolan Energia Oy,12,mszfrp-kokkolan-energia-oy-ranta-12-kk,2026-08-11,2026-08-31,False,False,21,1
+Kokkolan Energia Oy,12,s43zr9-kokkolan-energia-oy-ranta-12-kk,2026-04-08,2026-05-04,True,False,27,1
+Kokkolan Energia Oy,12,vmiah1-kokkolan-energia-oy-ranta-12-kk,2026-05-21,2026-07-20,False,False,61,1
+Kokkolan Energia Oy,12,wsncrl-kokkolan-energia-oy-ranta-12-kk,2026-07-21,2026-08-10,False,False,21,1
+Kokkolan Energia Oy,24,7ledl9-kokkolan-energia-oy-ranta-24-kk,2026-06-24,2026-06-29,False,False,6,1
+Kokkolan Energia Oy,24,cbn6bg-kokkolan-energia-oy-ranta-24-kk,2026-06-30,2026-07-20,False,False,21,1
+Kokkolan Energia Oy,24,cph3d9-kokkolan-energia-oy-ranta-24-kk,2026-09-05,2026-09-08,False,False,4,1
+Kokkolan Energia Oy,24,db42me-kokkolan-energia-oy-ranta-24-kk,2026-06-05,2026-06-23,False,False,19,1
+Kokkolan Energia Oy,24,evy7rb-kokkolan-energia-oy-ranta-24-kk,2026-04-08,2026-05-20,True,False,43,1
+Kokkolan Energia Oy,24,h8zvo7-kokkolan-energia-oy-ranta-24-kk,2026-07-21,2026-08-31,False,False,42,1
+Kokkolan Energia Oy,24,qnaro2-kokkolan-energia-oy-ranta-24-kk,2026-09-01,2026-09-02,False,False,2,1
+Kokkolan Energia Oy,24,rrg6m5-kokkolan-energia-oy-ranta-24-kk,2026-05-21,2026-06-04,False,False,15,1
+Kokkolan Energia Oy,24,uoolqh-kokkolan-energia-oy-ranta-24-kk,2026-09-09,2026-09-13,False,True,5,1
+Kokkolan Energia Oy,24,xttsgr-kokkolan-energia-oy-ranta-24-kk,2026-09-03,2026-09-04,False,False,2,1
+Korpelan Energia Oy,12,4raq04-korpelan-energia-oy-korpela-kesto-kiintea-12-kk,2026-06-30,2026-07-20,False,False,21,1
+Korpelan Energia Oy,12,6bkvu5-korpelan-energia-oy-korpela-kesto-kiintea-12-kk,2026-07-21,2026-08-03,False,False,14,1
+Korpelan Energia Oy,12,8yldkd-korpelan-energia-oy-korpela-kesto-kiintea-12-kk,2026-08-12,2026-09-09,False,False,29,1
+Korpelan Energia Oy,12,bt2b0t-korpelan-energia-oy-korpela-kesto-kiintea-12-kk,2026-04-08,2026-06-08,True,False,62,1
+Korpelan Energia Oy,12,gu9v40-korpelan-energia-oy-korpela-kesto-kiintea-12-kk,2026-09-11,2026-09-13,False,True,3,1
+Korpelan Energia Oy,12,ss6mma-korpelan-energia-oy-korpela-kesto-kiintea-12-kk,2026-06-09,2026-06-23,False,False,15,1
+Korpelan Energia Oy,12,tsafib-korpelan-energia-oy-korpela-kesto-kiintea-12-kk,2026-06-24,2026-06-29,False,False,6,1
+Korpelan Energia Oy,12,ttpt2x-korpelan-energia-oy-korpela-kesto-kiintea-12-kk,2026-08-05,2026-08-11,False,False,7,1
+Korpelan Energia Oy,24,hpqxsx-korpelan-energia-oy-korpela-kesto-kiintea-24-kk,2026-09-11,2026-09-13,False,True,3,1
+Korpelan Energia Oy,24,jvdkfy-korpelan-energia-oy-korpela-kesto-kiintea-24-kk,2026-09-01,2026-09-09,False,False,9,1
+Köyliön-Säkylän Sähkö Oy,12,2b4lck-koylion-sakylan-sahko-oy-lallin-maaris-1v,2026-08-08,2026-09-11,False,False,35,1
+Köyliön-Säkylän Sähkö Oy,12,9h2xa2-koylion-sakylan-sahko-oy-lallin-maaris-1v,2026-04-08,2026-04-17,True,False,10,1
+Köyliön-Säkylän Sähkö Oy,12,bgobg0-koylion-sakylan-sahko-oy-lallin-maaris-1v,2026-09-12,2026-09-13,False,True,2,1
+Köyliön-Säkylän Sähkö Oy,12,egue10-koylion-sakylan-sahko-oy-lallin-maaris-1v,2026-07-18,2026-08-07,False,False,21,1
+Köyliön-Säkylän Sähkö Oy,12,vythji-koylion-sakylan-sahko-oy-lallin-maaris-1v,2026-04-17,2026-07-17,False,False,92,1
+Köyliön-Säkylän Sähkö Oy,24,2wdwn8-koylion-sakylan-sahko-oy-lallin-maaris-2v,2026-04-08,2026-04-16,True,False,9,1
+Köyliön-Säkylän Sähkö Oy,24,h8aymz-koylion-sakylan-sahko-oy-lallin-maaris-2v,2026-04-17,2026-07-17,False,False,92,1
+Köyliön-Säkylän Sähkö Oy,24,tkdpsi-koylion-sakylan-sahko-oy-lallin-maaris-2v,2026-09-12,2026-09-13,False,True,2,1
+Köyliön-Säkylän Sähkö Oy,24,v71f5y-koylion-sakylan-sahko-oy-lallin-maaris-2v,2026-08-08,2026-09-11,False,False,35,1
+Köyliön-Säkylän Sähkö Oy,24,xrufmt-koylion-sakylan-sahko-oy-lallin-maaris-2v,2026-07-18,2026-08-07,False,False,21,1
+Lammaisten Energia Oy,6,1lchnx-lammaisten-energia-oy-iisi-helpposahko-yleissahko-6-kk,2026-04-08,2026-05-04,True,False,27,1
+Lammaisten Energia Oy,12,6sw1zs-lammaisten-energia-oy-iisi-helpposahko-yleissahko-12-kk,2026-09-12,2026-09-13,False,True,2,1
+Lammaisten Energia Oy,12,8g5fqu-lammaisten-energia-oy-iisi-helpposahko-yleissahko-12-kk,2026-04-08,2026-05-04,True,False,27,1
+Lammaisten Energia Oy,12,luufsn-lammaisten-energia-oy-iisi-helpposahko-yleissahko-12-kk,2026-08-01,2026-09-11,False,False,42,1
+Lammaisten Energia Oy,12,psutqh-lammaisten-energia-oy-iisi-helpposahko-yleissahko-12-kk,2026-05-20,2026-07-30,False,False,72,1
+Lammaisten Energia Oy,12,uz5ir1-lammaisten-energia-oy-iisi-helpposahko-yleissahko-12-kk,2026-05-05,2026-05-19,False,False,15,1
+Lammaisten Energia Oy,24,3wrqym-lammaisten-energia-oy-iisi-helpposahko-yleissahko-24-kk,2026-04-08,2026-05-19,True,False,42,1
+Lammaisten Energia Oy,24,6kwivc-lammaisten-energia-oy-iisi-helpposahko-yleissahko-24-kk,2026-08-01,2026-09-11,False,False,42,1
+Lammaisten Energia Oy,24,cnukun-lammaisten-energia-oy-iisi-helpposahko-yleissahko-24-kk,2026-05-20,2026-07-30,False,False,72,1
+Lammaisten Energia Oy,24,wmzgcl-lammaisten-energia-oy-iisi-helpposahko-yleissahko-24-kk,2026-09-12,2026-09-13,False,True,2,1
+Lumme Energia,6,2j1rhx-lumme-energia-vuosisahko-6-kk-hinta-joka-ei-heilu,2026-04-08,2026-04-08,True,False,1,1
+Lumme Energia,6,4nmdeg-lumme-energia-vuosisahko-6-kk-hinta-joka-ei-heilu,2026-05-06,2026-05-08,False,False,3,1
+Lumme Energia,6,bly52m-lumme-energia-vuosisahko-6-kk-hinta-joka-ei-heilu,2026-06-13,2026-06-15,False,False,3,1
+Lumme Energia,6,djzrcb-lumme-energia-vuosisahko-6-kk-hinta-joka-ei-heilu,2026-06-27,2026-07-02,False,False,6,1
+Lumme Energia,6,eeypsy-lumme-energia-vuosisahko-6-kk-hinta-joka-ei-heilu,2026-06-06,2026-06-12,False,False,7,1
+Lumme Energia,6,f52gso-lumme-energia-vuosisahko-6-kk-hinta-joka-ei-heilu,2026-04-11,2026-04-17,False,False,7,1
+Lumme Energia,6,ilqmwp-lumme-energia-vuosisahko-6-kk-hinta-joka-ei-heilu,2026-05-09,2026-05-15,False,False,7,1
+Lumme Energia,6,ms60lh-lumme-energia-vuosisahko-6-kk-hinta-joka-ei-heilu,2026-05-23,2026-05-29,False,False,7,1
+Lumme Energia,6,ngvszp-lumme-energia-vuosisahko-6-kk-hinta-joka-ei-heilu,2026-04-10,2026-04-10,False,False,1,1
+Lumme Energia,6,nqiw5l-lumme-energia-vuosisahko-6-kk-hinta-joka-ei-heilu,2026-04-18,2026-05-05,False,False,18,1
+Lumme Energia,6,pz4fyp-lumme-energia-vuosisahko-6-kk-hinta-joka-ei-heilu,2026-05-30,2026-06-05,False,False,7,1
+Lumme Energia,6,sjjgjz-lumme-energia-vuosisahko-6-kk-hinta-joka-ei-heilu,2026-06-16,2026-06-26,False,False,11,1
+Lumme Energia,6,uzcmur-lumme-energia-vuosisahko-6-kk-hinta-joka-ei-heilu,2026-05-16,2026-05-22,False,False,7,1
+Lumme Energia,6,xd32oi-lumme-energia-vuosisahko-6-kk-hinta-joka-ei-heilu,2026-04-09,2026-04-09,False,False,1,1
+Lumme Energia,12,0i1xbq-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-05-16,2026-05-22,False,False,7,1
+Lumme Energia,12,4yalza-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-07-18,2026-07-24,False,False,7,1
+Lumme Energia,12,6w3f7c-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-06-27,2026-07-03,False,False,7,1
+Lumme Energia,12,7ceqgt-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-05-06,2026-05-08,False,False,3,1
+Lumme Energia,12,8w35i9-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-06-13,2026-06-23,False,False,11,1
+Lumme Energia,12,cscnsm-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-06-24,2026-06-26,False,False,3,1
+Lumme Energia,12,ei2nde-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-05-09,2026-05-15,False,False,7,1
+Lumme Energia,12,hsoi58-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-07-11,2026-07-17,False,False,7,1
+Lumme Energia,12,j9dqgy-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-06-06,2026-06-12,False,False,7,1
+Lumme Energia,12,jht2q1-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-08-15,2026-08-17,False,False,3,1
+Lumme Energia,12,jkhx1h-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-07-25,2026-08-07,False,False,14,1
+Lumme Energia,12,mpnmgv-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-08-08,2026-08-14,False,False,7,1
+Lumme Energia,12,nwsik3-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-05-23,2026-06-05,False,False,14,1
+Lumme Energia,12,peerrr-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-04-08,2026-04-17,True,False,10,1
+Lumme Energia,12,qw6irl-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-04-18,2026-05-05,False,False,18,1
+Lumme Energia,12,shpq7b-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-07-04,2026-07-10,False,False,7,1
+Lumme Energia,24,0xjahx-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-05-06,2026-05-08,False,False,3,1
+Lumme Energia,24,1f9jeu-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-08-15,2026-08-17,False,False,3,1
+Lumme Energia,24,3spet7-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-07-11,2026-07-17,False,False,7,1
+Lumme Energia,24,9bwxq0-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-04-18,2026-04-27,False,False,10,1
+Lumme Energia,24,ahbxmo-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-06-27,2026-07-03,False,False,7,1
+Lumme Energia,24,cby5kq-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-05-16,2026-05-22,False,False,7,1
+Lumme Energia,24,dmplfn-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-05-09,2026-05-15,False,False,7,1
+Lumme Energia,24,dwgt9d-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-06-13,2026-06-15,False,False,3,1
+Lumme Energia,24,efenp5-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-06-16,2026-06-23,False,False,8,1
+Lumme Energia,24,h9kjxg-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-05-23,2026-06-05,False,False,14,1
+Lumme Energia,24,hg40jg-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-07-18,2026-07-24,False,False,7,1
+Lumme Energia,24,hr8zd3-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-06-06,2026-06-12,False,False,7,1
+Lumme Energia,24,jj4wxi-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-04-28,2026-04-28,False,False,1,1
+Lumme Energia,24,jslu5b-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-04-08,2026-04-17,True,False,10,1
+Lumme Energia,24,mgyuz4-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-06-24,2026-06-26,False,False,3,1
+Lumme Energia,24,pozb8m-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-08-01,2026-08-07,False,False,7,1
+Lumme Energia,24,rwukmo-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-07-25,2026-07-30,False,False,6,1
+Lumme Energia,24,s38blp-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-08-08,2026-08-14,False,False,7,1
+Lumme Energia,24,vpuehd-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-04-29,2026-05-05,False,False,7,1
+Lumme Energia,24,vvauqo-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-07-04,2026-07-10,False,False,7,1
+Nurmijärven Sähkö Oy,12,9rfo6y-nurmijarven-sahko-oy-yleissahko-1-vuotta,2026-06-01,2026-08-05,False,False,66,1
+Nurmijärven Sähkö Oy,12,9rz5gq-nurmijarven-sahko-oy-yleissahko-1-vuotta,2026-04-08,2026-05-31,True,False,54,1
+Nurmijärven Sähkö Oy,12,ayepwr-nurmijarven-sahko-oy-yleissahko-1-vuotta,2026-08-06,2026-09-13,False,True,39,1
+Nurmijärven Sähkö Oy,24,bxs18u-nurmijarven-sahko-oy-yleissahko-2-vuotta,2026-06-01,2026-08-05,False,False,66,1
+Nurmijärven Sähkö Oy,24,egjbb2-nurmijarven-sahko-oy-yleissahko-2-vuotta,2026-08-06,2026-09-13,False,True,39,1
+Nurmijärven Sähkö Oy,24,h7b6xu-nurmijarven-sahko-oy-yleissahko-2-vuotta,2026-04-08,2026-05-31,True,False,54,1
+Omavoima Oy,12,4mpypn-omavoima-oy-oma-12kk-yleis,2026-04-08,2026-04-13,True,False,6,1
+Omavoima Oy,12,4w4snx-omavoima-oy-oma-12kk-yleis,2026-05-26,2026-07-27,False,False,63,1
+Omavoima Oy,12,jswfi2-omavoima-oy-oma-12kk-yleis,2026-07-29,2026-08-06,False,False,9,1
+Omavoima Oy,12,kxtcxo-omavoima-oy-oma-12kk-yleis,2026-08-07,2026-09-03,False,False,28,1
+Omavoima Oy,12,utyzfb-omavoima-oy-oma-12kk-yleis,2026-09-04,2026-09-13,False,True,10,1
+Omavoima Oy,12,z59pzp-omavoima-oy-oma-12kk-yleis,2026-04-14,2026-05-25,False,False,42,1
+Omavoima Oy,24,g7utdj-omavoima-oy-oma-24kk-yleis,2026-07-29,2026-09-03,False,False,37,1
+Omavoima Oy,24,l2iwwe-omavoima-oy-oma-24kk-yleis,2026-09-04,2026-09-13,False,True,10,1
+Omavoima Oy,24,mvdaye-omavoima-oy-oma-24kk-yleis,2026-04-14,2026-05-25,False,False,42,1
+Omavoima Oy,24,mw0gwr-omavoima-oy-oma-24kk-yleis,2026-04-08,2026-04-13,True,False,6,1
+Omavoima Oy,24,wliup0-omavoima-oy-oma-24kk-yleis,2026-05-26,2026-07-27,False,False,63,1
+Oomi Oy,6,axfpzg-oomi-oy-oomi-kiintea-6-kk,2026-05-05,2026-05-07,False,False,3,1
+Oomi Oy,6,hlw1iq-oomi-oy-oomi-kiintea-6-kk,2026-06-05,2026-06-14,False,False,10,1
+Oomi Oy,6,hxygsl-oomi-oy-oomi-kiintea-6-kk,2026-04-17,2026-05-04,False,False,18,1
+Oomi Oy,6,im7tc9-oomi-oy-oomi-kiintea-6-kk,2026-06-15,2026-06-25,False,False,11,1
+Oomi Oy,6,ir7l2s-oomi-oy-oomi-kiintea-6-kk,2026-05-22,2026-05-28,False,False,7,1
+Oomi Oy,6,qvug54-oomi-oy-oomi-kiintea-6-kk,2026-06-26,2026-07-02,False,False,7,1
+Oomi Oy,6,rjth66-oomi-oy-oomi-kiintea-6-kk,2026-05-15,2026-05-21,False,False,7,1
+Oomi Oy,6,sgsjtv-oomi-oy-oomi-kiintea-6-kk,2026-05-29,2026-06-04,False,False,7,1
+Oomi Oy,6,yr3wqi-oomi-oy-oomi-kiintea-6-kk,2026-05-08,2026-05-14,False,False,7,1
+Oomi Oy,12,8riyee-oomi-oy-oomi-kiintea-12-kk,2026-08-28,2026-09-03,False,False,7,1
+Oomi Oy,12,ez81sy-oomi-oy-oomi-kiintea-12-kk,2026-09-11,2026-09-13,False,True,3,1
+Oomi Oy,12,fbmtlw-oomi-oy-oomi-kiintea-12-kk,2026-05-15,2026-05-21,False,False,7,1
+Oomi Oy,12,fslhi6-oomi-oy-oomi-kiintea-12-kk,2026-05-08,2026-05-14,False,False,7,1
+Oomi Oy,12,gjd40q-oomi-oy-oomi-kiintea-12-kk,2026-07-25,2026-08-06,False,False,13,1
+Oomi Oy,12,gpwbzv-oomi-oy-oomi-kiintea-12-kk,2026-08-07,2026-08-27,False,False,21,1
+Oomi Oy,12,jduptj-oomi-oy-oomi-kiintea-12-kk,2026-06-26,2026-07-02,False,False,7,1
+Oomi Oy,12,jikjuz-oomi-oy-oomi-kiintea-12-kk,2026-04-17,2026-05-04,False,False,18,1
+Oomi Oy,12,ltoaix-oomi-oy-oomi-kiintea-12-kk,2026-05-22,2026-06-04,False,False,14,1
+Oomi Oy,12,n55z9r-oomi-oy-oomi-kiintea-12-kk,2026-05-05,2026-05-07,False,False,3,1
+Oomi Oy,12,otiose-oomi-oy-oomi-kiintea-12-kk,2026-06-23,2026-06-25,False,False,3,1
+Oomi Oy,12,refkwb-oomi-oy-oomi-kiintea-12-kk,2026-09-04,2026-09-10,False,False,7,1
+Oomi Oy,12,rk8dba-oomi-oy-oomi-kiintea-12-kk,2026-07-17,2026-07-23,False,False,7,1
+Oomi Oy,12,v1rwaa-oomi-oy-oomi-kiintea-12-kk,2026-07-03,2026-07-09,False,False,7,1
+Oomi Oy,12,x6ohrr-oomi-oy-oomi-kiintea-12-kk,2026-07-10,2026-07-16,False,False,7,1
+Oomi Oy,12,yozd5c-oomi-oy-oomi-kiintea-12-kk,2026-04-08,2026-04-16,True,False,9,1
+Oomi Oy,12,zhtyoq-oomi-oy-oomi-kiintea-12-kk,2026-06-05,2026-06-22,False,False,18,1
+Oomi Oy,24,0lt7rg-oomi-oy-oomi-kiintea-24-kk,2026-07-17,2026-07-23,False,False,7,1
+Oomi Oy,24,1zqpm7-oomi-oy-oomi-kiintea-24-kk,2026-08-07,2026-08-13,False,False,7,1
+Oomi Oy,24,6fm9c9-oomi-oy-oomi-kiintea-24-kk,2026-05-05,2026-05-07,False,False,3,1
+Oomi Oy,24,9q43r4-oomi-oy-oomi-kiintea-24-kk,2026-07-25,2026-07-30,False,False,6,1
+Oomi Oy,24,brbqas-oomi-oy-oomi-kiintea-24-kk,2026-06-05,2026-06-14,False,False,10,1
+Oomi Oy,24,bw7bbd-oomi-oy-oomi-kiintea-24-kk,2026-08-14,2026-09-03,False,False,21,1
+Oomi Oy,24,ennxaw-oomi-oy-oomi-kiintea-24-kk,2026-09-11,2026-09-13,False,True,3,1
+Oomi Oy,24,jggrvp-oomi-oy-oomi-kiintea-24-kk,2026-04-27,2026-05-04,False,False,8,1
+Oomi Oy,24,jzqys6-oomi-oy-oomi-kiintea-24-kk,2026-08-01,2026-08-06,False,False,6,1
+Oomi Oy,24,lbjb7g-oomi-oy-oomi-kiintea-24-kk,2026-04-08,2026-04-16,True,False,9,1
+Oomi Oy,24,mrqt8c-oomi-oy-oomi-kiintea-24-kk,2026-06-23,2026-06-25,False,False,3,1
+Oomi Oy,24,mvlhfh-oomi-oy-oomi-kiintea-24-kk,2026-06-15,2026-06-22,False,False,8,1
+Oomi Oy,24,pgqhrj-oomi-oy-oomi-kiintea-24-kk,2026-05-08,2026-05-14,False,False,7,1
+Oomi Oy,24,q0mlis-oomi-oy-oomi-kiintea-24-kk,2026-06-26,2026-07-02,False,False,7,1
+Oomi Oy,24,qfa9ua-oomi-oy-oomi-kiintea-24-kk,2026-09-04,2026-09-10,False,False,7,1
+Oomi Oy,24,qgeq6l-oomi-oy-oomi-kiintea-24-kk,2026-07-03,2026-07-09,False,False,7,1
+Oomi Oy,24,rj35yj-oomi-oy-oomi-kiintea-24-kk,2026-07-10,2026-07-16,False,False,7,1
+Oomi Oy,24,rt45t7-oomi-oy-oomi-kiintea-24-kk,2026-05-22,2026-06-04,False,False,14,1
+Oomi Oy,24,s3m2dz-oomi-oy-oomi-kiintea-24-kk,2026-04-17,2026-04-26,False,False,10,1
+Oomi Oy,24,schubg-oomi-oy-oomi-kiintea-24-kk,2026-05-15,2026-05-21,False,False,7,1
+Paneliankosken Voima Oy,12,26v0h3-paneliankosken-voima-oy-kosken-vuosiwoima-12-kk,2026-07-31,2026-08-19,False,False,20,1
+Paneliankosken Voima Oy,12,kxaja0-paneliankosken-voima-oy-kosken-vuosiwoima-12-kk,2026-04-08,2026-04-15,True,False,8,1
+Paneliankosken Voima Oy,12,uwis01-paneliankosken-voima-oy-kosken-vuosiwoima-12-kk,2026-05-21,2026-07-20,False,False,61,1
+Paneliankosken Voima Oy,12,xcvrus-paneliankosken-voima-oy-kosken-vuosiwoima-12-kk,2026-07-21,2026-07-28,False,False,8,1
+Paneliankosken Voima Oy,12,xxz4lc-paneliankosken-voima-oy-kosken-vuosiwoima-12-kk,2026-08-21,2026-09-13,False,True,24,1
+Paneliankosken Voima Oy,12,zz45en-paneliankosken-voima-oy-kosken-vuosiwoima-12-kk,2026-04-16,2026-05-20,False,False,35,1
+Paneliankosken Voima Oy,24,4wcfqc-paneliankosken-voima-oy-kosken-vuosiwoima-24-kk,2026-06-12,2026-07-20,False,False,39,1
+Paneliankosken Voima Oy,24,7zxkwy-paneliankosken-voima-oy-kosken-vuosiwoima-24-kk,2026-07-31,2026-08-19,False,False,20,1
+Paneliankosken Voima Oy,24,ie5keo-paneliankosken-voima-oy-kosken-vuosiwoima-24-kk,2026-05-21,2026-06-11,False,False,22,1
+Paneliankosken Voima Oy,24,k6oyit-paneliankosken-voima-oy-kosken-vuosiwoima-24-kk,2026-04-16,2026-05-20,False,False,35,1
+Paneliankosken Voima Oy,24,l4vhmq-paneliankosken-voima-oy-kosken-vuosiwoima-24-kk,2026-08-21,2026-09-13,False,True,24,1
+Paneliankosken Voima Oy,24,ovufpo-paneliankosken-voima-oy-kosken-vuosiwoima-24-kk,2026-04-08,2026-04-15,True,False,8,1
+Paneliankosken Voima Oy,24,wqatmw-paneliankosken-voima-oy-kosken-vuosiwoima-24-kk,2026-07-21,2026-07-29,False,False,9,1
+Pohjois-Karjalan Sähkö Oy,6,06hyhz-pohjois-karjalan-sahko-oy-optimi-takuu-6-kuukautta,2026-08-08,2026-08-18,False,False,11,1
+Pohjois-Karjalan Sähkö Oy,6,5oqlmc-pohjois-karjalan-sahko-oy-optimi-takuu-6-kuukautta,2026-05-06,2026-06-04,False,False,30,1
+Pohjois-Karjalan Sähkö Oy,6,ckrbsl-pohjois-karjalan-sahko-oy-optimi-takuu-6-kuukautta,2026-04-08,2026-05-05,True,False,28,1
+Pohjois-Karjalan Sähkö Oy,6,hprucu-pohjois-karjalan-sahko-oy-optimi-takuu-6-kuukautta,2026-07-08,2026-08-07,False,False,31,1
+Pohjois-Karjalan Sähkö Oy,6,irbmyo-pohjois-karjalan-sahko-oy-optimi-takuu-6-kuukautta,2026-08-19,2026-09-13,False,True,26,1
+Pohjois-Karjalan Sähkö Oy,6,tkqczm-pohjois-karjalan-sahko-oy-optimi-takuu-6-kuukautta,2026-06-05,2026-07-29,False,False,55,1
+Pohjois-Karjalan Sähkö Oy,12,74nzym-pohjois-karjalan-sahko-oy-optimi-takuu-12-kuukautta,2026-07-25,2026-08-12,False,False,19,1
+Pohjois-Karjalan Sähkö Oy,12,kizv5l-pohjois-karjalan-sahko-oy-optimi-takuu-12-kuukautta,2026-04-08,2026-05-05,True,False,28,1
+Pohjois-Karjalan Sähkö Oy,12,kjngro-pohjois-karjalan-sahko-oy-optimi-takuu-12-kuukautta,2026-06-05,2026-07-29,False,False,55,1
+Pohjois-Karjalan Sähkö Oy,12,lqweuk-pohjois-karjalan-sahko-oy-optimi-takuu-12-kuukautta,2026-08-13,2026-09-13,False,True,32,1
+Pohjois-Karjalan Sähkö Oy,12,nklcpp-pohjois-karjalan-sahko-oy-optimi-takuu-12-kuukautta,2026-05-06,2026-06-04,False,False,30,1
+Pohjois-Karjalan Sähkö Oy,24,axwj57-pohjois-karjalan-sahko-oy-optimi-takuu-24-kuukautta,2026-08-12,2026-09-13,False,True,33,1
+Pohjois-Karjalan Sähkö Oy,24,hz5m3u-pohjois-karjalan-sahko-oy-optimi-takuu-24-kuukautta,2026-07-14,2026-08-11,False,False,29,1
+Pohjois-Karjalan Sähkö Oy,24,oyfer4-pohjois-karjalan-sahko-oy-optimi-takuu-24-kuukautta,2026-04-08,2026-05-05,True,False,28,1
+Pohjois-Karjalan Sähkö Oy,24,wrpkk9-pohjois-karjalan-sahko-oy-optimi-takuu-24-kuukautta,2026-05-06,2026-07-14,False,False,70,1
+Porvoon Energia Oy,6,crno5p-porvoon-energia-oy-ilmastoviisas-6-kk-co2-paastottomasti-tuotettu,2026-04-08,2026-04-09,True,False,2,1
+Porvoon Energia Oy,6,hsopg7-porvoon-energia-oy-ilmastoviisas-6-kk-co2-paastottomasti-tuotettu,2026-05-06,2026-06-02,False,False,28,1
+Porvoon Energia Oy,6,i5otzs-porvoon-energia-oy-ilmastoviisas-6-kk-co2-paastottomasti-tuotettu,2026-04-10,2026-05-05,False,False,26,1
+Porvoon Energia Oy,6,nmecmp-porvoon-energia-oy-ilmastoviisas-6-kk-co2-paastottomasti-tuotettu,2026-06-03,2026-06-16,False,False,14,1
+Porvoon Energia Oy,12,0bfjov-porvoon-energia-oy-ilmastoviisas-12-kk-co2-paastottomasti-tuotettu,2026-07-25,2026-08-04,False,False,11,1
+Porvoon Energia Oy,12,0xv5z3-porvoon-energia-oy-wind-12-kk-kotimainen-tuulisahko,2026-06-03,2026-06-16,False,False,14,1
+Porvoon Energia Oy,12,1eqb3j-porvoon-energia-oy-wind-12-kk-kotimainen-tuulisahko,2026-07-25,2026-08-04,False,False,11,1
+Porvoon Energia Oy,12,1wpize-porvoon-energia-oy-eko-12-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-08-05,2026-09-08,False,False,35,1
+Porvoon Energia Oy,12,1yddgu-porvoon-energia-oy-eko-12-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-09-11,2026-09-13,False,True,3,1
+Porvoon Energia Oy,12,2xtbfi-porvoon-energia-oy-ilmastoviisas-12-kk-co2-paastottomasti-tuotettu,2026-04-08,2026-04-09,True,False,2,1
+Porvoon Energia Oy,12,5pf1u4-porvoon-energia-oy-eko-12-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-05-06,2026-06-02,False,False,28,1
+Porvoon Energia Oy,12,6ejjda-porvoon-energia-oy-wind-12-kk-kotimainen-tuulisahko,2026-05-06,2026-06-02,False,False,28,1
+Porvoon Energia Oy,12,6gsnt1-porvoon-energia-oy-ilmastoviisas-12-kk-co2-paastottomasti-tuotettu,2026-07-08,2026-07-14,False,False,7,1
+Porvoon Energia Oy,12,antbh5-porvoon-energia-oy-wind-12-kk-kotimainen-tuulisahko,2026-06-17,2026-06-23,False,False,7,1
+Porvoon Energia Oy,12,ay26mi-porvoon-energia-oy-wind-12-kk-kotimainen-tuulisahko,2026-07-15,2026-07-24,False,False,10,1
+Porvoon Energia Oy,12,azv8uu-porvoon-energia-oy-wind-12-kk-kotimainen-tuulisahko,2026-09-11,2026-09-13,False,True,3,1
+Porvoon Energia Oy,12,bqxc96-porvoon-energia-oy-eko-12-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-06-17,2026-06-23,False,False,7,1
+Porvoon Energia Oy,12,dhrlna-porvoon-energia-oy-ilmastoviisas-12-kk-co2-paastottomasti-tuotettu,2026-07-01,2026-07-07,False,False,7,1
+Porvoon Energia Oy,12,dqhw8s-porvoon-energia-oy-eko-12-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-06-03,2026-06-16,False,False,14,1
+Porvoon Energia Oy,12,f6itbl-porvoon-energia-oy-wind-12-kk-kotimainen-tuulisahko,2026-07-08,2026-07-14,False,False,7,1
+Porvoon Energia Oy,12,fa38hn-porvoon-energia-oy-ilmastoviisas-12-kk-co2-paastottomasti-tuotettu,2026-06-24,2026-06-30,False,False,7,1
+Porvoon Energia Oy,12,hpjkgr-porvoon-energia-oy-wind-12-kk-kotimainen-tuulisahko,2026-04-08,2026-04-09,True,False,2,1
+Porvoon Energia Oy,12,i2i3xp-porvoon-energia-oy-eko-12-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-07-15,2026-07-24,False,False,10,1
+Porvoon Energia Oy,12,imiaev-porvoon-energia-oy-eko-12-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-04-22,2026-05-05,False,False,14,1
+Porvoon Energia Oy,12,keapcz-porvoon-energia-oy-ilmastoviisas-12-kk-co2-paastottomasti-tuotettu,2026-09-09,2026-09-10,False,False,2,1
+Porvoon Energia Oy,12,lkkpgl-porvoon-energia-oy-eko-12-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-04-10,2026-04-21,False,False,12,1
+Porvoon Energia Oy,12,mk6puc-porvoon-energia-oy-eko-12-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-07-01,2026-07-07,False,False,7,1
+Porvoon Energia Oy,12,nifi4v-porvoon-energia-oy-ilmastoviisas-12-kk-co2-paastottomasti-tuotettu,2026-06-03,2026-06-16,False,False,14,1
+Porvoon Energia Oy,12,p4ajie-porvoon-energia-oy-wind-12-kk-kotimainen-tuulisahko,2026-06-24,2026-06-30,False,False,7,1
+Porvoon Energia Oy,12,psk5hy-porvoon-energia-oy-eko-12-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-06-24,2026-06-30,False,False,7,1
+Porvoon Energia Oy,12,rwfoi8-porvoon-energia-oy-wind-12-kk-kotimainen-tuulisahko,2026-04-22,2026-05-05,False,False,14,1
+Porvoon Energia Oy,12,s88u6k-porvoon-energia-oy-wind-12-kk-kotimainen-tuulisahko,2026-07-01,2026-07-07,False,False,7,1
+Porvoon Energia Oy,12,tkcacp-porvoon-energia-oy-eko-12-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-09-09,2026-09-10,False,False,2,1
+Porvoon Energia Oy,12,u4jzw5-porvoon-energia-oy-eko-12-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-07-08,2026-07-14,False,False,7,1
+Porvoon Energia Oy,12,vcjazi-porvoon-energia-oy-ilmastoviisas-12-kk-co2-paastottomasti-tuotettu,2026-05-06,2026-06-02,False,False,28,1
+Porvoon Energia Oy,12,viekc6-porvoon-energia-oy-wind-12-kk-kotimainen-tuulisahko,2026-09-09,2026-09-10,False,False,2,1
+Porvoon Energia Oy,12,vtfs6q-porvoon-energia-oy-wind-12-kk-kotimainen-tuulisahko,2026-04-10,2026-04-21,False,False,12,1
+Porvoon Energia Oy,12,wgjhkx-porvoon-energia-oy-ilmastoviisas-12-kk-co2-paastottomasti-tuotettu,2026-06-17,2026-06-23,False,False,7,1
+Porvoon Energia Oy,12,wqtmog-porvoon-energia-oy-ilmastoviisas-12-kk-co2-paastottomasti-tuotettu,2026-08-05,2026-09-08,False,False,35,1
+Porvoon Energia Oy,12,xgiqrf-porvoon-energia-oy-ilmastoviisas-12-kk-co2-paastottomasti-tuotettu,2026-04-22,2026-05-05,False,False,14,1
+Porvoon Energia Oy,12,xmurz0-porvoon-energia-oy-ilmastoviisas-12-kk-co2-paastottomasti-tuotettu,2026-07-15,2026-07-24,False,False,10,1
+Porvoon Energia Oy,12,xqafn5-porvoon-energia-oy-eko-12-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-04-08,2026-04-09,True,False,2,1
+Porvoon Energia Oy,12,yc3njx-porvoon-energia-oy-ilmastoviisas-12-kk-co2-paastottomasti-tuotettu,2026-04-10,2026-04-21,False,False,12,1
+Porvoon Energia Oy,12,ycx4s3-porvoon-energia-oy-wind-12-kk-kotimainen-tuulisahko,2026-08-05,2026-09-08,False,False,35,1
+Porvoon Energia Oy,12,ygfod7-porvoon-energia-oy-ilmastoviisas-12-kk-co2-paastottomasti-tuotettu,2026-09-11,2026-09-13,False,True,3,1
+Porvoon Energia Oy,12,zdmggt-porvoon-energia-oy-eko-12-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-07-25,2026-08-04,False,False,11,1
+Porvoon Energia Oy,24,1o8mcl-porvoon-energia-oy-wind-24-kk-kotimainen-tuulisahko,2026-09-11,2026-09-13,False,True,3,1
+Porvoon Energia Oy,24,1zddzg-porvoon-energia-oy-ilmastoviisas-24-kk-co2-paastottomasti-tuotettu,2026-07-02,2026-07-07,False,False,6,1
+Porvoon Energia Oy,24,2z3av9-porvoon-energia-oy-eko-24-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-06-24,2026-07-01,False,False,8,1
+Porvoon Energia Oy,24,4kqqew-porvoon-energia-oy-wind-24-kk-kotimainen-tuulisahko,2026-04-10,2026-04-21,False,False,12,1
+Porvoon Energia Oy,24,55tjpy-porvoon-energia-oy-wind-24-kk-kotimainen-tuulisahko,2026-04-08,2026-04-09,True,False,2,1
+Porvoon Energia Oy,24,61vmke-porvoon-energia-oy-ilmastoviisas-24-kk-co2-paastottomasti-tuotettu,2026-05-06,2026-06-02,False,False,28,1
+Porvoon Energia Oy,24,6dsic7-porvoon-energia-oy-eko-24-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-04-08,2026-04-09,True,False,2,1
+Porvoon Energia Oy,24,83bhgc-porvoon-energia-oy-eko-24-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-07-08,2026-07-14,False,False,7,1
+Porvoon Energia Oy,24,aqfhiw-porvoon-energia-oy-eko-24-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-09-11,2026-09-13,False,True,3,1
+Porvoon Energia Oy,24,bf6gyo-porvoon-energia-oy-eko-24-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-04-22,2026-05-05,False,False,14,1
+Porvoon Energia Oy,24,bwf4rj-porvoon-energia-oy-eko-24-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-09-04,2026-09-08,False,False,5,1
+Porvoon Energia Oy,24,cahcwd-porvoon-energia-oy-ilmastoviisas-24-kk-co2-paastottomasti-tuotettu,2026-09-11,2026-09-13,False,True,3,1
+Porvoon Energia Oy,24,cbtp1d-porvoon-energia-oy-eko-24-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-07-25,2026-09-07,False,False,45,1
+Porvoon Energia Oy,24,chf39n-porvoon-energia-oy-wind-24-kk-kotimainen-tuulisahko,2026-05-06,2026-06-02,False,False,28,1
+Porvoon Energia Oy,24,e0ptpc-porvoon-energia-oy-wind-24-kk-kotimainen-tuulisahko,2026-07-25,2026-09-03,False,False,41,1
+Porvoon Energia Oy,24,enf0bt-porvoon-energia-oy-ilmastoviisas-24-kk-co2-paastottomasti-tuotettu,2026-04-08,2026-04-09,True,False,2,1
+Porvoon Energia Oy,24,fkjlke-porvoon-energia-oy-ilmastoviisas-24-kk-co2-paastottomasti-tuotettu,2026-07-25,2026-09-07,False,False,45,1
+Porvoon Energia Oy,24,gcxdxt-porvoon-energia-oy-wind-24-kk-kotimainen-tuulisahko,2026-07-08,2026-07-14,False,False,7,1
+Porvoon Energia Oy,24,h2xcjp-porvoon-energia-oy-ilmastoviisas-24-kk-co2-paastottomasti-tuotettu,2026-04-22,2026-05-05,False,False,14,1
+Porvoon Energia Oy,24,h4liay-porvoon-energia-oy-eko-24-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-05-06,2026-06-02,False,False,28,1
+Porvoon Energia Oy,24,ja7ig3-porvoon-energia-oy-ilmastoviisas-24-kk-co2-paastottomasti-tuotettu,2026-09-09,2026-09-10,False,False,2,1
+Porvoon Energia Oy,24,jcqcg6-porvoon-energia-oy-eko-24-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-06-03,2026-06-23,False,False,21,1
+Porvoon Energia Oy,24,mfvb8v-porvoon-energia-oy-wind-24-kk-kotimainen-tuulisahko,2026-06-24,2026-07-07,False,False,14,1
+Porvoon Energia Oy,24,ocs8yx-porvoon-energia-oy-ilmastoviisas-24-kk-co2-paastottomasti-tuotettu,2026-06-24,2026-07-01,False,False,8,1
+Porvoon Energia Oy,24,qwmpo0-porvoon-energia-oy-ilmastoviisas-24-kk-co2-paastottomasti-tuotettu,2026-07-15,2026-07-24,False,False,10,1
+Porvoon Energia Oy,24,r2gnhf-porvoon-energia-oy-eko-24-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-09-09,2026-09-10,False,False,2,1
+Porvoon Energia Oy,24,sbgyho-porvoon-energia-oy-wind-24-kk-kotimainen-tuulisahko,2026-06-03,2026-06-23,False,False,21,1
+Porvoon Energia Oy,24,sgizhg-porvoon-energia-oy-ilmastoviisas-24-kk-co2-paastottomasti-tuotettu,2026-09-04,2026-09-08,False,False,5,1
+Porvoon Energia Oy,24,tgwimq-porvoon-energia-oy-ilmastoviisas-24-kk-co2-paastottomasti-tuotettu,2026-06-03,2026-06-23,False,False,21,1
+Porvoon Energia Oy,24,tjuqfo-porvoon-energia-oy-wind-24-kk-kotimainen-tuulisahko,2026-07-15,2026-07-24,False,False,10,1
+Porvoon Energia Oy,24,tl23ep-porvoon-energia-oy-wind-24-kk-kotimainen-tuulisahko,2026-09-09,2026-09-10,False,False,2,1
+Porvoon Energia Oy,24,tqcocj-porvoon-energia-oy-ilmastoviisas-24-kk-co2-paastottomasti-tuotettu,2026-07-08,2026-07-14,False,False,7,1
+Porvoon Energia Oy,24,um64o7-porvoon-energia-oy-eko-24-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-07-02,2026-07-07,False,False,6,1
+Porvoon Energia Oy,24,uviipu-porvoon-energia-oy-ilmastoviisas-24-kk-co2-paastottomasti-tuotettu,2026-04-10,2026-04-21,False,False,12,1
+Porvoon Energia Oy,24,v7tqpw-porvoon-energia-oy-eko-24-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-07-15,2026-07-24,False,False,10,1
+Porvoon Energia Oy,24,vlvduw-porvoon-energia-oy-eko-24-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-04-10,2026-04-21,False,False,12,1
+Porvoon Energia Oy,24,xd4hrw-porvoon-energia-oy-wind-24-kk-kotimainen-tuulisahko,2026-04-22,2026-05-05,False,False,14,1
+Porvoon Energia Oy,24,zduuay-porvoon-energia-oy-wind-24-kk-kotimainen-tuulisahko,2026-09-04,2026-09-08,False,False,5,1
+Sähkötytöt Oy,6,lakfhn-sahkotytot-oy-kiintea-6kk-ensimmainen-1kk-ilman-perusmaksua,2026-04-08,2026-05-19,True,False,42,1
+Sähkötytöt Oy,12,bafxlm-sahkotytot-oy-kiintea-12kk-ensimmaiset-3kk-ilman-perusmaksua,2026-04-08,2026-06-02,True,False,56,1
+Sähkötytöt Oy,24,3iwie0-sahkotytot-oy-kiintea-24kk,2026-04-08,2026-05-28,True,False,51,1
+Turku Energia Oy,6,6f3xit-turku-energia-oy-louna-lahi-6kk,2026-09-12,2026-09-13,False,True,2,1
+Turku Energia Oy,6,7nxvts-turku-energia-oy-louna-lahi-6kk,2026-04-08,2026-04-22,True,False,15,1
+Turku Energia Oy,6,8v2zuo-turku-energia-oy-louna-lahi-6kk,2026-07-10,2026-07-27,False,False,18,1
+Turku Energia Oy,6,bqxwr1-turku-energia-oy-louna-lahi-6kk,2026-04-29,2026-05-12,False,False,14,1
+Turku Energia Oy,6,iwb3zz-turku-energia-oy-louna-lahi-6kk,2026-05-13,2026-06-15,False,False,34,1
+Turku Energia Oy,6,k0gfqz-turku-energia-oy-louna-lahi-6kk,2026-08-28,2026-09-11,False,False,15,1
+Turku Energia Oy,6,ld1ezx-turku-energia-oy-louna-lahi-6kk,2026-06-16,2026-06-29,False,False,14,1
+Turku Energia Oy,6,th8jy9-turku-energia-oy-louna-lahi-6kk,2026-06-30,2026-07-09,False,False,10,1
+Turku Energia Oy,6,w0iynl-turku-energia-oy-louna-lahi-6kk,2026-07-29,2026-08-14,False,False,17,1
+Turku Energia Oy,6,wt2cuj-turku-energia-oy-louna-lahi-6kk,2026-08-15,2026-08-27,False,False,13,1
+Turku Energia Oy,12,44rtcg-turku-energia-oy-louna-lahi-12kk,2026-09-12,2026-09-13,False,True,2,1
+Turku Energia Oy,12,ehpblq-turku-energia-oy-louna-lahi-12kk,2026-07-10,2026-07-27,False,False,18,1
+Turku Energia Oy,12,j2ph5t-turku-energia-oy-louna-lahi-12kk,2026-08-28,2026-09-11,False,False,15,1
+Turku Energia Oy,12,kiiyfs-turku-energia-oy-louna-lahi-12kk,2026-07-29,2026-08-06,False,False,9,1
+Turku Energia Oy,12,nenef4-turku-energia-oy-louna-lahi-12kk,2026-04-08,2026-04-22,True,False,15,1
+Turku Energia Oy,12,rihugl-turku-energia-oy-louna-lahi-12kk,2026-06-30,2026-07-09,False,False,10,1
+Turku Energia Oy,12,sjgwig-turku-energia-oy-louna-lahi-12kk,2026-06-16,2026-06-29,False,False,14,1
+Turku Energia Oy,12,wohgk6-turku-energia-oy-louna-lahi-12kk,2026-08-07,2026-08-27,False,False,21,1
+Turku Energia Oy,12,ylmtr2-turku-energia-oy-louna-lahi-12kk,2026-04-23,2026-06-15,False,False,54,1
+Turku Energia Oy,24,1qvpln-turku-energia-oy-louna-tuuli-24kk,2026-05-13,2026-06-08,False,False,27,1
+Turku Energia Oy,24,2osyzs-turku-energia-oy-louna-lahi-24kk,2026-07-29,2026-08-06,False,False,9,1
+Turku Energia Oy,24,dwoas0-turku-energia-oy-louna-lahi-24kk,2026-07-10,2026-07-27,False,False,18,1
+Turku Energia Oy,24,ghpbvq-turku-energia-oy-louna-lahi-24kk,2026-06-10,2026-06-29,False,False,20,1
+Turku Energia Oy,24,muxjiw-turku-energia-oy-louna-lahi-24kk,2026-07-10,2026-07-11,False,False,2,1
+Turku Energia Oy,24,sgoudk-turku-energia-oy-louna-lahi-24kk,2026-09-05,2026-09-13,False,True,9,1
+Turku Energia Oy,24,sprrdb-turku-energia-oy-louna-lahi-24kk,2026-08-07,2026-08-19,False,False,13,1
+Turku Energia Oy,24,wizphn-turku-energia-oy-louna-lahi-24kk,2026-06-30,2026-07-09,False,False,10,1
+Turku Energia Oy,24,wt08n5-turku-energia-oy-louna-lahi-24kk,2026-08-28,2026-09-06,False,False,10,1
+Turku Energia Oy,24,xbzvda-turku-energia-oy-louna-lahi-24kk,2026-08-20,2026-08-27,False,False,8,1
+Vaasan Sähkö Myynti Oy,6,5sd5lp-vaasan-sahko-myynti-oy-kiintea-6-kk-yleissahko,2026-07-02,2026-07-08,False,False,7,1
+Vaasan Sähkö Myynti Oy,6,i8qbil-vaasan-sahko-myynti-oy-kiintea-6-kk-yleissahko,2026-04-08,2026-04-15,True,False,8,1
+Vaasan Sähkö Myynti Oy,6,mbe7kv-vaasan-sahko-myynti-oy-kiintea-6-kk-yleissahko,2026-09-08,2026-09-13,False,True,6,1
+Vaasan Sähkö Myynti Oy,6,mbrwhy-vaasan-sahko-myynti-oy-kiintea-6-kk-yleissahko,2026-07-09,2026-07-15,False,False,7,1
+Vaasan Sähkö Myynti Oy,6,nc3tau-vaasan-sahko-myynti-oy-kiintea-6-kk-yleissahko,2026-05-06,2026-05-12,False,False,7,1
+Vaasan Sähkö Myynti Oy,6,qndszc-vaasan-sahko-myynti-oy-kiintea-6-kk-yleissahko,2026-08-19,2026-09-07,False,False,20,1
+Vaasan Sähkö Myynti Oy,6,qseg85-vaasan-sahko-myynti-oy-kiintea-6-kk-yleissahko,2026-07-16,2026-08-03,False,False,19,1
+Vaasan Sähkö Myynti Oy,6,qzppla-vaasan-sahko-myynti-oy-kiintea-6-kk-yleissahko,2026-08-05,2026-08-18,False,False,14,1
+Vaasan Sähkö Myynti Oy,6,rw7lwj-vaasan-sahko-myynti-oy-kiintea-6-kk-yleissahko,2026-06-04,2026-06-17,False,False,14,1
+Vaasan Sähkö Myynti Oy,6,tb3yif-vaasan-sahko-myynti-oy-kiintea-6-kk-yleissahko,2026-05-13,2026-06-03,False,False,22,1
+Vaasan Sähkö Myynti Oy,6,ttdyeh-vaasan-sahko-myynti-oy-kiintea-6-kk-yleissahko,2026-06-18,2026-07-01,False,False,14,1
+Vaasan Sähkö Myynti Oy,6,zdiko0-vaasan-sahko-myynti-oy-kiintea-6-kk-yleissahko,2026-04-16,2026-04-22,False,False,7,1
+Vaasan Sähkö Myynti Oy,6,zfd21a-vaasan-sahko-myynti-oy-kiintea-6-kk-yleissahko,2026-04-23,2026-05-05,False,False,13,1
+Vaasan Sähkö Myynti Oy,12,5kvkez-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-04-08,2026-04-15,True,False,8,1
+Vaasan Sähkö Myynti Oy,12,6jrged-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-07-16,2026-08-02,False,False,18,1
+Vaasan Sähkö Myynti Oy,12,ccpjfa-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-04-16,2026-04-22,False,False,7,1
+Vaasan Sähkö Myynti Oy,12,dw6ftf-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-04-30,2026-05-03,False,False,4,1
+Vaasan Sähkö Myynti Oy,12,kjijvu-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-08-04,2026-08-18,False,False,15,1
+Vaasan Sähkö Myynti Oy,12,ldpml7-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-05-06,2026-05-12,False,False,7,1
+Vaasan Sähkö Myynti Oy,12,lpynel-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-04-23,2026-04-29,False,False,7,1
+Vaasan Sähkö Myynti Oy,12,meh6jt-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-05-13,2026-05-18,False,False,6,1
+Vaasan Sähkö Myynti Oy,12,nd2ux9-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-09-08,2026-09-13,False,True,6,1
+Vaasan Sähkö Myynti Oy,12,ouogbf-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-06-18,2026-06-24,False,False,7,1
+Vaasan Sähkö Myynti Oy,12,p1uafq-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-06-25,2026-07-01,False,False,7,1
+Vaasan Sähkö Myynti Oy,12,q3nuoz-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-05-19,2026-06-03,False,False,16,1
+Vaasan Sähkö Myynti Oy,12,svyflw-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-05-04,2026-05-05,False,False,2,1
+Vaasan Sähkö Myynti Oy,12,u0vdgv-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-06-04,2026-06-17,False,False,14,1
+Vaasan Sähkö Myynti Oy,12,umjp6x-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-07-02,2026-07-08,False,False,7,1
+Vaasan Sähkö Myynti Oy,12,vuchri-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-07-09,2026-07-15,False,False,7,1
+Vaasan Sähkö Myynti Oy,24,7xqsjg-vaasan-sahko-myynti-oy-kiintea-24-kk-yleissahko,2026-09-08,2026-09-13,False,True,6,1
+Vaasan Sähkö Myynti Oy,24,9swyuo-vaasan-sahko-myynti-oy-kiintea-24-kk-yleissahko,2026-06-18,2026-06-24,False,False,7,1
+Vaasan Sähkö Myynti Oy,24,bmc3xj-vaasan-sahko-myynti-oy-kiintea-24-kk-yleissahko,2026-08-19,2026-09-07,False,False,20,1
+Vaasan Sähkö Myynti Oy,24,cphzzq-vaasan-sahko-myynti-oy-kiintea-24-kk-yleissahko,2026-04-30,2026-05-05,False,False,6,1
+Vaasan Sähkö Myynti Oy,24,fvz38v-vaasan-sahko-myynti-oy-kiintea-24-kk-yleissahko,2026-05-06,2026-05-12,False,False,7,1
+Vaasan Sähkö Myynti Oy,24,ikyzjy-vaasan-sahko-myynti-oy-kiintea-24-kk-yleissahko,2026-04-16,2026-04-22,False,False,7,1
+Vaasan Sähkö Myynti Oy,24,itx3ga-vaasan-sahko-myynti-oy-kiintea-24-kk-yleissahko,2026-06-04,2026-06-17,False,False,14,1
+Vaasan Sähkö Myynti Oy,24,m8awke-vaasan-sahko-myynti-oy-kiintea-24-kk-yleissahko,2026-06-25,2026-07-01,False,False,7,1
+Vaasan Sähkö Myynti Oy,24,oembkw-vaasan-sahko-myynti-oy-kiintea-24-kk-yleissahko,2026-05-13,2026-06-03,False,False,22,1
+Vaasan Sähkö Myynti Oy,24,pvhkra-vaasan-sahko-myynti-oy-kiintea-24-kk-yleissahko,2026-07-16,2026-08-02,False,False,18,1
+Vaasan Sähkö Myynti Oy,24,rnxdko-vaasan-sahko-myynti-oy-kiintea-24-kk-yleissahko,2026-04-23,2026-04-29,False,False,7,1
+Vaasan Sähkö Myynti Oy,24,shfh1e-vaasan-sahko-myynti-oy-kiintea-24-kk-yleissahko,2026-07-09,2026-07-15,False,False,7,1
+Vaasan Sähkö Myynti Oy,24,ur2ea4-vaasan-sahko-myynti-oy-kiintea-24-kk-yleissahko,2026-07-02,2026-07-08,False,False,7,1
+Vaasan Sähkö Myynti Oy,24,vsuzak-vaasan-sahko-myynti-oy-kiintea-24-kk-yleissahko,2026-04-08,2026-04-15,True,False,8,1
+Vaasan Sähkö Myynti Oy,24,yjou9r-vaasan-sahko-myynti-oy-kiintea-24-kk-yleissahko,2026-08-04,2026-08-18,False,False,15,1
+Vattenfall Oy,6,8yykgr-vattenfall-oy-ilmasto-mix-6-kk,2026-07-01,2026-07-08,False,False,8,1
+Vattenfall Oy,6,bdjjig-vattenfall-oy-ilmasto-mix-6-kk,2026-04-08,2026-04-21,True,False,14,1
+Vattenfall Oy,6,cbnpfo-vattenfall-oy-ilmasto-mix-6-kk,2026-04-22,2026-05-10,False,False,19,1
+Vattenfall Oy,6,cvynsa-vattenfall-oy-ilmasto-mix-6-kk,2026-05-11,2026-06-01,False,False,22,1
+Vattenfall Oy,6,ipwbla-vattenfall-oy-ilmasto-mix-6-kk,2026-08-21,2026-08-31,False,False,11,1
+Vattenfall Oy,6,mozut8-vattenfall-oy-ilmasto-mix-6-kk,2026-07-09,2026-07-24,False,False,16,1
+Vattenfall Oy,6,wktbhy-vattenfall-oy-ilmasto-mix-6-kk,2026-06-10,2026-06-30,False,False,21,1
+Vattenfall Oy,12,2alb2h-vattenfall-oy-taysvesi-12-kk,2026-04-08,2026-04-08,True,False,1,1
+Vattenfall Oy,12,3nmj7r-vattenfall-oy-ilmasto-mix-12-kk-perusmaksut-0-ensimmaiset-3-kk,2026-09-11,2026-09-13,False,True,3,1
+Vattenfall Oy,12,5fjych-vattenfall-oy-taysvesi-12-kk,2026-04-09,2026-04-29,False,False,21,1
+Vattenfall Oy,12,5p2kls-vattenfall-oy-ilmasto-mix-12-kk-perusmaksut-0-ensimmaiset-3-kk,2026-07-09,2026-07-21,False,False,13,1
+Vattenfall Oy,12,74me4n-vattenfall-oy-taystuuli-12-kk,2026-08-01,2026-08-20,False,False,20,1
+Vattenfall Oy,12,7uiigw-vattenfall-oy-ilmasto-mix-12-kk-perusmaksut-0-ensimmaiset-3-kk,2026-07-22,2026-07-30,False,False,9,1
+Vattenfall Oy,12,7v0yce-vattenfall-oy-taysvesi-12-kk,2026-08-21,2026-08-31,False,False,11,1
+Vattenfall Oy,12,8sgkwf-vattenfall-oy-taysvesi-12-kk,2026-08-01,2026-08-20,False,False,20,1
+Vattenfall Oy,12,acgoik-vattenfall-oy-taystuuli-12-kk,2026-06-10,2026-06-30,False,False,21,1
+Vattenfall Oy,12,ajr4ke-vattenfall-oy-taystuuli-12-kk,2026-04-30,2026-05-24,False,False,25,1
+Vattenfall Oy,12,am6p2y-vattenfall-oy-ilmasto-mix-12-kk-perusmaksut-0-ensimmaiset-3-kk,2026-08-01,2026-08-20,False,False,20,1
+Vattenfall Oy,12,dmeorb-vattenfall-oy-ilmasto-mix-12-kk-perusmaksut-50,2026-04-09,2026-04-29,False,False,21,1
+Vattenfall Oy,12,dyxylq-vattenfall-oy-taystuuli-12-kk,2026-07-22,2026-07-30,False,False,9,1
+Vattenfall Oy,12,gb5yd7-vattenfall-oy-taystuuli-12-kk,2026-09-11,2026-09-13,False,True,3,1
+Vattenfall Oy,12,gdtt85-vattenfall-oy-taysvesi-12-kk,2026-05-25,2026-06-30,False,False,37,1
+Vattenfall Oy,12,goqtso-vattenfall-oy-taysvesi-12-kk,2026-07-01,2026-07-08,False,False,8,1
+Vattenfall Oy,12,gpz7wy-vattenfall-oy-taysvesi-12-kk,2026-04-30,2026-05-24,False,False,25,1
+Vattenfall Oy,12,i9senu-vattenfall-oy-taystuuli-12-kk,2026-07-01,2026-07-08,False,False,8,1
+Vattenfall Oy,12,ikzbfd-vattenfall-oy-ilmasto-mix-12-kk-perusmaksut-0-ensimmaiset-3-kk,2026-09-01,2026-09-03,False,False,3,1
+Vattenfall Oy,12,jnspre-vattenfall-oy-ilmasto-mix-12-kk-perusmaksut-0-ensimmaiset-3-kk,2026-05-25,2026-06-09,False,False,16,1
+Vattenfall Oy,12,jrqe7w-vattenfall-oy-taystuuli-12-kk,2026-04-09,2026-04-29,False,False,21,1
+Vattenfall Oy,12,jsvj4c-vattenfall-oy-taysvesi-12-kk,2026-07-09,2026-07-21,False,False,13,1
+Vattenfall Oy,12,k3gxxf-vattenfall-oy-taysvesi-12-kk,2026-09-11,2026-09-13,False,True,3,1
+Vattenfall Oy,12,lgoeuv-vattenfall-oy-taystuuli-12-kk,2026-07-09,2026-07-21,False,False,13,1
+Vattenfall Oy,12,n7jjey-vattenfall-oy-taystuuli-12-kk,2026-08-21,2026-08-31,False,False,11,1
+Vattenfall Oy,12,n8lywh-vattenfall-oy-taystuuli-12-kk,2026-04-08,2026-04-08,True,False,1,1
+Vattenfall Oy,12,owp0nn-vattenfall-oy-taysvesi-12-kk,2026-09-01,2026-09-03,False,False,3,1
+Vattenfall Oy,12,qezbfw-vattenfall-oy-taysvesi-12-kk,2026-07-22,2026-07-30,False,False,9,1
+Vattenfall Oy,12,rpm6kl-vattenfall-oy-ilmasto-mix-12-kk-perusmaksut-0-ensimmaiset-3-kk,2026-06-10,2026-06-30,False,False,21,1
+Vattenfall Oy,12,sb3he2-vattenfall-oy-ilmasto-mix-12-kk-perusmaksut-0-ensimmaiset-3-kk,2026-08-21,2026-08-31,False,False,11,1
+Vattenfall Oy,12,tgdufx-vattenfall-oy-taystuuli-12-kk,2026-05-25,2026-06-09,False,False,16,1
+Vattenfall Oy,12,vc78j6-vattenfall-oy-ilmasto-mix-12-kk,2026-04-30,2026-05-24,False,False,25,1
+Vattenfall Oy,12,wk2u8q-vattenfall-oy-ilmasto-mix-12-kk-perusmaksut-0-ensimmaiset-3-kk,2026-07-01,2026-07-08,False,False,8,1
+Vattenfall Oy,12,ybecwk-vattenfall-oy-taystuuli-12-kk,2026-09-01,2026-09-03,False,False,3,1
+Vattenfall Oy,24,35idqf-vattenfall-oy-taysvesi-24-kk,2026-07-09,2026-07-23,False,False,15,1
+Vattenfall Oy,24,4lpz3r-vattenfall-oy-taysvesi-24-kk,2026-05-11,2026-05-24,False,False,14,1
+Vattenfall Oy,24,6pfjmm-vattenfall-oy-taystuuli-24-kk,2026-06-10,2026-06-30,False,False,21,1
+Vattenfall Oy,24,8aem08-vattenfall-oy-taystuuli-24-kk,2026-05-11,2026-05-24,False,False,14,1
+Vattenfall Oy,24,ax4koe-vattenfall-oy-ilmasto-mix-24-kk-perusmaksut-0-ensimmaiset-6-kk,2026-07-01,2026-07-02,False,False,2,1
+Vattenfall Oy,24,bsnumd-vattenfall-oy-taystuuli-24-kk,2026-07-01,2026-07-01,False,False,1,1
+Vattenfall Oy,24,c18jam-vattenfall-oy-taysvesi-24-kk,2026-04-15,2026-04-23,False,False,9,1
+Vattenfall Oy,24,cmbwr3-vattenfall-oy-ilmasto-mix-24-kk-perusmaksut-0-ensimmaiset-6-kk,2026-08-05,2026-08-20,False,False,16,1
+Vattenfall Oy,24,dyd4me-vattenfall-oy-taystuuli-24-kk,2026-04-24,2026-05-10,False,False,17,1
+Vattenfall Oy,24,e6dnpo-vattenfall-oy-taystuuli-24-kk,2026-04-08,2026-04-14,True,False,7,1
+Vattenfall Oy,24,ecld9c-vattenfall-oy-ilmasto-mix-24-kk-perusmaksut-0-ensimmaiset-3-kk,2026-07-24,2026-08-03,False,False,11,1
+Vattenfall Oy,24,ewhqdv-vattenfall-oy-taysvesi-24-kk,2026-09-01,2026-09-09,False,False,9,1
+Vattenfall Oy,24,fdqipv-vattenfall-oy-taysvesi-24-kk,2026-07-24,2026-08-03,False,False,11,1
+Vattenfall Oy,24,fpl0yc-vattenfall-oy-taystuuli-24-kk,2026-05-25,2026-06-09,False,False,16,1
+Vattenfall Oy,24,gddesq-vattenfall-oy-ilmasto-mix-24-kk-ensimmaiset-3-kk-perusmaksu-0,2026-04-08,2026-04-14,True,False,7,1
+Vattenfall Oy,24,gr7yb0-vattenfall-oy-taysvesi-24-kk,2026-04-08,2026-04-14,True,False,7,1
+Vattenfall Oy,24,h2wg9d-vattenfall-oy-ilmasto-mix-24-kk-perusmaksut-0-ensimmaiset-6-kk,2026-06-10,2026-06-30,False,False,21,1
+Vattenfall Oy,24,hdgstl-vattenfall-oy-taystuuli-24-kk,2026-09-11,2026-09-13,False,True,3,1
+Vattenfall Oy,24,hmrc8y-vattenfall-oy-taystuuli-24-kk,2026-07-09,2026-07-23,False,False,15,1
+Vattenfall Oy,24,ilxv6l-vattenfall-oy-taystuuli-24-kk,2026-04-15,2026-04-23,False,False,9,1
+Vattenfall Oy,24,iysoxj-vattenfall-oy-taysvesi-24-kk,2026-05-25,2026-06-09,False,False,16,1
+Vattenfall Oy,24,l0ntnq-vattenfall-oy-ilmasto-mix-24-kk-ensimmaiset-6-kk-perusmaksu-0,2026-04-15,2026-04-23,False,False,9,1
+Vattenfall Oy,24,l1geq3-vattenfall-oy-ilmasto-mix-24-kk-perusmaksut-0-ensimmaiset-3-kk,2026-05-11,2026-05-24,False,False,14,1
+Vattenfall Oy,24,ld64zl-vattenfall-oy-ilmasto-mix-24-kk-perusmaksut-0-ensimmaiset-6-kk,2026-07-03,2026-07-08,False,False,6,1
+Vattenfall Oy,24,lv2s0h-vattenfall-oy-taysvesi-24-kk,2026-08-05,2026-08-20,False,False,16,1
+Vattenfall Oy,24,mjkxsk-vattenfall-oy-taystuuli-24-kk,2026-07-24,2026-08-03,False,False,11,1
+Vattenfall Oy,24,moxvgj-vattenfall-oy-taysvesi-24-kk,2026-04-24,2026-05-10,False,False,17,1
+Vattenfall Oy,24,nelh3a-vattenfall-oy-ilmasto-mix-24-kk-perusmaksut-0-ensimmaiset-6-kk,2026-05-25,2026-06-09,False,False,16,1
+Vattenfall Oy,24,nxdabg-vattenfall-oy-taystuuli-24-kk,2026-08-05,2026-08-20,False,False,16,1
+Vattenfall Oy,24,onvjwa-vattenfall-oy-taysvesi-24-kk,2026-06-10,2026-06-30,False,False,21,1
+Vattenfall Oy,24,raryji-vattenfall-oy-ilmasto-mix-24-kk-perusmaksut-0-ensimmaiset-6-kk,2026-09-01,2026-09-09,False,False,9,1
+Vattenfall Oy,24,rf5o8q-vattenfall-oy-taysvesi-24-kk,2026-07-01,2026-07-08,False,False,8,1
+Vattenfall Oy,24,s5yny1-vattenfall-oy-ilmasto-mix-24-kk,2026-04-24,2026-05-10,False,False,17,1
+Vattenfall Oy,24,tuk1mu-vattenfall-oy-ilmasto-mix-24-kk-perusmaksut-0-ensimmaiset-6-kk,2026-07-08,2026-07-08,False,False,1,1
+Vattenfall Oy,24,vcv0lp-vattenfall-oy-taysvesi-24-kk,2026-08-21,2026-08-31,False,False,11,1
+Vattenfall Oy,24,vr659c-vattenfall-oy-taystuuli-24-kk,2026-07-02,2026-07-08,False,False,7,1
+Vattenfall Oy,24,wc1aeo-vattenfall-oy-taystuuli-24-kk,2026-09-01,2026-09-09,False,False,9,1
+Vattenfall Oy,24,wsq4nn-vattenfall-oy-ilmasto-mix-24-kk-perusmaksut-0-ensimmaiset-6-kk,2026-09-11,2026-09-13,False,True,3,1
+Vattenfall Oy,24,wv7xwo-vattenfall-oy-taysvesi-24-kk,2026-09-11,2026-09-13,False,True,3,1
+Vattenfall Oy,24,yoxnoa-vattenfall-oy-taystuuli-24-kk,2026-08-21,2026-08-31,False,False,11,1
+Vattenfall Oy,24,zq5gxy-vattenfall-oy-ilmasto-mix-24-kk-perusmaksut-0-ensimmaiset-6-kk,2026-08-21,2026-08-31,False,False,11,1
+Vattenfall Oy,24,zv9pul-vattenfall-oy-ilmasto-mix-24-kk-perusmaksut-0-ensimmaiset-6-kk,2026-07-09,2026-07-23,False,False,15,1
+Vihreä Älyenergia Oy,12,3rwi4k-vihrea-alyenergia-oy-vire-tuuli-kiintea-12kk,2026-04-17,2026-05-07,False,False,21,1
+Vihreä Älyenergia Oy,12,75a4j5-vihrea-alyenergia-oy-vankka-kiintea-12-kk,2026-08-07,2026-09-13,False,True,38,1
+Vihreä Älyenergia Oy,12,7tzr90-vihrea-alyenergia-oy-vankka-kiintea-12kk-fossiilivapaa,2026-05-08,2026-07-23,False,False,77,1
+Vihreä Älyenergia Oy,12,bmnl5g-vihrea-alyenergia-oy-vankka-kiintea-12kk-fossiilivapaa,2026-04-15,2026-05-07,False,False,23,1
+Vihreä Älyenergia Oy,12,fdw4v0-vihrea-alyenergia-oy-vire-tuuli-kiintea-12kk,2026-04-15,2026-04-16,False,False,2,1
+Vihreä Älyenergia Oy,12,lis8le-vihrea-alyenergia-oy-vankka-kiintea-12-kk,2026-07-24,2026-08-06,False,False,14,1
+Vihreä Älyenergia Oy,12,npimup-vihrea-alyenergia-oy-vire-tuuli-kiintea-12kk,2026-04-15,2026-04-16,False,False,2,1
+Vihreä Älyenergia Oy,12,pk8hwv-vihrea-alyenergia-oy-vire-tuuli-kiintea-12-kk,2026-07-24,2026-08-06,False,False,14,1
+Vihreä Älyenergia Oy,12,rwgzqx-vihrea-alyenergia-oy-vire-tuuli-kiintea-12kk,2026-04-08,2026-04-14,True,False,7,1
+Vihreä Älyenergia Oy,12,uhsdin-vihrea-alyenergia-oy-vankka-kiintea-12kk-fossiilivapaa,2026-04-08,2026-04-14,True,False,7,1
+Vihreä Älyenergia Oy,12,ya9hke-vihrea-alyenergia-oy-vire-tuuli-kiintea-12kk,2026-05-08,2026-07-23,False,False,77,1
+Vihreä Älyenergia Oy,24,cszvay-vihrea-alyenergia-oy-vire-tuuli-kiintea-24kk,2026-04-15,2026-05-07,False,False,23,1
+Vihreä Älyenergia Oy,24,fikt1s-vihrea-alyenergia-oy-vankka-kiintea-24kk-fossiilivapaa,2026-04-15,2026-05-07,False,False,23,1
+Vihreä Älyenergia Oy,24,ibjlix-vihrea-alyenergia-oy-vankka-kiintea-24kk-fossiilivapaa,2026-05-08,2026-07-23,False,False,77,1
+Vihreä Älyenergia Oy,24,j4egtj-vihrea-alyenergia-oy-vankka-kiintea-24-kk,2026-08-07,2026-09-13,False,True,38,1
+Vihreä Älyenergia Oy,24,pgkbdj-vihrea-alyenergia-oy-vankka-kiintea-24-kk,2026-07-24,2026-08-06,False,False,14,1
+Vihreä Älyenergia Oy,24,pgzbji-vihrea-alyenergia-oy-vire-tuuli-kiintea-24kk,2026-04-08,2026-04-14,True,False,7,1
+Vihreä Älyenergia Oy,24,rheghs-vihrea-alyenergia-oy-vire-tuuli-kiintea-24kk,2026-05-08,2026-07-23,False,False,77,1
+Vihreä Älyenergia Oy,24,rrd7bn-vihrea-alyenergia-oy-vire-tuuli-kiintea-24-kk,2026-07-24,2026-08-06,False,False,14,1
+Vihreä Älyenergia Oy,24,srpcid-vihrea-alyenergia-oy-vankka-kiintea-24kk-fossiilivapaa,2026-04-08,2026-04-14,True,False,7,1
+Väre Oy,6,kzxar1-vare-oy-maaraaikainen-sahko-6-kk,2026-04-09,2026-04-14,False,False,6,1
+Väre Oy,6,x5jrjo-vare-oy-maaraaikainen-sahko-6-kk,2026-04-08,2026-04-08,True,False,1,1
+Väre Oy,6,ysdbiv-vare-oy-maaraaikainen-sahko-6-kk,2026-04-15,2026-04-22,False,False,8,1
+Väre Oy,12,0yhdx8-vare-oy-maaraaikainen-sahko-12-kk,2026-04-09,2026-04-14,False,False,6,1
+Väre Oy,12,iskjkz-vare-oy-maaraaikainen-sahko-12-kk,2026-04-15,2026-04-22,False,False,8,1
+Väre Oy,12,tldodf-vare-oy-maaraaikainen-sahko-12-kk,2026-04-08,2026-04-08,True,False,1,1
+Väre Oy,24,4aay1h-vare-oy-maaraaikainen-sahko-24-kk,2026-04-15,2026-04-22,False,False,8,1
+Väre Oy,24,4tdbdn-vare-oy-maaraaikainen-sahko-24-kk,2026-04-08,2026-04-08,True,False,1,1
+Väre Oy,24,suo24w-vare-oy-maaraaikainen-sahko-24-kk,2026-04-09,2026-04-14,False,False,6,1
+Äänekosken Energia Oy,6,23y54m-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-6-kk-paastoton,2026-06-17,2026-07-19,False,False,33,1
+Äänekosken Energia Oy,6,3jyjg3-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-6-kk-paastoton,2026-05-18,2026-06-16,False,False,30,1
+Äänekosken Energia Oy,6,4cuxbr-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-6-kk-paastoton,2026-08-11,2026-08-28,False,False,18,1
+Äänekosken Energia Oy,6,56ocis-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-6-kk-paastoton,2026-08-01,2026-08-10,False,False,10,1
+Äänekosken Energia Oy,6,c3wdq5-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-6-kk-paastoton,2026-07-20,2026-07-21,False,False,2,1
+Äänekosken Energia Oy,6,fblgqd-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-6-kk-paastoton,2026-04-08,2026-04-19,True,False,12,1
+Äänekosken Energia Oy,6,fg6jrx-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-6-kk-paastoton,2026-04-20,2026-05-17,False,False,28,1
+Äänekosken Energia Oy,6,nwp0pg-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-6-kk-paastoton,2026-07-22,2026-07-30,False,False,9,1
+Äänekosken Energia Oy,12,31iktj-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-12-kk-paastoton,2026-04-20,2026-05-17,False,False,28,1
+Äänekosken Energia Oy,12,9rj3gn-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-12-kk-paastoton,2026-05-18,2026-07-19,False,False,63,1
+Äänekosken Energia Oy,12,g7lm6n-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-12-kk-paastoton,2026-08-01,2026-09-09,False,False,40,1
+Äänekosken Energia Oy,12,ie1qlm-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-12-kk-paastoton,2026-09-11,2026-09-13,False,True,3,1
+Äänekosken Energia Oy,12,m5hm5p-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-12-kk-paastoton,2026-04-08,2026-04-19,True,False,12,1
+Äänekosken Energia Oy,12,rc3xem-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-12-kk-paastoton,2026-07-22,2026-07-30,False,False,9,1
+Äänekosken Energia Oy,12,t1xfnt-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-12-kk-paastoton,2026-07-20,2026-07-21,False,False,2,1
+Äänekosken Energia Oy,24,bdvpxy-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-24-kk-paastoton,2026-08-11,2026-09-13,False,True,34,1
+Äänekosken Energia Oy,24,cy10de-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-24-kk-paastoton,2026-05-18,2026-07-21,False,False,65,1
+Äänekosken Energia Oy,24,srqqap-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-24-kk-paastoton,2026-08-01,2026-08-10,False,False,10,1
+Äänekosken Energia Oy,24,wsga8a-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-24-kk-paastoton,2026-04-08,2026-05-17,True,False,40,1
+Äänekosken Energia Oy,24,zujknd-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-24-kk-paastoton,2026-07-22,2026-07-30,False,False,9,1

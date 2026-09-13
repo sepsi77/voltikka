@@ -1,0 +1,73 @@
+{
+  "export_directory": "export-20260913T094138Z",
+  "export_rows": {
+    "schemas": 145,
+    "version_metadata": 89,
+    "futures": 2239,
+    "statistics": 477,
+    "forecasts": 1314,
+    "snapshots": 25620,
+    "premiums": 1949
+  },
+  "total_data_bytes": 26737544,
+  "suppliers": 28,
+  "supplier_term_cells": 84,
+  "premium_requested_term_rows": 1897,
+  "out_of_term_premium_rows": 52,
+  "unknown_duration_rows": 0,
+  "usable_general_premium_rows": 411,
+  "cells_with_usable_general_premiums": 20,
+  "usable_supplier_count": 10,
+  "seam_rows_requested_terms": 29,
+  "unresolved_seam_targets": 0,
+  "term_totals": {
+    "6": {
+      "snapshot_rows": 3446,
+      "premium_rows_one_reference": 320,
+      "premium_lineages": 89,
+      "stored_component_period_keys_excluding_seams": 311,
+      "usable_general_premium_rows": 31
+    },
+    "12": {
+      "snapshot_rows": 11043,
+      "premium_rows_one_reference": 831,
+      "premium_lineages": 248,
+      "stored_component_period_keys_excluding_seams": 819,
+      "usable_general_premium_rows": 182
+    },
+    "24": {
+      "snapshot_rows": 11131,
+      "premium_rows_one_reference": 746,
+      "premium_lineages": 246,
+      "stored_component_period_keys_excluding_seams": 738,
+      "usable_general_premium_rows": 198
+    }
+  },
+  "data_bounds": {
+    "futures": [
+      "2026-04-08",
+      "2026-09-11"
+    ],
+    "statistics": [
+      "2026-04-08",
+      "2026-09-13"
+    ],
+    "forecasts": [
+      "2026-04-18",
+      "2026-09-13"
+    ],
+    "snapshots": [
+      "2026-04-08",
+      "2026-09-13"
+    ]
+  },
+  "forecast_models": {
+    "fixed_term_ewma_gap_v1": 909,
+    "fixed_term_ewma_gap_v2": 405
+  },
+  "premium_vat_counts_requested_terms": {
+    "unknown": 1249,
+    "included": 494,
+    "excluded": 154
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "basket_vintages": 729,
+  "canonical_rolling_max_training_days": 13,
+  "features": 954,
+  "fits": 136,
+  "frozen_availability": [
+    {
+      "available": true,
+      "cutoff": "2026-07-27",
+      "fit_id": "frozen_transfer|7|30|2026-07-27",
+      "horizon": 30,
+      "protocol": "frozen_transfer",
+      "test_rows": 36,
+      "training_days": 69,
+      "training_rows": 207,
+      "window": 7
+    },
+    {
+      "available": true,
+      "cutoff": "2026-07-27",
+      "fit_id": "frozen_transfer|7|14|2026-07-27",
+      "horizon": 14,
+      "protocol": "frozen_transfer",
+      "test_rows": 84,
+      "training_days": 85,
+      "training_rows": 255,
+      "window": 7
+    },
+    {
+      "available": true,
+      "cutoff": "2026-07-27",
+      "fit_id": "frozen_transfer|14|30|2026-07-27",
+      "horizon": 30,
+      "protocol": "frozen_transfer",
+      "test_rows": 15,
+      "training_days": 65,
+      "training_rows": 195,
+      "window": 14
+    },
+    {
+      "available": true,
+      "cutoff": "2026-07-27",
+      "fit_id": "frozen_transfer|14|14|2026-07-27",
+      "horizon": 14,
+      "protocol": "frozen_transfer",
+      "test_rows": 63,
+      "training_days": 81,
+      "training_rows": 243,
+      "window": 14
+    }
+  ],
+  "pairs": 1098,
+  "predictions": 3564,
+  "source_audit": {
+    "invalid_futures_values": 0,
+    "invalid_owned_medians": 0
+  },
+  "status": "calculated"
+}

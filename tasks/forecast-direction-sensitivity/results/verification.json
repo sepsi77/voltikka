@@ -1,0 +1,16 @@
+{
+  "exact_fit_sets": 21,
+  "failed": 0,
+  "metric_groups": 348,
+  "missing_selected": 0,
+  "numeric_source_checks": 1320,
+  "original_fit_coefficients": "Preserved by hash; no refit. Training IDs, raw target means and strict chronology rechecked.",
+  "preserved_files": 1886,
+  "raw_statistic_checks": 3348,
+  "skipped_new_php_replay": "Use pinned prior actual-PHP verification; no database access.",
+  "snapshot_groups": 477,
+  "snapshot_statistic_differences": [],
+  "status": "passed",
+  "synthetic_checks": 22,
+  "transition_groups": 232
+}

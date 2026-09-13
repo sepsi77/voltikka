@@ -1,0 +1,69 @@
+{
+  "cohort_size_distribution": {
+    "6": 4,
+    "7": 13,
+    "8": 23,
+    "9": 10,
+    "10": 5,
+    "11": 18,
+    "13": 24,
+    "14": 20,
+    "15": 21,
+    "16": 15,
+    "17": 7,
+    "18": 1,
+    "19": 5,
+    "20": 20,
+    "21": 13,
+    "22": 91,
+    "23": 100,
+    "24": 72,
+    "25": 15
+  },
+  "contract_ids": 780,
+  "eligible_snapshot_days": 11608,
+  "exclusions": {
+    "invalid_or_spot_price": 6,
+    "not_fixedprice_term_segment": 6801,
+    "not_general": 7205
+  },
+  "feature_rows": 220,
+  "input_counts": {
+    "forecasts": 1314,
+    "futures": 2239,
+    "premiums": 1949,
+    "schemas": 145,
+    "snapshots": 25620,
+    "statistics": 477,
+    "version_metadata": 89
+  },
+  "july27": [
+    {
+      "available": 1,
+      "cohort_size": 10,
+      "dates": 49,
+      "term": 6,
+      "unavailable": 48
+    },
+    {
+      "available": 16,
+      "cohort_size": 22,
+      "dates": 49,
+      "term": 12,
+      "unavailable": 33
+    },
+    {
+      "available": 15,
+      "cohort_size": 23,
+      "dates": 49,
+      "term": 24,
+      "unavailable": 34
+    }
+  ],
+  "manifest_sha256": "6b7dd7093cafab8f91bb8417becba321747da4bc4334a19924374cc6be05efb6",
+  "market_dates": 477,
+  "member_rows": 36376,
+  "pairs": 1908,
+  "supplier_dates": 9094,
+  "suppliers": 27
+}

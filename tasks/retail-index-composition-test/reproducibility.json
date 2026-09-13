@@ -1,0 +1,51 @@
+{
+  "artifacts": {
+    "cohort-members.csv": {
+      "bytes": 5742883,
+      "sha256": "ff52ac0f68b4d5dc493f16dfa0290bf273de30b4d3c407daa9ab90a712c8e3a2"
+    },
+    "daily-indices.csv": {
+      "bytes": 352122,
+      "sha256": "f18d3ff33668a0b1cafdcdbc3a9b91052fb47abd9cef8a79a5209541119f25d1"
+    },
+    "feature-target-rows.csv": {
+      "bytes": 297962,
+      "sha256": "9d5e770c3e7587ee3af858d4a8757ade88e38bd04a7d3e18e80c6679ae92a83b"
+    },
+    "independent-checks.json": {
+      "bytes": 388,
+      "sha256": "1d920dc0249ffe490bb015d27692649d10b260cbfba5ccfa51aefea1594f7613"
+    },
+    "july27-index.csv": {
+      "bytes": 134819,
+      "sha256": "812dc20c2ef8aae99a16ce6137aab25eb51502beacf39d85b39219421f658cca"
+    },
+    "metrics.csv": {
+      "bytes": 89812,
+      "sha256": "ef6e27e525b5a51e840286102adccbd18b6e25b0c39e6a024d802125ba9da9df"
+    },
+    "pair-audit.csv": {
+      "bytes": 2691178,
+      "sha256": "738b104a3509c96c30d2e9a4a4ac6bb8523fcf6383a83e31d47978473d093f03"
+    },
+    "summary.json": {
+      "bytes": 1263,
+      "sha256": "f36fefe3996b1c3fccc7918b60f8e2336167e777fec7810ef7a829f9683fc924"
+    },
+    "supplier-medians.csv": {
+      "bytes": 1396552,
+      "sha256": "803ba9e5922879b78af939003b140b797a64a581aad4f6f68c3f9ed976443b2a"
+    },
+    "turnover-summary.csv": {
+      "bytes": 506,
+      "sha256": "5e741d30b469b54aba3970d3ac5dd1bc4ec8dba573f19e9667914ed518173bce"
+    }
+  },
+  "runs": 2,
+  "scripts": {
+    "analysis.py": "004e5be420f82f2aeac79593b708d5637be386e9bee1b3c21f84915f18f640d4",
+    "reproduce.py": "084acd5ced9a9ab5237caa67dd86991612f117551d7807de914dba203720eef8",
+    "verify.py": "2c0ab14ba92d8fd3199ea5cc56a2f743b127e2d6aca00b2506ed9823fceb6471"
+  },
+  "status": "PASS"
+}

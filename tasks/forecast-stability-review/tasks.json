@@ -1,0 +1,8 @@
+[
+  {"name":"Inspect connection helper and source schemas", "status":"completed"},
+  {"name":"Create and run bounded production evidence export", "status":"completed"},
+  {"name":"Verify artifacts and report evidence counts", "status":"completed"},
+  {"name":"Build reproducible local timeline and stability analysis", "status":"completed"},
+  {"name":"Write report, SVG, CSVs, and analysis summary", "status":"completed"},
+  {"name":"Verify reconstruction, metrics, deterministic generation, and artifact syntax", "status":"completed"}
+]

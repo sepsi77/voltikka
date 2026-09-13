@@ -1,0 +1,16 @@
+{
+  "export_status": "complete",
+  "forecast_candidates": 9540,
+  "hedge_rows": 2385,
+  "horizon": 30,
+  "lags": [
+    0,
+    7,
+    14,
+    21,
+    30
+  ],
+  "php_replay_rows": 147,
+  "precision_mismatches": 0,
+  "preserved_files": 138
+}

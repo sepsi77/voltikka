@@ -1,0 +1,182 @@
+{
+  "status": "passed",
+  "runs": 2,
+  "byte_identical_machine_artifacts": {
+    "horizon-lag-associations.csv": {
+      "bytes": 686347,
+      "sha256": "714cfba5db147675816f701816baed768f9074c7f611a2d5f7e1187356a3863f"
+    },
+    "horizon-lag-changes.csv": {
+      "bytes": 8961005,
+      "sha256": "058698c17cb442fc6553666fc2f0e46340b9ff26a8e954e12079634c03cd69b8"
+    },
+    "horizon-lag-coverage.csv": {
+      "bytes": 1489,
+      "sha256": "7e3cd670995a7daea56fc2f25238115c9fba7d0be44dba5fb5a8612d66864234"
+    },
+    "horizon-lag-exclusions.csv": {
+      "bytes": 77624,
+      "sha256": "779676666cb6986257e141581cb7c223570d8f56600f9c39fd39cc0c48699ca0"
+    },
+    "horizon-lag-forecasts.csv": {
+      "bytes": 187030,
+      "sha256": "423bab5d72b314190796cd5504ec379091bb8b3887bffd3af5debc00f64100e1"
+    },
+    "horizon-lag-hedges.csv": {
+      "bytes": 727443,
+      "sha256": "f42720a0be50bc6ba5573760624e6b25f6b2ad50f4d0816a82b473ec8e576e4b"
+    },
+    "horizon-lag-independent-checks.json": {
+      "bytes": 500,
+      "sha256": "e92eb3e851ebc43e828104a78bdbccada94646fb4fee7fa97887df193cae3cab"
+    },
+    "horizon-lag-metrics.csv": {
+      "bytes": 10580,
+      "sha256": "db3e86f013cbdb0e5c1d2631b08d58af7f1aa603eb772afcc1198f7131807278"
+    },
+    "horizon-lag-php-checks.json": {
+      "bytes": 109,
+      "sha256": "6bd2f304723c15b2e22521c1b18cdcdbd5b82b6092fe521f5837f6077e6bc3fb"
+    },
+    "horizon-lag-summary.json": {
+      "bytes": 45698,
+      "sha256": "ef744533d5e5346c61357c9aa3b59113701244523a4ff14b953000628bfeefee"
+    }
+  },
+  "preserved_cadence_artifacts": {
+    "analyze.py": {
+      "bytes": 21656,
+      "sha256": "0ae3442d8c6e0b935e384324b48649c9b43c3e75480c8978ab148cc463531c5b"
+    },
+    "constant-spells.csv": {
+      "bytes": 430670,
+      "sha256": "61255bd43c3d84b7f2ddd6b47d2f5ed27538b4ab69cbea92928ead8c080afad0"
+    },
+    "date-clusters.csv": {
+      "bytes": 4445,
+      "sha256": "f307fc0996abecc1f7acc249dcab30dd3102e6cafe0dcf8b13d13d7dfd20e7d1"
+    },
+    "dated-mapping.csv": {
+      "bytes": 1793915,
+      "sha256": "ce1189ae648a0b1e716a4d478ce8c4b9d1912e442e98f20312bae36f0217ae43"
+    },
+    "excluded-basis-seams.csv": {
+      "bytes": 11778,
+      "sha256": "a3f2f751afdf6b689a24be81529abc1747e81d5f009cb95ec8de6d1d5b3253cd"
+    },
+    "fresh-change-followup.csv": {
+      "bytes": 877,
+      "sha256": "c64cd1ede490d62e1bef50b6a2d2867240a902e823311fb74b8a573d703d39d8"
+    },
+    "horizon-summary.csv": {
+      "bytes": 295851,
+      "sha256": "a08d214c5a2a890901cc5a66bcb5c7b1c0388f5fc1c8dcb996ec8614351136e7"
+    },
+    "horizons-by-basis.csv": {
+      "bytes": 3463,
+      "sha256": "e9636f5626cd61e20093dc3beca7136481358c4dfaf7dd031a095c1a9639c5f2"
+    },
+    "id-appearances.csv": {
+      "bytes": 88342,
+      "sha256": "93bc553d6027886b91c775d26df87a4d678c7e8d0c79a12e5568964471a24ea6"
+    },
+    "lineage-carrier-switches.csv": {
+      "bytes": 86314,
+      "sha256": "f790d6b774de0ec8f021c0658c491005762f70b4965d1f273febaba063bcbd95"
+    },
+    "premium-mapping-audit.csv": {
+      "bytes": 466030,
+      "sha256": "ec37c97181cc03e7f1ca7396aa46cdc13c5a912c9d196cf55d642023a7d4a52d"
+    },
+    "series.csv": {
+      "bytes": 262944,
+      "sha256": "afeacb3d3fd0f2268b4e1d2d53f8c6918a06000b900e7f37a8ab84db6d636d1b"
+    },
+    "summary.json": {
+      "bytes": 20901,
+      "sha256": "4657044fe94950340d6d87ec8b47ea54f4c9692ec325e7a43c92ca15ec1a08e3"
+    },
+    "supplier-daily-medians.csv": {
+      "bytes": 1241768,
+      "sha256": "94b997cb43d2f0ecfb956496bd88bf8006b3b69978f030e638fe479d58d707f3"
+    },
+    "supplier-lineage-date-clusters.csv": {
+      "bytes": 15310,
+      "sha256": "db79ed0076737895e526e054d0f4db64bb8d52ecb127ba3411cdd2521fe63952"
+    },
+    "supplier-term-frequency.csv": {
+      "bytes": 51476,
+      "sha256": "e1fce43bf995938a901d3e1450f9e6153c35c72d703486232145ef0d293d55db"
+    },
+    "transitions.csv": {
+      "bytes": 9774847,
+      "sha256": "7af475260a52315b585dee14eb408174c4887bd0d76af4d9bbe8ec6fdeb2e0e3"
+    },
+    "verify.py": {
+      "bytes": 4861,
+      "sha256": "d6bd348e5b4c626dd184eecdfc967d3de9914bb5a199e7fe6e713c5525674688"
+    },
+    "windows-by-series.csv": {
+      "bytes": 1380181,
+      "sha256": "a54d0cd5637fe578ce26c05ec520ef32f9eace386a27a9236a35f43f1af22c51"
+    }
+  },
+  "source_hashes": {
+    "horizon-lag-analysis.py": {
+      "bytes": 18465,
+      "sha256": "04891c8ef8ec5e97bc0ddae9aa983ebc53d00df99f423b89848cc2c9087f8784"
+    },
+    "verify-horizon-lag.py": {
+      "bytes": 15774,
+      "sha256": "4803c2bcac5fdb663f534090c97f56374415901b92e258ab375851d54c88e5bd"
+    },
+    "verify-horizon-lag-php.php": {
+      "bytes": 7246,
+      "sha256": "579c8d92d2d70955e4fcba2dec8d5be67835f2ebfe9732d24009840c8ff070e2"
+    },
+    "reproduce-horizon-lag.py": {
+      "bytes": 2791,
+      "sha256": "c81d11d5157c2ed1f1444d8341375ea97e170ca09d678a2b675be4ab318ebf90"
+    },
+    "horizon-lag-report.md": {
+      "bytes": 17466,
+      "sha256": "03bf62cfd78552a350c9dd8a81a774c1739f65ce693ffe0499d46a3102592ff5"
+    },
+    "../fix-forecast-learning-evaluation/replay.php": {
+      "bytes": 34749,
+      "sha256": "74c81893633a5dfe6bf67abb1bde9d182be496713a6bfc9a762697782cd0c2f7"
+    },
+    "../fix-forecast-learning-evaluation/replay-results.json": {
+      "bytes": 3897321,
+      "sha256": "3c67b52b56fde90b5923add8db719159e2df979d29af435957cec533513ef9ca"
+    },
+    "../fix-forecast-learning-evaluation/replay-results.csv": {
+      "bytes": 68882,
+      "sha256": "d02d6724c07c18b514c69306c2c5492947f233e3023b208206ea3e0a38ffbc23"
+    }
+  },
+  "actual_checks": {
+    "hedge_checks": 678,
+    "forecast_checks": 1047,
+    "status": "passed",
+    "database": ":memory:"
+  },
+  "independent_checks": {
+    "status": "passed",
+    "hedge_rows": 678,
+    "forecast_rows": 1047,
+    "lag_change_rows": 47115,
+    "synthetic_guards": [
+      "latest invalid ownership",
+      "no observed fallback",
+      "strict prior history",
+      "no future boundary",
+      "zero valid",
+      "nonfinite invalid",
+      "missing prior trade",
+      "missing delivery strip"
+    ],
+    "coefficient_fitting": "none; no training-target selection",
+    "source_manifest_sha256": "6b7dd7093cafab8f91bb8417becba321747da4bc4334a19924374cc6be05efb6"
+  }
+}

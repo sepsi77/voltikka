@@ -1,0 +1,72 @@
+{
+    "status": "complete",
+    "started_at_utc": "2026-09-13T07:33:34Z",
+    "project_id": "6d8cae01-1006-409f-8108-1d51f1abc676",
+    "environment_id": "9245cef8-41d0-486e-862f-193726511dba",
+    "service_id": "beb2ba12-4a7b-416b-b4b1-596434dc3215",
+    "transaction": "REPEATABLE READ; START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY; ROLLBACK",
+    "limits": {
+        "rows_per_query": 20000,
+        "bytes_total": 104857600,
+        "query_timeout_ms": 20000
+    },
+    "json_columns": "Preserved as database JSON strings, without decoding or removing fields.",
+    "queries": {
+        "database_clock": {
+            "sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ CURRENT_DATE AS `current_date`, CURRENT_TIMESTAMP AS `current_timestamp`, UTC_TIMESTAMP() AS `utc_timestamp`, @@session.time_zone AS session_time_zone, @@session.transaction_isolation AS transaction_isolation",
+            "started_at_utc": "2026-09-13T07:33:35Z",
+            "completed_at_utc": "2026-09-13T07:33:36Z",
+            "file": "database_clock.json",
+            "row_count": 1,
+            "bytes": 185,
+            "sha256": "8da2b985ca7299ea651887cf28d04520e2b1183195f561d9ac18dd5f3e122f9c"
+        },
+        "forecast_table_bounds": {
+            "sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ COUNT(*) AS row_count, MIN(forecast_date) AS min_forecast_date, MAX(forecast_date) AS max_forecast_date FROM fixed_contract_price_forecasts",
+            "started_at_utc": "2026-09-13T07:33:36Z",
+            "completed_at_utc": "2026-09-13T07:33:36Z",
+            "file": "forecast_table_bounds.json",
+            "row_count": 1,
+            "bytes": 89,
+            "sha256": "060cd7637a45138aab61c7d3e0afb89d73d53d99ba5f252d3dcc1b869aee4116"
+        },
+        "schemas": {
+            "sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT, COLUMN_KEY FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('fixed_contract_price_forecasts', 'electricity_futures_eod_prices', 'contract_price_daily_statistics') ORDER BY TABLE_NAME, ORDINAL_POSITION LIMIT 20001",
+            "started_at_utc": "2026-09-13T07:33:36Z",
+            "completed_at_utc": "2026-09-13T07:33:37Z",
+            "file": "schemas.json",
+            "row_count": 80,
+            "bytes": 15039,
+            "sha256": "13346a4989a6487f3d054d0c7e41c470577789c8328fb350d8b7e66ba63d3870"
+        },
+        "forecasts": {
+            "sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ * FROM fixed_contract_price_forecasts WHERE forecast_date BETWEEN '2026-06-13' AND '2026-09-13' ORDER BY forecast_date, id LIMIT 20001",
+            "started_at_utc": "2026-09-13T07:33:37Z",
+            "completed_at_utc": "2026-09-13T07:33:38Z",
+            "file": "forecasts.json",
+            "row_count": 810,
+            "bytes": 1443047,
+            "sha256": "ab34f0250bd24b470382b8085a6829dee13f08c49cab3ffe5f2e5fb02613f715"
+        },
+        "futures": {
+            "sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ * FROM electricity_futures_eod_prices WHERE area = 'FI' AND product = 'Base' AND trade_date BETWEEN '2026-06-01' AND '2026-09-13' ORDER BY trade_date, id LIMIT 20001",
+            "started_at_utc": "2026-09-13T07:33:38Z",
+            "completed_at_utc": "2026-09-13T07:33:40Z",
+            "file": "futures.json",
+            "row_count": 1499,
+            "bytes": 886193,
+            "sha256": "68c543853bdfd6f3eba834b8b014d011d98d31e23accb02fb8693c67fffa3b2c"
+        },
+        "statistics": {
+            "sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ * FROM contract_price_daily_statistics WHERE metric_key = 'energy_price' AND segment_key IN ('fixed_term_6', 'fixed_term_12', 'fixed_term_24') AND stat_date BETWEEN '2026-06-01' AND '2026-09-13' ORDER BY stat_date, id LIMIT 20001",
+            "started_at_utc": "2026-09-13T07:33:40Z",
+            "completed_at_utc": "2026-09-13T07:33:42Z",
+            "file": "statistics.json",
+            "row_count": 315,
+            "bytes": 161270,
+            "sha256": "482834e2c7e96564c0d7bb19c68b885ccef3ba17f0c5009780dbcfcda97efa59"
+        }
+    },
+    "completed_at_utc": "2026-09-13T07:33:42Z",
+    "script_sha256": "c19236444720a5ca1aaa0534e756a5a6e1eec68f78247098f44ebc6d12f3e3e7"
+}

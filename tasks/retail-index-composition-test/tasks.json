@@ -1,0 +1,6 @@
+[
+  {"name":"Freeze design and verify export and prior results", "status":"done"},
+  {"name":"Build fixed-cohort pairs and coverage diagnostics", "status":"done"},
+  {"name":"Run independent checks and repeatability checks", "status":"done"},
+  {"name":"Report findings and residual limits", "status":"done"}
+]

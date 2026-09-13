@@ -1,0 +1,24 @@
+{
+  "canonical_rolling": "Unavailable: at most 13 matured prior issue days; gate is 20. Not filled with observed labels.",
+  "cohorts": {
+    "full57": 57,
+    "matched48": 48,
+    "older57": 57,
+    "primary36": 36,
+    "secondary84": 84
+  },
+  "excluded_learned_prediction_rows": 3096,
+  "failed": 0,
+  "gap_fallback_rows": 141,
+  "miss_signs": {
+    "negative": 27,
+    "positive": 6,
+    "zero": 0
+  },
+  "missing_selected": 0,
+  "missing_v2_mature_median": 9,
+  "preserved_files": 1886,
+  "saved_numeric_disagreements": 0,
+  "skipped_immature_v3_median": 90,
+  "skipped_other_quantiles_v3": 294
+}

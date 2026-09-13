@@ -1,0 +1,5 @@
+[
+  {"name":"Read producer rules and verify export","status":"completed"},
+  {"name":"Run fixed-coefficient supplier and matched baseline diagnostic","status":"completed"},
+  {"name":"Check chronology, filters, weights, and report limitations","status":"completed"}
+]

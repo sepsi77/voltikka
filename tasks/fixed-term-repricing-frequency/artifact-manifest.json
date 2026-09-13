@@ -1,0 +1,94 @@
+{
+  "analyze.py": {
+    "bytes": 21656,
+    "sha256": "0ae3442d8c6e0b935e384324b48649c9b43c3e75480c8978ab148cc463531c5b"
+  },
+  "constant-spells.csv": {
+    "bytes": 430670,
+    "sha256": "61255bd43c3d84b7f2ddd6b47d2f5ed27538b4ab69cbea92928ead8c080afad0"
+  },
+  "date-clusters.csv": {
+    "bytes": 4445,
+    "sha256": "f307fc0996abecc1f7acc249dcab30dd3102e6cafe0dcf8b13d13d7dfd20e7d1"
+  },
+  "dated-mapping.csv": {
+    "bytes": 1793915,
+    "sha256": "ce1189ae648a0b1e716a4d478ce8c4b9d1912e442e98f20312bae36f0217ae43"
+  },
+  "decisions.md": {
+    "bytes": 2865,
+    "sha256": "285debfff91c43266ad4f562dc65c04a51c31cbbadc46b807a77c29af1712d0e"
+  },
+  "excluded-basis-seams.csv": {
+    "bytes": 11778,
+    "sha256": "a3f2f751afdf6b689a24be81529abc1747e81d5f009cb95ec8de6d1d5b3253cd"
+  },
+  "fresh-change-followup.csv": {
+    "bytes": 877,
+    "sha256": "c64cd1ede490d62e1bef50b6a2d2867240a902e823311fb74b8a573d703d39d8"
+  },
+  "horizon-summary.csv": {
+    "bytes": 295851,
+    "sha256": "a08d214c5a2a890901cc5a66bcb5c7b1c0388f5fc1c8dcb996ec8614351136e7"
+  },
+  "horizons-by-basis.csv": {
+    "bytes": 3463,
+    "sha256": "e9636f5626cd61e20093dc3beca7136481358c4dfaf7dd031a095c1a9639c5f2"
+  },
+  "id-appearances.csv": {
+    "bytes": 88342,
+    "sha256": "93bc553d6027886b91c775d26df87a4d678c7e8d0c79a12e5568964471a24ea6"
+  },
+  "lineage-carrier-switches.csv": {
+    "bytes": 86314,
+    "sha256": "f790d6b774de0ec8f021c0658c491005762f70b4965d1f273febaba063bcbd95"
+  },
+  "premium-mapping-audit.csv": {
+    "bytes": 466030,
+    "sha256": "ec37c97181cc03e7f1ca7396aa46cdc13c5a912c9d196cf55d642023a7d4a52d"
+  },
+  "report.md": {
+    "bytes": 20484,
+    "sha256": "c96d96ea074ec50e6746644deeeba8e4606acba6ec61af6cb7630ce2fc7ded0f"
+  },
+  "series.csv": {
+    "bytes": 262944,
+    "sha256": "afeacb3d3fd0f2268b4e1d2d53f8c6918a06000b900e7f37a8ab84db6d636d1b"
+  },
+  "spec.md": {
+    "bytes": 698,
+    "sha256": "f0145194f7b413438b09982488200b98ac4a9f72add77c5a59b299ba8b98d1a5"
+  },
+  "summary.json": {
+    "bytes": 20901,
+    "sha256": "4657044fe94950340d6d87ec8b47ea54f4c9692ec325e7a43c92ca15ec1a08e3"
+  },
+  "supplier-daily-medians.csv": {
+    "bytes": 1241768,
+    "sha256": "94b997cb43d2f0ecfb956496bd88bf8006b3b69978f030e638fe479d58d707f3"
+  },
+  "supplier-lineage-date-clusters.csv": {
+    "bytes": 15310,
+    "sha256": "db79ed0076737895e526e054d0f4db64bb8d52ecb127ba3411cdd2521fe63952"
+  },
+  "supplier-term-frequency.csv": {
+    "bytes": 51476,
+    "sha256": "e1fce43bf995938a901d3e1450f9e6153c35c72d703486232145ef0d293d55db"
+  },
+  "tasks.json": {
+    "bytes": 236,
+    "sha256": "303024250f7a304ae7723151322032c2c1d9d87924af7a29b3ef33f5528fa534"
+  },
+  "transitions.csv": {
+    "bytes": 9774847,
+    "sha256": "7af475260a52315b585dee14eb408174c4887bd0d76af4d9bbe8ec6fdeb2e0e3"
+  },
+  "verify.py": {
+    "bytes": 4861,
+    "sha256": "d6bd348e5b4c626dd184eecdfc967d3de9914bb5a199e7fe6e713c5525674688"
+  },
+  "windows-by-series.csv": {
+    "bytes": 1380181,
+    "sha256": "a54d0cd5637fe578ce26c05ec520ef32f9eace386a27a9236a35f43f1af22c51"
+  }
+}

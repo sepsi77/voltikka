@@ -1,0 +1,81 @@
+{
+  "cohorts": {
+    "full57": 57,
+    "matched48": 48,
+    "older57": 57,
+    "primary36": 36,
+    "secondary84": 84
+  },
+  "miss_signs": {
+    "positive": 6,
+    "zero": 0,
+    "negative": 27
+  },
+  "saved_numeric_disagreements": 0,
+  "preserved_files": 1886,
+  "failed": 0,
+  "missing_selected": 0,
+  "missing_v2_mature_median": 9,
+  "skipped_immature_v3_median": 90,
+  "skipped_other_quantiles_v3": 294,
+  "gap_fallback_rows": 141,
+  "canonical_rolling": "Unavailable: at most 13 matured prior issue days; gate is 20. Not filled with observed labels.",
+  "excluded_learned_prediction_rows": 3096
+}
+{
+  "status": "passed",
+  "failed": 0,
+  "missing_selected": 0,
+  "preserved_files": 1886,
+  "raw_statistic_checks": 3348,
+  "numeric_source_checks": 1320,
+  "exact_fit_sets": 21,
+  "synthetic_checks": 22,
+  "metric_groups": 348,
+  "transition_groups": 232,
+  "snapshot_groups": 477,
+  "snapshot_statistic_differences": [],
+  "original_fit_coefficients": "Preserved by hash; no refit. Training IDs, raw target means and strict chronology rechecked.",
+  "skipped_new_php_replay": "Use pinned prior actual-PHP verification; no database access."
+}
+{
+  "cohorts": {
+    "full57": 57,
+    "matched48": 48,
+    "older57": 57,
+    "primary36": 36,
+    "secondary84": 84
+  },
+  "miss_signs": {
+    "positive": 6,
+    "zero": 0,
+    "negative": 27
+  },
+  "saved_numeric_disagreements": 0,
+  "preserved_files": 1886,
+  "failed": 0,
+  "missing_selected": 0,
+  "missing_v2_mature_median": 9,
+  "skipped_immature_v3_median": 90,
+  "skipped_other_quantiles_v3": 294,
+  "gap_fallback_rows": 141,
+  "canonical_rolling": "Unavailable: at most 13 matured prior issue days; gate is 20. Not filled with observed labels.",
+  "excluded_learned_prediction_rows": 3096
+}
+{
+  "status": "passed",
+  "failed": 0,
+  "missing_selected": 0,
+  "preserved_files": 1886,
+  "raw_statistic_checks": 3348,
+  "numeric_source_checks": 1320,
+  "exact_fit_sets": 21,
+  "synthetic_checks": 22,
+  "metric_groups": 348,
+  "transition_groups": 232,
+  "snapshot_groups": 477,
+  "snapshot_statistic_differences": [],
+  "original_fit_coefficients": "Preserved by hash; no refit. Training IDs, raw target means and strict chronology rechecked.",
+  "skipped_new_php_replay": "Use pinned prior actual-PHP verification; no database access."
+}
+PASS: two runs; 15 identical outputs; 1886 preserved files.

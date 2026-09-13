@@ -1,0 +1,31 @@
+{
+  "failed": 0,
+  "identical_outputs": 15,
+  "outputs": {
+    "report.md": "21265d7ab38b47a006a456bdae67b96a55621f79ef85ea3e4754c1fcae2a9466",
+    "results/metrics.csv": "93908e27d6f6b33a44514de6a0b0b359f0e8cd51202b244a164ebd363709c9a7",
+    "results/metrics.json": "6c853eac47e115b603163646fe8812153df159737d2ff3f3473a85723ca415ab",
+    "results/misses.csv": "a5a502046ef12905bc2fdd5dea2695af65c5da54d2a0c581a4d3f4c63de1bae5",
+    "results/misses.json": "4fc875e8669c0256482d821366309c66af7331f35727e25e5e8143b782713361",
+    "results/precision-audit.csv": "2508e5e291aeb62a6e832bb9435347ce9fefee697c07218fffc37dccd78dcc62",
+    "results/precision-audit.json": "5a47a76efd7ae94823604e7a0ce829ae0c064c9b475270f1d35fc51eb6b6917b",
+    "results/rows.csv": "ebb8a634e1694706f5c3b9dbdadc775814fdab7b4adb78b881d85cffcca26b72",
+    "results/rows.json": "c53d7d3a30d9f7c0e4ee68fc84b38101533c2729ebe4baf923fa4a256680f475",
+    "results/saved-baselines.csv": "b294f060af82b3ceea135f2aa93e45d9c3fada734cae24ea18ec327fa0eff419",
+    "results/saved-baselines.json": "f850e4d424bbfdda51b4a86870e831dd00455024ac2c8e906027d1d7f1d5c809",
+    "results/summary.json": "01e85c58ae10b4f44f84404f79df5c04de142e34ce2a3a9ab7072ea3cad10081",
+    "results/transitions.csv": "2f75e6216b74929f6cd82688d5963548ba89a91350e7484adbde611852639c19",
+    "results/transitions.json": "1ff95142fb026408b326f9c33cc172b6b038be42fe0d0967f6d2bda8fd78d4b1",
+    "results/verification.json": "a372ffc8b5da1f3404edba3003f5718186ef7423b0c879a36f113373a9c2c140"
+  },
+  "preserved_files": 1886,
+  "runs": 2,
+  "script_hashes": {
+    "analyze.py": "a7c5ab5f8c5586e80042dc690f19b9133b7ceda2cfe306c521d4b9dfaccc6c16",
+    "report.py": "337b98a11479e487be515e9e45cb424c1bcf5a661235a7eafee1c53661ba965c",
+    "reproduce.py": "f380b60735c085382d932f32bc90b5d9b5d4606b8cda503b6ab995927b547b53",
+    "verify.py": "e958faec2042a3e625b2c1304170a0a850b914f6ced00383fbc12fe25bd3590d"
+  },
+  "spec_sha256": "0be76adeddb394a2596e1c9e1bf007f00e1582be0ff4b64b15ae652067a0eaa9",
+  "status": "passed"
+}

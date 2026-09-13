@@ -1,0 +1,106 @@
+{
+    "status": "complete",
+    "started_at_utc": "2026-09-13T09:41:38+00:00",
+    "project_id": "6d8cae01-1006-409f-8108-1d51f1abc676",
+    "environment_id": "9245cef8-41d0-486e-862f-193726511dba",
+    "service_id": "beb2ba12-4a7b-416b-b4b1-596434dc3215",
+    "transaction": "REPEATABLE READ; START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY; ROLLBACK",
+    "bounds": {
+        "from": "2026-04-08",
+        "to": "2026-09-13",
+        "premiums": "observed period overlaps bounds",
+        "forecasts": "forecast_date within bounds"
+    },
+    "limits": {
+        "rows_per_query": 100000,
+        "total_data_bytes": 104857600,
+        "query_timeout_ms": 20000,
+        "php_timeout_seconds": 240
+    },
+    "json_columns": "Database JSON strings preserved in full.",
+    "queries": {
+        "schemas": {
+            "count_sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ COUNT(*) AS row_count FROM (SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('retail_premium_observations','contract_price_snapshots','contract_price_daily_statistics','fixed_contract_price_forecasts','electricity_futures_eod_prices') LIMIT 100001) AS bounded_rows",
+            "count_sql_sha256": "e92c4cf7040868166656678be3f9bff5e477b2722813cb42249afc2410f2517c",
+            "expected_count": 145,
+            "sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ * FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN ('retail_premium_observations','contract_price_snapshots','contract_price_daily_statistics','fixed_contract_price_forecasts','electricity_futures_eod_prices') ORDER BY TABLE_NAME, ORDINAL_POSITION LIMIT 100001",
+            "sql_sha256": "9fd9f4ee1089b71c0b4ed5a7bebf7891bea4aae900e53f697bd928f6556ed413",
+            "row_count": 145,
+            "file": "schemas.json",
+            "bytes": 81478,
+            "sha256": "54b4e8f74d5867cdbf3b8ebf0b30307c458034e6ac0800d2d1f2b3a7c0f6d08a"
+        },
+        "version_metadata": {
+            "count_sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ COUNT(*) AS row_count FROM (SELECT 1 FROM (SELECT method_version, reference_kind, contract_type, quality, vat_basis, COUNT(*) AS observation_rows, MIN(first_observed_date) AS first_date, MAX(last_observed_date) AS last_date, SUM(JSON_EXTRACT(source_metadata, '$.duration_months') IS NOT NULL) AS duration_metadata_rows FROM retail_premium_observations WHERE first_observed_date <= '2026-09-13' AND last_observed_date >= '2026-04-08' GROUP BY method_version, reference_kind, contract_type, quality, vat_basis) AS metadata LIMIT 100001) AS bounded_rows",
+            "count_sql_sha256": "0e7f8f4619b0c17c6434ba4d1b461d1b426cee2c4645ac254381c5e4f8cf0876",
+            "expected_count": 89,
+            "sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ * FROM (SELECT method_version, reference_kind, contract_type, quality, vat_basis, COUNT(*) AS observation_rows, MIN(first_observed_date) AS first_date, MAX(last_observed_date) AS last_date, SUM(JSON_EXTRACT(source_metadata, '$.duration_months') IS NOT NULL) AS duration_metadata_rows FROM retail_premium_observations WHERE first_observed_date <= '2026-09-13' AND last_observed_date >= '2026-04-08' GROUP BY method_version, reference_kind, contract_type, quality, vat_basis) AS metadata ORDER BY method_version, reference_kind, contract_type, quality, vat_basis LIMIT 100001",
+            "sql_sha256": "7036c553b1dab72ed725a82a233e144aabaac7febc1055e02d1af33fa464fb22",
+            "row_count": 89,
+            "file": "version_metadata.json",
+            "bytes": 22251,
+            "sha256": "ab8c9370e8e5e6cd148637ea66ae13a6e2946fe424637fb1db8ffc572d49eb21"
+        },
+        "futures": {
+            "count_sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ COUNT(*) AS row_count FROM (SELECT 1 FROM electricity_futures_eod_prices WHERE area='FI' AND product='Base' AND trade_date BETWEEN '2026-04-08' AND '2026-09-13' LIMIT 100001) AS bounded_rows",
+            "count_sql_sha256": "4f078793c45eac3f7087b557aaf81832fcd44bd3b78cdb09d43c88b4e041971b",
+            "expected_count": 2239,
+            "sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ * FROM electricity_futures_eod_prices WHERE area='FI' AND product='Base' AND trade_date BETWEEN '2026-04-08' AND '2026-09-13' ORDER BY trade_date, id LIMIT 100001",
+            "sql_sha256": "4031a0c7392cd40359c9a1d73db7d0aed3fe362828f1b6abf8d0f8c33c7b14cf",
+            "row_count": 2239,
+            "file": "futures.json",
+            "bytes": 1322122,
+            "sha256": "dbce01e7425cc7c76e42d7cb2c1fcd8a9e72a9ebd7e206ac60df10e5d59bbb96"
+        },
+        "statistics": {
+            "count_sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ COUNT(*) AS row_count FROM (SELECT 1 FROM contract_price_daily_statistics WHERE metric_key='energy_price' AND consumption_kwh IS NULL AND method_version='unit_statistics_v1' AND segment_key IN ('fixed_term_6','fixed_term_12','fixed_term_24') AND stat_date BETWEEN '2026-04-08' AND '2026-09-13' LIMIT 100001) AS bounded_rows",
+            "count_sql_sha256": "ceeb1d0387469bb358d1a5835d26311e89de71cbd75bacb4364fcd19765d9aed",
+            "expected_count": 477,
+            "sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ * FROM contract_price_daily_statistics WHERE metric_key='energy_price' AND consumption_kwh IS NULL AND method_version='unit_statistics_v1' AND segment_key IN ('fixed_term_6','fixed_term_12','fixed_term_24') AND stat_date BETWEEN '2026-04-08' AND '2026-09-13' ORDER BY stat_date, id LIMIT 100001",
+            "sql_sha256": "2640d66d9d1f6a58090569a567795028cd17b97f06d8d4b812a9cd1554919688",
+            "row_count": 477,
+            "file": "statistics.json",
+            "bytes": 243627,
+            "sha256": "4e9a2a0cf1142f4cb7ddf79d526fa4611bb3d3ff19a10084bcd3c3926684ef13"
+        },
+        "forecasts": {
+            "count_sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ COUNT(*) AS row_count FROM (SELECT 1 FROM fixed_contract_price_forecasts WHERE forecast_date BETWEEN '2026-04-08' AND '2026-09-13' LIMIT 100001) AS bounded_rows",
+            "count_sql_sha256": "d7d07f18b27b60d142ce30cb3f5349ee394bc91bf0221b6597558576eea252ff",
+            "expected_count": 1314,
+            "sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ * FROM fixed_contract_price_forecasts WHERE forecast_date BETWEEN '2026-04-08' AND '2026-09-13' ORDER BY forecast_date, id LIMIT 100001",
+            "sql_sha256": "4b30b0b56ffcbae6eb5e74f0b3c5a0a24fb75221486daadf9de6d00c8499ec98",
+            "row_count": 1314,
+            "file": "forecasts.json",
+            "bytes": 2211675,
+            "sha256": "d2567ac2f4ca6bb2946d32b536e8afa183fc02aeb0f73219ff044704aae468bf"
+        },
+        "snapshots": {
+            "count_sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ COUNT(*) AS row_count FROM (SELECT 1 FROM contract_price_snapshots WHERE contract_type='FixedTerm' AND fixed_time_range IN ('Fixed6','Fixed12','Fixed24') AND snapshot_date BETWEEN '2026-04-08' AND '2026-09-13' LIMIT 100001) AS bounded_rows",
+            "count_sql_sha256": "84f9a409ecccfc6924852792cf478c0c48a97849e5de55c71318eeb4546772d1",
+            "expected_count": 25620,
+            "sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ id, snapshot_date, contract_id, company_name, contract_name, pricing_model, contract_type, fixed_time_range, metering, segment_key, energy_price_cents_per_kwh, monthly_fee_eur, has_discount, includes_spot_price, pricing_basis, created_at, updated_at FROM contract_price_snapshots WHERE contract_type='FixedTerm' AND fixed_time_range IN ('Fixed6','Fixed12','Fixed24') AND snapshot_date BETWEEN '2026-04-08' AND '2026-09-13' ORDER BY snapshot_date, id LIMIT 100001",
+            "sql_sha256": "b5e84569d796d69c097c7df0735a3dd8e4bea554110376c4696547781defa810",
+            "row_count": 25620,
+            "file": "snapshots.json",
+            "bytes": 14096125,
+            "sha256": "48f2d2fdee413e91a98b9bedf8a7fc69450bc6233fef0daf9337b9513d1842da"
+        },
+        "premiums": {
+            "count_sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ COUNT(*) AS row_count FROM (SELECT 1 FROM retail_premium_observations WHERE contract_type='FixedTerm' AND reference_kind='term_strip' AND method_version IN ('retail-premium-v2','retail-premium-history-v2') AND first_observed_date <= '2026-09-13' AND last_observed_date >= '2026-04-08' LIMIT 100001) AS bounded_rows",
+            "count_sql_sha256": "62b4356db21a98c8cdf1750541d1fd35721e8d961fcfbcffc32bc253c416d806",
+            "expected_count": 1949,
+            "sql": "SELECT /*+ MAX_EXECUTION_TIME(20000) */ * FROM retail_premium_observations WHERE contract_type='FixedTerm' AND reference_kind='term_strip' AND method_version IN ('retail-premium-v2','retail-premium-history-v2') AND first_observed_date <= '2026-09-13' AND last_observed_date >= '2026-04-08' ORDER BY company_name, lineage_key, first_observed_date, id LIMIT 100001",
+            "sql_sha256": "175cfa2807ccc9d60bde81219054c1ba66c21b291074ea98b41428dd4c6906fc",
+            "row_count": 1949,
+            "file": "premiums.json",
+            "bytes": 8760266,
+            "sha256": "1b631054e23deecb464c34afa4e44cf23047d98b77c916cef5c80326e6354db8"
+        }
+    },
+    "method_pair": [
+        "retail-premium-v2",
+        "retail-premium-history-v2"
+    ],
+    "completed_at_utc": "2026-09-13T09:41:48+00:00",
+    "script_sha256": "a90b6f311db2222b43406d4131b3a1b1f1352e03a86bf01b22c422c4141ce8a6"
+}

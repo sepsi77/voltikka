@@ -1,0 +1,53 @@
+Run 1: tasks/forecast-accuracy-experiments/scripts/experiment.py => exit 0
+
+Run 1: tasks/forecast-accuracy-experiments/scripts/verify.py => exit 0
+
+{
+  "status": "passed",
+  "basket_vintages": 729,
+  "same_vintage_verified_php_hedges": 474,
+  "features": 954,
+  "pairs": 1098,
+  "fits": 136,
+  "predictions": 3564,
+  "synthetic_checks": [
+    "lambda zero known solution",
+    "lambda one known solution",
+    "zero-scale column",
+    "all constant columns",
+    "missing trade",
+    "strict trade endpoint",
+    "zero valid",
+    "partial strip rejected",
+    "invalid owned month blocks fallback"
+  ]
+}
+
+Run 1: tasks/forecast-accuracy-experiments/scripts/report.py => exit 0
+
+Run 2: tasks/forecast-accuracy-experiments/scripts/experiment.py => exit 0
+
+Run 2: tasks/forecast-accuracy-experiments/scripts/verify.py => exit 0
+
+{
+  "status": "passed",
+  "basket_vintages": 729,
+  "same_vintage_verified_php_hedges": 474,
+  "features": 954,
+  "pairs": 1098,
+  "fits": 136,
+  "predictions": 3564,
+  "synthetic_checks": [
+    "lambda zero known solution",
+    "lambda one known solution",
+    "zero-scale column",
+    "all constant columns",
+    "missing trade",
+    "strict trade endpoint",
+    "zero valid",
+    "partial strip rejected",
+    "invalid owned month blocks fallback"
+  ]
+}
+
+Run 2: tasks/forecast-accuracy-experiments/scripts/report.py => exit 0

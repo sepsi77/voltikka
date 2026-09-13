@@ -1,0 +1,9 @@
+basis,term,n,issue_days,contemporaneous_past_change_correlation,note
+observed_seller_data,6,102,102,0.26214372789356644,Same seven-day endpoints: not lead evidence
+observed_seller_data,12,102,102,0.5655951216609088,Same seven-day endpoints: not lead evidence
+observed_seller_data,24,102,102,0.5912222342415957,Same seven-day endpoints: not lead evidence
+observed_seller_data,all,306,102,0.3763620425276276,Same seven-day endpoints: not lead evidence
+canonical_calculation,6,42,42,0.5625620923444432,Same seven-day endpoints: not lead evidence
+canonical_calculation,12,42,42,0.7799536021784474,Same seven-day endpoints: not lead evidence
+canonical_calculation,24,42,42,0.5801741484201304,Same seven-day endpoints: not lead evidence
+canonical_calculation,all,126,42,0.6942219312015996,Same seven-day endpoints: not lead evidence

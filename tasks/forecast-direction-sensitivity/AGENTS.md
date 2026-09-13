@@ -1,0 +1,12 @@
+# Offline forecast direction sensitivity
+
+All work belongs to this folder. Do not change application files, config, databases, production, existing task artifacts or exports. No new fit, dependency, commit, push or trial starts here.
+
+- `spec.md` and `spec.sha256` are frozen before metrics. Do not edit them to match results. Prediction grid is 0.15/0.10/0.05; the actual outcome threshold stays 0.15. Lambda stays 0.30.
+- `analyze.py` reads published v3 expected changes from original replay JSON. V2 uses exported expected change. Learned/intercept signals subtract original unrounded price and current with Decimal. Older/secondary gap lacks an expected-change field and uses four-decimal published price minus current. Actual changes are rounded half away from zero to four decimals.
+- `inputs.json` pins 1,886 previous task and application files, including current working-tree changes. `verify.py` checks the raw export manifest, latest-owned statistic IDs, all 477 snapshot median/count groups, original numerical prediction maps, exact training IDs/means/cutoffs, every metric and transition, and 22 synthetic edges. It does not refit or call prior writers.
+- `reproduce.py` runs only this folder's analysis/verifier/renderer twice. Fifteen result/report outputs must be byte-identical. All original pinned bytes must stay unchanged. The source/spec hashes and results remain in `results/`.
+- The 33 saved v3 matched misses are six positive, zero zero and 27 negative. Neither lower threshold rescues a miss. Matched v3 correct counts fall 13 → 10 → 8; wrong ways rise 2 → 6 → 17. Keep 0.15 for v3.
+- The primary learned/intercept 75% equals fixed always-UP, because all say up on 27-up/nine-flat/zero-down outcomes. These constant controls are direction-only, not price forecasts. Older/secondary cohorts remain separate; no term/model selection follows.
+- Code inspection found actual-change rounding in the evaluation service, not generation. Generation still classifies unrounded lambda × gap before four-decimal storage. The selected rows have zero saved/numeric disagreements. Any future signal change requires explicit separate prediction/outcome metadata, model identity and user approval. Do not relabel historical rows.
+- All primary windows overlap, prior holdout inspection contaminates this post-hoc check, and canonical rolling training remains below the 20-day gate. The local qualified-outlook application changes remain undeployed and untouched.

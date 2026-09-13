@@ -1,0 +1,72 @@
+supplier,term,contract_id,before,after,before_basis,after_basis,numeric_difference,before_price,after_price
+Lammaisten Energia Oy,24,cnukun-lammaisten-energia-oy-iisi-helpposahko-yleissahko-24-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.9700,9.9700
+Lammaisten Energia Oy,12,psutqh-lammaisten-energia-oy-iisi-helpposahko-yleissahko-12-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.4200,10.4200
+Omavoima Oy,12,4w4snx-omavoima-oy-oma-12kk-yleis,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.0700,10.0700
+Omavoima Oy,24,wliup0-omavoima-oy-oma-24kk-yleis,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,8.9800,8.9800
+Koillis-Satakunnan Sähkö Oy,12,dkzws6-koillis-satakunnan-sahko-oy-ikiwirta-12-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.9800,9.9800
+Koillis-Satakunnan Sähkö Oy,12,kwaswq-koillis-satakunnan-sahko-oy-vakaawirta-12-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.6600,9.6600
+Nurmijärven Sähkö Oy,12,9rfo6y-nurmijarven-sahko-oy-yleissahko-1-vuotta,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.4500,10.4500
+Nurmijärven Sähkö Oy,24,bxs18u-nurmijarven-sahko-oy-yleissahko-2-vuotta,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.4500,9.4500
+Pohjois-Karjalan Sähkö Oy,12,kjngro-pohjois-karjalan-sahko-oy-optimi-takuu-12-kuukautta,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.4800,10.4800
+Pohjois-Karjalan Sähkö Oy,6,tkqczm-pohjois-karjalan-sahko-oy-optimi-takuu-6-kuukautta,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.7900,10.7900
+Koillis-Satakunnan Sähkö Oy,24,h925l0-koillis-satakunnan-sahko-oy-vakaawirta-24-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,8.9700,8.9700
+Pohjois-Karjalan Sähkö Oy,6,hprucu-pohjois-karjalan-sahko-oy-optimi-takuu-6-kuukautta,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,11.9400,11.9400
+Turku Energia Oy,6,8v2zuo-turku-energia-oy-louna-lahi-6kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,11.4000,11.4000
+Turku Energia Oy,24,dwoas0-turku-energia-oy-louna-lahi-24kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.1000,9.1000
+Turku Energia Oy,12,ehpblq-turku-energia-oy-louna-lahi-12kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.7000,9.7000
+Pohjois-Karjalan Sähkö Oy,24,hz5m3u-pohjois-karjalan-sahko-oy-optimi-takuu-24-kuukautta,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.1800,10.1800
+Hehku Energia Oy,6,lecan2-hehku-energia-oy-hehku-kiintea-6-kk,2026-07-24,2026-07-27,observed_seller_data,canonical_calculation,False,10.9900,10.9900
+Vaasan Sähkö Myynti Oy,12,6jrged-vaasan-sahko-myynti-oy-kiintea-12-kk-yleissahko,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.4800,10.4800
+Vaasan Sähkö Myynti Oy,24,pvhkra-vaasan-sahko-myynti-oy-kiintea-24-kk-yleissahko,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.4600,9.4600
+Vaasan Sähkö Myynti Oy,6,qseg85-vaasan-sahko-myynti-oy-kiintea-6-kk-yleissahko,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,12.0100,12.0100
+Keravan Energia Oy,24,srhu1r-keravan-energia-oy-perussahko-luonnonvoima-24-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.2600,9.2600
+Keravan Energia Oy,24,vmqvel-keravan-energia-oy-perussahko-yleissahko,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.0000,9.0000
+Köyliön-Säkylän Sähkö Oy,12,egue10-koylion-sakylan-sahko-oy-lallin-maaris-1v,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.6000,10.6000
+Köyliön-Säkylän Sähkö Oy,24,xrufmt-koylion-sakylan-sahko-oy-lallin-maaris-2v,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.4000,9.4000
+Hehku Energia Oy,24,5avbab-hehku-energia-oy-hehku-kiintea-24-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.3800,9.3800
+Hehku Energia Oy,12,5s5r2e-hehku-energia-oy-hehku-hiilivapaa-12-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.2900,10.2900
+Korpelan Energia Oy,12,6bkvu5-korpelan-energia-oy-korpela-kesto-kiintea-12-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.7500,9.7500
+Cheap Energy Finland Oy,24,cjnnmf-cheap-energy-finland-oy-cheap-maaraaikainen-24-kk-0-kuukausimaksu-ensimmaiset-4-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.2800,9.2800
+Kokkolan Energia Oy,24,h8zvo7-kokkolan-energia-oy-ranta-24-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.9800,9.9800
+Kokkolan Energia Oy,6,ki6odb-kokkolan-energia-oy-ranta-6-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,12.6400,12.6400
+Cheap Energy Finland Oy,6,okmsyk-cheap-energy-finland-oy-cheap-maaraaikainen-6-kk,2026-07-24,2026-07-27,observed_seller_data,canonical_calculation,False,10.4900,10.4900
+Paneliankosken Voima Oy,24,wqatmw-paneliankosken-voima-oy-kosken-vuosiwoima-24-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.1500,9.1500
+Kokkolan Energia Oy,12,wsncrl-kokkolan-energia-oy-ranta-12-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,11.3100,11.3100
+Paneliankosken Voima Oy,12,xcvrus-paneliankosken-voima-oy-kosken-vuosiwoima-12-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.7000,9.7000
+Hehku Energia Oy,12,xe9b5i-hehku-energia-oy-hehku-kiintea-12-kk-0-kuukausimaksu-ensimmaiset-3-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.8900,9.8900
+Hehku Energia Oy,24,xiojoa-hehku-energia-oy-hehku-hiilivapaa-24-kk-0-kuukausimaksu-ensimmaiset-6-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.6900,9.6900
+Vattenfall Oy,12,7uiigw-vattenfall-oy-ilmasto-mix-12-kk-perusmaksut-0-ensimmaiset-3-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.7900,10.7900
+Vattenfall Oy,12,dyxylq-vattenfall-oy-taystuuli-12-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.7900,10.7900
+Äänekosken Energia Oy,6,nwp0pg-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-6-kk-paastoton,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,11.2000,11.2000
+Vattenfall Oy,12,qezbfw-vattenfall-oy-taysvesi-12-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.0900,10.0900
+Äänekosken Energia Oy,12,rc3xem-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-12-kk-paastoton,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.2000,10.2000
+Äänekosken Energia Oy,24,zujknd-aanekosken-energia-oy-maalaisjarkisahko-yleissahko-24-kk-paastoton,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.3000,9.3000
+Imatran Seudun Sähkö Oy,12,ctngqh-imatran-seudun-sahko-oy-voima-12-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.9900,10.9900
+Keravan Energia Oy,6,pkdzdu-keravan-energia-oy-perussahko-yleis-6-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,12.3000,12.3000
+Keravan Energia Oy,12,s91uya-keravan-energia-oy-perussahko-yleis-12-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.4000,10.4000
+Alajärven Sähkö Oy,24,sdylbi-alajarven-sahko-oy-yleissahko-24-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.5000,9.5000
+Alajärven Sähkö Oy,12,vrekdo-alajarven-sahko-oy-yleissahko-12-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.9000,9.9000
+Imatran Seudun Sähkö Oy,6,xhm9jf-imatran-seudun-sahko-oy-voima-6-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,12.9900,12.9900
+Keravan Energia Oy,12,xhyxbc-keravan-energia-oy-perussahko-luonnonvoima-12-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.6600,10.6600
+Imatran Seudun Sähkö Oy,24,zlhj1m-imatran-seudun-sahko-oy-voima-24-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.2900,9.2900
+Vattenfall Oy,24,ecld9c-vattenfall-oy-ilmasto-mix-24-kk-perusmaksut-0-ensimmaiset-3-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.8800,9.8800
+Vattenfall Oy,24,fdqipv-vattenfall-oy-taysvesi-24-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.8800,9.8800
+Vihreä Älyenergia Oy,12,lis8le-vihrea-alyenergia-oy-vankka-kiintea-12-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.4900,10.4900
+Vattenfall Oy,24,mjkxsk-vattenfall-oy-taystuuli-24-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.8800,9.8800
+Vihreä Älyenergia Oy,24,pgkbdj-vihrea-alyenergia-oy-vankka-kiintea-24-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.1400,10.1400
+Vihreä Älyenergia Oy,12,pk8hwv-vihrea-alyenergia-oy-vire-tuuli-kiintea-12-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.9900,10.9900
+Vihreä Älyenergia Oy,24,rrd7bn-vihrea-alyenergia-oy-vire-tuuli-kiintea-24-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.6400,10.6400
+Porvoon Energia Oy,12,0bfjov-porvoon-energia-oy-ilmastoviisas-12-kk-co2-paastottomasti-tuotettu,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,11.5000,11.5000
+Porvoon Energia Oy,12,1eqb3j-porvoon-energia-oy-wind-12-kk-kotimainen-tuulisahko,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,11.7000,11.7000
+Helen Oy,24,2gql3z-helen-oy-maaraaikainen-perussahko-24-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.8900,9.8900
+Pohjois-Karjalan Sähkö Oy,12,74nzym-pohjois-karjalan-sahko-oy-optimi-takuu-12-kuukautta,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,12.2600,12.2600
+Oomi Oy,24,9q43r4-oomi-oy-oomi-kiintea-24-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.5900,9.5900
+Porvoon Energia Oy,24,cbtp1d-porvoon-energia-oy-eko-24-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.2000,10.2000
+Porvoon Energia Oy,24,e0ptpc-porvoon-energia-oy-wind-24-kk-kotimainen-tuulisahko,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.2000,10.2000
+Porvoon Energia Oy,24,fkjlke-porvoon-energia-oy-ilmastoviisas-24-kk-co2-paastottomasti-tuotettu,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.0000,10.0000
+Oomi Oy,12,gjd40q-oomi-oy-oomi-kiintea-12-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.9900,10.9900
+Lumme Energia,12,jkhx1h-lumme-energia-vuosisahko-12-kk-hinta-joka-ei-heilu,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,10.9900,10.9900
+Lumme Energia,24,rwukmo-lumme-energia-vuosisahko-24-kk-hinta-joka-ei-heilu,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,9.5900,9.5900
+Helen Oy,6,t0eg9e-helen-oy-maaraaikainen-perussahko-6-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,13.7900,13.7900
+Helen Oy,12,vmyuwy-helen-oy-maaraaikainen-perussahko-12-kk,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,11.3800,11.3800
+Porvoon Energia Oy,12,zdmggt-porvoon-energia-oy-eko-12-kk-luonnonsuojeluliiton-sertifioima-ekoenergia,2026-07-26,2026-07-27,observed_seller_data,canonical_calculation,False,11.7000,11.7000

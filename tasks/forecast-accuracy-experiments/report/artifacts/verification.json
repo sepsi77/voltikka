@@ -1,0 +1,20 @@
+{
+  "basket_vintages": 729,
+  "features": 954,
+  "fits": 136,
+  "pairs": 1098,
+  "predictions": 3564,
+  "same_vintage_verified_php_hedges": 474,
+  "status": "passed",
+  "synthetic_checks": [
+    "lambda zero known solution",
+    "lambda one known solution",
+    "zero-scale column",
+    "all constant columns",
+    "missing trade",
+    "strict trade endpoint",
+    "zero valid",
+    "partial strip rejected",
+    "invalid owned month blocks fallback"
+  ]
+}

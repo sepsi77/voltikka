@@ -1,0 +1,6 @@
+{
+    "hedge_checks": 678,
+    "forecast_checks": 1047,
+    "status": "passed",
+    "database": ":memory:"
+}
