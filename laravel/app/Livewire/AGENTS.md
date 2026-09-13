@@ -785,7 +785,7 @@ SEO responsibility boundary:
 - This extraction does not change the prepared detail cache payload, so its schema stays v18.
 
 Pricing cache boundary:
-- `pricingViewDataFor()` is the one request-local pricing accessor for each consumption. It returns a cached metric's `ContractPricingViewData` directly, or adapts the canonical or legacy calculator result once, and memoizes the typed object by consumption.
+- `pricingViewDataFor()` is the one request-local pricing accessor for each consumption. Only the selected consumption can read the whole-market cache. Other reference-table tiers use the existing single-contract canonical or legacy evaluation, so a cold table tier cannot start a full-market build during a detail request. The selected-consumption lookup and ranking stay unchanged. The accessor returns a cached metric's `ContractPricingViewData` directly, or adapts the calculator result once, and memoizes the typed object by consumption. Canonical exclusions stay closed, and all available reference rows remain in the initial HTML.
 - Generated qualifier, receipt-note, term, FAQ, current-display, package, cost-table, and counterfactual policy reads typed pricing accessors and `PricingFact`. Only `getCalculatedCostProperty()` / `calculatedCostFor()` serialize the unchanged compatibility array. The card, SEO presenter input, price-development input, and prepared payload keep that existing transport shape; detail cache schema stays v18.
 - Integrity and comparability stay typed in the cache path. An excluded metric stays available to the detail page but is absent from ranking. A missing listed total fails cache hydration and cannot become a zero-price cheaper alternative.
 
@@ -928,7 +928,10 @@ one screen, which is most of what made it read as a grey wall. Each fact now has
 - **The consumption** belongs to the line under the price ("668 € vuodessa · 5 000 kWh
   vuosikulutuksella · sisältää alv 25,5 %") and to the selected chip. `heroVerdictNote()`
   therefore carries only the date, `Sijoitus laskettu 26.7.2026.` — the one fact nothing else
-  on the page states. When the rank basis genuinely differs from the selected consumption,
+  on the page states. Read the retained `ContractListCacheService::calculatedAt(rankConsumption())`
+  timestamp in Europe/Helsinki, never the request date. Omit the date when the timestamp
+  is unavailable; keep the separate measured Spot comparison copy unchanged.
+  When the rank basis genuinely differs from the selected consumption,
   `getRankBasisNoticeProperty()` names both figures, so the note never had to hedge for it.
 - **Estimate status** belongs to the `Arvio` popover. The eyebrow is `Hinta seuraavalle 12
   kuukaudelle` unconditionally; it used to switch to `Hinta-arvio ...` and duplicate the pill

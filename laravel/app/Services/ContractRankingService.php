@@ -4,13 +4,10 @@ namespace App\Services;
 
 use App\Enums\TargetGroup;
 use App\Models\ElectricityContract;
-use App\Models\SpotPriceAverage;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractCard\Enums\PricingBucket;
 use App\Services\ContractCard\PricingCategoryResolver;
-use App\Services\ContractPricing\CanonicalContractMetric;
-use App\Services\DTO\EnergyUsage;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
@@ -22,7 +19,7 @@ class ContractRankingService
     private const CACHE_KEY_RANKINGS = 'contract_rankings_5000kwh';
 
     /** Bump when ranking eligibility, ordering, or the cached payload shape changes. */
-    private const PAYLOAD_SCHEMA_VERSION = 2;
+    private const PAYLOAD_SCHEMA_VERSION = 3;
 
     private const DEFAULT_CONSUMPTION = 5000;
 
@@ -65,7 +62,7 @@ class ContractRankingService
 
     private function refreshMemoBoundary(): void
     {
-        $boundary = now('Europe/Helsinki')->toDateString().':'.$this->listCache->getVersion();
+        $boundary = $this->listCache->getGeneration().':'.$this->listCache->safetyFingerprint();
         if ($boundary !== $this->memoBoundary) {
             $this->eligibleSortedIdsMemo = [];
             $this->bucketCostSummaryMemo = [];
@@ -470,8 +467,9 @@ class ContractRankingService
             .':s'.self::PAYLOAD_SCHEMA_VERSION
             .':'.CalculatedCostPayloadSchema::cacheMarker()
             .':lv'.$this->listCache->getVersion()
+            .':g'.$this->listCache->getGeneration()
             .':'.$this->pricingMode->cacheMarker()
-            .':'.now('Europe/Helsinki')->toDateString();
+            .':'.$this->listCache->safetyFingerprint();
 
         return $this->rankingsMemo = Cache::remember($cacheKey, self::CACHE_TTL_SECONDS, function () {
             return $this->calculateRankings();
@@ -492,18 +490,7 @@ class ContractRankingService
             ->get();
 
         $consumption = self::DEFAULT_CONSUMPTION;
-        $usage = new EnergyUsage(total: $consumption, basicLiving: $consumption);
-
-        $useCanonical = $this->canonicalPricing->enabled();
-        $canonicalMetrics = $useCanonical ? $this->canonicalPricing->metricsForContracts($contracts, $usage) : [];
-
-        $spotPriceAvg = $useCanonical ? null : SpotPriceAverage::latestRolling365Days();
-        $spotPriceDay = $spotPriceAvg?->day_avg_with_tax;
-        $spotPriceNight = $spotPriceAvg?->night_avg_with_tax;
-
-        $priceComponentsByContractId = $useCanonical
-            ? []
-            : ElectricityContract::getLatestPriceComponentsForCalculationByContractIds($contracts->pluck('id'));
+        $metrics = $this->listCache->getCachedMetrics($consumption);
 
         // Calculate cost for each contract
         $contractCosts = [];
@@ -512,35 +499,11 @@ class ContractRankingService
                 continue;
             }
 
-            if ($useCanonical) {
-                $canonical = $canonicalMetrics[$contract->id] ?? null;
-                if (! $canonical instanceof CanonicalContractMetric) {
-                    throw new InvalidArgumentException('Canonical metrics are missing contract '.$contract->id.'.');
-                }
-                // Contracts unfit for comparison are excluded from rankings entirely.
-                if (! $canonical->isListed()) {
-                    continue;
-                }
-
-                $contractCosts[] = [
-                    'id' => $contract->id,
-                    'company_name' => $contract->company_name,
-                    'total_cost' => $canonical->sortKey(),
-                ];
-
+            $metric = $metrics?->metric($contract->id);
+            if ($metric === null || ! $metric->isListed()) {
                 continue;
             }
-
-            $priceComponents = $priceComponentsByContractId[$contract->id] ?? [];
-
-            $contractData = [
-                'contract_type' => $contract->contract_type,
-                'pricing_model' => $contract->pricing_model,
-                'metering' => $contract->metering,
-            ];
-
-            $result = $this->calculator->calculate($priceComponents, $contractData, $usage, $spotPriceDay, $spotPriceNight);
-            $totalCost = $result->totalCost;
+            $totalCost = $metric->sortKey();
 
             $contractCosts[] = [
                 'id' => $contract->id,
@@ -579,6 +542,7 @@ class ContractRankingService
             'company_ranks' => $companyRanks,
             'total_contracts' => count($contractCosts),
             'total_companies' => count($companyRanks),
+            'calculated_at' => $this->listCache->calculatedAt(),
         ];
     }
 }

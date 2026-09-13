@@ -161,7 +161,7 @@ class FetchContracts extends Command
         foreach ($postImport->requiredFailures as $stage => $message) {
             $this->error("Required post-import stage {$stage} failed.");
             $this->failureReporter->fail(match ($stage) {
-                'daily_statistics', 'cache_invalidation', 'contract_cache_version', 'company_cache_version' => $stage,
+                'daily_statistics', 'cache_invalidation', 'price_cache_refresh' => $stage,
                 default => 'required_post_import',
             });
         }

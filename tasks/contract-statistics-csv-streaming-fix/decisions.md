@@ -23,3 +23,12 @@ The parent reviewed the actual controller, test, and context diffs. A separately
 - Evidence: `/tmp/annual-v2-csv-candidate-benchmark.php`, `.json`; `/tmp/annual-v2-csv-candidate.csv`, `.stderr.log`; `/tmp/annual-v2-csv-fix-tests.log`, `-build.log`. Jobs `job-55742-188` and `job-55742-189` completed successfully.
 
 The user subsequently said **“Approve push and deploy”**, explicitly authorizing `git push origin main` to automatically deploy Voltikka / production / voltikka. Preflight confirms local and remote main at f651849 and the active bcb5a9e7 deployment at SUCCESS. The reviewed fix and rollout records are included in this release. After success, verify a complete public HTTP CSV download; the CLI benchmark does not substitute for that final check. No historical rebuild, method switch, or timeout change is included.
+
+## Approved release completed
+
+- Commit `722582c71a32fbaa4eb329b98b69d08539c9a74d`, pushed from main, deployed as `6ce82497-7275-4402-babd-dcbad23127e1`: SUCCESS.
+- Public HTTP CSV completed in **6.811 seconds**: all **28,819 rows**, **7,648 active v2 aggregates**, and exact field-for-field equality with the complete candidate. No error footer or missing tail.
+- Public statistics, consumption calculator, Helen Oy, and all four referenced assets return 200. Production manifest includes each file, including the statistics entry's CSS dependency.
+- Read-only exact-deployment checks pass for cached public v2, current provenance, all three readers, retained September 11 v1, unchanged unit/index payloads, and every protected baseline fingerprint.
+- Evidence: `/tmp/annual-v2-csv-release-public.json`, `-public-export.csv`, `-manifest.json`, `-readers.json`, `-fingerprints.json`; runner `/tmp/annual-v2-csv-release-verify.py`. Jobs 194/196/197 completed successfully under the `job-55742-` prefix.
+- Post-release notes remain local. No second push/deployment was issued for these records.

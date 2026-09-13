@@ -4,9 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\ActiveContract;
 use App\Models\Company;
+use App\Models\ContractInterpretation;
 use App\Models\ContractPriceSnapshot;
+use App\Models\ContractSourceObservation;
+use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
+use App\Services\Caching\ContractPageCacheVersion;
 use App\Services\CompanyListCacheService;
 use App\Services\ContractCard\Enums\PricingBucket;
 use App\Services\ContractListCacheService;
@@ -92,7 +96,7 @@ class AnnualConsumerConsistencyTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors('energy_usage.room_heating');
     }
 
-    public function test_same_service_instances_refresh_annual_results_at_helsinki_midnight(): void
+    public function test_shared_annual_prices_survive_midnight_until_an_explicit_successful_refresh(): void
     {
         config(['canonical_pricing.enabled' => true]);
         app()->forgetScopedInstances();
@@ -125,13 +129,11 @@ class AnnualConsumerConsistencyTest extends TestCase
         // UTC is still 31 August. Only the Helsinki calculation date has changed.
         $this->travelTo(CarbonImmutable::parse('2026-08-31 21:01:00', 'UTC'));
         $after = $list->getCachedMetrics(5000);
-        $this->assertNotSame($before, $after);
-        $this->assertGreaterThan($before->metric('promo')->pricing()->total(), $after->metric('promo')->pricing()->total());
-        $this->assertEqualsWithDelta(560, $after->metric('promo')->pricing()->total(), 0.01);
-        $this->assertGreaterThan($companyBefore, $companies->getCachedCompanies()->keyBy('company.name')['promo']['lowestPrice']);
-        $this->assertSame(2, $ranking->getContractRank('promo'));
-        $this->assertSame(2, $ranking->getRankForConsumption('promo', 5000));
-        $this->assertNotEquals($bucketBefore, $ranking->getBucketCostSummary('competitor', 5000, PricingBucket::Fixed));
+        $this->assertSame($before, $after);
+        $this->assertEquals($companyBefore, $companies->getCachedCompanies()->keyBy('company.name')['promo']['lowestPrice']);
+        $this->assertSame(1, $ranking->getContractRank('promo'));
+        $this->assertSame(1, $ranking->getRankForConsumption('promo', 5000));
+        $this->assertEquals($bucketBefore, $ranking->getBucketCostSummary('competitor', 5000, PricingBucket::Fixed));
         $apiAfter = $this->postJson('/api/calculate-price', ['contract_id' => 'promo', 'consumption' => 5001])->assertOk()->json('data.total_cost');
         $this->assertGreaterThan($apiBefore, $apiAfter);
         $this->assertEqualsWithDelta(560.1, $apiAfter, 0.01);
@@ -140,6 +142,98 @@ class AnnualConsumerConsistencyTest extends TestCase
         $statsAfter = ContractPriceSnapshot::where('contract_id', 'promo')->whereDate('snapshot_date', '2026-09-01')->value('annual_cost_5000_kwh');
         $this->assertGreaterThan($statsBefore, $statsAfter);
         $this->assertEqualsWithDelta(560, $statsAfter, 0.01);
+
+        $this->travel(3)->days();
+        app()->forgetScopedInstances();
+        $freshList = app(ContractListCacheService::class);
+        $this->assertEquals($before->toArray(), $freshList->getCachedMetrics(5000)->toArray());
+        $this->assertEquals($companyBefore, app(CompanyListCacheService::class)->getCachedCompanies()->keyBy('company.name')['promo']['lowestPrice']);
+        $this->assertSame(1, app(ContractRankingService::class)->getContractRank('promo'));
+        $freshList->refresh(app(CompanyListCacheService::class));
+        $this->assertEqualsWithDelta(560, $list->getCachedMetrics(5000)->metric('promo')->pricing()->total(), 0.01);
+        $this->assertSame(2, $ranking->getContractRank('promo'));
+        $this->assertGreaterThan($companyBefore, $companies->getCachedCompanies()->keyBy('company.name')['promo']['lowestPrice']);
+    }
+
+    public function test_corrected_canonical_prices_do_not_depend_on_relational_publication_but_require_current_evidence(): void
+    {
+        config(['canonical_pricing.enabled' => true]);
+        app()->forgetScopedInstances();
+        $contract = $this->contract('source-guard');
+        $pricing = $contract->canonical_pricing;
+        $intro = $pricing['phases'][0];
+        $intro['phase_kind'] = 'introductory';
+        $intro['ends'] = ['kind' => 'after_months', 'value' => '1'];
+        $intro['components'][0]['amount'] = 3;
+        $normal = $pricing['phases'][0];
+        $normal['phase_kind'] = 'normal';
+        $normal['starts'] = ['kind' => 'after_months', 'value' => '1'];
+        $normal['components'][0]['amount'] = 15;
+        $pricing['phases'] = [$intro, $normal];
+        $contract->update([
+            'canonical_pricing' => $pricing,
+            'canonical_source_consistency' => [
+                'misleading_first_12_months' => 'detected', 'structured_pricing_status' => 'complete',
+                'issue_codes' => ['structured_matches_intro_only', 'future_price_omitted'],
+            ],
+        ]);
+        $snapshot = ContractSourceSnapshot::create([
+            'contract_id' => $contract->id, 'source_fingerprint' => str_repeat('a', 64),
+            'source_payload' => [], 'first_observed_at' => now(), 'last_observed_at' => now(),
+        ]);
+        $observation = ContractSourceObservation::create([
+            'contract_id' => $contract->id, 'source_snapshot_id' => $snapshot->id,
+            'first_observed_at' => now(), 'last_observed_at' => now(),
+        ]);
+        $interpretation = ContractInterpretation::create([
+            'contract_id' => $contract->id, 'source_snapshot_id' => $snapshot->id,
+            'analysis_fingerprint' => str_repeat('b', 64), 'status' => 'published',
+            'schema_version' => 'test', 'prompt_version' => 'test', 'validator_version' => 'test',
+            'provider' => 'test', 'model' => 'test', 'relational_pricing_published' => false,
+        ]);
+        $contract->update(['current_source_observation_id' => $observation->id, 'published_interpretation_id' => $interpretation->id]);
+        $list = app(ContractListCacheService::class);
+        $companies = app(CompanyListCacheService::class);
+        $ranking = app(ContractRankingService::class);
+        $page = app(ContractPageCacheVersion::class);
+        $metric = $list->getCachedMetrics(5000)->metric($contract->id);
+        $this->assertTrue($metric->isListed());
+        $this->assertGreaterThan(700, $metric->pricing()->total());
+        $this->assertSame('canonical', $metric->pricing()->pricingBasis());
+        $this->assertCount(1, $companies->getCachedCompanies());
+        $this->assertSame(1, $ranking->getContractRank($contract->id));
+        $fingerprint = $page->hash();
+        $interpretation->update(['relational_pricing_published' => true]);
+        $this->assertSame($fingerprint, $page->hash());
+        $interpretation->update(['relational_pricing_published' => false]);
+        $this->assertSame($fingerprint, $page->hash());
+        $this->assertSame($metric->pricing()->total(), $list->getCachedMetrics(5000)->metric($contract->id)->pricing()->total());
+        $changed = $snapshot->replicate();
+        $changed->source_fingerprint = str_repeat('c', 64);
+        $changed->save();
+        $next = $observation->replicate();
+        $next->source_snapshot_id = $changed->id;
+        $next->save();
+        $contract->update(['current_source_observation_id' => $next->id]);
+        $this->assertNotSame($fingerprint, $page->hash());
+        $this->assertNull($ranking->getContractRank($contract->id));
+        $this->assertNull($list->getCachedMetrics(5000)->metric($contract->id)->pricing()->total());
+        // Even a successful cache rebuild must not turn an old publication into current facts.
+        $list->refresh($companies);
+        $this->assertNull($list->getCachedMetrics(5000)->metric($contract->id)->pricing()->total());
+        $this->assertCount(0, $companies->getCachedCompanies());
+
+        // A current publication with genuinely incomplete canonical prices is still excluded.
+        $currentPublication = $interpretation->replicate();
+        $currentPublication->source_snapshot_id = $changed->id;
+        $currentPublication->analysis_fingerprint = str_repeat('d', 64);
+        $currentPublication->save();
+        $pricing['phases'] = [];
+        $contract->update(['published_interpretation_id' => $currentPublication->id, 'canonical_pricing' => $pricing]);
+        $list->bumpVersion();
+        $list->refresh($companies);
+        $this->assertNull($list->getCachedMetrics(5000)->metric($contract->id)->pricing()->total());
+        $this->assertCount(0, $companies->getCachedCompanies());
     }
 
     private function contract(string $id, float $rate = 10): ElectricityContract

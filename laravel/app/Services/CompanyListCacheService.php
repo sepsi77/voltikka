@@ -4,17 +4,17 @@ namespace App\Services;
 
 use App\Enums\PricingModel;
 use App\Models\ElectricityContract;
+use App\Services\Caching\ContractPriceCacheLifecycle;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractPricing\ContractMetric;
+use App\Services\ContractPricing\ContractMetricSet;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
 
 class CompanyListCacheService
 {
-    private const CACHE_VERSION_KEY = 'company_list_cache_version';
-
     /**
      * Shape marker for the prepared company payload.
      *
@@ -23,33 +23,33 @@ class CompanyListCacheService
      */
     private const PAYLOAD_SCHEMA_VERSION = 2;
 
-    private const CACHE_TTL_SECONDS = 60 * 60 * 48; // 48 hours
-
     private const DEFAULT_CONSUMPTION = 5000;
 
     /** @var array<string, Collection<int, array<string, mixed>>> */
     private array $cachedCompaniesMemo = [];
 
-    private ?int $versionMemo = null;
-
     public function __construct(
         private readonly ContractListCacheService $contractListCache,
         private readonly CanonicalContractPricingService $canonicalPricing,
         private readonly PricingMode $pricingMode,
+        private readonly ContractPriceCacheLifecycle $lifecycle,
     ) {}
 
     public function getCachedCompanies(int $consumption = self::DEFAULT_CONSUMPTION): Collection
     {
-        $cacheKey = $this->getCacheKey($consumption);
+        $generation = $this->lifecycle->active();
+        $cacheKey = $this->getCacheKey($consumption, $generation);
         if (isset($this->cachedCompaniesMemo[$cacheKey])) {
             return $this->cachedCompaniesMemo[$cacheKey];
         }
 
-        return $this->cachedCompaniesMemo[$cacheKey] = Cache::remember(
-            $cacheKey,
-            self::CACHE_TTL_SECONDS,
-            fn () => $this->buildCachedCompanies($consumption)
-        );
+        $companies = Cache::get($cacheKey);
+        if ($companies === null) {
+            $companies = $this->buildCachedCompanies($consumption);
+            $this->lifecycle->write($generation, $cacheKey, $companies);
+        }
+
+        return $this->cachedCompaniesMemo[$cacheKey] = $companies;
     }
 
     public function warm(): void
@@ -59,9 +59,7 @@ class CompanyListCacheService
 
     public function bumpVersion(): int
     {
-        $version = $this->getVersion() + 1;
-        Cache::forever(self::CACHE_VERSION_KEY, $version);
-        $this->versionMemo = $version;
+        $version = $this->lifecycle->invalidate();
         $this->cachedCompaniesMemo = [];
 
         return $version;
@@ -69,26 +67,27 @@ class CompanyListCacheService
 
     public function getVersion(): int
     {
-        return $this->versionMemo ??= (int) Cache::get(self::CACHE_VERSION_KEY, 1);
+        return $this->lifecycle->active()['version'];
     }
 
-    private function getCacheKey(int $consumption): string
+    public function getCacheKey(int $consumption, ?array $generation = null): string
     {
         return sprintf(
-            'company_list:v%d:s%d:%s:lv%d:%s:%d:%s',
-            $this->getVersion(),
+            'company_list:v%d:s%d:%s:lv%d:%s:%d:g%s:%s',
+            ($generation ??= $this->lifecycle->active())['version'],
             self::PAYLOAD_SCHEMA_VERSION,
             CalculatedCostPayloadSchema::cacheMarker(),
-            $this->contractListCache->getVersion(),
+            $generation['version'],
             $this->pricingMode->cacheMarker(),
             $consumption,
-            now('Europe/Helsinki')->toDateString(),
+            $generation['generation'],
+            $this->contractListCache->safetyFingerprint(),
         );
     }
 
-    private function buildCachedCompanies(int $consumption): Collection
+    public function buildCachedCompanies(int $consumption, ?ContractMetricSet $cachedMetrics = null): Collection
     {
-        $cachedMetrics = $this->contractListCache->getCachedMetrics($consumption);
+        $cachedMetrics ??= $this->contractListCache->getCachedMetrics($consumption);
         if ($cachedMetrics === null) {
             throw new InvalidArgumentException('Company pricing requires a supported cached consumption.');
         }

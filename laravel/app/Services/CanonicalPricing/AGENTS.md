@@ -394,7 +394,8 @@ membership, fields, or structure changes. The import-driven version and the pric
 not move on a code-only deploy, so the shared schema marker prevents cards and aggregates from
 reading an old calculated-cost shape or pricing verdict. Company and
 ranking keys also include `ContractListCacheService::getVersion()`, so each published interpretation
-invalidates their data instead of leaving it stale for 48 hours or one hour.
+invalidates their data immediately. Shared list/company prices otherwise remain in the active
+verified generation until replacement; see `../Caching/AGENTS.md`.
 `ContractPricingIntegrity` gained typed `promo_rate_cents` /
 `normal_rate_cents` for the dated receipt rows; that was schema v2.
 
@@ -408,8 +409,9 @@ See `MarketReset/AGENTS.md` for the rule and invalid-index fallback.
 Schema **v16** invalidates pricing-semantic caches once for chronological unknown-period estimates,
 short-term/Hybrid coverage, no-overflow anniversary fees and bins, one-time charge identity,
 common flat default usage, reconciled annual equivalents, local Spot evidence and baseload fallback,
-and audience/component VAT normalization. List, company, and ranking keys also include the Helsinki
-calculation date; instance memos refresh at midnight even without an import. The version changes
+and audience/component VAT normalization. Its original midnight cache boundary has since been
+replaced by explicit verified annual-price generations; direct calculations still use their supplied
+or current start date. See `../Caching/AGENTS.md`. The version changes
 calculation output and caches only: it does not rewrite stored interpretations, historical snapshots,
 annual statistics, or old method evidence. Historical method facts below remain release history.
 

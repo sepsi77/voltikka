@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Livewire\ContractDetail;
 use App\Models\Company;
 use App\Models\ElectricityContract;
 use App\Models\ElectricityFuturesEodPrice;
@@ -14,10 +15,13 @@ use App\Services\CanonicalPricing\Enums\ComponentUnit;
 use App\Services\CanonicalPricing\Enums\MisleadingState;
 use App\Services\CanonicalPricing\Enums\PhaseKind;
 use App\Services\CanonicalPricing\Enums\PriceRole;
+use App\Services\ContractListCacheService;
+use Carbon\Carbon;
 use Database\Factories\Support\CanonicalPricingFixture;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -58,6 +62,114 @@ class ContractDetailPresenterTest extends TestCase
             'night_avg_with_tax' => 5.89,
             'hours_count' => 8760,
         ]);
+    }
+
+    public function test_hero_rank_note_keeps_the_retained_rank_consumption_date(): void
+    {
+        $this->travelTo(Carbon::parse('2026-07-25 12:00:00', 'Europe/Helsinki'));
+        $contract = $this->contract('retained-rank-date');
+        $marketCache = app(ContractListCacheService::class);
+        $retained = $marketCache->getCachedMetrics(10000)->toArray();
+
+        $this->travelTo(Carbon::parse('2026-07-26 12:00:00', 'Europe/Helsinki'));
+        $marketCache->getCachedMetrics(5000);
+        $component = new ContractDetail;
+        $component->mount($contract->id);
+        $component->consumption = 11000;
+
+        $this->assertSame('Sijoitus laskettu 25.7.2026.', $component->heroVerdict['note']);
+        $this->assertSame($retained, $marketCache->getCachedMetrics(10000)->toArray());
+        $this->get('/sahkosopimus/sopimus/'.$contract->id.'?kulutus=11000')
+            ->assertOk()
+            ->assertSee('Sijoitus laskettu 25.7.2026.')
+            ->assertDontSee('Sijoitus laskettu 26.7.2026.');
+    }
+
+    public static function rankCalculationDates(): array
+    {
+        return [
+            'Helsinki date differs from UTC' => ['2026-07-24T22:30:00+00:00', 'Sijoitus laskettu 25.7.2026.'],
+            'missing date' => [null, ''],
+        ];
+    }
+
+    #[DataProvider('rankCalculationDates')]
+    public function test_hero_rank_note_uses_helsinki_or_omits_an_unavailable_date(?string $calculatedAt, string $expected): void
+    {
+        $contract = $this->contract('rank-date');
+        $marketCache = \Mockery::mock(app(ContractListCacheService::class));
+        $marketCache->shouldReceive('calculatedAt')->with(10000)->once()->andReturn($calculatedAt);
+        $this->instance(ContractListCacheService::class, $marketCache);
+        $component = new ContractDetail;
+        $component->mount($contract->id);
+        $component->consumption = 11000;
+
+        $this->assertSame($expected, $component->heroVerdict['note']);
+    }
+
+    public static function tablePricingModes(): array
+    {
+        return [
+            'canonical' => [true, 8.45, 4.90],
+            'legacy' => [false, 7.2, 3.9],
+        ];
+    }
+
+    #[DataProvider('tablePricingModes')]
+    public function test_reference_table_tiers_do_not_read_through_market_caches(
+        bool $canonical,
+        float $energyPrice,
+        float $monthlyFee,
+    ): void {
+        config(['canonical_pricing.enabled' => $canonical]);
+        $contract = $this->contract('table-cache-policy', [
+            ...CanonicalPricingFixture::fixedAttributes(),
+            'contract_type' => 'FixedTerm',
+            'fixed_time_range' => '24',
+        ]);
+
+        app()->forgetScopedInstances();
+        $marketCache = app(ContractListCacheService::class);
+        $mock = \Mockery::mock($marketCache);
+        $mock->shouldReceive('getCachedMetrics')->with(5000)->atLeast()->once()
+            ->andReturnUsing(fn (int $consumption) => $marketCache->getCachedMetrics($consumption));
+        $mock->shouldNotReceive('getCachedMetrics')
+            ->withArgs(fn (int $consumption): bool => $consumption !== 5000);
+        $this->instance(ContractListCacheService::class, $mock);
+
+        $response = $this->get('/sahkosopimus/sopimus/'.$contract->id);
+        $response->assertOk()->assertSee('Arvioitu kustannus eri vuosikulutuksilla');
+
+        foreach ([2000, 5000, 10000, 18000] as $consumption) {
+            $response->assertSee(number_format($consumption, 0, ',', ' '))
+                ->assertSee(number_format($consumption * $energyPrice / 100 + 12 * $monthlyFee, 0, ',', ' '));
+        }
+
+        // A different selected tier must not make the other table tiers read the market.
+        $mock = \Mockery::mock($marketCache);
+        $mock->shouldReceive('getCachedMetrics')->with(10000)->atLeast()->once()
+            ->andReturnUsing(fn (int $consumption) => $marketCache->getCachedMetrics($consumption));
+        $mock->shouldNotReceive('getCachedMetrics')
+            ->withArgs(fn (int $consumption): bool => $consumption !== 10000);
+        $this->instance(ContractListCacheService::class, $mock);
+        $component = new ContractDetail;
+        $component->mount($contract->id);
+        $component->consumption = 10000;
+        $rows = $component->getConsumptionCostTableProperty();
+        $this->assertSame([2000, 5000, 10000, 18000], array_column($rows, 'consumption'));
+
+        $pricing = new \ReflectionMethod(ContractDetail::class, 'pricingViewDataFor');
+        foreach ($rows as $row) {
+            $this->assertEqualsWithDelta(
+                $row['consumption'] * $energyPrice / 100 + 12 * $monthlyFee,
+                $row['total_cost'],
+                0.01,
+            );
+            $this->assertSame(
+                $pricing->invoke($component, $row['consumption']),
+                $pricing->invoke($component, $row['consumption']),
+            );
+        }
     }
 
     /**

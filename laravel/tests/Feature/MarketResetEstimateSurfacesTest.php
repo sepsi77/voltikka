@@ -84,10 +84,10 @@ class MarketResetEstimateSurfacesTest extends TestCase
 
         $keys = $this->cacheKeysMatching('contract_rankings');
 
-        $date = CarbonImmutable::now('Europe/Helsinki')->toDateString();
-        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':s2:'.CalculatedCostPayloadSchema::cacheMarker().':')));
-        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_ends_with($key, ':c0r1:'.$date)));
-        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_ends_with($key, ':c0r0:'.$date)));
+        $evidence = app(ContractListCacheService::class)->safetyFingerprint();
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_contains($key, ':s3:'.CalculatedCostPayloadSchema::cacheMarker().':')));
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_ends_with($key, ':c0r1:'.$evidence)));
+        $this->assertNotEmpty(array_filter($keys, fn (string $key) => str_ends_with($key, ':c0r0:'.$evidence)));
     }
 
     public function test_pricing_mode_is_an_immutable_scoped_snapshot(): void

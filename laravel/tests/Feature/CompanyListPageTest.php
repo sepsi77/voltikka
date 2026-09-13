@@ -1072,11 +1072,11 @@ class CompanyListPageTest extends TestCase
         $keys = $this->cacheKeysMatching('company_list:');
 
         $schema = CalculatedCostPayloadSchema::cacheMarker();
-        $date = now('Europe/Helsinki')->toDateString();
-        $this->assertContains("company_list:v1:s2:{$schema}:lv1:c0r0:5000:{$date}", $keys);
-        $this->assertContains("company_list:v1:s2:{$schema}:lv1:c1r0:5000:{$date}", $keys);
-        $this->assertContains("company_list:v1:s2:{$schema}:lv1:c1r1:5000:{$date}", $keys);
-        $this->assertContains("company_list:v1:s2:{$schema}:lv2:c1r1:5000:{$date}", $keys);
+        foreach (['v1:c0r0', 'v1:c1r0', 'v1:c1r1', 'v2:c1r1'] as $marker) {
+            [$version, $mode] = explode(':', $marker);
+            $prefix = "company_list:{$version}:s2:{$schema}:l{$version}:{$mode}:5000:g";
+            $this->assertCount(1, array_filter($keys, fn ($key) => str_starts_with($key, $prefix)));
+        }
     }
 
     private function createCanonicalContract(

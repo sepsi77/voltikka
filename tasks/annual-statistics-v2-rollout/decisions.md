@@ -102,6 +102,12 @@ At Helsinki `2026-09-11T21:45:11+03:00`:
 - Full suite: 2,285 tests / 10,862 assertions; asset build and diff checks passed. Evidence and release scope are in `tasks/contract-statistics-csv-streaming-fix/decisions.md`.
 - No code push or production installation occurred. Request separate approval for `git push origin main` to auto-deploy Voltikka / production / voltikka, then verify the exact deployment and complete public HTTP CSV. V2 remains active; no historical overwrite or timeout change is part of this release.
 
+## Rollout complete — CSV release and final verification passed
+- User explicitly approved push/deploy. Commit `722582c71a32fbaa4eb329b98b69d08539c9a74d` was pushed from main; exact deployment `6ce82497-7275-4402-babd-dcbad23127e1` reached SUCCESS (poll job `job-55742-194`).
+- Full public CSV: HTTP 200, 28,819 complete rows, 7,648 active v2 aggregates, 6.811 seconds. Every field matches the read-only candidate. Core public pages and all four CSS/JS assets pass; assets match the production manifest and its CSS dependency lists.
+- Exact-deployment cached public v2, current provenance, statistics/consumption/Helen Oy readers, retained September 11 v1, and unchanged unit/index payloads pass. Final protected fingerprints at 20:04:53 Helsinki match the original baseline; historical v2 remains 213,755 rows / 7,618 aggregates.
+- The final rollout task is complete. See `activation-results.md` and `tasks/contract-statistics-csv-streaming-fix/decisions.md` for artifacts. Result notes remain local; no extra documentation-only push, timeout change, historical rebuild, or rollback occurred.
+
 ## General review requirements
 - Merge only completed date summaries, ensure no duplicate or omitted available evidence dates, and report partial coverage if any batch fails.
 - Check new/lost contract-consumption identities, aggregate coverage, unavailable reasons, and significant deltas. The first portion includes a maximum matched aggregate median increase of about €1,799 on 2026-04-08; this is across multiple consumption levels, not a 5,000-kWh claim. Inspect the segment and estimation basis before accepting it.

@@ -8,17 +8,17 @@ use Illuminate\Console\Command;
 
 class WarmContractListCache extends Command
 {
-    protected $signature = 'contracts:warm-cache {--refresh : Bump cache version before warming}';
+    protected $signature = 'contracts:warm-cache {--refresh : Build and verify a replacement before activating it}';
 
     protected $description = 'Warm cached contract list calculations for common consumption presets';
 
     public function handle(ContractListCacheService $contractListCache, CompanyListCacheService $companyListCache): int
     {
         if ($this->option('refresh')) {
-            $version = $contractListCache->bumpVersion();
-            $companyVersion = $companyListCache->bumpVersion();
-            $this->info("Contract list cache version bumped to {$version}.");
-            $this->info("Company list cache version bumped to {$companyVersion}.");
+            $version = $contractListCache->refresh($companyListCache);
+            $this->info("Contract and company price cache version {$version} activated.");
+
+            return self::SUCCESS;
         }
 
         $this->info('Warming contract list preset caches...');

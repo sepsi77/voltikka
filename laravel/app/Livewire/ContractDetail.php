@@ -1034,12 +1034,15 @@ class ContractDetail extends Component
             return $this->pricingViewDataCache[$consumption] = null;
         }
 
-        /** @var ContractListCacheService $contractListCache */
-        $contractListCache = app(ContractListCacheService::class);
-        $cachedMetric = $contractListCache->getCachedMetrics($consumption)?->metric($contract->id);
+        // Reference table tiers must not build whole-market caches on a detail request.
+        if ($consumption === $this->consumption) {
+            /** @var ContractListCacheService $contractListCache */
+            $contractListCache = app(ContractListCacheService::class);
+            $cachedMetric = $contractListCache->getCachedMetrics($consumption)?->metric($contract->id);
 
-        if ($cachedMetric !== null) {
-            return $this->pricingViewDataCache[$consumption] = $cachedMetric->pricing();
+            if ($cachedMetric !== null) {
+                return $this->pricingViewDataCache[$consumption] = $cachedMetric->pricing();
+            }
         }
 
         $usage = new EnergyUsage(
@@ -1451,7 +1454,10 @@ class ContractDetail extends Component
      */
     protected function heroVerdictNote(): string
     {
-        $note = 'Sijoitus laskettu '.now()->format('j.n.Y').'.';
+        $calculatedAt = app(ContractListCacheService::class)->calculatedAt($this->rankConsumption());
+        $note = $calculatedAt === null
+            ? ''
+            : 'Sijoitus laskettu '.Carbon::parse($calculatedAt)->setTimezone('Europe/Helsinki')->format('j.n.Y').'.';
 
         if ($this->pricingFacts()->isSpot) {
             return $note;
@@ -1469,7 +1475,7 @@ class ContractDetail extends Component
             return $note;
         }
 
-        return $note.' Vertailun halvimmat sopimukset ovat pääosin pörssisähköä, jonka vuosihinta on arvio.';
+        return trim($note.' Vertailun halvimmat sopimukset ovat pääosin pörssisähköä, jonka vuosihinta on arvio.');
     }
 
     /**

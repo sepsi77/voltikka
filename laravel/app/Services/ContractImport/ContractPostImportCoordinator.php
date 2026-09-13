@@ -9,10 +9,9 @@ use App\Services\ContractInterpretation\ContractInterpretationDispatcher;
 use App\Services\ContractListCacheService;
 use App\Services\ContractStatistics\ContractPercentileService;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
+use App\Services\SitemapService;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
-use Illuminate\Contracts\Config\Repository as ConfigRepository;
-use Illuminate\Database\DatabaseManager;
 use Throwable;
 
 class ContractPostImportCoordinator
@@ -24,8 +23,6 @@ class ContractPostImportCoordinator
         private readonly CompanyListCacheService $companyListCache,
         private readonly ContractPercentileService $percentiles,
         private readonly CacheFactory $cache,
-        private readonly ConfigRepository $config,
-        private readonly DatabaseManager $database,
     ) {}
 
     public function run(ContractImportResult $import, string $importDate): ContractPostImportResult
@@ -70,35 +67,11 @@ class ContractPostImportCoordinator
             $requiredFailures['cache_invalidation'] = $exception->getMessage();
         }
 
-        $contractVersionBumped = false;
-        try {
-            $this->contractListCache->bumpVersion();
-            $contractVersionBumped = true;
-        } catch (Throwable $exception) {
-            $requiredFailures['contract_cache_version'] = $exception->getMessage();
-        }
-
-        $companyVersionBumped = false;
-        try {
-            $this->companyListCache->bumpVersion();
-            $companyVersionBumped = true;
-        } catch (Throwable $exception) {
-            $requiredFailures['company_cache_version'] = $exception->getMessage();
-        }
-
-        if ($contractVersionBumped) {
+        if ($import->complete && $statisticsSucceeded) {
             try {
-                $this->contractListCache->warmPresetCaches();
+                $this->contractListCache->refresh($this->companyListCache);
             } catch (Throwable $exception) {
-                $optionalFailures['contract_cache_warm'] = $exception->getMessage();
-            }
-        }
-
-        if ($companyVersionBumped) {
-            try {
-                $this->companyListCache->warm();
-            } catch (Throwable $exception) {
-                $optionalFailures['company_cache_warm'] = $exception->getMessage();
+                $requiredFailures['price_cache_refresh'] = $exception->getMessage();
             }
         }
 
@@ -125,24 +98,8 @@ class ContractPostImportCoordinator
         );
     }
 
-    /**
-     * Database cache uses TRUNCATE so expired large rows release InnoDB space.
-     */
     private function clearStaleApplicationCache(): void
     {
-        $defaultStore = $this->config->get('cache.default');
-        $storeConfig = $this->config->get("cache.stores.{$defaultStore}", []);
-
-        if (($storeConfig['driver'] ?? null) === 'database') {
-            $connectionName = $storeConfig['connection'] ?? $this->config->get('database.default');
-            $table = $storeConfig['table'] ?? 'cache';
-            $connection = $this->database->connection($connectionName);
-            $wrappedTable = $connection->getQueryGrammar()->wrapTable($table);
-            $connection->statement("TRUNCATE TABLE {$wrappedTable}");
-
-            return;
-        }
-
-        $this->cache->store($defaultStore)->clear();
+        $this->cache->store()->forget(SitemapService::CACHE_KEY);
     }
 }

@@ -16,6 +16,14 @@ Schedule::command('contracts:fetch')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/contracts-fetch.log'));
 
+// Delete only tracked retired price-cache payloads, after their one-hour reader grace period.
+Schedule::command('contracts:cleanup-price-cache')
+    ->everyFiveMinutes()
+    ->timezone('Europe/Helsinki')
+    ->withoutOverlapping(10)
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/contract-price-cache-cleanup.log'));
+
 // Schedule the spot:fetch command to run hourly
 Schedule::command('spot:fetch')
     ->hourly()

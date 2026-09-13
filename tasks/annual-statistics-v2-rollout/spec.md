@@ -4,7 +4,10 @@
 After the approved code deployment, preview and prepare the historical correction and public v2 activation. Follow `../annual-statistics-correction/rollout.md`.
 
 ## Approval boundary
-The user confirmed the production code release and confirmed that a full database backup is verified. This is operator confirmation, not agent verification of an archive. The user then requested the historical rollout after deployment. Exact apply ranges, commands, expected changes, and the public method switch still require explicit production-operation approval after the read-only review.
+The user confirmed the production code release and confirmed that a full database backup is verified. This is operator confirmation, not agent verification of an archive. The user then requested the historical rollout after deployment. Exact historical batches, public activation, and the later CSV code release each received separate explicit approval after review. Any further production mutation still requires its own approval.
+
+## Completed — 2026-09-12
+All 233 historical evidence dates are applied and verified; public v2 is active. The separately approved CSV release `722582c` is deployed, and complete public HTTP export, core readers, assets, retained v1, and protected source fingerprints pass. See `apply-results.md` and `activation-results.md`. No historical recalculation or method switch accompanied the CSV release.
 
 ## Target
 Railway Breezily / Voltikka / production / voltikka:

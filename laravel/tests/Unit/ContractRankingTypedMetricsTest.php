@@ -2,6 +2,8 @@
 
 namespace Tests\Unit;
 
+use App\Services\Caching\ContractPriceCacheEvidence;
+use App\Services\Caching\ContractPriceCacheLifecycle;
 use App\Services\CalculatedCostPayloadSchema;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\PricingMode;
@@ -18,7 +20,11 @@ class ContractRankingTypedMetricsTest extends TestCase
     public function test_a_cached_metric_without_a_total_fails_before_it_can_become_a_zero_euro_recommendation(): void
     {
         Cache::flush();
-        Cache::put('contract_list_metrics:v1:s'.CalculatedCostPayloadSchema::VERSION.':c0r0:5000:'.now('Europe/Helsinki')->toDateString(), [
+        $lifecycle = app(ContractPriceCacheLifecycle::class);
+        $generation = $lifecycle->active()['generation'];
+        $evidence = $this->createMock(ContractPriceCacheEvidence::class);
+        $evidence->method('current')->willReturn([]);
+        Cache::put('contract_list_metrics:v1:s'.CalculatedCostPayloadSchema::VERSION.':c0r0:5000:g'.$generation, [
             'contracts' => [
                 'cheap' => [
                     'calculated_cost' => $this->legacyPricingWithoutTotal(),
@@ -44,6 +50,8 @@ class ContractRankingTypedMetricsTest extends TestCase
             $this->createMock(CO2EmissionsCalculator::class),
             $canonical,
             $mode,
+            $lifecycle,
+            $evidence,
         );
         $ranking = new ContractRankingService(
             $this->createMock(ContractPriceCalculator::class),

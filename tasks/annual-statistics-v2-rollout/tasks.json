@@ -6,5 +6,5 @@
   {"name":"Review coverage and numerical changes; obtain exact apply approval","status":"completed"},
   {"name":"Apply reviewed historical dates and verify preserved evidence","status":"completed"},
   {"name":"Verify current v2 coverage and obtain public activation approval","status":"completed"},
-  {"name":"Activate and verify public readers","status":"in_progress"}
+  {"name":"Activate and verify public readers","status":"completed"}
 ]

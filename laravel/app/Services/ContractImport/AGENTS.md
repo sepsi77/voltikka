@@ -30,18 +30,17 @@ This directory owns the authoritative contract import and its post-import work.
 Required work:
 
 - capture `statisticsStartedAt` immediately before the daily statistics call, calculate from active contract IDs with overwrite enabled, then capture `statisticsCompletedAt` immediately after the call succeeds
-- invalidate stale application cache data
-- bump contract and company cache versions
+- forget the owned sitemap cache key without clearing unrelated application entries or locks
+- for complete imports after successful statistics, build and verify all eight annual presets plus candidate company/5,000, then activate one shared generation; failures report the required `price_cache_refresh` stage and retain the prior active pointer
 
 Optional work:
 
 - send each observed pointed episode through the idempotent interpretation dispatcher
-- warm contract and company caches
 - dispatch `WarmContractPriceStatisticsCache` for weekly and 5,000 kWh
 - calculate contract percentiles
 
 Each stage has its own failure boundary. One interpretation failure must not stop a later snapshot. A required failure makes `contracts:fetch` fail, but safe later stages still run. The command combines required stage codes, acquisition failures, and checkpoint failures into one explicit Sentry Issue and safe aggregate Laravel log at its outcome boundary. It never sends the result's failure message text to Sentry. Partial acquisition keeps its existing success exit and reports warning severity; terminal failures report error severity. Optional stages do not create import Issues.
 
-Database cache invalidation uses `TRUNCATE TABLE`. Other cache stores use the cache repository API directly. The coordinator does not call nested Artisan commands and does not use `app()` service location.
+No cache store is flushed or truncated. Price-cache replacement uses `ContractListCacheService::refresh()` and `Caching/ContractPriceCacheLifecycle`; see `../Caching/AGENTS.md`. Partial imports and statistics failures never start replacement. Interpretation dispatch remains before statistics and can independently invalidate unsafe prices immediately; a failed refresh does not undo those safety invalidations. The coordinator does not call nested Artisan commands and does not use `app()` service location.
 
 `contracts:fetch` writes the global `contract_import` freshness checkpoint only when `--postcodes` is absent. It first overwrites the same-date fact with `failed` before acquisition, so a crash cannot leave an older ready fact; failure of this first write stops the command. Full acquisition/import/required-stage failures are `failed`, a partial acquisition is `incomplete`, and complete successful post-import work is `ready`. Ready metadata uses `observed_source_observation_ids`, active IDs, and both statistics timestamps. Old `observed_snapshot_ids` metadata fails closed. A postcode-scoped run must never overwrite this global fact.

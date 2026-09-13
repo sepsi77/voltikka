@@ -2,6 +2,8 @@
 
 namespace Tests\Unit;
 
+use App\Services\Caching\ContractPriceCacheEvidence;
+use App\Services\Caching\ContractPriceCacheLifecycle;
 use App\Services\CalculatedCostPayloadSchema;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\PricingMode;
@@ -33,16 +35,12 @@ class ContractRequestMemoizationTest extends TestCase
             'consumption' => 5000,
         ];
 
-        Cache::shouldReceive('get')
-            ->once()
-            ->with('contract_list_cache_version', 1)
-            ->andReturn(7);
-
-        Cache::shouldReceive('remember')
-            ->once()
-            // v7 = import-driven data version, s15 = calculated-cost payload schema,
-            // c0r0 = canonical pricing off, market-reset forward shift off.
-            ->with('contract_list_metrics:v7:s'.CalculatedCostPayloadSchema::VERSION.':c0r0:5000:'.now('Europe/Helsinki')->toDateString(), 60 * 60 * 48, \Mockery::type(\Closure::class))
+        $lifecycle = $this->createMock(ContractPriceCacheLifecycle::class);
+        $lifecycle->method('active')->willReturn(['version' => 7, 'generation' => 'test']);
+        $evidence = $this->createMock(ContractPriceCacheEvidence::class);
+        $evidence->method('current')->willReturn([]);
+        Cache::shouldReceive('get')->once()
+            ->with('contract_list_metrics:v7:s'.CalculatedCostPayloadSchema::VERSION.':c0r0:5000:gtest')
             ->andReturn($metrics);
 
         $canonical = $this->createMock(CanonicalContractPricingService::class);
@@ -53,6 +51,8 @@ class ContractRequestMemoizationTest extends TestCase
             $this->createMock(CO2EmissionsCalculator::class),
             $canonical,
             new PricingMode(canonicalPricingEnabled: false, resetForwardShiftEnabled: false),
+            $lifecycle,
+            $evidence,
         );
 
         $first = $service->getCachedMetrics(5000);
@@ -67,17 +67,10 @@ class ContractRequestMemoizationTest extends TestCase
     {
         $companies = collect();
 
-        Cache::shouldReceive('get')
-            ->once()
-            ->with('company_list_cache_version', 1)
-            ->andReturn(4);
-
-        Cache::shouldReceive('remember')
-            ->once()
-            // v4 = company import version, s2 = company payload schema,
-            // cs15 = calculated-cost schema, lv7 = contract pricing data version,
-            // c1r0 = pricing mode.
-            ->with('company_list:v4:s2:'.CalculatedCostPayloadSchema::cacheMarker().':lv7:c1r0:5000:'.now('Europe/Helsinki')->toDateString(), 60 * 60 * 48, \Mockery::type(\Closure::class))
+        $lifecycle = $this->createMock(ContractPriceCacheLifecycle::class);
+        $lifecycle->method('active')->willReturn(['version' => 7, 'generation' => 'test']);
+        Cache::shouldReceive('get')->once()
+            ->with('company_list:v7:s2:'.CalculatedCostPayloadSchema::cacheMarker().':lv7:c1r0:5000:gtest:')
             ->andReturn($companies);
 
         $listCache = $this->createMock(ContractListCacheService::class);
@@ -91,6 +84,7 @@ class ContractRequestMemoizationTest extends TestCase
             $listCache,
             $canonical,
             new PricingMode(canonicalPricingEnabled: true, resetForwardShiftEnabled: false),
+            $lifecycle,
         );
 
         $this->assertSame($companies, $service->getCachedCompanies(5000));
@@ -108,9 +102,9 @@ class ContractRequestMemoizationTest extends TestCase
 
         Cache::shouldReceive('remember')
             ->once()
-            // s2 = ranking payload schema; cs15 = calculated-cost schema;
+            // s3 = ranking payload schema; shared calculated-cost schema;
             // lv7 = contract pricing data version; c0r0 = pricing mode.
-            ->with('contract_rankings_5000kwh:s2:'.CalculatedCostPayloadSchema::cacheMarker().':lv7:c0r0:'.now('Europe/Helsinki')->toDateString(), 3600, \Mockery::type(\Closure::class))
+            ->with('contract_rankings_5000kwh:s3:'.CalculatedCostPayloadSchema::cacheMarker().':lv7:g:c0r0:', 3600, \Mockery::type(\Closure::class))
             ->andReturn($rankings);
 
         $listCache = $this->createMock(ContractListCacheService::class);

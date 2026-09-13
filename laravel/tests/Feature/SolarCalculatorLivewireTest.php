@@ -8,6 +8,7 @@ use App\Services\DTO\GeocodingResult;
 use App\Services\DTO\SolarEstimateResult;
 use App\Services\SolarCalculatorService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -250,6 +251,30 @@ class SolarCalculatorLivewireTest extends TestCase
             ->assertSet('showSuggestions', false)
             ->assertNotSet('addressNotice', null)
             ->assertSee('Osoitetta ei löytynyt');
+    }
+
+    public function test_address_connection_timeout_clears_suggestions_and_shows_notice(): void
+    {
+        $this->mock(SolarCalculatorService::class)
+            ->shouldReceive('calculate')
+            ->andReturn(new SolarEstimateResult(4500.0, array_fill(0, 12, 375), []));
+
+        $this->mock(DigitransitGeocodingService::class)
+            ->shouldReceive('search')
+            ->with('Helsinki')
+            ->once()
+            ->andThrow(new ConnectionException('cURL error 28: Connection timed out'));
+
+        $notice = 'Osoitehaku ei juuri nyt onnistu. Yritä hetken kuluttua uudelleen.';
+
+        Livewire::test(SolarCalculator::class)
+            ->set('addressSuggestions', [['label' => 'Old address', 'lat' => 60.0, 'lon' => 25.0]])
+            ->set('showSuggestions', true)
+            ->set('addressQuery', 'Helsinki')
+            ->assertSet('addressSuggestions', [])
+            ->assertSet('showSuggestions', false)
+            ->assertSet('addressNotice', $notice)
+            ->assertSee($notice);
     }
 
     public function test_route_is_named_correctly(): void

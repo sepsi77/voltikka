@@ -4,7 +4,9 @@ namespace Tests\Unit;
 
 use App\Services\DigitransitGeocodingService;
 use App\Services\DTO\GeocodingResult;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -144,29 +146,65 @@ class DigitransitGeocodingServiceTest extends TestCase
         Http::assertSentCount(2);
     }
 
-    public function test_search_retries_on_server_error(): void
+    public function test_search_uses_interactive_request_timeouts(): void
+    {
+        Http::fake(function (Request $request, array $options) {
+            $this->assertSame(2, $options['connect_timeout']);
+            $this->assertSame(5, $options['timeout']);
+
+            return Http::response(['features' => []], 200);
+        });
+
+        (new DigitransitGeocodingService())->search('Helsinki');
+
+        Http::assertSentCount(1);
+    }
+
+    public function test_server_error_is_not_retried_or_cached(): void
     {
         $attempts = 0;
-        Http::fake(function ($request) use (&$attempts) {
+        Http::fake(function () use (&$attempts) {
             $attempts++;
-            if ($attempts < 3) {
-                return Http::response(['error' => 'Temporary Error'], 503);
-            }
-            return Http::response([
-                'features' => [
-                    [
-                        'properties' => ['label' => 'Success after retry'],
-                        'geometry' => ['coordinates' => [25.0, 60.0]],
-                    ],
-                ],
-            ], 200);
+
+            return Http::response(['error' => 'Temporary Error'], 503);
         });
 
         $service = new DigitransitGeocodingService();
-        $results = $service->search('Retry Test');
 
-        $this->assertCount(1, $results);
-        $this->assertEquals('Success after retry', $results[0]->label);
-        $this->assertEquals(3, $attempts);
+        for ($search = 1; $search <= 2; $search++) {
+            try {
+                $service->search('Helsinki');
+                $this->fail('Expected a request exception.');
+            } catch (RequestException $exception) {
+                $this->assertSame(503, $exception->response->status());
+            }
+
+            $this->assertSame($search, $attempts);
+            $this->assertFalse(Cache::has('digitransit:geocode:' . md5('Helsinki')));
+        }
+    }
+
+    public function test_connection_timeout_is_not_retried_or_cached(): void
+    {
+        $attempts = 0;
+        Http::fake(function () use (&$attempts) {
+            $attempts++;
+
+            throw new ConnectionException('cURL error 28: Connection timed out');
+        });
+
+        $service = new DigitransitGeocodingService();
+
+        for ($search = 1; $search <= 2; $search++) {
+            try {
+                $service->search('Helsinki');
+                $this->fail('Expected a connection exception.');
+            } catch (ConnectionException $exception) {
+                $this->assertStringContainsString('cURL error 28', $exception->getMessage());
+            }
+
+            $this->assertSame($search, $attempts);
+            $this->assertFalse(Cache::has('digitransit:geocode:' . md5('Helsinki')));
+        }
     }
 }

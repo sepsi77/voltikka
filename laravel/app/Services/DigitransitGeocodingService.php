@@ -10,8 +10,6 @@ use Illuminate\Support\Facades\Log;
 
 class DigitransitGeocodingService
 {
-    private const MAX_RETRIES = 3;
-    private const RETRY_DELAY_MS = 500;
     private const CACHE_TTL_DAYS = 7;
 
     /**
@@ -44,10 +42,8 @@ class DigitransitGeocodingService
 
         $url = $baseUrl . '/autocomplete';
 
-        $response = Http::retry(self::MAX_RETRIES, self::RETRY_DELAY_MS, function ($exception, $request) {
-            return $exception instanceof RequestException
-                && ($exception->response?->serverError() || $exception->response === null);
-        })
+        $response = Http::connectTimeout(2)
+            ->timeout(5)
             ->withHeaders([
                 'digitransit-subscription-key' => $apiKey,
             ])

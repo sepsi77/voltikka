@@ -4,7 +4,13 @@ namespace App\Services;
 
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
+use App\Services\Caching\ContractPriceCacheEvidence;
+use App\Services\Caching\ContractPriceCacheLifecycle;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
+use App\Services\CanonicalPricing\DTO\CanonicalPricingOutcome;
+use App\Services\CanonicalPricing\DTO\ContractPricingIntegrity;
+use App\Services\CanonicalPricing\Enums\ContractComparability;
+use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\CanonicalPricing\PricingMode;
 use App\Services\ContractPricing\CanonicalContractMetric;
 use App\Services\ContractPricing\ContractMetricSet;
@@ -15,16 +21,16 @@ use InvalidArgumentException;
 
 class ContractListCacheService
 {
-    private const CACHE_VERSION_KEY = 'contract_list_cache_version';
+    // Generation keys remain private until every required payload is verified.
 
     /**
      * Shape marker for the cached metrics payload itself.
      *
-     * The stored version key only advances on a data import, and the c/r markers only track
+     * The public version advances on refresh or immediate invalidation; c/r markers track
      * feature flags, so neither busts the cache when a deploy changes what the payload
      * CONTAINS. Bump this whenever a field is added to or removed from the cached
      * `calculated_cost` / `pricing_integrity` arrays, otherwise cards read a stale shape and
-     * silently fall back for up to 48 hours after release.
+     * silently reuse an old payload until the next successful refresh.
      *
      * v2: `pricing_integrity` gained `promo_rate_cents` / `normal_rate_cents`, which the
      * contract card renders as two dated receipt rows.
@@ -40,7 +46,6 @@ class ContractListCacheService
      * v10: short BaseOnlyHybrid outcomes preserve real-term totals and offer savings.
      * v11: `other` cadence recurring resets become eligible canonical list estimates.
      */
-    private const CACHE_TTL_SECONDS = 60 * 60 * 48; // 48 hours
 
     /**
      * Preset consumptions used in the UI and SEO pages.
@@ -54,6 +59,8 @@ class ContractListCacheService
         private readonly CO2EmissionsCalculator $emissionsCalculator,
         private readonly CanonicalContractPricingService $canonicalPricing,
         private readonly PricingMode $pricingMode,
+        private readonly ContractPriceCacheLifecycle $lifecycle,
+        private readonly ContractPriceCacheEvidence $evidence,
     ) {}
 
     /**
@@ -66,7 +73,15 @@ class ContractListCacheService
      */
     private array $cachedMetricsMemo = [];
 
-    private ?int $versionMemo = null;
+    public function safetyFingerprint(): string
+    {
+        return $this->evidence->fingerprint();
+    }
+
+    public function calculatedAt(int $consumption = 5000): ?string
+    {
+        return $this->getCachedMetrics($consumption)?->toArray()['calculated_at'] ?? null;
+    }
 
     public function supportsConsumption(int $consumption): bool
     {
@@ -79,22 +94,25 @@ class ContractListCacheService
             return null;
         }
 
-        $cacheKey = $this->getCacheKey($consumption);
-        if (array_key_exists($cacheKey, $this->cachedMetricsMemo)) {
-            return $this->cachedMetricsMemo[$cacheKey];
+        $generation = $this->lifecycle->active();
+        $cacheKey = $this->getCacheKey($consumption, $generation);
+        $current = $this->evidence->current();
+        $memoKey = $cacheKey.':'.hash('sha256', serialize($current));
+        if (array_key_exists($memoKey, $this->cachedMetricsMemo)) {
+            return $this->cachedMetricsMemo[$memoKey];
         }
 
-        $payload = Cache::remember(
-            $cacheKey,
-            self::CACHE_TTL_SECONDS,
-            fn (): array => $this->buildCachedMetrics($consumption)->toArray(),
-        );
+        $payload = Cache::get($cacheKey);
+        if ($payload === null) {
+            $payload = $this->buildCachedMetrics($consumption)->toArray();
+            $this->lifecycle->write($generation, $cacheKey, $payload);
+        }
 
         if (! is_array($payload)) {
             throw new InvalidArgumentException('Cached contract metrics must be an array payload.');
         }
 
-        return $this->cachedMetricsMemo[$cacheKey] = ContractMetricSet::fromArray($payload);
+        return $this->cachedMetricsMemo[$memoKey] = $this->guardEvidence($payload, $current);
     }
 
     public function warmPresetCaches(): void
@@ -107,9 +125,7 @@ class ContractListCacheService
 
     public function bumpVersion(): int
     {
-        $version = $this->getVersion() + 1;
-        Cache::forever(self::CACHE_VERSION_KEY, $version);
-        $this->versionMemo = $version;
+        $version = $this->lifecycle->invalidate();
         $this->cachedMetricsMemo = [];
 
         return $version;
@@ -117,27 +133,124 @@ class ContractListCacheService
 
     public function getVersion(): int
     {
-        return $this->versionMemo ??= (int) Cache::get(self::CACHE_VERSION_KEY, 1);
+        return $this->lifecycle->active()['version'];
     }
 
-    private function getCacheKey(int $consumption): string
+    public function getGeneration(): string
+    {
+        return $this->lifecycle->active()['generation'];
+    }
+
+    public function getCacheKey(int $consumption, ?array $generation = null): string
     {
         // The pricing-basis marker (c1/c0) makes toggling CANONICAL_PRICING_ENABLED bust the
         // cache immediately instead of waiting for the next import version bump. The r1/r0
         // marker does the same for RESET_FORWARD_SHIFT_ENABLED, which changes market-reset
         // totals and therefore the sorted order.
         return sprintf(
-            'contract_list_metrics:v%d:s%d:%s:%d:%s',
-            $this->getVersion(),
+            'contract_list_metrics:v%d:s%d:%s:%d:g%s',
+            ($generation ??= $this->lifecycle->active())['version'],
             CalculatedCostPayloadSchema::VERSION,
             $this->pricingMode->cacheMarker(),
             $consumption,
-            now('Europe/Helsinki')->toDateString(),
+            $generation['generation'],
         );
     }
 
-    private function buildCachedMetrics(int $consumption): ContractMetricSet
+    public function refresh(CompanyListCacheService $companies): int
     {
+        $starting = $this->lifecycle->active();
+        $candidate = $this->lifecycle->candidate($starting);
+        $expected = [];
+        $source = $this->safetyFingerprint();
+        try {
+            foreach (self::PRESET_CONSUMPTIONS as $consumption) {
+                $metrics = $this->buildCachedMetrics($consumption);
+                $payload = $metrics->toArray();
+                $key = $this->getCacheKey($consumption, $candidate);
+                $this->lifecycle->write($candidate, $key, $payload, true);
+                $expected[$key] = hash('sha256', serialize($payload));
+                if ($consumption === 5000) {
+                    $companyPayload = $companies->buildCachedCompanies($consumption, $metrics);
+                    $companyKey = $companies->getCacheKey($consumption, $candidate);
+                    $this->lifecycle->write($candidate, $companyKey, $companyPayload, true);
+                    $expected[$companyKey] = hash('sha256', serialize($companyPayload));
+                    unset($companyPayload);
+                }
+                unset($metrics, $payload);
+                $this->cachedMetricsMemo = [];
+            }
+            if ($source !== $this->safetyFingerprint()) {
+                throw new \RuntimeException('Contract evidence changed during price cache refresh.');
+            }
+            $this->lifecycle->promote($starting, $candidate, $expected);
+        } catch (\Throwable $exception) {
+            $this->lifecycle->retire($candidate);
+            throw $exception;
+        }
+
+        return $candidate['version'];
+    }
+
+    private function guardEvidence(array $payload, array $current): ContractMetricSet
+    {
+        $validated = ContractMetricSet::fromArray($payload);
+        $changed = false;
+        foreach (array_unique(array_merge(array_keys($payload['contracts']), array_keys($current))) as $id) {
+            $row = $current[$id] ?? null;
+            if ($row !== null && ! isset($payload['contracts'][$id]) && $this->evidence->isCurrent($row)) {
+                // No stale facts exist for a new safe contract. Direct consumers may calculate it.
+                continue;
+            }
+            if ($row !== null && isset($payload['contracts'][$id])
+                && (! $this->canonicalPricing->enabled()
+                    || (($payload['source_evidence'][$id] ?? null) === $row && $this->evidence->isCurrent($row)))) {
+                continue;
+            }
+            $changed = true;
+            if (! $this->canonicalPricing->enabled()) {
+                unset($payload['contracts'][$id]);
+                $payload['sorted_ids'] = array_values(array_diff($payload['sorted_ids'], [$id]));
+                $payload['excluded_ids'] = array_values(array_diff($payload['excluded_ids'], [$id]));
+
+                continue;
+            }
+            $payload['contracts'][$id] = $this->excludedMetric();
+            $payload['sorted_ids'] = array_values(array_diff($payload['sorted_ids'], [$id]));
+            $payload['excluded_ids'] = array_values(array_unique([...$payload['excluded_ids'], $id]));
+        }
+
+        return $changed ? ContractMetricSet::fromArray($payload) : $validated;
+    }
+
+    private function excludedMetric(): array
+    {
+        $outcome = new CanonicalPricingOutcome(
+            comparability: ContractComparability::ExcludedIncomplete,
+            estimateMethod: EstimateMethod::None,
+            totalCost: null,
+            monthlyCosts: array_fill(0, 12, 0.0),
+            baseTotalCost: null,
+            baseMonthlyCosts: array_fill(0, 12, 0.0),
+            measuredDiscountSavingsTotal: 0.0,
+            monthlyDiscountSavings: array_fill(0, 12, 0.0),
+            structuredOnlyTotal: null,
+            isSpotContract: false,
+            assumptions: ['cached_source_evidence_is_not_current'],
+        );
+
+        return [
+            'calculated_cost' => ContractPricingViewData::fromCanonicalOutcome($outcome)->toArray(),
+            'emission_factor' => null, 'exceeds_consumption_limit' => false,
+            'total_cost' => PHP_FLOAT_MAX, 'comparability' => $outcome->comparability->value,
+            'is_listed' => false, 'sort_key' => null,
+            'pricing_integrity' => ContractPricingIntegrity::none()->toArray(),
+        ];
+    }
+
+    protected function buildCachedMetrics(int $consumption): ContractMetricSet
+    {
+        $startingEvidence = $this->evidence->current();
         $contracts = ElectricityContract::query()
             ->active()
             ->with(['electricitySource'])
@@ -244,11 +357,18 @@ class ContractListCacheService
             ->values()
             ->all();
 
-        return ContractMetricSet::fromArray([
+        $evidence = $this->evidence->current();
+        if ($startingEvidence !== $evidence) {
+            throw new \RuntimeException('Contract evidence changed during price calculation.');
+        }
+
+        return $this->guardEvidence([
+            'source_evidence' => $evidence,
+            'calculated_at' => now('Europe/Helsinki')->toIso8601String(),
             'contracts' => $metrics,
             'sorted_ids' => $sortedIds,
             'excluded_ids' => $excludedIds,
             'consumption' => $consumption,
-        ]);
+        ], $evidence);
     }
 }

@@ -67,6 +67,8 @@ class ContractPageCacheVersion
             'payload_schema_version' => self::PREPARED_VIEW_SCHEMA_VERSION,
             'calculated_cost_schema' => CalculatedCostPayloadSchema::cacheMarker(),
             'contract_list_cache_version' => $this->contractListCache->getVersion(),
+            'contract_price_generation' => $this->contractListCache->getGeneration(),
+            'contract_evidence' => $this->contractListCache->safetyFingerprint(),
             'pricing_mode' => $this->pricingMode->cacheMarker(),
             'active_contract_count' => DB::table('active_contracts')->count(),
             'contract_count' => ElectricityContract::query()->count(),

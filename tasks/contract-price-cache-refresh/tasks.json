@@ -1,0 +1,7 @@
+[
+  {"name":"Use single-contract pricing for non-selected detail table tiers and add regression tests", "status":"completed"},
+  {"name":"Investigate import and cache lifecycle (separate read-only agent)", "status":"completed"},
+  {"name":"Design and implement last-successful cached prices with successful import refresh", "status":"completed"},
+  {"name":"Use the retained calculation date in the detail rank note", "status":"completed"},
+  {"name":"Correct canonical cache eligibility and add bounded physical retirement cleanup", "status":"completed"}
+]
