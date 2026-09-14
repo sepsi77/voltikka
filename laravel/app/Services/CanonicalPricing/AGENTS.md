@@ -606,6 +606,10 @@ calendar-date windows with raw timestamps parsed as UTC. Readers accept legacy r
 choose the newest eligible date, and prefer local on ties. Legacy UTC-date evidence keeps explicit
 `legacy_utc_dates` provenance, never verified local shape; no old rows are rewritten. `calculatePeriod()` never receives this estimate and keeps using realized hourly Spot data.
 
+## Retry-local calculation state
+
+`CanonicalContractPricingService::resetMemoization()` clears Spot assumptions, supplier episode anchors, and Spot estimates before a price-cache retry or full candidate attempt. The container also supplies the shared market provider so this reset clears the EEX provider's request-local reads. The annual calculator itself has no outcome memo, and each new build reloads contract models and parses their current canonical JSON. No formula, pricing mode, historical evidence, or process-wide cache is changed. See `../Caching/AGENTS.md` for the two-attempt boundary.
+
 ## Deferred / known limitations
 
 - FI Base futures are market prices for baseload delivery, not an hourly customer-price forecast.

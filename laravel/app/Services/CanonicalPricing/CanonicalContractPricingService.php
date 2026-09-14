@@ -4,6 +4,7 @@ namespace App\Services\CanonicalPricing;
 
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
+use App\Services\CanonicalPricing\DTO\CanonicalContractData;
 use App\Services\CanonicalPricing\DTO\CanonicalPeriodPricingOutcome;
 use App\Services\CanonicalPricing\DTO\CanonicalPeriodPricingRequest;
 use App\Services\CanonicalPricing\DTO\CanonicalPricingOutcome;
@@ -14,9 +15,12 @@ use App\Services\CanonicalPricing\Enums\ContractComparability;
 use App\Services\CanonicalPricing\Enums\EstimateMethod;
 use App\Services\CanonicalPricing\Enums\PeriodPricingUnavailableReason;
 use App\Services\CanonicalPricing\Exceptions\CanonicalPricingParseException;
+use App\Services\CanonicalPricing\MarketReset\EexMarketReferenceCurveProvider;
+use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
 use App\Services\CanonicalPricing\SpotForward\DTO\SpotEstimate;
 use App\Services\CanonicalPricing\SpotForward\SpotForwardPriceEstimator;
 use App\Services\CanonicalPricing\SupplierAdjusted\CurrentPriceEpisodeResolver;
+use App\Services\CanonicalPricing\SupplierAdjusted\DTO\PriceEpisodeAnchor;
 use App\Services\ContractPricing\CanonicalContractMetric;
 use App\Services\DTO\EnergyUsage;
 use Carbon\CarbonImmutable;
@@ -36,7 +40,7 @@ class CanonicalContractPricingService
 {
     private ?SpotAssumptions $spotAssumptions = null;
 
-    /** @var array<string, array{energy: float, fee: float, anchor: \App\Services\CanonicalPricing\SupplierAdjusted\DTO\PriceEpisodeAnchor}> */
+    /** @var array<string, array{energy: float, fee: float, anchor: PriceEpisodeAnchor}> */
     private array $priceEpisodeAnchors = [];
 
     /** @var array<string, SpotEstimate> */
@@ -49,9 +53,20 @@ class CanonicalContractPricingService
         private readonly ContractPricingIntegrityService $integrityService = new ContractPricingIntegrityService,
         private readonly CurrentPriceEpisodeResolver $priceEpisodeResolver = new CurrentPriceEpisodeResolver,
         private readonly ?SpotForwardPriceEstimator $spotEstimator = null,
+        private readonly ?MarketReferenceCurveProvider $marketReference = null,
     ) {
         if ($calculator->resetForwardShiftEnabled() !== $mode->resetForwardShiftEnabled()) {
             throw new \InvalidArgumentException('PricingMode and the reset estimator must use the same reset-shift state.');
+        }
+    }
+
+    public function resetMemoization(): void
+    {
+        $this->spotAssumptions = null;
+        $this->priceEpisodeAnchors = [];
+        $this->spotEstimates = [];
+        if ($this->marketReference instanceof EexMarketReferenceCurveProvider) {
+            $this->marketReference->resetMemoization();
         }
     }
 
@@ -245,7 +260,7 @@ class CanonicalContractPricingService
      * episode anchors in one batch before any outcome is calculated.
      *
      * @param  Collection<int, ElectricityContract>  $contracts
-     * @return array{0: array<string, array{data: \App\Services\CanonicalPricing\DTO\CanonicalContractData|null, context: ContractContext}>, 1: array<string, \App\Services\CanonicalPricing\SupplierAdjusted\DTO\PriceEpisodeAnchor>}
+     * @return array{0: array<string, array{data: CanonicalContractData|null, context: ContractContext}>, 1: array<string, PriceEpisodeAnchor>}
      */
     private function parseAndResolveAnchors(Collection $contracts): array
     {
@@ -303,7 +318,7 @@ class CanonicalContractPricingService
     }
 
     /**
-     * @param  array<string, array{data: \App\Services\CanonicalPricing\DTO\CanonicalContractData|null, context: ContractContext}>  $parsed
+     * @param  array<string, array{data: CanonicalContractData|null, context: ContractContext}>  $parsed
      */
     private function spotEstimateForParsed(array $parsed, SpotAssumptions $spot, ?CarbonInterface $startDate): ?SpotEstimate
     {

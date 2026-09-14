@@ -17,6 +17,8 @@ final readonly class ContractPostImportResult
         public array $interpretationDispatchFailureObservationIds,
         public ?CarbonImmutable $statisticsStartedAt,
         public ?CarbonImmutable $statisticsCompletedAt,
+        /** @var array<string, \Throwable> */
+        public array $requiredExceptions = [],
     ) {}
 
     public function succeeded(): bool

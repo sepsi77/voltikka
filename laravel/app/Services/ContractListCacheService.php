@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ElectricityContract;
 use App\Models\SpotPriceAverage;
+use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheEvidence;
 use App\Services\Caching\ContractPriceCacheLifecycle;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
@@ -88,12 +89,32 @@ class ContractListCacheService
         return in_array($consumption, self::PRESET_CONSUMPTIONS, true);
     }
 
-    public function getCachedMetrics(int $consumption): ?ContractMetricSet
+    public function getCachedMetrics(int $consumption, bool $retryConflicts = true): ?ContractMetricSet
     {
         if (! $this->supportsConsumption($consumption)) {
             return null;
         }
 
+        for ($attempt = 1; ; $attempt++) {
+            try {
+                return $this->readCachedMetrics($consumption);
+            } catch (ContractPriceCacheConflict $exception) {
+                $this->resetCalculationState();
+                if (! $retryConflicts || $attempt === 2) {
+                    throw $exception;
+                }
+            }
+        }
+    }
+
+    public function resetCalculationState(): void
+    {
+        $this->cachedMetricsMemo = [];
+        $this->canonicalPricing->resetMemoization();
+    }
+
+    private function readCachedMetrics(int $consumption): ContractMetricSet
+    {
         $generation = $this->lifecycle->active();
         $cacheKey = $this->getCacheKey($consumption, $generation);
         $current = $this->evidence->current();
@@ -105,6 +126,9 @@ class ContractListCacheService
         $payload = Cache::get($cacheKey);
         if ($payload === null) {
             $payload = $this->buildCachedMetrics($consumption)->toArray();
+            if ($current !== $this->evidence->current()) {
+                throw ContractPriceCacheConflict::evidenceChanged();
+            }
             $this->lifecycle->write($generation, $cacheKey, $payload);
         }
 
@@ -159,6 +183,20 @@ class ContractListCacheService
 
     public function refresh(CompanyListCacheService $companies): int
     {
+        for ($attempt = 1; ; $attempt++) {
+            $this->resetCalculationState();
+            try {
+                return $this->refreshCandidate($companies);
+            } catch (ContractPriceCacheConflict $exception) {
+                if ($attempt === 2) {
+                    throw $exception;
+                }
+            }
+        }
+    }
+
+    private function refreshCandidate(CompanyListCacheService $companies): int
+    {
         $starting = $this->lifecycle->active();
         $candidate = $this->lifecycle->candidate($starting);
         $expected = [];
@@ -181,11 +219,11 @@ class ContractListCacheService
                 $this->cachedMetricsMemo = [];
             }
             if ($source !== $this->safetyFingerprint()) {
-                throw new \RuntimeException('Contract evidence changed during price cache refresh.');
+                throw ContractPriceCacheConflict::evidenceChanged();
             }
             $this->lifecycle->promote($starting, $candidate, $expected);
         } catch (\Throwable $exception) {
-            $this->lifecycle->retire($candidate);
+            $this->lifecycle->retire($candidate, required: true);
             throw $exception;
         }
 
@@ -359,7 +397,7 @@ class ContractListCacheService
 
         $evidence = $this->evidence->current();
         if ($startingEvidence !== $evidence) {
-            throw new \RuntimeException('Contract evidence changed during price calculation.');
+            throw ContractPriceCacheConflict::evidenceChanged();
         }
 
         return $this->guardEvidence([

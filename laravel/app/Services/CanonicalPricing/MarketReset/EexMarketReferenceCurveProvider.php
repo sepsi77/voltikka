@@ -50,6 +50,16 @@ class EexMarketReferenceCurveProvider implements MarketReferenceCurveProvider
         private readonly VintageAwareReferencePriceService $referencePriceService,
     ) {}
 
+    public function resetMemoization(): void
+    {
+        $this->availableTradeDatesMemo = null;
+        $this->tradeDateMemo = [];
+        $this->curveMemo = [];
+        $this->referenceMemo = [];
+        $this->seasonalIndexMemo = [];
+        $this->fixedTermMedianMemo = false;
+    }
+
     public function tradeDate(CarbonImmutable $asOfDate): ?CarbonImmutable
     {
         $key = $asOfDate->toDateString();

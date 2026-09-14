@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\PricingModel;
 use App\Models\ElectricityContract;
+use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheLifecycle;
 use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\PricingMode;
@@ -37,6 +38,21 @@ class CompanyListCacheService
 
     public function getCachedCompanies(int $consumption = self::DEFAULT_CONSUMPTION): Collection
     {
+        for ($attempt = 1; ; $attempt++) {
+            try {
+                return $this->readCachedCompanies($consumption);
+            } catch (ContractPriceCacheConflict $exception) {
+                $this->cachedCompaniesMemo = [];
+                $this->contractListCache->resetCalculationState();
+                if ($attempt === 2) {
+                    throw $exception;
+                }
+            }
+        }
+    }
+
+    private function readCachedCompanies(int $consumption): Collection
+    {
         $generation = $this->lifecycle->active();
         $cacheKey = $this->getCacheKey($consumption, $generation);
         if (isset($this->cachedCompaniesMemo[$cacheKey])) {
@@ -45,7 +61,15 @@ class CompanyListCacheService
 
         $companies = Cache::get($cacheKey);
         if ($companies === null) {
-            $companies = $this->buildCachedCompanies($consumption);
+            // This read owns the two-attempt budget; the list must not retry inside it.
+            $metrics = $this->contractListCache->getCachedMetrics($consumption, retryConflicts: false);
+            if ($metrics === null) {
+                throw new InvalidArgumentException('Company pricing requires a supported cached consumption.');
+            }
+            $companies = $this->buildCachedCompanies($consumption, $metrics);
+            if ($cacheKey !== $this->getCacheKey($consumption, $generation)) {
+                throw ContractPriceCacheConflict::evidenceChanged();
+            }
             $this->lifecycle->write($generation, $cacheKey, $companies);
         }
 

@@ -75,6 +75,7 @@ class AppServiceProvider extends ServiceProvider
             mode: $app->make(PricingMode::class),
             priceEpisodeResolver: $app->make(CurrentPriceEpisodeResolver::class),
             spotEstimator: $app->make(SpotForwardPriceEstimator::class),
+            marketReference: $app->make(MarketReferenceCurveProvider::class),
         ));
     }
 

@@ -24,6 +24,10 @@ after it. A mid-month boundary must not shift the known part of that month. The 
 buckets and segments as the annual bill. Disclosed reset phases without explicit normal-amount
 discounts do not create offer savings. Exact-period calculation receives no annual projection.
 
+## Retry-local market evidence
+
+`EexMarketReferenceCurveProvider::resetMemoization()` clears trade dates, curves, references, seasonal indices, and the fixed-term median. The canonical orchestrator calls it on the shared provider before price-cache retries and full candidate builds, so an EEX invalidation cannot make a new generation reuse an earlier request-local curve. Normal reads still memoize within an attempt. No market formula, vintage rule, or persistent data changes. `EexMarketReferenceCurveProviderTest` verifies a previously missing curve is reloaded through the list-cache reset boundary.
+
 ## The estimator
 
 ```

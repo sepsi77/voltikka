@@ -28,6 +28,7 @@ class ContractPostImportCoordinator
     public function run(ContractImportResult $import, string $importDate): ContractPostImportResult
     {
         $requiredFailures = [];
+        $requiredExceptions = [];
         $optionalFailures = [];
         $dispatchFailureIds = [];
 
@@ -58,12 +59,14 @@ class ContractPostImportCoordinator
             $statisticsCompletedAt = CarbonImmutable::now('Europe/Helsinki');
             $statisticsSucceeded = true;
         } catch (Throwable $exception) {
+            $requiredExceptions['daily_statistics'] = $exception;
             $requiredFailures['daily_statistics'] = $exception->getMessage();
         }
 
         try {
             $this->clearStaleApplicationCache();
         } catch (Throwable $exception) {
+            $requiredExceptions['cache_invalidation'] = $exception;
             $requiredFailures['cache_invalidation'] = $exception->getMessage();
         }
 
@@ -71,6 +74,7 @@ class ContractPostImportCoordinator
             try {
                 $this->contractListCache->refresh($this->companyListCache);
             } catch (Throwable $exception) {
+                $requiredExceptions['price_cache_refresh'] = $exception;
                 $requiredFailures['price_cache_refresh'] = $exception->getMessage();
             }
         }
@@ -95,6 +99,7 @@ class ContractPostImportCoordinator
             interpretationDispatchFailureObservationIds: $dispatchFailureIds,
             statisticsStartedAt: $statisticsStartedAt,
             statisticsCompletedAt: $statisticsCompletedAt,
+            requiredExceptions: $requiredExceptions,
         );
     }
 

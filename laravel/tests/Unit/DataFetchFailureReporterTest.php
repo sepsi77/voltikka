@@ -2,6 +2,8 @@
 
 namespace Tests\Unit;
 
+use App\Services\Caching\ContractPriceCacheConflict;
+use App\Services\Caching\ContractPriceCacheStorageException;
 use App\Support\DataFetchFailureReporter;
 use Illuminate\Support\Facades\Log;
 use Sentry\State\Scope;
@@ -37,6 +39,7 @@ class DataFetchFailureReporterTest extends TestCase
             'failures' => ['acquisition' => 2],
             'counts' => ['fetched_records' => 0],
             'exception_classes' => [\RuntimeException::class],
+            'reasons' => ['acquisition' => ['unexpected' => 2]],
         ], $event->getContexts()['data_fetch']);
         $this->assertArrayNotHasKey('http', $event->getContexts());
         Log::shouldHaveReceived('log')->once()->with('error', 'Data fetch failed: spot', $event->getContexts()['data_fetch']);
@@ -45,6 +48,29 @@ class DataFetchFailureReporterTest extends TestCase
         $this->assertSame('secret-token', $this->sentryIssues[1]->getTags()['unrelated']);
         $this->assertArrayNotHasKey('data_fetch', $this->sentryIssues[1]->getContexts());
         $this->assertSame([], $this->sentryIssues[1]->getFingerprint());
+    }
+
+    public function test_cache_failures_use_only_closed_reasons_in_one_issue_and_log(): void
+    {
+        $this->captureSentryIssues();
+        Log::spy();
+        $reporter = new DataFetchFailureReporter('contracts');
+        foreach ([
+            ContractPriceCacheConflict::evidenceChanged(),
+            ContractPriceCacheConflict::generationChanged(),
+            ContractPriceCacheStorageException::writeFailed(),
+            ContractPriceCacheStorageException::readbackFailed(),
+            new \RuntimeException('secret-token https://seller.test/?password=private SELECT raw_data'),
+        ] as $exception) {
+            $reporter->fail('price_cache_refresh', $exception);
+        }
+        $reporter->report(true);
+        $this->assertImportIssue('contracts', 'error', ['price_cache_refresh' => 5]);
+        $context = $this->sentryIssues[0]->getContexts()['data_fetch'];
+        $this->assertSame(['evidence_changed' => 1, 'generation_changed' => 1, 'cache_write_failed' => 1, 'cache_readback_failed' => 1, 'unexpected' => 1], $context['reasons']['price_cache_refresh']);
+        $this->assertStringNotContainsString('secret-token', json_encode($context));
+        $this->assertStringNotContainsString('seller.test', json_encode($context));
+        Log::shouldHaveReceived('log')->once()->with('error', 'Data fetch failed: contracts', $context);
     }
 
     public function test_success_is_silent_and_repeated_failed_runs_keep_the_same_group(): void

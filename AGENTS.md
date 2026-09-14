@@ -190,6 +190,10 @@ php artisan test
 php artisan test --filter="ContractsFilterTest"
 ```
 
+## Price-cache conflict recovery
+
+Verified source-evidence or generation conflicts permit at most two cold-read attempts or two full private refresh candidates. Each retry clears request-local pricing state; failed candidates require durable retirement. Persistent HTTP conflicts return a plain Finnish, non-cacheable 503 instead of an automatic exception Issue. Required imports still fail on exhaustion and send one safe class/reason aggregate. Immediate interpretation/EEX invalidations, current-evidence exclusions, and atomic promotion remain authoritative. See `laravel/app/Services/Caching/AGENTS.md` and `laravel/app/Support/AGENTS.md`.
+
 ## Import failure Issues
 
 `spot:fetch`, `futures:fetch-eex`, and `contracts:fetch` send one explicit Sentry Issue and one safe aggregate Laravel log for a failed or incomplete invocation. Repeated failures group by import. Recovered retries and normal empty EEX maturities do not alert. Optional interpretation/logo failures do not create import Issues. Sentry Logs are separate from Issues; scheduler listeners remain unchanged. See `laravel/AGENTS.md` for the outcome, severity, and privacy rules.

@@ -97,6 +97,8 @@ class ContractPostImportCoordinatorTest extends TestCase
         $this->assertSame([$firstObservation->id], $result->interpretationDispatchFailureObservationIds);
         $this->assertArrayHasKey('interpretation:'.$firstObservation->id, $result->optionalFailures);
         $this->assertArrayHasKey('price_cache_refresh', $result->requiredFailures);
+        $this->assertInstanceOf(RuntimeException::class, $result->requiredExceptions['price_cache_refresh']);
+        $this->assertSame('Contract cache warm failed', $result->requiredExceptions['price_cache_refresh']->getMessage());
         $this->assertContains('interpretation:'.$secondObservation->id, $events);
         Queue::assertPushed(WarmContractPriceStatisticsCache::class, 1);
         $this->assertLessThan(

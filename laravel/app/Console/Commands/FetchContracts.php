@@ -163,7 +163,7 @@ class FetchContracts extends Command
             $this->failureReporter->fail(match ($stage) {
                 'daily_statistics', 'cache_invalidation', 'price_cache_refresh' => $stage,
                 default => 'required_post_import',
-            });
+            }, $postImport->requiredExceptions[$stage] ?? null);
         }
 
         if (! $postImport->succeeded()) {

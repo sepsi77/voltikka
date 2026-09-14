@@ -6,6 +6,7 @@ use App\Models\ContractPriceDailyStatistic;
 use App\Models\ElectricityFuturesEodPrice;
 use App\Models\SpotPriceAverage;
 use App\Services\CanonicalPricing\MarketReset\MarketReferenceCurveProvider;
+use App\Services\ContractListCacheService;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -51,6 +52,21 @@ class EexMarketReferenceCurveProviderTest extends TestCase
         $this->assertSame('2026-06-30', $references['2026-07-01']['trade_date']);
         $this->assertCount(1, $this->availableTradeDateQueries($queries));
         $this->assertCount(0, $this->latestTradeDateQueries($queries));
+    }
+
+    public function test_cache_retry_reset_reloads_the_shared_market_provider(): void
+    {
+        $provider = app(MarketReferenceCurveProvider::class);
+        $asOf = CarbonImmutable::parse('2026-07-01');
+        $delivery = CarbonImmutable::parse('2026-07-01');
+        $this->assertNull($provider->referencePrice($asOf, $delivery, ['month']));
+        $this->assertNull($provider->forwardPriceForMonth($asOf, $delivery));
+        $this->future('month', '202607', '2026-06-30', 40.0);
+        $this->assertNull($provider->referencePrice($asOf, $delivery, ['month']));
+        app(ContractListCacheService::class)->resetCalculationState();
+        $this->assertSame($provider, app(MarketReferenceCurveProvider::class));
+        $this->assertEqualsWithDelta(5.02, $provider->referencePrice($asOf, $delivery, ['month'])['price_cents_per_kwh'], .0001);
+        $this->assertEqualsWithDelta(5.02, $provider->forwardPriceForMonth($asOf, $delivery)['price_cents_per_kwh'], .0001);
     }
 
     public function test_repeated_no_curve_lookups_do_not_requery_available_trade_dates(): void

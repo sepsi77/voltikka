@@ -64,14 +64,13 @@ class ContractPriceCacheLifecycle
     public function write(array $generation, string $key, mixed $payload, bool $candidate = false): void
     {
         $write = function () use ($generation, $key, $payload, $candidate): void {
+            if (! $candidate && Cache::get(self::ACTIVE_KEY) !== $generation) {
+                throw ContractPriceCacheConflict::generationChanged();
+            }
             $manifestKey = $this->manifestKey($generation);
             $keys = Cache::get($manifestKey, []);
             $keys[] = $key;
             $this->store($manifestKey, array_values(array_unique($keys)));
-            if (! $candidate && Cache::get(self::ACTIVE_KEY) !== $generation) {
-                // A late cold writer starts a new grace period, even after an earlier cleanup.
-                $this->trackRetirement($generation, extendGrace: true);
-            }
             $this->store($key, $payload);
         };
         if ($candidate) {
@@ -88,12 +87,12 @@ class ContractPriceCacheLifecycle
         // Validate every required entry, not only the most recently written preset.
         foreach ($expected as $key => $digest) {
             if (hash('sha256', serialize(Cache::get($key))) !== $digest) {
-                throw new RuntimeException('Candidate price cache readback failed.');
+                throw ContractPriceCacheStorageException::readbackFailed();
             }
         }
         Cache::lock(self::LOCK_KEY, 30)->block(10, function () use ($starting, $candidate): void {
             if (Cache::get(self::ACTIVE_KEY) !== $starting) {
-                throw new RuntimeException('Price cache changed while replacement was built.');
+                throw ContractPriceCacheConflict::generationChanged();
             }
             // Persist cleanup ownership before switching. A failed write leaves the old active.
             $this->trackRetirement($starting, extendGrace: true);
@@ -102,7 +101,7 @@ class ContractPriceCacheLifecycle
         $this->retire($starting);
     }
 
-    public function retire(array $generation): void
+    public function retire(array $generation, bool $required = false): void
     {
         // Successful transitions already have durable cleanup state. Failed candidates use this path.
         try {
@@ -111,7 +110,11 @@ class ContractPriceCacheLifecycle
                     $this->trackRetirement($generation);
                 }
             });
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            // A failed candidate must have durable retirement before another attempt.
+            if ($required) {
+                throw $exception;
+            }
             // Never roll back the pointer because retirement failed.
         }
     }
@@ -194,7 +197,7 @@ class ContractPriceCacheLifecycle
     private function store(string $key, mixed $payload): void
     {
         if (! Cache::forever($key, $payload)) {
-            throw new RuntimeException('Price cache write failed.');
+            throw ContractPriceCacheStorageException::writeFailed();
         }
     }
 }

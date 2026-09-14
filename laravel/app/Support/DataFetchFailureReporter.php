@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Services\Caching\ContractPriceCacheConflict;
+use App\Services\Caching\ContractPriceCacheStorageException;
 use Illuminate\Support\Facades\Log;
 use Sentry\Severity;
 use Sentry\State\Scope;
@@ -19,6 +21,8 @@ class DataFetchFailureReporter
 
     private array $counts = [];
 
+    private array $reasons = [];
+
     public function __construct(private readonly string $import) {}
 
     /** Stage and count names must be controlled code constants, never upstream text. */
@@ -27,6 +31,10 @@ class DataFetchFailureReporter
         $this->failures[$stage] = ($this->failures[$stage] ?? 0) + 1;
         if ($exception !== null) {
             $this->exceptionClasses[$exception::class] = true;
+            $reason = $exception instanceof ContractPriceCacheConflict || $exception instanceof ContractPriceCacheStorageException
+                ? $exception->reason
+                : 'unexpected';
+            $this->reasons[$stage][$reason] = ($this->reasons[$stage][$reason] ?? 0) + 1;
         }
     }
 
@@ -46,6 +54,7 @@ class DataFetchFailureReporter
             'failures' => $this->failures,
             'counts' => $this->counts,
             'exception_classes' => array_keys($this->exceptionClasses),
+            'reasons' => $this->reasons,
         ];
         $message = "Data fetch failed: {$this->import}";
         $level = $terminal ? Severity::error() : Severity::warning();

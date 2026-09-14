@@ -11,18 +11,25 @@ use App\Models\DataFreshnessCheckpoint;
 use App\Models\ElectricityContract;
 use App\Models\Postcode;
 use App\Models\PriceComponent;
+use App\Services\Caching\ContractPriceCacheConflict;
+use App\Services\Caching\ContractPriceCacheLifecycle;
+use App\Services\ContractListCacheService;
+use App\Services\ContractReplacement\ContractReplacementLinker;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
 use App\Services\MorningFreshness\MorningJobFreshnessService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Tests\Concerns\CapturesSentryIssues;
 use Tests\TestCase;
 
 class FetchContractsCommandTest extends TestCase
 {
+    use CapturesSentryIssues;
     use RefreshDatabase;
-    use \Tests\Concerns\CapturesSentryIssues;
 
     protected function setUp(): void
     {
@@ -522,8 +529,8 @@ class FetchContractsCommandTest extends TestCase
             ),
         ]);
         $this->app->instance(
-            \App\Services\ContractReplacement\ContractReplacementLinker::class,
-            new class extends \App\Services\ContractReplacement\ContractReplacementLinker
+            ContractReplacementLinker::class,
+            new class extends ContractReplacementLinker
             {
                 public function __construct() {}
 
@@ -677,7 +684,7 @@ class FetchContractsCommandTest extends TestCase
         ]);
         $statistics = $this->createMock(ContractPriceStatisticsService::class);
         $statistics->method('calculateForDate')
-            ->willThrowException(new \RuntimeException('Required statistics failed'));
+            ->willThrowException(new \RuntimeException('secret-token https://seller.test/?password=private SELECT raw_data'));
         $this->app->instance(ContractPriceStatisticsService::class, $statistics);
 
         $this->artisan('contracts:fetch', [
@@ -687,8 +694,49 @@ class FetchContractsCommandTest extends TestCase
             ->expectsOutput('Required post-import stage daily_statistics failed.')
             ->assertExitCode(1);
         $this->assertImportIssue('contracts', 'error', ['daily_statistics' => 1]);
+        $context = $this->sentryIssues[0]->getContexts()['data_fetch'];
+        $this->assertSame([\RuntimeException::class], $context['exception_classes']);
+        $this->assertSame(['daily_statistics' => ['unexpected' => 1]], $context['reasons']);
+        $this->assertStringNotContainsString('secret-token', json_encode($context));
+        $this->assertStringNotContainsString('seller.test', json_encode($context));
 
         $this->assertDatabaseHas('electricity_contracts', ['api_id' => 'contract-12345']);
+    }
+
+    public function test_required_cache_failure_keeps_safe_class_and_reason_in_one_issue(): void
+    {
+        $this->captureSentryIssues();
+        Log::spy();
+        Http::fake(fn () => Http::response($this->getSampleApiResponse()));
+        $cache = $this->createMock(ContractListCacheService::class);
+        $cache->expects($this->once())->method('refresh')
+            ->willThrowException(ContractPriceCacheConflict::evidenceChanged());
+        $this->app->instance(ContractListCacheService::class, $cache);
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])->assertExitCode(1);
+        $this->assertImportIssue('contracts', 'error', ['price_cache_refresh' => 1]);
+        $context = $this->sentryIssues[0]->getContexts()['data_fetch'];
+        $this->assertSame([ContractPriceCacheConflict::class], $context['exception_classes']);
+        $this->assertSame(['price_cache_refresh' => ['evidence_changed' => 1]], $context['reasons']);
+        Log::shouldHaveReceived('log')->once()->with('error', 'Data fetch failed: contracts', $context);
+    }
+
+    public function test_recovered_refresh_conflict_does_not_fail_import_or_send_an_issue(): void
+    {
+        $this->captureSentryIssues();
+        Http::fake(fn () => Http::response($this->getSampleApiResponse()));
+        $real = app(ContractPriceCacheLifecycle::class);
+        $calls = 0;
+        $proxy = \Mockery::mock($real)->makePartial();
+        $proxy->shouldReceive('promote')->twice()->andReturnUsing(function ($starting, $candidate, $expected) use ($real, &$calls) {
+            if (++$calls === 1) {
+                $real->invalidate();
+            }
+            $real->promote($starting, $candidate, $expected);
+        });
+        $this->app->instance(ContractPriceCacheLifecycle::class, $proxy);
+        $this->artisan('contracts:fetch', ['--postcodes' => '00100', '--skip-logos' => true])->assertExitCode(0);
+        $this->assertSame(2, $calls);
+        $this->assertSame([], $this->sentryIssues);
     }
 
     /**
@@ -727,7 +775,7 @@ class FetchContractsCommandTest extends TestCase
         $attempts = 0;
         Http::fake(function () use (&$attempts) {
             if (++$attempts < 3) {
-                throw new \Illuminate\Http\Client\ConnectionException('private URL and token');
+                throw new ConnectionException('private URL and token');
             }
 
             return Http::response($this->getSampleApiResponse());
@@ -744,7 +792,7 @@ class FetchContractsCommandTest extends TestCase
         $attempts = 0;
         Http::fake(function () use (&$attempts) {
             $attempts++;
-            throw new \Illuminate\Http\Client\ConnectionException('private URL and token');
+            throw new ConnectionException('private URL and token');
         });
         $this->artisan('contracts:fetch', ['--postcodes' => '00100,02230', '--skip-logos' => true])
             ->assertExitCode(1);
