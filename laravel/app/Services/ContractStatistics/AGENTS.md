@@ -14,6 +14,10 @@ Primary files:
 - `../../Console/Commands/CalculateContractPriceStatistics.php` — current/future daily calculation, usually after `contracts:fetch`.
 - `../../Console/Commands/BackfillContractPriceStatistics.php` — historical backfill from `price_components.price_date`.
 
+## Optional import transaction fence
+
+`calculateForDate()` accepts an optional `transactionFence` callable. It runs inside the existing date transaction before any statistics read/delete/rebuild. General and historical callers default to null and retain their behavior. Full and deferred post-import callers use it to lock the same-date contract freshness row through commit. Scoped callers lock that row if it exists but never create global readiness. An absent-key locking read remains inside the existing statistics transaction; InnoDB's default REPEATABLE READ gap lock serializes a concurrent full-start insertion. No guarantee for another isolation level is inferred from SQLite tests. Deferred callers validate current UUID, claim token/lease, date, exact manifest and active IDs from fresh database rows. This prevents an expired old execution from deleting statistics written by a newer ready import. The finite outer cache lock is only an execution optimization, not the ordering proof. No new transaction wraps a cache build or publisher. See `../ContractImport/AGENTS.md`.
+
 ## Versioned annual-cost persistence foundation
 
 - `contract_price_annual_costs` stores one annual-only row per date, contract, consumption, and

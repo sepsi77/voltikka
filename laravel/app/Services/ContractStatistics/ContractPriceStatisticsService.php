@@ -10,6 +10,7 @@ use App\Models\ElectricityContract;
 use App\Models\PriceComponent;
 use App\Models\SpotPriceAverage;
 use App\Models\SpotPriceHour;
+use App\Services\CanonicalPricing\CanonicalContractPricingService;
 use App\Services\CanonicalPricing\DTO\CanonicalPricingOutcome;
 use App\Services\CanonicalPricing\DTO\SpotAssumptions;
 use App\Services\ContractPriceCalculator;
@@ -26,7 +27,7 @@ class ContractPriceStatisticsService
 
     public function __construct(
         private readonly ContractPriceCalculator $calculator,
-        private readonly \App\Services\CanonicalPricing\CanonicalContractPricingService $canonicalPricing,
+        private readonly CanonicalContractPricingService $canonicalPricing,
         private readonly ContractStatisticsSegmentClassifier $segmentClassifier,
         private readonly CurrentCanonicalAnnualCostResultFactory $currentAnnualCostResultFactory,
         private readonly AnnualCostStatisticsWriter $annualCostStatisticsWriter,
@@ -39,7 +40,7 @@ class ContractPriceStatisticsService
      * @param  iterable<string>  $contractIds
      * @return array{snapshots:int, statistics:int}
      */
-    public function calculateForDate(CarbonInterface|string $date, iterable $contractIds, bool $overwrite = false, ?bool $useCanonical = null): array
+    public function calculateForDate(CarbonInterface|string $date, iterable $contractIds, bool $overwrite = false, ?bool $useCanonical = null, ?callable $transactionFence = null): array
     {
         $date = $date instanceof CarbonInterface ? $date->copy() : Carbon::parse($date);
         $dateString = $date->toDateString();
@@ -54,7 +55,12 @@ class ContractPriceStatisticsService
             return ['snapshots' => 0, 'statistics' => 0];
         }
 
-        return DB::transaction(function () use ($date, $dateString, $contractIds, $overwrite, $useCanonical) {
+        return DB::transaction(function () use ($date, $dateString, $contractIds, $overwrite, $useCanonical, $transactionFence) {
+            // Import callers fence ownership here, before any date rows are read or replaced.
+            // The checkpoint row lock stays held until this existing transaction commits.
+            if ($transactionFence !== null) {
+                $transactionFence();
+            }
             $pricingBasis = ContractPriceBasis::forCanonical($useCanonical)->value;
             $dateSnapshots = ContractPriceSnapshot::whereDate('snapshot_date', $dateString);
 

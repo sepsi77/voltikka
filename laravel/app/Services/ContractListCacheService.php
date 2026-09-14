@@ -181,12 +181,12 @@ class ContractListCacheService
         );
     }
 
-    public function refresh(CompanyListCacheService $companies): int
+    public function refresh(CompanyListCacheService $companies, ?callable $candidateGuard = null): int
     {
         for ($attempt = 1; ; $attempt++) {
             $this->resetCalculationState();
             try {
-                return $this->refreshCandidate($companies);
+                return $this->refreshCandidate($companies, $candidateGuard);
             } catch (ContractPriceCacheConflict $exception) {
                 if ($attempt === 2) {
                     throw $exception;
@@ -195,7 +195,7 @@ class ContractListCacheService
         }
     }
 
-    private function refreshCandidate(CompanyListCacheService $companies): int
+    private function refreshCandidate(CompanyListCacheService $companies, ?callable $candidateGuard): int
     {
         $starting = $this->lifecycle->active();
         $candidate = $this->lifecycle->candidate($starting);
@@ -220,6 +220,9 @@ class ContractListCacheService
             }
             if ($source !== $this->safetyFingerprint()) {
                 throw ContractPriceCacheConflict::evidenceChanged();
+            }
+            if ($candidateGuard !== null) {
+                $candidateGuard();
             }
             $this->lifecycle->promote($starting, $candidate, $expected);
         } catch (\Throwable $exception) {

@@ -1,0 +1,7 @@
+[
+  {"name":"Inspect existing coordination and prove bounded concurrency safety", "status":"done"},
+  {"name":"Implement owned deferred completion and scheduled command", "status":"done"},
+  {"name":"Add focused concurrency and behavior tests", "status":"done"},
+  {"name":"Run verification and update context and release notes", "status":"done"},
+  {"name":"Correct later-reader scope and scoped absent-checkpoint behavior; verify review fixes", "status":"done"}
+]

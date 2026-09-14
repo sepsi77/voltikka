@@ -8,9 +8,9 @@ use App\Models\Postcode;
 use App\Services\AzureConsumerApiClient;
 use App\Services\CompanyLogoService;
 use App\Services\ContractImport\ContractAcquisitionResult;
+use App\Services\ContractImport\ContractImportCompletion;
 use App\Services\ContractImport\ContractImporter;
 use App\Services\ContractImport\ContractPostImportCoordinator;
-use App\Services\MorningFreshness\MorningJobFreshnessService;
 use App\Support\DataFetchFailureReporter;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -38,16 +38,19 @@ class FetchContracts extends Command
         private readonly CompanyLogoService $logoService,
         private readonly ContractImporter $importer,
         private readonly ContractPostImportCoordinator $postImportCoordinator,
-        private readonly MorningJobFreshnessService $freshness,
+        private readonly ContractImportCompletion $completion,
     ) {
         parent::__construct();
     }
 
     private DataFetchFailureReporter $failureReporter;
 
+    private ?string $runUuid = null;
+
     public function handle(): int
     {
         $this->failureReporter = new DataFetchFailureReporter('contracts');
+        $this->runUuid = null;
         $exit = self::FAILURE;
         try {
             $exit = $this->fetch();
@@ -148,7 +151,7 @@ class FetchContracts extends Command
             $this->syncCompanyLogos($import->companyNames);
         }
 
-        $postImport = $this->postImportCoordinator->run($import, $today);
+        $postImport = $this->postImportCoordinator->run($import, $today, $this->runUuid);
 
         foreach ($postImport->interpretationDispatchFailureObservationIds as $observationId) {
             $this->warn("Contracts were updated, but interpretation dispatch failed for observation {$observationId}.");
@@ -171,7 +174,7 @@ class FetchContracts extends Command
                 $fullScope,
                 $today,
                 DataFreshnessCheckpoint::STATUS_FAILED,
-                ['stage' => 'post_import'],
+                ['stage' => 'post_import'] + $postImport->completionMetadata,
             );
 
             return self::FAILURE;
@@ -180,10 +183,10 @@ class FetchContracts extends Command
         $checkpointRecorded = $this->recordFullScopeCheckpoint(
             $fullScope,
             $today,
-            $acquisition->complete
+            $postImport->deferred ? ContractImportCompletion::PENDING : ($acquisition->complete
                 ? DataFreshnessCheckpoint::STATUS_READY
-                : DataFreshnessCheckpoint::STATUS_INCOMPLETE,
-            [
+                : DataFreshnessCheckpoint::STATUS_INCOMPLETE),
+            $postImport->completionMetadata + [
                 'observed_source_observation_ids' => $import->observedObservationIds,
                 'active_contract_ids' => $import->activeContractIds,
                 'statistics_started_at' => $postImport->statisticsStartedAt?->toIso8601String(),
@@ -195,7 +198,13 @@ class FetchContracts extends Command
             return self::FAILURE;
         }
 
-        $this->info('Contracts fetched successfully!');
+        if ($fullScope && DataFreshnessCheckpoint::query()
+            ->where('key', DataFreshnessCheckpoint::KEY_CONTRACT_IMPORT)->where('effective_date', $today)
+            ->where('metadata->run_uuid', $this->runUuid)->where('status', ContractImportCompletion::PENDING)->exists()) {
+            $this->info('Contracts imported. Required completion is deferred until current interpretations settle.');
+        } else {
+            $this->info('Contracts fetched successfully!');
+        }
 
         return self::SUCCESS;
     }
@@ -259,14 +268,13 @@ class FetchContracts extends Command
         }
 
         try {
-            $this->freshness->record(
-                DataFreshnessCheckpoint::KEY_CONTRACT_IMPORT,
-                $date,
-                $status,
-                $metadata,
-            );
+            if (($metadata['stage'] ?? null) === 'started') {
+                $this->runUuid = $this->completion->start($date);
 
-            return true;
+                return true;
+            }
+
+            return $this->runUuid !== null && $this->completion->record($date, $this->runUuid, $status, $metadata);
         } catch (Throwable $exception) {
             $this->error('Failed to record the contract freshness checkpoint.');
             $this->failureReporter->fail('checkpoint', $exception);

@@ -19,6 +19,8 @@ final readonly class ContractPostImportResult
         public ?CarbonImmutable $statisticsCompletedAt,
         /** @var array<string, \Throwable> */
         public array $requiredExceptions = [],
+        public bool $deferred = false,
+        public array $completionMetadata = [],
     ) {}
 
     public function succeeded(): bool

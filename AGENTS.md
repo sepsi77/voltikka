@@ -192,7 +192,11 @@ php artisan test --filter="ContractsFilterTest"
 
 ## Price-cache conflict recovery
 
-Verified source-evidence or generation conflicts permit at most two cold-read attempts or two full private refresh candidates. Each retry clears request-local pricing state; failed candidates require durable retirement. Persistent HTTP conflicts return a plain Finnish, non-cacheable 503 instead of an automatic exception Issue. Required imports still fail on exhaustion and send one safe class/reason aggregate. Immediate interpretation/EEX invalidations, current-evidence exclusions, and atomic promotion remain authoritative. See `laravel/app/Services/Caching/AGENTS.md` and `laravel/app/Support/AGENTS.md`.
+Verified source-evidence or generation conflicts permit at most two cold-read attempts or two full private refresh candidates. Each retry clears request-local pricing state; failed candidates require durable retirement. Persistent HTTP conflicts return a plain Finnish, non-cacheable 503 instead of an automatic exception Issue. Proven complete full contract imports can defer post-import completion on exhaustion; other required failures send one safe class/reason aggregate. Immediate interpretation/EEX invalidations, current-evidence exclusions, and atomic promotion remain authoritative. See `laravel/app/Services/Caching/AGENTS.md` and `laravel/app/Support/AGENTS.md`.
+
+## Deferred contract import completion
+
+`contracts:complete-import` checks proven pending full imports each minute, without refetching Azure or dispatching interpretation work. Existing checkpoint JSON holds exact source/target proof, run ownership, and bounded claims (60 checks, two hours, current Helsinki date only). Required statistics fence ownership under the checkpoint row lock inside their existing date transaction; cache builds stay outside it and retain two-attempt atomic promotion. Pending facts keep morning consumers closed. Completion proof is checked at its write boundary; later morning readers retain scoped interpretation checks and publication-only forecast statistics recovery, not a permanent all-market cache UUID gate. Scoped imports never create global readiness checkpoints. Old failed stage-only records cannot resume. See `laravel/app/Services/ContractImport/AGENTS.md`. Releasing this new scheduled production writer and running a fresh full import require separate explicit approval; no automatic import retry or historical repair is added.
 
 ## Import failure Issues
 

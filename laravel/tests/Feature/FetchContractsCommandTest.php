@@ -13,10 +13,10 @@ use App\Models\Postcode;
 use App\Models\PriceComponent;
 use App\Services\Caching\ContractPriceCacheConflict;
 use App\Services\Caching\ContractPriceCacheLifecycle;
+use App\Services\ContractImport\ContractImportCompletion;
 use App\Services\ContractListCacheService;
 use App\Services\ContractReplacement\ContractReplacementLinker;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
-use App\Services\MorningFreshness\MorningJobFreshnessService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -163,13 +163,33 @@ class FetchContractsCommandTest extends TestCase
         $this->assertNotNull($checkpoint->metadata['statistics_completed_at']);
     }
 
+    public function test_full_import_with_pending_interpretation_records_proof_and_explicit_deferred_output(): void
+    {
+        $this->captureSentryIssues();
+        Queue::fake();
+        config(['contract_interpretation.enabled' => true, 'services.openrouter.api_key' => 'test-key']);
+        Http::fake(['*' => Http::response($this->getSampleApiResponse(), 200)]);
+        $this->artisan('contracts:fetch', ['--skip-logos' => true])
+            ->expectsOutput('Contracts imported. Required completion is deferred until current interpretations settle.')
+            ->assertSuccessful();
+        $row = DataFreshnessCheckpoint::sole();
+        $this->assertSame(ContractImportCompletion::PENDING, $row->status);
+        $this->assertSame(1, $row->metadata['completion_version']);
+        $this->assertNotNull($row->metadata['episodes'][0]['interpretation_id']);
+        $this->assertNotNull($row->metadata['statistics_completed_at']);
+        $this->assertSame('waiting', app(ContractImportCompletion::class)->tick());
+        Queue::assertPushed(AnalyzeContractSourceSnapshot::class, 1);
+        Http::assertSentCount(30);
+        $this->assertSame([], $this->sentryIssues);
+    }
+
     public function test_full_scope_stops_before_acquisition_when_initial_checkpoint_fails(): void
     {
-        $freshness = $this->createMock(MorningJobFreshnessService::class);
+        $freshness = $this->createMock(ContractImportCompletion::class);
         $freshness->expects($this->once())
-            ->method('record')
+            ->method('start')
             ->willThrowException(new \RuntimeException('Checkpoint unavailable'));
-        $this->app->instance(MorningJobFreshnessService::class, $freshness);
+        $this->app->instance(ContractImportCompletion::class, $freshness);
         Http::fake();
 
         $this->artisan('contracts:fetch')

@@ -8,6 +8,7 @@ use App\Models\ContractSourceObservation;
 use App\Models\ContractSourceSnapshot;
 use App\Models\ElectricityContract;
 use App\Services\CompanyListCacheService;
+use App\Services\ContractImport\ContractImportCompletion;
 use App\Services\ContractImport\ContractImportResult;
 use App\Services\ContractImport\ContractPostImportCoordinator;
 use App\Services\ContractInterpretation\ContractInterpretationDispatcher;
@@ -16,7 +17,6 @@ use App\Services\ContractStatistics\ContractPercentileService;
 use App\Services\ContractStatistics\ContractPriceStatisticsService;
 use App\Services\SitemapService;
 use Carbon\CarbonImmutable;
-use Illuminate\Contracts\Cache\Factory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
@@ -74,11 +74,8 @@ class ContractPostImportCoordinatorTest extends TestCase
         config()->set('cache.default', 'array');
         $coordinator = new ContractPostImportCoordinator(
             $interpretations,
-            $statistics,
-            $contractCache,
-            $companyCache,
+            new ContractImportCompletion($statistics, $contractCache, $companyCache),
             $percentiles,
-            $this->app->make(Factory::class),
         );
 
         Cache::forever('unrelated-price-refresh-test', 'keep');
@@ -123,9 +120,9 @@ class ContractPostImportCoordinatorTest extends TestCase
             $companies = $this->createMock(CompanyListCacheService::class);
             $companies->expects($this->never())->method('bumpVersion');
             $coordinator = new ContractPostImportCoordinator(
-                $this->createMock(ContractInterpretationDispatcher::class), $statistics, $contracts, $companies,
+                $this->createMock(ContractInterpretationDispatcher::class),
+                new ContractImportCompletion($statistics, $contracts, $companies),
                 $this->createMock(ContractPercentileService::class),
-                $this->app->make(Factory::class),
             );
             $result = $coordinator->run($this->importResult([], $complete), '2026-08-01');
             $this->assertSame($statisticsSucceeded, $result->statisticsCompletedAt !== null);
