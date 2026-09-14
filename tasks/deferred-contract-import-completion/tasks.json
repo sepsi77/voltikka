@@ -4,5 +4,8 @@
   {"name":"Add focused concurrency and behavior tests", "status":"done"},
   {"name":"Run verification and update context and release notes", "status":"done"},
   {"name":"Correct later-reader scope and scoped absent-checkpoint behavior; verify review fixes", "status":"done"},
-  {"name":"Settle active deterministic rejections without publishing unsafe prices; verify closed diagnostics", "status":"done"}
+  {"name":"Settle active deterministic rejections without publishing unsafe prices; verify closed diagnostics", "status":"done"},
+  {"name":"Verify approved production deployment and automatic full-import readiness", "status":"done"},
+  {"name":"Verify initial freshness-gated forecast publication and public pages", "status":"done"},
+  {"name":"Record manager-verified production results in local documentation", "status":"done"}
 ]

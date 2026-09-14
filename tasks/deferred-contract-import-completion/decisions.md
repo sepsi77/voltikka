@@ -1,5 +1,13 @@
 # Decisions
 
+## Current result — production completion verified
+
+The manager verified the final correction deployment, the September 14 automatic import completion, and the initial forecast publication. These steps are done, not pending. See [production-results.md](production-results.md) for exact identities, counts, public checks, and limits. This final record uses manager-supplied evidence only; no application or production calls were made to prepare it.
+
+The sections below retain the earlier local work, failed attempt, and approval requirements as historical facts. Their local-only and pending-release statements describe those earlier stages, not the current result. Old failed production runs were not rewritten.
+
+## Initial local scope
+
 - Local work only. No production calls, commits, pushes or deployments.
 - Keep the existing two-attempt cache conflict recovery and publication guards.
 - Use only domain-local coordination. Stop and report a precise safety gap if finite execution ownership cannot protect required writes without wider architecture.
@@ -53,7 +61,7 @@ This proposed hard-stop step is superseded. No alarm, subprocess timeout, depend
 
 The portable tests use real SQLite rows, statistics transactions, real publication/activation and real eight-preset/company cache builds. They test stale UUID/token rejection before deletion, rollback integrity, scoped fence placement, duplicate claims, a newer full run becoming ready before an old statistics fence, publication during statistics/build/finalization, and JSON key normalization. A MySQL grammar test proves that the fence query requests `FOR UPDATE` before date writes. SQLite cannot prove InnoDB blocking; no local MySQL fixture or production database was used. The blocking guarantee rests on the existing database row-lock/transaction semantics described above.
 
-## Release plan — approval still required
+## Historical release plan — approval was still required
 
 No production calls or mutations occurred. No commit or push was made. This is not a deployed fix.
 
@@ -113,4 +121,4 @@ Earlier checks exposed one test field typo (`general_rate` instead of `general_k
 - Scoped `vendor/bin/pint --test` on all seven changed PHP files: **passed**. Initial scoped Pint applied formatting only to the statistics service.
 - `php -l` on those seven files: **all passed**.
 - `cd laravel && npm run build`: **passed**, 60 modules, 904 ms. Existing Browserslist age warning remains. Log: `/tmp/rejection-build.log`.
-- Final diff review, `git diff --check`, task JSON parsing and all five changed context/CLAUDE mirrors: **passed**. No dependency, migration, flag, production call, import retry, commit or push was made. This correction remains local.
+- Final diff review, `git diff --check`, task JSON parsing and all five changed context/CLAUDE mirrors: **passed**. No dependency, migration, flag, production call, import retry, commit or push was made. At that verification stage, this correction remained local. The later approved deployment and recovery are recorded in `production-results.md`.
